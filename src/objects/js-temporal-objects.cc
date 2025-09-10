@@ -3392,14 +3392,20 @@ Maybe<RelativeTo> GetTemporalRelativeToOptionHandleUndefined(
     // of the steps handled in Rust
     temporal_rs::OwnedRelativeTo relative_to;
 
-    // TODO(manishearth) This should use HandleStringEncodings
-    // and not allocate a string once
-    // https://github.com/boa-dev/temporal/issues/374 lands
-    auto std_str = str->ToStdString();
+    auto rust_result =
+        HandleStringEncodings<TemporalResult<temporal_rs::OwnedRelativeTo>>(
+            isolate, str,
+            [](std::string_view view)
+                -> TemporalResult<temporal_rs::OwnedRelativeTo> {
+              return temporal_rs::OwnedRelativeTo::from_utf8(view);
+            },
+            [](std::u16string_view view)
+                -> TemporalResult<temporal_rs::OwnedRelativeTo> {
+              return temporal_rs::OwnedRelativeTo::from_utf16(view);
+            });
     MOVE_RETURN_ON_EXCEPTION(
         isolate, relative_to,
-        ExtractRustResult(isolate,
-                          temporal_rs::OwnedRelativeTo::try_from_str(std_str)));
+        ExtractRustResult(isolate, std::move(rust_result)));
 
     // 12. Return the Record { [[PlainRelativeTo]]: undefined,
     // [[ZonedRelativeTo]]: zonedRelativeTo }.
