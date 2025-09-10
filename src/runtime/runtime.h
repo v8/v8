@@ -247,7 +247,7 @@ constexpr bool CanTriggerGC(T... properties) {
 
 #define FOR_EACH_THROWING_INTRINSIC_INTERNAL(F, I) \
   F(Throw, 1, 1)                                   \
-  F(ThrowApplyNonFunction, 1, 1)                   \
+  F(ThrowTargetNonFunction, 2, 1)                  \
   F(ThrowCalledNonCallable, 1, 1)                  \
   F(ThrowConstructedNonConstructable, 1, 1)        \
   F(ThrowConstructorReturnedNonObject, 0, 1)       \

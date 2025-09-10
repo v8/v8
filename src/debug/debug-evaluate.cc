@@ -1297,6 +1297,19 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
         default:
           return false;
       }
+    case Builtin::kCallWrappedFunction:
+    case Builtin::kCallBoundFunction:
+    case Builtin::kCallProxy:
+    case Builtin::kCallFunction_ReceiverIsAny:
+    case Builtin::kCallFunction_ReceiverIsNotNullOrUndefined:
+      switch (caller) {
+        case Builtin::kFunctionPrototypeCall:
+        case Builtin::kFunctionPrototypeApply:
+          return true;
+        default:
+          return false;
+      }
+
     case Builtin::kRegExpMatchFast:
       // This is not a problem. We force String.prototype.match to take the
       // slow path so that this call is not made.
