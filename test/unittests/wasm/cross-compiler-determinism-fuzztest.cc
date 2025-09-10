@@ -182,6 +182,9 @@ void CrossCompilerDeterminismTest::TestFloat32Binop(WasmOpcode opcode,
   // floating point numbers.
   bool preserve_signalling_nan =
       lhs.is_nan() && !lhs.is_quiet_nan() && opcode == kExprF32CopySign;
+  bool has_signalling_nan_and_nan_inputs =
+      lhs.is_nan() && rhs.is_nan() &&
+      (!lhs.is_quiet_nan() || !rhs.is_quiet_nan());
 
   // Remember all values from all configurations.
   base::SmallVector<Float32, 9> results = {
@@ -208,15 +211,21 @@ void CrossCompilerDeterminismTest::TestFloat32Binop(WasmOpcode opcode,
     results.push_back(
         GetFloat32BinopResult<ConstantInputs<FloatRepresentation>>(
             TestExecutionTier::kTurbofan, opcode, lhs, rhs));
-    results.push_back(
-        GetFloat32BinopResult<ParamAndConstantInput<FloatRepresentation, 0>>(
-            TestExecutionTier::kTurbofan, opcode, lhs, rhs));
-    results.push_back(
-        GetFloat32BinopResult<ParamAndConstantInput<FloatRepresentation, 1>>(
-            TestExecutionTier::kTurbofan, opcode, lhs, rhs));
-    results.push_back(
-        GetFloat32BinopResult<TwoParamInputs<FloatRepresentation>>(
-            TestExecutionTier::kTurbofan, opcode, lhs, rhs));
+    // Combining NaN and SNaN or having both inputs as SNaN could have
+    // different results when passed as f32. JSToWasmWrapper currently uses
+    // WasmTaggedToFloat32 to pass FP parameters which may turn SNaN params to
+    // QNaN which may change the final result.
+    if (!has_signalling_nan_and_nan_inputs) {
+      results.push_back(
+          GetFloat32BinopResult<ParamAndConstantInput<FloatRepresentation, 0>>(
+              TestExecutionTier::kTurbofan, opcode, lhs, rhs));
+      results.push_back(
+          GetFloat32BinopResult<ParamAndConstantInput<FloatRepresentation, 1>>(
+              TestExecutionTier::kTurbofan, opcode, lhs, rhs));
+      results.push_back(
+          GetFloat32BinopResult<TwoParamInputs<FloatRepresentation>>(
+              TestExecutionTier::kTurbofan, opcode, lhs, rhs));
+    }
   }
 
   ASSERT_TRUE(AllResultsEqual(base::VectorOf(results)))
