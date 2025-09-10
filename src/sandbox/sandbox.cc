@@ -32,6 +32,12 @@ thread_local Sandbox* Sandbox::current_ = nullptr;
 Sandbox* Sandbox::current_non_inlined() { return current_; }
 // static
 void Sandbox::set_current_non_inlined(Sandbox* sandbox) { current_ = sandbox; }
+
+Sandbox* Sandbox::Clone(v8::VirtualAddressSpace* vas) {
+  Sandbox* sandbox = new Sandbox;
+  sandbox->Initialize(vas, underlying_memory_file_);
+  return sandbox;
+}
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
 Sandbox* Sandbox::default_sandbox_ = nullptr;
@@ -98,7 +104,8 @@ static Address DetermineAddressSpaceLimit() {
   return 1ULL << virtual_address_bits;
 }
 
-void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
+void Sandbox::Initialize(v8::VirtualAddressSpace* vas,
+                         PlatformSharedMemoryHandle underlying_memory_file) {
   // Take the size of the virtual address space into account when determining
   // the size of the address space reservation backing the sandbox. For
   // example, if we only have a 40-bit address space, split evenly between
@@ -150,11 +157,13 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
   } else {
     DCHECK_EQ(kSandboxSize, reservation_size);
     constexpr bool use_guard_regions = true;
-    success = Initialize(vas, kSandboxSize, use_guard_regions);
+    success = Initialize(vas, kSandboxSize, use_guard_regions,
+                         underlying_memory_file);
   }
 
   // Fall back to creating a (smaller) partially reserved sandbox.
   while (!success && reservation_size > kSandboxMinimumReservationSize) {
+    DCHECK_EQ(underlying_memory_file, kInvalidSharedMemoryHandle);
     static_assert(kFallbackToPartiallyReservedSandboxAllowed);
     reservation_size /= 2;
     DCHECK_GE(reservation_size, kSandboxMinimumReservationSize);
@@ -188,7 +197,8 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
 }
 
 bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
-                         bool use_guard_regions) {
+                         bool use_guard_regions,
+                         PlatformSharedMemoryHandle underlying_memory_file) {
   CHECK(!initialized_);
   CHECK(base::bits::IsPowerOfTwo(size));
   CHECK(vas->CanAllocateSubspaces());
@@ -237,9 +247,24 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   }
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
-  address_space_ =
-      vas->AllocateSubspace(hint, true_reservation_size, kSandboxAlignment,
-                            kSandboxMaxPermissions, sandbox_pkey);
+  bool is_clonable = false;
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  if (underlying_memory_file == kInvalidSharedMemoryHandle) {
+    // If there is no specified file then we create a regular sandbox
+    // with a backed file to later be able to make a CoW clone of it.
+    underlying_memory_file_ =
+        v8::base::OS::CreateSharedMemoryHandleForTesting(true_reservation_size);
+    if (underlying_memory_file_ == kInvalidSharedMemoryHandle) {
+      return false;
+    }
+    underlying_memory_file = underlying_memory_file_;
+    is_clonable = true;
+  }
+#endif
+
+  address_space_ = vas->AllocateSubspace(
+      hint, true_reservation_size, kSandboxAlignment, kSandboxMaxPermissions,
+      sandbox_pkey, underlying_memory_file, is_clonable);
   if (!address_space_) return false;
 
   reservation_base_ = address_space_->base();
@@ -378,6 +403,12 @@ void Sandbox::TearDown() {
       trap_handler_initialized_ = false;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+    if (underlying_memory_file_ != kInvalidSharedMemoryHandle) {
+      v8::base::OS::DestroySharedMemoryHandle(underlying_memory_file_);
+    }
+#endif
 
     // This destroys the sub space and frees the underlying reservation.
     address_space_.reset();
