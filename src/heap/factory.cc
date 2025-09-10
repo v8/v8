@@ -3156,8 +3156,7 @@ void Factory::InitializeJSObjectFromMap(
     NewJSObjectType new_js_object_type) {
   DisallowGarbageCollection no_gc;
   if (!maybe_properties.has_value()) {
-    obj->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore,
-                                    SKIP_WRITE_BARRIER);
+    obj->set_raw_properties_or_hash(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   } else {
     obj->set_raw_properties_or_hash(maybe_properties.value(), kRelaxedStore);
   }
