@@ -136,9 +136,12 @@ bool MaglevInliner::InlineCallSites() {
 }
 
 void MaglevInliner::RunOptimizer() {
-  MaglevGraphOptimizer optimizer_(graph_);
-  GraphMultiProcessor<MaglevGraphOptimizer&, RecomputePhiUseHintsProcessor>
-      optimization_pass(optimizer_,
+  RecomputeKnownNodeAspectsProcessor kna_processor(graph_);
+  MaglevGraphOptimizer optimizer(graph_, kna_processor);
+  GraphMultiProcessor<MaglevGraphOptimizer&,
+                      RecomputeKnownNodeAspectsProcessor&,
+                      RecomputePhiUseHintsProcessor>
+      optimization_pass(optimizer, kna_processor,
                         RecomputePhiUseHintsProcessor{graph_->zone()});
   optimization_pass.ProcessGraph(graph_);
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {

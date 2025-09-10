@@ -400,6 +400,17 @@ class MergePointInterpreterFrameState {
     return known_node_aspects_->Clone(zone);
   }
 
+  void ClearKnownNodeAspects() { known_node_aspects_ = nullptr; }
+
+  void MergeNodeAspects(Zone* zone,
+                        const KnownNodeAspects& known_node_aspects) {
+    if (!known_node_aspects_) {
+      known_node_aspects_ = known_node_aspects.Clone(zone);
+    } else {
+      known_node_aspects_->Merge(known_node_aspects, zone);
+    }
+  }
+
   const CompactInterpreterFrameState& frame_state() const {
     return frame_state_;
   }

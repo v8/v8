@@ -38,8 +38,9 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
 }
 }  // namespace
 
-MaglevGraphOptimizer::MaglevGraphOptimizer(Graph* graph)
-    : reducer_(this, graph), empty_known_node_aspects_(graph->zone()) {}
+MaglevGraphOptimizer::MaglevGraphOptimizer(
+    Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor)
+    : reducer_(this, graph), kna_processor_(kna_processor) {}
 
 BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
     BasicBlock* block) {
@@ -49,8 +50,6 @@ BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
 
 void MaglevGraphOptimizer::PostProcessBasicBlock(BasicBlock* block) {
   reducer_.FlushNodesToBlock();
-  // TODO(victorgomes): Support merging KNAs.
-  empty_known_node_aspects_.ClearAll();
 }
 
 void MaglevGraphOptimizer::PreProcessNode(Node*, const ProcessingState& state) {

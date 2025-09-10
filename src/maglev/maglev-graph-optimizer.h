@@ -11,6 +11,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-kna-processor.h"
 #include "src/maglev/maglev-reducer.h"
 
 namespace v8 {
@@ -19,7 +20,8 @@ namespace maglev {
 
 class MaglevGraphOptimizer {
  public:
-  explicit MaglevGraphOptimizer(Graph* graph);
+  explicit MaglevGraphOptimizer(
+      Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor);
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
@@ -40,7 +42,9 @@ class MaglevGraphOptimizer {
   NODE_BASE_LIST(DECLARE_PROCESS)
 #undef DECLARE_PROCESS
 
-  KnownNodeAspects& known_node_aspects() { return empty_known_node_aspects_; }
+  KnownNodeAspects& known_node_aspects() {
+    return kna_processor_.known_node_aspects();
+  }
 
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
     return &current_node()->eager_deopt_info()->top_frame();
@@ -48,9 +52,7 @@ class MaglevGraphOptimizer {
 
  private:
   MaglevReducer<MaglevGraphOptimizer> reducer_;
-
-  // TODO(victorgomes): To improve this!
-  KnownNodeAspects empty_known_node_aspects_;
+  RecomputeKnownNodeAspectsProcessor& kna_processor_;
 
   NodeBase* current_node_;
 
