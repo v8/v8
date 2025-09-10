@@ -41,6 +41,8 @@ struct JSDispatchEntry {
   inline Address GetEntrypoint() const;
   inline Address GetCodePointer() const;
   inline Tagged<Code> GetCode() const;
+  // Same as `GetCode()` with page synchronization for TSAN.
+  inline Tagged<Code> GetCodeForGC() const;
   inline uint16_t GetParameterCount() const;
 
   inline void SetCodeAndEntrypointPointer(Address new_object,
@@ -206,6 +208,8 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // BytecodeArray in the entries. At that point, this could be changed to
   // return a Tagged<Union<Code, BytecodeArray>>.
   inline Tagged<Code> GetCode(JSDispatchHandle handle);
+  // Same as `GetCode()` with page synchronization for TSAN.
+  inline Tagged<Code> GetCodeForGC(JSDispatchHandle handle);
 
   // Returns the address of the Code object stored in the specified entry.
   inline Address GetCodeAddress(JSDispatchHandle handle);

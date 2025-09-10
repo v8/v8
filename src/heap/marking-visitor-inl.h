@@ -353,7 +353,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
           JSFunction::kDispatchHandleOffset));
   if (handle != kNullJSDispatchHandle) {
     Tagged<HeapObject> obj =
-        IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
+        IsolateGroup::current()->js_dispatch_table()->GetCodeForGC(handle);
     // TODO(saelo): maybe factor out common code with VisitIndirectPointer
     // into a helper routine?
     SynchronizePageAccess(obj);
