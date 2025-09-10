@@ -651,7 +651,8 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     Tagged<HeapObject> key = Cast<HeapObject>(table->KeyAt(i, kRelaxedLoad));
 
     SynchronizePageAccess(key);
-    concrete_visitor()->RecordSlot(table, key_slot, key);
+    concrete_visitor()->template RecordSlot<ObjectSlot, RecordYoungSlot::kYes>(
+        table, key_slot, key);
     concrete_visitor()->AddWeakReferenceForReferenceSummarizer(table, key);
 
     ObjectSlot value_slot =

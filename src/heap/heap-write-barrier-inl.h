@@ -200,20 +200,23 @@ void WriteBarrier::ForEphemeronHashTable(Tagged<EphemeronHashTable> host,
 
   Tagged<HeapObject> heap_object_value = Cast<HeapObject>(value);
   MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(heap_object_value);
+  DCHECK(!value_chunk->Metadata()->is_writable_shared());
 
   const bool pointers_from_here_are_interesting =
       !host_chunk->IsYoungOrSharedChunk();
   const bool is_marking = host_chunk->IsMarking();
 
-  if (pointers_from_here_are_interesting &&
-      value_chunk->IsYoungOrSharedChunk()) {
+  if (is_marking) {
+    // Marking barrier: mark value & record slots when marking is on.
+    MarkingSlow<RecordYoungSlot::kYes>(host, HeapObjectSlot(slot),
+                                       heap_object_value);
+
+    // Only trigger the generation barrier while marking is off. That way we
+    // keep the remembered set empty after incremental marking started.
+  } else if (pointers_from_here_are_interesting &&
+             value_chunk->IsYoungOrSharedChunk()) {
     CombinedGenerationalAndSharedEphemeronBarrierSlow(host, slot.address(),
                                                       heap_object_value);
-  }
-
-  // Marking barrier: mark value & record slots when marking is on.
-  if (is_marking) {
-    MarkingSlow(host, HeapObjectSlot(slot), heap_object_value);
   }
 }
 

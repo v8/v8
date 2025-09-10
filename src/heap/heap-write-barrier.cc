@@ -40,13 +40,21 @@ MarkingBarrier* WriteBarrier::SetForThread(MarkingBarrier* marking_barrier) {
   return existing;
 }
 
+template V8_EXPORT_PRIVATE void WriteBarrier::MarkingSlow<RecordYoungSlot::kNo>(
+    Tagged<HeapObject> host, HeapObjectSlot slot, Tagged<HeapObject> value);
+template V8_EXPORT_PRIVATE void
+WriteBarrier::MarkingSlow<RecordYoungSlot::kYes>(Tagged<HeapObject> host,
+                                                 HeapObjectSlot slot,
+                                                 Tagged<HeapObject> value);
+
+template <RecordYoungSlot kRecordYoung>
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host, HeapObjectSlot slot,
                                Tagged<HeapObject> value) {
   SLOW_DCHECK_IMPLIES(kUninterestingPagesCanBeSkipped,
                       MemoryChunk::FromHeapObject(host)->GetFlags() &
                           MemoryChunk::kPointersFromHereAreInterestingMask);
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
-  marking_barrier->Write(host, slot, value);
+  marking_barrier->Write<HeapObjectSlot, kRecordYoung>(host, slot, value);
 }
 
 // static

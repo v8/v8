@@ -175,6 +175,7 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
                              Tagged<TrustedObject> value);
   static inline void Marking(Tagged<HeapObject> host, JSDispatchHandle handle);
 
+  template <RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   static void MarkingSlow(Tagged<HeapObject> host, HeapObjectSlot,
                           Tagged<HeapObject> value);
   static void MarkingSlow(Tagged<InstructionStream> host, RelocInfo*,

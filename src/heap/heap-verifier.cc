@@ -633,22 +633,24 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
            !HeapLayout::InYoungGeneration(host);
   }
 
-  void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key,
+  void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key_slot,
                       ObjectSlot target) override {
     VisitPointer(host, target);
     if (v8_flags.minor_ms) return;
-    // Keys are handled separately and should never appear in this set.
-    CHECK(!InUntypedSet(key));
-    Tagged<Object> k = *key;
-    if (!HeapLayout::InYoungGeneration(host) &&
-        HeapLayout::InYoungGeneration(k)) {
-      Tagged<EphemeronHashTable> table = i::Cast<EphemeronHashTable>(host);
-      auto it = ephemeron_remembered_set_->find(table);
-      CHECK(it != ephemeron_remembered_set_->end());
-      int slot_index =
-          EphemeronHashTable::SlotToIndex(table.address(), key.address());
-      InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
-      CHECK(it->second.find(entry.as_int()) != it->second.end());
+    Tagged<EphemeronHashTable> table = i::Cast<EphemeronHashTable>(host);
+    if (!heap_->incremental_marking()->IsMajorMarking()) {
+      // Keys are handled separately and should never appear in this set.
+      CHECK(!InUntypedSet(key_slot));
+      Tagged<Object> k = *key_slot;
+      if (!HeapLayout::InYoungGeneration(host) &&
+          HeapLayout::InYoungGeneration(k)) {
+        auto it = ephemeron_remembered_set_->find(table);
+        CHECK(it != ephemeron_remembered_set_->end());
+        int slot_index = EphemeronHashTable::SlotToIndex(table.address(),
+                                                         key_slot.address());
+        InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
+        CHECK(it->second.find(entry.as_int()) != it->second.end());
+      }
     }
   }
 

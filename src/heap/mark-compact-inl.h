@@ -13,7 +13,6 @@
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-worklist-inl.h"
-#include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/page-metadata.h"
@@ -56,7 +55,7 @@ void MarkCompactCollector::MarkRootObject(
 }
 
 // static
-template <typename THeapObjectSlot>
+template <typename THeapObjectSlot, RecordYoungSlot kRecordYoung>
 void MarkCompactCollector::RecordSlot(Tagged<HeapObject> host,
                                       THeapObjectSlot slot,
                                       Tagged<HeapObject> value) {
@@ -64,16 +63,18 @@ void MarkCompactCollector::RecordSlot(Tagged<HeapObject> host,
   if (host_chunk->ShouldSkipEvacuationSlotRecording()) {
     return;
   }
-  RecordSlot(host_chunk, slot, value);
+  RecordSlot<THeapObjectSlot, kRecordYoung>(host_chunk, slot, value);
 }
 
 // static
-template <typename THeapObjectSlot>
+template <typename THeapObjectSlot, RecordYoungSlot kRecordYoung>
 void MarkCompactCollector::RecordSlot(MemoryChunk* host_chunk,
                                       THeapObjectSlot slot,
                                       Tagged<HeapObject> value) {
   const MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
-  if (!value_chunk->IsEvacuationCandidate()) {
+  if (!value_chunk->IsEvacuationCandidate() &&
+      (!static_cast<bool>(kRecordYoung) ||
+       !HeapLayout::InYoungGeneration(value_chunk, value))) {
     return;
   }
 
@@ -83,7 +84,11 @@ void MarkCompactCollector::RecordSlot(MemoryChunk* host_chunk,
   const MutablePageMetadata* value_page =
       MutablePageMetadata::cast(value_chunk->Metadata(isolate));
 
-  if (value_page->is_executable()) {
+  if (static_cast<bool>(kRecordYoung) &&
+      HeapLayout::InYoungGeneration(value_chunk, value)) {
+    RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::ATOMIC>(
+        host_page, host_chunk->Offset(slot.address()));
+  } else if (value_page->is_executable()) {
     DCHECK(!InsideSandbox(value_chunk->address()));
     RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::ATOMIC>(
         host_page, host_chunk->Offset(slot.address()));

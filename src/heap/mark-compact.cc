@@ -179,6 +179,27 @@ class FullMarkingVerifier : public MarkingVerifierBase {
     }
   }
 
+  void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key_slot,
+                      ObjectSlot value_slot) override {
+    // First verify that both key and value are marked.
+    VerifyPointers(key_slot, key_slot + 1);
+    VerifyPointers(value_slot, value_slot + 1);
+
+    // Also verify that the ephemeron key was recorded in OLD_TO_NEW by the
+    // markers/write barrier.
+    Tagged<Object> k = *key_slot;
+    if (!HeapLayout::InYoungGeneration(host) &&
+        HeapLayout::InYoungGeneration(k)) {
+      MutablePageMetadata* page =
+          MutablePageMetadata::FromHeapObject(heap_->isolate(), host);
+      // No slots recorded on evacuation candidates.
+      CHECK_IMPLIES(!page->is_evacuation_candidate(),
+                    RememberedSet<OLD_TO_NEW_BACKGROUND>::Contains(
+                        page, key_slot.address()));
+      CHECK(!RememberedSet<OLD_TO_NEW>::Contains(page, key_slot.address()));
+    }
+  }
+
  private:
   V8_INLINE void VerifyHeapObjectImpl(Tagged<HeapObject> heap_object) {
     if (!ShouldVerifyObject(heap_object)) return;
@@ -265,10 +286,10 @@ class MainMarkingVisitor final
  private:
   // Functions required by MarkingVisitorBase.
 
-  template <typename TSlot>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void RecordSlot(Tagged<HeapObject> object, TSlot slot,
                   Tagged<HeapObject> target) {
-    MarkCompactCollector::RecordSlot(object, slot, target);
+    MarkCompactCollector::RecordSlot<TSlot, kRecordYoung>(object, slot, target);
   }
 
   void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
@@ -411,6 +432,11 @@ void MarkCompactCollector::StartMarking(
   if (v8_flags.sticky_mark_bits) {
     heap()->Unmark();
   }
+
+  // We can clear this remembered set once we start incremental marking. During
+  // incremental marking the markers will record ephemeron keys in OLD_TO_NEW
+  // instead.
+  heap_->ephemeron_remembered_set()->tables()->clear();
 
 #ifdef V8_COMPRESS_POINTERS
   heap_->young_external_pointer_space()->StartCompactingIfNeeded();
@@ -910,6 +936,10 @@ void MarkCompactCollector::Finish() {
 
   // Shrink pages if possible after processing and filtering slots.
   ShrinkPagesToObjectSizes(heap_, heap_->lo_space());
+
+  // Ensure that the GC and the incremental marking phase keep this remembered
+  // set empty.
+  DCHECK(heap_->ephemeron_remembered_set()->tables()->empty());
 
 #ifdef DEBUG
   DCHECK(state_ == SWEEP_SPACES || state_ == RELOCATE_OBJECTS);
@@ -3878,15 +3908,6 @@ void MarkCompactCollector::ClearWeakCollections() {
       }
     }
   }
-  auto* table_map = heap_->ephemeron_remembered_set()->tables();
-  for (auto it = table_map->begin(); it != table_map->end();) {
-    if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-            heap_, non_atomic_marking_state_, it->first)) {
-      it = table_map->erase(it);
-    } else {
-      ++it;
-    }
-  }
 }
 
 template <typename TObjectAndSlot, typename TMaybeSlot>
@@ -5623,52 +5644,6 @@ void CollectRememberedSetUpdatingItems(
   }
 }
 
-class EphemeronTableUpdatingItem : public UpdatingItem {
- public:
-  enum EvacuationState { kRegular, kAborted };
-
-  explicit EphemeronTableUpdatingItem(Heap* heap) : heap_(heap) {}
-  ~EphemeronTableUpdatingItem() override = default;
-
-  void Process() override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "EphemeronTableUpdatingItem::Process");
-    PtrComprCageBase cage_base(heap_->isolate());
-
-    auto* table_map = heap_->ephemeron_remembered_set()->tables();
-    for (auto it = table_map->begin(); it != table_map->end(); it++) {
-      Tagged<EphemeronHashTable> table = it->first;
-      auto& indices = it->second;
-      if (Cast<HeapObject>(table)
-              ->map_word(kRelaxedLoad)
-              .IsForwardingAddress()) {
-        // The object has moved, so ignore slots in dead memory here.
-        continue;
-      }
-      DCHECK(IsMap(table->map(), cage_base));
-      DCHECK(IsEphemeronHashTable(table, cage_base));
-      for (auto iti = indices.begin(); iti != indices.end(); ++iti) {
-        // EphemeronHashTable keys must be heap objects.
-        ObjectSlot key_slot(table->RawFieldOfElementAt(
-            EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
-        Tagged<Object> key_object = key_slot.Relaxed_Load();
-        Tagged<HeapObject> key;
-        CHECK(key_object.GetHeapObject(&key));
-        if (IsTheHole(key)) continue;
-        MapWord map_word = key->map_word(cage_base, kRelaxedLoad);
-        if (map_word.IsForwardingAddress()) {
-          key = map_word.ToForwardingAddress(key);
-          key_slot.Relaxed_Store(key);
-        }
-      }
-    }
-    table_map->clear();
-  }
-
- private:
-  Heap* const heap_;
-};
-
 }  // namespace
 
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
@@ -5724,9 +5699,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     // WasmStruct which races with updating a slot in Map. Since to space is
     // empty after a full GC, such races can't happen.
     DCHECK_IMPLIES(heap_->new_space(), heap_->new_space()->Size() == 0);
-
-    updating_items.push_back(
-        std::make_unique<EphemeronTableUpdatingItem>(heap_));
 
     auto pointers_updating_job = std::make_unique<PointersUpdatingJob>(
         heap_->isolate(), this, std::move(updating_items));
