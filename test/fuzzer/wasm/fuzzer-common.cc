@@ -210,6 +210,7 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
           case HeapType::kEq:
           case HeapType::kArray:
           case HeapType::kStruct:
+          case HeapType::kString:
             if (IsNull(lhs_ref) || IsWasmNull(lhs_ref)) break;
             if (IsWasmStruct(lhs_ref)) {
               if (!CheckStruct(lhs_ref, rhs_ref)) return false;
@@ -217,6 +218,10 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
               if (!CheckArray(lhs_ref, rhs_ref)) return false;
             } else if (IsSmi(lhs_ref)) {
               if (lhs_ref != rhs_ref) return false;
+            } else if (IsString(lhs_ref)) {
+              Tagged<String> lhs_str = Cast<String>(lhs_ref);
+              Tagged<String> rhs_str = Cast<String>(rhs_ref);
+              if (!lhs_str->Equals(rhs_str)) return false;
             }
             break;
           default:
