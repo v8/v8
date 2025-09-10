@@ -1294,7 +1294,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
 
   void JumpIfUnsignedLessThan(Register x, int32_t y, Label* dest) {
-    AssertZeroExtended(x);
     Branch(dest, ult, x, Operand(y));
   }
 
