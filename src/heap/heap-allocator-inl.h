@@ -311,10 +311,14 @@ template <typename AllocateFunction>
 std::invoke_result_t<AllocateFunction>
 HeapAllocator::CollectGarbageAndRetryAllocation(AllocateFunction&& Allocate,
                                                 AllocationType allocation) {
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
   for (int i = 0; i < 2; i++) {
     // Skip the heap limit check in the GC if enabled. The heap limit needs to
     // be enforced by the caller.
-    CollectGarbage(allocation);
+    CollectGarbage(allocation, perform_heap_limit_check);
 
     // As long as we are at or above the heap limit, we definitely need another
     // GC.

@@ -188,7 +188,9 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment, AllocationHint hint);
 
-  void CollectGarbage(AllocationType allocation);
+  void CollectGarbage(AllocationType allocation,
+                      PerformHeapLimitCheck perform_heap_limit_check =
+                          PerformHeapLimitCheck::kYes);
   void CollectAllAvailableGarbage(AllocationType allocation);
 
   // Performs a GC and retries the allocation in a loop. The caller of this

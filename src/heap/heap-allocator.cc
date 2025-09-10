@@ -138,7 +138,8 @@ AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
   return AllocateRawWithLightRetrySlowPath(Allocate, allocation);
 }
 
-void HeapAllocator::CollectGarbage(AllocationType allocation) {
+void HeapAllocator::CollectGarbage(
+    AllocationType allocation, PerformHeapLimitCheck perform_heap_limit_check) {
   if (IsSharedAllocationType(allocation)) {
     heap_->CollectGarbageShared(local_heap_,
                                 GarbageCollectionReason::kAllocationFailure);
@@ -147,7 +148,7 @@ void HeapAllocator::CollectGarbage(AllocationType allocation) {
     AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
     heap_->CollectGarbage(space_to_gc,
                           GarbageCollectionReason::kAllocationFailure,
-                          kNoGCCallbackFlags, PerformHeapLimitCheck::kNo);
+                          kNoGCCallbackFlags, perform_heap_limit_check);
   } else {
     // Request GC from main thread.
     heap_->CollectGarbageFromAnyThread(local_heap_);
