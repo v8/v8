@@ -12131,8 +12131,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   base::SmallVector<ValueNode*, 16> values;
   values.reserve(arity);
   NodeType combined_type = NodeType::kNone;
+  bool any_value_has_unknown_type = false;
   for (ValueNode* v : args) {
-    combined_type = UnionType(combined_type, GetType(v));
+    NodeType node_type = GetType(v);
+    if (NodeTypeIs(node_type, NodeType::kUnknown)) {
+      // No static type info available; this is tracked separately from static
+      // types, since we may still speculate on present static types from other
+      // value nodes below.
+      any_value_has_unknown_type = true;
+    } else {
+      combined_type = UnionType(combined_type, node_type);
+    }
     values.push_back(v);
   }
 
@@ -12143,16 +12152,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         elements_kind, IsHoleyElementsKind(elements_kind)
                            ? HOLEY_DOUBLE_ELEMENTS
                            : PACKED_DOUBLE_ELEMENTS);
-  } else {
-    // TODO(jgruber): Note this branch combines two cases:
-    //   1) at least one value type was kUnknown, i.e. there is no static type
-    //      information available; and
-    //   2) at least one value type was not kUnknown and not kNumber.
-    //
-    // In case 1), Turbofan speculatively selects elements_kind based on the
-    // most general static type, and inserts deopting type checks for values
-    // with type kUnknown. We *could* do the same, but I'm not sure whether
-    // this is beneficial given the additional deopts.
+  } else if (!NodeTypeCanBe(combined_type, NodeType::kNumber)) {
+    // We statically know that at least one value is not a number.
     elements_kind = GetMoreGeneralElementsKind(
         elements_kind,
         IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS : PACKED_ELEMENTS);
@@ -12169,6 +12170,22 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         initial_map.AsElementsKind(broker(), elements_kind);
     if (!maybe_updated_map.has_value()) return {};
     initial_map = maybe_updated_map.value();
+  }
+
+  if (any_value_has_unknown_type && !IsObjectElementsKind(elements_kind)) {
+    if (!can_inline_call) return {};
+
+    // We speculate, ignoring values without static types wrt elements_kind
+    // selection and inserting Check nodes instead.
+    for (ValueNode* v : args) {
+      if (!NodeTypeIs(GetType(v), NodeType::kUnknown)) continue;
+      if (IsSmiElementsKind(elements_kind)) {
+        RETURN_IF_ABORT(BuildCheckSmi(v));
+      } else {
+        DCHECK(IsDoubleElementsKind(elements_kind));
+        RETURN_IF_ABORT(BuildCheckNumber(v));
+      }
+    }
   }
 
   return BuildAndAllocateJSArray(
