@@ -153,7 +153,7 @@ void MaglevInliner::RunOptimizer() {
 bool MaglevInliner::Run() {
   if (graph_->inlineable_calls().empty()) return true;
 
-  while (!graph_->inlineable_calls().empty()) {
+  while (CanInlineCall()) {
     if (!InlineCallSites()) return false;
     RunOptimizer();
   }
