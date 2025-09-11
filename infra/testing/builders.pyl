@@ -496,6 +496,7 @@
       # TODO(437003349) change to maglev_no_turbofan once the regexp project
       # is complete.
       {'name': 'v8testing', 'variant': 'maglev_no_turbofan_regexp_from_bc'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev_tracing'},
     ],
   },
   'v8_linux64_gc_stress_custom_snapshot_dbg': {
@@ -1661,6 +1662,7 @@
       # TODO(437003349) change to maglev_no_turbofan once the regexp project
       # is complete.
       {'name': 'v8testing', 'variant': 'maglev_no_turbofan_regexp_from_bc'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev_tracing'},
     ],
   },
   'V8 Linux64 - cppgc-non-default - debug': {
@@ -1719,6 +1721,7 @@
       # TODO(437003349) change to maglev_no_turbofan once the regexp project
       # is complete.
       {'name': 'v8testing', 'variant': 'maglev_no_turbofan_regexp_from_bc'},
+      {'name': 'mjsunit', 'variant': 'stress_maglev_tracing'},
     ],
   },
   'V8 Linux64 - PKU': {
