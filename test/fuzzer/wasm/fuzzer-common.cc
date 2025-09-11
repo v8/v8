@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -33,6 +34,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-tracing.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/flag-utils.h"
@@ -592,7 +594,8 @@ int FindExportedMainFunction(const WasmModule* module,
 
 bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
                   Tagged<WasmTrustedInstanceData> instance_data,
-                  Tagged<WasmTrustedInstanceData> ref_instance_data) {
+                  Tagged<WasmTrustedInstanceData> ref_instance_data,
+                  bool print_difference) {
   size_t globals_count = module->globals.size();
 
   int global_mismatches = 0;
@@ -602,15 +605,16 @@ bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
     WasmValue ref_value = ref_instance_data->GetGlobalValue(isolate, global);
 
     if (!ValuesEquivalent(value, ref_value, isolate)) {
-      std::ostringstream ss;
-      ss << "Error: Global variables at index " << i
-         << " have different values!\n";
-      ss << "  - Reference: ";
-      PrintValue(ss, ref_value);
-      ss << "\n  - Actual: ";
-      PrintValue(ss, value);
-      base::OS::PrintError("%s\n", ss.str().c_str());
-
+      if (print_difference) {
+        std::ostringstream ss;
+        ss << "Error: Global variables at index " << i
+           << " have different values!\n";
+        ss << "  - Reference: ";
+        PrintValue(ss, ref_value);
+        ss << "\n  - Actual:    ";
+        PrintValue(ss, value);
+        base::OS::PrintError("%s\n", ss.str().c_str());
+      }
       global_mismatches++;
     }
   }
@@ -620,7 +624,8 @@ bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
 
 bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
                    Tagged<WasmTrustedInstanceData> instance_data,
-                   Tagged<WasmTrustedInstanceData> ref_instance_data) {
+                   Tagged<WasmTrustedInstanceData> ref_instance_data,
+                   bool print_difference) {
   int memory_mismatches = 0;
   size_t memories_count = module->memories.size();
   for (size_t i = 0; i < memories_count; ++i) {
@@ -637,11 +642,13 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     size_t ref_memory_size = ref_buffer->byte_length();
 
     if (ref_memory_size != memory_size) {
-      std::ostringstream ss;
-      ss << "Error: Memories at index " << i << " have different sizes!\n";
-      ss << "  - Reference: " << ref_memory_size << " bytes\n;";
-      ss << "  - Actual:    " << memory_size << " bytes" << std::endl;
-      base::OS::PrintError("%s", ss.str().c_str());
+      if (print_difference) {
+        std::ostringstream ss;
+        ss << "Error: Memories at index " << i << " have different sizes!\n";
+        ss << "  - Reference: " << ref_memory_size << " bytes\n;";
+        ss << "  - Actual:    " << memory_size << " bytes" << std::endl;
+        base::OS::PrintError("%s", ss.str().c_str());
+      }
       continue;
     }
 
@@ -653,6 +660,10 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     }
 
     memory_mismatches++;
+
+    if (!print_difference) {
+      continue;
+    }
 
     constexpr int block_size = 16;
 
@@ -673,8 +684,9 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
       for (size_t j = 0; j < memory_size; j += block_size) {
         if (memcmp(ref_data + j, data + j, block_size) != 0) {
           std::ostringstream ss;
-          ss << "Error: Memory difference found in range " << j << "-"
-             << (j + block_size) << "!\n"
+          ss << "Error: Memory difference found in range 0x" << std::hex << j
+             << "-0x" << (j + block_size) << " (" << std::dec << j << "-"
+             << (j + block_size) << ")!\n"
              << std::hex;
 
           ss << "  - Reference: ";
@@ -785,15 +797,15 @@ int ExecuteAgainstReference(Isolate* isolate,
       ref_result.instance->trusted_data(isolate);
 
   bool globals_match =
-      GlobalsMatch(isolate, module, instance_data, ref_instance_data);
+      GlobalsMatch(isolate, module, instance_data, ref_instance_data, true);
   bool memories_match =
-      MemoriesMatch(isolate, module, instance_data, ref_instance_data);
+      MemoriesMatch(isolate, module, instance_data, ref_instance_data, true);
   if (globals_match && memories_match) {
     return 0;
   }
 
   base::OS::PrintError(
-      "Mismatch detected in global variables or memory - rerunning with "
+      "\nMismatch detected in global variables or memory - rerunning with "
       "tracing enabled.\n");
 
   bool should_trace_globals = !globals_match;
@@ -808,13 +820,24 @@ int ExecuteAgainstReference(Isolate* isolate,
   FlagScope<bool> trace_memory_scope(&v8_flags.trace_wasm_memory,
                                      should_trace_memory);
 
+  wasm::WasmTracesForTesting& traces = GetWasmTracesForTesting();
+  // This flag makes sure the runtime functions store the traces instead of
+  // printing them to stdout.
+  traces.should_store_trace = true;
+
   if (isolate->has_exception()) isolate->clear_exception();
   if (WasmEngine::clear_nondeterminism()) return -1;
 
-  base::OS::PrintError("\nReference run trace\n");
   ExecutionResult ref_result_traced = ExecuteReferenceRun(
       isolate, wire_bytes, exported_main, max_executed_instructions);
   CHECK(ref_result_traced.should_execute_non_reference);
+
+  // Copy the traces from the reference run to preserve them.
+  wasm::MemoryTrace memory_trace = traces.memory_trace;
+  wasm::GlobalTrace global_trace = traces.global_trace;
+  // Reset the vectors to store the traces for the actual run.
+  traces.memory_trace.clear();
+  traces.global_trace.clear();
 
   DirectHandle<WasmModuleObject> module_object_traced;
 
@@ -834,20 +857,51 @@ int ExecuteAgainstReference(Isolate* isolate,
   CHECK(result_traced_opt);
   const ExecutionResult& result_traced = *result_traced_opt;
 
-  base::OS::PrintError("\n");
-
   Tagged<WasmTrustedInstanceData> instance_data_traced =
       result_traced.instance->trusted_data(isolate);
   Tagged<WasmTrustedInstanceData> ref_instance_data_traced =
       ref_result_traced.instance->trusted_data(isolate);
 
   bool globals_match_traced = GlobalsMatch(
-      isolate, module, instance_data_traced, ref_instance_data_traced);
+      isolate, module, instance_data_traced, ref_instance_data_traced, false);
   bool memories_match_traced = MemoriesMatch(
-      isolate, module, instance_data_traced, ref_instance_data_traced);
+      isolate, module, instance_data_traced, ref_instance_data_traced, false);
 
   if (globals_match_traced && memories_match_traced) {
     FATAL("Mismatch disappeared when re-running with tracing enabled.");
+  }
+
+  wasm::MemoryTrace ref_memory_trace = traces.memory_trace;
+  wasm::GlobalTrace ref_global_trace = traces.global_trace;
+
+  if (should_trace_memory) {
+    std::ostringstream ss;
+    ss << "\nMemory trace of the actual run.\n";
+    for (uint32_t i = 0; i < memory_trace.size(); ++i) {
+      PrintMemoryTraceString(memory_trace[i], native_module, ss);
+      ss << "\n";
+    }
+    ss << "\nMemory trace of the reference run.\n";
+    for (uint32_t i = 0; i < ref_memory_trace.size(); ++i) {
+      PrintMemoryTraceString(ref_memory_trace[i], native_module, ss);
+      ss << "\n";
+    }
+    base::OS::PrintError("%s", ss.str().c_str());
+  }
+
+  if (should_trace_globals) {
+    std::ostringstream ss;
+    ss << "\nGlobal trace of the actual run.\n";
+    for (uint32_t i = 0; i < global_trace.size(); ++i) {
+      PrintGlobalTraceString(global_trace[i], native_module, ss);
+      ss << "\n";
+    }
+    ss << "\nGlobal trace of the reference run.\n";
+    for (uint32_t i = 0; i < ref_global_trace.size(); ++i) {
+      PrintGlobalTraceString(ref_global_trace[i], native_module, ss);
+      ss << "\n";
+    }
+    base::OS::PrintError("%s", ss.str().c_str());
   }
 
   FATAL("Execution mismatch. Tracing has been printed.");
