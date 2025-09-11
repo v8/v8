@@ -1786,6 +1786,16 @@ bool IsNodeUnsigned(InstructionSelector* selector, OpIndex n) {
       case WordBinopOp::Kind::kUnsignedMod:
       case WordBinopOp::Kind::kUnsignedMulOverflownBits:
         return true;
+      case WordBinopOp::Kind::kBitwiseAnd: {
+        const Operation& rhs_op = selector->Get(binop.right());
+        if ((rhs_op.Is<Opmask::kWord32Constant>() ||
+             rhs_op.Is<Opmask::kWord64Constant>()) &&
+            base::IsInRange(rhs_op.Cast<ConstantOp>().signed_integral(), 0,
+                            kMaxInt)) {
+          return true;
+        }
+        return false;
+      }
       default:
         return false;
     }
@@ -1799,10 +1809,18 @@ bool IsNodeUnsigned(InstructionSelector* selector, OpIndex n) {
            ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kUint32;
   } else if (op.Is<ConstantOp>()) {
     const ConstantOp& constant = op.Cast<ConstantOp>();
-    return constant.kind == ConstantOp::Kind::kCompressedHeapObject;
-  } else {
-    return false;
+    if (constant.kind == ConstantOp::Kind::kCompressedHeapObject) {
+      return true;
+    } else if ((op.Is<Opmask::kWord32Constant>() ||
+                op.Is<Opmask::kWord64Constant>()) &&
+               base::IsInRange(constant.signed_integral(), 0, kMaxInt)) {
+      return true;
+    } else if (op.Is<Opmask::kSmiConstant>() &&
+               base::IsInRange(constant.smi().value(), 0, kMaxInt)) {
+      return true;
+    }
   }
+  return false;
 }
 
 bool CanUseOptimizedWord32Compare(InstructionSelector* selector, OpIndex node) {
