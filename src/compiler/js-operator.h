@@ -767,6 +767,27 @@ class CreateLiteralParameters final {
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
+class SetPrototypePropertiesParameters final {
+ public:
+  explicit SetPrototypePropertiesParameters(HeapObjectRef constant)
+      : constant(constant) {}
+
+  friend bool operator==(SetPrototypePropertiesParameters const&,
+                         SetPrototypePropertiesParameters const&);
+  friend bool operator!=(SetPrototypePropertiesParameters const&,
+                         SetPrototypePropertiesParameters const&);
+
+  friend size_t hash_value(SetPrototypePropertiesParameters const&);
+
+  friend std::ostream& operator<<(std::ostream&,
+                                  SetPrototypePropertiesParameters const&);
+
+  const HeapObjectRef constant;
+};
+
+SetPrototypePropertiesParameters SetPrototypePropertiesParametersOf(
+    const Operator* op);
+
 class CloneObjectParameters final {
  public:
   CloneObjectParameters(FeedbackSource const& feedback, int flags)
@@ -961,6 +982,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                                       FeedbackSource const& feedback,
                                       int literal_flags,
                                       int number_of_properties);
+  const Operator* SetPrototypeProperties(
+      ObjectBoilerplateDescriptionRef constant);
   const Operator* CloneObject(FeedbackSource const& feedback,
                               int literal_flags);
   const Operator* CreateLiteralRegExp(StringRef constant_pattern,

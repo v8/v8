@@ -4,7 +4,8 @@
 // found in the LICENSE file.
 
 // Flags: --proto-assign-seq-opt
-// Flags: --no-turbofan --no-maglev --no-sparkplug
+// Flags: --allow-natives-syntax
+// Flags: --no-jitless
 
 function test_class_fast_path() {
   console.log("\n\ntest_class_is_slow_path");
@@ -24,12 +25,6 @@ function test_class_fast_path() {
   assertEquals(test_instance.arrow_func(), "test_class.prototype.arrow_func");
   assertEquals(test_instance.smi, 1);
   assertEquals(test_instance.str, "test_class.prototype.str");
-  //   assertEquals(test_instance.obj.o.smi, 1);
-  //   assertEquals(test_instance.obj.o.str, "str");
-  //   assertEquals(test_instance.obj.smi, 0);
-  //   assertEquals(test_instance.arr[0], 0);
-  //   assertEquals(test_instance.arr[1], 1);
-  //   assertEquals(test_instance.arr[2], 2);
 }
 
 function test_function_fast_paths() {
@@ -267,10 +262,10 @@ function test_null_prototype() {
     assertEquals(test_instance.key, 0);
   }
   catch {
-    assertEquals(true,true);
+    assertEquals(true, true);
     return;
   }
-  assertEquals(false,true);
+  assertEquals(false, true);
 }
 
 function test_variable_proxy() {
@@ -278,7 +273,7 @@ function test_variable_proxy() {
   var calls = 0;
   let foo = {
     get prototype() {
-      console.log("inside");
+      //console.log("inside");
       calls += 1;
       foo = {};
       return { prototype: {} };
@@ -289,7 +284,7 @@ function test_variable_proxy() {
     foo.prototype.k2 = 2;
   }
   catch {
-    console.log("catch");
+    //console.log("catch");
   }
   assertEquals(calls, 1);
   assertEquals(Object.keys(foo).length, 0);
@@ -302,14 +297,13 @@ function test_variable_proxy_eval() {
   var foo = function () { };
   (function inner_test() {
 
-    eval("var foo = { prototype: { set k1(x) { console.log('inside');calls += 1;foo = {}} }}");
+    eval("var foo = { prototype: { set k1(x) { calls += 1;foo = {}} }}");
     var calls = 0;
     try {
       foo.prototype.k1 = 1;
       foo.prototype.k2 = 2;
     }
     catch {
-      console.log("foo");
     }
     assertEquals(calls, 1);
     assertEquals(Object.keys(foo).length, 0);
@@ -333,18 +327,35 @@ function test_different_left_most_var() {
   assertEquals(bar.prototype.k2, 4);
 }
 
-test_null_prototype();
-test_class_fast_path();
-test_function_fast_paths();
-test_has_prototype_keys();
-test_arrow_function();
-test_has_setters();
-test_prototype_proto_keys();
-test_feedback_vector_side_effect();
-test_assign_key_multiple_times();
-test_not_proto_assign_seq();
-test_prototype_read_only();
-test_eval_return_last_set_property();
-test_variable_proxy_eval();
-test_variable_proxy();
-test_different_left_most_var();
+functions = [
+  test_null_prototype,
+  test_class_fast_path,
+  test_function_fast_paths,
+  test_has_prototype_keys,
+  test_arrow_function,
+  test_has_setters,
+  test_prototype_proto_keys,
+  test_feedback_vector_side_effect,
+  test_assign_key_multiple_times,
+  test_not_proto_assign_seq,
+  test_prototype_read_only,
+  test_eval_return_last_set_property,
+  test_variable_proxy_eval,
+  test_variable_proxy,
+  test_different_left_most_var
+];
+
+functions.forEach(function (func, index) {
+  func();
+  %CompileBaseline(func);
+  func();
+  %PrepareFunctionForOptimization(func);
+  func();
+  func();
+  %OptimizeMaglevOnNextCall(func)
+  func();
+  func();
+  %OptimizeFunctionOnNextCall(func);
+  func();
+  func();
+});

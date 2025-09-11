@@ -7473,7 +7473,13 @@ ReduceResult MaglevGraphBuilder::VisitSetNamedProperty() {
 
 ReduceResult MaglevGraphBuilder::VisitSetPrototypeProperties() {
   // VisitSetPrototypeProperties <name_index>
-  UNREACHABLE();
+
+  ValueNode* acc = GetAccumulator();
+  ValueNode* index =
+      GetConstant(GetRefOperand<ObjectBoilerplateDescription>(0));
+
+  return BuildCallRuntime(Runtime::kSetPrototypeProperties,
+                          {GetTaggedValue(acc), index});
 }
 
 ReduceResult MaglevGraphBuilder::VisitDefineNamedOwnProperty() {

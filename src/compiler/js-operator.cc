@@ -603,12 +603,35 @@ size_t hash_value(CreateLiteralParameters const& p) {
                             p.flags());
 }
 
-
 std::ostream& operator<<(std::ostream& os, CreateLiteralParameters const& p) {
   return os << Brief(*p.constant_.object()) << ", " << p.length() << ", "
             << p.flags();
 }
 
+bool operator==(SetPrototypePropertiesParameters const& lhs,
+                SetPrototypePropertiesParameters const& rhs) {
+  return lhs.constant.object().location() == rhs.constant.object().location();
+}
+
+bool operator!=(SetPrototypePropertiesParameters const& lhs,
+                SetPrototypePropertiesParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(SetPrototypePropertiesParameters const& p) {
+  return base::hash_combine(p.constant.object().location());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         SetPrototypePropertiesParameters const& p) {
+  return os << Brief(*p.constant.object());
+}
+
+SetPrototypePropertiesParameters SetPrototypePropertiesParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSSetPrototypeProperties, op->opcode());
+  return OpParameter<SetPrototypePropertiesParameters>(op);
+}
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSCreateLiteralArray ||
@@ -1446,6 +1469,17 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
       "JSCreateLiteralObject",                             // name
       1, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
+}
+
+const Operator* JSOperatorBuilder::SetPrototypeProperties(
+    ObjectBoilerplateDescriptionRef constant_properties) {
+  SetPrototypePropertiesParameters parameters(constant_properties);
+  return zone()->New<Operator1<SetPrototypePropertiesParameters>>(  // --
+      IrOpcode::kJSSetPrototypeProperties,                          // opcode
+      Operator::kNoProperties,  // properties
+      "JSCreateLiteralObject",  // name
+      1, 1, 1, 0, 1, 2,         // counts
+      parameters);              // parameter
 }
 
 const Operator* JSOperatorBuilder::GetTemplateObject(

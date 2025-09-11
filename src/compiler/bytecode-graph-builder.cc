@@ -2200,7 +2200,16 @@ void BytecodeGraphBuilder::BuildNamedStore(NamedStoreMode store_mode) {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitSetPrototypeProperties() { UNREACHABLE(); }
+void BytecodeGraphBuilder::VisitSetPrototypeProperties() {
+  // VisitSetPrototypeProperties <name_index>
+  Node* acc = environment()->LookupAccumulator();
+  ObjectBoilerplateDescriptionRef constant_properties =
+      MakeRefForConstantForIndexOperand<ObjectBoilerplateDescription>(0);
+  const Operator* op =
+      javascript()->SetPrototypeProperties(constant_properties);
+  Node* node = NewNode(op, acc);
+  environment()->RecordAfterState(node, Environment::kAttachFrameState);
+}
 
 void BytecodeGraphBuilder::VisitSetNamedProperty() {
   BuildNamedStore(NamedStoreMode::kSet);

@@ -773,6 +773,13 @@ void JSGenericLowering::LowerJSCreateArrayFromIterable(Node* node) {
   ReplaceWithBuiltinCall(node, Builtin::kIterableToListWithSymbolLookup);
 }
 
+void JSGenericLowering::LowerJSSetPrototypeProperties(Node* node) {
+  Node* boilerplate_desc = jsgraph()->HeapConstantNoHole(
+      SetPrototypePropertiesParametersOf(node->op()).constant.object());
+  node->InsertInput(zone(), 1, boilerplate_desc);
+  ReplaceWithRuntimeCall(node, Runtime::kSetPrototypeProperties);
+}
+
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   JSCreateLiteralObjectNode n(node);
   CreateLiteralParameters const& p = n.Parameters();

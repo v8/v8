@@ -1721,6 +1721,8 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
                      typer_->zone());
 }
 
+Type Typer::Visitor::TypeJSSetPrototypeProperties(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeJSSetKeyedProperty(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeJSDefineKeyedOwnProperty(Node* node) { UNREACHABLE(); }

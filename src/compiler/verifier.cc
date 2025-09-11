@@ -782,6 +782,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSCreateLiteralRegExp:
       CheckTypeIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSSetPrototypeProperties:
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kJSGetTemplateObject:
       CheckTypeIs(node, Type::Array());
       break;
