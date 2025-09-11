@@ -319,11 +319,12 @@ void BlockAssessments::PerformParallelMoves(const ParallelMove* moves) {
 }
 
 void BlockAssessments::DropRegisters() {
-  for (auto iterator = map().begin(), end = map().end(); iterator != end;) {
-    auto current = iterator;
-    ++iterator;
-    InstructionOperand op = current->first;
-    if (op.IsAnyRegister()) map().erase(current);
+  for (auto it = map().begin(); it != map().end();) {
+    if (it->first.IsAnyRegister()) {
+      it = map().erase(it);
+    } else {
+      ++it;
+    }
   }
 }
 
