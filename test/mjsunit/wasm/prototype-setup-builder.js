@@ -132,12 +132,6 @@ class WasmPrototypeSetupBuilder {
 
     for (let config of this.configs) {
       prototypes.push([kExprGlobalGet, config.prototype]);
-      data.push(...wasmUnsignedLeb(config.methods.length));
-      for (let method of config.methods) {
-        data.push(method.kind);
-        data.push(...StringToArray(method.name));
-        functions.push(method.func.index);
-      }
       if (config.constructor) {
         data.push(1);
         data.push(...StringToArray(config.constructor.name));
@@ -150,6 +144,12 @@ class WasmPrototypeSetupBuilder {
         data.push(stat.kind);
         data.push(...StringToArray(stat.name));
         functions.push(stat.func.index);
+      }
+      data.push(...wasmUnsignedLeb(config.methods.length));
+      for (let method of config.methods) {
+        data.push(method.kind);
+        data.push(...StringToArray(method.name));
+        functions.push(method.func.index);
       }
       data.push(...wasmSignedLeb(config.parent));
     }

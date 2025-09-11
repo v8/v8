@@ -1314,19 +1314,7 @@ class PrototypesSetup : public wasm::Decoder {
                           proto_index < num_prototypes && ok(), proto_index++) {
       DirectHandle<JSObject> prototype = NextPrototype();
       if (prototype.is_null()) return ReadOnlyRoots(isolate()).exception();
-      uint32_t num_methods = consume_u32v("number of methods");
-      if (!ok()) break;
-      ToDictionaryMode(prototype, num_methods);
-      for (uint32_t i = 0; i < num_methods; i++) {
-        Method method = NextMethod(false);
-        if (!ok()) break;
-        DirectHandle<WasmExportedFunction> function = NextFunction();
-        if (function.is_null() || !InstallMethod(prototype, method, function)) {
-          DCHECK(isolate()->has_exception());
-          return ReadOnlyRoots(isolate()).exception();
-        }
-      }
-      if (!ok()) break;
+
       uint32_t has_constructor = consume_u32v("constructor");
       if (!ok()) break;
 
@@ -1369,6 +1357,20 @@ class PrototypesSetup : public wasm::Decoder {
                pc_offset() - 1);
         break;
       }
+
+      uint32_t num_methods = consume_u32v("number of methods");
+      if (!ok()) break;
+      ToDictionaryMode(prototype, num_methods);
+      for (uint32_t i = 0; i < num_methods; i++) {
+        Method method = NextMethod(false);
+        if (!ok()) break;
+        DirectHandle<WasmExportedFunction> function = NextFunction();
+        if (function.is_null() || !InstallMethod(prototype, method, function)) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
+      }
+      if (!ok()) break;
 
       uint32_t parent_idx_offset = pc_offset();
       int32_t parent_idx = consume_i32v("parentidx");
@@ -1503,7 +1505,6 @@ class PrototypesSetup : public wasm::Decoder {
     constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
     prototype->map()->SetConstructor(*constructor);
 
-    // TODO(403372470): Do we want a userspace ".constructor" property?
     PropertyDescriptor constructor_prop;
     constructor_prop.set_enumerable(false);
     constructor_prop.set_configurable(true);
