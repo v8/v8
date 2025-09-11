@@ -589,6 +589,10 @@ class PABackedSandboxedArrayBufferAllocator::Impl final {
     }
     // The V8 sandbox is guaranteed to be large enough to host the pool.
     CHECK(pool_base);
+    // Call PartitionAddressSpace::Init() first just to make sure metadata
+    // region start is initialized and the configurable pool allocations do have
+    // out-of-line metadata.
+    partition_alloc::internal::PartitionAddressSpace::Init();
     partition_alloc::internal::PartitionAddressSpace::InitConfigurablePool(
         pool_base, pool_size);
 
