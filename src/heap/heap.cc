@@ -1488,10 +1488,7 @@ void Heap::SetOldGenerationAndGlobalMaximumSize(
     size_t max_old_generation_size) {
   max_old_generation_size_.store(max_old_generation_size,
                                  std::memory_order_relaxed);
-  max_global_memory_size_ =
-      v8_flags.external_memory_accounted_in_global_limit
-          ? 4 * GlobalMemorySizeFromV8Size(max_old_generation_size)
-          : GlobalMemorySizeFromV8Size(max_old_generation_size);
+  max_global_memory_size_ = GlobalMemorySizeFromV8Size(max_old_generation_size);
 }
 
 void Heap::SetOldGenerationAndGlobalAllocationLimit(
@@ -2596,6 +2593,8 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
         new_old_generation_allocation_limit, new_global_allocation_limit);
   }
 
+  CHECK_EQ(max_global_memory_size_,
+           GlobalMemorySizeFromV8Size(max_old_generation_size_));
   CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
 }
 
@@ -2642,6 +2641,8 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
   SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
                                            new_global_allocation_limit);
 
+  CHECK_EQ(max_global_memory_size_,
+           GlobalMemorySizeFromV8Size(max_old_generation_size_));
   CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
 }
 
