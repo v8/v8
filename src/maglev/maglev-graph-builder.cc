@@ -8089,10 +8089,10 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
     TRACE_CANNOT_INLINE(inlineability);
     return false;
   }
-  // TODO(victorgomes): Support NewTarget/RegisterInput in inlined functions.
+  // TODO(victorgomes): Support resumable functions inlining.
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
-  if (bytecode.incoming_new_target_or_generator_register().is_valid()) {
-    TRACE_CANNOT_INLINE("use unsupported NewTargetOrGenerator register");
+  if (IsResumableFunction(shared.kind())) {
+    TRACE_CANNOT_INLINE("cannot inline resumable function");
     return false;
   }
   if (call_frequency < min_inlining_frequency()) {
@@ -12433,9 +12433,11 @@ ReduceResult MaglevGraphBuilder::VisitConstructForwardAllArgs() {
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
   if (is_inline()) {
-    base::SmallVector<ValueNode*, 8> forwarded_args(argument_count());
+    constexpr int kSkipReceiver = 1;
+    base::SmallVector<ValueNode*, 8> forwarded_args(argument_count() -
+                                                    kSkipReceiver);
     for (int i = 1 /* skip receiver */; i < argument_count(); ++i) {
-      forwarded_args[i] = GetInlinedArgument(i);
+      forwarded_args[i - kSkipReceiver] = GetInlinedArgument(i);
     }
     CallArguments args(ConvertReceiverMode::kNullOrUndefined,
                        std::move(forwarded_args));
