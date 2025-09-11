@@ -730,17 +730,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
                          DwVfpRegister double_input, StubCallMode stub_mode);
 
-  // EABI variant for double arguments in use.
-  bool use_eabi_hardfloat() {
-#ifdef __arm__
-    return base::OS::ArmUsingHardFloat();
-#elif USE_EABI_HARDFLOAT
-    return true;
-#else
-    return false;
-#endif
-  }
-
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
   void ComputeCodeStartAddress(Register dst);

@@ -337,6 +337,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
+  // EABI variant for double arguments in use.
+  bool use_eabi_hardfloat() const { return use_eabi_hardfloat_; }
+
   // Label operations & relative jumps (PPUM Appendix D)
   //
   // Takes a branch opcode (cc) and a label (L) and generates
@@ -1334,6 +1337,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
+
+  const bool use_eabi_hardfloat_;
 
   V8_INLINE void CheckBuffer();
   void GrowBuffer();

@@ -2621,6 +2621,11 @@ DEFINE_BOOL(enable_popcnt, true,
 DEFINE_STRING(arm_arch, ARM_ARCH_DEFAULT,
               "generate instructions for the selected ARM architecture if "
               "available: armv6, armv7, armv7+sudiv or armv8")
+#if defined(V8_TARGET_ARCH_ARM)
+DEFINE_STRING(mfloat_abi, "auto",
+              "selects the ARM FP ABI to use: softfp, hardfp or auto."
+              "available: softfp,hardfp or auto")
+#endif
 DEFINE_BOOL(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS/PPC only)")
 DEFINE_STRING(mcpu, "auto", "enable optimization for specific cpu")
