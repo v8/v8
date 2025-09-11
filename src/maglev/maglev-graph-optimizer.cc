@@ -143,6 +143,13 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   // since it does not emit a conversion node.
   if (auto cst = GetConstantWithRepresentation(node, use_repr)) return cst;
   if (node->is_tagged()) return nullptr;
+  // TODO(victorgomes): The GetXXX functions may emit a conversion node that
+  // might eager deopt. We need to find a correct eager deopt frame for them if
+  // current_node_ does not have a deopt info.
+  if (!current_node_->properties().can_eager_deopt() &&
+      !current_node_->properties().is_deopt_checkpoint()) {
+    return nullptr;
+  }
   switch (use_repr) {
     case UseRepresentation::kInt32:
       return reducer_.GetInt32(node);
