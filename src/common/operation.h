@@ -46,22 +46,6 @@ enum class Operation : uint8_t {
 #undef DEFINE_OP
 };
 
-constexpr inline bool IsUnaryOperation(Operation op) {
-  switch (op) {
-#define UNARY_CASE(name)   \
-  case Operation::k##name: \
-    return true;
-    UNARY_OPERATION_LIST(UNARY_CASE)
-#undef UNARY_CASE
-    default:
-      return false;
-  }
-}
-
-constexpr inline bool IsBinaryOperation(Operation op) {
-  return !IsUnaryOperation(op);
-}
-
 inline std::ostream& operator<<(std::ostream& os, const Operation& operation) {
   switch (operation) {
 #define CASE(name)         \

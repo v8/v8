@@ -7,7 +7,6 @@
 #include <optional>
 
 #include "src/base/logging.h"
-#include "src/common/operation.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -18,12 +17,6 @@
 namespace v8 {
 namespace internal {
 namespace maglev {
-
-#define RETURN_IF_SUCCESS(res) \
-  do {                         \
-    auto _res = (res);         \
-    if (_res) return *_res;    \
-  } while (false)
 
 namespace {
 constexpr ValueRepresentation ValueRepresentationFromUse(
@@ -170,21 +163,6 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
       return nullptr;
   }
   UNREACHABLE();
-}
-
-template <Operation kOperation>
-std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldInt32Operation() {
-  MaybeReduceResult result;
-  if constexpr (IsUnaryOperation(kOperation)) {
-    result = reducer_.TryFoldInt32UnaryOperation<kOperation>(GetInputAt(0));
-  } else {
-    static_assert(IsBinaryOperation(kOperation));
-    result = reducer_.TryFoldInt32BinaryOperation<kOperation>(GetInputAt(0),
-                                                              GetInputAt(1));
-  }
-  if (!result.IsDone()) return {};
-  DCHECK(result.IsDoneWithValue());
-  return ReplaceWith(reducer_.GetInt32(result.value()));
 }
 
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32() {
@@ -1417,24 +1395,17 @@ ProcessResult MaglevGraphOptimizer::VisitInt32AbsWithOverflow() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32Add() {
-  // TODO(victorgomes): TryFoldInt32Operation can emit a
-  // Int32IncrementWithOverflow which needs an eager deopt point. We need to
-  // propagate this information and we can add a non-deopting version of the
-  // increment.
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32Subtract() {
-  // TODO(victorgomes): TryFoldInt32Operation can emit a
-  // Int32DecrementWithOverflow which needs an eager deopt point. We need to
-  // propagate this information and we can add a non-deopting version of the
-  // increment.
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32Multiply() {
-  // TODO(victorgomes): TryFoldInt32Operation can emit a CheckInt32Condition
-  // which needs an eager deopt point. We need to propagate this information.
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
@@ -1444,83 +1415,97 @@ ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyOverflownBits() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32Divide() {
-  // TODO(victorgomes): TryFoldInt32Operation can emit a CheckInt32Condition
-  // which needs an eager deopt point. We need to propagate this information
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32AddWithOverflow() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kAdd>());
+  // TODO(b/424157317): Optimize.
+  if (MaybeReduceResult result =
+          reducer_.TryFoldInt32BinaryOperation<Operation::kAdd>(GetInputAt(0),
+                                                                GetInputAt(1));
+      result.IsDone()) {
+    DCHECK(result.IsDoneWithValue());
+    return ReplaceWith(reducer_.GetInt32(result.value()));
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32SubtractWithOverflow() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kSubtract>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyWithOverflow() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kMultiply>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32DivideWithOverflow() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kDivide>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32ModulusWithOverflow() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kModulus>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseAnd() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kBitwiseAnd>());
+  // TODO(b/424157317): Optimize.
+  // TODO(victorgomes): Constant unfold all Int32 operators.
+  if (MaybeReduceResult result =
+          reducer_.TryFoldInt32BinaryOperation<Operation::kBitwiseAnd>(
+              GetInputAt(0), GetInputAt(1));
+      result.IsDone()) {
+    DCHECK(result.IsDoneWithValue());
+    return ReplaceWith(reducer_.GetInt32(result.value()));
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseOr() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kBitwiseOr>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseXor() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kBitwiseXor>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32ShiftLeft() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kShiftLeft>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32ShiftRight() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kShiftRight>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32ShiftRightLogical() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kShiftRightLogical>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseNot() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kBitwiseNot>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32NegateWithOverflow() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kNegate>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32IncrementWithOverflow() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kIncrement>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32DecrementWithOverflow() {
-  RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kDecrement>());
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 

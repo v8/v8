@@ -89,9 +89,6 @@ class MaglevGraphOptimizer {
 
   ValueNode* GetInputAt(int index) const;
   ProcessResult ReplaceWith(ValueNode* node);
-
-  template <Operation kOperation>
-  std::optional<ProcessResult> TryFoldInt32Operation();
 };
 
 }  // namespace maglev
