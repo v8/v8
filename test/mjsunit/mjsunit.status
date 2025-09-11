@@ -493,6 +493,9 @@
 
   # Too slow: https://crbug.com/371893264
   'harmony/regress/regress-369010108': [SKIP],
+
+  # The --stress-compaction flag prevents minor GCs.
+  'harmony/weakrefs/minor-gc-*': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
@@ -2518,6 +2521,9 @@
   'regress/wasm/regress-382816108': [SKIP],
   'regress/wasm/regress-388934347-a': [SKIP],
   'regress/wasm/regress-434008619': [SKIP],
+
+  # harmony/weakrefs/minor-gc-* tests require a young generation.
+  'harmony/weakrefs/minor-gc-*': [SKIP],
 }], # single_generation
 
 ################################################################################
@@ -2981,6 +2987,10 @@
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
   'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
-}] # sandbox_hardware_support
+}], # sandbox_hardware_support
+
+['variant == minor_ms', {
+  'harmony/weakrefs/minor-gc-*': [SKIP],
+}],  # variant == minor_ms
 
 ]

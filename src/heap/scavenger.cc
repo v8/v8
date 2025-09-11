@@ -52,8 +52,21 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+void AddToOldToNewRememberedSet(const Heap* heap, const Tagged<HeapObject> host,
+                                Address slot) {
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+  MutablePageMetadata* page =
+      MutablePageMetadata::cast(chunk->Metadata(heap->isolate()));
+  RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(page,
+                                                        chunk->Offset(slot));
+}
+}  // namespace
+
 class IterateAndScavengePromotedObjectsVisitor final
     : public HeapVisitor<IterateAndScavengePromotedObjectsVisitor> {
+  using Base = HeapVisitor<IterateAndScavengePromotedObjectsVisitor>;
+
  public:
   explicit IterateAndScavengePromotedObjectsVisitor(Scavenger* scavenger)
       : HeapVisitor(scavenger->heap()->isolate()), scavenger_(scavenger) {}
@@ -74,8 +87,20 @@ class IterateAndScavengePromotedObjectsVisitor final
     VisitPointersImpl(host, start, end);
   }
 
-  inline void VisitEphemeron(Tagged<HeapObject> obj, int entry, ObjectSlot key,
-                             ObjectSlot value) override {
+  V8_INLINE void VisitCustomWeakPointers(Tagged<HeapObject> host,
+                                         ObjectSlot start,
+                                         ObjectSlot end) final {
+    if (!allow_weakness_) {
+      // Strongify the weak pointers.
+      VisitPointersImpl(host, start, end);
+      return;
+    }
+    DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
+    scavenger_->UpdateWeakPointersIfPossible(this, host, start, end);
+  }
+
+  V8_INLINE void VisitEphemeron(Tagged<HeapObject> obj, int entry,
+                                ObjectSlot key, ObjectSlot value) final {
     DCHECK(HeapLayout::IsSelfForwarded(obj) || IsEphemeronHashTable(obj));
     VisitPointer(obj, value);
 
@@ -113,6 +138,16 @@ class IterateAndScavengePromotedObjectsVisitor final
                    heap->old_external_pointer_space(), handle, slot.address(),
                    ExternalPointerTable::EvacuateMarkMode::kTransferMark);
 #endif  // V8_COMPRESS_POINTERS
+  }
+
+  size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
+                        MaybeObjectSize maybe_size) {
+    DCHECK(!allow_weakness_);
+    allow_weakness_ = v8_flags.handle_weak_ref_weakly_in_minor_gc;
+    const size_t size = Base::VisitJSWeakRef(map, object, maybe_size);
+    allow_weakness_ = false;
+    scavenger_->RecordJSWeakRefIfNeeded<Scavenger::WeakObjectAge::kOld>(object);
+    return size;
   }
 
   // Special cases: Unreachable visitors for objects that are never found in the
@@ -161,14 +196,9 @@ class IterateAndScavengePromotedObjectsVisitor final
 
       if (result == KEEP_SLOT) {
         SLOW_DCHECK(IsHeapObject(target));
-        MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
-        MutablePageMetadata* page =
-            MutablePageMetadata::cast(chunk->Metadata(heap_->isolate()));
-
         // Sweeper is stopped during scavenge, so we can directly
         // insert into its remembered set here.
-        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(
-            page, chunk->Offset(slot.address()));
+        AddToOldToNewRememberedSet(heap_, host, slot.address());
       }
       DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     }
@@ -183,6 +213,9 @@ class IterateAndScavengePromotedObjectsVisitor final
   }
 
   Scavenger* const scavenger_;
+  bool allow_weakness_ = false;
+
+  friend class Scavenger;
 };
 
 namespace {
@@ -837,6 +870,7 @@ void ScavengerCollector::CollectGarbage() {
   Scavenger::PinnedList pinned_list;
   Scavenger::PromotedList promoted_list;
   EphemeronRememberedSet::TableList ephemeron_table_list;
+  Scavenger::JSWeakRefsList js_weak_refs_list;
 
   PinnedObjects pinned_objects;
 
@@ -845,9 +879,9 @@ void ScavengerCollector::CollectGarbage() {
 
   const bool is_logging = isolate_->log_object_relocation();
   for (int i = 0; i < num_scavenge_tasks; ++i) {
-    scavengers.emplace_back(
-        new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
-                      &pinned_list, &promoted_list, &ephemeron_table_list));
+    scavengers.emplace_back(new Scavenger(
+        this, heap_, is_logging, &empty_chunks, &copied_list, &pinned_list,
+        &promoted_list, &ephemeron_table_list, &js_weak_refs_list));
   }
   Scavenger& main_thread_scavenger = *scavengers[kMainThreadId].get();
 
@@ -996,6 +1030,7 @@ void ScavengerCollector::CollectGarbage() {
   }
 
   ProcessWeakReferences(&ephemeron_table_list);
+  ClearJSWeakRefs(js_weak_refs_list);
 
   {
     TRACE_GC(heap_->tracer(),
@@ -1130,7 +1165,8 @@ int ScavengerCollector::NumberOfScavengeTasks() {
 Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                      EmptyChunksList* empty_chunks, CopiedList* copied_list,
                      PinnedList* pinned_list, PromotedList* promoted_list,
-                     EphemeronRememberedSet::TableList* ephemeron_table_list)
+                     EphemeronRememberedSet::TableList* ephemeron_table_list,
+                     JSWeakRefsList* js_weak_refs_list)
     : collector_(collector),
       heap_(heap),
       local_empty_chunks_(*empty_chunks),
@@ -1138,6 +1174,7 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       local_pinned_list_(*pinned_list),
       local_promoted_list_(*promoted_list),
       local_ephemeron_table_list_(*ephemeron_table_list),
+      local_js_weak_refs_list_(*js_weak_refs_list),
       local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
       is_logging_(is_logging),
@@ -1147,6 +1184,45 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       shortcut_strings_(
           heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)) {
   DCHECK(!heap->incremental_marking()->IsMarking());
+}
+
+template void Scavenger::RecordJSWeakRefIfNeeded<
+    Scavenger::WeakObjectAge::kYoung>(Tagged<JSWeakRef>);
+template void Scavenger::RecordJSWeakRefIfNeeded<
+    Scavenger::WeakObjectAge::kOld>(Tagged<JSWeakRef>);
+
+template <Scavenger::WeakObjectAge Age>
+void Scavenger::RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref) {
+  DCHECK_EQ(
+      Age == WeakObjectAge::kOld,
+      !HeapLayout::InYoungGeneration(js_weak_ref) ||
+          (HeapLayout::IsSelfForwarded(js_weak_ref) &&
+           MemoryChunkMetadata::FromHeapObject(heap_->isolate(), js_weak_ref)
+               ->will_be_promoted()));
+  if (!v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+    return;
+  }
+  Tagged<HeapObject> target =
+      Cast<HeapObject>(js_weak_ref->RawField(JSWeakRef::kTargetOffset).load());
+  DCHECK_NE(kNullAddress, target.ptr());
+  SynchronizePageAccess(target);
+  if (IsUnscavengedHeapObject(target)) {
+    // Not scavenged yet, add to worklist for processing after scavenging.
+    local_js_weak_refs_list_.Push(js_weak_ref);
+    return;
+  }
+  if constexpr (Age == WeakObjectAge::kYoung) {
+    return;
+  }
+  DCHECK(!HeapLayout::InWritableSharedSpace(target));
+  if (V8_UNLIKELY(HeapLayout::InYoungGeneration(target))) {
+    // `js_weak_ref` is younger than its target, but in rare cases `weak_cell`
+    // could be promoted to old gen while the target remains in young gen. For
+    // such cases it is needed to update the old-to-new remembered set.
+    AddToOldToNewRememberedSet(
+        heap_, js_weak_ref,
+        js_weak_ref->RawField(JSWeakRef::kTargetOffset).address());
+  }
 }
 
 void Scavenger::IterateAndScavengePromotedObject(
@@ -1381,6 +1457,44 @@ void ScavengerCollector::ClearOldEphemerons() {
   }
 }
 
+void ScavengerCollector::ClearJSWeakRefs(
+    Scavenger::JSWeakRefsList& js_weak_refs) {
+  Scavenger::JSWeakRefsList::Local local_js_weak_refs(js_weak_refs);
+  Tagged<JSWeakRef> js_weak_ref;
+  Isolate* const isolate = heap_->isolate();
+  while (local_js_weak_refs.Pop(&js_weak_ref)) {
+    Tagged<HeapObject> target = Cast<HeapObject>(
+        js_weak_ref->RawField(JSWeakRef::kTargetOffset).load());
+    DCHECK(!Heap::InFromPage(js_weak_ref) ||
+           HeapLayout::IsSelfForwarded(js_weak_ref));
+    DCHECK(!IsUndefined(target));
+    DCHECK(Heap::InFromPage(target));
+    if (IsUnscavengedHeapObject(target)) {
+      js_weak_ref->set_target(ReadOnlyRoots(isolate).undefined_value(),
+                              SKIP_WRITE_BARRIER);
+    } else {
+      // The value of the JSWeakRef is alive.
+      MapWord map_word = target->map_word(kRelaxedLoad);
+      DCHECK(map_word.IsForwardingAddress());
+      Tagged<HeapObject> new_target = map_word.ToForwardingAddress(target);
+      DCHECK(!Heap::InFromPage(new_target) ||
+             HeapLayout::IsSelfForwarded(new_target));
+      js_weak_ref->RawField(JSWeakRef::kTargetOffset).store(new_target);
+      // `js_weak_ref` is younger than its target, but in rare cases `weak_cell`
+      // could be promoted to old gen while the target remains in young gen. For
+      // such cases a write barrier is needed to update the old-to-new
+      // remembered set.
+      DCHECK(!HeapLayout::InWritableSharedSpace(target));
+      if (V8_UNLIKELY(!HeapLayout::InYoungGeneration(js_weak_ref) &&
+                      HeapLayout::InYoungGeneration(new_target))) {
+        AddToOldToNewRememberedSet(
+            heap_, js_weak_ref,
+            js_weak_ref->RawField(JSWeakRef::kTargetOffset).address());
+      }
+    }
+  }
+}
+
 void Scavenger::Finalize() {
   heap()->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
@@ -1406,6 +1520,7 @@ void Scavenger::Finalize() {
   allocator_.Finalize();
   local_empty_chunks_.Publish();
   local_ephemeron_table_list_.Publish();
+  local_js_weak_refs_list_.Publish();
 }
 
 void Scavenger::Publish() {

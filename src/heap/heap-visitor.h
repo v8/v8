@@ -393,6 +393,10 @@ class NewSpaceVisitor : public ConcurrentHeapVisitor<ConcreteVisitor> {
                                  MaybeObjectSize) {
     UNREACHABLE();
   }
+  size_t VisitAllocationSite(Tagged<Map> map, Tagged<AllocationSite>,
+                             MaybeObjectSize) {
+    UNREACHABLE();
+  }
 
   friend class HeapVisitor<ConcreteVisitor>;
 };

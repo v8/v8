@@ -44,6 +44,7 @@ class Scavenger {
   static constexpr int kCopiedListSegmentSize = 256;
   static constexpr int kPinnedListSegmentSize = 64;
   static constexpr int kPromotedListSegmentSize = 256;
+  static constexpr int kWeakObjectListSegmentSize = 64;
 
   using CopiedList =
       ::heap::base::Worklist<Tagged<HeapObject>, kCopiedListSegmentSize>;
@@ -60,12 +61,16 @@ class Scavenger {
   using PromotedList =
       ::heap::base::Worklist<PromotedListEntry, kPromotedListSegmentSize>;
 
+  using JSWeakRefsList =
+      ::heap::base::Worklist<Tagged<JSWeakRef>, kWeakObjectListSegmentSize>;
+
   using EmptyChunksList = ::heap::base::Worklist<MutablePageMetadata*, 64>;
 
   Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
             EmptyChunksList* empty_chunks, CopiedList* copied_list,
             PinnedList* pinned_list, PromotedList* promoted_list,
-            EphemeronRememberedSet::TableList* ephemeron_table_list);
+            EphemeronRememberedSet::TableList* ephemeron_table_list,
+            JSWeakRefsList* js_weak_refs_list);
 
   // Entry point for scavenging an old generation page. For scavenging single
   // objects see RootScavengingVisitor and ScavengeVisitor below.
@@ -199,6 +204,15 @@ class Scavenger {
   void PushPinnedPromotedObject(Tagged<HeapObject> object, Tagged<Map> map,
                                 SafeHeapObjectSize object_size);
 
+  template <typename Visitor>
+  V8_INLINE void UpdateWeakPointersIfPossible(const Visitor* visitor,
+                                              Tagged<HeapObject> host,
+                                              ObjectSlot start, ObjectSlot end);
+
+  enum class WeakObjectAge { kOld, kYoung };
+  template <WeakObjectAge>
+  void RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref);
+
   ScavengerCollector* const collector_;
   Heap* const heap_;
   EmptyChunksList::Local local_empty_chunks_;
@@ -206,6 +220,7 @@ class Scavenger {
   PinnedList::Local local_pinned_list_;
   PromotedList::Local local_promoted_list_;
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
+  JSWeakRefsList::Local local_js_weak_refs_list_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   EphemeronRememberedSet::TableMap local_ephemeron_remembered_set_;
   SurvivingNewLargeObjectsMap local_surviving_new_large_objects_;
@@ -374,6 +389,9 @@ class ScavengerCollector {
   void ClearYoungEphemerons(
       EphemeronRememberedSet::TableList* ephemeron_table_list);
   void ClearOldEphemerons();
+
+  void ClearJSWeakRefs(Scavenger::JSWeakRefsList&);
+
   void HandleSurvivingNewLargeObjects();
 
   void SweepArrayBufferExtensions();
