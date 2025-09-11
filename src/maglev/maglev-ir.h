@@ -759,6 +759,7 @@ enum class UseRepresentation : uint8_t {
   kUint32,
   kFloat64,
   kHoleyFloat64,
+  kLast = kHoleyFloat64
 };
 
 std::ostream& operator<<(std::ostream& os, UseRepresentation repr);
@@ -10221,14 +10222,14 @@ class Phi : public ValueNodeT<Phi> {
   void RecordUseReprHint(UseRepresentationSet repr_mask,
                          bool force_same_loop = false);
 
-  UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
-  UseRepresentationSet get_same_loop_uses_repr_hints() {
-    return same_loop_uses_repr_hint_;
+  UseRepresentationSet use_repr_hints() { return use_repr_hints_; }
+  UseRepresentationSet same_loop_use_repr_hints() {
+    return same_loop_use_repr_hints_;
   }
 
   void ClearUseHints() {
-    uses_repr_hint_ = {};
-    same_loop_uses_repr_hint_ = {};
+    use_repr_hints_ = {};
+    same_loop_use_repr_hints_ = {};
   }
 
   NodeType post_loop_type() const { return post_loop_type_; }
@@ -10296,8 +10297,8 @@ class Phi : public ValueNodeT<Phi> {
 
   const interpreter::Register owner_;
 
-  UseRepresentationSet uses_repr_hint_ = {};
-  UseRepresentationSet same_loop_uses_repr_hint_ = {};
+  UseRepresentationSet use_repr_hints_ = {};
+  UseRepresentationSet same_loop_use_repr_hints_ = {};
 
   Phi* next_ = nullptr;
   MergePointInterpreterFrameState* const merge_state_;
@@ -10920,9 +10921,9 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   int expected_parameter_count() const { return expected_parameter_count_; }
 
   void RecordUseReprHint(UseRepresentationSet repr_mask) {
-    uses_repr_hint_.Add(repr_mask);
+    use_repr_hints_.Add(repr_mask);
   }
-  UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
+  UseRepresentationSet use_repr_hints() { return use_repr_hints_; }
 
  private:
 #ifdef V8_ENABLE_LEAPTIERING
@@ -10933,7 +10934,7 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   // MaxCallStackArgs without needing to unpark the local isolate.
   int expected_parameter_count_;
 
-  UseRepresentationSet uses_repr_hint_ = {};
+  UseRepresentationSet use_repr_hints_ = {};
   compiler::FeedbackSource feedback_source_;
 };
 

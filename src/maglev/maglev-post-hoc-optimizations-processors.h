@@ -47,9 +47,9 @@ class RecomputePhiUseHintsProcessor {
     for (auto it = phis.begin(); it != phis.end(); ++it) {
       TRACE_PHI_USE_HINTS(
           "cleaning use hints for "
-          << PrintNodeLabel(*it) << " previous values:  use_reprs="
-          << (*it)->get_uses_repr_hints() << " and same_loop_uses_reprs="
-          << (*it)->get_same_loop_uses_repr_hints());
+          << PrintNodeLabel(*it)
+          << " previous values:  use_reprs=" << (*it)->use_repr_hints()
+          << " and same_loop_use_reprs=" << (*it)->same_loop_use_repr_hints());
       it->ClearUseHints();
       if (is_loop_header) {
         live_loop_phis_.insert(*it);
@@ -68,12 +68,12 @@ class RecomputePhiUseHintsProcessor {
       for (Input input : it->inputs()) {
         if (!input.node()) continue;
         if (Phi* input_phi = input.node()->TryCast<Phi>()) {
-          input_phi->RecordUseReprHint((*it)->get_uses_repr_hints());
+          input_phi->RecordUseReprHint((*it)->use_repr_hints());
           TRACE_PHI_USE_HINTS("updating use hints for "
-                              << PrintNodeLabel(input_phi) << ": use_reprs="
-                              << input_phi->get_uses_repr_hints()
-                              << " and same_loop_uses_reprs="
-                              << input_phi->get_same_loop_uses_repr_hints());
+                              << PrintNodeLabel(input_phi)
+                              << ": use_reprs=" << input_phi->use_repr_hints()
+                              << " and same_loop_use_reprs="
+                              << input_phi->same_loop_use_repr_hints());
         }
       }
       DCHECK(live_loop_phis_.contains(*it));
@@ -115,12 +115,11 @@ class RecomputePhiUseHintsProcessor {
         }
         phi->RecordUseReprHint(UseRepresentationSet{use_repr},
                                live_loop_phis_.contains(phi));
-        TRACE_PHI_USE_HINTS("updating use hints for "
-                            << PrintNodeLabel(phi)
-                            << ": use_reprs=" << phi->get_uses_repr_hints()
-                            << " and same_loop_uses_reprs="
-                            << phi->get_same_loop_uses_repr_hints()
-                            << " after visiting input " << PrintNode(node));
+        TRACE_PHI_USE_HINTS(
+            "updating use hints for "
+            << PrintNodeLabel(phi) << ": use_reprs=" << phi->use_repr_hints()
+            << " and same_loop_use_reprs=" << phi->same_loop_use_repr_hints()
+            << " after visiting input " << PrintNode(node));
       }
     }
     return ProcessResult::kContinue;

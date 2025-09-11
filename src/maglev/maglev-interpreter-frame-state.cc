@@ -1009,8 +1009,8 @@ void MergePointInterpreterFrameState::MergeLoopValue(
   result->promote_post_loop_type();
 
   if (Phi* unmerged_phi = unmerged->TryCast<Phi>()) {
-    // Propagating the `uses_repr` from {result} to {unmerged_phi}.
-    unmerged_phi->RecordUseReprHint(result->get_uses_repr_hints());
+    // Propagating the `use_repr` from {result} to {unmerged_phi}.
+    unmerged_phi->RecordUseReprHint(result->use_repr_hints());
 
     // Soundness of the loop phi Smi type relies on the back-edge static types
     // sminess.
@@ -1019,7 +1019,7 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     }
   } else if (CallKnownJSFunction* call =
                  unmerged->TryCast<CallKnownJSFunction>()) {
-    call->RecordUseReprHint(result->get_uses_repr_hints());
+    call->RecordUseReprHint(result->use_repr_hints());
   }
 }
 

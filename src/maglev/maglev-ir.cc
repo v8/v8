@@ -154,11 +154,11 @@ void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
   // build, as {is_unmerged_loop_phi()} is no longer a reliable indicator of
   // whether a use is inside the same loop.
   if (is_loop_phi() && (is_unmerged_loop_phi() || force_same_loop)) {
-    same_loop_uses_repr_hint_.Add(repr_mask);
+    same_loop_use_repr_hints_.Add(repr_mask);
   }
 
-  if (!repr_mask.is_subset_of(uses_repr_hint_)) {
-    uses_repr_hint_.Add(repr_mask);
+  if (!repr_mask.is_subset_of(use_repr_hints_)) {
+    use_repr_hints_.Add(repr_mask);
 
     // Propagate in inputs, ignoring unbounded loop backedges.
     int bound_inputs = input_count();
@@ -8463,7 +8463,7 @@ void Call::PrintParams(std::ostream& os) const {
 void CallSelf::PrintParams(std::ostream& os) const {}
 
 void CallKnownJSFunction::PrintParams(std::ostream& os) const {
-  os << "(" << shared_function_info_.object() << ", " << uses_repr_hint_ << ")";
+  os << "(" << shared_function_info_.object() << ", " << use_repr_hints_ << ")";
 }
 
 void CallKnownApiFunction::PrintParams(std::ostream& os) const {

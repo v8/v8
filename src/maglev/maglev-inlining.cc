@@ -33,7 +33,7 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
     MaglevCallSiteInfo* call_site) const {
   bool has_heapnumber_input_output = false;
 
-  if (call_site->generic_call_node->get_uses_repr_hints().contains_any(
+  if (call_site->generic_call_node->use_repr_hints().contains_any(
           UseRepresentationSet{UseRepresentation::kFloat64,
                                UseRepresentation::kHoleyFloat64,
                                UseRepresentation::kTruncatedInt32})) {
@@ -58,7 +58,7 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
 
   if (!has_heapnumber_input_output) {
     TRACE("> Does not have heapnum in/out. Uses: "
-          << call_site->generic_call_node->get_uses_repr_hints());
+          << call_site->generic_call_node->use_repr_hints());
     return false;
   }
 
