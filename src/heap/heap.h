@@ -711,7 +711,8 @@ class Heap final {
     // Do not set the limit lower than the live size + some slack.
     size_t min_limit = SizeOfObjects() + SizeOfObjects() / 4;
     SetOldGenerationAndGlobalMaximumSize(
-        std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
+        std::min(max_old_generation_size(), std::max(heap_limit, min_limit)),
+        physical_memory());
   }
 
   // ===========================================================================
@@ -2019,7 +2020,8 @@ class Heap final {
 
   // Sets max_old_generation_size_ and computes the new global heap limit from
   // it.
-  void SetOldGenerationAndGlobalMaximumSize(size_t max_old_generation_size);
+  void SetOldGenerationAndGlobalMaximumSize(size_t max_old_generation_size,
+                                            size_t physical_memory);
 
   // Sets allocation limits for both old generation and the global heap.
   void SetOldGenerationAndGlobalAllocationLimit(
