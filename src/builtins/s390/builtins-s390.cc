@@ -2262,7 +2262,6 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
   Register map = r6;
   Register instance_type = r7;
   Register scratch = r8;
-
   DCHECK(!AreAliased(argc, target, map, instance_type, scratch));
 
   Label non_callable, class_constructor;
@@ -2281,8 +2280,8 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
     DCHECK(!AreAliased(argc, target, flags));
     __ LoadU8(flags, FieldMemOperand(map, Map::kBitFieldOffset));
     map = no_reg;
-    __ AndP(flags, Operand(Map::Bits1::IsCallableBit::kMask));
-    __ beq(&non_callable, Label::kNear);
+    __ TestBit(flags, Map::Bits1::IsCallableBit::kShift);
+    __ beq(&non_callable);
   }
 
   // Check if target is a proxy and call CallProxy external builtin
@@ -2297,13 +2296,12 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   // Check that the function is not a "classConstructor".
   __ CmpS64(instance_type, Operand(JS_CLASS_CONSTRUCTOR_TYPE));
-  __ beq(&class_constructor, Label::kNear);
+  __ beq(&class_constructor);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
   // Overwrite the original receiver with the (original) target.
-  __ StoreReceiver(target, r2, r0);
-
+  __ StoreReceiver(target);
   // Let the "call_as_function_delegate" take care of the rest.
   __ LoadNativeContextSlot(target, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
   __ TailCallBuiltin(
@@ -2312,27 +2310,25 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
   // 3. Call to something that is not callable.
   __ bind(&non_callable);
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     if (!error_string_root.has_value()) {
-      // Use the simpler error for Generate_Call
       __ Push(target);
       __ CallRuntime(Runtime::kThrowCalledNonCallable);
     } else {
-      // Use the more specific error for Function.prototype.call/apply
-      __ LoadRoot(r7, error_string_root.value());
-      __ Push(target, r7);
+      __ LoadRoot(r4, error_string_root.value());
+      __ Push(target, r4);
       __ CallRuntime(Runtime::kThrowTargetNonFunction);
-      __ stop();
+      __ Trap();  // Unreachable.
     }
   }
 
   // 4. The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);
   {
-    FrameScope frame(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     __ Push(target);
     __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
-    __ stop();
+    __ Trap();  // Unreachable.
   }
 }
 
@@ -2388,9 +2384,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   __ bind(&no_arguments);
   {
     __ mov(r2, Operand(JSParameterCount(0)));
-
-    Register target = r3;
-    GenerateCall(masm, r2, target, ConvertReceiverMode::kAny,
+    GenerateCall(masm, r2, r3, ConvertReceiverMode::kAny,
                  RootIndex::kFunction_prototype_apply_string);
   }
 }
@@ -2415,9 +2409,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   __ SubS64(r2, r2, Operand(1));
 
   // 4. Call the callable.
-
-  Register target = r3;
-  GenerateCall(masm, r2, target, ConvertReceiverMode::kAny,
+  GenerateCall(masm, r2, r3, ConvertReceiverMode::kAny,
                RootIndex::kFunction_prototype_call_string);
 }
 
@@ -2914,7 +2906,6 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- r3 : the target to call (can be any Object).
   // -----------------------------------
   Register target = r3;
-
   GenerateCall(masm, r2, target, mode, std::nullopt);
 }
 
