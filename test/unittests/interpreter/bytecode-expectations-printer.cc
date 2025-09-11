@@ -401,6 +401,8 @@ void BytecodeExpectationsPrinter::PrintExpectation(
   }
 
   i::v8_flags.compilation_cache = false;
+  i::v8_flags.lazy = false;
+  i::v8_flags.flush_bytecode = false;
   i::Handle<i::BytecodeArray> bytecode_array;
   if (options_.module) {
     CHECK(options_.top_level && !options_.wrap);
