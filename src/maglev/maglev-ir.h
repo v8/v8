@@ -47,6 +47,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone.h"
@@ -2643,6 +2644,8 @@ class NodeBase : public ZoneObject {
         RegisterSnapshotSize(Derived::kProperties) +
         EagerDeoptInfoSize(Derived::kProperties) +
         LazyDeoptInfoSize(Derived::kProperties);
+
+    SBXCHECK_LE(input_count, kMaxInputs);
 
     static_assert(IsAligned(size_before_inputs, alignof(ValueNode*)));
     size_t size_before_node =
