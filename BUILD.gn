@@ -3382,7 +3382,7 @@ if (v8_enable_temporal_support) {
   # we "bake" in a zoneinfo64.res binary for Temporal
   action("make_temporal_zoneinfo_cpp") {
     script = "tools/include-file-as-bytes.py"
-    inputs = [ "third_party/icu/tzres/zoneinfo64.res" ]
+    inputs = [  get_label_info("//third_party/icu/", "dir") + "/tzres/zoneinfo64.res" ]
     outputs =
         [ "$target_gen_dir/src/builtins/builtins-temporal-zoneinfo64-data.cc" ]
     args = [
