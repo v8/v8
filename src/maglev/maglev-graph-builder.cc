@@ -266,21 +266,25 @@ class CallArguments {
   }
 
   size_t count() const {
-    if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
-      return args_.size();
-    }
-    return args_.size() - 1;
+    DCHECK_LE(index_offset(), args_.size());
+    return args_.size() - index_offset();
   }
 
   size_t count_with_receiver() const { return count() + 1; }
 
   ValueNode* operator[](size_t i) const {
-    if (receiver_mode_ != ConvertReceiverMode::kNullOrUndefined) {
-      i++;
-    }
+    i += index_offset();
     if (i >= args_.size()) return nullptr;
     return args_[i];
   }
+
+  ValueNode** begin() { return args_.begin() + index_offset(); }
+  const ValueNode* const* begin() const {
+    return args_.begin() + index_offset();
+  }
+
+  ValueNode** end() { return args_.end(); }
+  const ValueNode* const* end() const { return args_.end(); }
 
   Mode mode() const { return mode_; }
 
@@ -296,10 +300,8 @@ class CallArguments {
     DCHECK_NE(receiver_mode_, ConvertReceiverMode::kNullOrUndefined);
     DCHECK_NE(new_receiver_mode, ConvertReceiverMode::kNullOrUndefined);
     DCHECK_GT(args_.size(), 0);  // We have at least a receiver to pop!
-    // TODO(victorgomes): Do this better!
-    for (size_t i = 0; i < args_.size() - 1; i++) {
-      args_[i] = args_[i + 1];
-    }
+    size_t new_args_size_in_bytes = (args_.size() - 1) * sizeof(args_[0]);
+    MemMove(args_.data(), args_.data() + 1, new_args_size_in_bytes);
     args_.pop_back();
 
     // If there is no non-receiver argument to become the new receiver,
@@ -312,6 +314,10 @@ class CallArguments {
   ConvertReceiverMode receiver_mode_;
   base::SmallVector<ValueNode*, 8> args_;
   Mode mode_;
+
+  int index_offset() const {
+    return receiver_mode_ == ConvertReceiverMode::kNullOrUndefined ? 0 : 1;
+  }
 
   void CheckArgumentsAreNotConversionNodes() {
 #ifdef DEBUG
@@ -9392,7 +9398,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
   ValueNode* search_length;
   GET_VALUE_OR_ABORT(search_length, BuildLoadStringLength(search_element));
 
-  // TODO: Introduce a ForInt32 helper.
+  // TODO(all): Introduce a ForInt32 helper.
   MaglevSubGraphBuilder sub_graph(this, 2);
   MaglevSubGraphBuilder::Variable ret_val(0);
   MaglevSubGraphBuilder::Variable var_i(1);
@@ -12010,6 +12016,22 @@ ValueNode* MaglevGraphBuilder::BuildElementsArray(int length) {
   return elements;
 }
 
+ValueNode* MaglevGraphBuilder::BuildElementsArray(
+    ElementsKind elements_kind, base::Vector<ValueNode*> values) {
+  const int length = static_cast<int>(values.size());
+  DCHECK_GT(length, 1);
+  if (IsDoubleElementsKind(elements_kind)) {
+    UNIMPLEMENTED();
+  }
+
+  VirtualObject* elements =
+      CreateFixedArray(broker()->fixed_array_map(), length);
+  for (int i = 0; i < length; i++) {
+    elements->set(FixedArray::OffsetOfElementAt(i), values[i]);
+  }
+  return elements;
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     compiler::JSFunctionRef array_function, CallArguments& args,
     compiler::OptionalAllocationSiteRef maybe_allocation_site) {
@@ -12021,12 +12043,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   if (IsDoubleElementsKind(elements_kind)) return {};
   DCHECK(IsFastElementsKind(elements_kind));
 
+  const int arity = static_cast<int>(args.count());
   std::optional<int> maybe_length;
-  if (args.count() == 1) {
+  if (arity == 1) {
     maybe_length = TryGetInt32Constant(args[0]);
   }
   compiler::OptionalMapRef maybe_initial_map = GetArrayConstructorInitialMap(
-      broker(), array_function, elements_kind, args.count(), maybe_length);
+      broker(), array_function, elements_kind, arity, maybe_length);
   if (!maybe_initial_map.has_value()) return {};
   compiler::MapRef initial_map = maybe_initial_map.value();
   compiler::SlackTrackingPrediction slack_tracking_prediction =
@@ -12047,25 +12070,30 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     can_inline_call = CanSpeculateCall();
   }
 
-  if (args.count() == 0) {
+  // Arity 0, `new Array()`.
+  if (arity == 0) {
     return BuildAndAllocateJSArray(
         initial_map, GetSmiConstant(0),
         BuildElementsArray(JSArray::kPreallocatedArrayElements),
         slack_tracking_prediction, allocation_type);
   }
 
-  if (maybe_length.has_value() && *maybe_length >= 0 &&
-      *maybe_length < JSArray::kInitialMaxFastElementArray) {
-    return BuildAndAllocateJSArray(initial_map, GetSmiConstant(*maybe_length),
-                                   BuildElementsArray(*maybe_length),
-                                   slack_tracking_prediction, allocation_type);
-  }
+  // Arity 1, `new Array(maybe_length)`.
+  if (arity == 1) {
+    if (maybe_length.has_value() && *maybe_length >= 0 &&
+        *maybe_length < JSArray::kInitialMaxFastElementArray) {
+      return BuildAndAllocateJSArray(initial_map, GetSmiConstant(*maybe_length),
+                                     BuildElementsArray(*maybe_length),
+                                     slack_tracking_prediction,
+                                     allocation_type);
+    }
 
-  // TODO(victorgomes): If we know the argument cannot be a number, we should
-  // allocate an array with one element.
-  // We don't know anything about the length, so we rely on the allocation
-  // site to avoid deopt loops.
-  if (args.count() == 1 && can_inline_call) {
+    // TODO(victorgomes): If we know the argument cannot be a number, we should
+    // allocate an array with one element.
+    // We don't know anything about the length, so we rely on the allocation
+    // site to avoid deopt loops.
+    if (!can_inline_call) return {};
+
     return SelectReduction(
         [&](BranchBuilder& builder) {
           return BuildBranchIfInt32Compare(builder,
@@ -12086,9 +12114,61 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         });
   }
 
-  // TODO(victorgomes): Support the constructor with argument count larger
-  // than 1.
-  return {};
+  if (arity > JSArray::kInitialMaxFastElementArray) return {};
+
+  // Arity > 1, `new Array(x0, x1, ...)`.
+  DCHECK_GT(arity, 1);
+
+  // Gather the values to store into the newly created array, and remember
+  // sufficient information about node types so we can select a suitable
+  // elements_kind below.
+  base::SmallVector<ValueNode*, 16> values;
+  values.reserve(arity);
+  NodeType combined_type = NodeType::kNone;
+  for (ValueNode* v : args) {
+    combined_type = UnionType(combined_type, GetType(v));
+    values.push_back(v);
+  }
+
+  if (NodeTypeIs(combined_type, NodeType::kSmi)) {
+    // Smis can be stored with any elements kind.
+  } else if (NodeTypeIs(combined_type, NodeType::kNumber)) {
+    elements_kind = GetMoreGeneralElementsKind(
+        elements_kind, IsHoleyElementsKind(elements_kind)
+                           ? HOLEY_DOUBLE_ELEMENTS
+                           : PACKED_DOUBLE_ELEMENTS);
+  } else {
+    // TODO(jgruber): Note this branch combines two cases:
+    //   1) at least one value type was kUnknown, i.e. there is no static type
+    //      information available; and
+    //   2) at least one value type was not kUnknown and not kNumber.
+    //
+    // In case 1), Turbofan speculatively selects elements_kind based on the
+    // most general static type, and inserts deopting type checks for values
+    // with type kUnknown. We *could* do the same, but I'm not sure whether
+    // this is beneficial given the additional deopts.
+    elements_kind = GetMoreGeneralElementsKind(
+        elements_kind,
+        IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS : PACKED_ELEMENTS);
+  }
+
+  if (IsDoubleElementsKind(elements_kind)) {
+    // TODO(jgruber): Implement.
+    return {};
+  }
+
+  // Update the initial map based on our potentially changed elements_kind.
+  {
+    compiler::OptionalMapRef maybe_updated_map =
+        initial_map.AsElementsKind(broker(), elements_kind);
+    if (!maybe_updated_map.has_value()) return {};
+    initial_map = maybe_updated_map.value();
+  }
+
+  return BuildAndAllocateJSArray(
+      initial_map, GetSmiConstant(arity),
+      BuildElementsArray(elements_kind, base::VectorOf(values.begin(), arity)),
+      slack_tracking_prediction, allocation_type);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
@@ -13158,7 +13238,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       if (size > kMaxRegularHeapObjectSize) return {};
       fast_literal->set(
           JSObject::kElementsOffset,
-          CreateDoubleFixedArray(elements_length,
+          CreateFixedDoubleArray(elements_length,
                                  boilerplate_elements.AsFixedDoubleArray()));
     } else {
       int const size = FixedArray::SizeFor(elements_length);
@@ -13223,7 +13303,7 @@ VirtualObject* MaglevGraphBuilder::CreateHeapNumber(Float64 value) {
   return vobject;
 }
 
-VirtualObject* MaglevGraphBuilder::CreateDoubleFixedArray(
+VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
     uint32_t elements_length, compiler::FixedDoubleArrayRef elements) {
   // VirtualObjects are not added to the Maglev graph.
   VirtualObject* vobject = NodeBase::New<VirtualObject>(

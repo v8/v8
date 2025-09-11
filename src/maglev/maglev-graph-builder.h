@@ -1111,6 +1111,8 @@ class MaglevGraphBuilder {
                                       ConvertReceiverMode receiver_mode);
 
   ValueNode* BuildElementsArray(int length);
+  ValueNode* BuildElementsArray(ElementsKind elements_kind,
+                                base::Vector<ValueNode*> values);
   ReduceResult BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
   ReduceResult BuildAndAllocateJSArray(
       compiler::MapRef map, ValueNode* length, ValueNode* elements,
@@ -1468,7 +1470,7 @@ class MaglevGraphBuilder {
   VirtualObject* CreateVirtualObject(compiler::MapRef map,
                                      uint32_t slot_count_including_map);
   VirtualObject* CreateHeapNumber(Float64 value);
-  VirtualObject* CreateDoubleFixedArray(uint32_t elements_length,
+  VirtualObject* CreateFixedDoubleArray(uint32_t elements_length,
                                         compiler::FixedDoubleArrayRef elements);
   VirtualObject* CreateJSObject(compiler::MapRef map);
   VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
