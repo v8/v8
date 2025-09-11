@@ -2349,14 +2349,14 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
     FrameScope scope(masm, StackFrame::INTERNAL);
     if (!error_string_root.has_value()) {
       // Use the simpler error for Generate_Call
-      __ PushArgument(target);
+      __ Push(target);
       __ CallRuntime(Runtime::kThrowCalledNonCallable);
     } else {
       // Use the more specific error for Function.prototype.call/apply
       __ LoadRoot(t2, error_string_root.value());
       __ Push(target, t2);
       __ CallRuntime(Runtime::kThrowTargetNonFunction);
-      __ Unreachable();
+      __ Trap();
     }
   }
 
@@ -2364,9 +2364,9 @@ static void GenerateCall(MacroAssembler* masm, Register argc, Register target,
   __ bind(&class_constructor);
   {
     FrameScope frame(masm, StackFrame::INTERNAL);
-    __ PushArgument(target);
+    __ Push(target);
     __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
-    __ Unreachable();
+    __ Trap();
   }
 }
 
