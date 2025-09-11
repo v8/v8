@@ -187,21 +187,14 @@ class IterateAndScavengePromotedObjectsVisitor final
 
 namespace {
 
-V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, Tagged<Object> object) {
+V8_INLINE bool IsUnscavengedHeapObject(Tagged<Object> object) {
   return Heap::InFromPage(object) && !Cast<HeapObject>(object)
                                           ->map_word(kRelaxedLoad)
                                           .IsForwardingAddress();
 }
 
-// Same as IsUnscavengedHeapObject() above but specialized for HeapObjects.
-V8_INLINE bool IsUnscavengedHeapObject(Heap* heap,
-                                       Tagged<HeapObject> heap_object) {
-  return Heap::InFromPage(heap_object) &&
-         !heap_object->map_word(kRelaxedLoad).IsForwardingAddress();
-}
-
 bool IsUnscavengedHeapObjectSlot(Heap* heap, FullObjectSlot p) {
-  return IsUnscavengedHeapObject(heap, *p);
+  return IsUnscavengedHeapObject(*p);
 }
 
 }  // namespace
@@ -1315,17 +1308,24 @@ void ScavengerCollector::ProcessWeakReferences(
 // entry has a dead new-space key.
 void ScavengerCollector::ClearYoungEphemerons(
     EphemeronRememberedSet::TableList* ephemeron_table_list) {
-  ephemeron_table_list->Iterate([this](Tagged<EphemeronHashTable> table) {
+  ephemeron_table_list->Iterate([](Tagged<EphemeronHashTable> table) {
     for (InternalIndex i : table->IterateEntries()) {
       // Keys in EphemeronHashTables must be heap objects.
       HeapObjectSlot key_slot(
           table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
       Tagged<HeapObject> key = key_slot.ToHeapObject();
-      if (IsUnscavengedHeapObject(heap_, key)) {
+      // If the key is not in the from page, it's not being scavenged.
+      if (!Heap::InFromPage(key)) continue;
+      DCHECK(!IsAnyHole(key));
+      MapWord map_word = key->map_word(kRelaxedLoad);
+      if (!map_word.IsForwardingAddress()) {
+        // If the key is not forwarded, then it's dead.
+        DCHECK(IsUnscavengedHeapObject(key));
         table->RemoveEntry(i);
       } else {
-        Tagged<HeapObject> forwarded = ForwardingAddress(key);
-        key_slot.StoreHeapObject(forwarded);
+        // Otherwise, we need to update the key slot to the forwarded address.
+        DCHECK(!IsUnscavengedHeapObject(key));
+        key_slot.StoreHeapObject(map_word.ToForwardingAddress(key));
       }
     }
   });
@@ -1344,13 +1344,28 @@ void ScavengerCollector::ClearOldEphemerons() {
       HeapObjectSlot key_slot(table->RawFieldOfElementAt(
           EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
       Tagged<HeapObject> key = key_slot.ToHeapObject();
-      if (IsUnscavengedHeapObject(heap_, key)) {
+      // If the key is not young, we don't need it in the remembered set.
+      if (!HeapLayout::InYoungGeneration(key)) {
+        iti = indices.erase(iti);
+      }
+      // If the key is not in the from page, it's not being scavenged.
+      if (!Heap::InFromPage(key)) continue;
+      DCHECK(!IsAnyHole(key));
+      MapWord map_word = key->map_word(kRelaxedLoad);
+      DCHECK_IMPLIES(Heap::InToPage(key), !map_word.IsForwardingAddress());
+      if (!map_word.IsForwardingAddress()) {
+        // If the key is not forwarded, then it's dead.
+        DCHECK(IsUnscavengedHeapObject(key));
         table->RemoveEntry(InternalIndex(*iti));
         iti = indices.erase(iti);
       } else {
-        Tagged<HeapObject> forwarded = ForwardingAddress(key);
+        // Otherwise, we need to update the key slot to the forwarded address.
+        DCHECK(!IsUnscavengedHeapObject(key));
+        Tagged<HeapObject> forwarded = map_word.ToForwardingAddress(key);
         key_slot.StoreHeapObject(forwarded);
         if (!HeapLayout::InYoungGeneration(forwarded)) {
+          // If the key was promoted out of new space, we don't need to keep it
+          // in the remembered set.
           iti = indices.erase(iti);
         } else {
           ++iti;
