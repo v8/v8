@@ -3777,9 +3777,18 @@ void CompilationStateImpl::InitializeCompilationProgress(
     }
 
     if (native_module_->enabled_features().has_compilation_hints()) {
-      for (std::pair<uint32_t, CompilationPriority> pair :
+      for (auto [function_index, compilation_priority] :
            module->compilation_priorities) {
-        ApplyCompilationPriorityToInitialProgress(pair.first, pair.second);
+        // If an imported function has a compilation hint, ignore it.
+        if (function_index < module->num_imported_functions) continue;
+        uint32_t declared_function_index =
+            function_index - module->num_imported_functions;
+        // If a function index is out of bounds, ignore it.
+        if (declared_function_index >= module->num_declared_functions) {
+          continue;
+        }
+        ApplyCompilationPriorityToInitialProgress(declared_function_index,
+                                                  compilation_priority);
       }
     }
 

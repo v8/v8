@@ -47,3 +47,20 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   assertTrue(%IsTurboFanFunction(wasm.add));
 })();
+
+(function TestCompilationPriorityWithImportedFunctions() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  builder.addImport("m", "i", kSig_v_v);
+
+  let dummy = builder.addFunction("dummy", kSig_v_v).addBody([]).exportFunc();
+
+  builder.setCompilationPriority(dummy.index, 0, undefined);
+
+  function imp() { print(0); }
+
+  let wasm = builder.instantiate({m: {i: imp}}).exports;
+  assertTrue(%IsLiftoffFunction(wasm.dummy));
+})();
