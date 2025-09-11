@@ -45,6 +45,10 @@ class RecomputeKnownNodeAspectsProcessor {
         // TODO(victorgomes): Figure it out the first block to throw to this
         // node and set KNA.
         block->state()->MergeNodeAspects(zone(), *known_node_aspects_);
+      } else if (block->is_loop() &&
+                 block->state()->IsUnreachableByForwardEdge()) {
+        DCHECK(block->state()->is_resumable_loop());
+        block->state()->MergeNodeAspects(zone(), *known_node_aspects_);
       }
     }
   }
