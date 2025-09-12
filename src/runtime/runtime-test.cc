@@ -2417,25 +2417,6 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
 #endif  // not V8_JITLESS
 }
 
-RUNTIME_FUNCTION(Runtime_CheckNoWriteBarrierNeeded) {
-#if V8_VERIFY_WRITE_BARRIERS
-  DisallowGarbageCollection no_gc;
-  if (args.length() != 2) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  Tagged<Object> object = args[0];
-  if (!object.IsHeapObject()) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto heap_object = Cast<HeapObject>(object);
-  Tagged<Object> value = args[1];
-  CHECK(!WriteBarrier::IsRequired(heap_object, value));
-  return args[0];
-#else
-  UNREACHABLE();
-#endif
-}
-
 RUNTIME_FUNCTION(Runtime_ArrayBufferDetachForceWasm) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;

@@ -741,6 +741,9 @@ class MaglevCodeGeneratingNodeProcessor {
       __ Prologue(graph);
     }
 
+    // Maglev always sets up a frame.
+    __ set_has_frame(true);
+
     // "Deferred" computation has to be done before block removal, because
     // block removal doesn't propagate deferredness of removed blocks.
     int deferred_count = ComputeDeferred(graph);
