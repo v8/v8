@@ -247,7 +247,7 @@ function test_null_prototype() {
   function test_function() { }
 
   test_function.prototype = null;
-  try {
+  assertThrows(() => {
     test_function.prototype.func = function () { return "test_function.prototype.func" };
     test_function.prototype.arrow_func = () => { return "test_function.prototype.arrow_func" };
     test_function.prototype.smi = 1
@@ -260,12 +260,7 @@ function test_null_prototype() {
     assertEquals(test_instance.smi, 1);
     assertEquals(test_instance.str, "test_function.prototype.str");
     assertEquals(test_instance.key, 0);
-  }
-  catch {
-    assertEquals(true, true);
-    return;
-  }
-  assertEquals(false, true);
+  }, TypeError);
 }
 
 function test_variable_proxy() {
@@ -273,19 +268,16 @@ function test_variable_proxy() {
   var calls = 0;
   let foo = {
     get prototype() {
-      //console.log("inside");
       calls += 1;
       foo = {};
       return { prototype: {} };
     }
   };
-  try {
+  assertThrows(() => {
     foo.prototype.k1 = 1;
     foo.prototype.k2 = 2;
-  }
-  catch {
-    //console.log("catch");
-  }
+  }, TypeError);
+
   assertEquals(calls, 1);
   assertEquals(Object.keys(foo).length, 0);
 }
@@ -299,12 +291,10 @@ function test_variable_proxy_eval() {
 
     eval("var foo = { prototype: { set k1(x) { calls += 1;foo = {}} }}");
     var calls = 0;
-    try {
+    assertThrows(() => {
       foo.prototype.k1 = 1;
       foo.prototype.k2 = 2;
-    }
-    catch {
-    }
+    }, TypeError);
     assertEquals(calls, 1);
     assertEquals(Object.keys(foo).length, 0);
   })();

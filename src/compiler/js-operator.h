@@ -769,7 +769,8 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
 class SetPrototypePropertiesParameters final {
  public:
-  explicit SetPrototypePropertiesParameters(HeapObjectRef constant)
+  explicit SetPrototypePropertiesParameters(
+      ObjectBoilerplateDescriptionRef constant)
       : constant(constant) {}
 
   friend bool operator==(SetPrototypePropertiesParameters const&,
@@ -782,7 +783,7 @@ class SetPrototypePropertiesParameters final {
   friend std::ostream& operator<<(std::ostream&,
                                   SetPrototypePropertiesParameters const&);
 
-  const HeapObjectRef constant;
+  const ObjectBoilerplateDescriptionRef constant;
 };
 
 SetPrototypePropertiesParameters SetPrototypePropertiesParametersOf(
