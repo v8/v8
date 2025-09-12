@@ -89,11 +89,11 @@ void MarkCompactCollector::RecordSlot(MemoryChunk* host_chunk,
     RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::ATOMIC>(
         host_page, host_chunk->Offset(slot.address()));
   } else if (value_page->is_executable()) {
-    DCHECK(!InsideSandbox(value_chunk->address()));
+    DCHECK(OutsideSandbox(value_chunk->address()));
     RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::ATOMIC>(
         host_page, host_chunk->Offset(slot.address()));
   } else if (host_page->is_trusted() && value_page->is_trusted()) {
-    DCHECK(!InsideSandbox(value_chunk->address()));
+    DCHECK(OutsideSandbox(value_chunk->address()));
     RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::ATOMIC>(
         host_page, host_chunk->Offset(slot.address()));
   } else if (V8_LIKELY(!value_page->is_writable_shared()) ||

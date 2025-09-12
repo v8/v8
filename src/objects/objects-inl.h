@@ -499,7 +499,7 @@ constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged<MaybeObject> obj) {
 
 bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #ifdef V8_ENABLE_SANDBOX
-  return !InsideSandbox(obj.address()) ||
+  return OutsideSandbox(obj.address()) ||
          MemoryChunk::FromHeapObject(obj)->SandboxSafeInReadOnlySpace();
 #else
   return true;

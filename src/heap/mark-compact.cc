@@ -1431,7 +1431,7 @@ class RecordMigratedSlotVisitor
       const MutablePageMetadata* value_page =
           MutablePageMetadata::cast(value_chunk->Metadata(heap_->isolate()));
       if (value_page->is_executable()) {
-        DCHECK(!InsideSandbox(value_chunk->address()));
+        DCHECK(OutsideSandbox(value_chunk->address()));
         RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
             host_page, host_chunk->Offset(slot));
       } else if (value_page->is_trusted() && host_page->is_trusted()) {
@@ -1440,7 +1440,7 @@ class RecordMigratedSlotVisitor
         // references we want to use the OLD_TO_OLD remembered set, so here
         // we need to check that both the value chunk and the host chunk are
         // trusted space chunks.
-        DCHECK(!InsideSandbox(value_chunk->address()));
+        DCHECK(OutsideSandbox(value_chunk->address()));
         if (value_page->is_writable_shared()) {
           RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
               AccessMode::NON_ATOMIC>(host_page, host_chunk->Offset(slot));
@@ -5458,15 +5458,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       return;
     }
 
-#ifdef V8_ENABLE_SANDBOX
     // When the sandbox is enabled, we must not process the TRUSTED_TO_CODE
     // remembered set on any chunk that is located inside the sandbox (in which
     // case the set should be unused). This is because an attacker could either
     // directly modify the TRUSTED_TO_CODE set on such a chunk, or trick the GC
     // into populating it with invalid pointers, both of which may lead to
     // memory corruption inside the (trusted) code space here.
-    SBXCHECK(!InsideSandbox(chunk_->ChunkAddress()));
-#endif
+    SBXCHECK(OutsideSandbox(chunk_->ChunkAddress()));
 
     const PtrComprCageBase cage_base = heap_->isolate();
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -5497,15 +5495,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       return;
     }
 
-#ifdef V8_ENABLE_SANDBOX
     // When the sandbox is enabled, we must not process the TRUSTED_TO_TRUSTED
     // remembered set on any chunk that is located inside the sandbox (in which
     // case the set should be unused). This is because an attacker could either
     // directly modify the TRUSTED_TO_TRUSTED set on such a chunk, or trick the
     // GC into populating it with invalid pointers, both of which may lead to
     // memory corruption inside the trusted space here.
-    SBXCHECK(!InsideSandbox(chunk_->ChunkAddress()));
-#endif
+    SBXCHECK(OutsideSandbox(chunk_->ChunkAddress()));
 
     // TODO(saelo) we can probably drop all the cage_bases here once we no
     // longer need to pass them into our slot implementations.

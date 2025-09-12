@@ -44,7 +44,7 @@ MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
                   executability == Executability::EXECUTABLE);
   // "Trusted" chunks should never be located inside the sandbox as they
   // couldn't be trusted in that case.
-  DCHECK_IMPLIES(is_trusted(), !InsideSandbox(ChunkAddress()));
+  DCHECK_IMPLIES(is_trusted(), OutsideSandbox(ChunkAddress()));
   flags_ = IsWritableSharedSpaceField::update(
       flags_, IsAnyWritableSharedSpace(owner()->identity()));
 }
