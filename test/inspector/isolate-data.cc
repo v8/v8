@@ -564,7 +564,7 @@ void InspectorIsolateData::installAdditionalCommandLineAPI(
 }
 
 void InspectorIsolateData::consoleAPIMessage(
-    int contextGroupId, v8::Isolate::MessageErrorLevel level,
+    int contextGroupId, int contextId, v8::Isolate::MessageErrorLevel level,
     const v8_inspector::StringView& message,
     const v8_inspector::StringView& url, unsigned lineNumber,
     unsigned columnNumber, v8_inspector::V8StackTrace* stack) {
