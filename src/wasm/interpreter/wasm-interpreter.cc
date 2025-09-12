@@ -5568,7 +5568,7 @@ class Handlers : public HandlersBase {
 
       DirectHandle<WasmExceptionPackage> exception_object =
           wasm_runtime->CreateWasmExceptionPackage(tag_index);
-      DirectHandle<FixedArray> encoded_values = Cast<FixedArray>(
+      DirectHandle<FixedArray> encoded_values = TrustedCast<FixedArray>(
           WasmExceptionPackage::GetExceptionValues(isolate, exception_object));
 
       // Encode the exception values on the operand stack into the exception
@@ -6136,7 +6136,7 @@ class Handlers : public HandlersBase {
     }
     Address field_addr = (*struct_obj).ptr() + field_offset;
     StoreRefIntoMemory(
-        Cast<HeapObject>(*struct_obj), field_addr,
+        TrustedCast<HeapObject>(*struct_obj), field_addr,
         field_offset +
             kHeapObjectTag,  // field_offset is offset into tagged object.
         *ref, UPDATE_WRITE_BARRIER);
@@ -6216,7 +6216,7 @@ class Handlers : public HandlersBase {
       Address element_addr = array->ElementAddress(0);
       uint32_t element_offset = array->element_offset(0);
       for (uint32_t i = 0; i < elem_count; i++) {
-        StoreRefIntoMemory(Cast<HeapObject>(*array), element_addr,
+        StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
                            element_offset, *value, SKIP_WRITE_BARRIER);
         element_addr += sizeof(Tagged_t);
         element_offset += sizeof(Tagged_t);
@@ -6286,7 +6286,7 @@ class Handlers : public HandlersBase {
             case kRef:
             case kRefNull: {
               WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
-              StoreRefIntoMemory(Cast<HeapObject>(*array), element_addr,
+              StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
                                  element_offset, *ref, SKIP_WRITE_BARRIER);
               break;
             }
@@ -6356,7 +6356,7 @@ class Handlers : public HandlersBase {
           case kRef:
           case kRefNull:
             StoreRefIntoMemory(
-                Cast<HeapObject>(*array), element_addr, element_offset,
+                TrustedCast<HeapObject>(*array), element_addr, element_offset,
                 wasm_runtime->GetNullValue(element_type), SKIP_WRITE_BARRIER);
             break;
           default:
@@ -6480,7 +6480,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
     push<int32_t>(sp, code, wasm_runtime, array->length());
 
     NextOp();
@@ -6509,12 +6509,12 @@ class Handlers : public HandlersBase {
     } else if (V8_UNLIKELY(wasm_runtime->IsRefNull(dest_array))) {
       TRAP(TrapReason::kTrapNullDereference)
     } else if (V8_UNLIKELY(dest_offset + size >
-                           Cast<WasmArray>(*dest_array)->length())) {
+                           TrustedCast<WasmArray>(*dest_array)->length())) {
       TRAP(TrapReason::kTrapArrayOutOfBounds)
     } else if (V8_UNLIKELY(wasm_runtime->IsRefNull(src_array))) {
       TRAP(TrapReason::kTrapNullDereference)
     } else if (V8_UNLIKELY(src_offset + size >
-                           Cast<WasmArray>(*src_array)->length())) {
+                           TrustedCast<WasmArray>(*src_array)->length())) {
       TRAP(TrapReason::kTrapArrayOutOfBounds)
     }
 
@@ -6544,7 +6544,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(TrapReason::kTrapArrayOutOfBounds)
     }
@@ -6574,7 +6574,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(TrapReason::kTrapArrayOutOfBounds)
     }
@@ -6599,7 +6599,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(TrapReason::kTrapArrayOutOfBounds)
     }
@@ -6628,7 +6628,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(TrapReason::kTrapArrayOutOfBounds)
     }
@@ -6655,7 +6655,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(static_cast<uint64_t>(offset) + size > array->length())) {
       TRAP(TrapReason::kTrapArrayOutOfBounds)
     }
@@ -6693,7 +6693,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(static_cast<uint64_t>(offset) + size > array->length())) {
       TRAP(TrapReason::kTrapArrayOutOfBounds)
     }

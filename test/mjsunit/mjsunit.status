@@ -633,6 +633,7 @@
   'regress/wasm/regress-372261626': [SKIP],
   'regress/wasm/regress-377620832': [SKIP],
   'regress/wasm/regress-410295354': [SKIP],
+  'regress/wasm/regress-434008619': [SKIP],
   'wasm/exnref*': [SKIP],
   'wasm/gc-casts-exnref': [SKIP],
   'wasm/gc-casts-invalid': [SKIP],
