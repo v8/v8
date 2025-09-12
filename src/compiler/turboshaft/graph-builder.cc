@@ -1986,8 +1986,8 @@ OpIndex GraphBuilder::Process(
       // EffectControlLinearizer used to use `node->op()->properties()` to
       // construct the builtin call descriptor for this operation. However, this
       // always seemed to be `kEliminatable` so the Turboshaft
-      // BuiltinCallDescriptor's for those builtins have this property
-      // hard-coded.
+      // BuiltinCallDescriptor's for those builtins have this
+      // property hard-coded.
       DCHECK_EQ(node->op()->properties(), Operator::kEliminatable);
       return __ NewArgumentsElements(Map(node->InputAt(0)), p.arguments_type(),
                                      p.formal_parameter_count());
@@ -2429,9 +2429,10 @@ OpIndex GraphBuilder::Process(
         allocated_type =
             __ HeapConstant(type.AllocateOnHeap(isolate->factory()));
       }
-      __ CallBuiltin_CheckTurbofanType(isolate, __ NoContextConstant(),
-                                       Map(node->InputAt(0)), allocated_type,
-                                       __ TagSmi(node->id()));
+      __ CallBuiltin<builtin::CheckTurbofanType>(
+          __ NoContextConstant(), {.value = Map(node->InputAt(0)),
+                                   .expected_type = allocated_type,
+                                   .node_id = __ TagSmi(node->id())});
       return OpIndex::Invalid();
     }
 

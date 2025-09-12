@@ -40,7 +40,8 @@
   using Float64 = compiler::turboshaft::Float64;                               \
   using RegisterRepresentation = compiler::turboshaft::RegisterRepresentation; \
   using MemoryRepresentation = compiler::turboshaft::MemoryRepresentation;     \
-  using BuiltinCallDescriptor = compiler::turboshaft::BuiltinCallDescriptor;   \
+  using BuiltinCallDescriptor =                                                \
+      compiler::turboshaft::deprecated::BuiltinCallDescriptor;                 \
   using AccessBuilderTS = compiler::turboshaft::AccessBuilderTS;
 
 #define BUILTIN_REDUCER(name)          \
@@ -636,6 +637,23 @@ class TurboshaftBuiltinsAssembler
       : Base(data, graph, graph, phase_zone) {}
 
   using Base::Asm;
+
+  template <typename Desc>
+    requires(!Desc::kCanTriggerLazyDeopt)
+  auto CallBuiltin(compiler::turboshaft::V<Context> context,
+                   const Desc::Arguments& args) {
+    return Base::template CallBuiltin<Desc>(context, args);
+  }
+
+  template <typename Desc>
+    requires(Desc::kCanTriggerLazyDeopt)
+  auto CallBuiltin(compiler::turboshaft::V<Context> context,
+                   const Desc::Arguments& args) {
+    return Base::template CallBuiltin<Desc>(
+        compiler::turboshaft::OptionalV<
+            compiler::turboshaft::FrameState>::Nullopt(),
+        context, args, compiler::LazyDeoptOnThrow::kNo);
+  }
 
   Isolate* isolate() { return Base::data()->isolate(); }
   Factory* factory() { return isolate()->factory(); }

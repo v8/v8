@@ -44,7 +44,6 @@ using compiler::MemoryAccessKind;
 using compiler::Operator;
 using compiler::TrapId;
 using TSBlock = compiler::turboshaft::Block;
-using compiler::turboshaft::BuiltinCallDescriptor;
 using compiler::turboshaft::CallOp;
 using compiler::turboshaft::ConditionWithHint;
 using compiler::turboshaft::ConstantOp;
@@ -83,6 +82,7 @@ using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word32;
 using compiler::turboshaft::WordPtr;
 using compiler::turboshaft::WordRepresentation;
+using compiler::turboshaft::deprecated::BuiltinCallDescriptor;
 
 namespace {
 

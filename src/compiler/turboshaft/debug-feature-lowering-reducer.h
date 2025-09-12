@@ -65,28 +65,28 @@ class DebugFeatureLoweringReducer : public Next {
       switch (rep.value()) {
         case RegisterRepresentation::Word32():
           __ template WasmCallBuiltinThroughJumptable<
-              BuiltinCallDescriptor::DebugPrintWord32>(__ NoContextConstant(),
-                                                       {label_or_0, input});
+              deprecated::BuiltinCallDescriptor::DebugPrintWord32>(
+              __ NoContextConstant(), {label_or_0, input});
           break;
         case RegisterRepresentation::Word64():
           __ template WasmCallBuiltinThroughJumptable<
-              BuiltinCallDescriptor::DebugPrintWord64>(__ NoContextConstant(),
-                                                       {label_or_0, input});
+              deprecated::BuiltinCallDescriptor::DebugPrintWord64>(
+              __ NoContextConstant(), {label_or_0, input});
           break;
         case RegisterRepresentation::Float32():
           __ template WasmCallBuiltinThroughJumptable<
-              BuiltinCallDescriptor::DebugPrintFloat32>(__ NoContextConstant(),
-                                                        {label_or_0, input});
+              deprecated::BuiltinCallDescriptor::DebugPrintFloat32>(
+              __ NoContextConstant(), {label_or_0, input});
           break;
         case RegisterRepresentation::Float64():
           __ template WasmCallBuiltinThroughJumptable<
-              BuiltinCallDescriptor::DebugPrintFloat64>(__ NoContextConstant(),
-                                                        {label_or_0, input});
+              deprecated::BuiltinCallDescriptor::DebugPrintFloat64>(
+              __ NoContextConstant(), {label_or_0, input});
           break;
         case RegisterRepresentation::Tagged():
           __ template WasmCallBuiltinThroughJumptable<
-              BuiltinCallDescriptor::DebugPrintObject>(__ NoContextConstant(),
-                                                       {label_or_0, input});
+              deprecated::BuiltinCallDescriptor::DebugPrintObject>(
+              __ NoContextConstant(), {label_or_0, input});
           break;
         default:
           // TODO(mliedtke): Support other representations.

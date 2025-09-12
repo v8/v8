@@ -844,8 +844,8 @@ class Uninitialized {
 // TODO(nicohartmann): This is a temporary solution to allow builtins calling
 // other builtins to be able to not pass a FrameState (because those calls
 // cannot lazy deopt). We should ideally remove `kNeedsFrameState` from the
-// `BuiltinCallDescriptor`s because that's not an inherent property of the
-// callee, but also depends on the caller.
+// `BuiltinCallDescriptor`s because that's not an inherent property
+// of the callee, but also depends on the caller.
 class FrameStateForCall {
  public:
   FrameStateForCall(
@@ -3724,6 +3724,52 @@ class TurboshaftAssemblerOpInterface
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  template <typename Desc>
+    requires(Desc::kNeedsContext && !Desc::kCanTriggerLazyDeopt)
+  detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
+      V<Context> context, const Desc::Arguments& args) {
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    DCHECK(context.valid());
+    auto arguments = args.ToVector();
+    arguments.push_back(context);
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Desc::kFunction, OptionalV<turboshaft::FrameState>::Nullopt(),
+        base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallCodeObject,
+                     Asm().output_graph().graph_zone()),
+        Desc::kEffects));
+  }
+
+  template <typename Desc>
+    requires(Desc::kNeedsContext && Desc::kCanTriggerLazyDeopt)
+  detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
+      OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
+      const Desc::Arguments& args, LazyDeoptOnThrow lazy_deopt_on_throw) {
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    DCHECK(context.valid());
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
+    auto arguments = args.ToVector();
+    arguments.push_back(context);
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Desc::kFunction, frame_state, base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallCodeObject,
+                     Asm().output_graph().graph_zone(), lazy_deopt_on_throw,
+                     !compiling_builtins),
+        Desc::kEffects));
+  }
+
   V<Any> CallBuiltinImpl(Isolate* isolate, Builtin builtin,
                          OptionalV<turboshaft::FrameState> frame_state,
                          base::Vector<const OpIndex> arguments,
@@ -3733,233 +3779,212 @@ class TurboshaftAssemblerOpInterface
                 effects);
   }
 
-#define DECL_GENERIC_BINOP_BUILTIN_CALL(Name)                               \
-  V<Object> CallBuiltin_##Name(                                             \
-      Isolate* isolate, FrameStateForCall frame_state, V<Context> context,  \
-      V<Object> lhs, V<Object> rhs, LazyDeoptOnThrow lazy_deopt_on_throw) { \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(               \
-        isolate, frame_state, context, {lhs, rhs}, lazy_deopt_on_throw);    \
-  }
-  GENERIC_BINOP_LIST(DECL_GENERIC_BINOP_BUILTIN_CALL)
-#undef DECL_GENERIC_BINOP_BUILTIN_CALL
-
-#define DECL_GENERIC_UNOP_BUILTIN_CALL(Name)                           \
-  V<Object> CallBuiltin_##Name(Isolate* isolate,                       \
-                               V<turboshaft::FrameState> frame_state,  \
-                               V<Context> context, V<Object> input,    \
-                               LazyDeoptOnThrow lazy_deopt_on_throw) { \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(          \
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);  \
-  }
-  GENERIC_UNOP_LIST(DECL_GENERIC_UNOP_BUILTIN_CALL)
-#undef DECL_GENERIC_UNOP_BUILTIN_CALL
-
-  V<BigInt> CallBuiltin_BigIntAdd(Isolate* isolate, V<Context> context,
-                                  V<Numeric> lhs, V<Numeric> rhs) {
-    return CallBuiltin<typename BuiltinCallDescriptor::BigIntAdd>(
-        isolate, context, {lhs, rhs});
-  }
-
   V<Number> CallBuiltin_ToNumber(Isolate* isolate,
                                  V<turboshaft::FrameState> frame_state,
                                  V<Context> context, V<Object> input,
                                  LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToNumber>(
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToNumber>(
         isolate, frame_state, context, {input}, lazy_deopt_on_throw);
   }
   V<Numeric> CallBuiltin_ToNumeric(Isolate* isolate,
                                    V<turboshaft::FrameState> frame_state,
                                    V<Context> context, V<Object> input,
                                    LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToNumeric>(
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToNumeric>(
         isolate, frame_state, context, {input}, lazy_deopt_on_throw);
   }
 
-  void CallBuiltin_CheckTurbofanType(Isolate* isolate, V<Context> context,
-                                     V<Object> object,
-                                     V<TurbofanType> allocated_type,
-                                     V<Smi> node_id) {
-    CallBuiltin<typename BuiltinCallDescriptor::CheckTurbofanType>(
-        isolate, context, {object, allocated_type, node_id});
-  }
   V<Object> CallBuiltin_CopyFastSmiOrObjectElements(Isolate* isolate,
                                                     V<Object> object) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::CopyFastSmiOrObjectElements>(isolate,
-                                                                     {object});
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::
+                           CopyFastSmiOrObjectElements>(isolate, {object});
   }
   void CallBuiltin_DebugPrintFloat32(Isolate* isolate, V<Context> context,
                                      V<Union<String, Smi>> label_or_0,
                                      V<Float32> value) {
-    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintFloat32>(
+    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintFloat32>(
         isolate, context, {label_or_0, value});
   }
   void CallBuiltin_DebugPrintFloat64(Isolate* isolate, V<Context> context,
                                      V<Union<String, Smi>> label_or_0,
                                      V<Float64> value) {
-    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintFloat64>(
+    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintFloat64>(
         isolate, context, {label_or_0, value});
   }
   void CallBuiltin_DebugPrintWord32(Isolate* isolate, V<Context> context,
                                     V<Union<String, Smi>> label_or_0,
                                     V<Word32> value) {
-    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintWord32>(
+    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintWord32>(
         isolate, context, {label_or_0, value});
   }
   void CallBuiltin_DebugPrintWord64(Isolate* isolate, V<Context> context,
                                     V<Union<String, Smi>> label_or_0,
                                     V<Word64> value) {
-    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintWord64>(
+    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintWord64>(
         isolate, context, {label_or_0, value});
   }
   void CallBuiltin_DebugPrintObject(Isolate* isolate, V<Context> context,
                                     V<Union<String, Smi>> label_or_0,
                                     V<Object> value) {
-    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintObject>(
+    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintObject>(
         isolate, context, {label_or_0, value});
   }
   V<Smi> CallBuiltin_FindOrderedHashMapEntry(Isolate* isolate,
                                              V<Context> context,
                                              V<Object> table, V<Smi> key) {
-    return CallBuiltin<typename BuiltinCallDescriptor::FindOrderedHashMapEntry>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::FindOrderedHashMapEntry>(
         isolate, context, {table, key});
   }
   V<Smi> CallBuiltin_FindOrderedHashSetEntry(Isolate* isolate,
                                              V<Context> context, V<Object> set,
                                              V<Smi> key) {
-    return CallBuiltin<typename BuiltinCallDescriptor::FindOrderedHashSetEntry>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::FindOrderedHashSetEntry>(
         isolate, context, {set, key});
   }
   V<Object> CallBuiltin_GrowFastDoubleElements(Isolate* isolate,
                                                V<Object> object, V<Smi> size) {
-    return CallBuiltin<typename BuiltinCallDescriptor::GrowFastDoubleElements>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::GrowFastDoubleElements>(
         isolate, {object, size});
   }
   V<Object> CallBuiltin_GrowFastSmiOrObjectElements(Isolate* isolate,
                                                     V<Object> object,
                                                     V<Smi> size) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::GrowFastSmiOrObjectElements>(
-        isolate, {object, size});
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::
+                           GrowFastSmiOrObjectElements>(isolate,
+                                                        {object, size});
   }
   V<FixedArray> CallBuiltin_NewSloppyArgumentsElements(
       Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
       V<Smi> arguments_count) {
     return CallBuiltin<
-        typename BuiltinCallDescriptor::NewSloppyArgumentsElements>(
+        typename deprecated::BuiltinCallDescriptor::NewSloppyArgumentsElements>(
         isolate, {frame, formal_parameter_count, arguments_count});
   }
   V<FixedArray> CallBuiltin_NewStrictArgumentsElements(
       Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
       V<Smi> arguments_count) {
     return CallBuiltin<
-        typename BuiltinCallDescriptor::NewStrictArgumentsElements>(
+        typename deprecated::BuiltinCallDescriptor::NewStrictArgumentsElements>(
         isolate, {frame, formal_parameter_count, arguments_count});
   }
   V<FixedArray> CallBuiltin_NewRestArgumentsElements(
       Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
       V<Smi> arguments_count) {
     return CallBuiltin<
-        typename BuiltinCallDescriptor::NewRestArgumentsElements>(
+        typename deprecated::BuiltinCallDescriptor::NewRestArgumentsElements>(
         isolate, {frame, formal_parameter_count, arguments_count});
   }
   V<String> CallBuiltin_NumberToString(Isolate* isolate, V<Number> input) {
-    return CallBuiltin<typename BuiltinCallDescriptor::NumberToString>(isolate,
-                                                                       {input});
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::NumberToString>(isolate,
+                                                                    {input});
   }
   V<String> CallBuiltin_ToString(Isolate* isolate,
                                  V<turboshaft::FrameState> frame_state,
                                  V<Context> context, V<Object> input,
                                  LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToString>(
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToString>(
         isolate, frame_state, context, {input}, lazy_deopt_on_throw);
   }
   V<Number> CallBuiltin_PlainPrimitiveToNumber(Isolate* isolate,
                                                V<PlainPrimitive> input) {
-    return CallBuiltin<typename BuiltinCallDescriptor::PlainPrimitiveToNumber>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::PlainPrimitiveToNumber>(
         isolate, {input});
   }
   V<Boolean> CallBuiltin_SameValue(Isolate* isolate, V<Object> left,
                                    V<Object> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::SameValue>(
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::SameValue>(
         isolate, {left, right});
   }
   V<Boolean> CallBuiltin_SameValueNumbersOnly(Isolate* isolate, V<Object> left,
                                               V<Object> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::SameValueNumbersOnly>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::SameValueNumbersOnly>(
         isolate, {left, right});
   }
   V<String> CallBuiltin_StringAdd_CheckNone(Isolate* isolate,
                                             V<Context> context, V<String> left,
                                             V<String> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringAdd_CheckNone>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::StringAdd_CheckNone>(
         isolate, context, {left, right});
   }
   V<Boolean> CallBuiltin_StringEqual(Isolate* isolate, V<String> left,
                                      V<String> right, V<WordPtr> length) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringEqual>(
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::StringEqual>(
         isolate, {left, right, length});
   }
   V<Boolean> CallBuiltin_StringLessThan(Isolate* isolate, V<String> left,
                                         V<String> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringLessThan>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::StringLessThan>(
         isolate, {left, right});
   }
   V<Boolean> CallBuiltin_StringLessThanOrEqual(Isolate* isolate, V<String> left,
                                                V<String> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringLessThanOrEqual>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::StringLessThanOrEqual>(
         isolate, {left, right});
   }
   V<Smi> CallBuiltin_StringIndexOf(Isolate* isolate, V<String> string,
                                    V<String> search, V<Smi> position) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringIndexOf>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::StringIndexOf>(
         isolate, {string, search, position});
   }
   V<String> CallBuiltin_StringFromCodePointAt(Isolate* isolate,
                                               V<String> string,
                                               V<WordPtr> index) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringFromCodePointAt>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::StringFromCodePointAt>(
         isolate, {string, index});
   }
 #ifdef V8_INTL_SUPPORT
   V<String> CallBuiltin_StringToLowerCaseIntl(Isolate* isolate,
                                               V<Context> context,
                                               V<String> string) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringToLowerCaseIntl>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::StringToLowerCaseIntl>(
         isolate, context, {string});
   }
 #endif  // V8_INTL_SUPPORT
   V<Number> CallBuiltin_StringToNumber(Isolate* isolate, V<String> input) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringToNumber>(isolate,
-                                                                       {input});
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::StringToNumber>(isolate,
+                                                                    {input});
   }
   V<String> CallBuiltin_StringSubstring(Isolate* isolate, V<String> string,
                                         V<WordPtr> start, V<WordPtr> end) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringSubstring>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::StringSubstring>(
         isolate, {string, start, end});
   }
   V<Boolean> CallBuiltin_ToBoolean(Isolate* isolate, V<Object> object) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToBoolean>(isolate,
-                                                                  {object});
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToBoolean>(
+        isolate, {object});
   }
   V<JSReceiver> CallBuiltin_ToObject(Isolate* isolate, V<Context> context,
                                      V<JSPrimitive> object) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToObject>(
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToObject>(
         isolate, context, {object});
   }
   void CallBuiltin_DetachContextCell(Isolate* isolate,
                                      V<turboshaft::FrameState> frame_state,
                                      V<Context> context, V<Object> new_value,
                                      ConstOrV<WordPtr> index) {
-    CallBuiltin<typename BuiltinCallDescriptor::DetachContextCell>(
+    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DetachContextCell>(
         isolate, frame_state, {context, new_value, resolve(index)});
   }
   V<Context> CallBuiltin_FastNewFunctionContextFunction(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
       V<Context> context, V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
       LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::FastNewFunctionContextFunction>(
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::
+                           FastNewFunctionContextFunction>(
         isolate, frame_state, context, {scope_info, resolve(slot_count)},
         lazy_deopt_on_throw);
   }
@@ -3968,7 +3993,7 @@ class TurboshaftAssemblerOpInterface
       V<Context> context, V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
       LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallBuiltin<
-        typename BuiltinCallDescriptor::FastNewFunctionContextEval>(
+        typename deprecated::BuiltinCallDescriptor::FastNewFunctionContextEval>(
         isolate, frame_state, context, {scope_info, resolve(slot_count)},
         lazy_deopt_on_throw);
   }
@@ -3976,12 +4001,13 @@ class TurboshaftAssemblerOpInterface
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
       V<Context> context, V<SharedFunctionInfo> shared_function_info,
       V<FeedbackCell> feedback_cell) {
-    return CallBuiltin<typename BuiltinCallDescriptor::FastNewClosure>(
+    return CallBuiltin<
+        typename deprecated::BuiltinCallDescriptor::FastNewClosure>(
         isolate, frame_state, context, {shared_function_info, feedback_cell});
   }
   V<String> CallBuiltin_Typeof(Isolate* isolate, V<Object> object) {
-    return CallBuiltin<typename BuiltinCallDescriptor::Typeof>(isolate,
-                                                               {object});
+    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::Typeof>(
+        isolate, {object});
   }
 
   V<Object> CallBuiltinWithVarStackArgs(Isolate* isolate, Zone* graph_zone,
