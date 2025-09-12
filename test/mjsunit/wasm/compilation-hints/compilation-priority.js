@@ -39,7 +39,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   }
   assertTrue(%IsLiftoffFunction(wasm.sub));
   assertTrue(%IsUncompiledWasmFunction(wasm.mul));
-  assertTrue(%IsTurboFanFunction(wasm.div));
+  // 'div' gets compiled with Liftoff at instantiation time, but gets tiered-up
+  // to TurboFan in the background.
+  while (!%IsTurboFanFunction(wasm.div)) {
+    assertTrue(%IsLiftoffFunction(wasm.div) || %IsTurboFanFunction(wasm.div));
+  }
 
   while (!%IsTurboFanFunction(wasm.add)) {
     assertEquals(30, wasm.add(10, 20));  // Should tier-up 'add' eventually.

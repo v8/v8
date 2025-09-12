@@ -3632,18 +3632,15 @@ void CompilationStateImpl::ApplyCompilationPriorityToInitialProgress(
   ExecutionTier old_baseline_tier = RequiredBaselineTierField::decode(progress);
 
   // Compute new information.
-  // If optimization_priority is present and the function is not only executed
-  // once, eagerly (blockingly) compile with Turbofan.
-  // Otherwise, eagerly (blockingly) compile with Liftoff and do not optimize
-  // eagerly.
+  // Always compile eagerly (blockingly) with Liftoff if a compilation-priority
+  // hint is present. Then, if optimization_priority is present and the function
+  // is not only executed once, compile with Turbofan in the background.
   bool optimization_priority_not_finite =
       priority.optimization_priority >=
           kOptimizationPriorityExecutedOnceSentinel ||
       priority.optimization_priority ==
           kOptimizationPriorityNotSpecifiedSentinel;
-  ExecutionTier new_baseline_tier = optimization_priority_not_finite
-                                        ? ExecutionTier::kLiftoff
-                                        : ExecutionTier::kTurbofan;
+  ExecutionTier new_baseline_tier = ExecutionTier::kLiftoff;
   ExecutionTier new_top_tier = optimization_priority_not_finite
                                    ? ExecutionTier::kNone
                                    : ExecutionTier::kTurbofan;
