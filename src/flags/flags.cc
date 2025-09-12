@@ -1151,6 +1151,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
                     turboshaft_assert_types),
       CONTRADICTION(turboshaft, stress_concurrent_inlining),
       CONTRADICTION(turboshaft, stress_concurrent_inlining_attach_code),
+      CONTRADICTION(minor_ms, handle_weak_ref_weakly_in_minor_gc),
 
       // List of flags that shouldn't be used when --fuzzing or
       // --correctness-fuzzer-suppressions is passed. These flags will be reset
