@@ -451,28 +451,6 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
   return REMOVE_SLOT;
 }
 
-template <typename Visitor>
-void Scavenger::UpdateWeakPointersIfPossible(const Visitor* visitor,
-                                             Tagged<HeapObject> host,
-                                             ObjectSlot start, ObjectSlot end) {
-  DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
-  for (ObjectSlot slot = start; slot < end; ++slot) {
-    const std::optional<Tagged<Object>> optional_object =
-        visitor->GetObjectFilterReadOnlyAndSmiFast(slot);
-    if (!optional_object) {
-      continue;
-    }
-    Tagged<Object> object = *optional_object;
-    Tagged<HeapObject> heap_object;
-    if (object.GetHeapObject(&heap_object)) {
-      MapWord map_word = heap_object->map_word(kRelaxedLoad);
-      if (map_word.IsForwardingAddress()) {
-        slot.store(map_word.ToForwardingAddress(heap_object));
-      }
-    }
-  }
-}
-
 class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
   using Base = NewSpaceVisitor<ScavengeVisitor>;
 
@@ -529,13 +507,12 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
 void ScavengeVisitor::VisitCustomWeakPointers(Tagged<HeapObject> host,
                                               ObjectSlot start,
                                               ObjectSlot end) {
-  if (!allow_weakness_) {
-    // Strongify the weak pointers.
-    VisitPointersImpl(host, start, end);
+  if (allow_weakness_) {
+    DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
     return;
   }
-  DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
-  scavenger_->UpdateWeakPointersIfPossible(this, host, start, end);
+  // Strongify the weak pointers.
+  VisitPointersImpl(host, start, end);
 }
 
 void ScavengeVisitor::VisitPointers(Tagged<HeapObject> host, ObjectSlot start,

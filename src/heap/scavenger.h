@@ -204,11 +204,6 @@ class Scavenger {
   void PushPinnedPromotedObject(Tagged<HeapObject> object, Tagged<Map> map,
                                 SafeHeapObjectSize object_size);
 
-  template <typename Visitor>
-  V8_INLINE void UpdateWeakPointersIfPossible(const Visitor* visitor,
-                                              Tagged<HeapObject> host,
-                                              ObjectSlot start, ObjectSlot end);
-
   enum class WeakObjectAge { kOld, kYoung };
   template <WeakObjectAge>
   void RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref);

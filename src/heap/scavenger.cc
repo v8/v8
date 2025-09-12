@@ -90,13 +90,12 @@ class IterateAndScavengePromotedObjectsVisitor final
   V8_INLINE void VisitCustomWeakPointers(Tagged<HeapObject> host,
                                          ObjectSlot start,
                                          ObjectSlot end) final {
-    if (!allow_weakness_) {
-      // Strongify the weak pointers.
-      VisitPointersImpl(host, start, end);
+    if (allow_weakness_) {
+      DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
       return;
     }
-    DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
-    scavenger_->UpdateWeakPointersIfPossible(this, host, start, end);
+    // Strongify the weak pointers.
+    VisitPointersImpl(host, start, end);
   }
 
   V8_INLINE void VisitEphemeron(Tagged<HeapObject> obj, int entry,
@@ -1202,20 +1201,27 @@ void Scavenger::RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref) {
   if (!v8_flags.handle_weak_ref_weakly_in_minor_gc) {
     return;
   }
-  Tagged<HeapObject> target =
-      Cast<HeapObject>(js_weak_ref->RawField(JSWeakRef::kTargetOffset).load());
+  ObjectSlot target_slot = js_weak_ref->RawField(JSWeakRef::kTargetOffset);
+  Tagged<HeapObject> target = Cast<HeapObject>(target_slot.load());
   DCHECK_NE(kNullAddress, target.ptr());
   SynchronizePageAccess(target);
-  if (IsUnscavengedHeapObject(target)) {
+  DCHECK(Heap::InFromPage(target));
+  MapWord map_word = target->map_word(kRelaxedLoad);
+  if (!map_word.IsForwardingAddress()) {
     // Not scavenged yet, add to worklist for processing after scavenging.
     local_js_weak_refs_list_.Push(js_weak_ref);
     return;
   }
+  Tagged<HeapObject> new_target = map_word.ToForwardingAddress(target);
+  SynchronizePageAccess(new_target);
+  DCHECK_IMPLIES(!HeapLayout::IsSelfForwarded(target),
+                 !Heap::InFromPage(new_target));
+  target_slot.store(new_target);
   if constexpr (Age == WeakObjectAge::kYoung) {
     return;
   }
-  DCHECK(!HeapLayout::InWritableSharedSpace(target));
-  if (V8_UNLIKELY(HeapLayout::InYoungGeneration(target))) {
+  DCHECK(!HeapLayout::InWritableSharedSpace(new_target));
+  if (V8_UNLIKELY(HeapLayout::InYoungGeneration(new_target))) {
     // `js_weak_ref` is younger than its target, but in rare cases `weak_cell`
     // could be promoted to old gen while the target remains in young gen. For
     // such cases it is needed to update the old-to-new remembered set.
