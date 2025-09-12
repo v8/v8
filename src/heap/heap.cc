@@ -2581,7 +2581,7 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
     }
 
     CheckIneffectiveMarkCompact(
-        OldGenerationConsumedBytes(), GlobalConsumedBytes(),
+        OldGenerationConsumedBytes(),
         tracer()->AverageMarkCompactMutatorUtilization());
   } else {
     DCHECK(HasLowYoungGenerationAllocationRate());
@@ -3795,17 +3795,12 @@ bool Heap::HasLowAllocationRate() {
 }
 
 bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
-                                    size_t global_size,
                                     double mutator_utilization) {
   const double kHighHeapPercentage = 0.8;
   const double kLowMutatorUtilization = 0.4;
-  bool high_heap_ratio =
-      (old_generation_size >= kHighHeapPercentage * max_old_generation_size());
-  if (v8_flags.external_memory_accounted_in_global_limit) {
-    high_heap_ratio |=
-        (global_size >= kHighHeapPercentage * max_global_memory_size_);
-  }
-  return high_heap_ratio && mutator_utilization < kLowMutatorUtilization;
+  return old_generation_size >=
+             kHighHeapPercentage * max_old_generation_size() &&
+         mutator_utilization < kLowMutatorUtilization;
 }
 
 namespace {
@@ -3813,11 +3808,9 @@ static constexpr int kMaxConsecutiveIneffectiveMarkCompacts = 4;
 }
 
 void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
-                                       size_t global_size,
                                        double mutator_utilization) {
   if (!v8_flags.detect_ineffective_gcs_near_heap_limit) return;
-  if (!IsIneffectiveMarkCompact(old_generation_size, global_size,
-                                mutator_utilization)) {
+  if (!IsIneffectiveMarkCompact(old_generation_size, mutator_utilization)) {
     consecutive_ineffective_mark_compacts_ = 0;
     return;
   }
