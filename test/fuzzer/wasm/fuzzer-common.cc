@@ -106,46 +106,41 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
   // 100+ comparisons.
   std::unordered_map<TaggedT, TaggedT> lhs_map;
 
-  auto CheckArray = [&cmp, &lhs_map](Tagged<Object> lhs,
-                                     Tagged<Object> rhs) -> bool {
+  auto CheckArray = [&cmp, &lhs_map](Tagged<WasmArray> lhs,
+                                     Tagged<WasmArray> rhs) -> bool {
     auto [iter, inserted] = lhs_map.insert({lhs.ptr(), rhs.ptr()});
     if (!inserted) {
       return iter->second == rhs.ptr();
     }
-    Tagged<WasmArray> lhs_array = Cast<WasmArray>(lhs);
-    Tagged<WasmArray> rhs_array = Cast<WasmArray>(rhs);
-    if (lhs_array->map()->wasm_type_info()->type() !=
-        rhs_array->map()->wasm_type_info()->type()) {
+    if (lhs->map()->wasm_type_info()->type() !=
+        rhs->map()->wasm_type_info()->type()) {
       return false;
     }
-    if (lhs_array->length() != rhs_array->length()) {
+    if (lhs->length() != rhs->length()) {
       return false;
     }
-    cmp.reserve(cmp.size() + lhs_array->length());
-    for (uint32_t i = 0; i < lhs_array->length(); ++i) {
-      cmp.emplace_back(lhs_array->GetElement(i), rhs_array->GetElement(i));
+    cmp.reserve(cmp.size() + lhs->length());
+    for (uint32_t i = 0; i < lhs->length(); ++i) {
+      cmp.emplace_back(lhs->GetElement(i), rhs->GetElement(i));
     }
     return true;
   };
 
-  auto CheckStruct = [&cmp, &lhs_map](Tagged<Object> lhs,
-                                      Tagged<Object> rhs) -> bool {
+  auto CheckStruct = [&cmp, &lhs_map](Tagged<WasmStruct> lhs,
+                                      Tagged<WasmStruct> rhs) -> bool {
     auto [iter, inserted] = lhs_map.insert({lhs.ptr(), rhs.ptr()});
     if (!inserted) {
       return iter->second == rhs.ptr();
     }
-    Tagged<WasmStruct> lhs_struct = Cast<WasmStruct>(lhs);
-    Tagged<WasmStruct> rhs_struct = Cast<WasmStruct>(rhs);
-    if (lhs_struct->map()->wasm_type_info()->type() !=
-        rhs_struct->map()->wasm_type_info()->type()) {
+    if (lhs->map()->wasm_type_info()->type() !=
+        rhs->map()->wasm_type_info()->type()) {
       return false;
     }
     const CanonicalStructType* type = GetTypeCanonicalizer()->LookupStruct(
-        lhs_struct->map()->wasm_type_info()->type_index());
+        lhs->map()->wasm_type_info()->type_index());
     uint32_t field_count = type->field_count();
     for (uint32_t i = 0; i < field_count; ++i) {
-      cmp.emplace_back(lhs_struct->GetFieldValue(i),
-                       rhs_struct->GetFieldValue(i));
+      cmp.emplace_back(lhs->GetFieldValue(i), rhs->GetFieldValue(i));
     }
     return true;
   };
@@ -154,102 +149,47 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
     const auto [lhs, rhs] = cmp.back();
     cmp.pop_back();
 
-    if (lhs.type() != rhs.type()) {
-      return false;
+    if (lhs.type() != rhs.type()) return false;
+    CHECK(!lhs.type().is_sentinel());  // top, bottom, void can't get here.
+
+    if (lhs.type().is_numeric()) {
+      if (lhs != rhs) return false;
+      continue;
     }
 
-    switch (lhs.type().kind()) {
-      case ValueKind::kF32:
-      case ValueKind::kF64:
-      case ValueKind::kI8:
-      case ValueKind::kI16:
-      case ValueKind::kI32:
-      case ValueKind::kI64:
-      case ValueKind::kS128:
-        if (lhs != rhs) {
-          return false;
-        }
-        break;
-      case ValueKind::kRef:
-      case ValueKind::kRefNull: {
-        Tagged<Object> lhs_ref = *lhs.to_ref();
-        Tagged<Object> rhs_ref = *rhs.to_ref();
+    CHECK(lhs.type().is_ref());
+    Tagged<Object> lhs_ref = *lhs.to_ref();
+    Tagged<Object> rhs_ref = *rhs.to_ref();
 
-        if (IsNull(lhs_ref) != IsNull(rhs_ref)) return false;
-        if (IsWasmNull(lhs_ref) != IsWasmNull(rhs_ref)) return false;
-
-        switch (lhs.type().heap_representation_non_shared()) {
-          case HeapType::kFunc: {
-            if (IsWasmNull(lhs_ref) || IsWasmNull(rhs_ref)) {
-              break;
-            }
-
-            auto lhs_func = Cast<WasmFuncRef>(lhs_ref);
-            auto rhs_func = Cast<WasmFuncRef>(rhs_ref);
-            if (lhs_func->internal(isolate)->function_index() !=
-                rhs_func->internal(isolate)->function_index()) {
-              return false;
-            }
-            break;
-          }
-          case HeapType::kI31:
-            if (lhs_ref != rhs_ref) {
-              return false;
-            }
-            break;
-          case HeapType::kNoFunc:
-          case HeapType::kNone:
-          case HeapType::kNoExn:
-            CHECK(IsWasmNull(lhs_ref));
-            CHECK(IsWasmNull(rhs_ref));
-            break;
-          case HeapType::kNoExtern:
-            CHECK(IsNull(lhs_ref));
-            CHECK(IsNull(rhs_ref));
-            break;
-          case HeapType::kExtern:
-          case HeapType::kAny:
-          case HeapType::kEq:
-          case HeapType::kArray:
-          case HeapType::kStruct:
-          case HeapType::kString:
-            if (IsNull(lhs_ref) || IsWasmNull(lhs_ref)) break;
-            if (IsWasmStruct(lhs_ref)) {
-              if (!CheckStruct(lhs_ref, rhs_ref)) return false;
-            } else if (IsWasmArray(lhs_ref)) {
-              if (!CheckArray(lhs_ref, rhs_ref)) return false;
-            } else if (IsSmi(lhs_ref)) {
-              if (lhs_ref != rhs_ref) return false;
-            } else if (IsString(lhs_ref)) {
-              Tagged<String> lhs_str = Cast<String>(lhs_ref);
-              Tagged<String> rhs_str = Cast<String>(rhs_ref);
-              if (!lhs_str->Equals(rhs_str)) return false;
-            }
-            break;
-          default:
-            CHECK(lhs.type().has_index());
-            if (IsWasmNull(lhs_ref)) break;
-            CanonicalTypeIndex type_index = lhs.type().ref_index();
-            TypeCanonicalizer* types = GetTypeCanonicalizer();
-            if (types->IsFunctionSignature(type_index)) {
-              auto lhs_func = Cast<WasmFuncRef>(lhs_ref);
-              auto rhs_func = Cast<WasmFuncRef>(rhs_ref);
-              if (lhs_func->internal(isolate)->function_index() !=
-                  rhs_func->internal(isolate)->function_index()) {
-                return false;
-              }
-            } else if (types->IsStruct(type_index)) {
-              if (!CheckStruct(lhs_ref, rhs_ref)) return false;
-            } else if (types->IsArray(type_index)) {
-              if (!CheckArray(lhs_ref, rhs_ref)) return false;
-            } else {
-              UNIMPLEMENTED();
-            }
-        }
-        break;
+    // Nulls and Smis can be compared by pointer equality.
+    if (IsNull(lhs_ref) || IsWasmNull(lhs_ref) || IsSmi(lhs_ref)) {
+      if (rhs_ref != lhs_ref) return false;
+    } else if (IsWasmFuncRef(lhs_ref)) {
+      if (!IsWasmFuncRef(rhs_ref)) return false;
+      if (Cast<WasmFuncRef>(lhs_ref)->internal(isolate)->function_index() !=
+          Cast<WasmFuncRef>(rhs_ref)->internal(isolate)->function_index()) {
+        return false;
       }
-      default:
-        UNIMPLEMENTED();
+    } else if (IsWasmStruct(lhs_ref)) {
+      if (!IsWasmStruct(rhs_ref)) return false;
+      if (!CheckStruct(Cast<WasmStruct>(lhs_ref), Cast<WasmStruct>(rhs_ref))) {
+        return false;
+      }
+    } else if (IsWasmArray(lhs_ref)) {
+      if (!IsWasmArray(rhs_ref)) return false;
+      if (!CheckArray(Cast<WasmArray>(lhs_ref), Cast<WasmArray>(rhs_ref))) {
+        return false;
+      }
+    } else if (IsString(lhs_ref)) {
+      if (!IsString(rhs_ref)) return false;
+      if (!Cast<String>(lhs_ref)->Equals(Cast<String>(rhs_ref))) return false;
+    } else {
+      PrintF(
+          "WARNING: equivalence checking for instance type %d is not "
+          "implemented, results may be unreliable\n",
+          Cast<HeapObject>(lhs_ref)->map()->instance_type());
+      // TODO(nikolaskaipel): Consider putting `UNIMPLEMENTED()` or
+      // `return false` here.
     }
   }
 
@@ -287,69 +227,57 @@ void PrintValue(std::ostream& os, const WasmValue& value) {
       }
     } else {
       WasmValue current_val = std::get<WasmValue>(task);
-      switch (current_val.type().kind()) {
-        case ValueKind::kI8:
-        case ValueKind::kI16:
-        case ValueKind::kI32:
-        case ValueKind::kI64:
-        case ValueKind::kF32:
-        case ValueKind::kF64:
-        case ValueKind::kS128:
-          os << current_val.to_string();
-          break;
-        case ValueKind::kRef:
-        case ValueKind::kRefNull: {
-          Tagged<Object> ref = *current_val.to_ref();
-          if (IsNull(ref) || IsWasmNull(ref)) {
-            os << "null";
-            break;
-          }
-
-          if (IsSmi(ref) || IsWasmFuncRef(ref)) {
-            os << "<" << current_val.to_string() << ">";
-            break;
-          }
-
-          if (seen_objects.count(ref.ptr())) {
-            os << "<repeat>";
-            break;
-          }
-          seen_objects.insert(ref.ptr());
-
-          if (IsWasmStruct(ref)) {
-            Tagged<WasmStruct> struct_ref = Cast<WasmStruct>(ref);
-            const auto* type = GetTypeCanonicalizer()->LookupStruct(
-                struct_ref->map()->wasm_type_info()->type_index());
-            uint32_t count = type->field_count();
-
-            print_stack.push_back(PrintSymbol::kStructClose);
-            for (uint32_t i = count; i-- > 0;) {
-              print_stack.push_back(struct_ref->GetFieldValue(i));
-              if (i > 0) {
-                print_stack.push_back(PrintSymbol::kComma);
-              }
-            }
-            os << '{';
-          } else if (IsWasmArray(ref)) {
-            Tagged<WasmArray> array_ref = Cast<WasmArray>(ref);
-            uint32_t len = array_ref->length();
-
-            print_stack.push_back(PrintSymbol::kArrayClose);
-            for (uint32_t i = len; i-- > 0;) {
-              print_stack.push_back(array_ref->GetElement(i));
-              if (i > 0) {
-                print_stack.push_back(PrintSymbol::kComma);
-              }
-            }
-            os << '[';
-          } else {
-            os << "<" << current_val.to_string() << ">";
-          }
-          break;
+      if (current_val.type().is_numeric()) {
+        os << current_val.to_string();
+      } else if (current_val.type().is_ref()) {
+        Tagged<Object> ref = *current_val.to_ref();
+        if (IsNull(ref) || IsWasmNull(ref)) {
+          os << "null";
+          continue;
         }
-        default:
-          os << "?";
-          break;
+
+        if (IsSmi(ref) || IsWasmFuncRef(ref)) {
+          os << "<" << current_val.to_string() << ">";
+          continue;
+        }
+
+        if (seen_objects.count(ref.ptr())) {
+          os << "<repeat>";
+          continue;
+        }
+        seen_objects.insert(ref.ptr());
+
+        if (IsWasmStruct(ref)) {
+          Tagged<WasmStruct> struct_ref = Cast<WasmStruct>(ref);
+          const auto* type = GetTypeCanonicalizer()->LookupStruct(
+              struct_ref->map()->wasm_type_info()->type_index());
+          uint32_t count = type->field_count();
+
+          print_stack.push_back(PrintSymbol::kStructClose);
+          for (uint32_t i = count; i-- > 0;) {
+            print_stack.push_back(struct_ref->GetFieldValue(i));
+            if (i > 0) {
+              print_stack.push_back(PrintSymbol::kComma);
+            }
+          }
+          os << '{';
+        } else if (IsWasmArray(ref)) {
+          Tagged<WasmArray> array_ref = Cast<WasmArray>(ref);
+          uint32_t len = array_ref->length();
+
+          print_stack.push_back(PrintSymbol::kArrayClose);
+          for (uint32_t i = len; i-- > 0;) {
+            print_stack.push_back(array_ref->GetElement(i));
+            if (i > 0) {
+              print_stack.push_back(PrintSymbol::kComma);
+            }
+          }
+          os << '[';
+        } else {
+          os << "<" << current_val.to_string() << ">";
+        }
+      } else {
+        os << "?";
       }
     }
   }
