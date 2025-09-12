@@ -239,7 +239,7 @@
   'wasm/table-grow': [PASS, HEAVY],
 
   # TODO(v8:10915): Fails with --future.
-  'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
+  'weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
 
   # Needs deterministic test helpers for concurrent maglev tiering.
   # TODO(jgruber,v8:7700): Implement ASAP.
@@ -495,7 +495,7 @@
   'harmony/regress/regress-369010108': [SKIP],
 
   # The --stress-compaction flag prevents minor GCs.
-  'harmony/weakrefs/minor-gc-*': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
@@ -506,31 +506,31 @@
   # there are no unexpected, externally triggered GCs that would interfere
   # with the tests. Therefore, they are unsuitable for modes that stress
   # activities which can trigger GC.
-  'harmony/weakrefs/cleanup': [SKIP],
-  'harmony/weakrefs/cleanup-is-not-a-microtask': [SKIP],
-  'harmony/weakrefs/cleanup-on-detached-realm': [SKIP],
-  'harmony/weakrefs/finalizationregistry-and-weakref': [SKIP],
-  'harmony/weakrefs/finalizationregistry-independent-lifetime': [SKIP],
-  'harmony/weakrefs/finalizationregistry-independent-lifetime-multiple': [SKIP],
-  'harmony/weakrefs/finalizationregistry-keeps-holdings-alive': [SKIP],
-  'harmony/weakrefs/finalizationregistry-scheduled-for-cleanup-multiple-times': [SKIP],
-  'harmony/weakrefs/multiple-dirty-finalization-groups': [SKIP],
-  'harmony/weakrefs/reentrant-gc-from-cleanup': [SKIP],
-  'harmony/weakrefs/symbol-as-weakref-target-gc': [SKIP],
-  'harmony/weakrefs/symbol-in-finalizationregistry': [SKIP],
-  'harmony/weakrefs/two-weakrefs': [SKIP],
-  'harmony/weakrefs/undefined-holdings': [SKIP],
-  'harmony/weakrefs/unregister-after-cleanup': [SKIP],
-  'harmony/weakrefs/unregister-before-cleanup': [SKIP],
-  'harmony/weakrefs/unregister-called-twice': [SKIP],
-  'harmony/weakrefs/unregister-inside-cleanup2': [SKIP],
-  'harmony/weakrefs/unregister-inside-cleanup3': [SKIP],
-  'harmony/weakrefs/unregister-inside-cleanup': [SKIP],
-  'harmony/weakrefs/unregister-many': [SKIP],
-  'harmony/weakrefs/unregister-when-cleanup-already-scheduled': [SKIP],
-  'harmony/weakrefs/weak-cell-basics': [SKIP],
-  'harmony/weakrefs/weakref-creation-keeps-alive': [SKIP],
-  'harmony/weakrefs/weakref-deref-keeps-alive': [SKIP],
+  'weakrefs/cleanup': [SKIP],
+  'weakrefs/cleanup-is-not-a-microtask': [SKIP],
+  'weakrefs/cleanup-on-detached-realm': [SKIP],
+  'weakrefs/finalizationregistry-and-weakref': [SKIP],
+  'weakrefs/finalizationregistry-independent-lifetime': [SKIP],
+  'weakrefs/finalizationregistry-independent-lifetime-multiple': [SKIP],
+  'weakrefs/finalizationregistry-keeps-holdings-alive': [SKIP],
+  'weakrefs/finalizationregistry-scheduled-for-cleanup-multiple-times': [SKIP],
+  'weakrefs/multiple-dirty-finalization-groups': [SKIP],
+  'weakrefs/reentrant-gc-from-cleanup': [SKIP],
+  'weakrefs/symbol-as-weakref-target-gc': [SKIP],
+  'weakrefs/symbol-in-finalizationregistry': [SKIP],
+  'weakrefs/two-weakrefs': [SKIP],
+  'weakrefs/undefined-holdings': [SKIP],
+  'weakrefs/unregister-after-cleanup': [SKIP],
+  'weakrefs/unregister-before-cleanup': [SKIP],
+  'weakrefs/unregister-called-twice': [SKIP],
+  'weakrefs/unregister-inside-cleanup2': [SKIP],
+  'weakrefs/unregister-inside-cleanup3': [SKIP],
+  'weakrefs/unregister-inside-cleanup': [SKIP],
+  'weakrefs/unregister-many': [SKIP],
+  'weakrefs/unregister-when-cleanup-already-scheduled': [SKIP],
+  'weakrefs/weak-cell-basics': [SKIP],
+  'weakrefs/weakref-creation-keeps-alive': [SKIP],
+  'weakrefs/weakref-deref-keeps-alive': [SKIP],
 }],  # 'gc_stress or variant == stress_concurrent_allocation'
 
 ##############################################################################
@@ -1886,7 +1886,7 @@
   'wasm/multiple-code-spaces': [SKIP],
 
   # Tests calling quit are not supported: https://crbug.com/341021498
-  'harmony/weakrefs/clearkeptobjects-on-quit': [SKIP],
+  'weakrefs/clearkeptobjects-on-quit': [SKIP],
   'd8/d8-finalization-registry-quit': [SKIP],
 
   # This waits for background compilation to finish, thus times out in
@@ -2316,7 +2316,7 @@
 ##############################################################################
 ['variant == stress_sampling', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=10915
-  'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
+  'weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
   'regress/regress-484544': [SKIP],
   'regress/regress-543994': [SKIP],
   'regress/regress-crbug-1041232': [SKIP],
@@ -2525,8 +2525,8 @@
   'regress/wasm/regress-388934347-a': [SKIP],
   'regress/wasm/regress-434008619': [SKIP],
 
-  # harmony/weakrefs/minor-gc-* tests require a young generation.
-  'harmony/weakrefs/minor-gc-*': [SKIP],
+  # weakrefs/minor-gc-* tests require a young generation.
+  'weakrefs/minor-gc-*': [SKIP],
 }], # single_generation
 
 ################################################################################
@@ -2537,7 +2537,7 @@
   # These tests need to disable conservative stack scanning and are thus not
   # compatible with direct handles.
   'wasm/compiled-module-management': [SKIP],
-  'harmony/weakrefs/minor-gc-two-weakrefs': [SKIP],
+  'weakrefs/minor-gc-two-weakrefs': [SKIP],
 }], # direct_handle
 
 ##############################################################################
@@ -2933,7 +2933,7 @@
   'ignition/regress-672027': [PASS, SLOW],
 
   # Test checks that object is reclaimed but cannot use async GCs.
-  'harmony/weakrefs/minor-gc-two-weakrefs': [SKIP],
+  'weakrefs/minor-gc-two-weakrefs': [SKIP],
 
 }],  # variant == conservative_stack_scanning
 
@@ -3005,7 +3005,7 @@
 }], # sandbox_hardware_support
 
 ['variant == minor_ms', {
-  'harmony/weakrefs/minor-gc-*': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == minor_ms
 
 ]
