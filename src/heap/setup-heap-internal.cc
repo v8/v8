@@ -1311,6 +1311,28 @@ bool Heap::CreateReadOnlyObjects() {
     set_preallocated_number_string_table(*preallocated_number_string_table);
   }
 
+  // Set up the hole values in one range
+  set_the_hole_value(UncheckedCast<TheHole>(*factory->NewHole()));
+
+  set_property_cell_hole_value(
+      UncheckedCast<PropertyCellHole>(*factory->NewHole()));
+  set_hash_table_hole_value(UncheckedCast<HashTableHole>(*factory->NewHole()));
+  set_promise_hole_value(UncheckedCast<PromiseHole>(*factory->NewHole()));
+  set_uninitialized_value(
+      UncheckedCast<UninitializedHole>(*factory->NewHole()));
+  set_arguments_marker(UncheckedCast<ArgumentsMarker>(*factory->NewHole()));
+  set_termination_exception(
+      UncheckedCast<TerminationException>(*factory->NewHole()));
+  set_exception(UncheckedCast<ExceptionHole>(*factory->NewHole()));
+  set_optimized_out(UncheckedCast<OptimizedOut>(*factory->NewHole()));
+  set_stale_register(UncheckedCast<StaleRegister>(*factory->NewHole()));
+
+  // Initialize marker objects used during compilation.
+  set_self_reference_marker(
+      UncheckedCast<SelfReferenceMarker>(*factory->NewHole()));
+  set_basic_block_counters_marker(
+      UncheckedCast<BasicBlockCountersMarker>(*factory->NewHole()));
+
   // Initialize the wasm null_value.
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -1370,56 +1392,6 @@ bool Heap::CreateReadOnlyObjects() {
     }
   }
 #endif
-
-  int i = 0;
-  auto make_hole = [this, roots, factory, &i]() {
-#if defined(V8_ENABLE_WEBASSEMBLY) && \
-    (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL)
-    USE(factory);
-
-    // For configurations where the WasmNull has a large unmapped padding area,
-    // allocate the holes inside this padding so that they are also unmapped.
-    int offset = (1 + i) * kTaggedSize;
-
-    // Make sure the offset is inside the wasm null padding area.
-    DCHECK_GE(offset, WasmNull::kSize - WasmNull::kPayloadSize);
-    DCHECK_LT(offset, WasmNull::kSize);
-
-    Tagged<Hole> hole =
-        UncheckedCast<Hole>(Tagged<Object>(roots.wasm_null().ptr() + offset));
-
-    // Make sure the hole doesn't ends up in the first OS page.
-    DCHECK_GT(hole.address(), kLargestPossibleOSPageSize);
-
-    i++;
-    hole->set_map_after_allocation(isolate(), roots.hole_map(),
-                                   SKIP_WRITE_BARRIER);
-    return hole;
-#else
-    USE(this);
-    USE(roots);
-    USE(i);
-    return *factory->NewHole();
-#endif
-  };
-
-  // Set up the hole values in one range
-  set_the_hole_value(UncheckedCast<TheHole>(make_hole()));
-
-  set_property_cell_hole_value(UncheckedCast<PropertyCellHole>(make_hole()));
-  set_hash_table_hole_value(UncheckedCast<HashTableHole>(make_hole()));
-  set_promise_hole_value(UncheckedCast<PromiseHole>(make_hole()));
-  set_uninitialized_value(UncheckedCast<UninitializedHole>(make_hole()));
-  set_arguments_marker(UncheckedCast<ArgumentsMarker>(make_hole()));
-  set_termination_exception(UncheckedCast<TerminationException>(make_hole()));
-  set_exception(UncheckedCast<ExceptionHole>(make_hole()));
-  set_optimized_out(UncheckedCast<OptimizedOut>(make_hole()));
-  set_stale_register(UncheckedCast<StaleRegister>(make_hole()));
-
-  // Initialize marker objects used during compilation.
-  set_self_reference_marker(UncheckedCast<SelfReferenceMarker>(make_hole()));
-  set_basic_block_counters_marker(
-      UncheckedCast<BasicBlockCountersMarker>(make_hole()));
 
   return true;
 }
