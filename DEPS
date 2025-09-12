@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'dd3fc2d811574cf24220d2010bf3a7d00d644aee',
+  'partition_alloc_version': 'cb2ed1009c4d5e310bc4ccc2bfd2d38a54e0461b',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6fb7758ac0cb8f94b263e955c4b3acc999c713d8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '29bb94258cd0bbdeae277a094b9bd743d7da2d30',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '958004daacdd90070d44b236a1581c81d71740ca',
   'buildtools/linux64': {
@@ -502,7 +502,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '2cbfc8d2e5ef4a6afd9774e9a9eaebd921a9f248',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '70aa0a702dfad59a8ee4412c0177b82f883245be',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '4c40e76262676a8be5c758695455e67f368e8786',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
