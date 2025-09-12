@@ -943,18 +943,12 @@ double flat_string_to_f64(Address string_address) {
                             std::numeric_limits<double>::quiet_NaN());
 }
 
-void start_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+void start_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                  Address fp, Address pc) {
-  // The active stack was already updated by the builtin.
-  wasm::StackMemory* to = isolate->isolate_data()->active_stack();
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (start)\n", from->id(), to->id());
   }
-  // This is a special case where the stack's parent was already set during
-  // initialization of the JSPI suspender. This is convenient to pass it across
-  // the torque and asm builtins. However, this breaks the expectations of
-  // {Isolate::SwitchStacks}, so clear it before the call:
-  to->jmpbuf()->parent = nullptr;
   isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
       from, to, sp, fp, pc);
 }
@@ -976,10 +970,9 @@ int32_t suspender_has_js_frames(Isolate* isolate) {
   return false;
 }
 
-void suspend_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+void suspend_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                    Address fp, Address pc) {
-  // The active stack was already updated by the builtin.
-  wasm::StackMemory* to = isolate->isolate_data()->active_stack();
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   auto suspender = isolate->isolate_data()->active_suspender();
   suspender->set_stack(isolate, from);
   if (v8_flags.trace_wasm_stack_switching) {
@@ -989,15 +982,14 @@ void suspend_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
       from, to, sp, fp, pc);
 }
 
-void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                        Address fp, Address pc, Address suspender_raw) {
   Tagged<Object> suspender_obj(suspender_raw);
   auto suspender = TrustedCast<WasmSuspenderObject>(suspender_obj);
   Tagged<WasmSuspenderObject> active_suspender =
       isolate->isolate_data()->active_suspender();
   suspender->set_parent(active_suspender);
-  // The active stack was already updated by the builtin.
-  wasm::StackMemory* to = isolate->isolate_data()->active_stack();
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
   }
@@ -1006,10 +998,9 @@ void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
       from, to, sp, fp, pc);
 }
 
-void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
+void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                          Address fp, Address pc) {
-  // The active stack was already updated by the builtin.
-  wasm::StackMemory* to = isolate->isolate_data()->active_stack();
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
   }
@@ -1017,9 +1008,9 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* from, Address sp,
       from, to, sp, fp, pc);
 }
 
-void return_stack(Isolate* isolate, wasm::StackMemory* from) {
+void return_stack(Isolate* isolate, wasm::StackMemory* to) {
   // The active stack was already updated by the builtin.
-  wasm::StackMemory* to = isolate->isolate_data()->active_stack();
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (return)\n", from->id(), to->id());
   }

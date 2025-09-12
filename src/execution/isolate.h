@@ -2327,7 +2327,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return wasm_stacks_;
   }
 
-  // Updates the stack limit, parent pointer and central stack info.
+  // Centralizes all the shared logic for switching stacks: saving the register
+  // state, updating the active stack, the stack pointer, the stack limit, the
+  // central stack info, ...
   template <wasm::JumpBuffer::StackState new_state_of_old_stack,
             wasm::JumpBuffer::StackState expected_target_state>
   void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to, Address sp,

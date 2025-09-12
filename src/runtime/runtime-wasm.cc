@@ -1251,20 +1251,19 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
       isolate->factory()->NewWasmSuspenderObjectInitialized();
 
   // Update the stack state.
-  wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
   std::unique_ptr<wasm::StackMemory> target_stack =
       isolate->stack_pool().GetOrAllocate();
-  target_stack->jmpbuf()->parent = active_stack;
+  target_stack->jmpbuf()->parent = nullptr;
   target_stack->jmpbuf()->stack_limit = target_stack->jslimit();
   target_stack->jmpbuf()->sp = target_stack->base();
   target_stack->jmpbuf()->fp = kNullAddress;
   target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
   target_stack->jmpbuf()->is_on_central_stack = false;
-  isolate->isolate_data()->set_active_stack(target_stack.get());
 
   // Update the suspender state.
   suspender->set_parent(isolate->isolate_data()->active_suspender());
   suspender->set_stack(isolate, target_stack.get());
+  // The active stack is updated in {Isolate::SwitchStacks}.
   isolate->isolate_data()->set_active_suspender(*suspender);
 
   target_stack->set_index(isolate->wasm_stacks().size());
@@ -1274,7 +1273,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   }
 
   // Stack limit will be updated in WasmReturnPromiseOnSuspendAsm builtin.
-  DCHECK_EQ(active_stack->jmpbuf()->state, wasm::JumpBuffer::Active);
   return *suspender;
 }
 

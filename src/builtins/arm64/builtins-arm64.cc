@@ -3567,12 +3567,9 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
   Register parent = tmp2;
   __ Ldr(parent, MemOperand(active_stack, wasm::kStackParentOffset));
 
-  // Update active stack.
-  __ StoreRootRelative(IsolateData::active_stack_offset(), parent);
-
   // Switch stack!
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
-               nullptr, no_reg, {return_reg, return_value, context, parent});
+  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
+               no_reg, {return_reg, return_value, context, parent});
   LoadJumpBuffer(masm, parent, false, tmp3);
 }
 
@@ -3777,11 +3774,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   ResetWasmJspiFrameStackSlots(masm);
 
   Label resume;
-  DEFINE_REG(stack);
-  __ LoadRootRelative(stack, IsolateData::active_stack_offset());
   DEFINE_REG(scratch);
 
-  // Update active stack.
   DEFINE_REG(parent);
   __ LoadProtectedPointerField(
       parent, FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset));
@@ -3789,10 +3783,9 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ LoadExternalPointerField(
       target_stack, FieldMemOperand(parent, WasmSuspenderObject::kStackOffset),
       kWasmStackMemoryTag);
-  __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
 
-  SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), stack, &resume,
-               no_reg, {target_stack, suspender, parent});
+  SwitchStacks(masm, ExternalReference::wasm_suspend_stack(), target_stack,
+               &resume, no_reg, {target_stack, suspender, parent});
   __ StoreRootRelative(IsolateData::active_suspender_offset(), parent);
   __ LoadTaggedField(
       kReturnRegister0,
@@ -3867,8 +3860,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       target_stack,
       FieldMemOperand(suspender, WasmSuspenderObject::kStackOffset),
       kWasmStackMemoryTag);
-  __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
-  SwitchStacks(masm, ExternalReference::wasm_resume_jspi_stack(), active_stack,
+  SwitchStacks(masm, ExternalReference::wasm_resume_jspi_stack(), target_stack,
                &suspend, suspender, {target_stack});
   regs.ResetExcept(target_stack);
 
@@ -3916,11 +3908,8 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
   Label suspend;
-  Register active_stack = x0;
-  __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
-  __ StoreRootRelative(IsolateData::active_stack_offset(), target_stack);
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               active_stack, &suspend, no_reg, {target_stack});
+               target_stack, &suspend, no_reg, {target_stack});
   // When we resume the stack for the first time, we enter the wrapper. However
   // the wrapper starts with bti c, not bti j, so we cannot jump to it with an
   // arbitrary register. We have to use ip0 or ip1 as the target register here
@@ -3941,9 +3930,8 @@ void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
   Register parent = x1;
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
-  __ StoreRootRelative(IsolateData::active_stack_offset(), parent);
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
-               nullptr, no_reg, {parent});
+  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
+               no_reg, {parent});
   LoadJumpBuffer(masm, parent, true, x2);
   __ Trap();
 }
@@ -3959,12 +3947,14 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
                             Label* suspend) {
   ResetWasmJspiFrameStackSlots(masm);
   DEFINE_SCOPED(scratch)
-  DEFINE_REG(parent_stack)
-  __ LoadRootRelative(parent_stack, IsolateData::active_stack_offset());
-  __ Ldr(parent_stack, MemOperand(parent_stack, wasm::kStackParentOffset));
-  SwitchStacks(masm, ExternalReference::wasm_start_stack(), parent_stack,
-               suspend, no_reg, {wasm_instance, wrapper_buffer});
-  FREE_REG(parent_stack);
+  DEFINE_REG(stack)
+  __ LoadRootRelative(stack, IsolateData::active_suspender_offset());
+  __ LoadExternalPointerField(
+      stack, FieldMemOperand(stack, WasmSuspenderObject::kStackOffset),
+      kWasmStackMemoryTag);
+  SwitchStacks(masm, ExternalReference::wasm_start_stack(), stack, suspend,
+               no_reg, {wasm_instance, wrapper_buffer});
+  FREE_REG(stack);
   // Save the old stack's fp in x9, and use it to access the parameters in
   // the parent frame.
   regs.Pinned(x9, &original_fp);

@@ -3960,6 +3960,7 @@ template <wasm::JumpBuffer::StackState new_state_of_old_stack,
 void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
                            Address sp, Address fp, Address pc) {
   SBXCHECK_EQ(from->jmpbuf()->state, wasm::JumpBuffer::Active);
+  DCHECK_EQ(from, isolate_data()->active_stack());
   constexpr bool is_resume =
       expected_target_state == wasm::JumpBuffer::Suspended;
 #if DEBUG
@@ -3982,6 +3983,7 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to,
   }
   SBXCHECK_EQ(to->jmpbuf()->state, expected_target_state);
   to->jmpbuf()->state = wasm::JumpBuffer::Active;
+  isolate_data()->set_active_stack(to);
   DisallowGarbageCollection no_gc;
   if constexpr (is_resume) {
     // To resume multiple stacks at once, we have to update the parent of the
