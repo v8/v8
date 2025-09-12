@@ -132,10 +132,14 @@ namespace {
 class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
  public:
   OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
-                                     Register value)
+                                     Register value, Register scratch,
+                                     UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
+        scratch_(scratch),
+        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        unwinding_info_writer_(unwinding_info_writer),
         zone_(gen->zone()) {}
 
   void Generate() final {
@@ -143,13 +147,27 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
+    if (must_save_lr_) {
+      // We need to save and restore lr if the frame was elided.
+      __ mflr(scratch_);
+      __ Push(scratch_);
+      unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
+    }
     __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
                                                       save_fp_mode);
+    if (must_save_lr_) {
+      __ Pop(scratch_);
+      __ mtlr(scratch_);
+      unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
+    }
   }
 
  private:
   Register const object_;
   Register const value_;
+  Register const scratch_;
+  const bool must_save_lr_;
+  UnwindingInfoWriter* const unwinding_info_writer_;
   Zone* zone_;
 };
 
@@ -1209,8 +1227,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       DCHECK(v8_flags.verify_write_barriers);
-      auto ool =
-          zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object, value);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, kScratchReg, &unwinding_info_writer_);
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 
