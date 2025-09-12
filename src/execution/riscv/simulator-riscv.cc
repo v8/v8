@@ -5978,7 +5978,9 @@ void Simulator::DecodeCBType() {
       break;
     case RO_C_MISC_ALU:
       if (instr_.RvcFunct2BValue() == 0b00) {  // c.srli
-        set_rvc_rs1s(sext_xlen(sext_xlen(rvc_rs1s()) >> rvc_shamt6()));
+        // c.srli performs a logical right shift, so zero extension is needed
+        // instead of sign extension.
+        set_rvc_rs1s(sext_xlen(zext_xlen(rvc_rs1s()) >> rvc_shamt6()));
       } else if (instr_.RvcFunct2BValue() == 0b01) {  // c.srai
         require(rvc_shamt6() < xlen);
         set_rvc_rs1s(sext_xlen(sext_xlen(rvc_rs1s()) >> rvc_shamt6()));
