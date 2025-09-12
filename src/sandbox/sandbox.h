@@ -351,6 +351,15 @@ V8_INLINE bool OutsideSandbox(uintptr_t address) {
 #endif
 }
 
+V8_INLINE bool InsideSandbox(uintptr_t address) {
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox* sandbox = Sandbox::current();
+  return sandbox->Contains(address);
+#else
+  return true;
+#endif
+}
+
 V8_INLINE void* EmptyBackingStoreBuffer() {
 #ifdef V8_ENABLE_SANDBOX
   return reinterpret_cast<void*>(
