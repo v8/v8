@@ -382,6 +382,9 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 DEFINE_STRING(icu_datetime_compat_lang, "*",
               "limits ICU date time compat changes to the given language")
+DEFINE_BOOL(icu_default_italian_number_grouping_always, false,
+            "override the default useGrouping rule for Italian to \"always\" "
+            "to match behavior of ICU <76")
 #endif
 
 #ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK
