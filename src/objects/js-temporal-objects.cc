@@ -5820,8 +5820,18 @@ MaybeDirectHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
 
   // Rest of the steps handled in Rust
 
+#ifdef TEMPORAL_CAPI_VERSION_0_0_16
   auto rounded = temporal_time->time()->raw()->round(
       smallest_unit.value(), rounding_increment, rounding_mode);
+#else
+  auto options = temporal_rs::RoundingOptions{.largest_unit = std::nullopt,
+                                              .smallest_unit = smallest_unit,
+                                              .rounding_mode = rounding_mode,
+                                              .increment = rounding_increment};
+  auto rounded = temporal_time->time()->raw()->round(options);
+
+#endif
+
   return ConstructRustWrappingType<JSTemporalPlainTime>(isolate,
                                                         std::move(rounded));
 }
