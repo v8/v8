@@ -4640,7 +4640,12 @@ MaybeHandle<Object> JSPromise::Resolve(DirectHandle<JSPromise> promise,
     // is the (initial) Promise.prototype and the Promise#then protector
     // is intact, as that guards the lookup path for the "then" property
     // on JSPromise instances which have the (initial) %PromisePrototype%.
-    then = isolate->promise_then();
+    DirectHandle<NativeContext> resolution_proto_context =
+        Cast<JSReceiver>(resolution_recv->map()->prototype())
+            ->GetCreationContext(isolate)
+            .ToHandleChecked();
+    then =
+        DirectHandle<Object>(resolution_proto_context->promise_then(), isolate);
   } else {
     then = JSReceiver::GetProperty(isolate, resolution_recv,
                                    isolate->factory()->then_string());
