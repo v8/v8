@@ -40,6 +40,16 @@ namespace v8::internal {
 
 namespace {
 
+#ifdef TEMPORAL_CAPI_VERSION_0_0_16
+#define TEMPORAL_TIME_ZONE std::unique_ptr<temporal_rs::TimeZone>
+#define TEMPORAL_NULL_TIME_ZONE nullptr
+#define TEMPORAL_PASS_TZ(tz) *tz
+#else
+#define TEMPORAL_TIME_ZONE temporal_rs::TimeZone
+#define TEMPORAL_NULL_TIME_ZONE std::nullopt
+#define TEMPORAL_PASS_TZ(tz) tz
+#endif
+
 // Shorten enums with `using`
 using temporal_rs::RoundingMode;
 using temporal_rs::Unit;
@@ -1210,7 +1220,7 @@ constexpr temporal_rs::PartialZonedDateTime kNullPartialZonedDateTime =
         .date = kNullPartialDate,
         .time = kNullPartialTime,
         .offset = std::nullopt,
-        .timezone = nullptr,
+        .timezone = TEMPORAL_NULL_TIME_ZONE,
     };
 
 constexpr temporal_rs::PartialDateTime kNullPartialDateTime =
@@ -1462,7 +1472,7 @@ Maybe<std::string> ToOffsetString(Isolate* isolate,
   return Just(std::move(offset));
 }
 
-Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
+Maybe<TEMPORAL_TIME_ZONE> ToTemporalTimeZoneIdentifier(
     Isolate* isolate, DirectHandle<Object> tz_like) {
   // 1. If temporalTimeZoneLike is an Object, then
   // a. If temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]]
@@ -1470,11 +1480,18 @@ Maybe<std::unique_ptr<temporal_rs::TimeZone>> ToTemporalTimeZoneIdentifier(
   if (IsJSTemporalZonedDateTime(*tz_like)) {
     // i. Return temporalTimeZoneLike.[[TimeZone]].
 
+#ifdef TEMPORAL_CAPI_VERSION_0_0_16
     return Just(Cast<JSTemporalZonedDateTime>(tz_like)
                     ->zoned_date_time()
                     ->raw()
                     ->timezone()
                     .clone());
+#else
+    return Just(Cast<JSTemporalZonedDateTime>(tz_like)
+                    ->zoned_date_time()
+                    ->raw()
+                    ->timezone());
+#endif
   }
   // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
   if (!IsString(*tz_like)) {
@@ -1805,7 +1822,7 @@ struct CombinedRecord {
   DateRecord date;
   TimeRecord time;
   std::optional<std::string> offset;
-  std::optional<std::unique_ptr<temporal_rs::TimeZone>> time_zone;
+  std::optional<TEMPORAL_TIME_ZONE> time_zone;
 
   // For use in generic contexts
   template <typename Ret>
@@ -1863,10 +1880,14 @@ Maybe<temporal_rs::PartialZonedDateTime> CombinedRecord::Regulate(
       .date = regulated_date,
       .time = regulated_time,
       .offset = std::nullopt,
-      .timezone = nullptr,
+      .timezone = TEMPORAL_NULL_TIME_ZONE,
   };
   if (time_zone.has_value()) {
+#ifdef TEMPORAL_CAPI_VERSION_0_0_16
     record.timezone = time_zone.value().get();
+#else
+    record.timezone = time_zone.value();
+#endif
   }
   if (offset.has_value()) {
     record.offset = offset.value();
@@ -2008,9 +2029,9 @@ Maybe<bool> GetSingleCalendarField(
   V(kTimeFields, second, result.time.second, double,                           \
     ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
-  V(kTimeZone, timeZone, result.time_zone,                                     \
-    std::unique_ptr<temporal_rs::TimeZone>, ToTemporalTimeZoneIdentifier,      \
-    SIMPLE_CONDITION, MOVING_SETTER, TIMEZONE_REQUIRED_CHECK, MOVE)            \
+  V(kTimeZone, timeZone, result.time_zone, TEMPORAL_TIME_ZONE,                 \
+    ToTemporalTimeZoneIdentifier, SIMPLE_CONDITION, MOVING_SETTER,             \
+    TIMEZONE_REQUIRED_CHECK, MOVE)                                             \
   V(kYearFields, year, result.date.year, double, ToIntegerWithTruncation,      \
     SIMPLE_CONDITION, SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)
 
@@ -2136,7 +2157,7 @@ Maybe<CombinedRecord> PrepareCalendarFields(Isolate* isolate,
 // ====== System time ======
 
 // https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
-std::unique_ptr<temporal_rs::TimeZone> UTCTimeZoneInner() {
+TEMPORAL_TIME_ZONE UTCTimeZoneInner() {
   auto result = temporal_rs::TimeZone::utc_with_provider(TimeZoneProvider());
   if (result.is_ok()) {
     return std::move(result).ok().value();
@@ -2147,14 +2168,19 @@ std::unique_ptr<temporal_rs::TimeZone> UTCTimeZoneInner() {
 }
 
 // https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
-std::unique_ptr<temporal_rs::TimeZone> UTCTimeZone() {
+TEMPORAL_TIME_ZONE UTCTimeZone() {
+#ifdef TEMPORAL_CAPI_VERSION_0_0_16
   static temporal_rs::TimeZone* UTC_TZ = UTCTimeZoneInner().release();
   return UTC_TZ->clone();
+#else
+  static temporal_rs::TimeZone UTC_TZ = UTCTimeZoneInner();
+  return UTC_TZ;
+#endif
 }
 
 // https://tc39.es/proposal-temporal/#sec-systemtimezoneidentifier
 #ifdef V8_INTL_SUPPORT
-std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
+TEMPORAL_TIME_ZONE SystemTimeZoneIdentifier() {
   auto tz_str = Intl::DefaultTimeZone();
   auto tz = temporal_rs::TimeZone::try_from_identifier_str_with_provider(
                 tz_str, TimeZoneProvider())
@@ -2165,9 +2191,7 @@ std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
   return UTCTimeZone();
 }
 #else   //  V8_INTL_SUPPORT
-std::unique_ptr<temporal_rs::TimeZone> SystemTimeZoneIdentifier() {
-  return UTCTimeZone();
-}
+TEMPORAL_TIME_ZONE SystemTimeZoneIdentifier() { return UTCTimeZone(); }
 #endif  //  V8_INTL_SUPPORT
 
 // We don't have nanosecond precision counters, so it's pointless to perform
@@ -2198,7 +2222,7 @@ int64_t SystemUTCEpochMilliseconds() {
 // https://tc39.es/proposal-temporal/#sec-temporal.now.plaintimeiso
 Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
     Isolate* isolate, DirectHandle<Object> temporal_time_zone_like) {
-  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  TEMPORAL_TIME_ZONE time_zone;
 
   // 1. If temporalTimeZoneLike is undefined, then
   if (IsUndefined(*temporal_time_zone_like)) {
@@ -2226,8 +2250,9 @@ Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
-      ExtractRustResult(isolate, instant->to_zoned_date_time_iso_with_provider(
-                                     *time_zone, TimeZoneProvider())));
+      ExtractRustResult(isolate,
+                        instant->to_zoned_date_time_iso_with_provider(
+                            TEMPORAL_PASS_TZ(time_zone), TimeZoneProvider())));
 
   return Just(std::move(zdt));
 }
@@ -3698,8 +3723,8 @@ MaybeDirectHandle<JSType> GenericWith(Isolate* isolate,
 
 // ====== Misc ======
 
-V8_WARN_UNUSED_RESULT Maybe<std::unique_ptr<temporal_rs::TimeZone>>
-ToRustTimeZone(Isolate* isolate, std::string_view tz) {
+V8_WARN_UNUSED_RESULT Maybe<TEMPORAL_TIME_ZONE> ToRustTimeZone(
+    Isolate* isolate, std::string_view tz) {
   return ExtractRustResult(isolate,
                            temporal_rs::TimeZone::try_from_str_with_provider(
                                tz, TimeZoneProvider()));
@@ -3711,7 +3736,7 @@ ToRustTimeZone(Isolate* isolate, std::string_view tz) {
 Maybe<int64_t> GetEpochMillisecondsForDateTime(Isolate* isolate,
                                                temporal_rs::PlainDateTime& date,
                                                std::string_view time_zone) {
-  std::unique_ptr<temporal_rs::TimeZone> tz;
+  TEMPORAL_TIME_ZONE tz;
   MOVE_RETURN_ON_EXCEPTION(isolate, tz, ToRustTimeZone(isolate, time_zone));
 
   //  2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
@@ -3719,10 +3744,10 @@ Maybe<int64_t> GetEpochMillisecondsForDateTime(Isolate* isolate,
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
-      ExtractRustResult(isolate,
-                        date.to_zoned_date_time_with_provider(
-                            *tz, temporal_rs::Disambiguation::Compatible,
-                            TimeZoneProvider())));
+      ExtractRustResult(isolate, date.to_zoned_date_time_with_provider(
+                                     TEMPORAL_PASS_TZ(tz),
+                                     temporal_rs::Disambiguation::Compatible,
+                                     TimeZoneProvider())));
   return Just(zdt->epoch_milliseconds());
 }
 
@@ -3734,7 +3759,7 @@ Maybe<int64_t> GetEpochMillisecondsForDateTime(Isolate* isolate,
 Maybe<int64_t> GetEpochMillisecondsForDate(
     Isolate* isolate, temporal_rs::PlainDate& date, std::string_view time_zone,
     temporal_rs::PlainTime* time = nullptr) {
-  std::unique_ptr<temporal_rs::TimeZone> tz;
+  TEMPORAL_TIME_ZONE tz;
   MOVE_RETURN_ON_EXCEPTION(isolate, tz, ToRustTimeZone(isolate, time_zone));
 
   // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]],
@@ -3745,8 +3770,9 @@ Maybe<int64_t> GetEpochMillisecondsForDate(
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
-      ExtractRustResult(isolate, date.to_zoned_date_time_with_provider(
-                                     *tz, time, TimeZoneProvider())));
+      ExtractRustResult(isolate,
+                        date.to_zoned_date_time_with_provider(
+                            TEMPORAL_PASS_TZ(tz), time, TimeZoneProvider())));
   return Just(zdt->epoch_milliseconds());
 }
 
@@ -4433,7 +4459,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
   // 2. Perform ? RequireInternalSlot(temporalDate,
   // [[InitializedTemporalDate]]).
 
-  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  TEMPORAL_TIME_ZONE time_zone;
   DirectHandle<Object> temporal_time_obj;
 
   // 3. If item is an Object, then
@@ -4474,7 +4500,9 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
     // b. Let temporalTime be undefined.
   }
 
+#ifdef TEMPORAL_CAPI_VERSION_0_0_16
   DCHECK(time_zone);
+#endif
 
   DirectHandle<JSTemporalPlainTime> temporal_time;
   temporal_rs::PlainTime* temporal_time_rust = nullptr;
@@ -4495,8 +4523,9 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
   }
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate, temporal_date->date()->raw()->to_zoned_date_time_with_provider(
-                   *time_zone, temporal_time_rust, TimeZoneProvider()));
+      isolate,
+      temporal_date->date()->raw()->to_zoned_date_time_with_provider(
+          TEMPORAL_PASS_TZ(time_zone), temporal_time_rust, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.add
@@ -4851,7 +4880,7 @@ JSTemporalPlainDateTime::ToZonedDateTime(
   static const char method_name[] =
       "Temporal.PlainDateTime.prototype.toZonedDateTime";
   // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
-  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  TEMPORAL_TIME_ZONE time_zone;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, time_zone,
       temporal::ToTemporalTimeZoneIdentifier(isolate, temporal_time_zone_like));
@@ -4868,8 +4897,9 @@ JSTemporalPlainDateTime::ToZonedDateTime(
   // Rest of the steps handled in Rust.
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
-      isolate, date_time->date_time()->raw()->to_zoned_date_time_with_provider(
-                   *time_zone, disambiguation, TimeZoneProvider()));
+      isolate,
+      date_time->date_time()->raw()->to_zoned_date_time_with_provider(
+          TEMPORAL_PASS_TZ(time_zone), disambiguation, TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tostring
@@ -5322,13 +5352,13 @@ MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalmonthday
 Maybe<int64_t> JSTemporalPlainMonthDay::GetEpochMillisecondsFor(
     Isolate* isolate, std::string_view time_zone) {
-  std::unique_ptr<temporal_rs::TimeZone> tz;
+  TEMPORAL_TIME_ZONE tz;
   MOVE_RETURN_ON_EXCEPTION(isolate, tz,
                            temporal::ToRustTimeZone(isolate, time_zone));
 
   return ExtractRustResult(isolate,
                            this->month_day()->raw()->epoch_ms_for_with_provider(
-                               *tz, TimeZoneProvider()));
+                               TEMPORAL_PASS_TZ(tz), TimeZoneProvider()));
 }
 
 MaybeDirectHandle<JSTemporalPlainYearMonth>
@@ -5606,13 +5636,13 @@ MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
 // https://tc39.es/proposal-temporal/#sec-temporal-handledatetimetemporalyearmonth
 Maybe<int64_t> JSTemporalPlainYearMonth::GetEpochMillisecondsFor(
     Isolate* isolate, std::string_view time_zone) {
-  std::unique_ptr<temporal_rs::TimeZone> tz;
+  TEMPORAL_TIME_ZONE tz;
   MOVE_RETURN_ON_EXCEPTION(isolate, tz,
                            temporal::ToRustTimeZone(isolate, time_zone));
 
   return ExtractRustResult(
       isolate, this->year_month()->raw()->epoch_ms_for_with_provider(
-                   *tz, TimeZoneProvider()));
+                   TEMPORAL_PASS_TZ(tz), TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
@@ -6111,7 +6141,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   // 7. Else,
   //   a. Set timeZone to
   //   FormatOffsetTimeZoneIdentifier(timeZoneParse.[[OffsetMinutes]]).
-  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  TEMPORAL_TIME_ZONE time_zone;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, time_zone,
       ExtractRustResult(
@@ -6140,7 +6170,7 @@ MaybeDirectHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate, target, new_target,
       temporal_rs::ZonedDateTime::try_new_with_provider(
-          ns, calendar, *time_zone, TimeZoneProvider()));
+          ns, calendar, TEMPORAL_PASS_TZ(time_zone), TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
@@ -6306,7 +6336,7 @@ JSTemporalZonedDateTime::WithTimeZone(
     Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> time_zone_like) {
   // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(timeZoneLike).
-  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  TEMPORAL_TIME_ZONE time_zone;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, time_zone,
       temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_like));
@@ -6316,7 +6346,7 @@ JSTemporalZonedDateTime::WithTimeZone(
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate,
       zoned_date_time->zoned_date_time()->raw()->with_timezone_with_provider(
-          *time_zone, TimeZoneProvider()));
+          TEMPORAL_PASS_TZ(time_zone), TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tostring
@@ -6967,14 +6997,14 @@ JSTemporalInstant::ToZonedDateTimeISO(Isolate* isolate,
                                       DirectHandle<JSTemporalInstant> instant,
                                       DirectHandle<Object> time_zone_obj) {
   // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
-  std::unique_ptr<temporal_rs::TimeZone> time_zone;
+  TEMPORAL_TIME_ZONE time_zone;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, time_zone,
       temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone_obj));
 
   return ConstructRustWrappingType<JSTemporalZonedDateTime>(
       isolate, instant->instant()->raw()->to_zoned_date_time_iso_with_provider(
-                   *time_zone, TimeZoneProvider()));
+                   TEMPORAL_PASS_TZ(time_zone), TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tostring
@@ -7032,7 +7062,8 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
                                   isolate->factory()->smallestUnit_string()));
   }
 
-  std::unique_ptr<temporal_rs::TimeZone> rust_time_zone;
+#ifdef TEMPORAL_CAPI_VERSION_0_0_16
+  TEMPORAL_TIME_ZONE rust_time_zone;
   // 11. If timeZone is not undefined, then
   if (!IsUndefined(*time_zone)) {
     // a. Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
@@ -7046,11 +7077,29 @@ MaybeDirectHandle<String> JSTemporalInstant::ToString(
       .smallest_unit = smallest_unit,
       .rounding_mode = rounding_mode,
   };
+  temporal_rs::TimeZone* tz_for_passing = rust_time_zone.get();
+#else
+  std::optional<temporal_rs::TimeZone> tz_for_passing;
+  // 11. If timeZone is not undefined, then
+  if (!IsUndefined(*time_zone)) {
+    temporal_rs::TimeZone rust_time_zone;
+    // a. Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
+    MOVE_RETURN_ON_EXCEPTION(
+        isolate, rust_time_zone,
+        temporal::ToTemporalTimeZoneIdentifier(isolate, time_zone));
+    tz_for_passing = rust_time_zone;
+  }
+
+  auto rust_options = temporal_rs::ToStringRoundingOptions{
+      .precision = digits,
+      .smallest_unit = smallest_unit,
+      .rounding_mode = rounding_mode,
+  };
+#endif
 
   return temporal::GenericTemporalToString(
       isolate, instant, &temporal_rs::Instant::to_ixdtf_string_with_provider,
-      rust_time_zone.get(), std::move(rust_options),
-      std::ref(TimeZoneProvider()));
+      tz_for_passing, std::move(rust_options), std::ref(TimeZoneProvider()));
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tojson
@@ -7058,7 +7107,7 @@ MaybeDirectHandle<String> JSTemporalInstant::ToJSON(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant) {
   return temporal::GenericTemporalToString(
       isolate, instant, &temporal_rs::Instant::to_ixdtf_string_with_provider,
-      nullptr, std::move(temporal::kToStringAuto),
+      TEMPORAL_NULL_TIME_ZONE, std::move(temporal::kToStringAuto),
       std::ref(TimeZoneProvider()));
 }
 
