@@ -66,11 +66,11 @@
   if (CpuFeatures::IsSupported(FMA3)) {       \
     CpuFeatureScope fma3_scope(this, FMA3);   \
     if (dst == src1) {                        \
-      vfnmadd213##ps_or_pd(dst, src2, src3);  \
+      vfnmadd132##ps_or_pd(dst, src3, src2);  \
     } else if (dst == src2) {                 \
       vfnmadd213##ps_or_pd(dst, src1, src3);  \
     } else if (dst == src3) {                 \
-      vfnmadd231##ps_or_pd(dst, src2, src1);  \
+      vfnmadd231##ps_or_pd(dst, src1, src2);  \
     } else {                                  \
       CpuFeatureScope avx_scope(this, AVX);   \
       vmovups(dst, src1);                     \
