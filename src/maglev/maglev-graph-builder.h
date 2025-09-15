@@ -481,7 +481,15 @@ class MaglevGraphBuilder {
                                      Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args);
+  ReduceResult AddNewNode(std::initializer_list<ValueNode*> inputs,
+                          Args&&... args);
+
+  // Temporary version while we transition to the AddNewNode returning a
+  // ReduceResult.
+  // TODO(marja): Remove this.
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeNoAbort(std::initializer_list<ValueNode*> inputs,
+                           Args&&... args);
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
                                      Args&&... args);
@@ -784,6 +792,15 @@ class MaglevGraphBuilder {
     // Accumulator stores are equivalent to stores to the virtual accumulator
     // register.
     StoreRegister(interpreter::Register::virtual_accumulator(), node);
+  }
+
+  ReduceResult SetAccumulator(ReduceResult result) {
+    ValueNode* node;
+    GET_VALUE_OR_ABORT(node, result);
+    // Accumulator stores are equivalent to stores to the virtual accumulator
+    // register.
+    StoreRegister(interpreter::Register::virtual_accumulator(), node);
+    return ReduceResult::Done();
   }
 
   void ClobberAccumulator() {

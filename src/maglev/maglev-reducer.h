@@ -220,7 +220,14 @@ class MaglevReducer {
                                      Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args);
+  ReduceResult AddNewNode(std::initializer_list<ValueNode*> inputs,
+                          Args&&... args);
+  // Temporary version while we transition to the AddNewNode returning a
+  // ReduceResult.
+  // TODO(marja): Remove this.
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeNoAbort(std::initializer_list<ValueNode*> inputs,
+                           Args&&... args);
   template <typename NodeT, typename... Args>
   NodeT* AddUnbufferedNewNodeNoInputConversion(
       BasicBlock* block, std::initializer_list<ValueNode*> inputs,
@@ -451,7 +458,10 @@ class MaglevReducer {
   // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
   // since std::intializer_list can be converted to std::span.
   template <typename NodeT, typename InputsT>
-  void SetNodeInputs(NodeT* node, InputsT inputs);
+  ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
+
+  template <typename NodeT, typename InputsT>
+  void SetNodeInputsOld(NodeT* node, InputsT inputs);
 
   // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
   // since std::intializer_list can be converted to std::span.

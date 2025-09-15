@@ -1202,7 +1202,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag() {
       // still need to keep a CheckSmi.
       // TODO(dmercadier): during graph building, record whether the "CheckSmi"
       // part of CheckSmiUntag is useful or not.
-      reducer_.AddNewNode<CheckedSmiSizedInt32>({input});
+      reducer_.AddNewNodeNoAbort<CheckedSmiSizedInt32>({input});
     }
     return ReplaceWith(input);
   }
