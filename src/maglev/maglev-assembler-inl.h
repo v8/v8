@@ -1149,6 +1149,11 @@ inline void MaglevAssembler::AssertElidedWriteBarrier(
 #ifdef V8_COMPRESS_POINTERS
         masm->DecompressTagged(value, value);
 #endif
+        {
+          TemporaryRegisterScope temps(masm);
+          Register scratch = temps.AcquireScratch();
+          masm->PreCheckSkippedWriteBarrier(object, value, scratch, *ok);
+        }
         masm->CallVerifySkippedWriteBarrierStubSaveRegisters(
             object, value, SaveFPRegsMode::kSave);
         masm->Jump(*ok);

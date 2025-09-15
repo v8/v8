@@ -297,6 +297,14 @@ class IsolateData final {
            Builtins::ToInt(id) * kSystemPointerSize;
   }
 
+  static constexpr int new_allocation_info_start_offset() {
+    return new_allocation_info_offset() + LinearAllocationArea::StartOffset();
+  }
+
+  static constexpr int new_allocation_info_top_offset() {
+    return new_allocation_info_offset() + LinearAllocationArea::TopOffset();
+  }
+
   static constexpr int jslimit_offset() {
     return stack_guard_offset() + StackGuard::jslimit_offset();
   }

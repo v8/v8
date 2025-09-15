@@ -5052,6 +5052,42 @@ void MacroAssembler::JumpIfNotMarking(Label* not_marking,
   j(zero, not_marking, condition_met_distance);
 }
 
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  leaq(scratch, Operand(object, -kHeapObjectTag));
+  cmpq(scratch,
+       Operand(kRootRegister, IsolateData::last_young_allocation_offset()));
+  j(Condition::equal, ok);
+
+  // Write barier can also be removed if value is in read-only space.
+  CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, not_zero,
+                ok);
+
+  Label not_ok;
+
+  // Handle allocation folding: Allow write barrier removal if LAB start <=
+  // object < LAB top.
+  // Recompute object address here because scratch was clobbered by
+  // CheckPageFlag.
+  leaq(scratch, Operand(object, -kHeapObjectTag));
+  cmpq(scratch,
+       Operand(kRootRegister, IsolateData::new_allocation_info_start_offset()));
+  j(Condition::kUnsignedLessThan, &not_ok);
+  cmpq(scratch,
+       Operand(kRootRegister, IsolateData::new_allocation_info_top_offset()));
+  j(Condition::kUnsignedLessThan, ok);
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
+}
+
 void MacroAssembler::CheckMarkBit(Register object, Register scratch0,
                                   Register scratch1, Condition cc,
                                   Label* condition_met,

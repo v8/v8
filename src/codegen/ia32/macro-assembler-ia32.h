@@ -79,6 +79,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
 
+  void PreCheckSkippedWriteBarrier(Register object, Register value,
+                                   Register scratch, Label* ok);
+
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {

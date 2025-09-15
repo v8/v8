@@ -418,6 +418,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     CheckPageFlag(object, mask, cc, condition_met);
   }
 
+  void PreCheckSkippedWriteBarrier(Register object, Register value,
+                                   Register scratch, Label* ok);
+
   // Check whether d16-d31 are available on the CPU. The result is given by the
   // Z condition flag: Z==0 if d16-d31 available, Z==1 otherwise.
   void CheckFor32DRegs(Register scratch);

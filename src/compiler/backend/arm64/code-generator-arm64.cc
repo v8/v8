@@ -386,24 +386,27 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
  public:
   OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
-                                     Register value,
+                                     Register value, Register scratch,
                                      UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
+        scratch_(scratch),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         unwinding_info_writer_(unwinding_info_writer),
         zone_(gen->zone()) {}
 
   void Generate() final {
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTagged(value_, value_);
+    }
+
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
       __ Push<MacroAssembler::kSignLR>(lr, padreg);
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(), sp);
-    }
-
-    if (COMPRESS_POINTERS_BOOL) {
-      __ DecompressTagged(value_, value_);
     }
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
@@ -422,6 +425,7 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
  private:
   Register const object_;
   Register const value_;
+  Register const scratch_;
   const bool must_save_lr_;
   UnwindingInfoWriter* const unwinding_info_writer_;
   Zone* zone_;
@@ -1362,8 +1366,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(0);
       auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, &unwinding_info_writer_);
+          this, object, value, scratch, &unwinding_info_writer_);
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 
@@ -1411,8 +1416,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(temp, object, offset);
 
       DCHECK(v8_flags.verify_write_barriers);
+      Register scratch = i.TempRegister(1);
       auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, &unwinding_info_writer_);
+          this, object, value, scratch, &unwinding_info_writer_);
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 

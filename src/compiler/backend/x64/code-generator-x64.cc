@@ -474,16 +474,19 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
  public:
   OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
-                                     Register value)
+                                     Register value, Register scratch)
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
+        scratch_(scratch),
         zone_(gen->zone()) {}
 
   void Generate() final {
     if (COMPRESS_POINTERS_BOOL) {
       __ DecompressTagged(value_, value_);
     }
+
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
@@ -496,6 +499,7 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
  private:
   Register const object_;
   Register const value_;
+  Register const scratch_;
   Zone* zone_;
 };
 
@@ -1946,8 +1950,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(index);
 
       DCHECK(v8_flags.verify_write_barriers);
-      auto ool =
-          zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object, value);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, i.TempRegister(0));
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 

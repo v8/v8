@@ -142,6 +142,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void JumpIfNotMarking(Label* not_marking,
                         Label::Distance condition_met_distance = Label::kFar);
 
+  void PreCheckSkippedWriteBarrier(Register object, Register value,
+                                   Register scratch, Label* ok);
+
   // Define movq here instead of using AVX_OP. movq is defined using templates
   // and there is a function template `void movq(P1)`, while technically
   // impossible, will be selected when deducing the arguments for AvxHelper.

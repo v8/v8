@@ -1257,7 +1257,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
       !v8_flags.disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(representation));
     AddressingMode addressing_mode;
-    InstructionOperand inputs[4];
+    InstructionOperand inputs[5];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(store_view.base());
     // OutOfLineRecordWrite uses the index in an add or sub instruction, but we
@@ -1278,7 +1278,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
       DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
              write_barrier_kind == kSkippedWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
-      code = kArchStoreIndirectWithWriteBarrier;
+      code = write_barrier_kind == kSkippedWriteBarrier
+                 ? kArchStoreIndirectWithWriteBarrier
+                 : kArchStoreIndirectSkippedWriteBarrier;
       code |= RecordWriteModeField::encode(
           RecordWriteMode::kValueIsIndirectPointer);
       IndirectPointerTag tag = store_view.indirect_pointer_tag();
@@ -1295,7 +1297,12 @@ void InstructionSelector::VisitStore(OpIndex node) {
     if (store_view.is_store_trap_on_null()) {
       code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
     }
-    Emit(code, 0, nullptr, input_count, inputs);
+    InstructionOperand temps[1];
+    size_t temp_count = 0;
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      temps[temp_count++] = g.TempRegister();
+    }
+    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
     return;
   }
 
@@ -3809,7 +3816,8 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   InstructionOperand inputs[] = {g.UseUniqueRegister(base),
                                  g.UseUniqueRegister(index),
                                  g.UseUniqueRegister(value)};
-  InstructionOperand temps[] = {g.TempRegister()};
+  InstructionOperand temps[2] = {g.TempRegister()};
+  size_t temp_count = 1;
   InstructionCode code;
 
   if (write_barrier_kind != kNoWriteBarrier &&
@@ -3820,6 +3828,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchAtomicStoreSkippedWriteBarrier;
       code |= RecordWriteModeField::encode(RecordWriteMode::kValueIsAny);
+      temps[temp_count++] = g.TempRegister();
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
@@ -3866,7 +3875,7 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   }
 
   code |= AddressingModeField::encode(kMode_MRR);
-  selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps),
+  selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, temp_count,
                  temps);
 }
 

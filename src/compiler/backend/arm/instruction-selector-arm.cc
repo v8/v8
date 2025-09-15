@@ -815,8 +815,14 @@ void VisitStoreCommon(InstructionSelector* selector, OpIndex node,
       }
     }
 
+    InstructionOperand temps[1];
+    size_t temp_count = 0;
+    if (write_barrier_kind == kSkippedWriteBarrier) {
+      temps[temp_count++] = g.TempRegister();
+    }
+
     code |= AddressingModeField::encode(addressing_mode);
-    selector->Emit(code, 0, nullptr, input_count, inputs);
+    selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     InstructionCode opcode = kArchNop;
     if (!atomic_order) {
