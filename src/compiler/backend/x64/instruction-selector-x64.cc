@@ -7,6 +7,7 @@
 #include <limits>
 #include <optional>
 
+#include "src/base/bits.h"
 #include "src/base/bounds.h"
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
@@ -2070,9 +2071,14 @@ bool TryEmitLoadForLoadWord64AndShiftRight(InstructionSelector* selector,
         // in a register and replacing it with an immediate is not allowed. This
         // usually only happens in dead code anyway.
         if (!inputs[input_count - 1].IsImmediate()) return false;
+        int32_t displacement;
+        if (base::bits::SignedAddOverflow32(
+                static_cast<int32_t>(m->displacement), 4, &displacement) ||
+            !ValueFitsIntoImmediate(displacement)) {
+          return false;
+        }
         inputs[input_count - 1] =
-            ImmediateOperand(ImmediateOperand::INLINE_INT32,
-                             static_cast<int32_t>(m->displacement) + 4);
+            ImmediateOperand(ImmediateOperand::INLINE_INT32, displacement);
       }
       InstructionOperand outputs[] = {g.DefineAsRegister(node)};
       InstructionCode code = opcode | AddressingModeField::encode(mode);
