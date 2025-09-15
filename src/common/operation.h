@@ -50,7 +50,7 @@ enum class Operation : uint8_t {
 };
 
 template <Operation kOperation>
-inline bool IsBitwiseBinaryOperation() {
+constexpr inline bool IsBitwiseBinaryOperation() {
   switch (kOperation) {
 #define CASE(name) case Operation::k##name:
     ARITHMETIC_BITWISE_OPERATION_LIST(CASE)
@@ -59,6 +59,22 @@ inline bool IsBitwiseBinaryOperation() {
     default:
       return false;
   }
+}
+
+constexpr inline bool IsUnaryOperation(Operation op) {
+  switch (op) {
+#define UNARY_CASE(name)   \
+  case Operation::k##name: \
+    return true;
+    UNARY_OPERATION_LIST(UNARY_CASE)
+#undef UNARY_CASE
+    default:
+      return false;
+  }
+}
+
+constexpr inline bool IsBinaryOperation(Operation op) {
+  return !IsUnaryOperation(op);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const Operation& operation) {
