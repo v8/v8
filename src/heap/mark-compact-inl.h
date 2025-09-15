@@ -25,8 +25,7 @@ namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::MarkObject(
-    Tagged<HeapObject> host, Tagged<HeapObject> obj,
-    MarkingHelper::WorklistTarget target_worklist) {
+    Tagged<HeapObject> obj, MarkingHelper::WorklistTarget target_worklist) {
   DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
   MarkingHelper::TryMarkAndPush(heap_, local_marking_worklists_.get(),
                                 marking_state_, target_worklist, obj);

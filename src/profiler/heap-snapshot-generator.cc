@@ -1330,7 +1330,8 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
       int field_index = JSFunction::kDispatchHandleOffset / kTaggedSize;
       CHECK(generator_->visited_fields_[field_index]);
       generator_->visited_fields_[field_index] = false;
-    } else if (IsCode(host) || IsFeedbackCell(host)) {
+    } else if (IsCode(host) || IsFeedbackCell(host) ||
+               IsInstructionStream(host)) {
       // Nothing to do: the Code object is tracked as part of the JSFunction.
     } else {
       UNREACHABLE();

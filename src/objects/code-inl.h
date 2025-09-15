@@ -649,6 +649,12 @@ bool Code::IsWeakObjectInOptimizedCode(Tagged<HeapObject> object) {
          InstanceTypeChecker::IsContext(map_object);
 }
 
+bool Code::IsWeakObjectInOptimizedCode(JSDispatchHandle) {
+  // Dispatch handles are always treated weakly in optimized code.
+  DCHECK(is_optimized_code());
+  return true;
+}
+
 bool Code::IsWeakObjectInDeoptimizationLiteralArray(Tagged<Object> object) {
   // Maps must be strong because they can be used as part of the description for
   // how to materialize an object upon deoptimization, in which case it is

@@ -19,6 +19,7 @@
 #include "src/heap/marking.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/spaces.h"
+#include "src/objects/casting.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/heap-object.h"
@@ -330,6 +331,19 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
       heap_->isolate()->read_only_heap()->js_dispatch_table_space();
   jdt->VerifyEntry(handle, space, ro_space);
 #endif  // DEBUG
+
+  if (jdt->IsMarked(handle)) {
+    return;
+  }
+
+  if (Tagged<InstructionStream> istream; TryCast(host, &istream)) {
+    Tagged<Code> code = UncheckedCast<Code>(istream->raw_code(kAcquireLoad));
+    if (code->IsWeakObjectInOptimizedCode(handle)) {
+      local_weak_objects_->weak_dispatch_handles_in_code_local.Push(
+          DispatchHandleAndCode{handle, code});
+      return;
+    }
+  }
 
   jdt->Mark(handle);
 

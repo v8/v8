@@ -283,6 +283,15 @@ void JSDispatchTable::Mark(JSDispatchHandle handle) {
   at(index).Mark();
 }
 
+bool JSDispatchTable::IsMarked(JSDispatchHandle handle) {
+  const uint32_t index = HandleToIndex(handle);
+  // The read-only space is immortal and always considered alive.
+  if (index < kEndOfReadOnlyIndex) {
+    return true;
+  }
+  return at(index).IsMarked();
+}
+
 #if defined(DEBUG) || defined(VERIFY_HEAP)
 void JSDispatchTable::VerifyEntry(JSDispatchHandle handle, Space* space,
                                   Space* ro_space) {

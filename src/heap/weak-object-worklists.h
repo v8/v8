@@ -39,6 +39,11 @@ struct HeapObjectAndCode {
   Tagged<Code> code;
 };
 
+struct DispatchHandleAndCode {
+  JSDispatchHandle dispatch_handle;
+  Tagged<Code> code;
+};
+
 class EphemeronHashTable;
 class JSFunction;
 class SharedFunctionInfo;
@@ -72,6 +77,8 @@ class TransitionArray;
     WeakReferencesNonTrivialUnmarked)                                         \
   F(TrustedObjectAndSlot, weak_references_trusted, WeakReferencesTrusted)     \
   F(HeapObjectAndCode, weak_objects_in_code, WeakObjectsInCode)               \
+  F(DispatchHandleAndCode, weak_dispatch_handles_in_code,                     \
+    WeakDispatchHandlesInCode)                                                \
   F(Tagged<JSWeakRef>, js_weak_refs, JSWeakRefs)                              \
   F(Tagged<WeakCell>, weak_cells, WeakCells)                                  \
   F(Tagged<SharedFunctionInfo>, code_flushing_candidates,                     \

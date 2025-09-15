@@ -1309,7 +1309,8 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
       RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
       RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-      RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
+      RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
+      RelocInfo::ModeMask(RelocInfo::JS_DISPATCH_HANDLE);
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,

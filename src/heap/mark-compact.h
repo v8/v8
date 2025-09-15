@@ -210,7 +210,7 @@ class MarkCompactCollector final {
   void MarkLiveObjects();
 
   // Marks the object and adds it to the worklist.
-  V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj,
+  V8_INLINE void MarkObject(Tagged<HeapObject> obj,
                             MarkingHelper::WorklistTarget target_worklist);
 
   // Marks the root object and adds it to the worklist.

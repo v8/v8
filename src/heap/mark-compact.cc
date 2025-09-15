@@ -981,11 +981,11 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
         collector_(collector) {}
 
   void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {
-    MarkObject(host, p.load(cage_base()));
+    MarkObject(p.load(cage_base()));
   }
 
   void VisitMapPointer(Tagged<HeapObject> host) final {
-    MarkObject(host, host->map(cage_base()));
+    MarkObject(host->map(cage_base()));
   }
 
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
@@ -994,13 +994,13 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
       // The map slot should be handled in VisitMapPointer.
       DCHECK_NE(host->map_slot(), p);
       DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
-      MarkObject(host, p.load(cage_base()));
+      MarkObject(p.load(cage_base()));
     }
   }
 
   void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override {
-    MarkObject(host, slot.load(code_cage_base()));
+    MarkObject(slot.load(code_cage_base()));
   }
 
   void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
@@ -1013,24 +1013,44 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
                        RelocInfo* rinfo) override {
     Tagged<InstructionStream> target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
-    MarkObject(host, target);
+    MarkObject(target);
   }
 
   void VisitEmbeddedPointer(Tagged<InstructionStream> host,
                             RelocInfo* rinfo) override {
-    MarkObject(host, rinfo->target_object(cage_base()));
+    MarkObject(rinfo->target_object(cage_base()));
+  }
+
+  void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override {
+#ifdef V8_ENABLE_LEAPTIERING
+    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+#ifdef DEBUG
+    JSDispatchTable::Space* space =
+        collector_->heap()->js_dispatch_table_space();
+    JSDispatchTable::Space* ro_space = collector_->heap()
+                                           ->isolate()
+                                           ->read_only_heap()
+                                           ->js_dispatch_table_space();
+    jdt->VerifyEntry(handle, space, ro_space);
+#endif  // DEBUG
+    jdt->Mark(handle);
+    MarkObject(jdt->GetCode(handle));
+#endif  // V8_ENABLE_LEAPTIERING
   }
 
  private:
-  V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<Object> object) {
-    if (!IsHeapObject(object)) return;
+  V8_INLINE void MarkObject(Tagged<Object> object) {
+    if (!IsHeapObject(object)) {
+      return;
+    }
     Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
     const auto target_worklist =
         MarkingHelper::ShouldMarkObject(collector_->heap(), heap_object);
     if (!target_worklist) {
       return;
     }
-    collector_->MarkObject(host, heap_object, target_worklist.value());
+    collector_->MarkObject(heap_object, target_worklist.value());
   }
 
   MarkCompactCollector* const collector_;
@@ -2303,7 +2323,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
           const auto target_worklist =
               MarkingHelper::ShouldMarkObject(heap_, value);
           if (target_worklist) {
-            MarkObject(object, value, target_worklist.value());
+            MarkObject(value, target_worklist.value());
           }
         }
         key_to_values_.erase(it);
@@ -3085,6 +3105,17 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 #endif  // !V8_ENABLE_LEAPTIERING
   }
 
+  {
+    // This method may be called from within a DisallowDeoptimizations scope.
+    // Temporarily allow deopts for marking code for deopt. This is not doing
+    // the deopt yet and the actual deopts will be bailed out on later if the
+    // current safepoint is not safe for deopts.
+    // TODO(357636610): Reconsider whether the DisallowDeoptimization scopes are
+    // truly needed.
+    AllowDeoptimization allow_deoptimization(heap_->isolate());
+    MarkDependentCodeForDeoptimization();
+  }
+
 #ifdef V8_ENABLE_LEAPTIERING
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE);
@@ -3253,17 +3284,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   PROFILE(heap_->isolate(), WeakCodeClearEvent());
 
   {
-    // This method may be called from within a DisallowDeoptimizations scope.
-    // Temporarily allow deopts for marking code for deopt. This is not doing
-    // the deopt yet and the actual deopts will be bailed out on later if the
-    // current safepoint is not safe for deopts.
-    // TODO(357636610): Reconsider whether the DisallowDeoptimization scopes are
-    // truly needed.
-    AllowDeoptimization allow_deoptimization(heap_->isolate());
-    MarkDependentCodeForDeoptimization();
-  }
-
-  {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JOIN_JOB);
     clear_string_table_job_handle->Join();
     clear_trivial_weakrefs_job_handle->Join();
@@ -3280,6 +3300,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   DCHECK(weak_objects_.weak_references_non_trivial.IsEmpty());
   DCHECK(weak_objects_.weak_references_non_trivial_unmarked.IsEmpty());
   DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());
+  DCHECK(weak_objects_.weak_dispatch_handles_in_code.IsEmpty());
   DCHECK(weak_objects_.js_weak_refs.IsEmpty());
   DCHECK(weak_objects_.weak_cells.IsEmpty());
   DCHECK(weak_objects_.code_flushing_candidates.IsEmpty());
@@ -3290,23 +3311,44 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 }
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
+  const auto MarkForDeoptimization = [this](Tagged<Code> code) {
+    if (code->embedded_objects_cleared()) {
+      // If embedded objects have been cleared then the code is already
+      // marked for deoptimizations.
+      return;
+    }
+    if (!code->marked_for_deoptimization()) {
+      code->SetMarkedForDeoptimization(heap_->isolate(),
+                                       LazyDeoptimizeReason::kWeakObjects);
+      have_code_to_deoptimize_ = true;
+    }
+    code->ClearEmbeddedObjectsAndJSDispatchHandles(heap_);
+    DCHECK(code->embedded_objects_cleared());
+  };
+
   HeapObjectAndCode weak_object_in_code;
   while (local_weak_objects()->weak_objects_in_code_local.Pop(
       &weak_object_in_code)) {
-    Tagged<HeapObject> object = weak_object_in_code.heap_object;
-    Tagged<Code> code = weak_object_in_code.code;
     if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-            heap_, non_atomic_marking_state_, object) &&
-        !code->embedded_objects_cleared()) {
-      if (!code->marked_for_deoptimization()) {
-        code->SetMarkedForDeoptimization(heap_->isolate(),
-                                         LazyDeoptimizeReason::kWeakObjects);
-        have_code_to_deoptimize_ = true;
-      }
-      code->ClearEmbeddedObjectsAndJSDispatchHandles(heap_);
-      DCHECK(code->embedded_objects_cleared());
+            heap_, non_atomic_marking_state_,
+            weak_object_in_code.heap_object)) {
+      MarkForDeoptimization(weak_object_in_code.code);
     }
   }
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  DispatchHandleAndCode dispatch_handle_in_code;
+  while (local_weak_objects()->weak_dispatch_handles_in_code_local.Pop(
+      &dispatch_handle_in_code)) {
+    if (!jdt->IsMarked(dispatch_handle_in_code.dispatch_handle)) {
+      MarkForDeoptimization(dispatch_handle_in_code.code);
+    }
+  }
+
+#else
+  CHECK(local_weak_objects()
+            ->weak_dispatch_handles_in_code_local.IsGlobalEmpty());
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MarkCompactCollector::ClearPotentialSimpleMapTransition(
