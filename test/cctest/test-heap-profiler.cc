@@ -2189,9 +2189,13 @@ TEST(GlobalObjectNameSimple) {
 
   CompileRun("document = { URL:\"abcdefgh\" };");
 
+  // Allow usages of v8::HeapProfiler::ObjectNameResolver for now.
+  // TODO(https://crbug.com/333672197): remove.
+  START_ALLOW_USE_DEPRECATED()
   NameResolver name_resolver;
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(nullptr, &name_resolver);
+  END_ALLOW_USE_DEPRECATED()
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* native_context = GetNativeContext(snapshot);
   CHECK_NOT_NULL(native_context);
@@ -2226,9 +2230,13 @@ TEST(GlobalObjectName) {
 
   CompileRun("document = { URL:\"abcdefgh\" };");
 
+  // Allow usages of v8::HeapProfiler::ObjectNameResolver for now.
+  // TODO(https://crbug.com/333672197): remove.
+  START_ALLOW_USE_DEPRECATED()
   NameResolver name_resolver;
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(nullptr, &name_resolver);
+  END_ALLOW_USE_DEPRECATED()
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* native_context = GetNativeContext(snapshot);
   CHECK_NOT_NULL(native_context);
@@ -2265,9 +2273,13 @@ TEST(GlobalObjectNameDetached) {
 
   env->DetachGlobal();
 
+  // Allow usages of v8::HeapProfiler::ObjectNameResolver for now.
+  // TODO(https://crbug.com/333672197): remove.
+  START_ALLOW_USE_DEPRECATED()
   NameResolver name_resolver;
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(nullptr, &name_resolver);
+  END_ALLOW_USE_DEPRECATED()
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* native_context = GetNativeContext(snapshot);
   CHECK_NOT_NULL(native_context);
