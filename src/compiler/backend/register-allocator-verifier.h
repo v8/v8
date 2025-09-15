@@ -135,9 +135,8 @@ struct OperandAsKeyLess {
 // Assessments associated with a basic block.
 class BlockAssessments : public ZoneObject {
  public:
-  using OperandMap =
-      ZoneAbslBTreeMap<InstructionOperand, Assessment*, OperandAsKeyLess>;
-  using OperandSet = ZoneAbslBTreeSet<InstructionOperand, OperandAsKeyLess>;
+  using OperandMap = ZoneMap<InstructionOperand, Assessment*, OperandAsKeyLess>;
+  using OperandSet = ZoneSet<InstructionOperand, OperandAsKeyLess>;
   explicit BlockAssessments(Zone* zone, int spill_slot_delta,
                             const InstructionSequence* sequence)
       : map_(zone),
@@ -172,8 +171,9 @@ class BlockAssessments : public ZoneObject {
     CHECK(map_.empty());
     CHECK(stale_ref_stack_slots_.empty());
     CHECK_NOT_NULL(other);
-    map_ = other->map_;
-    stale_ref_stack_slots_ = other->stale_ref_stack_slots_;
+    map_.insert(other->map_.begin(), other->map_.end());
+    stale_ref_stack_slots_.insert(other->stale_ref_stack_slots_.begin(),
+                                  other->stale_ref_stack_slots_.end());
   }
   void CheckReferenceMap(const ReferenceMap* reference_map);
   bool IsStaleReferenceStackSlot(InstructionOperand op,

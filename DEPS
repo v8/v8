@@ -585,7 +585,6 @@ include_rules = [
   '+absl/container/flat_hash_map.h',
   '+absl/container/flat_hash_set.h',
   '+absl/container/btree_map.h',
-  '+absl/container/btree_set.h',
   '+absl/functional/overload.h',
   '+absl/status',
   '+absl/strings/str_format.h',
