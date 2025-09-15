@@ -38,16 +38,16 @@ std::vector<PropertyDetails> make_details() {
 
 }  // namespace
 
-// This test will trigger a CHECK failure in. We must ensure that in
-// release mode, the enum index doesn't interfere with other fields once it
-// becomes too large.
+// This test will trigger a CHECK failure.
 TEST(PropertyDetailsTest, ExceedMaxEnumerationIndex) {
   int too_large_enum_index = std::numeric_limits<int>::max();
 
-  for (PropertyDetails d : make_details()) {
-    EXPECT_DEATH_IF_SUPPORTED(d = d.set_index(too_large_enum_index),
-                              "Check failed: is_valid\\(value\\)");
-  }
+  // Death tests will retry when run inside a loop, causing quadratic behaviour,
+  // so just test set_index for a single PropertyDetails instead of all of
+  // make_details().
+  PropertyDetails details(PropertyKind::kData, NONE, PropertyCellType::kNoCell);
+  EXPECT_DEATH_IF_SUPPORTED(details.set_index(too_large_enum_index),
+                            "Check failed: is_valid\\(value\\)");
 }
 
 TEST(PropertyDetailsTest, AsByte) {
