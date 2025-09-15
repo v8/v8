@@ -51,25 +51,18 @@ class HeapSnapshotProgress final : public v8::ActivityControl {
   protocol::HeapProfiler::Frontend* m_frontend;
 };
 
-class GlobalObjectNameResolver final
-    : public v8::HeapProfiler::ObjectNameResolver {
+class ContextNameResolver final : public v8::HeapProfiler::ContextNameResolver {
  public:
-  explicit GlobalObjectNameResolver(V8InspectorSessionImpl* session)
+  explicit ContextNameResolver(V8InspectorSessionImpl* session)
       : m_offset(0), m_strings(10000), m_session(session) {}
 
-  const char* GetName(v8::Local<v8::Object> object) override {
-    v8::Local<v8::Context> creationContext;
-    if (!object->GetCreationContext(m_session->inspector()->isolate())
-             .ToLocal(&creationContext)) {
-      return "";
-    }
-    InspectedContext* context = m_session->inspector()->getContext(
-        m_session->contextGroupId(),
-        InspectedContext::contextId(creationContext));
-    if (!context) return "";
-    String16 name = context->origin();
+  const char* GetName(v8::Local<v8::Context> context) override {
+    InspectedContext* inspected_context = m_session->inspector()->getContext(
+        m_session->contextGroupId(), InspectedContext::contextId(context));
+    if (!inspected_context) return nullptr;
+    String16 name = inspected_context->origin();
     size_t length = name.length();
-    if (m_offset + length + 1 >= m_strings.size()) return "";
+    if (m_offset + length + 1 >= m_strings.size()) return nullptr;
     for (size_t i = 0; i < length; ++i) {
       UChar ch = name[i];
       m_strings[m_offset + i] = ch > 0xFF ? '?' : static_cast<char>(ch);
@@ -394,9 +387,9 @@ Response V8HeapProfilerAgentImpl::takeHeapSnapshotNow(
   if (protocolOptions.m_reportProgress)
     progress.reset(new HeapSnapshotProgress(&m_frontend));
 
-  GlobalObjectNameResolver resolver(m_session);
+  ContextNameResolver resolver(m_session);
   v8::HeapProfiler::HeapSnapshotOptions options;
-  options.global_object_name_resolver = &resolver;
+  options.context_name_resolver = &resolver;
   options.control = progress.get();
   options.snapshot_mode =
       protocolOptions.m_exposeInternals ||

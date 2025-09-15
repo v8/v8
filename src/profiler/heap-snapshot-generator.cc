@@ -823,16 +823,18 @@ void HeapObjectsMap::RemoveDeadEntries() {
          entries_map_.occupancy());
 }
 
-V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
-                               SnapshottingProgressReportingInterface* progress,
-                               v8::HeapProfiler::ObjectNameResolver* resolver)
+V8HeapExplorer::V8HeapExplorer(
+    HeapSnapshot* snapshot, SnapshottingProgressReportingInterface* progress,
+    v8::HeapProfiler::ObjectNameResolver* resolver,
+    v8::HeapProfiler::ContextNameResolver* context_resolver)
     : heap_(snapshot->profiler()->heap_object_map()->heap()),
       snapshot_(snapshot),
       names_(snapshot_->profiler()->names()),
       heap_object_map_(snapshot_->profiler()->heap_object_map()),
       progress_(progress),
       generator_(nullptr),
-      global_object_name_resolver_(resolver) {}
+      global_object_name_resolver_(resolver),
+      native_context_name_resolver_(context_resolver) {}
 
 HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
   return AddEntry(
@@ -3028,7 +3030,9 @@ class NativeContextEnumerator : public RootVisitor {
 
 V8HeapExplorer::TemporaryNativeContextTags
 V8HeapExplorer::CollectTemporaryNativeContextTags() {
-  if (!global_object_name_resolver_) return {};
+  if (!global_object_name_resolver_ && !native_context_name_resolver_) {
+    return {};
+  }
 
   Isolate* isolate = heap_->isolate();
   TemporaryNativeContextTags native_context_tags;
@@ -3036,9 +3040,20 @@ V8HeapExplorer::CollectTemporaryNativeContextTags() {
   NativeContextEnumerator enumerator(
       isolate, [this, isolate, &native_context_tags](
                    DirectHandle<NativeContext> native_context) {
-        // TODO(ishell): add GetName(v8::Local<v8::Context>) to resolver Api.
-        DirectHandle<JSObject> global(native_context->global_object(), isolate);
+        if (native_context_name_resolver_) {
+          v8::Local<v8::Context> context = Utils::ToLocal(native_context);
+          if (const char* tag =
+                  native_context_name_resolver_->GetName(context)) {
+            native_context_tags.emplace_back(
+                Global<v8::Context>(reinterpret_cast<v8::Isolate*>(isolate),
+                                    context),
+                tag);
+            native_context_tags.back().first.SetWeak();
+          }
+          return;
+        }
 
+        DirectHandle<JSObject> global(native_context->global_object(), isolate);
         if (const char* tag =
                 global_object_name_resolver_->GetName(Utils::ToLocal(global))) {
           native_context_tags.emplace_back(
@@ -3317,11 +3332,12 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
 
 HeapSnapshotGenerator::HeapSnapshotGenerator(
     HeapSnapshot* snapshot, v8::ActivityControl* control,
-    v8::HeapProfiler::ObjectNameResolver* resolver, Heap* heap,
+    v8::HeapProfiler::ObjectNameResolver* resolver,
+    v8::HeapProfiler::ContextNameResolver* context_resolver, Heap* heap,
     cppgc::EmbedderStackState stack_state)
     : snapshot_(snapshot),
       control_(control),
-      v8_heap_explorer_(snapshot_, this, resolver),
+      v8_heap_explorer_(snapshot_, this, resolver, context_resolver),
       dom_explorer_(snapshot_, this),
       heap_(heap),
       stack_state_(stack_state) {}

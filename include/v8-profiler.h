@@ -1041,6 +1041,8 @@ class V8_EXPORT HeapProfiler {
 
   /**
    * Callback interface for retrieving user friendly names of global objects.
+   *
+   * This interface will soon be deprecated in favour of ContextNameResolver.
    */
   class ObjectNameResolver {
    public:
@@ -1052,6 +1054,23 @@ class V8_EXPORT HeapProfiler {
 
    protected:
     virtual ~ObjectNameResolver() = default;
+  };
+
+  /**
+   * Callback interface for retrieving user friendly names of a V8::Context
+   * objects.
+   */
+  class ContextNameResolver {
+   public:
+    /**
+     * Returns name to be used in the heap snapshot for given node. Returned
+     * string must stay alive until snapshot collection is completed.
+     * If no user friendly name is available return nullptr.
+     */
+    virtual const char* GetName(Local<Context> context) = 0;
+
+   protected:
+    virtual ~ContextNameResolver() = default;
   };
 
   enum class HeapSnapshotMode {
@@ -1092,6 +1111,13 @@ class V8_EXPORT HeapProfiler {
      */
     ObjectNameResolver* global_object_name_resolver = nullptr;
     /**
+     * The resolver used by the snapshot generator to get names for v8::Context
+     * objects.
+     * In case both this and |global_object_name_resolver| callbacks are
+     * provided, this one will be used.
+     */
+    ContextNameResolver* context_name_resolver = nullptr;
+    /**
      * Mode for taking the snapshot, see `HeapSnapshotMode`.
      */
     HeapSnapshotMode snapshot_mode = HeapSnapshotMode::kRegular;
@@ -1121,9 +1147,18 @@ class V8_EXPORT HeapProfiler {
    * \returns the snapshot.
    */
   const HeapSnapshot* TakeHeapSnapshot(
-      ActivityControl* control,
-      ObjectNameResolver* global_object_name_resolver = nullptr,
+      ActivityControl* control, ObjectNameResolver* global_object_name_resolver,
       bool hide_internals = true, bool capture_numeric_value = false);
+  const HeapSnapshot* TakeHeapSnapshot(ActivityControl* control,
+                                       ContextNameResolver* resolver,
+                                       bool hide_internals = true,
+                                       bool capture_numeric_value = false);
+  // TODO(333672197): remove this version once ObjectNameResolver* overload
+  // is removed.
+  const HeapSnapshot* TakeHeapSnapshot(ActivityControl* control,
+                                       std::nullptr_t resolver = nullptr,
+                                       bool hide_internals = true,
+                                       bool capture_numeric_value = false);
 
   /**
    * Obtains list of Detached JS Wrapper Objects. This functon calls garbage

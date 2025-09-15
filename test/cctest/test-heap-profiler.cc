@@ -2286,6 +2286,117 @@ TEST(GlobalObjectNameDetached) {
            std::string(GetName(global_proxy)));
 }
 
+class ContextNameResolver : public v8::HeapProfiler::ContextNameResolver {
+ public:
+  const char* GetName(v8::Local<v8::Context> context) override {
+    return "Native context name";
+  }
+};
+
+TEST(ContextNameSimple) {
+  LocalContext env;
+  v8::HandleScope scope(env.isolate());
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  CompileRun("document = { URL:\"abcdefgh\" };");
+
+  ContextNameResolver name_resolver;
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(nullptr, &name_resolver);
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* native_context = GetNativeContext(snapshot);
+  CHECK_NOT_NULL(native_context);
+  CHECK_EQ(std::string("system / NativeContext / Native context name"),
+           std::string(GetName(native_context)));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NOT_NULL(global);
+  CHECK_EQ(std::string("Object (global*) / Native context name"),
+           std::string(GetName(global)));
+
+  const v8::HeapGraphNode* global_proxy = GetProperty(
+      env.isolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
+  CHECK_NOT_NULL(global_proxy);
+  CHECK_EQ(std::string("Object (global) / Native context name"),
+           std::string(GetName(global_proxy)));
+}
+
+TEST(ContextName) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> global_constructor =
+      v8::FunctionTemplate::New(isolate);
+  global_constructor->SetClassName(v8_str("MyGlobal"));
+
+  v8::Local<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate, global_constructor);
+  LocalContext env(isolate, nullptr, global_template);
+
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  CompileRun("document = { URL:\"abcdefgh\" };");
+
+  ContextNameResolver name_resolver;
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(nullptr, &name_resolver);
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* native_context = GetNativeContext(snapshot);
+  CHECK_NOT_NULL(native_context);
+  CHECK_EQ(std::string("system / NativeContext / Native context name"),
+           std::string(GetName(native_context)));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot, false);
+  CHECK_NOT_NULL(global);
+  CHECK_EQ(std::string("MyGlobal (global*) / Native context name"),
+           std::string(GetName(global)));
+
+  const v8::HeapGraphNode* global_proxy = GetProperty(
+      env.isolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
+  CHECK_NOT_NULL(global_proxy);
+  CHECK_EQ(std::string("MyGlobal (global) / Native context name"),
+           std::string(GetName(global_proxy)));
+}
+
+TEST(ContextNameDetached) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> global_constructor =
+      v8::FunctionTemplate::New(isolate);
+  global_constructor->SetClassName(v8_str("MyGlobal"));
+
+  v8::Local<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate, global_constructor);
+  LocalContext env(isolate, nullptr, global_template);
+
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  CompileRun("document = { URL:\"abcdefgh\" };");
+
+  env->DetachGlobal();
+
+  ContextNameResolver name_resolver;
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(nullptr, &name_resolver);
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* native_context = GetNativeContext(snapshot);
+  CHECK_NOT_NULL(native_context);
+  CHECK_EQ(std::string("system / NativeContext / Native context name"),
+           std::string(GetName(native_context)));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot, false);
+  CHECK_NOT_NULL(global);
+  CHECK_EQ(std::string("MyGlobal (global*) / Native context name"),
+           std::string(GetName(global)));
+
+  const v8::HeapGraphNode* global_proxy = GetProperty(
+      env.isolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
+  CHECK_NOT_NULL(global_proxy);
+  CHECK_EQ(std::string("Object (global) / <detached>"),
+           std::string(GetName(global_proxy)));
+}
+
 TEST(GlobalObjectFields) {
   LocalContext env;
   v8::HandleScope scope(env.isolate());
