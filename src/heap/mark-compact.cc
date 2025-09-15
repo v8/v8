@@ -3247,7 +3247,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_WEAKNESS_HANDLING);
     ClearNonTrivialWeakReferences();
     ClearWeakCollections();
-    ClearJSWeakRefs();
+    ProcessJSWeakRefs();
   }
 
   PROFILE(heap_->isolate(), WeakCodeClearEvent());
@@ -4003,7 +4003,7 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences() {
   }
 }
 
-void MarkCompactCollector::ClearJSWeakRefs() {
+void MarkCompactCollector::ProcessJSWeakRefs() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JS_WEAK_REFERENCES);
   Tagged<JSWeakRef> weak_ref;
   Isolate* const isolate = heap_->isolate();

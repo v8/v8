@@ -10,6 +10,7 @@
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged.h"
 
@@ -52,11 +53,14 @@ class HeapLayout final : public AllStatic {
                               PtrComprCageBase cage_base);
   static bool IsSelfForwarded(Tagged<HeapObject> object, MapWord map_word);
 
+  V8_EXPORT_PRIVATE static bool IsForwardedPointerTo(Tagged<HeapObject> src,
+                                                     Tagged<HeapObject> dest);
+
  private:
-  V8_EXPORT static bool InYoungGenerationForStickyMarkbits(
+  V8_EXPORT_PRIVATE static bool InYoungGenerationForStickyMarkbits(
       const MemoryChunk* chunk, Tagged<HeapObject> object);
 
-  V8_EXPORT static void CheckYoungGenerationConsistency(
+  V8_EXPORT_PRIVATE static void CheckYoungGenerationConsistency(
       const MemoryChunk* chunk);
 };
 

@@ -479,6 +479,8 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
                                       ExternalPointerSlot slot) final;
   V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
                                   MaybeObjectSize maybe_size);
+  V8_INLINE size_t VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object,
+                                 MaybeObjectSize maybe_size);
 
   V8_INLINE static constexpr bool CanEncounterFillerOrFreeSpace() {
     return false;
@@ -619,6 +621,16 @@ size_t ScavengeVisitor::VisitJSWeakRef(Tagged<Map> map,
   const size_t size = Base::VisitJSWeakRef(map, object, maybe_size);
   allow_weakness_ = false;
   scavenger_->RecordJSWeakRefIfNeeded<Scavenger::WeakObjectAge::kYoung>(object);
+  return size;
+}
+
+size_t ScavengeVisitor::VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object,
+                                      MaybeObjectSize maybe_size) {
+  DCHECK(!allow_weakness_);
+  allow_weakness_ = v8_flags.handle_weak_ref_weakly_in_minor_gc;
+  const size_t size = Base::VisitWeakCell(map, object, maybe_size);
+  allow_weakness_ = false;
+  scavenger_->RecordWeakCellIfNeeded<Scavenger::WeakObjectAge::kYoung>(object);
   return size;
 }
 

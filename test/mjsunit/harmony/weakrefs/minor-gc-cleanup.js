@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-gc --noincremental-marking
+// Flags: --expose-gc --no-incremental-marking --no-single-generation --no-gc-global --handle-weak-ref-weakly-in-minor-gc
 
 (async function () {
 
@@ -29,7 +29,7 @@
   // finish, so that it doesn't need to scan the stack. Otherwise, the objects
   // may not be reclaimed because of conservative stack scanning and the test
   // may not work as intended.
-  await gc({ type: 'major', execution: 'async' });
+  await gc({ type: 'minor', execution: 'async' });
   assertEquals(cleanup_called, 0);
 
   // Drop the last references to o1 and o2.
@@ -40,7 +40,7 @@
 
   // GC will reclaim the target objects; the cleanup function will be called the
   // next time we enter the event loop.
-  await gc({ type: 'major', execution: 'async' });
+  await gc({ type: 'minor', execution: 'async' });
   assertEquals(cleanup_called, 0);
 
   let timeout_func = function () {

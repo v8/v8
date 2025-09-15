@@ -63,6 +63,8 @@ class Scavenger {
 
   using JSWeakRefsList =
       ::heap::base::Worklist<Tagged<JSWeakRef>, kWeakObjectListSegmentSize>;
+  using WeakCellsList =
+      ::heap::base::Worklist<Tagged<WeakCell>, kWeakObjectListSegmentSize>;
 
   using EmptyChunksList = ::heap::base::Worklist<MutablePageMetadata*, 64>;
 
@@ -70,7 +72,7 @@ class Scavenger {
             EmptyChunksList* empty_chunks, CopiedList* copied_list,
             PinnedList* pinned_list, PromotedList* promoted_list,
             EphemeronRememberedSet::TableList* ephemeron_table_list,
-            JSWeakRefsList* js_weak_refs_list);
+            JSWeakRefsList* js_weak_refs_list, WeakCellsList* weak_cells_list);
 
   // Entry point for scavenging an old generation page. For scavenging single
   // objects see RootScavengingVisitor and ScavengeVisitor below.
@@ -206,7 +208,12 @@ class Scavenger {
 
   enum class WeakObjectAge { kOld, kYoung };
   template <WeakObjectAge>
+  V8_INLINE bool ShouldRecordWeakObject(Tagged<HeapObject> host,
+                                        ObjectSlot slot);
+  template <WeakObjectAge>
   void RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref);
+  template <WeakObjectAge>
+  void RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell);
 
   ScavengerCollector* const collector_;
   Heap* const heap_;
@@ -216,6 +223,7 @@ class Scavenger {
   PromotedList::Local local_promoted_list_;
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
   JSWeakRefsList::Local local_js_weak_refs_list_;
+  WeakCellsList::Local local_weak_cells_list_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   EphemeronRememberedSet::TableMap local_ephemeron_remembered_set_;
   SurvivingNewLargeObjectsMap local_surviving_new_large_objects_;
@@ -385,7 +393,10 @@ class ScavengerCollector {
       EphemeronRememberedSet::TableList* ephemeron_table_list);
   void ClearOldEphemerons();
 
-  void ClearJSWeakRefs(Scavenger::JSWeakRefsList&);
+  void ProcessWeakObjects(Scavenger::JSWeakRefsList&,
+                          Scavenger::WeakCellsList&);
+  void ProcessJSWeakRefs(Scavenger::JSWeakRefsList&);
+  void ProcessWeakCells(Scavenger::WeakCellsList&);
 
   void HandleSurvivingNewLargeObjects();
 

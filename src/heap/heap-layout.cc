@@ -54,4 +54,10 @@ bool HeapLayout::IsSelfForwarded(Tagged<HeapObject> object, MapWord map_word) {
   return map_word == MapWord::FromForwardingAddress(object, object);
 }
 
+// static
+bool HeapLayout::IsForwardedPointerTo(Tagged<HeapObject> src,
+                                      Tagged<HeapObject> dest) {
+  return src->map_word(kRelaxedLoad).ToForwardingAddress(src) == dest;
+}
+
 }  // namespace v8::internal

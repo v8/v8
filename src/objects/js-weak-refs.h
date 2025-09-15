@@ -96,14 +96,9 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<Symbol, JSReceiver, Undefined>> target() const;
-  inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<Symbol, JSReceiver, Undefined>> unregister_token()
       const;
-  inline void set_unregister_token(
-      Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<WeakCell, Undefined>> prev() const;
   inline void set_prev(Tagged<UnionOf<WeakCell, Undefined>> value,
@@ -144,12 +139,9 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   inline void RemoveFromFinalizationRegistryCells(Isolate* isolate);
 
  private:
-  friend class JSFinalizationRegistry;
-  friend class MarkCompactCollector;
-  template <typename ConcreteVisitor>
-  friend class MarkingVisitorBase;
-  friend class TorqueGeneratedWeakCellAsserts;
-  friend class V8HeapExplorer;
+  inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value);
+  inline void set_unregister_token(
+      Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value);
 
   TaggedMember<JSFinalizationRegistry> finalization_registry_;
   TaggedMember<JSAny> holdings_;
@@ -159,6 +151,17 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   TaggedMember<UnionOf<WeakCell, Undefined>> next_;
   TaggedMember<UnionOf<WeakCell, Undefined>> key_list_prev_;
   TaggedMember<UnionOf<WeakCell, Undefined>> key_list_next_;
+
+  friend class JSFinalizationRegistry;
+  friend class MarkCompactCollector;
+  template <typename ConcreteVisitor>
+  friend class MarkingVisitorBase;
+  // `Scavenger and `ScavengerCollector` for accessing `set_target` and
+  // `set_unregister_token` for updating references during GC.
+  friend class Scavenger;
+  friend class ScavengerCollector;
+  friend class TorqueGeneratedWeakCellAsserts;
+  friend class V8HeapExplorer;
 } V8_OBJECT_END;
 
 class JSWeakRef : public TorqueGeneratedJSWeakRef<JSWeakRef, JSObject> {

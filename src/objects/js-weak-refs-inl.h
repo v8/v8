@@ -174,13 +174,14 @@ void WeakCell::set_holdings(Tagged<JSAny> value, WriteBarrierMode mode) {
 Tagged<UnionOf<Symbol, JSReceiver, Undefined>> WeakCell::target() const {
   return target_.load();
 }
-void WeakCell::set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
-                          WriteBarrierMode mode) {
+void WeakCell::set_target(
+    Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value) {
   // `target_` is set once during initialization to a non-undefined object.
-  // After that, `target_` can only transition to undefined.
-  DCHECK_IMPLIES(!IsUndefined(value), target_.ptr() == kNullAddress);
-  DCHECK_IMPLIES(target_.ptr() != kNullAddress, IsUndefined(value));
-  target_.store(this, value, mode);
+  // After that, it can only be set to Undefined or for updating pointers to a
+  // forwarding address.
+  DCHECK_IMPLIES(!IsUndefined(value),
+                 HeapLayout::IsForwardedPointerTo(target(), value));
+  target_.store_no_write_barrier(value);
 }
 
 Tagged<UnionOf<Symbol, JSReceiver, Undefined>> WeakCell::unregister_token()
@@ -188,13 +189,13 @@ Tagged<UnionOf<Symbol, JSReceiver, Undefined>> WeakCell::unregister_token()
   return unregister_token_.load();
 }
 void WeakCell::set_unregister_token(
-    Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
-    WriteBarrierMode mode) {
+    Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value) {
   // `unregister_token_` is set once during initialization to a non-undefined
-  // object. After that, `unregister_token_` can only transition to undefined.
-  DCHECK_IMPLIES(!IsUndefined(value), unregister_token_.ptr() == kNullAddress);
-  DCHECK_IMPLIES(unregister_token_.ptr() != kNullAddress, IsUndefined(value));
-  unregister_token_.store(this, value, mode);
+  // object. After that, it can only be set to Undefined or for updating
+  // pointers to a forwarding address.
+  DCHECK_IMPLIES(!IsUndefined(value),
+                 HeapLayout::IsForwardedPointerTo(unregister_token(), value));
+  unregister_token_.store_no_write_barrier(value);
 }
 
 Tagged<UnionOf<WeakCell, Undefined>> WeakCell::prev() const {
