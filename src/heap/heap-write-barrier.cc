@@ -398,10 +398,11 @@ void WriteBarrier::CombinedWriteBarrierInternalSlow(Tagged<HeapObject> host,
 void WriteBarrier::GenerationalBarrierSlow(Tagged<HeapObject> host,
                                            Address slot,
                                            Tagged<HeapObject> value) {
+  const LocalHeap* local_heap = LocalHeap::Current();
   MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-  MutablePageMetadata* host_page =
-      MutablePageMetadata::cast(host_chunk->Metadata());
-  if (LocalHeap::Current()->is_main_thread()) {
+  MutablePageMetadata* host_page = MutablePageMetadata::cast(
+      host_chunk->Metadata(local_heap->heap()->isolate()));
+  if (local_heap->is_main_thread()) {
     RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
         host_page, host_chunk->Offset(slot));
   } else {
