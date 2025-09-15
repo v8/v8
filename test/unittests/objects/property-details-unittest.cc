@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects/property-details.h"
+
 #include <limits>
 
-#include "src/objects/property-details.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
@@ -36,28 +38,19 @@ std::vector<PropertyDetails> make_details() {
 
 }  // namespace
 
-#ifndef DEBUG
-// This test will trigger a DCHECK failure in debug mode. We must ensure that in
+// This test will trigger a CHECK failure in. We must ensure that in
 // release mode, the enum index doesn't interfere with other fields once it
 // becomes too large.
-TEST(ExceedMaxEnumerationIndex) {
+TEST(PropertyDetailsTest, ExceedMaxEnumerationIndex) {
   int too_large_enum_index = std::numeric_limits<int>::max();
 
   for (PropertyDetails d : make_details()) {
-    PropertyDetails copy(d);
-
-    d = d.set_index(too_large_enum_index);
-    CHECK_EQ(copy.kind(), d.kind());
-    CHECK_EQ(copy.location(), d.location());
-    CHECK_EQ(copy.attributes(), d.attributes());
-    CHECK_EQ(copy.cell_type(), d.cell_type());
-    CHECK_EQ(PropertyDetails::DictionaryStorageField::kMax,
-             d.dictionary_index());
+    EXPECT_DEATH_IF_SUPPORTED(d = d.set_index(too_large_enum_index),
+                              "Check failed: is_valid\\(value\\)");
   }
 }
-#endif
 
-TEST(AsByte) {
+TEST(PropertyDetailsTest, AsByte) {
   for (PropertyDetails original : make_details()) {
     if (original.cell_type() != PropertyCellType::kNoCell) continue;
 
