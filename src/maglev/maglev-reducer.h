@@ -470,6 +470,8 @@ class MaglevReducer {
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node);
   template <typename NodeT>
+  void MarkForInt32Truncation(NodeT* node);
+  template <typename NodeT>
   void UpdateRange(NodeT* node);
 
   std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);

@@ -344,12 +344,7 @@ NodeT* MaglevReducer<BaseT>::AttachExtraInfoAndAddToGraph(NodeT* node) {
   if constexpr (ReducerBaseWithEffectTracking<NodeT, BaseT>) {
     base_->template MarkPossibleSideEffect<NodeT>(node);
   }
-  if constexpr (NodeT::kProperties.value_representation() ==
-                ValueRepresentation::kFloat64) {
-    if (v8_flags.maglev_truncation) {
-      UpdateRange(node);
-    }
-  }
+  MarkForInt32Truncation(node);
   return node;
 }
 
@@ -408,6 +403,22 @@ void MaglevReducer<BaseT>::MarkPossibleSideEffect(NodeT* node) {
 
   if constexpr (ReducerBaseWithKNA<BaseT>) {
     known_node_aspects().increment_effect_epoch();
+  }
+}
+
+template <typename BaseT>
+template <typename NodeT>
+void MaglevReducer<BaseT>::MarkForInt32Truncation(NodeT* node) {
+  if (!v8_flags.maglev_truncation) return;
+  if constexpr (NodeT::kProperties.value_representation() ==
+                ValueRepresentation::kFloat64) {
+    UpdateRange(node);
+  }
+  if constexpr (NodeT::template opcode_of<NodeT> ==
+                    Opcode::kInt32AddWithOverflow ||
+                NodeT::template opcode_of<NodeT> ==
+                    Opcode::kInt32SubtractWithOverflow) {
+    node->set_can_truncate_to_int32(true);
   }
 }
 
@@ -1079,7 +1090,24 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
   if (auto cst_left = TryGetInt32Constant(left)) {
     return TryFoldInt32BinaryOperation<kOperation>(cst_left.value(), cst_right);
   }
-  if (std::optional<int>(cst_right) == Int32Identity<kOperation>()) {
+  if (cst_right == Int32Identity<kOperation>()) {
+    if (v8_flags.maglev_truncation && IsBitwiseBinaryOperation<kOperation>() &&
+        (left->opcode() == Opcode::kInt32AddWithOverflow ||
+         left->opcode() == Opcode::kInt32SubtractWithOverflow)) {
+      // Don't fold the |0 in (a + b)|0 and similar expressions, so that we can
+      // track whether removing the overflow checking from the "a + b" operation
+      // is fine. This requires differentiating between the users of the "a + b"
+      // node and the users of the "(a + b)|0" node.
+
+      // TODO(marja): To support Int32MultiplyWithOverflow and
+      // Int32DivideWithOverflow, we need to be able to reason about ranges.
+      //
+      // TODO(marja): We can add a limited version of that, to support cases
+      // where one of the operands is a constant and thus we can be sure the
+      // result stays in the safe range.
+      return {};
+    }
+
     // Deopt if {left} is not an Int32.
     EnsureInt32(left);
     if (left->properties().is_conversion()) {

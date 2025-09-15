@@ -108,29 +108,32 @@ class ExceptionHandlerInfo;
   V(GenericGreaterThan)                 \
   V(GenericGreaterThanOrEqual)
 
-#define INT32_OPERATIONS_NODE_LIST(V) \
-  V(Int32AbsWithOverflow)             \
-  V(Int32Add)                         \
-  V(Int32Subtract)                    \
-  V(Int32Multiply)                    \
-  V(Int32MultiplyOverflownBits)       \
-  V(Int32Divide)                      \
-  V(Int32AddWithOverflow)             \
-  V(Int32SubtractWithOverflow)        \
-  V(Int32MultiplyWithOverflow)        \
-  V(Int32DivideWithOverflow)          \
-  V(Int32ModulusWithOverflow)         \
-  V(Int32BitwiseAnd)                  \
-  V(Int32BitwiseOr)                   \
-  V(Int32BitwiseXor)                  \
-  V(Int32ShiftLeft)                   \
-  V(Int32ShiftRight)                  \
-  V(Int32ShiftRightLogical)           \
-  V(Int32BitwiseNot)                  \
-  V(Int32NegateWithOverflow)          \
-  V(Int32IncrementWithOverflow)       \
-  V(Int32DecrementWithOverflow)       \
-  V(Int32Compare)                     \
+#define INT32_BITWISE_BINARY_OPERATIONS_NODE_LIST(V) \
+  V(Int32BitwiseAnd)                                 \
+  V(Int32BitwiseOr)                                  \
+  V(Int32BitwiseXor)                                 \
+  V(Int32ShiftLeft)                                  \
+  V(Int32ShiftRight)                                 \
+  V(Int32ShiftRightLogical)
+
+#define INT32_OPERATIONS_NODE_LIST(V)          \
+  INT32_BITWISE_BINARY_OPERATIONS_NODE_LIST(V) \
+  V(Int32AbsWithOverflow)                      \
+  V(Int32Add)                                  \
+  V(Int32Subtract)                             \
+  V(Int32Multiply)                             \
+  V(Int32MultiplyOverflownBits)                \
+  V(Int32Divide)                               \
+  V(Int32AddWithOverflow)                      \
+  V(Int32SubtractWithOverflow)                 \
+  V(Int32MultiplyWithOverflow)                 \
+  V(Int32DivideWithOverflow)                   \
+  V(Int32ModulusWithOverflow)                  \
+  V(Int32BitwiseNot)                           \
+  V(Int32NegateWithOverflow)                   \
+  V(Int32IncrementWithOverflow)                \
+  V(Int32DecrementWithOverflow)                \
+  V(Int32Compare)                              \
   V(Int32ToBoolean)
 
 #define FLOAT64_OPERATIONS_NODE_LIST(V) \
@@ -578,6 +581,18 @@ constexpr bool IsTerminalControlNode(Opcode opcode) {
   return kFirstTerminalControlNodeOpcode <= opcode &&
          opcode <= kLastTerminalControlNodeOpcode;
 }
+
+constexpr bool IsInt32BitwiseBinaryOperationNode(Opcode opcode) {
+  switch (opcode) {
+#define CASE(op) case Opcode::k##op:
+    INT32_BITWISE_BINARY_OPERATIONS_NODE_LIST(CASE)
+#undef CASE
+    return true;
+    default:
+      return false;
+  }
+}
+
 // Simple field stores are stores which do nothing but change a field value
 // (i.e. no map transitions or calls into user code).
 constexpr bool IsSimpleFieldStore(Opcode opcode) {
@@ -600,6 +615,7 @@ constexpr bool IsTypedArrayStore(Opcode opcode) {
 }
 
 constexpr bool CanTriggerTruncationPass(Opcode opcode) {
+  if (IsInt32BitwiseBinaryOperationNode(opcode)) return true;
   switch (opcode) {
     case Opcode::kTruncateHoleyFloat64ToInt32:
     case Opcode::kCheckedHoleyFloat64ToInt32:
@@ -672,10 +688,22 @@ constexpr bool HasRangeType(Opcode opcode) {
   V(Exponentiate, Float64Exponentiate)
 
 template <Operation kOperation>
-static constexpr std::optional<int> Int32Identity() {
+static constexpr std::optional<int32_t> Int32Identity() {
   switch (kOperation) {
 #define CASE(op, _, identity) \
   case Operation::k##op:      \
+    return identity;
+    MAP_BINARY_OPERATION_TO_INT32_NODE(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+static constexpr std::optional<int32_t> Int32Identity(Opcode opcode) {
+  switch (opcode) {
+#define CASE(_, op, identity) \
+  case Opcode::k##op:         \
     return identity;
     MAP_BINARY_OPERATION_TO_INT32_NODE(CASE)
 #undef CASE
