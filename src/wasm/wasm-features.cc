@@ -42,12 +42,6 @@ WasmEnabledFeatures WasmEnabledFeatures::FromContext(
     Isolate* isolate, DirectHandle<NativeContext> context) {
   WasmEnabledFeatures features = WasmEnabledFeatures::FromFlags();
   if (!v8_flags.wasm_jitless) {
-    if (isolate->IsWasmStringRefEnabled(context)) {
-      features.Add(WasmEnabledFeature::stringref);
-    }
-    if (isolate->IsWasmImportedStringsEnabled(context)) {
-      features.Add(WasmEnabledFeature::imported_strings);
-    }
     if (isolate->IsWasmJSPIEnabled(context)) {
       features.Add(WasmEnabledFeature::jspi);
     }

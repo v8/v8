@@ -10874,10 +10874,6 @@ CALLBACK_SETTER(WasmAsyncResolvePromiseCallback,
 CALLBACK_SETTER(WasmLoadSourceMapCallback, WasmLoadSourceMapCallback,
                 wasm_load_source_map_callback)
 
-CALLBACK_SETTER(WasmImportedStringsEnabledCallback,
-                WasmImportedStringsEnabledCallback,
-                wasm_imported_strings_enabled_callback)
-
 CALLBACK_SETTER(WasmCustomDescriptorsEnabledCallback,
                 WasmCustomDescriptorsEnabledCallback,
                 wasm_custom_descriptors_enabled_callback)

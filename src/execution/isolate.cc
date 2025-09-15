@@ -3748,23 +3748,6 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(
   return false;
 }
 
-bool Isolate::IsWasmStringRefEnabled(DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  // If Wasm imported strings are explicitly enabled via a callback, also enable
-  // stringref.
-  v8::WasmImportedStringsEnabledCallback callback_imported_strings =
-      wasm_imported_strings_enabled_callback();
-  if (callback_imported_strings) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback_imported_strings(api_context)) return true;
-  }
-  // Otherwise use the runtime flag.
-  return v8_flags.experimental_wasm_stringref;
-#else
-  return false;
-#endif
-}
-
 bool Isolate::IsWasmJSPIRequested(DirectHandle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_jitless) return false;
@@ -3786,21 +3769,6 @@ bool Isolate::IsWasmJSPIEnabled(DirectHandle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   return IsWasmJSPIRequested(context) &&
          context->is_wasm_jspi_installed() != Smi::zero();
-#else
-  return false;
-#endif
-}
-
-bool Isolate::IsWasmImportedStringsEnabled(
-    DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  v8::WasmImportedStringsEnabledCallback callback =
-      wasm_imported_strings_enabled_callback();
-  if (callback) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback(api_context)) return true;
-  }
-  return v8_flags.experimental_wasm_imported_strings;
 #else
   return false;
 #endif

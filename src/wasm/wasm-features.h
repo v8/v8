@@ -27,6 +27,7 @@
   V(extended_const)                      \
   V(relaxed_simd)                        \
   V(gc)                                  \
+  V(imported_strings)                    \
   V(typed_funcref)                       \
   V(multi_memory)                        \
   V(multi_value)                         \

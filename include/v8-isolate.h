@@ -1708,9 +1708,6 @@ class V8_EXPORT Isolate {
 
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
-  void SetWasmImportedStringsEnabledCallback(
-      WasmImportedStringsEnabledCallback callback);
-
   void SetWasmCustomDescriptorsEnabledCallback(
       WasmCustomDescriptorsEnabledCallback callback);
 

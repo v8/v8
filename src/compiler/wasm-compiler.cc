@@ -605,8 +605,7 @@ Node* WasmGraphBuilder::SetType(Node* node, wasm::ValueType type) {
     static constexpr wasm::ValueType kRefExtern =
         wasm::kWasmExternRef.AsNonNull();
     DCHECK((compiler::NodeProperties::GetType(node).AsWasm().type == type) ||
-           (enabled_features_.has_imported_strings() &&
-            compiler::NodeProperties::GetType(node).AsWasm().type ==
+           (compiler::NodeProperties::GetType(node).AsWasm().type ==
                 wasm::kWasmRefExternString &&
             (type == wasm::kWasmExternRef || type == kRefExtern)));
 #endif

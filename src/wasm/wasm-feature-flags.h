@@ -130,12 +130,6 @@
   /* Shipped in v13.7. */                                                      \
   V(branch_hinting, "branch hinting", true)                                    \
                                                                                \
-  /* Imported Strings Proposal. */                                             \
-  /* https://github.com/WebAssembly/js-string-builtins */                      \
-  /* V8 side owner: jkummerow */                                               \
-  /* Shipped in v13.0 */                                                       \
-  V(imported_strings, "imported strings", true)                                \
-                                                                               \
   /* Exnref */                                                                 \
   /* This flag enables the new exception handling proposal */                  \
   /* V8 side owner: thibaudm */                                                \

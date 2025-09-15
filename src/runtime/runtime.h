@@ -779,7 +779,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(IsWasmPartialOOBWriteNoop, 0, 1)                            \
   F(IsWasmTrapHandlerEnabled, 0, 1)                             \
   F(SetWasmCompileControls, 2, 1)                               \
-  F(SetWasmImportedStringsEnabled, 1, 1)                        \
   F(SetWasmInstantiateControls, 0, 1)                           \
   F(WasmArray, 0, 1)                                            \
   F(WasmCompiledExportWrappersCount, 0, 1)                      \

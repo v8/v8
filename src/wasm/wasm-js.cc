@@ -565,7 +565,6 @@ CompileTimeImports ArgumentToCompileOptions(
   if (base::FPU::GetFlushDenormals()) {
     result.Add(CompileTimeImport::kDisableDenormalFloats);
   }
-  if (!enabled_features.has_imported_strings()) return result;
   i::DirectHandle<i::Object> arg = Utils::OpenDirectHandle(*arg_value);
   if (!i::IsJSReceiver(*arg)) return result;
   i::DirectHandle<i::JSReceiver> receiver = i::Cast<i::JSReceiver>(arg);

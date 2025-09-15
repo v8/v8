@@ -910,25 +910,6 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// This runtime function enables WebAssembly imported strings through an
-// embedder callback and thereby bypasses the value in v8_flags.
-RUNTIME_FUNCTION(Runtime_SetWasmImportedStringsEnabled) {
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  bool enable = Object::BooleanValue(*args.at(0), isolate);
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  WasmImportedStringsEnabledCallback enabled = [](v8::Local<v8::Context>) {
-    return true;
-  };
-  WasmImportedStringsEnabledCallback disabled = [](v8::Local<v8::Context>) {
-    return false;
-  };
-  v8_isolate->SetWasmImportedStringsEnabledCallback(enable ? enabled
-                                                           : disabled);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_FlushLiftoffCode) {
   wasm::GetWasmEngine()->FlushLiftoffCode();
   return ReadOnlyRoots(isolate).undefined_value();

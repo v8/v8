@@ -683,7 +683,6 @@
   'regress/wasm/regress-crbug-1466312': [SKIP],
   'regress/wasm/regress-v8-14710': [SKIP],
   'wasm/gc-casts-from-any': [SKIP],
-  'wasm/origin-trial-flags': [SKIP],
   'wasm/reference-globals-import': [SKIP],
   'wasm/reference-table-js-interop': [SKIP],
   'wasm/stringref*': [SKIP],
@@ -737,7 +736,7 @@
   'regress/wasm/regress-334687959': [SKIP],
   'regress/wasm/regress-366350766': [SKIP],
 
-  # --experimental-wasm-imported-strings
+  # Wasm imported strings
   'wasm/imported-strings*': [SKIP],
   'regress/wasm/regress-324747822': [SKIP],
   'regress/wasm/regress-326091470': [SKIP],

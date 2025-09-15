@@ -1924,9 +1924,6 @@ DEFINE_IMPLICATION(experimental_wasm_stack_switching, experimental_wasm_jspi)
 
 DEFINE_IMPLICATION(experimental_wasm_growable_stacks, experimental_wasm_jspi)
 
-DEFINE_IMPLICATION(experimental_wasm_imported_strings_utf8,
-                   experimental_wasm_imported_strings)
-
 // Unsafe additions to the GC proposal for performance experiments.
 DEFINE_EXPERIMENTAL_FEATURE(
     experimental_wasm_assume_ref_cast_succeeds,
