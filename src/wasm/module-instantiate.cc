@@ -254,6 +254,13 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
         param_mismatch = true;
         break;
       }
+      if (static_cast<uint8_t>(arg.GetFlags()) &
+          static_cast<uint8_t>(CTypeInfo::Flags::kClampBit)) {
+        // TODO(crbug.com/445104991): Support clamped arguments.
+        log_imported_function_mismatch(c_func_id, "clamp not supported");
+        param_mismatch = true;
+        break;
+      }
     }
     if (param_mismatch) {
       continue;
