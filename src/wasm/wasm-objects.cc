@@ -2285,8 +2285,7 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
   DirectHandle<Map> rtt = CreateStructMap(isolate, described_index, rtt_parent,
                                           num_supertypes, context);
 
-  if (v8_flags.wasm_explicit_prototypes && !IsSmi(*first_field) &&
-      IsJSObject(Cast<HeapObject>(*first_field))) {
+  if (!IsSmi(*first_field) && IsJSObject(Cast<HeapObject>(*first_field))) {
     DirectHandle<JSPrototype> prototype =
         direct_handle(Cast<JSReceiver>(*first_field), isolate);
     Map::SetPrototype(isolate, rtt, prototype);
