@@ -543,7 +543,6 @@ Tagged<String> JSReceiver::class_name() {
   }
   if (IsJSWeakMap(*this)) return roots.WeakMap_string();
   if (IsJSWeakSet(*this)) return roots.WeakSet_string();
-  if (IsJSGlobalProxy(*this)) return roots.global_string();
   if (IsShared(*this)) {
     if (IsJSSharedStruct(*this)) return roots.SharedStruct_string();
     if (IsJSSharedArray(*this)) return roots.SharedArray_string();
@@ -586,7 +585,7 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
       }
     }
   }
-
+  bool is_hidden_prototype = false;
   for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
        it.AdvanceIgnoringProxies()) {
     auto current = PrototypeIterator::GetCurrent<JSReceiver>(it);
@@ -599,6 +598,22 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
     if (IsString(*maybe_to_string_tag)) {
       return std::make_pair(MaybeHandle<JSFunction>(),
                             Cast<String>(maybe_to_string_tag));
+    }
+
+    // If current object is a hidden prototype then the most accurate name
+    // is the class name of its constructor's template.
+    if (is_hidden_prototype) {
+      DirectHandle<Object> maybe_constructor(current->map()->GetConstructor(),
+                                             isolate);
+      if (IsFunctionTemplateInfo(*maybe_constructor)) {
+        DirectHandle<FunctionTemplateInfo> function_template =
+            Cast<FunctionTemplateInfo>(maybe_constructor);
+        if (!IsUndefined(function_template->class_name(), isolate)) {
+          return std::make_pair(
+              MaybeHandle<JSFunction>(),
+              handle(Cast<String>(function_template->class_name()), isolate));
+        }
+      }
     }
 
     // Consider the following example:
@@ -628,6 +643,7 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
         }
       }
     }
+    is_hidden_prototype = IsJSGlobalProxy(*current);
   }
 
   return std::make_pair(MaybeHandle<JSFunction>(),
