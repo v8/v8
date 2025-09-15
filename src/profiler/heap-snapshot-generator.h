@@ -426,15 +426,15 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void PopulateLineEnds();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
 
-  using TemporaryGlobalObjectTags =
-      std::vector<std::pair<v8::Global<v8::Object>, const char*>>;
+  using TemporaryNativeContextTags =
+      std::vector<std::pair<v8::Global<v8::Context>, const char*>>;
   // Modifies heap. Must not be run during heap traversal. Collects a temporary
-  // list of global objects and their tags. The list may be invalidated after
-  // running GC.
-  TemporaryGlobalObjectTags CollectTemporaryGlobalObjectsTags();
-  // Converts the temporary list of global objects and their tags into a map
-  // that can be used throughout snapshot generation.
-  void MakeGlobalObjectTagMap(TemporaryGlobalObjectTags&&);
+  // list of NativeContext objects and their tags. The list may be invalidated
+  // after running GC.
+  TemporaryNativeContextTags CollectTemporaryNativeContextTags();
+  // Converts the temporary list of NativeContext objects and their tags into
+  // a map that can be used throughout snapshot generation.
+  void MakeNativeContextTagMap(TemporaryNativeContextTags&&);
 
   void TagBuiltinCodeObject(Tagged<Code> code, const char* name);
   HeapEntry* AddEntry(Address address,
@@ -548,8 +548,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void SetContextReference(HeapEntry* parent_entry,
                            Tagged<String> reference_name, Tagged<Object> child,
                            int field_offset);
-  void SetNativeBindReference(HeapEntry* parent_entry,
-                              const char* reference_name, Tagged<Object> child);
+  void SetShortcutReference(HeapEntry* parent_entry, const char* reference_name,
+                            Tagged<Object> child);
   void SetElementReference(HeapEntry* parent_entry, int index,
                            Tagged<Object> child);
   void SetInternalReference(HeapEntry* parent_entry, const char* reference_name,
@@ -595,10 +595,10 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   HeapSnapshotGenerator* generator_ = nullptr;
-  std::unordered_map<Tagged<JSGlobalObject>, const char*, Object::Hasher>
-      global_object_tag_map_;
+  std::unordered_map<Tagged<NativeContext>, const char*, Object::Hasher>
+      native_context_tag_map_;
   UnorderedHeapObjectMap<const char*> strong_gc_subroot_names_;
-  std::unordered_set<Tagged<JSGlobalObject>, Object::Hasher> user_roots_;
+  std::unordered_set<Tagged<NativeContext>, Object::Hasher> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> visited_fields_;
