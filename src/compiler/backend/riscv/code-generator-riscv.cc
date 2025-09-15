@@ -229,7 +229,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
-        must_save_lr_(!gen->frame_access_state()->has_frame()),
+        must_save_ra_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()),
         indirect_pointer_tag_(indirect_pointer_tag) {
   }
@@ -249,7 +249,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
-    if (must_save_lr_) {
+    if (must_save_ra_) {
       // We need to save and restore ra if the frame was elided.
       __ Push(ra);
     }
@@ -270,7 +270,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     } else {
       __ CallRecordWriteStubSaveRegisters(object_, offset_, save_fp_mode);
     }
-    if (must_save_lr_) {
+    if (must_save_ra_) {
       __ Pop(ra);
     }
   }
@@ -283,7 +283,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  bool must_save_lr_;
+  const bool must_save_ra_;
   Zone* zone_;
   IndirectPointerTag indirect_pointer_tag_;
 };
@@ -295,6 +295,7 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
+        must_save_ra_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
 
   void Generate() final {
@@ -304,17 +305,27 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
     }
 #endif
 
+    if (must_save_ra_) {
+      // We need to save and restore ra if the frame was elided.
+      __ Push(ra);
+    }
+
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
     __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
                                                       save_fp_mode);
+
+    if (must_save_ra_) {
+      __ Pop(ra);
+    }
   }
 
  private:
   Register const object_;
   Register const value_;
+  const bool must_save_ra_;
   Zone* zone_;
 };
 
