@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
@@ -63,6 +64,74 @@ class RecomputeKnownNodeAspectsProcessor {
   }
   void PostProcessBasicBlock(BasicBlock* block) {}
   void PostPhiProcessing() {}
+
+#define PROCESS_CHECK(Type)                                                \
+  ProcessResult Process(Check##Type* node, const ProcessingState& state) { \
+    EnsureType(node->input_node(0), NodeType::k##Type);                    \
+    return ProcessResult::kContinue;                                       \
+  }
+  PROCESS_CHECK(Smi)
+  PROCESS_CHECK(Number)
+  PROCESS_CHECK(String)
+  PROCESS_CHECK(SeqOneByteString)
+  PROCESS_CHECK(StringOrStringWrapper)
+  PROCESS_CHECK(StringOrOddball)
+  PROCESS_CHECK(Symbol)
+#undef PROCESS_CHECK
+
+#define PROCESS_SAFE_CONV(Node, Alt, Type)                                     \
+  ProcessResult Process(Node* node, const ProcessingState& state) {            \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
+    if (!info->alternative().Alt()) {                                          \
+      /* TODO(victorgomes): What happens if we we have an alternative already? \
+       * Should we remove this one as well? */                                 \
+      info->alternative().set_##Alt(node);                                     \
+    }                                                                          \
+    info->IntersectType(NodeType::k##Type);                                    \
+    return ProcessResult::kContinue;                                           \
+  }
+// TODO(victorgomes): Ideally we would like to check we already know the type,
+// but currently we cannot. The issue is that if the GraphBuilder emits a
+// node A and then Ensure(A, kSmi), we are not able to recover that A is an Smi.
+// This happens for instance for LoadProperty.
+#define PROCESS_UNSAFE_CONV(Node, Alt, Type)                                   \
+  ProcessResult Process(Node* node, const ProcessingState& state) {            \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
+    if (!info->alternative().Alt()) {                                          \
+      /* TODO(victorgomes): What happens if we we have an alternative already? \
+       * Should we remove this one as well? */                                 \
+      info->alternative().set_##Alt(node);                                     \
+    }                                                                          \
+    /* CHECK(NodeTypeIs(GetType(node->input_node(0)), NodeType::k##Type)); */  \
+    return ProcessResult::kContinue;                                           \
+  }
+  PROCESS_SAFE_CONV(CheckedSmiUntag, int32, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiUntag, int32, Smi)
+  PROCESS_SAFE_CONV(CheckedSmiTagInt32, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagInt32, tagged, Smi)
+  PROCESS_SAFE_CONV(CheckedSmiTagUint32, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagUint32, tagged, Smi)
+  PROCESS_SAFE_CONV(CheckedSmiTagIntPtr, tagged, Smi)
+  PROCESS_UNSAFE_CONV(UnsafeSmiTagIntPtr, tagged, Smi)
+  PROCESS_SAFE_CONV(TruncateCheckedNumberOrOddballToInt32,
+                    truncated_int32_to_number, NumberOrOddball)
+  PROCESS_UNSAFE_CONV(TruncateUnsafeNumberOrOddballToInt32,
+                      truncated_int32_to_number, NumberOrOddball)
+  PROCESS_SAFE_CONV(CheckedUint32ToInt32, int32, Number)
+  PROCESS_UNSAFE_CONV(UnsafeInt32ToUint32, int32, Number)
+  PROCESS_SAFE_CONV(CheckedIntPtrToInt32, int32, Number)
+  PROCESS_SAFE_CONV(CheckedHoleyFloat64ToInt32, int32, Number)
+  PROCESS_UNSAFE_CONV(UnsafeHoleyFloat64ToInt32, int32, Number)
+  PROCESS_SAFE_CONV(CheckedNumberToInt32, int32, Number)
+  PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
+  PROCESS_SAFE_CONV(CheckedSmiTagFloat64, float64, Smi)
+  PROCESS_SAFE_CONV(CheckedNumberOrOddballToFloat64, float64, NumberOrOddball)
+  PROCESS_UNSAFE_CONV(UncheckedNumberOrOddballToFloat64, float64,
+                      NumberOrOddball)
+  PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
+  PROCESS_UNSAFE_CONV(HoleyFloat64ToMaybeNanFloat64, float64, Number)
+#undef PROCESS_SAFE_CONV
+#undef PROCESS_UNSAFE_CONV
 
   template <IsNodeT NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
@@ -128,6 +197,17 @@ class RecomputeKnownNodeAspectsProcessor {
   KnownNodeAspects* known_node_aspects_;
 
   Zone* zone() { return graph_->zone(); }
+  compiler::JSHeapBroker* broker() { return graph_->broker(); }
+
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+    return known_node_aspects().GetOrCreateInfoFor(broker(), node);
+  }
+  bool EnsureType(ValueNode* node, NodeType type) {
+    return known_node_aspects().EnsureType(broker(), node, type);
+  }
+  NodeType GetType(ValueNode* node) {
+    return known_node_aspects().GetType(broker(), node);
+  }
 
   void Merge(BasicBlock* block) {
     while (block->is_edge_split_block()) {
