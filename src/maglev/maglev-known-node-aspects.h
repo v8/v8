@@ -350,6 +350,12 @@ class KnownNodeAspects {
     if (auto phi = node->TryCast<Phi>()) {
       actual_type = IntersectType(actual_type, phi->type());
     }
+    if (node->Is<ReturnedValue>()) {
+      // The returned value might be more precise than the one stored in the
+      // node info.
+      actual_type =
+          IntersectType(actual_type, GetType(broker, node->input_node(0)));
+    }
 #ifdef DEBUG
     NodeType static_type = node->GetStaticType(broker);
     if (!NodeTypeIs(actual_type, static_type)) {
