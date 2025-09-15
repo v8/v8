@@ -187,6 +187,23 @@ std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldInt32Operation() {
   return ReplaceWith(reducer_.GetInt32(result.value()));
 }
 
+template <Operation kOperation>
+std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldFloat64Operation() {
+  MaybeReduceResult result;
+  if constexpr (IsUnaryOperation(kOperation)) {
+    result = reducer_.TryFoldFloat64UnaryOperationForToNumber<kOperation>(
+        TaggedToFloat64ConversionType::kOnlyNumber, GetInputAt(0));
+  } else {
+    static_assert(IsBinaryOperation(kOperation));
+    result = reducer_.TryFoldFloat64BinaryOperationForToNumber<kOperation>(
+        TaggedToFloat64ConversionType::kOnlyNumber, GetInputAt(0),
+        GetInputAt(1));
+  }
+  if (!result.IsDone()) return {};
+  DCHECK(result.IsDoneWithValue());
+  return ReplaceWith(reducer_.GetFloat64(result.value()));
+}
+
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
@@ -1540,37 +1557,37 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Abs() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Add() {
-  // TODO(b/424157317): Optimize.
+  RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kAdd>());
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Subtract() {
-  // TODO(b/424157317): Optimize.
+  RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kSubtract>());
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Multiply() {
-  // TODO(b/424157317): Optimize.
+  RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kMultiply>());
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Divide() {
-  // TODO(b/424157317): Optimize.
+  RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kDivide>());
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Exponentiate() {
-  // TODO(b/424157317): Optimize.
+  RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kExponentiate>());
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Modulus() {
-  // TODO(b/424157317): Optimize.
+  RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kModulus>());
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Negate() {
-  // TODO(b/424157317): Optimize.
+  RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kNegate>());
   return ProcessResult::kContinue;
 }
 

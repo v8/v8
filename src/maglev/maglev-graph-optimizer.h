@@ -92,6 +92,8 @@ class MaglevGraphOptimizer {
 
   template <Operation kOperation>
   std::optional<ProcessResult> TryFoldInt32Operation();
+  template <Operation kOperation>
+  std::optional<ProcessResult> TryFoldFloat64Operation();
 };
 
 }  // namespace maglev
