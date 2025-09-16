@@ -184,6 +184,14 @@ std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldInt32Operation() {
   }
   if (!result.IsDone()) return {};
   DCHECK(result.IsDoneWithValue());
+  if constexpr (kOperation == Operation::kShiftRightLogical) {
+    // ShiftRightLogical returns an Uint32 instead of an Int32. We don't have
+    // any peephole optimizations for ShiftRightLogical, if we managed to fold
+    // it, it must have been because both inputs were constants and we got a
+    // Uint32Constant.
+    CHECK(result.value()->Is<Uint32Constant>());
+    return ReplaceWith(result.value());
+  }
   return ReplaceWith(reducer_.GetInt32(result.value()));
 }
 
