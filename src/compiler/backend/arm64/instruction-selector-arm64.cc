@@ -2964,9 +2964,19 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
       return op.Cast<ShiftOp>().rep == WordRepresentation::Word32();
     case Opcode::kComparison:
       return op.Cast<ComparisonOp>().rep == RegisterRepresentation::Word32();
-    case Opcode::kOverflowCheckedBinop:
-      return op.Cast<OverflowCheckedBinopOp>().rep ==
-             WordRepresentation::Word32();
+    case Opcode::kOverflowCheckedBinop: {
+      const OverflowCheckedBinopOp& binop = op.Cast<OverflowCheckedBinopOp>();
+      if (binop.rep != WordRepresentation::Word32()) return false;
+      switch (binop.kind) {
+        case OverflowCheckedBinopOp::Kind::kSignedAdd:
+        case OverflowCheckedBinopOp::Kind::kSignedSub:
+          return true;
+        case OverflowCheckedBinopOp::Kind::kSignedMul:
+          // EmitInt32MulWithOverflow doesn't zero-extend because Arm64 doesn't
+          // have a flag-setting int32 multiplication.
+          return false;
+      }
+    }
     case Opcode::kProjection:
       return ZeroExtendsWord32ToWord64NoPhis(op.Cast<ProjectionOp>().input());
     case Opcode::kLoad: {
