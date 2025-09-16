@@ -961,6 +961,9 @@
   'regress/regress-10138': [SKIP],
   'regress/regress-1078913': [SKIP],
 
+  # Flag --no-jitless incompatible with jitless
+  'ignition/optimize-proto-assign-seq': [SKIP],
+
   # Baseline incompatible with jitless
   'baseline/*': [SKIP],
 
