@@ -4700,6 +4700,11 @@ class GraphBuildingNodeProcessor {
                      node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::UnsafeHoleyFloat64ToInt32* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ JSTruncateFloat64ToWord32(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToUint32* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -5118,10 +5123,6 @@ class GraphBuildingNodeProcessor {
     UNREACHABLE();
   }
   maglev::ProcessResult Process(maglev::UnsafeUint32ToInt32*,
-                                const maglev::ProcessingState&) {
-    UNREACHABLE();
-  }
-  maglev::ProcessResult Process(maglev::UnsafeHoleyFloat64ToInt32*,
                                 const maglev::ProcessingState&) {
     UNREACHABLE();
   }
