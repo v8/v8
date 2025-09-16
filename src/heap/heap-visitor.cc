@@ -8,6 +8,7 @@
 #include "src/heap/heap-visitor-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/casting-inl.h"
 #include "src/objects/js-weak-refs.h"
 
 namespace v8 {
@@ -31,11 +32,11 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
   Tagged<HeapObject> undefined = ReadOnlyRoots(heap).undefined_value();
   Tagged<Object> head = undefined;
   Tagged<T> tail;
-  bool record_slots = MustRecordSlots(heap);
+  const bool record_slots = MustRecordSlots(heap);
 
   while (list != undefined) {
     // Check whether to keep the candidate in the list.
-    Tagged<T> candidate = Cast<T>(list);
+    Tagged<T> candidate = GCSafeCast<T>(list, heap);
 
     Tagged<Object> retained = retainer->RetainAs(list);
 
@@ -65,10 +66,7 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
       tail = candidate;
 
       // tail is a live object, visit it.
-      WeakListVisitor<T>::VisitLiveObject(heap, tail, retainer);
-
-    } else {
-      WeakListVisitor<T>::VisitPhantomObject(heap, candidate);
+      WeakListVisitor<T>::VisitLiveObject(heap, tail);
     }
   }
 
@@ -105,8 +103,7 @@ struct WeakListVisitor<Context> {
     return FixedArray::SizeFor(Context::NEXT_CONTEXT_LINK);
   }
 
-  static void VisitLiveObject(Heap* heap, Tagged<Context> context,
-                              WeakObjectRetainer* retainer) {
+  static void VisitLiveObject(Heap* heap, Tagged<Context> context) {
     if (heap->gc_state() == Heap::MARK_COMPACT) {
       // Record the slots of the weak entries in the native context.
       for (int idx = Context::FIRST_WEAK_SLOT;
@@ -135,8 +132,6 @@ struct WeakListVisitor<Context> {
                                                  Cast<HeapObject>(list_head));
     }
   }
-
-  static void VisitPhantomObject(Heap* heap, Tagged<Context> context) {}
 };
 
 template <>
@@ -161,10 +156,7 @@ struct WeakListVisitor<AllocationSiteWithWeakNext> {
     return offsetof(AllocationSiteWithWeakNext, weak_next_);
   }
 
-  static void VisitLiveObject(Heap*, Tagged<AllocationSite>,
-                              WeakObjectRetainer*) {}
-
-  static void VisitPhantomObject(Heap*, Tagged<AllocationSite>) {}
+  static void VisitLiveObject(Heap*, Tagged<AllocationSite>) {}
 };
 
 template <>
@@ -176,7 +168,9 @@ struct WeakListVisitor<JSFinalizationRegistry> {
   }
 
   static Tagged<Object> WeakNext(Tagged<JSFinalizationRegistry> obj) {
-    return obj->next_dirty();
+    // Use `RawField` instead of `next_dirty` to avoid type checks that don't
+    // work with forwarding addresses.
+    return obj->RawField(JSFinalizationRegistry::kNextDirtyOffset).load();
   }
 
   static Tagged<HeapObject> WeakNextHolder(Tagged<JSFinalizationRegistry> obj) {
@@ -187,12 +181,9 @@ struct WeakListVisitor<JSFinalizationRegistry> {
     return JSFinalizationRegistry::kNextDirtyOffset;
   }
 
-  static void VisitLiveObject(Heap* heap, Tagged<JSFinalizationRegistry> obj,
-                              WeakObjectRetainer*) {
+  static void VisitLiveObject(Heap* heap, Tagged<JSFinalizationRegistry> obj) {
     heap->set_dirty_js_finalization_registries_list_tail(obj);
   }
-
-  static void VisitPhantomObject(Heap*, Tagged<JSFinalizationRegistry>) {}
 };
 
 template Tagged<Object> VisitWeakList<Context>(Heap* heap, Tagged<Object> list,

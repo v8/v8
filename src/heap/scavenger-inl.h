@@ -18,6 +18,7 @@
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/objects/casting-inl.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
@@ -501,7 +502,6 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
                                    TSlot end);
 
   Scavenger* const scavenger_;
-  bool allow_weakness_ = false;
 
   friend class Scavenger;
 };
@@ -509,8 +509,11 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
 void ScavengeVisitor::VisitCustomWeakPointers(Tagged<HeapObject> host,
                                               ObjectSlot start,
                                               ObjectSlot end) {
-  if (allow_weakness_) {
-    DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
+  DCHECK(
+      GCAwareObjectTypeCheck<JSWeakRef>(host, scavenger_->heap_) ||
+      GCAwareObjectTypeCheck<WeakCell>(host, scavenger_->heap_) ||
+      GCAwareObjectTypeCheck<JSFinalizationRegistry>(host, scavenger_->heap_));
+  if (v8_flags.handle_weak_ref_weakly_in_minor_gc) {
     return;
   }
   // Strongify the weak pointers.
@@ -616,22 +619,14 @@ size_t ScavengeVisitor::VisitEphemeronHashTable(
 size_t ScavengeVisitor::VisitJSWeakRef(Tagged<Map> map,
                                        Tagged<JSWeakRef> object,
                                        MaybeObjectSize maybe_size) {
-  DCHECK(!allow_weakness_);
-  allow_weakness_ = v8_flags.handle_weak_ref_weakly_in_minor_gc;
-  const size_t size = Base::VisitJSWeakRef(map, object, maybe_size);
-  allow_weakness_ = false;
   scavenger_->RecordJSWeakRefIfNeeded<Scavenger::WeakObjectAge::kYoung>(object);
-  return size;
+  return Base::VisitJSWeakRef(map, object, maybe_size);
 }
 
 size_t ScavengeVisitor::VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object,
                                       MaybeObjectSize maybe_size) {
-  DCHECK(!allow_weakness_);
-  allow_weakness_ = v8_flags.handle_weak_ref_weakly_in_minor_gc;
-  const size_t size = Base::VisitWeakCell(map, object, maybe_size);
-  allow_weakness_ = false;
   scavenger_->RecordWeakCellIfNeeded<Scavenger::WeakObjectAge::kYoung>(object);
-  return size;
+  return Base::VisitWeakCell(map, object, maybe_size);
 }
 
 }  // namespace internal

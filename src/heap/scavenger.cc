@@ -90,8 +90,11 @@ class IterateAndScavengePromotedObjectsVisitor final
   V8_INLINE void VisitCustomWeakPointers(Tagged<HeapObject> host,
                                          ObjectSlot start,
                                          ObjectSlot end) final {
-    if (allow_weakness_) {
-      DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
+    DCHECK(GCAwareObjectTypeCheck<JSWeakRef>(host, scavenger_->heap_) ||
+           GCAwareObjectTypeCheck<WeakCell>(host, scavenger_->heap_) ||
+           GCAwareObjectTypeCheck<JSFinalizationRegistry>(host,
+                                                          scavenger_->heap_));
+    if (v8_flags.handle_weak_ref_weakly_in_minor_gc) {
       return;
     }
     // Strongify the weak pointers.
@@ -141,22 +144,14 @@ class IterateAndScavengePromotedObjectsVisitor final
 
   size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
                         MaybeObjectSize maybe_size) {
-    DCHECK(!allow_weakness_);
-    allow_weakness_ = v8_flags.handle_weak_ref_weakly_in_minor_gc;
-    const size_t size = Base::VisitJSWeakRef(map, object, maybe_size);
-    allow_weakness_ = false;
     scavenger_->RecordJSWeakRefIfNeeded<Scavenger::WeakObjectAge::kOld>(object);
-    return size;
+    return Base::VisitJSWeakRef(map, object, maybe_size);
   }
 
   size_t VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object,
                        MaybeObjectSize maybe_size) {
-    DCHECK(!allow_weakness_);
-    allow_weakness_ = v8_flags.handle_weak_ref_weakly_in_minor_gc;
-    const size_t size = Base::VisitWeakCell(map, object, maybe_size);
-    allow_weakness_ = false;
     scavenger_->RecordWeakCellIfNeeded<Scavenger::WeakObjectAge::kOld>(object);
-    return size;
+    return Base::VisitWeakCell(map, object, maybe_size);
   }
 
   // Special cases: Unreachable visitors for objects that are never found in the
@@ -222,7 +217,6 @@ class IterateAndScavengePromotedObjectsVisitor final
   }
 
   Scavenger* const scavenger_;
-  bool allow_weakness_ = false;
 
   friend class Scavenger;
 };
@@ -1502,10 +1496,40 @@ void ScavengerCollector::ClearOldEphemerons() {
   }
 }
 
+namespace {
+class ScavengerWeakObjectRetainer : public WeakObjectRetainer {
+ public:
+  Tagged<Object> RetainAs(Tagged<Object> object) override {
+    Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
+    if (IsUnscavengedHeapObject(heap_object)) {
+      return Smi::zero();
+    }
+    DCHECK(!Heap::InToPage(heap_object));
+    if (!HeapLayout::InYoungGeneration(heap_object)) {
+      return object;
+    }
+    MapWord map_word = heap_object->map_word(kRelaxedLoad);
+    DCHECK(map_word.IsForwardingAddress());
+    return map_word.ToForwardingAddress(heap_object);
+  }
+};
+}  // namespace
+
 void ScavengerCollector::ProcessWeakObjects(
     Scavenger::JSWeakRefsList& js_weak_refs,
     Scavenger::WeakCellsList& weak_cells) {
+  ScavengerWeakObjectRetainer weak_object_retainer;
+  // Iterate the weak list of dirty finalization registries. Dead registries are
+  // dropped from the list, and addresses of live scavenged registries are
+  // updated.
+  heap_->ProcessDirtyJSFinalizationRegistries(&weak_object_retainer);
+  // Clear the target field of JSWeakRef if the target is dead.
   ProcessJSWeakRefs(js_weak_refs);
+  // For each WeakCell:
+  // 1) If the target is dead, clear the target field, mark the finalization
+  // registry as dirty, and schedule it to be cleaned up (in a task). 2) If the
+  // unregister token is dead, clear the token field and remove the cell from
+  // the registry's token-to-cell map.
   ProcessWeakCells(weak_cells);
 }
 
