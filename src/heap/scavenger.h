@@ -24,13 +24,15 @@ namespace internal {
 
 class RootScavengeVisitor;
 class Scavenger;
-class ScavengeVisitor;
+class ScavengerCopiedObjectVisitor;
 
 enum class CopyAndForwardResult {
   SUCCESS_YOUNG_GENERATION,
   SUCCESS_OLD_GENERATION,
   FAILURE
 };
+
+enum class ObjectAge { kOld, kYoung };
 
 using SurvivingNewLargeObjectsMap =
     std::unordered_map<Tagged<HeapObject>, Tagged<Map>, Object::Hasher>;
@@ -68,7 +70,7 @@ class Scavenger {
             JSWeakRefsList* js_weak_refs_list, WeakCellsList* weak_cells_list);
 
   // Entry point for scavenging an old generation page. For scavenging single
-  // objects see RootScavengingVisitor and ScavengeVisitor below.
+  // objects see RootScavengingVisitor and ScavengerCopiedObjectVisitor below.
   void ScavengePage(MutablePageMetadata* page);
 
   // Processes remaining work (=objects) after single objects have been
@@ -186,9 +188,6 @@ class Scavenger {
       Tagged<Map> map, THeapObjectSlot slot, Tagged<String> string,
       SafeHeapObjectSize object_size, ObjectFields object_fields);
 
-  void IterateAndScavengePromotedObject(Tagged<HeapObject> target,
-                                        Tagged<Map> map,
-                                        SafeHeapObjectSize object_size);
   void RememberPromotedEphemeron(Tagged<EphemeronHashTable> table, int index);
 
   V8_INLINE bool ShouldEagerlyProcessPromotedList() const;
@@ -198,13 +197,12 @@ class Scavenger {
   void PushPinnedPromotedObject(Tagged<HeapObject> object, Tagged<Map> map,
                                 SafeHeapObjectSize object_size);
 
-  enum class WeakObjectAge { kOld, kYoung };
-  template <WeakObjectAge>
+  template <ObjectAge>
   V8_INLINE bool ShouldRecordWeakObject(Tagged<HeapObject> host,
                                         ObjectSlot slot);
-  template <WeakObjectAge>
+  template <ObjectAge>
   void RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref);
-  template <WeakObjectAge>
+  template <ObjectAge>
   void RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell);
 
   ScavengerCollector* const collector_;
@@ -227,9 +225,11 @@ class Scavenger {
   const bool mark_shared_heap_;
   const bool shortcut_strings_;
 
-  friend class IterateAndScavengePromotedObjectsVisitor;
   friend class RootScavengeVisitor;
-  friend class ScavengeVisitor;
+  template <typename ConcreteVisitor, ObjectAge>
+  friend class ScavengerObjectVisitorBase;
+  friend class ScavengerCopiedObjectVisitor;
+  friend class ScavengerPromotedObjectVisitor;
 };
 
 // Helper class for turning the scavenger into an object visitor that is also

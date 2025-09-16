@@ -53,53 +53,23 @@ namespace v8 {
 namespace internal {
 
 namespace {
-void AddToOldToNewRememberedSet(const Heap* heap, const Tagged<HeapObject> host,
-                                Address slot) {
+template <RememberedSetType kType>
+void AddToRememberedSet(const Heap* heap, const Tagged<HeapObject> host,
+                        Address slot) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
   MutablePageMetadata* page =
       MutablePageMetadata::cast(chunk->Metadata(heap->isolate()));
-  RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(page,
-                                                        chunk->Offset(slot));
+  RememberedSet<kType>::template Insert<AccessMode::ATOMIC>(
+      page, chunk->Offset(slot));
 }
 }  // namespace
 
-class IterateAndScavengePromotedObjectsVisitor final
-    : public HeapVisitor<IterateAndScavengePromotedObjectsVisitor> {
-  using Base = HeapVisitor<IterateAndScavengePromotedObjectsVisitor>;
-
+class ScavengerPromotedObjectVisitor final
+    : public ScavengerObjectVisitorBase<ScavengerPromotedObjectVisitor,
+                                        ObjectAge::kOld> {
  public:
-  explicit IterateAndScavengePromotedObjectsVisitor(Scavenger* scavenger)
-      : HeapVisitor(scavenger->heap()->isolate()), scavenger_(scavenger) {}
-
-  V8_INLINE static constexpr bool ShouldUseUncheckedCast() { return true; }
-
-  V8_INLINE static constexpr bool UsePrecomputedObjectSize() { return true; }
-
-  V8_INLINE void VisitMapPointer(Tagged<HeapObject> host) final {}
-
-  V8_INLINE void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
-                               ObjectSlot end) final {
-    VisitPointersImpl(host, start, end);
-  }
-
-  V8_INLINE void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
-                               MaybeObjectSlot end) final {
-    VisitPointersImpl(host, start, end);
-  }
-
-  V8_INLINE void VisitCustomWeakPointers(Tagged<HeapObject> host,
-                                         ObjectSlot start,
-                                         ObjectSlot end) final {
-    DCHECK(GCAwareObjectTypeCheck<JSWeakRef>(host, scavenger_->heap_) ||
-           GCAwareObjectTypeCheck<WeakCell>(host, scavenger_->heap_) ||
-           GCAwareObjectTypeCheck<JSFinalizationRegistry>(host,
-                                                          scavenger_->heap_));
-    if (v8_flags.handle_weak_ref_weakly_in_minor_gc) {
-      return;
-    }
-    // Strongify the weak pointers.
-    VisitPointersImpl(host, start, end);
-  }
+  explicit ScavengerPromotedObjectVisitor(Scavenger* scavenger)
+      : ScavengerObjectVisitorBase(scavenger) {}
 
   V8_INLINE void VisitEphemeron(Tagged<HeapObject> obj, int entry,
                                 ObjectSlot key, ObjectSlot value) final {
@@ -115,74 +85,7 @@ class IterateAndScavengePromotedObjectsVisitor final
     }
   }
 
-  void VisitExternalPointer(Tagged<HeapObject> host,
-                            ExternalPointerSlot slot) override {
-#ifdef V8_COMPRESS_POINTERS
-    DCHECK(!slot.tag_range().IsEmpty());
-    DCHECK(!IsSharedExternalPointerType(slot.tag_range()));
-    // TODO(chromium:337580006): Remove when pointer compression always uses
-    // EPT.
-    if (!slot.HasExternalPointerHandle()) return;
-    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-    Heap* heap = scavenger_->heap();
-    ExternalPointerTable& table = heap->isolate()->external_pointer_table();
-
-    // For survivor objects, the scavenger marks their EPT entries when they are
-    // copied and then sweeps the young EPT space at the end of collection,
-    // reclaiming unmarked EPT entries.
-    //
-    // However when promoting, we just evacuate the entry from new to old space.
-    // Usually the entry will be unmarked, unless the slot was initialized since
-    // the last GC (external pointer tags have the mark bit set), in which case
-    // it may be marked already.  In any case, transfer the color from new to
-    // old EPT space.
-    table.Evacuate(heap->young_external_pointer_space(),
-                   heap->old_external_pointer_space(), handle, slot.address(),
-                   ExternalPointerTable::EvacuateMarkMode::kTransferMark);
-#endif  // V8_COMPRESS_POINTERS
-  }
-
-  size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
-                        MaybeObjectSize maybe_size) {
-    scavenger_->RecordJSWeakRefIfNeeded<Scavenger::WeakObjectAge::kOld>(object);
-    return Base::VisitJSWeakRef(map, object, maybe_size);
-  }
-
-  size_t VisitWeakCell(Tagged<Map> map, Tagged<WeakCell> object,
-                       MaybeObjectSize maybe_size) {
-    scavenger_->RecordWeakCellIfNeeded<Scavenger::WeakObjectAge::kOld>(object);
-    return Base::VisitWeakCell(map, object, maybe_size);
-  }
-
-  // Special cases: Unreachable visitors for objects that are never found in the
-  // young generation and thus cannot be found when iterating promoted objects.
-  void VisitInstructionStreamPointer(Tagged<Code>,
-                                     InstructionStreamSlot) final {
-    UNREACHABLE();
-  }
-  void VisitCodeTarget(Tagged<InstructionStream>, RelocInfo*) final {
-    UNREACHABLE();
-  }
-  void VisitEmbeddedPointer(Tagged<InstructionStream>, RelocInfo*) final {
-    UNREACHABLE();
-  }
-
  private:
-  template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(Tagged<HeapObject> host, TSlot start,
-                                   TSlot end) {
-    using THeapObjectSlot = typename TSlot::THeapObjectSlot;
-    // Treat weak references as strong.
-    // TODO(marja): Proper weakness handling in the young generation.
-    for (TSlot slot = start; slot < end; ++slot) {
-      typename TSlot::TObject object = *slot;
-      Tagged<HeapObject> heap_object;
-      if (object.GetHeapObject(&heap_object)) {
-        HandleSlot(host, THeapObjectSlot(slot), heap_object);
-      }
-    }
-  }
-
   template <typename THeapObjectSlot>
   V8_INLINE void HandleSlot(Tagged<HeapObject> host, THeapObjectSlot slot,
                             Tagged<HeapObject> target) {
@@ -202,22 +105,18 @@ class IterateAndScavengePromotedObjectsVisitor final
         SLOW_DCHECK(IsHeapObject(target));
         // Sweeper is stopped during scavenge, so we can directly
         // insert into its remembered set here.
-        AddToOldToNewRememberedSet(heap_, host, slot.address());
+        AddToRememberedSet<OLD_TO_NEW>(heap_, host, slot.address());
       }
       DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     }
 
     if (HeapLayout::InWritableSharedSpace(target)) {
-      MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
-      MutablePageMetadata* page =
-          MutablePageMetadata::cast(chunk->Metadata(heap_->isolate()));
-      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
-          page, chunk->Offset(slot.address()));
+      AddToRememberedSet<OLD_TO_SHARED>(heap_, host, slot.address());
     }
   }
 
-  Scavenger* const scavenger_;
-
+  friend class ScavengerObjectVisitorBase<ScavengerPromotedObjectVisitor,
+                                          ObjectAge::kOld>;
   friend class Scavenger;
 };
 
@@ -1186,18 +1085,10 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
   DCHECK(!heap->incremental_marking()->IsMarking());
 }
 
-template <Scavenger::WeakObjectAge Age>
+template <ObjectAge Age>
 V8_INLINE bool Scavenger::ShouldRecordWeakObject(Tagged<HeapObject> host,
                                                  ObjectSlot slot) {
-  DCHECK_EQ(Age == WeakObjectAge::kOld,
-            !HeapLayout::InYoungGeneration(host) ||
-                (HeapLayout::IsSelfForwarded(host) &&
-                 MemoryChunkMetadata::FromHeapObject(heap_->isolate(), host)
-                     ->will_be_promoted()));
-  if (!v8_flags.handle_weak_ref_weakly_in_minor_gc) {
-    return false;
-  }
-
+  DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
   Tagged<HeapObject> object = Cast<HeapObject>(slot.load());
   DCHECK_NE(kNullAddress, object.ptr());
   SynchronizePageAccess(object);
@@ -1215,7 +1106,7 @@ V8_INLINE bool Scavenger::ShouldRecordWeakObject(Tagged<HeapObject> host,
   DCHECK_IMPLIES(!HeapLayout::IsSelfForwarded(object),
                  !Heap::InFromPage(new_object));
   slot.store(new_object);
-  if constexpr (Age == WeakObjectAge::kYoung) {
+  if constexpr (Age == ObjectAge::kYoung) {
     return false;
   }
   DCHECK(!HeapLayout::InWritableSharedSpace(new_object));
@@ -1223,58 +1114,45 @@ V8_INLINE bool Scavenger::ShouldRecordWeakObject(Tagged<HeapObject> host,
     // `host` is younger than `object`, but in rare cases `host`
     // could be promoted to old gen while `object` remains in young gen.
     // For such cases it is needed to update the old-to-new remembered set.
-    AddToOldToNewRememberedSet(heap_, host, slot.address());
+    AddToRememberedSet<OLD_TO_NEW>(heap_, host, slot.address());
   }
   return false;
 }
 
-template void Scavenger::RecordJSWeakRefIfNeeded<
-    Scavenger::WeakObjectAge::kYoung>(Tagged<JSWeakRef>);
-template void Scavenger::RecordJSWeakRefIfNeeded<
-    Scavenger::WeakObjectAge::kOld>(Tagged<JSWeakRef>);
+template void Scavenger::RecordJSWeakRefIfNeeded<ObjectAge::kYoung>(
+    Tagged<JSWeakRef>);
+template void Scavenger::RecordJSWeakRefIfNeeded<ObjectAge::kOld>(
+    Tagged<JSWeakRef>);
 
-template <Scavenger::WeakObjectAge Age>
+template <ObjectAge Age>
 void Scavenger::RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref) {
+  if (!v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+    return;
+  }
+
   if (ShouldRecordWeakObject<Age>(
           js_weak_ref, js_weak_ref->RawField(JSWeakRef::kTargetOffset))) {
     local_js_weak_refs_list_.Push(js_weak_ref);
   }
 }
 
-template void Scavenger::RecordWeakCellIfNeeded<
-    Scavenger::WeakObjectAge::kYoung>(Tagged<WeakCell>);
-template void Scavenger::RecordWeakCellIfNeeded<Scavenger::WeakObjectAge::kOld>(
+template void Scavenger::RecordWeakCellIfNeeded<ObjectAge::kYoung>(
+    Tagged<WeakCell>);
+template void Scavenger::RecordWeakCellIfNeeded<ObjectAge::kOld>(
     Tagged<WeakCell>);
 
-template <Scavenger::WeakObjectAge Age>
+template <ObjectAge Age>
 void Scavenger::RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell) {
+  if (!v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+    return;
+  }
+
   const bool should_record_for_target =
       ShouldRecordWeakObject<Age>(weak_cell, ObjectSlot(&weak_cell->target_));
   const bool should_record_for_unregister_token_ = ShouldRecordWeakObject<Age>(
       weak_cell, ObjectSlot(&weak_cell->unregister_token_));
   if (should_record_for_target || should_record_for_unregister_token_) {
     local_weak_cells_list_.Push(weak_cell);
-  }
-}
-
-void Scavenger::IterateAndScavengePromotedObject(
-    Tagged<HeapObject> target, Tagged<Map> map,
-    SafeHeapObjectSize object_size) {
-  // We are not collecting slots on new space objects during mutation thus we
-  // have to scan for pointers to evacuation candidates when we promote
-  // objects. But we should not record any slots in non-black objects. Grey
-  // object's slots would be rescanned. White object might not survive until
-  // the end of collection it would be a violation of the invariant to record
-  // its slots.
-  IterateAndScavengePromotedObjectsVisitor visitor(this);
-
-  // Iterate all outgoing pointers including map word.
-  visitor.Visit(map, target, object_size);
-
-  if (IsJSArrayBufferMap(map)) {
-    DCHECK(!MemoryChunkMetadata::FromHeapObject(heap_->isolate(), target)
-                ->is_large());
-    GCSafeCast<JSArrayBuffer>(target, heap_)->YoungMarkExtensionPromoted();
   }
 }
 
@@ -1374,7 +1252,8 @@ void Scavenger::ScavengePage(MutablePageMetadata* page) {
 }
 
 void Scavenger::Process(JobDelegate* delegate) {
-  ScavengeVisitor scavenge_visitor(this);
+  ScavengerCopiedObjectVisitor copied_object_visitor(this);
+  ScavengerPromotedObjectVisitor promoted_object_visitor(this);
 
   bool done;
   size_t objects = 0;
@@ -1383,7 +1262,7 @@ void Scavenger::Process(JobDelegate* delegate) {
     ScavengedObjectListEntry entry;
     while (!ShouldEagerlyProcessPromotedList() &&
            local_copied_list_.Pop(&entry)) {
-      scavenge_visitor.Visit(entry.map, entry.heap_object, entry.size);
+      copied_object_visitor.Visit(entry.map, entry.heap_object, entry.size);
       done = false;
       if (delegate && ((++objects % kInterruptThreshold) == 0)) {
         if (!local_copied_list_.IsLocalEmpty()) {
@@ -1393,8 +1272,7 @@ void Scavenger::Process(JobDelegate* delegate) {
     }
 
     while (local_promoted_list_.Pop(&entry)) {
-      Tagged<HeapObject> target = entry.heap_object;
-      IterateAndScavengePromotedObject(target, entry.map, entry.size);
+      promoted_object_visitor.Visit(entry.map, entry.heap_object, entry.size);
       done = false;
       if (delegate && ((++objects % kInterruptThreshold) == 0)) {
         if (!local_promoted_list_.IsGlobalEmpty()) {
@@ -1550,7 +1428,7 @@ void ProcessWeakObjectField(const Heap* heap, Tagged<HeapObject> host,
       slot.store(new_object);
       if (V8_UNLIKELY(!HeapLayout::InYoungGeneration(host) &&
                       HeapLayout::InYoungGeneration(new_object))) {
-        AddToOldToNewRememberedSet(heap, host, slot.address());
+        AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
       }
     }
   }
@@ -1781,9 +1659,27 @@ RootScavengeVisitor::RootScavengeVisitor(Scavenger& scavenger)
 
 RootScavengeVisitor::~RootScavengeVisitor() { scavenger_.Publish(); }
 
-ScavengeVisitor::ScavengeVisitor(Scavenger* scavenger)
-    : NewSpaceVisitor<ScavengeVisitor>(scavenger->heap()->isolate()),
-      scavenger_(scavenger) {}
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::
+    ScavengerObjectVisitorBase(Scavenger* scavenger)
+    : Base(scavenger->heap()->isolate()), scavenger_(scavenger) {}
+
+template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
+void ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::
+    CheckObjectAge(Tagged<HeapObject> object) {
+  DCHECK_IMPLIES(kExpectedObjectAge == ObjectAge::kYoung,
+                 HeapLayout::InYoungGeneration(object));
+  DCHECK_IMPLIES(kExpectedObjectAge == ObjectAge::kOld,
+                 !HeapLayout::InYoungGeneration(object) ||
+                     HeapLayout::InAnyLargeSpace(object) ||
+                     (HeapLayout::IsSelfForwarded(object) &&
+                      MemoryChunkMetadata::FromHeapObject(
+                          scavenger_->heap_->isolate(), object)
+                          ->will_be_promoted()));
+}
+
+ScavengerCopiedObjectVisitor::ScavengerCopiedObjectVisitor(Scavenger* scavenger)
+    : ScavengerObjectVisitorBase(scavenger) {}
 
 }  // namespace internal
 }  // namespace v8
