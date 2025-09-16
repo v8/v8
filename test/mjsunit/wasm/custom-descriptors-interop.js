@@ -97,6 +97,7 @@ let $static_set = builder.addFunction("staticSetter", kSig_v_i).addBody([
 let $super_config = proto_config.addConfig($g_SuperProto)
   .addConstructor("Super", $makeSuper)
   .addMethod("superMethod", kWasmMethod, $super_method)
+  .addMethod("traps", kWasmMethod, $sub_method)
   .addStatic("method", kWasmMethod, $super_static);
 
 let $sub_config = proto_config.addConfig($g_SubProto, $super_config)
@@ -155,3 +156,36 @@ function Test() {
 for (let i = 0; i < 3; i++) Test();
 %OptimizeFunctionOnNextCall(Test);
 Test();
+
+function Traps() {
+  let sup = new Super(1);
+  sup.traps();
+}
+function testStackTrace(error, expected) {
+  try {
+    let stack = error.stack.split("\n");
+    assertTrue(stack.length >= expected.length);
+    for (let i = 0; i < expected.length; ++i) {
+      assertMatches(expected[i], stack[i]);
+    }
+  } catch(failure) {
+    print("Actual stack trace: ", error.stack);
+    throw failure;
+  }
+}
+
+%PrepareFunctionForOptimization(Traps);
+for (let i = 0; i < 3; i++) {
+  if (i == 2) { %OptimizeFunctionOnNextCall(Traps); }
+  try {
+    Traps();
+    assertUnreachable();
+  } catch (e) {
+    console.log("error stack: ", e.stack);
+    testStackTrace(e, [
+      /RuntimeError: illegal cast/,
+      /at subMethod \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[4\]:0x14f/,
+      /at Traps \(.*\)/,
+    ]);
+  }
+}

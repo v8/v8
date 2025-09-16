@@ -108,6 +108,11 @@ static constexpr int kConstructorFunctionContextSlot =
     Context::MIN_CONTEXT_SLOTS;
 static constexpr int kConstructorFunctionContextLength =
     kConstructorFunctionContextSlot + 1;
+
+// Same trick for generated method wrappers.
+static constexpr int kMethodWrapperContextSlot = Context::MIN_CONTEXT_SLOTS;
+static constexpr int kMethodWrapperContextLength =
+    kMethodWrapperContextSlot + 1;
 }  // namespace wasm
 
 // A helper for an entry for an imported function, indexed statically.

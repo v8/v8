@@ -3900,6 +3900,41 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
 #if V8_ENABLE_WEBASSEMBLY
 
+Reduction JSCallReducer::ReduceWasmMethodWrapper(Node* node,
+                                                 JSFunctionRef function,
+                                                 SharedFunctionInfoRef shared) {
+  if (!shared.HasBuiltinId() ||
+      shared.builtin_id() != Builtin::kWasmMethodWrapper) {
+    return NoChange();
+  }
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
+  if (p.feedback().IsValid() &&
+      p.speculation_mode() != SpeculationMode::kAllowSpeculation) {
+    return NoChange();
+  }
+
+  // Duplicate the receiver into the first argument slot...
+  node->InsertInput(graph()->zone(), n.FirstArgumentIndex(), n.receiver());
+  NodeProperties::ChangeOp(
+      node, javascript()->Call(
+                JSCallNode::ArityForArgc(n.ArgumentCount() + 1), p.frequency(),
+                p.feedback(), ConvertReceiverMode::kAny, p.speculation_mode()));
+  // ...and call the target function directly.
+  ContextRef context = function.context(broker());
+  OptionalObjectRef target =
+      context.get(broker(), wasm::kMethodWrapperContextSlot);
+  if (!target.has_value()) {
+    // This is unexpected; if you see this happening please tell
+    // jkummerow@chromium.org how to reproduce it.
+    TRACE_BROKER_MISSING(broker(), "target value for context " << context);
+    return NoChange();
+  }
+  node->ReplaceInput(n.TargetIndex(),
+                     jsgraph()->ConstantNoHole(target.value(), broker()));
+  return Changed(node).FollowedBy(ReduceJSCall(node));
+}
+
 bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature) {
   if (wasm_signature->return_count() > 1) {
     return false;
@@ -4723,8 +4758,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       if (!function.native_context(broker()).equals(native_context())) {
         return NoChange();
       }
-
-      Reduction res = ReduceJSCall(node, function.shared(broker()));
+      SharedFunctionInfoRef shared = function.shared(broker());
+      Reduction res = ReduceJSCall(node, shared);
+#if V8_ENABLE_WEBASSEMBLY
+      if (!res.Changed()) {
+        res = ReduceWasmMethodWrapper(node, function, shared);
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
       if (!res.Changed()) return NoChangeOrSoftDeopt();
       return res;
     } else if (target_ref.IsJSBoundFunction()) {

@@ -261,6 +261,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceSetContinuationPreservedEmbedderData(Node* node);
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
+#if V8_ENABLE_WEBASSEMBLY
+  Reduction ReduceWasmMethodWrapper(Node* node, JSFunctionRef function,
+                                    SharedFunctionInfoRef shared);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);
   std::pair<Node*, Node*> ReleaseEffectAndControlFromAssembler(

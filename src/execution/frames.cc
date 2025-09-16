@@ -2474,14 +2474,20 @@ bool CommonFrameWithJSLinkage::IsConstructor() const {
 }
 
 FrameSummaries CommonFrameWithJSLinkage::Summarize() const {
-  Tagged<GcSafeCode> code;
+  Tagged<GcSafeCode> gcsafe_code;
   int offset = -1;
-  std::tie(code, offset) = GcSafeLookupCodeAndOffset();
-  DirectHandle<AbstractCode> abstract_code(
-      Cast<AbstractCode>(code->UnsafeCastToCode()), isolate());
+  std::tie(gcsafe_code, offset) = GcSafeLookupCodeAndOffset();
+  DirectHandle<Code> code(gcsafe_code->UnsafeCastToCode(), isolate());
+#if V8_ENABLE_WEBASSEMBLY
+  if (code->kind() == CodeKind::BUILTIN &&
+      code->builtin_id() == Builtin::kWasmMethodWrapper) {
+    // Skip generated method wrappers, they are not useful to see in traces.
+    return FrameSummaries{};
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   DirectHandle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
-      isolate(), receiver(), function(), *abstract_code, offset,
+      isolate(), receiver(), function(), *Cast<AbstractCode>(code), offset,
       IsConstructor(), *params);
   return FrameSummaries(summary);
 }

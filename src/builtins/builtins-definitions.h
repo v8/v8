@@ -720,6 +720,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(FunctionPrototypeBind, kDontAdaptArgumentsSentinel)                      \
   IF_WASM(CPP, WebAssemblyFunctionPrototypeBind, kDontAdaptArgumentsSentinel)  \
   IF_WASM(TFJ, WasmConstructorWrapper, kDontAdaptArgumentsSentinel)            \
+  IF_WASM(TFJ, WasmMethodWrapper, kDontAdaptArgumentsSentinel)                 \
   ASM(FunctionPrototypeCall, JSTrampoline)                                     \
   /* ES6 #sec-function.prototype.tostring */                                   \
   CPP(FunctionPrototypeToString, kDontAdaptArgumentsSentinel)                  \
