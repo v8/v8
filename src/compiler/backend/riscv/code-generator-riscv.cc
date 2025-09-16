@@ -291,10 +291,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
  public:
   OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
-                                     Register value)
+                                     Register value, Register scratch)
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
+        scratch_(scratch),
         must_save_ra_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
 
@@ -304,6 +305,8 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 #endif
+
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
 
     if (must_save_ra_) {
       // We need to save and restore ra if the frame was elided.
@@ -325,6 +328,7 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
  private:
   Register const object_;
   Register const value_;
+  Register const scratch_;
   const bool must_save_ra_;
   Zone* zone_;
 };
@@ -1122,8 +1126,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, kScratchReg);
         __ JumpIfNotSmi(value, ool->entry());
         __ bind(ool->exit());
       }
@@ -1168,8 +1172,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
 
       if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(this, object,
-                                                                   value);
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, kScratchReg);
         __ JumpIfNotSmi(value, ool->entry());
         __ bind(ool->exit());
       }

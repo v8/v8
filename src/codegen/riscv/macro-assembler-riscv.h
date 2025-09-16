@@ -443,6 +443,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
+  void PreCheckSkippedWriteBarrier(Register object, Register value,
+                                   Register scratch, Label* ok);
+
   void CallVerifySkippedWriteBarrierStubSaveRegisters(Register object,
                                                       Register value,
                                                       SaveFPRegsMode fp_mode);

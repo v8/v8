@@ -791,6 +791,13 @@ void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
   SubWord(dst_object, dst_slot, dst_object);
 }
 
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  // TODO(kasperl@rivosinc.com): Implement the pre-check optimization.
+  // For now, we just fall through to the slow case.
+}
+
 void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
     Register object, Register value, SaveFPRegsMode fp_mode) {
   ASM_CODE_COMMENT(this);
