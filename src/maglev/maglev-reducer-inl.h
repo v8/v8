@@ -1147,13 +1147,13 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
     case Operation::kAdd:
       // x + 1 => x++
       if (cst_right == 1) {
-        return AddNewNodeNoAbort<Int32IncrementWithOverflow>({left});
+        return AddNewNode<Int32IncrementWithOverflow>({left});
       }
       return {};
     case Operation::kSubtract:
       // x - 1 => x--
       if (cst_right == 1) {
-        return AddNewNodeNoAbort<Int32DecrementWithOverflow>({left});
+        return AddNewNode<Int32DecrementWithOverflow>({left});
       }
       return {};
     case Operation::kMultiply:
@@ -1171,7 +1171,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
         AddNewNodeNoAbort<CheckInt32Condition>({left, GetInt32Constant(0)},
                                                AssertCondition::kNotEqual,
                                                DeoptimizeReason::kMinusZero);
-        return AddNewNodeNoAbort<Int32SubtractWithOverflow>(
+        return AddNewNode<Int32SubtractWithOverflow>(
             {GetInt32Constant(0), left});
       }
       if (cst_right != 0) {
