@@ -3658,16 +3658,10 @@ void WasmJs::Install(Isolate* isolate) {
   }
 
   // Initialize and install JSPI feature.
-  if (enabled_features.has_jspi()) {
-    CHECK(native_context->is_wasm_jspi_installed() == Smi::zero());
-    isolate->WasmInitJSPIFeature();
-    InstallJSPromiseIntegration(isolate, native_context, webassembly);
-    native_context->set_is_wasm_jspi_installed(Smi::FromInt(1));
-  } else if (v8_flags.stress_wasm_stack_switching) {
-    // Set up the JSPI objects necessary for stress-testing stack-switching, but
-    // don't install WebAssembly.promising and WebAssembly.Suspending.
-    isolate->WasmInitJSPIFeature();
-  }
+  CHECK(native_context->is_wasm_jspi_installed() == Smi::zero());
+  isolate->WasmInitJSPIFeature();
+  InstallJSPromiseIntegration(isolate, native_context, webassembly);
+  native_context->set_is_wasm_jspi_installed(Smi::FromInt(1));
 
   if (enabled_features.has_rab_integration()) {
     InstallResizableBufferIntegration(isolate, native_context, webassembly);
@@ -3693,7 +3687,7 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   // }
 
   // Install JSPI-related features.
-  if (isolate->IsWasmJSPIRequested(context)) {
+  if (!v8_flags.wasm_jitless) {
     if (context->is_wasm_jspi_installed() == Smi::zero()) {
       isolate->WasmInitJSPIFeature();
       if (InstallJSPromiseIntegration(isolate, context, webassembly)) {

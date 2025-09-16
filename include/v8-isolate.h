@@ -1714,8 +1714,6 @@ class V8_EXPORT Isolate {
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);
 
-  void SetWasmJSPIEnabledCallback(WasmJSPIEnabledCallback callback);
-
   /**
    * This function can be called by the embedder to signal V8 that the dynamic
    * enabling of features has finished. V8 can now set up dynamically added

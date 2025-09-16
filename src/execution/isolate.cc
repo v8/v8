@@ -3748,31 +3748,7 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(
   return false;
 }
 
-bool Isolate::IsWasmJSPIRequested(DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.wasm_jitless) return false;
 
-  v8::WasmJSPIEnabledCallback jspi_callback = wasm_jspi_enabled_callback();
-  if (jspi_callback) {
-    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (jspi_callback(api_context)) return true;
-  }
-
-  // Otherwise use the runtime flag.
-  return v8_flags.experimental_wasm_jspi;
-#else
-  return false;
-#endif
-}
-
-bool Isolate::IsWasmJSPIEnabled(DirectHandle<NativeContext> context) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-  return IsWasmJSPIRequested(context) &&
-         context->is_wasm_jspi_installed() != Smi::zero();
-#else
-  return false;
-#endif
-}
 
 bool Isolate::IsWasmCustomDescriptorsEnabled(
     DirectHandle<NativeContext> context) {

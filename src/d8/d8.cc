@@ -2800,12 +2800,6 @@ void Shell::InstallConditionalFeatures(
   isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
 }
 
-void Shell::EnableJSPI(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  Isolate* isolate = info.GetIsolate();
-  isolate->SetWasmJSPIEnabledCallback([](auto) { return true; });
-  isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
-}
-
 void Shell::SetFlushDenormals(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
   if (i::v8_flags.correctness_fuzzer_suppressions || i::v8_flags.fuzzing) {
@@ -4370,11 +4364,6 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     test_template->Set(
         isolate, "installConditionalFeatures",
         FunctionTemplate::New(isolate, Shell::InstallConditionalFeatures));
-
-    // Enable JavaScript Promise Integration at runtime, to simulate
-    // Origin Trial behavior.
-    test_template->Set(isolate, "enableJSPI",
-                       FunctionTemplate::New(isolate, Shell::EnableJSPI));
 
     test_template->Set(
         isolate, "setFlushDenormals",

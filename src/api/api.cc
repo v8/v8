@@ -10863,9 +10863,6 @@ CALLBACK_SETTER(WasmCustomDescriptorsEnabledCallback,
                 WasmCustomDescriptorsEnabledCallback,
                 wasm_custom_descriptors_enabled_callback)
 
-CALLBACK_SETTER(WasmJSPIEnabledCallback, WasmJSPIEnabledCallback,
-                wasm_jspi_enabled_callback)
-
 CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
                 sharedarraybuffer_constructor_enabled_callback)

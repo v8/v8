@@ -41,14 +41,11 @@ WasmEnabledFeatures WasmEnabledFeatures::FromIsolate(Isolate* isolate) {
 WasmEnabledFeatures WasmEnabledFeatures::FromContext(
     Isolate* isolate, DirectHandle<NativeContext> context) {
   WasmEnabledFeatures features = WasmEnabledFeatures::FromFlags();
-  if (!v8_flags.wasm_jitless) {
-    if (isolate->IsWasmJSPIEnabled(context)) {
-      features.Add(WasmEnabledFeature::jspi);
-    }
-    if (isolate->IsWasmCustomDescriptorsEnabled(context)) {
-      features.Add(WasmEnabledFeature::custom_descriptors);
-    }
+
+  if (isolate->IsWasmCustomDescriptorsEnabled(context)) {
+    features.Add(WasmEnabledFeature::custom_descriptors);
   }
+
   // This space intentionally left blank for future Wasm origin trials.
   return features;
 }

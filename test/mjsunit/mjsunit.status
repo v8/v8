@@ -755,8 +755,6 @@
   'wasm/subtyping-invalid': [SKIP],
 
   # --experimental-wasm-jspi
-  'regress/regress-333926321': [SKIP],
-  'regress/wasm/regress-331383939': [SKIP],
   'regress/wasm/regress-336358915': [SKIP],
   'regress/wasm/regress-336852356': [SKIP],
   'regress/wasm/regress-342522151': [SKIP],
@@ -2547,11 +2545,9 @@
 ['arch == mips64el', {
   # Stack switching is not supported on MIPS64 platform.
   'wasm/jspi': [SKIP],
-  'wasm/jspi-conditional': [SKIP],
   'wasm/jspi-export': [SKIP],
   'wasm/jspi-generic-wrapper': [SKIP],
   'wasm/jspi-no-stress': [SKIP],
-  'wasm/jspi-init-safe': [SKIP],
   'wasm/jspi-notraps': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP],
   'regress/wasm/regress-336852356': [SKIP],

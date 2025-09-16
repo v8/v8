@@ -1920,10 +1920,6 @@ FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_WASM_FLAG
 #undef DECL_EXPERIMENTAL_WASM_FLAG
 
-DEFINE_IMPLICATION(experimental_wasm_stack_switching, experimental_wasm_jspi)
-
-DEFINE_IMPLICATION(experimental_wasm_growable_stacks, experimental_wasm_jspi)
-
 // Unsafe additions to the GC proposal for performance experiments.
 DEFINE_EXPERIMENTAL_FEATURE(
     experimental_wasm_assume_ref_cast_succeeds,
