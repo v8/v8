@@ -1508,7 +1508,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Wasm into RVV
   void WasmRvvExtractLane(Register dst, VRegister src, int8_t idx, VSew sew,
                           Vlmul lmul) {
-    VU.set(kScratchReg, sew, lmul);
+    DCHECK_EQ(m1, lmul);
+    VU.SetSimd128(sew);
     VRegister Vsrc = idx != 0 ? kSimd128ScratchReg : src;
     if (idx != 0) {
       vslidedown_vi(kSimd128ScratchReg, src, idx);

@@ -3192,7 +3192,11 @@ static void SaveVectorRegisters(MacroAssembler* masm,
   // If != 0, then simd is available.
   __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
 
-  __ VU.set(kScratchReg, E8, m1);
+  // Since the builtins are compiled into a snapshot, we can't query the
+  // actual hardware vector length. This means that we are not allowed to use
+  // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
+  // of 8 bits each.
+  __ VU.set(16, E8, m1);
   for (VRegister vector_reg : reg_list) {
     __ SubWord(sp, sp, Operand(kSimd128Size));
     __ vs(vector_reg, sp, 0, E8);
@@ -3210,7 +3214,11 @@ static void RestoreVectorRegisters(MacroAssembler* masm,
   // If != 0, then simd is available.
   __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
 
-  __ VU.set(kScratchReg, E8, m1);
+  // Since the builtins are compiled into a snapshot, we can't query the
+  // actual hardware vector length. This means that we are not allowed to use
+  // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
+  // of 8 bits each.
+  __ VU.set(16, E8, m1);
   for (auto it = reg_list.rbegin(); it != reg_list.rend(); ++it) {
     VRegister vector_reg = *it;
     __ vl(vector_reg, sp, 0, E8);

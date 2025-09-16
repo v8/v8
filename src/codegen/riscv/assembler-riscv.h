@@ -675,23 +675,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
     explicit VectorUnit(Assembler* assm) : assm_(assm) {}
 
-    void set(Register rd, VSew sew, Vlmul lmul) {
-      if (sew != sew_ || lmul != lmul_ || vl != vlmax()) {
-        sew_ = sew;
-        lmul_ = lmul;
-        vl = vlmax();
-        assm_->vsetvlmax(rd, sew_, lmul_);
-      }
-    }
-
-    void set(Register rd, int8_t sew, int8_t lmul) {
-      DCHECK_GE(sew, E8);
-      DCHECK_LE(sew, E64);
-      DCHECK_GE(lmul, m1);
-      DCHECK_LE(lmul, mf2);
-      set(rd, VSew(sew), Vlmul(lmul));
-    }
-
     void set(FPURoundingMode mode) {
       if (mode_ != mode) {
         assm_->addi(kScratchReg, zero_reg, mode << kFcsrFrmShift);
@@ -699,32 +682,69 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
         mode_ = mode;
       }
     }
-    void set(Register rd, Register rs1, VSew sew, Vlmul lmul) {
-      if (sew != sew_ || lmul != lmul_) {
+
+    void set(int32_t avl, VSew sew, Vlmul lmul, TailAgnosticType tail = ta) {
+      DCHECK(is_uint5(avl));
+      if (avl != avl_ || sew != sew_ || lmul != lmul_) {
+        avl_ = avl;
         sew_ = sew;
         lmul_ = lmul;
-        vl = 0;
-        assm_->vsetvli(rd, rs1, sew_, lmul_);
+        assm_->vsetivli(zero_reg, static_cast<uint8_t>(avl), sew_, lmul_, tail);
       }
     }
 
-    void set(VSew sew, Vlmul lmul) {
-      if (sew != sew_ || lmul != lmul_) {
-        sew_ = sew;
-        lmul_ = lmul;
-        assm_->vsetvl(sew_, lmul_);
+    void SetSimd128(VSew sew, TailAgnosticType tail = ta) {
+      if (sew == E8) {
+        set(16, sew, m1, tail);
+      } else if (sew == E16) {
+        set(8, sew, m1, tail);
+      } else if (sew == E32) {
+        set(4, sew, m1, tail);
+      } else if (sew == E64) {
+        set(2, sew, m1, tail);
+      } else {
+        UNREACHABLE();
+      }
+    }
+
+    void SetSimd128Half(VSew sew, TailAgnosticType tail = ta) {
+      if (sew == E8) {
+        set(8, sew, mf2, tail);
+      } else if (sew == E16) {
+        set(4, sew, mf2, tail);
+      } else if (sew == E32) {
+        set(2, sew, mf2, tail);
+      } else if (sew == E64) {
+        set(1, sew, mf2, tail);
+      } else {
+        UNREACHABLE();
+      }
+    }
+
+    void SetSimd128x2(VSew sew, TailAgnosticType tail = ta) {
+      if (sew == E8) {
+        set(32, sew, m2, tail);
+      } else if (sew == E16) {
+        set(16, sew, m2, tail);
+      } else if (sew == E32) {
+        set(8, sew, m2, tail);
+      } else if (sew == E64) {
+        set(4, sew, m2, tail);
+      } else {
+        UNREACHABLE();
       }
     }
 
     void clear() {
+      avl_ = -1;
       sew_ = kVsInvalid;
       lmul_ = kVlInvalid;
     }
 
    private:
+    int32_t avl_ = -1;
     VSew sew_ = kVsInvalid;
     Vlmul lmul_ = kVlInvalid;
-    int32_t vl = 0;
     Assembler* assm_;
     FPURoundingMode mode_ = RNE;
   };
