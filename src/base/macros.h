@@ -5,6 +5,7 @@
 #ifndef V8_BASE_MACROS_H_
 #define V8_BASE_MACROS_H_
 
+#include <bit>
 #include <limits>
 #include <type_traits>
 
@@ -122,6 +123,9 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
   SUPPRESSED_DANGLING_ELSE_WARNING_IF(init; false) {} \
   SUPPRESSED_DANGLING_ELSE_WARNING_ELSE
 
+// -- Copied from chromium's "base/bit_cast.h", but uses `std::bit_cast` instead
+// of `__builtin_bit_cast`.
+//
 // This is an equivalent to C++20's std::bit_cast<>(), but with additional
 // warnings. It morally does what `*reinterpret_cast<Dest*>(&source)` does, but
 // the cast/deref pair is undefined behavior, while bit_cast<>() isn't.
@@ -134,7 +138,7 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 namespace v8::base {
 
 template <class Dest, class Source>
-V8_INLINE Dest bit_cast(Source const& source) {
+V8_INLINE constexpr Dest bit_cast(Source const& source) noexcept {
   static_assert(!std::is_pointer_v<Source>,
                 "bit_cast must not be used on pointer types");
   static_assert(!std::is_pointer_v<Dest>,
@@ -150,13 +154,7 @@ V8_INLINE Dest bit_cast(Source const& source) {
       std::is_trivially_copyable_v<Dest>,
       "bit_cast requires the destination type to be trivially copyable");
 
-#if V8_HAS_BUILTIN_BIT_CAST
-  return __builtin_bit_cast(Dest, source);
-#else
-  Dest dest;
-  memcpy(&dest, &source, sizeof(dest));
-  return dest;
-#endif
+  return std::bit_cast<Dest, Source>(source);
 }
 
 }  // namespace v8::base
