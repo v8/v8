@@ -4721,6 +4721,56 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
   UNREACHABLE();
 }
 
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+    DCHECK(!AreAliased(scratch, scratch1));
+    SubS64(scratch, object, Operand(kHeapObjectTag));
+    LoadU64(scratch1, MemOperand(kRootRegister,
+                                 IsolateData::last_young_allocation_offset()));
+    CmpU64(scratch, scratch1);
+    b(to_condition(Condition::kEqual), ok);
+  }
+
+  // Write barier can also be removed if value is in read-only space.
+  CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, ne, ok);
+
+  Label not_ok;
+
+  // Handle allocation folding: Allow write barrier removal if LAB start <=
+  // object < LAB top.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+    DCHECK(!AreAliased(scratch, scratch1));
+    // Recompute object address here because scratch was clobbered by
+    // CheckPageFlag.
+    SubS64(scratch, object, Operand(kHeapObjectTag));
+    LoadU64(scratch1,
+            MemOperand(kRootRegister,
+                       IsolateData::new_allocation_info_start_offset()));
+    CmpU64(scratch, scratch1);
+    b(to_condition(Condition::kUnsignedLessThan), &not_ok);
+    LoadU64(scratch1,
+            MemOperand(kRootRegister,
+                       IsolateData::new_allocation_info_top_offset()));
+    CmpU64(scratch, scratch1);
+    b(to_condition(Condition::kUnsignedLessThan), ok);
+  }
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
+}
+
 void MacroAssembler::SwapP(Register src, Register dst, Register scratch) {
   if (src == dst) return;
   DCHECK(!AreAliased(src, dst, scratch));

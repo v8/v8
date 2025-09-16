@@ -783,6 +783,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
+  void PreCheckSkippedWriteBarrier(Register object, Register value,
+                                   Register scratch, Label* ok);
+
   // Move values between integer and floating point registers.
   void MovIntToDouble(DoubleRegister dst, Register src, Register scratch);
   void MovUnsignedIntToDouble(DoubleRegister dst, Register src,

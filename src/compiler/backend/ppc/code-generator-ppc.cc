@@ -143,6 +143,8 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
         zone_(gen->zone()) {}
 
   void Generate() final {
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -166,7 +168,7 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
   Register const object_;
   Register const value_;
   Register const scratch_;
-  const bool must_save_lr_;
+  bool const must_save_lr_;
   UnwindingInfoWriter* const unwinding_info_writer_;
   Zone* zone_;
 };
