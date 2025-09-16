@@ -35,9 +35,7 @@ class V8_NODISCARD MaybeReduceResult {
   MaybeReduceResult() : payload_(kFail) {}
 
   // NOLINTNEXTLINE
-  MaybeReduceResult(ValueNode* value) : payload_(value) {
-    DCHECK_NOT_NULL(value);
-  }
+  MaybeReduceResult(Node* node) : payload_(node) { DCHECK_NOT_NULL(node); }
 
   static MaybeReduceResult Fail() { return MaybeReduceResult(kFail); }
 
@@ -46,9 +44,16 @@ class V8_NODISCARD MaybeReduceResult {
 
   ValueNode* value() const {
     DCHECK(HasValue());
-    return payload_.GetPointerWithKnownPayload(kDoneWithValue);
+    Node* value = payload_.GetPointerWithKnownPayload(kDoneWithValue);
+    DCHECK(value->Is<ValueNode>());
+    return value->Cast<ValueNode>();
   }
   bool HasValue() const { return kind() == kDoneWithValue; }
+
+  Node* node() const {
+    DCHECK(HasValue());
+    return payload_.GetPointerWithKnownPayload(kDoneWithValue);
+  }
 
   // Either DoneWithValue, DoneWithoutValue or DoneWithAbort.
   bool IsDone() const { return !IsFail(); }
@@ -70,29 +75,28 @@ class V8_NODISCARD MaybeReduceResult {
 
   inline ReduceResult Checked();
 
-  base::PointerWithPayload<ValueNode, Kind, 3> GetPayload() const {
+  base::PointerWithPayload<Node, Kind, 3> GetPayload() const {
     return payload_;
   }
 
  protected:
   explicit MaybeReduceResult(Kind kind) : payload_(kind) {}
-  explicit MaybeReduceResult(
-      base::PointerWithPayload<ValueNode, Kind, 3> payload)
+  explicit MaybeReduceResult(base::PointerWithPayload<Node, Kind, 3> payload)
       : payload_(payload) {}
-  base::PointerWithPayload<ValueNode, Kind, 3> payload_;
+  base::PointerWithPayload<Node, Kind, 3> payload_;
 };
 
 class V8_NODISCARD ReduceResult : public MaybeReduceResult {
  public:
   // NOLINTNEXTLINE
-  ReduceResult(ValueNode* value) : MaybeReduceResult(value) {}
+  ReduceResult(Node* node) : MaybeReduceResult(node) {}
 
   explicit ReduceResult(const MaybeReduceResult& other)
       : MaybeReduceResult(other.GetPayload()) {
     CHECK(!IsFail());
   }
 
-  static ReduceResult Done(ValueNode* value) { return ReduceResult(value); }
+  static ReduceResult Done(Node* node) { return ReduceResult(node); }
   static ReduceResult Done() { return ReduceResult(kDoneWithoutValue); }
   static ReduceResult DoneWithAbort() { return ReduceResult(kDoneWithAbort); }
 
@@ -140,6 +144,16 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     DCHECK(res.IsDoneWithValue());                                     \
     using T = std::remove_pointer_t<std::decay_t<decltype(variable)>>; \
     variable = res.value()->Cast<T>();                                 \
+  } while (false)
+
+#define GET_NODE_OR_ABORT(variable, result) \
+  do {                                      \
+    MaybeReduceResult res = (result);       \
+    if (res.IsDoneWithAbort()) {            \
+      return ReduceResult::DoneWithAbort(); \
+    }                                       \
+    DCHECK(res.IsDoneWithValue());          \
+    variable = res.node();                  \
   } while (false)
 
 template <typename BaseT>

@@ -2801,7 +2801,7 @@ void CheckValueInputIs(const NodeBase* node, int i,
                        ValueRepresentation expected);
 
 // The Node class hierarchy contains all non-control nodes.
-class Node : public NodeBase {
+class alignas(8) Node : public NodeBase {
  public:
   inline ValueLocation& result();
 
@@ -2822,7 +2822,7 @@ class Node : public NodeBase {
 };
 
 // All non-control nodes with a result.
-class alignas(8) ValueNode : public Node {
+class ValueNode : public Node {
  private:
   using TaggedResultNeedsDecompressField =
       NodeBase::LastNodeBaseField::Next<bool, 1>;

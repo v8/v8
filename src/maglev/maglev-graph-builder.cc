@@ -3243,8 +3243,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
   DCHECK_NOT_NULL(store);
   DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   if (!context->Is<Constant>()) {
-    *store = AddNewNodeNoAbort<StoreContextSlotWithWriteBarrier>(
-        {context, value}, index);
+    GET_NODE_OR_ABORT(*store, AddNewNode<StoreContextSlotWithWriteBarrier>(
+                                  {context, value}, index));
     return ReduceResult::Done();
   }
 
@@ -3257,8 +3257,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
   auto maybe_value = context_ref.get(broker(), index);
   if (!maybe_value || maybe_value->IsTheHole() ||
       maybe_value->IsUndefinedContextCell()) {
-    *store = AddNewNodeNoAbort<StoreContextSlotWithWriteBarrier>(
-        {context, value}, index);
+    GET_NODE_OR_ABORT(*store, AddNewNode<StoreContextSlotWithWriteBarrier>(
+                                  {context, value}, index));
     return ReduceResult::Done();
   }
 
@@ -3275,8 +3275,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
       auto constant = slot_ref.tagged_value(broker());
       if (!constant.has_value() ||
           (constant->IsString() && !constant->IsInternalizedString())) {
-        *store = AddNewNodeNoAbort<StoreContextSlotWithWriteBarrier>(
-            {context, value}, index);
+        GET_NODE_OR_ABORT(*store, AddNewNode<StoreContextSlotWithWriteBarrier>(
+                                      {context, value}, index));
         return ReduceResult::Done();
       }
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
@@ -3291,16 +3291,18 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
           StoreTaggedMode::kDefault, store);
     case ContextCell::kInt32:
       EnsureInt32(value, true);
-      *store = AddNewNodeNoAbort<StoreInt32>(
-          {GetConstant(slot_ref), value},
-          static_cast<int>(offsetof(ContextCell, double_value_)));
+      GET_NODE_OR_ABORT(
+          *store, AddNewNode<StoreInt32>(
+                      {GetConstant(slot_ref), value},
+                      static_cast<int>(offsetof(ContextCell, double_value_))));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return ReduceResult::Done();
     case ContextCell::kFloat64:
       RETURN_IF_ABORT(BuildCheckNumber(value));
-      *store = AddNewNodeNoAbort<StoreFloat64>(
-          {GetConstant(slot_ref), value},
-          static_cast<int>(offsetof(ContextCell, double_value_)));
+      GET_NODE_OR_ABORT(
+          *store, AddNewNode<StoreFloat64>(
+                      {GetConstant(slot_ref), value},
+                      static_cast<int>(offsetof(ContextCell, double_value_))));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return ReduceResult::Done();
     case ContextCell::kDetached:
