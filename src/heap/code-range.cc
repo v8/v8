@@ -281,7 +281,6 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
         CHECK_LT(red_zone_size, size());
         CHECK_GE(red_zone_start, base());
         CHECK_LE(red_zone_end, base() + size());
-        CHECK_EQ(0u, red_zone_start % kPtrComprCageBaseAlignment);
         // We only allocate multiples of `allocate_page_size` and thus can only
         // see overlaps of this size.
         CHECK_EQ(0, kContiguousReadOnlyReservationSize % allocate_page_size);
