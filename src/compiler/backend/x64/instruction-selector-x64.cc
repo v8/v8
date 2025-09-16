@@ -1478,8 +1478,8 @@ void VisitStoreCommon(InstructionSelector* selector,
              write_barrier_kind == kSkippedWriteBarrier);
       // In this case we need to add the IndirectPointerTag as additional input.
       code = write_barrier_kind == kSkippedWriteBarrier
-                 ? kArchStoreIndirectWithWriteBarrier
-                 : kArchStoreIndirectSkippedWriteBarrier;
+                 ? kArchStoreIndirectSkippedWriteBarrier
+                 : kArchStoreIndirectWithWriteBarrier;
       code |= RecordWriteModeField::encode(
           RecordWriteMode::kValueIsIndirectPointer);
       IndirectPointerTag tag = store.indirect_pointer_tag();
