@@ -794,8 +794,47 @@ void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
 void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
                                                  Register value,
                                                  Register scratch, Label* ok) {
-  // TODO(kasperl@rivosinc.com): Implement the pre-check optimization.
-  // For now, we just fall through to the slow case.
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+    addi(scratch, object, -kHeapObjectTag);
+    LoadWord(scratch1, MemOperand(kRootRegister,
+                                  IsolateData::last_young_allocation_offset()));
+    Branch(ok, eq, scratch, Operand(scratch1));
+  }
+
+  // The write barrier can also be removed if the value is in read-only space.
+  CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, not_equal,
+                ok);
+
+  Label not_ok;
+
+  // Handle allocation folding: Allow write barrier removal if LAB start <=
+  // object < LAB top.
+  // Recompute the object address here because scratch was clobbered by
+  // CheckPageFlag.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch1 = temps.Acquire();
+    addi(scratch, object, -kHeapObjectTag);
+    LoadWord(scratch1,
+             MemOperand(kRootRegister,
+                        IsolateData::new_allocation_info_start_offset()));
+    Branch(&not_ok, ult, scratch, Operand(scratch1));
+    LoadWord(scratch1,
+             MemOperand(kRootRegister,
+                        IsolateData::new_allocation_info_top_offset()));
+    Branch(ok, ult, scratch, Operand(scratch1));
+  }
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
 }
 
 void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
