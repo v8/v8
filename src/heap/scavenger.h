@@ -41,25 +41,18 @@ class ScavengerCollector;
 
 class Scavenger {
  public:
-  static constexpr int kCopiedListSegmentSize = 256;
-  static constexpr int kPinnedListSegmentSize = 64;
-  static constexpr int kPromotedListSegmentSize = 256;
+  static constexpr int kScavengedObjectListSegmentSize = 256;
   static constexpr int kWeakObjectListSegmentSize = 64;
 
-  using CopiedList =
-      ::heap::base::Worklist<Tagged<HeapObject>, kCopiedListSegmentSize>;
-
-  using ObjectAndMap = std::pair<Tagged<HeapObject>, Tagged<Map>>;
-  using PinnedList =
-      ::heap::base::Worklist<ObjectAndMap, kPinnedListSegmentSize>;
-
-  struct PromotedListEntry {
+  struct ScavengedObjectListEntry {
     Tagged<HeapObject> heap_object;
     Tagged<Map> map;
     SafeHeapObjectSize size;
   };
-  using PromotedList =
-      ::heap::base::Worklist<PromotedListEntry, kPromotedListSegmentSize>;
+
+  using ScavengedObjectList =
+      ::heap::base::Worklist<ScavengedObjectListEntry,
+                             kScavengedObjectListSegmentSize>;
 
   using JSWeakRefsList =
       ::heap::base::Worklist<Tagged<JSWeakRef>, kWeakObjectListSegmentSize>;
@@ -69,8 +62,8 @@ class Scavenger {
   using EmptyChunksList = ::heap::base::Worklist<MutablePageMetadata*, 64>;
 
   Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
-            EmptyChunksList* empty_chunks, CopiedList* copied_list,
-            PinnedList* pinned_list, PromotedList* promoted_list,
+            EmptyChunksList* empty_chunks, ScavengedObjectList* copied_list,
+            ScavengedObjectList* promoted_list,
             EphemeronRememberedSet::TableList* ephemeron_table_list,
             JSWeakRefsList* js_weak_refs_list, WeakCellsList* weak_cells_list);
 
@@ -93,7 +86,6 @@ class Scavenger {
 
   void PinAndPushObject(MutablePageMetadata* metadata,
                         Tagged<HeapObject> object, MapWord map_word);
-  void VisitPinnedObjects();
 
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
@@ -218,9 +210,8 @@ class Scavenger {
   ScavengerCollector* const collector_;
   Heap* const heap_;
   EmptyChunksList::Local local_empty_chunks_;
-  CopiedList::Local local_copied_list_;
-  PinnedList::Local local_pinned_list_;
-  PromotedList::Local local_promoted_list_;
+  ScavengedObjectList::Local local_copied_list_;
+  ScavengedObjectList::Local local_promoted_list_;
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
   JSWeakRefsList::Local local_js_weak_refs_list_;
   WeakCellsList::Local local_weak_cells_list_;
@@ -285,9 +276,8 @@ class ScavengerCollector {
             std::vector<std::unique_ptr<Scavenger>>* scavengers,
             std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
                 old_to_new_chunks,
-            const Scavenger::CopiedList& copied_list,
-            const Scavenger::PinnedList& pinned_list,
-            const Scavenger::PromotedList& promoted_list);
+            const Scavenger::ScavengedObjectList& copied_list,
+            const Scavenger::ScavengedObjectList& promoted_list);
 
     void Run(JobDelegate* delegate) override;
     size_t GetMaxConcurrency(size_t worker_count) const override;
@@ -297,7 +287,6 @@ class ScavengerCollector {
    private:
     void ProcessItems(JobDelegate* delegate, Scavenger* scavenger);
     void ConcurrentScavengePages(Scavenger* scavenger);
-    void VisitPinnedObjects(Scavenger* scavenger);
 
     ScavengerCollector* collector_;
 
@@ -307,9 +296,8 @@ class ScavengerCollector {
     std::atomic<size_t> remaining_memory_chunks_{0};
     IndexGenerator generator_;
 
-    const Scavenger::CopiedList& copied_list_;
-    const Scavenger::PinnedList& pinned_list_;
-    const Scavenger::PromotedList& promoted_list_;
+    const Scavenger::ScavengedObjectList& copied_list_;
+    const Scavenger::ScavengedObjectList& promoted_list_;
 
     const uint64_t trace_id_;
   };

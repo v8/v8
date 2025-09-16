@@ -31,7 +31,8 @@ namespace internal {
 bool Scavenger::ShouldEagerlyProcessPromotedList() const {
   // Threshold when to prioritize processing of the promoted list. Right
   // now we only look into the regular object list.
-  const int kProcessPromotedListThreshold = kPromotedListSegmentSize / 2;
+  static constexpr int kProcessPromotedListThreshold =
+      ScavengedObjectList::kMinSegmentSize / 2;
   return local_promoted_list_.PushSegmentSize() >=
          kProcessPromotedListThreshold;
 }
@@ -122,10 +123,10 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
   if (TryMigrateObject(
           map, slot, object, object_size, NEW_SPACE, kPromoteIntoLocalHeap,
-          [this, object_fields, object_size](Tagged<HeapObject> target) {
+          [this, map, object_fields, object_size](Tagged<HeapObject> target) {
             copied_size_ += object_size.value();
             if (object_fields == ObjectFields::kMaybePointers) {
-              local_copied_list_.Push(target);
+              local_copied_list_.Push({target, map, object_size});
             }
           })) {
     return CopyAndForwardResult::SUCCESS_YOUNG_GENERATION;
@@ -457,6 +458,8 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
 
  public:
   explicit ScavengeVisitor(Scavenger* scavenger);
+
+  V8_INLINE static constexpr bool UsePrecomputedObjectSize() { return true; }
 
   V8_INLINE void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                                ObjectSlot end) final;
