@@ -705,9 +705,9 @@ class MaglevGraphBuilder {
   std::optional<double> TryGetFloat64Constant(
       ValueNode* value, TaggedToFloat64ConversionType conversion_type);
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   std::optional<double> TryGetHoleyFloat64Constant(ValueNode* value);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
   // Get a Float64 representation node whose value is equivalent to the given
   // node.
@@ -1795,10 +1795,10 @@ class MaglevGraphBuilder {
                                                  ValueNode* node);
   BranchResult BuildBranchIfFloat64IsHole(BranchBuilder& builder,
                                           ValueNode* node);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   BranchResult BuildBranchIfFloat64IsUndefinedOrHole(BranchBuilder& builder,
                                                      ValueNode* node);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   BranchResult BuildBranchIfReferenceEqual(BranchBuilder& builder,
                                            ValueNode* lhs, ValueNode* rhs);
   BranchResult BuildBranchIfInt32Compare(BranchBuilder& builder, Operation op,

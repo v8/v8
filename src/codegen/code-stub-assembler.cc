@@ -3486,7 +3486,7 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
 
   BIND(&if_holey_double);
   {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     Label if_undefined(this);
     TNode<Float64T> float_value = LoadFixedDoubleArrayElement(
         CAST(elements), index, &if_undefined, if_hole);
@@ -3502,7 +3502,7 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
     var_result = AllocateHeapNumberWithValue(
         LoadFixedDoubleArrayElement(CAST(elements), index, nullptr, if_hole));
     Goto(&done);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   }
 
   BIND(&if_dictionary);
@@ -3532,7 +3532,7 @@ TNode<BoolT> CodeStubAssembler::IsDoubleHole(TNode<Object> base,
   }
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 TNode<BoolT> CodeStubAssembler::IsDoubleUndefined(TNode<Object> base,
                                                   TNode<IntPtrT> offset) {
   // TODO(ishell): Compare only the upper part for the hole once the
@@ -3558,9 +3558,9 @@ TNode<BoolT> CodeStubAssembler::IsDoubleUndefined(TNode<Float64T> value) {
     return Word32Equal(bits_upper, Int32Constant(kUndefinedNanUpper32));
   }
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 TNode<Float64T> CodeStubAssembler::LoadDoubleWithUndefinedAndHoleCheck(
     TNode<Object> base, TNode<IntPtrT> offset, Label* if_undefined,
     Label* if_hole, MachineType machine_type) {
@@ -3589,7 +3589,7 @@ TNode<Float64T> CodeStubAssembler::LoadDoubleWithUndefinedAndHoleCheck(
   }
   return UncheckedCast<Float64T>(Load(machine_type, base, offset));
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 TNode<ScopeInfo> CodeStubAssembler::LoadScopeInfo(TNode<Context> context) {
   return CAST(LoadContextElementNoCell(context, Context::SCOPE_INFO_INDEX));
@@ -4294,7 +4294,7 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   return var_tagged_length.value();
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
                                              TNode<FixedArrayBase> elements,
                                              TNode<BInt> index,
@@ -5948,7 +5948,7 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
           LoopUnrollingMode::kYes);
     } else {
       DCHECK_EQ(value_root_index, RootIndex::kUndefinedValue);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       BuildFastArrayForEach(
           array, kind, from_index, to_index,
           [this](TNode<HeapObject> array, TNode<IntPtrT> offset) {
@@ -6001,7 +6001,7 @@ void CodeStubAssembler::StoreDoubleHole(TNode<HeapObject> object,
   }
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void CodeStubAssembler::StoreDoubleUndefined(TNode<HeapObject> object,
                                              TNode<IntPtrT> offset) {
   TNode<UintPtrT> double_undefined =
@@ -6022,7 +6022,7 @@ void CodeStubAssembler::StoreDoubleUndefined(TNode<HeapObject> object,
                         double_undefined);
   }
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                                                   TNode<IntPtrT> index) {
@@ -6036,7 +6036,7 @@ void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
   StoreDoubleHole(array, offset);
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 template <typename TIndex>
   requires(std::is_same_v<TIndex, Smi> || std::is_same_v<TIndex, UintPtrT> ||
            std::is_same_v<TIndex, IntPtrT>)
@@ -6056,7 +6056,7 @@ void CodeStubAssembler::StoreFixedDoubleArrayUndefined(
 template V8_EXPORT_PRIVATE void
     CodeStubAssembler::StoreFixedDoubleArrayUndefined<Smi>(
         TNode<FixedDoubleArray>, TNode<Smi>);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::FillFixedArrayWithSmiZero(ElementsKind kind,
                                                   TNode<FixedArray> array,
@@ -6579,7 +6579,7 @@ TNode<Object> CodeStubAssembler::LoadElementAndPrepareForStore(
   CSA_DCHECK(this, IsFixedArrayWithKind(array, from_kind));
   DCHECK(!IsDoubleElementsKind(to_kind));
   if (IsDoubleElementsKind(from_kind)) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     Label if_undefined(this);
     Label done(this);
     TVARIABLE(Object, result);
@@ -6601,7 +6601,7 @@ TNode<Object> CodeStubAssembler::LoadElementAndPrepareForStore(
     TNode<Float64T> value = LoadDoubleWithUndefinedAndHoleCheck(
         array, offset, nullptr, if_hole, MachineType::Float64());
     return AllocateHeapNumberWithValue(value);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   } else {
     TNode<Object> value = Load<Object>(array, offset);
     if (if_hole) {
@@ -6780,18 +6780,18 @@ TNode<IntPtrT> CodeStubAssembler::TryTaggedToInt32AsIntPtr(
 
 TNode<Float64T> CodeStubAssembler::TryTaggedToFloat64(
     TNode<Object> value,
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     Label* if_valueisundefined,
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     Label* if_valueisnotnumber) {
   return Select<Float64T>(
       TaggedIsSmi(value), [&]() { return SmiToFloat64(CAST(value)); },
       [&]() {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
         if (if_valueisundefined) {
           GotoIf(IsUndefined(value), if_valueisundefined);
         }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         GotoIfNot(IsHeapNumber(CAST(value)), if_valueisnotnumber);
         return LoadHeapNumberValue(CAST(value));
       });
@@ -6814,9 +6814,9 @@ TNode<Float64T> CodeStubAssembler::TruncateTaggedToFloat64(
     // Convert {value} to Float64 if it is a number and convert it to a number
     // otherwise.
     var_result = TryTaggedToFloat64(value,
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
                                     nullptr,
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
                                     &if_valueisnotnumber);
     Goto(&done_loop);
 
@@ -14175,7 +14175,7 @@ void CodeStubAssembler::EmitElementStore(
   if (IsSmiElementsKind(elements_kind)) {
     GotoIfNot(TaggedIsSmi(value), bailout);
   } else if (IsDoubleElementsKind(elements_kind)) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     Label float_done(this), is_undefined(this);
     TVARIABLE(Float64T, float_var);
     TVARIABLE(BoolT, float_is_undefined_var, BoolConstant(false));
@@ -14201,7 +14201,7 @@ void CodeStubAssembler::EmitElementStore(
     float_is_undefined_value = float_is_undefined_var.value();
 #else
     float_value = TryTaggedToFloat64(value, bailout);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   }
 
   TNode<Smi> smi_length = Select<Smi>(
@@ -14249,12 +14249,12 @@ void CodeStubAssembler::EmitElementStore(
       StoreElement(elements, elements_kind, intptr_key, float_value.value());
       Goto(&store_done);
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       Bind(&store_undefined);
       StoreFixedDoubleArrayUndefined(
           TNode<FixedDoubleArray>::UncheckedCast(elements), intptr_key);
       Goto(&store_done);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
       Bind(&store_done);
     } else {
@@ -17221,7 +17221,7 @@ void CodeStubAssembler::GotoIfNotNumber(TNode<Object> input,
   BIND(&is_number);
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void CodeStubAssembler::GotoIfNotNumberOrUndefined(
     TNode<Object> input, Label* is_not_number_or_undefined) {
   Label is_number_or_undefined(this);
@@ -17237,7 +17237,7 @@ void CodeStubAssembler::GotoIfNumberOrUndefined(TNode<Object> input,
   GotoIf(IsHeapNumber(CAST(input)), is_number_or_undefined);
   GotoIf(IsUndefined(input), is_number_or_undefined);
 }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::GotoIfNumber(TNode<Object> input, Label* is_number) {
   GotoIf(TaggedIsSmi(input), is_number);

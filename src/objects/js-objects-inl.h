@@ -196,7 +196,7 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
       if (current == the_hole) {
         is_holey = true;
         target_kind = GetHoleyElementsKind(target_kind);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       } else if (IsUndefined(current)) {
         if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS) {
           if (IsSmiElementsKind(target_kind)) {
@@ -216,7 +216,7 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
         } else {
           target_kind = PACKED_ELEMENTS;
         }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
       } else if (!IsSmi(current)) {
         if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && IsNumber(current)) {
           if (IsSmiElementsKind(target_kind)) {

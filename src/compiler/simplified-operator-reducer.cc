@@ -167,30 +167,11 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kCheckedTaggedToArrayIndex:
-    case IrOpcode::kCheckedTaggedToInt32:
-    case IrOpcode::kCheckedTaggedSignedToInt32: {
-      NodeMatcher m(node->InputAt(0));
-      if (m.IsConvertTaggedHoleToUndefined()) {
-        node->ReplaceInput(0, m.InputAt(0));
-        return Changed(node);
-      }
-      break;
-    }
     case IrOpcode::kCheckIf: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.Is(factory()->true_value())) {
         Node* const effect = NodeProperties::GetEffectInput(node);
         return Replace(effect);
-      }
-      break;
-    }
-    case IrOpcode::kCheckNumberFitsInt32:
-    case IrOpcode::kCheckNumber: {
-      NodeMatcher m(node->InputAt(0));
-      if (m.IsConvertTaggedHoleToUndefined()) {
-        node->ReplaceInput(0, m.InputAt(0));
-        return Changed(node);
       }
       break;
     }
@@ -217,9 +198,6 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsCheckSmi()) {
         ReplaceWithValue(node, input);
         return Replace(input);
-      } else if (m.IsConvertTaggedHoleToUndefined()) {
-        node->ReplaceInput(0, m.InputAt(0));
-        return Changed(node);
       }
       break;
     }

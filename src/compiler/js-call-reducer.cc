@@ -175,13 +175,13 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Object> ConvertHoleToUndefined(TNode<Object> value, ElementsKind kind) {
     DCHECK(IsHoleyElementsKind(kind));
     if (kind == HOLEY_DOUBLE_ELEMENTS) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       return AddNode<Number>(graph()->NewNode(
           simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value));
 #else
       return AddNode<Number>(
           graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value));
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     }
     return ConvertTaggedHoleToUndefined(value);
   }
@@ -2044,7 +2044,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFilter(
 
   // The output array is packed (filter doesn't visit holes).
   ElementsKind filtered_kind = GetPackedElementsKind(kind);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
     // Array may contain double-encoded undefineds that may be preserved by
     // the filter operation, so the output has to be holey, too.
@@ -2053,7 +2053,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFilter(
     // encounter an undefined.
     filtered_kind = ElementsKind::HOLEY_DOUBLE_ELEMENTS;
   }
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   TNode<JSArray> a = AllocateEmptyJSArray(filtered_kind, native_context);
 
   TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
@@ -4288,12 +4288,12 @@ bool IsCallWithArrayLikeOrSpread(Node* node) {
 Node* JSCallReducer::ConvertHoleToUndefined(Node* value, ElementsKind kind) {
   DCHECK(IsHoleyElementsKind(kind));
   if (kind == HOLEY_DOUBLE_ELEMENTS) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     return graph()->NewNode(
         simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value);
 #else
     return graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   }
   return graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
 }

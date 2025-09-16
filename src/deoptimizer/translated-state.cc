@@ -664,9 +664,9 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
 
     case kHoleyDouble:
       if (double_value().is_hole_nan()
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
           || double_value().is_undefined_nan()
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
       ) {
         // Hole NaNs and undefined NaNs that made it to here represent the
         // undefined value.

@@ -460,8 +460,8 @@ declare_args() {
   # Use the experimental TSA-based definition for some builtins.
   v8_enable_experimental_tsa_builtins = false
 
-  # Use the experimental encoding of undefined in double values.
-  v8_enable_experimental_undefined_double = false
+  # Use the encoding of undefined in double values.
+  v8_enable_undefined_double = false
 
   v8_dcheck_always_on = dcheck_always_on
 
@@ -562,8 +562,7 @@ if (v8_multi_arch_build &&
     rebase_path(get_label_info(":d8", "root_out_dir"), root_build_dir) ==
     "clang_x64_fuzzer_experiments") {
   v8_enable_pointer_compression = !v8_enable_pointer_compression
-  v8_enable_experimental_undefined_double =
-      !v8_enable_experimental_undefined_double
+  v8_enable_undefined_double = !v8_enable_undefined_double
   v8_lower_limits_mode = !v8_lower_limits_mode
 }
 
@@ -1462,8 +1461,8 @@ config("features") {
   if (v8_enable_experimental_tsa_builtins) {
     defines += [ "V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS" ]
   }
-  if (v8_enable_experimental_undefined_double) {
-    defines += [ "V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE" ]
+  if (v8_enable_undefined_double) {
+    defines += [ "V8_ENABLE_UNDEFINED_DOUBLE" ]
   }
   if (v8_enable_leaptiering) {
     defines += [ "V8_ENABLE_LEAPTIERING" ]
@@ -3390,7 +3389,8 @@ if (v8_enable_temporal_support) {
   # we "bake" in a zoneinfo64.res binary for Temporal
   action("make_temporal_zoneinfo_cpp") {
     script = "tools/include-file-as-bytes.py"
-    inputs = [  get_label_info("//third_party/icu/", "dir") + "/tzres/zoneinfo64.res" ]
+    inputs = [ get_label_info("//third_party/icu/", "dir") +
+               "/tzres/zoneinfo64.res" ]
     outputs =
         [ "$target_gen_dir/src/builtins/builtins-temporal-zoneinfo64-data.cc" ]
     args = [

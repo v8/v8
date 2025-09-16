@@ -1258,7 +1258,7 @@ ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToMaybeNanFloat64() {
   return ProcessResult::kContinue;
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64ToHoleyFloat64() {
   // TODO(b/424157317): Optimize.
@@ -1288,7 +1288,7 @@ ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsHole() {
   return ProcessResult::kContinue;
 }
 
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 ProcessResult MaglevGraphOptimizer::VisitLogicalNot() {
   // TODO(b/424157317): Optimize.
@@ -1837,7 +1837,7 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64ToBooleanTrue() {
   return ProcessResult::kContinue;
 }
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64IsUndefinedOrHole() {
   // TODO(b/424157317): Optimize.

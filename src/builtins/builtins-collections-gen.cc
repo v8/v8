@@ -545,9 +545,9 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
   TNode<Float64T> element = LoadFixedDoubleArrayElement(
       CAST(elements), index, &if_hole_or_undefined, &if_hole_or_undefined);
   {  // not hole
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     CSA_DCHECK(this, Word32Equal(Int32Constant(0), IsDoubleUndefined(element)));
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     entry = AllocateHeapNumberWithValue(element);
     Goto(&next);
   }
