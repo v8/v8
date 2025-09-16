@@ -2775,19 +2775,14 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     //  -- rbx : the number of [[BoundArguments]] (checked to be non-zero)
     // -----------------------------------
 
-    // TODO(victor): Use Generate_StackOverflowCheck here.
     // Check the stack for overflow.
     {
+      Label stack_overflow;
+      __ StackOverflowCheck(rbx, &stack_overflow, Label::kNear);
       Label done;
-      __ shlq(rbx, Immediate(kSystemPointerSizeLog2));
-      __ movq(kScratchRegister, rsp);
-      __ subq(kScratchRegister, rbx);
+      __ jmp(&done, Label::kNear);
 
-      // We are not trying to catch interruptions (i.e. debug break and
-      // preemption) here, so check the "real stack limit".
-      __ cmpq(kScratchRegister,
-              __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
-      __ j(above_equal, &done, Label::kNear);
+      __ bind(&stack_overflow);
       {
         FrameScope scope(masm, StackFrame::MANUAL);
         __ EnterFrame(StackFrame::INTERNAL);
@@ -2803,10 +2798,6 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Push [[BoundArguments]] to the stack.
     {
       Label loop;
-      __ LoadTaggedField(
-          rcx, FieldOperand(rdi, JSBoundFunction::kBoundArgumentsOffset));
-      __ SmiUntagFieldUnsigned(
-          rbx, FieldOperand(rcx, offsetof(FixedArray, length_)));
       __ addq(rax, rbx);  // Adjust effective number of arguments.
       __ bind(&loop);
       // Instead of doing decl(rbx) here subtract kTaggedSize from the header
