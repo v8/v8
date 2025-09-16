@@ -55,13 +55,24 @@ bool MarkingVisitorBase<ConcreteVisitor>::MarkObject(
                                        target_worklist, object);
 }
 
-// class template arguments
 template <typename ConcreteVisitor>
-// method template arguments
 template <typename THeapObjectSlot>
 void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
     Tagged<HeapObject> host, THeapObjectSlot slot,
     Tagged<HeapObject> heap_object) {
+  // The general sequence for making sure that only published objects are
+  // accessed for marking is as follows:
+  // 0. Smi check and HeapObject cast (done by the caller of this method)
+  // 1. Synchronizing page access for TSAN builds. Regular builds use a full
+  //    fence which is unknown to TSAN though. See
+  //    `MemoryChunk::InitializationMemoryFence()`.
+  // 2. At this point page flags are consistent and can be checked.
+  //    `MarkingHelper::ShouldMarkObject()` bails out for objects in RO space or
+  //    on black-allocated pages. This is important as objects on
+  //    black-allocated pages may show up in the marker without being properly
+  //    published by just using non-publishing setters and write barriers.
+  // 3. At this point the object may be looked at for processing or e.g. casts
+  //    that actually check instance types.
   SynchronizePageAccess(heap_object);
   const auto target_worklist =
       MarkingHelper::ShouldMarkObject(heap_, heap_object);
@@ -352,14 +363,17 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
       js_function->Relaxed_ReadField<JSDispatchHandle::underlying_type>(
           JSFunction::kDispatchHandleOffset));
   if (handle != kNullJSDispatchHandle) {
-    Tagged<HeapObject> obj =
-        IsolateGroup::current()->js_dispatch_table()->GetCodeForGC(handle);
-    // TODO(saelo): maybe factor out common code with VisitIndirectPointer
-    // into a helper routine?
-    SynchronizePageAccess(obj);
-    const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, obj);
+    // See `ProcessStrongHeapObject()` for synchronization details.
+    Tagged<HeapObject> code =
+        Tagged<Object>(
+            IsolateGroup::current()->js_dispatch_table()->GetCodePointerForGC(
+                handle))
+            .GetHeapObjectAssumeStrong();
+    SynchronizePageAccess(code);
+    const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, code);
     if (target_worklist) {
-      MarkObject(js_function, obj, target_worklist.value());
+      DCHECK(IsCode(code));
+      MarkObject(js_function, code, target_worklist.value());
     }
   }
 #else
@@ -826,29 +840,31 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
 
   // If the descriptors are a Smi, then this Map is in the process of being
   // deserialized, and doesn't yet have an initialized descriptor field.
-  if (IsSmi(maybe_descriptors)) {
+  Tagged<HeapObject> descriptors_as_heap_object;
+  if (!maybe_descriptors.GetHeapObjectIfStrong(&descriptors_as_heap_object)) {
     DCHECK_EQ(maybe_descriptors, Smi::uninitialized_deserialization_value());
+    return;
+  }
+  // We cannot cast to the DescriptorArray here because the cast would check
+  // that we are indeed dealing with a trusted object. See
+  // `ProcessStrongHeapObject()` for synchronization details.
+  SynchronizePageAccess(descriptors_as_heap_object);
+  const auto maybe_worklist =
+      MarkingHelper::ShouldMarkObject(heap_, descriptors_as_heap_object);
+  if (!maybe_worklist.has_value()) {
+    DCHECK(!HeapLayout::InWritableSharedSpace(descriptors_as_heap_object));
     return;
   }
 
   Tagged<DescriptorArray> descriptors =
-      Cast<DescriptorArray>(maybe_descriptors);
-  // Synchronize reading of page flags for tsan.
-  SynchronizePageAccess(descriptors);
-  // Normal processing of descriptor arrays through the pointers iteration that
-  // follows this call:
-  // - Array in read only space;
-  // - Array in a black allocated page;
-  // - StrongDescriptor array;
-  if (HeapLayout::InReadOnlySpace(descriptors) ||
-      IsStrongDescriptorArray(descriptors)) {
+      Cast<DescriptorArray>(descriptors_as_heap_object);
+
+  if (IsStrongDescriptorArray(descriptors)) {
     return;
   }
 
-  if (v8_flags.black_allocated_pages &&
-      HeapLayout::InBlackAllocatedPage(descriptors)) {
-    return;
-  }
+  // At this point we know that we are dealing with a regular weak descriptor
+  // array that has been properly synchronized.
 
   const int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors) {

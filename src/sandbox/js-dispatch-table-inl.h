@@ -63,14 +63,6 @@ Tagged<Code> JSDispatchEntry::GetCode() const {
   return TrustedCast<Code>(Tagged<Object>(GetCodePointer()));
 }
 
-Tagged<Code> JSDispatchEntry::GetCodeForGC() const {
-  const Address code_address = GetCodePointer();
-#ifdef THREAD_SANITIZER
-  MemoryChunk::FromAddress(code_address)->SynchronizedLoad();
-#endif
-  return TrustedCast<Code>(Tagged<Object>(code_address));
-}
-
 uint16_t JSDispatchEntry::GetParameterCount() const {
   // Loading a pointer out of a freed entry will always result in an invalid
   // pointer (e.g. upper bits set or nullptr). However, here we're just loading
@@ -91,9 +83,9 @@ Tagged<Code> JSDispatchTable::GetCode(JSDispatchHandle handle) {
   return at(index).GetCode();
 }
 
-Tagged<Code> JSDispatchTable::GetCodeForGC(JSDispatchHandle handle) {
-  uint32_t index = HandleToIndex(handle);
-  return at(index).GetCodeForGC();
+Address JSDispatchTable::GetCodePointerForGC(JSDispatchHandle handle) {
+  const uint32_t index = HandleToIndex(handle);
+  return at(index).GetCodePointer();
 }
 
 void JSDispatchTable::SetCodeNoWriteBarrier(JSDispatchHandle handle,
