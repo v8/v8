@@ -109,6 +109,7 @@ class Decoder {
   void PrintRvvUimm5(Instruction* instr);
   void PrintRoundingMode(Instruction* instr);
   void PrintMemoryOrder(Instruction* instr, bool is_pred);
+  void PrintMopNumber(Instruction* instr);
 
   // Each of these functions decodes one particular instruction type.
   void DecodeRType(Instruction* instr);
@@ -500,6 +501,12 @@ void Decoder::PrintMemoryOrder(Instruction* instr, bool is_pred) {
       base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
 }
 
+void Decoder::PrintMopNumber(Instruction* instr) {
+  int mop_number = instr->MopNumber();
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%02d", mop_number);
+}
+
 // Printing of instruction name.
 void Decoder::PrintInstructionName(Instruction* instr) {}
 
@@ -838,6 +845,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       DCHECK(STRING_STARTS_WITH(format, "target"));
       PrintTarget(instr);
       return 6;
+    }
+    case 'm': {  // 'mop: print MOP instr number
+      DCHECK(STRING_STARTS_WITH(format, "mop"));
+      PrintMopNumber(instr);
+      return 3;
     }
   }
   UNREACHABLE();
@@ -1874,6 +1886,15 @@ void Decoder::DecodeIType(Instruction* instr) {
         Format(instr, "ebreak");
       } else {
         UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_MOP: {
+      if ((instr->InstructionBits() & kMopMask) == RO_MOP_R_N) {
+        Format(instr, "mop.r.'mop  'rd, 'rs1");
+      } else {
+        CHECK((instr->InstructionBits() & kMopMask) == RO_MOP_RR_N);
+        Format(instr, "mop.rr.'mop 'rd, 'rs1, 'rs2");
       }
       break;
     }

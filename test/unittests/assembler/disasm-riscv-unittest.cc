@@ -281,6 +281,15 @@ TEST_F(DisasmRiscvTest, ZICOND) {
   VERIFY_RUN();
 }
 
+TEST_F(DisasmRiscvTest, ZIMOP) {
+  SET_UP();
+
+  COMPARE(mop_r(10, s1, t3), "89ee44f3       mop.r.10  s1, t3");
+  COMPARE(mop_rr(5, a1, t1, t2), "c67345f3       mop.rr.05 a1, t1, t2");
+
+  VERIFY_RUN();
+}
+
 #ifdef V8_TARGET_ARCH_RISCV64
 TEST_F(DisasmRiscvTest, RV64I) {
   SET_UP();

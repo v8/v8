@@ -59,6 +59,7 @@
 #include "src/codegen/riscv/extension-riscv-zicond.h"
 #include "src/codegen/riscv/extension-riscv-zicsr.h"
 #include "src/codegen/riscv/extension-riscv-zifencei.h"
+#include "src/codegen/riscv/extension-riscv-zimop.h"
 #include "src/codegen/riscv/register-riscv.h"
 #include "src/common/code-memory-access.h"
 #include "src/objects/contexts.h"
@@ -184,6 +185,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                     public AssemblerRISCVZifencei,
                                     public AssemblerRISCVZicsr,
                                     public AssemblerRISCVZicond,
+                                    public AssemblerRISCVZimop,
                                     public AssemblerRISCVZfh,
                                     public AssemblerRISCVV {
  public:

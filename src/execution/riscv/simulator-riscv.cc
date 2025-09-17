@@ -5506,6 +5506,15 @@ void Simulator::DecodeRVIType() {
       }
       break;
     }
+    case RO_MOP: {
+      if ((instr_.InstructionBits() & kMopMask) == RO_MOP_R_N) {
+        set_rd(0);
+      } else {
+        CHECK((instr_.InstructionBits() & kMopMask) == RO_MOP_RR_N);
+        set_rd(0);
+      }
+      break;
+    }
       // TODO(riscv): use Zifencei Standard Extension macro block
     case RO_FENCE_I: {
       // spike: flush icache.

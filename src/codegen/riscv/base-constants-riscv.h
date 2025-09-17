@@ -431,6 +431,7 @@ const uint32_t kImm12Mask = ((1 << kImm12Bits) - 1) << kImm12Shift;
 const uint32_t kImm11Mask = ((1 << kImm11Bits) - 1) << kImm11Shift;
 const uint32_t kImm31_12Mask = ((1 << 20) - 1) << 12;
 const uint32_t kImm19_0Mask = ((1 << 20) - 1);
+const uint32_t kMopMask = kITypeMask | 0b1 << 31 | 0b11 << 28 | 0b1 << 25;
 
 const int kNopByte = 0x00000013;
 // Original MIPS constants
@@ -1181,6 +1182,8 @@ class InstructionGetters : public T {
   uint32_t Rvvzimm() const;
 
   uint32_t Rvvuimm() const;
+
+  uint32_t MopNumber();
 
   inline uint32_t RvvVsew() const {
     uint32_t zimm = this->Rvvzimm();
