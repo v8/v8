@@ -302,13 +302,6 @@ class KnownNodeAspects {
     if (IsValid(info_it)) return &info_it->second;
     auto res = &node_infos_.emplace(node, NodeInfo()).first->second;
     res->IntersectType(node->GetStaticType(broker));
-    if (auto alloc = node->TryCast<InlinedAllocation>()) {
-      if (alloc->object()->has_static_map()) {
-        compiler::MapRef map = alloc->object()->map();
-        res->SetPossibleMaps(PossibleMaps{map}, !map.is_stable(),
-                             StaticTypeForMap(map, broker), broker);
-      }
-    }
     return res;
   }
 
@@ -319,20 +312,6 @@ class KnownNodeAspects {
         return info->possible_maps();
       }
       return {};
-    }
-    if (auto alloc = node->TryCast<InlinedAllocation>()) {
-      auto* object = virtual_objects_.FindAllocatedWith(alloc);
-      if (object == nullptr) {
-        // If the object is not found, it means the VO list was snapshotted
-        // before this specific VO was created. This can occur during non-eager
-        // inlining when a VO from a different inlining operation leaks into the
-        // current scope.
-        DCHECK(alloc->is_returned_value_from_inline_call());
-        return {};
-      }
-      if (object->has_static_map()) {
-        return PossibleMaps{object->map()};
-      }
     }
     return {};
   }
