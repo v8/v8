@@ -3005,9 +3005,9 @@ class GraphBuildingNodeProcessor {
       }
     }
 
-    GOTO(done,
-         __ CallBuiltin_ToString(isolate_, frame_state, Map(node->context()),
-                                 value, ShouldLazyDeoptOnThrow(node)));
+    GOTO(done, __ template CallBuiltin<builtin::ToString>(
+                   frame_state, Map(node->context()), {.o = value},
+                   ShouldLazyDeoptOnThrow(node)));
 
     BIND(done, result);
     SetMap(node, result);
@@ -3017,8 +3017,8 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     NoThrowingScopeRequired no_throws(node);
 
-    SetMap(node,
-           __ CallBuiltin_NumberToString(isolate_, Map(node->value_input())));
+    SetMap(node, __ template CallBuiltin<builtin::NumberToString>(
+                     {.input = Map(node->value_input())}));
     return maglev::ProcessResult::kContinue;
   }
 

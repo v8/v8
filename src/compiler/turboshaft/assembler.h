@@ -3732,7 +3732,7 @@ class TurboshaftAssemblerOpInterface
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
     }
-    auto arguments = args.ToVector();
+    auto arguments = builtin::ArgumentsToVector(args);
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
     return result_t::Cast(CallBuiltinImpl(
@@ -3752,7 +3752,7 @@ class TurboshaftAssemblerOpInterface
       return result_t::Invalid();
     }
     DCHECK(context.valid());
-    auto arguments = args.ToVector();
+    auto arguments = builtin::ArgumentsToVector(args);
     arguments.push_back(context);
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
@@ -3777,7 +3777,7 @@ class TurboshaftAssemblerOpInterface
     bool compiling_builtins =
         Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
     DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
-    auto arguments = args.ToVector();
+    auto arguments = builtin::ArgumentsToVector(args);
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
     return result_t::Cast(CallBuiltinImpl(
@@ -3802,7 +3802,7 @@ class TurboshaftAssemblerOpInterface
     bool compiling_builtins =
         Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
     DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
-    auto arguments = args.ToVector();
+    auto arguments = builtin::ArgumentsToVector(args);
     arguments.push_back(context);
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
@@ -3825,7 +3825,7 @@ class TurboshaftAssemblerOpInterface
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
     }
-    auto arguments = args.ToVector();
+    auto arguments = builtin::ArgumentsToVector(args);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
     return result_t::Cast(Call(call_target,
                                OptionalV<turboshaft::FrameState>::Nullopt(),
@@ -3845,7 +3845,7 @@ class TurboshaftAssemblerOpInterface
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
     }
-    auto arguments = args.ToVector();
+    auto arguments = builtin::ArgumentsToVector(args);
     arguments.push_back(context);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
     return result_t::Cast(Call(call_target,
@@ -3867,91 +3867,10 @@ class TurboshaftAssemblerOpInterface
                 effects);
   }
 
-  V<String> CallBuiltin_NumberToString(Isolate* isolate, V<Number> input) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::NumberToString>(isolate,
-                                                                    {input});
-  }
-  V<String> CallBuiltin_ToString(Isolate* isolate,
-                                 V<turboshaft::FrameState> frame_state,
-                                 V<Context> context, V<Object> input,
-                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToString>(
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
-  }
-  V<Number> CallBuiltin_PlainPrimitiveToNumber(Isolate* isolate,
-                                               V<PlainPrimitive> input) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::PlainPrimitiveToNumber>(
-        isolate, {input});
-  }
-  V<Boolean> CallBuiltin_SameValue(Isolate* isolate, V<Object> left,
-                                   V<Object> right) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::SameValue>(
-        isolate, {left, right});
-  }
-  V<Boolean> CallBuiltin_SameValueNumbersOnly(Isolate* isolate, V<Object> left,
-                                              V<Object> right) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::SameValueNumbersOnly>(
-        isolate, {left, right});
-  }
-  V<String> CallBuiltin_StringAdd_CheckNone(Isolate* isolate,
-                                            V<Context> context, V<String> left,
-                                            V<String> right) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::StringAdd_CheckNone>(
-        isolate, context, {left, right});
-  }
-  V<Boolean> CallBuiltin_StringEqual(Isolate* isolate, V<String> left,
-                                     V<String> right, V<WordPtr> length) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::StringEqual>(
-        isolate, {left, right, length});
-  }
-  V<Boolean> CallBuiltin_StringLessThan(Isolate* isolate, V<String> left,
-                                        V<String> right) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::StringLessThan>(
-        isolate, {left, right});
-  }
-  V<Boolean> CallBuiltin_StringLessThanOrEqual(Isolate* isolate, V<String> left,
-                                               V<String> right) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::StringLessThanOrEqual>(
-        isolate, {left, right});
-  }
-  V<Smi> CallBuiltin_StringIndexOf(Isolate* isolate, V<String> string,
-                                   V<String> search, V<Smi> position) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::StringIndexOf>(
-        isolate, {string, search, position});
-  }
-  V<String> CallBuiltin_StringFromCodePointAt(Isolate* isolate,
-                                              V<String> string,
-                                              V<WordPtr> index) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::StringFromCodePointAt>(
-        isolate, {string, index});
-  }
-#ifdef V8_INTL_SUPPORT
-  V<String> CallBuiltin_StringToLowerCaseIntl(Isolate* isolate,
-                                              V<Context> context,
-                                              V<String> string) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::StringToLowerCaseIntl>(
-        isolate, context, {string});
-  }
-#endif  // V8_INTL_SUPPORT
   V<Number> CallBuiltin_StringToNumber(Isolate* isolate, V<String> input) {
     return CallBuiltin<
         typename deprecated::BuiltinCallDescriptor::StringToNumber>(isolate,
                                                                     {input});
-  }
-  V<String> CallBuiltin_StringSubstring(Isolate* isolate, V<String> string,
-                                        V<WordPtr> start, V<WordPtr> end) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::StringSubstring>(
-        isolate, {string, start, end});
   }
   V<Boolean> CallBuiltin_ToBoolean(Isolate* isolate, V<Object> object) {
     return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToBoolean>(

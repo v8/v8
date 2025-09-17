@@ -70,22 +70,21 @@ struct builtin {
 
   static constexpr OpEffects base_effects = OpEffects().CanDependOnChecks();
 
+  template <typename A>
+  static arguments_vector_t ArgumentsToVector(const A& args) {
+    arguments_vector_t result;
+    args.CollectArguments(result, detail::IndexTag<0>{});
+    return result;
+  }
+
+  template <typename A>
+  static constexpr size_t GetArgumentCount() {
+    return decltype(A::index_counter(
+        detail::IndexTag<kMaxArgumentCount>{}))::value;
+  }
+
   template <typename Derived>
   struct Descriptor {
-    struct ArgumentsBase {
-      arguments_vector_t ToVector() const {
-        arguments_vector_t result;
-        static_cast<const Derived::Arguments*>(this)->CollectArguments(
-            result, detail::IndexTag<0>{});
-        return result;
-      }
-
-      static constexpr size_t GetArgumentCount() {
-        return decltype(Derived::Arguments::index_counter(
-            detail::IndexTag<kMaxArgumentCount>{}))::value;
-      }
-    };
-
     static const TSCallDescriptor* Create(
         StubCallMode call_mode, Zone* zone,
         LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo,
@@ -118,7 +117,8 @@ struct builtin {
       // Verify argument types.
       using arguments_t = decltype(Derived::Arguments::make_args_type_list_n(
           detail::IndexTag<kMaxArgumentCount>{}));
-      const size_t arguments_count = Derived::Arguments::GetArgumentCount();
+      const size_t arguments_count =
+          builtin::GetArgumentCount<typename Derived::Arguments>();
       DCHECK_EQ(base::tmp::length_v<arguments_t>, arguments_count);
       DCHECK_EQ(desc->ParameterCount(),
                 arguments_count + (Derived::kNeedsContext ? 1 : 0));
@@ -167,7 +167,7 @@ struct builtin {
 
   struct BigIntAdd : public Descriptor<BigIntAdd> {
     static constexpr auto kFunction = Builtin::kBigIntAdd;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<Numeric>, left)
       ARG(V<Numeric>, right)
     };
@@ -181,7 +181,7 @@ struct builtin {
 
   struct CheckTurbofanType : public Descriptor<CheckTurbofanType> {
     static constexpr auto kFunction = Builtin::kCheckTurbofanType;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<Object>, value)
       ARG(V<TurbofanType>, expected_type)
       ARG(V<Smi>, node_id)
@@ -199,7 +199,7 @@ struct builtin {
 #define DECL_GENERIC_BINOP(Name)                                          \
   struct Name : public Descriptor<Name> {                                 \
     static constexpr auto kFunction = Builtin::k##Name;                   \
-    struct Arguments : public ArgumentsBase {                             \
+    struct Arguments {                                                    \
       ARG(V<Object>, left)                                                \
       ARG(V<Object>, right)                                               \
     };                                                                    \
@@ -217,7 +217,7 @@ struct builtin {
 #define DECL_GENERIC_UNOP(Name)                                           \
   struct Name : public Descriptor<Name> {                                 \
     static constexpr auto kFunction = Builtin::k##Name;                   \
-    struct Arguments : public ArgumentsBase {                             \
+    struct Arguments {                                                    \
       ARG(V<Object>, input)                                               \
     };                                                                    \
     using returns_t = std::tuple<V<Object>>;                              \
@@ -233,7 +233,7 @@ struct builtin {
 
   struct DetachContextCell : public Descriptor<DetachContextCell> {
     static constexpr auto kFunction = Builtin::kDetachContextCell;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<Context>, the_context)
       ARG(V<Object>, new_value)
       ARG(V<WordPtr>, i)
@@ -249,7 +249,7 @@ struct builtin {
 
   struct ToNumber : public Descriptor<ToNumber> {
     static constexpr auto kFunction = Builtin::kToNumber;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<Object>, input)
     };
     using returns_t = std::tuple<V<Number>>;
@@ -262,7 +262,7 @@ struct builtin {
 
   struct NonNumberToNumber : public Descriptor<NonNumberToNumber> {
     static constexpr auto kFunction = Builtin::kNonNumberToNumber;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<JSAnyNotNumber>, input)
     };
     using returns_t = std::tuple<V<Number>>;
@@ -275,7 +275,7 @@ struct builtin {
 
   struct ToNumeric : public Descriptor<ToNumeric> {
     static constexpr auto kFunction = Builtin::kToNumeric;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<Object>, input)
     };
     using returns_t = std::tuple<V<Numeric>>;
@@ -288,7 +288,7 @@ struct builtin {
 
   struct NonNumberToNumeric : public Descriptor<NonNumberToNumeric> {
     static constexpr auto kFunction = Builtin::kNonNumberToNumeric;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<JSAnyNotNumber>, input)
     };
     using returns_t = std::tuple<V<Numeric>>;
@@ -302,7 +302,7 @@ struct builtin {
   struct CopyFastSmiOrObjectElements
       : public Descriptor<CopyFastSmiOrObjectElements> {
     static constexpr auto kFunction = Builtin::kCopyFastSmiOrObjectElements;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<Object>, object)
     };
     using returns_t = std::tuple<V<Object>>;
@@ -319,8 +319,7 @@ struct builtin {
     static constexpr auto kFunction = B;
     using StringOrSmi = Union<String, Smi>;
     // We use smi:0 for an empty label.
-    using ArgumentsBase = Descriptor<DebugPrint<B, Input>>::ArgumentsBase;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<StringOrSmi>, label_or_0)
       ARG(V<Input>, value)
     };
@@ -342,8 +341,7 @@ struct builtin {
   template <Builtin B>
   struct FindOrderedHashEntry : public Descriptor<FindOrderedHashEntry<B>> {
     static constexpr auto kFunction = B;
-    using ArgumentsBase = Descriptor<FindOrderedHashEntry<B>>::ArgumentsBase;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<Object>, table)
       ARG(V<Smi>, key)
     };
@@ -363,8 +361,7 @@ struct builtin {
   template <Builtin B>
   struct GrowFastElements : public Descriptor<GrowFastElements<B>> {
     static constexpr auto kFunction = B;
-    using ArgumentsBase = Descriptor<GrowFastElements<B>>::ArgumentsBase;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       ARG(V<Object>, object)
       ARG(V<Smi>, size)
     };
@@ -384,8 +381,7 @@ struct builtin {
   template <Builtin B>
   struct NewArgumentsElements : public Descriptor<NewArgumentsElements<B>> {
     static constexpr auto kFunction = B;
-    using ArgumentsBase = Descriptor<NewArgumentsElements<B>>::ArgumentsBase;
-    struct Arguments : public ArgumentsBase {
+    struct Arguments {
       // TODO(nicohartmann@): First argument should be replaced by a proper
       // RawPtr.
       ARG(V<WordPtr>, frame)
@@ -405,6 +401,212 @@ struct builtin {
       NewArgumentsElements<Builtin::kNewStrictArgumentsElements>;
   using NewRestArgumentsElements =
       NewArgumentsElements<Builtin::kNewRestArgumentsElements>;
+
+  struct NumberToString : public Descriptor<NumberToString> {
+    static constexpr auto kFunction = Builtin::kNumberToString;
+    struct Arguments {
+      ARG(V<Number>, input)
+    };
+    using returns_t = std::tuple<V<String>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+  struct ToString : public Descriptor<ToString> {
+    static constexpr auto kFunction = Builtin::kToString;
+    struct Arguments {
+      ARG(V<Object>, o)
+    };
+    using returns_t = std::tuple<V<String>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct PlainPrimitiveToNumber : public Descriptor<PlainPrimitiveToNumber> {
+    static constexpr auto kFunction = Builtin::kPlainPrimitiveToNumber;
+    struct Arguments {
+      ARG(V<PlainPrimitive>, input)
+    };
+    using returns_t = std::tuple<V<Number>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+  struct SameValue : public Descriptor<SameValue> {
+    static constexpr auto kFunction = Builtin::kSameValue;
+    struct Arguments {
+      ARG(V<Object>, left)
+      ARG(V<Object>, right)
+    };
+    using returns_t = std::tuple<V<Boolean>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocate();
+  };
+
+  struct SameValueNumbersOnly : public Descriptor<SameValueNumbersOnly> {
+    static constexpr auto kFunction = Builtin::kSameValueNumbersOnly;
+    struct Arguments {
+      ARG(V<Object>, left)
+      ARG(V<Object>, right)
+    };
+    using returns_t = std::tuple<V<Boolean>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+  };
+
+  struct StringAdd_CheckNone : public Descriptor<StringAdd_CheckNone> {
+    static constexpr auto kFunction = Builtin::kStringAdd_CheckNone;
+    struct Arguments {
+      ARG(V<String>, left)
+      ARG(V<String>, right)
+    };
+    using returns_t = std::tuple<V<String>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoWrite;
+    // This will only write in a fresh object, so the writes are not visible
+    // from Turboshaft, and CanAllocate is enough.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+  struct StringEqual : public Descriptor<StringEqual> {
+    static constexpr auto kFunction = Builtin::kStringEqual;
+    struct Arguments {
+      ARG(V<String>, left)
+      ARG(V<String>, right)
+      ARG(V<WordPtr>, length)
+    };
+    using returns_t = std::tuple<V<Boolean>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    // If the strings aren't flat, StringEqual could flatten them, which will
+    // allocate new strings.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+  struct StringFromCodePointAt : public Descriptor<StringFromCodePointAt> {
+    static constexpr auto kFunction = Builtin::kStringFromCodePointAt;
+    struct Arguments {
+      ARG(V<String>, receiver)
+      ARG(V<WordPtr>, position)
+    };
+    using returns_t = std::tuple<V<String>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+  struct StringIndexOf : public Descriptor<StringIndexOf> {
+    static constexpr auto kFunction = Builtin::kStringIndexOf;
+    struct Arguments {
+      ARG(V<String>, s)
+      ARG(V<String>, search_string)
+      ARG(V<Smi>, start)
+    };
+    using returns_t = std::tuple<V<Smi>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    // StringIndexOf does a ToString on the receiver, which can allocate a new
+    // string.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+  struct StringCompare : public Descriptor<StringCompare> {
+    static constexpr auto kFunction = Builtin::kStringCompare;
+    struct Arguments {
+      ARG(V<String>, left)
+      ARG(V<String>, right)
+    };
+    using returns_t = std::tuple<V<Smi>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+  template <Builtin B>
+  struct StringComparison : public Descriptor<StringComparison<B>> {
+    static constexpr auto kFunction = B;
+    struct Arguments {
+      ARG(V<String>, left)
+      ARG(V<String>, right)
+    };
+    using returns_t = std::tuple<V<Boolean>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+  using StringLessThan = StringComparison<Builtin::kStringLessThan>;
+  using StringLessThanOrEqual =
+      StringComparison<Builtin::kStringLessThanOrEqual>;
+
+  struct StringSubstring : public Descriptor<StringSubstring> {
+    static constexpr auto kFunction = Builtin::kStringSubstring;
+    struct Arguments {
+      ARG(V<String>, string)
+      ARG(V<WordPtr>, from)
+      ARG(V<WordPtr>, to)
+    };
+    using returns_t = std::tuple<V<String>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+#ifdef V8_INTL_SUPPORT
+  struct StringToLowerCaseIntl : public Descriptor<StringToLowerCaseIntl> {
+    static constexpr auto kFunction = Builtin::kStringToLowerCaseIntl;
+    struct Arguments {
+      ARG(V<String>, string)
+    };
+    using returns_t = std::tuple<V<String>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+#endif  // V8_INTL_SUPPORT
 };
 
 // TODO(nicohartmann): These call descriptors are deprecated and shall be
@@ -497,79 +699,6 @@ struct BuiltinCallDescriptor {
   using Never = std::tuple<OpIndex>;
 
  public:
-  struct NumberToString : public Descriptor<NumberToString> {
-    static constexpr auto kFunction = Builtin::kNumberToString;
-    using arguments_t = std::tuple<V<Number>>;
-    using results_t = std::tuple<V<String>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-
-  struct ToString : public Descriptor<ToString> {
-    static constexpr auto kFunction = Builtin::kToString;
-    using arguments_t = std::tuple<V<Object>>;
-    using results_t = std::tuple<V<String>>;
-
-    static constexpr bool kNeedsFrameState = true;
-    static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
-  };
-
-  struct PlainPrimitiveToNumber : public Descriptor<PlainPrimitiveToNumber> {
-    static constexpr auto kFunction = Builtin::kPlainPrimitiveToNumber;
-    using arguments_t = std::tuple<V<PlainPrimitive>>;
-    using results_t = std::tuple<V<Number>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-
-  struct SameValue : public Descriptor<SameValue> {
-    static constexpr auto kFunction = Builtin::kSameValue;
-    using arguments_t = std::tuple<V<Object>, V<Object>>;
-    using results_t = std::tuple<V<Boolean>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocate();
-  };
-
-  struct SameValueNumbersOnly : public Descriptor<SameValueNumbersOnly> {
-    static constexpr auto kFunction = Builtin::kSameValueNumbersOnly;
-    using arguments_t = std::tuple<V<Object>, V<Object>>;
-    using results_t = std::tuple<V<Boolean>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
-  };
-
-  struct StringAdd_CheckNone : public Descriptor<StringAdd_CheckNone> {
-    static constexpr auto kFunction = Builtin::kStringAdd_CheckNone;
-    using arguments_t = std::tuple<V<String>, V<String>>;
-    using results_t = std::tuple<V<String>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoWrite;
-    // This will only write in a fresh object, so the writes are not visible
-    // from Turboshaft, and CanAllocate is enough.
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-
 #if V8_ENABLE_WEBASSEMBLY
   struct WasmStringAdd_CheckNone : public Descriptor<WasmStringAdd_CheckNone> {
     static constexpr auto kFunction = Builtin::kWasmStringAdd_CheckNone;
@@ -586,101 +715,6 @@ struct BuiltinCallDescriptor {
         base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 #endif
-
-  struct StringEqual : public Descriptor<StringEqual> {
-    static constexpr auto kFunction = Builtin::kStringEqual;
-    using arguments_t = std::tuple<V<String>, V<String>, V<WordPtr>>;
-    using results_t = std::tuple<V<Boolean>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    // If the strings aren't flat, StringEqual could flatten them, which will
-    // allocate new strings.
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-
-  struct StringFromCodePointAt : public Descriptor<StringFromCodePointAt> {
-    static constexpr auto kFunction = Builtin::kStringFromCodePointAt;
-    using arguments_t = std::tuple<V<String>, V<WordPtr>>;
-    using results_t = std::tuple<V<String>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-
-  struct StringIndexOf : public Descriptor<StringIndexOf> {
-    static constexpr auto kFunction = Builtin::kStringIndexOf;
-    using arguments_t = std::tuple<V<String>, V<String>, V<Smi>>;
-    using results_t = std::tuple<V<Smi>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    // StringIndexOf does a ToString on the receiver, which can allocate a new
-    // string.
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-
-  struct StringCompare : public Descriptor<StringCompare> {
-    static constexpr auto kFunction = Builtin::kStringCompare;
-    using arguments_t = std::tuple<V<String>, V<String>>;
-    using results_t = std::tuple<V<Smi>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-
-  template <Builtin B>
-  struct StringComparison : public Descriptor<StringComparison<B>> {
-    static constexpr auto kFunction = B;
-    using arguments_t = std::tuple<V<String>, V<String>>;
-    using results_t = std::tuple<V<Boolean>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-  using StringLessThan = StringComparison<Builtin::kStringLessThan>;
-  using StringLessThanOrEqual =
-      StringComparison<Builtin::kStringLessThanOrEqual>;
-
-  struct StringSubstring : public Descriptor<StringSubstring> {
-    static constexpr auto kFunction = Builtin::kStringSubstring;
-    using arguments_t = std::tuple<V<String>, V<WordPtr>, V<WordPtr>>;
-    using results_t = std::tuple<V<String>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-
-#ifdef V8_INTL_SUPPORT
-  struct StringToLowerCaseIntl : public Descriptor<StringToLowerCaseIntl> {
-    static constexpr auto kFunction = Builtin::kStringToLowerCaseIntl;
-    using arguments_t = std::tuple<V<String>>;
-    using results_t = std::tuple<V<String>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
-  };
-#endif  // V8_INTL_SUPPORT
 
 #if V8_ENABLE_WEBASSEMBLY
   struct WasmJSStringEqual : public Descriptor<WasmJSStringEqual> {
