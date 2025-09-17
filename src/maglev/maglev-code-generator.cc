@@ -1642,6 +1642,7 @@ class MaglevFrameTranslationBuilder {
             if (LazyDeoptInfo::InReturnValues(reg, result_location,
                                               result_size)) {
               translation_array_builder_->StoreOptimizedOut();
+              input_location++;
             } else {
               BuildDeoptFrameSingleValue(value, input_location,
                                          virtual_objects);
@@ -1661,8 +1662,10 @@ class MaglevFrameTranslationBuilder {
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
             if (LazyDeoptInfo::InReturnValues(reg, result_location,
-                                              result_size))
+                                              result_size)) {
+              input_location++;
               return;
+            }
             while (i < reg.index()) {
               translation_array_builder_->StoreOptimizedOut();
               i++;

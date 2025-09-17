@@ -400,7 +400,7 @@ void MaglevReducer<BaseT>::AttachLazyDeoptInfo(NodeT* node) {
   if constexpr (NodeT::kProperties.can_lazy_deopt()) {
     static_assert(ReducerBaseWithLazyDeopt<BaseT>);
     auto [top_frame, result_location, result_size] =
-        base_->GetDeoptFrameForLazyDeopt();
+        base_->GetDeoptFrameForLazyDeopt(NodeT::kProperties.can_throw());
     graph_->AddLazyTopFrame(top_frame, result_location, result_size);
     new (node->lazy_deopt_info())
         LazyDeoptInfo(zone(), top_frame, result_location, result_size,

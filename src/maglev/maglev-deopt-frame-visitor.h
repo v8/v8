@@ -29,8 +29,7 @@ class DeoptInfoVisitor {
     if (deopt_info->top_frame().parent()) {
       visitor.Visit(*deopt_info->top_frame().parent(), f);
     }
-    const bool kSkipResultLocation = true;
-    visitor.VisitSingleFrame<kSkipResultLocation>(deopt_info->top_frame(), f);
+    visitor.VisitSingleFrame(deopt_info->top_frame(), f);
   }
 
  private:
@@ -54,7 +53,7 @@ class DeoptInfoVisitor {
     VisitSingleFrame(frame, f);
   }
 
-  template <bool skip_frame_result = false, typename Function>
+  template <typename Function>
   void VisitSingleFrame(DeoptFrameT& frame, Function&& f) {
     auto updated_f = [&](ValueNodeT node) {
       DCHECK(!node->template Is<VirtualObject>());
@@ -85,14 +84,6 @@ class DeoptInfoVisitor {
         frame.as_interpreted().frame_state()->ForEachValue(
             frame.as_interpreted().unit(),
             [&](ValueNode*& node, interpreter::Register reg) {
-              if constexpr (std::is_same_v<DeoptInfoT, LazyDeoptInfo>) {
-                // Skip over the result location for lazy deopts, since it is
-                // irrelevant for lazy deopts (unoptimized code will recreate
-                // the result).
-                if (skip_frame_result && deopt_info_->IsResultRegister(reg)) {
-                  return;
-                }
-              }
               updated_f(node);
             });
         break;

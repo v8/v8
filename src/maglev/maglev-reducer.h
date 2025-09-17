@@ -175,7 +175,7 @@ concept ReducerBaseWithEagerDeopt =
 
 template <typename BaseT>
 concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
-  b->GetDeoptFrameForLazyDeopt();
+  b->GetDeoptFrameForLazyDeopt(false);
   // TODO(victorgomes): Bring exception handler logic to the reducer?
   b->AttachExceptionHandlerInfo(std::declval<Node*>());
 };

@@ -197,8 +197,8 @@ class MaglevGraphBuilder {
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
     return GetLatestCheckpointedFrame();
   }
-  std::tuple<DeoptFrame*, interpreter::Register, int>
-  GetDeoptFrameForLazyDeopt();
+  std::tuple<DeoptFrame*, interpreter::Register, int> GetDeoptFrameForLazyDeopt(
+      bool can_throw);
 
   bool need_checkpointed_loop_entry() {
     return v8_flags.maglev_speculative_hoist_phi_untagging ||
@@ -823,6 +823,10 @@ class MaglevGraphBuilder {
     DCHECK_IMPLIES(value->properties().can_lazy_deopt() &&
                        IsNodeCreatedForThisBytecode(value),
                    value->lazy_deopt_info()->IsResultRegister(target));
+    // Don't use StoreRegister for the second returned value of a call --
+    // instead, use StoreRegisterPair.
+    DCHECK_IMPLIES(value->properties().can_lazy_deopt(),
+                   value->opcode() != Opcode::kGetSecondReturnedValue);
   }
 
   void SetAccumulatorInBranch(ValueNode* value) {
@@ -847,7 +851,7 @@ class MaglevGraphBuilder {
                                         base::Vector<ValueNode*> args);
   DeoptFrame* GetDeoptFrameForLazyDeoptHelper(
       interpreter::Register result_location, int result_size,
-      LazyDeoptFrameScope* scope, bool mark_accumulator_dead);
+      LazyDeoptFrameScope* scope, bool mark_accumulator_dead, bool can_throw);
   InterpretedDeoptFrame* GetDeoptFrameForEntryStackCheck();
 
   int next_offset() const {

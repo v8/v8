@@ -1509,7 +1509,7 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEagerCall(
           iterator_.current_bytecode()));
   DeoptFrame* deopt_frame =
       GetDeoptFrameForLazyDeoptHelper(interpreter::Register::invalid_value(), 0,
-                                      current_lazy_deopt_scope_, true);
+                                      current_lazy_deopt_scope_, true, false);
   return AddInlinedArgumentsToDeoptFrame(deopt_frame, unit, closure, args);
 }
 
@@ -1563,7 +1563,7 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
 }
 
 std::tuple<DeoptFrame*, interpreter::Register, int>
-MaglevGraphBuilder::GetDeoptFrameForLazyDeopt() {
+MaglevGraphBuilder::GetDeoptFrameForLazyDeopt(bool can_throw) {
   interpreter::Register result_location;
   int result_size;
   if (lazy_deopt_result_location_scope_) {
@@ -1572,15 +1572,15 @@ MaglevGraphBuilder::GetDeoptFrameForLazyDeopt() {
   } else {
     std::tie(result_location, result_size) = GetResultLocationAndSize();
   }
-  return std::make_tuple(
-      GetDeoptFrameForLazyDeoptHelper(result_location, result_size,
-                                      current_lazy_deopt_scope_, false),
-      result_location, result_size);
+  return std::make_tuple(GetDeoptFrameForLazyDeoptHelper(
+                             result_location, result_size,
+                             current_lazy_deopt_scope_, false, can_throw),
+                         result_location, result_size);
 }
 
 DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
     interpreter::Register result_location, int result_size,
-    LazyDeoptFrameScope* scope, bool mark_accumulator_dead) {
+    LazyDeoptFrameScope* scope, bool mark_accumulator_dead, bool can_throw) {
   if (scope == nullptr) {
     compiler::BytecodeLivenessState* liveness =
         zone()->New<compiler::BytecodeLivenessState>(*GetOutLiveness(), zone());
@@ -1591,14 +1591,41 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
       mark_accumulator_dead = false;
     } else {
       DCHECK(!result_location.is_parameter());
-      for (int i = 0; i < result_size; i++) {
-        liveness->MarkRegisterDead(result_location.index() + i);
+      if (can_throw && IsInsideTryBlock()) {
+        // Exception handlers reuse the frame-state of the lazy deopt, so if a
+        // result register is live in the exception handler, keep it alive here.
+        const compiler::BytecodeLivenessState* exception_handler_liveness =
+            GetCatchBlockFrameState()->frame_state().liveness();
+        for (int i = 0; i < result_size; i++) {
+          if (!exception_handler_liveness->RegisterIsLive(
+                  result_location.index() + i)) {
+            liveness->MarkRegisterDead(result_location.index() + i);
+          }
+        }
+      } else {
+        for (int i = 0; i < result_size; i++) {
+          liveness->MarkRegisterDead(result_location.index() + i);
+        }
       }
     }
     // Explicitly drop the accumulator if needed.
     if (mark_accumulator_dead && liveness->AccumulatorIsLive()) {
       liveness->MarkAccumulatorDead();
     }
+
+    // Exception handlers reuse the frame-state of the lazy deopt. Make sure
+    // all exception handler registers are live in this liveness.
+#ifdef DEBUG
+    if (can_throw && IsInsideTryBlock()) {
+      const compiler::BytecodeLivenessState* exception_handler_liveness =
+          GetCatchBlockFrameState()->frame_state().liveness();
+      for (int i = 0; i < register_count(); i++) {
+        DCHECK_IMPLIES(exception_handler_liveness->RegisterIsLive(i),
+                       liveness->RegisterIsLive(i));
+      }
+    }
+#endif
+
     current_interpreter_frame_.virtual_objects().Snapshot();
     InterpretedDeoptFrame* ret = zone()->New<InterpretedDeoptFrame>(
         *compilation_unit_,
@@ -1633,7 +1660,8 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
       scope->data(), GetDeoptFrameForLazyDeoptHelper(
                          result_location, result_size, scope->parent(),
                          scope->data().tag() ==
-                             DeoptFrame::FrameType::kBuiltinContinuationFrame));
+                             DeoptFrame::FrameType::kBuiltinContinuationFrame,
+                         false));
 }
 
 InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
@@ -15599,11 +15627,7 @@ ReduceResult MaglevGraphBuilder::VisitForOfNext() {
   CallBuiltin* result_struct =
       BuildCallBuiltin<Builtin::kForOfNextBaseline>({iterator, next_method});
 
-  ValueNode* value = result_struct;
-  ValueNode* done = GetSecondValue(result_struct);
-
-  StoreRegister(register_pair.first, value);
-  StoreRegister(register_pair.second, done);
+  StoreRegisterPair(register_pair, result_struct);
 
   return ReduceResult::Done();
 }

@@ -444,6 +444,7 @@ void PrintSingleDeoptFrame(
             if (lazy_deopt_info_if_top_frame &&
                 lazy_deopt_info_if_top_frame->IsResultRegister(reg)) {
               os << "<result>";
+              if (current_input_location) current_input_location++;
             } else {
               os << PrintNodeLabel(node) << ":";
               PrintInputLocationAndAdvance(os, node, current_input_location);
