@@ -899,7 +899,7 @@ class MaglevGraphBuilder {
                                           ExternalArrayType type,
                                           Function&& getValue);
 
-  // Returns kDoneWithoutValue if checks passed successfully.
+  // Returns kDoneWithoutPayload if checks passed successfully.
   MaybeReduceResult TryReduceDatePrototypeGetFieldPrologue(
       compiler::JSFunctionRef target, CallArguments& args);
   MaybeReduceResult TryReduceDatePrototypeGetField(

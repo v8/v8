@@ -26,9 +26,9 @@ class ReduceResult;
 class V8_NODISCARD MaybeReduceResult {
  public:
   enum Kind {
-    kDoneWithValue = 0,  // No need to mask while returning the pointer.
+    kDoneWithPayload = 0,  // No need to mask while returning the pointer.
     kDoneWithAbort,
-    kDoneWithoutValue,
+    kDoneWithoutPayload,
     kFail,
   };
 
@@ -44,15 +44,22 @@ class V8_NODISCARD MaybeReduceResult {
 
   ValueNode* value() const {
     DCHECK(HasValue());
-    Node* value = payload_.GetPointerWithKnownPayload(kDoneWithValue);
-    DCHECK(value->Is<ValueNode>());
+    Node* value = payload_.GetPointerWithKnownPayload(kDoneWithPayload);
     return value->Cast<ValueNode>();
   }
-  bool HasValue() const { return kind() == kDoneWithValue; }
+  bool HasValue() const {
+    if (kind() == kDoneWithPayload) {
+      Node* value = payload_.GetPointerWithKnownPayload(kDoneWithPayload);
+      return value->Is<ValueNode>();
+    }
+    return false;
+  }
+
+  bool HasNode() const { return kind() == kDoneWithPayload; }
 
   Node* node() const {
-    DCHECK(HasValue());
-    return payload_.GetPointerWithKnownPayload(kDoneWithValue);
+    DCHECK(HasNode());
+    return payload_.GetPointerWithKnownPayload(kDoneWithPayload);
   }
 
   // Either DoneWithValue, DoneWithoutValue or DoneWithAbort.
@@ -64,8 +71,11 @@ class V8_NODISCARD MaybeReduceResult {
   // Done with a ValueNode.
   bool IsDoneWithValue() const { return HasValue(); }
 
-  // Done without producing a ValueNode.
-  bool IsDoneWithoutValue() const { return kind() == kDoneWithoutValue; }
+  // Done with a Node.
+  bool IsDoneWithPayload() const { return kind() == kDoneWithPayload; }
+
+  // Done without producing a Node.
+  bool IsDoneWithoutPayload() const { return kind() == kDoneWithoutPayload; }
 
   // Done with an abort (unconditional deopt, infinite loop in an inlined
   // function, etc)
@@ -97,7 +107,7 @@ class V8_NODISCARD ReduceResult : public MaybeReduceResult {
   }
 
   static ReduceResult Done(Node* node) { return ReduceResult(node); }
-  static ReduceResult Done() { return ReduceResult(kDoneWithoutValue); }
+  static ReduceResult Done() { return ReduceResult(kDoneWithoutPayload); }
   static ReduceResult DoneWithAbort() { return ReduceResult(kDoneWithAbort); }
 
   bool IsFail() const { return false; }
@@ -152,7 +162,7 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     if (res.IsDoneWithAbort()) {            \
       return ReduceResult::DoneWithAbort(); \
     }                                       \
-    DCHECK(res.IsDoneWithValue());          \
+    DCHECK(res.IsDoneWithPayload());        \
     variable = res.node();                  \
   } while (false)
 
