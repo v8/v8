@@ -646,6 +646,12 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
                   .ToHandleChecked();
         } else if (IsJSFunction(*ctor)) {
           ctor_name = JSFunction::GetName(isolate, Cast<JSFunction>(ctor));
+        } else if (IsJSWrappedFunction(*ctor)) {
+          ctor_name =
+              JSWrappedFunction::GetName(isolate, Cast<JSWrappedFunction>(ctor))
+                  .ToHandleChecked();
+        } else {
+          UNREACHABLE();
         }
 
         if (ctor_name->length() != 0) {
