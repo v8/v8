@@ -504,7 +504,8 @@ if (v8_enable_verify_heap == "") {
 }
 if (v8_enable_verify_write_barriers == "") {
   v8_enable_verify_write_barriers =
-      v8_enable_debugging_features && !v8_disable_write_barriers
+      (v8_enable_debugging_features || v8_dcheck_always_on) &&
+      !v8_disable_write_barriers
 }
 if (v8_enable_object_print == "") {
   v8_enable_object_print = v8_enable_debugging_features

@@ -602,13 +602,6 @@ static_assert(kPointerSize == (1 << kPointerSizeLog2));
 #define V8_COMPRESS_POINTERS_8GB_BOOL false
 #endif
 
-// In slow debug builds, write barrier verification is always enabled.
-#ifdef ENABLE_SLOW_DCHECKS
-#if !defined(V8_VERIFY_WRITE_BARRIERS) && !V8_DISABLE_WRITE_BARRIERS
-#define V8_VERIFY_WRITE_BARRIERS true
-#endif
-#endif
-
 // This type defines the raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
 constexpr int kExternalPointerSlotSize = sizeof(ExternalPointer_t);
