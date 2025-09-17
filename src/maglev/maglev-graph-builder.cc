@@ -2732,22 +2732,21 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
         auto bool_other = const_other->TryGetBooleanValue(broker());
         if (bool_other.has_value()) {
           SetAccumulator(GetBooleanConstant(constant == *bool_other));
-          return;
+          return ReduceResult::Done();
         }
       }
       if (constant) {
         SetAccumulator(other);
+        return ReduceResult::Done();
       } else {
-        SetAccumulator(AddNewNodeNoAbort<LogicalNot>({other}));
+        return SetAccumulator(AddNewNode<LogicalNot>({other}));
       }
     };
 
     if (maybe_constant.equals(broker_->true_value())) {
-      CompareOtherWith(true);
-      return ReduceResult::Done();
+      return CompareOtherWith(true);
     } else if (maybe_constant.equals(broker_->false_value())) {
-      CompareOtherWith(false);
-      return ReduceResult::Done();
+      return CompareOtherWith(false);
     } else if (kOperation == Operation::kEqual) {
       // For `bool == num` we can convert the actual comparison `ToNumber(bool)
       // == num` into `(num == 1) ? bool : ((num == 0) ? !bool : false)`,
@@ -2759,15 +2758,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
       }
       if (val) {
         if (*val == 0) {
-          CompareOtherWith(false);
+          return CompareOtherWith(false);
         } else if (*val == 1) {
-          CompareOtherWith(true);
+          return CompareOtherWith(true);
         } else {
           // The constant number is neither equal to `ToNumber(true)` nor
           // `ToNumber(false)`.
           SetAccumulator(GetBooleanConstant(false));
+          return ReduceResult::Done();
         }
-        return ReduceResult::Done();
       }
     }
   }
@@ -5723,11 +5722,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
   GET_VALUE_OR_ABORT(length, BuildLoadStringLength(object));
   ValueNode* index;
   GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
-  auto emit_load = [&]() -> ValueNode* {
+  auto emit_load = [&]() -> ReduceResult {
     if (is_one_byte_seq_string) {
-      return AddNewNodeNoAbort<SeqOneByteStringAt>({object, index});
+      return AddNewNode<SeqOneByteStringAt>({object, index});
     } else {
-      return AddNewNodeNoAbort<StringAt>({object, index});
+      return AddNewNode<StringAt>({object, index});
     }
   };
 
@@ -5738,7 +5737,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     ValueNode* uint32_length;
     GET_VALUE_OR_ABORT(uint32_length,
                        AddNewNode<UnsafeInt32ToUint32>({length}));
-    return Select(
+    return SelectReduction(
         [&](BranchBuilder& builder) {
           return BuildBranchIfUint32Compare(builder, Operation::kLessThan,
                                             positive_index, uint32_length);
@@ -6581,9 +6580,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   }
   if (generic_access.has_value() &&
       !sub_graph.TrimPredecessorsAndBind(&*generic_access).IsDoneWithAbort()) {
-    MaybeReduceResult generic_result = build_generic_access();
-    DCHECK(generic_result.IsDone());
-    DCHECK_EQ(generic_result.IsDoneWithValue(), !is_any_store);
+    ReduceResult generic_result = build_generic_access();
+    RETURN_IF_ABORT(generic_result);
+    DCHECK_IMPLIES(!is_any_store, generic_result.IsDoneWithValue());
     if (!done.has_value()) {
       return is_any_store ? ReduceResult::Done() : generic_result.value();
     }
@@ -7206,7 +7205,7 @@ ReduceResult MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
   auto build_generic_access = [this, &receiver, &lookup_start_object, &name,
                                &feedback_source]() {
     ValueNode* context = GetContext();
-    return AddNewNodeNoAbort<LoadNamedFromSuperGeneric>(
+    return AddNewNode<LoadNamedFromSuperGeneric>(
         {context, receiver, lookup_start_object}, name, feedback_source);
   };
 
@@ -7215,8 +7214,7 @@ ReduceResult MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
                                 feedback_source, build_generic_access),
       SetAccumulator);
   // Create a generic load.
-  SetAccumulator(build_generic_access());
-  return ReduceResult::Done();
+  return SetAccumulator(build_generic_access());
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
@@ -7271,8 +7269,7 @@ ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
   auto build_generic_access = [this, object, &feedback_source]() {
     ValueNode* context = GetContext();
     ValueNode* key = GetAccumulator();
-    return AddNewNodeNoAbort<GetKeyedGeneric>({context, object, key},
-                                              feedback_source);
+    return AddNewNode<GetKeyedGeneric>({context, object, key}, feedback_source);
   };
 
   switch (processed_feedback.kind()) {
@@ -7313,8 +7310,7 @@ ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
   }
 
   // Create a generic load in the fallthrough.
-  SetAccumulator(build_generic_access());
-  return ReduceResult::Done();
+  return SetAccumulator(build_generic_access());
 }
 
 ReduceResult MaglevGraphBuilder::VisitGetKeyedProperty() {
@@ -7475,9 +7471,8 @@ ReduceResult MaglevGraphBuilder::VisitSetNamedProperty() {
   auto build_generic_access = [this, object, &name, &feedback_source]() {
     ValueNode* context = GetContext();
     ValueNode* value = GetAccumulator();
-    AddNewNodeNoAbort<SetNamedGeneric>({context, object, value}, name,
+    return AddNewNode<SetNamedGeneric>({context, object, value}, name,
                                        feedback_source);
-    return ReduceResult::Done();
   };
 
   switch (processed_feedback.kind()) {
@@ -7523,9 +7518,8 @@ ReduceResult MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
   auto build_generic_access = [this, object, &name, &feedback_source]() {
     ValueNode* context = GetContext();
     ValueNode* value = GetAccumulator();
-    AddNewNodeNoAbort<DefineNamedOwnGeneric>({context, object, value}, name,
+    return AddNewNode<DefineNamedOwnGeneric>({context, object, value}, name,
                                              feedback_source);
-    return ReduceResult::Done();
   };
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
@@ -7560,9 +7554,8 @@ ReduceResult MaglevGraphBuilder::VisitSetKeyedProperty() {
     ValueNode* key = LoadRegister(1);
     ValueNode* context = GetContext();
     ValueNode* value = GetAccumulator();
-    AddNewNodeNoAbort<SetKeyedGeneric>({context, object, key, value},
+    return AddNewNode<SetKeyedGeneric>({context, object, key, value},
                                        feedback_source);
-    return ReduceResult::Done();
   };
 
   switch (processed_feedback.kind()) {
@@ -7619,9 +7612,8 @@ ReduceResult MaglevGraphBuilder::VisitStaInArrayLiteral() {
   auto build_generic_access = [this, object, index, &feedback_source]() {
     ValueNode* context = GetContext();
     ValueNode* value = GetAccumulator();
-    AddNewNodeNoAbort<StoreInArrayLiteralGeneric>(
+    return AddNewNode<StoreInArrayLiteralGeneric>(
         {context, object, index, value}, feedback_source);
-    return ReduceResult::Done();
   };
 
   switch (processed_feedback.kind()) {
@@ -8539,7 +8531,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
   auto process_element_callback = [this, &holey_map, &holey_double_map,
                                    &result_array](ValueNode* index_int32,
                                                   ValueNode* element) {
-    AddNewNodeNoAbort<TransitionAndStoreArrayElement>(
+    return AddNewNode<TransitionAndStoreArrayElement>(
         {result_array, index_int32, element}, holey_map, holey_double_map);
   };
 
@@ -8783,7 +8775,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   if (!result.IsDoneWithAbort()) {
     if (process_element_callback) {
       ValueNode* value = result.value();
-      (*process_element_callback)(index_int32, value);
+      RETURN_IF_ABORT((*process_element_callback)(index_int32, value));
     }
 
     // If any of the receiver's maps were unstable maps, we have to re-check the
@@ -9047,13 +9039,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
     // Index is the undefined object. ToIntegerOrInfinity(undefined) = 0.
     index = GetInt32Constant(0);
   } else {
-    index = (Select(
-        [&](auto& builder) {
-          return BuildBranchIfInt32Compare(builder, Operation::kLessThan,
-                                           args[0], GetInt32Constant(0));
-        },
-        [&]() { return AddNewNodeNoAbort<Int32Add>({args[0], length}); },
-        [&]() { return args[0]; }));
+    GET_VALUE_OR_ABORT(index,
+                       SelectReduction(
+                           [&](BranchBuilder& builder) {
+                             return BuildBranchIfInt32Compare(
+                                 builder, Operation::kLessThan, args[0],
+                                 GetInt32Constant(0));
+                           },
+                           [&]() -> ReduceResult {
+                             return AddNewNode<Int32Add>({args[0], length});
+                           },
+                           [&]() -> ReduceResult { return args[0]; }));
   }
 
   ValueNode* elements = BuildLoadElements(receiver);
@@ -9258,19 +9254,19 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
   ValueNode* length;
   GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
 
-  auto GetCharAt = [&]() -> ValueNode* {
+  auto GetCharAt = [&]() -> ReduceResult {
     bool is_seq_one_byte =
         v8_flags.specialize_code_for_one_byte_seq_strings &&
         NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
     if (is_seq_one_byte) {
-      return AddNewNodeNoAbort<SeqOneByteStringAt>({receiver, index});
+      return AddNewNode<SeqOneByteStringAt>({receiver, index});
     } else {
-      return AddNewNodeNoAbort<StringAt>({receiver, index});
+      return AddNewNode<StringAt>({receiver, index});
     }
   };
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
-    return Select(
+    return SelectReduction(
         [&](BranchBuilder& builder) {
           // Do unsafe conversions of length and index into uint32, to do an
           // unsigned comparison. The index might actually be a negative signed
@@ -9281,8 +9277,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
               AddNewNodeNoAbort<UnsafeInt32ToUint32>({index}),
               AddNewNodeNoAbort<UnsafeInt32ToUint32>({length}));
         },
-        [&]() -> ValueNode* { return GetCharAt(); },
-        [&]() { return GetRootConstant(RootIndex::kempty_string); });
+        [&]() -> ReduceResult { return GetCharAt(); },
+        [&]() -> ReduceResult {
+          return GetRootConstant(RootIndex::kempty_string);
+        });
   }
 
   DCHECK_EQ(current_speculation_mode_, SpeculationMode::kAllowSpeculation);
@@ -9369,17 +9367,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   ValueNode* length;
   GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
 
-  auto GetCodePointAt = [&]() -> ValueNode* {
+  auto GetCodePointAt = [&]() -> ReduceResult {
     bool is_seq_one_byte =
         v8_flags.specialize_code_for_one_byte_seq_strings &&
         NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
     if (is_seq_one_byte) {
       // For one-byte strings, codePointAt == charCodeAt, since there are no
       // surrogate pairs.
-      return AddNewNodeNoAbort<BuiltinSeqOneByteStringCharCodeAt>(
-          {receiver, index});
+      return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({receiver, index});
     } else {
-      return AddNewNodeNoAbort<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+      return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
           {receiver, index},
           BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
     }
@@ -9387,7 +9384,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
 
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
-    return Select(
+    return SelectReduction(
         [&](BranchBuilder& builder) {
           // Do unsafe conversions of length and index into uint32, to do an
           // unsigned comparison. The index might actually be a negative signed
@@ -9398,8 +9395,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
               AddNewNodeNoAbort<UnsafeInt32ToUint32>({index}),
               AddNewNodeNoAbort<UnsafeInt32ToUint32>({length}));
         },
-        [&]() -> ValueNode* { return GetCodePointAt(); },
-        [&]() { return GetRootConstant(RootIndex::kUndefinedValue); });
+        [&]() -> ReduceResult { return GetCodePointAt(); },
+        [&]() -> ReduceResult {
+          return GetRootConstant(RootIndex::kUndefinedValue);
+        });
   }
 
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
@@ -10113,14 +10112,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     ValueNode* value;
     GET_VALUE_OR_ABORT(value, ConvertForStoring(args[0], kind));
 
-    ValueNode* writable_elements_array =
-        AddNewNodeNoAbort<MaybeGrowFastElements>(
+    ValueNode* writable_elements_array;
+    GET_VALUE_OR_ABORT(
+        writable_elements_array,
+        AddNewNode<MaybeGrowFastElements>(
             {elements_array, receiver, old_array_length, elements_array_length},
-            kind);
+            kind));
 
-    AddNewNodeNoAbort<StoreTaggedFieldNoWriteBarrier>(
+    RETURN_IF_ABORT(AddNewNode<StoreTaggedFieldNoWriteBarrier>(
         {receiver, new_array_length_smi}, JSArray::kLengthOffset,
-        StoreTaggedMode::kDefault);
+        StoreTaggedMode::kDefault));
 
     // Do the store
     if (IsDoubleElementsKind(kind)) {
@@ -10246,16 +10247,19 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
 
   auto build_array_pop = [&](ElementsKind kind) {
     // Handle COW if needed.
-    ValueNode* writable_elements_array =
-        IsSmiOrObjectElementsKind(kind)
-            ? AddNewNodeNoAbort<EnsureWritableFastElements>(
-                  {elements_array, receiver})
-            : elements_array;
+    ValueNode* writable_elements_array;
+    if (IsSmiOrObjectElementsKind(kind)) {
+      GET_VALUE_OR_ABORT(
+          writable_elements_array,
+          AddNewNode<EnsureWritableFastElements>({elements_array, receiver}));
+    } else {
+      writable_elements_array = elements_array;
+    }
 
     // Store new length.
-    AddNewNodeNoAbort<StoreTaggedFieldNoWriteBarrier>(
+    RETURN_IF_ABORT(AddNewNode<StoreTaggedFieldNoWriteBarrier>(
         {receiver, new_array_length_smi}, JSArray::kLengthOffset,
-        StoreTaggedMode::kDefault);
+        StoreTaggedMode::kDefault));
 
     // Load the value and store the hole in it's place.
     ValueNode* value;
@@ -12146,8 +12150,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
                                            args[0], GetInt32Constant(0));
         },
         [&] {
-          ValueNode* elements = AddNewNodeNoAbort<AllocateElementsArray>(
-              {args[0]}, allocation_type);
+          ValueNode* elements;
+          GET_VALUE_OR_ABORT(elements, AddNewNode<AllocateElementsArray>(
+                                           {args[0]}, allocation_type));
           return BuildAndAllocateJSArray(initial_map, args[0], elements,
                                          slack_tracking_prediction,
                                          allocation_type);
@@ -12993,7 +12998,7 @@ ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
           EnsureType(value, NodeType::kNumber)) {
         return ReduceResult::Done();
       }
-      AddNewNodeNoAbort<CheckNumber>({value}, mode);
+      RETURN_IF_ABORT(AddNewNode<CheckNumber>({value}, mode));
       break;
     case BinaryOperationHint::kNone:
     // TODO(leszeks): Faster ToNumber for kNumberOrOddball

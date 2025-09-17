@@ -983,7 +983,7 @@ class MaglevGraphBuilder {
 
   using InitialCallback = base::FunctionRef<ReduceResult(ValueNode*)>;
   using ProcessElementCallback =
-      base::FunctionRef<void(ValueNode*, ValueNode*)>;
+      base::FunctionRef<ReduceResult(ValueNode*, ValueNode*)>;
   using GetEagerDeoptScopeCallback = base::FunctionRef<EagerDeoptFrameScope(
       compiler::JSFunctionRef, ValueNode*, ValueNode*, ValueNode*, ValueNode*,
       ValueNode*, ValueNode*)>;
