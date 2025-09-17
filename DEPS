@@ -59,7 +59,7 @@ vars = {
   'checkout_fuchsia_no_hooks': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.183.0.3b3097cd-gomaip',
+  'reclient_version': 're_client_version:0.179.0.28341fc7-gomaip',
 
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '2c06e4c19773cdfc60f0a4a947363f0b7748f4ca',
+  'partition_alloc_version': 'bb8643420b21841d7530b343cb247e061c0eb3b8',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3afd36a297a9f78d4a3b2060688711ab513f66ca',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1de7ce9168f31f41a43338bd1e8911bae557df1a',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fa8eb5b2de94aede26a2610a6b51379b240d70e8',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '958004daacdd90070d44b236a1581c81d71740ca',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9d7425377e8998d397c86c890f6c08a49bb55b21',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '35982166cc6ed8b6e9e3ff37ac419bae28e4951f',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '7b8dc07adc0f16ce868f4a61c98f062caf89278c',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '0257666efcf935845863f901851792b2bc3726be',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '864f61dc9253d56586ada34c388278565ef513f6',
   'third_party/libunwind/src':
@@ -554,7 +554,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'f733f5a3fa2bb885849a997d5e1bdcd1dfbbe679',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '9d692d669253232c024b20ae19d2ff0b581ee1cd',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
