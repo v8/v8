@@ -46,7 +46,8 @@ ALL_VARIANT_FLAGS = {
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
     "stress_maglev_tracing": [[
-        "--maglev", "--stress-maglev",
+        "--maglev",
+        "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev",
         "--trace-maglev-graph-building",
         "--trace-maglev-loop-speeling",
@@ -84,6 +85,13 @@ ALL_VARIANT_FLAGS = {
     # Turboshaft with Maglev as a frontend
     "turbolev": [[
         "--turbolev",
+    ]],
+    "turbolev_future": [[
+        "--turbolev-future",
+    ]],
+    "stress_turbolev_future": [[
+        "--turbolev-future",
+        "--max-inlined-bytecode-size-small=0",
     ]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
@@ -226,6 +234,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--stress-concurrent-inlining",
     ],
     "stress_maglev_tests_with_turbofan": ["--jitless"],
+    "turbolev_future": ["--no-turbolev",],
+    "stress_turbolev_future": ["--no-turbolev",],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
     "always_sparkplug_and_stress_regexp_jit": ["--jitless", "--no-sparkplug"],
     "code_serializer": [

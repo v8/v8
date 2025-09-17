@@ -784,7 +784,7 @@
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
-['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)', {
+['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
   # Maglev doesn't support compiler::NodeObserver machinery.
   'test-js-to-wasm/TestFastJSWasmCall_I32Arg': [FAIL],
   'test-js-to-wasm/TestFastJSWasmCall_Nop': [FAIL],
@@ -827,12 +827,12 @@
   'test-api/FastApiCallRecursionWithException': [FAIL],
   'test-api/FastApiCallWithThrowInReentrantCode': [FAIL],
   'test-api/FastApiCallsString': [FAIL],
-}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)
+}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)
 
 # Maglev is still missing some optimizations compared to Turbofan, which means
 # that some old Turbofan tests don't pass when using Maglev as a frontend for
 # Turboshaft.
-['variant == turbolev', {
+['variant in (turbolev, turbolev_future, stress_turbolev_future)', {
   'test-cpu-profiler/FastApiCPUProfiler': [SKIP],
   'test-run-unwinding-info/RunUnwindingInfo': [SKIP],
 }],
