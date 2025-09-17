@@ -30,12 +30,12 @@ class MaglevGraphOptimizer {
   void PostPhiProcessing() {}
 
 #define DECLARE_PROCESS(NodeT)                                        \
-  ProcessResult Visit##NodeT();                                       \
+  ProcessResult Visit##NodeT(NodeT*, const ProcessingState&);         \
   ProcessResult Process(NodeT* node, const ProcessingState& state) {  \
     ScopedModification<NodeBase*> current_node(&current_node_, node); \
     UnwrapInputs();                                                   \
     PreProcessNode(node, state);                                      \
-    ProcessResult result = Visit##NodeT();                            \
+    ProcessResult result = Visit##NodeT(node, state);                 \
     PostProcessNode(node);                                            \
     return result;                                                    \
   }

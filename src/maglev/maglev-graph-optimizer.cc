@@ -212,107 +212,128 @@ std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldFloat64Operation() {
   return ReplaceWith(reducer_.GetFloat64(result.value()));
 }
 
-ProcessResult MaglevGraphOptimizer::VisitAssertInt32() {
+ProcessResult MaglevGraphOptimizer::VisitAssertInt32(
+    AssertInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckDynamicValue() {
+ProcessResult MaglevGraphOptimizer::VisitCheckDynamicValue(
+    CheckDynamicValue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckInt32IsSmi() {
+ProcessResult MaglevGraphOptimizer::VisitCheckInt32IsSmi(
+    CheckInt32IsSmi* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckUint32IsSmi() {
+ProcessResult MaglevGraphOptimizer::VisitCheckUint32IsSmi(
+    CheckUint32IsSmi* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckIntPtrIsSmi() {
+ProcessResult MaglevGraphOptimizer::VisitCheckIntPtrIsSmi(
+    CheckIntPtrIsSmi* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64IsSmi() {
+ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64IsSmi(
+    CheckHoleyFloat64IsSmi* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckHeapObject() {
+ProcessResult MaglevGraphOptimizer::VisitCheckHeapObject(
+    CheckHeapObject* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckInt32Condition() {
+ProcessResult MaglevGraphOptimizer::VisitCheckInt32Condition(
+    CheckInt32Condition* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckCacheIndicesNotCleared() {
+ProcessResult MaglevGraphOptimizer::VisitCheckCacheIndicesNotCleared(
+    CheckCacheIndicesNotCleared* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckJSDataViewBounds() {
+ProcessResult MaglevGraphOptimizer::VisitCheckJSDataViewBounds(
+    CheckJSDataViewBounds* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayBounds() {
+ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayBounds(
+    CheckTypedArrayBounds* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayNotDetached() {
+ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayNotDetached(
+    CheckTypedArrayNotDetached* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckMaps() {
+ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
+    CheckMaps* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigrationAndDeopt() {
+ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigrationAndDeopt(
+    CheckMapsWithMigrationAndDeopt* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigration() {
+ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigration(
+    CheckMapsWithMigration* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithAlreadyLoadedMap() {
+ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithAlreadyLoadedMap(
+    CheckMapsWithAlreadyLoadedMap* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckDetectableCallable() {
+ProcessResult MaglevGraphOptimizer::VisitCheckDetectableCallable(
+    CheckDetectableCallable* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckJSReceiverOrNullOrUndefined() {
+ProcessResult MaglevGraphOptimizer::VisitCheckJSReceiverOrNullOrUndefined(
+    CheckJSReceiverOrNullOrUndefined* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckNotHole() {
+ProcessResult MaglevGraphOptimizer::VisitCheckNotHole(
+    CheckNotHole* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64NotHole() {
+ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64NotHole(
+    CheckHoleyFloat64NotHole* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 #define VISIT_CHECK(Type)                                                 \
-  ProcessResult MaglevGraphOptimizer::VisitCheck##Type() {                \
+  ProcessResult MaglevGraphOptimizer::VisitCheck##Type(                   \
+      Check##Type* node, const ProcessingState& state) {                  \
     if (NodeTypeIs(reducer_.GetType(GetInputAt(0)), NodeType::k##Type)) { \
       return ProcessResult::kRemove;                                      \
     }                                                                     \
@@ -327,8 +348,8 @@ VISIT_CHECK(StringOrOddball)
 VISIT_CHECK(Symbol)
 #undef PROCESS_CHECK
 
-ProcessResult MaglevGraphOptimizer::VisitCheckValue() {
-  CheckValue* node = current_node()->Cast<CheckValue>();
+ProcessResult MaglevGraphOptimizer::VisitCheckValue(
+    CheckValue* node, const ProcessingState& state) {
   ValueNode* input = GetInputAt(0);
   if (Constant* constant = input->TryCast<Constant>()) {
     if (constant->object() == node->value()) {
@@ -340,24 +361,26 @@ ProcessResult MaglevGraphOptimizer::VisitCheckValue() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckValueEqualsInt32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckValueEqualsInt32(
+    CheckValueEqualsInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckFloat64SameValue() {
+ProcessResult MaglevGraphOptimizer::VisitCheckFloat64SameValue(
+    CheckFloat64SameValue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckValueEqualsString() {
+ProcessResult MaglevGraphOptimizer::VisitCheckValueEqualsString(
+    CheckValueEqualsString* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType() {
-  // TODO(b/424157317): Optimize.
-  CheckInstanceType* node = current_node()->Cast<CheckInstanceType>();
+ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType(
+    CheckInstanceType* node, const ProcessingState& state) {
   ValueNode* input = GetInputAt(0);
   if (input->Is<FastCreateClosure>()) {
     if (node->first_instance_type() == FIRST_JS_FUNCTION_TYPE &&
@@ -369,134 +392,155 @@ ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitDead() {
+ProcessResult MaglevGraphOptimizer::VisitDead(Dead* node,
+                                              const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitDebugBreak() {
+ProcessResult MaglevGraphOptimizer::VisitDebugBreak(
+    DebugBreak* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFunctionEntryStackCheck() {
+ProcessResult MaglevGraphOptimizer::VisitFunctionEntryStackCheck(
+    FunctionEntryStackCheck* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGeneratorStore() {
+ProcessResult MaglevGraphOptimizer::VisitGeneratorStore(
+    GeneratorStore* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTryOnStackReplacement() {
+ProcessResult MaglevGraphOptimizer::VisitTryOnStackReplacement(
+    TryOnStackReplacement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStoreMap() {
+ProcessResult MaglevGraphOptimizer::VisitStoreMap(
+    StoreMap* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreFixedArrayElementWithWriteBarrier(
+    StoreFixedArrayElementWithWriteBarrier* node,
+    const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreFixedArrayElementNoWriteBarrier(
+    StoreFixedArrayElementNoWriteBarrier* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayElement(
+    StoreFixedDoubleArrayElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreInt32(
+    StoreInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreFloat64(
+    StoreFloat64* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreIntTypedArrayElement(
+    StoreIntTypedArrayElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreDoubleTypedArrayElement(
+    StoreDoubleTypedArrayElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreIntConstantTypedArrayElement(
+    StoreIntConstantTypedArrayElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreDoubleConstantTypedArrayElement(
+    StoreDoubleConstantTypedArrayElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreSignedIntDataViewElement(
+    StoreSignedIntDataViewElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreDoubleDataViewElement(
+    StoreDoubleDataViewElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreTaggedFieldNoWriteBarrier(
+    StoreTaggedFieldNoWriteBarrier* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreTaggedFieldWithWriteBarrier(
+    StoreTaggedFieldWithWriteBarrier* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreContextSlotWithWriteBarrier(
+    StoreContextSlotWithWriteBarrier* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult
-MaglevGraphOptimizer::VisitStoreFixedArrayElementWithWriteBarrier() {
+MaglevGraphOptimizer::VisitStoreTrustedPointerFieldWithWriteBarrier(
+    StoreTrustedPointerFieldWithWriteBarrier* node,
+    const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult
-MaglevGraphOptimizer::VisitStoreFixedArrayElementNoWriteBarrier() {
+ProcessResult MaglevGraphOptimizer::VisitHandleNoHeapWritesInterrupt(
+    HandleNoHeapWritesInterrupt* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayElement() {
+ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForLoop(
+    ReduceInterruptBudgetForLoop* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStoreInt32() {
+ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForReturn(
+    ReduceInterruptBudgetForReturn* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStoreFloat64() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitStoreIntTypedArrayElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitStoreDoubleTypedArrayElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitStoreIntConstantTypedArrayElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult
-MaglevGraphOptimizer::VisitStoreDoubleConstantTypedArrayElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitStoreSignedIntDataViewElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitStoreDoubleDataViewElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitStoreTaggedFieldNoWriteBarrier() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitStoreTaggedFieldWithWriteBarrier() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitStoreContextSlotWithWriteBarrier() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult
-MaglevGraphOptimizer::VisitStoreTrustedPointerFieldWithWriteBarrier() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitHandleNoHeapWritesInterrupt() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForLoop() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForReturn() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole() {
-  ThrowReferenceErrorIfHole* node =
-      current_node()->Cast<ThrowReferenceErrorIfHole>();
-
+ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
+    ThrowReferenceErrorIfHole* node, const ProcessingState& state) {
   // Avoid the check if we know it is not the hole.
   ValueNode* value = node->value().node();
   if (IsConstantNode(value->opcode())) {
@@ -521,10 +565,8 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole() {
-  ThrowSuperNotCalledIfHole* node =
-      current_node()->Cast<ThrowSuperNotCalledIfHole>();
-
+ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
+    ThrowSuperNotCalledIfHole* node, const ProcessingState& state) {
   // Avoid the check if we know it is not the hole.
   ValueNode* value = node->value().node();
   if (IsConstantNode(value->opcode())) {
@@ -546,10 +588,8 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole() {
-  ThrowSuperAlreadyCalledIfNotHole* node =
-      current_node()->Cast<ThrowSuperAlreadyCalledIfNotHole>();
-
+ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
+    ThrowSuperAlreadyCalledIfNotHole* node, const ProcessingState& state) {
   // Avoid the check if we know it is not the hole.
   ValueNode* value = node->value().node();
   if (IsConstantNode(value->opcode())) {
@@ -571,257 +611,305 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowIfNotCallable() {
+ProcessResult MaglevGraphOptimizer::VisitThrowIfNotCallable(
+    ThrowIfNotCallable* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrowIfNotSuperConstructor() {
+ProcessResult MaglevGraphOptimizer::VisitThrowIfNotSuperConstructor(
+    ThrowIfNotSuperConstructor* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTransitionElementsKindOrCheckMap() {
+ProcessResult MaglevGraphOptimizer::VisitTransitionElementsKindOrCheckMap(
+    TransitionElementsKindOrCheckMap* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult
-MaglevGraphOptimizer::VisitSetContinuationPreservedEmbedderData() {
+ProcessResult MaglevGraphOptimizer::VisitSetContinuationPreservedEmbedderData(
+    SetContinuationPreservedEmbedderData* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTransitionAndStoreArrayElement() {
+ProcessResult MaglevGraphOptimizer::VisitTransitionAndStoreArrayElement(
+    TransitionAndStoreArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitConstantGapMove() {
+ProcessResult MaglevGraphOptimizer::VisitConstantGapMove(
+    ConstantGapMove* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGapMove() {
+ProcessResult MaglevGraphOptimizer::VisitGapMove(GapMove* node,
+                                                 const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitIdentity() {
+ProcessResult MaglevGraphOptimizer::VisitIdentity(
+    Identity* node, const ProcessingState& state) {
   // If a non-eager inlined function returns a tagged value, we substitute the
   // call with an Identity. The node is then removed from the graph here. All
   // references to it will be removed in this graph optimizer pass.
   return ProcessResult::kRemove;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitAllocationBlock() {
+ProcessResult MaglevGraphOptimizer::VisitAllocationBlock(
+    AllocationBlock* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitArgumentsElements() {
+ProcessResult MaglevGraphOptimizer::VisitArgumentsElements(
+    ArgumentsElements* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitArgumentsLength() {
+ProcessResult MaglevGraphOptimizer::VisitArgumentsLength(
+    ArgumentsLength* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitRestLength() {
+ProcessResult MaglevGraphOptimizer::VisitRestLength(
+    RestLength* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCall() {
+ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
+                                              const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCallBuiltin() {
+ProcessResult MaglevGraphOptimizer::VisitCallBuiltin(
+    CallBuiltin* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCallCPPBuiltin() {
+ProcessResult MaglevGraphOptimizer::VisitCallCPPBuiltin(
+    CallCPPBuiltin* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCallForwardVarargs() {
+ProcessResult MaglevGraphOptimizer::VisitCallForwardVarargs(
+    CallForwardVarargs* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCallRuntime() {
+ProcessResult MaglevGraphOptimizer::VisitCallRuntime(
+    CallRuntime* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCallWithArrayLike() {
+ProcessResult MaglevGraphOptimizer::VisitCallWithArrayLike(
+    CallWithArrayLike* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCallWithSpread() {
+ProcessResult MaglevGraphOptimizer::VisitCallWithSpread(
+    CallWithSpread* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCallKnownApiFunction() {
+ProcessResult MaglevGraphOptimizer::VisitCallKnownApiFunction(
+    CallKnownApiFunction* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCallKnownJSFunction() {
+ProcessResult MaglevGraphOptimizer::VisitCallKnownJSFunction(
+    CallKnownJSFunction* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitReturnedValue() {
+ProcessResult MaglevGraphOptimizer::VisitReturnedValue(
+    ReturnedValue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCallSelf() {
+ProcessResult MaglevGraphOptimizer::VisitCallSelf(
+    CallSelf* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitConstruct() {
+ProcessResult MaglevGraphOptimizer::VisitConstruct(
+    Construct* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckConstructResult() {
+ProcessResult MaglevGraphOptimizer::VisitCheckConstructResult(
+    CheckConstructResult* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckDerivedConstructResult() {
+ProcessResult MaglevGraphOptimizer::VisitCheckDerivedConstructResult(
+    CheckDerivedConstructResult* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitConstructWithSpread() {
+ProcessResult MaglevGraphOptimizer::VisitConstructWithSpread(
+    ConstructWithSpread* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitConvertReceiver() {
+ProcessResult MaglevGraphOptimizer::VisitConvertReceiver(
+    ConvertReceiver* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitConvertHoleToUndefined() {
+ProcessResult MaglevGraphOptimizer::VisitConvertHoleToUndefined(
+    ConvertHoleToUndefined* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCreateArrayLiteral() {
+ProcessResult MaglevGraphOptimizer::VisitCreateArrayLiteral(
+    CreateArrayLiteral* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCreateShallowArrayLiteral() {
+ProcessResult MaglevGraphOptimizer::VisitCreateShallowArrayLiteral(
+    CreateShallowArrayLiteral* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCreateObjectLiteral() {
+ProcessResult MaglevGraphOptimizer::VisitCreateObjectLiteral(
+    CreateObjectLiteral* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCreateShallowObjectLiteral() {
+ProcessResult MaglevGraphOptimizer::VisitCreateShallowObjectLiteral(
+    CreateShallowObjectLiteral* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCreateFunctionContext() {
+ProcessResult MaglevGraphOptimizer::VisitCreateFunctionContext(
+    CreateFunctionContext* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCreateClosure() {
+ProcessResult MaglevGraphOptimizer::VisitCreateClosure(
+    CreateClosure* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFastCreateClosure() {
+ProcessResult MaglevGraphOptimizer::VisitFastCreateClosure(
+    FastCreateClosure* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCreateRegExpLiteral() {
+ProcessResult MaglevGraphOptimizer::VisitCreateRegExpLiteral(
+    CreateRegExpLiteral* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitDeleteProperty() {
+ProcessResult MaglevGraphOptimizer::VisitDeleteProperty(
+    DeleteProperty* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitEnsureWritableFastElements() {
+ProcessResult MaglevGraphOptimizer::VisitEnsureWritableFastElements(
+    EnsureWritableFastElements* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitExtendPropertiesBackingStore() {
+ProcessResult MaglevGraphOptimizer::VisitExtendPropertiesBackingStore(
+    ExtendPropertiesBackingStore* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInlinedAllocation() {
+ProcessResult MaglevGraphOptimizer::VisitInlinedAllocation(
+    InlinedAllocation* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitForInPrepare() {
+ProcessResult MaglevGraphOptimizer::VisitForInPrepare(
+    ForInPrepare* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitForInNext() {
+ProcessResult MaglevGraphOptimizer::VisitForInNext(
+    ForInNext* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGeneratorRestoreRegister() {
+ProcessResult MaglevGraphOptimizer::VisitGeneratorRestoreRegister(
+    GeneratorRestoreRegister* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGetIterator() {
+ProcessResult MaglevGraphOptimizer::VisitGetIterator(
+    GetIterator* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGetSecondReturnedValue() {
+ProcessResult MaglevGraphOptimizer::VisitGetSecondReturnedValue(
+    GetSecondReturnedValue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGetTemplateObject() {
+ProcessResult MaglevGraphOptimizer::VisitGetTemplateObject(
+    GetTemplateObject* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitHasInPrototypeChain() {
+ProcessResult MaglevGraphOptimizer::VisitHasInPrototypeChain(
+    HasInPrototypeChain* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInitialValue() {
+ProcessResult MaglevGraphOptimizer::VisitInitialValue(
+    InitialValue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField() {
+ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
+    LoadTaggedField* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
-  LoadTaggedField* node = current_node()->Cast<LoadTaggedField>();
   if (node->offset() == JSFunction::kFeedbackCellOffset) {
     if (auto input = GetInputAt(0)->TryCast<FastCreateClosure>()) {
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
@@ -830,316 +918,379 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForProperty() {
+ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForProperty(
+    LoadTaggedFieldForProperty* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlotNoCells(
+    LoadTaggedFieldForContextSlotNoCells* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlot(
+    LoadTaggedFieldForContextSlot* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadFloat64(
+    LoadFloat64* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadInt32(
+    LoadInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldByFieldIndex(
+    LoadTaggedFieldByFieldIndex* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadFixedArrayElement(
+    LoadFixedArrayElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadFixedDoubleArrayElement(
+    LoadFixedDoubleArrayElement* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadHoleyFixedDoubleArrayElement(
+    LoadHoleyFixedDoubleArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult
-MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlotNoCells() {
+MaglevGraphOptimizer::VisitLoadHoleyFixedDoubleArrayElementCheckedNotHole(
+    LoadHoleyFixedDoubleArrayElementCheckedNotHole* node,
+    const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlot() {
+ProcessResult MaglevGraphOptimizer::VisitLoadSignedIntDataViewElement(
+    LoadSignedIntDataViewElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadFloat64() {
+ProcessResult MaglevGraphOptimizer::VisitLoadDoubleDataViewElement(
+    LoadDoubleDataViewElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadInt32() {
+ProcessResult MaglevGraphOptimizer::VisitLoadTypedArrayLength(
+    LoadTypedArrayLength* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldByFieldIndex() {
+ProcessResult MaglevGraphOptimizer::VisitLoadSignedIntTypedArrayElement(
+    LoadSignedIntTypedArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadFixedArrayElement() {
+ProcessResult MaglevGraphOptimizer::VisitLoadUnsignedIntTypedArrayElement(
+    LoadUnsignedIntTypedArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadFixedDoubleArrayElement() {
+ProcessResult MaglevGraphOptimizer::VisitLoadDoubleTypedArrayElement(
+    LoadDoubleTypedArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadHoleyFixedDoubleArrayElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult
-MaglevGraphOptimizer::VisitLoadHoleyFixedDoubleArrayElementCheckedNotHole() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitLoadSignedIntDataViewElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitLoadDoubleDataViewElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitLoadTypedArrayLength() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitLoadSignedIntTypedArrayElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitLoadUnsignedIntTypedArrayElement() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitLoadDoubleTypedArrayElement() {
+ProcessResult MaglevGraphOptimizer::VisitLoadSignedIntConstantTypedArrayElement(
+    LoadSignedIntConstantTypedArrayElement* node,
+    const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult
-MaglevGraphOptimizer::VisitLoadSignedIntConstantTypedArrayElement() {
+MaglevGraphOptimizer::VisitLoadUnsignedIntConstantTypedArrayElement(
+    LoadUnsignedIntConstantTypedArrayElement* node,
+    const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult
-MaglevGraphOptimizer::VisitLoadUnsignedIntConstantTypedArrayElement() {
+ProcessResult MaglevGraphOptimizer::VisitLoadDoubleConstantTypedArrayElement(
+    LoadDoubleConstantTypedArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadDoubleConstantTypedArrayElement() {
+ProcessResult MaglevGraphOptimizer::VisitLoadEnumCacheLength(
+    LoadEnumCacheLength* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadEnumCacheLength() {
+ProcessResult MaglevGraphOptimizer::VisitLoadGlobal(
+    LoadGlobal* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadGlobal() {
+ProcessResult MaglevGraphOptimizer::VisitLoadNamedGeneric(
+    LoadNamedGeneric* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadNamedGeneric() {
+ProcessResult MaglevGraphOptimizer::VisitLoadNamedFromSuperGeneric(
+    LoadNamedFromSuperGeneric* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadNamedFromSuperGeneric() {
+ProcessResult MaglevGraphOptimizer::VisitMaybeGrowFastElements(
+    MaybeGrowFastElements* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitMaybeGrowFastElements() {
+ProcessResult MaglevGraphOptimizer::VisitMigrateMapIfNeeded(
+    MigrateMapIfNeeded* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitMigrateMapIfNeeded() {
+ProcessResult MaglevGraphOptimizer::VisitSetNamedGeneric(
+    SetNamedGeneric* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitSetNamedGeneric() {
+ProcessResult MaglevGraphOptimizer::VisitDefineNamedOwnGeneric(
+    DefineNamedOwnGeneric* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitDefineNamedOwnGeneric() {
+ProcessResult MaglevGraphOptimizer::VisitStoreInArrayLiteralGeneric(
+    StoreInArrayLiteralGeneric* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStoreInArrayLiteralGeneric() {
+ProcessResult MaglevGraphOptimizer::VisitStoreGlobal(
+    StoreGlobal* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStoreGlobal() {
+ProcessResult MaglevGraphOptimizer::VisitGetKeyedGeneric(
+    GetKeyedGeneric* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGetKeyedGeneric() {
+ProcessResult MaglevGraphOptimizer::VisitSetKeyedGeneric(
+    SetKeyedGeneric* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitSetKeyedGeneric() {
+ProcessResult MaglevGraphOptimizer::VisitDefineKeyedOwnGeneric(
+    DefineKeyedOwnGeneric* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitDefineKeyedOwnGeneric() {
+ProcessResult MaglevGraphOptimizer::VisitPhi(Phi* node,
+                                             const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitPhi() {
+ProcessResult MaglevGraphOptimizer::VisitRegisterInput(
+    RegisterInput* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitRegisterInput() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiSizedInt32(
+    CheckedSmiSizedInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiSizedInt32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagInt32(
+    CheckedSmiTagInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagInt32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagUint32(
+    CheckedSmiTagUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagUint32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagIntPtr(
+    CheckedSmiTagIntPtr* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagIntPtr() {
+ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagInt32(
+    UnsafeSmiTagInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagInt32() {
+ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagUint32(
+    UnsafeSmiTagUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagUint32() {
+ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagIntPtr(
+    UnsafeSmiTagIntPtr* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnsafeSmiTagIntPtr() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedInternalizedString(
+    CheckedInternalizedString* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedInternalizedString() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedObjectToIndex(
+    CheckedObjectToIndex* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedObjectToIndex() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedInt32ToUint32(
+    CheckedInt32ToUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedInt32ToUint32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedIntPtrToUint32(
+    CheckedIntPtrToUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedIntPtrToUint32() {
+ProcessResult MaglevGraphOptimizer::VisitUnsafeInt32ToUint32(
+    UnsafeInt32ToUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnsafeInt32ToUint32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedUint32ToInt32(
+    CheckedUint32ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedUint32ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedIntPtrToInt32(
+    CheckedIntPtrToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedIntPtrToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitChangeInt32ToFloat64(
+    ChangeInt32ToFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitChangeInt32ToFloat64() {
+ProcessResult MaglevGraphOptimizer::VisitChangeUint32ToFloat64(
+    ChangeUint32ToFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitChangeUint32ToFloat64() {
+ProcessResult MaglevGraphOptimizer::VisitChangeIntPtrToFloat64(
+    ChangeIntPtrToFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitChangeIntPtrToFloat64() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToInt32(
+    CheckedHoleyFloat64ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToUint32(
+    CheckedHoleyFloat64ToUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToUint32() {
+ProcessResult MaglevGraphOptimizer::VisitTruncateUint32ToInt32(
+    TruncateUint32ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTruncateUint32ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitTruncateHoleyFloat64ToInt32(
+    TruncateHoleyFloat64ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTruncateHoleyFloat64ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitUnsafeUint32ToInt32(
+    UnsafeUint32ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnsafeUint32ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitUnsafeHoleyFloat64ToInt32(
+    UnsafeHoleyFloat64ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnsafeHoleyFloat64ToInt32() {
+ProcessResult MaglevGraphOptimizer::VisitInt32ToUint8Clamped(
+    Int32ToUint8Clamped* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32ToUint8Clamped() {
+ProcessResult MaglevGraphOptimizer::VisitUint32ToUint8Clamped(
+    Uint32ToUint8Clamped* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUint32ToUint8Clamped() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64ToUint8Clamped(
+    Float64ToUint8Clamped* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToUint8Clamped() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToUint8Clamped(
+    CheckedNumberToUint8Clamped* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToUint8Clamped() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitInt32ToNumber() {
+ProcessResult MaglevGraphOptimizer::VisitInt32ToNumber(
+    Int32ToNumber* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   auto cst = reducer_.TryGetInt32Constant(GetInputAt(0));
   if (cst.has_value() && Smi::IsValid(cst.value())) {
@@ -1148,58 +1299,69 @@ ProcessResult MaglevGraphOptimizer::VisitInt32ToNumber() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUint32ToNumber() {
+ProcessResult MaglevGraphOptimizer::VisitUint32ToNumber(
+    Uint32ToNumber* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32CountLeadingZeros() {
+ProcessResult MaglevGraphOptimizer::VisitInt32CountLeadingZeros(
+    Int32CountLeadingZeros* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTaggedCountLeadingZeros() {
+ProcessResult MaglevGraphOptimizer::VisitTaggedCountLeadingZeros(
+    TaggedCountLeadingZeros* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64CountLeadingZeros() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64CountLeadingZeros(
+    Float64CountLeadingZeros* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitIntPtrToBoolean() {
+ProcessResult MaglevGraphOptimizer::VisitIntPtrToBoolean(
+    IntPtrToBoolean* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitIntPtrToNumber() {
+ProcessResult MaglevGraphOptimizer::VisitIntPtrToNumber(
+    IntPtrToNumber* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToTagged() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64ToTagged(
+    Float64ToTagged* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToHeapNumberForField() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64ToHeapNumberForField(
+    Float64ToHeapNumberForField* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToTagged() {
+ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToTagged(
+    HoleyFloat64ToTagged* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagFloat64() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagFloat64(
+    CheckedSmiTagFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 #define UNTAGGING_CASE(Node, Repr, Type)                                     \
-  ProcessResult MaglevGraphOptimizer::Visit##Node() {                        \
+  ProcessResult MaglevGraphOptimizer::Visit##Node(                           \
+      Node* node, const ProcessingState& state) {                            \
     if (ValueNode* input = GetUntaggedValueWithRepresentation(               \
             GetInputAt(0), UseRepresentation::k##Repr, NodeType::k##Type)) { \
       return ReplaceWith(input);                                             \
@@ -1217,7 +1379,8 @@ UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
 UNTAGGING_CASE(CheckedNumberOrOddballToHoleyFloat64, HoleyFloat64,
                NumberOrOddball)
 #undef UNTAGGING_CASE
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
+    CheckedSmiUntag* node, const ProcessingState& state) {
   if (ValueNode* input = GetUntaggedValueWithRepresentation(
           GetInputAt(0), UseRepresentation::kInt32, NodeType::kNumber)) {
     if (SmiValuesAre31Bits()) {
@@ -1236,192 +1399,228 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToFloat64() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToFloat64(
+    CheckedHoleyFloat64ToFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToMaybeNanFloat64() {
+ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToMaybeNanFloat64(
+    HoleyFloat64ToMaybeNanFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToHoleyFloat64() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64ToHoleyFloat64(
+    Float64ToHoleyFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitConvertHoleNanToUndefinedNan() {
+ProcessResult MaglevGraphOptimizer::VisitConvertHoleNanToUndefinedNan(
+    ConvertHoleNanToUndefinedNan* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsUndefinedOrHole() {
+ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsUndefinedOrHole(
+    HoleyFloat64IsUndefinedOrHole* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::
-    VisitLoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole() {
+    VisitLoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole(
+        LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole* node,
+        const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 #else
 
-ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsHole() {
+ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsHole(
+    HoleyFloat64IsHole* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
-ProcessResult MaglevGraphOptimizer::VisitLogicalNot() {
+ProcessResult MaglevGraphOptimizer::VisitLogicalNot(
+    LogicalNot* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitSetPendingMessage() {
+ProcessResult MaglevGraphOptimizer::VisitSetPendingMessage(
+    SetPendingMessage* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStringAt() {
+ProcessResult MaglevGraphOptimizer::VisitStringAt(
+    StringAt* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStringEqual() {
+ProcessResult MaglevGraphOptimizer::VisitStringEqual(
+    StringEqual* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStringLength() {
+ProcessResult MaglevGraphOptimizer::VisitStringLength(
+    StringLength* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitStringConcat() {
+ProcessResult MaglevGraphOptimizer::VisitStringConcat(
+    StringConcat* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitSeqOneByteStringAt() {
+ProcessResult MaglevGraphOptimizer::VisitSeqOneByteStringAt(
+    SeqOneByteStringAt* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitConsStringMap() {
+ProcessResult MaglevGraphOptimizer::VisitConsStringMap(
+    ConsStringMap* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnwrapStringWrapper() {
+ProcessResult MaglevGraphOptimizer::VisitUnwrapStringWrapper(
+    UnwrapStringWrapper* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitToBoolean() {
+ProcessResult MaglevGraphOptimizer::VisitToBoolean(
+    ToBoolean* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitToBooleanLogicalNot() {
+ProcessResult MaglevGraphOptimizer::VisitToBooleanLogicalNot(
+    ToBooleanLogicalNot* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitAllocateElementsArray() {
+ProcessResult MaglevGraphOptimizer::VisitAllocateElementsArray(
+    AllocateElementsArray* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTaggedEqual() {
+ProcessResult MaglevGraphOptimizer::VisitTaggedEqual(
+    TaggedEqual* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTaggedNotEqual() {
+ProcessResult MaglevGraphOptimizer::VisitTaggedNotEqual(
+    TaggedNotEqual* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTestInstanceOf() {
+ProcessResult MaglevGraphOptimizer::VisitTestInstanceOf(
+    TestInstanceOf* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTestUndetectable() {
+ProcessResult MaglevGraphOptimizer::VisitTestUndetectable(
+    TestUndetectable* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTestTypeOf() {
+ProcessResult MaglevGraphOptimizer::VisitTestTypeOf(
+    TestTypeOf* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitToName() {
+ProcessResult MaglevGraphOptimizer::VisitToName(ToName* node,
+                                                const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitToNumberOrNumeric() {
+ProcessResult MaglevGraphOptimizer::VisitToNumberOrNumeric(
+    ToNumberOrNumeric* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitToObject() {
+ProcessResult MaglevGraphOptimizer::VisitToObject(
+    ToObject* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitToString() {
+ProcessResult MaglevGraphOptimizer::VisitToString(
+    ToString* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTransitionElementsKind() {
+ProcessResult MaglevGraphOptimizer::VisitTransitionElementsKind(
+    TransitionElementsKind* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitNumberToString() {
+ProcessResult MaglevGraphOptimizer::VisitNumberToString(
+    NumberToString* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUpdateJSArrayLength() {
+ProcessResult MaglevGraphOptimizer::VisitUpdateJSArrayLength(
+    UpdateJSArrayLength* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitVirtualObject() {
+ProcessResult MaglevGraphOptimizer::VisitVirtualObject(
+    VirtualObject* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult
-MaglevGraphOptimizer::VisitGetContinuationPreservedEmbedderData() {
+ProcessResult MaglevGraphOptimizer::VisitGetContinuationPreservedEmbedderData(
+    GetContinuationPreservedEmbedderData* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-#define CONSTANT_CASE(Node)                           \
-  ProcessResult MaglevGraphOptimizer::Visit##Node() { \
-    return ProcessResult::kContinue;                  \
+#define CONSTANT_CASE(Node)                        \
+  ProcessResult MaglevGraphOptimizer::Visit##Node( \
+      Node* node, const ProcessingState& state) {  \
+    return ProcessResult::kContinue;               \
   }
 CONSTANT_VALUE_NODE_LIST(CONSTANT_CASE)
 #undef CONSTANT_CASE
 
-ProcessResult MaglevGraphOptimizer::VisitInt32AbsWithOverflow() {
+ProcessResult MaglevGraphOptimizer::VisitInt32AbsWithOverflow(
+    Int32AbsWithOverflow* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32Add() {
+ProcessResult MaglevGraphOptimizer::VisitInt32Add(
+    Int32Add* node, const ProcessingState& state) {
   // TODO(victorgomes): TryFoldInt32Operation can emit a
   // Int32IncrementWithOverflow which needs an eager deopt point. We need to
   // propagate this information and we can add a non-deopting version of the
@@ -1429,7 +1628,8 @@ ProcessResult MaglevGraphOptimizer::VisitInt32Add() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32Subtract() {
+ProcessResult MaglevGraphOptimizer::VisitInt32Subtract(
+    Int32Subtract* node, const ProcessingState& state) {
   // TODO(victorgomes): TryFoldInt32Operation can emit a
   // Int32DecrementWithOverflow which needs an eager deopt point. We need to
   // propagate this information and we can add a non-deopting version of the
@@ -1437,463 +1637,554 @@ ProcessResult MaglevGraphOptimizer::VisitInt32Subtract() {
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32Multiply() {
+ProcessResult MaglevGraphOptimizer::VisitInt32Multiply(
+    Int32Multiply* node, const ProcessingState& state) {
   // TODO(victorgomes): TryFoldInt32Operation can emit a CheckInt32Condition
   // which needs an eager deopt point. We need to propagate this information.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyOverflownBits() {
+ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyOverflownBits(
+    Int32MultiplyOverflownBits* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32Divide() {
+ProcessResult MaglevGraphOptimizer::VisitInt32Divide(
+    Int32Divide* node, const ProcessingState& state) {
   // TODO(victorgomes): TryFoldInt32Operation can emit a CheckInt32Condition
   // which needs an eager deopt point. We need to propagate this information
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32AddWithOverflow() {
+ProcessResult MaglevGraphOptimizer::VisitInt32AddWithOverflow(
+    Int32AddWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kAdd>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32SubtractWithOverflow() {
+ProcessResult MaglevGraphOptimizer::VisitInt32SubtractWithOverflow(
+    Int32SubtractWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kSubtract>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyWithOverflow() {
+ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyWithOverflow(
+    Int32MultiplyWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kMultiply>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32DivideWithOverflow() {
+ProcessResult MaglevGraphOptimizer::VisitInt32DivideWithOverflow(
+    Int32DivideWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kDivide>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32ModulusWithOverflow() {
+ProcessResult MaglevGraphOptimizer::VisitInt32ModulusWithOverflow(
+    Int32ModulusWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kModulus>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseAnd() {
+ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseAnd(
+    Int32BitwiseAnd* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kBitwiseAnd>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseOr() {
+ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseOr(
+    Int32BitwiseOr* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kBitwiseOr>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseXor() {
+ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseXor(
+    Int32BitwiseXor* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kBitwiseXor>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32ShiftLeft() {
+ProcessResult MaglevGraphOptimizer::VisitInt32ShiftLeft(
+    Int32ShiftLeft* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kShiftLeft>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32ShiftRight() {
+ProcessResult MaglevGraphOptimizer::VisitInt32ShiftRight(
+    Int32ShiftRight* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kShiftRight>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32ShiftRightLogical() {
+ProcessResult MaglevGraphOptimizer::VisitInt32ShiftRightLogical(
+    Int32ShiftRightLogical* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kShiftRightLogical>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseNot() {
+ProcessResult MaglevGraphOptimizer::VisitInt32BitwiseNot(
+    Int32BitwiseNot* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kBitwiseNot>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32NegateWithOverflow() {
+ProcessResult MaglevGraphOptimizer::VisitInt32NegateWithOverflow(
+    Int32NegateWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kNegate>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32IncrementWithOverflow() {
+ProcessResult MaglevGraphOptimizer::VisitInt32IncrementWithOverflow(
+    Int32IncrementWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kIncrement>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32DecrementWithOverflow() {
+ProcessResult MaglevGraphOptimizer::VisitInt32DecrementWithOverflow(
+    Int32DecrementWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kDecrement>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32Compare() {
+ProcessResult MaglevGraphOptimizer::VisitInt32Compare(
+    Int32Compare* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitInt32ToBoolean() {
+ProcessResult MaglevGraphOptimizer::VisitInt32ToBoolean(
+    Int32ToBoolean* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Abs() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Abs(
+    Float64Abs* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Add() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Add(
+    Float64Add* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kAdd>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Subtract() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Subtract(
+    Float64Subtract* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kSubtract>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Multiply() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Multiply(
+    Float64Multiply* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kMultiply>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Divide() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Divide(
+    Float64Divide* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kDivide>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Exponentiate() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Exponentiate(
+    Float64Exponentiate* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kExponentiate>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Modulus() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Modulus(
+    Float64Modulus* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kModulus>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Negate() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Negate(
+    Float64Negate* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldFloat64Operation<Operation::kNegate>());
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Round() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Round(
+    Float64Round* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Compare() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Compare(
+    Float64Compare* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToBoolean() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64ToBoolean(
+    Float64ToBoolean* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Ieee754Unary() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Ieee754Unary(
+    Float64Ieee754Unary* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Ieee754Binary() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Ieee754Binary(
+    Float64Ieee754Binary* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64Sqrt() {
+ProcessResult MaglevGraphOptimizer::VisitFloat64Sqrt(
+    Float64Sqrt* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiIncrement() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiIncrement(
+    CheckedSmiIncrement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiDecrement() {
+ProcessResult MaglevGraphOptimizer::VisitCheckedSmiDecrement(
+    CheckedSmiDecrement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericAdd() {
+ProcessResult MaglevGraphOptimizer::VisitGenericAdd(
+    GenericAdd* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericSubtract() {
+ProcessResult MaglevGraphOptimizer::VisitGenericSubtract(
+    GenericSubtract* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericMultiply() {
+ProcessResult MaglevGraphOptimizer::VisitGenericMultiply(
+    GenericMultiply* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericDivide() {
+ProcessResult MaglevGraphOptimizer::VisitGenericDivide(
+    GenericDivide* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericModulus() {
+ProcessResult MaglevGraphOptimizer::VisitGenericModulus(
+    GenericModulus* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericExponentiate() {
+ProcessResult MaglevGraphOptimizer::VisitGenericExponentiate(
+    GenericExponentiate* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericBitwiseAnd() {
+ProcessResult MaglevGraphOptimizer::VisitGenericBitwiseAnd(
+    GenericBitwiseAnd* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericBitwiseOr() {
+ProcessResult MaglevGraphOptimizer::VisitGenericBitwiseOr(
+    GenericBitwiseOr* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericBitwiseXor() {
+ProcessResult MaglevGraphOptimizer::VisitGenericBitwiseXor(
+    GenericBitwiseXor* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericShiftLeft() {
+ProcessResult MaglevGraphOptimizer::VisitGenericShiftLeft(
+    GenericShiftLeft* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericShiftRight() {
+ProcessResult MaglevGraphOptimizer::VisitGenericShiftRight(
+    GenericShiftRight* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericShiftRightLogical() {
+ProcessResult MaglevGraphOptimizer::VisitGenericShiftRightLogical(
+    GenericShiftRightLogical* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericBitwiseNot() {
+ProcessResult MaglevGraphOptimizer::VisitGenericBitwiseNot(
+    GenericBitwiseNot* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericNegate() {
+ProcessResult MaglevGraphOptimizer::VisitGenericNegate(
+    GenericNegate* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericIncrement() {
+ProcessResult MaglevGraphOptimizer::VisitGenericIncrement(
+    GenericIncrement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericDecrement() {
+ProcessResult MaglevGraphOptimizer::VisitGenericDecrement(
+    GenericDecrement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericEqual() {
+ProcessResult MaglevGraphOptimizer::VisitGenericEqual(
+    GenericEqual* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericStrictEqual() {
+ProcessResult MaglevGraphOptimizer::VisitGenericStrictEqual(
+    GenericStrictEqual* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericLessThan() {
+ProcessResult MaglevGraphOptimizer::VisitGenericLessThan(
+    GenericLessThan* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericLessThanOrEqual() {
+ProcessResult MaglevGraphOptimizer::VisitGenericLessThanOrEqual(
+    GenericLessThanOrEqual* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericGreaterThan() {
+ProcessResult MaglevGraphOptimizer::VisitGenericGreaterThan(
+    GenericGreaterThan* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitGenericGreaterThanOrEqual() {
+ProcessResult MaglevGraphOptimizer::VisitGenericGreaterThanOrEqual(
+    GenericGreaterThanOrEqual* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBuiltinStringFromCharCode() {
+ProcessResult MaglevGraphOptimizer::VisitBuiltinStringFromCharCode(
+    BuiltinStringFromCharCode* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult
-MaglevGraphOptimizer::VisitBuiltinStringPrototypeCharCodeOrCodePointAt() {
+MaglevGraphOptimizer::VisitBuiltinStringPrototypeCharCodeOrCodePointAt(
+    BuiltinStringPrototypeCharCodeOrCodePointAt* node,
+    const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBuiltinSeqOneByteStringCharCodeAt() {
+ProcessResult MaglevGraphOptimizer::VisitBuiltinSeqOneByteStringCharCodeAt(
+    BuiltinSeqOneByteStringCharCodeAt* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCreateFastArrayElements() {
+ProcessResult MaglevGraphOptimizer::VisitCreateFastArrayElements(
+    CreateFastArrayElements* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitNewConsString() {
+ProcessResult MaglevGraphOptimizer::VisitNewConsString(
+    NewConsString* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitMapPrototypeGet() {
+ProcessResult MaglevGraphOptimizer::VisitMapPrototypeGet(
+    MapPrototypeGet* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitMapPrototypeGetInt32Key() {
+ProcessResult MaglevGraphOptimizer::VisitMapPrototypeGetInt32Key(
+    MapPrototypeGetInt32Key* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitSetPrototypeHas() {
+ProcessResult MaglevGraphOptimizer::VisitSetPrototypeHas(
+    SetPrototypeHas* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitAbort() {
+ProcessResult MaglevGraphOptimizer::VisitAbort(Abort* node,
+                                               const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitReturn() {
+ProcessResult MaglevGraphOptimizer::VisitReturn(Return* node,
+                                                const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitDeopt() {
+ProcessResult MaglevGraphOptimizer::VisitDeopt(Deopt* node,
+                                               const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitThrow() {
+ProcessResult MaglevGraphOptimizer::VisitThrow(Throw* node,
+                                               const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitSwitch() {
+ProcessResult MaglevGraphOptimizer::VisitSwitch(Switch* node,
+                                                const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfSmi() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfSmi(
+    BranchIfSmi* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfRootConstant() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfRootConstant(
+    BranchIfRootConstant* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
+    BranchIfToBooleanTrue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32ToBooleanTrue() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32ToBooleanTrue(
+    BranchIfInt32ToBooleanTrue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfIntPtrToBooleanTrue() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfIntPtrToBooleanTrue(
+    BranchIfIntPtrToBooleanTrue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64ToBooleanTrue() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64ToBooleanTrue(
+    BranchIfFloat64ToBooleanTrue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64IsUndefinedOrHole() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64IsUndefinedOrHole(
+    BranchIfFloat64IsUndefinedOrHole* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 #endif
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64IsHole() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64IsHole(
+    BranchIfFloat64IsHole* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfReferenceEqual() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfReferenceEqual(
+    BranchIfReferenceEqual* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32Compare() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32Compare(
+    BranchIfInt32Compare* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfUint32Compare() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfUint32Compare(
+    BranchIfUint32Compare* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64Compare() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64Compare(
+    BranchIfFloat64Compare* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfUndefinedOrNull() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfUndefinedOrNull(
+    BranchIfUndefinedOrNull* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfUndetectable() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfUndetectable(
+    BranchIfUndetectable* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfJSReceiver() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfJSReceiver(
+    BranchIfJSReceiver* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitBranchIfTypeOf() {
+ProcessResult MaglevGraphOptimizer::VisitBranchIfTypeOf(
+    BranchIfTypeOf* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitJump() {
+ProcessResult MaglevGraphOptimizer::VisitJump(Jump* node,
+                                              const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckpointedJump() {
+ProcessResult MaglevGraphOptimizer::VisitCheckpointedJump(
+    CheckpointedJump* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitJumpLoop() {
+ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
+    JumpLoop* node, const ProcessingState& state) {
   // We need to unwrap backedges of loop phis (since it's possible that they
   // weren't identities when the loop header was visited initially, but they
   // later became Identities while visiting the loop's body).
-  BasicBlock* loop_header = current_node()->Cast<JumpLoop>()->target();
+  BasicBlock* loop_header = node->target();
   if (!loop_header->has_phi()) return ProcessResult::kContinue;
 
   for (Phi* phi : *loop_header->phis()) {
