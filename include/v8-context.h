@@ -303,6 +303,9 @@ class V8_EXPORT Context : public Data {
                                                     int index);
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index);
 
+  void SetAlignedPointerInEmbedderData(int index, void* value,
+                                       EmbedderDataTypeTag tag);
+
   /**
    * Sets a 2-byte-aligned native pointer in the embedder data with the given
    * index, growing the data as needed. Note that index 0 currently has a
@@ -311,10 +314,9 @@ class V8_EXPORT Context : public Data {
   V8_DEPRECATE_SOON(
       "Use SetAlignedPointerInEmbedderData with EmbedderDataTypeTag parameter "
       "instead.")
-  void SetAlignedPointerInEmbedderData(int index, void* value);
-
-  void SetAlignedPointerInEmbedderData(int index, void* value,
-                                       EmbedderDataTypeTag tag);
+  void SetAlignedPointerInEmbedderData(int index, void* value) {
+    SetAlignedPointerInEmbedderData(index, value, kEmbedderDataTypeTagDefault);
+  }
 
   /**
    * Control whether code generation from strings is allowed. Calling

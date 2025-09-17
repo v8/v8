@@ -33,6 +33,8 @@ class PropertyCallbackInfo;
  */
 using EmbedderDataTypeTag = uint16_t;
 
+constexpr EmbedderDataTypeTag kEmbedderDataTypeTagDefault = 0;
+
 /**
  * A private symbol
  *
@@ -554,13 +556,15 @@ class V8_EXPORT Object : public Value {
    * a field, GetAlignedPointerFromInternalField must be used, everything else
    * leads to undefined behavior.
    */
+  void SetAlignedPointerInInternalField(int index, void* value,
+                                        EmbedderDataTypeTag tag);
+
   V8_DEPRECATE_SOON(
       "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag parameter "
       "instead.")
-  void SetAlignedPointerInInternalField(int index, void* value);
-
-  void SetAlignedPointerInInternalField(int index, void* value,
-                                        EmbedderDataTypeTag tag);
+  void SetAlignedPointerInInternalField(int index, void* value) {
+    SetAlignedPointerInInternalField(index, value, kEmbedderDataTypeTagDefault);
+  }
 
   V8_DEPRECATE_SOON(
       "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag "

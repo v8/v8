@@ -195,14 +195,6 @@ i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
   return static_cast<i::ExternalPointerTag>(tag_value);
 }
 
-v8::EmbedderDataTypeTag ToApiEmbedderDataTypeTag(i::ExternalPointerTag tag) {
-  DCHECK_GE(tag, i::kFirstEmbedderDataTag);
-  DCHECK_LE(tag, i::kLastEmbedderDataTag);
-  uint16_t tag_value = static_cast<uint16_t>(tag) -
-                       static_cast<uint16_t>(i::kFirstEmbedderDataTag);
-  return static_cast<v8::EmbedderDataTypeTag>(tag_value);
-}
-
 }  // namespace
 
 static OOMErrorCallback g_oom_error_callback = nullptr;
@@ -992,11 +984,6 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
                       .DeprecatedToAlignedPointer(i_isolate, &result),
                   location, "Pointer is not aligned");
   return result;
-}
-
-void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
-  SetAlignedPointerInEmbedderData(
-      index, value, ToApiEmbedderDataTypeTag(i::kEmbedderDataSlotPayloadTag));
 }
 
 void Context::SetAlignedPointerInEmbedderData(int index, void* value,
@@ -6284,11 +6271,6 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
   return result;
 }
 
-void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
-  SetAlignedPointerInInternalField(
-      index, value, ToApiEmbedderDataTypeTag(i::kEmbedderDataSlotPayloadTag));
-}
-
 void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
                                                   EmbedderDataTypeTag tag) {
   auto obj = Utils::OpenDirectHandle(this);
@@ -6305,8 +6287,7 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
 
 void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
                                                    void* values[]) {
-  EmbedderDataTypeTag tag =
-      ToApiEmbedderDataTypeTag(i::kEmbedderDataSlotPayloadTag);
+  EmbedderDataTypeTag tag = kEmbedderDataTypeTagDefault;
 
   auto obj = Utils::OpenDirectHandle(this);
   if (!IsJSObject(*obj)) return;
