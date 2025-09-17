@@ -314,7 +314,7 @@ class V8_EXPORT Context : public Data {
   void SetAlignedPointerInEmbedderData(int index, void* value);
 
   void SetAlignedPointerInEmbedderData(int index, void* value,
-                                       EmbedderDataTypeTag slot);
+                                       EmbedderDataTypeTag tag);
 
   /**
    * Control whether code generation from strings is allowed. Calling
