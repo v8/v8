@@ -21,6 +21,7 @@
 #include "include/v8-isolate.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/enum-set.h"
+#include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
@@ -588,7 +589,7 @@ class Heap final {
   bool IsGCWithMainThreadStack() const;
 
   // This method is only safe to use in a safepoint.
-  bool IsGCWithStack() const;
+  V8_EXPORT_PRIVATE bool IsGCWithStack() const;
 
   bool CanShortcutStringsDuringGC(GarbageCollector collector) const;
 

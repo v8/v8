@@ -48,10 +48,11 @@ class HeapLayout final : public AllStatic {
 
   // Returns whether the map word of `object` is a self forwarding address.
   // This represents pinned objects and live large objects in Scavenger.
-  static bool IsSelfForwarded(Tagged<HeapObject> object);
-  static bool IsSelfForwarded(Tagged<HeapObject> object,
-                              PtrComprCageBase cage_base);
-  static bool IsSelfForwarded(Tagged<HeapObject> object, MapWord map_word);
+  V8_EXPORT_PRIVATE static bool IsSelfForwarded(Tagged<HeapObject> object);
+  V8_EXPORT_PRIVATE static bool IsSelfForwarded(Tagged<HeapObject> object,
+                                                PtrComprCageBase cage_base);
+  V8_EXPORT_PRIVATE static bool IsSelfForwarded(Tagged<HeapObject> object,
+                                                MapWord map_word);
 
   V8_EXPORT_PRIVATE static bool IsForwardedPointerTo(Tagged<HeapObject> src,
                                                      Tagged<HeapObject> dest);

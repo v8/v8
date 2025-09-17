@@ -11,6 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/casting-inl.h"
 #include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -75,12 +76,15 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   // removing weakly-held dead unregister tokens. The latter is during GC so
   // this function cannot GC.
   DisallowGarbageCollection no_gc;
-  if (IsUndefined(key_map(), isolate)) {
+  Tagged<HeapObject> maybe_key_map =
+      Cast<HeapObject>(RawField(kKeyMapOffset).load());
+  if (IsUndefined(maybe_key_map, isolate)) {
     return false;
   }
 
+  const Heap* const heap = isolate->heap();
   Tagged<SimpleNumberDictionary> key_map =
-      Cast<SimpleNumberDictionary>(this->key_map());
+      GCSafeCast<SimpleNumberDictionary>(maybe_key_map, heap);
   // If the token doesn't have a hash, it was not used as a key inside any hash
   // tables.
   Tagged<Object> hash = Object::GetHash(unregister_token);
@@ -102,7 +106,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   // unregister tokens are held weakly, key_map is keyed using the tokens'
   // identity hashes, and identity hashes may collide.
   while (!IsUndefined(value, isolate)) {
-    Tagged<WeakCell> weak_cell = Cast<WeakCell>(value);
+    Tagged<WeakCell> weak_cell = GCSafeCast<WeakCell>(value, heap);
     value = weak_cell->key_list_next();
     if (weak_cell->unregister_token() == unregister_token) {
       // weak_cell has the same unregister token; remove it from the key list.
@@ -129,8 +133,8 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
       if (IsUndefined(new_key_list_prev, isolate)) {
         new_key_list_head = weak_cell;
       } else {
-        DCHECK(IsWeakCell(new_key_list_head));
-        Tagged<WeakCell> prev_cell = Cast<WeakCell>(new_key_list_prev);
+        Tagged<WeakCell> prev_cell =
+            GCSafeCast<WeakCell>(new_key_list_prev, heap);
         prev_cell->set_key_list_next(weak_cell);
         gc_notify_updated_slot(
             prev_cell, ObjectSlot(&prev_cell->key_list_next_), weak_cell);
@@ -249,11 +253,12 @@ void WeakCell::Nullify(Isolate* isolate,
   DCHECK(Object::CanBeHeldWeakly(target()));
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
+  const Heap* const heap = isolate->heap();
   Tagged<JSFinalizationRegistry> fr =
-      Cast<JSFinalizationRegistry>(finalization_registry());
-  if (IsWeakCell(prev())) {
+      GCSafeCast<JSFinalizationRegistry>(finalization_registry(), heap);
+  if (!IsUndefined(prev())) {
     DCHECK_NE(fr->active_cells(), this);
-    Tagged<WeakCell> prev_cell = Cast<WeakCell>(prev());
+    Tagged<WeakCell> prev_cell = GCSafeCast<WeakCell>(prev(), heap);
     prev_cell->set_next(next());
     gc_notify_updated_slot(prev_cell, ObjectSlot(&prev_cell->next_), next());
   } else {
@@ -262,16 +267,17 @@ void WeakCell::Nullify(Isolate* isolate,
     gc_notify_updated_slot(
         fr, fr->RawField(JSFinalizationRegistry::kActiveCellsOffset), next());
   }
-  if (IsWeakCell(next())) {
-    Tagged<WeakCell> next_cell = Cast<WeakCell>(next());
+  if (!IsUndefined(next())) {
+    Tagged<WeakCell> next_cell = GCSafeCast<WeakCell>(next(), heap);
     next_cell->set_prev(prev());
     gc_notify_updated_slot(next_cell, ObjectSlot(&next_cell->prev_), prev());
   }
 
   set_prev(ReadOnlyRoots(isolate).undefined_value());
   Tagged<UnionOf<Undefined, WeakCell>> cleared_head = fr->cleared_cells();
-  if (IsWeakCell(cleared_head)) {
-    Tagged<WeakCell> cleared_head_cell = Cast<WeakCell>(cleared_head);
+  if (!IsUndefined(cleared_head)) {
+    Tagged<WeakCell> cleared_head_cell =
+        GCSafeCast<WeakCell>(cleared_head, heap);
     cleared_head_cell->set_prev(Tagged(this));
     gc_notify_updated_slot(cleared_head_cell,
                            ObjectSlot(&cleared_head_cell->prev_), this);

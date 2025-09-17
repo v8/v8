@@ -105,11 +105,13 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/casting-inl.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots-atomic-inl.h"
@@ -7153,8 +7155,9 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
                        Tagged<Object> target)>
         gc_notify_updated_slot) {
   // Add a FinalizationRegistry to the tail of the dirty list.
-  DCHECK(!HasDirtyJSFinalizationRegistries() ||
-         IsJSFinalizationRegistry(dirty_js_finalization_registries_list()));
+  DCHECK_IMPLIES(HasDirtyJSFinalizationRegistries(),
+                 GCAwareObjectTypeCheck<JSFinalizationRegistry>(
+                     dirty_js_finalization_registries_list(), this));
   DCHECK(IsUndefined(finalization_registry->next_dirty(), isolate()));
   DCHECK(!finalization_registry->scheduled_for_cleanup());
   finalization_registry->set_scheduled_for_cleanup(true);
@@ -7164,8 +7167,8 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
     // dirty_js_finalization_registries_list_ is rescanned by
     // ProcessWeakListRoots.
   } else {
-    Tagged<JSFinalizationRegistry> tail = Cast<JSFinalizationRegistry>(
-        dirty_js_finalization_registries_list_tail());
+    Tagged<JSFinalizationRegistry> tail = GCSafeCast<JSFinalizationRegistry>(
+        dirty_js_finalization_registries_list_tail(), this);
     tail->set_next_dirty(finalization_registry);
     gc_notify_updated_slot(
         tail, tail->RawField(JSFinalizationRegistry::kNextDirtyOffset),
