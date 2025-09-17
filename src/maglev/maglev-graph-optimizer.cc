@@ -311,41 +311,21 @@ ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64NotHole() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
-
-ProcessResult MaglevGraphOptimizer::VisitCheckNumber() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckSmi() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckString() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckSeqOneByteString() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckStringOrStringWrapper() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckStringOrOddball() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckSymbol() {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
+#define VISIT_CHECK(Type)                                                 \
+  ProcessResult MaglevGraphOptimizer::VisitCheck##Type() {                \
+    if (NodeTypeIs(reducer_.GetType(GetInputAt(0)), NodeType::k##Type)) { \
+      return ProcessResult::kRemove;                                      \
+    }                                                                     \
+    return ProcessResult::kContinue;                                      \
+  }
+VISIT_CHECK(Smi)
+VISIT_CHECK(Number)
+VISIT_CHECK(String)
+VISIT_CHECK(SeqOneByteString)
+VISIT_CHECK(StringOrStringWrapper)
+VISIT_CHECK(StringOrOddball)
+VISIT_CHECK(Symbol)
+#undef PROCESS_CHECK
 
 ProcessResult MaglevGraphOptimizer::VisitCheckValue() {
   CheckValue* node = current_node()->Cast<CheckValue>();

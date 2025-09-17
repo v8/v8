@@ -443,6 +443,35 @@ class MaglevReducer {
       TaggedToFloat64ConversionType conversion_type, ValueNode* left,
       double cst_right);
 
+  bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+    return known_node_aspects().CheckType(broker(), node, type, old);
+  }
+  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types) {
+    return known_node_aspects().CheckTypes(broker(), node, types);
+  }
+  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+    return known_node_aspects().EnsureType(broker(), node, type, old);
+  }
+  NodeType GetType(ValueNode* node) {
+    return known_node_aspects().GetType(broker(), node);
+  }
+  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
+    return known_node_aspects().GetOrCreateInfoFor(broker(), node);
+  }
+  // Returns true if we statically know that {lhs} and {rhs} have disjoint
+  // types.
+  bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
+    return known_node_aspects().HaveDisjointTypes(broker(), lhs, rhs);
+  }
+  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
+    return known_node_aspects().HasDisjointType(broker(), lhs, rhs_type);
+  }
+
+  Zone* zone() const { return zone_; }
+  Graph* graph() const { return graph_; }
+  compiler::JSHeapBroker* broker() const { return broker_; }
+  LocalIsolate* local_isolate() const { return broker()->local_isolate(); }
+
  protected:
   class LazyDeoptResultLocationScope;
 
@@ -500,39 +529,10 @@ class MaglevReducer {
 
   std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
 
-  bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
-    return known_node_aspects().CheckType(broker(), node, type, old);
-  }
-  NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types) {
-    return known_node_aspects().CheckTypes(broker(), node, types);
-  }
-  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
-    return known_node_aspects().EnsureType(broker(), node, type, old);
-  }
-  NodeType GetType(ValueNode* node) {
-    return known_node_aspects().GetType(broker(), node);
-  }
-  NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
-    return known_node_aspects().GetOrCreateInfoFor(broker(), node);
-  }
-  // Returns true if we statically know that {lhs} and {rhs} have disjoint
-  // types.
-  bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
-    return known_node_aspects().HaveDisjointTypes(broker(), lhs, rhs);
-  }
-  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
-    return known_node_aspects().HasDisjointType(broker(), lhs, rhs_type);
-  }
-
   KnownNodeAspects& known_node_aspects() {
     static_assert(ReducerBaseWithKNA<BaseT>);
     return base_->known_node_aspects();
   }
-
-  Zone* zone() const { return zone_; }
-  Graph* graph() const { return graph_; }
-  compiler::JSHeapBroker* broker() const { return broker_; }
-  LocalIsolate* local_isolate() const { return broker()->local_isolate(); }
 
  private:
   BaseT* base_;
