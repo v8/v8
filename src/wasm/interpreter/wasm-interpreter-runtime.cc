@@ -632,8 +632,8 @@ void WasmInterpreterRuntime::UnpackException(
         break;
       }
       case kS128: {
-        int32x4 s128 = {0, 0, 0, 0};
-        uint32_t* vals = reinterpret_cast<uint32_t*>(s128.val);
+        Simd128::int32x4 s128 = {0, 0, 0, 0};
+        uint32_t* vals = reinterpret_cast<uint32_t*>(s128.data());
         DecodeI32ExceptionValue(encoded_values, &encoded_index, &vals[0]);
         DecodeI32ExceptionValue(encoded_values, &encoded_index, &vals[1]);
         DecodeI32ExceptionValue(encoded_values, &encoded_index, &vals[2]);
