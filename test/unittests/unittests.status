@@ -306,6 +306,7 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'WasmDisassemblerTest.Simd': [SKIP],
+  'SimdCrossCompilerDeterminismTest.*': [SKIP],
 }],  # no_simd_hardware == True
 
 ['tsan and mode == debug', {
