@@ -64,16 +64,15 @@ struct builtin {
   // if necessary.
   static constexpr std::size_t kMaxArgumentCount = 8;
   using arguments_vector_t = base::SmallVector<OpIndex, kMaxArgumentCount>;
+  static constexpr inline detail::IndexTag<0> index_counter(
+      detail::IndexTag<0>);
+  static constexpr base::tmp::list<> make_args_type_list_n(detail::IndexTag<0>);
 
   static constexpr OpEffects base_effects = OpEffects().CanDependOnChecks();
 
   template <typename Derived>
   struct Descriptor {
     struct ArgumentsBase {
-      static constexpr detail::IndexTag<0> index_counter(detail::IndexTag<0>);
-      static constexpr base::tmp::list<> make_args_type_list_n(
-          detail::IndexTag<0>);
-
       arguments_vector_t ToVector() const {
         arguments_vector_t result;
         static_cast<const Derived::Arguments*>(this)->CollectArguments(
@@ -129,8 +128,11 @@ struct builtin {
       DCHECK_EQ(desc->NeedsFrameState(),
                 (Derived::kCanTriggerLazyDeopt && caller_can_deopt));
       DCHECK_EQ(desc->properties(), Derived::kProperties);
-      DCHECK_IMPLIES(Derived::kEffects.can_allocate,
-                     Derived::kCanTriggerLazyDeopt);
+      // TODO(nicohartmann): Unfortunately, the condition is not that simple, we
+      // should find a more appropriate way to detect this. Ideally we would use
+      // the builtin effect analysis.
+      // DCHECK_IMPLIES(Derived::kEffects.can_allocate,
+      // Derived::kCanTriggerLazyDeopt);
     }
 
    private:
@@ -228,6 +230,181 @@ struct builtin {
   };
   GENERIC_UNOP_LIST(DECL_GENERIC_UNOP)
 #undef DECL_GENERIC_UNOP
+
+  struct DetachContextCell : public Descriptor<DetachContextCell> {
+    static constexpr auto kFunction = Builtin::kDetachContextCell;
+    struct Arguments : public ArgumentsBase {
+      ARG(V<Context>, the_context)
+      ARG(V<Object>, new_value)
+      ARG(V<WordPtr>, i)
+    };
+    using returns_t = std::tuple<V<Object>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects =
+        base_effects.CanWriteHeapMemory().CanReadMemory();
+  };
+
+  struct ToNumber : public Descriptor<ToNumber> {
+    static constexpr auto kFunction = Builtin::kToNumber;
+    struct Arguments : public ArgumentsBase {
+      ARG(V<Object>, input)
+    };
+    using returns_t = std::tuple<V<Number>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct NonNumberToNumber : public Descriptor<NonNumberToNumber> {
+    static constexpr auto kFunction = Builtin::kNonNumberToNumber;
+    struct Arguments : public ArgumentsBase {
+      ARG(V<JSAnyNotNumber>, input)
+    };
+    using returns_t = std::tuple<V<Number>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct ToNumeric : public Descriptor<ToNumeric> {
+    static constexpr auto kFunction = Builtin::kToNumeric;
+    struct Arguments : public ArgumentsBase {
+      ARG(V<Object>, input)
+    };
+    using returns_t = std::tuple<V<Numeric>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct NonNumberToNumeric : public Descriptor<NonNumberToNumeric> {
+    static constexpr auto kFunction = Builtin::kNonNumberToNumeric;
+    struct Arguments : public ArgumentsBase {
+      ARG(V<JSAnyNotNumber>, input)
+    };
+    using returns_t = std::tuple<V<Numeric>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct CopyFastSmiOrObjectElements
+      : public Descriptor<CopyFastSmiOrObjectElements> {
+    static constexpr auto kFunction = Builtin::kCopyFastSmiOrObjectElements;
+    struct Arguments : public ArgumentsBase {
+      ARG(V<Object>, object)
+    };
+    using returns_t = std::tuple<V<Object>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanWriteMemory().CanReadMemory().CanAllocate();
+  };
+
+  template <Builtin B, typename Input>
+  struct DebugPrint : public Descriptor<DebugPrint<B, Input>> {
+    static constexpr auto kFunction = B;
+    using StringOrSmi = Union<String, Smi>;
+    // We use smi:0 for an empty label.
+    using ArgumentsBase = Descriptor<DebugPrint<B, Input>>::ArgumentsBase;
+    struct Arguments : public ArgumentsBase {
+      ARG(V<StringOrSmi>, label_or_0)
+      ARG(V<Input>, value)
+    };
+    using returns_t = std::tuple<V<Object>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoThrow | Operator::kNoDeopt;
+    static constexpr OpEffects kEffects =
+        base_effects.RequiredWhenUnused().CanAllocate();
+  };
+  using DebugPrintObject = DebugPrint<Builtin::kDebugPrintObject, Object>;
+  using DebugPrintWord32 = DebugPrint<Builtin::kDebugPrintWord32, Word32>;
+  using DebugPrintWord64 = DebugPrint<Builtin::kDebugPrintWord64, Word64>;
+  using DebugPrintFloat32 = DebugPrint<Builtin::kDebugPrintFloat32, Float32>;
+  using DebugPrintFloat64 = DebugPrint<Builtin::kDebugPrintFloat64, Float64>;
+
+  template <Builtin B>
+  struct FindOrderedHashEntry : public Descriptor<FindOrderedHashEntry<B>> {
+    static constexpr auto kFunction = B;
+    using ArgumentsBase = Descriptor<FindOrderedHashEntry<B>>::ArgumentsBase;
+    struct Arguments : public ArgumentsBase {
+      ARG(V<Object>, table)
+      ARG(V<Smi>, key)
+    };
+    using returns_t = std::tuple<V<Smi>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.AssumesConsistentHeap().CanReadMemory().CanAllocate();
+  };
+  using FindOrderedHashMapEntry =
+      FindOrderedHashEntry<Builtin::kFindOrderedHashMapEntry>;
+  using FindOrderedHashSetEntry =
+      FindOrderedHashEntry<Builtin::kFindOrderedHashSetEntry>;
+
+  template <Builtin B>
+  struct GrowFastElements : public Descriptor<GrowFastElements<B>> {
+    static constexpr auto kFunction = B;
+    using ArgumentsBase = Descriptor<GrowFastElements<B>>::ArgumentsBase;
+    struct Arguments : public ArgumentsBase {
+      ARG(V<Object>, object)
+      ARG(V<Smi>, size)
+    };
+    using returns_t = std::tuple<V<Object>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanWriteMemory().CanReadMemory().CanAllocate();
+  };
+  using GrowFastDoubleElements =
+      GrowFastElements<Builtin::kGrowFastDoubleElements>;
+  using GrowFastSmiOrObjectElements =
+      GrowFastElements<Builtin::kGrowFastSmiOrObjectElements>;
+
+  template <Builtin B>
+  struct NewArgumentsElements : public Descriptor<NewArgumentsElements<B>> {
+    static constexpr auto kFunction = B;
+    using ArgumentsBase = Descriptor<NewArgumentsElements<B>>::ArgumentsBase;
+    struct Arguments : public ArgumentsBase {
+      // TODO(nicohartmann@): First argument should be replaced by a proper
+      // RawPtr.
+      ARG(V<WordPtr>, frame)
+      ARG(V<WordPtr>, formal_parameter_count)
+      ARG(V<Smi>, arguments_count)
+    };
+    using returns_t = std::tuple<V<FixedArray>>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects = base_effects.CanAllocate();
+  };
+  using NewSloppyArgumentsElements =
+      NewArgumentsElements<Builtin::kNewSloppyArgumentsElements>;
+  using NewStrictArgumentsElements =
+      NewArgumentsElements<Builtin::kNewStrictArgumentsElements>;
+  using NewRestArgumentsElements =
+      NewArgumentsElements<Builtin::kNewRestArgumentsElements>;
 };
 
 // TODO(nicohartmann): These call descriptors are deprecated and shall be
@@ -320,150 +497,6 @@ struct BuiltinCallDescriptor {
   using Never = std::tuple<OpIndex>;
 
  public:
-  struct DetachContextCell : public Descriptor<DetachContextCell> {
-    static constexpr auto kFunction = Builtin::kDetachContextCell;
-    using arguments_t = std::tuple<V<Context>, V<Object>, V<WordPtr>>;
-    using results_t = std::tuple<V<Object>>;
-
-    static constexpr bool kNeedsFrameState = true;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects =
-        base_effects.CanWriteHeapMemory().CanReadMemory();
-  };
-
-  struct ToNumber : public Descriptor<ToNumber> {
-    static constexpr auto kFunction = Builtin::kToNumber;
-    using arguments_t = std::tuple<V<Object>>;
-    using results_t = std::tuple<V<Number>>;
-
-    static constexpr bool kNeedsFrameState = true;
-    static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
-  };
-
-  struct NonNumberToNumber : public Descriptor<NonNumberToNumber> {
-    static constexpr auto kFunction = Builtin::kNonNumberToNumber;
-    using arguments_t = std::tuple<V<JSAnyNotNumber>>;
-    using results_t = std::tuple<V<Number>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
-  };
-
-  struct ToNumeric : public Descriptor<ToNumeric> {
-    static constexpr auto kFunction = Builtin::kToNumeric;
-    using arguments_t = std::tuple<V<Object>>;
-    using results_t = std::tuple<V<Numeric>>;
-
-    static constexpr bool kNeedsFrameState = true;
-    static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
-  };
-
-  struct NonNumberToNumeric : public Descriptor<NonNumberToNumeric> {
-    static constexpr auto kFunction = Builtin::kNonNumberToNumeric;
-    using arguments_t = std::tuple<V<JSAnyNotNumber>>;
-    using results_t = std::tuple<V<Numeric>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
-  };
-
-  struct CopyFastSmiOrObjectElements
-      : public Descriptor<CopyFastSmiOrObjectElements> {
-    static constexpr auto kFunction = Builtin::kCopyFastSmiOrObjectElements;
-    using arguments_t = std::tuple<V<Object>>;
-    using results_t = std::tuple<V<Object>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanWriteMemory().CanReadMemory().CanAllocate();
-  };
-
-  template <Builtin B, typename Input>
-  struct DebugPrint : public Descriptor<DebugPrint<B, Input>> {
-    static constexpr auto kFunction = B;
-    using StringOrSmi = Union<String, Smi>;
-    // We use smi:0 for an empty label.
-    using arguments_t = std::tuple<V<StringOrSmi>, V<Input>>;
-    using results_t = std::tuple<V<Object>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties =
-        Operator::kNoThrow | Operator::kNoDeopt;
-    static constexpr OpEffects kEffects =
-        base_effects.RequiredWhenUnused().CanAllocate();
-  };
-  using DebugPrintObject = DebugPrint<Builtin::kDebugPrintObject, Object>;
-  using DebugPrintWord32 = DebugPrint<Builtin::kDebugPrintWord32, Word32>;
-  using DebugPrintWord64 = DebugPrint<Builtin::kDebugPrintWord64, Word64>;
-  using DebugPrintFloat32 = DebugPrint<Builtin::kDebugPrintFloat32, Float32>;
-  using DebugPrintFloat64 = DebugPrint<Builtin::kDebugPrintFloat64, Float64>;
-
-  template <Builtin B>
-  struct FindOrderedHashEntry : public Descriptor<FindOrderedHashEntry<B>> {
-    static constexpr auto kFunction = B;
-    using arguments_t = std::tuple<V<Object>, V<Smi>>;
-    using results_t = std::tuple<V<Smi>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = true;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.AssumesConsistentHeap().CanReadMemory().CanAllocate();
-  };
-  using FindOrderedHashMapEntry =
-      FindOrderedHashEntry<Builtin::kFindOrderedHashMapEntry>;
-  using FindOrderedHashSetEntry =
-      FindOrderedHashEntry<Builtin::kFindOrderedHashSetEntry>;
-
-  template <Builtin B>
-  struct GrowFastElements : public Descriptor<GrowFastElements<B>> {
-    static constexpr auto kFunction = B;
-    using arguments_t = std::tuple<V<Object>, V<Smi>>;
-    using results_t = std::tuple<V<Object>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanWriteMemory().CanReadMemory().CanAllocate();
-  };
-  using GrowFastDoubleElements =
-      GrowFastElements<Builtin::kGrowFastDoubleElements>;
-  using GrowFastSmiOrObjectElements =
-      GrowFastElements<Builtin::kGrowFastSmiOrObjectElements>;
-
-  template <Builtin B>
-  struct NewArgumentsElements : public Descriptor<NewArgumentsElements<B>> {
-    static constexpr auto kFunction = B;
-    // TODO(nicohartmann@): First argument should be replaced by a proper
-    // RawPtr.
-    using arguments_t = std::tuple<V<WordPtr>, V<WordPtr>, V<Smi>>;
-    using results_t = std::tuple<V<FixedArray>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanAllocate();
-  };
-  using NewSloppyArgumentsElements =
-      NewArgumentsElements<Builtin::kNewSloppyArgumentsElements>;
-  using NewStrictArgumentsElements =
-      NewArgumentsElements<Builtin::kNewStrictArgumentsElements>;
-  using NewRestArgumentsElements =
-      NewArgumentsElements<Builtin::kNewRestArgumentsElements>;
-
   struct NumberToString : public Descriptor<NumberToString> {
     static constexpr auto kFunction = Builtin::kNumberToString;
     using arguments_t = std::tuple<V<Number>>;

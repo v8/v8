@@ -3725,6 +3725,25 @@ class TurboshaftAssemblerOpInterface
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   template <typename Desc>
+    requires(!Desc::kNeedsContext && !Desc::kCanTriggerLazyDeopt)
+  detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
+      const Desc::Arguments& args) {
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    auto arguments = args.ToVector();
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Desc::kFunction, OptionalV<turboshaft::FrameState>::Nullopt(),
+        base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallCodeObject,
+                     Asm().output_graph().graph_zone()),
+        Desc::kEffects));
+  }
+
+  template <typename Desc>
     requires(Desc::kNeedsContext && !Desc::kCanTriggerLazyDeopt)
   detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
       V<Context> context, const Desc::Arguments& args) {
@@ -3746,10 +3765,35 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename Desc>
+    requires(!Desc::kNeedsContext && Desc::kCanTriggerLazyDeopt)
+  detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
+      OptionalV<turboshaft::FrameState> frame_state,
+      const Desc::Arguments& args,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
+    auto arguments = args.ToVector();
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Desc::kFunction, frame_state, base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallCodeObject,
+                     Asm().output_graph().graph_zone(), lazy_deopt_on_throw,
+                     !compiling_builtins),
+        Desc::kEffects));
+  }
+
+  template <typename Desc>
     requires(Desc::kNeedsContext && Desc::kCanTriggerLazyDeopt)
   detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
       OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
-      const Desc::Arguments& args, LazyDeoptOnThrow lazy_deopt_on_throw) {
+      const Desc::Arguments& args,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3770,6 +3814,50 @@ class TurboshaftAssemblerOpInterface
         Desc::kEffects));
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+
+  template <typename Desc>
+    requires(!Desc::kNeedsContext)
+  detail::index_type_for_t<typename Desc::returns_t>
+  WasmCallBuiltinThroughJumptable(const typename Desc::Arguments& args) {
+    static_assert(!Desc::kCanTriggerLazyDeopt);
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    auto arguments = args.ToVector();
+    V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
+    return result_t::Cast(Call(call_target,
+                               OptionalV<turboshaft::FrameState>::Nullopt(),
+                               base::VectorOf(arguments),
+                               Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                                            Asm().output_graph().graph_zone()),
+                               Desc::kEffects));
+  }
+
+  template <typename Desc>
+    requires(Desc::kNeedsContext)
+  detail::index_type_for_t<typename Desc::returns_t>
+  WasmCallBuiltinThroughJumptable(V<Context> context,
+                                  const typename Desc::Arguments& args) {
+    static_assert(!Desc::kCanTriggerLazyDeopt);
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    auto arguments = args.ToVector();
+    arguments.push_back(context);
+    V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
+    return result_t::Cast(Call(call_target,
+                               OptionalV<turboshaft::FrameState>::Nullopt(),
+                               base::VectorOf(arguments),
+                               Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                                            Asm().output_graph().graph_zone()),
+                               Desc::kEffects));
+  }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   V<Any> CallBuiltinImpl(Isolate* isolate, Builtin builtin,
                          OptionalV<turboshaft::FrameState> frame_state,
                          base::Vector<const OpIndex> arguments,
@@ -3779,104 +3867,6 @@ class TurboshaftAssemblerOpInterface
                 effects);
   }
 
-  V<Number> CallBuiltin_ToNumber(Isolate* isolate,
-                                 V<turboshaft::FrameState> frame_state,
-                                 V<Context> context, V<Object> input,
-                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToNumber>(
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
-  }
-  V<Numeric> CallBuiltin_ToNumeric(Isolate* isolate,
-                                   V<turboshaft::FrameState> frame_state,
-                                   V<Context> context, V<Object> input,
-                                   LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToNumeric>(
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
-  }
-
-  V<Object> CallBuiltin_CopyFastSmiOrObjectElements(Isolate* isolate,
-                                                    V<Object> object) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::
-                           CopyFastSmiOrObjectElements>(isolate, {object});
-  }
-  void CallBuiltin_DebugPrintFloat32(Isolate* isolate, V<Context> context,
-                                     V<Union<String, Smi>> label_or_0,
-                                     V<Float32> value) {
-    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintFloat32>(
-        isolate, context, {label_or_0, value});
-  }
-  void CallBuiltin_DebugPrintFloat64(Isolate* isolate, V<Context> context,
-                                     V<Union<String, Smi>> label_or_0,
-                                     V<Float64> value) {
-    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintFloat64>(
-        isolate, context, {label_or_0, value});
-  }
-  void CallBuiltin_DebugPrintWord32(Isolate* isolate, V<Context> context,
-                                    V<Union<String, Smi>> label_or_0,
-                                    V<Word32> value) {
-    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintWord32>(
-        isolate, context, {label_or_0, value});
-  }
-  void CallBuiltin_DebugPrintWord64(Isolate* isolate, V<Context> context,
-                                    V<Union<String, Smi>> label_or_0,
-                                    V<Word64> value) {
-    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintWord64>(
-        isolate, context, {label_or_0, value});
-  }
-  void CallBuiltin_DebugPrintObject(Isolate* isolate, V<Context> context,
-                                    V<Union<String, Smi>> label_or_0,
-                                    V<Object> value) {
-    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DebugPrintObject>(
-        isolate, context, {label_or_0, value});
-  }
-  V<Smi> CallBuiltin_FindOrderedHashMapEntry(Isolate* isolate,
-                                             V<Context> context,
-                                             V<Object> table, V<Smi> key) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::FindOrderedHashMapEntry>(
-        isolate, context, {table, key});
-  }
-  V<Smi> CallBuiltin_FindOrderedHashSetEntry(Isolate* isolate,
-                                             V<Context> context, V<Object> set,
-                                             V<Smi> key) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::FindOrderedHashSetEntry>(
-        isolate, context, {set, key});
-  }
-  V<Object> CallBuiltin_GrowFastDoubleElements(Isolate* isolate,
-                                               V<Object> object, V<Smi> size) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::GrowFastDoubleElements>(
-        isolate, {object, size});
-  }
-  V<Object> CallBuiltin_GrowFastSmiOrObjectElements(Isolate* isolate,
-                                                    V<Object> object,
-                                                    V<Smi> size) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::
-                           GrowFastSmiOrObjectElements>(isolate,
-                                                        {object, size});
-  }
-  V<FixedArray> CallBuiltin_NewSloppyArgumentsElements(
-      Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
-      V<Smi> arguments_count) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::NewSloppyArgumentsElements>(
-        isolate, {frame, formal_parameter_count, arguments_count});
-  }
-  V<FixedArray> CallBuiltin_NewStrictArgumentsElements(
-      Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
-      V<Smi> arguments_count) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::NewStrictArgumentsElements>(
-        isolate, {frame, formal_parameter_count, arguments_count});
-  }
-  V<FixedArray> CallBuiltin_NewRestArgumentsElements(
-      Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
-      V<Smi> arguments_count) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::NewRestArgumentsElements>(
-        isolate, {frame, formal_parameter_count, arguments_count});
-  }
   V<String> CallBuiltin_NumberToString(Isolate* isolate, V<Number> input) {
     return CallBuiltin<
         typename deprecated::BuiltinCallDescriptor::NumberToString>(isolate,
@@ -3971,13 +3961,6 @@ class TurboshaftAssemblerOpInterface
                                      V<JSPrimitive> object) {
     return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToObject>(
         isolate, context, {object});
-  }
-  void CallBuiltin_DetachContextCell(Isolate* isolate,
-                                     V<turboshaft::FrameState> frame_state,
-                                     V<Context> context, V<Object> new_value,
-                                     ConstOrV<WordPtr> index) {
-    CallBuiltin<typename deprecated::BuiltinCallDescriptor::DetachContextCell>(
-        isolate, frame_state, {context, new_value, resolve(index)});
   }
   V<Context> CallBuiltin_FastNewFunctionContextFunction(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,

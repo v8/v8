@@ -2755,14 +2755,20 @@ class MachineLoweringReducer : public Next {
     V<WordPtr> p_count = __ IntPtrConstant(formal_parameter_count);
     switch (type) {
       case CreateArgumentsType::kMappedArguments:
-        return __ CallBuiltin_NewSloppyArgumentsElements(
-            isolate_, frame, p_count, arguments_count);
+        return __ template CallBuiltin<builtin::NewSloppyArgumentsElements>(
+            {.frame = frame,
+             .formal_parameter_count = p_count,
+             .arguments_count = arguments_count});
       case CreateArgumentsType::kUnmappedArguments:
-        return __ CallBuiltin_NewStrictArgumentsElements(
-            isolate_, frame, p_count, arguments_count);
+        return __ template CallBuiltin<builtin::NewStrictArgumentsElements>(
+            {.frame = frame,
+             .formal_parameter_count = p_count,
+             .arguments_count = arguments_count});
       case CreateArgumentsType::kRestParameter:
-        return __ CallBuiltin_NewRestArgumentsElements(isolate_, frame, p_count,
-                                                       arguments_count);
+        return __ template CallBuiltin<builtin::NewRestArgumentsElements>(
+            {.frame = frame,
+             .formal_parameter_count = p_count,
+             .arguments_count = arguments_count});
     }
   }
 
@@ -3474,7 +3480,8 @@ class MachineLoweringReducer : public Next {
 
     // We need to take a copy of the {elements} and set them up for {object}.
     V<Object> copy =
-        __ CallBuiltin_CopyFastSmiOrObjectElements(isolate_, object);
+        __ template CallBuiltin<builtin::CopyFastSmiOrObjectElements>(
+            {.object = object});
     GOTO(done, copy);
 
     BIND(done, result);
@@ -3494,12 +3501,13 @@ class MachineLoweringReducer : public Next {
     V<Object> new_elements;
     switch (mode) {
       case GrowFastElementsMode::kDoubleElements:
-        new_elements = __ CallBuiltin_GrowFastDoubleElements(isolate_, object,
-                                                             __ TagSmi(index));
+        new_elements = __ template CallBuiltin<builtin::GrowFastDoubleElements>(
+            {.object = object, .size = __ TagSmi(index)});
         break;
       case GrowFastElementsMode::kSmiOrObjectElements:
-        new_elements = __ CallBuiltin_GrowFastSmiOrObjectElements(
-            isolate_, object, __ TagSmi(index));
+        new_elements =
+            __ template CallBuiltin<builtin::GrowFastSmiOrObjectElements>(
+                {.object = object, .size = __ TagSmi(index)});
         break;
     }
 
@@ -3586,8 +3594,8 @@ class MachineLoweringReducer : public Next {
                                        FindOrderedHashEntryOp::Kind kind) {
     switch (kind) {
       case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntry:
-        return __ CallBuiltin_FindOrderedHashMapEntry(
-            isolate_, __ NoContextConstant(), data_structure, key);
+        return __ template CallBuiltin<builtin::FindOrderedHashMapEntry>(
+            __ NoContextConstant(), {.table = data_structure, .key = key});
       case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key: {
         // Compute the integer hash code.
         V<WordPtr> hash = __ ChangeUint32ToUintPtr(ComputeUnseededHash(key));
@@ -3646,8 +3654,8 @@ class MachineLoweringReducer : public Next {
         return result;
       }
       case FindOrderedHashEntryOp::Kind::kFindOrderedHashSetEntry:
-        return __ CallBuiltin_FindOrderedHashSetEntry(
-            isolate_, __ NoContextConstant(), data_structure, key);
+        return __ template CallBuiltin<builtin::FindOrderedHashSetEntry>(
+            __ NoContextConstant(), {.table = data_structure, .key = key});
     }
   }
 

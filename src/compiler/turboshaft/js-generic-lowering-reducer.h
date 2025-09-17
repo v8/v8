@@ -71,12 +71,14 @@ class JSGenericLoweringReducer : public Next {
             done, input);
     switch (kind) {
       case Object::Conversion::kToNumber:
-        GOTO(done, __ CallBuiltin_ToNumber(isolate_, frame_state, context,
-                                           input, lazy_deopt_on_throw));
+        GOTO(done,
+             __ template CallBuiltin<builtin::ToNumber>(
+                 frame_state, context, {.input = input}, lazy_deopt_on_throw));
         break;
       case Object::Conversion::kToNumeric:
-        GOTO(done, __ CallBuiltin_ToNumeric(isolate_, frame_state, context,
-                                            input, lazy_deopt_on_throw));
+        GOTO(done,
+             __ template CallBuiltin<builtin::ToNumeric>(
+                 frame_state, context, {.input = input}, lazy_deopt_on_throw));
         break;
     }
     BIND(done, result);

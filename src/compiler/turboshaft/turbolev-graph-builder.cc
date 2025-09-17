@@ -3203,9 +3203,10 @@ class GraphBuildingNodeProcessor {
               value_map,
               __ HeapConstant(local_factory_->context_cell_map())))) {
         GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-        __ CallBuiltin_DetachContextCell(isolate_, frame_state, context,
-                                         new_value,
-                                         __ WordPtrConstant(node->index()));
+        __ CallBuiltin<builtin::DetachContextCell>(
+            frame_state, {.the_context = context,
+                          .new_value = new_value,
+                          .i = __ WordPtrConstant(node->index())});
       } ELSE {
         __ Store(context, new_value, StoreOp::Kind::TaggedBase(),
                  MemoryRepresentation::AnyTagged(),

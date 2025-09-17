@@ -601,10 +601,10 @@ class BuiltinsReducer : public Next {
 
       using Builtin =
           std::conditional_t<Conversion == Object::Conversion::kToNumeric,
-                             BuiltinCallDescriptor::NonNumberToNumeric,
-                             BuiltinCallDescriptor::NonNumberToNumber>;
+                             compiler::turboshaft::builtin::NonNumberToNumeric,
+                             compiler::turboshaft::builtin::NonNumberToNumber>;
       converted_value = __ template CallBuiltin<Builtin>(
-          isolate(), context, {V<JSAnyNotNumber>::Cast(value_heap_object)});
+          {}, context, {.input = V<JSAnyNotNumber>::Cast(value_heap_object)});
 
       GOTO_IF(__ IsSmi(converted_value), if_number,
               __ UntagSmi(V<Smi>::Cast(converted_value)));
