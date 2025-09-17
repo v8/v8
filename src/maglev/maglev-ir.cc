@@ -2879,8 +2879,12 @@ void CheckedHoleyFloat64ToFloat64::SetValueLocationConstraints() {
 void CheckedHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  __ JumpIfHoleNan(ToDoubleRegister(input()), temps.Acquire(),
-                   __ GetDeoptLabel(this, DeoptimizeReason::kHole));
+  auto scratch = temps.Acquire();
+  Label* deopt_label = __ GetDeoptLabel(this, DeoptimizeReason::kHole);
+  __ JumpIfHoleNan(ToDoubleRegister(input()), scratch, deopt_label);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  __ JumpIfUndefinedNan(ToDoubleRegister(input()), scratch, deopt_label);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 }
 
 void LoadFloat64::SetValueLocationConstraints() {
