@@ -667,9 +667,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
     inline int32_t vlmax() const {
       if ((lmul_ & 0b100) != 0) {
-        return (kRvvVLEN / sew()) >> (lmul_ & 0b11);
+        return (CpuFeatures::vlen() / sew()) >> (lmul_ & 0b11);
       } else {
-        return ((kRvvVLEN << lmul_) / sew());
+        return ((CpuFeatures::vlen() << lmul_) / sew());
       }
     }
 
@@ -694,42 +694,84 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     }
 
     void SetSimd128(VSew sew, TailAgnosticType tail = ta) {
+      Vlmul lmul;
+      switch (CpuFeatures::vlen()) {
+        case 128:
+          lmul = m1;
+          break;
+        case 256:
+          lmul = mf2;
+          break;
+        case 512:
+          lmul = mf4;
+          break;
+        default:
+          UNIMPLEMENTED();
+      }
       if (sew == E8) {
-        set(16, sew, m1, tail);
+        set(16, sew, lmul, tail);
       } else if (sew == E16) {
-        set(8, sew, m1, tail);
+        set(8, sew, lmul, tail);
       } else if (sew == E32) {
-        set(4, sew, m1, tail);
+        set(4, sew, lmul, tail);
       } else if (sew == E64) {
-        set(2, sew, m1, tail);
+        set(2, sew, lmul, tail);
       } else {
         UNREACHABLE();
       }
     }
 
     void SetSimd128Half(VSew sew, TailAgnosticType tail = ta) {
+      Vlmul lmul;
+      switch (CpuFeatures::vlen()) {
+        case 128:
+          lmul = mf2;
+          break;
+        case 256:
+          lmul = mf4;
+          break;
+        case 512:
+          lmul = mf8;
+          break;
+        default:
+          UNIMPLEMENTED();
+      }
       if (sew == E8) {
-        set(8, sew, mf2, tail);
+        set(8, sew, lmul, tail);
       } else if (sew == E16) {
-        set(4, sew, mf2, tail);
+        set(4, sew, lmul, tail);
       } else if (sew == E32) {
-        set(2, sew, mf2, tail);
+        set(2, sew, lmul, tail);
       } else if (sew == E64) {
-        set(1, sew, mf2, tail);
+        set(1, sew, lmul, tail);
       } else {
         UNREACHABLE();
       }
     }
 
     void SetSimd128x2(VSew sew, TailAgnosticType tail = ta) {
+      Vlmul lmul;
+      switch (CpuFeatures::vlen()) {
+        case 128:
+          lmul = m2;
+          break;
+        case 256:
+          lmul = m1;
+          break;
+        case 512:
+          lmul = mf2;
+          break;
+        default:
+          UNIMPLEMENTED();
+      }
       if (sew == E8) {
-        set(32, sew, m2, tail);
+        set(32, sew, lmul, tail);
       } else if (sew == E16) {
-        set(16, sew, m2, tail);
+        set(16, sew, lmul, tail);
       } else if (sew == E32) {
-        set(8, sew, m2, tail);
+        set(8, sew, lmul, tail);
       } else if (sew == E64) {
-        set(4, sew, m2, tail);
+        set(4, sew, lmul, tail);
       } else {
         UNREACHABLE();
       }

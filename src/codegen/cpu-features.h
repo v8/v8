@@ -152,6 +152,11 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
     return dcache_line_size_;
   }
 
+  static inline unsigned vlen() {
+    DCHECK_NE(vlen_, 0);
+    return vlen_;
+  }
+
   static void PrintTarget();
   static void PrintFeatures();
 
@@ -173,6 +178,8 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   // CpuFeatures::SupportWasmSimd128().
   static bool supports_wasm_simd_128_;
   static bool supports_cetss_;
+  // VLEN is the length in bits of the vector registers on RISC-V.
+  static unsigned vlen_;
 };
 
 }  // namespace internal

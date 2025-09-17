@@ -56,6 +56,10 @@
 #include <windows.h>
 #endif
 
+#if V8_HOST_ARCH_RISCV64
+#include <riscv_vector.h>
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -459,6 +463,7 @@ CPU::CPU()
       is_running_in_vm_(false),
       has_msa_(false),
       riscv_mmu_(RV_MMU_MODE::kRiscvSV48),
+      vlen_(kUnknownVlen),
       has_rvv_(false),
       has_zba_(false),
       has_zbb_(false),
@@ -1030,6 +1035,9 @@ CPU::CPU()
     riscv_mmu_ = RV_MMU_MODE::kRiscvSV57;
   }
 #endif
+  if (has_rvv_) {
+    vlen_ = static_cast<unsigned>(__riscv_vlenb() * 8);
+  }
 #endif  // V8_HOST_ARCH_RISCV64
 }
 

@@ -659,8 +659,10 @@ TEST_F(DisasmRiscvTest,  Previleged) {
 TEST_F(DisasmRiscvTest, RVV) {
   if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;
   SET_UP();
-  COMPARE(VU.SetSimd128(E64),
+  COMPARE(VU.set(2, E64, m1),
           "c5817057       vsetivli  zero_reg, 0x2, E64, m1");
+  COMPARE(VU.set(2, E64, mf2),
+          "c5f17057       vsetivli  zero_reg, 0x2, E64, mf2");
   COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v    v2, (a0)");
   COMPARE(vl(v2, a0, 0, VSew::E16), "02055107       vle16.v    v2, (a0)");
   COMPARE(vl(v2, a0, 0, VSew::E32), "02056107       vle32.v    v2, (a0)");
