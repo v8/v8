@@ -53,6 +53,7 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer-inl.h"
+#include "src/maglev/maglev-reducer.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/ieee754.h"
 #include "src/objects/arguments.h"
@@ -4789,8 +4790,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreTrustedPointerField(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
-                                                          int index) {
+ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
+                                                            int index) {
   // We won't try to reason about the type of the elements array and thus also
   // cannot end up with an empty type for it.
   DCHECK(!IsEmptyNodeType(GetType(elements)));
@@ -4804,7 +4805,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
           fixed_array_ref.TryGet(broker(), index);
       if (maybe_value) return GetConstant(*maybe_value);
     } else {
-      return GetRootConstant(RootIndex::kTheHoleValue);
+      return BuildAbort(AbortReason::kUnreachable);
     }
   }
   if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
@@ -4817,12 +4818,12 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
       if (index >= 0 && index < length.value()) {
         return vobject->get(FixedArray::OffsetOfElementAt(index));
       } else {
-        return GetRootConstant(RootIndex::kTheHoleValue);
+        return BuildAbort(AbortReason::kUnreachable);
       }
     }
   }
   if (index < 0 || index >= FixedArray::kMaxLength) {
-    return GetRootConstant(RootIndex::kTheHoleValue);
+    return BuildAbort(AbortReason::kUnreachable);
   }
   return AddNewNodeNoAbort<LoadTaggedField>(
       {elements}, FixedArray::OffsetOfElementAt(index));
@@ -4850,7 +4851,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
   }
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
+ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
     ValueNode* elements, int index) {
   // We won't try to reason about the type of the elements array and thus also
   // cannot end up with an empty type for it.
@@ -4863,11 +4864,11 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
       Float64 value = elements_array.GetFromImmutableFixedDoubleArray(index);
       return GetFloat64Constant(value.get_scalar());
     } else {
-      return GetRootConstant(RootIndex::kTheHoleValue);
+      return BuildAbort(AbortReason::kUnreachable);
     }
   }
   if (index < 0 || index >= FixedArray::kMaxLength) {
-    return GetRootConstant(RootIndex::kTheHoleValue);
+    return BuildAbort(AbortReason::kUnreachable);
   }
   return AddNewNodeNoAbort<LoadFixedDoubleArrayElement>(
       {elements, GetInt32Constant(index)});
@@ -7353,7 +7354,9 @@ ReduceResult MaglevGraphBuilder::VisitLdaModuleVariable() {
     // The actual array index is (-cell_index - 1).
     cell_index = -cell_index - 1;
   }
-  ValueNode* cell = BuildLoadFixedArrayElement(exports_or_imports, cell_index);
+  ValueNode* cell;
+  GET_VALUE_OR_ABORT(
+      cell, BuildLoadFixedArrayElement(exports_or_imports, cell_index));
   SetAccumulator(BuildLoadTaggedField(cell, Cell::kValueOffset));
   return ReduceResult::Done();
 }
@@ -7403,7 +7406,8 @@ ReduceResult MaglevGraphBuilder::VisitStaModuleVariable() {
       BuildLoadTaggedField(module, SourceTextModule::kRegularExportsOffset);
   // The actual array index is (cell_index - 1).
   cell_index -= 1;
-  ValueNode* cell = BuildLoadFixedArrayElement(exports, cell_index);
+  ValueNode* cell;
+  GET_VALUE_OR_ABORT(cell, BuildLoadFixedArrayElement(exports, cell_index));
   return BuildStoreTaggedField(cell, GetAccumulator(), Cell::kValueOffset,
                                StoreTaggedMode::kDefault);
 }
