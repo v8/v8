@@ -2551,7 +2551,8 @@ DEFINE_BOOL(late_heap_limit_check, true,
             "skips heap limit check for early GCs on allocation failure.")
 
 #if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-DEFINE_BOOL(reserve_contiguous_compressed_read_only_space, true,
+DEFINE_BOOL(reserve_contiguous_compressed_read_only_space,
+            CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL,
             "reserves a contiguous compressed read-only space in all pointer "
             "compression cages")
 #endif
