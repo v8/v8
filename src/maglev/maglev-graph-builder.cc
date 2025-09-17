@@ -14787,7 +14787,11 @@ MaglevGraphBuilder::BuildBranchIfUndefinedOrNull(BranchBuilder& builder,
   }
   if (!node->is_tagged()) {
     if (node->is_holey_float64()) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+      return BuildBranchIfFloat64IsUndefinedOrHole(builder, node);
+#else
       return BuildBranchIfFloat64IsHole(builder, node);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     }
     return builder.AlwaysFalse();
   }
