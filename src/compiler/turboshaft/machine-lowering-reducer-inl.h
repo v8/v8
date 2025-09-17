@@ -825,13 +825,13 @@ class MachineLoweringReducer : public Next {
               {.input = V<PlainPrimitive>::Cast(input)});
         } else {
           DCHECK_EQ(from, ConvertOp::Kind::kString);
-          return __ CallBuiltin_StringToNumber(isolate_,
-                                               V<String>::Cast(input));
+          return __ template CallBuiltin<builtin::StringToNumber>(
+              {.input = V<String>::Cast(input)});
         }
       }
       case ConvertOp::Kind::kBoolean: {
         DCHECK_EQ(from, ConvertOp::Kind::kObject);
-        return __ CallBuiltin_ToBoolean(isolate_, input);
+        return __ template CallBuiltin<builtin::ToBoolean>({.input = input});
       }
       case ConvertOp::Kind::kString: {
         DCHECK_EQ(from, ConvertOp::Kind::kNumber);
@@ -1805,7 +1805,8 @@ class MachineLoweringReducer : public Next {
                         value, __ HeapConstant(factory_->null_value()))),
                     done, global_proxy);
           }
-          GOTO(done, __ CallBuiltin_ToObject(isolate_, native_context, value));
+          GOTO(done, __ template CallBuiltin<builtin::ToObject>(
+                         native_context, {.input = value}));
         }
 
         BIND(done, result);

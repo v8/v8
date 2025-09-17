@@ -2145,7 +2145,8 @@ OpIndex GraphBuilder::Process(
       return __ Float64SameValue(Map(node->InputAt(0)), Map(node->InputAt(1)));
 
     case IrOpcode::kTypeOf:
-      return __ CallBuiltin_Typeof(isolate, Map(node->InputAt(0)));
+      return __ template CallBuiltin<builtin::Typeof>(
+          {.object = Map(node->InputAt(0))});
 
     case IrOpcode::kFastApiCall: {
       DCHECK(dominating_frame_state.valid());

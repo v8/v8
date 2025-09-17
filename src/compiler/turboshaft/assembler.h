@@ -3867,51 +3867,6 @@ class TurboshaftAssemblerOpInterface
                 effects);
   }
 
-  V<Number> CallBuiltin_StringToNumber(Isolate* isolate, V<String> input) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::StringToNumber>(isolate,
-                                                                    {input});
-  }
-  V<Boolean> CallBuiltin_ToBoolean(Isolate* isolate, V<Object> object) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToBoolean>(
-        isolate, {object});
-  }
-  V<JSReceiver> CallBuiltin_ToObject(Isolate* isolate, V<Context> context,
-                                     V<JSPrimitive> object) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::ToObject>(
-        isolate, context, {object});
-  }
-  V<Context> CallBuiltin_FastNewFunctionContextFunction(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
-      LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::
-                           FastNewFunctionContextFunction>(
-        isolate, frame_state, context, {scope_info, resolve(slot_count)},
-        lazy_deopt_on_throw);
-  }
-  V<Context> CallBuiltin_FastNewFunctionContextEval(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
-      LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::FastNewFunctionContextEval>(
-        isolate, frame_state, context, {scope_info, resolve(slot_count)},
-        lazy_deopt_on_throw);
-  }
-  V<JSFunction> CallBuiltin_FastNewClosure(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<SharedFunctionInfo> shared_function_info,
-      V<FeedbackCell> feedback_cell) {
-    return CallBuiltin<
-        typename deprecated::BuiltinCallDescriptor::FastNewClosure>(
-        isolate, frame_state, context, {shared_function_info, feedback_cell});
-  }
-  V<String> CallBuiltin_Typeof(Isolate* isolate, V<Object> object) {
-    return CallBuiltin<typename deprecated::BuiltinCallDescriptor::Typeof>(
-        isolate, {object});
-  }
-
   V<Object> CallBuiltinWithVarStackArgs(Isolate* isolate, Zone* graph_zone,
                                         Builtin builtin,
                                         V<turboshaft::FrameState> frame_state,
