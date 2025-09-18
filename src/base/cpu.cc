@@ -58,6 +58,14 @@
 
 #if V8_HOST_ARCH_RISCV64
 #include <riscv_vector.h>
+
+// The __riscv_vlenb intrinsic is only available when compiling with the RVV
+// extension enabled. Use the 'target' attribute to tell the compiler to
+// compile this function with RVV enabled.
+// We must not call this function when RVV is not supported by the CPU.
+__attribute__((target("arch=+v"))) static unsigned vlen_intrinsic() {
+  return static_cast<unsigned>(__riscv_vlenb() * 8);
+}
 #endif
 
 namespace v8 {
@@ -1036,7 +1044,7 @@ CPU::CPU()
   }
 #endif
   if (has_rvv_) {
-    vlen_ = static_cast<unsigned>(__riscv_vlenb() * 8);
+    vlen_ = vlen_intrinsic();
   }
 #endif  // V8_HOST_ARCH_RISCV64
 }
