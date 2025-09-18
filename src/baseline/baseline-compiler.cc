@@ -634,7 +634,6 @@ constexpr static bool BuiltinMayDeopt(Builtin id) {
     case Builtin::kStoreCurrentContextElementBaseline:
     // This one explicitly skips the construct if the debugger is enabled.
     case Builtin::kFindNonDefaultConstructorOrConstruct:
-    case Builtin::kForOfNextBaseline:
       return false;
     default:
       return true;

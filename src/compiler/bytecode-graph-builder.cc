@@ -3884,7 +3884,8 @@ void BytecodeGraphBuilder::VisitForOfNext() {
 
   Node* result_pair = NewNode(javascript()->ForOfNext(), iterator, next_method);
 
-  environment()->BindRegistersToProjections(value_done.first, result_pair);
+  environment()->BindRegistersToProjections(value_done.first, result_pair,
+                                            Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitGetIterator() {

@@ -269,6 +269,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Iterator protocol operations
     case IrOpcode::kJSGetIterator:
+    case IrOpcode::kJSForOfNext:
       return true;
 
     default:
