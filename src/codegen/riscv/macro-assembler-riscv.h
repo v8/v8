@@ -1218,24 +1218,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Floor_s_s(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
   void Ceil_s_s(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
 
-  void Ceil_f(VRegister dst, VRegister src, Register scratch,
-              VRegister v_scratch);
-
-  void Ceil_d(VRegister dst, VRegister src, Register scratch,
-              VRegister v_scratch);
-
-  void Floor_f(VRegister dst, VRegister src, Register scratch,
-               VRegister v_scratch);
-  void Floor_d(VRegister dst, VRegister src, Register scratch,
-               VRegister v_scratch);
-  void Trunc_f(VRegister dst, VRegister src, Register scratch,
-               VRegister v_scratch);
-  void Trunc_d(VRegister dst, VRegister src, Register scratch,
-               VRegister v_scratch);
-  void Round_f(VRegister dst, VRegister src, Register scratch,
-               VRegister v_scratch);
-  void Round_d(VRegister dst, VRegister src, Register scratch,
-               VRegister v_scratch);
+  void Ceil(VRegister dst, VRegister src, Register scratch,
+            VRegister v_scratch);
+  void Floor(VRegister dst, VRegister src, Register scratch,
+             VRegister v_scratch);
+  void Trunc(VRegister dst, VRegister src, Register scratch,
+             VRegister v_scratch);
+  void Round(VRegister dst, VRegister src, Register scratch,
+             VRegister v_scratch);
 
   void FaddS(FPURegister dst, FPURegister lhs, FPURegister rhs);
   // -------------------------------------------------------------------------
@@ -1520,18 +1510,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     vmv_xs(dst, Vsrc);
   }
 
-  void WasmRvvEq(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
-                 Vlmul lmul);
-  void WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
-                 Vlmul lmul);
-  void WasmRvvGeS(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
-                  Vlmul lmul);
-  void WasmRvvGeU(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
-                  Vlmul lmul);
-  void WasmRvvGtS(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
-                  Vlmul lmul);
-  void WasmRvvGtU(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
-                  Vlmul lmul);
+  void WasmRvvEq(VRegister dst, VRegister lhs, VRegister rhs);
+  void WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs);
+  void WasmRvvGeS(VRegister dst, VRegister lhs, VRegister rhs);
+  void WasmRvvGeU(VRegister dst, VRegister lhs, VRegister rhs);
+  void WasmRvvGtS(VRegister dst, VRegister lhs, VRegister rhs);
+  void WasmRvvGtU(VRegister dst, VRegister lhs, VRegister rhs);
 
   void WasmRvvS128const(VRegister dst, const uint8_t imms[16]);
 
@@ -1976,7 +1960,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void RoundFloat(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
                   FPURoundingMode mode);
 #endif
-  template <typename F>
   void RoundHelper(VRegister dst, VRegister src, Register scratch,
                    VRegister v_scratch, FPURoundingMode frm,
                    bool keep_nan_same = true);
