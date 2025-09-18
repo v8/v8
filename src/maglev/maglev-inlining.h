@@ -87,11 +87,6 @@ class MaglevInliner {
   static void UpdatePredecessorsOf(BasicBlock* block, BasicBlock* prev_pred,
                                    BasicBlock* new_pred);
   void RemovePredecessorFollowing(ControlNode* control, BasicBlock* call_block);
-
-  void RemoveUnreachableBlocks() {
-    graph_->set_may_have_unreachable_blocks();
-    graph_->RemoveUnreachableBlocks();
-  }
 };
 
 }  // namespace v8::internal::maglev

@@ -358,16 +358,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   for (auto bb : saved_bb) {
     graph_->Add(bb);
   }
-
-  if (auto alloc = returned_value->TryCast<InlinedAllocation>()) {
-    // TODO(victorgomes): Support eliding VOs.
-    alloc->ForceEscaping();
-#ifdef DEBUG
-    alloc->set_is_returned_value_from_inline_call();
-#endif  // DEBUG
-  }
   call_node->OverwriteWithReturnValue(returned_value);
-
   return InliningResult::kDone;
 }
 

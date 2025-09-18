@@ -6962,25 +6962,11 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
     object_ = object;
   }
 
-#ifdef DEBUG
-  void set_is_returned_value_from_inline_call() {
-    is_returned_value_from_inline_call_ = true;
-  }
-
-  bool is_returned_value_from_inline_call() const {
-    return is_returned_value_from_inline_call_;
-  }
-#endif  // DEBUG
-
  private:
   VirtualObject* object_;
   EscapeAnalysisResult escape_analysis_result_;
   int non_escaping_use_count_ = 0;
   int offset_ = -1;  // Set by AllocationBlock.
-
-#ifdef DEBUG
-  bool is_returned_value_from_inline_call_ = false;
-#endif  // DEBUG
 
   InlinedAllocation* next_ = nullptr;
   InlinedAllocation** next() { return &next_; }

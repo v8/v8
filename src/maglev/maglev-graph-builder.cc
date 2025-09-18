@@ -16688,8 +16688,6 @@ void MaglevGraphBuilder::AddDeoptUse(ValueNode* node) {
       AddDeoptUse(vobject);
       // Add an escaping use for the allocation.
       AddNonEscapingUses(alloc, 1);
-    } else {
-      DCHECK(alloc->is_returned_value_from_inline_call());
     }
     alloc->add_use();
   } else {
