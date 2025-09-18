@@ -8632,7 +8632,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
     const LazyDeoptFrameScope& lazy_deopt_scope = get_lazy_deopt_scope(
         target, receiver, callback, this_arg, GetSmiConstant(0),
         GetSmiConstant(0), original_length);
-    AddNewNodeNoAbort<ThrowIfNotCallable>({callback});
+    AddNewNodeNoInputConversion<ThrowIfNotCallable>({callback});
   });
 
   ValueNode* original_length_int32 = GetInt32(original_length);
@@ -9274,8 +9274,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
           // large unsigned value which compares greater than the length.
           return BuildBranchIfUint32Compare(
               builder, Operation::kLessThan,
-              AddNewNodeNoAbort<UnsafeInt32ToUint32>({index}),
-              AddNewNodeNoAbort<UnsafeInt32ToUint32>({length}));
+              // 'index' and 'length' are both int32, so no input conversion is
+              // needed.
+              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({index}),
+              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({length}));
         },
         [&]() -> ReduceResult { return GetCharAt(); },
         [&]() -> ReduceResult {
@@ -9334,8 +9336,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
           // large unsigned value which compares greater than the length.
           return BuildBranchIfUint32Compare(
               builder, Operation::kLessThan,
-              AddNewNodeNoAbort<UnsafeInt32ToUint32>({index}),
-              AddNewNodeNoAbort<UnsafeInt32ToUint32>({length}));
+              // 'index' and 'length' are both int32, so no input conversion is
+              // needed.
+              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({index}),
+              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({length}));
         },
         [&]() -> ReduceResult { return BuildGetCharCodeAt(receiver, index); },
         [&]() -> ReduceResult {
@@ -9394,8 +9398,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
           // large unsigned value which compares greater than the length.
           return BuildBranchIfUint32Compare(
               builder, Operation::kLessThan,
-              AddNewNodeNoAbort<UnsafeInt32ToUint32>({index}),
-              AddNewNodeNoAbort<UnsafeInt32ToUint32>({length}));
+              // 'index' and 'length' are both int32, so no input conversion is
+              // needed.
+              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({index}),
+              AddNewNodeNoInputConversion<UnsafeInt32ToUint32>({length}));
         },
         [&]() -> ReduceResult { return GetCodePointAt(); },
         [&]() -> ReduceResult {
@@ -12825,18 +12831,18 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     case ValueRepresentation::kHoleyFloat64:
       // The ToBoolean of both the_hole and NaN is false, so we can use the
       // same operation for HoleyFloat64 and Float64.
-      return AddNewNodeNoAbort<Float64ToBoolean>({value}, flip);
+      return AddNewNodeNoInputConversion<Float64ToBoolean>({value}, flip);
 
     case ValueRepresentation::kUint32:
       // Uint32 has the same logic as Int32 when converting ToBoolean, namely
       // comparison against zero, so we can cast it and ignore the signedness.
-      value = AddNewNodeNoAbort<TruncateUint32ToInt32>({value});
+      value = AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value});
       [[fallthrough]];
     case ValueRepresentation::kInt32:
-      return AddNewNodeNoAbort<Int32ToBoolean>({value}, flip);
+      return AddNewNodeNoInputConversion<Int32ToBoolean>({value}, flip);
 
     case ValueRepresentation::kIntPtr:
-      return AddNewNodeNoAbort<IntPtrToBoolean>({value}, flip);
+      return AddNewNodeNoInputConversion<IntPtrToBoolean>({value}, flip);
 
     case ValueRepresentation::kTagged:
       break;
@@ -12847,10 +12853,10 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
   NodeInfo* node_info = known_node_aspects().TryGetInfoFor(value);
   if (node_info) {
     if (ValueNode* as_int32 = node_info->alternative().int32()) {
-      return AddNewNodeNoAbort<Int32ToBoolean>({as_int32}, flip);
+      return AddNewNodeNoInputConversion<Int32ToBoolean>({as_int32}, flip);
     }
     if (ValueNode* as_float64 = node_info->alternative().float64()) {
-      return AddNewNodeNoAbort<Float64ToBoolean>({as_float64}, flip);
+      return AddNewNodeNoInputConversion<Float64ToBoolean>({as_float64}, flip);
     }
   }
 
@@ -13033,9 +13039,10 @@ ReduceResult MaglevGraphBuilder::VisitToObject() {
     MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
                              destination);
   } else {
-    StoreRegister(destination,
-                  AddNewNodeNoAbort<ToObject>({GetContext(), value},
-                                              GetCheckType(old_type)));
+    ValueNode* object;
+    GET_VALUE_OR_ABORT(object, AddNewNode<ToObject>({GetContext(), value},
+                                                    GetCheckType(old_type)));
+    StoreRegister(destination, object);
   }
   return ReduceResult::Done();
 }
@@ -14184,7 +14191,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateFunctionContext() {
                                       slot_count + Context::MIN_CONTEXT_SLOTS),
       done);
   // Fallback.
-  done(AddNewNodeNoAbort<CreateFunctionContext>(
+  done(AddNewNodeNoInputConversion<CreateFunctionContext>(
       {GetContext()}, info, slot_count, ScopeType::FUNCTION_SCOPE));
   return ReduceResult::Done();
 }
@@ -14210,7 +14217,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateEvalContext() {
       done);
   if (slot_count <= static_cast<uint32_t>(
                         ConstructorBuiltins::MaximumFunctionContextSlots())) {
-    done(AddNewNodeNoAbort<CreateFunctionContext>(
+    done(AddNewNodeNoInputConversion<CreateFunctionContext>(
         {GetContext()}, info, slot_count, ScopeType::EVAL_SCOPE));
   } else {
     done(BuildCallRuntime(Runtime::kNewFunctionContext, {GetConstant(info)})
@@ -14917,7 +14924,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
     case ValueRepresentation::kUint32:
       // Uint32 has the same logic as Int32 when converting ToBoolean, namely
       // comparison against zero, so we can cast it and ignore the signedness.
-      node = AddNewNodeNoAbort<TruncateUint32ToInt32>({node});
+      node = AddNewNodeNoInputConversion<TruncateUint32ToInt32>({node});
       [[fallthrough]];
     case ValueRepresentation::kInt32:
       return BuildBranchIfInt32ToBooleanTrue(builder, node);
