@@ -5606,12 +5606,15 @@ void MacroAssembler::Call(Label* target) { BranchAndLink(target); }
 
 void MacroAssembler::LoadAddress(Register dst, Label* target,
                                  RelocInfo::Mode rmode) {
+  // Block the trampoline pool before computing the offset to make
+  // sure that the offset to an already bound label isn't affected
+  // by any trampoline pool emission here.
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   int32_t offset;
   if (CalculateOffset(target, &offset, OffsetSize::kOffset32)) {
     CHECK(is_int32(offset + 0x800));
     int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
     int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
-    BlockTrampolinePoolScope block_trampoline_pool(this);
     auipc(dst, Hi20);
     AddWord(dst, dst, Lo12);
   } else {
