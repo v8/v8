@@ -5063,26 +5063,23 @@ size_t Heap::OldGenerationLowMemory(uint64_t physical_memory) {
 
 // static
 size_t Heap::DefaultMinSemiSpaceSize() {
-  return RoundUp(512 * KB * kPointerMultiplier, PageMetadata::kPageSize);
+  return RoundUp(512 * KB, PageMetadata::kPageSize);
 }
 
 // static
 size_t Heap::DefaultMaxSemiSpaceSize(uint64_t physical_memory) {
   if (v8_flags.minor_ms) {
-    static constexpr size_t kMinorMsMaxCapacity = 72 * kPointerMultiplier * MB;
+    static constexpr size_t kMinorMsMaxCapacity = 72 * MB;
     return RoundUp(kMinorMsMaxCapacity, PageMetadata::kPageSize);
   }
 
   // Compute default max semi space size for Scavenger.
-  static constexpr size_t kScavengerDefaultMaxCapacity =
-      32 * kPointerMultiplier * MB;
+  static constexpr size_t kScavengerDefaultMaxCapacity = 32 * MB;
   size_t max_semi_space_size = kScavengerDefaultMaxCapacity;
 
 #if defined(ANDROID)
   if (!IsHighEndAndroid(physical_memory)) {
-    // Note that kPointerMultiplier is always 1 on Android.
-    static constexpr size_t kAndroidNonHighEndMaxCapacity =
-        8 * kPointerMultiplier * MB;
+    static constexpr size_t kAndroidNonHighEndMaxCapacity = 8 * MB;
     max_semi_space_size = kAndroidNonHighEndMaxCapacity;
   }
 #endif
@@ -5113,7 +5110,7 @@ size_t Heap::OldGenerationToSemiSpaceRatio(uint64_t physical_memory) {
 // static
 size_t Heap::OldGenerationToSemiSpaceRatioLowMemory(uint64_t physical_memory) {
   static const size_t old_generation_to_semi_space_ratio_low_memory =
-      256 * HeapLimitMultiplier(physical_memory) / kPointerMultiplier;
+      256 * HeapLimitMultiplier(physical_memory);
   return old_generation_to_semi_space_ratio_low_memory /
          (v8_flags.minor_ms ? 2 : 1);
 }

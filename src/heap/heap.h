@@ -308,14 +308,6 @@ class Heap final {
   };
   using Reservation = std::vector<Chunk>;
 
-#if V8_OS_ANDROID
-  // Don't apply pointer multiplier on Android since it has no swap space and
-  // should instead adapt it's heap size based on available physical memory.
-  static const int kPointerMultiplier = 1;
-#else
-  static const int kPointerMultiplier = kTaggedSize / 4;
-#endif
-
   // These constants control heap configuration based on the physical memory.
   static constexpr size_t kPhysicalMemoryToOldGenerationRatio = 4;
   static constexpr size_t kNewLargeObjectSpaceToSemiSpaceRatio = 1;
