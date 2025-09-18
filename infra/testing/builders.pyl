@@ -2620,6 +2620,11 @@
     'tests': [
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=2100', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'deopt',
         'test_args': ['--total-timeout-sec=2100', '--stress-deopt=1']
       },
@@ -2652,6 +2657,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=4200', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=4200', '--stress-marking=1']
       },
@@ -2681,6 +2691,7 @@
         'test_args': [
           '--total-timeout-sec=4200',
           '--allocation-offset=2',
+          '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2723,6 +2734,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=4200', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=4200', '--stress-marking=1'],
         'shards': 2
@@ -2753,6 +2769,7 @@
         'test_args': [
           '--total-timeout-sec=4200',
           '--allocation-offset=2',
+          '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2785,6 +2802,11 @@
     'tests': [
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=900', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'deopt',
         'test_args': ['--total-timeout-sec=900', '--stress-deopt=1']
       },
@@ -2808,6 +2830,11 @@
           '--allocation-offset=1',
           '--extra-flags=--gc-interval=500',
         ]
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=900', '--stress-bytecode-budget=1']
       },
       {
         'name': 'numfuzz',
@@ -2840,6 +2867,7 @@
         'test_args': [
           '--total-timeout-sec=900',
           '--allocation-offset=2',
+          '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
@@ -2874,6 +2902,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'bytecode',
+        'test_args': ['--total-timeout-sec=900', '--stress-bytecode-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=900', '--stress-marking=1'],
       },
@@ -2903,6 +2936,7 @@
         'test_args': [
           '--total-timeout-sec=900',
           '--allocation-offset=2',
+          '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
           '--stress-compaction=2',
