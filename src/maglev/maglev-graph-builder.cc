@@ -3204,12 +3204,12 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
     }
     case ContextCell::kInt32:
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return AddNewNodeNoAbort<LoadInt32>(
+      return AddNewNodeNoInputConversion<LoadInt32>(
           {GetConstant(slot_ref)},
           static_cast<int>(offsetof(ContextCell, double_value_)));
     case ContextCell::kFloat64:
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return AddNewNodeNoAbort<LoadFloat64>(
+      return AddNewNodeNoInputConversion<LoadFloat64>(
           {GetConstant(slot_ref)},
           static_cast<int>(offsetof(ContextCell, double_value_)));
     case ContextCell::kDetached:
@@ -4852,7 +4852,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
   if (index < 0 || index >= FixedArray::kMaxLength) {
     return BuildAbort(AbortReason::kUnreachable);
   }
-  return AddNewNodeNoAbort<LoadTaggedField>(
+  return AddNewNodeNoInputConversion<LoadTaggedField>(
       {elements}, FixedArray::OffsetOfElementAt(index));
 }
 
@@ -4897,7 +4897,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
   if (index < 0 || index >= FixedArray::kMaxLength) {
     return BuildAbort(AbortReason::kUnreachable);
   }
-  return AddNewNodeNoAbort<LoadFixedDoubleArrayElement>(
+  return AddNewNodeNoInputConversion<LoadFixedDoubleArrayElement>(
       {elements, GetInt32Constant(index)});
 }
 
@@ -13651,18 +13651,19 @@ InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
       current_allocation_block_->allocation_type() != allocation_type ||
       !v8_flags.inline_new || is_turbolev()) {
     current_allocation_block_ =
-        AddNewNodeNoAbort<AllocationBlock>({}, allocation_type);
+        AddNewNodeNoInputConversion<AllocationBlock>({}, allocation_type);
   }
 
   int current_size = current_allocation_block_->size();
   if (current_size + vobject->size() > kMaxRegularHeapObjectSize) {
     current_allocation_block_ =
-        AddNewNodeNoAbort<AllocationBlock>({}, allocation_type);
+        AddNewNodeNoInputConversion<AllocationBlock>({}, allocation_type);
   }
 
   DCHECK_GE(current_size, 0);
-  InlinedAllocation* allocation = AddNewNodeNoAbort<InlinedAllocation>(
-      {current_allocation_block_}, vobject);
+  InlinedAllocation* allocation =
+      AddNewNodeNoInputConversion<InlinedAllocation>(
+          {current_allocation_block_}, vobject);
   graph()->allocations_escape_map().emplace(allocation, zone());
   current_allocation_block_->Add(allocation);
   vobject->set_allocation(allocation);
@@ -13883,7 +13884,8 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
               broker()->target_native_context().sloppy_arguments_map(broker()),
               GetInt32Constant(length), elements, GetClosure());
         } else {
-          ArgumentsLength* length = AddNewNodeNoAbort<ArgumentsLength>({});
+          ArgumentsLength* length =
+              AddNewNodeNoInputConversion<ArgumentsLength>({});
           EnsureType(length, NodeType::kSmi);
           ArgumentsElements* elements = AddNewNodeNoAbort<ArgumentsElements>(
               {length}, CreateArgumentsType::kUnmappedArguments,
@@ -13923,7 +13925,8 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
                   broker()),
               GetInt32Constant(length), elements, GetClosure());
         } else {
-          ArgumentsLength* length = AddNewNodeNoAbort<ArgumentsLength>({});
+          ArgumentsLength* length =
+              AddNewNodeNoInputConversion<ArgumentsLength>({});
           EnsureType(length, NodeType::kSmi);
           ArgumentsElements* unmapped_elements =
               AddNewNodeNoAbort<ArgumentsElements>(
@@ -13957,7 +13960,8 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
             broker()->target_native_context().strict_arguments_map(broker()),
             GetInt32Constant(length), elements);
       } else {
-        ArgumentsLength* length = AddNewNodeNoAbort<ArgumentsLength>({});
+        ArgumentsLength* length =
+            AddNewNodeNoInputConversion<ArgumentsLength>({});
         EnsureType(length, NodeType::kSmi);
         ArgumentsElements* elements = AddNewNodeNoAbort<ArgumentsElements>(
             {length}, CreateArgumentsType::kUnmappedArguments,
@@ -13978,12 +13982,13 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
                 broker()),
             GetInt32Constant(length), elements);
       } else {
-        ArgumentsLength* length = AddNewNodeNoAbort<ArgumentsLength>({});
+        ArgumentsLength* length =
+            AddNewNodeNoInputConversion<ArgumentsLength>({});
         EnsureType(length, NodeType::kSmi);
         ArgumentsElements* elements = AddNewNodeNoAbort<ArgumentsElements>(
             {length}, CreateArgumentsType::kRestParameter,
             parameter_count_without_receiver());
-        RestLength* rest_length = AddNewNodeNoAbort<RestLength>(
+        RestLength* rest_length = AddNewNodeNoInputConversion<RestLength>(
             {}, parameter_count_without_receiver());
         return CreateArgumentsObject(
             broker()->target_native_context().js_array_packed_elements_map(
@@ -16400,7 +16405,7 @@ ReduceResult MaglevGraphBuilder::BuildAbort(AbortReason reason) {
 ValueNode* MaglevGraphBuilder::GetRegisterInput(Register reg) {
   DCHECK(!graph_->register_inputs().has(reg));
   graph_->register_inputs().set(reg);
-  return AddNewNodeNoAbort<RegisterInput>({}, reg);
+  return AddNewNodeNoInputConversion<RegisterInput>({}, reg);
 }
 
 void MaglevGraphBuilder::Print(const char* str) {
@@ -16464,7 +16469,7 @@ ValueNode* MaglevGraphBuilder::GetSecondValue(ValueNode* result) {
   }
   // {result} must be the last node in the current block.
   DCHECK_EQ(reducer_.GetLastNewNodeInCurrentBlockPosition(), result);
-  return AddNewNodeNoAbort<GetSecondReturnedValue>({});
+  return AddNewNodeNoInputConversion<GetSecondReturnedValue>({});
 }
 
 #ifdef DEBUG
