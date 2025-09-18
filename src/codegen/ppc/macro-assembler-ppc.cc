@@ -4746,24 +4746,32 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
 
   Label not_ok;
 
-  // Handle allocation folding: Allow write barrier removal if LAB start <=
-  // object < LAB top.
+  // Handle allocation folding, allow WB removal if:
+  //   LAB start <= last_young_allocation_ < (object address+1) < LAB top
+  // Note that object has tag bit set, so object == object address+1.
+
   {
     UseScratchRegisterScope temps(this);
     Register scratch1 = temps.Acquire();
     DCHECK(!AreAliased(scratch, scratch1));
-    // Recompute object address here because scratch was clobbered by
-    // CheckPageFlag.
-    SubS64(scratch, object, Operand(kHeapObjectTag));
-    LoadU64(scratch1,
+
+    // Check LAB start <= last_young_allocation_.
+    LoadU64(scratch,
             MemOperand(kRootRegister,
                        IsolateData::new_allocation_info_start_offset()));
+    LoadU64(scratch1, MemOperand(kRootRegister,
+                                 IsolateData::last_young_allocation_offset()));
     CmpU64(scratch, scratch1);
-    b(to_condition(Condition::kUnsignedLessThan), &not_ok);
-    LoadU64(scratch1,
-            MemOperand(kRootRegister,
-                       IsolateData::new_allocation_info_top_offset()));
-    CmpU64(scratch, scratch1);
+    b(to_condition(Condition::kUnsignedGreaterThan), &not_ok);
+
+    // Check last_young_allocation_ < (object address+1).
+    CmpU64(scratch1, object);
+    b(to_condition(Condition::kUnsignedGreaterThanEqual), &not_ok);
+
+    // Check (object address+1) < LAB top.
+    LoadU64(scratch, MemOperand(kRootRegister,
+                                IsolateData::new_allocation_info_top_offset()));
+    CmpU64(object, scratch);
     b(to_condition(Condition::kUnsignedLessThan), ok);
   }
 
