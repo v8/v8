@@ -221,7 +221,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void BranchFalseF(Register rs, Label* target);
 
   void CompareTaggedAndBranch(Label* label, Condition cond, Register r1,
-                              const Operand& r2, bool need_link = false);
+                              const Operand& r2);
   static int InstrCountForLi64Bit(int64_t value);
   inline void LiLower32BitHelper(Register rd, Operand j);
   void li_optimized(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);

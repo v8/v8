@@ -4675,27 +4675,20 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
 void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
                             RootIndex index, Label::Distance distance) {
   UseScratchRegisterScope temps(this);
-  Register right = temps.Acquire();
+  Register tmp = temps.Acquire();
   if (COMPRESS_POINTERS_BOOL) {
-    Register left = rs;
-    if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
-        is_int12(ReadOnlyRootPtr(index))) {
-      left = temps.Acquire();
-#if V8_TARGET_ARCH_RISCV64
-      SignExtendWord(left, rs);
-#endif
-    }
-    LoadTaggedRoot(right, index);
-    Branch(L, cond, left, Operand(right));
+    DCHECK(cond == eq || cond == ne);
+    CompareTaggedRoot(rs, index, tmp);
+    // The tmp register is zero if equal - and non-zero if not equal.
+    Branch(L, cond, tmp, Operand(zero_reg));
   } else {
-    LoadRoot(right, index);
-    Branch(L, cond, rs, Operand(right));
+    LoadRoot(tmp, index);
+    Branch(L, cond, rs, Operand(tmp));
   }
 }
 
 void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
-                                            Register r1, const Operand& r2,
-                                            bool need_link) {
+                                            Register r1, const Operand& r2) {
   ASM_CODE_COMMENT(this);
   if (COMPRESS_POINTERS_BOOL) {
 #if V8_TARGET_ARCH_RISCV64
