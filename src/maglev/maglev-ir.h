@@ -6144,24 +6144,40 @@ struct Field {
 // Describes the layout of an entire object. This can be seen as a set of header
 // fields with static offsets, optionally with a set of dynamic body fields
 // (e.g. for FixedArray).
-struct ObjectLayout {
-  explicit constexpr ObjectLayout(base::Vector<const Field> header_fields)
-      : header_fields(header_fields) {}
-  explicit constexpr ObjectLayout(base::Vector<const Field> header_fields,
-                                  FieldType body_field_type)
-      : header_fields(header_fields), body_field_type(body_field_type) {}
+class ObjectLayout {
+ public:
+  explicit constexpr ObjectLayout(
+      int header_size, base::Vector<const Field> header_fields,
+      base::Vector<const int32_t> offset_to_slot_map, FieldType body_field_type)
+      : header_size(header_size),
+        header_fields(header_fields),
+        body_field_type(body_field_type),
+        offset_to_slot_map(offset_to_slot_map) {}
+
+  int header_size;
 
   // Describes all fields that are part of the static object header.
   base::Vector<const Field> header_fields;
 
-  int header_size() const {
-    const Field& last = header_fields.last();
-    return last.offset + FieldSizeOf(last.type);
-  }
-
   // Some types such as FixedArray have a variable number of body fields
   // following the header.
   FieldType body_field_type = FieldType::kNone;
+
+  int SlotAtOffset(int offset) const {
+    DCHECK_EQ(offset % kInt32Size, 0);
+    if (offset < header_size) {
+      int32_t slot = offset_to_slot_map[offset / kInt32Size];
+      DCHECK_NE(slot, Field::kNoSlotIndex);
+      return static_cast<int>(slot);
+    }
+    int header_slot_count = header_fields.length();
+    int offset_to_header = offset - header_size;
+    DCHECK_EQ(offset_to_header % FieldSizeOf(body_field_type), 0);
+    return header_slot_count + offset_to_header / FieldSizeOf(body_field_type);
+  }
+
+ private:
+  base::Vector<const int32_t> offset_to_slot_map;
 };
 
 // TODO(jgruber): Remove once all vobj types use ObjectLayout.
@@ -6169,7 +6185,7 @@ static constexpr ObjectLayout* kNoObjectLayout = nullptr;
 
 namespace detail {
 
-template <typename T, std::size_t N, typename... Elems, std::size_t... Is>
+template <typename T, size_t N, typename... Elems, size_t... Is>
 constexpr auto ExtendFieldArrayImpl(const std::array<T, N>& arr,
                                     std::index_sequence<Is...>,
                                     Elems&&... new_elems) {
@@ -6178,11 +6194,31 @@ constexpr auto ExtendFieldArrayImpl(const std::array<T, N>& arr,
 }
 
 // Extend an existing std::array at compile time.
-template <typename T, std::size_t N, typename... Elems>
+template <typename T, size_t N, typename... Elems>
 constexpr auto ExtendFieldArray(const std::array<T, N>& arr,
                                 Elems&&... new_elems) {
   return ExtendFieldArrayImpl(arr, std::make_index_sequence<N>{},
                               std::forward<Elems>(new_elems)...);
+}
+
+// Creates an array that maps offsets to slot indices. For all offsets that
+// correspond to a field:
+//
+//  array[offset / kInt32Size] = slot_index;
+//
+// For all other offsets, the stored value is kNoSlotIndex.
+//
+// Note that this implementation only works as long as all possible field types
+// are at least of size kInt32Size.
+static constexpr int kOffsetToSlotMapElementSize = kInt32Size;
+template <size_t kHeaderSize, size_t N>
+constexpr auto MakeOffsetToSlotMap(const std::array<Field, N>& fields) {
+  std::array<int32_t, kHeaderSize / kOffsetToSlotMapElementSize> xs{
+      Field::kNoSlotIndex};
+  for (const Field& field : fields) {
+    xs[field.offset / kOffsetToSlotMapElementSize] = field.slot_index;
+  }
+  return xs;
 }
 
 }  // namespace detail
@@ -6196,24 +6232,34 @@ constexpr auto ExtendFieldArray(const std::array<T, N>& arr,
 
 #define DEF_SHAPE_FIELD_LIST(NAME, OFFSET, TYPE) , NAME##_desc
 
-#define SHAPE_CHECK_SLOT_INDEX(NAME, OFFSET, TYPE) \
-  static_assert(NAME##_slot == kFields[NAME##_slot].slot_index);
+#define DEF_SHAPE_STATIC_ASSERTS(NAME, OFFSET, TYPE)    \
+  static_assert(NAME##_slot == NAME##_desc.slot_index); \
+  static_assert(FieldSizeOf(NAME##_desc.type) >=        \
+                vobj::detail::kOffsetToSlotMapElementSize);
 
 // Note this helper picks up a few things which are assumed to have been
 // previously defined, such as kBodyFieldType.
-#define DEF_SHAPE(BASE, FIELD_LIST)                               \
-  enum HeaderSlots {                                              \
-    last_base_header_slot = BASE::last_header_slot,               \
-    FIELD_LIST(DEF_SHAPE_FIELD_ENUM) header_slot_count,           \
-    last_header_slot = header_slot_count - 1,                     \
-  };                                                              \
-  FIELD_LIST(DEF_SHAPE_FIELD_DESC)                                \
-  static constexpr auto kFields = vobj::detail::ExtendFieldArray( \
-      BASE::kFields FIELD_LIST(DEF_SHAPE_FIELD_LIST));            \
-  FIELD_LIST(SHAPE_CHECK_SLOT_INDEX)                              \
-  static_assert(kFields.size() == header_slot_count);             \
-  static constexpr vobj::ObjectLayout kObjectLayout {             \
-    base::VectorOf(kFields), kBodyFieldType                       \
+#define DEF_SHAPE(BASE, FIELD_LIST)                                         \
+  enum HeaderSlots {                                                        \
+    last_base_header_slot = BASE::last_header_slot,                         \
+    FIELD_LIST(DEF_SHAPE_FIELD_ENUM) header_slot_count,                     \
+    last_header_slot = header_slot_count - 1,                               \
+  };                                                                        \
+  FIELD_LIST(DEF_SHAPE_FIELD_DESC)                                          \
+  static constexpr auto kFields = vobj::detail::ExtendFieldArray(           \
+      BASE::kFields FIELD_LIST(DEF_SHAPE_FIELD_LIST));                      \
+  FIELD_LIST(DEF_SHAPE_STATIC_ASSERTS)                                      \
+  static_assert(kFields.size() == header_slot_count);                       \
+  static_assert(kMapSlotIsOmitted);                                         \
+  static constexpr int kHeaderSize =                                        \
+      kFields.empty()                                                       \
+          ? HeapObject::kHeaderSize                                         \
+          : kFields.back().offset + FieldSizeOf(kFields.back().type);       \
+  static constexpr auto kOffsetToSlotMap =                                  \
+      vobj::detail::MakeOffsetToSlotMap<kHeaderSize>(kFields);              \
+  static constexpr vobj::ObjectLayout kObjectLayout {                       \
+    kHeaderSize, base::VectorOf(kFields), base::VectorOf(kOffsetToSlotMap), \
+        kBodyFieldType                                                      \
   }
 
 // This helps DEF_SHAPE handle the initial object hierarchy root.
@@ -6393,20 +6439,29 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   ValueNode* get(uint32_t offset) const {
+    static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
     DCHECK_NE(offset, 0);  // Don't try to get the map through this getter.
     DCHECK_EQ(type_, kDefault);
+    if (is_new_style_vobj()) {
+      return slots_.data[object_layout_->SlotAtOffset(offset)];
+    }
     offset -= kTaggedSize;
     SBXCHECK_LT(offset / kTaggedSize, slot_count());
     return slots_.data[offset / kTaggedSize];
   }
 
   void set(uint32_t offset, ValueNode* value) {
+    static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
     DCHECK_NE(offset, 0);  // Don't try to set the map through this setter.
     DCHECK_EQ(type_, kDefault);
     DCHECK(!IsSnapshot());
     // Values set here can leak to the interpreter frame state. Conversions
     // should be stored in known_node_aspects/NodeInfo.
     DCHECK(!value->properties().is_conversion());
+    if (is_new_style_vobj()) {
+      slots_.data[object_layout_->SlotAtOffset(offset)] = value;
+      return;
+    }
     offset -= kTaggedSize;
     SBXCHECK_LT(offset / kTaggedSize, slot_count());
     slots_.data[offset / kTaggedSize] = value;
@@ -6607,7 +6662,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
   int header_size() const {
     DCHECK(is_new_style_vobj());
-    return object_layout_->header_size();
+    return object_layout_->header_size;
   }
 
   int body_field_size() const {
@@ -12574,7 +12629,7 @@ ROOT_LIST(DEFINE_IS_ROOT_OBJECT)
 #undef DEF_SHAPE_FIELD_ENUM
 #undef DEF_SHAPE_FIELD_DESC
 #undef DEF_SHAPE_FIELD_LIST
-#undef SHAPE_CHECK_SLOT_INDEX
+#undef DEF_SHAPE_STATIC_ASSERTS
 #undef DEF_SHAPE
 
 }  // namespace maglev
