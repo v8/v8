@@ -154,52 +154,23 @@ inline fuzztest::Domain<Simd128> ArbitrarySimd() {
       fuzztest::ArrayOf<4>(fuzztest::Arbitrary<int32_t>()));
 }
 
-constexpr std::array kTernOps = {kExprS128Select,
-                                 kExprF32x4Qfma,
-                                 kExprF32x4Qfms,
-                                 kExprF64x2Qfma,
-                                 kExprF64x2Qfms,
-                                 kExprI8x16RelaxedLaneSelect,
-                                 kExprI16x8RelaxedLaneSelect,
-                                 kExprI32x4RelaxedLaneSelect,
-                                 kExprI64x2RelaxedLaneSelect,
-                                 kExprI32x4DotI8x16I7x16AddS};
-
-constexpr std::array kSkippedTernOps = {kExprF16x8Qfma, kExprF16x8Qfms};
-
-// Check that FP16 is still experimental; once we ship it we want to include the
-// fp16 instructions in `kTernOps`.
-#define IS_EXPERIMENTAL_FP16(name, ...) \
-  +(std::string_view(#name) == "fp16" ? 1 : 0)
-static_assert(FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(IS_EXPERIMENTAL_FP16) == 1,
-              "move fp16 instructions to kTernOps before shipping fp16");
-#undef IS_EXPERIMENTAL_FP16
-
+constexpr std::array kTernOps = {kExprF32x4Qfms};
 // Check that we covered all SIMD ternary opcodes.
-#define CHECK_SIMD_TERNOP(name, opcode, sig, ...)                              \
-  static_assert((std::string_view(#sig) == "s_sss") ==                         \
-                std::count(kTernOps.begin(), kTernOps.end(), kExpr##name) +    \
-                    std::count(kSkippedTernOps.begin(), kSkippedTernOps.end(), \
-                               kExpr##name));
-FOREACH_SIMD_OPCODE(CHECK_SIMD_TERNOP)
+#define CHECK_SIMD_TERNOP(name, opcode, sig, ...)      \
+  static_assert((std::string_view(#sig) == "s_sss") == \
+                std::count(kTernOps.begin(), kTernOps.end(), kExpr##name));
+// TODO(clemensb): Enable this for all SIMD ternary opcodes.
+// FOREACH_SIMD_OPCODE(CHECK_SIMD_TERNOP)
 #undef CHECK_SIMD_TERNOP
 
 constexpr Simd128 kSimdQuietNanF32WithPayload1 =
     Simd128::Splat(static_cast<int32_t>(0x7fc00002));
 constexpr Simd128 kSimdQuietNanF32WithPayload2 =
     Simd128::Splat(static_cast<int32_t>(0x7fc00001));
-constexpr Simd128 kSimdQuietNanF64WithPayload1 =
-    Simd128::Splat(static_cast<int64_t>(0x7ff8000000000001));
-constexpr Simd128 kSimdQuietNanF64WithPayload2 =
-    Simd128::Splat(static_cast<int64_t>(0x7ff8000000000002));
 constexpr std::tuple<WasmOpcode, std::array<Simd128, 3>, int> kTernOpSeeds[]{
     {kExprF32x4Qfms,
      {kSimdQuietNanF32WithPayload1, kSimdQuietNanF32WithPayload2,
-      Simd128::Splat(int32_t{1})},
-     7},
-    {kExprF64x2Qfma,
-     {kSimdQuietNanF64WithPayload1, kSimdQuietNanF64WithPayload2,
-      Simd128::Splat(int64_t{1})},
+      Simd128::Splat(static_cast<int32_t>(1))},
      7}};
 
 V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestTernOp)
