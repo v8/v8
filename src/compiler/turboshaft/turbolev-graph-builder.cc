@@ -1753,19 +1753,14 @@ class GraphBuildingNodeProcessor {
     V<Context> context = Map(node->context());
     V<ScopeInfo> scope_info = __ HeapConstant(node->scope_info().object());
     if (node->scope_type() == FUNCTION_SCOPE) {
-      SetMap(node,
-             __ template CallBuiltin<builtin::FastNewFunctionContextFunction>(
-                 frame_state, context,
-                 {.scope_info = scope_info,
-                  .slots = __ Word32Constant(node->slot_count())},
-                 ShouldLazyDeoptOnThrow(node)));
+      SetMap(node, __ CallBuiltin_FastNewFunctionContextFunction(
+                       isolate_, frame_state, context, scope_info,
+                       node->slot_count(), ShouldLazyDeoptOnThrow(node)));
     } else {
       DCHECK_EQ(node->scope_type(), EVAL_SCOPE);
-      SetMap(node, __ template CallBuiltin<builtin::FastNewFunctionContextEval>(
-                       frame_state, context,
-                       {.scope_info = scope_info,
-                        .slots = __ Word32Constant(node->slot_count())},
-                       ShouldLazyDeoptOnThrow(node)));
+      SetMap(node, __ CallBuiltin_FastNewFunctionContextEval(
+                       isolate_, frame_state, context, scope_info,
+                       node->slot_count(), ShouldLazyDeoptOnThrow(node)));
     }
     return maglev::ProcessResult::kContinue;
   }
@@ -1781,10 +1776,9 @@ class GraphBuildingNodeProcessor {
     V<FeedbackCell> feedback_cell =
         __ HeapConstant(node->feedback_cell().object());
 
-    SetMap(node, __ template CallBuiltin<builtin::FastNewClosure>(
-                     frame_state, context,
-                     {.shared_function_info = shared_function_info,
-                      .feedback_cell = feedback_cell}));
+    SetMap(node,
+           __ CallBuiltin_FastNewClosure(isolate_, frame_state, context,
+                                         shared_function_info, feedback_cell));
 
     return maglev::ProcessResult::kContinue;
   }
@@ -3011,9 +3005,9 @@ class GraphBuildingNodeProcessor {
       }
     }
 
-    GOTO(done, __ template CallBuiltin<builtin::ToString>(
-                   frame_state, Map(node->context()), {.o = value},
-                   ShouldLazyDeoptOnThrow(node)));
+    GOTO(done,
+         __ CallBuiltin_ToString(isolate_, frame_state, Map(node->context()),
+                                 value, ShouldLazyDeoptOnThrow(node)));
 
     BIND(done, result);
     SetMap(node, result);
@@ -3023,8 +3017,8 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     NoThrowingScopeRequired no_throws(node);
 
-    SetMap(node, __ template CallBuiltin<builtin::NumberToString>(
-                     {.input = Map(node->value_input())}));
+    SetMap(node,
+           __ CallBuiltin_NumberToString(isolate_, Map(node->value_input())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -3209,10 +3203,9 @@ class GraphBuildingNodeProcessor {
               value_map,
               __ HeapConstant(local_factory_->context_cell_map())))) {
         GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-        __ CallBuiltin<builtin::DetachContextCell>(
-            frame_state, {.the_context = context,
-                          .new_value = new_value,
-                          .i = __ WordPtrConstant(node->index())});
+        __ CallBuiltin_DetachContextCell(isolate_, frame_state, context,
+                                         new_value,
+                                         __ WordPtrConstant(node->index()));
       } ELSE {
         __ Store(context, new_value, StoreOp::Kind::TaggedBase(),
                  MemoryRepresentation::AnyTagged(),
@@ -4844,9 +4837,9 @@ class GraphBuildingNodeProcessor {
     }
 
     BIND(non_js_receiver);
-    GOTO(done, __ template CallBuiltin<builtin::ToObject>(
-                   __ HeapConstant(node->native_context().object()),
-                   {.input = V<JSPrimitive>::Cast(receiver)}));
+    GOTO(done, __ CallBuiltin_ToObject(
+                   isolate_, __ HeapConstant(node->native_context().object()),
+                   V<JSPrimitive>::Cast(receiver)));
 
     BIND(done, result);
     SetMap(node, result);

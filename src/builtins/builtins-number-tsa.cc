@@ -282,9 +282,8 @@ class NumberBuiltinsAssemblerTS
           // Fast path where both {lhs} and {rhs} are strings. Since {lhs} is a
           // string we no longer need an Oddball check.
           CombineFeedback(BinaryOperationFeedback::kString);
-          V<Object> result = CallBuiltin<builtin::StringAdd_CheckNone>(
-              context,
-              {.left = V<String>::Cast(lhs), .right = V<String>::Cast(rhs)});
+          V<Object> result = CallBuiltin_StringAdd_CheckNone(
+              isolate(), context, V<String>::Cast(lhs), V<String>::Cast(rhs));
           GOTO(done, result);
         } ELSE IF (IsStringWrapper(rhs_heap_object)) {
           // lhs is a string and rhs is a string wrapper.
@@ -299,8 +298,8 @@ class NumberBuiltinsAssemblerTS
           CombineFeedback(BinaryOperationFeedback::kStringOrStringWrapper);
           V<String> rhs_string = V<String>::Cast(LoadField(
               rhs_heap_object, AccessBuilderTS::ForJSPrimitiveWrapperValue()));
-          V<Object> result = CallBuiltin<builtin::StringAdd_CheckNone>(
-              context, {.left = V<String>::Cast(lhs), .right = rhs_string});
+          V<Object> result = CallBuiltin_StringAdd_CheckNone(
+              isolate(), context, V<String>::Cast(lhs), rhs_string);
           GOTO(done, result);
         } ELSE {
           GOTO(call_with_any_feedback);
@@ -368,9 +367,8 @@ class NumberBuiltinsAssemblerTS
     {
       // Both {lhs} and {rhs} are of BigInt type.
       CombineFeedbackOnException(BinaryOperationFeedback::kAny);
-      V<BigInt> result = CallBuiltin<builtin::BigIntAdd>(
-          context,
-          {.left = V<BigInt>::Cast(lhs), .right = V<BigInt>::Cast(rhs)});
+      V<BigInt> result = CallBuiltin_BigIntAdd(
+          isolate(), context, V<BigInt>::Cast(lhs), V<BigInt>::Cast(rhs));
       CombineFeedback(BinaryOperationFeedback::kBigInt);
       GOTO(done, result);
     }
@@ -384,7 +382,8 @@ class NumberBuiltinsAssemblerTS
     BIND(call_add_stub);
     {
       V<Object> result =
-          CallBuiltin<builtin::Add>(context, {.left = lhs, .right = rhs});
+          CallBuiltin_Add(isolate(), FrameStateForCall::NoFrameState(this),
+                          context, lhs, rhs, compiler::LazyDeoptOnThrow::kNo);
       GOTO(done, result);
     }
 
