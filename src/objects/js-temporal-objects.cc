@@ -60,9 +60,14 @@ using temporal_rs::Unit;
  */
 
 // Struct
+#ifdef TEMPORAL_CAPI_VERSION_0_0_16
+#define DIPLOMAT_NS diplomat
+#else
+#define DIPLOMAT_NS temporal_rs::diplomat
+#endif
 
 template <typename T>
-using TemporalResult = diplomat::result<T, temporal_rs::TemporalError>;
+using TemporalResult = DIPLOMAT_NS::result<T, temporal_rs::TemporalError>;
 template <typename T>
 using TemporalAllocatedResult = TemporalResult<std::unique_ptr<T>>;
 
