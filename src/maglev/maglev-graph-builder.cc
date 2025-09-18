@@ -9326,7 +9326,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
 
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
-    return Select(
+    return SelectReduction(
         [&](BranchBuilder& builder) {
           // Do unsafe conversions of length and index into uint32, to do an
           // unsigned comparison. The index might actually be a negative signed
@@ -9337,8 +9337,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
               AddNewNodeNoAbort<UnsafeInt32ToUint32>({index}),
               AddNewNodeNoAbort<UnsafeInt32ToUint32>({length}));
         },
-        [&]() -> ValueNode* { return BuildGetCharCodeAt(receiver, index); },
-        [&]() { return GetRootConstant(RootIndex::kNanValue); });
+        [&]() -> ReduceResult { return BuildGetCharCodeAt(receiver, index); },
+        [&]() -> ReduceResult {
+          return GetRootConstant(RootIndex::kNanValue);
+        });
   }
 
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
@@ -9472,8 +9474,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
   // then accessed directly in the loop (cf StringPrepareForGetCodeUnit in
   // Turboshaft). Here in particular, the loop doesn't contain anything that can
   // trigger a GC, so this should be safe.
-  ValueNode* lhs_ch = BuildGetCharCodeAt(receiver, pos);
-  ValueNode* rhs_ch = BuildGetCharCodeAt(search_element, index_int32);
+  ValueNode* lhs_ch;
+  GET_VALUE_OR_ABORT(lhs_ch, BuildGetCharCodeAt(receiver, pos));
+  ValueNode* rhs_ch;
+  GET_VALUE_OR_ABORT(rhs_ch, BuildGetCharCodeAt(search_element, index_int32));
   ValueNode* is_equal = BuildTaggedEqual(lhs_ch, rhs_ch);
 
   // If chars are not equal, return false.
@@ -16794,16 +16798,15 @@ ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   return reducer_.BuildSmiUntag(node);
 }
 
-ValueNode* MaglevGraphBuilder::BuildGetCharCodeAt(ValueNode* string,
-                                                  ValueNode* index) {
+ReduceResult MaglevGraphBuilder::BuildGetCharCodeAt(ValueNode* string,
+                                                    ValueNode* index) {
   bool is_seq_one_byte =
       v8_flags.specialize_code_for_one_byte_seq_strings &&
       NodeTypeIs(GetType(string), NodeType::kSeqOneByteString);
   if (is_seq_one_byte) {
-    return AddNewNodeNoAbort<BuiltinSeqOneByteStringCharCodeAt>(
-        {string, index});
+    return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({string, index});
   } else {
-    return AddNewNodeNoAbort<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+    return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
         {string, index},
         BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
   }
