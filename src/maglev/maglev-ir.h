@@ -6256,7 +6256,7 @@ struct VirtualHeapObjectShapeBase {
   // Subclass slots start at 0.
   enum HeaderSlots { last_header_slot = -1 };
   // No fields defined yet.
-  static constexpr std::array<Field, 0> kFields;
+  static constexpr std::array<Field, 0> kFields = {};
 };
 
 }  // namespace vobj
