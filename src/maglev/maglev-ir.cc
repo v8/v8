@@ -8681,6 +8681,13 @@ VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
               builder->GetRootConstant(RootIndex::kOnePointerFillerMap));
 }
 
+compiler::MapRef VirtualObject::map_from_slot(
+    compiler::JSHeapBroker* broker) const {
+  DCHECK_EQ(type_, kDefault);
+  ValueNode* value = get(HeapObject::kMapOffset);
+  return MakeRef(broker, i::Cast<Map>(*value->Reify(broker->local_isolate())));
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

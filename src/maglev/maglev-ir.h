@@ -6250,11 +6250,8 @@ constexpr auto MakeOffsetToSlotMap(const std::array<Field, N>& fields) {
       BASE::kFields FIELD_LIST(DEF_SHAPE_FIELD_LIST));                      \
   FIELD_LIST(DEF_SHAPE_STATIC_ASSERTS)                                      \
   static_assert(kFields.size() == header_slot_count);                       \
-  static_assert(kMapSlotIsOmitted);                                         \
   static constexpr int kHeaderSize =                                        \
-      kFields.empty()                                                       \
-          ? HeapObject::kHeaderSize                                         \
-          : kFields.back().offset + FieldSizeOf(kFields.back().type);       \
+      kFields.back().offset + FieldSizeOf(kFields.back().type);             \
   static constexpr auto kOffsetToSlotMap =                                  \
       vobj::detail::MakeOffsetToSlotMap<kHeaderSize>(kFields);              \
   static constexpr vobj::ObjectLayout kObjectLayout {                       \
@@ -6274,17 +6271,10 @@ struct VirtualHeapObjectShapeBase {
 
 struct VirtualHeapObjectShape {
   using Base = vobj::VirtualHeapObjectShapeBase;
-
-  // TODO(jgruber): Add a map slot. For backwards compat, it is currently
-  // omitted.
-  static constexpr bool kMapSlotIsOmitted = true;
-  static constexpr int kOmittedMapSlotCount = 1;
-
+  // Default values, override in subclasses if needed.
   static constexpr bool kInstancesHaveStaticSize = true;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kNone;
-
-#define FIELD_LIST(V)
-
+#define FIELD_LIST(V) V(map, HeapObject::kMapOffset, vobj::FieldType::kTagged)
   DEF_SHAPE(Base, FIELD_LIST);
 #undef FIELD_LIST
 };
@@ -6402,6 +6392,10 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     DCHECK(has_static_map());
     return *map_;
   }
+  // TODO(jgruber): Remove this, and always fetch the map from the slot
+  // constant, once HeapNumber and FixedDoubleArray are gone.
+  compiler::MapRef map_from_slot(compiler::JSHeapBroker* broker) const;
+
   Type type() const { return type_; }
   uint32_t id() const { return id_; }
 
@@ -6413,7 +6407,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     }
     switch (type_) {
       case kDefault:
-        return (slot_count() + 1) * kTaggedSize;
+        return slot_count() * kTaggedSize;
       case kConsString:
         return sizeof(ConsString);
       case kHeapNumber:
@@ -6439,20 +6433,15 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   ValueNode* get(uint32_t offset) const {
-    static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
-    DCHECK_NE(offset, 0);  // Don't try to get the map through this getter.
     DCHECK_EQ(type_, kDefault);
     if (is_new_style_vobj()) {
       return slots_.data[object_layout_->SlotAtOffset(offset)];
     }
-    offset -= kTaggedSize;
     SBXCHECK_LT(offset / kTaggedSize, slot_count());
     return slots_.data[offset / kTaggedSize];
   }
 
   void set(uint32_t offset, ValueNode* value) {
-    static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
-    DCHECK_NE(offset, 0);  // Don't try to set the map through this setter.
     DCHECK_EQ(type_, kDefault);
     DCHECK(!IsSnapshot());
     // Values set here can leak to the interpreter frame state. Conversions
@@ -6462,7 +6451,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       slots_.data[object_layout_->SlotAtOffset(offset)] = value;
       return;
     }
-    offset -= kTaggedSize;
     SBXCHECK_LT(offset / kTaggedSize, slot_count());
     slots_.data[offset / kTaggedSize] = value;
   }
@@ -6477,10 +6465,12 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     return cons_string_;
   }
 
-  void ClearSlots(int last_init_slot, ValueNode* clear_value) {
+  void ClearSlotsAfter(int last_init_offset, ValueNode* clear_value) {
     DCHECK_EQ(type_, kDefault);
-    int last_init_index = last_init_slot / kTaggedSize;
-    for (int i = last_init_index; i < slot_count(); i++) {
+    int last_init_slot = is_new_style_vobj()
+                             ? object_layout_->SlotAtOffset(last_init_offset)
+                             : last_init_offset / kTaggedSize;
+    for (int i = last_init_slot + 1; i < slot_count(); i++) {
       slots_.data[i] = clear_value;
     }
   }
@@ -6525,8 +6515,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       switch (type_) {
         case kDefault:
           for (int i = 0; i < slot_count(); i++) {
-            callback(slots_.data[i], vobj::Field{(i + 1) * kTaggedSize,
-                                                 vobj::FieldType::kTagged});
+            callback(slots_.data[i],
+                     vobj::Field{i * kTaggedSize, vobj::FieldType::kTagged});
           }
           break;
         case kConsString:
@@ -6555,8 +6545,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       switch (type_) {
         case kDefault:
           for (int i = 0; i < slot_count(); i++) {
-            callback(slots_.data[i], vobj::Field{(i + 1) * kTaggedSize,
-                                                 vobj::FieldType::kTagged});
+            callback(slots_.data[i],
+                     vobj::Field{i * kTaggedSize, vobj::FieldType::kTagged});
           }
           break;
         case kConsString:
@@ -6651,7 +6641,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
   int header_slot_count() const {
     DCHECK_EQ(type_, kDefault);
-    static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
     return static_cast<int>(object_layout_->header_fields.size());
   }
 
@@ -6674,8 +6663,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   int field_count() const {
     switch (type_) {
       case kDefault:
-        static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
-        return slot_count() + VirtualHeapObjectShape::kOmittedMapSlotCount;
+        return slot_count();
       case kConsString:
         // map, length, first, second.
         return 4;

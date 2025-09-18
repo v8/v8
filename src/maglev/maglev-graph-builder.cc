@@ -11988,9 +11988,10 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArray(
     array->set(map.GetInObjectPropertyOffset(i),
                GetRootConstant(RootIndex::kUndefinedValue));
   }
-  array->ClearSlots(map.GetInObjectPropertyOffset(
-                        slack_tracking_prediction.inobject_property_count()),
-                    GetRootConstant(RootIndex::kOnePointerFillerMap));
+  array->ClearSlotsAfter(
+      map.GetInObjectPropertyOffset(
+          slack_tracking_prediction.inobject_property_count()),
+      GetRootConstant(RootIndex::kOnePointerFillerMap));
   ValueNode* allocation = BuildInlinedAllocation(array, allocation_type);
   return allocation;
 }
@@ -12040,7 +12041,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
        i++) {
     generator->set(initial_map.GetInObjectPropertyOffset(i), undefined);
   }
-  generator->ClearSlots(
+  generator->ClearSlotsAfter(
       initial_map.GetInObjectPropertyOffset(
           slack_tracking_prediction.inobject_property_count()),
       GetRootConstant(RootIndex::kOnePointerFillerMap));
@@ -13355,16 +13356,16 @@ VirtualObject* MaglevGraphBuilder::DeepCopyVirtualObject(VirtualObject* old) {
   return vobject;
 }
 
-VirtualObject* MaglevGraphBuilder::CreateVirtualObject(
-    compiler::MapRef map, uint32_t slot_count_including_map) {
+VirtualObject* MaglevGraphBuilder::CreateVirtualObject(compiler::MapRef map,
+                                                       uint32_t slot_count) {
   // VirtualObjects are not added to the Maglev graph.
-  DCHECK_GT(slot_count_including_map, 0);
-  uint32_t slot_count = slot_count_including_map - 1;
+  DCHECK_GT(slot_count, 1);
   ValueNode** slots = zone()->AllocateArray<ValueNode*>(slot_count);
   VirtualObject* vobject = NodeBase::New<VirtualObject>(
       zone(), 0, map, NewObjectId(), slot_count, slots);
   std::fill_n(slots, slot_count,
               GetRootConstant(RootIndex::kOnePointerFillerMap));
+  vobject->set(HeapObject::kMapOffset, GetConstant(map));
   return vobject;
 }
 
@@ -13403,8 +13404,8 @@ VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
               GetRootConstant(RootIndex::kEmptyFixedArray));
   object->set(JSObject::kElementsOffset,
               GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->ClearSlots(JSObject::kElementsOffset,
-                     GetRootConstant(RootIndex::kOnePointerFillerMap));
+  object->ClearSlotsAfter(JSObject::kElementsOffset,
+                          GetRootConstant(RootIndex::kOnePointerFillerMap));
   return object;
 }
 
@@ -13422,8 +13423,8 @@ ReduceResult MaglevGraphBuilder::CreateJSArray(compiler::MapRef map,
   object->set(JSArray::kElementsOffset,
               GetRootConstant(RootIndex::kEmptyFixedArray));
   object->set(JSArray::kLengthOffset, length);
-  object->ClearSlots(JSArray::kLengthOffset,
-                     GetRootConstant(RootIndex::kOnePointerFillerMap));
+  object->ClearSlotsAfter(JSArray::kLengthOffset,
+                          GetRootConstant(RootIndex::kOnePointerFillerMap));
   return object;
 }
 
@@ -13439,8 +13440,8 @@ VirtualObject* MaglevGraphBuilder::CreateJSStringWrapper(ValueNode* value) {
   object->set(JSObject::kElementsOffset,
               GetRootConstant(RootIndex::kEmptyFixedArray));
   object->set(JSPrimitiveWrapper::kValueOffset, value);
-  object->ClearSlots(JSPrimitiveWrapper::kValueOffset,
-                     GetRootConstant(RootIndex::kOnePointerFillerMap));
+  object->ClearSlotsAfter(JSPrimitiveWrapper::kValueOffset,
+                          GetRootConstant(RootIndex::kOnePointerFillerMap));
   return object;
 }
 
@@ -13473,8 +13474,8 @@ VirtualObject* MaglevGraphBuilder::CreateJSConstructor(
               GetRootConstant(RootIndex::kEmptyFixedArray));
   object->set(JSObject::kElementsOffset,
               GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->ClearSlots(JSObject::kElementsOffset,
-                     GetRootConstant(RootIndex::kOnePointerFillerMap));
+  object->ClearSlotsAfter(JSObject::kElementsOffset,
+                          GetRootConstant(RootIndex::kOnePointerFillerMap));
   return object;
 }
 
@@ -13483,18 +13484,18 @@ VirtualObject* MaglevGraphBuilder::CreateFixedArray(
   const compiler::MapRef& map = broker()->fixed_array_map();
 
   using Shape = VirtualFixedArrayShape;
-  static_assert(Shape::kMapSlotIsOmitted);
   int length = values.length();
   DCHECK_NE(length, 0);  // Use kEmptyFixedArray instead.
   DCHECK_EQ(FixedArray::SizeFor(length) % FieldSizeOf(Shape::kBodyFieldType),
             0);
-  DCHECK_EQ(Shape::header_slot_count + length + Shape::kOmittedMapSlotCount,
+  DCHECK_EQ(Shape::header_slot_count + length,
             FixedArray::SizeFor(length) / FieldSizeOf(Shape::kBodyFieldType));
 
   int slot_count = Shape::header_slot_count + length;
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
 
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
   // TODO(jgruber): This is a smi field. Is there some advantage to creating an
   // int32 constant first?
   vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
@@ -13701,7 +13702,6 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
                value->opcode() != Opcode::kArgumentsElements &&
                value->opcode() != Opcode::kArgumentsLength &&
                value->opcode() != Opcode::kRestLength) {
-      static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
       AddDeoptUse(value);
     }
   });
@@ -13820,17 +13820,19 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
       allocation =
           ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
       AddNonEscapingUses(allocation, static_cast<int>(values.size()));
-      if (vobject->has_static_map()) {
-        static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
-        AddNonEscapingUses(allocation, 1);
-        ReduceResult result = BuildStoreMap(allocation, vobject->map(),
-                                            StoreMap::Kind::kInlinedAllocation);
-        CHECK(!result.IsDoneWithAbort());
-      }
       for (uint32_t i = 0; i < values.size(); i++) {
         const auto [value, desc] = values[i];
         DCHECK_EQ(desc.type, vobj::FieldType::kTagged);
-        BuildInitializeStore(allocation, value, desc.offset);
+        if (desc.offset == HeapObject::kMapOffset) {
+          // TODO(jgruber): Try to avoid this special case, and have all
+          // values go through BuildInitializeStore.
+          compiler::MapRef map = vobject->map_from_slot(broker());
+          ReduceResult result = BuildStoreMap(
+              allocation, map, StoreMap::Kind::kInlinedAllocation);
+          CHECK(!result.IsDoneWithAbort());
+        } else {
+          BuildInitializeStore(allocation, value, desc.offset);
+        }
       }
       if (is_loop_effect_tracking()) {
         loop_effects_->allocations.insert(allocation);
@@ -16684,7 +16686,6 @@ void MaglevGraphBuilder::AddDeoptUse(ValueNode* node) {
     VirtualObject* vobject =
         current_interpreter_frame_.virtual_objects().FindAllocatedWith(alloc);
     if (vobject) {
-      CHECK_NOT_NULL(vobject);
       AddDeoptUse(vobject);
       // Add an escaping use for the allocation.
       AddNonEscapingUses(alloc, 1);

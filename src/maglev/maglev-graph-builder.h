@@ -1488,8 +1488,7 @@ class MaglevGraphBuilder {
       InlinedAllocation* allocation);
 
   VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
-  VirtualObject* CreateVirtualObject(compiler::MapRef map,
-                                     uint32_t slot_count_including_map);
+  VirtualObject* CreateVirtualObject(compiler::MapRef map, uint32_t slot_count);
   VirtualObject* CreateHeapNumber(Float64 value);
   VirtualObject* CreateFixedDoubleArray(uint32_t elements_length,
                                         compiler::FixedDoubleArrayRef elements);

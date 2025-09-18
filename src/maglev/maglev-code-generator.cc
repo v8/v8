@@ -1580,10 +1580,6 @@ class MaglevFrameTranslationBuilder {
                                      object->double_elements());
       case VirtualObject::kDefault:
         translation_array_builder_->BeginCapturedObject(object->field_count());
-        DCHECK(object->has_static_map());
-        static_assert(maglev::VirtualHeapObjectShape::kMapSlotIsOmitted);
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(*object->map().object()));
         object->ForEachSlot([&](ValueNode* node, const vobj::Field& desc) {
           BuildNestedValue(node, input_location, virtual_objects);
         });

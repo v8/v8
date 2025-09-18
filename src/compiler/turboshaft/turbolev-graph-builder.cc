@@ -5521,9 +5521,6 @@ class GraphBuildingNodeProcessor {
       case maglev::VirtualObject::kDefault:
         uint32_t field_count = vobj->field_count();
         builder.AddDematerializedObject(dup_id.id, field_count);
-        static_assert(maglev::VirtualHeapObjectShape::kMapSlotIsOmitted);
-        builder.AddInput(MachineType::AnyTagged(),
-                         __ HeapConstantNoHole(vobj->map().object()));
         vobj->ForEachSlot(
             [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) {
               AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
