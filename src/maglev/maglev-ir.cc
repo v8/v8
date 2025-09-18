@@ -78,48 +78,30 @@ static_assert(
 }  // namespace
 
 #ifdef DEBUG
-namespace {
-
-template <size_t InputCount, typename Base, typename Derived>
-int StaticInputCount(FixedInputNodeTMixin<InputCount, Base, Derived>*) {
-  return InputCount;
-}
-
-int StaticInputCount(NodeBase*) { UNREACHABLE(); }
-
-}  // namespace
 
 void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
                                      OpProperties new_properties) {
   if (new_opcode == Opcode::kDead) return;
 
-  DCHECK_IMPLIES(new_properties.can_eager_deopt(),
-                 properties().can_eager_deopt());
-  DCHECK_IMPLIES(new_properties.can_lazy_deopt(),
-                 properties().can_lazy_deopt());
-  DCHECK_IMPLIES(new_properties.needs_register_snapshot(),
-                 properties().needs_register_snapshot());
+  DCHECK_LE(SizeOfNodeForOpcode(new_opcode), SizeOfNodeForOpcode(opcode()));
 
   int old_input_count = input_count();
-  size_t old_sizeof = -1;
-  switch (opcode()) {
-#define CASE(op)             \
-  case Opcode::k##op:        \
-    old_sizeof = sizeof(op); \
-    break;
-    NODE_BASE_LIST(CASE);
-#undef CASE
-  }
-
-  switch (new_opcode) {
-#define CASE(op)                                                          \
-  case Opcode::k##op: {                                                   \
-    DCHECK_EQ(old_input_count, StaticInputCount(static_cast<op*>(this))); \
-    DCHECK_LE(sizeof(op), old_sizeof);                                    \
-    break;                                                                \
-  }
-    NODE_BASE_LIST(CASE)
-#undef CASE
+  int new_input_count = StaticInputCountForOpcode(new_opcode);
+  if (old_input_count == new_input_count) {
+    // We can keep the same properties.
+    DCHECK_IMPLIES(new_properties.can_eager_deopt(),
+                   properties().can_eager_deopt());
+    DCHECK_IMPLIES(new_properties.can_lazy_deopt(),
+                   properties().can_lazy_deopt());
+    DCHECK_IMPLIES(new_properties.needs_register_snapshot(),
+                   properties().needs_register_snapshot());
+  } else {
+    DCHECK_LT(new_input_count, old_input_count);
+    // We must not deopt, since the location of the DeoptInfo will be incorrect.
+    // TODO(victorgomes): support moving the deopt info.
+    DCHECK(!new_properties.can_eager_deopt());
+    DCHECK(!new_properties.can_lazy_deopt());
+    DCHECK(!new_properties.needs_register_snapshot());
   }
 }
 

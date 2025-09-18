@@ -1070,6 +1070,17 @@ ValueNode* MaglevReducer<BaseT>::GetNumberConstant(double constant) {
 }
 
 template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::BuildCheckedSmiSizedInt32(ValueNode* input) {
+  if (auto cst = TryGetInt32Constant(input)) {
+    if (Smi::IsValid(cst.value())) {
+      return ReduceResult::Done();
+    }
+    // TODO(victorgomes): Emit deopt.
+  }
+  return AddNewNodeNoAbort<CheckedSmiSizedInt32>({input});
+}
+
+template <typename BaseT>
 template <Operation kOperation>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32UnaryOperation(
     ValueNode* node) {
@@ -1269,6 +1280,50 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
     case Operation::kShiftRightLogical:
       return GetUint32Constant(static_cast<uint32_t>(cst_left) >>
                                (static_cast<uint32_t>(cst_right) % 32));
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <typename BaseT>
+std::optional<bool> MaglevReducer<BaseT>::TryFoldInt32CompareOperation(
+    Operation op, ValueNode* left, ValueNode* right) {
+  if (op == Operation::kEqual || op == Operation::kStrictEqual) {
+    if (left == right) {
+      return true;
+    }
+  }
+  if (auto cst_right = TryGetInt32Constant(right)) {
+    return TryFoldInt32CompareOperation(op, left, cst_right.value());
+  }
+  return {};
+}
+
+template <typename BaseT>
+std::optional<bool> MaglevReducer<BaseT>::TryFoldInt32CompareOperation(
+    Operation op, ValueNode* left, int32_t cst_right) {
+  if (auto cst_left = TryGetInt32Constant(left)) {
+    return TryFoldInt32CompareOperation(op, cst_left.value(), cst_right);
+  }
+  return {};
+}
+
+template <typename BaseT>
+bool MaglevReducer<BaseT>::TryFoldInt32CompareOperation(Operation op,
+                                                        int32_t left,
+                                                        int32_t right) {
+  switch (op) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return left == right;
+    case Operation::kLessThan:
+      return left < right;
+    case Operation::kLessThanOrEqual:
+      return left <= right;
+    case Operation::kGreaterThan:
+      return left > right;
+    case Operation::kGreaterThanOrEqual:
+      return left >= right;
     default:
       UNREACHABLE();
   }

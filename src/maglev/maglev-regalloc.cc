@@ -1101,12 +1101,20 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     auto predecessor_id = block->predecessor_id();
     auto target = unconditional->target();
 
-    InitializeBranchTargetPhis(predecessor_id, target);
-    MergeRegisterValues(unconditional, target, predecessor_id);
-    if (target->has_phi()) {
-      for (Phi* phi : *target->phis()) {
-        UpdateUse(phi->input(predecessor_id));
+    if (target->has_state()) {
+      // Not a fallthrough.
+      InitializeBranchTargetPhis(predecessor_id, target);
+      MergeRegisterValues(unconditional, target, predecessor_id);
+      if (target->has_phi()) {
+        for (Phi* phi : *target->phis()) {
+          UpdateUse(phi->input(predecessor_id));
+        }
       }
+    } else {
+      // Fallthrough.
+      DCHECK(!target->is_edge_split_block());
+      DCHECK_EQ(unconditional->id() + 1, target->first_id());
+      DCHECK(AllUsedRegistersLiveAt(target));
     }
 
     // For JumpLoops, now update the uses of any node used in, but not defined

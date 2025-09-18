@@ -2531,22 +2531,14 @@ class NodeBase : public ZoneObject {
   }
 
   template <typename NodeT>
-  void OverwriteWith() {
+  NodeT* OverwriteWith() {
     OverwriteWith(NodeBase::opcode_of<NodeT>, NodeT::kProperties);
+    return Cast<NodeT>();
   }
 
-  void OverwriteWith(
+  inline void OverwriteWith(
       Opcode new_opcode,
-      std::optional<OpProperties> maybe_new_properties = std::nullopt) {
-    OpProperties new_properties = maybe_new_properties.has_value()
-                                      ? maybe_new_properties.value()
-                                      : StaticPropertiesForOpcode(new_opcode);
-#ifdef DEBUG
-    CheckCanOverwriteWith(new_opcode, new_properties);
-#endif
-    set_opcode(new_opcode);
-    set_properties(new_properties);
-  }
+      std::optional<OpProperties> maybe_new_properties = std::nullopt);
 
   inline void UnwrapDeoptFrames();
   inline void OverwriteWithIdentityTo(ValueNode* node);
@@ -12546,12 +12538,41 @@ class BranchIfTypeOf : public BranchControlNodeT<1, BranchIfTypeOf> {
   interpreter::TestTypeOfFlags::LiteralFlag literal_;
 };
 
+template <typename NodeT>
+constexpr inline int StaticInputCount() {
+  if constexpr (IsFixedInputNode<NodeT>()) {
+    return NodeT::kInputCount;
+  }
+  UNREACHABLE();
+}
+
+constexpr inline int StaticInputCountForOpcode(Opcode op) {
+  switch (op) {
+#define CASE(Node)      \
+  case Opcode::k##Node: \
+    return StaticInputCount<Node>();
+    NODE_BASE_LIST(CASE)
+#undef CASE
+  }
+}
+
 constexpr inline OpProperties StaticPropertiesForOpcode(Opcode opcode) {
   switch (opcode) {
 #define CASE(op)      \
   case Opcode::k##op: \
     return op::kProperties;
     NODE_BASE_LIST(CASE)
+#undef CASE
+  }
+}
+
+constexpr inline int SizeOfNodeForOpcode(Opcode op) {
+  switch (op) {
+#define CASE(Node)       \
+  case Opcode::k##Node:  \
+    return sizeof(Node); \
+    break;
+    NODE_BASE_LIST(CASE);
 #undef CASE
   }
 }

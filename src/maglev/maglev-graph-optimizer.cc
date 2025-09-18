@@ -212,6 +212,46 @@ std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldFloat64Operation() {
   return ReplaceWith(reducer_.GetFloat64(result.value()));
 }
 
+Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
+                                       BranchControlNode* branch_node,
+                                       bool if_true) {
+  BasicBlock* target =
+      if_true ? branch_node->if_true() : branch_node->if_false();
+  BasicBlock* unreachable_block =
+      if_true ? branch_node->if_false() : branch_node->if_true();
+
+  // Remove predecessor from unreachable block.
+  if (!unreachable_block->has_state()) {
+    unreachable_block->set_predecessor(nullptr);
+  } else {
+    for (int i = unreachable_block->predecessor_count() - 1; i >= 0; i--) {
+      if (unreachable_block->predecessor_at(i) == current) {
+        unreachable_block->state()->RemovePredecessorAt(i);
+      }
+    }
+  }
+
+  // Update control node.
+  Jump* new_control_node = branch_node->OverwriteWith<Jump>();
+  new_control_node->set_target(target);
+
+  // Cache predecessor id from the target in the unconditional jump.
+  int predecessor_id;
+  if (!target->has_state()) {
+    predecessor_id = 0;
+  } else {
+    for (int i = target->predecessor_count() - 1; i >= 0; i--) {
+      if (target->predecessor_at(i) == current) {
+        predecessor_id = i;
+      }
+    }
+  }
+  new_control_node->set_predecessor_id(predecessor_id);
+
+  reducer_.graph()->set_may_have_unreachable_blocks(true);
+  return new_control_node;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32(
     AssertInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -1129,7 +1169,11 @@ ProcessResult MaglevGraphOptimizer::VisitRegisterInput(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiSizedInt32(
     CheckedSmiSizedInt32* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetInt32Constant(GetInputAt(0))) {
+    if (Smi::IsValid(cst.value())) {
+      return ProcessResult::kRemove;
+    }
+  }
   return ProcessResult::kContinue;
 }
 
@@ -1392,7 +1436,8 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
       // still need to keep a CheckSmi.
       // TODO(dmercadier): during graph building, record whether the "CheckSmi"
       // part of CheckSmiUntag is useful or not.
-      reducer_.AddNewNodeNoAbort<CheckedSmiSizedInt32>({input});
+      ReduceResult result = reducer_.BuildCheckedSmiSizedInt32(input);
+      CHECK(result.IsDone());
     }
     return ReplaceWith(input);
   }
@@ -2127,7 +2172,11 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfReferenceEqual(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32Compare(
     BranchIfInt32Compare* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto result = reducer_.TryFoldInt32CompareOperation(
+          node->operation(), GetInputAt(0), GetInputAt(1))) {
+    FoldBranch(state.block(), node, result.value());
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 

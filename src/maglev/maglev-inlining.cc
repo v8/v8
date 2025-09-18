@@ -144,6 +144,12 @@ void MaglevInliner::RunOptimizer() {
       optimization_pass(optimizer, kna_processor,
                         RecomputePhiUseHintsProcessor{graph_->zone()});
   optimization_pass.ProcessGraph(graph_);
+
+  // Remove unreachable blocks if we have any.
+  if (graph_->may_have_unreachable_blocks()) {
+    graph_->RemoveUnreachableBlocks();
+  }
+
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
     std::cout << "\nAfter optimization " << std::endl;
     PrintGraph(std::cout, graph_);

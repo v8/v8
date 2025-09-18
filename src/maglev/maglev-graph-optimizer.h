@@ -87,6 +87,9 @@ class MaglevGraphOptimizer {
   void PreProcessNode(ControlNode*, const ProcessingState& state);
   void PostProcessNode(ControlNode*);
 
+  Jump* FoldBranch(BasicBlock* current, BranchControlNode* branch_node,
+                   bool if_true);
+
   ValueNode* GetInputAt(int index) const;
   ProcessResult ReplaceWith(ValueNode* node);
 

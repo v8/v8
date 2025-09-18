@@ -124,6 +124,23 @@ void NodeBase::UnwrapDeoptFrames() {
   }
 }
 
+void NodeBase::OverwriteWith(Opcode new_opcode,
+                             std::optional<OpProperties> maybe_new_properties) {
+  OpProperties new_properties = maybe_new_properties.has_value()
+                                    ? maybe_new_properties.value()
+                                    : StaticPropertiesForOpcode(new_opcode);
+#ifdef DEBUG
+  CheckCanOverwriteWith(new_opcode, new_properties);
+#endif
+  set_opcode(new_opcode);
+  set_properties(new_properties);
+  if (new_opcode == Opcode::kDead) return;
+  int new_input_count = StaticInputCountForOpcode(new_opcode);
+  if (input_count() != new_input_count) {
+    bitfield_ = InputCountField::update(bitfield_, new_input_count);
+  }
+}
+
 void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
   // OverwriteWith() checks if the node we're overwriting to has the same
   // input count and the same properties. Here we don't need to do that, since

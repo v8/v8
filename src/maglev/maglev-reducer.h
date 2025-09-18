@@ -430,6 +430,8 @@ class MaglevReducer {
 
   ValueNode* GetNumberConstant(double constant);
 
+  ReduceResult BuildCheckedSmiSizedInt32(ValueNode* input);
+
   template <Operation kOperation>
   MaybeReduceResult TryFoldInt32UnaryOperation(ValueNode* value);
   template <Operation kOperation>
@@ -440,6 +442,14 @@ class MaglevReducer {
                                                 int32_t cst_right);
   template <Operation kOperation>
   MaybeReduceResult TryFoldInt32BinaryOperation(int32_t left, int32_t right);
+
+  std::optional<bool> TryFoldInt32CompareOperation(Operation op,
+                                                   ValueNode* left,
+                                                   ValueNode* right);
+  std::optional<bool> TryFoldInt32CompareOperation(Operation op,
+                                                   ValueNode* left,
+                                                   int32_t cst_right);
+  bool TryFoldInt32CompareOperation(Operation op, int32_t left, int32_t right);
 
   template <Operation kOperation>
   MaybeReduceResult TryFoldFloat64UnaryOperationForToNumber(
