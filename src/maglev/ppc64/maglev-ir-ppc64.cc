@@ -311,7 +311,9 @@ void Int32Multiply::GenerateCode(MaglevAssembler* masm,
 
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ mullw(out, left, right);
-  __ extsw(out, out);
+
+  // Making sure that the 32-bit output is zero-extended.
+  __ ZeroExtWord32(out, out);
 }
 
 void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
@@ -328,7 +330,9 @@ void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
 
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ mulhw(out, left, right);
-  __ extsw(out, out);
+
+  // Making sure that the 32-bit output is zero-extended.
+  __ ZeroExtWord32(out, out);
 }
 
 void Int32Divide::SetValueLocationConstraints() {
@@ -463,7 +467,9 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   DCHECK_REGLIST_EMPTY(RegList{temp, out} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
-  __ extsw(out, out);
+
+  // Making sure that the 32-bit output is zero-extended.
+  __ ZeroExtWord32(out, out);
 
   // If the result is zero, check if either lhs or rhs is negative.
   Label end;
