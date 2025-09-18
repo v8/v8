@@ -175,11 +175,27 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::WASM_OBJECT:
         continue;  // Continue to the prototype, if present.
-      case LookupIterator::ACCESSOR:
-        // TODO(verwaest): For now this doesn't call into AccessorInfo, since
-        // clients don't need it. Update once relevant.
+      case LookupIterator::ACCESSOR: {
+        auto accessors = it->GetAccessors();
+        // Special handling for AccessorInfo, which behaves like a data
+        // property.
+        if (IsAccessorInfo(*accessors)) {
+          auto info = Cast<AccessorInfo>(*accessors);
+          if (info->getter_side_effect_type() ==
+              SideEffectType::kHasNoSideEffect) {
+            v8::TryCatch try_catch(
+                reinterpret_cast<v8::Isolate*>(it->isolate()));
+            try_catch.SetVerbose(false);
+            try_catch.SetCaptureMessage(false);
+            Handle<Object> result;
+            if (Object::GetPropertyWithAccessor(it).ToHandle(&result)) {
+              return result;
+            }
+          }
+        }
         it->NotFound();
         return it->isolate()->factory()->undefined_value();
+      }
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::DATA:
