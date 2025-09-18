@@ -8,7 +8,7 @@
 #include <cstdint>
 
 #include "absl/strings/str_format.h"
-#include "src/base/memory.h"
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 
 namespace v8::internal {
@@ -32,13 +32,13 @@ class alignas(double) Simd128 {
 
 #define DEFINE_SIMD_TYPE_SPECIFIC_METHODS(cType, sType, name, size) \
   explicit constexpr Simd128(sType val)                             \
-      : val_(std::bit_cast<std::array<uint8_t, 16>>(val)) {}        \
+      : val_(base::bit_cast<std::array<uint8_t, 16>>(val)) {}       \
   static constexpr Simd128 Splat(cType value) {                     \
     sType values;                                                   \
     std::fill_n(values.data(), size, value);                        \
     return Simd128{values};                                         \
   }                                                                 \
-  constexpr sType to_##name() const { return std::bit_cast<sType>(val_); }
+  constexpr sType to_##name() const { return base::bit_cast<sType>(val_); }
   FOREACH_SIMD_TYPE(DEFINE_SIMD_TYPE_SPECIFIC_METHODS)
 #undef DEFINE_SIMD_TYPE_SPECIFIC_METHODS
 

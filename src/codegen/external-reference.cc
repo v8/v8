@@ -11,6 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
+#include "src/base/macros.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
@@ -479,14 +480,14 @@ uint32_t fp64_to_fp16_raw_bits(double input) { return DoubleToFloat16(input); }
 uint32_t fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch(uint32_t hi,
                                                        uint32_t lo) {
   uint64_t input = static_cast<uint64_t>(hi) << 32 | lo;
-  return DoubleToFloat16(std::bit_cast<double, uint64_t>(input));
+  return DoubleToFloat16(base::bit_cast<double, uint64_t>(input));
 }
 
 // Since floating point parameters and return value are not supported
 // for C-linkage functions on 32bit architectures, we should use raw bits.
 uint32_t fp16_raw_bits_ieee_to_fp32_raw_bits(uint32_t input) {
   float value = fp16_ieee_to_fp32_value(input);
-  return std::bit_cast<uint32_t, float>(value);
+  return base::bit_cast<uint32_t, float>(value);
 }
 
 FUNCTION_REFERENCE(ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch,
