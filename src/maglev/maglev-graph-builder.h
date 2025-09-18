@@ -1498,7 +1498,7 @@ class MaglevGraphBuilder {
                                        ValueNode* iterated_object,
                                        IterationKind kind);
   VirtualObject* CreateJSConstructor(compiler::JSFunctionRef constructor);
-  VirtualObject* CreateFixedArray(compiler::MapRef map, int length);
+  VirtualObject* CreateFixedArray(base::Vector<ValueNode* const> values);
   VirtualObject* CreateContext(compiler::MapRef map, int length,
                                compiler::ScopeInfoRef scope_info,
                                ValueNode* previous_context,

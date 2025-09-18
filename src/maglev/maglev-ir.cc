@@ -39,6 +39,7 @@
 #include "src/maglev/maglev-code-gen-state.h"
 #endif
 #include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -1185,8 +1186,8 @@ void AllocationBlock::TryPretenure() {
   }
   allocation_type_ = AllocationType::kOld;
   for (auto alloc : allocation_list_) {
-    alloc->object()->ForEachInput(
-        [&](ValueNode* value) { TryPretenure(value); });
+    alloc->object()->ForEachSlot(
+        [&](ValueNode* value, vobj::Field desc) { TryPretenure(value); });
   }
 }
 
@@ -8665,6 +8666,19 @@ RangeType ValueNode::GetRange() const {
     default:
       return {};
   }
+}
+
+VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
+                             MaglevGraphBuilder* builder,
+                             const vobj::ObjectLayout* object_layout,
+                             compiler::MapRef map, uint32_t slot_count)
+    : VirtualObject(bitfield, map, id, object_layout, slot_count,
+                    builder->zone()->AllocateArray<ValueNode*>(slot_count)) {
+  // TODO(jgruber): Slots shouldn't be initialized with the filler map now
+  // that slots may represent untagged fields. Consider simply initializing
+  // with nullptr.
+  std::fill_n(slots_.data, slots_.count,
+              builder->GetRootConstant(RootIndex::kOnePointerFillerMap));
 }
 
 }  // namespace maglev

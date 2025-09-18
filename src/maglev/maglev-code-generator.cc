@@ -1579,12 +1579,12 @@ class MaglevFrameTranslationBuilder {
         return BuildFixedDoubleArray(object->double_elements_length(),
                                      object->double_elements());
       case VirtualObject::kDefault:
-        translation_array_builder_->BeginCapturedObject(object->slot_count() +
-                                                        1);
+        translation_array_builder_->BeginCapturedObject(object->field_count());
         DCHECK(object->has_static_map());
+        static_assert(maglev::VirtualHeapObjectShape::kMapSlotIsOmitted);
         translation_array_builder_->StoreLiteral(
             GetDeoptLiteral(*object->map().object()));
-        object->ForEachInput([&](ValueNode* node) {
+        object->ForEachSlot([&](ValueNode* node, const vobj::Field& desc) {
           BuildNestedValue(node, input_location, virtual_objects);
         });
     }

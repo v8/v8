@@ -72,6 +72,7 @@ class ProcessingState;
 class MaglevAssembler;
 class MaglevCodeGenState;
 class MaglevCompilationUnit;
+class MaglevGraphBuilder;
 class MaglevVregAllocationState;
 class CompactInterpreterFrameState;
 class MergePointInterpreterFrameState;
@@ -6103,6 +6104,145 @@ class CreateShallowObjectLiteral
   const int flags_;
 };
 
+namespace vobj {
+
+// The type of a VirtualObject field. Extend as needed.
+enum class FieldType {
+  kNone,
+  kTagged,
+  kInt32,
+  kFloat64,
+};
+
+constexpr int FieldSizeOf(FieldType type) {
+  switch (type) {
+    case FieldType::kTagged:
+      return kTaggedSize;
+    case FieldType::kInt32:
+      return kInt32Size;
+    case FieldType::kFloat64:
+      return kDoubleSize;
+    case FieldType::kNone:
+      UNREACHABLE();
+  }
+}
+
+// Describes a single field within an object, consisting of the field offset and
+// type. For convenience, we also maintain the link to the VirtualObject's
+// corresponding slot index.
+struct Field {
+  constexpr Field(int offset, FieldType type)
+      : slot_index(kNoSlotIndex), offset(offset), type(type) {}
+  constexpr Field(int slot_index, int offset, FieldType type)
+      : slot_index(slot_index), offset(offset), type(type) {}
+  static constexpr int kNoSlotIndex = -1;
+  int slot_index;
+  int offset;
+  FieldType type;
+};
+
+// Describes the layout of an entire object. This can be seen as a set of header
+// fields with static offsets, optionally with a set of dynamic body fields
+// (e.g. for FixedArray).
+struct ObjectLayout {
+  explicit constexpr ObjectLayout(base::Vector<const Field> header_fields)
+      : header_fields(header_fields) {}
+  explicit constexpr ObjectLayout(base::Vector<const Field> header_fields,
+                                  FieldType body_field_type)
+      : header_fields(header_fields), body_field_type(body_field_type) {}
+
+  // Describes all fields that are part of the static object header.
+  base::Vector<const Field> header_fields;
+
+  int header_size() const {
+    const Field& last = header_fields.last();
+    return last.offset + FieldSizeOf(last.type);
+  }
+
+  // Some types such as FixedArray have a variable number of body fields
+  // following the header.
+  FieldType body_field_type = FieldType::kNone;
+};
+
+// TODO(jgruber): Remove once all vobj types use ObjectLayout.
+static constexpr ObjectLayout* kNoObjectLayout = nullptr;
+
+namespace detail {
+
+template <typename T, std::size_t N, typename... Elems, std::size_t... Is>
+constexpr auto ExtendFieldArrayImpl(const std::array<T, N>& arr,
+                                    std::index_sequence<Is...>,
+                                    Elems&&... new_elems) {
+  return std::array<T, N + sizeof...(Elems)>{arr[Is]...,
+                                             std::forward<Elems>(new_elems)...};
+}
+
+// Extend an existing std::array at compile time.
+template <typename T, std::size_t N, typename... Elems>
+constexpr auto ExtendFieldArray(const std::array<T, N>& arr,
+                                Elems&&... new_elems) {
+  return ExtendFieldArrayImpl(arr, std::make_index_sequence<N>{},
+                              std::forward<Elems>(new_elems)...);
+}
+
+}  // namespace detail
+
+// Helper macros for Shape class definitions. They are undef'd at the end of
+// this file.
+#define DEF_SHAPE_FIELD_ENUM(NAME, OFFSET, TYPE) NAME##_slot,
+
+#define DEF_SHAPE_FIELD_DESC(NAME, OFFSET, TYPE) \
+  static constexpr vobj::Field NAME##_desc = {NAME##_slot, OFFSET, TYPE};
+
+#define DEF_SHAPE_FIELD_LIST(NAME, OFFSET, TYPE) , NAME##_desc
+
+#define SHAPE_CHECK_SLOT_INDEX(NAME, OFFSET, TYPE) \
+  static_assert(NAME##_slot == kFields[NAME##_slot].slot_index);
+
+// Note this helper picks up a few things which are assumed to have been
+// previously defined, such as kBodyFieldType.
+#define DEF_SHAPE(BASE, FIELD_LIST)                               \
+  enum HeaderSlots {                                              \
+    last_base_header_slot = BASE::last_header_slot,               \
+    FIELD_LIST(DEF_SHAPE_FIELD_ENUM) header_slot_count,           \
+    last_header_slot = header_slot_count - 1,                     \
+  };                                                              \
+  FIELD_LIST(DEF_SHAPE_FIELD_DESC)                                \
+  static constexpr auto kFields = vobj::detail::ExtendFieldArray( \
+      BASE::kFields FIELD_LIST(DEF_SHAPE_FIELD_LIST));            \
+  FIELD_LIST(SHAPE_CHECK_SLOT_INDEX)                              \
+  static_assert(kFields.size() == header_slot_count);             \
+  static constexpr vobj::ObjectLayout kObjectLayout {             \
+    base::VectorOf(kFields), kBodyFieldType                       \
+  }
+
+// This helps DEF_SHAPE handle the initial object hierarchy root.
+struct VirtualHeapObjectShapeBase {
+  // Subclass slots start at 0.
+  enum HeaderSlots { last_header_slot = -1 };
+  // No fields defined yet.
+  static constexpr std::array<Field, 0> kFields;
+};
+
+}  // namespace vobj
+
+struct VirtualHeapObjectShape {
+  using Base = vobj::VirtualHeapObjectShapeBase;
+
+  // TODO(jgruber): Add a map slot. For backwards compat, it is currently
+  // omitted.
+  static constexpr bool kMapSlotIsOmitted = true;
+  static constexpr int kOmittedMapSlotCount = 1;
+
+  static constexpr bool kInstancesHaveStaticSize = true;
+  static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kNone;
+
+#define FIELD_LIST(V)
+
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
 // VirtualObject is a ValueNode only for convenience, it should never be added
 // to the Maglev graph.
 class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
@@ -6154,13 +6294,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
   explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
                          uint32_t slot_count, ValueNode** slots)
-      : Base(bitfield),
-        map_(map),
-        id_(id),
-        type_(kDefault),
-        slots_({slot_count, slots}) {
-    DCHECK(has_static_map());
-  }
+      : VirtualObject(bitfield, map, id, vobj::kNoObjectLayout, slot_count,
+                      slots) {}
 
   explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
                          Float64 number)
@@ -6180,6 +6315,25 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         id_(id),
         type_(kFixedDoubleArray),
         double_array_({length, elements}) {
+    DCHECK(has_static_map());
+  }
+
+  explicit VirtualObject(uint64_t bitfield, uint32_t id,
+                         MaglevGraphBuilder* builder,
+                         const vobj::ObjectLayout* object_layout,
+                         compiler::MapRef map, uint32_t slot_count);
+
+  // Should ideally be private since it's only used by this class; but that's
+  // not possible because allocation goes through NodeBase::New.
+  explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
+                         const vobj::ObjectLayout* object_layout,
+                         uint32_t slot_count, ValueNode** slots)
+      : Base(bitfield),
+        map_(map),
+        id_(id),
+        type_(kDefault),
+        slots_({slot_count, slots}),
+        object_layout_(object_layout) {
     DCHECK(has_static_map());
   }
 
@@ -6206,6 +6360,11 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   uint32_t id() const { return id_; }
 
   size_t size() const {
+    if (is_new_style_vobj()) {
+      if (!has_body_fields()) return header_size();
+      int body_fields = slot_count() - header_slot_count();
+      return header_size() + body_fields * body_field_size();
+    }
     switch (type_) {
       case kDefault:
         return (slot_count() + 1) * kTaggedSize;
@@ -6266,7 +6425,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   void ClearSlots(int last_init_slot, ValueNode* clear_value) {
     DCHECK_EQ(type_, kDefault);
     int last_init_index = last_init_slot / kTaggedSize;
-    for (uint32_t i = last_init_index; i < slot_count(); i++) {
+    for (int i = last_init_index; i < slot_count(); i++) {
       slots_.data[i] = clear_value;
     }
   }
@@ -6301,42 +6460,62 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   void Snapshot() { snapshotted_ = true; }
 
   template <typename Function>
-  inline void ForEachInput(Function&& callback) {
-    switch (type_) {
-      case kDefault:
-        for (uint32_t i = 0; i < slot_count(); i++) {
-          callback(slots_.data[i]);
-        }
-        break;
-      case kConsString:
-        for (ValueNode*& val : cons_string_.data) {
-          callback(val);
-        }
-        break;
-      case kHeapNumber:
-        break;
-      case kFixedDoubleArray:
-        break;
+  inline void ForEachSlot(Function&& callback) {
+    if (is_new_style_vobj()) {
+      DCHECK_EQ(type_, kDefault);
+      for (int i = 0; i < slot_count(); i++) {
+        callback(slots_.data[i], FieldForSlot(i));
+      }
+    } else {
+      switch (type_) {
+        case kDefault:
+          for (int i = 0; i < slot_count(); i++) {
+            callback(slots_.data[i], vobj::Field{(i + 1) * kTaggedSize,
+                                                 vobj::FieldType::kTagged});
+          }
+          break;
+        case kConsString:
+          callback(cons_string_.data[0],
+                   vobj::Field{offsetof(ConsString, first_),
+                               vobj::FieldType::kTagged});
+          callback(cons_string_.data[1],
+                   vobj::Field{offsetof(ConsString, second_),
+                               vobj::FieldType::kTagged});
+          break;
+        case kHeapNumber:
+        case kFixedDoubleArray:
+          break;
+      }
     }
   }
 
   template <typename Function>
-  inline void ForEachInput(Function&& callback) const {
-    switch (type_) {
-      case kDefault:
-        for (uint32_t i = 0; i < slot_count(); i++) {
-          callback(get_by_index(i));
-        }
-        break;
-      case kConsString:
-        for (ValueNode* val : cons_string_.data) {
-          callback(val);
-        }
-        break;
-      case kHeapNumber:
-        break;
-      case kFixedDoubleArray:
-        break;
+  inline void ForEachSlot(Function&& callback) const {
+    if (is_new_style_vobj()) {
+      DCHECK_EQ(type_, kDefault);
+      for (int i = 0; i < slot_count(); i++) {
+        callback(slots_.data[i], FieldForSlot(i));
+      }
+    } else {
+      switch (type_) {
+        case kDefault:
+          for (int i = 0; i < slot_count(); i++) {
+            callback(slots_.data[i], vobj::Field{(i + 1) * kTaggedSize,
+                                                 vobj::FieldType::kTagged});
+          }
+          break;
+        case kConsString:
+          callback(cons_string_.data[0],
+                   vobj::Field{offsetof(ConsString, first_),
+                               vobj::FieldType::kTagged});
+          callback(cons_string_.data[1],
+                   vobj::Field{offsetof(ConsString, second_),
+                               vobj::FieldType::kTagged});
+          break;
+        case kHeapNumber:
+        case kFixedDoubleArray:
+          break;
+      }
     }
   }
 
@@ -6362,7 +6541,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       case kConsString:
         UNREACHABLE();
       case kDefault: {
-        for (uint32_t i = 0; i < slot_count(); i++) {
+        for (int i = 0; i < slot_count(); i++) {
           if (auto success =
                   MergeValue(get_by_index(i), other->get_by_index(i))) {
             result->set_by_index(i, *success);
@@ -6386,8 +6565,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         UNREACHABLE();
       case kDefault: {
         ValueNode** slots = zone->AllocateArray<ValueNode*>(slot_count());
-        result = NodeBase::New<VirtualObject>(zone, 0, map(), new_object_id,
-                                              slot_count(), slots);
+        result = NodeBase::New<VirtualObject>(
+            zone, 0, map(), new_object_id, object_layout_, slot_count(), slots);
         break;
       }
     }
@@ -6400,7 +6579,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       case kConsString:
         UNREACHABLE();
       case kDefault: {
-        for (uint32_t i = 0; i < slot_count(); i++) {
+        for (int i = 0; i < slot_count(); i++) {
           result->set_by_index(i, get_by_index(i));
         }
         break;
@@ -6410,12 +6589,56 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     return result;
   }
 
-  uint32_t slot_count() const {
+  int slot_count() const {
     DCHECK_EQ(type_, kDefault);
     return slots_.count;
   }
 
+  int header_slot_count() const {
+    DCHECK_EQ(type_, kDefault);
+    static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
+    return static_cast<int>(object_layout_->header_fields.size());
+  }
+
+  bool has_body_fields() const {
+    DCHECK_EQ(type_, kDefault);
+    return slot_count() > header_slot_count();
+  }
+
+  int header_size() const {
+    DCHECK(is_new_style_vobj());
+    return object_layout_->header_size();
+  }
+
+  int body_field_size() const {
+    DCHECK(is_new_style_vobj());
+    DCHECK_NE(object_layout_->body_field_type, vobj::FieldType::kNone);
+    return FieldSizeOf(object_layout_->body_field_type);
+  }
+
+  int field_count() const {
+    switch (type_) {
+      case kDefault:
+        static_assert(VirtualHeapObjectShape::kMapSlotIsOmitted);
+        return slot_count() + VirtualHeapObjectShape::kOmittedMapSlotCount;
+      case kConsString:
+        // map, length, first, second.
+        return 4;
+      case kHeapNumber:
+        // map, value.
+        return 2;
+      case kFixedDoubleArray:
+        // map, length, elements...
+        return 2 + double_elements_length();
+    }
+  }
+
  private:
+  // TODO(jgruber): remove this once all are ported.
+  bool is_new_style_vobj() const {
+    return object_layout_ != vobj::kNoObjectLayout;
+  }
+
   ValueNode* get_by_index(uint32_t i) const {
     DCHECK_EQ(type_, kDefault);
     return slots_.data[i];
@@ -6427,6 +6650,16 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     // in known_node_aspects/NodeInfo.
     DCHECK(!value->properties().is_conversion());
     slots_.data[i] = value;
+  }
+
+  vobj::Field FieldForSlot(int i) const {
+    DCHECK_EQ(type_, kDefault);
+    DCHECK_LT(i, slot_count());
+    if (i < header_slot_count()) {
+      return object_layout_->header_fields[i];
+    }
+    int offset = header_size() + (i - header_slot_count()) * body_field_size();
+    return vobj::Field{i, offset, object_layout_->body_field_type};
   }
 
   struct DoubleArray {
@@ -6450,10 +6683,39 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     ObjectFields slots_;
     VirtualConsString cons_string_;
   };
+  const vobj::ObjectLayout* object_layout_ = nullptr;
   mutable InlinedAllocation* allocation_ = nullptr;
 
   VirtualObject* next_ = nullptr;
   friend VirtualObjectList;
+};
+
+struct VirtualFixedArrayShape : VirtualHeapObjectShape {
+  using Base = VirtualHeapObjectShape;
+
+  // The instance size is determined by array length, and array elements are
+  // tagged.
+  static constexpr bool kInstancesHaveStaticSize = false;
+  static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kTagged;
+
+#define FIELD_LIST(V) \
+  V(length, FixedArrayBase::kLengthOffset, vobj::FieldType::kTagged)
+
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualFixedDoubleArrayShape : VirtualHeapObjectShape {
+  using Base = VirtualHeapObjectShape;
+
+  static constexpr bool kInstancesHaveStaticSize = false;
+  static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kFloat64;
+
+#define FIELD_LIST(V) \
+  V(length, FixedArrayBase::kLengthOffset, vobj::FieldType::kTagged)
+
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
 };
 
 class VirtualObjectList {
@@ -6686,7 +6948,7 @@ void ValueNode::remove_use() {
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f) {
-  ForEachInput([&](ValueNode*& value) {
+  ForEachSlot([&](ValueNode*& value, const vobj::Field& desc) {
     value = value->UnwrapIdentities();
     if (IsConstantNode(value->opcode())) {
       // No location assigned to constants.
@@ -6723,7 +6985,7 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f) const {
-  ForEachInput([&](ValueNode* value) {
+  ForEachSlot([&](ValueNode* value, const vobj::Field& desc) {
     value = value->UnwrapIdentities();
     if (IsConstantNode(value->opcode())) {
       // No location assigned to constants.
@@ -12308,6 +12570,12 @@ inline void NodeBase::ForAllInputsInRegallocAssignmentOrder(Function&& f) {
   }
 ROOT_LIST(DEFINE_IS_ROOT_OBJECT)
 #undef DEFINE_IS_ROOT_OBJECT
+
+#undef DEF_SHAPE_FIELD_ENUM
+#undef DEF_SHAPE_FIELD_DESC
+#undef DEF_SHAPE_FIELD_LIST
+#undef SHAPE_CHECK_SLOT_INDEX
+#undef DEF_SHAPE
 
 }  // namespace maglev
 }  // namespace internal

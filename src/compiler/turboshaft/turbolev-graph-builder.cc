@@ -5480,9 +5480,8 @@ class GraphBuildingNodeProcessor {
       // We need to add HeapNumbers as dematerialized HeapNumbers (rather than
       // simply NumberConstant), because they could be mutable HeapNumber
       // fields, in which case we don't want GVN to merge them.
-      constexpr int kNumberOfField = 2;  // map + value
       builder.AddDematerializedObject(deduplicator_.CreateUnduplicatableId().id,
-                                      kNumberOfField);
+                                      vobj->field_count());
       builder.AddInput(MachineType::AnyTagged(),
                        __ HeapConstant(local_factory_->heap_number_map()));
       builder.AddInput(MachineType::Float64(),
@@ -5504,9 +5503,8 @@ class GraphBuildingNodeProcessor {
         // TODO(olivf): Support elided maglev cons strings in turbolev.
         UNREACHABLE();
       case maglev::VirtualObject::kFixedDoubleArray: {
-        constexpr int kMapAndLengthFieldCount = 2;
         uint32_t length = vobj->double_elements_length();
-        uint32_t field_count = length + kMapAndLengthFieldCount;
+        uint32_t field_count = vobj->field_count();
         builder.AddDematerializedObject(dup_id.id, field_count);
         builder.AddInput(
             MachineType::AnyTagged(),
@@ -5528,14 +5526,15 @@ class GraphBuildingNodeProcessor {
         return;
       }
       case maglev::VirtualObject::kDefault:
-        constexpr int kMapFieldCount = 1;
-        uint32_t field_count = vobj->slot_count() + kMapFieldCount;
+        uint32_t field_count = vobj->field_count();
         builder.AddDematerializedObject(dup_id.id, field_count);
+        static_assert(maglev::VirtualHeapObjectShape::kMapSlotIsOmitted);
         builder.AddInput(MachineType::AnyTagged(),
                          __ HeapConstantNoHole(vobj->map().object()));
-        vobj->ForEachInput([&](maglev::ValueNode* value_node) {
-          AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
-        });
+        vobj->ForEachSlot(
+            [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) {
+              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
+            });
         break;
     }
   }
