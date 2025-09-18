@@ -2539,6 +2539,7 @@
   # compatible with direct handles.
   'wasm/compiled-module-management': [SKIP],
   'weakrefs/minor-gc-two-weakrefs': [SKIP],
+  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
 }], # direct_handle
 
 ##############################################################################
@@ -2933,7 +2934,7 @@
 
   # Test checks that object is reclaimed but cannot use async GCs.
   'weakrefs/minor-gc-two-weakrefs': [SKIP],
-
+  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
 }],  # variant == conservative_stack_scanning
 
 ##############################################################################
