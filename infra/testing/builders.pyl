@@ -630,6 +630,11 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {
+        'name': 'v8testing',
+        'suffix': 'noavx',
+        'test_args': ['--extra-flags', '--noenable-avx']
+      },
     ],
   },
   'v8_linux64_perfetto_dbg': {
