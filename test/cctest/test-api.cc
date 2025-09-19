@@ -3414,16 +3414,15 @@ static void CheckAlignedPointerInEmbedderData(LocalContext* env,
   i::heap::InvokeMajorGC(CcTest::heap());
   CHECK_EQ(value,
            (*env)->GetAlignedPointerFromEmbedderData(index, kTestTypeTagA));
-  CHECK_EQ(value,
-           some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(index));
   CHECK_EQ(value, some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
-                      CcTest::isolate(), index));
+                      index, kTestTypeTagA));
+  CHECK_EQ(value, some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+                      CcTest::isolate(), index, kTestTypeTagA));
 }
 
 static void* AlignedTestPointer(int i) {
   return reinterpret_cast<void*>(i * 1234);
 }
-
 
 THREADED_TEST(EmbedderDataAlignedPointers) {
   LocalContext env;
@@ -3480,7 +3479,8 @@ THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
   i::heap::InvokeMajorGC(CcTest::heap());
 
   CHECK_EQ(stack_allocated,
-           obj->GetAlignedPointerFromEmbedderDataInCreationContext(isolate, 1));
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+               isolate, 1, kTestTypeTagA));
 
   env->DetachGlobal();
 
@@ -3488,7 +3488,8 @@ THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
   // directly from current native context as long as its global object IS the
   // detached global object.
   CHECK_EQ(stack_allocated,
-           obj->GetAlignedPointerFromEmbedderDataInCreationContext(isolate, 1));
+           obj->GetAlignedPointerFromEmbedderDataInCreationContext(
+               isolate, 1, kTestTypeTagA));
 }
 
 static void CheckEmbedderData(LocalContext* env, int index,
@@ -3496,7 +3497,6 @@ static void CheckEmbedderData(LocalContext* env, int index,
   (*env)->SetEmbedderData(index, data);
   CHECK((*env)->GetEmbedderData(index)->StrictEquals(data));
 }
-
 
 THREADED_TEST(EmbedderData) {
   LocalContext env;

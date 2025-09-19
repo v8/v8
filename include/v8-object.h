@@ -841,9 +841,27 @@ class V8_EXPORT Object : public Value {
    * Prefer using version with Isolate parameter if you have an Isolate,
    * otherwise use the other one.
    */
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(
+      v8::Isolate* isolate, int index, EmbedderDataTypeTag tag);
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(
+      int index, EmbedderDataTypeTag tag);
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
+      "EmbedderDataTypeTag parameter instead.")
   void* GetAlignedPointerFromEmbedderDataInCreationContext(v8::Isolate* isolate,
-                                                           int index);
-  void* GetAlignedPointerFromEmbedderDataInCreationContext(int index);
+                                                           int index) {
+    return GetAlignedPointerFromEmbedderDataInCreationContext(
+        isolate, index, kEmbedderDataTypeTagDefault);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
+      "EmbedderDataTypeTag parameter instead.")
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(int index) {
+    return GetAlignedPointerFromEmbedderDataInCreationContext(
+        index, kEmbedderDataTypeTagDefault);
+  }
 
   /**
    * Checks whether a callback is set by the
