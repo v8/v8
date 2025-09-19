@@ -8443,6 +8443,7 @@ class LiftoffCompiler {
 
   void RefCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
                        Value* result_val, bool null_succeeds) {
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
     switch (type.representation()) {
       case HeapType::kEq:
         if (v8_flags.experimental_wasm_shared &&
