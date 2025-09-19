@@ -507,13 +507,100 @@ void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
 }
 
 void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
-    int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
-    int advance_by, Label* on_match, Label* on_no_match) {
+    int cp_offset, Handle<ByteArray> table,
+    Handle<ByteArray> nibble_table_array, int advance_by, Label* on_match,
+    Label* on_no_match) {
   const bool use_simd = SkipUntilBitInTableUseSimd(advance_by);
   if (use_simd) {
-    DCHECK(!nibble_table.is_null());
-    Label scalar;
-    // TODO(kasperl@rivosinc.com): Look into adding a vectorized variant.
+    DCHECK(!nibble_table_array.is_null());
+    Label simd_repeat, found, scalar;
+    static constexpr int kVectorSize = 16;
+    const int kCharsPerVector = kVectorSize / char_size();
+
+    // Fallback to scalar version if there are less than kCharsPerVector chars
+    // left in the subject.
+    // We subtract 1 because CheckPosition assumes we are reading 1 character
+    // plus cp_offset. So the -1 is the the character that is assumed to be
+    // read by default.
+    CheckPosition(cp_offset + kCharsPerVector - 1, &scalar);
+
+    __ VU.SetSimd128(E8);
+
+    // Load table and mask constants.
+    // For a description of the table layout, check the comment on
+    // BoyerMooreLookahead::GetSkipTable in regexp-compiler.cc.
+    VRegister nibble_table = v1;
+    __ li(t0, Operand(nibble_table_array));
+    __ addi(t0, t0, OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
+    __ vl(nibble_table, t0, 0, E8);
+    VRegister hi_nibble_lookup_mask = v2;
+    const uint8_t imms[16] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
+                              0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
+    __ WasmRvvS128const(hi_nibble_lookup_mask, imms);
+    // WasmRvvS128const may update the vector length setting.
+    __ VU.SetSimd128(E8);
+
+    Bind(&simd_repeat);
+    // Load next characters into vector.
+    VRegister input_vec = v3;
+    __ AddWord(kScratchReg2, end_of_input_address(),
+               Operand(current_input_offset()));
+    int offset = cp_offset * char_size();
+    if (offset != 0) {
+      __ AddWord(kScratchReg2, kScratchReg2, Operand(offset));
+    }
+    __ vl(input_vec, kScratchReg2, 0, E8);
+
+    // Extract low nibbles.
+    // lo_nibbles = input & 0x0f.
+    VRegister lo_nibbles = v4;
+    __ vand_vi(lo_nibbles, input_vec, 0x0f);
+
+    // Extract high nibbles.
+    // hi_nibbles = (input >> 4) & 0x0f
+    VRegister hi_nibbles = v5;
+    __ vsrl_vi(hi_nibbles, input_vec, 4);
+
+    // Get rows of nibbles table based on low nibbles.
+    // row = nibble_table[lo_nibbles]
+    VRegister row = v6;
+    __ vrgather_vv(row, nibble_table, lo_nibbles);
+
+    // Check if high nibble is set in row.
+    // bitmask = 1 << (hi_nibbles & 0x7)
+    //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
+    // Note: The hi_nibbles & 0x7 part is implicitly executed, as tbl sets
+    // the result byte to zero if the lookup index is out of range.
+    VRegister bitmask = v7;
+    __ vrgather_vv(bitmask, hi_nibble_lookup_mask, hi_nibbles);
+
+    // result = row & bitmask != 0
+    VRegister result = v8;
+    __ vand_vv(result, row, bitmask);
+    // Set the mask v0, if the result is not zero.
+    __ vmsne_vi(v0, result, 0);
+    // 'vfirst_m' returns -1 if no bit is set. The lowest element with a 1
+    // value otherwise.
+    __ vfirst_m(t0, v0);
+
+    __ Branch(&found, ge, t0, Operand(zero_reg));
+
+    // The maximum lookahead for boyer moore is less than vector size, so we can
+    // ignore advance_by in the vectorized version.
+    AdvanceCurrentPosition(kCharsPerVector);
+    CheckPosition(cp_offset + kCharsPerVector - 1, &scalar);
+    __ Branch(&simd_repeat);
+
+    Bind(&found);
+    if (mode_ == UC16) {
+      // Make sure that we skip an even number of bytes in 2-byte subjects.
+      // Odd skips can happen if the higher byte produced a match.
+      // False positives should be rare and are no problem in general, as the
+      // following instructions will check for an exact match.
+      __ And(t0, t0, Operand(0xfffe));
+    }
+    __ AddWord(current_input_offset(), current_input_offset(), t0);
+    __ Branch(on_match);
     Bind(&scalar);
   }
 
@@ -1049,6 +1136,9 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
           .set_self_reference(masm_->CodeObject())
           .set_empty_source_position_table()
           .Build();
+  if (v8_flags.print_code) {
+    Print(*code);
+  }
   LOG(masm_->isolate(),
       RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
   return Cast<HeapObject>(code);
