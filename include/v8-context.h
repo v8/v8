@@ -299,9 +299,27 @@ class V8_EXPORT Context : public Data {
    * SetAlignedPointerInEmbedderData with the same index. Note that index 0
    * currently has a special meaning for Chrome's debugger.
    */
+  V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
+                                                    EmbedderDataTypeTag tag);
+  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index,
+                                                    EmbedderDataTypeTag tag);
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
+      "parameter instead.")
   V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate,
-                                                    int index);
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index);
+                                                    int index) {
+    return GetAlignedPointerFromEmbedderData(isolate, index,
+                                             kEmbedderDataTypeTagDefault);
+  }
+
+  V8_DEPRECATE_SOON(
+      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
+      "parameter instead.")
+  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index) {
+    return GetAlignedPointerFromEmbedderData(index,
+                                             kEmbedderDataTypeTagDefault);
+  }
 
   void SetAlignedPointerInEmbedderData(int index, void* value,
                                        EmbedderDataTypeTag tag);
@@ -435,7 +453,8 @@ class V8_EXPORT Context : public Data {
   internal::ValueHelper::InternalRepresentationType GetDataFromSnapshotOnce(
       size_t index);
   Local<Value> SlowGetEmbedderData(int index);
-  void* SlowGetAlignedPointerFromEmbedderData(int index);
+  void* SlowGetAlignedPointerFromEmbedderData(int index,
+                                              EmbedderDataTypeTag tag);
 };
 
 // --- Implementation ---
@@ -463,7 +482,8 @@ Local<Value> Context::GetEmbedderData(int index) {
 #endif
 }
 
-void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index) {
+void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
+                                                 EmbedderDataTypeTag tag) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
@@ -473,16 +493,15 @@ void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index) {
   int value_offset = I::kEmbedderDataArrayHeaderSize +
                      (I::kEmbedderDataSlotSize * index) +
                      I::kEmbedderDataSlotExternalPointerOffset;
-  return reinterpret_cast<void*>(
-      I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
-                                   internal::kLastEmbedderDataTag}>(
-          isolate, embedder_data, value_offset));
+  return reinterpret_cast<void*>(I::ReadExternalPointerField(
+      isolate, embedder_data, value_offset, ToExternalPointerTag(tag)));
 #else
-  return SlowGetAlignedPointerFromEmbedderData(index);
+  return SlowGetAlignedPointerFromEmbedderData(index, tag);
 #endif
 }
 
-void* Context::GetAlignedPointerFromEmbedderData(int index) {
+void* Context::GetAlignedPointerFromEmbedderData(int index,
+                                                 EmbedderDataTypeTag tag) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
@@ -493,12 +512,10 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
                      (I::kEmbedderDataSlotSize * index) +
                      I::kEmbedderDataSlotExternalPointerOffset;
   Isolate* isolate = I::GetCurrentIsolateForSandbox();
-  return reinterpret_cast<void*>(
-      I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
-                                   internal::kLastEmbedderDataTag}>(
-          isolate, embedder_data, value_offset));
+  return reinterpret_cast<void*>(I::ReadExternalPointerField(
+      isolate, embedder_data, value_offset, ToExternalPointerTag(tag)));
 #else
-  return SlowGetAlignedPointerFromEmbedderData(index);
+  return SlowGetAlignedPointerFromEmbedderData(index, tag);
 #endif
 }
 

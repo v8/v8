@@ -1379,6 +1379,34 @@ class Internals {
 #endif  // V8_ENABLE_SANDBOX
   }
 
+  V8_INLINE static Address ReadExternalPointerField(
+      v8::Isolate* isolate, Address heap_object_ptr, int offset,
+      ExternalPointerTagRange tag_range) {
+#ifdef V8_ENABLE_SANDBOX
+    // See src/sandbox/external-pointer-table.h. Logic duplicated here so
+    // it can be inlined and doesn't require an additional call.
+    Address* table = IsSharedExternalPointerType(tag_range)
+                         ? GetSharedExternalPointerTableBase(isolate)
+                         : GetExternalPointerTableBase(isolate);
+    internal::ExternalPointerHandle handle =
+        ReadRawField<ExternalPointerHandle>(heap_object_ptr, offset);
+    uint32_t index = handle >> kExternalPointerIndexShift;
+    std::atomic<Address>* ptr =
+        reinterpret_cast<std::atomic<Address>*>(&table[index]);
+    Address entry = std::atomic_load_explicit(ptr, std::memory_order_relaxed);
+    ExternalPointerTag actual_tag = static_cast<ExternalPointerTag>(
+        (entry & kExternalPointerTagMask) >> kExternalPointerTagShift);
+    if (V8_LIKELY(tag_range.Contains(actual_tag))) {
+      return entry & kExternalPointerPayloadMask;
+    } else {
+      return 0;
+    }
+    return entry;
+#else
+    return ReadRawField<Address>(heap_object_ptr, offset);
+#endif  // V8_ENABLE_SANDBOX
+  }
+
 #ifdef V8_COMPRESS_POINTERS
   V8_INLINE static Address GetPtrComprCageBaseFromOnHeapAddress(Address addr) {
     return addr & -static_cast<intptr_t>(kPtrComprCageBaseAlignment);

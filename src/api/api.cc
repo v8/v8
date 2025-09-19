@@ -185,8 +185,6 @@
 
 namespace v8 {
 
-namespace {
-
 i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
   uint16_t tag_value = static_cast<uint16_t>(i::kFirstEmbedderDataTag) +
                        static_cast<uint16_t>(api_tag);
@@ -194,8 +192,6 @@ i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
                   "The provided tag is outside the allowed range");
   return static_cast<i::ExternalPointerTag>(tag_value);
 }
-
-}  // namespace
 
 static OOMErrorCallback g_oom_error_callback = nullptr;
 
@@ -972,7 +968,8 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
             *Utils::OpenDirectHandle(*GetEmbedderData(index)));
 }
 
-void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
+void* Context::SlowGetAlignedPointerFromEmbedderData(int index,
+                                                     EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
   i::Isolate* i_isolate = i::Isolate::Current();
   i::HandleScope handle_scope(i_isolate);
@@ -980,9 +977,10 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
       EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return nullptr;
   void* result;
-  Utils::ApiCheck(i::EmbedderDataSlot(*data, index)
-                      .DeprecatedToAlignedPointer(i_isolate, &result),
-                  location, "Pointer is not aligned");
+  Utils::ApiCheck(
+      i::EmbedderDataSlot(*data, index)
+          .ToAlignedPointer(i_isolate, &result, ToExternalPointerTag(tag)),
+      location, "Pointer is not aligned");
   return result;
 }
 
@@ -996,7 +994,7 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value,
                 .store_aligned_pointer(i_isolate, *data, value,
                                        ToExternalPointerTag(tag));
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
-  DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index));
+  DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index, tag));
 }
 
 // --- T e m p l a t e ---
@@ -6266,28 +6264,29 @@ void v8::Object::SetInternalField(int index, v8::Local<Data> value) {
   i::Cast<i::JSObject>(obj)->SetEmbedderField(index, *val);
 }
 
-void* v8::Object::SlowGetAlignedPointerFromInternalField(v8::Isolate* isolate,
-                                                         int index) {
+void* v8::Object::SlowGetAlignedPointerFromInternalField(
+    v8::Isolate* isolate, int index, EmbedderDataTypeTag tag) {
   auto obj = Utils::OpenDirectHandle(this);
   const char* location = "v8::Object::GetAlignedPointerFromInternalField()";
   if (!InternalFieldOK(obj, index, location)) return nullptr;
   void* result;
   Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-                      .DeprecatedToAlignedPointer(
-                          reinterpret_cast<i::Isolate*>(isolate), &result),
+                      .ToAlignedPointer(reinterpret_cast<i::Isolate*>(isolate),
+                                        &result, ToExternalPointerTag(tag)),
                   location, "Unaligned pointer");
   return result;
 }
 
-void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
+void* v8::Object::SlowGetAlignedPointerFromInternalField(
+    int index, EmbedderDataTypeTag tag) {
   auto obj = Utils::OpenDirectHandle(this);
   const char* location = "v8::Object::GetAlignedPointerFromInternalField()";
   if (!InternalFieldOK(obj, index, location)) return nullptr;
   void* result;
-  Utils::ApiCheck(
-      i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
-          .DeprecatedToAlignedPointer(i::Isolate::Current(), &result),
-      location, "Unaligned pointer");
+  Utils::ApiCheck(i::EmbedderDataSlot(i::Cast<i::JSObject>(*obj), index)
+                      .ToAlignedPointer(i::Isolate::Current(), &result,
+                                        ToExternalPointerTag(tag)),
+                  location, "Unaligned pointer");
   return result;
 }
 
@@ -6302,7 +6301,7 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
                       .store_aligned_pointer(i::Isolate::Current(), *obj, value,
                                              ToExternalPointerTag(tag)),
                   location, "Unaligned pointer");
-  DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
+  DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
 }
 
 void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
@@ -6327,7 +6326,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
             .store_aligned_pointer(i::Isolate::Current(), *obj, value,
                                    ToExternalPointerTag(tag)),
         location, "Unaligned pointer");
-    DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
+    DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
   }
 }
 

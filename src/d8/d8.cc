@@ -5339,7 +5339,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
  private:
   static v8_inspector::V8InspectorSession* GetSession(Local<Context> context) {
     InspectorClient* inspector_client = static_cast<InspectorClient*>(
-        context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex));
+        context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex,
+                                                   kInspectorClientTag));
     return inspector_client->session_.get();
   }
 
