@@ -374,6 +374,10 @@ class Heap final {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, size_t byte_size);
 
+#if defined(V8_USE_PERFETTO)
+  perfetto::NamedTrack tracing_track() const { return tracing_track_; }
+#endif
+
   enum class StackScanMode { kNone, kFull, kSelective };
   StackScanMode ConservativeStackScanningModeForMinorGC() const {
     if (v8_flags.scavenger_conservative_object_pinning) {
@@ -2492,6 +2496,10 @@ class Heap final {
   // The amount of physical memory on the device passed in by the embedder. If
   // no value was provided this will be 0.
   uint64_t physical_memory_;
+
+#if defined(V8_USE_PERFETTO)
+  perfetto::NamedTrack tracing_track_;
+#endif
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;

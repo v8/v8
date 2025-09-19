@@ -187,9 +187,25 @@ Heap::Heap()
                                        : AllocationType::kOld),
       marking_state_(isolate_),
       non_atomic_marking_state_(isolate_),
-      pretenuring_handler_(this) {
+      pretenuring_handler_(this)
+#if defined(V8_USE_PERFETTO)
+      ,
+      tracing_track_(perfetto::NamedTrack::FromPointer(
+                         "v8::Heap", this, perfetto::ThreadTrack::Current())
+                         .disable_sibling_merge())
+#endif
+{
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (PageMetadata::kPageSize - 1));
+
+#if defined(V8_USE_PERFETTO)
+  if (perfetto::Tracing::IsInitialized()) {
+    // Because the track may not get any events of its own it must manually emit
+    // the track descriptor. This is done conditionally to avoid crashing in
+    // unit tests where tracing isn't initialized.
+    TrackEvent::SetTrackDescriptor(tracing_track_, tracing_track_.Serialize());
+  }
+#endif
 
   max_regular_code_object_size_ = MemoryChunkLayout::MaxRegularCodeObjectSize();
 
@@ -1511,13 +1527,12 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
     size_t new_global_allocation_limit, const char* reason) {
   CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
 #if defined(V8_USE_PERFETTO)
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                perfetto::CounterTrack(V8HeapTrait::kName,
-                                       perfetto::ThreadTrack::Current()),
-                new_old_generation_allocation_limit);
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                perfetto::CounterTrack(GlobalMemoryTrait::kName,
-                                       perfetto::ThreadTrack::Current()),
+  TRACE_COUNTER(
+      "v8.memory",
+      perfetto::CounterTrack("OldGenerationAllocationLimit", tracing_track_),
+      new_old_generation_allocation_limit);
+  TRACE_COUNTER("v8.memory",
+                perfetto::CounterTrack("GlobalAllocationLimit", tracing_track_),
                 new_global_allocation_limit);
 #endif
   old_generation_allocation_limit_.store(new_old_generation_allocation_limit,
@@ -2538,6 +2553,20 @@ Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
           : BaseControllerTrait::kMinGrowingFactor;
 
   size_t new_space_capacity = heap->NewSpaceTargetCapacity();
+
+#if defined(V8_USE_PERFETTO)
+  TRACE_COUNTER(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      perfetto::CounterTrack("NewSpaceTargetCapacity", heap->tracing_track()),
+      new_space_capacity);
+  TRACE_COUNTER(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      perfetto::CounterTrack("OldGenerationSpeed", heap->tracing_track()),
+      v8_gc_speed.value_or(0.0));
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack("EmbedderSpeed", heap->tracing_track()),
+                embedder_gc_speed.value_or(0.0));
+#endif
 
   size_t new_old_generation_allocation_limit =
       MemoryController<V8HeapTrait>::BoundAllocationLimit(
@@ -6505,6 +6534,12 @@ void Heap::TearDown() {
   memory_allocator_.reset();
 
   heap_profiler_.reset();
+
+#if defined(V8_USE_PERFETTO)
+  if (perfetto::Tracing::IsInitialized()) {
+    TrackEvent::EraseTrackDescriptor(tracing_track_);
+  }
+#endif
 }
 
 bool Heap::IsFreeSpaceValid(const FreeSpace* object) const {
