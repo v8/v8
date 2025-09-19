@@ -3153,12 +3153,8 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     // won't change anymore.
     //
     // See also: JSContextSpecialization::ReduceJSLoadContext.
-    compiler::OddballType oddball_type =
-        slot_value.AsHeapObject().map(broker()).oddball_type(broker());
-    if (oddball_type == compiler::OddballType::kUndefined ||
-        slot_value.IsTheHole()) {
-      return false;
-    }
+    if (slot_value.IsTheHole()) return false;
+    if (slot_value.IsUndefined()) return false;
   }
 
   // Fold the load of the immutable slot.
