@@ -1805,6 +1805,32 @@ config("always_turbofanimize") {
   }
 }
 
+# Sanitizer defines. V8 will inherit a default `-fsanitize=array-bounds`
+# from Chromium's `//build/config/`, which prevents clean usage of
+# `__has_feature(undefined_behavior_sanitizer)` in the short term,
+# until something like `--lie-about-ubsan-enablement=array-bounds`
+# can be implemented.
+#
+# This config provides a clear signal of "are we sanitizing" tied to
+# GN configuration.
+#
+# See also: https://crbug.com/386992829
+config("sanitizer_defines") {
+  defines = []
+  if (is_asan) {
+    defines += [ "V8_USE_ADDRESS_SANITIZER" ]
+  }
+  if (is_hwasan) {
+    defines += [ "V8_USE_HWADDRESS_SANITIZER" ]
+  }
+  if (is_msan) {
+    defines += [ "V8_USE_MEMORY_SANITIZER" ]
+  }
+  if (is_ubsan) {
+    defines += [ "V8_USE_UNDEFINED_BEHAVIOR_SANITIZER" ]
+  }
+}
+
 ###############################################################################
 # Actions
 #

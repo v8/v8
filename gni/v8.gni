@@ -337,6 +337,7 @@ v8_add_configs = [
   v8_path_prefix + ":features",
   v8_path_prefix + ":toolchain",
   v8_path_prefix + ":strict_warnings",
+  v8_path_prefix + ":sanitizer_defines",
 ]
 
 if (is_debug && !v8_optimized_debug) {

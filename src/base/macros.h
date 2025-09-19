@@ -198,34 +198,6 @@ V8_INLINE constexpr Dest bit_cast(Source const& source) noexcept {
   void operator delete(void*, size_t) { v8::base::OS::Abort(); } \
   void operator delete[](void*, size_t) { v8::base::OS::Abort(); }
 
-// Define V8_USE_ADDRESS_SANITIZER macro.
-#if defined(__has_feature)
-#if __has_feature(address_sanitizer)
-#define V8_USE_ADDRESS_SANITIZER 1
-#endif
-#endif
-
-// Define V8_USE_HWADDRESS_SANITIZER macro.
-#if defined(__has_feature)
-#if __has_feature(hwaddress_sanitizer)
-#define V8_USE_HWADDRESS_SANITIZER 1
-#endif
-#endif
-
-// Define V8_USE_MEMORY_SANITIZER macro.
-#if defined(__has_feature)
-#if __has_feature(memory_sanitizer)
-#define V8_USE_MEMORY_SANITIZER 1
-#endif
-#endif
-
-// Define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER macro.
-#if defined(__has_feature)
-#if __has_feature(undefined_behavior_sanitizer)
-#define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER 1
-#endif
-#endif
-
 // Define V8_USE_SAFE_STACK macro.
 #if defined(__has_feature)
 #if __has_feature(safe_stack)
