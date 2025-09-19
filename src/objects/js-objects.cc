@@ -585,8 +585,8 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
     if (IsJSFunction(*maybe_constructor)) {
       DirectHandle<JSFunction> constructor =
           Cast<JSFunction>(maybe_constructor);
-      Handle<String> name = SharedFunctionInfo::DebugName(
-          isolate, direct_handle(constructor->shared(), isolate));
+      DirectHandle<String> name =
+          JSFunction::GetDebugName(isolate, constructor);
       if (name->length() != 0 &&
           !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
         return std::make_pair(indirect_handle(constructor, isolate), name);
