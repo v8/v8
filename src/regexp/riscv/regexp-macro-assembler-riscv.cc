@@ -1190,20 +1190,8 @@ void RegExpMacroAssemblerRISCV::PushBacktrack(Label* label) {
     __ li(a0,
           Operand(target + InstructionStream::kHeaderSize - kHeapObjectTag));
   } else {
-    Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_.get());
-    Label after_constant;
-    __ BranchShort(&after_constant);
-    int offset = masm_->pc_offset();
-    int cp_offset = offset + InstructionStream::kHeaderSize - kHeapObjectTag;
-    __ emit(0);
-    masm_->label_at_put(label, offset);
-    __ bind(&after_constant);
-    if (is_int16(cp_offset)) {
-      __ Load32U(a0, MemOperand(code_pointer(), cp_offset));
-    } else {
-      __ AddWord(a0, code_pointer(), cp_offset);
-      __ Load32U(a0, MemOperand(a0, 0));
-    }
+    __ LoadAddress(a0, label);
+    __ SubWord(a0, a0, code_pointer());
   }
   Push(a0);
   CheckStackLimit();
