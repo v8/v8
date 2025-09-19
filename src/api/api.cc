@@ -9721,6 +9721,13 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemoryImpl(
     return amount;
   }
 
+#if V8_VERIFY_WRITE_BARRIERS
+  // Incrementing the number of allocated bytes may trigger GC.
+  i_isolate->main_thread_local_heap()
+      ->allocator()
+      ->ResetMostRecentYoungAllocation();
+#endif
+
   if (amount > i_isolate->heap()->external_memory_limit_for_interrupt()) {
     HandleExternalMemoryInterrupt();
   }
