@@ -249,7 +249,15 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (IsAnyHole(obj) || !IsFreeSpaceOrFiller(obj)) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+        // WasmNull is extra special because it also reserves (unmapped) padding
+        // for the hole roots.
+        if (!IsWasmNull(obj)) {
+          DCHECK_VALID_REGULAR_OBJECT_SIZE(obj_size);
+        }
+#else
         DCHECK_VALID_REGULAR_OBJECT_SIZE(obj_size);
+#endif  // V8_ENABLE_WEBASSEMBLY
         return obj;
       }
     }

@@ -929,6 +929,11 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
+#if defined(V8_ENABLE_WEBASSEMBLY) && V8_STATIC_ROOTS_BOOL
+DEFINE_EXPERIMENTAL_FEATURE(unmap_holes, "unmap the page containing the holes.")
+#else
+DEFINE_BOOL_READONLY(unmap_holes, false, "unmap the page containing the holes.")
+#endif
 DEFINE_EXPERIMENTAL_FEATURE(assert_hole_checked_by_value,
                             "assert that we always check for holes by value, "
                             "never dereferencing their map.")

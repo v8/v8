@@ -463,7 +463,9 @@ std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
     unmapped.push_back({wasm_null_padding_start,
                         wasm_null.address() - wasm_null_padding_start});
   }
-  unmapped.push_back({wasm_null->payload(), WasmNull::kPayloadSize});
+  // The second half of this is conditionally unmapped, but serialize assuming
+  // we plan to unmap it.
+  unmapped.push_back({wasm_null->first_payload(), WasmNull::kPayloadSize});
   return unmapped;
 #else
   return {};

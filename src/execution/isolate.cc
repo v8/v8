@@ -6023,9 +6023,18 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #if V8_STATIC_ROOTS_BOOL
   // Protect the payload of wasm null.
   if (!page_allocator()->DecommitPages(
-          reinterpret_cast<void*>(factory()->wasm_null()->payload()),
-          WasmNull::kSize - kTaggedSize)) {
+          reinterpret_cast<void*>(factory()->wasm_null()->first_payload()),
+          WasmNull::kFirstPayloadSize)) {
     V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
+  }
+  if (v8_flags.unmap_holes) {
+    // Protect the second payload of wasm null, containing the holes.
+    if (!page_allocator()->DecommitPages(
+            reinterpret_cast<void*>(factory()->wasm_null()->second_payload()),
+            WasmNull::kSecondPayloadSize)) {
+      V8::FatalProcessOutOfMemory(
+          this, "decommitting second WasmNull payload (holes)");
+    }
   }
 #endif  // V8_STATIC_ROOTS_BOOL
 #endif  // V8_ENABLE_WEBASSEMBLY
