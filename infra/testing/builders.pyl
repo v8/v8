@@ -943,12 +943,28 @@
   },
   ##############################################################################
   # Linux with RISC-V simulators
+  'v8_linux_riscv32_dbg': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 6},
+    ],
+  },
   'v8_linux_riscv32_rel': {
     'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
+    ],
+  },
+  'v8_linux64_riscv64_dbg': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 6},
     ],
   },
   'v8_linux64_riscv64_rel': {
@@ -2516,6 +2532,19 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'V8 Linux - riscv32 - sim - debug': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 6},
+    ],
+  },
   'V8 Linux - riscv32 - sim': {
     'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
@@ -2527,6 +2556,19 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
+    ],
+  },
+  'V8 Linux - riscv64 - sim - debug': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 6},
     ],
   },
   'V8 Linux - riscv64 - sim': {
