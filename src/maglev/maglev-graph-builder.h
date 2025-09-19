@@ -1260,6 +1260,7 @@ class MaglevGraphBuilder {
                                             int offset);
   template <typename Instruction = LoadTaggedField, typename... Args>
   ValueNode* BuildLoadTaggedField(ValueNode* object, uint32_t offset,
+                                  LoadType type = LoadType::kUnknown,
                                   Args&&... args);
 
   ReduceResult BuildStoreTaggedField(ValueNode* object, ValueNode* value,
@@ -1275,8 +1276,8 @@ class MaglevGraphBuilder {
                                              StoreTaggedMode store_mode);
 
   ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, int index);
-  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements,
-                                          ValueNode* index);
+  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index,
+                                          LoadType type = LoadType::kUnknown);
   ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
                                            ValueNode* index, ValueNode* value);
 
@@ -1340,7 +1341,7 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
   ReduceResult BuildLoadJSArrayLength(ValueNode* js_array,
-                                      NodeType length_type = NodeType::kSmi);
+                                      LoadType length_type = LoadType::kSmi);
   ValueNode* BuildLoadElements(ValueNode* object);
 
   ValueNode* BuildLoadJSFunctionFeedbackCell(ValueNode* closure);

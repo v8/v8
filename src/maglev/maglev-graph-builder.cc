@@ -3198,8 +3198,8 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
     case ContextCell::kSmi: {
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       ValueNode* value = BuildLoadTaggedField(
-          GetConstant(slot_ref), offsetof(ContextCell, tagged_value_));
-      EnsureType(value, NodeType::kSmi);
+          GetConstant(slot_ref), offsetof(ContextCell, tagged_value_),
+          LoadType::kSmi);
       return value;
     }
     case ContextCell::kInt32:
@@ -4853,15 +4853,16 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
     return BuildAbort(AbortReason::kUnreachable);
   }
   return AddNewNodeNoInputConversion<LoadTaggedField>(
-      {elements}, FixedArray::OffsetOfElementAt(index));
+      {elements}, FixedArray::OffsetOfElementAt(index), LoadType::kUnknown);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
-                                                            ValueNode* index) {
+                                                            ValueNode* index,
+                                                            LoadType type) {
   if (auto constant = TryGetInt32Constant(index)) {
     return BuildLoadFixedArrayElement(elements, constant.value());
   }
-  return AddNewNode<LoadFixedArrayElement>({elements, index});
+  return AddNewNode<LoadFixedArrayElement>({elements, index}, type);
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
@@ -5106,12 +5107,13 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
   if (field_index.is_double()) {
     ValueNode* heap_number;
     GET_VALUE_OR_ABORT(heap_number, AddNewNode<LoadTaggedField>(
-                                        {load_source}, field_index.offset()));
+                                        {load_source}, field_index.offset(),
+                                        LoadType::kHeapNumber));
     return AddNewNode<LoadFloat64>(
         {heap_number}, static_cast<int>(offsetof(HeapNumber, value_)));
   }
   ValueNode* value = BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-      load_source, field_index.offset(), name);
+      load_source, field_index.offset(), LoadType::kUnknown, name);
   // Insert stable field information if present.
   if (access_info.field_representation().IsSmi()) {
     NodeInfo* known_info = GetOrCreateInfoFor(value);
@@ -5137,14 +5139,13 @@ ValueNode* MaglevGraphBuilder::BuildLoadFixedArrayLength(
   // We won't try to reason about the type of the FixedArray and thus also
   // cannot end up with an empty type for it.
   DCHECK(!IsEmptyNodeType(GetType(fixed_array)));
-  ValueNode* length =
-      BuildLoadTaggedField(fixed_array, offsetof(FixedArray, length_));
-  EnsureType(length, NodeType::kSmi);
+  ValueNode* length = BuildLoadTaggedField(
+      fixed_array, offsetof(FixedArray, length_), LoadType::kSmi);
   return length;
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
-                                                        NodeType length_type) {
+                                                        LoadType length_type) {
   // TODO(leszeks): JSArray.length is known to be non-constant, don't bother
   // searching the constant values.
   MaybeReduceResult known_length =
@@ -5155,8 +5156,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
   }
 
   ValueNode* length = BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-      js_array, JSArray::kLengthOffset, broker()->length_string());
-  GetOrCreateInfoFor(length)->IntersectType(length_type);
+      js_array, JSArray::kLengthOffset, length_type, broker()->length_string());
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
   return length;
@@ -5183,9 +5183,8 @@ ValueNode* MaglevGraphBuilder::BuildLoadJSFunctionContext(ValueNode* closure) {
       return GetConstant(constant->AsJSFunction().context(broker()));
     }
   }
-  ValueNode* context =
-      BuildLoadTaggedField(closure, JSFunction::kContextOffset);
-  EnsureType(context, NodeType::kContext);
+  ValueNode* context = BuildLoadTaggedField(closure, JSFunction::kContextOffset,
+                                            LoadType::kContext);
   return context;
 }
 
@@ -5293,9 +5292,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
                            StoreMap::Kind::kTransitioning);
     } else {
       ValueNode* heap_number;
-      GET_VALUE_OR_ABORT(
-          heap_number,
-          AddNewNode<LoadTaggedField>({store_target}, field_index.offset()));
+      GET_VALUE_OR_ABORT(heap_number, AddNewNode<LoadTaggedField>(
+                                          {store_target}, field_index.offset(),
+                                          LoadType::kHeapNumber));
       return AddNewNode<StoreFloat64>(
           {heap_number, value}, static_cast<int>(offsetof(HeapNumber, value_)));
     }
@@ -5381,7 +5380,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kModuleExport: {
       ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
       return BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-          cell, Cell::kValueOffset, name);
+          cell, Cell::kValueOffset, LoadType::kUnknown, name);
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
@@ -6119,19 +6118,22 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
           result, BuildLoadFixedDoubleArrayElement(elements_array, index));
     } else {
       DCHECK(!IsDoubleElementsKind(elements_kind));
+      bool is_holey = IsHoleyElementsKind(elements_kind);
+      bool is_holey_and_treat_hole_as_undefined =
+          is_holey && CanTreatHoleAsUndefined(maps) &&
+          LoadModeHandlesHoles(load_mode);
+      bool is_smi = IsSmiElementsKind(elements_kind) &&
+                    (!is_holey || is_holey_and_treat_hole_as_undefined);
       GET_VALUE_OR_ABORT(result,
-                         BuildLoadFixedArrayElement(elements_array, index));
-      if (IsHoleyElementsKind(elements_kind)) {
-        if (CanTreatHoleAsUndefined(maps) && LoadModeHandlesHoles(load_mode)) {
+                         BuildLoadFixedArrayElement(
+                             elements_array, index,
+                             is_smi ? LoadType::kSmi : LoadType::kUnknown));
+      if (is_holey) {
+        if (is_holey_and_treat_hole_as_undefined) {
           result = BuildConvertHoleToUndefined(result);
         } else {
           RETURN_IF_ABORT(BuildCheckNotHole(result));
-          if (IsSmiElementsKind(elements_kind)) {
-            EnsureType(result, NodeType::kSmi);
-          }
         }
-      } else if (IsSmiElementsKind(elements_kind)) {
-        EnsureType(result, NodeType::kSmi);
       }
     }
     return result;
@@ -8926,8 +8928,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
   GET_VALUE_OR_ABORT(
       length,
       BuildLoadJSArrayLength(iterated_object, IsFastElementsKind(elements_kind)
-                                                  ? NodeType::kSmi
-                                                  : NodeType::kNumber));
+                                                  ? LoadType::kSmi
+                                                  : LoadType::kNumber));
   ValueNode* uint32_length;
   GET_VALUE_OR_ABORT(uint32_length, GetUint32ElementIndex(length));
 
@@ -9076,8 +9078,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
                 GET_VALUE_OR_ABORT(
                     element, BuildLoadFixedDoubleArrayElement(elements, index));
               } else {
-                GET_VALUE_OR_ABORT(element,
-                                   BuildLoadFixedArrayElement(elements, index));
+                LoadType type = elements_kind == PACKED_SMI_ELEMENTS
+                                    ? LoadType::kSmi
+                                    : LoadType::kUnknown;
+                GET_VALUE_OR_ABORT(
+                    element, BuildLoadFixedArrayElement(elements, index, type));
               }
               if (IsHoleyElementsKind(elements_kind)) {
                 GET_VALUE_OR_ABORT(
@@ -15244,8 +15249,9 @@ ReduceResult MaglevGraphBuilder::VisitForInNext() {
       RETURN_IF_ABORT(AddNewNode<CheckDynamicValue>(
           {receiver_map, cache_type}, DeoptimizeReason::kWrongMapDynamic));
       ValueNode* key;
-      GET_VALUE_OR_ABORT(key, BuildLoadFixedArrayElement(cache_array, index));
-      EnsureType(key, NodeType::kInternalizedString);
+      GET_VALUE_OR_ABORT(
+          key, BuildLoadFixedArrayElement(cache_array, index,
+                                          LoadType::kInternalizedString));
       SetAccumulator(key);
 
       current_for_in_state.receiver = receiver;
@@ -15450,9 +15456,8 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
       generator, new_state, JSGeneratorObject::kContinuationOffset,
       StoreTaggedMode::kDefault));
-  ValueNode* context =
-      BuildLoadTaggedField(generator, JSGeneratorObject::kContextOffset);
-  EnsureType(context, NodeType::kContext);
+  ValueNode* context = BuildLoadTaggedField(
+      generator, JSGeneratorObject::kContextOffset, LoadType::kContext);
   graph()->record_scope_info(context, {});
   SetContext(context);
 
@@ -16657,6 +16662,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadMap(ValueNode* object) {
 template <typename Instruction, typename... Args>
 ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
                                                     uint32_t offset,
+                                                    LoadType type,
                                                     Args&&... args) {
   if (offset != HeapObject::kMapOffset &&
       CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
@@ -16683,7 +16689,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
     return value;
   }
   return AddNewNodeNoAbort<Instruction>({object}, offset,
-                                        std::forward<Args>(args)...);
+                                        std::forward<Args>(args)..., type);
 }
 
 void MaglevGraphBuilder::AddDeoptUse(ValueNode* node) {

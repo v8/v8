@@ -8800,20 +8800,53 @@ class PolymorphicAccessInfo {
   };
 };
 
+enum class LoadType {
+  kUnknown,
+  kSmi,
+  kHeapNumber,
+  kNumber,
+  kInternalizedString,
+  kContext,
+  kLastLoadType = kContext,
+};
+constexpr int kLoadTypeBitSize =
+    std::bit_width(static_cast<unsigned>(LoadType::kLastLoadType));
+
+constexpr inline NodeType NodeTypeFromLoadType(LoadType type) {
+  switch (type) {
+    case LoadType::kUnknown:
+      return NodeType::kUnknown;
+    case LoadType::kSmi:
+      return NodeType::kSmi;
+    case LoadType::kHeapNumber:
+      return NodeType::kHeapNumber;
+    case LoadType::kNumber:
+      return NodeType::kNumber;
+    case LoadType::kInternalizedString:
+      return NodeType::kInternalizedString;
+    case LoadType::kContext:
+      return NodeType::kContext;
+  }
+}
+
 template <typename Derived = LoadTaggedField>
 class AbstractLoadTaggedField : public FixedInputValueNodeT<1, Derived> {
   using Base = FixedInputValueNodeT<1, Derived>;
   using Base::result;
 
  public:
-  explicit AbstractLoadTaggedField(uint64_t bitfield, const int offset)
-      : Base(bitfield), offset_(offset) {}
+  explicit AbstractLoadTaggedField(uint64_t bitfield, const int offset,
+                                   LoadType type)
+      : Base(bitfield | LoadTypeField::encode(type)), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanRead();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   int offset() const { return offset_; }
+  LoadType load_type() const { return LoadTypeField::decode(Base::bitfield()); }
+
+  NodeType type() const { return NodeTypeFromLoadType(load_type()); }
 
   using Base::input;
   static constexpr int kObjectIndex = 0;
@@ -8823,20 +8856,21 @@ class AbstractLoadTaggedField : public FixedInputValueNodeT<1, Derived> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const { return std::tuple{offset()}; }
+  auto options() const { return std::tuple{offset(), load_type()}; }
 
   using Base::decompresses_tagged_result;
 
  private:
   const int offset_;
+  using LoadTypeField = Base::template NextBitField<LoadType, kLoadTypeBitSize>;
 };
 
 class LoadTaggedField : public AbstractLoadTaggedField<LoadTaggedField> {
   using Base = AbstractLoadTaggedField<LoadTaggedField>;
 
  public:
-  explicit LoadTaggedField(uint64_t bitfield, const int offset)
-      : Base(bitfield, offset) {}
+  explicit LoadTaggedField(uint64_t bitfield, const int offset, LoadType type)
+      : Base(bitfield, offset, type) {}
 };
 
 class LoadTaggedFieldForProperty
@@ -8845,11 +8879,11 @@ class LoadTaggedFieldForProperty
 
  public:
   explicit LoadTaggedFieldForProperty(uint64_t bitfield, const int offset,
-                                      compiler::NameRef name)
-      : Base(bitfield, offset), name_(name) {}
+                                      compiler::NameRef name, LoadType type)
+      : Base(bitfield, offset, type), name_(name) {}
   compiler::NameRef name() { return name_; }
 
-  auto options() const { return std::tuple{offset(), name_}; }
+  auto options() const { return std::tuple{offset(), name_, load_type()}; }
 
  private:
   compiler::NameRef name_;
@@ -8861,8 +8895,8 @@ class LoadTaggedFieldForContextSlotNoCells
 
  public:
   explicit LoadTaggedFieldForContextSlotNoCells(uint64_t bitfield,
-                                                const int offset)
-      : Base(bitfield, offset) {}
+                                                const int offset, LoadType type)
+      : Base(bitfield, offset, type) {}
 };
 
 class LoadTaggedFieldForContextSlot
@@ -8870,7 +8904,8 @@ class LoadTaggedFieldForContextSlot
   using Base = FixedInputValueNodeT<1, LoadTaggedFieldForContextSlot>;
 
  public:
-  explicit LoadTaggedFieldForContextSlot(uint64_t bitfield, const int offset)
+  explicit LoadTaggedFieldForContextSlot(uint64_t bitfield, const int offset,
+                                         LoadType type)
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanRead() |
@@ -8890,12 +8925,16 @@ class LoadTaggedFieldForContextSlot
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const { return std::tuple{offset()}; }
+  NodeType type() const { return NodeTypeFromLoadType(load_type()); }
+  LoadType load_type() const { return LoadTypeField::decode(Base::bitfield()); }
+
+  auto options() const { return std::tuple{offset(), load_type()}; }
 
   using Base::decompresses_tagged_result;
 
  private:
   const int offset_;
+  using LoadTypeField = Base::template NextBitField<LoadType, kLoadTypeBitSize>;
 };
 
 class LoadFloat64 : public FixedInputValueNodeT<1, LoadFloat64> {
@@ -8988,7 +9027,9 @@ class LoadFixedArrayElement
   using Base = FixedInputValueNodeT<2, LoadFixedArrayElement>;
 
  public:
-  explicit LoadFixedArrayElement(uint64_t bitfield) : Base(bitfield) {}
+  explicit LoadFixedArrayElement(uint64_t bitfield,
+                                 LoadType type = LoadType::kUnknown)
+      : Base(bitfield | LoadTypeField::encode(type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanRead();
   static constexpr typename Base::InputTypes kInputTypes{
@@ -9002,6 +9043,14 @@ class LoadFixedArrayElement
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
+
+  NodeType type() const { return NodeTypeFromLoadType(load_type()); }
+  LoadType load_type() const { return LoadTypeField::decode(bitfield()); }
+
+  auto options() const { return std::tuple{load_type()}; }
+
+ private:
+  using LoadTypeField = NextBitField<LoadType, kLoadTypeBitSize>;
 };
 
 class EnsureWritableFastElements

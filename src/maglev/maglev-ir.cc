@@ -607,6 +607,16 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kFastCreateClosure:
     case Opcode::kCreateClosure:
       return NodeType::kJSFunction;
+    case Opcode::kLoadTaggedField:
+      return Cast<LoadTaggedField>()->type();
+    case Opcode::kLoadTaggedFieldForProperty:
+      return Cast<LoadTaggedFieldForProperty>()->type();
+    case Opcode::kLoadTaggedFieldForContextSlotNoCells:
+      return Cast<LoadTaggedFieldForContextSlotNoCells>()->type();
+    case Opcode::kLoadTaggedFieldForContextSlot:
+      return Cast<LoadTaggedFieldForContextSlot>()->type();
+    case Opcode::kLoadFixedArrayElement:
+      return Cast<LoadFixedArrayElement>()->type();
     case Opcode::kInt32Compare:
     case Opcode::kFloat64Compare:
     case Opcode::kGenericEqual:
@@ -680,14 +690,9 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kGetTemplateObject:
     case Opcode::kHasInPrototypeChain:
     case Opcode::kInitialValue:
-    case Opcode::kLoadTaggedField:
-    case Opcode::kLoadTaggedFieldForProperty:
-    case Opcode::kLoadTaggedFieldForContextSlotNoCells:
-    case Opcode::kLoadTaggedFieldForContextSlot:
     case Opcode::kLoadFloat64:
     case Opcode::kLoadInt32:
     case Opcode::kLoadTaggedFieldByFieldIndex:
-    case Opcode::kLoadFixedArrayElement:
     case Opcode::kLoadFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElementCheckedNotHole:
