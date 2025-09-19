@@ -834,7 +834,7 @@ class V8_EXPORT_PRIVATE JSEntryDescriptor
 // TODO(jgruber): Define real descriptors for C calling conventions.
 class CCallDescriptor : public StaticCallInterfaceDescriptor<CCallDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kDefaultCodeEntrypointTag)
+  SANDBOX_EXPOSED_DESCRIPTOR(kInvalidEntrypointTag)
   SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
