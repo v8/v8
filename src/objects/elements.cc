@@ -3449,7 +3449,6 @@ class TypedElementsAccessor
 
   static void SetImpl(ElementType* data_ptr, ElementType value,
                       IsSharedBuffer is_shared) {
-    SBXCHECK(InsideSandbox(reinterpret_cast<Address>(data_ptr)));
     // TODO(ishell, v8:8875): Independent of pointer compression, 8-byte size
     // fields (external pointers, doubles and BigInt data) are not always 8-byte
     // aligned. This is relying on undefined behaviour in C++, since {data_ptr}
@@ -3691,6 +3690,10 @@ class TypedElementsAccessor
     ElementType* data = static_cast<ElementType*>(typed_array->DataPtr());
     ElementType* first = data + start;
     ElementType* last = data + end;
+
+    // Guard against switching the ElementsKind to make this too big.
+    SBXCHECK(sizeof(ElementType) * end <= ArrayBuffer::kMaxByteLength);
+
     if (typed_array->buffer()->is_shared()) {
       // TypedArrays backed by shared buffers need to be filled using atomic
       // operations. Since 8-byte data are not currently always 8-byte aligned,
@@ -3932,6 +3935,10 @@ class TypedElementsAccessor
     if (len == 0) return;
 
     ElementType* data = static_cast<ElementType*>(typed_array->DataPtr());
+
+    // Guard against switching the ElementsKind to make this too big.
+    SBXCHECK(ElementsKindToByteSize(Kind) * len <= ArrayBuffer::kMaxByteLength);
+
     if (typed_array->buffer()->is_shared()) {
       // TypedArrays backed by shared buffers need to be reversed using atomic
       // operations. Since 8-byte data are not currently always 8-byte aligned,
@@ -4086,6 +4093,10 @@ class TypedElementsAccessor
       size_t source_byte_length = length * source_size;
       size_t dest_byte_length = length * destination_size;
 
+      // Guard against switching the ElementsKind to make this too big.
+      SBXCHECK(source_byte_length <= ArrayBuffer::kMaxByteLength);
+      SBXCHECK(dest_byte_length <= ArrayBuffer::kMaxByteLength);
+
       // If the typedarrays are overlapped, clone the source.
       if (dest_data + dest_byte_length > source_data &&
           source_data + source_byte_length > dest_data) {
@@ -4108,11 +4119,6 @@ class TypedElementsAccessor
   case TYPE##_ELEMENTS: {                                                      \
     ctype* source_data_ptr = reinterpret_cast<ctype*>(source_data);            \
     ElementType* dest_data_ptr = reinterpret_cast<ElementType*>(dest_data);    \
-    SBXCHECK(cloned_source_elements ||                                         \
-             InsideSandbox(                                                    \
-                 reinterpret_cast<Address>(source_data_ptr + length - 1)));    \
-    SBXCHECK(                                                                  \
-        InsideSandbox(reinterpret_cast<Address>(dest_data_ptr + length - 1))); \
     CopyBetweenBackingStores<TYPE##_ELEMENTS>(                                 \
         source_data_ptr, dest_data_ptr, length,                                \
         source_shared || destination_shared ? kShared : kUnshared);            \
@@ -4265,6 +4271,11 @@ class TypedElementsAccessor
     Isolate* isolate = Isolate::Current();
     // 8. Let k be 0.
     // 9. Repeat, while k < srcLength,
+
+    // Guard against switching the ElementsKind to make this too big.
+    SBXCHECK(ElementsKindToByteSize(Kind) * length <=
+             ArrayBuffer::kMaxByteLength);
+
     for (size_t i = 0; i < length; i++) {
       DirectHandle<Object> elem;
       // a. Let Pk be ! ToString(𝔽(k)).
@@ -4366,6 +4377,10 @@ struct CopyBetweenBackingStoresImpl {
   static void Copy(TypedArrayCType<SourceKind>* source_data_ptr,
                    TypedArrayCType<Kind>* dest_data_ptr, size_t length,
                    IsSharedBuffer is_shared) {
+    SBXCHECK(ElementsKindToByteSize(SourceKind) * length <=
+             ArrayBuffer::kMaxByteLength);
+    SBXCHECK(ElementsKindToByteSize(Kind) * length <=
+             ArrayBuffer::kMaxByteLength);
     for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
       // We use scalar accessors to avoid boxing/unboxing, so there are no
       // allocations.
@@ -4383,6 +4398,11 @@ template <ElementsKind DestKind, ElementsKind SourceKind>
 void CopyFromFloat16BackingStore(uint16_t* source_data_ptr,
                                  TypedArrayCType<DestKind>* dest_data_ptr,
                                  size_t length, IsSharedBuffer is_shared) {
+  // Guard against switching the ElementsKind to make this too big.
+  SBXCHECK(ElementsKindToByteSize(DestKind) * length <=
+           ArrayBuffer::kMaxByteLength);
+  SBXCHECK(ElementsKindToByteSize(SourceKind) * length <=
+           ArrayBuffer::kMaxByteLength);
   for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
     // We use scalar accessors to avoid boxing/unboxing, so there are no
     // allocations.
