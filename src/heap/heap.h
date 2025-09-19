@@ -1965,9 +1965,10 @@ class Heap final {
 
   void UpdateTotalGCTime(base::TimeDelta duration);
 
-  bool IsIneffectiveMarkCompact(size_t old_generation_size,
+  bool IsIneffectiveMarkCompact(size_t old_generation_size, size_t global_size,
                                 double mutator_utilization);
   void CheckIneffectiveMarkCompact(size_t old_generation_size,
+                                   size_t global_size,
                                    double mutator_utilization);
 
   inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
