@@ -1496,7 +1496,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   ASM(CEntry_Return1_ArgvOnStack_BuiltinExit, CEntry1ArgvOnStack)              \
   ASM(CEntry_Return1_ArgvOnStack_NoBuiltinExit, CEntryDummy)                   \
   ASM(CEntry_Return2_ArgvInRegister_NoBuiltinExit, InterpreterCEntry2)         \
-  ASM(CEntry_Return2_ArgvOnStack_BuiltinExit, CEntryDummy)                     \
   ASM(CEntry_Return2_ArgvOnStack_NoBuiltinExit, CEntryDummy)                   \
   ASM(WasmCEntry, CEntryDummy)                                                 \
   ASM(DirectCEntry, CEntryDummy)                                               \
