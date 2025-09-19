@@ -3834,15 +3834,16 @@ bool Heap::HasLowAllocationRate() {
 bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
                                     size_t global_size,
                                     double mutator_utilization) {
-  const double kHighHeapPercentage = 0.8;
-  const double kLowMutatorUtilization = 0.4;
   bool high_heap_ratio =
-      (old_generation_size >= kHighHeapPercentage * max_old_generation_size());
+      (old_generation_size >=
+       v8_flags.ineffective_gc_size_threshold * max_old_generation_size());
   if (v8_flags.external_memory_accounted_in_global_limit) {
-    high_heap_ratio |=
-        (global_size >= kHighHeapPercentage * max_global_memory_size_);
+    high_heap_ratio |= (global_size >= v8_flags.ineffective_gc_size_threshold *
+                                           max_global_memory_size_);
   }
-  return high_heap_ratio && mutator_utilization < kLowMutatorUtilization;
+  return high_heap_ratio &&
+         mutator_utilization <
+             v8_flags.ineffective_gc_mutator_utilization_threshold;
 }
 
 namespace {

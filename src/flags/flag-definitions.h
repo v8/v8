@@ -2346,6 +2346,12 @@ DEFINE_BOOL(parallel_weak_ref_clearing, true,
             "use parallel threads to clear weak refs in the atomic pause.")
 DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
             "trigger out-of-memory failure to avoid GC storm near heap limit")
+DEFINE_FLOAT(
+    ineffective_gc_size_threshold, 0.8,
+    "Threshold on heap size to trigger out-of-memory failure near heap limit.")
+DEFINE_FLOAT(ineffective_gc_mutator_utilization_threshold, 0.4,
+             "Threshold on mutator utilization to trigger out-of-memory "
+             "failure near heap limit.")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_BOOL(trace_stress_marking, false, "trace stress marking progress")
