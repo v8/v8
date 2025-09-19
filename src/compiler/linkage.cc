@@ -497,7 +497,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
       LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
   return zone->New<CallDescriptor>(     // --
       CallDescriptor::kCallCodeObject,  // kind
-      kDefaultCodeEntrypointTag,        // tag
+      kCEntryEntrypointTag,             // tag
       target_type,                      // target MachineType
       target_loc,                       // target location
       locations.Get(),                  // location_sig

@@ -846,7 +846,7 @@ class CCallDescriptor : public StaticCallInterfaceDescriptor<CCallDescriptor> {
 class CEntryDummyDescriptor
     : public StaticCallInterfaceDescriptor<CEntryDummyDescriptor> {
  public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kDefaultCodeEntrypointTag)
+  SANDBOX_EXPOSED_DESCRIPTOR(kCEntryEntrypointTag)
   SANDBOXING_MODE(kSandboxed)
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()

@@ -47,6 +47,8 @@ enum CodeEntrypointTag : uint64_t {
   kStoreTransitionICHandlerEntrypointTag = uint64_t{5}
                                            << kCodeEntrypointTagShift,
   kRegExpEntrypointTag = uint64_t{6} << kCodeEntrypointTagShift,
+  kCEntryEntrypointTag = uint64_t{7} << kCodeEntrypointTagShift,
+
   // TODO(saelo): create more of these tags.
 
   // Tag to use for code that will never be called indirectly via the CPT.
