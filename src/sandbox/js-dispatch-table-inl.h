@@ -8,6 +8,8 @@
 #include "src/sandbox/js-dispatch-table.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <atomic>
+
 #include "src/builtins/builtins-inl.h"
 #include "src/common/code-memory-access-inl.h"
 #include "src/objects/objects-inl.h"
@@ -194,8 +196,8 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
       ((new_object - kObjectPointerOffset) << kObjectPointerShift) &
       ~kMarkingBit;
   Address new_payload = object | marking_bit | parameter_count;
-  encoded_word_.store(new_payload, std::memory_order_relaxed);
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
+  encoded_word_.store(new_payload, std::memory_order_release);
   DCHECK(!IsFreelistEntry());
 }
 
