@@ -1098,6 +1098,7 @@ V8_OBJECT class ThinString : public String {
   friend class V8HeapExplorer;
   friend class CodeStubAssembler;
   friend class ToDirectStringAssembler;
+  friend class CollectionsBuiltinsAssembler;
   friend class StringBuiltinsAssembler;
   friend class maglev::MaglevAssembler;
   friend class maglev::CheckedInternalizedString;
