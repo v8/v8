@@ -2297,8 +2297,9 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 
 bool BytecodeGenerator::IsPrototypeAssignment(
     Statement* stmt, Variable** var,
-    base::SmallVector<std::pair<Property*, Expression*>, kInitialPropertyCount>&
-        properties) {
+    base::SmallVector<std::pair<const AstRawString*, Expression*>,
+                      kInitialPropertyCount>& properties,
+    std::unordered_set<const AstRawString*>& duplicates) {
   // The expression Statement is an assignment
   // ========================================
   ExpressionStatement* expr_stmt = stmt->AsExpressionStatement();
@@ -2337,6 +2338,12 @@ bool BytecodeGenerator::IsPrototypeAssignment(
     return false;
   }
 
+  const AstRawString* prop_str = prop->key()->AsLiteral()->AsRawString();
+  if (prop_str == ast_string_constants()->proto_string() ||
+      prop_str == ast_string_constants()->constructor_string()) {
+    return false;
+  }
+
   // The target Object is the "prototype" property
   // =============================================
   if (!prop->obj()->IsProperty()) {
@@ -2364,6 +2371,10 @@ bool BytecodeGenerator::IsPrototypeAssignment(
     return false;
   }
 
+  if (!duplicates.insert(prop_str).second) {
+    return false;
+  }
+
   if (*var == nullptr) {
     // This is the first proto assignment in the sequence
     *var = tmp_var;
@@ -2374,14 +2385,14 @@ bool BytecodeGenerator::IsPrototypeAssignment(
 
   // Success
   properties.push_back(std::make_pair(
-      prop,
+      prop_str,
       value));  // This will be reused as part of an ObjectLiteral
 
   return true;
 }
 
 void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
-    const base::SmallVector<std::pair<Property*, Expression*>,
+    const base::SmallVector<std::pair<const AstRawString*, Expression*>,
                             kInitialPropertyCount>& properties,
     Variable* var) {
   // Create a boiler plate object in the constant pool to be merged into the
@@ -2402,13 +2413,13 @@ void BytecodeGenerator::VisitStatements(
     if (v8_flags.proto_assign_seq_opt) {
       Variable* var = nullptr;
       int proto_assign_idx = stmt_idx;
-      base::SmallVector<std::pair<Property*, Expression*>,
+      base::SmallVector<std::pair<const AstRawString*, Expression*>,
                         kInitialPropertyCount>
           properties;
-
+      std::unordered_set<const AstRawString*> duplicates;
       while (proto_assign_idx < statements->length() &&
              IsPrototypeAssignment(statements->at(proto_assign_idx), &var,
-                                   properties)) {
+                                   properties, duplicates)) {
         ++proto_assign_idx;
       }
 
