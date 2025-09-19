@@ -1566,42 +1566,50 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister acc) {
   DCHECK_NE(dst, acc);
   VU.SetSimd128(E8);
-  VRegister intermediate = kSimd128ScratchReg3;
-  VRegister kSimd128ScratchReg4 =
-      GetUnusedRegister(LiftoffRegList{LiftoffRegister(ft10)}).fp().toV();
-  vwmul_vv(intermediate, lhs.fp().toV(), rhs.fp().toV());  // i16*16 v8 v9
+  // kSimd128ScratchReg is used as a register group together with
+  // kSimd128ScratchReg2.
+  VRegister intermediate = kSimd128ScratchReg;
+  vwmul_vv(intermediate, lhs.fp().toV(), rhs.fp().toV());  // i16*16
 
   constexpr int32_t FIRST_INDEX = 0b0001000100010001;
   constexpr int32_t SECOND_INDEX = 0b0010001000100010;
   constexpr int32_t THIRD_INDEX = 0b0100010001000100;
   constexpr int32_t FOURTH_INDEX = 0b1000100010001000;
 
+  LiftoffRegister temp = GetUnusedRegister(
+      kFpCacheRegList.GetAdjacentFpRegsSet().MaskOut(LiftoffRegList{acc}));
+  VRegister temp1 =
+      GetUnusedRegister(kFpCacheRegList.GetAdjacentFpRegsSet().MaskOut(
+                            LiftoffRegList{temp, acc})).fp().toV();
+
   VU.SetSimd128x2(E16);
   li(kScratchReg, FIRST_INDEX);
   vmv_sx(v0, kScratchReg);
-  vcompress_vv(kSimd128ScratchReg, intermediate, v0);  // i16*4 a
+  Simd128Register compressed_part1 = kSimd128ScratchReg3;
+  vcompress_vv(compressed_part1, intermediate, v0);  // i16*4 a
+
   li(kScratchReg, SECOND_INDEX);
-  vmv_sx(kSimd128ScratchReg2, kScratchReg);
-  vcompress_vv(v0, intermediate, kSimd128ScratchReg2);  // i16*4 b
+  vmv_sx(v0, kScratchReg);
+  Simd128Register compressed_part2 = kSimd128ScratchReg4;
+  vcompress_vv(compressed_part2, intermediate, v0);  // i16*4 b
 
-  VU.SetSimd128(E16);
-  vwadd_vv(kSimd128ScratchReg4, kSimd128ScratchReg, v0);  // i32*4 c
-
-  VU.SetSimd128x2(E16);
   li(kScratchReg, THIRD_INDEX);
   vmv_sx(v0, kScratchReg);
-  vcompress_vv(kSimd128ScratchReg, intermediate, v0);  // i16*4 a
+  Simd128Register compressed_part3 = temp.fp().toV();
+  vcompress_vv(compressed_part3, intermediate, v0);  // i16*4 a
 
   li(kScratchReg, FOURTH_INDEX);
-  vmv_sx(kSimd128ScratchReg2, kScratchReg);
-  vcompress_vv(v0, intermediate, kSimd128ScratchReg2);  // i16*4 b
+  vmv_sx(v0, kScratchReg);
+  Simd128Register compressed_part4 = temp1;
+  vcompress_vv(temp1, intermediate, v0);  // i16*4 b
 
-  VU.SetSimd128(E16);
-  vwadd_vv(kSimd128ScratchReg3, kSimd128ScratchReg, v0);  // i32*4 c
+  VU.SetSimd128Half(E16);
+  vwadd_vv(kSimd128ScratchReg, compressed_part1, compressed_part2);   // i32*4 c
+  vwadd_vv(kSimd128ScratchReg2, compressed_part3, compressed_part4);  // i32*4 c
 
   VU.SetSimd128(E32);
-  vadd_vv(dst.fp().toV(), kSimd128ScratchReg4, kSimd128ScratchReg3);
-  vadd_vv(dst.fp().toV(), dst.fp().toV(), acc.fp().toV());
+  vadd_vv(dst.fp().toV(), kSimd128ScratchReg, acc.fp().toV());
+  vadd_vv(dst.fp().toV(), dst.fp().toV(), kSimd128ScratchReg2);
 }
 
 void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,

@@ -196,7 +196,6 @@
   # f32.{min,max,neg} and friends.
   'Float32CrossCompilerDeterminismTest.TestBinOp': [PASS, FAIL],
   'Float32CrossCompilerDeterminismTest.TestUnOp': [PASS, FAIL],
-  'SimdCrossCompilerDeterminismTest.TestTernOp': [PASS, FAIL],
 }],  # arch == riscv64 or arch == riscv32
 
 ['(arch == riscv64 or arch == riscv32) and not clang', {
