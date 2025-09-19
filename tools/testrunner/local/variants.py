@@ -234,8 +234,14 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--stress-concurrent-inlining",
     ],
     "stress_maglev_tests_with_turbofan": ["--jitless"],
-    "turbolev_future": ["--no-turbolev",],
-    "stress_turbolev_future": ["--no-turbolev",],
+    "turbolev_future": [
+        "--no-turbolev",
+        "--no-turbolev-inline-js-wasm-wrappers",
+    ],
+    "stress_turbolev_future": [
+        "--no-turbolev",
+        "--no-turbolev-inline-js-wasm-wrappers",
+    ],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
     "always_sparkplug_and_stress_regexp_jit": ["--jitless", "--no-sparkplug"],
     "code_serializer": [
