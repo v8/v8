@@ -931,12 +931,17 @@ DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
 #if defined(V8_ENABLE_WEBASSEMBLY) && V8_STATIC_ROOTS_BOOL
 DEFINE_EXPERIMENTAL_FEATURE(unmap_holes, "unmap the page containing the holes.")
-#else
-DEFINE_BOOL_READONLY(unmap_holes, false, "unmap the page containing the holes.")
-#endif
+DEFINE_IMPLICATION(experimental_fuzzing, unmap_holes)
 DEFINE_EXPERIMENTAL_FEATURE(assert_hole_checked_by_value,
                             "assert that we always check for holes by value, "
                             "never dereferencing their map.")
+DEFINE_IMPLICATION(experimental_fuzzing, assert_hole_checked_by_value)
+#else
+DEFINE_BOOL_READONLY(unmap_holes, false, "unmap the page containing the holes.")
+DEFINE_BOOL_READONLY(assert_hole_checked_by_value, false,
+                     "assert that we always check for holes by value, never "
+                     "dereferencing their map.")
+#endif
 
 #ifdef V8_ALLOCATION_SITE_TRACKING
 #define V8_ALLOCATION_SITE_TRACKING_BOOL true
