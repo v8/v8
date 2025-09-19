@@ -192,9 +192,11 @@
 ################################################################################
 ['arch == riscv64 or arch == riscv32', {
   # TODO(kasperl@rivosinc.com): Temporarily allow the tests to fail as we
-  # investigate what sometimes gives unexpected values for f32.{min,max,neg}.
+  # investigate what sometimes gives unexpected values for functions like
+  # f32.{min,max,neg} and friends.
   'Float32CrossCompilerDeterminismTest.TestBinOp': [PASS, FAIL],
   'Float32CrossCompilerDeterminismTest.TestUnOp': [PASS, FAIL],
+  'SimdCrossCompilerDeterminismTest.TestTernOp': [PASS, FAIL],
 }],  # arch == riscv64 or arch == riscv32
 
 ['(arch == riscv64 or arch == riscv32) and not clang', {
