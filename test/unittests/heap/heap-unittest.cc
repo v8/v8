@@ -528,7 +528,7 @@ TEST_F(HeapTest, Regress978156) {
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);
     marking->Start(GarbageCollector::MARK_COMPACTOR,
-                   i::GarbageCollectionReason::kTesting, "testing");
+                   i::GarbageCollectionReason::kTesting);
   }
   // 6. Mark the filler black to access its two markbits. This triggers
   // an out-of-bounds access of the marking bitmap in a bad case.
@@ -564,7 +564,7 @@ TEST_F(HeapTest, SemiSpaceNewSpaceGrowsDuringFullGCIncrementalMarking) {
                                GarbageCollectionReason::kTesting, "tesing",
                                GCTracer::MarkingType::kIncremental);
     marking->Start(GarbageCollector::MARK_COMPACTOR,
-                   i::GarbageCollectionReason::kTesting, "testing");
+                   i::GarbageCollectionReason::kTesting);
   }
   // 4. Allocate in new space.
   AllocationResult allocation = heap->allocator()->AllocateRaw(

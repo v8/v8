@@ -16,7 +16,6 @@
 #include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/base/incremental-marking-schedule.h"
-#include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -134,8 +133,7 @@ bool IncrementalMarking::IsBelowActivationThresholds() const {
 }
 
 void IncrementalMarking::Start(GarbageCollector garbage_collector,
-                               GarbageCollectionReason gc_reason,
-                               const char* reason) {
+                               GarbageCollectionReason gc_reason) {
   CHECK(IsStopped());
   CHECK_IMPLIES(garbage_collector == GarbageCollector::MARK_COMPACTOR,
                 !heap_->sweeping_in_progress());
@@ -193,36 +191,11 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   DCHECK(!current_trace_id_.has_value());
   current_trace_id_.emplace(reinterpret_cast<uint64_t>(this) ^
                             heap_->tracer()->CurrentEpoch(scope_id));
-
-  std::string json_str;
-
-  if (V8_UNLIKELY(v8_flags.trace_gc_verbose)) {
-    ::heap::base::UnsafeJsonEmitter json;
-
-    json.object_start()
-        .p("epoch", heap_->tracer()->CurrentEpoch(scope_id))
-        .p("gc_reason", ToString(gc_reason))
-        .p("reason", reason)
-        .p("old_gen_allocation_limit", heap_->old_generation_allocation_limit())
-        .p("old_gen_consumed_bytes", heap_->OldGenerationConsumedBytes())
-        .p("old_gen_allocation_limit_bytes",
-           heap_->OldGenerationAllocationLimitConsumedBytes())
-        .p("old_gen_space_available", heap_->OldGenerationSpaceAvailable())
-        .p("global_allocation_limit", heap_->global_allocation_limit())
-        .p("global_consumed_bytes", heap_->GlobalConsumedBytes())
-        .p("global_memory_available", heap_->GlobalMemoryAvailable())
-        .object_end();
-
-    json_str = json.ToString();
-    heap_->isolate()->PrintWithTimestamp("IncrementalMarkingStart: %s\n",
-                                         json_str.c_str());
-  }
-
   TRACE_EVENT2("v8",
                is_major ? "V8.GCIncrementalMarkingStart"
                         : "V8.GCMinorIncrementalMarkingStart",
-               "epoch", heap_->tracer()->CurrentEpoch(scope_id), "value",
-               TRACE_STR_COPY(json_str.c_str()));
+               "epoch", heap_->tracer()->CurrentEpoch(scope_id), "reason",
+               ToString(gc_reason));
   TRACE_GC_EPOCH_WITH_FLOW(heap()->tracer(), scope_id, ThreadKind::kMain,
                            current_trace_id_.value(),
                            TRACE_EVENT_FLAG_FLOW_OUT);

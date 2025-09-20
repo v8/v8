@@ -7,7 +7,6 @@
 
 #include <atomic>
 #include <cmath>
-#include <cstdint>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -1092,8 +1091,7 @@ class Heap final {
   V8_EXPORT_PRIVATE void StartIncrementalMarking(
       GCFlags gc_flags, GarbageCollectionReason gc_reason,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags,
-      GarbageCollector collector = GarbageCollector::MARK_COMPACTOR,
-      const char* reason = "no reason");
+      GarbageCollector collector = GarbageCollector::MARK_COMPACTOR);
 
   V8_EXPORT_PRIVATE void StartIncrementalMarkingOnInterrupt();
 
@@ -1946,7 +1944,7 @@ class Heap final {
   // GC statistics. ============================================================
   // ===========================================================================
 
-  inline uint64_t OldGenerationAllocationLimitConsumedBytes() {
+  inline size_t OldGenerationSpaceAvailable() {
     uint64_t bytes = OldGenerationConsumedBytes();
     if (!v8_flags.external_memory_accounted_in_global_limit) {
       // TODO(chromium:42203776): When not accounting external memory properly
@@ -1954,11 +1952,7 @@ class Heap final {
       // regular old gen bytes. This is historic behavior.
       bytes += AllocatedExternalMemorySinceMarkCompact();
     }
-    return bytes;
-  }
 
-  inline size_t OldGenerationSpaceAvailable() {
-    uint64_t bytes = OldGenerationAllocationLimitConsumedBytes();
     if (old_generation_allocation_limit() <= bytes) return 0;
     return old_generation_allocation_limit() - static_cast<size_t>(bytes);
   }
@@ -2047,8 +2041,7 @@ class Heap final {
     kHardLimit,
     kFallbackForEmbedderLimit
   };
-  std::pair<IncrementalMarkingLimit, const char*>
-  IncrementalMarkingLimitReached();
+  IncrementalMarkingLimit IncrementalMarkingLimitReached();
 
   bool ShouldStressCompaction() const;
 
@@ -2060,32 +2053,7 @@ class Heap final {
     size_t old_generation_allocation_limit;
     size_t global_allocation_limit;
   };
-
-  struct LimitsComputationBoundaries {
-    size_t minimum_old_generation_allocation_limit = 0;
-    size_t maximum_old_generation_allocation_limit = SIZE_MAX;
-
-    size_t minimum_global_allocation_limit = 0;
-    size_t maximum_global_allocation_limit = SIZE_MAX;
-
-    static LimitsComputationBoundaries AtLeastCurrentLimits(Heap* heap) {
-      return {
-          .minimum_old_generation_allocation_limit =
-              heap->old_generation_allocation_limit(),
-          .minimum_global_allocation_limit = heap->global_allocation_limit()};
-    }
-
-    static LimitsComputationBoundaries AtMostCurrentLimits(Heap* heap) {
-      return {
-          .maximum_old_generation_allocation_limit =
-              heap->old_generation_allocation_limit(),
-          .maximum_global_allocation_limit = heap->global_allocation_limit()};
-    }
-  };
-
-  LimitsComputationResult UpdateAllocationLimits(
-      LimitsComputationBoundaries boundaries,
-      const char* caller = __builtin_FUNCTION());
+  static LimitsComputationResult ComputeNewAllocationLimits(Heap* heap);
 
   // ===========================================================================
   // GC Tasks. =================================================================

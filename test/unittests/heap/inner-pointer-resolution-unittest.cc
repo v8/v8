@@ -688,7 +688,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
           GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
           "unit test", GCTracer::MarkingType::kIncremental);
       marking->Start(GarbageCollector::MARK_COMPACTOR,
-                     i::GarbageCollectionReason::kTesting, "testing");
+                     i::GarbageCollectionReason::kTesting);
     }
     MarkingState* marking_state = heap()->marking_state();
     marking_state->TryMarkAndAccountLiveBytes(obj3);

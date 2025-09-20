@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cinttypes>
-#include <cstdint>
 #include <iomanip>
 #include <memory>
 #include <optional>
@@ -44,7 +43,6 @@
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/base/stack.h"
-#include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/code-range.h"
 #include "src/heap/code-stats.h"
@@ -1886,8 +1884,7 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
 void Heap::StartIncrementalMarking(GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    GCCallbackFlags gc_callback_flags,
-                                   GarbageCollector collector,
-                                   const char* reason) {
+                                   GarbageCollector collector) {
   DCHECK(incremental_marking()->IsStopped());
   CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
                 !isolate()->InFastCCall());
@@ -1931,7 +1928,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   current_gc_flags_ = gc_flags;
   current_gc_callback_flags_ = gc_callback_flags;
 
-  incremental_marking()->Start(collector, gc_reason, reason);
+  incremental_marking()->Start(collector, gc_reason);
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     DCHECK(incremental_marking()->IsMajorMarking());
@@ -1995,8 +1992,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     const GCCallbackFlags gc_callback_flags) {
   if (incremental_marking()->IsStopped() &&
       incremental_marking()->CanAndShouldBeStarted()) {
-    auto [limit, reason] = IncrementalMarkingLimitReached();
-    switch (limit) {
+    switch (IncrementalMarkingLimitReached()) {
       case IncrementalMarkingLimit::kHardLimit:
         if (local_heap->is_main_thread_for(this)) {
           StartIncrementalMarking(
@@ -2518,40 +2514,36 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   sweeper()->EnsurePageIsSwept(page);
 }
 
-Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
-    LimitsComputationBoundaries boundaries, const char* caller) {
-  DCHECK(!using_initial_limit());
-  tracer()->RecordGCSizeCounters();
-  const HeapGrowingMode mode = CurrentHeapGrowingMode();
+// static
+Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
+  DCHECK(!heap->using_initial_limit());
+  heap->tracer()->RecordGCSizeCounters();
+  const HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
   std::optional<double> v8_gc_speed =
-      tracer()->OldGenerationSpeedInBytesPerMillisecond();
+      heap->tracer()->OldGenerationSpeedInBytesPerMillisecond();
   double v8_mutator_speed =
-      tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond();
+      heap->tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond();
   double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
-      this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed, mode);
+      heap, heap->max_old_generation_size(), v8_gc_speed, v8_mutator_speed,
+      mode);
   std::optional<double> embedder_gc_speed =
-      tracer()->EmbedderSpeedInBytesPerMillisecond();
+      heap->tracer()->EmbedderSpeedInBytesPerMillisecond();
   double embedder_speed =
-      tracer()->EmbedderAllocationThroughputInBytesPerMillisecond();
+      heap->tracer()->EmbedderAllocationThroughputInBytesPerMillisecond();
   double embedder_growing_factor =
       (embedder_gc_speed.has_value() && embedder_speed > 0)
           ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
-                this, max_global_memory_size_, embedder_gc_speed,
+                heap, heap->max_global_memory_size_, embedder_gc_speed,
                 embedder_speed, mode)
           : BaseControllerTrait::kMinGrowingFactor;
 
-  const size_t new_space_capacity = NewSpaceTargetCapacity();
-  const size_t old_gen_consumed_bytes_at_last_gc =
-      OldGenerationConsumedBytesAtLastGC();
+  size_t new_space_capacity = heap->NewSpaceTargetCapacity();
 
   size_t new_old_generation_allocation_limit =
       MemoryController<V8HeapTrait>::BoundAllocationLimit(
-          this, old_gen_consumed_bytes_at_last_gc,
-          old_gen_consumed_bytes_at_last_gc * v8_growing_factor,
-          std::max(min_old_generation_size_,
-                   boundaries.minimum_old_generation_allocation_limit),
-          std::min(max_old_generation_size(),
-                   boundaries.maximum_old_generation_allocation_limit),
+          heap, heap->OldGenerationConsumedBytesAtLastGC(),
+          heap->OldGenerationConsumedBytesAtLastGC() * v8_growing_factor,
+          heap->min_old_generation_size_, heap->max_old_generation_size(),
           new_space_capacity, mode);
 
   double global_growing_factor =
@@ -2561,60 +2553,18 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
                v8_flags.external_memory_max_growing_factor.value());
   DCHECK_GT(global_growing_factor, 0);
   DCHECK_GT(external_growing_factor, 0);
-
-  const size_t global_consumed_bytes_at_last_gc = GlobalConsumedBytesAtLastGC();
-
   size_t new_global_allocation_limit =
       MemoryController<GlobalMemoryTrait>::BoundAllocationLimit(
-          this, global_consumed_bytes_at_last_gc,
-          (global_consumed_bytes_at_last_gc + embedder_size_at_last_gc_) *
+          heap, heap->GlobalConsumedBytesAtLastGC(),
+          (heap->OldGenerationConsumedBytesAtLastGC() +
+           heap->embedder_size_at_last_gc_) *
                   global_growing_factor +
               (v8_flags.external_memory_accounted_in_global_limit
-                   ? external_memory_.low_since_mark_compact() *
+                   ? heap->external_memory_.low_since_mark_compact() *
                          external_growing_factor
                    : 0),
-          std::max(min_global_memory_size_,
-                   boundaries.minimum_global_allocation_limit),
-          std::min(max_global_memory_size_,
-                   boundaries.maximum_global_allocation_limit),
+          heap->min_global_memory_size_, heap->max_global_memory_size_,
           new_space_capacity, mode);
-
-  CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
-
-  if (V8_UNLIKELY(v8_flags.trace_gc_verbose)) {
-    ::heap::base::UnsafeJsonEmitter json;
-
-    json.object_start()
-        .p("caller", caller)
-        .p("v8_gc_speed", v8_gc_speed.value_or(0))
-        .p("v8_mutator_speed", v8_mutator_speed)
-        .p("v8_growing_factor", v8_growing_factor)
-        .p("old_gen_allocation_limit", old_generation_allocation_limit())
-        .p("next_old_gen_allocation_limit", new_old_generation_allocation_limit)
-        .p("old_gen_consumed_bytes_at_last_gc",
-           old_gen_consumed_bytes_at_last_gc)
-        .p("global_gc_speed", embedder_gc_speed.value_or(0))
-        .p("global_mutator_speed", embedder_speed)
-        .p("global_growing_factor", embedder_growing_factor)
-        .p("global_allocation_limit", global_allocation_limit())
-        .p("new_global_allocation_limit", new_global_allocation_limit)
-        .p("global_consumed_bytes_at_last_gc", global_consumed_bytes_at_last_gc)
-        .object_end();
-
-    std::string json_str = json.ToString();
-
-    isolate()->PrintWithTimestamp("UpdateAllocationLimits: %s\n",
-                                  json_str.c_str());
-
-#if defined(V8_USE_PERFETTO)
-    TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
-                         TRACE_EVENT_SCOPE_THREAD, "value",
-                         TRACE_STR_COPY(json_str.c_str()));
-#endif  // V8_USE_PERFETTO
-  }
-
-  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
-                                           new_global_allocation_limit);
 
   return {new_old_generation_allocation_limit, new_global_allocation_limit};
 }
@@ -2629,13 +2579,21 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
     return;
   }
 
+  auto new_limits = ComputeNewAllocationLimits(this);
+  size_t new_old_generation_allocation_limit =
+      new_limits.old_generation_allocation_limit;
+  size_t new_global_allocation_limit = new_limits.global_allocation_limit;
+
   if (collector == GarbageCollector::MARK_COMPACTOR) {
-    const LimitsComputationResult new_limits = UpdateAllocationLimits({});
     if (v8_flags.memory_balancer) {
       // Now recompute the new allocation limit.
       mb_->RecomputeLimits(new_limits.global_allocation_limit -
                                new_limits.old_generation_allocation_limit,
                            time);
+    } else {
+      SetOldGenerationAndGlobalAllocationLimit(
+          new_limits.old_generation_allocation_limit,
+          new_limits.global_allocation_limit);
     }
 
     CheckIneffectiveMarkCompact(
@@ -2643,9 +2601,15 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
         tracer()->AverageMarkCompactMutatorUtilization());
   } else {
     DCHECK(HasLowYoungGenerationAllocationRate());
-    UpdateAllocationLimits(
-        LimitsComputationBoundaries::AtMostCurrentLimits(this));
+    new_old_generation_allocation_limit = std::min(
+        new_old_generation_allocation_limit, old_generation_allocation_limit());
+    new_global_allocation_limit =
+        std::min(new_global_allocation_limit, global_allocation_limit());
+    SetOldGenerationAndGlobalAllocationLimit(
+        new_old_generation_allocation_limit, new_global_allocation_limit);
   }
+
+  CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
 }
 
 void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
@@ -2679,8 +2643,19 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   set_using_initial_limit(false);
 
-  UpdateAllocationLimits(
-      LimitsComputationBoundaries::AtLeastCurrentLimits(this));
+  auto new_limits = ComputeNewAllocationLimits(this);
+  size_t new_old_generation_allocation_limit =
+      new_limits.old_generation_allocation_limit;
+  size_t new_global_allocation_limit = new_limits.global_allocation_limit;
+
+  new_old_generation_allocation_limit = std::max(
+      new_old_generation_allocation_limit, old_generation_allocation_limit());
+  new_global_allocation_limit =
+      std::max(new_global_allocation_limit, global_allocation_limit());
+  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
+                                           new_global_allocation_limit);
+
+  CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
 }
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
@@ -5626,13 +5601,10 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
     return false;
   }
 
-  if (incremental_marking()->IsStopped()) {
-    auto [limit, reason] = IncrementalMarkingLimitReached();
-
-    if (limit == IncrementalMarkingLimit::kNoLimit) {
-      // We cannot start incremental marking.
-      return false;
-    }
+  if (incremental_marking()->IsStopped() &&
+      IncrementalMarkingLimitReached() == IncrementalMarkingLimit::kNoLimit) {
+    // We cannot start incremental marking.
+    return false;
   }
   return true;
 }
@@ -5732,28 +5704,24 @@ double Heap::PercentToGlobalMemoryLimit() const {
 // - kFallbackForEmbedderLimit means that incremental marking should be
 // started as soon as the embedder does not allocate with high throughput
 // anymore.
-std::pair<Heap::IncrementalMarkingLimit, const char*>
-Heap::IncrementalMarkingLimitReached() {
+Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   // InstructionStream using an AlwaysAllocateScope assumes that the GC state
   // does not change; that implies that no marking steps must be performed.
   if (!incremental_marking()->CanAndShouldBeStarted() || always_allocate()) {
     // Incremental marking is disabled or it is too early to start.
-    return std::make_pair(IncrementalMarkingLimit::kNoLimit, "always allocate");
+    return IncrementalMarkingLimit::kNoLimit;
   }
   if (v8_flags.stress_incremental_marking) {
-    return std::make_pair(IncrementalMarkingLimit::kHardLimit,
-                          "stress incremental marking");
+    return IncrementalMarkingLimit::kHardLimit;
   }
   if (incremental_marking()->IsBelowActivationThresholds()) {
     // Incremental marking is disabled or it is too early to start.
-    return std::make_pair(IncrementalMarkingLimit::kNoLimit,
-                          "below activation threshold");
+    return IncrementalMarkingLimit::kNoLimit;
   }
   if (ShouldStressCompaction() || HighMemoryPressure()) {
     // If there is high memory pressure or stress testing is enabled, then
     // start marking immediately.
-    return std::make_pair(IncrementalMarkingLimit::kHardLimit,
-                          "high memory pressure");
+    return IncrementalMarkingLimit::kHardLimit;
   }
 
   if (v8_flags.stress_marking > 0) {
@@ -5777,8 +5745,7 @@ Heap::IncrementalMarkingLimitReached() {
           }
         }
       } else if (current_percent >= stress_marking_percentage_) {
-        return std::make_pair(IncrementalMarkingLimit::kHardLimit,
-                              "stress marking percentage");
+        return IncrementalMarkingLimit::kHardLimit;
       }
     }
   }
@@ -5789,62 +5756,44 @@ Heap::IncrementalMarkingLimitReached() {
         std::max(PercentToOldGenerationLimit(), PercentToGlobalMemoryLimit()));
     if (current_percent > v8_flags.incremental_marking_hard_trigger &&
         v8_flags.incremental_marking_hard_trigger > 0) {
-      return std::make_pair(IncrementalMarkingLimit::kHardLimit,
-                            "hard trigger");
+      return IncrementalMarkingLimit::kHardLimit;
     }
     if (current_percent > v8_flags.incremental_marking_soft_trigger &&
         v8_flags.incremental_marking_soft_trigger > 0) {
-      return std::make_pair(IncrementalMarkingLimit::kSoftLimit,
-                            "soft trigger");
+      return IncrementalMarkingLimit::kSoftLimit;
     }
-    return std::make_pair(IncrementalMarkingLimit::kNoLimit, "not triggered");
+    return IncrementalMarkingLimit::kNoLimit;
   }
 
   tracer()->RecordGCSizeCounters();
-  const size_t old_generation_space_available = OldGenerationSpaceAvailable();
-  const size_t global_memory_available = GlobalMemoryAvailable();
-  const size_t new_space_target_capacity = NewSpaceTargetCapacity();
+  size_t old_generation_space_available = OldGenerationSpaceAvailable();
+  size_t global_memory_available = GlobalMemoryAvailable();
 
-  if (old_generation_space_available > new_space_target_capacity &&
-      (global_memory_available > new_space_target_capacity)) {
+  if (old_generation_space_available > NewSpaceTargetCapacity() &&
+      (global_memory_available > NewSpaceTargetCapacity())) {
     if (cpp_heap() && gc_count_ == 0 && using_initial_limit()) {
       // At this point the embedder memory is above the activation
       // threshold. No GC happened so far and it's thus unlikely to get a
       // configured heap any time soon. Start a memory reducer in this case
       // which will wait until the allocation rate is low to trigger garbage
       // collection.
-      return std::make_pair(IncrementalMarkingLimit::kFallbackForEmbedderLimit,
-                            "fallback for embedder limit");
+      return IncrementalMarkingLimit::kFallbackForEmbedderLimit;
     }
-    return std::make_pair(IncrementalMarkingLimit::kNoLimit,
-                          "enough space available");
+    return IncrementalMarkingLimit::kNoLimit;
   }
   if (ShouldOptimizeForMemoryUsage()) {
-    return std::make_pair(IncrementalMarkingLimit::kHardLimit,
-                          "optimize for memory");
+    return IncrementalMarkingLimit::kHardLimit;
   }
   if (ShouldOptimizeForLoadTime()) {
-    return std::make_pair(IncrementalMarkingLimit::kNoLimit,
-                          "optimize for load time");
+    return IncrementalMarkingLimit::kNoLimit;
   }
   if (old_generation_space_available == 0) {
-    return std::make_pair(IncrementalMarkingLimit::kHardLimit,
-                          "old generation allocation limit reached");
+    return IncrementalMarkingLimit::kHardLimit;
   }
   if (global_memory_available == 0) {
-    return std::make_pair(IncrementalMarkingLimit::kHardLimit,
-                          "global allocation limit reached");
+    return IncrementalMarkingLimit::kHardLimit;
   }
-
-  if (global_memory_available > new_space_target_capacity) {
-    DCHECK_LE(old_generation_space_available, new_space_target_capacity);
-    return std::make_pair(IncrementalMarkingLimit::kSoftLimit,
-                          "approaching old generation allocation limit");
-  } else {
-    DCHECK_LE(global_memory_available, new_space_target_capacity);
-    return std::make_pair(IncrementalMarkingLimit::kSoftLimit,
-                          "approaching global allocation limit");
-  }
+  return IncrementalMarkingLimit::kSoftLimit;
 }
 
 bool Heap::ShouldStressCompaction() const {
@@ -7697,7 +7646,10 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 
   if (v8_flags.external_memory_accounted_in_global_limit) {
     if (!using_initial_limit()) {
-      UpdateAllocationLimits({});
+      auto new_limits = ComputeNewAllocationLimits(this);
+      SetOldGenerationAndGlobalAllocationLimit(
+          new_limits.old_generation_allocation_limit,
+          new_limits.global_allocation_limit);
     }
   }
 }
