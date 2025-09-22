@@ -2726,6 +2726,14 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
       instance->set_dispatch_table0(*new_table);
     }
   }
+
+  // Clear old table to avoid dangling uses via in-sandbox corruption.
+  for (uint32_t i = 0; i < old_length; ++i) {
+    // Note: We pass `kNewEntry` here since the offheap data was already moved
+    // to the new table and we do not want to update anything there.
+    old_table->Clear(i, WasmDispatchTable::kNewEntry);
+  }
+
   return new_table;
 }
 
