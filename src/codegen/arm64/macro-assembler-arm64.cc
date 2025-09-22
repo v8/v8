@@ -2676,8 +2676,20 @@ void MacroAssembler::ResolveWasmCodePointer(Register target,
   Register scratch = temps.AcquireX();
   Mov(scratch, global_jump_table);
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  Add(target, scratch, Operand(target, LSL, 4));
+  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
+  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
+                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
+  static_assert(base::bits::IsPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
+  And(target.W(), target.W(),
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1);
+
+  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
+  Add(target, scratch,
+      Operand(target, LSL,
+              base::bits::WhichPowerOfTwo(
+                  sizeof(wasm::WasmCodePointerTableEntry))));
+
   Ldr(scratch,
       MemOperand(target, wasm::WasmCodePointerTable::kOffsetOfSignatureHash));
   bool has_second_tmp = temps.CanAcquire();
@@ -2716,9 +2728,21 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
   Mov(scratch, global_jump_table);
-  constexpr unsigned int kEntrySizeLog2 =
-      std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
-  Add(target, scratch, Operand(target, LSL, kEntrySizeLog2));
+
+  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
+  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
+                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
+  static_assert(base::bits::IsPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
+  And(target.W(), target.W(),
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1);
+
+  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
+  Add(target, scratch,
+      Operand(target, LSL,
+              base::bits::WhichPowerOfTwo(
+                  sizeof(wasm::WasmCodePointerTableEntry))));
+
   Ldr(target, MemOperand(target));
 
   Call(target);
