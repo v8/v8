@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'e3b4f7b28213398c1891b27c23cca7581d7cec90',
+  'partition_alloc_version': '84a41f2a2242f43d95fc8333725a89ba38b1f8f1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5775f8cf70478f5c14ee50ae821faa5e96922430',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bf0f15002798a81aec8f7a681c3886a444cc18e1',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '65bbe96cadec651dc6c0226336ee8f4fc84e0318',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8252e9fca745797734125e6a73b7dcf4d4131dc0',
   'buildtools/linux64': {
     'packages': [
       {
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'ae547b0b2f1e32c726298c7177381af79fafee93',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'cc488d26cfacef70c2df85c9f55bfcaad6f84a10',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '864f61dc9253d56586ada34c388278565ef513f6',
   'third_party/libunwind/src':
