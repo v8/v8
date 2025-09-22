@@ -11995,10 +11995,6 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArray(
     array->set(map.GetInObjectPropertyOffset(i),
                GetRootConstant(RootIndex::kUndefinedValue));
   }
-  array->ClearSlotsAfter(
-      map.GetInObjectPropertyOffset(
-          slack_tracking_prediction.inobject_property_count()),
-      GetRootConstant(RootIndex::kOnePointerFillerMap));
   ValueNode* allocation = BuildInlinedAllocation(array, allocation_type);
   return allocation;
 }
@@ -12048,10 +12044,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
        i++) {
     generator->set(initial_map.GetInObjectPropertyOffset(i), undefined);
   }
-  generator->ClearSlotsAfter(
-      initial_map.GetInObjectPropertyOffset(
-          slack_tracking_prediction.inobject_property_count()),
-      GetRootConstant(RootIndex::kOnePointerFillerMap));
 
   ValueNode* allocation =
       BuildInlinedAllocation(generator, AllocationType::kYoung);
@@ -13364,19 +13356,6 @@ VirtualObject* MaglevGraphBuilder::DeepCopyVirtualObject(VirtualObject* old) {
   return vobject;
 }
 
-VirtualObject* MaglevGraphBuilder::CreateVirtualObject(compiler::MapRef map,
-                                                       uint32_t slot_count) {
-  // VirtualObjects are not added to the Maglev graph.
-  DCHECK_GT(slot_count, 1);
-  ValueNode** slots = zone()->AllocateArray<ValueNode*>(slot_count);
-  VirtualObject* vobject = NodeBase::New<VirtualObject>(
-      zone(), 0, map, NewObjectId(), slot_count, slots);
-  std::fill_n(slots, slot_count,
-              GetRootConstant(RootIndex::kOnePointerFillerMap));
-  vobject->set(HeapObject::kMapOffset, GetConstant(map));
-  return vobject;
-}
-
 VirtualObject* MaglevGraphBuilder::CreateHeapNumber(Float64 value) {
   // VirtualObjects are not added to the Maglev graph.
   VirtualObject* vobject = NodeBase::New<VirtualObject>(
@@ -13403,88 +13382,94 @@ VirtualObject* MaglevGraphBuilder::CreateConsString(ValueNode* map,
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
+  using Shape = VirtualJSObjectShape;
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
   int slot_count = map.instance_size() / kTaggedSize;
   SBXCHECK_GE(slot_count, 3);
-  VirtualObject* object = CreateVirtualObject(map, slot_count);
-  object->set(JSObject::kPropertiesOrHashOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->set(JSObject::kElementsOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->ClearSlotsAfter(JSObject::kElementsOffset,
-                          GetRootConstant(RootIndex::kOnePointerFillerMap));
-  return object;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSObject::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSObject::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  return vobj;
 }
 
 ReduceResult MaglevGraphBuilder::CreateJSArray(compiler::MapRef map,
                                                int instance_size,
                                                ValueNode* length) {
+  using Shape = VirtualJSArrayShape;
   int slot_count = instance_size / kTaggedSize;
-  SBXCHECK_GE(slot_count, 4);
-  VirtualObject* object = CreateVirtualObject(map, slot_count);
-  object->set(JSArray::kPropertiesOrHashOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSArray::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
   // Either the value is a Smi already, or we force a conversion to Smi and
   // cache the value in its alternative representation node.
   RETURN_IF_ABORT(GetSmiValue(length));
-  object->set(JSArray::kElementsOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->set(JSArray::kLengthOffset, length);
-  object->ClearSlotsAfter(JSArray::kLengthOffset,
-                          GetRootConstant(RootIndex::kOnePointerFillerMap));
-  return object;
+  vobj->set(JSArray::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSArray::kLengthOffset, length);
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSStringWrapper(ValueNode* value) {
+  using Shape = VirtualJSPrimitiveWrapperShape;
   compiler::MapRef map =
       broker()->target_native_context().string_function(broker()).initial_map(
           broker());
-  int slot_count = map.instance_size() / kTaggedSize;
-  SBXCHECK_GE(slot_count, 3);
-  VirtualObject* object = CreateVirtualObject(map, slot_count);
-  object->set(JSObject::kPropertiesOrHashOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->set(JSObject::kElementsOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->set(JSPrimitiveWrapper::kValueOffset, value);
-  object->ClearSlotsAfter(JSPrimitiveWrapper::kValueOffset,
-                          GetRootConstant(RootIndex::kOnePointerFillerMap));
-  return object;
+  int slot_count = Shape::header_slot_count;
+  SBXCHECK_EQ(slot_count, 4);
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSObject::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSObject::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSPrimitiveWrapper::kValueOffset, value);
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSArrayIterator(
     compiler::MapRef map, ValueNode* iterated_object, IterationKind kind) {
-  int slot_count = map.instance_size() / kTaggedSize;
+  using Shape = VirtualJSArrayIteratorShape;
+  int slot_count = Shape::header_slot_count;
   SBXCHECK_EQ(slot_count, 6);
-  VirtualObject* object = CreateVirtualObject(map, slot_count);
-  object->set(JSArrayIterator::kPropertiesOrHashOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->set(JSArrayIterator::kElementsOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->set(JSArrayIterator::kIteratedObjectOffset, iterated_object);
-  object->set(JSArrayIterator::kNextIndexOffset, GetInt32Constant(0));
-  object->set(JSArrayIterator::kKindOffset,
-              GetInt32Constant(static_cast<int>(kind)));
-  return object;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSArrayIterator::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSArrayIterator::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSArrayIterator::kIteratedObjectOffset, iterated_object);
+  vobj->set(JSArrayIterator::kNextIndexOffset, GetInt32Constant(0));
+  vobj->set(JSArrayIterator::kKindOffset,
+            GetInt32Constant(static_cast<int>(kind)));
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSConstructor(
     compiler::JSFunctionRef constructor) {
+  using Shape = VirtualJSObjectShape;
   compiler::SlackTrackingPrediction prediction =
       broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
           constructor);
+  compiler::MapRef map = constructor.initial_map(broker());
   int slot_count = prediction.instance_size() / kTaggedSize;
-  VirtualObject* object =
-      CreateVirtualObject(constructor.initial_map(broker()), slot_count);
   SBXCHECK_GE(slot_count, 3);
-  object->set(JSObject::kPropertiesOrHashOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->set(JSObject::kElementsOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->ClearSlotsAfter(JSObject::kElementsOffset,
-                          GetRootConstant(RootIndex::kOnePointerFillerMap));
-  return object;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSObject::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSObject::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateFixedArray(
@@ -13518,139 +13503,169 @@ VirtualObject* MaglevGraphBuilder::CreateFixedArray(
 VirtualObject* MaglevGraphBuilder::CreateContext(
     compiler::MapRef map, int length, compiler::ScopeInfoRef scope_info,
     ValueNode* previous_context, std::optional<ValueNode*> extension) {
-  int slot_count = FixedArray::SizeFor(length) / kTaggedSize;
-  VirtualObject* context = CreateVirtualObject(map, slot_count);
-  context->set(Context::kLengthOffset, GetInt32Constant(length));
-  context->set(Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX),
-               GetConstant(scope_info));
-  context->set(Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
-               previous_context);
+  using Shape = VirtualFixedArrayShape;
+  DCHECK_NE(length, 0);  // Use kEmptyFixedArray instead.
+  DCHECK_EQ(FixedArray::SizeFor(length) % FieldSizeOf(Shape::kBodyFieldType),
+            0);
+  DCHECK_EQ(Shape::header_slot_count + length,
+            FixedArray::SizeFor(length) / FieldSizeOf(Shape::kBodyFieldType));
+
+  int slot_count = Shape::header_slot_count + length;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(Context::kLengthOffset, GetInt32Constant(length));
+  vobj->set(Context::OffsetOfElementAt(Context::SCOPE_INFO_INDEX),
+            GetConstant(scope_info));
+  vobj->set(Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
+            previous_context);
   int index = Context::PREVIOUS_INDEX + 1;
   if (extension.has_value()) {
-    context->set(Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
-                 extension.value());
+    vobj->set(Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
+              extension.value());
     index++;
   }
   for (; index < length; index++) {
-    context->set(Context::OffsetOfElementAt(index),
-                 GetRootConstant(RootIndex::kUndefinedValue));
+    vobj->set(Context::OffsetOfElementAt(index),
+              GetRootConstant(RootIndex::kUndefinedValue));
   }
-  EnsureType(context, NodeType::kContext);
-  return context;
+  EnsureType(vobj, NodeType::kContext);
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateArgumentsObject(
     compiler::MapRef map, ValueNode* length, ValueNode* elements,
     std::optional<ValueNode*> callee) {
+  using Shape = VirtualJSObjectShape;
   DCHECK_EQ(JSSloppyArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
   DCHECK_EQ(JSStrictArgumentsObject::kLengthOffset, JSArray::kLengthOffset);
   int slot_count = map.instance_size() / kTaggedSize;
   SBXCHECK_EQ(slot_count, callee.has_value() ? 5 : 4);
-  VirtualObject* arguments = CreateVirtualObject(map, slot_count);
-  arguments->set(JSArray::kPropertiesOrHashOffset,
-                 GetRootConstant(RootIndex::kEmptyFixedArray));
-  arguments->set(JSArray::kElementsOffset, elements);
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSArray::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSArray::kElementsOffset, elements);
   CHECK(length->Is<Int32Constant>() || length->Is<ArgumentsLength>() ||
         length->Is<RestLength>());
-  arguments->set(JSArray::kLengthOffset, length);
+  vobj->set(JSArray::kLengthOffset, length);
   if (callee.has_value()) {
-    arguments->set(JSSloppyArgumentsObject::kCalleeOffset, callee.value());
+    vobj->set(JSSloppyArgumentsObject::kCalleeOffset, callee.value());
   }
-  DCHECK(arguments->map().IsJSArgumentsObjectMap() ||
-         arguments->map().IsJSArrayMap());
-  return arguments;
+  DCHECK(vobj->map().IsJSArgumentsObjectMap() || vobj->map().IsJSArrayMap());
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateMappedArgumentsElements(
     compiler::MapRef map, int mapped_count, ValueNode* context,
     ValueNode* unmapped_elements) {
+  using Shape = VirtualSloppyArgumentsElementsShape;
   int slot_count = SloppyArgumentsElements::SizeFor(mapped_count) / kTaggedSize;
-  VirtualObject* elements = CreateVirtualObject(map, slot_count);
-  elements->set(offsetof(SloppyArgumentsElements, length_),
-                GetInt32Constant(mapped_count));
-  elements->set(offsetof(SloppyArgumentsElements, context_), context);
-  elements->set(offsetof(SloppyArgumentsElements, arguments_),
-                unmapped_elements);
-  return elements;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(offsetof(SloppyArgumentsElements, length_),
+            GetInt32Constant(mapped_count));
+  vobj->set(offsetof(SloppyArgumentsElements, context_), context);
+  vobj->set(offsetof(SloppyArgumentsElements, arguments_), unmapped_elements);
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateRegExpLiteralObject(
     compiler::MapRef map, compiler::RegExpBoilerplateDescriptionRef literal) {
+  using Shape = VirtualJSRegExpShape;
   DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
-  int slot_count = JSRegExp::Size() / kTaggedSize;
-  VirtualObject* regexp = CreateVirtualObject(map, slot_count);
-  regexp->set(JSRegExp::kPropertiesOrHashOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  regexp->set(JSRegExp::kElementsOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  regexp->set(JSRegExp::kDataOffset,
-              GetTrustedConstant(literal.data(broker()),
-                                 kRegExpDataIndirectPointerTag));
-  regexp->set(JSRegExp::kSourceOffset, GetConstant(literal.source(broker())));
-  regexp->set(JSRegExp::kFlagsOffset, GetInt32Constant(literal.flags()));
-  regexp->set(JSRegExp::kLastIndexOffset,
-              GetInt32Constant(JSRegExp::kInitialLastIndexValue));
-  return regexp;
+  int slot_count = Shape::header_slot_count + JSRegExp::kInObjectFieldCount;
+  SBXCHECK_EQ(slot_count, 7);
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSRegExp::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSRegExp::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSRegExp::kDataOffset,
+            GetTrustedConstant(literal.data(broker()),
+                               kRegExpDataIndirectPointerTag));
+  vobj->set(JSRegExp::kSourceOffset, GetConstant(literal.source(broker())));
+  vobj->set(JSRegExp::kFlagsOffset, GetInt32Constant(literal.flags()));
+  vobj->set(JSRegExp::kLastIndexOffset,
+            GetInt32Constant(JSRegExp::kInitialLastIndexValue));
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSGeneratorObject(
     compiler::MapRef map, int instance_size, ValueNode* context,
     ValueNode* closure, ValueNode* receiver, ValueNode* register_file) {
-  int slot_count = instance_size / kTaggedSize;
   InstanceType instance_type = map.instance_type();
   DCHECK(instance_type == JS_GENERATOR_OBJECT_TYPE ||
          instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE);
-  SBXCHECK_GE(slot_count, instance_type == JS_GENERATOR_OBJECT_TYPE ? 10 : 12);
-  VirtualObject* object = CreateVirtualObject(map, slot_count);
-  object->set(JSGeneratorObject::kPropertiesOrHashOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->set(JSGeneratorObject::kElementsOffset,
-              GetRootConstant(RootIndex::kEmptyFixedArray));
-  object->set(JSGeneratorObject::kContextOffset, context);
-  object->set(JSGeneratorObject::kFunctionOffset, closure);
-  object->set(JSGeneratorObject::kReceiverOffset, receiver);
-  object->set(JSGeneratorObject::kInputOrDebugPosOffset,
+  const bool is_async = instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE;
+  const vobj::ObjectLayout* object_layout =
+      is_async ? &VirtualJSAsyncGeneratorObjectShape::kObjectLayout
+               : &VirtualJSGeneratorObjectShape::kObjectLayout;
+
+  int slot_count = instance_size / kTaggedSize;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, object_layout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSGeneratorObject::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSGeneratorObject::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSGeneratorObject::kContextOffset, context);
+  vobj->set(JSGeneratorObject::kFunctionOffset, closure);
+  vobj->set(JSGeneratorObject::kReceiverOffset, receiver);
+  vobj->set(JSGeneratorObject::kInputOrDebugPosOffset,
+            GetRootConstant(RootIndex::kUndefinedValue));
+  vobj->set(JSGeneratorObject::kResumeModeOffset,
+            GetInt32Constant(JSGeneratorObject::kNext));
+  vobj->set(JSGeneratorObject::kContinuationOffset,
+            GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
+  vobj->set(JSGeneratorObject::kParametersAndRegistersOffset, register_file);
+  if (is_async) {
+    vobj->set(JSAsyncGeneratorObject::kQueueOffset,
               GetRootConstant(RootIndex::kUndefinedValue));
-  object->set(JSGeneratorObject::kResumeModeOffset,
-              GetInt32Constant(JSGeneratorObject::kNext));
-  object->set(JSGeneratorObject::kContinuationOffset,
-              GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
-  object->set(JSGeneratorObject::kParametersAndRegistersOffset, register_file);
-  if (instance_type == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
-    object->set(JSAsyncGeneratorObject::kQueueOffset,
-                GetRootConstant(RootIndex::kUndefinedValue));
-    object->set(JSAsyncGeneratorObject::kIsAwaitingOffset, GetInt32Constant(0));
+    vobj->set(JSAsyncGeneratorObject::kIsAwaitingOffset, GetInt32Constant(0));
   }
-  return object;
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSIteratorResult(compiler::MapRef map,
                                                           ValueNode* value,
                                                           ValueNode* done) {
+  using Shape = VirtualJSIteratorResultShape;
   static_assert(JSIteratorResult::kSize == 5 * kTaggedSize);
-  int slot_count = JSIteratorResult::kSize / kTaggedSize;
-  VirtualObject* iter_result = CreateVirtualObject(map, slot_count);
-  iter_result->set(JSIteratorResult::kPropertiesOrHashOffset,
-                   GetRootConstant(RootIndex::kEmptyFixedArray));
-  iter_result->set(JSIteratorResult::kElementsOffset,
-                   GetRootConstant(RootIndex::kEmptyFixedArray));
-  iter_result->set(JSIteratorResult::kValueOffset, value);
-  iter_result->set(JSIteratorResult::kDoneOffset, done);
-  return iter_result;
+  int slot_count = Shape::header_slot_count;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSIteratorResult::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSIteratorResult::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSIteratorResult::kValueOffset, value);
+  vobj->set(JSIteratorResult::kDoneOffset, done);
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSStringIterator(compiler::MapRef map,
                                                           ValueNode* string) {
+  using Shape = VirtualJSStringIteratorShape;
   static_assert(JSStringIterator::kHeaderSize == 5 * kTaggedSize);
-  int slot_count = JSStringIterator::kHeaderSize / kTaggedSize;
-  VirtualObject* string_iter = CreateVirtualObject(map, slot_count);
-  string_iter->set(JSStringIterator::kPropertiesOrHashOffset,
-                   GetRootConstant(RootIndex::kEmptyFixedArray));
-  string_iter->set(JSStringIterator::kElementsOffset,
-                   GetRootConstant(RootIndex::kEmptyFixedArray));
-  string_iter->set(JSStringIterator::kStringOffset, string);
-  string_iter->set(JSStringIterator::kIndexOffset, GetInt32Constant(0));
-  return string_iter;
+  int slot_count = Shape::header_slot_count;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSStringIterator::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSStringIterator::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSStringIterator::kStringOffset, string);
+  vobj->set(JSStringIterator::kIndexOffset, GetInt32Constant(0));
+  return vobj;
 }
 
 InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
@@ -13830,7 +13845,8 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
       AddNonEscapingUses(allocation, static_cast<int>(values.size()));
       for (uint32_t i = 0; i < values.size(); i++) {
         const auto [value, desc] = values[i];
-        DCHECK_EQ(desc.type, vobj::FieldType::kTagged);
+        DCHECK(desc.type == vobj::FieldType::kTagged ||
+               desc.type == vobj::FieldType::kTrustedPointer);
         if (desc.offset == HeapObject::kMapOffset) {
           // TODO(jgruber): Try to avoid this special case, and have all
           // values go through BuildInitializeStore.

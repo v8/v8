@@ -6102,6 +6102,7 @@ namespace vobj {
 enum class FieldType {
   kNone,
   kTagged,
+  kTrustedPointer,
   kInt32,
   kFloat64,
 };
@@ -6110,6 +6111,8 @@ constexpr int FieldSizeOf(FieldType type) {
   switch (type) {
     case FieldType::kTagged:
       return kTaggedSize;
+    case FieldType::kTrustedPointer:
+      return kTrustedPointerSize;
     case FieldType::kInt32:
       return kInt32Size;
     case FieldType::kFloat64:
@@ -6224,10 +6227,12 @@ constexpr auto MakeOffsetToSlotMap(const std::array<Field, N>& fields) {
 
 #define DEF_SHAPE_FIELD_LIST(NAME, OFFSET, TYPE) , NAME##_desc
 
-#define DEF_SHAPE_STATIC_ASSERTS(NAME, OFFSET, TYPE)    \
-  static_assert(NAME##_slot == NAME##_desc.slot_index); \
-  static_assert(FieldSizeOf(NAME##_desc.type) >=        \
-                vobj::detail::kOffsetToSlotMapElementSize);
+#define DEF_SHAPE_STATIC_ASSERTS(NAME, OFFSET, TYPE)        \
+  static_assert(NAME##_slot == NAME##_desc.slot_index);     \
+  static_assert(FieldSizeOf(NAME##_desc.type) >=            \
+                vobj::detail::kOffsetToSlotMapElementSize); \
+  static_assert(IsAligned(NAME##_desc.offset,               \
+                          vobj::detail::kOffsetToSlotMapElementSize));
 
 // Note this helper picks up a few things which are assumed to have been
 // previously defined, such as kBodyFieldType.
@@ -6264,6 +6269,9 @@ struct VirtualHeapObjectShapeBase {
 struct VirtualHeapObjectShape {
   using Base = vobj::VirtualHeapObjectShapeBase;
   // Default values, override in subclasses if needed.
+  // Body slots are any non-header slots, e.g.:
+  // * FixedArray elements.
+  // * In-object properties.
   static constexpr bool kInstancesHaveStaticSize = true;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kNone;
 #define FIELD_LIST(V) V(map, HeapObject::kMapOffset, vobj::FieldType::kTagged)
@@ -6725,6 +6733,110 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   friend VirtualObjectList;
 };
 
+struct VirtualJSReceiverShape : VirtualHeapObjectShape {
+  using Base = VirtualHeapObjectShape;
+#define FIELD_LIST(V)                                        \
+  V(properties_or_hash, JSReceiver::kPropertiesOrHashOffset, \
+    vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSObjectShape : VirtualJSReceiverShape {
+  using Base = VirtualJSReceiverShape;
+  static constexpr bool kInstancesHaveStaticSize = false;
+  static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kTagged;
+#define FIELD_LIST(V) \
+  V(elements, JSObject::kElementsOffset, vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSArrayShape : VirtualJSObjectShape {
+  using Base = VirtualJSObjectShape;
+#define FIELD_LIST(V) \
+  V(length, JSArray::kLengthOffset, vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSArrayIteratorShape : VirtualJSObjectShape {
+  using Base = VirtualJSObjectShape;
+  using T = JSArrayIterator;
+#define FIELD_LIST(V)                                                    \
+  V(iterated_object, T::kIteratedObjectOffset, vobj::FieldType::kTagged) \
+  V(next_index, T::kNextIndexOffset, vobj::FieldType::kTagged)           \
+  V(kind, T::kKindOffset, vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSStringIteratorShape : VirtualJSObjectShape {
+  using Base = VirtualJSObjectShape;
+  using T = JSStringIterator;
+#define FIELD_LIST(V)                                   \
+  V(string, T::kStringOffset, vobj::FieldType::kTagged) \
+  V(index, T::kIndexOffset, vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSIteratorResultShape : VirtualJSObjectShape {
+  using Base = VirtualJSObjectShape;
+  using T = JSIteratorResult;
+#define FIELD_LIST(V)                                 \
+  V(value, T::kValueOffset, vobj::FieldType::kTagged) \
+  V(index, T::kDoneOffset, vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSPrimitiveWrapperShape : VirtualJSObjectShape {
+  using Base = VirtualJSObjectShape;
+  using T = JSPrimitiveWrapper;
+#define FIELD_LIST(V) V(value, T::kValueOffset, vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSRegExpShape : VirtualJSObjectShape {
+  using Base = VirtualJSObjectShape;
+  using T = JSRegExp;
+#define FIELD_LIST(V)                                       \
+  V(data, T::kDataOffset, vobj::FieldType::kTrustedPointer) \
+  V(source, T::kSourceOffset, vobj::FieldType::kTagged)     \
+  V(flags, T::kFlagsOffset, vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSGeneratorObjectShape : VirtualJSObjectShape {
+  using Base = VirtualJSObjectShape;
+  using T = JSGeneratorObject;
+#define FIELD_LIST(V)                                                        \
+  V(function, T::kFunctionOffset, vobj::FieldType::kTagged)                  \
+  V(context, T::kContextOffset, vobj::FieldType::kTagged)                    \
+  V(receiver, T::kReceiverOffset, vobj::FieldType::kTagged)                  \
+  V(input_or_debug_pos, T::kInputOrDebugPosOffset, vobj::FieldType::kTagged) \
+  V(resume_mode, T::kResumeModeOffset, vobj::FieldType::kTagged)             \
+  V(continuation, T::kContinuationOffset, vobj::FieldType::kTagged)          \
+  V(parameters_and_registers, T::kParametersAndRegistersOffset,              \
+    vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSAsyncGeneratorObjectShape : VirtualJSGeneratorObjectShape {
+  using Base = VirtualJSGeneratorObjectShape;
+  using T = JSAsyncGeneratorObject;
+#define FIELD_LIST(V)                                 \
+  V(queue, T::kQueueOffset, vobj::FieldType::kTagged) \
+  V(is_awaiting, T::kIsAwaitingOffset, vobj::FieldType::kTagged)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+  static_assert(kHeaderSize == T::kHeaderSize);
+};
+
 struct VirtualFixedArrayShape : VirtualHeapObjectShape {
   using Base = VirtualHeapObjectShape;
 
@@ -6736,6 +6848,18 @@ struct VirtualFixedArrayShape : VirtualHeapObjectShape {
 #define FIELD_LIST(V) \
   V(length, FixedArrayBase::kLengthOffset, vobj::FieldType::kTagged)
 
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualSloppyArgumentsElementsShape : VirtualFixedArrayShape {
+  using Base = VirtualFixedArrayShape;
+  using T = SloppyArgumentsElements;
+  static constexpr bool kInstancesHaveStaticSize = false;
+  static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kTagged;
+#define FIELD_LIST(V)                                         \
+  V(context, offsetof(T, context_), vobj::FieldType::kTagged) \
+  V(arguments, offsetof(T, arguments_), vobj::FieldType::kTagged)
   DEF_SHAPE(Base, FIELD_LIST);
 #undef FIELD_LIST
 };

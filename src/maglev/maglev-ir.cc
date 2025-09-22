@@ -8661,11 +8661,37 @@ VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
                              compiler::MapRef map, uint32_t slot_count)
     : VirtualObject(bitfield, map, id, object_layout, slot_count,
                     builder->zone()->AllocateArray<ValueNode*>(slot_count)) {
-  // TODO(jgruber): Slots shouldn't be initialized with the filler map now
-  // that slots may represent untagged fields. Consider simply initializing
-  // with nullptr.
   std::fill_n(slots_.data, slots_.count,
               builder->GetRootConstant(RootIndex::kOnePointerFillerMap));
+
+  SBXCHECK_GE(slot_count, object_layout->header_fields.length());
+#ifdef DEBUG
+  // Sanity-check the requested object layout here.
+  DCHECK_NOT_NULL(object_layout);
+  auto l = object_layout;
+  int body_slot_count = slot_count - l->header_fields.length();
+  // If it has "body" fields,
+  // i.e. any non-header fields, then they must be specified in object_layout
+  // and their size must be a multiple of the body field size.
+  if (body_slot_count > 0) {
+    DCHECK_NE(l->body_field_type, vobj::FieldType::kNone);
+    DCHECK_EQ(map.instance_size() % FieldSizeOf(l->body_field_type), 0);
+  }
+  if (map.instance_size() != 0) {
+    DCHECK_GE(map.instance_size(), l->header_size);
+  }
+  // Currently we only support these field types:
+  // TODO(jgruber): Slots shouldn't unconditionally be initialized with the
+  // filler map now that slots may represent untagged fields.
+  // TODO(jgruber): Verify the initializer value for kTrustedPointer types.
+  for (const vobj::Field& field : l->header_fields) {
+    DCHECK(field.type == vobj::FieldType::kTagged ||
+           field.type == vobj::FieldType::kTrustedPointer);
+  }
+  DCHECK(l->body_field_type == vobj::FieldType::kTagged ||
+         l->body_field_type == vobj::FieldType::kTrustedPointer ||
+         l->body_field_type == vobj::FieldType::kNone);
+#endif  // DEBUG
 }
 
 compiler::MapRef VirtualObject::map_from_slot(
