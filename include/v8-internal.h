@@ -421,10 +421,10 @@ constexpr size_t kMaxCppHeapPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
-// The number of tags reserved for embedder data. The value is picked
-// arbitrarily. In Chrome there are 4 embedders, so at least 4 tags are needed.
-// A generic tag was used for embedder data before, so one tag is used for that.
-#define V8_EMBEDDER_DATA_TAG_COUNT 5
+// The number of tags reserved for embedder data stored in internal fields. The
+// value is picked arbitrarily, and is slightly larger than the number of tags
+// currently used in Chrome.
+#define V8_EMBEDDER_DATA_TAG_COUNT 15
 
 // Generic tag range struct to represent ranges of type tags.
 //
