@@ -82,7 +82,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:e1e6b655eeb5da6f764ea736e9f5b1dbbd2859d6',
+  'siso_version': 'git_revision:760362be9f7ce8728e2538cc02a84aa83c6b05e9',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a763115166822427c94479a653adb8923df31432',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5775f8cf70478f5c14ee50ae821faa5e96922430',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8d244250ecb84f7fe89c157e14368bde7f533817',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '65bbe96cadec651dc6c0226336ee8f4fc84e0318',
   'buildtools/linux64': {
     'packages': [
       {
@@ -302,13 +302,13 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'cf8d503d1f84205503cf4d6400039b2b0f089f70',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'ae547b0b2f1e32c726298c7177381af79fafee93',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '864f61dc9253d56586ada34c388278565ef513f6',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '4a68b52b891115f2354534333d65ca181e90e586',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '00df780743d2f25d42c8556f3900d997b31625f8',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '5e9aa30cfe7f96b9cc436482461e5da8e0c01b49',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
