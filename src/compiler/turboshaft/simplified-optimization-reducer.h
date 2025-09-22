@@ -227,11 +227,17 @@ class SimplifiedOptimizationReducer : public Next {
   Decision DecideObjectIsSmi(V<Object> idx) {
     const Operation& op = __ Get(idx);
     switch (op.opcode) {
-      case Opcode::kConstant:
-        return (op.Cast<ConstantOp>().IsIntegral() ||
-                op.Cast<ConstantOp>().kind == ConstantOp::Kind::kSmi)
+      case Opcode::kConstant: {
+        const ConstantOp& cst = op.Cast<ConstantOp>();
+        if (cst.kind == ConstantOp::Kind::kNumber) {
+          // For kNumber, we don't know yet whether this will turn into a Smi or
+          // a HeapNumber.
+          return Decision::kUnknown;
+        }
+        return (cst.IsIntegral() || cst.kind == ConstantOp::Kind::kSmi)
                    ? Decision::kTrue
                    : Decision::kFalse;
+      }
       case Opcode::kAllocate:
         return Decision::kFalse;
       case Opcode::kConvertUntaggedToJSPrimitive: {
