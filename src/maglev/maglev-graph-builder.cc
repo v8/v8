@@ -6119,7 +6119,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
           is_holey && CanTreatHoleAsUndefined(maps) &&
           LoadModeHandlesHoles(load_mode);
       bool is_smi = IsSmiElementsKind(elements_kind) &&
-                    (!is_holey || is_holey_and_treat_hole_as_undefined);
+                    !is_holey_and_treat_hole_as_undefined;
       GET_VALUE_OR_ABORT(result,
                          BuildLoadFixedArrayElement(
                              elements_array, index,
