@@ -517,6 +517,9 @@ void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
 bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
     Tagged<HeapObject> parent, Tagged<HeapObject> obj,
     ObjectStats::VirtualInstanceType type) {
+  // Don't bother recording holes, they're anyway RO space and it's complicated
+  // with unmapped pages.
+  if (SafeIsAnyHole(obj)) return false;
   return RecordVirtualObjectStats(parent, obj, type, obj->Size(cage_base()),
                                   ObjectStats::kNoOverAllocation, kCheckCow);
 }
