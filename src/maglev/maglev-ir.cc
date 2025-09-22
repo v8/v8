@@ -234,8 +234,8 @@ void PrintResult(std::ostream& os, const ValueNode* node,
         os << " 🪦";
       }
     }
-    // Don't print to non float64 nodes, nor to nodes that we bypass the flag.
-    if (node->value_representation() == ValueRepresentation::kFloat64 &&
+    // Don't print to tagged nodes, nor to nodes that we bypass the flag.
+    if (node->value_representation() != ValueRepresentation::kTagged &&
         !node->Is<Float64Constant>() && !node->Is<ChangeInt32ToFloat64>()) {
       if (node->can_truncate_to_int32()) {
         os << ", can truncate to int32 " << node->GetRange();
