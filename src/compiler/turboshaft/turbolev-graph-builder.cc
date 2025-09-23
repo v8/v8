@@ -5485,12 +5485,13 @@ class GraphBuildingNodeProcessor {
       return;
     }
 
+    // TODO(olivf): Support elided maglev cons strings in turbolev.
+    DCHECK_NE(vobj->object_type(), maglev::vobj::ObjectType::kConsString);
+
     switch (vobj->type()) {
       case maglev::VirtualObject::kHeapNumber:
-        // Handled above
-        UNREACHABLE();
       case maglev::VirtualObject::kConsString:
-        // TODO(olivf): Support elided maglev cons strings in turbolev.
+        // Handled above.
         UNREACHABLE();
       case maglev::VirtualObject::kFixedDoubleArray: {
         uint32_t length = vobj->double_elements_length();

@@ -33,6 +33,7 @@ class CheckedInternalizedString;
 class BuiltinStringFromCharCode;
 class MaglevGraphBuilder;
 class VirtualObject;
+struct VirtualStringShape;
 }  // namespace maglev
 
 namespace wasm {
@@ -705,6 +706,7 @@ V8_OBJECT class String : public Name {
   friend class StringBuiltinsAssembler;
   friend class maglev::MaglevAssembler;
   friend class maglev::MaglevGraphBuilder;
+  friend struct maglev::VirtualStringShape;
   friend class compiler::AccessBuilder;
   friend class wasm::baseline::LiftoffCompiler;
   friend class TorqueGeneratedStringAsserts;
@@ -1042,6 +1044,11 @@ V8_OBJECT class ConsString : public String {
   // Minimum length for a cons string.
   static const uint32_t kMinLength = 13;
 
+  // Expose these for convenience since not all classes can be friends (classes
+  // in anonymous namespaces).
+  static const int kFirstOffset;
+  static const int kSecondOffset;
+
   DECL_VERIFIER(ConsString)
 
  private:
@@ -1063,6 +1070,9 @@ V8_OBJECT class ConsString : public String {
   TaggedMember<String> first_;
   TaggedMember<String> second_;
 } V8_OBJECT_END;
+
+constexpr int ConsString::kFirstOffset = offsetof(ConsString, first_);
+constexpr int ConsString::kSecondOffset = offsetof(ConsString, second_);
 
 template <>
 struct ObjectTraits<ConsString> {

@@ -73,7 +73,9 @@ class DeoptInfoVisitor {
       if (auto alloc = node->template TryCast<InlinedAllocation>()) {
         VirtualObject* vobject = virtual_objects_.FindAllocatedWith(alloc);
         if (vobject && (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
-          return vobject->ForEachNestedRuntimeInput(virtual_objects_, f);
+          return vobject->ForEachNestedRuntimeInput(
+              virtual_objects_, f,
+              VirtualObject::ForEachSlotIterationMode::kForDeopt);
         }
       }
       f(node);

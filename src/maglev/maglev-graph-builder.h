@@ -1250,8 +1250,16 @@ class MaglevGraphBuilder {
 
   ValueNode* BuildLoadMap(ValueNode* object);
 
-  void BuildInitializeStore(InlinedAllocation* alloc, ValueNode* value,
-                            int offset);
+  void BuildInitializeStore(vobj::Field desc, InlinedAllocation* alloc,
+                            AllocationType allocation_type, ValueNode* value);
+  void BuildInitializeStore_Tagged(vobj::Field desc, InlinedAllocation* alloc,
+                                   AllocationType allocation_type,
+                                   ValueNode* value);
+  void BuildInitializeStore_TrustedPointer(vobj::Field desc,
+                                           InlinedAllocation* alloc,
+                                           AllocationType allocation_type,
+                                           ValueNode* value);
+
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
   template <typename Instruction = LoadTaggedField, typename... Args>
@@ -1540,8 +1548,6 @@ class MaglevGraphBuilder {
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
 
-  InlinedAllocation* BuildInlinedAllocationForConsString(
-      VirtualObject* object, AllocationType allocation);
   InlinedAllocation* BuildInlinedAllocationForHeapNumber(
       VirtualObject* object, AllocationType allocation);
   InlinedAllocation* BuildInlinedAllocationForDoubleFixedArray(

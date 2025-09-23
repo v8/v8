@@ -541,18 +541,10 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kAllocationBlock:
     case Opcode::kInlinedAllocation: {
       auto obj = Cast<InlinedAllocation>()->object();
-      if (obj->has_static_map()) {
-        return StaticTypeForMap(obj->map(), broker);
-      } else {
-        switch (obj->type()) {
-          case VirtualObject::kConsString:
-            return NodeType::kString;
-          case VirtualObject::kDefault:
-          case VirtualObject::kHeapNumber:
-          case VirtualObject::kFixedDoubleArray:
-            UNREACHABLE();
-        }
+      if (obj->object_type() == vobj::ObjectType::kConsString) {
+        return NodeType::kString;
       }
+      return StaticTypeForMap(obj->map(), broker);
     }
     case Opcode::kRootConstant: {
       RootConstant* constant = Cast<RootConstant>();
@@ -8658,40 +8650,39 @@ RangeType ValueNode::GetRange() const {
 VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
                              MaglevGraphBuilder* builder,
                              const vobj::ObjectLayout* object_layout,
-                             compiler::MapRef map, uint32_t slot_count)
+                             compiler::OptionalMapRef map, uint32_t slot_count)
     : VirtualObject(bitfield, map, id, object_layout, slot_count,
                     builder->zone()->AllocateArray<ValueNode*>(slot_count)) {
-  std::fill_n(slots_.data, slots_.count,
-              builder->GetRootConstant(RootIndex::kOnePointerFillerMap));
+  DCHECK_NOT_NULL(object_layout);
+  int header_slot_count = object_layout->header_fields.length();
+  int body_slot_count = slot_count - header_slot_count;
+  SBXCHECK_GE(body_slot_count, 0);
 
-  SBXCHECK_GE(slot_count, object_layout->header_fields.length());
 #ifdef DEBUG
   // Sanity-check the requested object layout here.
-  DCHECK_NOT_NULL(object_layout);
   auto l = object_layout;
-  int body_slot_count = slot_count - l->header_fields.length();
   // If it has "body" fields,
   // i.e. any non-header fields, then they must be specified in object_layout
   // and their size must be a multiple of the body field size.
   if (body_slot_count > 0) {
     DCHECK_NE(l->body_field_type, vobj::FieldType::kNone);
-    DCHECK_EQ(map.instance_size() % FieldSizeOf(l->body_field_type), 0);
   }
-  if (map.instance_size() != 0) {
-    DCHECK_GE(map.instance_size(), l->header_size);
+  if (map.has_value()) {
+    if (body_slot_count > 0) {
+      DCHECK_EQ(map->instance_size() % FieldSizeOf(l->body_field_type), 0);
+    }
+    if (map->instance_size() != 0) {
+      DCHECK_GE(map->instance_size(), l->header_size);
+    }
   }
-  // Currently we only support these field types:
-  // TODO(jgruber): Slots shouldn't unconditionally be initialized with the
-  // filler map now that slots may represent untagged fields.
-  // TODO(jgruber): Verify the initializer value for kTrustedPointer types.
-  for (const vobj::Field& field : l->header_fields) {
-    DCHECK(field.type == vobj::FieldType::kTagged ||
-           field.type == vobj::FieldType::kTrustedPointer);
-  }
-  DCHECK(l->body_field_type == vobj::FieldType::kTagged ||
-         l->body_field_type == vobj::FieldType::kTrustedPointer ||
-         l->body_field_type == vobj::FieldType::kNone);
 #endif  // DEBUG
+
+  // Initialize.
+  // TODO(jgruber): We may want to initialize with some invalid value instead
+  // (nullptr?) since callers should fully initialize objects.
+  ForEachSlot([&](ValueNode*& node, vobj::Field desc) {
+    set_by_index(desc.slot_index, InitialFieldValue(builder, desc.type));
+  });
 }
 
 compiler::MapRef VirtualObject::map_from_slot(
@@ -8699,6 +8690,36 @@ compiler::MapRef VirtualObject::map_from_slot(
   DCHECK_EQ(type_, kDefault);
   ValueNode* value = get(HeapObject::kMapOffset);
   return MakeRef(broker, i::Cast<Map>(*value->Reify(broker->local_isolate())));
+}
+
+compiler::OptionalMapRef VirtualObject::TryGetMapFromSlot(
+    compiler::JSHeapBroker* broker) const {
+  DCHECK_EQ(type_, kDefault);
+  compiler::OptionalHeapObjectRef maybe_constant =
+      get(HeapObject::kMapOffset)->TryGetConstant(broker);
+  if (!maybe_constant.has_value()) return {};
+  return maybe_constant->AsMap();
+}
+
+// static
+ValueNode* VirtualObject::InitialFieldValue(MaglevGraphBuilder* builder,
+                                            vobj::FieldType type) {
+  switch (type) {
+    case vobj::FieldType::kTagged:
+      return builder->GetRootConstant(RootIndex::kOnePointerFillerMap);
+    case vobj::FieldType::kTrustedPointer:
+#ifdef V8_ENABLE_SANDBOX
+      return builder->GetUint32Constant(kNullTrustedPointerHandle);
+#else
+      return builder->GetSmiConstant(0);
+#endif
+    case vobj::FieldType::kInt32:
+      return builder->GetInt32Constant(0);
+    case vobj::FieldType::kFloat64:
+      return builder->GetFloat64Constant(0.);
+    case vobj::FieldType::kNone:
+      UNREACHABLE();
+  }
 }
 
 }  // namespace maglev

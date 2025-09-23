@@ -1496,15 +1496,6 @@ class MaglevFrameTranslationBuilder {
     translation_array_builder_->StoreLiteral(GetDeoptLiteral(*value));
   }
 
-  void BuildConsString(const VirtualObject* object,
-                       const InputLocation*& input_location,
-                       const VirtualObjectList& virtual_objects) {
-    auto cons_string = object->cons_string();
-    translation_array_builder_->StringConcat();
-    BuildNestedValue(cons_string.first(), input_location, virtual_objects);
-    BuildNestedValue(cons_string.second(), input_location, virtual_objects);
-  }
-
   void BuildFixedDoubleArray(uint32_t length,
                              compiler::FixedDoubleArrayRef array) {
     translation_array_builder_->BeginCapturedObject(length + 2);
@@ -1565,8 +1556,9 @@ class MaglevFrameTranslationBuilder {
         GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
     if (dup_id != kNotDuplicated) {
       translation_array_builder_->DuplicateObject(dup_id);
-      object->ForEachNestedRuntimeInput(virtual_objects,
-                                        [&](ValueNode*) { input_location++; });
+      object->ForEachNestedRuntimeInput(
+          virtual_objects, [&](ValueNode*) { input_location++; },
+          VirtualObject::ForEachSlotIterationMode::kForDeopt);
       return;
     }
     switch (object->type()) {
@@ -1574,15 +1566,23 @@ class MaglevFrameTranslationBuilder {
         // Handled above.
         UNREACHABLE();
       case VirtualObject::kConsString:
-        return BuildConsString(object, input_location, virtual_objects);
+        // Handled below.
+        UNREACHABLE();
       case VirtualObject::kFixedDoubleArray:
         return BuildFixedDoubleArray(object->double_elements_length(),
                                      object->double_elements());
       case VirtualObject::kDefault:
-        translation_array_builder_->BeginCapturedObject(object->field_count());
-        object->ForEachSlot([&](ValueNode* node, const vobj::Field& desc) {
-          BuildNestedValue(node, input_location, virtual_objects);
-        });
+        if (object->object_type() == vobj::ObjectType::kConsString) {
+          translation_array_builder_->StringConcat();
+        } else {
+          translation_array_builder_->BeginCapturedObject(
+              object->field_count());
+        }
+        object->ForEachSlot(
+            [&](ValueNode* node, const vobj::Field& desc) {
+              BuildNestedValue(node, input_location, virtual_objects);
+            },
+            VirtualObject::ForEachSlotIterationMode::kForDeopt);
     }
   }
 

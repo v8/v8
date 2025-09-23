@@ -2267,14 +2267,12 @@ ReduceResult MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
         return {true, false, GetRootConstant(RootIndex::kConsOneByteStringMap)};
       case Opcode::kInlinedAllocation: {
         VirtualObject* cons = input->Cast<InlinedAllocation>()->object();
-        if (cons->type() == VirtualObject::kConsString) {
-          ValueNode* map = cons->cons_string().map;
-          if (auto cons_map = map->TryGetConstant(broker())) {
-            return {true, cons_map->AsMap().IsTwoByteStringMap(), map};
-          }
-          return {false, false, map};
+        if (cons->object_type() != vobj::ObjectType::kConsString) break;
+        ValueNode* map = cons->get(HeapObject::kMapOffset);
+        if (auto cons_map = map->TryGetConstant(broker())) {
+          return {true, cons_map->AsMap().IsTwoByteStringMap(), map};
         }
-        break;
+        return {false, false, map};
       }
       default:
         break;
@@ -2339,8 +2337,8 @@ size_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
       return 1;
     case Opcode::kInlinedAllocation:
       // TODO(olivf): Add a NodeType::kConsString instead of this check.
-      if (string->Cast<InlinedAllocation>()->object()->type() ==
-          VirtualObject::kConsString) {
+      if (string->Cast<InlinedAllocation>()->object()->object_type() ==
+          vobj::ObjectType::kConsString) {
         return ConsString::kMinLength;
       }
       break;
@@ -4591,11 +4589,62 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
   return false;
 }
 
-void MaglevGraphBuilder::BuildInitializeStore(InlinedAllocation* object,
-                                              ValueNode* value, int offset) {
-  const bool value_is_trusted = value->Is<TrustedConstant>();
-  DCHECK(value->is_tagged());
-  if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
+void MaglevGraphBuilder::BuildInitializeStore(vobj::Field desc,
+                                              InlinedAllocation* object,
+                                              AllocationType allocation_type,
+                                              ValueNode* value) {
+  DCHECK_EQ(value->Is<TrustedConstant>(),
+            desc.type == vobj::FieldType::kTrustedPointer);
+
+  switch (desc.type) {
+    case vobj::FieldType::kTagged:
+      BuildInitializeStore_Tagged(desc, object, allocation_type, value);
+      break;
+    case vobj::FieldType::kTrustedPointer:
+      BuildInitializeStore_TrustedPointer(desc, object, allocation_type, value);
+      break;
+    case vobj::FieldType::kInt32:
+      AddNewNodeNoAbort<StoreInt32>({object, value}, desc.offset);
+      break;
+    case vobj::FieldType::kFloat64:
+      UNIMPLEMENTED();
+    case vobj::FieldType::kNone:
+      UNREACHABLE();
+  }
+}
+
+void MaglevGraphBuilder::BuildInitializeStore_Tagged(
+    vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
+    ValueNode* value) {
+  DCHECK_EQ(desc.type, vobj::FieldType::kTagged);
+
+  // Intercept stores of constant map objects here.
+  if (desc.offset == HeapObject::kMapOffset) {
+    if (auto map = value->TryGetConstant(broker())) {
+      ReduceResult result = BuildStoreMap(object, map->AsMap(),
+                                          StoreMap::Kind::kInlinedAllocation);
+      CHECK(!result.IsDoneWithAbort());
+      return;
+    }
+  }
+
+  ValueNode* tagged_value;
+  if (value->Is<Float64Constant>()) {
+    // TODO(jgruber): We have to allocate a new object since the
+    // object field could contain a mutable HeapNumber and thus cannot
+    // share instances. However, we could specify such mutable fields
+    // through vobj::Field; and then only allocate a new object here
+    // if needed.
+    tagged_value = BuildInlinedAllocationForHeapNumber(
+        CreateHeapNumber(value->Cast<Float64Constant>()->value()),
+        allocation_type);
+  } else {
+    tagged_value = GetTaggedValue(value);
+  }
+
+  DCHECK(tagged_value->is_tagged());
+  if (InlinedAllocation* inlined_value =
+          tagged_value->TryCast<InlinedAllocation>()) {
     // Add to the escape set.
     auto escape_deps = graph()->allocations_escape_map().find(object);
     CHECK(escape_deps != graph()->allocations_escape_map().end());
@@ -4606,20 +4655,27 @@ void MaglevGraphBuilder::BuildInitializeStore(InlinedAllocation* object,
     elided_deps->second.push_back(object);
     inlined_value->AddNonEscapingUses();
   }
-  if (value_is_trusted) {
-    // Since `value` is tagged, BuildStoreTaggedField doesn't need to do input
-    // conversions and won't abort.
-    ReduceResult result = BuildStoreTrustedPointerField(
-        object, value, offset, value->Cast<TrustedConstant>()->tag(),
-        StoreTaggedMode::kInitializing);
-    CHECK(!result.IsDoneWithAbort());
-  } else {
-    // Since `value` is tagged, BuildStoreTaggedField doesn't need to do input
-    // conversions and won't abort.
-    ReduceResult result = BuildStoreTaggedField(object, value, offset,
-                                                StoreTaggedMode::kInitializing);
-    CHECK(!result.IsDoneWithAbort());
-  }
+
+  // Since `tagged_value` is tagged, BuildStoreTaggedField doesn't need to do
+  // input conversions and won't abort.
+  ReduceResult result = BuildStoreTaggedField(object, tagged_value, desc.offset,
+                                              StoreTaggedMode::kInitializing);
+  CHECK(!result.IsDoneWithAbort());
+}
+
+void MaglevGraphBuilder::BuildInitializeStore_TrustedPointer(
+    vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
+    ValueNode* value) {
+  DCHECK_EQ(desc.type, vobj::FieldType::kTrustedPointer);
+  DCHECK(value->Is<TrustedConstant>());
+  DCHECK(value->is_tagged());
+
+  // Since `value` is tagged, BuildStoreTaggedField doesn't need to do input
+  // conversions and won't abort.
+  ReduceResult result = BuildStoreTrustedPointerField(
+      object, value, desc.offset, value->Cast<TrustedConstant>()->tag(),
+      StoreTaggedMode::kInitializing);
+  CHECK(!result.IsDoneWithAbort());
 }
 
 namespace {
@@ -7105,8 +7161,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
 ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
   DCHECK(NodeTypeIs(GetType(string), NodeType::kString));
   if (auto vo_string = string->TryCast<InlinedAllocation>()) {
-    if (vo_string->object()->type() == VirtualObject::kConsString) {
-      return vo_string->object()->string_length();
+    VirtualObject* vobj = vo_string->object();
+    if (vobj->object_type() == vobj::ObjectType::kConsString) {
+      return vobj->get(offsetof(String, length_));
     }
   }
   if (auto const_string = string->TryGetConstant(broker())) {
@@ -13393,9 +13450,19 @@ VirtualObject* MaglevGraphBuilder::CreateConsString(ValueNode* map,
                                                     ValueNode* length,
                                                     ValueNode* first,
                                                     ValueNode* second) {
-  return NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(),
-      VirtualObject::VirtualConsString{map, length, {first, second}});
+  using Shape = VirtualConsStringShape;
+  int slot_count = Shape::header_slot_count;
+  SBXCHECK_EQ(slot_count, 5);
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout,
+      compiler::OptionalMapRef{}, slot_count);
+  vobj->set(HeapObject::kMapOffset, map);
+  vobj->set(offsetof(ConsString, raw_hash_field_),
+            GetInt32Constant(Name::kEmptyHashField));
+  vobj->set(offsetof(ConsString, length_), length);
+  vobj->set(offsetof(ConsString, first_), first);
+  vobj->set(offsetof(ConsString, second_), second);
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
@@ -13730,10 +13797,10 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
               nested_allocation);
       if (nested_object == nullptr) {
         CHECK(is_non_eager_inlining_enabled());
-        // The nested object must have been created by a different inlining and
-        // we cannot see it here in the virtual object list.
-        // TODO(victorgomes): Propagate somehow virtual object lists? For now,
-        // we force the allocation to escape.
+        // The nested object must have been created by a different inlining
+        // and we cannot see it here in the virtual object list.
+        // TODO(victorgomes): Propagate somehow virtual object lists? For
+        // now, we force the allocation to escape.
         nested_allocation->ForceEscaping();
       } else {
         AddDeoptUse(nested_object);
@@ -13745,32 +13812,6 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
       AddDeoptUse(value);
     }
   });
-}
-
-InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocationForConsString(
-    VirtualObject* vobject, AllocationType allocation_type) {
-  InlinedAllocation* allocation =
-      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
-  DCHECK_EQ(vobject->size(), sizeof(ConsString));
-  DCHECK_EQ(vobject->cons_string().length->value_representation(),
-            ValueRepresentation::kInt32);
-  AddNonEscapingUses(allocation, 5);
-  BuildInitializeStore(allocation, vobject->cons_string().map,
-                       HeapObject::kMapOffset);
-  AddNewNodeNoAbort<StoreInt32>(
-      {allocation, GetInt32Constant(Name::kEmptyHashField)},
-      static_cast<int>(offsetof(ConsString, raw_hash_field_)));
-  AddNewNodeNoAbort<StoreInt32>(
-      {allocation, vobject->cons_string().length},
-      static_cast<int>(offsetof(ConsString, length_)));
-  BuildInitializeStore(allocation, vobject->cons_string().first(),
-                       offsetof(ConsString, first_));
-  BuildInitializeStore(allocation, vobject->cons_string().second(),
-                       offsetof(ConsString, second_));
-  if (is_loop_effect_tracking()) {
-    loop_effects_->allocations.insert(allocation);
-  }
-  return allocation;
 }
 
 InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
@@ -13828,52 +13869,25 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
           BuildInlinedAllocationForDoubleFixedArray(vobject, allocation_type);
       break;
     case VirtualObject::kConsString:
-      allocation =
-          BuildInlinedAllocationForConsString(vobject, allocation_type);
-      break;
+      UNREACHABLE();
     case VirtualObject::kDefault: {
       using ValueAndDesc = std::pair<ValueNode*, vobj::Field>;
       SmallZoneVector<ValueAndDesc, 8> values(zone());
-      vobject->ForEachSlot([&](ValueNode*& node, vobj::Field desc) {
-        ValueNode* value_to_push;
+      vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) {
         if (node->Is<VirtualObject>()) {
           VirtualObject* nested = node->Cast<VirtualObject>();
-          // Subtle: this modifies the VirtualObject slot.
-          // TODO(jgruber): Use an explicit setter instead and change the
-          // lambda argument to be a plain pointer.
           node = BuildInlinedAllocation(nested, allocation_type);
-          value_to_push = node;
-        } else if (node->Is<Float64Constant>()) {
-          // TODO(jgruber): We have to allocate a new object since the
-          // object field could contain a mutable HeapNumber and thus cannot
-          // share instances. However, we could specify such mutable fields
-          // through vobj::Field; and then only allocate a new object here
-          // if needed.
-          value_to_push = BuildInlinedAllocationForHeapNumber(
-              CreateHeapNumber(node->Cast<Float64Constant>()->value()),
-              allocation_type);
-        } else {
-          value_to_push = GetTaggedValue(node);
+          // Update the vobject's slot value.
+          vobject->set(desc.offset, node);
         }
-        values.push_back({value_to_push, desc});
+        values.push_back({node, desc});
       });
       allocation =
           ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
       AddNonEscapingUses(allocation, static_cast<int>(values.size()));
       for (uint32_t i = 0; i < values.size(); i++) {
         const auto [value, desc] = values[i];
-        DCHECK(desc.type == vobj::FieldType::kTagged ||
-               desc.type == vobj::FieldType::kTrustedPointer);
-        if (desc.offset == HeapObject::kMapOffset) {
-          // TODO(jgruber): Try to avoid this special case, and have all
-          // values go through BuildInitializeStore.
-          compiler::MapRef map = vobject->map_from_slot(broker());
-          ReduceResult result = BuildStoreMap(
-              allocation, map, StoreMap::Kind::kInlinedAllocation);
-          CHECK(!result.IsDoneWithAbort());
-        } else {
-          BuildInitializeStore(allocation, value, desc.offset);
-        }
+        BuildInitializeStore(desc, allocation, allocation_type, value);
       }
       if (is_loop_effect_tracking()) {
         loop_effects_->allocations.insert(allocation);
