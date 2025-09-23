@@ -830,11 +830,9 @@ class Heap final {
 
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* js_dispatch_table_space() {
     return &js_dispatch_table_space_;
   }
-#endif  // V8_ENABLE_LEAPTIERING
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -2263,10 +2261,8 @@ class Heap final {
   CodePointerTable::Space code_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   // The space in the process-wide JSDispatchTable managed by this heap.
   JSDispatchTable::Space js_dispatch_table_space_;
-#endif  // V8_ENABLE_LEAPTIERING
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 

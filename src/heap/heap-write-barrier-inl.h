@@ -258,7 +258,6 @@ void WriteBarrier::ForIndirectPointer(Tagged<HeapObject> host,
 void WriteBarrier::ForJSDispatchHandle(Tagged<HeapObject> host,
                                        JSDispatchHandle handle,
                                        WriteBarrierMode mode) {
-  DCHECK(V8_ENABLE_LEAPTIERING_BOOL);
 #if V8_VERIFY_WRITE_BARRIERS
   if (v8_flags.verify_write_barriers) {
     CHECK(WriteBarrier::VerifyDispatchHandleMarkingState(host, handle, mode));

@@ -1023,7 +1023,6 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override {
-#ifdef V8_ENABLE_LEAPTIERING
     JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 #ifdef DEBUG
     JSDispatchTable::Space* space =
@@ -1036,7 +1035,6 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 #endif  // DEBUG
     jdt->Mark(handle);
     MarkObject(jdt->GetCode(handle));
-#endif  // V8_ENABLE_LEAPTIERING
   }
 
  private:
@@ -3095,14 +3093,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_FLUSHABLE_BYTECODE);
-    // `ProcessFlushedBaselineCandidates()` must be called after
-    // `ProcessOldCodeCandidates()` so that we correctly set the code object on
-    // the JSFunction after flushing.
     ProcessOldCodeCandidates();
-#ifndef V8_ENABLE_LEAPTIERING
-    // With leaptiering this is done during sweeping.
-    ProcessFlushedBaselineCandidates();
-#endif  // !V8_ENABLE_LEAPTIERING
   }
 
   {
@@ -3116,7 +3107,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     MarkDependentCodeForDeoptimization();
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE);
     JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
@@ -3149,7 +3139,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                  }
                });
   }
-#endif  // V8_ENABLE_LEAPTIERING
 
   // TODO(olivf, 42204201): If we make the bytecode accessible from the dispatch
   // table this could also be implemented during JSDispatchTable::Sweep.
@@ -3305,9 +3294,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   DCHECK(weak_objects_.weak_cells.IsEmpty());
   DCHECK(weak_objects_.code_flushing_candidates.IsEmpty());
   DCHECK(weak_objects_.flushed_js_functions.IsEmpty());
-#ifndef V8_ENABLE_LEAPTIERING
-  DCHECK(weak_objects_.baseline_flushing_candidates.IsEmpty());
-#endif  // !V8_ENABLE_LEAPTIERING
 }
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
@@ -3335,7 +3321,6 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
       MarkForDeoptimization(weak_object_in_code.code);
     }
   }
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   DispatchHandleAndCode dispatch_handle_in_code;
   while (local_weak_objects()->weak_dispatch_handles_in_code_local.Pop(
@@ -3344,11 +3329,6 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
       MarkForDeoptimization(dispatch_handle_in_code.code);
     }
   }
-
-#else
-  CHECK(local_weak_objects()
-            ->weak_dispatch_handles_in_code_local.IsGlobalEmpty());
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MarkCompactCollector::ClearPotentialSimpleMapTransition(
@@ -3664,36 +3644,6 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
                                             gc_notify_updated_slot);
   }
 }
-
-#ifndef V8_ENABLE_LEAPTIERING
-
-void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
-  DCHECK(v8_flags.flush_baseline_code ||
-         weak_objects_.baseline_flushing_candidates.IsEmpty());
-  Tagged<JSFunction> flushed_js_function;
-  while (local_weak_objects()->baseline_flushing_candidates_local.Pop(
-      &flushed_js_function)) {
-    auto gc_notify_updated_slot = [](Tagged<HeapObject> object, ObjectSlot slot,
-                                     Tagged<Object> target) {
-      RecordSlot(object, slot, Cast<HeapObject>(target));
-    };
-    flushed_js_function->ResetIfCodeFlushed(heap_->isolate(),
-                                            gc_notify_updated_slot);
-
-#ifndef V8_ENABLE_SANDBOX
-    // Record the code slot that has been updated either to CompileLazy,
-    // InterpreterEntryTrampoline or baseline code.
-    // This is only necessary when the sandbox is not enabled. If it is, the
-    // Code objects are referenced through a pointer table indirection and so
-    // remembered slots are not necessary as the Code object will update its
-    // entry in the pointer table when it is relocated.
-    ObjectSlot slot = flushed_js_function->RawField(JSFunction::kCodeOffset);
-    RecordSlot(flushed_js_function, slot, Cast<HeapObject>(*slot));
-#endif
-  }
-}
-
-#endif  // !V8_ENABLE_LEAPTIERING
 
 void MarkCompactCollector::ClearFullMapTransitions() {
   Tagged<TransitionArray> array;
@@ -5849,7 +5799,6 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
 }
 
 void MarkCompactCollector::UpdatePointersInPointerTables() {
-#if defined(V8_ENABLE_SANDBOX) || defined(V8_ENABLE_LEAPTIERING)
   // Process an entry of a pointer table, returning either the relocated object
   // or a null pointer if the object wasn't relocated.
   auto process_entry = [&](Address content) -> Tagged<ExposedTrustedObject> {
@@ -5860,7 +5809,6 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         map_word.ToForwardingAddress(heap_obj);
     return TrustedCast<ExposedTrustedObject>(relocated_object);
   };
-#endif  // defined(V8_ENABLE_SANDBOX) || defined(V8_ENABLE_LEAPTIERING)
 
 #ifdef V8_ENABLE_SANDBOX
   TrustedPointerTable* const tpt = &heap_->isolate()->trusted_pointer_table();
@@ -5905,7 +5853,6 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
       });
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* const jdt = IsolateGroup::current()->js_dispatch_table();
   const EmbeddedData& embedded_data = EmbeddedData::FromBlob(heap_->isolate());
   jdt->IterateActiveEntriesIn(
@@ -5936,7 +5883,6 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
                         old_entrypoint == new_entrypoint);
         }
       });
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(

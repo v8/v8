@@ -323,7 +323,6 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 #ifdef DEBUG
   JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
@@ -350,7 +349,6 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
   // The code objects referenced from a dispatch table entry are treated as weak
   // references for the purpose of bytecode/baseline flushing, so they are not
   // marked here. See also VisitJSFunction below.
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 // ===========================================================================
@@ -363,14 +361,10 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     MaybeObjectSize maybe_object_size) {
   if (ShouldFlushBaselineCode(js_function)) {
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-#ifndef V8_ENABLE_LEAPTIERING
-    local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
-#endif  // !V8_ENABLE_LEAPTIERING
     return Base::VisitJSFunction(map, js_function, maybe_object_size);
   }
 
   // We're not flushing the Code, so mark it as alive.
-#ifdef V8_ENABLE_LEAPTIERING
   // Here we can see JSFunctions that aren't fully initialized (e.g. during
   // deserialization) so we need to check for the null handle.
   JSDispatchHandle handle(
@@ -390,18 +384,6 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
       MarkObject(js_function, code, target_worklist.value());
     }
   }
-#else
-
-#ifdef V8_ENABLE_SANDBOX
-  VisitIndirectPointer(js_function,
-                       js_function->RawIndirectPointerField(
-                           JSFunction::kCodeOffset, kCodeIndirectPointerTag),
-                       IndirectPointerMode::kStrong);
-#else
-  VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
-#endif  // V8_ENABLE_SANDBOX
-
-#endif  // V8_ENABLE_LEAPTIERING
 
   // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
   // also include cases where there is old bytecode even when there is no

@@ -484,10 +484,6 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector->set_invocation_count_before_stable(0);
   vector->reset_osr_state();
   vector->reset_flags();
-#ifndef V8_ENABLE_LEAPTIERING
-  vector->set_maybe_optimized_code(kClearedWeakValue);
-  vector->set_log_next_execution(v8_flags.log_function_events);
-#endif  // !V8_ENABLE_LEAPTIERING
   vector->set_closure_feedback_cell_array(*closure_feedback_cell_array);
   vector->set_parent_feedback_cell(*parent_feedback_cell);
 
@@ -2246,9 +2242,7 @@ DirectHandle<FeedbackCell> Factory::NewNoClosuresCell() {
   DisallowGarbageCollection no_gc;
   result->set_value(read_only_roots().undefined_value());
   result->clear_interrupt_budget();
-#ifdef V8_ENABLE_LEAPTIERING
   result->clear_dispatch_handle();
-#endif  // V8_ENABLE_LEAPTIERING
   result->clear_padding();
   return direct_handle(result, isolate());
 }
@@ -2261,9 +2255,7 @@ DirectHandle<FeedbackCell> Factory::NewOneClosureCell(
   DisallowGarbageCollection no_gc;
   result->set_value(*value);
   result->clear_interrupt_budget();
-#ifdef V8_ENABLE_LEAPTIERING
   result->clear_dispatch_handle();
-#endif  // V8_ENABLE_LEAPTIERING
   result->clear_padding();
   return direct_handle(result, isolate());
 }
@@ -4887,7 +4879,6 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     function->set_context(*context_, kReleaseStore, mode);
     function->set_raw_feedback_cell(*feedback_cell, mode);
 
-#ifdef V8_ENABLE_LEAPTIERING
     if (!many_closures_cell) {
       // TODO(olivf, 42204201): Here we are explicitly not updating (only
       // potentially initializing) the code. Worst case the dispatch handle
@@ -4933,10 +4924,6 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
         }
       }
     }
-#else
-    USE(cell_transition, many_closures_cell);
-    function->UpdateCode(isolate, *code, mode);
-#endif  // V8_ENABLE_LEAPTIERING
 
     if (function->has_prototype_slot()) {
       function->set_prototype_or_initial_map(
@@ -4951,7 +4938,6 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     function_handle = handle(function, isolate_);
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
   // If the FeedbackCell doesn't have a dispatch handle, we need to allocate a
   // dispatch entry now. This should only be the case for functions using the
   // generic many_closures_cell (for example builtin functions), and only for
@@ -4973,7 +4959,6 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   } else {
     DCHECK_NE(function_handle->dispatch_handle(), kNullJSDispatchHandle);
   }
-#endif
 
   return function_handle;
 }
