@@ -13823,7 +13823,7 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
   ReduceResult result = BuildStoreMap(allocation, broker()->heap_number_map(),
                                       StoreMap::Kind::kInlinedAllocation);
   CHECK(!result.IsDoneWithAbort());
-  AddNewNodeNoAbort<StoreFloat64>(
+  AddNewNodeNoInputConversion<StoreFloat64>(
       {allocation, GetFloat64Constant(vobject->number())},
       static_cast<int>(offsetof(HeapNumber, value_)));
   return allocation;
@@ -13841,12 +13841,12 @@ MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
       BuildStoreMap(allocation, broker()->fixed_double_array_map(),
                     StoreMap::Kind::kInlinedAllocation);
   CHECK(!result.IsDoneWithAbort());
-  AddNewNodeNoAbort<StoreTaggedFieldNoWriteBarrier>(
+  AddNewNodeNoInputConversion<StoreTaggedFieldNoWriteBarrier>(
       {allocation, GetSmiConstant(length)},
       static_cast<int>(offsetof(FixedDoubleArray, length_)),
       StoreTaggedMode::kDefault);
   for (int i = 0; i < length; ++i) {
-    AddNewNodeNoAbort<StoreFloat64>(
+    AddNewNodeNoInputConversion<StoreFloat64>(
         {allocation,
          GetFloat64Constant(
              vobject->double_elements().GetFromImmutableFixedDoubleArray(i))},
