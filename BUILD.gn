@@ -353,9 +353,6 @@ declare_args() {
   # Sets -DV8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   v8_enable_sandbox_hardware_support = false
 
-  # Enable leaptiering
-  v8_enable_leaptiering = true
-
   # Enable the memory corruption API. Useful for testing the sandbox.
   # The memory corruption API is only exposed to JavaScript if sandbox testing
   # mode is enabled at runtime, for example via --sandbox-fuzzing.
@@ -764,10 +761,6 @@ assert(!v8_enable_pointer_compression_8gb || v8_enable_pointer_compression,
 
 assert(!v8_enable_sandbox || v8_enable_external_code_space,
        "The sandbox requires the external code space")
-
-assert(
-    v8_enable_leaptiering,
-    "non-leaptiering is deprecated (see https://groups.google.com/g/v8-dev/c/PYk2_GGP2Wk)")
 
 assert(!v8_enable_memory_corruption_api || v8_enable_sandbox,
        "The Memory Corruption API requires the sandbox")
@@ -1465,9 +1458,7 @@ config("features") {
   if (v8_enable_undefined_double) {
     defines += [ "V8_ENABLE_UNDEFINED_DOUBLE" ]
   }
-  if (v8_enable_leaptiering) {
-    defines += [ "V8_ENABLE_LEAPTIERING" ]
-  }
+  defines += [ "V8_ENABLE_LEAPTIERING" ]
   if (v8_enable_partition_alloc) {
     defines += [ "V8_ENABLE_PARTITION_ALLOC" ]
   }
@@ -2929,7 +2920,6 @@ action("v8_dump_build_config") {
     "verify_predictable=$v8_enable_verify_predictable",
     "wasm_random_fuzzers=$v8_wasm_random_fuzzers",
     "memory_corruption_api=$v8_enable_memory_corruption_api",
-    "leaptiering=$v8_enable_leaptiering",
     "lower_limits_mode=$v8_lower_limits_mode",
 
     # Please add new switches also in `build_config_content` in `bazel/defs.bzl`

@@ -853,11 +853,6 @@
   'test-heap/TestInternalWeakLists': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 
-['leaptiering', {
-  # Skip tests that test the old tiering behavior.
-  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [SKIP],
-}],  # 'leaptiering'
-
 ##############################################################################
 
 ['variant == conservative_stack_scanning', {

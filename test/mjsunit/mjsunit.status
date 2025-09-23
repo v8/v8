@@ -2886,17 +2886,6 @@
 }],  # 'wasm_random_fuzzers == False'
 
 ##############################################################################
-['leaptiering', {
-  # Skip tests that test the old tiering behavior.
-  'baseline/test-baseline': [SKIP],
-  'baseline/cross-realm': [SKIP],
-
-  # This test relies on the call of a second closure of a function running in
-  # the interpreter, instead of picking up the optimized code.
-  'compiler/regress-9945-2': [SKIP],
-}],  # 'leaptiering'
-
-##############################################################################
 ['variant == stress_wasm_stack_switching', {
   # TODO(thibaudm): Fix profiler.
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
