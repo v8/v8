@@ -3486,6 +3486,7 @@ v8_header_set("v8_internal_headers") {
     "src/codegen/code-reference.h",
     "src/codegen/compilation-cache.h",
     "src/codegen/compiler.h",
+    "src/codegen/constant-pool-entry.h",
     "src/codegen/constant-pool.h",
     "src/codegen/constants-arch.h",
     "src/codegen/cpu-features.h",
@@ -4837,6 +4838,7 @@ v8_header_set("v8_internal_headers") {
       ### gcmole(arm64) ###
       "src/codegen/arm64/assembler-arm64-inl.h",
       "src/codegen/arm64/assembler-arm64.h",
+      "src/codegen/arm64/constant-pool-arm64.h",
       "src/codegen/arm64/constants-arm64.h",
       "src/codegen/arm64/decoder-arm64-inl.h",
       "src/codegen/arm64/decoder-arm64.h",
@@ -4940,6 +4942,7 @@ v8_header_set("v8_internal_headers") {
       ### gcmole(ppc64) ###
       "src/codegen/ppc/assembler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc.h",
+      "src/codegen/ppc/constant-pool-ppc.h",
       "src/codegen/ppc/constants-ppc.h",
       "src/codegen/ppc/interface-descriptors-ppc-inl.h",
       "src/codegen/ppc/macro-assembler-ppc.h",
@@ -4991,6 +4994,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv/base-assembler-riscv.h",
       "src/codegen/riscv/base-constants-riscv.h",
       "src/codegen/riscv/base-riscv-i.h",
+      "src/codegen/riscv/constant-pool-riscv.h",
       "src/codegen/riscv/constant-riscv-a.h",
       "src/codegen/riscv/constant-riscv-b.h",
       "src/codegen/riscv/constant-riscv-c.h",
@@ -5580,7 +5584,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/code-reference.cc",
     "src/codegen/compilation-cache.cc",
     "src/codegen/compiler.cc",
-    "src/codegen/constant-pool.cc",
     "src/codegen/external-reference-encoder.cc",
     "src/codegen/external-reference-table.cc",
     "src/codegen/external-reference.cc",
@@ -6245,6 +6248,7 @@ v8_source_set("v8_base_without_compiler") {
     sources += [
       ### gcmole(arm64) ###
       "src/codegen/arm64/assembler-arm64.cc",
+      "src/codegen/arm64/constant-pool-arm64.cc",
       "src/codegen/arm64/cpu-arm64.cc",
       "src/codegen/arm64/decoder-arm64.cc",
       "src/codegen/arm64/instructions-arm64-constants.cc",
@@ -6332,6 +6336,7 @@ v8_source_set("v8_base_without_compiler") {
     sources += [
       ### gcmole(ppc64) ###
       "src/codegen/ppc/assembler-ppc.cc",
+      "src/codegen/ppc/constant-pool-ppc.cc",
       "src/codegen/ppc/constants-ppc.cc",
       "src/codegen/ppc/cpu-ppc.cc",
       "src/codegen/ppc/macro-assembler-ppc.cc",
@@ -6365,6 +6370,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/base-assembler-riscv.cc",
       "src/codegen/riscv/base-constants-riscv.cc",
       "src/codegen/riscv/base-riscv-i.cc",
+      "src/codegen/riscv/constant-pool-riscv.cc",
       "src/codegen/riscv/cpu-riscv.cc",
       "src/codegen/riscv/extension-riscv-a.cc",
       "src/codegen/riscv/extension-riscv-b.cc",
@@ -6407,6 +6413,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/base-assembler-riscv.cc",
       "src/codegen/riscv/base-constants-riscv.cc",
       "src/codegen/riscv/base-riscv-i.cc",
+      "src/codegen/riscv/constant-pool-riscv.cc",
       "src/codegen/riscv/cpu-riscv.cc",
       "src/codegen/riscv/extension-riscv-a.cc",
       "src/codegen/riscv/extension-riscv-b.cc",
