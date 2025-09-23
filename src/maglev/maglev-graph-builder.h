@@ -476,9 +476,9 @@ class MaglevGraphBuilder {
   // `post_create_input_initializer` function before the node is added to the
   // graph.
   template <typename NodeT, typename Function, typename... Args>
-  NodeT* AddNewNodeNoInputConversion(size_t input_count,
-                                     Function&& post_create_input_initializer,
-                                     Args&&... args);
+  ReduceResult AddNewNode(size_t input_count,
+                          Function&& post_create_input_initializer,
+                          Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   ReduceResult AddNewNode(std::initializer_list<ValueNode*> inputs,
@@ -546,10 +546,6 @@ class MaglevGraphBuilder {
       std::initializer_list<ValueNode*> inputs,
       compiler::FeedbackSource const& feedback,
       CallBuiltin::FeedbackSlotType slot_type = CallBuiltin::kTaggedIndex);
-
-  CallCPPBuiltin* BuildCallCPPBuiltin(Builtin builtin, ValueNode* target,
-                                      ValueNode* new_target,
-                                      std::initializer_list<ValueNode*> inputs);
 
   ReduceResult BuildLoadGlobal(compiler::NameRef name,
                                compiler::FeedbackSource& feedback_source,
@@ -1026,20 +1022,20 @@ class MaglevGraphBuilder {
                                          Float64Round::Kind kind);
 
   template <typename CallNode, typename... Args>
-  CallNode* AddNewCallNode(const CallArguments& args, Args&&... extra_args);
+  ReduceResult AddNewCallNode(const CallArguments& args, Args&&... extra_args);
 
   MaybeReduceResult TryReduceGetIterator(ValueNode* receiver, int load_slot,
                                          int call_slot);
 
-  ValueNode* BuildCallSelf(ValueNode* context, ValueNode* function,
-                           ValueNode* new_target,
-                           compiler::SharedFunctionInfoRef shared,
-                           CallArguments& args);
+  ReduceResult BuildCallSelf(ValueNode* context, ValueNode* function,
+                             ValueNode* new_target,
+                             compiler::SharedFunctionInfoRef shared,
+                             CallArguments& args);
   MaybeReduceResult TryReduceBuiltin(
       compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
-  CallKnownJSFunction* BuildCallKnownJSFunction(
+  ReduceResult BuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
 #ifdef V8_ENABLE_LEAPTIERING
       JSDispatchHandle dispatch_handle,
@@ -1047,13 +1043,13 @@ class MaglevGraphBuilder {
       compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
-  CallKnownJSFunction* BuildCallKnownJSFunction(
-      ValueNode* context, ValueNode* function, ValueNode* new_target,
+  ReduceResult BuildCallKnownJSFunction(ValueNode* context, ValueNode* function,
+                                        ValueNode* new_target,
 #ifdef V8_ENABLE_LEAPTIERING
-      JSDispatchHandle dispatch_handle,
+                                        JSDispatchHandle dispatch_handle,
 #endif
-      compiler::SharedFunctionInfoRef shared,
-      base::Vector<ValueNode*> arguments);
+                                        compiler::SharedFunctionInfoRef shared,
+                                        base::Vector<ValueNode*> arguments);
   MaybeReduceResult TryBuildCallKnownJSFunction(
       compiler::JSFunctionRef function, ValueNode* new_target,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
@@ -1084,8 +1080,8 @@ class MaglevGraphBuilder {
       compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
-  ValueNode* BuildGenericCall(ValueNode* target, Call::TargetType target_type,
-                              const CallArguments& args);
+  ReduceResult BuildGenericCall(ValueNode* target, Call::TargetType target_type,
+                                const CallArguments& args);
   MaybeReduceResult TryReduceCallForConstant(
       compiler::JSFunctionRef target, CallArguments& args,
       const compiler::FeedbackSource& feedback_source =
@@ -1145,7 +1141,7 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryBuildAndAllocateJSGeneratorObject(ValueNode* closure,
                                                          ValueNode* receiver);
 
-  ValueNode* BuildGenericConstruct(
+  ReduceResult BuildGenericConstruct(
       ValueNode* target, ValueNode* new_target, ValueNode* context,
       const CallArguments& args,
       const compiler::FeedbackSource& feedback_source =

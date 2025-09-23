@@ -239,9 +239,9 @@ class MaglevReducer {
   // `post_create_input_initializer` function before the node is added to the
   // graph.
   template <typename NodeT, typename Function, typename... Args>
-  NodeT* AddNewNodeNoInputConversion(size_t input_count,
-                                     Function&& post_create_input_initializer,
-                                     Args&&... args);
+  ReduceResult AddNewNode(size_t input_count,
+                          Function&& post_create_input_initializer,
+                          Args&&... args);
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   ReduceResult AddNewNode(std::initializer_list<ValueNode*> inputs,
