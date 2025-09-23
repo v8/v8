@@ -1170,18 +1170,18 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
     case Operation::kMultiply:
       // x * 0 = 0
       if (cst_right == 0) {
-        AddNewNodeNoAbort<CheckInt32Condition>(
+        RETURN_IF_ABORT(AddNewNode<CheckInt32Condition>(
             {left, GetInt32Constant(0)}, AssertCondition::kGreaterThanEqual,
-            DeoptimizeReason::kMinusZero);
+            DeoptimizeReason::kMinusZero));
         return GetInt32Constant(0);
       }
       return {};
     case Operation::kDivide:
       // x / -1 = 0 - x
       if (cst_right == -1) {
-        AddNewNodeNoAbort<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                               AssertCondition::kNotEqual,
-                                               DeoptimizeReason::kMinusZero);
+        RETURN_IF_ABORT(AddNewNode<CheckInt32Condition>(
+            {left, GetInt32Constant(0)}, AssertCondition::kNotEqual,
+            DeoptimizeReason::kMinusZero));
         return AddNewNode<Int32SubtractWithOverflow>(
             {GetInt32Constant(0), left});
       }
@@ -1189,33 +1189,41 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
         // x / n = x reciprocal_int_mult(x, n)
         if (cst_right < 0) {
           // Deopt if division would result in -0.
-          AddNewNodeNoAbort<CheckInt32Condition>({left, GetInt32Constant(0)},
-                                                 AssertCondition::kNotEqual,
-                                                 DeoptimizeReason::kMinusZero);
+          RETURN_IF_ABORT(AddNewNode<CheckInt32Condition>(
+              {left, GetInt32Constant(0)}, AssertCondition::kNotEqual,
+              DeoptimizeReason::kMinusZero));
         }
         base::MagicNumbersForDivision<int32_t> magic =
             base::SignedDivisionByConstant(cst_right);
-        ValueNode* quot = AddNewNodeNoAbort<Int32MultiplyOverflownBits>(
-            {left, GetInt32Constant(magic.multiplier)});
+        ValueNode* quot;
+        GET_VALUE_OR_ABORT(quot,
+                           AddNewNode<Int32MultiplyOverflownBits>(
+                               {left, GetInt32Constant(magic.multiplier)}));
         if (cst_right > 0 && magic.multiplier < 0) {
-          quot = AddNewNodeNoAbort<Int32Add>({quot, left});
+          GET_VALUE_OR_ABORT(quot, AddNewNode<Int32Add>({quot, left}));
         } else if (cst_right < 0 && magic.multiplier > 0) {
-          quot = AddNewNodeNoAbort<Int32Subtract>({quot, left});
+          GET_VALUE_OR_ABORT(quot, AddNewNode<Int32Subtract>({quot, left}));
         }
-        ValueNode* sign_bit = AddNewNodeNoAbort<Int32ShiftRightLogical>(
-            {left, GetInt32Constant(31)});
-        ValueNode* shifted_quot = AddNewNodeNoAbort<Int32ShiftRight>(
-            {quot, GetInt32Constant(magic.shift)});
+        ValueNode* sign_bit;
+        GET_VALUE_OR_ABORT(sign_bit, AddNewNode<Int32ShiftRightLogical>(
+                                         {left, GetInt32Constant(31)}));
+        ValueNode* shifted_quot;
+        GET_VALUE_OR_ABORT(
+            shifted_quot,
+            AddNewNode<Int32ShiftRight>({quot, GetInt32Constant(magic.shift)}));
         // TODO(victorgomes): This should actually be NodeType::kInt32, but we
         // don't have it. The idea here is that the value is either 0 or 1, so
         // we can cast Uint32 to Int32 without a check.
         EnsureType(sign_bit, NodeType::kSmi);
-        ValueNode* result =
-            AddNewNodeNoAbort<Int32Add>({shifted_quot, sign_bit});
-        ValueNode* mult = AddNewNodeNoAbort<Int32Multiply>(
-            {result, GetInt32Constant(cst_right)});
-        AddNewNodeNoAbort<CheckInt32Condition>(
-            {left, mult}, AssertCondition::kEqual, DeoptimizeReason::kNotInt32);
+        ValueNode* result;
+        GET_VALUE_OR_ABORT(result,
+                           AddNewNode<Int32Add>({shifted_quot, sign_bit}));
+        ValueNode* mult;
+        GET_VALUE_OR_ABORT(mult, AddNewNode<Int32Multiply>(
+                                     {result, GetInt32Constant(cst_right)}));
+        RETURN_IF_ABORT(AddNewNode<CheckInt32Condition>(
+            {left, mult}, AssertCondition::kEqual,
+            DeoptimizeReason::kNotInt32));
         return result;
       }
       return {};
