@@ -6103,6 +6103,7 @@ namespace vobj {
 enum class ObjectType {
   kDefault,
   kConsString,
+  kHeapNumber,
 };
 
 // The type of a VirtualObject field. Extend as needed.
@@ -6331,16 +6332,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
                       slots) {}
 
   explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
-                         Float64 number)
-      : Base(bitfield),
-        map_(map),
-        id_(id),
-        type_(kHeapNumber),
-        number_(number) {
-    DCHECK(has_static_map());
-  }
-
-  explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
                          uint32_t length,
                          compiler::FixedDoubleArrayRef elements)
       : Base(bitfield),
@@ -6417,11 +6408,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       case kFixedDoubleArray:
         return FixedDoubleArray::SizeFor(double_elements_length());
     }
-  }
-
-  Float64 number() const {
-    DCHECK_EQ(type_, kHeapNumber);
-    return number_;
   }
 
   uint32_t double_elements_length() const {
@@ -6505,15 +6491,21 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   inline void ForEachSlot(
       Function&& callback,
       ForEachSlotIterationMode mode = ForEachSlotIterationMode::kDefault) {
-    if (mode == ForEachSlotIterationMode::kForDeopt &&
-        object_type() == vobj::ObjectType::kConsString) {
-      // ConsString materialization uses a custom opcode that only cares about
-      // these two fields.
-      vobj::Field fst = FieldForOffset(ConsString::kFirstOffset);
-      callback(slots_.data[fst.slot_index], fst);
-      vobj::Field snd = FieldForOffset(ConsString::kSecondOffset);
-      callback(slots_.data[snd.slot_index], snd);
-      return;
+    if (mode == ForEachSlotIterationMode::kForDeopt) {
+      if (object_type() == vobj::ObjectType::kConsString) {
+        // ConsString materialization uses a custom opcode that only cares about
+        // these two fields.
+        vobj::Field fst = FieldForOffset(ConsString::kFirstOffset);
+        callback(slots_.data[fst.slot_index], fst);
+        vobj::Field snd = FieldForOffset(ConsString::kSecondOffset);
+        callback(slots_.data[snd.slot_index], snd);
+        return;
+      }
+      if (object_type() == vobj::ObjectType::kHeapNumber) {
+        // HeapNumber materialization creates a literal object instead of
+        // slot traversal.
+        return;
+      }
     }
     if (is_new_style_vobj()) {
       DCHECK_EQ(type_, kDefault);
@@ -6529,8 +6521,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
           }
           break;
         case kConsString:
-          UNREACHABLE();
         case kHeapNumber:
+          UNREACHABLE();
         case kFixedDoubleArray:
           break;
       }
@@ -6541,15 +6533,21 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   inline void ForEachSlot(Function&& callback,
                           ForEachSlotIterationMode mode =
                               ForEachSlotIterationMode::kDefault) const {
-    if (mode == ForEachSlotIterationMode::kForDeopt &&
-        object_type() == vobj::ObjectType::kConsString) {
-      // ConsString materialization uses a custom opcode that only cares about
-      // these two fields.
-      vobj::Field fst = FieldForOffset(ConsString::kFirstOffset);
-      callback(slots_.data[fst.slot_index], fst);
-      vobj::Field snd = FieldForOffset(ConsString::kSecondOffset);
-      callback(slots_.data[snd.slot_index], snd);
-      return;
+    if (mode == ForEachSlotIterationMode::kForDeopt) {
+      if (object_type() == vobj::ObjectType::kConsString) {
+        // ConsString materialization uses a custom opcode that only cares about
+        // these two fields.
+        vobj::Field fst = FieldForOffset(ConsString::kFirstOffset);
+        callback(slots_.data[fst.slot_index], fst);
+        vobj::Field snd = FieldForOffset(ConsString::kSecondOffset);
+        callback(slots_.data[snd.slot_index], snd);
+        return;
+      }
+      if (object_type() == vobj::ObjectType::kHeapNumber) {
+        // HeapNumber materialization creates a literal object instead of
+        // slot traversal.
+        return;
+      }
     }
     if (is_new_style_vobj()) {
       DCHECK_EQ(type_, kDefault);
@@ -6565,8 +6563,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
           }
           break;
         case kConsString:
-          UNREACHABLE();
         case kHeapNumber:
+          UNREACHABLE();
         case kFixedDoubleArray:
           break;
       }
@@ -6744,7 +6742,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
                // handle.
   bool snapshotted_ = false;  // Object should not be modified anymore.
   union {
-    Float64 number_;
     DoubleArray double_array_;
     ObjectFields slots_;
   };
@@ -6890,6 +6887,17 @@ struct VirtualSloppyArgumentsElementsShape : VirtualFixedArrayShape {
 
 struct VirtualPrimitiveHeapObjectShape : VirtualHeapObjectShape {};
 
+struct VirtualHeapNumberShape : VirtualPrimitiveHeapObjectShape {
+  using Base = VirtualPrimitiveHeapObjectShape;
+  using T = HeapNumber;
+  // Special handling needed; deopt materialization uses a special path.
+  // TODO(jgruber): .. but could it take the standard path instead?
+  static constexpr vobj::ObjectType kObjectType = vobj::ObjectType::kHeapNumber;
+#define FIELD_LIST(V) V(value, T::kValueOffset, vobj::FieldType::kFloat64)
+  DEF_SHAPE(Base, FIELD_LIST);
+#undef FIELD_LIST
+};
+
 struct VirtualNameShape : VirtualPrimitiveHeapObjectShape {
   using Base = VirtualPrimitiveHeapObjectShape;
   using T = Name;
@@ -6922,13 +6930,10 @@ struct VirtualConsStringShape : VirtualNameShape {
 
 struct VirtualFixedDoubleArrayShape : VirtualHeapObjectShape {
   using Base = VirtualHeapObjectShape;
-
   static constexpr bool kInstancesHaveStaticSize = false;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kFloat64;
-
 #define FIELD_LIST(V) \
   V(length, FixedArrayBase::kLengthOffset, vobj::FieldType::kTagged)
-
   DEF_SHAPE(Base, FIELD_LIST);
 #undef FIELD_LIST
 };

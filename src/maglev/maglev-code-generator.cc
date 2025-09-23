@@ -1489,6 +1489,12 @@ class MaglevFrameTranslationBuilder {
     return kNotDuplicated;
   }
 
+  void BuildHeapNumber(const VirtualObject* vobject) {
+    DCHECK_EQ(vobject->object_type(), vobj::ObjectType::kHeapNumber);
+    ValueNode* value_node = vobject->get(HeapNumber::kValueOffset);
+    return BuildHeapNumber(value_node->Cast<Float64Constant>()->value());
+  }
+
   void BuildHeapNumber(Float64 number) {
     DirectHandle<Object> value =
         local_isolate_->factory()->NewHeapNumberFromBits<AllocationType::kOld>(
@@ -1549,8 +1555,9 @@ class MaglevFrameTranslationBuilder {
   void BuildVirtualObject(const VirtualObject* object,
                           const InputLocation*& input_location,
                           const VirtualObjectList& virtual_objects) {
-    if (object->type() == VirtualObject::kHeapNumber) {
-      return BuildHeapNumber(object->number());
+    if (object->object_type() == vobj::ObjectType::kHeapNumber) {
+      // TODO(jgruber): Could we use the standard path below instead?
+      return BuildHeapNumber(object);
     }
     int dup_id =
         GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
