@@ -30,7 +30,7 @@
 #elif V8_TARGET_ARCH_S390X
 #include "src/maglev/s390/maglev-assembler-s390-inl.h"
 #elif V8_TARGET_ARCH_PPC64
-#include "src/maglev/ppc64/maglev-assembler-ppc64-inl.h"
+#include "src/maglev/ppc/maglev-assembler-ppc-inl.h"
 #else
 #error "Maglev does not supported this architecture."
 #endif

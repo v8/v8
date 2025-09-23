@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MAGLEV_PPC64_MAGLEV_ASSEMBLER_PPC64_INL_H_
-#define V8_MAGLEV_PPC64_MAGLEV_ASSEMBLER_PPC64_INL_H_
+#ifndef V8_MAGLEV_PPC_MAGLEV_ASSEMBLER_PPC_INL_H_
+#define V8_MAGLEV_PPC_MAGLEV_ASSEMBLER_PPC_INL_H_
 
 #include "src/base/numbers/double.h"
 #include "src/codegen/interface-descriptors-inl.h"
@@ -1505,4 +1505,4 @@ inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_MAGLEV_PPC64_MAGLEV_ASSEMBLER_PPC64_INL_H_
+#endif  // V8_MAGLEV_PPC_MAGLEV_ASSEMBLER_PPC_INL_H_

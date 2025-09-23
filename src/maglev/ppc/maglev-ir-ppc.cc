@@ -10,7 +10,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/maglev/ppc64/maglev-assembler-ppc64-inl.h"
+#include "src/maglev/ppc/maglev-assembler-ppc-inl.h"
 
 namespace v8 {
 namespace internal {
