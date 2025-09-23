@@ -5171,6 +5171,17 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
         std::max(max_semi_space_size_, DefaultMinSemiSpaceSize());
     max_semi_space_size_ =
         RoundDown<PageMetadata::kPageSize>(max_semi_space_size_);
+    size_t max_possible_heap_size =
+#ifdef V8_COMPRESS_POINTERS
+        kPtrComprCageReservationSize;
+#else   // !V8_COMPRESS_POINTERS
+        std::numeric_limits<Tagged_t>::max();
+#endif  // !V8_COMPRESS_POINTERS
+    // Check that the semi space size doesn't exceed the max possible size of
+    // the heap. In Scavenger, 2 semi space are needed so semi space should not
+    // exceed half the max heap size.
+    CHECK_LE(max_semi_space_size_,
+             max_possible_heap_size / (v8_flags.minor_ms ? 1 : 2));
   }
 
   // Initialize max_old_generation_size_ and max_global_memory_.
