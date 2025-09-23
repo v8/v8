@@ -1105,8 +1105,6 @@ class WasmExportedFunctionData
 
   inline bool is_promising() const;
 
-  bool MatchesSignature(wasm::CanonicalTypeIndex other_canonical_sig_index);
-
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)
   DECL_VERIFIER(WasmExportedFunctionData)

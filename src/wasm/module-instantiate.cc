@@ -732,7 +732,11 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   if (!trusted_function_data_.is_null()) {
     if (Tagged<WasmExportedFunctionData> data;
         TryCast(*trusted_function_data_, &data)) {
-      if (!data->MatchesSignature(expected_sig->index())) {
+      if (!wasm::GetTypeCanonicalizer()->IsCanonicalSubtype(
+              data->sig()->index(),
+              wasm::CanonicalValueType::RefNull(expected_sig->index(),
+                                                false /* ignored by callee */,
+                                                RefTypeKind::kFunction))) {
         return ImportCallKind::kLinkError;
       }
       uint32_t function_index = static_cast<uint32_t>(data->function_index());

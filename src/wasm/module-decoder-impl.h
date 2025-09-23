@@ -2584,8 +2584,11 @@ class ModuleDecoderImpl : public Decoder {
           ModuleTypeIndex functype{module->functions[index].sig_index};
           bool functype_is_shared = module->type(functype).is_shared;
           ValueType type = ValueType::Ref(functype, functype_is_shared,
-                                          RefTypeKind::kFunction)
-                               .AsExactIfEnabled(enabled_features_);
+                                          RefTypeKind::kFunction);
+          if (enabled_features_.has_custom_descriptors() &&
+              index >= module->num_imported_functions) {
+            type = type.AsExact();
+          }
           TYPE_CHECK(type)
           if (V8_UNLIKELY(is_shared && !type.is_shared())) {
             error(pc(), "ref.func does not have a shared type");

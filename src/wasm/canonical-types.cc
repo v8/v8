@@ -243,15 +243,19 @@ void TypeCanonicalizer::AddPredefinedArrayTypes() {
 }
 
 bool TypeCanonicalizer::IsCanonicalSubtype(CanonicalTypeIndex sub_index,
-                                           CanonicalTypeIndex super_index) {
+                                           CanonicalValueType super_type) {
+  DCHECK(super_type.has_index());
   // Fast path without synchronization:
-  if (sub_index == super_index) return true;
+  if (sub_index == super_type.ref_index()) return true;
+  // If the supertype is exact, then only the equality case above is
+  // successful.
+  if (super_type.is_exact()) return false;
 
   // Multiple threads could try to register and access recursive groups
   // concurrently.
   // TODO(manoskouk): Investigate if we can improve this synchronization.
   base::MutexGuard mutex_guard(&mutex_);
-  return IsCanonicalSubtype_Locked(sub_index, super_index);
+  return IsCanonicalSubtype_Locked(sub_index, super_type.ref_index());
 }
 bool TypeCanonicalizer::IsCanonicalSubtype_Locked(
     CanonicalTypeIndex sub_index, CanonicalTypeIndex super_index) const {
@@ -264,16 +268,6 @@ bool TypeCanonicalizer::IsCanonicalSubtype_Locked(
     sub_index = canonical_supertypes_[sub_index.index];
   }
   return false;
-}
-
-bool TypeCanonicalizer::IsCanonicalSubtype(ModuleTypeIndex sub_index,
-                                           ModuleTypeIndex super_index,
-                                           const WasmModule* sub_module,
-                                           const WasmModule* super_module) {
-  CanonicalTypeIndex canonical_super =
-      super_module->canonical_type_id(super_index);
-  CanonicalTypeIndex canonical_sub = sub_module->canonical_type_id(sub_index);
-  return IsCanonicalSubtype(canonical_sub, canonical_super);
 }
 
 bool TypeCanonicalizer::IsHeapSubtype(CanonicalTypeIndex sub,
