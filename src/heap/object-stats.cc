@@ -1079,7 +1079,7 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
   for (int i = 0; i < constant_pool->length(); i++) {
     Tagged<Object> entry = constant_pool->get(i);
-    if (IsFixedArrayExact(entry)) {
+    if (!IsTheHole(entry) && IsFixedArrayExact(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, Cast<HeapObject>(entry),
           StatsEnum::EMBEDDED_OBJECT_TYPE);
