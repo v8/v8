@@ -287,6 +287,13 @@ class TruncationProcessor {
 
   template <typename NodeT>
   ProcessResult ProcessInt32BitwiseBinaryOperation(NodeT* node) {
+    if (IsCommutativeNode(Node::opcode_of<NodeT>)) {
+      std::optional<int32_t> left = node->TryGetInt32ConstantInput(0);
+      if (left && left == Int32Identity(Node::opcode_of<NodeT>)) {
+        node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 1));
+        return ProcessResult::kRemove;
+      }
+    }
     std::optional<int32_t> right = node->TryGetInt32ConstantInput(1);
     if (right && right == Int32Identity(Node::opcode_of<NodeT>)) {
       node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 0));
