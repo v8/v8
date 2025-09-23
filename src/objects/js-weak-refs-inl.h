@@ -158,6 +158,12 @@ bool JSFinalizationRegistry::NeedsCleanup() const {
   return IsWeakCell(cleared_cells());
 }
 
+void JSFinalizationRegistry::set_next_dirty_unchecked(
+    Tagged<JSFinalizationRegistry> value, WriteBarrierMode mode) {
+  WRITE_FIELD(*this, kNextDirtyOffset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kNextDirtyOffset, value, mode);
+}
+
 Tagged<JSFinalizationRegistry> WeakCell::finalization_registry() const {
   return finalization_registry_.load();
 }

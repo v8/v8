@@ -111,7 +111,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/instance-type.h"
-#include "src/objects/js-weak-refs.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots-atomic-inl.h"
@@ -7220,7 +7220,7 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
   } else {
     Tagged<JSFinalizationRegistry> tail = GCSafeCast<JSFinalizationRegistry>(
         dirty_js_finalization_registries_list_tail(), this);
-    tail->set_next_dirty(finalization_registry);
+    tail->set_next_dirty_unchecked(finalization_registry);
     gc_notify_updated_slot(
         tail, tail->RawField(JSFinalizationRegistry::kNextDirtyOffset),
         finalization_registry);

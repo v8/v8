@@ -1460,7 +1460,8 @@ void ScavengerCollector::ProcessWeakCells(
     DCHECK(!IsUnscavengedHeapObject(target));
     DCHECK(!Cast<HeapObject>(target)
                 ->map_word(kRelaxedLoad)
-                .IsForwardingAddress());
+                .IsForwardingAddress() ||
+           HeapLayout::IsSelfForwarded(Cast<HeapObject>(target)));
     USE(this);
   };
   const auto on_dead_target_callback = [this, on_slot_updated_callback](

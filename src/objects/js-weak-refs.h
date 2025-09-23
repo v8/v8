@@ -77,6 +77,10 @@ class JSFinalizationRegistry
   V8_EXPORT_PRIVATE void RemoveCellFromUnregisterTokenMap(
       Isolate* isolate, Tagged<WeakCell> weak_cell);
 
+  inline void set_next_dirty_unchecked(
+      Tagged<JSFinalizationRegistry> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Bitfields in flags.
   DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
 
