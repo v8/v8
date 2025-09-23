@@ -1084,6 +1084,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFPRImmediate(FPURegister dst, double imm) {
     LoadFPRImmediate(dst, base::bit_cast<uint64_t>(imm));
   }
+  void LoadFPRImmediate(FPURegister dst, Float32 imm) {
+    LoadFPRImmediate(dst, imm.get_bits());
+  }
+  void LoadFPRImmediate(FPURegister dst, Float64 imm) {
+    LoadFPRImmediate(dst, imm.get_bits());
+  }
   void LoadFPRImmediate(FPURegister dst, uint32_t src);
   void LoadFPRImmediate(FPURegister dst, uint64_t src);
   // AddOverflowWord sets overflow register to a negative value if
