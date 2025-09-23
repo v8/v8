@@ -1192,6 +1192,20 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForSmiKey(
 }
 
 template <typename CollectionType>
+void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForStringKey(
+    TNode<CollectionType> table, TNode<String> key_tagged,
+    TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
+  const TNode<Uint32T> hash = LoadNameHash(key_tagged);
+  *result = Signed(ChangeUint32ToWord(hash));
+  FindOrderedHashTableEntry<CollectionType>(
+      table, hash,
+      [&](TNode<Object> other_key, Label* if_same, Label* if_not_same) {
+        Branch(TaggedEqual(key_tagged, other_key), if_same, if_not_same);
+      },
+      result, entry_found, not_found);
+}
+
+template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForHeapNumberKey(
     TNode<CollectionType> table, TNode<HeapNumber> key_heap_number,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
@@ -2406,7 +2420,7 @@ void CollectionsBuiltinsAssembler::TryLookupOrderedHashTableIndex(
     const TNode<CollectionType> table, TVariable<JSAny>* key,
     TVariable<IntPtrT>* result, Label* if_entry_found, Label* if_not_found) {
   Label if_key_smi(this), if_key_string(this), if_key_heap_number(this),
-      if_key_bigint(this), if_key_minus_0(this), if_unique(this);
+      if_key_bigint(this), if_key_minus_0(this);
 
   GotoIf(TaggedIsSmi(key->value()), &if_key_smi);
 
@@ -2417,27 +2431,33 @@ void CollectionsBuiltinsAssembler::TryLookupOrderedHashTableIndex(
   TNode<Uint16T> key_instance_type = LoadMapInstanceType(key_map);
   GotoIf(IsStringInstanceType(key_instance_type), &if_key_string);
   GotoIf(IsBigIntInstanceType(key_instance_type), &if_key_bigint);
-  Goto(&if_unique);
+
+  FindOrderedHashTableEntryForOtherKey<CollectionType>(
+      table, CAST(key->value()), result, if_entry_found, if_not_found);
 
   BIND(&if_key_string);
   {
-    Label if_not_thin(this);
+    Label if_unique(this), if_not_thin(this);
     GotoIf(IsInternalizedStringInstanceType(key_instance_type), &if_unique);
     GotoIfNot(IsSetWord32(key_instance_type, kThinStringTagBit), &if_not_thin);
-    *key = LoadObjectField<String>(CAST(key->value()),
-                                   offsetof(ThinString, actual_));
-    Goto(&if_unique);
+    {
+      *key = LoadObjectField<String>(CAST(key->value()),
+                                     offsetof(ThinString, actual_));
+      Goto(&if_unique);
+    }
 
     BIND(&if_not_thin);
-    *key = CAST(CallRuntime(Runtime::kInternalizeString, NoContextConstant(),
-                            key->value()));
-    Goto(&if_unique);
-  }
+    {
+      *key = CAST(CallRuntime(Runtime::kInternalizeString, NoContextConstant(),
+                              key->value()));
+      Goto(&if_unique);
+    }
 
-  BIND(&if_unique);
-  {
-    FindOrderedHashTableEntryForOtherKey<CollectionType>(
-        table, CAST(key->value()), result, if_entry_found, if_not_found);
+    BIND(&if_unique);
+    {
+      FindOrderedHashTableEntryForStringKey<CollectionType>(
+          table, CAST(key->value()), result, if_entry_found, if_not_found);
+    }
   }
 
   BIND(&if_key_heap_number);

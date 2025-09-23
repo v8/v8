@@ -307,6 +307,16 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       TNode<CollectionType> table, TNode<HeapNumber> key_heap_number,
       TVariable<IntPtrT>* result, Label* entry_found, Label* not_found);
 
+  // Specialization for string.
+  // The {result} variable will contain the entry index if the key was found,
+  // or the hash code otherwise.
+  template <typename CollectionType>
+  void FindOrderedHashTableEntryForStringKey(TNode<CollectionType> table,
+                                             TNode<String> key_tagged,
+                                             TVariable<IntPtrT>* result,
+                                             Label* entry_found,
+                                             Label* not_found);
+
   // Specialization for bigints.
   // The {result} variable will contain the entry index if the key was found,
   // or the hash code otherwise.
