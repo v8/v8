@@ -2675,14 +2675,6 @@ AsyncCompileJob::~AsyncCompileJob() {
 
 void AsyncCompileJob::CreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
-  // Embedder usage count for declared shared memories.
-  const bool has_shared_memory =
-      std::any_of(module->memories.begin(), module->memories.end(),
-                  [](auto& memory) { return memory.is_shared; });
-  if (has_shared_memory) {
-    isolate_->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
-  }
-
   // Create the module object and populate with compiled functions and
   // information needed at instantiation time.
 
