@@ -293,7 +293,7 @@ Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
 #ifdef V8_ENABLE_WEBASSEMBLY
     // WasmNull is extra special because it also reserves (unmapped) padding
     // for the hole roots.
-    if (!IsWasmNull(object)) {
+    if (IsAnyHole(object) || !IsWasmNull(object)) {
       DCHECK_VALID_REGULAR_OBJECT_SIZE(object_size);
     }
 #else

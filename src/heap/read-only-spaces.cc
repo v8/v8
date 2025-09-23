@@ -252,7 +252,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
 #ifdef V8_ENABLE_WEBASSEMBLY
         // WasmNull is extra special because it also reserves (unmapped) padding
         // for the hole roots.
-        if (!IsWasmNull(obj)) {
+        if (IsAnyHole(obj) || !IsWasmNull(obj)) {
           DCHECK_VALID_REGULAR_OBJECT_SIZE(obj_size);
         }
 #else

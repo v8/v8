@@ -2061,7 +2061,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return WasmArray::SizeFor(map, UncheckedCast<WasmArray>(*this)->length());
   }
   if (instance_type == WASM_NULL_TYPE) {
-    return WasmNull::kSize;
+    return WasmNull::Size();
   }
   if (instance_type == WASM_DISPATCH_TABLE_TYPE) {
     return WasmDispatchTable::SizeFor(

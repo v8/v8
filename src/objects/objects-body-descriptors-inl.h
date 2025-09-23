@@ -1242,10 +1242,8 @@ class WasmNull::BodyDescriptor : public DataOnlyBodyDescriptor {
   static_assert(WasmNull::kStartOfStrongFieldsOffset ==
                 WasmNull::kEndOfStrongFieldsOffset);
 
-  static constexpr int kSize = WasmNull::kSize;
-
-  static constexpr int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return kSize;
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return WasmNull::Size();
   }
 };
 

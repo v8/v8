@@ -1335,10 +1335,11 @@ bool Heap::CreateReadOnlyObjects() {
     constexpr int kOffsetAfterMapWord = HeapObject::kMapOffset + kTaggedSize;
     static_assert(kOffsetAfterMapWord % kObjectAlignment == 0);
 
-    constexpr size_t kPaddingSize = WasmNull::kSize - kOffsetAfterMapWord;
+    constexpr size_t kPaddingSize =
+        WasmNull::kSizeWithFullPayload - kOffsetAfterMapWord;
     static_assert(kPaddingSize == 2 * kLargestPossibleOSPageSize);
 
-    read_only_space_->EnsureSpaceForAllocation(WasmNull::kSize -
+    read_only_space_->EnsureSpaceForAllocation(WasmNull::kSizeWithFullPayload -
                                                kOffsetAfterMapWord);
     Address next_page = RoundUp(read_only_space_->top() + kOffsetAfterMapWord,
                                 kLargestPossibleOSPageSize);
@@ -1364,9 +1365,9 @@ bool Heap::CreateReadOnlyObjects() {
     // Massive hack: the WasmNull with two payloads is too large for a regular,
     // non-LO-space object. This doesn't actually really matter in RO space, so
     // do two allocations side-by-side and write the WasmNull over both of them.
-    AllocationResult first_allocation =
-        AllocateRaw(WasmNull::kSize - WasmNull::kSecondPayloadSize,
-                    AllocationType::kReadOnly);
+    AllocationResult first_allocation = AllocateRaw(
+        WasmNull::kSizeWithFullPayload - WasmNull::kSecondPayloadSize,
+        AllocationType::kReadOnly);
     AllocationResult second_allocation =
         AllocateRaw(WasmNull::kSecondPayloadSize, AllocationType::kReadOnly);
     CHECK(!first_allocation.IsFailure());
@@ -1448,6 +1449,14 @@ bool Heap::CreateReadOnlyObjects() {
   set_self_reference_marker(UncheckedCast<SelfReferenceMarker>(make_hole()));
   set_basic_block_counters_marker(
       UncheckedCast<BasicBlockCountersMarker>(make_hole()));
+
+#if V8_UNMAP_WASM_NULL_PAYLOAD
+  Address after_last_hole =
+      roots.wasm_null()->second_payload() + (i * sizeof(Hole));
+  int filler_size = static_cast<int>(read_only_space_->top() - after_last_hole);
+  CreateFillerObjectAt(after_last_hole, filler_size,
+                       ClearFreedMemoryMode::kClearFreedMemory);
+#endif  // V8_UNMAP_WASM_NULL_PAYLOAD
 
   return true;
 }
