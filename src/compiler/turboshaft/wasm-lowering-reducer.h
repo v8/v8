@@ -173,10 +173,11 @@ class WasmLoweringReducer : public Next {
       V<Object> heap_number =
           is_shared
               ? __ template WasmCallBuiltinThroughJumptable<
-                    BuiltinCallDescriptor::WasmInt32ToSharedHeapNumber>(
-                    {int_value})
+                    deprecated::BuiltinCallDescriptor::
+                        WasmInt32ToSharedHeapNumber>({int_value})
               : __ template WasmCallBuiltinThroughJumptable<
-                    BuiltinCallDescriptor::WasmInt32ToHeapNumber>({int_value});
+                    deprecated::BuiltinCallDescriptor::WasmInt32ToHeapNumber>(
+                    {int_value});
       GOTO(end_label, heap_number);
     }
 
@@ -497,7 +498,7 @@ class WasmLoweringReducer : public Next {
           !shared_ && module_->function_is_shared(function_index);
 
       V<WasmFuncRef> from_builtin = __ template WasmCallBuiltinThroughJumptable<
-          BuiltinCallDescriptor::WasmRefFunc>(
+          deprecated::BuiltinCallDescriptor::WasmRefFunc>(
           {__ Word32Constant(function_index),
            __ Word32Constant(extract_shared_data ? 1 : 0)});
 
@@ -517,8 +518,9 @@ class WasmLoweringReducer : public Next {
         instance_type, __ Word32Constant(kStringRepresentationMask));
     GOTO_IF(__ Word32Equal(string_representation, kSeqStringTag), done, string);
 
-    GOTO(done, __ template WasmCallBuiltinThroughJumptable<
-                   BuiltinCallDescriptor::WasmStringAsWtf16>({string}));
+    GOTO(done,
+         __ template WasmCallBuiltinThroughJumptable<
+             deprecated::BuiltinCallDescriptor::WasmStringAsWtf16>({string}));
     BIND(done, result);
     return result;
   }

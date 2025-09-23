@@ -821,21 +821,22 @@ class MachineLoweringReducer : public Next {
     switch (to) {
       case ConvertOp::Kind::kNumber: {
         if (from == ConvertOp::Kind::kPlainPrimitive) {
-          return __ CallBuiltin_PlainPrimitiveToNumber(
-              isolate_, V<PlainPrimitive>::Cast(input));
+          return __ template CallBuiltin<builtin::PlainPrimitiveToNumber>(
+              {.input = V<PlainPrimitive>::Cast(input)});
         } else {
           DCHECK_EQ(from, ConvertOp::Kind::kString);
-          return __ CallBuiltin_StringToNumber(isolate_,
-                                               V<String>::Cast(input));
+          return __ template CallBuiltin<builtin::StringToNumber>(
+              {.input = V<String>::Cast(input)});
         }
       }
       case ConvertOp::Kind::kBoolean: {
         DCHECK_EQ(from, ConvertOp::Kind::kObject);
-        return __ CallBuiltin_ToBoolean(isolate_, input);
+        return __ template CallBuiltin<builtin::ToBoolean>({.input = input});
       }
       case ConvertOp::Kind::kString: {
         DCHECK_EQ(from, ConvertOp::Kind::kNumber);
-        return __ CallBuiltin_NumberToString(isolate_, V<Number>::Cast(input));
+        return __ template CallBuiltin<builtin::NumberToString>(
+            {.input = V<Number>::Cast(input)});
       }
       case ConvertOp::Kind::kSmi: {
         DCHECK_EQ(from, ConvertOp::Kind::kNumberOrOddball);
@@ -1804,7 +1805,8 @@ class MachineLoweringReducer : public Next {
                         value, __ HeapConstant(factory_->null_value()))),
                     done, global_proxy);
           }
-          GOTO(done, __ CallBuiltin_ToObject(isolate_, native_context, value));
+          GOTO(done, __ template CallBuiltin<builtin::ToObject>(
+                         native_context, {.input = value}));
         }
 
         BIND(done, result);
@@ -2624,19 +2626,21 @@ class MachineLoweringReducer : public Next {
 
   V<Smi> REDUCE(StringIndexOf)(V<String> string, V<String> search,
                                V<Smi> position) {
-    return __ CallBuiltin_StringIndexOf(isolate_, string, search, position);
+    return __ template CallBuiltin<builtin::StringIndexOf>(
+        {.s = string, .search_string = search, .start = position});
   }
 
   V<String> REDUCE(StringFromCodePointAt)(V<String> string, V<WordPtr> index) {
-    return __ CallBuiltin_StringFromCodePointAt(isolate_, string, index);
+    return __ template CallBuiltin<builtin::StringFromCodePointAt>(
+        {.receiver = string, .position = index});
   }
 
 #ifdef V8_INTL_SUPPORT
   V<String> REDUCE(StringToCaseIntl)(V<String> string,
                                      StringToCaseIntlOp::Kind kind) {
     if (kind == StringToCaseIntlOp::Kind::kLower) {
-      return __ CallBuiltin_StringToLowerCaseIntl(
-          isolate_, __ NoContextConstant(), string);
+      return __ template CallBuiltin<builtin::StringToLowerCaseIntl>(
+          __ NoContextConstant(), {.string = string});
     } else {
       DCHECK_EQ(kind, StringToCaseIntlOp::Kind::kUpper);
       return __ CallRuntime_StringToUpperCaseIntl(
@@ -2649,14 +2653,15 @@ class MachineLoweringReducer : public Next {
                                     V<Word32> end) {
     V<WordPtr> s = __ ChangeInt32ToIntPtr(start);
     V<WordPtr> e = __ ChangeInt32ToIntPtr(end);
-    return __ CallBuiltin_StringSubstring(isolate_, string, s, e);
+    return __ template CallBuiltin<builtin::StringSubstring>(
+        {.string = string, .from = s, .to = e});
   }
 
   V<String> REDUCE(StringConcat)(V<Smi> length, V<String> left,
                                  V<String> right) {
     // TODO(nicohartmann@): Port StringBuilder once it is stable.
-    return __ CallBuiltin_StringAdd_CheckNone(isolate_, __ NoContextConstant(),
-                                              left, right);
+    return __ template CallBuiltin<builtin::StringAdd_CheckNone>(
+        __ NoContextConstant(), {.left = left, .right = right});
   }
 
   V<Boolean> REDUCE(StringComparison)(V<String> left, V<String> right,
@@ -2674,9 +2679,11 @@ class MachineLoweringReducer : public Next {
         return result;
       }
       case StringComparisonOp::Kind::kLessThan:
-        return __ CallBuiltin_StringLessThan(isolate_, left, right);
+        return __ template CallBuiltin<builtin::StringLessThan>(
+            {.left = left, .right = right});
       case StringComparisonOp::Kind::kLessThanOrEqual:
-        return __ CallBuiltin_StringLessThanOrEqual(isolate_, left, right);
+        return __ template CallBuiltin<builtin::StringLessThanOrEqual>(
+            {.left = left, .right = right});
     }
   }
 
@@ -2715,9 +2722,10 @@ class MachineLoweringReducer : public Next {
     V<Word32> right_length =
         __ template LoadField<Word32>(right, AccessBuilder::ForStringLength());
     IF (__ Word32Equal(left_length, right_length)) {
-      GOTO(*done,
-           __ CallBuiltin_StringEqual(isolate_, left, right,
-                                      __ ChangeInt32ToIntPtr(left_length)));
+      GOTO(*done, __ template CallBuiltin<builtin::StringEqual>(
+                      {.left = left,
+                       .right = right,
+                       .length = __ ChangeInt32ToIntPtr(left_length)}));
     } ELSE {
       GOTO(*done, __ HeapConstant(factory_->false_value()));
     }
@@ -2755,14 +2763,20 @@ class MachineLoweringReducer : public Next {
     V<WordPtr> p_count = __ IntPtrConstant(formal_parameter_count);
     switch (type) {
       case CreateArgumentsType::kMappedArguments:
-        return __ CallBuiltin_NewSloppyArgumentsElements(
-            isolate_, frame, p_count, arguments_count);
+        return __ template CallBuiltin<builtin::NewSloppyArgumentsElements>(
+            {.frame = frame,
+             .formal_parameter_count = p_count,
+             .arguments_count = arguments_count});
       case CreateArgumentsType::kUnmappedArguments:
-        return __ CallBuiltin_NewStrictArgumentsElements(
-            isolate_, frame, p_count, arguments_count);
+        return __ template CallBuiltin<builtin::NewStrictArgumentsElements>(
+            {.frame = frame,
+             .formal_parameter_count = p_count,
+             .arguments_count = arguments_count});
       case CreateArgumentsType::kRestParameter:
-        return __ CallBuiltin_NewRestArgumentsElements(isolate_, frame, p_count,
-                                                       arguments_count);
+        return __ template CallBuiltin<builtin::NewRestArgumentsElements>(
+            {.frame = frame,
+             .formal_parameter_count = p_count,
+             .arguments_count = arguments_count});
     }
   }
 
@@ -3427,9 +3441,11 @@ class MachineLoweringReducer : public Next {
                                SameValueOp::Mode mode) {
     switch (mode) {
       case SameValueOp::Mode::kSameValue:
-        return __ CallBuiltin_SameValue(isolate_, left, right);
+        return __ template CallBuiltin<builtin::SameValue>(
+            {.left = left, .right = right});
       case SameValueOp::Mode::kSameValueNumbersOnly:
-        return __ CallBuiltin_SameValueNumbersOnly(isolate_, left, right);
+        return __ template CallBuiltin<builtin::SameValueNumbersOnly>(
+            {.left = left, .right = right});
     }
   }
 
@@ -3474,7 +3490,8 @@ class MachineLoweringReducer : public Next {
 
     // We need to take a copy of the {elements} and set them up for {object}.
     V<Object> copy =
-        __ CallBuiltin_CopyFastSmiOrObjectElements(isolate_, object);
+        __ template CallBuiltin<builtin::CopyFastSmiOrObjectElements>(
+            {.object = object});
     GOTO(done, copy);
 
     BIND(done, result);
@@ -3494,12 +3511,13 @@ class MachineLoweringReducer : public Next {
     V<Object> new_elements;
     switch (mode) {
       case GrowFastElementsMode::kDoubleElements:
-        new_elements = __ CallBuiltin_GrowFastDoubleElements(isolate_, object,
-                                                             __ TagSmi(index));
+        new_elements = __ template CallBuiltin<builtin::GrowFastDoubleElements>(
+            {.object = object, .size = __ TagSmi(index)});
         break;
       case GrowFastElementsMode::kSmiOrObjectElements:
-        new_elements = __ CallBuiltin_GrowFastSmiOrObjectElements(
-            isolate_, object, __ TagSmi(index));
+        new_elements =
+            __ template CallBuiltin<builtin::GrowFastSmiOrObjectElements>(
+                {.object = object, .size = __ TagSmi(index)});
         break;
     }
 
@@ -3586,8 +3604,8 @@ class MachineLoweringReducer : public Next {
                                        FindOrderedHashEntryOp::Kind kind) {
     switch (kind) {
       case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntry:
-        return __ CallBuiltin_FindOrderedHashMapEntry(
-            isolate_, __ NoContextConstant(), data_structure, key);
+        return __ template CallBuiltin<builtin::FindOrderedHashMapEntry>(
+            __ NoContextConstant(), {.table = data_structure, .key = key});
       case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key: {
         // Compute the integer hash code.
         V<WordPtr> hash = __ ChangeUint32ToUintPtr(ComputeUnseededHash(key));
@@ -3646,8 +3664,8 @@ class MachineLoweringReducer : public Next {
         return result;
       }
       case FindOrderedHashEntryOp::Kind::kFindOrderedHashSetEntry:
-        return __ CallBuiltin_FindOrderedHashSetEntry(
-            isolate_, __ NoContextConstant(), data_structure, key);
+        return __ template CallBuiltin<builtin::FindOrderedHashSetEntry>(
+            __ NoContextConstant(), {.table = data_structure, .key = key});
     }
   }
 
