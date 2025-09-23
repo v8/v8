@@ -643,16 +643,6 @@ class GraphBuildingNodeProcessor {
       // and in both Turboshaft and Maglev, the backedge is always the last
       // predecessors, so we never need to reorder phi inputs.
       return maglev::BlockProcessResult::kContinue;
-    } else if (maglev_block->is_exception_handler_block()) {
-      // We need to emit the CatchBlockBegin at the begining of this block. Note
-      // that if this block has multiple predecessors (because multiple throwing
-      // operations are caught by the same catch handler), then edge splitting
-      // will have already created CatchBlockBegin operations in the
-      // predecessors, and calling `__ CatchBlockBegin` now will actually only
-      // emit a Phi of the CatchBlockBegin of the predecessors (which is exactly
-      // what we want). See the comment above CatchBlockBegin in
-      // TurboshaftAssemblerOpInterface.
-      catch_block_begin_ = __ CatchBlockBegin();
     }
 
     // Because of edge splitting in Maglev (which happens on Bind rather than on
