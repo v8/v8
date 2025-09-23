@@ -967,15 +967,24 @@ class JSGlobalProxyData : public JSObjectData {
       : JSObjectData(broker, storage, object, kind) {}
 };
 
-#define DEFINE_IS(Name)                                                 \
-  bool ObjectData::Is##Name() const {                                   \
-    if (should_access_heap()) {                                         \
-      return i::Is##Name(*object());                                    \
-    }                                                                   \
-    if (is_smi()) return false;                                         \
-    InstanceType instance_type =                                        \
-        static_cast<const HeapObjectData*>(this)->GetMapInstanceType(); \
-    return InstanceTypeChecker::Is##Name(instance_type);                \
+#define DEFINE_IS(Name)                                                    \
+  bool ObjectData::Is##Name() const {                                      \
+    if (should_access_heap()) {                                            \
+      static_assert(!is_subtype_v<Name, Hole>);                            \
+      /* If this could be a hole, first check for that before the full */  \
+      /* predicate, because hole unmapping can make the following */       \
+      /* predicate crash. */                                               \
+      if (!is_subtype_v<Name, TrustedObject> && i::IsAnyHole(*object())) { \
+        /* If this is a hole, then the overall predicate might still be */ \
+        /* true, e.g. if Name is HeapObject. */                            \
+        return is_subtype_v<Hole, Name>;                                   \
+      }                                                                    \
+      return i::Is##Name(*object());                                       \
+    }                                                                      \
+    if (is_smi()) return false;                                            \
+    InstanceType instance_type =                                           \
+        static_cast<const HeapObjectData*>(this)->GetMapInstanceType();    \
+    return InstanceTypeChecker::Is##Name(instance_type);                   \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS
