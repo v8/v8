@@ -786,8 +786,8 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
       ctx->uc_mcontext.gregs[REG_ERR] & (1 << kWriteAccessBit);
   if (!write_access) {
     PrintToStderr(
-        "Access type was read though which is technically not a sandbox "
-        "violation. This requires manual investigation.\n");
+        "The sandbox violation was a *read* access which is technically not a "
+        "sandbox violation. This requires manual investigation.\n");
   }
 #endif  // V8_HOST_ARCH_X64
 }
