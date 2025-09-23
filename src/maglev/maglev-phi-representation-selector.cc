@@ -541,20 +541,20 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
           case Opcode::kChangeInt32ToFloat64: {
             new_input =
                 GetReplacementForPhiInputConversion<ChangeInt32ToFloat64>(
-                    input, phi, input_index);
+                    bypassed_input, phi, input_index);
             break;
           }
           case Opcode::kChangeUint32ToFloat64: {
             new_input =
                 GetReplacementForPhiInputConversion<ChangeUint32ToFloat64>(
-                    input, phi, input_index);
+                    bypassed_input, phi, input_index);
             break;
           }
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
           case Opcode::kFloat64ToHoleyFloat64: {
             new_input =
                 GetReplacementForPhiInputConversion<Float64ToHoleyFloat64>(
-                    input, phi, input_index);
+                    bypassed_input, phi, input_index);
             break;
           }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
@@ -724,11 +724,12 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
 template <class NodeT>
 ValueNode* MaglevPhiRepresentationSelector::GetReplacementForPhiInputConversion(
     ValueNode* input, Phi* phi, uint32_t input_index) {
+  DCHECK(!input->Is<Identity>());
   TRACE_UNTAGGING(TRACE_INPUT_LABEL
                   << ": Replacing old conversion with a "
                   << OpcodeToString(NodeBase::opcode_of<NodeT>));
   return AddNewNodeNoInputConversionAtBlockEnd<NodeT>(
-      phi->predecessor_at(input_index), {input->input(0).node()});
+      phi->predecessor_at(input_index), {input});
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
