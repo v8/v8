@@ -143,6 +143,10 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
         zone_(gen->zone()) {}
 
   void Generate() final {
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTagged(value_, value_);
+    }
+
     __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
