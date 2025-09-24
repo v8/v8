@@ -747,9 +747,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif  // V8_ENABLE_LEAPTIERING
 
   // Load the code entry point from the Code object.
-  void LoadCodeInstructionStart(
-      Register destination, Register code_object,
-      CodeEntrypointTag tag = kDefaultCodeEntrypointTag);
+  void LoadCodeInstructionStart(Register destination, Register code_object,
+                                CodeEntrypointTag tag = kInvalidEntrypointTag);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);

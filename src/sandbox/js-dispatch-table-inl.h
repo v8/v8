@@ -339,10 +339,9 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
     // Target code doesn't use JS linkage. This cannot be valid.
     return false;
   }
-  // TODO(saelo): turn this into DCHECK once entrypoint tag check is enough.
-  if (code->is_builtin() && !Builtins::HasJSLinkage(code->builtin_id())) {
-    return false;
-  }
+  DCHECK_IMPLIES(code->is_builtin(),
+                 Builtins::HasJSLinkage(code->builtin_id()));
+
   if (code->parameter_count() == parameter_count) {
     DCHECK_IMPLIES(code->is_builtin(),
                    parameter_count ==
