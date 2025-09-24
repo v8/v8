@@ -196,8 +196,7 @@ def get_v8_solution(solutions):
 def detect_reclient():
   if not GCLIENT_FILE_PATH.exists():
     return Reclient.NONE
-  with open(GCLIENT_FILE_PATH) as f:
-    content = f.read()
+  content = GCLIENT_FILE_PATH.read_text()
   try:
     config_dict = {}
     exec(content, config_dict)
@@ -209,9 +208,9 @@ def detect_reclient():
     print("# Can't detect reclient due to missing v8 gclient solution.")
     return Reclient.NONE
   custom_vars = v8_solution.get("custom_vars", {})
-  if custom_vars.get("rbe_instance"):
+  if "rbe_instance" in custom_vars:
     return Reclient.CUSTOM
-  if custom_vars.get("download_remoteexec_cfg"):
+  if "download_remoteexec_cfg" in custom_vars:
     return Reclient.GOOGLE
   return Reclient.NONE
 
@@ -223,22 +222,23 @@ def detect_reclient_cert():
   # We cache the cert expiration time in a file, because that's much faster
   # to read than invoking `gcertstatus`.
   if RECLIENT_CERT_CACHE.exists():
-    with open(RECLIENT_CERT_CACHE, 'r') as f:
-      cached_time = int(f.read())
+    cached_time = int(RECLIENT_CERT_CACHE.read_text())
     if now < cached_time:
       return True
   cmd = ["gcertstatus", "-nocheck_ssh", "-format=simple"]
   ret = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   if ret.returncode != 0:
     return False
+  gcertstatus_output = ret.stdout.decode("utf-8").strip()
+  if not gcertstatus_output:
+    return False
   # Request fresh cert if less than an hour remains. Reproxy will refuse to
   # start when the certificate is close to expiring.
   MARGIN = 3600
-  lifetime = int(ret.stdout.decode("utf-8").strip().split(':')[1]) - MARGIN
+  lifetime = int(gcertstatus_output.split(":")[1]) - MARGIN
   if lifetime < 0:
     return False
-  with open(RECLIENT_CERT_CACHE, 'w') as f:
-    f.write(str(now + lifetime))
+  RECLIENT_CERT_CACHE.write_text(str(now + lifetime))
   return True
 
 
@@ -373,8 +373,7 @@ def _call_with_output(cmd):
 def _write(filename, content, log=True):
   if log:
     print(f"# echo > {filename} << EOF\n{content}EOF")
-  with filename.open("w") as f:
-    f.write(content)
+  filename.write_text(content)
 
 
 def _notify(summary, body):
@@ -431,9 +430,8 @@ class RawConfig:
 
   def update_build_distribution_args(self):
     args_gn = self.path / "args.gn"
-    assert args_gn.exists()
-    with open(args_gn) as f:
-      gn_args = f.read()
+    assert args_gn.exists(), f"args.gn does not exist: {args_gn}"
+    gn_args = args_gn.read_text()
     # Remove custom reclient config path (it will be added again as part of
     # the config line below if needed).
     new_gn_args = DEPRECATED_RBE_CFG_RE.sub("", gn_args)
