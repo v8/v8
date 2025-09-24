@@ -82,7 +82,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:8d773bd66228681b4971c71a516f6f8b0d105338',
+  'siso_version': 'git_revision:acfc39d4c923834851300e8676daf8fc47e53a2d',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'ae5f94430c494db73fdcd2106269d3b08ea8e24f',
+  'partition_alloc_version': 'ecbbabb292b5e07a332dfdb206591aa2ee7e8f44',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '74a395aaafc3ed53af32fa3c25f8aaee82aaac85',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '96929ea3158df5226ae638fd65231d76f54c5be9',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '509b14a02d7c2a257f21ccb6892f6e0eac30e18a',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6f5246ca99b01caae2fd74dca0afeef76d5dac74',
   'buildtools/linux64': {
     'packages': [
       {
@@ -498,11 +498,11 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '75e3637805207152f84a78eb28163034beadf654',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '6242e1f71679879a8e00bb86b4cbf31fbc26d443',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '2cbfc8d2e5ef4a6afd9774e9a9eaebd921a9f248',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'f538b9f50809a3951394f61d7e39f6c216802a28',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'ed68b37900ca8d7a9406c5cb519d238faefb50bc',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -550,11 +550,11 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '85f05b0835f934e52772efc308baa80cdd491838',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '55dc67af3586433ac03ec5e0186c29e9978d6be2',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'cc42de7c589335b2dd4d9476a930937cfabdf1ae',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '1785df7779eb7f584d3f8c625893ce8c3de53fa1',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'c3655ab8bb514aa318207c2685b3ba557a048201',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
