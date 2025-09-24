@@ -32,6 +32,87 @@ void FunctionInStaticBinaryForAddressHint() {}
 
 }  // anonymous namespace
 
+void RedZones::Initialize(base::BoundedPageAllocator* allocator) {
+  allocator_ = allocator;
+}
+
+bool RedZones::TryAdd(base::AddressRegion region) {
+  if (!allocator_) {
+    return false;
+  }
+  const base::AddressRegion allocator_region(allocator_->begin(),
+                                             allocator_->size());
+  const base::AddressRegion overlap = allocator_region.GetOverlap(region);
+  if (overlap.size() == 0) {
+    return false;
+  }
+  // The region passed in here already needs to be sufficiently aligned to the
+  // allocator.
+  CHECK_EQ(0, overlap.size() % allocator_->AllocatePageSize());
+  red_zones_.emplace_back(overlap);
+  // TODO(429538831): Once better understood, turn this into a regular
+  // OOM.
+  CHECK(allocator_->AllocatePagesAt(overlap.begin(), overlap.size(),
+                                    PageAllocator::kNoAccess));
+  return true;
+}
+
+// Removes a `needle` from the red zones if it is contained (partially or
+// full) in the existing red zones. Returns true if `needle` was removed from
+// the existing red zones, and false otherwise.
+bool RedZones::TryRemove(base::AddressRegion needle) {
+  if (!allocator_) {
+    return false;
+  }
+  const size_t allocate_page_size = allocator_->AllocatePageSize();
+  bool did_remove_region = false;
+
+  std::vector<base::AddressRegion> new_red_zones;
+  for (auto it = red_zones_.begin(); it != red_zones_.end();) {
+    const base::AddressRegion red_zone_region = *it;
+    const base::AddressRegion overlap = red_zone_region.GetOverlap(needle);
+    if (overlap.size() == 0) {
+      ++it;
+      continue;
+    }
+    // We have an overlap. We cannot partially free the red zone here but
+    // have to return all of it and then conditonally re-add ranges
+    // manually. This is necessary as we still want the non-removed parts to
+    // be unavailable for allocation.
+    CHECK_EQ(0, overlap.size() % allocate_page_size);
+    allocator_->FreePages(reinterpret_cast<void*>(red_zone_region.begin()),
+                          red_zone_region.size());
+    it = red_zones_.erase(it);
+    did_remove_region = true;
+    // If the overlap was the whole region, we just need to remove the entry and
+    // we are done.
+    if (overlap.size() == red_zone_region.size()) {
+      continue;
+    }
+    const auto add_new_red_zone = [this, &new_red_zones, allocate_page_size](
+                                      Address red_zone_begin,
+                                      size_t red_zone_size) {
+      CHECK_EQ(0, red_zone_size % allocate_page_size);
+      CHECK(allocator_->AllocatePagesAt(red_zone_begin, red_zone_size,
+                                        PageAllocator::kNoAccess));
+      new_red_zones.emplace_back(red_zone_begin, red_zone_size);
+    };
+    if (red_zone_region.begin() != overlap.begin()) {
+      CHECK_GT(overlap.begin(), red_zone_region.begin());
+      add_new_red_zone(red_zone_region.begin(),
+                       overlap.begin() - red_zone_region.begin());
+    }
+    if (red_zone_region.end() != overlap.end()) {
+      CHECK_LT(overlap.end(), red_zone_region.end());
+      add_new_red_zone(overlap.end(), red_zone_region.end() - overlap.end());
+    }
+  }
+  // Add the new red zones.
+  red_zones_.insert(red_zones_.end(), new_red_zones.begin(),
+                    new_red_zones.end());
+  return did_remove_region;
+}
+
 Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
                                              size_t allocate_page_size) {
   base::MutexGuard guard(&mutex_);
@@ -242,6 +323,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   CHECK_IMPLIES(CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL,
                 v8_flags.reserve_contiguous_compressed_read_only_space);
   if (v8_flags.reserve_contiguous_compressed_read_only_space) {
+    red_zones_.Initialize(page_allocator_.get());
     // Contiguous RO space supports checking for RO space objects via raw full
     // addresses. In case we cross a `kPtrComprCageBaseAlignment` boundary we
     // need to add a red zone.
@@ -267,6 +349,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     // We add excluded_allocatable_area_size as that area is generally already
     // reserved at the beginning of the code range.
     CHECK_EQ(0, excluded_allocatable_area_size % allocate_page_size);
+    CHECK_EQ(0, kContiguousReadOnlyReservationSize % allocate_page_size);
     const Address allocatable_begin =
         page_allocator_->begin() + excluded_allocatable_area_size;
     const Address allocatable_end =
@@ -288,19 +371,11 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
         CHECK_LT(red_zone_size, size());
         CHECK_GE(red_zone_start, base());
         CHECK_LE(red_zone_end, base() + size());
-        // We only allocate multiples of `allocate_page_size` and thus can only
-        // see overlaps of this size.
-        CHECK_EQ(0, kContiguousReadOnlyReservationSize % allocate_page_size);
-        CHECK_EQ(0, red_zone_size % allocate_page_size);
-        // Record the red zone in case we have to later undo it for remapping
-        // builtins.
-        red_zones_.emplace_back(red_zone_start, red_zone_size);
-        // TODO(429538831): Once better understood, turn this into a regular
-        // OOM.
-        CHECK(page_allocator_->AllocatePagesAt(red_zone_start, red_zone_size,
-                                               PageAllocator::kNoAccess));
+        CHECK(red_zones_.TryAdd(
+            base::AddressRegion(red_zone_start, red_zone_size)));
       }
     }
+    CHECK_LE(red_zones_.num_red_zones(), 1);
     CHECK_LE(number_of_red_zones, 1);
   }
 #endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
@@ -452,25 +527,7 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
       allocate_code_size;
   const Address blob_begin = code_region.begin() + blob_offset;
 
-  // Helper to return overlap of an interesting `needle` with red zones back to
-  // the allocator. The method does not update the red zone regions and assumes
-  // that it's never called with the same needle twice.
-  const auto return_red_zone_to_allocator = [this, allocate_page_size](
-                                                base::AddressRegion needle) {
-    for (const auto& red_zone_region : red_zones_) {
-      const base::AddressRegion overlap = red_zone_region.GetOverlap(needle);
-      if (overlap.size() > 0) {
-        // Overlap. We need to return the part of the red zone that overlaps
-        // with the range that we were given.
-        CHECK_EQ(0, overlap.size() % allocate_page_size);
-        page_allocator()->FreePages(reinterpret_cast<void*>(overlap.begin()),
-                                    overlap.size());
-      }
-    }
-  };
-
-  return_red_zone_to_allocator(
-      base::AddressRegion(blob_begin, allocate_code_size));
+  red_zones_.TryRemove(base::AddressRegion(blob_begin, allocate_code_size));
   // TODO(429538831): This should be using AllocatePagesAt() which lacks support
   // for kRecommitOnly though.
   embedded_blob_code_copy =
@@ -492,7 +549,7 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
         max_pc_relative_code_range;
     if (code_region.contains(unreachable_start)) {
       const size_t unreachable_size = code_region.end() - unreachable_start;
-      return_red_zone_to_allocator(
+      red_zones_.TryRemove(
           base::AddressRegion(unreachable_start, unreachable_size));
       // TODO(429538831): This should be using AllocatePagesAt() which lacks
       // support for kRecommitOnly though.
@@ -503,9 +560,8 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
     }
   }
 
-  // The previous two ranges were disjoint and we didn't have to keep red_zones_
-  // updates wrt to the red zones. Clear them here to make them unusable.
-  red_zones_.clear();
+  // Clear the red zones to make them unusable.
+  red_zones_.Reset();
 
   const size_t commit_page_size = page_allocator()->CommitPageSize();
   size_t code_size = RoundUp(embedded_blob_code_size, commit_page_size);
