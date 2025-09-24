@@ -81,6 +81,13 @@ in_category(
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
+        name = "V8 Linux64 - full debug",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        barrier = BARRIER.NONE,
+        disable_resultdb_exports = True,
+        first_branch_version = "14.2",
+    ),
+    main_multibranch_builder_pair(
         name = "V8 Linux64 css - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         disable_resultdb_exports = True,
