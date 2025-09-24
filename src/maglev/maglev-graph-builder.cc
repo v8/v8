@@ -2492,7 +2492,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStringConcat(ValueNode* left,
       SetAccumulator(result);
       return result;
     }
-    left = BuildToString(left, ToString::kThrowOnSymbol);
+    GET_VALUE_OR_ABORT(left, BuildToString(left, ToString::kThrowOnSymbol));
   } else if (!right_is_string) {
     if (NodeTypeCanBe(right_type, NodeType::kJSReceiver)) {
       constexpr Builtin kTarget = Builtin::kStringAddConvertRight;
@@ -2500,7 +2500,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStringConcat(ValueNode* left,
       SetAccumulator(result);
       return result;
     }
-    right = BuildToString(right, ToString::kThrowOnSymbol);
+    GET_VALUE_OR_ABORT(right, BuildToString(right, ToString::kThrowOnSymbol));
   }
 
   return BuildStringConcat(left, right);
@@ -6211,7 +6211,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
                              is_smi ? LoadType::kSmi : LoadType::kUnknown));
       if (is_holey) {
         if (is_holey_and_treat_hole_as_undefined) {
-          result = BuildConvertHoleToUndefined(result);
+          GET_VALUE_OR_ABORT(result, BuildConvertHoleToUndefined(result));
         } else {
           RETURN_IF_ABORT(BuildCheckNotHole(result));
         }
@@ -10939,7 +10939,7 @@ ReduceResult MaglevGraphBuilder::BuildGenericCall(ValueNode* target,
       DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kAny);
       // We don't use AddNewCallNode here, because the number of required
       // arguments is known statically.
-      return AddNewNodeNoAbort<CallWithArrayLike>(
+      return AddNewNode<CallWithArrayLike>(
           {target, GetValueOrUndefined(args.receiver()), args[0],
            GetContext()});
   }
@@ -11316,7 +11316,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
   return ReduceResult::Done();
 }
 
-ValueNode* MaglevGraphBuilder::BuildConvertHoleToUndefined(ValueNode* node) {
+ReduceResult MaglevGraphBuilder::BuildConvertHoleToUndefined(ValueNode* node) {
   if (!node->is_tagged()) return node;
   compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node);
   if (maybe_constant) {
@@ -11324,7 +11324,7 @@ ValueNode* MaglevGraphBuilder::BuildConvertHoleToUndefined(ValueNode* node) {
                ? GetRootConstant(RootIndex::kUndefinedValue)
                : node;
   }
-  return AddNewNodeNoAbort<ConvertHoleToUndefined>({node});
+  return AddNewNode<ConvertHoleToUndefined>({node});
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckNotHole(ValueNode* node) {
@@ -12409,7 +12409,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
             this, Builtin::kStringCreateLazyDeoptContinuation, builtin,
             base::VectorOf<ValueNode*>(
                 {GetRootConstant(RootIndex::kTheHoleValue)}));
-        value = BuildToString(args[0], ToString::kThrowOnSymbol);
+        GET_VALUE_OR_ABORT(value,
+                           BuildToString(args[0], ToString::kThrowOnSymbol));
       }
       return BuildInlinedAllocation(CreateJSStringWrapper(value),
                                     AllocationType::kYoung);
@@ -13086,15 +13087,15 @@ ReduceResult MaglevGraphBuilder::VisitToName() {
   return ReduceResult::Done();
 }
 
-ValueNode* MaglevGraphBuilder::BuildToString(ValueNode* value,
-                                             ToString::ConversionMode mode) {
+ReduceResult MaglevGraphBuilder::BuildToString(ValueNode* value,
+                                               ToString::ConversionMode mode) {
   if (CheckType(value, NodeType::kString)) return value;
   // TODO(victorgomes): Add fast path for constant primitives.
   if (CheckType(value, NodeType::kNumber)) {
     // TODO(verwaest): Float64ToString if float.
-    return AddNewNodeNoAbort<NumberToString>({value});
+    return AddNewNode<NumberToString>({value});
   }
-  return AddNewNodeNoAbort<ToString>({GetContext(), value}, mode);
+  return AddNewNode<ToString>({GetContext(), value}, mode);
 }
 
 ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
@@ -13174,8 +13175,8 @@ ReduceResult MaglevGraphBuilder::VisitToObject() {
 
 ReduceResult MaglevGraphBuilder::VisitToString() {
   // ToString
-  SetAccumulator(BuildToString(GetAccumulator(), ToString::kThrowOnSymbol));
-  return ReduceResult::Done();
+  return SetAccumulator(
+      BuildToString(GetAccumulator(), ToString::kThrowOnSymbol));
 }
 
 ReduceResult MaglevGraphBuilder::VisitToBoolean() {
@@ -14002,9 +14003,11 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
           ArgumentsLength* length =
               AddNewNodeNoInputConversion<ArgumentsLength>({});
           EnsureType(length, NodeType::kSmi);
-          ArgumentsElements* elements = AddNewNodeNoAbort<ArgumentsElements>(
-              {length}, CreateArgumentsType::kUnmappedArguments,
-              parameter_count_without_receiver());
+          ValueNode* length_tagged = GetTaggedValue(length);
+          ArgumentsElements* elements =
+              AddNewNodeNoInputConversion<ArgumentsElements>(
+                  {length_tagged}, CreateArgumentsType::kUnmappedArguments,
+                  parameter_count_without_receiver());
           return CreateArgumentsObject(
               broker()->target_native_context().sloppy_arguments_map(broker()),
               length, elements, GetClosure());
@@ -14043,9 +14046,11 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
           ArgumentsLength* length =
               AddNewNodeNoInputConversion<ArgumentsLength>({});
           EnsureType(length, NodeType::kSmi);
+          ValueNode* length_tagged = GetTaggedValue(length);
           ArgumentsElements* unmapped_elements =
-              AddNewNodeNoAbort<ArgumentsElements>(
-                  {length}, CreateArgumentsType::kMappedArguments, param_count);
+              AddNewNodeNoInputConversion<ArgumentsElements>(
+                  {length_tagged}, CreateArgumentsType::kMappedArguments,
+                  param_count);
           VirtualObject* elements = CreateMappedArgumentsElements(
               broker()->sloppy_arguments_elements_map(), param_count,
               GetContext(), unmapped_elements);
@@ -14078,9 +14083,11 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
         ArgumentsLength* length =
             AddNewNodeNoInputConversion<ArgumentsLength>({});
         EnsureType(length, NodeType::kSmi);
-        ArgumentsElements* elements = AddNewNodeNoAbort<ArgumentsElements>(
-            {length}, CreateArgumentsType::kUnmappedArguments,
-            parameter_count_without_receiver());
+        ValueNode* length_tagged = GetTaggedValue(length);
+        ArgumentsElements* elements =
+            AddNewNodeNoInputConversion<ArgumentsElements>(
+                {length_tagged}, CreateArgumentsType::kUnmappedArguments,
+                parameter_count_without_receiver());
         return CreateArgumentsObject(
             broker()->target_native_context().strict_arguments_map(broker()),
             length, elements);
@@ -14100,9 +14107,11 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
         ArgumentsLength* length =
             AddNewNodeNoInputConversion<ArgumentsLength>({});
         EnsureType(length, NodeType::kSmi);
-        ArgumentsElements* elements = AddNewNodeNoAbort<ArgumentsElements>(
-            {length}, CreateArgumentsType::kRestParameter,
-            parameter_count_without_receiver());
+        ValueNode* length_tagged = GetTaggedValue(length);
+        ArgumentsElements* elements =
+            AddNewNodeNoInputConversion<ArgumentsElements>(
+                {length_tagged}, CreateArgumentsType::kRestParameter,
+                parameter_count_without_receiver());
         RestLength* rest_length = AddNewNodeNoInputConversion<RestLength>(
             {}, parameter_count_without_receiver());
         return CreateArgumentsObject(
@@ -15398,9 +15407,10 @@ ReduceResult MaglevGraphBuilder::VisitForInNext() {
 ReduceResult MaglevGraphBuilder::VisitForInStep() {
   interpreter::Register index_reg = iterator_.GetRegisterOperand(0);
   ValueNode* index = current_interpreter_frame_.get(index_reg);
-  StoreRegister(
-      index_reg,
-      AddNewNodeNoAbort<Int32NodeFor<Operation::kIncrement>>({index}));
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(value,
+                     AddNewNode<Int32NodeFor<Operation::kIncrement>>({index}));
+  StoreRegister(index_reg, value);
   if (!in_peeled_iteration()) {
     // With loop peeling, only the `ForInStep` in the non-peeled loop body marks
     // the end of for-in.
@@ -16509,7 +16519,7 @@ ReduceResult MaglevGraphBuilder::BuildThrow(Throw::Function function,
   } else {
     has_input = true;
   }
-  AddNewNodeNoAbort<Throw>({input}, function, has_input);
+  RETURN_IF_ABORT(AddNewNode<Throw>({input}, function, has_input));
   FinishBlock<Abort>({}, AbortReason::kUnexpectedReturnFromThrow);
   return ReduceResult::DoneWithAbort();
 }

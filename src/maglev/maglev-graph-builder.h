@@ -551,7 +551,7 @@ class MaglevGraphBuilder {
                                compiler::FeedbackSource& feedback_source,
                                TypeofMode typeof_mode);
 
-  ValueNode* BuildToString(ValueNode* value, ToString::ConversionMode mode);
+  ReduceResult BuildToString(ValueNode* value, ToString::ConversionMode mode);
 
   constexpr bool RuntimeFunctionWillThrow(Runtime::FunctionId function_id) {
 #define BAILOUT(name, ...)               \
@@ -1235,7 +1235,7 @@ class MaglevGraphBuilder {
                                         compiler::ObjectRef ref,
                                         DeoptimizeReason reason);
 
-  ValueNode* BuildConvertHoleToUndefined(ValueNode* node);
+  ReduceResult BuildConvertHoleToUndefined(ValueNode* node);
   ReduceResult BuildCheckNotHole(ValueNode* node);
 
   template <bool flip = false>
