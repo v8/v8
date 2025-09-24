@@ -4620,7 +4620,7 @@ void MaglevGraphBuilder::BuildInitializeStore(vobj::Field desc,
       BuildInitializeStore_TrustedPointer(desc, object, allocation_type, value);
       break;
     case vobj::FieldType::kInt32:
-      AddNewNodeNoAbort<StoreInt32>({object, value}, desc.offset);
+      AddNewNodeNoInputConversion<StoreInt32>({object, value}, desc.offset);
       break;
     case vobj::FieldType::kFloat64:
       UNIMPLEMENTED();
@@ -7872,11 +7872,10 @@ ReduceResult MaglevGraphBuilder::VisitBitwiseNot() {
 }
 
 ReduceResult MaglevGraphBuilder::VisitToBooleanLogicalNot() {
-  SetAccumulator(BuildToBoolean</* flip */ true>(GetAccumulator()));
-  return ReduceResult::Done();
+  return SetAccumulator(BuildToBoolean</* flip */ true>(GetAccumulator()));
 }
 
-ValueNode* MaglevGraphBuilder::BuildLogicalNot(ValueNode* value) {
+ReduceResult MaglevGraphBuilder::BuildLogicalNot(ValueNode* value) {
   // TODO(victorgomes): Use NodeInfo to add more type optimizations here.
   switch (value->opcode()) {
 #define CASE(Name)                                         \
@@ -7887,14 +7886,13 @@ ValueNode* MaglevGraphBuilder::BuildLogicalNot(ValueNode* value) {
     CONSTANT_VALUE_NODE_LIST(CASE)
 #undef CASE
     default:
-      return AddNewNodeNoAbort<LogicalNot>({value});
+      return AddNewNode<LogicalNot>({value});
   }
 }
 
 ReduceResult MaglevGraphBuilder::VisitLogicalNot() {
   // Invariant: accumulator must already be a boolean value.
-  SetAccumulator(BuildLogicalNot(GetAccumulator()));
-  return ReduceResult::Done();
+  return SetAccumulator(BuildLogicalNot(GetAccumulator()));
 }
 
 ReduceResult MaglevGraphBuilder::VisitTypeOf() {
@@ -8353,7 +8351,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   }
 
   TRACE_INLINING("  considering " << shared << " for inlining");
-  auto arguments = GetArgumentsAsArrayOfValueNodes(shared, args);
+  auto [result, arguments] = GetArgumentsAsArrayOfValueNodes(shared, args);
+  RETURN_IF_ABORT(result);
 
   // Creating the CallKnownJSFUnction node will conservatively clear the
   // unstable maps from the KNA. So, we save them before doing this, since this
@@ -8414,7 +8413,9 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
       zone(), compilation_unit_, shared, feedback_cell);
 
   // Propagate details.
-  auto arguments_vector = GetArgumentsAsArrayOfValueNodes(shared, args);
+  auto [arguments_result, arguments_vector] =
+      GetArgumentsAsArrayOfValueNodes(shared, args);
+  RETURN_IF_ABORT(arguments_result);
   DeoptFrame* deopt_frame =
       GetDeoptFrameForEagerCall(inner_unit, function, arguments_vector);
   MaglevCallerDetails* caller_details = zone()->New<MaglevCallerDetails>(
@@ -10862,7 +10863,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(
   }
 }
 
-ValueNode* MaglevGraphBuilder::GetConvertReceiver(
+ReduceResult MaglevGraphBuilder::GetConvertReceiver(
     compiler::SharedFunctionInfoRef shared, const CallArguments& args) {
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
@@ -10885,20 +10886,25 @@ ValueNode* MaglevGraphBuilder::GetConvertReceiver(
           broker()->target_native_context().global_proxy_object(broker()));
     }
   }
-  return AddNewNodeNoAbort<ConvertReceiver>(
+  return AddNewNode<ConvertReceiver>(
       {receiver}, broker()->target_native_context(), args.receiver_mode());
 }
 
-base::Vector<ValueNode*> MaglevGraphBuilder::GetArgumentsAsArrayOfValueNodes(
+std::pair<ReduceResult, base::Vector<ValueNode*>>
+MaglevGraphBuilder::GetArgumentsAsArrayOfValueNodes(
     compiler::SharedFunctionInfoRef shared, const CallArguments& args) {
   // TODO(victorgomes): Investigate if we can avoid this copy.
   int arg_count = static_cast<int>(args.count());
   auto arguments = zone()->AllocateVector<ValueNode*>(arg_count + 1);
-  arguments[0] = GetConvertReceiver(shared, args);
+  ReduceResult result = GetConvertReceiver(shared, args);
+  if (result.IsDoneWithAbort()) {
+    return std::make_pair(ReduceResult::DoneWithAbort(), arguments);
+  }
+  GET_VALUE(arguments[0], result.value());
   for (int i = 0; i < arg_count; i++) {
     arguments[i + 1] = args[i];
   }
-  return arguments;
+  return std::make_pair(ReduceResult::Done(), arguments);
 }
 
 template <typename CallNode, typename... Args>
@@ -10948,7 +10954,8 @@ ReduceResult MaglevGraphBuilder::BuildGenericCall(ValueNode* target,
 ReduceResult MaglevGraphBuilder::BuildCallSelf(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
     compiler::SharedFunctionInfoRef shared, CallArguments& args) {
-  ValueNode* receiver = GetConvertReceiver(shared, args);
+  ValueNode* receiver;
+  GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
   size_t input_count = args.count() + CallSelf::kFixedInputCount;
   graph()->set_has_recursive_calls(true);
   DCHECK_EQ(
@@ -10997,7 +11004,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForApiFunction(
   size_t input_count = args.count() + CallKnownApiFunction::kFixedInputCount;
   ValueNode* receiver;
   if (maybe_shared.has_value()) {
-    receiver = GetConvertReceiver(maybe_shared.value(), args);
+    GET_VALUE_OR_ABORT(receiver,
+                       GetConvertReceiver(maybe_shared.value(), args));
   } else {
     receiver = args.receiver();
     CHECK_NOT_NULL(receiver);
@@ -11091,7 +11099,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
   // The CallFunctionTemplate builtin requires the {receiver} to be
   // an actual JSReceiver, so make sure we do the proper conversion
   // first if necessary.
-  ValueNode* receiver = GetConvertReceiver(shared, args);
+  ValueNode* receiver;
+  GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
   int kContext = 1;
   int kFunctionTemplateInfo = 1;
   int kArgc = 1;
@@ -11150,7 +11159,8 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
-  ValueNode* receiver = GetConvertReceiver(shared, args);
+  ValueNode* receiver;
+  GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
   return AddNewNode<CallKnownJSFunction>(
       input_count,
@@ -12946,7 +12956,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
 }
 
 template <bool flip>
-ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
+ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
   if (IsConstantNode(value->opcode())) {
     return GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^
                               flip);
@@ -12993,7 +13003,7 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     // TestUndetectableLogicalNot or to remove ToBooleanLogicalNot, since we
     // already optimize LogicalNots by swapping the branches.
     if constexpr (!flip) {
-      result = BuildLogicalNot(result);
+      GET_VALUE_OR_ABORT(result, BuildLogicalNot(result));
     }
     return result;
   }
@@ -13004,18 +13014,16 @@ ValueNode* MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     falsy_value = GetSmiConstant(0);
   }
   if (falsy_value != nullptr) {
-    return AddNewNodeNoAbort<
-        std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
+    return AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
         {value, falsy_value});
   }
   if (CheckType(value, NodeType::kBoolean)) {
     if constexpr (flip) {
-      value = BuildLogicalNot(value);
+      GET_VALUE_OR_ABORT(value, BuildLogicalNot(value));
     }
     return value;
   }
-  return AddNewNodeNoAbort<
-      std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
+  return AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
       {value}, GetCheckType(value_type));
 }
 
@@ -13180,8 +13188,7 @@ ReduceResult MaglevGraphBuilder::VisitToString() {
 }
 
 ReduceResult MaglevGraphBuilder::VisitToBoolean() {
-  SetAccumulator(BuildToBoolean(GetAccumulator()));
-  return ReduceResult::Done();
+  return SetAccumulator(BuildToBoolean(GetAccumulator()));
 }
 
 ReduceResult MaglevGraphBuilder::VisitCreateRegExpLiteral() {
@@ -16321,12 +16328,6 @@ ReduceResult MaglevGraphBuilder::AddNewNode(
 }
 
 template <typename NodeT, typename... Args>
-NodeT* MaglevGraphBuilder::AddNewNodeNoAbort(
-    std::initializer_list<ValueNode*> inputs, Args&&... args) {
-  return reducer_.AddNewNodeNoAbort<NodeT>(inputs, std::forward<Args>(args)...);
-}
-
-template <typename NodeT, typename... Args>
 NodeT* MaglevGraphBuilder::AddNewNodeNoInputConversion(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
   return reducer_.AddNewNodeNoInputConversion<NodeT>(
@@ -16557,7 +16558,7 @@ void MaglevGraphBuilder::Print(const char* str, ValueNode* value) {
   Print(value);
 }
 
-ValueNode* MaglevGraphBuilder::GetSilencedNaN(ValueNode* value) {
+ReduceResult MaglevGraphBuilder::GetSilencedNaN(ValueNode* value) {
   DCHECK_EQ(value->properties().value_representation(),
             ValueRepresentation::kFloat64);
 
@@ -16582,7 +16583,7 @@ ValueNode* MaglevGraphBuilder::GetSilencedNaN(ValueNode* value) {
   }
 
   // Silence all other values.
-  return AddNewNodeNoAbort<HoleyFloat64ToMaybeNanFloat64>({value});
+  return AddNewNode<HoleyFloat64ToMaybeNanFloat64>({value});
 }
 
 ValueNode* MaglevGraphBuilder::GetSecondValue(ValueNode* result) {

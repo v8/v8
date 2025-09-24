@@ -639,7 +639,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       if (!IsEmptyNodeType(known_node_aspects().GetType(broker(), value)) &&
           node_info->is_smi()) {
         return alternative.set_int32(
-            AddNewNodeNoAbort<TruncateUint32ToInt32>({value}));
+            AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value}));
       }
       return alternative.set_int32(
           AddNewNodeNoInputConversion<CheckedUint32ToInt32>({value}));
@@ -649,7 +649,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
     // HoleyFloat64 as Float64.
     case ValueRepresentation::kHoleyFloat64: {
       return alternative.set_int32(
-          AddNewNodeNoAbort<CheckedHoleyFloat64ToInt32>({value}));
+          AddNewNodeNoInputConversion<CheckedHoleyFloat64ToInt32>({value}));
     }
 
     case ValueRepresentation::kIntPtr:
@@ -871,10 +871,10 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
     }
     case ValueRepresentation::kInt32:
       return alternative.set_float64(
-          AddNewNodeNoAbort<ChangeInt32ToFloat64>({value}));
+          AddNewNodeNoInputConversion<ChangeInt32ToFloat64>({value}));
     case ValueRepresentation::kUint32:
       return alternative.set_float64(
-          AddNewNodeNoAbort<ChangeUint32ToFloat64>({value}));
+          AddNewNodeNoInputConversion<ChangeUint32ToFloat64>({value}));
     case ValueRepresentation::kHoleyFloat64: {
       switch (allowed_input_type) {
         case NodeType::kSmi:
@@ -886,19 +886,21 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
           // booleans cannot occur here and kNumberOrBoolean can be grouped with
           // kNumber.
           return alternative.set_float64(
-              AddNewNodeNoAbort<CheckedHoleyFloat64ToFloat64>({value}));
+              AddNewNodeNoInputConversion<CheckedHoleyFloat64ToFloat64>(
+                  {value}));
         case NodeType::kNumberOrOddball:
           // NumberOrOddball->Float64 conversions are not exact alternatives,
           // since they lose the information that this is an oddball, so they
           // cannot become the canonical float64_alternative.
-          return AddNewNodeNoAbort<HoleyFloat64ToMaybeNanFloat64>({value});
+          return AddNewNodeNoInputConversion<HoleyFloat64ToMaybeNanFloat64>(
+              {value});
         default:
           UNREACHABLE();
       }
     }
     case ValueRepresentation::kIntPtr:
       return alternative.set_float64(
-          AddNewNodeNoAbort<ChangeIntPtrToFloat64>({value}));
+          AddNewNodeNoInputConversion<ChangeIntPtrToFloat64>({value}));
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kNone:
       UNREACHABLE();
@@ -1075,7 +1077,7 @@ ReduceResult MaglevReducer<BaseT>::BuildCheckedSmiSizedInt32(ValueNode* input) {
     }
     // TODO(victorgomes): Emit deopt.
   }
-  return AddNewNodeNoAbort<CheckedSmiSizedInt32>({input});
+  return AddNewNode<CheckedSmiSizedInt32>({input});
 }
 
 template <typename BaseT>

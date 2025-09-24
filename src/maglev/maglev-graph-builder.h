@@ -484,12 +484,6 @@ class MaglevGraphBuilder {
   ReduceResult AddNewNode(std::initializer_list<ValueNode*> inputs,
                           Args&&... args);
 
-  // Temporary version while we transition to the AddNewNode returning a
-  // ReduceResult.
-  // TODO(marja): Remove this.
-  template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeNoAbort(std::initializer_list<ValueNode*> inputs,
-                           Args&&... args);
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
                                      Args&&... args);
@@ -764,7 +758,7 @@ class MaglevGraphBuilder {
         interpreter::Register::virtual_accumulator(), allowed_input_type);
   }
 
-  ValueNode* GetSilencedNaN(ValueNode* value);
+  ReduceResult GetSilencedNaN(ValueNode* value);
 
   bool IsRegisterEqualToAccumulator(int operand_index) {
     interpreter::Register source = iterator_.GetRegisterOperand(operand_index);
@@ -882,10 +876,11 @@ class MaglevGraphBuilder {
     return maybe_value;
   }
 
-  ValueNode* GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
-                                const CallArguments& args);
-  base::Vector<ValueNode*> GetArgumentsAsArrayOfValueNodes(
-      compiler::SharedFunctionInfoRef shared, const CallArguments& args);
+  ReduceResult GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
+                                  const CallArguments& args);
+  std::pair<ReduceResult, base::Vector<ValueNode*>>
+  GetArgumentsAsArrayOfValueNodes(compiler::SharedFunctionInfoRef shared,
+                                  const CallArguments& args);
 
   compiler::OptionalHeapObjectRef TryGetConstant(
       ValueNode* node, ValueNode** constant_node = nullptr);
@@ -1239,8 +1234,8 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckNotHole(ValueNode* node);
 
   template <bool flip = false>
-  ValueNode* BuildToBoolean(ValueNode* node);
-  ValueNode* BuildLogicalNot(ValueNode* value);
+  ReduceResult BuildToBoolean(ValueNode* node);
+  ReduceResult BuildLogicalNot(ValueNode* value);
   ValueNode* BuildTestUndetectable(ValueNode* value);
   ReduceResult BuildToNumberOrToNumeric(Object::Conversion mode);
 
