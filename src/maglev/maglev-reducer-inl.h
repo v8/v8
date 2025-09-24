@@ -720,7 +720,6 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
       compiler::ObjectRef object = value->Cast<Constant>()->object();
       if (!object.IsHeapNumber()) break;
       int32_t truncated_value = DoubleToInt32(object.AsHeapNumber().value());
-      if (!Smi::IsValid(truncated_value)) break;
       return GetInt32Constant(truncated_value);
     }
     case Opcode::kSmiConstant:
@@ -738,7 +737,6 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     case Opcode::kFloat64Constant: {
       int32_t truncated_value =
           DoubleToInt32(value->Cast<Float64Constant>()->value().get_scalar());
-      if (!Smi::IsValid(truncated_value)) break;
       return GetInt32Constant(truncated_value);
     }
 
