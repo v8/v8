@@ -18,6 +18,23 @@ class AssemblerRISCVZimop : public AssemblerRiscvBase {
   void mop_rr(int n, Register rd, Register rs1, Register rs2);
 };
 
+// extension for Zicfiss instructions.
+class AssemblerRISCVZicfiss : public AssemblerRISCVZimop {
+ public:
+  void sspush_x1() { mop_rr(SSPUSH_MOP_NUM, zero_reg, zero_reg, ra); }
+  void sspush_x5() { mop_rr(SSPUSH_MOP_NUM, zero_reg, zero_reg, t0); }
+  void sspopchk_x1() { mop_r(SSPOPCHK_MOP_NUM, zero_reg, ra); }
+  void sspopchk_x5() { mop_r(SSPOPCHK_MOP_NUM, zero_reg, t0); }
+
+  void ssrdp(Register rd) {
+    DCHECK_NE(rd, zero_reg);
+    mop_r(SSRDP_MOP_NUM, rd, zero_reg);
+  }
+
+  void ssamoswap_x(bool aq, bool rl, Register rd, Register addr, Register src);
+  void ssamoswap_d(bool aq, bool rl, Register rd, Register addr, Register src);
+};
+
 }  // namespace internal
 
 }  // namespace v8

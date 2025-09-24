@@ -17,6 +17,16 @@ constexpr Opcode RO_MOP_R_N =
 constexpr Opcode RO_MOP_RR_N =
     RO_MOP | 0b00 << 28 | 0b1 << 31 | 0b1 << 25;
 
+// Zicfiss instructions
+constexpr int SSPUSH_MOP_NUM = 7;
+constexpr int SSPOPCHK_MOP_NUM = 28;
+constexpr int SSRDP_MOP_NUM = 28;
+
+constexpr Opcode SSAMOSWAP_W =
+    AMO | (0b010 << kFunct3Shift) | (0b01001 << kFunct7Shift);
+constexpr Opcode SSAMOSWAP_D =
+    AMO | (0b011 << kFunct3Shift) | (0b01001 << kFunct7Shift);
+
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_CODEGEN_RISCV_CONSTANT_RISCV_ZIMOP_H_

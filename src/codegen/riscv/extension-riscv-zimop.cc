@@ -27,5 +27,15 @@ void AssemblerRISCVZimop::mop_rr(int n, Register rd, Register rs1,
   emit(instr);
 }
 
+void AssemblerRISCVZicfiss::ssamoswap_x(bool aq, bool rl, Register rd,
+                                        Register rs1, Register rs2) {
+  GenInstrRAtomic(0b01001, aq, rl, 0b010, rd, rs1, rs2);
+}
+
+void AssemblerRISCVZicfiss::ssamoswap_d(bool aq, bool rl, Register rd,
+                                        Register rs1, Register rs2) {
+  GenInstrRAtomic(0b01001, aq, rl, 0b011, rd, rs1, rs2);
+}
+
 }  // namespace internal
 }  // namespace v8

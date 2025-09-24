@@ -1891,9 +1891,35 @@ void Decoder::DecodeIType(Instruction* instr) {
     }
     case RO_MOP: {
       if ((instr->InstructionBits() & kMopMask) == RO_MOP_R_N) {
+        switch (instr->MopNumber()) {
+          case SSPOPCHK_MOP_NUM:
+            if (CpuFeatures::IsSupported(ZICFISS)) {
+              if (instr->RdValue() == zero_reg.code()) {  // sspopchk
+                Format(instr, "sspopchk  'rs2");
+                return;
+              } else {  // ssrdp
+                DCHECK(instr->Rs2Value() == zero_reg.code());
+                Format(instr, "ssrdp  'rd");
+                return;
+              }
+            }
+            break;
+          default:
+            break;
+        }
         Format(instr, "mop.r.'mop  'rd, 'rs1");
       } else {
         CHECK((instr->InstructionBits() & kMopMask) == RO_MOP_RR_N);
+        switch (instr->MopNumber()) {
+          case SSPUSH_MOP_NUM:  // sspush
+            if (CpuFeatures::IsSupported(ZICFISS)) {
+              Format(instr, "sspush  'rs2");
+              return;
+            }
+            break;
+          default:
+            break;
+        }
         Format(instr, "mop.rr.'mop 'rd, 'rs1, 'rs2");
       }
       break;
