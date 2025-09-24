@@ -6021,7 +6021,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         // See example at:
         // https://github.com/WebAssembly/custom-descriptors/issues/48
         Exactness result_exactness = ref.type.exactness();
-        if (ref.type == kWasmNullRef || ref.type == kWasmBottom) {
+        if (ref.type == kWasmNullRef || ref.type == kWasmRefNone ||
+            ref.type == kWasmBottom) {
           result_exactness = kExact;
         } else {
           // All other generic types would have failed validation above.

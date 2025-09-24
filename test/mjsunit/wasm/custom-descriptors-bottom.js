@@ -24,6 +24,12 @@ builder.addFunction("bottom", $sig2).addBody([
   kGCPrefix, kExprRefGetDesc, $struct0,
 ]);
 
+builder.addFunction("non-null-none", $sig2).addBody([
+  kExprRefNull, kNullRefCode,
+  kExprRefAsNonNull,
+  kGCPrefix, kExprRefGetDesc, $struct0,
+]);
+
 // Just to show that we don't have a similar problem with nullability of bottom.
 builder.addFunction(
     "convert_extern", makeSig([], [wasmRefType(kWasmAnyRef)])).addBody([
