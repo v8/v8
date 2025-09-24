@@ -2043,7 +2043,9 @@ class Heap final {
     kHardLimit,
     kFallbackForEmbedderLimit
   };
-  IncrementalMarkingLimit IncrementalMarkingLimitReached();
+
+  std::pair<IncrementalMarkingLimit, const char*>
+  IncrementalMarkingLimitReached();
 
   bool ShouldStressCompaction() const;
 
