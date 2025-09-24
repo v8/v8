@@ -690,70 +690,70 @@ constexpr bool CanTriggerGC(T... properties) {
 #define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I)
 #endif  // V8_ENABLE_DRUMBRAKE
 
-#define FOR_EACH_INTRINSIC_WASM(F, I)         \
-  FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I)     \
-  F(ThrowWasmSuspendError, 0, 1)              \
-  F(ThrowWasmError, 1, 1)                     \
-  F(TrapHandlerThrowWasmError, 0, 1)          \
-  F(ThrowWasmStackOverflow, 0, 1)             \
-  F(WasmI32AtomicWait, 4, 1)                  \
-  F(WasmI64AtomicWait, 5, 1)                  \
-  F(WasmMemoryGrow, 2, 1)                     \
-  F(WasmStackGuard, 1, 1)                     \
-  F(WasmThrow, 2, 1)                          \
-  F(WasmReThrow, 1, 1)                        \
-  F(WasmThrowJSTypeError, 0, 1)               \
-  F(WasmThrowTypeError, 2, 1)                 \
-  F(WasmThrowRangeError, 1, 1)                \
-  F(WasmThrowDataViewTypeError, 2, 1)         \
-  F(WasmThrowDataViewDetachedError, 1, 1)     \
-  F(WasmRefFunc, 1, 1)                        \
-  F(WasmInternalFunctionCreateExternal, 1, 1) \
-  F(WasmFunctionTableGet, 3, 1)               \
-  F(WasmFunctionTableSet, 4, 1)               \
-  F(WasmTableInit, 6, 1)                      \
-  F(WasmTableCopy, 6, 1)                      \
-  F(WasmTableGrow, 3, 1)                      \
-  F(WasmTableFill, 5, 1)                      \
-  F(WasmJSToWasmObject, 2, 1)                 \
-  F(WasmGenericJSToWasmObject, 2, 1)          \
-  F(WasmGenericWasmToJSObject, 1, 1)          \
-  F(WasmCompileLazy, 2, 1)                    \
-  F(WasmAllocateFeedbackVector, 3, 1)         \
-  F(WasmLiftoffDeoptFinish, 1, 1)             \
-  F(TierUpJSToWasmWrapper, 1, 1)              \
-  F(IsWasmExternalFunction, 1, 1)             \
-  F(TierUpWasmToJSWrapper, 1, 1)              \
-  F(WasmTriggerTierUp, 1, 1)                  \
-  F(WasmDebugBreak, 0, 1)                     \
-  F(WasmAllocateDescriptorStruct, 4, 1)       \
-  F(WasmArrayCopy, 5, 1)                      \
-  F(WasmArrayNewSegment, 5, 1)                \
-  F(WasmArrayInitSegment, 6, 1)               \
-  F(WasmAllocateSuspender, 0, 1)              \
-  F(WasmAllocateContinuation, 2, 1)           \
-  F(ClearWasmSuspenderResumeField, 1, 1)      \
-  F(WasmCastToSpecialPrimitiveArray, 2, 1)    \
-  F(WasmStringNewSegmentWtf8, 5, 1)           \
-  F(WasmStringNewWtf8, 5, 1)                  \
-  F(WasmStringNewWtf8Array, 4, 1)             \
-  F(WasmStringNewWtf16, 4, 1)                 \
-  F(WasmStringNewWtf16Array, 3, 1)            \
-  F(WasmStringConst, 2, 1)                    \
-  F(WasmStringMeasureUtf8, 1, 1)              \
-  F(WasmStringMeasureWtf8, 1, 1)              \
-  F(WasmStringEncodeWtf8, 5, 1)               \
-  F(WasmStringEncodeWtf16, 6, 1)              \
-  F(WasmStringEncodeWtf8Array, 4, 1)          \
-  F(WasmStringToUtf8Array, 1, 1)              \
-  F(WasmStringAsWtf8, 1, 1)                   \
-  F(WasmStringViewWtf8Encode, 7, 1)           \
-  F(WasmStringViewWtf8Slice, 3, 1)            \
-  F(WasmStringFromCodePoint, 1, 1)            \
-  F(WasmStringHash, 1, 1)                     \
-  F(WasmSubstring, 3, 1)                      \
-  F(WasmConfigureAllPrototypes, 4, 1)         \
-  F(WasmConfigureAllPrototypesOpt, 3, 1)      \
+#define FOR_EACH_INTRINSIC_WASM(F, I)                            \
+  FOR_EACH_INTRINSIC_WASM_DRUMBRAKE(F, I)                        \
+  F(ThrowWasmSuspendError, 0, 1)                                 \
+  F(ThrowWasmError, 1, 1)                                        \
+  F(TrapHandlerThrowWasmError, 0, 1)                             \
+  F(ThrowWasmStackOverflow, 0, 1)                                \
+  F(WasmI32AtomicWait, 4, 1)                                     \
+  F(WasmI64AtomicWait, 5, 1)                                     \
+  F(WasmMemoryGrow, 2, 1)                                        \
+  F(WasmStackGuard, 1, 1)                                        \
+  F(WasmThrow, 2, 1)                                             \
+  F(WasmReThrow, 1, 1, RuntimeCallProperty::kCannotTriggerGC)    \
+  F(WasmThrowJSTypeError, 0, 1)                                  \
+  F(WasmThrowTypeError, 2, 1)                                    \
+  F(WasmThrowRangeError, 1, 1)                                   \
+  F(WasmThrowDataViewTypeError, 2, 1)                            \
+  F(WasmThrowDataViewDetachedError, 1, 1)                        \
+  F(WasmRefFunc, 1, 1)                                           \
+  F(WasmInternalFunctionCreateExternal, 1, 1)                    \
+  F(WasmFunctionTableGet, 3, 1)                                  \
+  F(WasmFunctionTableSet, 4, 1)                                  \
+  F(WasmTableInit, 6, 1)                                         \
+  F(WasmTableCopy, 6, 1)                                         \
+  F(WasmTableGrow, 3, 1)                                         \
+  F(WasmTableFill, 5, 1)                                         \
+  F(WasmJSToWasmObject, 2, 1)                                    \
+  F(WasmGenericJSToWasmObject, 2, 1)                             \
+  F(WasmGenericWasmToJSObject, 1, 1)                             \
+  F(WasmCompileLazy, 2, 1)                                       \
+  F(WasmAllocateFeedbackVector, 3, 1)                            \
+  F(WasmLiftoffDeoptFinish, 1, 1)                                \
+  F(TierUpJSToWasmWrapper, 1, 1)                                 \
+  F(IsWasmExternalFunction, 1, 1)                                \
+  F(TierUpWasmToJSWrapper, 1, 1)                                 \
+  F(WasmTriggerTierUp, 1, 1)                                     \
+  F(WasmDebugBreak, 0, 1)                                        \
+  F(WasmAllocateDescriptorStruct, 4, 1)                          \
+  F(WasmArrayCopy, 5, 1)                                         \
+  F(WasmArrayNewSegment, 5, 1)                                   \
+  F(WasmArrayInitSegment, 6, 1)                                  \
+  F(WasmAllocateSuspender, 0, 1)                                 \
+  F(WasmAllocateContinuation, 2, 1)                              \
+  F(ClearWasmSuspenderResumeField, 1, 1)                         \
+  F(WasmCastToSpecialPrimitiveArray, 2, 1)                       \
+  F(WasmStringNewSegmentWtf8, 5, 1)                              \
+  F(WasmStringNewWtf8, 5, 1)                                     \
+  F(WasmStringNewWtf8Array, 4, 1)                                \
+  F(WasmStringNewWtf16, 4, 1)                                    \
+  F(WasmStringNewWtf16Array, 3, 1)                               \
+  F(WasmStringConst, 2, 1)                                       \
+  F(WasmStringMeasureUtf8, 1, 1)                                 \
+  F(WasmStringMeasureWtf8, 1, 1)                                 \
+  F(WasmStringEncodeWtf8, 5, 1)                                  \
+  F(WasmStringEncodeWtf16, 6, 1)                                 \
+  F(WasmStringEncodeWtf8Array, 4, 1)                             \
+  F(WasmStringToUtf8Array, 1, 1)                                 \
+  F(WasmStringAsWtf8, 1, 1)                                      \
+  F(WasmStringViewWtf8Encode, 7, 1)                              \
+  F(WasmStringViewWtf8Slice, 3, 1)                               \
+  F(WasmStringFromCodePoint, 1, 1)                               \
+  F(WasmStringHash, 1, 1, RuntimeCallProperty::kCannotTriggerGC) \
+  F(WasmSubstring, 3, 1)                                         \
+  F(WasmConfigureAllPrototypes, 4, 1)                            \
+  F(WasmConfigureAllPrototypesOpt, 3, 1)                         \
   F(DebugCollectWasmCoverage, 0, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I)                      \

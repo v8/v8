@@ -1010,7 +1010,14 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties = Operator::kNoThrow;
-    static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory();
+    // Calls {GetPropertyWithReceiver}, which has paths that can allocate,
+    // but from this caller we won't reach them. Nevertheless, to please the
+    // verifier we currently have no other choice than setting the CanAllocate
+    // effect here.
+    // TODO(dmercadier): Support overriding the automatic can-allocate
+    // inference.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadHeapMemory().CanAllocate();
   };
 
   struct WasmRethrow : public Descriptor<WasmRethrow> {
@@ -1032,7 +1039,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanChangeControlFlow();
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap();
   };
 
   struct WasmMemoryGrow : public Descriptor<WasmMemoryGrow> {
@@ -1057,7 +1064,7 @@ struct BuiltinCallDescriptor {
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoWrite;
     static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity().CanLeaveCurrentFunction();
+        base_effects.CanAllocateWithoutIdentity().CanThrowOrTrap();
   };
 
   struct WasmStringNewWtf8Array : public Descriptor<WasmStringNewWtf8Array> {
@@ -1071,7 +1078,7 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory()
                                               .CanAllocateWithoutIdentity()
-                                              .CanLeaveCurrentFunction();
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringNewWtf16Array : public Descriptor<WasmStringNewWtf16Array> {
@@ -1085,7 +1092,7 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects = base_effects.CanReadHeapMemory()
                                               .CanAllocateWithoutIdentity()
-                                              .CanLeaveCurrentFunction();
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringViewWtf8Slice : public Descriptor<WasmStringViewWtf8Slice> {
@@ -1123,8 +1130,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteHeapMemory();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanWriteHeapMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringToUtf8Array : public Descriptor<WasmStringToUtf8Array> {
@@ -1151,7 +1160,8 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects = base_effects.CanReadMemory()
                                               .CanWriteHeapMemory()
-                                              .CanLeaveCurrentFunction();
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmFloat64ToString : public Descriptor<WasmFloat64ToString> {
@@ -1186,7 +1196,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+    // Can flatten the string, causing allocation.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct WasmAllocateFixedArray : public Descriptor<WasmAllocateFixedArray> {
@@ -1209,7 +1221,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanChangeControlFlow();
+        base_effects.CanReadHeapMemory().CanThrowOrTrap();
   };
 
   struct WasmI32AtomicWait : public Descriptor<WasmI32AtomicWait> {
@@ -1243,7 +1255,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteMemory().CanAllocate();
+        base_effects.CanReadMemory().CanWriteMemory().CanThrowOrTrap();
   };
 
   struct WasmTableSetFuncRef : public Descriptor<WasmTableSetFuncRef> {
@@ -1255,7 +1267,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanWriteMemory();
+    static constexpr OpEffects kEffects =
+        base_effects.CanWriteMemory().CanThrowOrTrap();
   };
 
   struct WasmTableSet : public Descriptor<WasmTableSet> {
@@ -1267,7 +1280,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanWriteMemory();
+    static constexpr OpEffects kEffects =
+        base_effects.CanWriteMemory().CanThrowOrTrap();
   };
 
   struct WasmTableInit : public Descriptor<WasmTableInit> {
@@ -1279,7 +1293,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanWriteMemory();
+    static constexpr OpEffects kEffects =
+        base_effects.CanWriteMemory().CanThrowOrTrap();
   };
 
   struct WasmTableCopy : public Descriptor<WasmTableCopy> {
@@ -1292,7 +1307,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteMemory();
+        base_effects.CanReadMemory().CanWriteMemory().CanThrowOrTrap();
   };
 
   struct WasmTableGrow : public Descriptor<WasmTableGrow> {
@@ -1316,7 +1331,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanWriteMemory();
+    static constexpr OpEffects kEffects =
+        base_effects.CanWriteMemory().CanThrowOrTrap();
   };
 
   struct WasmArrayNewSegment : public Descriptor<WasmArrayNewSegment> {
@@ -1329,7 +1345,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanAllocate();
+        base_effects.CanReadHeapMemory().CanAllocate().CanThrowOrTrap();
   };
 
   struct WasmArrayInitSegment : public Descriptor<WasmArrayInitSegment> {
@@ -1342,7 +1358,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects =
-        base_effects.CanWriteHeapMemory().CanReadHeapMemory();
+        base_effects.CanWriteHeapMemory().CanReadHeapMemory().CanThrowOrTrap();
   };
 
   struct WasmStringNewWtf8 : public Descriptor<WasmStringNewWtf8> {
@@ -1409,7 +1425,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+    // Can flatten the string, causing allocation.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct WasmStringMeasureWtf8 : public Descriptor<WasmStringMeasureWtf8> {
@@ -1420,7 +1438,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+    // Can flatten the string, causing allocation.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct WasmStringEncodeWtf8 : public Descriptor<WasmStringEncodeWtf8> {
@@ -1432,8 +1452,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteMemory();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanWriteMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringEncodeWtf16 : public Descriptor<WasmStringEncodeWtf16> {
@@ -1445,8 +1467,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteMemory().CanLeaveCurrentFunction();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanWriteMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringEqual : public Descriptor<WasmStringEqual> {
@@ -1469,7 +1493,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+    // Can flatten the string, causing allocation.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
   struct WasmStringViewWtf8Advance
@@ -1495,8 +1521,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteMemory().CanLeaveCurrentFunction();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanWriteMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringViewWtf16Encode
@@ -1510,8 +1538,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteMemory();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanWriteMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringViewWtf16GetCodeUnit
@@ -1523,7 +1553,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringCodePointAt : public Descriptor<WasmStringCodePointAt> {
@@ -1534,7 +1566,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanThrowOrTrap();
   };
 
   struct WasmStringAsIter : public Descriptor<WasmStringAsIter> {
@@ -1557,7 +1591,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteHeapMemory();
+        base_effects.CanReadMemory().CanWriteHeapMemory().CanAllocate();
   };
 
   struct WasmStringViewIterAdvance
@@ -1569,8 +1603,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteHeapMemory();
+    // Can flatten the string, causing allocation.
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanWriteHeapMemory()
+                                              .CanAllocateWithoutIdentity();
   };
 
   struct WasmStringViewIterRewind
@@ -1582,8 +1618,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanWriteHeapMemory();
+    // Can flatten the string, causing allocation.
+    static constexpr OpEffects kEffects = base_effects.CanReadMemory()
+                                              .CanWriteHeapMemory()
+                                              .CanAllocateWithoutIdentity();
   };
 
   struct WasmStringViewIterSlice : public Descriptor<WasmStringViewIterSlice> {
@@ -1618,7 +1656,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanChangeControlFlow();
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap();
   };
 
   struct ThrowDataViewOutOfBounds
@@ -1630,7 +1668,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanChangeControlFlow();
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap();
   };
 
   struct ThrowDataViewTypeError : public Descriptor<ThrowDataViewTypeError> {
@@ -1642,7 +1680,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects =
-        base_effects.CanReadHeapMemory().CanChangeControlFlow();
+        base_effects.CanReadHeapMemory().CanThrowOrTrap();
   };
 
   struct ThrowIndexOfCalledOnNull
@@ -1654,7 +1692,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoWrite;
-    static constexpr OpEffects kEffects = base_effects.CanChangeControlFlow();
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap();
   };
 
   struct ThrowToLowerCaseCalledOnNull
@@ -1666,7 +1704,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoWrite;
-    static constexpr OpEffects kEffects = base_effects.CanChangeControlFlow();
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap();
   };
 
   struct WasmFastApiCallTypeCheckAndUpdateIC
@@ -1679,8 +1717,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties = Operator::kNoWrite;
-    static constexpr OpEffects kEffects =
-        base_effects.CanLeaveCurrentFunction();
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap();
   };
 
   struct WasmPropagateException : public Descriptor<WasmPropagateException> {

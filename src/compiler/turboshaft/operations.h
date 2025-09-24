@@ -791,6 +791,10 @@ struct OpEffects {
         // We might depend on previous checks to avoid deopting.
         .CanDependOnChecks();
   }
+  constexpr OpEffects CanThrowOrTrap() const {
+    // Allocates an exception.
+    return CanLeaveCurrentFunction().CanAllocate();
+  }
   // Producing identity doesn't prevent reorderings, but it prevents GVN from
   // de-duplicating identical operations.
   constexpr OpEffects CanCreateIdentity() const {

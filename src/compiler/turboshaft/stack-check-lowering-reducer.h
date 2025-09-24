@@ -115,9 +115,9 @@ class StackCheckLoweringReducer : public Next {
       V<WordPtr> builtin =
           __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
       // Pass custom effects to the `Call` node to mark it as non-writing.
-      __ Call(
-          builtin, {}, ts_call_descriptor,
-          OpEffects().CanReadMemory().RequiredWhenUnused().CanCreateIdentity());
+      // TODO(jkummerow): Distinguish loop stack checks here.
+      __ Call(builtin, {}, ts_call_descriptor,
+              OpEffects().CanReadMemory().CanThrowOrTrap());
     }
 
     return V<None>::Invalid();

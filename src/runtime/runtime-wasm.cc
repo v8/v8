@@ -2397,6 +2397,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
 
 RUNTIME_FUNCTION(Runtime_WasmStringHash) {
   DCHECK_EQ(1, args.length());
+  SealHandleScope seal_handle_scope(isolate);
   Tagged<String> string(Cast<String>(args[0]));
   uint32_t hash = string->EnsureHash();
   return Smi::FromInt(static_cast<int>(hash));
