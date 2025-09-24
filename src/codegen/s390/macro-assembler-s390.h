@@ -1895,6 +1895,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // ---------------------------------------------------------------------------
   // GC Support
 
+  void MaybeJumpIfReadOnlyOrSmallSmi(Register, Label*) {}
+
   void IncrementalMarkingRecordWriteHelper(Register object, Register value,
                                            Register address);
 
