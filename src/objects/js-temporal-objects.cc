@@ -7130,7 +7130,7 @@ MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
   // https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tolocalestring
   return temporal::GenericTemporalToString(
       isolate, instant, &temporal_rs::Instant::to_ixdtf_string_with_provider,
-      nullptr, std::move(temporal::kToStringAuto),
+      std::nullopt, std::move(temporal::kToStringAuto),
       std::ref(TimeZoneProvider()));
 #endif  // V8_INTL_SUPPORT
 }
