@@ -1248,7 +1248,7 @@ class MaglevGraphBuilder {
   bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
-  ValueNode* BuildLoadMap(ValueNode* object);
+  ReduceResult BuildLoadMap(ValueNode* object);
 
   void BuildInitializeStore(vobj::Field desc, InlinedAllocation* alloc,
                             AllocationType allocation_type, ValueNode* value);
@@ -1263,9 +1263,9 @@ class MaglevGraphBuilder {
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
   template <typename Instruction = LoadTaggedField, typename... Args>
-  ValueNode* BuildLoadTaggedField(ValueNode* object, uint32_t offset,
-                                  LoadType type = LoadType::kUnknown,
-                                  Args&&... args);
+  ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
+                                    LoadType type = LoadType::kUnknown,
+                                    Args&&... args);
 
   ReduceResult BuildStoreTaggedField(ValueNode* object, ValueNode* value,
                                      int offset, StoreTaggedMode store_mode,
@@ -1346,10 +1346,10 @@ class MaglevGraphBuilder {
   ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
   ReduceResult BuildLoadJSArrayLength(ValueNode* js_array,
                                       LoadType length_type = LoadType::kSmi);
-  ValueNode* BuildLoadElements(ValueNode* object);
+  ReduceResult BuildLoadElements(ValueNode* object);
 
-  ValueNode* BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
-  ValueNode* BuildLoadJSFunctionContext(ValueNode* closure);
+  ReduceResult BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
+  ReduceResult BuildLoadJSFunctionContext(ValueNode* closure);
 
   ReduceResult TryBuildCheckInt32Condition(ValueNode* lhs, ValueNode* rhs,
                                            AssertCondition condition,

@@ -145,6 +145,14 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     }                                                       \
   } while (false)
 
+#define GET_VALUE(variable, result)                                    \
+  do {                                                                 \
+    MaybeReduceResult res = (result);                                  \
+    CHECK(res.IsDoneWithValue());                                      \
+    using T = std::remove_pointer_t<std::decay_t<decltype(variable)>>; \
+    variable = res.value()->Cast<T>();                                 \
+  } while (false)
+
 #define GET_VALUE_OR_ABORT(variable, result)                           \
   do {                                                                 \
     MaybeReduceResult res = (result);                                  \
