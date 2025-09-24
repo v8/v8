@@ -3345,8 +3345,8 @@ DEFINE_SIZE_T(minor_ms_min_lab_size_kb, 0,
               "override for the minimum lab size in KB to be used for new "
               "space allocations with minor ms. ")
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    handle_weak_ref_weakly_in_minor_gc,
+DEFINE_BOOL(
+    handle_weak_ref_weakly_in_minor_gc, false,
     "Enables weak handling of WeakRef and FinalizationRegistry in minor GCs.")
 DEFINE_NEG_IMPLICATION(minor_ms, handle_weak_ref_weakly_in_minor_gc)
 
