@@ -51,16 +51,13 @@ class RecomputeKnownNodeAspectsProcessor {
   }
   void PostProcessGraph(Graph* graph) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    if (block->has_state()) {
-      if (V8_UNLIKELY(block->predecessor_count() == 0 &&
-                      !block->is_exception_handler_block())) {
-        // The block is unreachable, we probably never set the KNA to this
-        // block. Just use an empty one.
-        // TODO(victorgomes): Maybe we shouldn't visit unreachable blocks.
-        known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
-      } else {
-        known_node_aspects_ = block->state()->TakeKnownNodeAspects();
-      }
+    if (V8_UNLIKELY(block->IsUnreachable())) {
+      // The block is unreachable, we probably never set the KNA to this
+      // block. Just use an empty one.
+      // TODO(victorgomes): Maybe we shouldn't visit unreachable blocks.
+      known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
+    } else if (block->has_state()) {
+      known_node_aspects_ = block->state()->TakeKnownNodeAspects();
     }
     DCHECK_IMPLIES(known_node_aspects_ == nullptr,
                    block->is_edge_split_block());
@@ -98,10 +95,11 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult Process(Jump* node, const ProcessingState& state) {
-    if (!node->owner()->is_edge_split_block()) {
+    if (known_node_aspects_) {
       Merge(node->target());
       return ProcessResult::kContinue;
     }
+    DCHECK(node->owner()->is_edge_split_block());
     return ProcessResult::kContinue;
   }
 

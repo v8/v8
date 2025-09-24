@@ -166,6 +166,11 @@ class BasicBlock {
     return state()->predecessor_count();
   }
 
+  bool IsUnreachable() const {
+    if (has_state()) return state()->IsUnreachable();
+    return predecessor_ == nullptr;
+  }
+
   BasicBlock* predecessor_at(int i) const {
     DCHECK(has_state());
     return state_->predecessor_at(i);
