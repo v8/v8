@@ -274,10 +274,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   uintptr_t jump_address(Label* L);
   int32_t branch_long_offset(Label* L);
 
-  // Puts a labels target address at the given position.
-  // The high 8 bits are set to zero.
-  void label_at_put(Label* L, int at_offset);
-
   // During code generation builtin targets in PC-relative call/jump
   // instructions are temporarily encoded as builtin ID until the generated
   // code is moved into the code space.
@@ -849,7 +845,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
                  trampoline_pool_blocked_nesting_);
     if (trampoline_pool_blocked_nesting_ == 0) {
-      CheckTrampolinePoolQuick(1 * kInstrSize);
+      CheckTrampolinePoolQuick();
     }
   }
 
@@ -913,9 +909,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Each relocation is encoded as a variable size value.
   static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
-
-  // The bound position, before this we cannot do instruction elimination.
-  int last_bound_pos_;
 
   // Keep track of the last call instruction (jal/jalr) position to ensure that
   // we can generate a correct safepoint even in the presence of a branch
