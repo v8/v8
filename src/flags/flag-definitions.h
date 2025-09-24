@@ -2645,6 +2645,7 @@ DEFINE_BOOL(intel_jcc_erratum_mitigation, true,
 DEFINE_BOOL(riscv_trap_to_simulator_debugger, false,
             "enable simulator trap to debugger")
 DEFINE_BOOL(riscv_debug, false, "enable debug prints")
+DEFINE_STRING(riscv_debug_file_path, nullptr, "path to riscv_debug_file")
 
 DEFINE_BOOL(riscv_constant_pool, true, "enable constant pool (RISCV only)")
 
