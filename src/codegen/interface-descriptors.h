@@ -286,7 +286,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   int return_count_ = kUninitializedCount;
   int param_count_ = kUninitializedCount;
   Flags flags_ = kNoFlags;
-  CodeEntrypointTag tag_ = kDefaultCodeEntrypointTag;
+  CodeEntrypointTag tag_ = kInvalidEntrypointTag;
   CodeSandboxingMode sandboxing_mode_ = CodeSandboxingMode::kSandboxed;
   StackArgumentOrder stack_order_ = StackArgumentOrder::kDefault;
 

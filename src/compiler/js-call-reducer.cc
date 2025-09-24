@@ -6484,8 +6484,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
       {
         // Call the generic C++ implementation.
         const Builtin builtin = Builtin::kArrayShift;
-        auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
-            graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
+        auto call_descriptor = Linkage::GetCPPBuiltinCallDescriptor(
+            graph()->zone(), BuiltinArguments::kNumExtraArgsWithReceiver,
             Builtins::name(builtin), node->op()->properties(),
             CallDescriptor::kNeedsFrameState);
         const bool has_builtin_exit_frame = true;

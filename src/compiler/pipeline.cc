@@ -2291,7 +2291,8 @@ CodeAssemblerCompilationJob::CodeAssemblerCompilationJob(
       finalize_order_(finalize_order) {
   DCHECK(code_kind == CodeKind::BUILTIN ||
          code_kind == CodeKind::BYTECODE_HANDLER ||
-         code_kind == CodeKind::FOR_TESTING);
+         code_kind == CodeKind::FOR_TESTING ||
+         code_kind == CodeKind::FOR_TESTING_JS);
   compilation_info_.set_builtin(builtin);
 }
 

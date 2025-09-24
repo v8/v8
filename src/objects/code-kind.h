@@ -19,6 +19,7 @@ namespace internal {
 #define CODE_KIND_LIST(V)  \
   V(BYTECODE_HANDLER)      \
   V(FOR_TESTING)           \
+  V(FOR_TESTING_JS)        \
   V(BUILTIN)               \
   V(REGEXP)                \
   V(WASM_FUNCTION)         \

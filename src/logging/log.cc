@@ -2548,7 +2548,11 @@ void ExistingCodeLogger::LogCodeObject(Tagged<AbstractCode> object) {
     case CodeKind::MAGLEV:
       return;  // We log this later using LogCompiledFunctions.
     case CodeKind::FOR_TESTING:
-      description = "STUB code";
+      description = "Test Code with stub linkage";
+      tag = CodeTag::kStub;
+      break;
+    case CodeKind::FOR_TESTING_JS:
+      description = "Test Code with JS linkage";
       tag = CodeTag::kStub;
       break;
     case CodeKind::REGEXP:

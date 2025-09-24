@@ -365,7 +365,7 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
   //
   // Currently, we also allow this for testing code (from our test suites).
   // TODO(saelo): maybe we should also forbid this just to be sure.
-  if (code->kind() == CodeKind::FOR_TESTING) {
+  if (code->kind() == CodeKind::FOR_TESTING_JS) {
     return true;
   }
   DCHECK(code->is_builtin());

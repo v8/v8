@@ -3129,7 +3129,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                    // probably do want to delete the optimized code, so that is
                    // working as intended. It does mean, however, that we cannot
                    // DCHECK here that we only see baseline code.
-                   DCHECK(code->kind() == CodeKind::FOR_TESTING ||
+                   DCHECK(code->kind() == CodeKind::FOR_TESTING_JS ||
                           code->kind() == CodeKind::BASELINE ||
                           code->kind() == CodeKind::MAGLEV ||
                           code->kind() == CodeKind::TURBOFAN_JS ||

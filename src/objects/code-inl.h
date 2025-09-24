@@ -802,10 +802,24 @@ CodeEntrypointTag Code::entrypoint_tag() const {
       return kWasmEntrypointTag;
     case CodeKind::JS_TO_WASM_FUNCTION:
       return kJSEntrypointTag;
-    default:
-      // TODO(saelo): eventually we'll want this to be UNREACHABLE().
-      return kDefaultCodeEntrypointTag;
+    case CodeKind::FOR_TESTING:
+      return kCodeEntrypointTagForTesting;
+    case CodeKind::FOR_TESTING_JS:
+      return kJSEntrypointTag;
+    case CodeKind::C_WASM_ENTRY:
+      return kInvalidEntrypointTag;
+    case CodeKind::WASM_STACK_ENTRY:
+      // TODO(thibaudm): assign proper entrypoint tag.
+      UNREACHABLE();
+    case CodeKind::BASELINE:
+    case CodeKind::MAGLEV:
+    case CodeKind::TURBOFAN_JS:
+      return kJSEntrypointTag;
+    case CodeKind::INTERPRETED_FUNCTION:
+      // This kind is never used for Code objects.
+      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 CodeSandboxingMode Code::sandboxing_mode() const {

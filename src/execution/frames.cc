@@ -951,7 +951,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   switch (lookup_result.value()->kind()) {
     case CodeKind::BUILTIN:
-    case CodeKind::FOR_TESTING: {
+    case CodeKind::FOR_TESTING:
+    case CodeKind::FOR_TESTING_JS: {
       if (StackFrame::IsTypeMarker(marker)) break;
       return ComputeBuiltinFrameType(lookup_result.value());
     }
@@ -3056,9 +3057,10 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   DirectHandle<Code> code(LookupCode(), isolate());
   if (code->kind() == CodeKind::BUILTIN ||
-      code->kind() == CodeKind::FOR_TESTING) {
+      code->kind() == CodeKind::FOR_TESTING_JS) {
     return JavaScriptFrame::Summarize();
   }
+  DCHECK_NE(code->kind(), CodeKind::FOR_TESTING);
 
   int deopt_index = SafepointEntry::kNoDeoptIndex;
   Tagged<DeoptimizationData> const data =

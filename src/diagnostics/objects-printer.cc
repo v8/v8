@@ -2451,8 +2451,11 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   }
 
 #endif  // V8_ENABLE_LEAPTIERING
-  if (code(isolate)->kind() == CodeKind::FOR_TESTING) {
+  CodeKind code_kind = code(isolate)->kind();
+  if (code_kind == CodeKind::FOR_TESTING) {
     os << "\n - FOR_TESTING";
+  } else if (code_kind == CodeKind::FOR_TESTING_JS) {
+    os << "\n - FOR_TESTING_JS";
   } else if (ActiveTierIsIgnition(isolate)) {
     os << "\n - interpreted";
     if (shared()->HasBytecodeArray()) {
