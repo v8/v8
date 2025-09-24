@@ -1136,7 +1136,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
           .set_self_reference(masm_->CodeObject())
           .set_empty_source_position_table()
           .Build();
-  if (v8_flags.print_code) {
+  if (v8_flags.print_regexp_code) {
     Print(*code);
   }
   LOG(masm_->isolate(),
