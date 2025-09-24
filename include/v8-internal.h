@@ -426,6 +426,11 @@ constexpr size_t kMaxCppHeapPointers = 0;
 // currently used in Chrome.
 #define V8_EMBEDDER_DATA_TAG_COUNT 15
 
+// The number of tags reserved for pointers stored in v8::External. The value is
+// picked arbitrarily, and is slightly larger than the number of tags currently
+// used in Chrome.
+#define V8_EXTERNAL_POINTER_TAG_COUNT 100
+
 // Generic tag range struct to represent ranges of type tags.
 //
 // When referencing external objects via pointer tables, type tags are
@@ -579,10 +584,15 @@ enum ExternalPointerTag : uint16_t {
   // Placeholders for embedder data.
   kFirstEmbedderDataTag,
   kLastEmbedderDataTag = kFirstEmbedderDataTag + V8_EMBEDDER_DATA_TAG_COUNT - 1,
+
+  // Placeholders for pointers store in v8::External.
+  kFirstExternalTypeTag,
+  kLastExternalTypeTag =
+      kFirstExternalTypeTag + V8_EXTERNAL_POINTER_TAG_COUNT - 1,
   // This tag essentially stands for a `void*` pointer in the V8 API, and it is
   // the Embedder's responsibility to ensure type safety (against substitution)
   // and lifetime validity of these objects.
-  kExternalObjectValueTag,
+  kExternalObjectValueTag = kFirstExternalTypeTag,
   kFirstMaybeReadOnlyExternalPointerTag,
   kFunctionTemplateInfoCallbackTag = kFirstMaybeReadOnlyExternalPointerTag,
   kAccessorInfoGetterTag,

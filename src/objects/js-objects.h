@@ -1034,7 +1034,13 @@ class JSExternalObject
     : public TorqueGeneratedJSExternalObject<JSExternalObject, JSObject> {
  public:
   // [value]: field containing the pointer value.
-  DECL_EXTERNAL_POINTER_ACCESSORS(value, void*)
+  inline void* value(ExternalPointerTagRange tag_range) const;
+  inline void* value(IsolateForSandbox isolate,
+                     ExternalPointerTagRange tag_range) const;
+  inline void init_value(IsolateForSandbox isolate, ExternalPointerTag tag,
+                         void* initial_value);
+  inline void set_value(IsolateForSandbox isolate, ExternalPointerTag tag,
+                        void* value);
 
   static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
 

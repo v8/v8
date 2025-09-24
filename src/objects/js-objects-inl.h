@@ -670,8 +670,29 @@ JSObject::DefineOwnPropertyIgnoreAttributes(LookupIterator* it,
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 
-EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
-                           kExternalObjectValueTag)
+void* JSExternalObject::value(ExternalPointerTagRange tag_range) const {
+  i::IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  return value(isolate, tag_range);
+}
+
+void* JSExternalObject::value(i::IsolateForSandbox isolate,
+                              ExternalPointerTagRange tag_range) const {
+  Address result =
+      HeapObject::ReadExternalPointerField(kValueOffset, isolate, tag_range);
+  return reinterpret_cast<void*>(result);
+}
+
+void JSExternalObject::init_value(i::IsolateForSandbox isolate,
+                                  ExternalPointerTag tag, void* initial_value) {
+  Address the_value = reinterpret_cast<Address>(initial_value);
+  HeapObject::InitExternalPointerField(kValueOffset, isolate, tag, the_value);
+}
+
+void JSExternalObject::set_value(i::IsolateForSandbox isolate,
+                                 ExternalPointerTag tag, void* value) {
+  Address the_value = reinterpret_cast<Address>(value);
+  HeapObject::WriteExternalPointerField(kValueOffset, isolate, tag, the_value);
+}
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info() == Smi::zero();

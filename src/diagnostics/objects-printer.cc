@@ -880,7 +880,8 @@ void JSObject::JSObjectPrint(std::ostream& os) {
 
 void JSExternalObject::JSExternalObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, nullptr);
-  os << "\n - external value: " << value();
+  os << "\n - external value: "
+     << value({kFirstExternalTypeTag, kLastExternalTypeTag});
   JSObjectPrintBody(os, *this);
 }
 

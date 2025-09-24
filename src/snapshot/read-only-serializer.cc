@@ -88,7 +88,8 @@ class ObjectPreProcessor final {
     EncodeExternalPointerSlot(
         o->RawExternalPointerField(JSExternalObject::kValueOffset,
                                    kExternalObjectValueTag),
-        reinterpret_cast<Address>(o->value(isolate_)));
+        reinterpret_cast<Address>(
+            o->value(isolate_, {kFirstExternalTypeTag, kLastExternalTypeTag})));
   }
   void PreProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     EncodeExternalPointerSlot(

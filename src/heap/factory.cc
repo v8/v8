@@ -2951,11 +2951,11 @@ DirectHandle<JSObject> Factory::NewFunctionPrototype(
   return prototype;
 }
 
-Handle<JSObject> Factory::NewExternal(void* value,
+Handle<JSObject> Factory::NewExternal(void* value, ExternalPointerTag tag,
                                       AllocationType allocation_type) {
   auto external = Cast<JSExternalObject>(
       NewJSObjectFromMap(external_map(), allocation_type));
-  external->init_value(isolate(), value);
+  external->init_value(isolate(), tag, value);
   return external;
 }
 

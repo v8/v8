@@ -901,7 +901,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(
-      void* value, AllocationType allocation = AllocationType::kYoung);
+      void* value, ExternalPointerTag tag,
+      AllocationType allocation = AllocationType::kYoung);
 
   // Create a CppHeapExternal object for V8's external API.
   Handle<CppHeapExternalObject> NewCppHeapExternal(

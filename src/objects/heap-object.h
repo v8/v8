@@ -327,9 +327,15 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void InitExternalPointerField(
       size_t offset, IsolateForSandbox isolate, Address value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void InitExternalPointerField(
+      size_t offset, IsolateForSandbox isolate, ExternalPointerTag tag,
+      Address value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <ExternalPointerTagRange tag_range>
   inline Address ReadExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate) const;
+  inline Address ReadExternalPointerField(
+      size_t offset, IsolateForSandbox isolate,
+      ExternalPointerTagRange tag_range) const;
   // Similar to `ReadExternalPointerField()` but uses the CppHeapPointerTable.
   template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
   inline Address ReadCppHeapPointerField(
@@ -341,6 +347,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteExternalPointerField(size_t offset,
                                         IsolateForSandbox isolate,
                                         Address value);
+  inline void WriteExternalPointerField(size_t offset,
+                                        IsolateForSandbox isolate,
+                                        ExternalPointerTag tag, Address value);
 
   // Set up a lazily-initialized external pointer field. If the sandbox is
   // enabled, this will set the field to the kNullExternalPointerHandle. It will
