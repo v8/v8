@@ -641,6 +641,7 @@ v8_source_set("v8_unittests_sources") {
       "wasm/wasm-macro-gen-unittest.cc",
       "wasm/wasm-module-builder-unittest.cc",
       "wasm/wasm-module-sourcemap-unittest.cc",
+      "wasm/wasm-tracing-unittest.cc",
       "wasm/wasm-usecounters.cc",
     ]
 
@@ -827,7 +828,6 @@ v8_source_set("v8_unittests_sources") {
     ]
 
     if (v8_enable_webassembly) {
-      deps += [ "../../:wasm_fuzzer_common" ]
       sources += [
         "wasm/float32-cross-compiler-determinism-fuzztest.cc",
         "wasm/simd-cross-compiler-determinism-fuzztest.cc",

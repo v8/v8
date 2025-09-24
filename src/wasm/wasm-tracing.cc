@@ -13,6 +13,7 @@
 #include "src/base/memory.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "v8-internal.h"
 
 namespace v8::internal::wasm {
 
@@ -24,7 +25,7 @@ wasm::WasmTracesForTesting& GetWasmTracesForTesting() {
 }
 
 template <typename T, typename BitRepT = T>
-static void PrintMemoryTraceValue(uint8_t* ptr, const char* type_str,
+static void PrintMemoryTraceValue(const uint8_t* ptr, const char* type_str,
                                   std::ostream& outs) {
   static_assert(sizeof(T) == sizeof(BitRepT));
   static_assert(sizeof(T) <= sizeof(MemoryTraceEntry::value_bytes));
@@ -42,9 +43,10 @@ static void PrintMemoryTraceValue(uint8_t* ptr, const char* type_str,
   } else {
     outs << value << " / 0x" << std::hex << hex_value;
   }
+  outs << std::dec;
 }
 
-void PrintMemoryTraceString(wasm::MemoryTraceEntry& trace_entry,
+void PrintMemoryTraceString(const wasm::MemoryTraceEntry& trace_entry,
                             wasm::NativeModule* native_module,
                             std::ostream& outs) {
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
@@ -100,7 +102,7 @@ void PrintMemoryTraceString(wasm::MemoryTraceEntry& trace_entry,
            << std::hex << std::setw(8) << std::setfill('0') << a << " "
            << std::setw(8) << std::setfill('0') << b << " " << std::setw(8)
            << std::setfill('0') << c << " " << std::setw(8) << std::setfill('0')
-           << d;
+           << d << std::dec;
       break;
     }
     default:
@@ -108,7 +110,7 @@ void PrintMemoryTraceString(wasm::MemoryTraceEntry& trace_entry,
   }
 }
 
-void PrintGlobalTraceString(wasm::GlobalTraceEntry& trace_entry,
+void PrintGlobalTraceString(const wasm::GlobalTraceEntry& trace_entry,
                             wasm::NativeModule* native_module,
                             std::ostream& outs) {
   const base::Vector<const uint8_t>& wire_bytes = native_module->wire_bytes();
@@ -123,14 +125,22 @@ void PrintGlobalTraceString(wasm::GlobalTraceEntry& trace_entry,
   const wasm::WasmModule* module = native_module->module();
   wasm::CanonicalValueType type =
       module->canonical_type(module->globals[trace_entry.global_index].type);
-  wasm::WasmValue value = wasm::WasmValue(trace_entry.value_bytes, type);
 
   outs << std::left << std::setw(8) << ExecutionTierToString(trace_entry.tier)
        << std::right << " func " << std::setw(5) << trace_entry.function_index
        << ":0x" << std::hex << std::left << std::setw(4)
        << trace_entry.frame_position << std::dec << " "
        << wasm::WasmOpcodes::OpcodeName(opcode) << " "
-       << trace_entry.global_index << " val: " << type.name() << ":"
-       << value.to_string();
+       << trace_entry.global_index << " val: " << type.name() << ":";
+
+  if (type.is_numeric()) {
+    wasm::WasmValue value = wasm::WasmValue(trace_entry.value_bytes, type);
+    outs << value.to_string();
+  } else {
+    Address addr = base::ReadUnalignedValue<Address>(
+        reinterpret_cast<Address>(trace_entry.value_bytes));
+    outs << "0x" << std::hex << addr << std::dec;
+  }
 }
+
 }  // namespace v8::internal::wasm

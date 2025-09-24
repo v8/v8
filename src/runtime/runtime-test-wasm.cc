@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <cinttypes>
+#include <cstring>
 #include <type_traits>
 
 #include "include/v8-wasm.h"
@@ -11,6 +12,7 @@
 #include "src/builtins/builtins-inl.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
@@ -517,7 +519,7 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
 
 RUNTIME_FUNCTION(Runtime_WasmTraceGlobal) {
   CHECK(v8_flags.trace_wasm_globals);
-  SealHandleScope scope(isolate);
+  HandleScope handle_scope(isolate);
   if (args.length() != 1 || !IsSmi(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -551,7 +553,15 @@ RUNTIME_FUNCTION(Runtime_WasmTraceGlobal) {
       .is_store = static_cast<bool>(info->is_store),
       .value_bytes = {}};
   CHECK_GE(sizeof(trace_entry.value_bytes), value.type().value_kind_size());
-  value.CopyTo(trace_entry.value_bytes);
+
+  if (value.type().is_numeric()) {
+    value.CopyTo(trace_entry.value_bytes);
+  } else {
+    DirectHandle<Object> ref_handle = value.to_ref();
+    base::WriteUnalignedValue<Address>(
+        reinterpret_cast<Address>(trace_entry.value_bytes),
+        (*ref_handle).ptr());
+  }
 
   wasm::WasmTracesForTesting& traces = wasm::GetWasmTracesForTesting();
   if (traces.should_store_trace) {

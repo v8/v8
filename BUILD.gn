@@ -8206,10 +8206,7 @@ if (v8_enable_webassembly) {
         ":v8_internal_headers",
       ]
 
-      public_deps = [
-        ":wasm_fuzzer_common",
-        ":wasm_test_common",
-      ]
+      public_deps = [ ":wasm_test_common" ]
 
       configs = [
         ":external_config",
@@ -8280,14 +8277,18 @@ if (v8_enable_webassembly) {
       "test/common/flag-utils.h",
       "test/common/value-helper.h",
       "test/common/wasm/flag-utils.h",
+      "test/common/wasm/fuzzer-common.cc",
+      "test/common/wasm/fuzzer-common.h",
       "test/common/wasm/wasm-macro-gen.h",
       "test/common/wasm/wasm-module-runner.cc",
       "test/common/wasm/wasm-module-runner.h",
       "test/common/wasm/wasm-run-utils.cc",
       "test/common/wasm/wasm-run-utils.h",
+      "tools/wasm/mjsunit-module-disassembler-impl.h",
     ]
 
     deps = [
+      ":fuzzer_support",
       ":generate_bytecode_builtins_list",
       ":run_torque",
       ":v8_internal_headers",
@@ -8308,43 +8309,10 @@ if (v8_enable_webassembly) {
     ]
   }
 
-  v8_source_set("wasm_fuzzer_common") {
-    testonly = true
-
-    sources = [
-      "test/fuzzer/wasm/fuzzer-common.cc",
-      "test/fuzzer/wasm/fuzzer-common.h",
-      "tools/wasm/mjsunit-module-disassembler-impl.h",
-    ]
-
-    deps = [
-      ":fuzzer_support",
-      ":generate_bytecode_builtins_list",
-      ":run_torque",
-      ":v8_internal_headers",
-      ":v8_maybe_temporal",
-      ":v8_tracing",
-      ":wasm_test_common",
-    ]
-
-    public_deps = [
-      ":v8_abseil",
-      ":v8_maybe_icu",
-    ]
-
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
-  }
-
   template("v8_wasm_fuzzer") {
     forward_variables_from(invoker, "*")
     v8_fuzzer(target_name) {
-      deps = [
-        ":wasm_fuzzer_common",
-        ":wasm_test_common",
-      ]
+      deps = [ ":wasm_test_common" ]
     }
   }
 

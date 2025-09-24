@@ -3250,6 +3250,9 @@ class LiftoffCompiler {
                                                           &base, &offset);
         __ LoadTaggedPointer(base, base, offset, 0);
         __ PushRegister(kind, LiftoffRegister(base));
+        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+          TraceGlobalOperation(imm.index, false, decoder->position());
+        }
         return;
       }
 
@@ -3263,6 +3266,9 @@ class LiftoffCompiler {
                            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                                imm.global->offset));
       __ PushRegister(kind, LiftoffRegister(value));
+      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+        TraceGlobalOperation(imm.index, false, decoder->position());
+      }
       return;
     }
     LiftoffRegList pinned;
@@ -3296,6 +3302,10 @@ class LiftoffCompiler {
         GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
                                                           &base, &offset);
         __ StoreTaggedPointer(base, offset, 0, value, pinned);
+
+        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+          TraceGlobalOperation(imm.index, true, decoder->position());
+        }
         return;
       }
 
@@ -3309,6 +3319,10 @@ class LiftoffCompiler {
                             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                                 imm.global->offset),
                             value, pinned);
+
+      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+        TraceGlobalOperation(imm.index, true, decoder->position());
+      }
       return;
     }
     LiftoffRegList pinned;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/fuzzer/wasm/fuzzer-common.h"
+#include "test/common/wasm/fuzzer-common.h"
 
 #include <cstdint>
 #include <iomanip>
@@ -281,6 +281,142 @@ void PrintValue(std::ostream& os, const WasmValue& value) {
       }
     }
   }
+}
+
+template <typename TraceEntry, typename PrintEntryFunc>
+void CompareAndPrintTraces(const std::vector<TraceEntry>& trace,
+                           const std::vector<TraceEntry>& ref_trace,
+                           NativeModule* native_module, std::ostream& outs,
+                           PrintEntryFunc print_entry) {
+  CHECK_EQ(trace.size(), ref_trace.size());
+
+  static constexpr size_t kMaxTracesToPrint = 50;
+  static constexpr size_t kFirstMismatchContextSize = 10;
+
+  // If the trace is small enough, just print everything.
+  if (trace.size() <= kMaxTracesToPrint) {
+    uint32_t mismatches = 0;
+    for (size_t i = 0; i < trace.size(); ++i) {
+      if (trace[i] != ref_trace[i]) {
+        outs << "Mismatch at line " << (i + 1) << "\n";
+        outs << "  Reference: ";
+        print_entry(ref_trace[i], native_module, outs);
+        outs << "\n  Actual:    ";
+        print_entry(trace[i], native_module, outs);
+        mismatches++;
+      } else {
+        print_entry(trace[i], native_module, outs);
+      }
+      outs << "\n";
+    }
+    if (mismatches == 0) {
+      outs << "Traces are identical (" << trace.size() << " entries).\n";
+    } else {
+      outs << "Found " << mismatches << " mismatches in " << trace.size()
+           << " entries.\n";
+    }
+    return;
+  }
+
+  // Get the indices of each mismatch.
+  std::vector<size_t> mismatch_indices;
+  for (size_t i = 0; i < trace.size(); ++i) {
+    if (trace[i] != ref_trace[i]) {
+      mismatch_indices.push_back(i);
+    }
+  }
+
+  // If there are no mismatches, print the start and end of the trace.
+  if (mismatch_indices.empty()) {
+    size_t half = kMaxTracesToPrint / 2;
+    for (size_t i = 0; i < half; ++i) {
+      print_entry(trace[i], native_module, outs);
+      outs << "\n";
+    }
+    outs << "[...]\n";
+    for (size_t i = trace.size() - half; i < trace.size(); ++i) {
+      print_entry(trace[i], native_module, outs);
+      outs << "\n";
+    }
+    outs << "Traces are identical (" << trace.size() << " entries).\n";
+    return;
+  }
+
+  // If there are mismatches, print the first mismatch with context and then the
+  // rest of the mismatches.
+  outs << "Found " << mismatch_indices.size() << " mismatches in "
+       << trace.size() << " entries.\n";
+
+  size_t first_mismatch_idx = mismatch_indices[0];
+  outs << "\nContext around the first mismatch at line "
+       << (first_mismatch_idx + 1) << ":\n";
+  size_t start_context = (first_mismatch_idx > kFirstMismatchContextSize)
+                             ? (first_mismatch_idx - kFirstMismatchContextSize)
+                             : 0;
+  size_t end_context = std::min(
+      trace.size(), first_mismatch_idx + kFirstMismatchContextSize + 1);
+
+  for (size_t i = start_context; i < end_context; ++i) {
+    if (trace[i] != ref_trace[i]) {
+      outs << "Mismatch at line " << (i + 1) << "\n";
+      outs << "  Reference: ";
+      print_entry(ref_trace[i], native_module, outs);
+      outs << "\n  Actual:    ";
+      print_entry(trace[i], native_module, outs);
+      outs << "\n";
+    } else {
+      outs << "Match    at line " << (i + 1) << ": ";
+      print_entry(trace[i], native_module, outs);
+      outs << "\n";
+    }
+  }
+
+  // Print the rest of mismatches.
+  size_t last_printed_idx_in_context = end_context - 1;
+
+  size_t mismatches_to_print =
+      std::min(mismatch_indices.size(), kMaxTracesToPrint);
+  for (size_t i = 1; i < mismatches_to_print; ++i) {
+    size_t current_mismatch_idx = mismatch_indices[i];
+
+    // Skip if this mismatch was already shown in the initial context.
+    if (current_mismatch_idx <= last_printed_idx_in_context) {
+      continue;
+    }
+
+    // If there's a gap between this mismatch and the previous one, print
+    // "[...]".
+    if (current_mismatch_idx > mismatch_indices[i - 1] + 1) {
+      outs << "[...]\n";
+    }
+
+    outs << "Mismatch at line " << (current_mismatch_idx + 1) << "\n";
+    outs << "  Reference: ";
+    print_entry(ref_trace[current_mismatch_idx], native_module, outs);
+    outs << "\n  Actual:    ";
+    print_entry(trace[current_mismatch_idx], native_module, outs);
+    outs << "\n";
+  }
+  if (mismatch_indices.size() > kMaxTracesToPrint) {
+    outs << "[... " << (mismatch_indices.size() - kMaxTracesToPrint)
+         << " more mismatches not shown]\n";
+  }
+}
+
+void CompareAndPrintMemoryTraces(wasm::MemoryTrace& memory_trace,
+                                 wasm::MemoryTrace& ref_memory_trace,
+                                 NativeModule* native_module,
+                                 std::ostream& outs) {
+  CompareAndPrintTraces(memory_trace, ref_memory_trace, native_module, outs,
+                        PrintMemoryTraceString);
+}
+
+void CompareAndPrintGlobalTraces(wasm::GlobalTrace& global_trace,
+                                 wasm::GlobalTrace& ref_global_trace,
+                                 NativeModule* native_module,
+                                 std::ostream& outs) {
+  CompareAndPrintTraces(global_trace, ref_global_trace, native_module, outs,
+                        PrintGlobalTraceString);
 }
 
 CompileTimeImports CompileTimeImportsForFuzzing() {
@@ -761,8 +897,8 @@ int ExecuteAgainstReference(Isolate* isolate,
   CHECK(ref_result_traced.should_execute_non_reference);
 
   // Copy the traces from the reference run to preserve them.
-  wasm::MemoryTrace memory_trace = traces.memory_trace;
-  wasm::GlobalTrace global_trace = traces.global_trace;
+  wasm::MemoryTrace memory_trace = std::move(traces.memory_trace);
+  wasm::GlobalTrace global_trace = std::move(traces.global_trace);
   // Reset the vectors to store the traces for the actual run.
   traces.memory_trace.clear();
   traces.global_trace.clear();
@@ -799,36 +935,22 @@ int ExecuteAgainstReference(Isolate* isolate,
     FATAL("Mismatch disappeared when re-running with tracing enabled.");
   }
 
-  wasm::MemoryTrace ref_memory_trace = traces.memory_trace;
-  wasm::GlobalTrace ref_global_trace = traces.global_trace;
+  wasm::MemoryTrace ref_memory_trace = std::move(traces.memory_trace);
+  wasm::GlobalTrace ref_global_trace = std::move(traces.global_trace);
 
   if (should_trace_memory) {
     std::ostringstream ss;
-    ss << "\nMemory trace of the actual run.\n";
-    for (uint32_t i = 0; i < memory_trace.size(); ++i) {
-      PrintMemoryTraceString(memory_trace[i], native_module, ss);
-      ss << "\n";
-    }
-    ss << "\nMemory trace of the reference run.\n";
-    for (uint32_t i = 0; i < ref_memory_trace.size(); ++i) {
-      PrintMemoryTraceString(ref_memory_trace[i], native_module, ss);
-      ss << "\n";
-    }
+    ss << "\nMemory trace.\n";
+    CompareAndPrintMemoryTraces(memory_trace, ref_memory_trace, native_module,
+                                ss);
     base::OS::PrintError("%s", ss.str().c_str());
   }
 
   if (should_trace_globals) {
     std::ostringstream ss;
-    ss << "\nGlobal trace of the actual run.\n";
-    for (uint32_t i = 0; i < global_trace.size(); ++i) {
-      PrintGlobalTraceString(global_trace[i], native_module, ss);
-      ss << "\n";
-    }
-    ss << "\nGlobal trace of the reference run.\n";
-    for (uint32_t i = 0; i < ref_global_trace.size(); ++i) {
-      PrintGlobalTraceString(ref_global_trace[i], native_module, ss);
-      ss << "\n";
-    }
+    ss << "\nGlobal trace.\n";
+    CompareAndPrintGlobalTraces(global_trace, ref_global_trace, native_module,
+                                ss);
     base::OS::PrintError("%s", ss.str().c_str());
   }
 

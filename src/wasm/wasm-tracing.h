@@ -50,6 +50,21 @@ struct GlobalTraceEntry {
   bool is_store;
 
   uint8_t value_bytes[16];
+
+  bool operator==(const GlobalTraceEntry& other) const {
+    bool value_matches = true;
+    // For references, value_bytes holds the address, which doesn't make sense
+    // to compare.
+    if (!is_reference(kind)) {
+      value_matches =
+          (memcmp(value_bytes, other.value_bytes, value_kind_size(kind)) == 0);
+    }
+
+    return (function_index == other.function_index) &&
+           (global_index == other.global_index) &&
+           (is_store == other.is_store) && (kind == other.kind) &&
+           value_matches;
+  }
 };
 
 struct MemoryTraceEntry {
@@ -62,6 +77,15 @@ struct MemoryTraceEntry {
   bool is_store;
 
   uint8_t value_bytes[16];
+
+  bool operator==(const MemoryTraceEntry& other) const {
+    return (function_index == other.function_index) &&
+           (mem_index == other.mem_index) && (is_store == other.is_store) &&
+           (representation == other.representation) &&
+           (offset == other.offset) &&
+           (memcmp(value_bytes, other.value_bytes,
+                   ElementSizeInBytes(representation)) == 0);
+  }
 };
 
 using GlobalTrace = std::vector<GlobalTraceEntry>;
@@ -79,11 +103,11 @@ struct WasmTracesForTesting {
 
 V8_EXPORT_PRIVATE wasm::WasmTracesForTesting& GetWasmTracesForTesting();
 V8_EXPORT_PRIVATE void PrintMemoryTraceString(
-    wasm::MemoryTraceEntry& trace_entry, wasm::NativeModule* native_module,
-    std::ostream& outs);
+    const wasm::MemoryTraceEntry& trace_entry,
+    wasm::NativeModule* native_module, std::ostream& outs);
 V8_EXPORT_PRIVATE void PrintGlobalTraceString(
-    wasm::GlobalTraceEntry& trace_entry, wasm::NativeModule* native_module,
-    std::ostream& outs);
+    const wasm::GlobalTraceEntry& trace_entry,
+    wasm::NativeModule* native_module, std::ostream& outs);
 
 }  // namespace v8::internal::wasm
 

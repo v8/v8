@@ -12,6 +12,7 @@
 
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-tracing.h"
 
 namespace v8::internal {
 class StdoutStream;
@@ -102,9 +103,25 @@ class WasmExecutionFuzzer {
                               ZoneBuffer* buffer) = 0;
 };
 
+bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
+                  Tagged<WasmTrustedInstanceData> instance_data,
+                  Tagged<WasmTrustedInstanceData> ref_instance_data,
+                  bool print_difference);
+bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
+                   Tagged<WasmTrustedInstanceData> instance_data,
+                   Tagged<WasmTrustedInstanceData> ref_instance_data,
+                   bool print_difference);
 bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
                       Isolate* isolate);
 void PrintValue(std::ostream& os, const WasmValue& value);
+void CompareAndPrintMemoryTraces(MemoryTrace& memory_trace,
+                                 MemoryTrace& ref_memory_trace,
+                                 NativeModule* native_module,
+                                 std::ostream& outs);
+void CompareAndPrintGlobalTraces(GlobalTrace& global_trace,
+                                 GlobalTrace& ref_global_trace,
+                                 NativeModule* native_module,
+                                 std::ostream& outs);
 
 int SyncCompileAndExecuteAgainstReference(
     v8::Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
