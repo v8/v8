@@ -1925,6 +1925,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             MachineRepresentation::kTagged, instr);
       }
       if (mode > RecordWriteMode::kValueIsPointer) {
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
         __ JumpIfSmi(value, ool->exit());
       }
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
@@ -1952,6 +1953,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(v8_flags.verify_write_barriers);
       auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
           this, object, value, i.TempRegister(0));
+      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
       __ JumpIfNotSmi(value, ool->entry());
       __ bind(ool->exit());
 

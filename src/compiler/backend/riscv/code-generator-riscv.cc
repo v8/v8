@@ -1129,6 +1129,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.verify_write_barriers) {
         auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
             this, object, value, kScratchReg);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
         __ JumpIfNotSmi(value, ool->entry());
         __ bind(ool->exit());
       }
@@ -1175,6 +1176,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.verify_write_barriers) {
         auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
             this, object, value, kScratchReg);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
         __ JumpIfNotSmi(value, ool->entry());
         __ bind(ool->exit());
       }

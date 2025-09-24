@@ -559,11 +559,7 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
     AssertNotSmi(value);
   }
 
-#if V8_STATIC_ROOTS_BOOL
-  // Quick check for Read-only and small Smi values.
-  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-  JumpIfUnsignedLessThan(value, kRegularPageSize, *done);
-#endif  // V8_STATIC_ROOTS_BOOL
+  MaybeJumpIfReadOnlyOrSmallSmi(value, *done);
 
   if (value_can_be_smi) {
     JumpIfSmi(value, *done);
