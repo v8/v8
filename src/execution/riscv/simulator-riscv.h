@@ -451,7 +451,7 @@ class Simulator : public SimulatorBase {
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   // RVV CSR
   __int128_t get_vregister(int vreg) const;
-  inline uint64_t rvv_vlen() const { return kRvvVLEN; }
+  inline uint64_t rvv_vlen() const { return kSimulatorRvvVLEN; }
   inline uint64_t rvv_vtype() const { return vtype_; }
   inline uint64_t rvv_vl() const { return vl_; }
   inline uint64_t rvv_vstart() const { return vstart_; }
@@ -1173,7 +1173,7 @@ class Simulator : public SimulatorBase {
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   // RVV registers
   __int128_t Vregister_[kNumVRegisters];
-  static_assert(sizeof(__int128_t) == kRvvVLEN / 8, "unmatch vlen");
+  static_assert(sizeof(__int128_t) == kSimulatorRvvVLEN / 8, "unmatch vlen");
   uint64_t vstart_, vxsat_, vxrm_, vcsr_, vtype_, vl_, vlenb_;
   // For simplicity, we only track whether the vector unit was enabled or not.
   // The hardware's mstatus.VS status field can have 4 values: 'Off', 'Initial',

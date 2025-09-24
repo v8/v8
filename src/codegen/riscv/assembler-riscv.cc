@@ -98,7 +98,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 #ifdef _RISCV_TARGET_SIMULATOR
   supported_ |= SimulatorFeatures();
-  vlen_ = kRvvVLEN;
+  vlen_ = kSimulatorRvvVLEN;
 #endif  // _RISCV_TARGET_SIMULATOR
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;

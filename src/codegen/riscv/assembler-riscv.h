@@ -691,6 +691,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       }
     }
 
+    void set(Register vd, Register avl, VSew sew, Vlmul lmul,
+             TailAgnosticType tail = ta) {
+      assm_->vsetvli(vd, avl, sew, lmul, tail);
+      avl_ = -1;
+      sew_ = sew;
+      lmul_ = lmul;
+    }
+
     void SetSimd128(VSew sew, TailAgnosticType tail = ta) {
       Vlmul lmul;
       switch (CpuFeatures::vlen()) {
@@ -704,6 +712,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
           lmul = mf4;
           break;
         default:
+          static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
           UNIMPLEMENTED();
       }
       if (sew == E8) {
@@ -732,6 +741,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
           lmul = mf8;
           break;
         default:
+          static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
           UNIMPLEMENTED();
       }
       if (sew == E8) {
@@ -760,6 +770,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
           lmul = mf2;
           break;
         default:
+          static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
           UNIMPLEMENTED();
       }
       if (sew == E8) {

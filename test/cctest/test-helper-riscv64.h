@@ -57,6 +57,9 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, Func test_generator) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  if (v8_flags.print_code) {
+    Print(*code);
+  }
 
   using OINT_T = std::conditional_t<
       std::is_integral_v<OUTPUT_T>, OUTPUT_T,
@@ -155,6 +158,9 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  if (v8_flags.print_code) {
+    Print(*code);
+  }
 
   using OINT_T = std::conditional_t<
       std::is_integral_v<OUTPUT_T>, OUTPUT_T,
@@ -208,6 +214,9 @@ void GenAndRunTestForLoadStore(T value, Func test_generator) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  if (v8_flags.print_code) {
+    Print(*code);
+  }
 
   auto f =
       GeneratedCode<INT_T(void* base, INT_T val)>::FromCode(isolate, *code);
@@ -250,9 +259,9 @@ void GenAndRunTestForLRSC(T value, Func test_generator) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-#if defined(DEBUG)
-  Print(*code);
-#endif
+  if (v8_flags.print_code) {
+    Print(*code);
+  }
   using INT_T = std::conditional_t<sizeof(T) == 4, int32_t, int64_t>;
 
   T tmp = 0;
@@ -311,9 +320,9 @@ OUTPUT_T GenAndRunTestForAMO(INPUT_T input0, INPUT_T input1,
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-#if defined(DEBUG)
-  Print(*code);
-#endif
+  if (v8_flags.print_code) {
+    Print(*code);
+  }
   OUTPUT_T tmp = 0;
   auto f = GeneratedCode<OUTPUT_T(void* base, INPUT_T, INPUT_T)>::FromCode(
       isolate, *code);
