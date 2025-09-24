@@ -51,9 +51,9 @@ auto RegExpCodeGenerator::GetArgumentValue(const uint8_t* pc) const {
   constexpr RegExpBytecodeOperandType op_type = Operands::Type(Operand);
   auto value = Operands::template Get<Operand>(pc);
 
-  // If the operand is a Label, we return the Label created during the first
-  // pass instead of an offset to the bytecode.
-  if constexpr (op_type == ReBcOpType::kLabel) {
+  // If the operand is a JumpTarget, we return the Label created during the
+  // first pass instead of an offset to the bytecode.
+  if constexpr (op_type == ReBcOpType::kJumpTarget) {
     return GetLabel(value);
   } else {
     return value;
@@ -509,8 +509,8 @@ void RegExpCodeGenerator::PreVisitBytecodes() {
         new (label) Label();
       }
     };
-    Operands::template ForEachOperandOfType<RegExpBytecodeOperandType::kLabel>(
-        ensure_label);
+    Operands::template ForEachOperandOfType<
+        RegExpBytecodeOperandType::kJumpTarget>(ensure_label);
   });
 }
 
