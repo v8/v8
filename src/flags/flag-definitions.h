@@ -385,6 +385,9 @@ DEFINE_STRING(icu_datetime_compat_lang, "*",
 DEFINE_BOOL(icu_default_italian_number_grouping_always, false,
             "override the default useGrouping rule for Italian to \"always\" "
             "to match behavior of ICU <76")
+DEFINE_BOOL(icu_british_remove_full_weekday_comma, false,
+            "remove any comma after a full weekday in en-AU, en-GB and en-IN "
+            "to match behavior of ICU<76")
 #endif
 
 #ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK
