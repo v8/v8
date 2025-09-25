@@ -678,8 +678,12 @@ class MaglevGraphBuilder {
     return GetUint8ClampedForToNumber(current_interpreter_frame_.get(reg));
   }
 
+  compiler::OptionalHeapObjectRef TryGetConstant(
+      ValueNode* node, ValueNode** constant_node = nullptr);
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
+  std::optional<double> TryGetFloat64Constant(
+      ValueNode* value, TaggedToFloat64ConversionType conversion_type);
   MaybeHandle<String> TryGetStringConstant(ValueNode* value);
 
   // Get an Int32 representation node whose value is equivalent to the given
@@ -689,11 +693,7 @@ class MaglevGraphBuilder {
                         bool can_be_heap_number = false);
 
   void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
-
   void EnsureInt32(interpreter::Register reg);
-
-  std::optional<double> TryGetFloat64Constant(
-      ValueNode* value, TaggedToFloat64ConversionType conversion_type);
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
   std::optional<double> TryGetHoleyFloat64Constant(ValueNode* value);
@@ -881,10 +881,6 @@ class MaglevGraphBuilder {
   std::pair<ReduceResult, base::Vector<ValueNode*>>
   GetArgumentsAsArrayOfValueNodes(compiler::SharedFunctionInfoRef shared,
                                   const CallArguments& args);
-
-  compiler::OptionalHeapObjectRef TryGetConstant(
-      ValueNode* node, ValueNode** constant_node = nullptr);
-  std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
 
   template <typename LoadNode>
   MaybeReduceResult TryBuildLoadDataView(const CallArguments& args,

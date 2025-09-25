@@ -664,6 +664,19 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
 }
 
 template <typename BaseT>
+compiler::OptionalHeapObjectRef MaglevReducer<BaseT>::TryGetConstant(
+    ValueNode* node, ValueNode** constant_node) {
+  if (auto result = node->TryGetConstant(broker())) {
+    if (constant_node) *constant_node = node;
+    return result;
+  }
+  if (auto c = TryGetConstantAlternative(node)) {
+    return TryGetConstant(*c, constant_node);
+  }
+  return {};
+}
+
+template <typename BaseT>
 std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
     ValueNode* value) {
   switch (value->opcode()) {
@@ -697,6 +710,41 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
   }
   if (auto c = TryGetConstantAlternative(value)) {
     return TryGetInt32Constant(*c);
+  }
+  return {};
+}
+
+template <typename BaseT>
+std::optional<uint32_t> MaglevReducer<BaseT>::TryGetUint32Constant(
+    ValueNode* value) {
+  switch (value->opcode()) {
+    case Opcode::kInt32Constant: {
+      int32_t int32_value = value->Cast<Int32Constant>()->value();
+      if (int32_value >= 0) {
+        return static_cast<uint32_t>(int32_value);
+      }
+      return {};
+    }
+    case Opcode::kUint32Constant:
+      return value->Cast<Uint32Constant>()->value();
+    case Opcode::kSmiConstant: {
+      int32_t smi_value = value->Cast<SmiConstant>()->value().value();
+      if (smi_value >= 0) {
+        return static_cast<uint32_t>(smi_value);
+      }
+      return {};
+    }
+    case Opcode::kFloat64Constant: {
+      double double_value =
+          value->Cast<Float64Constant>()->value().get_scalar();
+      if (!IsUint32Double(double_value)) return {};
+      return FastD2UI(value->Cast<Float64Constant>()->value().get_scalar());
+    }
+    default:
+      break;
+  }
+  if (auto c = TryGetConstantAlternative(value)) {
+    return TryGetUint32Constant(*c);
   }
   return {};
 }
@@ -1022,6 +1070,30 @@ void MaglevReducer<BaseT>::FlushNodesToBlock() {
     }
     new_nodes_at_.clear();
   }
+}
+
+template <typename BaseT>
+template <typename MapContainer>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
+    ValueNode* object, const MapContainer& maps) {
+  // For constants with stable maps that match one of the desired maps, we
+  // don't need to emit a map check, and can use the dependency -- we
+  // can't do this for unstable maps because the constant could migrate
+  // during compilation.
+  compiler::OptionalHeapObjectRef constant = TryGetConstant(object);
+  if (!constant) return {};
+  compiler::MapRef constant_map = constant->map(broker());
+  if (std::find(maps.begin(), maps.end(), constant_map) == maps.end()) {
+    // TODO(leszeks): Insert an unconditional deopt if the constant map
+    // doesn't match the required map.
+    return {};
+  }
+  // TODO(verwaest): Reduce maps to the constant map.
+  if (constant_map.is_stable()) {
+    broker()->dependencies()->DependOnStableMap(constant_map);
+    return ReduceResult::Done();
+  }
+  return {};
 }
 
 template <typename BaseT>

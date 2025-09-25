@@ -61,6 +61,8 @@ class MaglevGraphOptimizer {
     return current_node_;
   }
 
+  compiler::JSHeapBroker* broker() const;
+
   // Iterates the deopt frames unwrapping its inputs, ie, removing Identity or
   // ReturnedValue nodes.
   void UnwrapDeoptFrames();

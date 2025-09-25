@@ -86,6 +86,10 @@ void MaglevGraphOptimizer::PreProcessNode(ControlNode*,
 }
 void MaglevGraphOptimizer::PostProcessNode(ControlNode*) {}
 
+compiler::JSHeapBroker* MaglevGraphOptimizer::broker() const {
+  return reducer_.broker();
+}
+
 ValueNode* MaglevGraphOptimizer::GetInputAt(int index) const {
   CHECK_NOT_NULL(current_node_);
   DCHECK_LT(index, current_node()->input_count());
@@ -327,6 +331,9 @@ ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayNotDetached(
 ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
     CheckMaps* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  if (reducer_.TryFoldCheckMaps(GetInputAt(0), node->maps()).IsDone()) {
+    return ProcessResult::kRemove;
+  }
   return ProcessResult::kContinue;
 }
 
@@ -950,6 +957,15 @@ ProcessResult MaglevGraphOptimizer::VisitInitialValue(
 ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
     LoadTaggedField* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  if (node->offset() == HeapObject::kMapOffset) {
+    if (auto constant = reducer_.TryGetConstant(node)) {
+      compiler::MapRef map = constant->map(broker());
+      if (map.is_stable()) {
+        broker()->dependencies()->DependOnStableMap(map);
+        return ReplaceWith(reducer_.GetConstant(map));
+      }
+    }
+  }
   if (node->offset() == JSFunction::kFeedbackCellOffset) {
     if (auto input = GetInputAt(0)->TryCast<FastCreateClosure>()) {
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));

@@ -274,9 +274,16 @@ class MaglevReducer {
 
   void AddInitializedNodeToGraph(Node* node);
 
+  compiler::OptionalHeapObjectRef TryGetConstant(
+      ValueNode* node, ValueNode** constant_node = nullptr);
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
+  std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
   std::optional<double> TryGetFloat64Constant(
       ValueNode* value, TaggedToFloat64ConversionType conversion_type);
+
+  template <typename MapContainer>
+  MaybeReduceResult TryFoldCheckMaps(ValueNode* object,
+                                     const MapContainer& maps);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
 

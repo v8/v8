@@ -1797,40 +1797,6 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
   return reducer_.GetTruncatedInt32ForToNumber(value, allowed_input_type);
 }
 
-std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
-    ValueNode* value) {
-  switch (value->opcode()) {
-    case Opcode::kInt32Constant: {
-      int32_t int32_value = value->Cast<Int32Constant>()->value();
-      if (int32_value >= 0) {
-        return static_cast<uint32_t>(int32_value);
-      }
-      return {};
-    }
-    case Opcode::kUint32Constant:
-      return value->Cast<Uint32Constant>()->value();
-    case Opcode::kSmiConstant: {
-      int32_t smi_value = value->Cast<SmiConstant>()->value().value();
-      if (smi_value >= 0) {
-        return static_cast<uint32_t>(smi_value);
-      }
-      return {};
-    }
-    case Opcode::kFloat64Constant: {
-      double double_value =
-          value->Cast<Float64Constant>()->value().get_scalar();
-      if (!IsUint32Double(double_value)) return {};
-      return FastD2UI(value->Cast<Float64Constant>()->value().get_scalar());
-    }
-    default:
-      break;
-  }
-  if (auto c = TryGetConstantAlternative(value)) {
-    return TryGetUint32Constant(*c);
-  }
-  return {};
-}
-
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 std::optional<double> MaglevGraphBuilder::TryGetHoleyFloat64Constant(
     ValueNode* value) {
@@ -2676,30 +2642,7 @@ bool OperationValue(type left, type right) {
   }
 }
 
-compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
-    ValueNode* node, ValueNode** constant_node) {
-  if (auto result = node->TryGetConstant(broker())) {
-    if (constant_node) *constant_node = node;
-    return result;
-  }
-  if (auto c = TryGetConstantAlternative(node)) {
-    return TryGetConstant(*c, constant_node);
-  }
-  return {};
-}
 
-std::optional<ValueNode*> MaglevGraphBuilder::TryGetConstantAlternative(
-    ValueNode* node) {
-  const NodeInfo* info = known_node_aspects().TryGetInfoFor(node);
-  if (info) {
-    if (auto c = info->alternative().checked_value()) {
-      if (IsConstantNode(c->opcode())) {
-        return c;
-      }
-    }
-  }
-  return {};
-}
 
 template <Operation kOperation>
 MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
@@ -4356,23 +4299,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     bool migration_done_outside) {
   // TODO(verwaest): Support other objects with possible known stable maps as
   // well.
-  if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
-    // For constants with stable maps that match one of the desired maps, we
-    // don't need to emit a map check, and can use the dependency -- we
-    // can't do this for unstable maps because the constant could migrate
-    // during compilation.
-    compiler::MapRef constant_map = constant.value().map(broker());
-    if (std::find(maps.begin(), maps.end(), constant_map) != maps.end()) {
-      if (constant_map.is_stable()) {
-        broker()->dependencies()->DependOnStableMap(constant_map);
-        return ReduceResult::Done();
-      }
-      // TODO(verwaest): Reduce maps to the constant map.
-    } else {
-      // TODO(leszeks): Insert an unconditional deopt if the constant map
-      // doesn't match the required map.
-    }
-  } else if (!object->is_tagged() && !object->is_holey_float64()) {
+  RETURN_IF_DONE(reducer_.TryFoldCheckMaps(object, maps));
+  if (!object->is_tagged() && !object->is_holey_float64()) {
     // TODO(victorgomes): Implement the holey float64 case.
     auto heap_number_map =
         MakeRef(broker(), local_isolate()->factory()->heap_number_map());
@@ -16418,11 +16346,18 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64ForToNumber(
   return reducer_.GetHoleyFloat64ForToNumber(value, allowed_input_type);
 }
 
+compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
+    ValueNode* node, ValueNode** constant_node) {
+  return reducer_.TryGetConstant(node, constant_node);
+}
 std::optional<int32_t> MaglevGraphBuilder::TryGetInt32Constant(
     ValueNode* value) {
   return reducer_.TryGetInt32Constant(value);
 }
-
+std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
+    ValueNode* value) {
+  return reducer_.TryGetUint32Constant(value);
+}
 std::optional<double> MaglevGraphBuilder::TryGetFloat64Constant(
     ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
   return reducer_.TryGetFloat64Constant(value, conversion_type);
