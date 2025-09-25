@@ -164,6 +164,18 @@ void JSFinalizationRegistry::set_next_dirty_unchecked(
   CONDITIONAL_WRITE_BARRIER(*this, kNextDirtyOffset, value, mode);
 }
 
+void JSFinalizationRegistry::set_active_cells_unchecked(
+    Tagged<Union<Undefined, WeakCell>> value, WriteBarrierMode mode) {
+  WRITE_FIELD(*this, kActiveCellsOffset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kActiveCellsOffset, value, mode);
+}
+
+void JSFinalizationRegistry::set_cleared_cells_unchecked(
+    Tagged<WeakCell> value, WriteBarrierMode mode) {
+  WRITE_FIELD(*this, kClearedCellsOffset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kClearedCellsOffset, value, mode);
+}
+
 Tagged<JSFinalizationRegistry> WeakCell::finalization_registry() const {
   return finalization_registry_.load();
 }
@@ -249,8 +261,8 @@ Tagged<HeapObject> WeakCell::relaxed_unregister_token() const {
 }
 
 template <typename GCNotifyUpdatedSlotCallback>
-void WeakCell::Nullify(Isolate* isolate,
-                       GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
+void WeakCell::GCSafeNullify(
+    Isolate* isolate, GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
   // Remove from the WeakCell from the "active_cells" list of its
   // JSFinalizationRegistry and insert it into the "cleared_cells" list. This is
   // only called for WeakCells which haven't been unregistered yet, so they will
@@ -262,14 +274,19 @@ void WeakCell::Nullify(Isolate* isolate,
   const Heap* const heap = isolate->heap();
   Tagged<JSFinalizationRegistry> fr =
       GCSafeCast<JSFinalizationRegistry>(finalization_registry(), heap);
+#ifdef DEBUG
+  Tagged<WeakCell> current_active_cells = GCSafeCast<WeakCell>(
+      fr->RawField(JSFinalizationRegistry::kActiveCellsOffset).load(),
+      isolate->heap());
+#endif  // DEBUG
   if (!IsUndefined(prev())) {
-    DCHECK_NE(fr->active_cells(), this);
+    DCHECK_NE(current_active_cells, this);
     Tagged<WeakCell> prev_cell = GCSafeCast<WeakCell>(prev(), heap);
     prev_cell->set_next(next());
     gc_notify_updated_slot(prev_cell, ObjectSlot(&prev_cell->next_), next());
   } else {
-    DCHECK_EQ(fr->active_cells(), this);
-    fr->set_active_cells(next());
+    DCHECK_EQ(current_active_cells, this);
+    fr->set_active_cells_unchecked(next());
     gc_notify_updated_slot(
         fr, fr->RawField(JSFinalizationRegistry::kActiveCellsOffset), next());
   }
@@ -288,9 +305,11 @@ void WeakCell::Nullify(Isolate* isolate,
     gc_notify_updated_slot(cleared_head_cell,
                            ObjectSlot(&cleared_head_cell->prev_), this);
   }
-  set_next(fr->cleared_cells());
+  set_next(GCSafeCast<UnionOf<WeakCell, Undefined>>(
+      fr->RawField(JSFinalizationRegistry::kClearedCellsOffset).load(),
+      isolate->heap()));
   gc_notify_updated_slot(this, ObjectSlot(&next_), next());
-  fr->set_cleared_cells(Tagged(this));
+  fr->set_cleared_cells_unchecked(Tagged(this));
   gc_notify_updated_slot(
       fr, fr->RawField(JSFinalizationRegistry::kClearedCellsOffset), this);
 }

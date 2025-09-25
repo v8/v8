@@ -40,9 +40,11 @@
 #include "src/heap/slot-set.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/zapping.h"
+#include "src/objects/casting-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
@@ -1480,8 +1482,12 @@ void ScavengerCollector::ProcessWeakCells(
     // We're modifying the pointers in WeakCell and JSFinalizationRegistry
     // during GC; thus we need to record the slots it writes. The normal
     // write barrier is not enough, since it's disabled before GC.
-    weak_cell->Nullify(heap_->isolate(), on_slot_updated_callback);
-    DCHECK(finalization_registry->NeedsCleanup());
+    weak_cell->GCSafeNullify(heap_->isolate(), on_slot_updated_callback);
+    DCHECK(GCAwareObjectTypeCheck<WeakCell>(
+        finalization_registry
+            ->RawField(JSFinalizationRegistry::kClearedCellsOffset)
+            .load(),
+        heap_));
     DCHECK(finalization_registry->scheduled_for_cleanup());
   };
   const auto on_dead_unregister_token_callback =

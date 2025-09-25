@@ -80,6 +80,11 @@ class JSFinalizationRegistry
   inline void set_next_dirty_unchecked(
       Tagged<JSFinalizationRegistry> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_active_cells_unchecked(
+      Tagged<Union<Undefined, WeakCell>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_cleared_cells_unchecked(
+      Tagged<WeakCell> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Bitfields in flags.
   DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
@@ -137,8 +142,8 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   // slots via the gc_notify_updated_slot function. The normal write barrier is
   // not enough, since it's disabled before GC.
   template <typename GCNotifyUpdatedSlotCallback>
-  inline void Nullify(Isolate* isolate,
-                      GCNotifyUpdatedSlotCallback gc_notify_updated_slot);
+  inline void GCSafeNullify(Isolate* isolate,
+                            GCNotifyUpdatedSlotCallback gc_notify_updated_slot);
 
   inline void RemoveFromFinalizationRegistryCells(Isolate* isolate);
 
