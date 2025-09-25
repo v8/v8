@@ -2530,50 +2530,47 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   sweeper()->EnsurePageIsSwept(page);
 }
 
-// static
-Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
-  DCHECK(!heap->using_initial_limit());
-  heap->tracer()->RecordGCSizeCounters();
-  const HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
+Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits() {
+  DCHECK(!using_initial_limit());
+  tracer()->RecordGCSizeCounters();
+  const HeapGrowingMode mode = CurrentHeapGrowingMode();
   std::optional<double> v8_gc_speed =
-      heap->tracer()->OldGenerationSpeedInBytesPerMillisecond();
+      tracer()->OldGenerationSpeedInBytesPerMillisecond();
   double v8_mutator_speed =
-      heap->tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond();
+      tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond();
   double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
-      heap, heap->max_old_generation_size(), v8_gc_speed, v8_mutator_speed,
-      mode);
+      this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed, mode);
   std::optional<double> embedder_gc_speed =
-      heap->tracer()->EmbedderSpeedInBytesPerMillisecond();
+      tracer()->EmbedderSpeedInBytesPerMillisecond();
   double embedder_speed =
-      heap->tracer()->EmbedderAllocationThroughputInBytesPerMillisecond();
+      tracer()->EmbedderAllocationThroughputInBytesPerMillisecond();
   double embedder_growing_factor =
       (embedder_gc_speed.has_value() && embedder_speed > 0)
           ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
-                heap, heap->max_global_memory_size_, embedder_gc_speed,
+                this, max_global_memory_size_, embedder_gc_speed,
                 embedder_speed, mode)
           : BaseControllerTrait::kMinGrowingFactor;
 
-  size_t new_space_capacity = heap->NewSpaceTargetCapacity();
+  const size_t new_space_capacity = NewSpaceTargetCapacity();
 
 #if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
       TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-      perfetto::CounterTrack("NewSpaceTargetCapacity", heap->tracing_track()),
+      perfetto::CounterTrack("NewSpaceTargetCapacity", tracing_track()),
       new_space_capacity);
-  TRACE_COUNTER(
-      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-      perfetto::CounterTrack("OldGenerationSpeed", heap->tracing_track()),
-      v8_gc_speed.value_or(0.0));
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                perfetto::CounterTrack("EmbedderSpeed", heap->tracing_track()),
+                perfetto::CounterTrack("OldGenerationSpeed", tracing_track()),
+                v8_gc_speed.value_or(0.0));
+  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                perfetto::CounterTrack("EmbedderSpeed", tracing_track()),
                 embedder_gc_speed.value_or(0.0));
 #endif
 
   size_t new_old_generation_allocation_limit =
       MemoryController<V8HeapTrait>::BoundAllocationLimit(
-          heap, heap->OldGenerationConsumedBytesAtLastGC(),
-          heap->OldGenerationConsumedBytesAtLastGC() * v8_growing_factor,
-          heap->min_old_generation_size_, heap->max_old_generation_size(),
+          this, OldGenerationConsumedBytesAtLastGC(),
+          OldGenerationConsumedBytesAtLastGC() * v8_growing_factor,
+          min_old_generation_size_, max_old_generation_size(),
           new_space_capacity, mode);
 
   double global_growing_factor =
@@ -2585,16 +2582,15 @@ Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
   DCHECK_GT(external_growing_factor, 0);
   size_t new_global_allocation_limit =
       MemoryController<GlobalMemoryTrait>::BoundAllocationLimit(
-          heap, heap->GlobalConsumedBytesAtLastGC(),
-          (heap->OldGenerationConsumedBytesAtLastGC() +
-           heap->embedder_size_at_last_gc_) *
+          this, GlobalConsumedBytesAtLastGC(),
+          (OldGenerationConsumedBytesAtLastGC() + embedder_size_at_last_gc_) *
                   global_growing_factor +
               (v8_flags.external_memory_accounted_in_global_limit
-                   ? heap->external_memory_.low_since_mark_compact() *
+                   ? external_memory_.low_since_mark_compact() *
                          external_growing_factor
                    : 0),
-          heap->min_global_memory_size_, heap->max_global_memory_size_,
-          new_space_capacity, mode);
+          min_global_memory_size_, max_global_memory_size_, new_space_capacity,
+          mode);
 
   return {new_old_generation_allocation_limit, new_global_allocation_limit};
 }
@@ -2609,7 +2605,7 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
     return;
   }
 
-  auto new_limits = ComputeNewAllocationLimits(this);
+  auto new_limits = ComputeNewAllocationLimits();
   size_t new_old_generation_allocation_limit =
       new_limits.old_generation_allocation_limit;
   size_t new_global_allocation_limit = new_limits.global_allocation_limit;
@@ -2673,7 +2669,7 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   set_using_initial_limit(false);
 
-  auto new_limits = ComputeNewAllocationLimits(this);
+  auto new_limits = ComputeNewAllocationLimits();
   size_t new_old_generation_allocation_limit =
       new_limits.old_generation_allocation_limit;
   size_t new_global_allocation_limit = new_limits.global_allocation_limit;
@@ -7719,7 +7715,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 
   if (v8_flags.external_memory_accounted_in_global_limit) {
     if (!using_initial_limit()) {
-      auto new_limits = ComputeNewAllocationLimits(this);
+      auto new_limits = ComputeNewAllocationLimits();
       SetOldGenerationAndGlobalAllocationLimit(
           new_limits.old_generation_allocation_limit,
           new_limits.global_allocation_limit);

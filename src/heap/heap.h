@@ -2057,7 +2057,7 @@ class Heap final {
     size_t old_generation_allocation_limit;
     size_t global_allocation_limit;
   };
-  static LimitsComputationResult ComputeNewAllocationLimits(Heap* heap);
+  LimitsComputationResult ComputeNewAllocationLimits();
 
   // ===========================================================================
   // GC Tasks. =================================================================
