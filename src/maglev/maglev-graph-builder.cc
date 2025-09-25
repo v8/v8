@@ -3322,7 +3322,9 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
           value, *constant, DeoptimizeReason::kStoreToConstant);
     }
     case ContextCell::kSmi:
-      RETURN_IF_ABORT(BuildCheckSmi(value));
+      // HoleyFloat64ToTagged does not canonicalize Smis by default, use
+      // GetSmiValue to force canonicalization for the value if necessary.
+      RETURN_IF_ABORT(GetSmiValue(value));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return BuildStoreTaggedFieldNoWriteBarrier(
           GetConstant(slot_ref), value, offsetof(ContextCell, tagged_value_),
