@@ -182,10 +182,10 @@ using AccessorNameSetterCallback =
  * the kind of cross-context access that should be allowed.
  *
  */
-enum V8_DEPRECATE_SOON(
-    "This enum is no longer used and will be removed in V8 12.9.")
+enum V8_DEPRECATED(
+    "This enum is no longer used and will be removed in V8 14.3.")
     AccessControl {
-      DEFAULT V8_ENUM_DEPRECATE_SOON("not used") = 0,
+      DEFAULT V8_ENUM_DEPRECATED("not used") = 0,
     };
 
 /**
@@ -457,22 +457,9 @@ class V8_EXPORT Object : public Value {
   Local<Value> GetPrototypeV2();
 
   /**
-   * Set the prototype object.  This does not skip objects marked to
-   * be skipped by __proto__ and it does not consult the security
-   * handler.
-   */
-  V8_DEPRECATED(
-      "V8 will stop providing access to hidden prototype (i.e. "
-      "JSGlobalObject). Use SetPrototypeV2() instead. "
-      "See http://crbug.com/333672197.")
-  V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototype(Local<Context> context,
-                                                 Local<Value> prototype);
-
-  /**
    * Set the prototype object (same as calling Object.setPrototypeOf(..)).
    * This does not consult the security handler.
-   * TODO(333672197): rename back to SetPrototype() once the old version goes
-   * through the deprecation process and is removed.
+   * TODO(http://crbug.com/333672197): rename back to SetPrototype().
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototypeV2(Local<Context> context,
                                                    Local<Value> prototype);
