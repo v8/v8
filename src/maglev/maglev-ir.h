@@ -371,7 +371,7 @@ class ExceptionHandlerInfo;
   V(CheckDetectableCallable)                  \
   V(CheckJSReceiverOrNullOrUndefined)         \
   V(CheckNotHole)                             \
-  V(CheckHoleyFloat64NotHole)                 \
+  V(CheckHoleyFloat64NotHoleOrUndefined)      \
   V(CheckNumber)                              \
   V(CheckSmi)                                 \
   V(CheckString)                              \
@@ -11788,12 +11788,13 @@ class CheckNotHole : public FixedInputNodeT<1, CheckNotHole> {
   void PrintParams(std::ostream&) const {}
 };
 
-class CheckHoleyFloat64NotHole
-    : public FixedInputNodeT<1, CheckHoleyFloat64NotHole> {
-  using Base = FixedInputNodeT<1, CheckHoleyFloat64NotHole>;
+class CheckHoleyFloat64NotHoleOrUndefined
+    : public FixedInputNodeT<1, CheckHoleyFloat64NotHoleOrUndefined> {
+  using Base = FixedInputNodeT<1, CheckHoleyFloat64NotHoleOrUndefined>;
 
  public:
-  explicit CheckHoleyFloat64NotHole(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckHoleyFloat64NotHoleOrUndefined(uint64_t bitfield)
+      : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr

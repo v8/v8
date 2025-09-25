@@ -32,6 +32,7 @@ namespace internal {
   V(GreaterThanMaxFastElementArray,                                            \
     "length is greater than the maximum for fast elements array")              \
   V(Hole, "hole")                                                              \
+  V(HoleOrUndefined, "hole or undefined")                                      \
   V(InstanceMigrationFailed, "instance migration failed")                      \
   V(InsufficientTypeFeedbackForArrayLiteral,                                   \
     "Insufficient type feedback for array literal")                            \

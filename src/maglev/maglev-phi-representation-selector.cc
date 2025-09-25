@@ -859,7 +859,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       return ProcessResult::kRemove;
     case ValueRepresentation::kHoleyFloat64:
       // We need to check that the phi is not the hole nan.
-      node->OverwriteWith<CheckHoleyFloat64NotHole>();
+      node->OverwriteWith<CheckHoleyFloat64NotHoleOrUndefined>();
       return ProcessResult::kContinue;
     case ValueRepresentation::kTagged:
       // {phi} wasn't untagged, so we don't need to do anything.

@@ -2671,12 +2671,19 @@ class GraphBuildingNodeProcessor {
                     node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::CheckHoleyFloat64NotHole* node,
-                                const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(
+      maglev::CheckHoleyFloat64NotHoleOrUndefined* node,
+      const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    __ DeoptimizeIf(__ Float64IsUndefinedOrHole(Map(node->float64_input())),
+                    frame_state, DeoptimizeReason::kHoleOrUndefined,
+                    node->eager_deopt_info()->feedback_to_update());
+#else
     __ DeoptimizeIf(__ Float64IsHole(Map(node->float64_input())), frame_state,
                     DeoptimizeReason::kHole,
                     node->eager_deopt_info()->feedback_to_update());
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckInt32Condition* node,

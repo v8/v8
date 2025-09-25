@@ -4115,17 +4115,21 @@ void CheckNotHole::GenerateCode(MaglevAssembler* masm,
                                     DeoptimizeReason::kHole, this);
 }
 
-void CheckHoleyFloat64NotHole::SetValueLocationConstraints() {
+void CheckHoleyFloat64NotHoleOrUndefined::SetValueLocationConstraints() {
   UseRegister(float64_input());
   set_temporaries_needed(1);
 }
-void CheckHoleyFloat64NotHole::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {
+void CheckHoleyFloat64NotHoleOrUndefined::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Label* deopt_label =
+      __ GetDeoptLabel(this, DeoptimizeReason::kHoleOrUndefined);
   Register scratch = temps.AcquireScratch();
-  __ JumpIfHoleNan(ToDoubleRegister(float64_input()), scratch,
-                   __ GetDeoptLabel(this, DeoptimizeReason::kHole),
-                   Label::kFar);
+  DoubleRegister input = ToDoubleRegister(float64_input());
+  __ JumpIfHoleNan(input, scratch, deopt_label, Label::kFar);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  __ JumpIfUndefinedNan(input, scratch, deopt_label, Label::kFar);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 }
 
 void ConvertHoleToUndefined::SetValueLocationConstraints() {
