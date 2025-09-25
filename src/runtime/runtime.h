@@ -319,7 +319,7 @@ constexpr bool CanTriggerGC(T... properties) {
 #define FOR_EACH_INTRINSIC_LITERALS(F, I) \
   F(CreateArrayLiteral, 4, 1)             \
   F(CreateObjectLiteral, 4, 1)            \
-  F(SetPrototypeProperties, 2, 1)         \
+  F(SetPrototypeProperties, 4, 1)         \
   F(CreateRegExpLiteral, 4, 1)
 
 #define FOR_EACH_INTRINSIC_MODULE(F, I)    \

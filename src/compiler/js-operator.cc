@@ -610,7 +610,8 @@ std::ostream& operator<<(std::ostream& os, CreateLiteralParameters const& p) {
 
 bool operator==(SetPrototypePropertiesParameters const& lhs,
                 SetPrototypePropertiesParameters const& rhs) {
-  return lhs.constant.object().location() == rhs.constant.object().location();
+  return lhs.constant.object().location() == rhs.constant.object().location() &&
+         lhs.source == rhs.source;
 }
 
 bool operator!=(SetPrototypePropertiesParameters const& lhs,
@@ -619,12 +620,12 @@ bool operator!=(SetPrototypePropertiesParameters const& lhs,
 }
 
 size_t hash_value(SetPrototypePropertiesParameters const& p) {
-  return base::hash_combine(p.constant.object().location());
+  return base::hash_combine(p.constant.object().location(), p.source);
 }
 
 std::ostream& operator<<(std::ostream& os,
                          SetPrototypePropertiesParameters const& p) {
-  return os << Brief(*p.constant.object());
+  return os << Brief(*p.constant.object()) << "\nslot: " << p.source;
 }
 
 SetPrototypePropertiesParameters SetPrototypePropertiesParametersOf(
@@ -1472,14 +1473,15 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
 }
 
 const Operator* JSOperatorBuilder::SetPrototypeProperties(
-    ObjectBoilerplateDescriptionRef constant_properties) {
-  SetPrototypePropertiesParameters parameters(constant_properties);
+    ObjectBoilerplateDescriptionRef constant_properties,
+    FeedbackSource source) {
+  SetPrototypePropertiesParameters parameters(constant_properties, source);
   return zone()->New<Operator1<SetPrototypePropertiesParameters>>(  // --
       IrOpcode::kJSSetPrototypeProperties,                          // opcode
-      Operator::kNoProperties,  // properties
-      "JSCreateLiteralObject",  // name
-      1, 1, 1, 0, 1, 2,         // counts
-      parameters);              // parameter
+      Operator::kNoProperties,     // properties
+      "JSSetPrototypeProperties",  // name
+      1, 1, 1, 0, 1, 2,            // counts
+      parameters);                 // parameter
 }
 
 const Operator* JSOperatorBuilder::GetTemplateObject(

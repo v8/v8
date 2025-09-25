@@ -2401,10 +2401,26 @@ void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
   proto_assign_seq_.push_back(std::make_pair(
       zone()->New<ProtoAssignmentSeqBuilder>(properties), entry));
 
+  int first_idx = -1;
+  for (auto& p : properties) {
+    auto func = p.second->AsFunctionLiteral();
+    if (func) {
+      int idx = GetNewClosureSlot(func);
+      DCHECK_NE(idx, -1);
+      if (first_idx == -1) {
+        first_idx = idx;
+      }
+    }
+  }
+
+  // We need it to be valid, even if unused
+  if (first_idx == -1) {
+    first_idx = 0;
+  }
   // Load the variable whose prototype is to be set into the Accumulator
   BuildVariableLoad(var, HoleCheckMode::kElided);
   // Merge in-place proto-def boilerplate object into Accumulator
-  builder()->SetPrototypeProperties(entry);
+  builder()->SetPrototypeProperties(entry, first_idx);
 }
 
 void BytecodeGenerator::VisitStatements(
@@ -8965,6 +8981,18 @@ int BytecodeGenerator::GetCachedCreateClosureSlot(FunctionLiteral* literal) {
   index = feedback_spec()->AddCreateClosureParameterCount(
       JSParameterCount(literal->parameter_count()));
   feedback_slot_cache()->Put(slot_kind, literal, index);
+  return index;
+}
+
+int BytecodeGenerator::GetNewClosureSlot(FunctionLiteral* literal) {
+  DCHECK_EQ(feedback_slot_cache()->Get(
+                FeedbackSlotCache::SlotKind::kClosureFeedbackCell, literal),
+            -1);
+
+  int index = feedback_spec()->AddCreateClosureParameterCount(
+      JSParameterCount(literal->parameter_count()));
+  feedback_slot_cache()->Put(FeedbackSlotCache::SlotKind::kClosureFeedbackCell,
+                             literal, index);
   return index;
 }
 

@@ -7546,9 +7546,22 @@ ReduceResult MaglevGraphBuilder::VisitSetPrototypeProperties() {
   ValueNode* acc = GetAccumulator();
   ValueNode* index =
       GetConstant(GetRefOperand<ObjectBoilerplateDescription>(0));
+  ValueNode* slot = GetSmiConstant(GetSlotOperand(1).ToInt());
 
-  return BuildCallRuntime(Runtime::kSetPrototypeProperties,
-                          {GetTaggedValue(acc), index});
+  return BuildCallRuntime(
+      Runtime::kSetPrototypeProperties,
+      {// The object (in accumulator) upon whose prototype boilerplate shall be
+       // applied
+       GetTaggedValue(acc),
+       // Index of the ObjectBoilerplateDescription whose properties will be
+       // merged in to the above object
+       index,
+       // Array of feedback cells. Needed to instantiate ShareFunctionInfo(s)
+       // from the boilerplate
+       GetConstant(feedback().GetClosureFeedbackCellArrayRef(broker())),
+       // Index of the feedback cell of the first ShareFunctionInfo. We may
+       // assume all other SFI to be tightly packed.
+       slot});
 }
 
 ReduceResult MaglevGraphBuilder::VisitDefineNamedOwnProperty() {

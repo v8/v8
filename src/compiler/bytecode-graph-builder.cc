@@ -2205,8 +2205,11 @@ void BytecodeGraphBuilder::VisitSetPrototypeProperties() {
   Node* acc = environment()->LookupAccumulator();
   ObjectBoilerplateDescriptionRef constant_properties =
       MakeRefForConstantForIndexOperand<ObjectBoilerplateDescription>(0);
+
+  FeedbackSource source =
+      CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
   const Operator* op =
-      javascript()->SetPrototypeProperties(constant_properties);
+      javascript()->SetPrototypeProperties(constant_properties, source);
   Node* node = NewNode(op, acc);
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }

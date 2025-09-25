@@ -877,6 +877,8 @@ class FeedbackVectorRef : public HeapObjectRef {
   FeedbackCellRef GetClosureFeedbackCell(JSHeapBroker* broker, int index) const;
 
   bool was_once_deoptimized() const;
+
+  HeapObjectRef GetClosureFeedbackCellArrayRef(JSHeapBroker* broker);
 };
 
 class AccessorInfoRef : public HeapObjectRef {

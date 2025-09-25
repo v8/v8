@@ -1349,6 +1349,12 @@ FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(JSHeapBroker* broker,
                                   object()->closure_feedback_cell(index));
 }
 
+HeapObjectRef FeedbackVectorRef::GetClosureFeedbackCellArrayRef(
+    JSHeapBroker* broker) {
+  return MakeRefAssumeMemoryFence(
+      broker, this->object()->closure_feedback_cell_array());
+}
+
 OptionalObjectRef JSObjectRef::raw_properties_or_hash(
     JSHeapBroker* broker) const {
   return TryMakeRef(broker, object()->raw_properties_or_hash());

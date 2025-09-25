@@ -770,8 +770,8 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 class SetPrototypePropertiesParameters final {
  public:
   explicit SetPrototypePropertiesParameters(
-      ObjectBoilerplateDescriptionRef constant)
-      : constant(constant) {}
+      ObjectBoilerplateDescriptionRef constant, FeedbackSource source)
+      : constant(constant), source(source) {}
 
   friend bool operator==(SetPrototypePropertiesParameters const&,
                          SetPrototypePropertiesParameters const&);
@@ -784,6 +784,7 @@ class SetPrototypePropertiesParameters final {
                                   SetPrototypePropertiesParameters const&);
 
   const ObjectBoilerplateDescriptionRef constant;
+  FeedbackSource source;
 };
 
 SetPrototypePropertiesParameters SetPrototypePropertiesParametersOf(
@@ -984,7 +985,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                                       int literal_flags,
                                       int number_of_properties);
   const Operator* SetPrototypeProperties(
-      ObjectBoilerplateDescriptionRef constant);
+      ObjectBoilerplateDescriptionRef constant, FeedbackSource source);
   const Operator* CloneObject(FeedbackSource const& feedback,
                               int literal_flags);
   const Operator* CreateLiteralRegExp(StringRef constant_pattern,

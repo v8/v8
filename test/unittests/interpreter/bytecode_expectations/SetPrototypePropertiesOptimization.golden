@@ -19,11 +19,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
   /*   10 E> */ B(CreateClosure), U8(0), U8(0), U8(2),
                 B(Star0),
-                B(SetPrototypeProperties), U8(1),
+                B(SetPrototypeProperties), U8(1), U8(1),
                 B(LdaUndefined),
   /*  196 S> */ B(Return),
 ]
@@ -50,10 +50,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 7
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(2),
-  /*  109 E> */ B(SetPrototypeProperties), U8(0),
+  /*  109 E> */ B(SetPrototypeProperties), U8(0), U8(0),
                 B(LdaUndefined),
   /*  245 S> */ B(Return),
 ]
@@ -74,10 +74,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 6
+bytecode array length: 7
 bytecodes: [
                 B(Ldar), R(arg0),
-  /*   46 E> */ B(SetPrototypeProperties), U8(0),
+  /*   46 E> */ B(SetPrototypeProperties), U8(0), U8(0),
                 B(LdaUndefined),
   /*  181 S> */ B(Return),
 ]
