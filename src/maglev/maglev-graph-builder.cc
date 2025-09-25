@@ -4535,6 +4535,39 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
   return false;
 }
 
+ValueNode* MaglevGraphBuilder::ConvertForField(ValueNode* value,
+                                               const vobj::Field& desc,
+                                               AllocationType allocation_type) {
+  switch (desc.type) {
+    case vobj::FieldType::kTagged: {
+      if (value->Is<Float64Constant>()) {
+        // TODO(jgruber): We have to allocate a new object since the
+        // object field could contain a mutable HeapNumber and thus cannot
+        // share instances. However, we could specify such mutable fields
+        // through vobj::Field; and then only allocate a new object here
+        // if needed.
+        return BuildInlinedAllocationForHeapNumber(
+            CreateHeapNumber(value->Cast<Float64Constant>()->value()),
+            allocation_type);
+      }
+      return GetTaggedValue(value);
+    }
+    case vobj::FieldType::kTrustedPointer:
+      DCHECK(value->Is<TrustedConstant>());
+      return value;
+    case vobj::FieldType::kInt32:
+      DCHECK_EQ(value->properties().value_representation(),
+                ValueRepresentation::kInt32);
+      return value;
+    case vobj::FieldType::kFloat64:
+      DCHECK_EQ(value->properties().value_representation(),
+                ValueRepresentation::kFloat64);
+      return value;
+    case vobj::FieldType::kNone:
+      UNREACHABLE();
+  }
+}
+
 void MaglevGraphBuilder::BuildInitializeStore(vobj::Field desc,
                                               InlinedAllocation* object,
                                               AllocationType allocation_type,
@@ -4574,23 +4607,8 @@ void MaglevGraphBuilder::BuildInitializeStore_Tagged(
     }
   }
 
-  ValueNode* tagged_value;
-  if (value->Is<Float64Constant>()) {
-    // TODO(jgruber): We have to allocate a new object since the
-    // object field could contain a mutable HeapNumber and thus cannot
-    // share instances. However, we could specify such mutable fields
-    // through vobj::Field; and then only allocate a new object here
-    // if needed.
-    tagged_value = BuildInlinedAllocationForHeapNumber(
-        CreateHeapNumber(value->Cast<Float64Constant>()->value()),
-        allocation_type);
-  } else {
-    tagged_value = GetTaggedValue(value);
-  }
-
-  DCHECK(tagged_value->is_tagged());
-  if (InlinedAllocation* inlined_value =
-          tagged_value->TryCast<InlinedAllocation>()) {
+  DCHECK(value->is_tagged());
+  if (InlinedAllocation* inlined_value = value->TryCast<InlinedAllocation>()) {
     // Add to the escape set.
     auto escape_deps = graph()->allocations_escape_map().find(object);
     CHECK(escape_deps != graph()->allocations_escape_map().end());
@@ -4602,9 +4620,9 @@ void MaglevGraphBuilder::BuildInitializeStore_Tagged(
     inlined_value->AddNonEscapingUses();
   }
 
-  // Since `tagged_value` is tagged, BuildStoreTaggedField doesn't need to do
+  // Since `value` is tagged, BuildStoreTaggedField doesn't need to do
   // input conversions and won't abort.
-  ReduceResult result = BuildStoreTaggedField(object, tagged_value, desc.offset,
+  ReduceResult result = BuildStoreTaggedField(object, value, desc.offset,
                                               StoreTaggedMode::kInitializing);
   CHECK(!result.IsDoneWithAbort());
 }
@@ -13877,6 +13895,7 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
           // Update the vobject's slot value.
           vobject->set(desc.offset, node);
         }
+        node = ConvertForField(node, desc, allocation_type);
         values.push_back({node, desc});
       });
       allocation =

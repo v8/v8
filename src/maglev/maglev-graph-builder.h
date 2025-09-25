@@ -1241,6 +1241,9 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildLoadMap(ValueNode* object);
 
+  ValueNode* ConvertForField(ValueNode* value, const vobj::Field& desc,
+                             AllocationType allocation_type);
+
   void BuildInitializeStore(vobj::Field desc, InlinedAllocation* alloc,
                             AllocationType allocation_type, ValueNode* value);
   void BuildInitializeStore_Tagged(vobj::Field desc, InlinedAllocation* alloc,
