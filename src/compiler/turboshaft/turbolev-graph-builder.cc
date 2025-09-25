@@ -5473,20 +5473,10 @@ class GraphBuildingNodeProcessor {
   void AddVirtualObjectInput(FrameStateData::Builder& builder,
                              const maglev::VirtualObjectList& virtual_objects,
                              const maglev::VirtualObject* vobj) {
-    if (vobj->type() == maglev::VirtualObject::kHeapNumber) {
-      // We need to add HeapNumbers as dematerialized HeapNumbers (rather than
-      // simply NumberConstant), because they could be mutable HeapNumber
-      // fields, in which case we don't want GVN to merge them.
-      builder.AddDematerializedObject(deduplicator_.CreateUnduplicatableId().id,
-                                      vobj->field_count());
-      builder.AddInput(MachineType::AnyTagged(),
-                       __ HeapConstant(local_factory_->heap_number_map()));
-      builder.AddInput(MachineType::Float64(),
-                       __ Float64Constant(vobj->number()));
-      return;
-    }
-
-    Deduplicator::DuplicatedId dup_id = deduplicator_.GetDuplicatedId(vobj);
+    Deduplicator::DuplicatedId dup_id =
+        vobj->object_type() == maglev::vobj::ObjectType::kHeapNumber
+            ? deduplicator_.CreateUnduplicatableId()
+            : deduplicator_.GetDuplicatedId(vobj);
     if (dup_id.duplicated) {
       builder.AddDematerializedObjectReference(dup_id.id);
       return;
@@ -5526,10 +5516,25 @@ class GraphBuildingNodeProcessor {
       case maglev::VirtualObject::kDefault:
         uint32_t field_count = vobj->field_count();
         builder.AddDematerializedObject(dup_id.id, field_count);
-        vobj->ForEachSlot(
-            [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) {
+        vobj->ForEachSlot([&](maglev::ValueNode* value_node,
+                              maglev::vobj::Field desc) {
+          switch (desc.type) {
+            case maglev::vobj::FieldType::kTagged:
+            case maglev::vobj::FieldType::kTrustedPointer:
               AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
-            });
+              break;
+            case maglev::vobj::FieldType::kFloat64:
+              // TODO(jgruber): Support other node types.
+              builder.AddInput(
+                  MachineType::Float64(),
+                  __ Float64Constant(
+                      value_node->Cast<maglev::Float64Constant>()->value()));
+              break;
+            case maglev::vobj::FieldType::kInt32:
+            case maglev::vobj::FieldType::kNone:
+              UNREACHABLE();
+          }
+        });
         break;
     }
   }

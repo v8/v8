@@ -4546,9 +4546,7 @@ ValueNode* MaglevGraphBuilder::ConvertForField(ValueNode* value,
         // share instances. However, we could specify such mutable fields
         // through vobj::Field; and then only allocate a new object here
         // if needed.
-        return BuildInlinedAllocationForHeapNumber(
-            CreateHeapNumber(value->Cast<Float64Constant>()->value()),
-            allocation_type);
+        return BuildInlinedAllocation(CreateHeapNumber(value), allocation_type);
       }
       return GetTaggedValue(value);
     }
@@ -4586,7 +4584,8 @@ void MaglevGraphBuilder::BuildInitializeStore(vobj::Field desc,
       AddNewNodeNoInputConversion<StoreInt32>({object, value}, desc.offset);
       break;
     case vobj::FieldType::kFloat64:
-      UNIMPLEMENTED();
+      AddNewNodeNoInputConversion<StoreFloat64>({object, value}, desc.offset);
+      break;
     case vobj::FieldType::kNone:
       UNREACHABLE();
   }
@@ -13371,9 +13370,9 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       if (!maybe_object_value.has_value()) return {};
       fast_literal->set(offset, maybe_object_value.value());
     } else if (property_details.representation().IsDouble()) {
-      fast_literal->set(offset,
-                        CreateHeapNumber(Float64::FromBits(
-                            boilerplate_value.AsHeapNumber().value_as_bits())));
+      fast_literal->set(
+          offset, CreateHeapNumber(GetFloat64Constant(Float64::FromBits(
+                      boilerplate_value.AsHeapNumber().value_as_bits()))));
     } else {
       fast_literal->set(offset, GetConstant(boilerplate_value));
     }
@@ -13457,11 +13456,16 @@ VirtualObject* MaglevGraphBuilder::DeepCopyVirtualObject(VirtualObject* old) {
   return vobject;
 }
 
-VirtualObject* MaglevGraphBuilder::CreateHeapNumber(Float64 value) {
-  // VirtualObjects are not added to the Maglev graph.
-  VirtualObject* vobject = NodeBase::New<VirtualObject>(
-      zone(), 0, broker()->heap_number_map(), NewObjectId(), value);
-  return vobject;
+VirtualObject* MaglevGraphBuilder::CreateHeapNumber(ValueNode* value) {
+  using Shape = VirtualHeapNumberShape;
+  int slot_count = Shape::header_slot_count;
+  SBXCHECK_EQ(slot_count, 2);
+  compiler::MapRef map = broker()->heap_number_map();
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(offsetof(HeapNumber, value_), value);
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
@@ -13842,21 +13846,6 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
   });
 }
 
-InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
-    VirtualObject* vobject, AllocationType allocation_type) {
-  DCHECK(vobject->map().IsHeapNumberMap());
-  InlinedAllocation* allocation =
-      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
-  AddNonEscapingUses(allocation, 2);
-  ReduceResult result = BuildStoreMap(allocation, broker()->heap_number_map(),
-                                      StoreMap::Kind::kInlinedAllocation);
-  CHECK(!result.IsDoneWithAbort());
-  AddNewNodeNoInputConversion<StoreFloat64>(
-      {allocation, GetFloat64Constant(vobject->number())},
-      static_cast<int>(offsetof(HeapNumber, value_)));
-  return allocation;
-}
-
 InlinedAllocation*
 MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
     VirtualObject* vobject, AllocationType allocation_type) {
@@ -13889,15 +13878,12 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
   InlinedAllocation* allocation;
   switch (vobject->type()) {
     case VirtualObject::kHeapNumber:
-      allocation =
-          BuildInlinedAllocationForHeapNumber(vobject, allocation_type);
-      break;
+    case VirtualObject::kConsString:
+      UNREACHABLE();
     case VirtualObject::kFixedDoubleArray:
       allocation =
           BuildInlinedAllocationForDoubleFixedArray(vobject, allocation_type);
       break;
-    case VirtualObject::kConsString:
-      UNREACHABLE();
     case VirtualObject::kDefault: {
       using ValueAndDesc = std::pair<ValueNode*, vobj::Field>;
       SmallZoneVector<ValueAndDesc, 8> values(zone());
