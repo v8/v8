@@ -4,16 +4,15 @@
 
 #include "src/wasm/wasm-tracing.h"
 
-#include <iomanip>
 #include <sstream>
 #include <type_traits>
 
+#include "absl/strings/str_format.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/memory.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-opcodes-inl.h"
-#include "v8-internal.h"
 
 namespace v8::internal::wasm {
 
@@ -35,15 +34,11 @@ static void PrintMemoryTraceValue(const uint8_t* ptr, const char* type_str,
 
   T value = base::bit_cast<T>(hex_value);
 
-  outs << std::setw(4) << type_str << ":";
-
   if constexpr (std::is_same_v<T, uint8_t>) {
-    outs << static_cast<uint32_t>(value) << " / 0x" << std::hex
-         << static_cast<uint32_t>(hex_value);
+    outs << absl::StreamFormat("%4s:%u / 0x%x", type_str, value, hex_value);
   } else {
-    outs << value << " / 0x" << std::hex << hex_value;
+    outs << absl::StreamFormat("%4s:%v / 0x%x", type_str, value, hex_value);
   }
-  outs << std::dec;
 }
 
 void PrintMemoryTraceString(const wasm::MemoryTraceEntry& trace_entry,
@@ -58,15 +53,12 @@ void PrintMemoryTraceString(const wasm::MemoryTraceEntry& trace_entry,
                  .first;
   }
 
-  outs << std::left << std::setw(8) << ExecutionTierToString(trace_entry.tier)
-       << std::right << " func " << std::setw(5) << trace_entry.function_index
-       << ":0x" << std::hex << std::left << std::setw(4)
-       << trace_entry.frame_position << std::dec << " mem "
-       << trace_entry.mem_index << " " << std::setw(12)
-       << wasm::WasmOpcodes::OpcodeName(opcode) << " "
-       << (trace_entry.is_store ? "to  " : "from") << " " << std::hex
-       << std::right << std::setw(16) << std::setfill('0') << trace_entry.offset
-       << std::dec << std::setfill(' ') << " val: ";
+  outs << absl::StreamFormat(
+      "%-8s func %5d:0x%-4x mem %d %-12s %s %016x val: ",
+      ExecutionTierToString(trace_entry.tier), trace_entry.function_index,
+      trace_entry.frame_position, trace_entry.mem_index,
+      wasm::WasmOpcodes::OpcodeName(opcode),
+      trace_entry.is_store ? "to  " : "from", trace_entry.offset);
 
   switch (trace_entry.representation) {
     case MachineRepresentation::kWord8: {
@@ -98,11 +90,8 @@ void PrintMemoryTraceString(const wasm::MemoryTraceEntry& trace_entry,
       const auto b = base::ReadLittleEndianValue<uint32_t>(addr + 4);
       const auto c = base::ReadLittleEndianValue<uint32_t>(addr + 8);
       const auto d = base::ReadLittleEndianValue<uint32_t>(addr + 12);
-      outs << "s128:" << a << " " << b << " " << c << " " << d << " / "
-           << std::hex << std::setw(8) << std::setfill('0') << a << " "
-           << std::setw(8) << std::setfill('0') << b << " " << std::setw(8)
-           << std::setfill('0') << c << " " << std::setw(8) << std::setfill('0')
-           << d << std::dec;
+      outs << absl::StreamFormat("s128:%d %d %d %d / %08x %08x %08x %08x", a, b,
+                                 c, d, a, b, c, d);
       break;
     }
     default:
@@ -126,12 +115,11 @@ void PrintGlobalTraceString(const wasm::GlobalTraceEntry& trace_entry,
   wasm::CanonicalValueType type =
       module->canonical_type(module->globals[trace_entry.global_index].type);
 
-  outs << std::left << std::setw(8) << ExecutionTierToString(trace_entry.tier)
-       << std::right << " func " << std::setw(5) << trace_entry.function_index
-       << ":0x" << std::hex << std::left << std::setw(4)
-       << trace_entry.frame_position << std::dec << " "
-       << wasm::WasmOpcodes::OpcodeName(opcode) << " "
-       << trace_entry.global_index << " val: " << type.name() << ":";
+  outs << absl::StreamFormat(
+      "%-8s func %5d:0x%-4x %s %d val: %s:",
+      ExecutionTierToString(trace_entry.tier), trace_entry.function_index,
+      trace_entry.frame_position, wasm::WasmOpcodes::OpcodeName(opcode),
+      trace_entry.global_index, type.name());
 
   if (type.is_numeric()) {
     wasm::WasmValue value = wasm::WasmValue(trace_entry.value_bytes, type);
@@ -139,8 +127,7 @@ void PrintGlobalTraceString(const wasm::GlobalTraceEntry& trace_entry,
   } else {
     Address addr = base::ReadUnalignedValue<Address>(
         reinterpret_cast<Address>(trace_entry.value_bytes));
-    outs << "0x" << std::hex << addr << std::dec;
+    outs << absl::StreamFormat("0x%x", addr);
   }
 }
-
 }  // namespace v8::internal::wasm

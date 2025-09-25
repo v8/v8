@@ -19,6 +19,7 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-metrics.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
@@ -706,6 +707,8 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     size_t ref_memory_size = ref_buffer->byte_length();
 
     if (ref_memory_size != memory_size) {
+      memory_mismatches++;
+
       if (print_difference) {
         std::ostringstream ss;
         ss << "Error: Memories at index " << i << " have different sizes!\n";
@@ -777,6 +780,69 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
   }
 
   return memory_mismatches == 0;
+}
+
+bool TablesMatch(Isolate* isolate, const WasmModule* module,
+                 Tagged<WasmTrustedInstanceData> instance_data,
+                 Tagged<WasmTrustedInstanceData> ref_instance_data,
+                 bool print_difference) {
+  size_t tables_count = module->tables.size();
+
+  Tagged<FixedArray> tables = instance_data->tables();
+  Tagged<FixedArray> ref_tables = ref_instance_data->tables();
+
+  int table_mismatches = 0;
+  for (size_t i = 0; i < tables_count; ++i) {
+    int table_index = static_cast<int>(i);
+    Tagged<WasmTableObject> table =
+        Cast<WasmTableObject>(tables->get(table_index));
+    Tagged<WasmTableObject> ref_table =
+        Cast<WasmTableObject>(ref_tables->get(table_index));
+
+    int length = table->current_length();
+    int ref_length = ref_table->current_length();
+
+    if (ref_length != length) {
+      table_mismatches++;
+      if (print_difference) {
+        std::ostringstream ss;
+        ss << "Error: Tables at index " << i << " have different lengths!\n";
+        ss << "  - Reference: " << ref_length << "\n";
+        ss << "  - Actual:    " << length << std::endl;
+        base::OS::PrintError("%s", ss.str().c_str());
+      }
+      continue;
+    }
+
+    Tagged<FixedArray> table_entries = table->entries();
+    Tagged<FixedArray> ref_table_entries = ref_table->entries();
+
+    for (int j = 0; j < length; ++j) {
+      DirectHandle<Object> entry(table_entries->get(j), isolate);
+      DirectHandle<Object> ref_entry(ref_table_entries->get(j), isolate);
+
+      WasmValue value = WasmValue(entry, table->canonical_type(module));
+      WasmValue ref_value =
+          WasmValue(ref_entry, ref_table->canonical_type(module));
+
+      if (!ValuesEquivalent(value, ref_value, isolate)) {
+        table_mismatches++;
+
+        if (print_difference) {
+          std::ostringstream ss;
+          ss << "Error: Table entries at index " << j << " of table " << i
+             << " have different values!\n";
+          ss << "  - Reference: ";
+          PrintValue(ss, ref_value);
+          ss << "\n  - Actual:    ";
+          PrintValue(ss, value);
+          base::OS::PrintError("%s\n", ss.str().c_str());
+        }
+      }
+    }
+  }
+
+  return table_mismatches == 0;
 }
 
 int ExecuteAgainstReference(Isolate* isolate,
@@ -855,22 +921,39 @@ int ExecuteAgainstReference(Isolate* isolate,
     CHECK_EQ(ref_result.result, result.result);
   }
 
-  Tagged<WasmTrustedInstanceData> instance_data =
-      result.instance->trusted_data(isolate);
-  Tagged<WasmTrustedInstanceData> ref_instance_data =
-      ref_result.instance->trusted_data(isolate);
+  bool globals_match;
+  bool memories_match;
+  bool tables_match;
+  {
+    DisallowGarbageCollection no_gc;
 
-  bool globals_match =
-      GlobalsMatch(isolate, module, instance_data, ref_instance_data, true);
-  bool memories_match =
-      MemoriesMatch(isolate, module, instance_data, ref_instance_data, true);
-  if (globals_match && memories_match) {
-    return 0;
+    Tagged<WasmTrustedInstanceData> instance_data =
+        result.instance->trusted_data(isolate);
+    Tagged<WasmTrustedInstanceData> ref_instance_data =
+        ref_result.instance->trusted_data(isolate);
+
+    globals_match =
+        GlobalsMatch(isolate, module, instance_data, ref_instance_data, true);
+    memories_match =
+        MemoriesMatch(isolate, module, instance_data, ref_instance_data, true);
+    tables_match =
+        TablesMatch(isolate, module, instance_data, ref_instance_data, true);
+    if (globals_match && memories_match && tables_match) {
+      return 0;
+    }
+
+    if (!tables_match && (globals_match && memories_match)) {
+      FATAL(
+          "\nMismatch detected in tables! Tracing for tables is not "
+          "implemented "
+          "yet.");
+    }
+
+    base::OS::PrintError(
+        "\nMismatch detected in global variables, memories or tables - "
+        "rerunning "
+        "with tracing enabled.\n");
   }
-
-  base::OS::PrintError(
-      "\nMismatch detected in global variables or memory - rerunning with "
-      "tracing enabled.\n");
 
   bool should_trace_globals = !globals_match;
   bool should_trace_memory = !memories_match;
@@ -897,8 +980,8 @@ int ExecuteAgainstReference(Isolate* isolate,
   CHECK(ref_result_traced.should_execute_non_reference);
 
   // Copy the traces from the reference run to preserve them.
-  wasm::MemoryTrace memory_trace = std::move(traces.memory_trace);
-  wasm::GlobalTrace global_trace = std::move(traces.global_trace);
+  wasm::MemoryTrace ref_memory_trace = std::move(traces.memory_trace);
+  wasm::GlobalTrace ref_global_trace = std::move(traces.global_trace);
   // Reset the vectors to store the traces for the actual run.
   traces.memory_trace.clear();
   traces.global_trace.clear();
@@ -935,8 +1018,8 @@ int ExecuteAgainstReference(Isolate* isolate,
     FATAL("Mismatch disappeared when re-running with tracing enabled.");
   }
 
-  wasm::MemoryTrace ref_memory_trace = std::move(traces.memory_trace);
-  wasm::GlobalTrace ref_global_trace = std::move(traces.global_trace);
+  wasm::MemoryTrace memory_trace = std::move(traces.memory_trace);
+  wasm::GlobalTrace global_trace = std::move(traces.global_trace);
 
   if (should_trace_memory) {
     std::ostringstream ss;
@@ -952,6 +1035,10 @@ int ExecuteAgainstReference(Isolate* isolate,
     CompareAndPrintGlobalTraces(global_trace, ref_global_trace, native_module,
                                 ss);
     base::OS::PrintError("%s", ss.str().c_str());
+  }
+
+  if (!tables_match) {
+    base::OS::PrintError("\nTracing for tables is not implemented yet.");
   }
 
   FATAL("Execution mismatch. Tracing has been printed.");
