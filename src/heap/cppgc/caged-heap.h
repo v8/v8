@@ -56,31 +56,24 @@ class V8_EXPORT_PRIVATE CagedHeap final {
   }
 
   bool IsOnHeap(const void* address) const {
-    DCHECK_EQ(reservation_.memory.address(),
+    DCHECK_EQ(reserved_area_.address(),
               reinterpret_cast<void*>(CagedHeapBase::GetBase()));
     return reinterpret_cast<void*>(BaseFromAddress(address)) ==
-           reservation_.memory.address();
+           reserved_area_.address();
   }
 
-  void* base() const { return reservation_.memory.address(); }
+  void* base() const { return reserved_area_.address(); }
 
  private:
   friend class v8::base::LeakyObject<CagedHeap>;
   friend class testing::TestWithHeap;
-
-  struct Reservation {
-    VirtualMemory memory;
-    size_t offset_into_cage_start = 0;
-  };
-
-  static Reservation ReserveCagedHeap(PageAllocator& page_allocator);
 
   explicit CagedHeap(PageAllocator& platform_allocator,
                      size_t desired_heap_size);
 
   static CagedHeap* instance_;
 
-  const Reservation reservation_;
+  const VirtualMemory reserved_area_;
   // BoundedPageAllocator is thread-safe, no need to use external
   // synchronization.
   std::unique_ptr<AllocatorType> page_bounded_allocator_;
