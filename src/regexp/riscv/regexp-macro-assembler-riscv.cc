@@ -41,7 +41,7 @@ namespace internal {
  *  - fp[0..63]  s1..s11          Callee-saved registers fp..s11.
  *  --- frame pointer ----
  *  - fp[-8]  frame marker
- *  - fp[-16]  Isolate* isolate   (address of the current isolate)               kIsolate
+ *  - fp[-16] Isolate* isolate   (address of the current isolate)               kIsolate
  *  - fp[-24] direct_call        (1 = direct call from JS, 0 = from runtime)    kDirectCall
  *  - fp[-32] output_size (may fit multiple sets of matches)                    kNumOutputRegisters
  *  - fp[-40] int* output (int[num_saved_registers_], for output).              kRegisterOutput
@@ -788,345 +788,332 @@ void RegExpMacroAssemblerRISCV::PopRegExpBasePointer(Register stack_pointer_out,
 
 DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
     DirectHandle<String> source, RegExpFlags flags) {
+  // Finalize code - write the entry point code now we know how many
+  // registers we need.
   Label return_a0;
-  if (masm_->has_exception()) {
-    // If the code gets corrupted due to long regular expressions and lack of
-    // space on trampolines, an internal exception flag is set. If this case
-    // is detected, we will jump into exit sequence right away.
-    __ bind_to(&entry_label_, internal_failure_label_.pos());
-  } else {
-    // Finalize code - write the entry point code now we know how many
-    // registers we need.
+  __ bind(&entry_label_);
 
-    // Entry code:
-    __ bind(&entry_label_);
+  // Tell the system that we have a stack frame. Because the type is MANUAL,
+  // no is generated.
+  FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
-    // Tell the system that we have a stack frame.  Because the type is MANUAL,
-    // no is generated.
-    FrameScope scope(masm_.get(), StackFrame::MANUAL);
+  // Actually emit code to start a new stack frame.
+  // Push arguments
+  // Save callee-save registers.
+  // Start new stack frame.
+  // Store link register in existing stack-cell.
+  // Order here should correspond to order of offset constants in header file.
+  // TODO(plind): we save fp..s11, but ONLY use s3 here - use the regs
+  // or dont save.
+  RegList registers_to_retain = {fp, s1, s2, s3, s4,  s5,
+                                 s6, s7, s8, s9, s10, s11};
+  DCHECK(registers_to_retain.Count() == kNumCalleeRegsToRetain);
 
-    // Actually emit code to start a new stack frame.
-    // Push arguments
-    // Save callee-save registers.
-    // Start new stack frame.
-    // Store link register in existing stack-cell.
-    // Order here should correspond to order of offset constants in header file.
-    // TODO(plind): we save fp..s11, but ONLY use s3 here - use the regs
-    // or dont save.
-    RegList registers_to_retain = {fp, s1, s2, s3, s4,  s5,
-                                   s6, s7, s8, s9, s10, s11};
-    DCHECK(registers_to_retain.Count() == kNumCalleeRegsToRetain);
+  // The remaining arguments are passed in registers, e.g.by calling the code
+  // entry as cast to a function with the signature:
+  //
+  // *int(*match)(String input_string,      // a0
+  //             int start_offset,          // a1
+  //             uint8_t* input_start,      // a2
+  //             uint8_t* input_end,        // a3
+  //             int* output,               // a4
+  //             int output_size,           // a5
+  //             int call_origin,           // a6
+  //             Isolate* isolate,          // a7
+  //             Address regexp);           // on the stack
+  RegList argument_registers = {a0, a1, a2, a3, a4, a5, a6, a7};
 
-    // The remaining arguments are passed in registers, e.g.by calling the code
-    // entry as cast to a function with the signature:
-    //
-    // *int(*match)(String input_string,      // a0
-    //             int start_offset,          // a1
-    //             uint8_t* input_start,      // a2
-    //             uint8_t* input_end,        // a3
-    //             int* output,               // a4
-    //             int output_size,           // a5
-    //             int call_origin,           // a6
-    //             Isolate* isolate,          // a7
-    //             Address regexp);           // on the stack
-    RegList argument_registers = {a0, a1, a2, a3, a4, a5, a6, a7};
+  // According to MultiPush implementation, registers will be pushed in the
+  // order of ra, fp, then s8, ..., s1, and finally a7,...a0
+  __ MultiPush(RegList{ra} | registers_to_retain);
 
-    // According to MultiPush implementation, registers will be pushed in the
-    // order of ra, fp, then s8, ..., s1, and finally a7,...a0
-    __ MultiPush(RegList{ra} | registers_to_retain);
+  // Set frame pointer in space for it if this is not a direct call
+  // from generated code.
+  __ AddWord(frame_pointer(), sp, Operand(0));
+  static_assert(kFrameTypeOffset == -kSystemPointerSize);
+  __ li(kScratchReg, Operand(StackFrame::TypeToMarker(StackFrame::IRREGEXP)));
+  __ push(kScratchReg);
+  __ MultiPush(argument_registers);
+  static_assert(kSuccessfulCapturesOffset ==
+                kInputStringOffset - kSystemPointerSize);
+  __ mv(a0, zero_reg);
+  __ push(a0);  // Make room for success counter and initialize it to 0.
+  static_assert(kStringStartMinusOneOffset ==
+                kSuccessfulCapturesOffset - kSystemPointerSize);
+  __ push(a0);  // Make room for "string start - 1" constant.
+  static_assert(kBacktrackCountOffset ==
+                kStringStartMinusOneOffset - kSystemPointerSize);
+  __ push(a0);  // The backtrack counter
+  static_assert(kRegExpStackBasePointerOffset ==
+                kBacktrackCountOffset - kSystemPointerSize);
+  __ push(a0);  // The regexp stack base ptr.
 
-    // Set frame pointer in space for it if this is not a direct call
-    // from generated code.
-    __ AddWord(frame_pointer(), sp, Operand(0));
-    static_assert(kFrameTypeOffset == -kSystemPointerSize);
-    __ li(kScratchReg, Operand(StackFrame::TypeToMarker(StackFrame::IRREGEXP)));
-    __ push(kScratchReg);
-    __ MultiPush(argument_registers);
-    static_assert(kSuccessfulCapturesOffset ==
-                  kInputStringOffset - kSystemPointerSize);
-    __ mv(a0, zero_reg);
-    __ push(a0);  // Make room for success counter and initialize it to 0.
-    static_assert(kStringStartMinusOneOffset ==
-                  kSuccessfulCapturesOffset - kSystemPointerSize);
-    __ push(a0);  // Make room for "string start - 1" constant.
-    static_assert(kBacktrackCountOffset ==
-                  kStringStartMinusOneOffset - kSystemPointerSize);
-    __ push(a0);  // The backtrack counter
-    static_assert(kRegExpStackBasePointerOffset ==
-                  kBacktrackCountOffset - kSystemPointerSize);
-    __ push(a0);  // The regexp stack base ptr.
+  // Initialize backtrack stack pointer. It must not be clobbered from here
+  // on. Note the backtrack_stackpointer is callee-saved.
+  static_assert(backtrack_stackpointer() == s8);
+  LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
+  // Store the regexp base pointer - we'll later restore it / write it to
+  // memory when returning from this irregexp code object.
+  PushRegExpBasePointer(backtrack_stackpointer(), a1);
 
-    // Initialize backtrack stack pointer. It must not be clobbered from here
-    // on. Note the backtrack_stackpointer is callee-saved.
-    static_assert(backtrack_stackpointer() == s8);
-    LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
-    // Store the regexp base pointer - we'll later restore it / write it to
-    // memory when returning from this irregexp code object.
-    PushRegExpBasePointer(backtrack_stackpointer(), a1);
+  {
+    // Check if we have space on the stack for registers.
+    Label stack_limit_hit, stack_ok;
 
-    {
-      // Check if we have space on the stack for registers.
-      Label stack_limit_hit, stack_ok;
+    ExternalReference stack_limit =
+        ExternalReference::address_of_jslimit(masm_->isolate());
+    __ li(a0, Operand(stack_limit));
+    __ LoadWord(a0, MemOperand(a0));
+    __ SubWord(a0, sp, a0);
+    Operand extra_space_for_variables(num_registers_ * kSystemPointerSize);
+    // Handle it if the stack pointer is already below the stack limit.
+    __ Branch(&stack_limit_hit, le, a0, Operand(zero_reg));
+    // Check if there is room for the variable number of registers above
+    // the stack limit.
+    __ Branch(&stack_ok, uge, a0, extra_space_for_variables);
+    // Exit with OutOfMemory exception. There is not enough space on the stack
+    // for our working registers.
+    __ li(a0, Operand(EXCEPTION));
+    __ jmp(&return_a0);
 
-      ExternalReference stack_limit =
-          ExternalReference::address_of_jslimit(masm_->isolate());
-      __ li(a0, Operand(stack_limit));
-      __ LoadWord(a0, MemOperand(a0));
-      __ SubWord(a0, sp, a0);
-      Operand extra_space_for_variables(num_registers_ * kSystemPointerSize);
-      // Handle it if the stack pointer is already below the stack limit.
-      __ Branch(&stack_limit_hit, le, a0, Operand(zero_reg));
-      // Check if there is room for the variable number of registers above
-      // the stack limit.
-      __ Branch(&stack_ok, uge, a0, extra_space_for_variables);
-      // Exit with OutOfMemory exception. There is not enough space on the stack
-      // for our working registers.
-      __ li(a0, Operand(EXCEPTION));
-      __ jmp(&return_a0);
+    __ bind(&stack_limit_hit);
+    CallCheckStackGuardState(a0, extra_space_for_variables);
+    // If returned value is non-zero, we exit with the returned value as
+    // result.
+    __ Branch(&return_a0, ne, a0, Operand(zero_reg));
 
-      __ bind(&stack_limit_hit);
-      CallCheckStackGuardState(a0, extra_space_for_variables);
-      // If returned value is non-zero, we exit with the returned value as
-      // result.
-      __ Branch(&return_a0, ne, a0, Operand(zero_reg));
+    __ bind(&stack_ok);
+  }
+  // Allocate space on stack for registers.
+  __ SubWord(sp, sp, Operand(num_registers_ * kSystemPointerSize));
+  // Load string end.
+  __ LoadWord(end_of_input_address(),
+              MemOperand(frame_pointer(), kInputEndOffset));
+  // Load input start.
+  __ LoadWord(a0, MemOperand(frame_pointer(), kInputStartOffset));
+  // Find negative length (offset of start relative to end).
+  __ SubWord(current_input_offset(), a0, end_of_input_address());
+  // Set a0 to address of char before start of the input string
+  // (effectively string position -1).
+  __ LoadWord(a1, MemOperand(frame_pointer(), kStartIndexOffset));
+  __ SubWord(a0, current_input_offset(), Operand(char_size()));
+  __ slli(t1, a1, (mode_ == UC16) ? 1 : 0);
+  __ SubWord(a0, a0, t1);
+  // Store this value in a local variable, for use when clearing
+  // position registers.
+  __ StoreWord(a0, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
 
-      __ bind(&stack_ok);
+  // Initialize code pointer register
+  __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
+
+  Label load_char_start_regexp;
+  {
+    Label start_regexp;
+    // Load newline if index is at start, previous character otherwise.
+    __ Branch(&load_char_start_regexp, ne, a1, Operand(zero_reg));
+    __ li(current_character(), Operand('\n'));
+    __ jmp(&start_regexp);
+
+    // Global regexp restarts matching here.
+    __ bind(&load_char_start_regexp);
+    // Load previous char as initial value of current character register.
+    LoadCurrentCharacterUnchecked(-1, 1);
+    __ bind(&start_regexp);
+  }
+
+  // Initialize on-stack registers.
+  if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
+    // Fill saved registers with initial value = start offset - 1.
+    if (num_saved_registers_ > 8) {
+      // Address of register 0.
+      __ AddWord(a1, frame_pointer(), Operand(kRegisterZeroOffset));
+      __ li(a2, Operand(num_saved_registers_));
+      Label init_loop;
+      __ bind(&init_loop);
+      __ StoreWord(a0, MemOperand(a1));
+      __ AddWord(a1, a1, Operand(-kSystemPointerSize));
+      __ SubWord(a2, a2, Operand(1));
+      __ Branch(&init_loop, ne, a2, Operand(zero_reg));
+    } else {
+      for (int i = 0; i < num_saved_registers_; i++) {
+        __ StoreWord(a0, register_location(i));
+      }
     }
-    // Allocate space on stack for registers.
-    __ SubWord(sp, sp, Operand(num_registers_ * kSystemPointerSize));
-    // Load string end.
+  }
+
+  __ jmp(&start_label_);
+
+  // Exit code:
+  if (success_label_.is_linked()) {
+    // Save captures when successful.
+    __ bind(&success_label_);
+    if (num_saved_registers_ > 0) {
+      // Copy captures to output.
+      __ LoadWord(a1, MemOperand(frame_pointer(), kInputStartOffset));
+      __ LoadWord(a0, MemOperand(frame_pointer(), kRegisterOutputOffset));
+      __ LoadWord(a2, MemOperand(frame_pointer(), kStartIndexOffset));
+      __ SubWord(a1, end_of_input_address(), a1);
+      // a1 is length of input in bytes.
+      if (mode_ == UC16) {
+        __ srli(a1, a1, 1);
+      }
+      // a1 is length of input in characters.
+      __ AddWord(a1, a1, Operand(a2));
+      // a1 is length of string in characters.
+
+      DCHECK_EQ(0, num_saved_registers_ % 2);
+      // Always an even number of capture registers. This allows us to
+      // unroll the loop once to add an operation between a load of a
+      // register and the following use of that register.
+      for (int i = 0; i < num_saved_registers_; i += 2) {
+        __ LoadWord(a2, register_location(i));
+        __ LoadWord(a3, register_location(i + 1));
+        if (i == 0 && global_with_zero_length_check()) {
+          // Keep capture start in a4 for the zero-length check later.
+          __ mv(s3, a2);
+        }
+        if (mode_ == UC16) {
+          __ srai(a2, a2, 1);
+          __ AddWord(a2, a2, a1);
+          __ srai(a3, a3, 1);
+          __ AddWord(a3, a3, a1);
+        } else {
+          __ AddWord(a2, a1, Operand(a2));
+          __ AddWord(a3, a1, Operand(a3));
+        }
+        // V8 expects the output to be an int32_t array.
+        __ Sw(a2, MemOperand(a0));
+        __ AddWord(a0, a0, kIntSize);
+        __ Sw(a3, MemOperand(a0));
+        __ AddWord(a0, a0, kIntSize);
+      }
+    }
+
+    if (global()) {
+      // Restart matching if the regular expression is flagged as global.
+      __ LoadWord(a0, MemOperand(frame_pointer(), kSuccessfulCapturesOffset));
+      __ LoadWord(a1, MemOperand(frame_pointer(), kNumOutputRegistersOffset));
+      __ LoadWord(a2, MemOperand(frame_pointer(), kRegisterOutputOffset));
+      // Increment success counter.
+      __ AddWord(a0, a0, 1);
+      __ StoreWord(a0, MemOperand(frame_pointer(), kSuccessfulCapturesOffset));
+      // Capture results have been stored, so the number of remaining global
+      // output registers is reduced by the number of stored captures.
+      __ SubWord(a1, a1, num_saved_registers_);
+      // Check whether we have enough room for another set of capture results.
+      __ Branch(&return_a0, lt, a1, Operand(num_saved_registers_));
+
+      __ StoreWord(a1, MemOperand(frame_pointer(), kNumOutputRegistersOffset));
+      // Advance the location for output.
+      __ AddWord(a2, a2, num_saved_registers_ * kIntSize);
+      __ StoreWord(a2, MemOperand(frame_pointer(), kRegisterOutputOffset));
+
+      // Restore the original regexp stack pointer value (effectively, pop the
+      // stored base pointer).
+      PopRegExpBasePointer(backtrack_stackpointer(), a2);
+
+      Label reload_string_start_minus_one;
+
+      if (global_with_zero_length_check()) {
+        // Special case for zero-length matches.
+        // s3: capture start index
+        // Not a zero-length match, restart.
+        __ Branch(&reload_string_start_minus_one, ne, current_input_offset(),
+                  Operand(s3));
+        // Offset from the end is zero if we already reached the end.
+        __ Branch(&exit_label_, eq, current_input_offset(), Operand(zero_reg));
+        // Advance current position after a zero-length match.
+        Label advance;
+        __ bind(&advance);
+        __ AddWord(current_input_offset(), current_input_offset(),
+                   Operand((mode_ == UC16) ? 2 : 1));
+        if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
+      }
+
+      __ bind(&reload_string_start_minus_one);
+      // Prepare a0 to initialize registers with its value in the next run.
+      // Must be immediately before the jump to avoid clobbering.
+      __ LoadWord(a0, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
+
+      __ Branch(&load_char_start_regexp);
+    } else {
+      __ li(a0, Operand(SUCCESS));
+    }
+  }
+  // Exit and return a0.
+  __ bind(&exit_label_);
+  if (global()) {
+    __ LoadWord(a0, MemOperand(frame_pointer(), kSuccessfulCapturesOffset));
+  }
+
+  __ bind(&return_a0);
+  // Restore the original regexp stack pointer value (effectively, pop the
+  // stored base pointer).
+  PopRegExpBasePointer(backtrack_stackpointer(), a1);
+  // Skip sp past regexp registers and local variables..
+  __ mv(sp, frame_pointer());
+
+  // Restore registers fp..s11 and return (restoring ra to pc).
+  __ MultiPop(registers_to_retain | ra);
+
+  __ Ret();
+
+  // Backtrack code (branch target for conditional backtracks).
+  if (backtrack_label_.is_linked()) {
+    __ bind(&backtrack_label_);
+    Backtrack();
+  }
+
+  Label exit_with_exception;
+
+  // Preempt-code.
+  if (check_preempt_label_.is_linked()) {
+    SafeCallTarget(&check_preempt_label_);
+    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
+    // Put regexp engine registers on stack.
+    CallCheckStackGuardState(a0);
+    // If returning non-zero, we should end execution with the given
+    // result as return value.
+    __ Branch(&return_a0, ne, a0, Operand(zero_reg));
+    LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
+    // String might have moved: Reload end of string from frame.
     __ LoadWord(end_of_input_address(),
                 MemOperand(frame_pointer(), kInputEndOffset));
-    // Load input start.
-    __ LoadWord(a0, MemOperand(frame_pointer(), kInputStartOffset));
-    // Find negative length (offset of start relative to end).
-    __ SubWord(current_input_offset(), a0, end_of_input_address());
-    // Set a0 to address of char before start of the input string
-    // (effectively string position -1).
-    __ LoadWord(a1, MemOperand(frame_pointer(), kStartIndexOffset));
-    __ SubWord(a0, current_input_offset(), Operand(char_size()));
-    __ slli(t1, a1, (mode_ == UC16) ? 1 : 0);
-    __ SubWord(a0, a0, t1);
-    // Store this value in a local variable, for use when clearing
-    // position registers.
-    __ StoreWord(a0, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
+    SafeReturn();
+  }
 
-    // Initialize code pointer register
-    __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
+  // Backtrack stack overflow code.
+  if (stack_overflow_label_.is_linked()) {
+    SafeCallTarget(&stack_overflow_label_);
+    // Call GrowStack(isolate).
+    StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
 
-    Label load_char_start_regexp;
-    {
-      Label start_regexp;
-      // Load newline if index is at start, previous character otherwise.
-      __ Branch(&load_char_start_regexp, ne, a1, Operand(zero_reg));
-      __ li(current_character(), Operand('\n'));
-      __ jmp(&start_regexp);
+    static constexpr int kNumArguments = 1;
+    __ PrepareCallCFunction(kNumArguments, 0, a0);
+    __ li(a0, ExternalReference::isolate_address(isolate()));
+    ExternalReference grow_stack = ExternalReference::re_grow_stack();
+    CallCFunctionFromIrregexpCode(grow_stack, kNumArguments);
+    // If nullptr is returned, we have failed to grow the stack, and must exit
+    // with a stack-overflow exception.
+    __ BranchShort(&exit_with_exception, eq, a0, Operand(zero_reg));
+    // Otherwise use return value as new stack pointer.
+    __ mv(backtrack_stackpointer(), a0);
+    // Restore saved registers and continue.
+    SafeReturn();
+  }
 
-      // Global regexp restarts matching here.
-      __ bind(&load_char_start_regexp);
-      // Load previous char as initial value of current character register.
-      LoadCurrentCharacterUnchecked(-1, 1);
-      __ bind(&start_regexp);
-    }
+  if (exit_with_exception.is_linked()) {
+    // If any of the code above needed to exit with an exception.
+    __ bind(&exit_with_exception);
+    // Exit with Result EXCEPTION(-1) to signal thrown exception.
+    __ li(a0, Operand(EXCEPTION));
+    __ jmp(&return_a0);
+  }
 
-    // Initialize on-stack registers.
-    if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
-      // Fill saved registers with initial value = start offset - 1.
-      if (num_saved_registers_ > 8) {
-        // Address of register 0.
-        __ AddWord(a1, frame_pointer(), Operand(kRegisterZeroOffset));
-        __ li(a2, Operand(num_saved_registers_));
-        Label init_loop;
-        __ bind(&init_loop);
-        __ StoreWord(a0, MemOperand(a1));
-        __ AddWord(a1, a1, Operand(-kSystemPointerSize));
-        __ SubWord(a2, a2, Operand(1));
-        __ Branch(&init_loop, ne, a2, Operand(zero_reg));
-      } else {
-        for (int i = 0; i < num_saved_registers_; i++) {
-          __ StoreWord(a0, register_location(i));
-        }
-      }
-    }
-
-    __ jmp(&start_label_);
-
-    // Exit code:
-    if (success_label_.is_linked()) {
-      // Save captures when successful.
-      __ bind(&success_label_);
-      if (num_saved_registers_ > 0) {
-        // Copy captures to output.
-        __ LoadWord(a1, MemOperand(frame_pointer(), kInputStartOffset));
-        __ LoadWord(a0, MemOperand(frame_pointer(), kRegisterOutputOffset));
-        __ LoadWord(a2, MemOperand(frame_pointer(), kStartIndexOffset));
-        __ SubWord(a1, end_of_input_address(), a1);
-        // a1 is length of input in bytes.
-        if (mode_ == UC16) {
-          __ srli(a1, a1, 1);
-        }
-        // a1 is length of input in characters.
-        __ AddWord(a1, a1, Operand(a2));
-        // a1 is length of string in characters.
-
-        DCHECK_EQ(0, num_saved_registers_ % 2);
-        // Always an even number of capture registers. This allows us to
-        // unroll the loop once to add an operation between a load of a
-        // register and the following use of that register.
-        for (int i = 0; i < num_saved_registers_; i += 2) {
-          __ LoadWord(a2, register_location(i));
-          __ LoadWord(a3, register_location(i + 1));
-          if (i == 0 && global_with_zero_length_check()) {
-            // Keep capture start in a4 for the zero-length check later.
-            __ mv(s3, a2);
-          }
-          if (mode_ == UC16) {
-            __ srai(a2, a2, 1);
-            __ AddWord(a2, a2, a1);
-            __ srai(a3, a3, 1);
-            __ AddWord(a3, a3, a1);
-          } else {
-            __ AddWord(a2, a1, Operand(a2));
-            __ AddWord(a3, a1, Operand(a3));
-          }
-          // V8 expects the output to be an int32_t array.
-          __ Sw(a2, MemOperand(a0));
-          __ AddWord(a0, a0, kIntSize);
-          __ Sw(a3, MemOperand(a0));
-          __ AddWord(a0, a0, kIntSize);
-        }
-      }
-
-      if (global()) {
-        // Restart matching if the regular expression is flagged as global.
-        __ LoadWord(a0, MemOperand(frame_pointer(), kSuccessfulCapturesOffset));
-        __ LoadWord(a1, MemOperand(frame_pointer(), kNumOutputRegistersOffset));
-        __ LoadWord(a2, MemOperand(frame_pointer(), kRegisterOutputOffset));
-        // Increment success counter.
-        __ AddWord(a0, a0, 1);
-        __ StoreWord(a0,
-                     MemOperand(frame_pointer(), kSuccessfulCapturesOffset));
-        // Capture results have been stored, so the number of remaining global
-        // output registers is reduced by the number of stored captures.
-        __ SubWord(a1, a1, num_saved_registers_);
-        // Check whether we have enough room for another set of capture results.
-        __ Branch(&return_a0, lt, a1, Operand(num_saved_registers_));
-
-        __ StoreWord(a1,
-                     MemOperand(frame_pointer(), kNumOutputRegistersOffset));
-        // Advance the location for output.
-        __ AddWord(a2, a2, num_saved_registers_ * kIntSize);
-        __ StoreWord(a2, MemOperand(frame_pointer(), kRegisterOutputOffset));
-
-        // Restore the original regexp stack pointer value (effectively, pop the
-        // stored base pointer).
-        PopRegExpBasePointer(backtrack_stackpointer(), a2);
-
-        Label reload_string_start_minus_one;
-
-        if (global_with_zero_length_check()) {
-          // Special case for zero-length matches.
-          // s3: capture start index
-          // Not a zero-length match, restart.
-          __ Branch(&reload_string_start_minus_one, ne, current_input_offset(),
-                    Operand(s3));
-          // Offset from the end is zero if we already reached the end.
-          __ Branch(&exit_label_, eq, current_input_offset(),
-                    Operand(zero_reg));
-          // Advance current position after a zero-length match.
-          Label advance;
-          __ bind(&advance);
-          __ AddWord(current_input_offset(), current_input_offset(),
-                     Operand((mode_ == UC16) ? 2 : 1));
-          if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
-        }
-
-        __ bind(&reload_string_start_minus_one);
-        // Prepare a0 to initialize registers with its value in the next run.
-        // Must be immediately before the jump to avoid clobbering.
-        __ LoadWord(a0,
-                    MemOperand(frame_pointer(), kStringStartMinusOneOffset));
-
-        __ Branch(&load_char_start_regexp);
-      } else {
-        __ li(a0, Operand(SUCCESS));
-      }
-    }
-    // Exit and return a0.
-    __ bind(&exit_label_);
-    if (global()) {
-      __ LoadWord(a0, MemOperand(frame_pointer(), kSuccessfulCapturesOffset));
-    }
-
-    __ bind(&return_a0);
-    // Restore the original regexp stack pointer value (effectively, pop the
-    // stored base pointer).
-    PopRegExpBasePointer(backtrack_stackpointer(), a1);
-    // Skip sp past regexp registers and local variables..
-    __ mv(sp, frame_pointer());
-
-    // Restore registers fp..s11 and return (restoring ra to pc).
-    __ MultiPop(registers_to_retain | ra);
-
-    __ Ret();
-
-    // Backtrack code (branch target for conditional backtracks).
-    if (backtrack_label_.is_linked()) {
-      __ bind(&backtrack_label_);
-      Backtrack();
-    }
-
-    Label exit_with_exception;
-
-    // Preempt-code.
-    if (check_preempt_label_.is_linked()) {
-      SafeCallTarget(&check_preempt_label_);
-      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
-      // Put regexp engine registers on stack.
-      CallCheckStackGuardState(a0);
-      // If returning non-zero, we should end execution with the given
-      // result as return value.
-      __ Branch(&return_a0, ne, a0, Operand(zero_reg));
-      LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
-      // String might have moved: Reload end of string from frame.
-      __ LoadWord(end_of_input_address(),
-                  MemOperand(frame_pointer(), kInputEndOffset));
-      SafeReturn();
-    }
-
-    // Backtrack stack overflow code.
-    if (stack_overflow_label_.is_linked()) {
-      SafeCallTarget(&stack_overflow_label_);
-      // Call GrowStack(isolate).
-      StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
-
-      static constexpr int kNumArguments = 1;
-      __ PrepareCallCFunction(kNumArguments, 0, a0);
-      __ li(a0, ExternalReference::isolate_address(isolate()));
-      ExternalReference grow_stack = ExternalReference::re_grow_stack();
-      CallCFunctionFromIrregexpCode(grow_stack, kNumArguments);
-      // If nullptr is returned, we have failed to grow the stack, and must exit
-      // with a stack-overflow exception.
-      __ BranchShort(&exit_with_exception, eq, a0, Operand(zero_reg));
-      // Otherwise use return value as new stack pointer.
-      __ mv(backtrack_stackpointer(), a0);
-      // Restore saved registers and continue.
-      SafeReturn();
-    }
-
-    if (exit_with_exception.is_linked()) {
-      // If any of the code above needed to exit with an exception.
-      __ bind(&exit_with_exception);
-      // Exit with Result EXCEPTION(-1) to signal thrown exception.
-      __ li(a0, Operand(EXCEPTION));
-      __ jmp(&return_a0);
-    }
-
-    if (fallback_label_.is_linked()) {
-      __ bind(&fallback_label_);
-      __ li(a0, Operand(FALLBACK_TO_EXPERIMENTAL));
-      __ jmp(&return_a0);
-    }
+  if (fallback_label_.is_linked()) {
+    __ bind(&fallback_label_);
+    __ li(a0, Operand(FALLBACK_TO_EXPERIMENTAL));
+    __ jmp(&return_a0);
   }
 
   CodeDesc code_desc;

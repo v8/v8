@@ -640,12 +640,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
   }
 
-  RelocInfoStatus RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
-    return constpool_.RecordEntry(data, rmode);
-  }
-
-  RelocInfoStatus RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
-    return constpool_.RecordEntry(data, rmode);
+  RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode) {
+    return constpool_.RecordEntry64(data, rmode);
   }
 
   void CheckTrampolinePoolQuick(int margin = 0) {
@@ -864,8 +860,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     return trampoline_pool_blocked_nesting_ > 0;
   }
 
-  bool has_exception() const { return internal_trampoline_exception_; }
-
   bool is_trampoline_emitted() const { return trampoline_emitted_; }
 
   // Temporarily block automatic assembly buffer growth.
@@ -911,10 +905,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   int next_buffer_check_;  // pc offset of next buffer check.
 
   // Emission of the trampoline pool may be blocked in some code sequences.
-  int trampoline_pool_blocked_nesting_;  // Block emission if this is not zero.
+  int trampoline_pool_blocked_nesting_ =
+      0;  // Block emission if this is not zero.
 
   // Automatic growth of the assembly buffer may be blocked for some sequences.
-  bool block_buffer_growth_;  // Block growth when true.
+  bool block_buffer_growth_ = false;  // Block growth when true.
 
   // Relocation information generation.
   // Each relocation is encoded as a variable size value.
@@ -958,29 +953,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       free_slot_count_ = 0;
       end_ = 0;
     }
+
     Trampoline(int start, int slot_count) {
       start_ = start;
       next_slot_ = start;
       free_slot_count_ = slot_count;
       end_ = start + slot_count * kTrampolineSlotsSize;
     }
-    int start() { return start_; }
-    int end() { return end_; }
+
+    int start() const { return start_; }
+    int end() const { return end_; }
+
     int take_slot() {
-      int trampoline_slot = kInvalidSlotPos;
-      if (free_slot_count_ <= 0) {
-        // We have run out of space on trampolines.
-        // Make sure we fail in debug mode, so we become aware of each case
-        // when this happens.
-        DCHECK(0);
-        // Internal exception will be caught.
-      } else {
-        trampoline_slot = next_slot_;
-        free_slot_count_--;
-        next_slot_ += kTrampolineSlotsSize;
-        DEBUG_PRINTF("\ttrampoline  slot %d next %d free %d\n", trampoline_slot,
-                     next_slot_, free_slot_count_)
-      }
+      if (free_slot_count_ <= 0) return kInvalidSlotPos;
+      int trampoline_slot = next_slot_;
+      free_slot_count_--;
+      next_slot_ += kTrampolineSlotsSize;
+      DEBUG_PRINTF("\ttrampoline slot %d next %d free %d\n", trampoline_slot,
+                   next_slot_, free_slot_count_)
       return trampoline_slot;
     }
 
@@ -992,7 +982,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   };
 
   int32_t get_trampoline_entry(int32_t pos);
-  int unbound_labels_count_;
+  int unbound_labels_count_ = 0;
   // After trampoline is emitted, long branches are used in generated code for
   // the forward branches whose target offsets could be beyond reach of branch
   // instruction. We use this information to trigger different mode of
@@ -1010,7 +1000,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   }
 
   Trampoline trampoline_;
-  bool internal_trampoline_exception_;
 
   RegList scratch_register_list_;
   DoubleRegList scratch_double_register_list_;

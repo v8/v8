@@ -2800,25 +2800,23 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     UseScratchRegisterScope temps(this);
     int count = RV_li_count(j.immediate(), temps.CanAcquire());
     int reverse_count = RV_li_count(~j.immediate(), temps.CanAcquire());
+#ifdef V8_TARGET_ARCH_RISCV64
     if (v8_flags.riscv_constant_pool && count >= 4 && reverse_count >= 4) {
-      // Ld/Lw an Address from a constant pool.
-#if V8_TARGET_ARCH_RISCV32
-      RecordEntry(static_cast<uint32_t>(j.immediate()), j.rmode());
-#elif V8_TARGET_ARCH_RISCV64
-      RecordEntry(static_cast<uint64_t>(j.immediate()), j.rmode());
-#endif
+      // Load a 64-bit value from a constant pool.
+      RecordEntry64(j.immediate(), j.rmode());
       auipc(rd, 0);
       // Record a value into constant pool, passing 1 as the offset makes the
       // promise that LoadWord() generates full 32-bit instruction to be
-      // patched with real value in the future
+      // patched with real value in the future.
       LoadWord(rd, MemOperand(rd, 1));
+      return;
+    }
+#endif  // V8_TARGET_ARCH_RISCV64
+    if ((count - reverse_count) > 1) {
+      Li(rd, ~j.immediate());
+      not_(rd, rd);
     } else {
-      if ((count - reverse_count) > 1) {
-        Li(rd, ~j.immediate());
-        not_(rd, rd);
-      } else {
-        Li(rd, j.immediate());
-      }
+      Li(rd, j.immediate());
     }
   } else if (MustUseReg(j.rmode())) {
     int64_t immediate;
@@ -2856,8 +2854,7 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       BlockPoolsScope block_pools(this);
       Handle<HeapObject> handle(reinterpret_cast<Address*>(immediate));
       EmbeddedObjectIndex index = AddEmbeddedObject(handle);
-      if (RecordEntry(static_cast<uint64_t>(index), j.rmode()) ==
-          RelocInfoStatus::kMustRecord) {
+      if (RecordEntry64(index, j.rmode()) == RelocInfoStatus::kMustRecord) {
         RecordRelocInfo(j.rmode(), index);
       }
       DEBUG_PRINTF("\t EmbeddedObjectIndex%lu\n", index);

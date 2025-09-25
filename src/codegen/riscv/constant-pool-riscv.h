@@ -106,8 +106,7 @@ class ConstantPool {
   ~ConstantPool();
 
   // Returns true when we need to write RelocInfo and false when we do not.
-  RelocInfoStatus RecordEntry(uint32_t data, RelocInfo::Mode rmode);
-  RelocInfoStatus RecordEntry(uint64_t data, RelocInfo::Mode rmode);
+  RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode);
 
   size_t Entry32Count() const { return entry32_count_; }
   size_t Entry64Count() const { return entry64_count_; }
@@ -194,7 +193,6 @@ class ConstantPool {
   size_t entry32_count_ = 0;
   size_t entry64_count_ = 0;
   int next_check_ = 0;
-  int old_next_check_ = 0;
   int blocked_nesting_ = 0;
 };
 

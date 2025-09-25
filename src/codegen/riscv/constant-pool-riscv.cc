@@ -9,20 +9,24 @@
 namespace v8 {
 namespace internal {
 
-// Constant Pool.
+// Pool entries are accessed with pc relative load therefore this cannot be more
+// than 1 * MB. Since constant pool emission checks are interval based, and we
+// want to keep entries close to the code, we try to emit every 64KB.
+const size_t ConstantPool::kMaxDistToPool32 = 1 * MB;
+const size_t ConstantPool::kMaxDistToPool64 = 1 * MB;
+const size_t ConstantPool::kCheckInterval = 128 * kInstrSize;
+const size_t ConstantPool::kApproxDistToPool32 = 64 * KB;
+const size_t ConstantPool::kApproxDistToPool64 = kApproxDistToPool32;
+
+const size_t ConstantPool::kOpportunityDistToPool32 = 64 * KB;
+const size_t ConstantPool::kOpportunityDistToPool64 = 64 * KB;
+const size_t ConstantPool::kApproxMaxEntryCount = 512;
 
 ConstantPool::ConstantPool(Assembler* assm) : assm_(assm) {}
 ConstantPool::~ConstantPool() { DCHECK_EQ(blocked_nesting_, 0); }
 
-RelocInfoStatus ConstantPool::RecordEntry(uint32_t data,
-                                          RelocInfo::Mode rmode) {
-  ConstantPoolKey key(data, rmode);
-  CHECK(key.is_value32());
-  return RecordKey(std::move(key), assm_->pc_offset());
-}
-
-RelocInfoStatus ConstantPool::RecordEntry(uint64_t data,
-                                          RelocInfo::Mode rmode) {
+RelocInfoStatus ConstantPool::RecordEntry64(uint64_t data,
+                                            RelocInfo::Mode rmode) {
   ConstantPoolKey key(data, rmode);
   CHECK(!key.is_value32());
   return RecordKey(std::move(key), assm_->pc_offset());
@@ -284,6 +288,83 @@ void ConstantPool::MaybeCheck() {
   if (assm_->pc_offset() >= next_check_) {
     Check(Emission::kIfNeeded, Jump::kRequired);
   }
+}
+
+void ConstantPool::EmitPrologue(Alignment require_alignment) {
+  // Recorded constant pool size is expressed in number of 32-bits words,
+  // and includes prologue and alignment, but not the jump around the pool
+  // and the size of the marker itself.
+  // word_count may exceed 12 bits, so auipc is used.
+  const int marker_size = 1;
+  int word_count =
+      ComputeSize(Jump::kOmitted, require_alignment) / kInt32Size - marker_size;
+  DCHECK(is_int20(word_count));
+  assm_->auipc(zero_reg, word_count);
+  assm_->EmitPoolGuard();
+}
+
+int ConstantPool::PrologueSize(Jump require_jump) const {
+  // Prologue is:
+  //   j over  ;; if require_jump
+  //   ld x0, x0, #pool_size
+  //   j 0x0
+  int prologue_size = require_jump == Jump::kRequired ? kInstrSize : 0;
+  prologue_size += 2 * kInstrSize;
+  return prologue_size;
+}
+
+void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
+                                                 Instruction* entry_offset,
+                                                 const ConstantPoolKey& key) {
+  Instr instr_auipc = assm_->instr_at(load_offset);
+  Instr instr_load = assm_->instr_at(load_offset + 4);
+  // Instruction to patch must be 'ld/lw rd, offset(rd)' with 'offset == 0'.
+  DCHECK(assm_->IsAuipc(instr_auipc));
+  DCHECK(assm_->IsLoadWord(instr_load));
+  DCHECK_EQ(assm_->LoadOffset(instr_load), 1);
+  DCHECK_EQ(assm_->AuipcOffset(instr_auipc), 0);
+  int32_t distance = static_cast<int32_t>(
+      reinterpret_cast<Address>(entry_offset) -
+      reinterpret_cast<Address>(assm_->toAddress(load_offset)));
+  CHECK(is_int32(distance + 0x800));
+  int32_t Hi20 = (static_cast<int32_t>(distance) + 0x800) >> 12;
+  int32_t Lo12 = static_cast<int32_t>(distance) << 20 >> 20;
+  assm_->instr_at_put(load_offset, SetHi20Offset(Hi20, instr_auipc));
+  assm_->instr_at_put(load_offset + 4, SetLo12Offset(Lo12, instr_load));
+}
+
+void ConstantPool::Check(Emission force_emit, Jump require_jump,
+                         size_t margin) {
+  // Some short sequence of instruction must not be broken up by constant pool
+  // emission, such sequences are protected by a ConstPool::BlockScope.
+  if (IsBlocked() || assm_->is_trampoline_pool_blocked()) {
+    // Something is wrong if emission is forced and blocked at the same time.
+    DCHECK_EQ(force_emit, Emission::kIfNeeded);
+    return;
+  }
+
+  // We emit a constant pool only if :
+  //  * it is not empty
+  //  * emission is forced by parameter force_emit (e.g. at function end).
+  //  * emission is mandatory or opportune according to {ShouldEmitNow}.
+  if (!IsEmpty() && (force_emit == Emission::kForced ||
+                     ShouldEmitNow(require_jump, margin))) {
+    // Check that the code buffer is large enough before emitting the constant
+    // pool (this includes the gap to the relocation information).
+    int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
+    int needed_space = worst_case_size + assm_->kGap;
+    while (assm_->buffer_space() <= needed_space) {
+      assm_->GrowBuffer();
+    }
+
+    // Since we do not know how much space the constant pool is going to take
+    // up, we cannot handle getting here while the trampoline pool is blocked.
+    CHECK(!assm_->is_trampoline_pool_blocked());
+    EmitAndClear(require_jump);
+  }
+  // Since a constant pool is (now) empty, move the check offset forward by
+  // the standard interval.
+  SetNextCheckIn(ConstantPool::kCheckInterval);
 }
 
 }  // namespace internal

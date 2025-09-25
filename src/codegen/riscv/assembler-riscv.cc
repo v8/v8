@@ -273,15 +273,10 @@ Assembler::Assembler(const AssemblerOptions& options,
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
-  trampoline_pool_blocked_nesting_ = 0;
   next_buffer_check_ = v8_flags.force_long_branches
                            ? kMaxInt
                            : kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
-  internal_trampoline_exception_ = false;
-
   trampoline_emitted_ = v8_flags.force_long_branches;
-  unbound_labels_count_ = 0;
-  block_buffer_growth_ = false;
 }
 
 void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
@@ -474,18 +469,6 @@ int Assembler::target_at(int pos, bool is_internal) {
                   ((imm & 0x1000) << 19);  // bit 12
 
   return instr | (imm12 & kBImm12Mask);
-}
-
-[[nodiscard]] static inline Instr SetLoadOffset(int32_t offset, Instr instr) {
-#if V8_TARGET_ARCH_RISCV64
-  DCHECK(Assembler::IsLd(instr));
-#elif V8_TARGET_ARCH_RISCV32
-  DCHECK(Assembler::IsLw(instr));
-#endif
-  DCHECK(is_int12(offset));
-  instr &= ~kImm12Mask;
-  int32_t imm12 = offset << kImm12Shift;
-  return instr | (imm12 & kImm12Mask);
 }
 
 [[nodiscard]] static inline Instr SetJalOffset(int32_t pos, int32_t target_pos,
@@ -687,7 +670,6 @@ void Assembler::bind_to(Label* L, int pos) {
         if (dist > kMaxBranchOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
-            CHECK_NE(trampoline_pos, kInvalidSlotPos);
           }
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
           CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
@@ -699,7 +681,6 @@ void Assembler::bind_to(Label* L, int pos) {
         if (dist > kMaxJumpOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
-            CHECK_NE(trampoline_pos, kInvalidSlotPos);
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxJumpOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
@@ -787,18 +768,11 @@ int Assembler::PatchBranchLongOffset(Address pc, Instr instr_auipc,
 
 // Returns the next free trampoline entry.
 int32_t Assembler::get_trampoline_entry(int32_t pos) {
-  int32_t trampoline_entry = kInvalidSlotPos;
-  if (!internal_trampoline_exception_) {
-    DEBUG_PRINTF("\ttrampoline start: %d,pos: %d\n", trampoline_.start(), pos);
-    if (trampoline_.start() > pos) {
-      trampoline_entry = trampoline_.take_slot();
-    }
-
-    if (kInvalidSlotPos == trampoline_entry) {
-      internal_trampoline_exception_ = true;
-    }
-  }
-  return trampoline_entry;
+  DEBUG_PRINTF("\ttrampoline start: %d,pos: %d\n", trampoline_.start(), pos);
+  CHECK(trampoline_.start() > pos);
+  int32_t entry = trampoline_.take_slot();
+  CHECK_NE(entry, kInvalidSlotPos);
+  return entry;
 }
 
 uintptr_t Assembler::jump_address(Label* L) {
@@ -1825,102 +1799,6 @@ void Assembler::instr_at_put(Address pc, Instr instr,
   }
 }
 
-// Constant Pool
-
-void ConstantPool::EmitPrologue(Alignment require_alignment) {
-  // Recorded constant pool size is expressed in number of 32-bits words,
-  // and includes prologue and alignment, but not the jump around the pool
-  // and the size of the marker itself.
-  // word_count may exceed 12 bits, so auipc is used.
-  const int marker_size = 1;
-  int word_count =
-      ComputeSize(Jump::kOmitted, require_alignment) / kInt32Size - marker_size;
-  DCHECK(is_int20(word_count));
-  assm_->auipc(zero_reg, word_count);
-  assm_->EmitPoolGuard();
-}
-
-int ConstantPool::PrologueSize(Jump require_jump) const {
-  // Prologue is:
-  //   j over  ;; if require_jump
-  //   ld x0, x0, #pool_size
-  //   j 0x0
-  int prologue_size = require_jump == Jump::kRequired ? kInstrSize : 0;
-  prologue_size += 2 * kInstrSize;
-  return prologue_size;
-}
-
-void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
-                                                 Instruction* entry_offset,
-                                                 const ConstantPoolKey& key) {
-  Instr instr_auipc = assm_->instr_at(load_offset);
-  Instr instr_load = assm_->instr_at(load_offset + 4);
-  // Instruction to patch must be 'ld/lw rd, offset(rd)' with 'offset == 0'.
-  DCHECK(assm_->IsAuipc(instr_auipc));
-#if V8_TARGET_ARCH_RISCV64
-  DCHECK(assm_->IsLd(instr_load));
-#elif V8_TARGET_ARCH_RISCV32
-  DCHECK(assm_->IsLw(instr_load));
-#endif
-  DCHECK_EQ(assm_->LoadOffset(instr_load), 1);
-  DCHECK_EQ(assm_->AuipcOffset(instr_auipc), 0);
-  int32_t distance = static_cast<int32_t>(
-      reinterpret_cast<Address>(entry_offset) -
-      reinterpret_cast<Address>(assm_->toAddress(load_offset)));
-  CHECK(is_int32(distance + 0x800));
-  int32_t Hi20 = (static_cast<int32_t>(distance) + 0x800) >> 12;
-  int32_t Lo12 = static_cast<int32_t>(distance) << 20 >> 20;
-  assm_->instr_at_put(load_offset, SetHi20Offset(Hi20, instr_auipc));
-  assm_->instr_at_put(load_offset + 4, SetLoadOffset(Lo12, instr_load));
-}
-
-void ConstantPool::Check(Emission force_emit, Jump require_jump,
-                         size_t margin) {
-  // Some short sequence of instruction must not be broken up by constant pool
-  // emission, such sequences are protected by a ConstPool::BlockScope.
-  if (IsBlocked() || assm_->is_trampoline_pool_blocked()) {
-    // Something is wrong if emission is forced and blocked at the same time.
-    DCHECK_EQ(force_emit, Emission::kIfNeeded);
-    return;
-  }
-
-  // We emit a constant pool only if :
-  //  * it is not empty
-  //  * emission is forced by parameter force_emit (e.g. at function end).
-  //  * emission is mandatory or opportune according to {ShouldEmitNow}.
-  if (!IsEmpty() && (force_emit == Emission::kForced ||
-                     ShouldEmitNow(require_jump, margin))) {
-    // Check that the code buffer is large enough before emitting the constant
-    // pool (this includes the gap to the relocation information).
-    int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
-    int needed_space = worst_case_size + assm_->kGap;
-    while (assm_->buffer_space() <= needed_space) {
-      assm_->GrowBuffer();
-    }
-
-    // Since we do not know how much space the constant pool is going to take
-    // up, we cannot handle getting here while the trampoline pool is blocked.
-    CHECK(!assm_->is_trampoline_pool_blocked());
-    EmitAndClear(require_jump);
-  }
-  // Since a constant pool is (now) empty, move the check offset forward by
-  // the standard interval.
-  SetNextCheckIn(ConstantPool::kCheckInterval);
-}
-
-// Pool entries are accessed with pc relative load therefore this cannot be more
-// than 1 * MB. Since constant pool emission checks are interval based, and we
-// want to keep entries close to the code, we try to emit every 64KB.
-const size_t ConstantPool::kMaxDistToPool32 = 1 * MB;
-const size_t ConstantPool::kMaxDistToPool64 = 1 * MB;
-const size_t ConstantPool::kCheckInterval = 128 * kInstrSize;
-const size_t ConstantPool::kApproxDistToPool32 = 64 * KB;
-const size_t ConstantPool::kApproxDistToPool64 = kApproxDistToPool32;
-
-const size_t ConstantPool::kOpportunityDistToPool32 = 64 * KB;
-const size_t ConstantPool::kOpportunityDistToPool64 = 64 * KB;
-const size_t ConstantPool::kApproxMaxEntryCount = 512;
-
 #if defined(V8_TARGET_ARCH_RISCV64)
 // LLVM Code
 //===- RISCVMatInt.cpp - Immediate materialisation -------------*- C++
@@ -2248,5 +2126,6 @@ int Assembler::GeneralLiCount(int64_t imm, bool is_get_temp_reg) {
 
 RegList Assembler::DefaultTmpList() { return {t3, t5}; }
 DoubleRegList Assembler::DefaultFPTmpList() { return {kScratchDoubleReg}; }
+
 }  // namespace internal
 }  // namespace v8
