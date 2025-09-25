@@ -6171,6 +6171,7 @@ class ObjectLayout {
   FieldType body_field_type = FieldType::kNone;
 
   int SlotAtOffset(int offset) const {
+    SBXCHECK_GE(offset, 0);
     DCHECK_EQ(offset % kInt32Size, 0);
     if (offset < header_size) {
       int32_t slot = offset_to_slot_map[offset / kInt32Size];
@@ -6457,7 +6458,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     slots_.data[offset / kTaggedSize] = value;
   }
 
-  void ClearSlotsAfter(int last_init_offset, ValueNode* clear_value) {
+  void ClearSlotsAfter(uint32_t last_init_offset, ValueNode* clear_value) {
     DCHECK_EQ(type_, kDefault);
     int last_init_slot = is_new_style_vobj()
                              ? object_layout_->SlotAtOffset(last_init_offset)
@@ -6716,6 +6717,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   vobj::Field FieldForSlot(int i) const {
+    SBXCHECK_GE(i, 0);
     DCHECK_EQ(type_, kDefault);
     DCHECK_LT(i, slot_count());
     if (i < header_slot_count()) {
