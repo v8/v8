@@ -63,9 +63,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
   };
 
   WasmWrapperTSGraphBuilder(
-      Zone* zone, Assembler& assembler, const CanonicalSig* sig,
+      Isolate* isolate, Zone* zone, Assembler& assembler,
+      const CanonicalSig* sig,
       std::optional<InlinedFunctionData> inlined_function_data = {})
       : WasmGraphBuilderBase<Assembler>(zone, assembler),
+        isolate_(isolate),
         sig_(sig),
         inlined_function_data_(std::move(inlined_function_data)) {}
 
@@ -680,6 +682,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
                                             bool do_conversion,
                                             OptionalV<FrameState> frame_state);
 
+  Isolate* isolate_;  // Only available when inlining the wrapper into JS.
   const CanonicalSig* const sig_;
   std::optional<InlinedFunctionData> inlined_function_data_;
 };

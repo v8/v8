@@ -1286,7 +1286,8 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
         << JSInliner::WasmFunctionNameForTrace(native_module, func_idx)
         << " of module " << module);
 
-  GraphBuilder builder(Asm().phase_zone(), Asm(), sig, inlined_function_data);
+  GraphBuilder builder(__ data()->isolate(), Asm().phase_zone(), Asm(), sig,
+                       inlined_function_data);
   return builder.BuildJSToWasmWrapperImpl(receiver_is_first_param, js_closure,
                                           js_context, arguments, frame_state);
 }
