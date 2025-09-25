@@ -13584,7 +13584,7 @@ VirtualObject* MaglevGraphBuilder::CreateContext(
     compiler::MapRef map, int length, compiler::ScopeInfoRef scope_info,
     ValueNode* previous_context, std::optional<ValueNode*> extension) {
   using Shape = VirtualFixedArrayShape;
-  DCHECK_NE(length, 0);  // Use kEmptyFixedArray instead.
+  SBXCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
   DCHECK_EQ(FixedArray::SizeFor(length) % FieldSizeOf(Shape::kBodyFieldType),
             0);
   DCHECK_EQ(Shape::header_slot_count + length,
@@ -13602,6 +13602,7 @@ VirtualObject* MaglevGraphBuilder::CreateContext(
             previous_context);
   int index = Context::PREVIOUS_INDEX + 1;
   if (extension.has_value()) {
+    SBXCHECK_GE(length, Context::MIN_CONTEXT_EXTENDED_SLOTS);
     vobj->set(Context::OffsetOfElementAt(Context::EXTENSION_INDEX),
               extension.value());
     index++;
