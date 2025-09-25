@@ -10,7 +10,6 @@
 #include <string.h>
 
 #include <algorithm>
-#include <type_traits>
 
 #include "include/v8config.h"
 #include "src/base/bits.h"
@@ -79,7 +78,7 @@ V8_INLINE V8_CLANG_NO_SANITIZE("alignment") void OverlappingWrites(
 }
 
 V8_CLANG_NO_SANITIZE("alignment")
-inline void SimdMemCopy(void* dst, const void* src, size_t count) {
+inline void MemCopy(void* dst, const void* src, size_t count) {
   auto* dst_u = static_cast<uint8_t*>(dst);
   const auto* src_u = static_cast<const uint8_t*>(src);
   // Common cases. Handle before doing clz.
@@ -120,12 +119,6 @@ inline void SimdMemCopy(void* dst, const void* src, size_t count) {
       return;
   }
 }
-
-inline void MemCopy(void* dst, const void* src, size_t count) {
-  // Wrap call to be able to easily identify SIMD usage in profiles.
-  SimdMemCopy(dst, src, count);
-}
-
 #else  // !defined(V8_OPTIMIZE_WITH_NEON)
 // Copy memory area to disjoint memory area.
 inline void MemCopy(void* dest, const void* src, size_t size) {
@@ -298,9 +291,9 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   auto* src_u = reinterpret_cast<const SrcTypeUnsigned*>(src);
 
 #if defined(V8_OPTIMIZE_WITH_NEON)
-  if constexpr (std::is_same_v<DstTypeUnsigned, SrcTypeUnsigned>) {
+  if constexpr (sizeof(DstType) == 1 && sizeof(SrcType) == 1) {
     // Use simd optimized memcpy.
-    SimdMemCopy(dst_u, src_u, count);
+    MemCopy(dst, src, count);
     return;
   }
 #endif  // defined(V8_OPTIMIZE_WITH_NEON)
