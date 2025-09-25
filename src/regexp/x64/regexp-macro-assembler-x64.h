@@ -57,7 +57,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
                            Handle<ByteArray> nibble_table, int advance_by,
                            Label* on_match, Label* on_no_match) override;
   bool SkipUntilBitInTableUseSimd(int advance_by) override;
-
+  void SkipUntilOneOfMasked(int cp_offset, int advance_by, unsigned both_chars,
+                            unsigned both_mask, int max_offset, unsigned chars1,
+                            unsigned mask1, unsigned chars2, unsigned mask2,
+                            Label* on_match1, Label* on_match2,
+                            Label* on_failure) override;
+  bool SkipUntilOneOfMaskedUseSimd(int advance_by);
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
