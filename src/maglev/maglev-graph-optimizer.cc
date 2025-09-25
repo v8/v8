@@ -8,6 +8,7 @@
 
 #include "src/base/logging.h"
 #include "src/common/operation.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -256,6 +257,14 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
   return new_control_node;
 }
 
+ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
+    DeoptimizeReason reason) {
+  reducer_.current_block()->set_deferred(true);
+  reducer_.current_block()->reset_control_node();
+  reducer_.AddNewControlNode<Deopt>({}, reason);
+  return ReduceResult::DoneWithAbort();
+}
+
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32(
     AssertInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -331,7 +340,13 @@ ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayNotDetached(
 ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
     CheckMaps* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
-  if (reducer_.TryFoldCheckMaps(GetInputAt(0), node->maps()).IsDone()) {
+  MaybeReduceResult result =
+      reducer_.TryFoldCheckMaps(GetInputAt(0), node->maps());
+  if (result.IsDoneWithAbort()) {
+    reducer_.graph()->set_may_have_unreachable_blocks(true);
+    return ProcessResult::kTruncateBlock;
+  }
+  if (result.IsDone()) {
     return ProcessResult::kRemove;
   }
   return ProcessResult::kContinue;

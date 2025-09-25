@@ -4300,15 +4300,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   // TODO(verwaest): Support other objects with possible known stable maps as
   // well.
   RETURN_IF_DONE(reducer_.TryFoldCheckMaps(object, maps));
-  if (!object->is_tagged() && !object->is_holey_float64()) {
-    // TODO(victorgomes): Implement the holey float64 case.
-    auto heap_number_map =
-        MakeRef(broker(), local_isolate()->factory()->heap_number_map());
-    if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
-      return ReduceResult::Done();
-    }
-    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
-  }
 
   NodeInfo* known_info = GetOrCreateInfoFor(object);
 
@@ -16021,8 +16012,6 @@ void MaglevGraphBuilder::RegisterPhisWithGraphLabeller(
 ReduceResult MaglevGraphBuilder::EmitUnconditionalDeopt(
     DeoptimizeReason reason) {
   current_block()->set_deferred(true);
-  // Create a block rather than calling finish, since we don't yet know the
-  // next block's offset before the loop skipping the rest of the bytecodes.
   FinishBlock<Deopt>({}, reason);
   return ReduceResult::DoneWithAbort();
 }
@@ -16482,8 +16471,6 @@ ReduceResult MaglevGraphBuilder::BuildThrow(Throw::Function function,
 }
 
 ReduceResult MaglevGraphBuilder::BuildAbort(AbortReason reason) {
-  // Create a block rather than calling finish, since we don't yet know the
-  // next block's offset before the loop skipping the rest of the bytecodes.
   FinishBlock<Abort>({}, reason);
   return ReduceResult::DoneWithAbort();
 }

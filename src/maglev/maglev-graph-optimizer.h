@@ -7,6 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/common/scoped-modification.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
@@ -49,6 +50,8 @@ class MaglevGraphOptimizer {
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
     return &current_node()->eager_deopt_info()->top_frame();
   }
+
+  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason);
 
  private:
   MaglevReducer<MaglevGraphOptimizer> reducer_;

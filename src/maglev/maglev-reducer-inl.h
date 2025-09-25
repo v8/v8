@@ -664,6 +664,13 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
 }
 
 template <typename BaseT>
+ReduceResult MaglevReducer<BaseT>::EmitUnconditionalDeopt(
+    DeoptimizeReason reason) {
+  static_assert(ReducerBaseWithUnconditonalDeopt<BaseT>);
+  return base_->EmitUnconditionalDeopt(reason);
+}
+
+template <typename BaseT>
 compiler::OptionalHeapObjectRef MaglevReducer<BaseT>::TryGetConstant(
     ValueNode* node, ValueNode** constant_node) {
   if (auto result = node->TryGetConstant(broker())) {
@@ -1080,19 +1087,28 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
   // don't need to emit a map check, and can use the dependency -- we
   // can't do this for unstable maps because the constant could migrate
   // during compilation.
-  compiler::OptionalHeapObjectRef constant = TryGetConstant(object);
-  if (!constant) return {};
-  compiler::MapRef constant_map = constant->map(broker());
-  if (std::find(maps.begin(), maps.end(), constant_map) == maps.end()) {
-    // TODO(leszeks): Insert an unconditional deopt if the constant map
-    // doesn't match the required map.
+  if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
+    compiler::MapRef constant_map = constant->map(broker());
+    if (std::find(maps.begin(), maps.end(), constant_map) == maps.end()) {
+      return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+    }
+    // TODO(verwaest): Reduce maps to the constant map.
+    if (constant_map.is_stable()) {
+      broker()->dependencies()->DependOnStableMap(constant_map);
+      return ReduceResult::Done();
+    }
     return {};
   }
-  // TODO(verwaest): Reduce maps to the constant map.
-  if (constant_map.is_stable()) {
-    broker()->dependencies()->DependOnStableMap(constant_map);
-    return ReduceResult::Done();
+
+  if (NodeTypeIs(GetType(object), NodeType::kNumber)) {
+    auto heap_number_map =
+        MakeRef(broker(), local_isolate()->factory()->heap_number_map());
+    if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
+      return ReduceResult::Done();
+    }
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
+
   return {};
 }
 

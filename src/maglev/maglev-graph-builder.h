@@ -316,6 +316,9 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node);
 
+  // Called when a block is killed by an unconditional eager deopt.
+  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
+
   template <bool is_possible_map_change = true>
   void ResetBuilderCachedState();
 
@@ -449,9 +452,6 @@ class MaglevGraphBuilder {
 
   ValueNode* GetContextAtDepth(ValueNode* context, size_t depth);
   bool CheckContextExtensions(size_t depth);
-
-  // Called when a block is killed by an unconditional eager deopt.
-  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
 
   void KillPeeledLoopTargets(int peelings);
 

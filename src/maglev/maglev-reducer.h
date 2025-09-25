@@ -11,6 +11,7 @@
 #include "src/base/logging.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/feedback-source.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph.h"
@@ -182,6 +183,11 @@ concept ReducerBaseWithEagerDeopt =
     requires(BaseT* b) { b->GetDeoptFrameForEagerDeopt(); };
 
 template <typename BaseT>
+concept ReducerBaseWithUnconditonalDeopt = requires(BaseT* b) {
+  b->EmitUnconditionalDeopt(std::declval<DeoptimizeReason>());
+};
+
+template <typename BaseT>
 concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
   b->GetDeoptFrameForLazyDeopt(false);
   // TODO(victorgomes): Bring exception handler logic to the reducer?
@@ -273,6 +279,8 @@ class MaglevReducer {
                          Args&&... args);
 
   void AddInitializedNodeToGraph(Node* node);
+
+  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
 
   compiler::OptionalHeapObjectRef TryGetConstant(
       ValueNode* node, ValueNode** constant_node = nullptr);
@@ -379,6 +387,10 @@ class MaglevReducer {
 
   void SetNewNodePosition(BasicBlockPosition position) {
     current_block_position_ = position;
+  }
+
+  BasicBlockPosition current_block_position() const {
+    return current_block_position_;
   }
 
   template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
