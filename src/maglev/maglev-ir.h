@@ -6445,8 +6445,12 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   void set(uint32_t offset, ValueNode* value) {
+    // Snapshotting behavior is currently not enforced or required, and the
+    // DCHECK below no longer holds.
+    // TODO(victorgomes): Re-enable if this is needed again, otherwise remove
+    // the DCHECK.
+    // DCHECK(!IsSnapshot());
     DCHECK_EQ(type_, kDefault);
-    DCHECK(!IsSnapshot());
     // Values set here can leak to the interpreter frame state. Conversions
     // should be stored in known_node_aspects/NodeInfo.
     DCHECK(!value->properties().is_conversion());
