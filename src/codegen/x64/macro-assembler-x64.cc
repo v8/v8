@@ -3735,16 +3735,16 @@ void MacroAssembler::CallWasmCodePointer(Register target,
   Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
 #ifdef V8_ENABLE_SANDBOX
-  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
-                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
-  static_assert(base::bits::IsPowerOfTwo(
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
-  andl(target, Immediate(wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1));
-
-  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
-  shll(target, Immediate(base::bits::WhichPowerOfTwo(
-                   sizeof(wasm::WasmCodePointerTableEntry))));
+  // Execute a left shift followed by right shift to achieve two things:
+  // - Only keep `kNumRelevantBits` bits (to avoid OOB access to the table),
+  // - shift by `kLeftShift` to translate from index to offset into the table.
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kNumClearedHighBits = 32 - kNumRelevantBits;
+  shll(target, Immediate(kNumClearedHighBits));
+  shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
 
   // Add `target` and `kScratchRegister` early to free `kScratchRegister` again.
   addq(target, kScratchRegister);
@@ -3783,16 +3783,17 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
 #ifdef V8_ENABLE_SANDBOX
-  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
-                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
-  static_assert(base::bits::IsPowerOfTwo(
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
-  andl(target, Immediate(wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1));
-
-  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
-  shll(target, Immediate(base::bits::WhichPowerOfTwo(
-                   sizeof(wasm::WasmCodePointerTableEntry))));
+  // Execute a left shift followed by right shift to achieve two things:
+  // - Only keep `kNumRelevantBits` bits (to avoid OOB access to the table),
+  // - shift by `kLeftShift` to translate from index to offset into the table.
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kNumClearedHighBits = 32 - kNumRelevantBits;
+  static_assert(kNumClearedHighBits == 9);
+  shll(target, Immediate(kNumClearedHighBits));
+  shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
 
   call(Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
 #else

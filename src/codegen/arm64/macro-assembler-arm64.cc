@@ -2670,25 +2670,19 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 void MacroAssembler::ResolveWasmCodePointer(Register target,
                                             uint64_t signature_hash) {
   ASM_CODE_COMMENT(this);
-  ExternalReference global_jump_table =
-      ExternalReference::wasm_code_pointer_table();
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  Mov(scratch, global_jump_table);
+  Mov(scratch, ExternalReference::wasm_code_pointer_table());
 #ifdef V8_ENABLE_SANDBOX
-  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
-                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
-  static_assert(base::bits::IsPowerOfTwo(
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
-  And(target.W(), target.W(),
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1);
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
 
-  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
-  Add(target, scratch,
-      Operand(target, LSL,
-              base::bits::WhichPowerOfTwo(
-                  sizeof(wasm::WasmCodePointerTableEntry))));
+  // Keep `kNumRelevantBits` bits, shifted by `kLeftShift`.
+  Ubfiz(target.W(), target.W(), kLeftShift, kNumRelevantBits);
+
+  Add(target, scratch, target);
 
   Ldr(scratch,
       MemOperand(target, wasm::WasmCodePointerTable::kOffsetOfSignatureHash));
@@ -2723,27 +2717,20 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 }
 
 void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
-  ExternalReference global_jump_table =
-      ExternalReference::wasm_code_pointer_table();
+  ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
-  Mov(scratch, global_jump_table);
+  Mov(scratch, ExternalReference::wasm_code_pointer_table());
 
-  // Mask `target` to be within [0, WasmCodePointerTable::kMaxWasmCodePointers).
-  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <
-                (kMaxUInt32 / sizeof(wasm::WasmCodePointerTableEntry)));
-  static_assert(base::bits::IsPowerOfTwo(
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers));
-  And(target.W(), target.W(),
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers - 1);
+  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
+      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kLeftShift =
+      base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
 
-  // Shift to multiply by `sizeof(WasmCodePointerTableEntry)`.
-  Add(target, scratch,
-      Operand(target, LSL,
-              base::bits::WhichPowerOfTwo(
-                  sizeof(wasm::WasmCodePointerTableEntry))));
+  // Keep `kNumRelevantBits` bits, shifted by `kLeftShift`.
+  Ubfiz(target.W(), target.W(), kLeftShift, kNumRelevantBits);
 
-  Ldr(target, MemOperand(target));
+  Ldr(target, MemOperand(scratch, target));
 
   Call(target);
 }
