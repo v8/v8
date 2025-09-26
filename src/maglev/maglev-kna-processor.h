@@ -58,9 +58,15 @@ class RecomputeKnownNodeAspectsProcessor {
       known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
     } else if (block->has_state()) {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
+    } else if (block->is_edge_split_block()) {
+      // Clone the next available KNA.
+      BasicBlock* next_block = block;
+      while (next_block->is_edge_split_block()) {
+        next_block = next_block->control_node()->Cast<Jump>()->target();
+      }
+      known_node_aspects_ = next_block->state()->CloneKnownNodeAspects(zone());
     }
-    DCHECK_IMPLIES(known_node_aspects_ == nullptr,
-                   block->is_edge_split_block());
+    DCHECK_NOT_NULL(known_node_aspects_);
     return BlockProcessResult::kContinue;
   }
   void PostProcessBasicBlock(BasicBlock* block) {}
@@ -95,11 +101,7 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult Process(Jump* node, const ProcessingState& state) {
-    if (known_node_aspects_) {
-      Merge(node->target());
-      return ProcessResult::kContinue;
-    }
-    DCHECK(node->owner()->is_edge_split_block());
+    Merge(node->target());
     return ProcessResult::kContinue;
   }
 
