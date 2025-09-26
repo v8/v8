@@ -5485,34 +5485,42 @@ class GraphBuildingNodeProcessor {
     // TODO(olivf): Support elided maglev cons strings in turbolev.
     DCHECK_NE(vobj->object_type(), maglev::vobj::ObjectType::kConsString);
 
+    if (vobj->object_type() == maglev::vobj::ObjectType::kFixedDoubleArray) {
+      using Shape = maglev::VirtualFixedDoubleArrayShape;
+      static_assert(Shape::header_slot_count == 2);
+      builder.AddDematerializedObject(dup_id.id, vobj->field_count());
+      AddVirtualObjectNestedValue(builder, virtual_objects,
+                                  vobj->get(HeapObject::kMapOffset));
+      AddVirtualObjectNestedValue(builder, virtual_objects,
+                                  vobj->get(FixedArrayBase::kLengthOffset));
+
+      // TODO(jgruber): It's awkward that we have to do this translation here.
+      // Move it to an earlier pass and handle FixedDoubleArray vobjects on the
+      // default path.
+      ReadOnlyRoots roots{local_isolate_};
+      for (int i = Shape::header_slot_count; i < vobj->slot_count(); i++) {
+        maglev::vobj::Field desc = vobj->FieldForSlot(i);
+        maglev::ValueNode* node = vobj->get(desc.offset);
+        static_assert(Shape::kElementsAreFloat64Constant);
+        i::Float64 value = node->Cast<maglev::Float64Constant>()->value();
+        if (value.is_hole_nan()) {
+          builder.AddInput(
+              MachineType::AnyTagged(),
+              __ HeapConstantHole(local_factory_->the_hole_value()));
+        } else {
+          builder.AddInput(MachineType::AnyTagged(),
+                           __ NumberConstant(value.get_scalar()));
+        }
+      }
+      return;
+    }
+
     switch (vobj->type()) {
       case maglev::VirtualObject::kHeapNumber:
       case maglev::VirtualObject::kConsString:
+      case maglev::VirtualObject::kFixedDoubleArray:
         // Handled above.
         UNREACHABLE();
-      case maglev::VirtualObject::kFixedDoubleArray: {
-        uint32_t length = vobj->double_elements_length();
-        uint32_t field_count = vobj->field_count();
-        builder.AddDematerializedObject(dup_id.id, field_count);
-        builder.AddInput(
-            MachineType::AnyTagged(),
-            __ HeapConstantNoHole(local_factory_->fixed_double_array_map()));
-        builder.AddInput(MachineType::AnyTagged(),
-                         __ SmiConstant(Smi::FromInt(length)));
-        FixedDoubleArrayRef elements = vobj->double_elements();
-        for (uint32_t i = 0; i < length; i++) {
-          i::Float64 value = elements.GetFromImmutableFixedDoubleArray(i);
-          if (value.is_hole_nan()) {
-            builder.AddInput(
-                MachineType::AnyTagged(),
-                __ HeapConstantHole(local_factory_->the_hole_value()));
-          } else {
-            builder.AddInput(MachineType::AnyTagged(),
-                             __ NumberConstant(value.get_scalar()));
-          }
-        }
-        return;
-      }
       case maglev::VirtualObject::kDefault:
         uint32_t field_count = vobj->field_count();
         builder.AddDematerializedObject(dup_id.id, field_count);

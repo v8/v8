@@ -6103,6 +6103,7 @@ namespace vobj {
 enum class ObjectType {
   kDefault,
   kConsString,
+  kFixedDoubleArray,
   kHeapNumber,
 };
 
@@ -6332,17 +6333,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       : VirtualObject(bitfield, map, id, vobj::kNoObjectLayout, slot_count,
                       slots) {}
 
-  explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
-                         uint32_t length,
-                         compiler::FixedDoubleArrayRef elements)
-      : Base(bitfield),
-        map_(map),
-        id_(id),
-        type_(kFixedDoubleArray),
-        double_array_({length, elements}) {
-    DCHECK(has_static_map());
-  }
-
   explicit VirtualObject(uint64_t bitfield, uint32_t id,
                          MaglevGraphBuilder* builder,
                          const vobj::ObjectLayout* object_layout,
@@ -6358,7 +6348,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         id_(id),
         type_(kDefault),
         slots_({slot_count, slots}),
-        object_layout_(object_layout) {}
+        object_layout_(object_layout) {
+    DCHECK_NOT_NULL(object_layout_);
+  }
 
   void SetValueLocationConstraints() { UNREACHABLE(); }
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
@@ -6407,18 +6399,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
       case kHeapNumber:
         return sizeof(HeapNumber);
       case kFixedDoubleArray:
-        return FixedDoubleArray::SizeFor(double_elements_length());
+        UNREACHABLE();
     }
-  }
-
-  uint32_t double_elements_length() const {
-    DCHECK_EQ(type_, kFixedDoubleArray);
-    return double_array_.length;
-  }
-
-  compiler::FixedDoubleArrayRef double_elements() const {
-    DCHECK_EQ(type_, kFixedDoubleArray);
-    return double_array_.values;
   }
 
   ValueNode* get(uint32_t offset) const {
@@ -6690,9 +6672,22 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         // map, value.
         return 2;
       case kFixedDoubleArray:
-        // map, length, elements...
-        return 2 + double_elements_length();
+        UNREACHABLE();
     }
+  }
+
+  const vobj::Field FieldForOffset(int offset) const {
+    return FieldForSlot(object_layout_->SlotAtOffset(offset));
+  }
+
+  vobj::Field FieldForSlot(int i) const {
+    DCHECK_EQ(type_, kDefault);
+    DCHECK_LT(i, slot_count());
+    if (i < header_slot_count()) {
+      return object_layout_->header_fields[i];
+    }
+    int offset = header_size() + (i - header_slot_count()) * body_field_size();
+    return vobj::Field{i, offset, object_layout_->body_field_type};
   }
 
  private:
@@ -6714,28 +6709,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     slots_.data[i] = value;
   }
 
-  const vobj::Field FieldForOffset(int offset) const {
-    return FieldForSlot(object_layout_->SlotAtOffset(offset));
-  }
-
-  vobj::Field FieldForSlot(int i) const {
-    SBXCHECK_GE(i, 0);
-    DCHECK_EQ(type_, kDefault);
-    DCHECK_LT(i, slot_count());
-    if (i < header_slot_count()) {
-      return object_layout_->header_fields[i];
-    }
-    int offset = header_size() + (i - header_slot_count()) * body_field_size();
-    return vobj::Field{i, offset, object_layout_->body_field_type};
-  }
-
   static ValueNode* InitialFieldValue(MaglevGraphBuilder* builder,
                                       vobj::FieldType type);
 
-  struct DoubleArray {
-    uint32_t length;
-    compiler::FixedDoubleArrayRef values;
-  };
   struct ObjectFields {
     uint32_t count;    // Does not count the map.
     ValueNode** data;  // Does not contain the map.
@@ -6747,10 +6723,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
                // parts of the pipeline, because we would need to dereference a
                // handle.
   bool snapshotted_ = false;  // Object should not be modified anymore.
-  union {
-    DoubleArray double_array_;
-    ObjectFields slots_;
-  };
+  ObjectFields slots_;
   const vobj::ObjectLayout* object_layout_ = nullptr;
   mutable InlinedAllocation* allocation_ = nullptr;
 
@@ -6938,6 +6911,11 @@ struct VirtualFixedDoubleArrayShape : VirtualHeapObjectShape {
   using Base = VirtualHeapObjectShape;
   static constexpr bool kInstancesHaveStaticSize = false;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kFloat64;
+  // Special handling needed; hole translation for deopt materialization.
+  static constexpr vobj::ObjectType kObjectType =
+      vobj::ObjectType::kFixedDoubleArray;
+  // TODO(jgruber): Support other node kinds for elements.
+  static constexpr bool kElementsAreFloat64Constant = true;
 #define FIELD_LIST(V) \
   V(length, FixedArrayBase::kLengthOffset, vobj::FieldType::kTagged)
   DEF_SHAPE(Base, FIELD_LIST);

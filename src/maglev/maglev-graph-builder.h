@@ -1488,8 +1488,8 @@ class MaglevGraphBuilder {
 
   VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
   VirtualObject* CreateHeapNumber(ValueNode* value);
-  VirtualObject* CreateFixedDoubleArray(uint32_t elements_length,
-                                        compiler::FixedDoubleArrayRef elements);
+  VirtualObject* CreateFixedDoubleArray(
+      const compiler::FixedDoubleArrayRef& elements);
   VirtualObject* CreateJSObject(compiler::MapRef map);
   VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
                                   ValueNode* first, ValueNode* second);
@@ -1542,8 +1542,6 @@ class MaglevGraphBuilder {
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
 
-  InlinedAllocation* BuildInlinedAllocationForDoubleFixedArray(
-      VirtualObject* object, AllocationType allocation);
   InlinedAllocation* BuildInlinedAllocation(VirtualObject* object,
                                             AllocationType allocation);
   ValueNode* BuildInlinedArgumentsElements(int start_index, int length);

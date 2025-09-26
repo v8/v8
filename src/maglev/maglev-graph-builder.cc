@@ -4893,23 +4893,33 @@ ReduceResult MaglevGraphBuilder::BuildStoreFixedArrayElement(
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
     ValueNode* elements, int index) {
-  // We won't try to reason about the type of the elements array and thus also
-  // cannot end up with an empty type for it.
-  DCHECK(!IsEmptyNodeType(GetType(elements)));
-  if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
-    VirtualObject* vobject =
-        GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
-    compiler::FixedDoubleArrayRef elements_array = vobject->double_elements();
-    if (index >= 0 && static_cast<uint32_t>(index) < elements_array.length()) {
-      Float64 value = elements_array.GetFromImmutableFixedDoubleArray(index);
-      return GetFloat64Constant(value.get_scalar());
-    } else {
-      return BuildAbort(AbortReason::kUnreachable);
-    }
-  }
   if (index < 0 || index >= FixedArray::kMaxLength) {
     return BuildAbort(AbortReason::kUnreachable);
   }
+
+  // We won't try to reason about the type of the elements array and thus also
+  // cannot end up with an empty type for it.
+  DCHECK(!IsEmptyNodeType(GetType(elements)));
+
+  if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
+    VirtualObject* vobject =
+        GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
+    std::optional<uint32_t> length =
+        TryGetUint32Constant(vobject->get(FixedArrayBase::kLengthOffset));
+    if (length.has_value()) {
+      if (static_cast<uint32_t>(index) < length.value()) {
+        ValueNode* value =
+            vobject->get(FixedDoubleArray::OffsetOfElementAt(index));
+        static_assert(
+            VirtualFixedDoubleArrayShape::kElementsAreFloat64Constant);
+        DCHECK(value->Is<Float64Constant>());
+        return value;
+      } else {
+        return BuildAbort(AbortReason::kUnreachable);
+      }
+    }
+  }
+
   return AddNewNodeNoInputConversion<LoadFixedDoubleArrayElement>(
       {elements, GetInt32Constant(index)});
 }
@@ -13407,8 +13417,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       if (size > kMaxRegularHeapObjectSize) return {};
       fast_literal->set(
           JSObject::kElementsOffset,
-          CreateFixedDoubleArray(elements_length,
-                                 boilerplate_elements.AsFixedDoubleArray()));
+          CreateFixedDoubleArray(boilerplate_elements.AsFixedDoubleArray()));
     } else {
       int const size = FixedArray::SizeFor(elements_length);
       if (size > kMaxRegularHeapObjectSize) return {};
@@ -13466,12 +13475,23 @@ VirtualObject* MaglevGraphBuilder::CreateHeapNumber(ValueNode* value) {
 }
 
 VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
-    uint32_t elements_length, compiler::FixedDoubleArrayRef elements) {
-  // VirtualObjects are not added to the Maglev graph.
-  VirtualObject* vobject = NodeBase::New<VirtualObject>(
-      zone(), 0, broker()->fixed_double_array_map(), NewObjectId(),
-      elements_length, elements);
-  return vobject;
+    const compiler::FixedDoubleArrayRef& elements) {
+  using Shape = VirtualFixedDoubleArrayShape;
+  uint32_t length = elements.length();
+  SBXCHECK_GT(length, 0);
+  int slot_count = Shape::header_slot_count + length;
+  compiler::MapRef map = broker()->fixed_double_array_map();
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  DCHECK_EQ(Shape::header_slot_count, 2);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
+  for (uint32_t i = 0; i < length; i++) {
+    static_assert(Shape::kElementsAreFloat64Constant);
+    vobj->set(FixedDoubleArray::OffsetOfElementAt(i),
+              GetFloat64Constant(elements.GetFromImmutableFixedDoubleArray(i)));
+  }
+  return vobj;
 }
 
 VirtualObject* MaglevGraphBuilder::CreateConsString(ValueNode* map,
@@ -13843,32 +13863,6 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
   });
 }
 
-InlinedAllocation*
-MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
-    VirtualObject* vobject, AllocationType allocation_type) {
-  DCHECK(vobject->map().IsFixedDoubleArrayMap());
-  InlinedAllocation* allocation =
-      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
-  int length = vobject->double_elements_length();
-  AddNonEscapingUses(allocation, length + 2);
-  ReduceResult result =
-      BuildStoreMap(allocation, broker()->fixed_double_array_map(),
-                    StoreMap::Kind::kInlinedAllocation);
-  CHECK(!result.IsDoneWithAbort());
-  AddNewNodeNoInputConversion<StoreTaggedFieldNoWriteBarrier>(
-      {allocation, GetSmiConstant(length)},
-      static_cast<int>(offsetof(FixedDoubleArray, length_)),
-      StoreTaggedMode::kDefault);
-  for (int i = 0; i < length; ++i) {
-    AddNewNodeNoInputConversion<StoreFloat64>(
-        {allocation,
-         GetFloat64Constant(
-             vobject->double_elements().GetFromImmutableFixedDoubleArray(i))},
-        FixedDoubleArray::OffsetOfElementAt(i));
-  }
-  return allocation;
-}
-
 InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
     VirtualObject* vobject, AllocationType allocation_type) {
   current_interpreter_frame_.add_object(vobject);
@@ -13876,11 +13870,8 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
   switch (vobject->type()) {
     case VirtualObject::kHeapNumber:
     case VirtualObject::kConsString:
-      UNREACHABLE();
     case VirtualObject::kFixedDoubleArray:
-      allocation =
-          BuildInlinedAllocationForDoubleFixedArray(vobject, allocation_type);
-      break;
+      UNREACHABLE();
     case VirtualObject::kDefault: {
       using ValueAndDesc = std::pair<ValueNode*, vobj::Field>;
       SmallZoneVector<ValueAndDesc, 8> values(zone());
@@ -16731,32 +16722,22 @@ ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
                                                       uint32_t offset,
                                                       LoadType type,
                                                       Args&&... args) {
-  if (offset != HeapObject::kMapOffset &&
-      CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
-    VirtualObject* vobject =
-        GetObjectFromAllocation(object->Cast<InlinedAllocation>());
-    ValueNode* value;
-    CHECK_NE(vobject->type(), VirtualObject::kHeapNumber);
-    if (vobject->type() == VirtualObject::kDefault) {
-      // TODO(jgruber): The VirtualObject knows whether the field at the
-      // given offset is tagged. Add a DCHECK.
-      value = vobject->get(offset);
-    } else {
-      DCHECK_EQ(vobject->type(), VirtualObject::kFixedDoubleArray);
-      // The only offset we're allowed to read from the a FixedDoubleArray as
-      // tagged field is the length.
-      CHECK_EQ(offset, offsetof(FixedDoubleArray, length_));
-      value = GetInt32Constant(vobject->double_elements_length());
-    }
-    if (v8_flags.trace_maglev_object_tracking) {
-      std::cout << "  * Reusing value in virtual object "
-                << PrintNodeLabel(vobject) << "[" << offset
-                << "]: " << PrintNode(value) << std::endl;
-    }
-    return value;
+  if (!CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
+    return AddNewNode<Instruction>({object}, offset,
+                                   std::forward<Args>(args)..., type);
   }
-  return AddNewNode<Instruction>({object}, offset, std::forward<Args>(args)...,
-                                 type);
+
+  VirtualObject* vobject =
+      GetObjectFromAllocation(object->Cast<InlinedAllocation>());
+  ValueNode* value;
+  CHECK_EQ(vobject->FieldForOffset(offset).type, vobj::FieldType::kTagged);
+  value = vobject->get(offset);
+  if (v8_flags.trace_maglev_object_tracking) {
+    std::cout << "  * Reusing value in virtual object "
+              << PrintNodeLabel(vobject) << "[" << offset
+              << "]: " << PrintNode(value) << std::endl;
+  }
+  return value;
 }
 
 void MaglevGraphBuilder::AddDeoptUse(ValueNode* node) {
