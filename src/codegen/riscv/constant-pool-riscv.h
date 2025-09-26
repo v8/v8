@@ -10,6 +10,7 @@
 #include "src/base/numbers/double.h"
 #include "src/codegen/label.h"
 #include "src/codegen/reloc-info.h"
+#include "src/codegen/riscv/base-constants-riscv.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -21,68 +22,44 @@ class ConstantPoolKey {
  public:
   explicit ConstantPoolKey(uint64_t value,
                            RelocInfo::Mode rmode = RelocInfo::NO_INFO)
-      : is_value32_(false), value64_(value), rmode_(rmode) {}
+      : value_(value), rmode_(rmode) {}
 
-  explicit ConstantPoolKey(uint32_t value,
-                           RelocInfo::Mode rmode = RelocInfo::NO_INFO)
-      : is_value32_(true), value32_(value), rmode_(rmode) {}
-
-  uint64_t value64() const {
-    CHECK(!is_value32_);
-    return value64_;
-  }
-  uint32_t value32() const {
-    CHECK(is_value32_);
-    return value32_;
-  }
-
-  bool is_value32() const { return is_value32_; }
+  uint64_t value() const { return value_; }
   RelocInfo::Mode rmode() const { return rmode_; }
 
   bool AllowsDeduplication() const {
-    DCHECK(rmode_ != RelocInfo::CONST_POOL &&
-           rmode_ != RelocInfo::VENEER_POOL &&
-           rmode_ != RelocInfo::DEOPT_SCRIPT_OFFSET &&
-           rmode_ != RelocInfo::DEOPT_INLINING_ID &&
-           rmode_ != RelocInfo::DEOPT_REASON && rmode_ != RelocInfo::DEOPT_ID &&
-           rmode_ != RelocInfo::DEOPT_NODE_ID);
-    // CODE_TARGETs can be shared because they aren't patched anymore,
-    // and we make sure we emit only one reloc info for them (thus delta
-    // patching) will apply the delta only once. At the moment, we do not dedup
-    // code targets if they are wrapped in a heap object request (value == 0).
+    DCHECK_NE(rmode_, RelocInfo::CONST_POOL);
+    DCHECK_NE(rmode_, RelocInfo::VENEER_POOL);
+    DCHECK_NE(rmode_, RelocInfo::DEOPT_SCRIPT_OFFSET);
+    DCHECK_NE(rmode_, RelocInfo::DEOPT_INLINING_ID);
+    DCHECK_NE(rmode_, RelocInfo::DEOPT_REASON);
+    DCHECK_NE(rmode_, RelocInfo::DEOPT_ID);
+    DCHECK_NE(rmode_, RelocInfo::DEOPT_NODE_ID);
+    // Code targets can be shared because they aren't patched anymore, and we
+    // make sure we emit only one reloc info for them (thus delta patching) will
+    // apply the delta only once. At the moment, we do not dedup code targets if
+    // they are wrapped in a heap object request (value == 0).
     bool is_sharable_code_target =
-        rmode_ == RelocInfo::CODE_TARGET &&
-        (is_value32() ? (value32() != 0) : (value64() != 0));
+        RelocInfo::IsCodeTarget(rmode_) && value() != 0;
     bool is_sharable_embedded_object = RelocInfo::IsEmbeddedObjectMode(rmode_);
     return RelocInfo::IsShareableRelocMode(rmode_) || is_sharable_code_target ||
            is_sharable_embedded_object;
   }
 
  private:
-  bool is_value32_;
-  union {
-    uint64_t value64_;
-    uint32_t value32_;
-  };
-  RelocInfo::Mode rmode_;
+  const uint64_t value_;
+  const RelocInfo::Mode rmode_;
 };
 
-// Order for pool entries. 64bit entries go first.
+// Order for pool entries.
 inline bool operator<(const ConstantPoolKey& a, const ConstantPoolKey& b) {
-  if (a.is_value32() < b.is_value32()) return true;
-  if (a.is_value32() > b.is_value32()) return false;
   if (a.rmode() < b.rmode()) return true;
   if (a.rmode() > b.rmode()) return false;
-  if (a.is_value32()) return a.value32() < b.value32();
-  return a.value64() < b.value64();
+  return a.value() < b.value();
 }
 
 inline bool operator==(const ConstantPoolKey& a, const ConstantPoolKey& b) {
-  if (a.rmode() != b.rmode() || a.is_value32() != b.is_value32()) {
-    return false;
-  }
-  if (a.is_value32()) return a.value32() == b.value32();
-  return a.value64() == b.value64();
+  return (a.rmode() == b.rmode()) && (a.value() == b.value());
 }
 
 // Constant pool generation
@@ -105,12 +82,12 @@ class ConstantPool {
   explicit ConstantPool(Assembler* assm);
   ~ConstantPool();
 
-  // Returns true when we need to write RelocInfo and false when we do not.
+  // Records a constant pool entry. Returns whether we need to write RelocInfo.
   RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode);
 
-  size_t Entry32Count() const { return entry32_count_; }
-  size_t Entry64Count() const { return entry64_count_; }
-  bool IsEmpty() const { return entries_.empty(); }
+  size_t EntryCount() const { return deduped_entry_count_; }
+  bool IsEmpty() const { return deduped_entry_count_ == 0; }
+
   // Check if pool will be out of range at {pc_offset}.
   bool IsInImmRangeIfEmittedAt(int pc_offset);
   // Size in bytes of the constant pool. Depending on parameters, the size will
@@ -130,8 +107,8 @@ class ConstantPool {
   bool IsBlocked() const;
 
   // Repeated checking whether the constant pool should be emitted is expensive;
-  // only check once a number of instructions have been generated.
-  void SetNextCheckIn(size_t instructions);
+  // only check once a number of bytes have been generated.
+  void SetNextCheckIn(size_t bytes);
 
   // Class for scoping postponing the constant pool generation.
   class V8_EXPORT_PRIVATE V8_NODISCARD BlockScope {
@@ -148,20 +125,21 @@ class ConstantPool {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockScope);
   };
 
+  // Pool entries are accessed with pc relative load therefore this cannot be
+  // more than 1 * MB. Since constant pool emission checks are interval based,
+  // and we want to keep entries close to the code, we try to emit every 64KB.
+
   // Hard limit to the const pool which must not be exceeded.
-  static const size_t kMaxDistToPool32;
-  static const size_t kMaxDistToPool64;
+  static const size_t kMaxDistToPool = 1 * MB;
   // Approximate distance where the pool should be emitted.
-  static const size_t kApproxDistToPool32;
-  V8_EXPORT_PRIVATE static const size_t kApproxDistToPool64;
-  // Approximate distance where the pool may be emitted if
-  // no jump is required (due to a recent unconditional jump).
-  static const size_t kOpportunityDistToPool32;
-  static const size_t kOpportunityDistToPool64;
+  V8_EXPORT_PRIVATE static const size_t kApproxDistToPool = 64 * KB;
+  // Approximate distance where the pool may be emitted if no jump is required
+  // (due to a recent unconditional jump).
+  static const size_t kOpportunityDistToPool = 64 * KB;
   // PC distance between constant pool checks.
-  V8_EXPORT_PRIVATE static const size_t kCheckInterval;
+  V8_EXPORT_PRIVATE static const size_t kCheckInterval = 128 * kInstrSize;
   // Number of entries in the pool which trigger a check.
-  static const size_t kApproxMaxEntryCount;
+  static const size_t kApproxMaxEntryCount = 512;
 
  private:
   void StartBlock();
@@ -179,10 +157,11 @@ class ConstantPool {
                                            int pc_offset) const;
 
   Assembler* assm_;
+
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
-  int first_use_32_ = -1;
-  int first_use_64_ = -1;
+  int first_use_ = -1;
+
   // We sort not according to insertion order, but since we do not insert
   // addresses (for heap objects we insert an index which is created in
   // increasing order), the order is deterministic. We map each entry to the
@@ -190,8 +169,11 @@ class ConstantPool {
   // pc offset of each load of the same constant so that the immediate of the
   // loads can be back-patched when the pool is emitted.
   std::multimap<ConstantPoolKey, int> entries_;
-  size_t entry32_count_ = 0;
-  size_t entry64_count_ = 0;
+
+  // Number of entries after deduping. This is different than {entries_.size()}
+  // which represents the total number of entries.
+  size_t deduped_entry_count_ = 0;
+
   int next_check_ = 0;
   int blocked_nesting_ = 0;
 };

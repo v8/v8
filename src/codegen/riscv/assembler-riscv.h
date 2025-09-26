@@ -868,10 +868,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
 
-  inline int ConstpoolComputesize() {
-    return constpool_.ComputeSize(Jump::kOmitted, Alignment::kOmitted);
-  }
-
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -897,9 +893,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   int next_buffer_check_;  // pc offset of next buffer check.
 
-  // Emission of the trampoline pool may be blocked in some code sequences.
-  int trampoline_pool_blocked_nesting_ =
-      0;  // Block emission if this is not zero.
+  // Emission of the trampoline pool may be blocked in some code sequences. The
+  // nesting is zero when the pool isn't blocked.
+  int trampoline_pool_blocked_nesting_ = 0;
 
   // Automatic growth of the assembly buffer may be blocked for some sequences.
   bool block_buffer_growth_ = false;  // Block growth when true.

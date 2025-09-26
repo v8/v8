@@ -9,48 +9,28 @@
 namespace v8 {
 namespace internal {
 
-// Pool entries are accessed with pc relative load therefore this cannot be more
-// than 1 * MB. Since constant pool emission checks are interval based, and we
-// want to keep entries close to the code, we try to emit every 64KB.
-const size_t ConstantPool::kMaxDistToPool32 = 1 * MB;
-const size_t ConstantPool::kMaxDistToPool64 = 1 * MB;
-const size_t ConstantPool::kCheckInterval = 128 * kInstrSize;
-const size_t ConstantPool::kApproxDistToPool32 = 64 * KB;
-const size_t ConstantPool::kApproxDistToPool64 = kApproxDistToPool32;
-
-const size_t ConstantPool::kOpportunityDistToPool32 = 64 * KB;
-const size_t ConstantPool::kOpportunityDistToPool64 = 64 * KB;
-const size_t ConstantPool::kApproxMaxEntryCount = 512;
-
 ConstantPool::ConstantPool(Assembler* assm) : assm_(assm) {}
 ConstantPool::~ConstantPool() { DCHECK_EQ(blocked_nesting_, 0); }
 
 RelocInfoStatus ConstantPool::RecordEntry64(uint64_t data,
                                             RelocInfo::Mode rmode) {
   ConstantPoolKey key(data, rmode);
-  CHECK(!key.is_value32());
   return RecordKey(std::move(key), assm_->pc_offset());
 }
 
 RelocInfoStatus ConstantPool::RecordKey(ConstantPoolKey key, int offset) {
-  RelocInfoStatus write_reloc_info = GetRelocInfoStatusFor(key);
-  if (write_reloc_info == RelocInfoStatus::kMustRecord) {
-    if (key.is_value32()) {
-      if (entry32_count_ == 0) first_use_32_ = offset;
-      ++entry32_count_;
-    } else {
-      if (entry64_count_ == 0) first_use_64_ = offset;
-      ++entry64_count_;
+  RelocInfoStatus status = GetRelocInfoStatusFor(key);
+  if (status == RelocInfoStatus::kMustRecord) {
+    size_t count = ++deduped_entry_count_;
+    if (count == 1) {
+      first_use_ = offset;
+    } else if (count > ConstantPool::kApproxMaxEntryCount) {
+      // Request constant pool emission after the next instruction.
+      SetNextCheckIn(kInstrSize);
     }
   }
   entries_.insert(std::make_pair(key, offset));
-
-  if (Entry32Count() + Entry64Count() > ConstantPool::kApproxMaxEntryCount) {
-    // Request constant pool emission after the next instruction.
-    SetNextCheckIn(1);
-  }
-
-  return write_reloc_info;
+  return status;
 }
 
 RelocInfoStatus ConstantPool::GetRelocInfoStatusFor(
@@ -88,45 +68,42 @@ void ConstantPool::EmitAndClear(Jump require_jump) {
   //  1) Encode the size of the constant pool, for use by the disassembler.
   //  2) Terminate the program, to try to prevent execution from accidentally
   //     flowing into the constant pool.
-  //  3) align the 64bit pool entries to 64-bit.
-  // TODO(all): Make the alignment part less fragile. Currently code is
-  // allocated as a byte array so there are no guarantees the alignment will
-  // be preserved on compaction. Currently it works as allocation seems to be
-  // 64-bit aligned.
+  //  3) align the pool entries to 64-bit.
+
   DEBUG_PRINTF("\tConstant Pool start\n")
   Label after_pool;
   if (require_jump == Jump::kRequired) assm_->b(&after_pool);
 
   assm_->RecordComment("[ Constant Pool");
-
   EmitPrologue(require_alignment);
   if (require_alignment == Alignment::kRequired) assm_->DataAlign(kInt64Size);
   EmitEntries();
-  // Emit padding data to ensure the constant pool size matches the expected
-  // constant count during disassembly.
-  if (v8_flags.riscv_c_extension) {
-    int code_size = assm_->SizeOfCodeGeneratedSince(&size_check);
-    DCHECK_LE(code_size, size);
 
+  // Emit padding data to ensure the constant pool size matches the expected
+  // constant count during disassembly. This can only happen if we ended up
+  // overestimating the size of the pool in {ComputeSize}.
+  int code_size = assm_->SizeOfCodeGeneratedSince(&size_check);
+  if (v8_flags.riscv_c_extension) {
+    DCHECK_LE(code_size, size);
     while (code_size < size) {
       assm_->db(0xcc);
       code_size++;
     }
+  } else {
+    DCHECK_EQ(size, code_size);
   }
+
   assm_->RecordComment("]");
   assm_->bind(&after_pool);
   DEBUG_PRINTF("\tConstant Pool end\n")
-
   DCHECK_EQ(size, assm_->SizeOfCodeGeneratedSince(&size_check));
   Clear();
 }
 
 void ConstantPool::Clear() {
   entries_.clear();
-  first_use_32_ = -1;
-  first_use_64_ = -1;
-  entry32_count_ = 0;
-  entry64_count_ = 0;
+  first_use_ = -1;
+  deduped_entry_count_ = 0;
   next_check_ = 0;
 }
 
@@ -150,14 +127,13 @@ void ConstantPool::EndBlock() {
 
 bool ConstantPool::IsBlocked() const { return blocked_nesting_ > 0; }
 
-void ConstantPool::SetNextCheckIn(size_t instructions) {
-  next_check_ =
-      assm_->pc_offset() + static_cast<int>(instructions * kInstrSize);
+void ConstantPool::SetNextCheckIn(size_t bytes) {
+  next_check_ = assm_->pc_offset() + static_cast<int>(bytes);
 }
 
 void ConstantPool::EmitEntries() {
   for (auto iter = entries_.begin(); iter != entries_.end();) {
-    DCHECK(iter->first.is_value32() || IsAligned(assm_->pc_offset(), 8));
+    DCHECK(IsAligned(assm_->pc_offset(), 8));
     auto range = entries_.equal_range(iter->first);
     bool shared = iter->first.AllowsDeduplication();
     for (auto it = range.first; it != range.second; ++it) {
@@ -169,105 +145,66 @@ void ConstantPool::EmitEntries() {
   }
 }
 
-void ConstantPool::Emit(const ConstantPoolKey& key) {
-  if (key.is_value32()) {
-    assm_->dd(key.value32());
-  } else {
-    assm_->dq(key.value64());
-  }
-}
+void ConstantPool::Emit(const ConstantPoolKey& key) { assm_->dq(key.value()); }
 
 bool ConstantPool::ShouldEmitNow(Jump require_jump, size_t margin) const {
   if (IsEmpty()) return false;
-  if (Entry32Count() + Entry64Count() > ConstantPool::kApproxMaxEntryCount) {
-    return true;
-  }
-  // We compute {dist32/64}, i.e. the distance from the first instruction
-  // accessing a 32bit/64bit entry in the constant pool to any of the
-  // 32bit/64bit constant pool entries, respectively. This is required because
-  // we do not guarantee that entries are emitted in order of reference, i.e. it
-  // is possible that the entry with the earliest reference is emitted last.
-  // The constant pool should be emitted if either of the following is true:
-  // (A) {dist32/64} will be out of range at the next check in.
-  // (B) Emission can be done behind an unconditional branch and {dist32/64}
-  // exceeds {kOpportunityDist*}.
-  // (C) {dist32/64} exceeds the desired approximate distance to the pool.
+  if (EntryCount() > ConstantPool::kApproxMaxEntryCount) return true;
+  // We compute {dist}, i.e. the distance from the first instruction accessing
+  // an entry in the constant pool to any of the constant pool entries,
+  // respectively. This is required because we do not guarantee that entries
+  // are emitted in order of reference, i.e. it is possible that the entry with
+  // the earliest reference is emitted last. The constant pool should be emitted
+  // if either of the following is true:
+  // (A) {dist} will be out of range at the next check in.
+  // (B) Emission can be done behind an unconditional branch and {dist}
+  // exceeds {kOpportunityDistToPool}.
+  // (C) {dist} exceeds the desired approximate distance to the pool.
   int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
-  size_t pool_end_32 = assm_->pc_offset() + margin + worst_case_size;
-  size_t pool_end_64 = pool_end_32 - Entry32Count() * kInt32Size;
-  if (Entry64Count() != 0) {
-    // The 64-bit constants are always emitted before the 32-bit constants, so
-    // we subtract the size of the 32-bit constants from {size}.
-    size_t dist64 = pool_end_64 - first_use_64_;
-    bool next_check_too_late = dist64 + 2 * kCheckInterval >= kMaxDistToPool64;
-    bool opportune_emission_without_jump =
-        require_jump == Jump::kOmitted && (dist64 >= kOpportunityDistToPool64);
-    bool approximate_distance_exceeded = dist64 >= kApproxDistToPool64;
-    if (next_check_too_late || opportune_emission_without_jump ||
-        approximate_distance_exceeded) {
-      return true;
-    }
-  }
-  if (Entry32Count() != 0) {
-    size_t dist32 = pool_end_32 - first_use_32_;
-    bool next_check_too_late = dist32 + 2 * kCheckInterval >= kMaxDistToPool32;
-    bool opportune_emission_without_jump =
-        require_jump == Jump::kOmitted && (dist32 >= kOpportunityDistToPool32);
-    bool approximate_distance_exceeded = dist32 >= kApproxDistToPool32;
-    if (next_check_too_late || opportune_emission_without_jump ||
-        approximate_distance_exceeded) {
-      return true;
-    }
-  }
-  return false;
+  size_t pool_end = assm_->pc_offset() + margin + worst_case_size;
+  size_t dist = pool_end - first_use_;
+  bool next_check_too_late = dist + 2 * kCheckInterval >= kMaxDistToPool;
+  bool opportune_emission_without_jump =
+      require_jump == Jump::kOmitted && (dist >= kOpportunityDistToPool);
+  bool approximate_distance_exceeded = dist >= kApproxDistToPool;
+  return next_check_too_late || opportune_emission_without_jump ||
+         approximate_distance_exceeded;
 }
 
 int ConstantPool::ComputeSize(Jump require_jump,
                               Alignment require_alignment) const {
-  int size_up_to_marker = PrologueSize(require_jump);
-  // With RVC enabled, constant pool alignment must use kInt64Size to ensure
-  // sufficient padding space for 8-byte alignment; otherwise, alignment may
-  // fail.
-  //
-  // Example:
-  //   pc_offset = 0x22
-  //   Aligned(0x22, kInt64Size) = 0x28 → 6 bytes of padding needed.
-  int alignment = require_alignment == Alignment::kRequired
-                      ? (v8_flags.riscv_c_extension ? kInt64Size : kInstrSize)
-                      : 0;
-  size_t size_after_marker =
-      Entry32Count() * kInt32Size + alignment + Entry64Count() * kInt64Size;
-  return size_up_to_marker + static_cast<int>(size_after_marker);
+  int prologue_size = PrologueSize(require_jump);
+  // TODO(kasperl): It would be nice to just compute the exact amount of
+  // padding needed, but that requires knowing the {pc_offset} where the
+  // constant pool will be emitted. For now, we will just compute the
+  // maximum padding needed and add additional padding after the pool if
+  // we overestimated it.
+  size_t max_padding = 0;
+  if (require_alignment == Alignment::kRequired) {
+    size_t instruction_size = kInstrSize;
+    if (v8_flags.riscv_c_extension) instruction_size = kShortInstrSize;
+    max_padding = kInt64Size - instruction_size;
+  }
+  size_t entries_size = max_padding + EntryCount() * kInt64Size;
+  return prologue_size + static_cast<int>(entries_size);
 }
 
 Alignment ConstantPool::IsAlignmentRequiredIfEmittedAt(Jump require_jump,
                                                        int pc_offset) const {
-  // When the RVC extension is enabled, constant pool entries must be aligned to
-  // kInstrSize to prevent unaligned 32-bit memory accesses.
-  int size_up_to_marker = PrologueSize(require_jump);
-  if ((Entry64Count() != 0 &&
-       !IsAligned(pc_offset + size_up_to_marker, kInt64Size)) ||
-      (Entry32Count() != 0 && v8_flags.riscv_c_extension &&
-       !IsAligned(pc_offset + size_up_to_marker, kInstrSize))) {
-    return Alignment::kRequired;
-  }
-  return Alignment::kOmitted;
+  if (EntryCount() == 0) return Alignment::kOmitted;
+  int prologue_size = PrologueSize(require_jump);
+  return IsAligned(pc_offset + prologue_size, kInt64Size)
+             ? Alignment::kOmitted
+             : Alignment::kRequired;
 }
 
 bool ConstantPool::IsInImmRangeIfEmittedAt(int pc_offset) {
   // Check that all entries are in range if the pool is emitted at {pc_offset}.
-  // This ignores kPcLoadDelta (conservatively, since all offsets are positive),
-  // and over-estimates the last entry's address with the pool's end.
+  if (EntryCount() == 0) return true;
   Alignment require_alignment =
       IsAlignmentRequiredIfEmittedAt(Jump::kRequired, pc_offset);
-  size_t pool_end_32 =
-      pc_offset + ComputeSize(Jump::kRequired, require_alignment);
-  size_t pool_end_64 = pool_end_32 - Entry32Count() * kInt32Size;
-  bool entries_in_range_32 =
-      Entry32Count() == 0 || (pool_end_32 < first_use_32_ + kMaxDistToPool32);
-  bool entries_in_range_64 =
-      Entry64Count() == 0 || (pool_end_64 < first_use_64_ + kMaxDistToPool64);
-  return entries_in_range_32 && entries_in_range_64;
+  size_t pool_end = pc_offset + ComputeSize(Jump::kRequired, require_alignment);
+  return pool_end < first_use_ + kMaxDistToPool;
 }
 
 ConstantPool::BlockScope::BlockScope(Assembler* assm, size_t margin)
@@ -293,24 +230,23 @@ void ConstantPool::MaybeCheck() {
 void ConstantPool::EmitPrologue(Alignment require_alignment) {
   // Recorded constant pool size is expressed in number of 32-bits words,
   // and includes prologue and alignment, but not the jump around the pool
-  // and the size of the marker itself.
-  // word_count may exceed 12 bits, so auipc is used.
-  const int marker_size = 1;
-  int word_count =
-      ComputeSize(Jump::kOmitted, require_alignment) / kInt32Size - marker_size;
-  DCHECK(is_int20(word_count));
-  assm_->auipc(zero_reg, word_count);
+  // and the size of the marker itself. The word count may exceed 12 bits,
+  // so 'auipc' is used as the marker.
+  const int kMarkerSize = kInstrSize;  // Size of 'auipc' instruction.
+  int size = ComputeSize(Jump::kOmitted, require_alignment) - kMarkerSize;
+  int words = RoundUp(size, kInt32Size) / kInt32Size;
+  DCHECK(is_int20(words));
+  assm_->auipc(zero_reg, words);
   assm_->EmitPoolGuard();
 }
 
 int ConstantPool::PrologueSize(Jump require_jump) const {
   // Prologue is:
-  //   j over  ;; if require_jump
-  //   ld x0, x0, #pool_size
-  //   j 0x0
-  int prologue_size = require_jump == Jump::kRequired ? kInstrSize : 0;
-  prologue_size += 2 * kInstrSize;
-  return prologue_size;
+  //   j     L               ;; Optional, only if {require_jump}.
+  //   auipc x0, x0, #words  ;; Pool marker, encodes size in words.
+  //   j     0x0             ;; Pool guard.
+  // L:
+  return (require_jump == Jump::kRequired) ? 3 * kInstrSize : 2 * kInstrSize;
 }
 
 void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
@@ -318,11 +254,13 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
                                                  const ConstantPoolKey& key) {
   Instr instr_auipc = assm_->instr_at(load_offset);
   Instr instr_load = assm_->instr_at(load_offset + 4);
-  // Instruction to patch must be 'ld/lw rd, offset(rd)' with 'offset == 0'.
+  // Instructions to patch must be:
+  //   auipc rd, 0(rd)
+  //   ld    rd, 1(rd)
   DCHECK(assm_->IsAuipc(instr_auipc));
   DCHECK(assm_->IsLoadWord(instr_load));
-  DCHECK_EQ(assm_->LoadOffset(instr_load), 1);
   DCHECK_EQ(assm_->AuipcOffset(instr_auipc), 0);
+  DCHECK_EQ(assm_->LoadOffset(instr_load), 1);
   int32_t distance = static_cast<int32_t>(
       reinterpret_cast<Address>(entry_offset) -
       reinterpret_cast<Address>(assm_->toAddress(load_offset)));
