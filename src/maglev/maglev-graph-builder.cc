@@ -4133,6 +4133,10 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
+  // For constants, we may be able to skip the runtime check.
+  if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
+    if (Smi::IsValid(constant_value.value())) return object;
+  }
   switch (object->value_representation()) {
     case ValueRepresentation::kInt32:
       if (!SmiValuesAre32Bits()) {
@@ -12284,6 +12288,17 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   // Arity > 1, `new Array(x0, x1, ...)`.
   DCHECK_GT(arity, 1);
 
+  auto node_type_of = [=, this](ValueNode* v) {
+    DCHECK(IsConstantNode(v->opcode()));
+    if (std::optional<int32_t> constant_int32 = TryGetInt32Constant(v)) {
+      return Smi::IsValid(constant_int32.value()) ? NodeType::kSmi
+                                                  : NodeType::kHeapNumber;
+    }
+    return TryGetFloat64Constant(v, TaggedToFloat64ConversionType::kOnlyNumber)
+               ? NodeType::kHeapNumber
+               : NodeType::kAnyHeapObject;
+  };
+
   // Gather the values to store into the newly created array, and remember
   // sufficient information about node types so we can select a suitable
   // elements_kind below.
@@ -12294,9 +12309,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   for (ValueNode* v : args) {
     NodeType node_type = GetType(v);
     if (NodeTypeIs(node_type, NodeType::kUnknown)) {
+      if (IsConstantNode(v->opcode())) {
+        // Even without NodeType, we can extract some information from
+        // constants. This is used to generalize elements_kind in case we see
+        // constants that require doing so.
+        combined_type = UnionType(combined_type, node_type_of(v));
+      }
       // No static type info available; this is tracked separately from static
-      // types, since we may still speculate on present static types from other
-      // value nodes below.
+      // types, since we may still speculate on present static types from
+      // other value nodes below.
       any_value_has_unknown_type = true;
     } else {
       combined_type = UnionType(combined_type, node_type);
