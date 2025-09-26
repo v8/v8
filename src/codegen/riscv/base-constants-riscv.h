@@ -340,9 +340,11 @@ constexpr int kMaxRvvVLEN = 512;
 
 #ifdef RVV_VLEN
 constexpr int kSimulatorRvvVLEN = RVV_VLEN;
-// TODO(riscv): support rvv 256/512/1024
-static_assert(kSimulatorRvvVLEN == 128,
-              "Simulator only supports 128bit wide VLEN.");
+static_assert(kSimulatorRvvVLEN >= 128, "RvvVLEN must be >= 128 bit");
+static_assert((kSimulatorRvvVLEN & (kSimulatorRvvVLEN - 1)) == 0,
+              "RvvVLEN must be a power of 2");
+static_assert(kSimulatorRvvVLEN <= kMaxRvvVLEN,
+              "RvvVLEN size is unimplemented");
 #else
 constexpr int kSimulatorRvvVLEN = 128;
 #endif

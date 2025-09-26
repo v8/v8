@@ -1279,7 +1279,7 @@ struct type_sew_t<128> {
   const reg_t nf = rvv_nf() + 1;                                               \
   const reg_t vl = is_mask_ldst ? ((rvv_vl() + 7) / 8) : rvv_vl();             \
   const int64_t baseAddr = rs1();                                              \
-  if (!ProbeMemory(baseAddr, sizeof(__int128_t))) {                            \
+  if (!ProbeMemory(baseAddr, vl * sizeof(elt_width##_t))) {                    \
     return true;                                                               \
   }                                                                            \
   for (reg_t i = 0; i < vl; ++i) {                                             \
@@ -1297,20 +1297,18 @@ struct type_sew_t<128> {
   }                                                                            \
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
-    __int128_t value = Vregister_[rvv_vd_reg()];                               \
-    SNPrintF(trace_buf_,                                                       \
-             "%016" PRIx64 "%016" PRIx64 "    (%" PRId64 ")    vlen:%" PRId64  \
-             " <-- [addr: %" REGIx_FORMAT "]",                                 \
-             *(reinterpret_cast<int64_t*>(&value) + 1),                        \
-             *reinterpret_cast<int64_t*>(&value), icount_, rvv_vlen(),         \
-             (sreg_t)(get_register(rs1_reg())));                               \
+    int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+             "    (%" PRId64 ")    vlen:%" PRId64 " <-- [addr: %" REGIx_FORMAT \
+             "]",                                                              \
+             icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
   }
 
 #define RVV_VI_ST(stride, offset, elt_width, is_mask_ldst)                     \
   const reg_t nf = rvv_nf() + 1;                                               \
   const reg_t vl = is_mask_ldst ? ((rvv_vl() + 7) / 8) : rvv_vl();             \
   const int64_t baseAddr = rs1();                                              \
-  if (!ProbeMemory(baseAddr, sizeof(__int128_t))) {                            \
+  if (!ProbeMemory(baseAddr, vl * sizeof(elt_width##_t))) {                    \
     return true;                                                               \
   }                                                                            \
   for (reg_t i = 0; i < vl; ++i) {                                             \
@@ -1326,13 +1324,11 @@ struct type_sew_t<128> {
   }                                                                            \
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
-    __int128_t value = Vregister_[rvv_vd_reg()];                               \
-    SNPrintF(trace_buf_,                                                       \
-             "%016" PRIx64 "%016" PRIx64 "    (%" PRId64 ")    vlen:%" PRId64  \
-             " --> [addr: %" REGIx_FORMAT "]",                                 \
-             *(reinterpret_cast<int64_t*>(&value) + 1),                        \
-             *reinterpret_cast<int64_t*>(&value), icount_, rvv_vlen(),         \
-             (sreg_t)(get_register(rs1_reg())));                               \
+    int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+             "    (%" PRId64 ")    vlen:%" PRId64 " --> [addr: %" REGIx_FORMAT \
+             "]",                                                              \
+             icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
   }
 
 #define VI_VFP_LOOP_SCALE_BASE                      \
@@ -1620,7 +1616,7 @@ class RiscvDebugger {
   float GetFPURegisterValueFloat(int regnum);
   double GetFPURegisterValueDouble(int regnum);
 #ifdef CAN_USE_RVV_INSTRUCTIONS
-  __int128_t GetVRegisterValue(int regnum);
+  VRegisterValue GetVRegisterValue(int regnum);
 #endif
   bool GetValue(const char* desc, sreg_t* value);
 };
@@ -1668,12 +1664,8 @@ double RiscvDebugger::GetFPURegisterValueDouble(int regnum) {
 }
 
 #ifdef CAN_USE_RVV_INSTRUCTIONS
-__int128_t RiscvDebugger::GetVRegisterValue(int regnum) {
-  if (regnum == kNumVRegisters) {
-    return sim_->get_pc();
-  } else {
-    return sim_->get_vregister(regnum);
-  }
+VRegisterValue RiscvDebugger::GetVRegisterValue(int regnum) {
+  return sim_->get_vregister(regnum);
 }
 #endif
 
@@ -1862,10 +1854,15 @@ void RiscvDebugger::Debug() {
                      FPURegisters::Name(fpuregnum), fvalue, dvalue);
 #ifdef CAN_USE_RVV_INSTRUCTIONS
             } else if (vregnum != kInvalidVRegister) {
-              __int128_t v = GetVRegisterValue(vregnum);
-              PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
-                     VRegisters::Name(vregnum), (uint64_t)(v >> 64),
-                     (uint64_t)v);
+              VRegisterValue value = GetVRegisterValue(vregnum);
+              PrintF("\t%s:0x", VRegisters::Name(vregnum));
+              for (int i = VRegisterValue::kChunks - 1; i >= 0; i--) {
+                const char* format = i != VRegisterValue::kChunks - 1
+                                         ? "_%016" PRIx64
+                                         : "%016" PRIx64;
+                PrintF(format, value.chunks[i]);
+              }
+              PrintF("\n");
 #endif
             } else {
               PrintF("%s unrecognized\n", arg1);
@@ -2421,7 +2418,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate), builtins_(isolate) {
   last_debugger_input_ = nullptr;
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   for (int i = 0; i < kNumVRegisters; ++i) {
-    Vregister_[i] = 0;
+    Vregister_[i] = {0};
   }
   vxrm_ = 0;
   vstart_ = 0;
@@ -2588,7 +2585,7 @@ Float64 Simulator::get_fpu_register_Float64(int fpureg) const {
 }
 
 #ifdef CAN_USE_RVV_INSTRUCTIONS
-__int128_t Simulator::get_vregister(int vreg) const {
+VRegisterValue Simulator::get_vregister(int vreg) const {
   DCHECK((vreg >= 0) && (vreg < kNumVRegisters));
   return Vregister_[vreg];
 }
