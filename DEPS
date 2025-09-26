@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '9d3ee7c25f88e6e070308f0f80f2025646278355',
+  'partition_alloc_version': 'ee6c8d0716e9d10d1ad25de97e690ddfa54f2c4a',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f0a3d28c6c94bfc09eb1cc4029df6929d31c3048',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '77a7f61926effc28ee272b8ce64042e44cea7018',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7ffbee862d9dfe9025460b4b6c8ee1bd96b61ba0',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6b7117dcf645245b6c137eb6c61dfe17d4952707',
   'buildtools/linux64': {
     'packages': [
       {
@@ -550,7 +550,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '85f05b0835f934e52772efc308baa80cdd491838',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '073a86a769997217606e947b84004186a7391f53',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b1d66053e6460f04dbe81d77cfeaa9a5d50dee3e',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
