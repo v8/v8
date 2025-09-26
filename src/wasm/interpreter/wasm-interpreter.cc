@@ -5538,7 +5538,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC s2s_DoSimdExtAddPairwise(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
-    constexpr int lanes = kSimd128Size / sizeof(DstSimdType);
+    constexpr int lanes = std::tuple_size_v<DstSimdType>;
     auto v = pop<SrcSimdType>(sp, code, wasm_runtime);
     DstSimdType res;
     for (int i = 0; i < lanes; ++i) {
