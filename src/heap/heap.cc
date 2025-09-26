@@ -1355,9 +1355,13 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   FreeCachesOnMemoryPressure(isolate());
 
   GCFlags gc_flags = GCFlag::kReduceMemoryFootprint;
+  GCCallbackFlags gc_callback_flags =
+      GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage;
 
   if (gc_reason == GarbageCollectionReason::kLastResort) {
     gc_flags |= GCFlag::kLastResort;
+    gc_callback_flags = static_cast<GCCallbackFlags>(
+        gc_callback_flags | GCCallbackFlags::kGCCallbackFlagLastResort);
   }
 
   if (gc_reason == GarbageCollectionReason::kLowMemoryNotification) {
@@ -1371,7 +1375,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;
-    CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags,
+    CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
                    perform_heap_limit_check);
     DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 

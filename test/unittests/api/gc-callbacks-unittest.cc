@@ -165,3 +165,84 @@ TEST_F(GCCallbacksTest, GCCallbacks) {
 
 }  // namespace
 }  // namespace v8
+
+namespace v8::internal {
+using GCCallbackFlagsTest = TestWithHeapInternalsAndContext;
+
+static std::function<void(v8::Isolate* isolate, v8::GCType,
+                          v8::GCCallbackFlags flags)>
+    prologue_callback_;
+static std::function<void(v8::Isolate* isolate, v8::GCType,
+                          v8::GCCallbackFlags flags)>
+    epilogue_callback_;
+
+static void PrologueCallback(v8::Isolate* isolate, v8::GCType gc_type,
+                             v8::GCCallbackFlags flags) {
+  prologue_callback_(isolate, gc_type, flags);
+}
+
+static void EpilogueCallback(v8::Isolate* isolate, v8::GCType gc_type,
+                             v8::GCCallbackFlags flags) {
+  epilogue_callback_(isolate, gc_type, flags);
+}
+
+TEST_F(GCCallbackFlagsTest, CollectAllAvailableGarbage) {
+  ManualGCScope gc_scope(i_isolate());
+
+  size_t prologue_count = 0;
+  size_t epilogue_count = 0;
+
+  prologue_callback_ = [&](v8::Isolate* isolate, v8::GCType,
+                           v8::GCCallbackFlags flags) {
+    ASSERT_TRUE(flags &
+                GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
+    ASSERT_FALSE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
+    prologue_count++;
+  };
+  epilogue_callback_ = [&](v8::Isolate* isolate, v8::GCType,
+                           v8::GCCallbackFlags flags) {
+    ASSERT_TRUE(flags &
+                GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
+    ASSERT_FALSE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
+    epilogue_count++;
+  };
+
+  v8_isolate()->AddGCPrologueCallback(PrologueCallback);
+  v8_isolate()->AddGCEpilogueCallback(EpilogueCallback);
+
+  i_isolate()->heap()->CollectAllAvailableGarbage(
+      GarbageCollectionReason::kHeapProfiler);
+  EXPECT_GT(prologue_count, 0u);
+  EXPECT_EQ(prologue_count, epilogue_count);
+}
+
+TEST_F(GCCallbackFlagsTest, CollectAllAvailableGarbageAndLastResort) {
+  ManualGCScope gc_scope(i_isolate());
+
+  size_t prologue_count = 0;
+  size_t epilogue_count = 0;
+
+  prologue_callback_ = [&](v8::Isolate* isolate, v8::GCType,
+                           v8::GCCallbackFlags flags) {
+    ASSERT_TRUE(flags &
+                GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
+    ASSERT_TRUE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
+    prologue_count++;
+  };
+  epilogue_callback_ = [&](v8::Isolate* isolate, v8::GCType,
+                           v8::GCCallbackFlags flags) {
+    ASSERT_TRUE(flags &
+                GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage);
+    ASSERT_TRUE(flags & GCCallbackFlags::kGCCallbackFlagLastResort);
+    epilogue_count++;
+  };
+
+  v8_isolate()->AddGCPrologueCallback(PrologueCallback);
+  v8_isolate()->AddGCEpilogueCallback(EpilogueCallback);
+
+  i_isolate()->heap()->CollectAllAvailableGarbage(
+      GarbageCollectionReason::kLastResort);
+  EXPECT_GT(prologue_count, 0u);
+  EXPECT_EQ(prologue_count, epilogue_count);
+}
+}  // namespace v8::internal
