@@ -1509,7 +1509,7 @@ class MaglevFrameTranslationBuilder {
 
     using Shape = VirtualFixedDoubleArrayShape;
     static_assert(Shape::header_slot_count == 2);
-    translation_array_builder_->BeginCapturedObject(object->field_count());
+    translation_array_builder_->BeginCapturedObject(object->slot_count());
     BuildNestedValue(object->get(HeapObject::kMapOffset), input_location,
                      virtual_objects);
     BuildNestedValue(object->get(FixedArrayBase::kLengthOffset), input_location,
@@ -1586,27 +1586,17 @@ class MaglevFrameTranslationBuilder {
     if (object_type == vobj::ObjectType::kFixedDoubleArray) {
       return BuildFixedDoubleArray(object, input_location, virtual_objects);
     }
-    switch (object->type()) {
-      case VirtualObject::kHeapNumber:
-        // Handled above.
-        UNREACHABLE();
-      case VirtualObject::kConsString:
-      case VirtualObject::kFixedDoubleArray:
-        // Handled below.
-        UNREACHABLE();
-      case VirtualObject::kDefault:
-        if (object_type == vobj::ObjectType::kConsString) {
-          translation_array_builder_->StringConcat();
-        } else {
-          translation_array_builder_->BeginCapturedObject(
-              object->field_count());
-        }
-        auto callback = [&](ValueNode* node, const vobj::Field& desc) {
-          BuildNestedValue(node, input_location, virtual_objects);
-        };
-        object->ForEachSlot(callback,
-                            VirtualObject::ForEachSlotIterationMode::kForDeopt);
+
+    if (object_type == vobj::ObjectType::kConsString) {
+      translation_array_builder_->StringConcat();
+    } else {
+      translation_array_builder_->BeginCapturedObject(object->slot_count());
     }
+    auto callback = [&](ValueNode* node, const vobj::Field& desc) {
+      BuildNestedValue(node, input_location, virtual_objects);
+    };
+    object->ForEachSlot(callback,
+                        VirtualObject::ForEachSlotIterationMode::kForDeopt);
   }
 
   void BuildDeoptFrameSingleValue(const ValueNode* value,

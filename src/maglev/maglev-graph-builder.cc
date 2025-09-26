@@ -4748,7 +4748,6 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
   if (value->Is<InlinedAllocation>()) return;
   InlinedAllocation* allocation = object->Cast<InlinedAllocation>();
   VirtualObject* vobject = GetModifiableObjectFromAllocation(allocation);
-  CHECK_EQ(vobject->type(), VirtualObject::kDefault);
   CHECK_NOT_NULL(vobject);
   vobject->set(offset, value);
   AddNonEscapingUses(allocation, 1);
@@ -4850,7 +4849,6 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
   if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
     VirtualObject* vobject =
         GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
-    CHECK_EQ(vobject->type(), VirtualObject::kDefault);
     DCHECK(vobject->map().IsFixedArrayMap());
     ValueNode* length_node = vobject->get(offsetof(FixedArray, length_));
     if (auto length = TryGetInt32Constant(length_node)) {
@@ -13455,7 +13453,6 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
 }
 
 VirtualObject* MaglevGraphBuilder::DeepCopyVirtualObject(VirtualObject* old) {
-  CHECK_EQ(old->type(), VirtualObject::kDefault);
   VirtualObject* vobject = old->Clone(NewObjectId(), zone());
   current_interpreter_frame_.add_object(vobject);
   old->allocation()->UpdateObject(vobject);
@@ -13867,37 +13864,30 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
     VirtualObject* vobject, AllocationType allocation_type) {
   current_interpreter_frame_.add_object(vobject);
   InlinedAllocation* allocation;
-  switch (vobject->type()) {
-    case VirtualObject::kHeapNumber:
-    case VirtualObject::kConsString:
-    case VirtualObject::kFixedDoubleArray:
-      UNREACHABLE();
-    case VirtualObject::kDefault: {
-      using ValueAndDesc = std::pair<ValueNode*, vobj::Field>;
-      SmallZoneVector<ValueAndDesc, 8> values(zone());
-      vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) {
-        if (node->Is<VirtualObject>()) {
-          VirtualObject* nested = node->Cast<VirtualObject>();
-          node = BuildInlinedAllocation(nested, allocation_type);
-          // Update the vobject's slot value.
-          vobject->set(desc.offset, node);
-        }
-        node = ConvertForField(node, desc, allocation_type);
-        values.push_back({node, desc});
-      });
-      allocation =
-          ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
-      AddNonEscapingUses(allocation, static_cast<int>(values.size()));
-      for (uint32_t i = 0; i < values.size(); i++) {
-        const auto [value, desc] = values[i];
-        BuildInitializeStore(desc, allocation, allocation_type, value);
-      }
-      if (is_loop_effect_tracking()) {
-        loop_effects_->allocations.insert(allocation);
-      }
-      break;
+
+  using ValueAndDesc = std::pair<ValueNode*, vobj::Field>;
+  SmallZoneVector<ValueAndDesc, 8> values(zone());
+  vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) {
+    if (node->Is<VirtualObject>()) {
+      VirtualObject* nested = node->Cast<VirtualObject>();
+      node = BuildInlinedAllocation(nested, allocation_type);
+      // Update the vobject's slot value.
+      vobject->set(desc.offset, node);
     }
+    node = ConvertForField(node, desc, allocation_type);
+    values.push_back({node, desc});
+  });
+  allocation =
+      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
+  AddNonEscapingUses(allocation, static_cast<int>(values.size()));
+  for (uint32_t i = 0; i < values.size(); i++) {
+    const auto [value, desc] = values[i];
+    BuildInitializeStore(desc, allocation, allocation_type, value);
   }
+  if (is_loop_effect_tracking()) {
+    loop_effects_->allocations.insert(allocation);
+  }
+
   if (v8_flags.maglev_allocation_folding < 2) {
     ClearCurrentAllocationBlock();
   }

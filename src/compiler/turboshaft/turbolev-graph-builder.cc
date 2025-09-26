@@ -5488,7 +5488,7 @@ class GraphBuildingNodeProcessor {
     if (vobj->object_type() == maglev::vobj::ObjectType::kFixedDoubleArray) {
       using Shape = maglev::VirtualFixedDoubleArrayShape;
       static_assert(Shape::header_slot_count == 2);
-      builder.AddDematerializedObject(dup_id.id, vobj->field_count());
+      builder.AddDematerializedObject(dup_id.id, vobj->slot_count());
       AddVirtualObjectNestedValue(builder, virtual_objects,
                                   vobj->get(HeapObject::kMapOffset));
       AddVirtualObjectNestedValue(builder, virtual_objects,
@@ -5515,17 +5515,9 @@ class GraphBuildingNodeProcessor {
       return;
     }
 
-    switch (vobj->type()) {
-      case maglev::VirtualObject::kHeapNumber:
-      case maglev::VirtualObject::kConsString:
-      case maglev::VirtualObject::kFixedDoubleArray:
-        // Handled above.
-        UNREACHABLE();
-      case maglev::VirtualObject::kDefault:
-        uint32_t field_count = vobj->field_count();
-        builder.AddDematerializedObject(dup_id.id, field_count);
-        vobj->ForEachSlot([&](maglev::ValueNode* value_node,
-                              maglev::vobj::Field desc) {
+    builder.AddDematerializedObject(dup_id.id, vobj->slot_count());
+    vobj->ForEachSlot(
+        [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) {
           switch (desc.type) {
             case maglev::vobj::FieldType::kTagged:
             case maglev::vobj::FieldType::kTrustedPointer:
@@ -5543,8 +5535,6 @@ class GraphBuildingNodeProcessor {
               UNREACHABLE();
           }
         });
-        break;
-    }
   }
 
   void AddVirtualObjectNestedValue(

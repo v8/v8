@@ -1145,7 +1145,6 @@ void StoreTaggedFieldNoWriteBarrier::VerifyInputs() const {
 void InlinedAllocation::VerifyInputs() const {
   Base::VerifyInputs();
   CheckValueInputIs(this, 0, Opcode::kAllocationBlock);
-  CHECK_LE(object()->type(), VirtualObject::Type::kLast);
 }
 
 AllocationBlock* InlinedAllocation::allocation_block() {
@@ -8105,7 +8104,7 @@ void AllocationBlock::PrintParams(std::ostream& os) const {
 }
 
 void InlinedAllocation::PrintParams(std::ostream& os) const {
-  os << "(" << object()->type();
+  os << "(object";
   if (object()->has_static_map()) {
     os << " " << *object()->map().object();
   }
@@ -8691,14 +8690,12 @@ VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
 
 compiler::MapRef VirtualObject::map_from_slot(
     compiler::JSHeapBroker* broker) const {
-  DCHECK_EQ(type_, kDefault);
   ValueNode* value = get(HeapObject::kMapOffset);
   return MakeRef(broker, i::Cast<Map>(*value->Reify(broker->local_isolate())));
 }
 
 compiler::OptionalMapRef VirtualObject::TryGetMapFromSlot(
     compiler::JSHeapBroker* broker) const {
-  DCHECK_EQ(type_, kDefault);
   compiler::OptionalHeapObjectRef maybe_constant =
       get(HeapObject::kMapOffset)->TryGetConstant(broker);
   if (!maybe_constant.has_value()) return {};
