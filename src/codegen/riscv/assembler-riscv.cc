@@ -379,7 +379,7 @@ int Assembler::target_at(int pos, bool is_internal) {
   DEBUG_PRINTF("target_at: %p (%d)\n\t",
                reinterpret_cast<Instr*>(buffer_start_ + pos), pos);
   Instr instr = instruction->InstructionBits();
-  disassembleInstr(buffer_start_ + pos);
+  DisassembleInstruction(buffer_start_ + pos);
 
   switch (instruction->InstructionOpcodeType()) {
     case BRANCH: {
@@ -528,7 +528,7 @@ bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
   return !RelocInfo::IsNoInfo(rmode);
 }
 
-void Assembler::disassembleInstr(uint8_t* pc) {
+void Assembler::DisassembleInstruction(uint8_t* pc) {
   if (!v8_flags.riscv_debug) return;
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
@@ -613,9 +613,9 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     } break;
   }
 
-  disassembleInstr(buffer_start_ + pos);
+  DisassembleInstruction(buffer_start_ + pos);
   if (instruction->InstructionOpcodeType() == AUIPC) {
-    disassembleInstr(buffer_start_ + pos + 4);
+    DisassembleInstruction(buffer_start_ + pos + 4);
   }
 }
 
@@ -956,7 +956,6 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
     if (up_32 == 0 || low_32 == 0) {
       // No temp register is needed
     } else {
-      BlockTrampolinePoolScope block_trampoline_pool(this);
       temp_reg = temps.CanAcquire() ? temps.Acquire() : no_reg;
     }
     if (temp_reg != no_reg) {
@@ -1364,20 +1363,20 @@ void Assembler::GrowBuffer() {
 }
 
 void Assembler::db(uint8_t data) {
-  if (!is_buffer_growth_blocked()) CheckBuffer();
   DEBUG_PRINTF("%p(%d): constant 0x%x\n", pc_, pc_offset(), data);
+  CheckBuffer();
   EmitHelper(data);
 }
 
 void Assembler::dd(uint32_t data) {
-  if (!is_buffer_growth_blocked()) CheckBuffer();
   DEBUG_PRINTF("%p(%d): constant 0x%x\n", pc_, pc_offset(), data);
+  CheckBuffer();
   EmitHelper(data);
 }
 
 void Assembler::dq(uint64_t data) {
-  if (!is_buffer_growth_blocked()) CheckBuffer();
   DEBUG_PRINTF("%p(%d): constant 0x%" PRIx64 "\n", pc_, pc_offset(), data);
+  CheckBuffer();
   EmitHelper(data);
 }
 
@@ -1387,7 +1386,7 @@ void Assembler::dq(Label* label) {
 void Assembler::dd(Label* label) {
 #endif
   uintptr_t data;
-  if (!is_buffer_growth_blocked()) CheckBuffer();
+  CheckBuffer();
   if (label->is_bound()) {
     internal_reference_positions_.insert(pc_offset());
     data = reinterpret_cast<uintptr_t>(buffer_start_ + label->pos());
@@ -1445,7 +1444,7 @@ void Assembler::CheckTrampolinePool() {
     static_assert(kMaxBranchOffset <= kMaxJumpOffset - kTrampolineSlotsSize);
     int preamble_start = pc_offset();
     USE(preamble_start);  // Only used in DCHECK.
-    BlockTrampolinePoolScope block_trampoline_pool(this, size);
+    BlockPoolsScope block_pools(this, PoolEmissionCheck::kSkip, size);
     j(size);
 
     int pool_start = pc_offset();
@@ -1723,10 +1722,9 @@ int Assembler::ConstantPoolSizeAt(Instruction* instr) {
   }
 }
 
-void Assembler::RecordConstPool(int size) {
+void Assembler::RecordConstPool(int size, const BlockPoolsScope& scope) {
   // We only need this for debugger support, to correctly compute offsets in the
   // code.
-  Assembler::BlockPoolsScope block_pools(this);
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
 }
 
@@ -1745,29 +1743,26 @@ void Assembler::EmitHelper(T x) {
 }
 
 void Assembler::emit(Instr x) {
-  if (!is_buffer_growth_blocked()) {
-    CheckBuffer();
-  }
   DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
+  CheckBuffer();
   EmitHelper(x);
-  disassembleInstr(pc_ - sizeof(x));
+  DisassembleInstruction(pc_ - sizeof(x));
   CheckTrampolinePoolQuick();
 }
 
 void Assembler::emit(ShortInstr x) {
-  if (!is_buffer_growth_blocked()) {
-    CheckBuffer();
-  }
   DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
+  CheckBuffer();
   EmitHelper(x);
-  disassembleInstr(pc_ - sizeof(x));
+  DisassembleInstruction(pc_ - sizeof(x));
   CheckTrampolinePoolQuick();
 }
 
 void Assembler::emit(uint64_t data) {
   DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
-  if (!is_buffer_growth_blocked()) CheckBuffer();
+  CheckBuffer();
   EmitHelper(data);
+  CheckTrampolinePoolQuick();
 }
 
 void Assembler::instr_at_put(int pos, Instr instr,

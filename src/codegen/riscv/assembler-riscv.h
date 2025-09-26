@@ -473,8 +473,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
-  using BlockConstPoolScope = ConstantPool::BlockScope;
-
   // Class for scoping postponing the trampoline pool generation.
   class V8_NODISCARD BlockTrampolinePoolScope {
    public:
@@ -523,26 +521,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     ~BlockPoolsScope() {}
 
    private:
-    BlockConstPoolScope block_const_pool_;
+    ConstantPool::BlockScope block_const_pool_;
     BlockTrampolinePoolScope block_trampoline_pool_;
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
-  };
-
-  // Class for postponing the assembly buffer growth. Typically used for
-  // sequences of instructions that must be emitted as a unit, before
-  // buffer growth (and relocation) can occur.
-  // This blocking scope is not nestable.
-  class BlockGrowBufferScope {
-   public:
-    explicit BlockGrowBufferScope(Assembler* assem) : assem_(assem) {
-      assem_->StartBlockGrowBuffer();
-    }
-    ~BlockGrowBufferScope() { assem_->EndBlockGrowBuffer(); }
-
-   private:
-    Assembler* assem_;
-
-    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockGrowBufferScope);
   };
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
@@ -612,7 +593,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
-  void RecordConstPool(int size);
+  void RecordConstPool(int size, const BlockPoolsScope& scope);
 
   void ForceConstantPoolEmissionWithoutJump() {
     constpool_.Check(Emission::kForced, Jump::kOmitted);
@@ -855,19 +836,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   bool is_trampoline_emitted() const { return trampoline_emitted_; }
 
-  // Temporarily block automatic assembly buffer growth.
-  void StartBlockGrowBuffer() {
-    DCHECK(!block_buffer_growth_);
-    block_buffer_growth_ = true;
-  }
-
-  void EndBlockGrowBuffer() {
-    DCHECK(block_buffer_growth_);
-    block_buffer_growth_ = false;
-  }
-
-  bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
-
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -897,9 +865,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // nesting is zero when the pool isn't blocked.
   int trampoline_pool_blocked_nesting_ = 0;
 
-  // Automatic growth of the assembly buffer may be blocked for some sequences.
-  bool block_buffer_growth_ = false;  // Block growth when true.
-
   // Relocation information generation.
   // Each relocation is encoded as a variable size value.
   static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
@@ -919,7 +884,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   template <typename T>
   inline void EmitHelper(T x);
 
-  static void disassembleInstr(uint8_t* pc);
+  static void DisassembleInstruction(uint8_t* pc);
 
   // Labels.
   void print(const Label* L);

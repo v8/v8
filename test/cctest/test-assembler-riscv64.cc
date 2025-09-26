@@ -2027,7 +2027,7 @@ TEST(jump_tables1) {
     Label labels[kNumCases];
     {
       int pc_offset_before = assm.pc_offset();
-      MacroAssembler::BlockTrampolinePoolScope block(
+      MacroAssembler::BlockPoolsScope block_pools(
           &assm, (kNumCases * 2 + 6) * kInstrSize);
       // Blocking the trampoline scope shouldn't generate code,
       // because that may interfere with the alignment.
@@ -2093,7 +2093,7 @@ TEST(jump_tables2) {
     {
       const int kAlignment = 8;
       const int kMargin = (kAlignment - 1) + (kNumCases * 2 + 6) * kInstrSize;
-      MacroAssembler::BlockTrampolinePoolScope block(&assm, kMargin);
+      MacroAssembler::BlockPoolsScope block_pools(&assm, kMargin);
       __ Align(kAlignment);  // This can emit up to (kAlignment - 1) bytes.
       __ bind(&dispatch);
       __ auipc(ra, 0);
@@ -2152,7 +2152,7 @@ TEST(jump_tables3) {
     {
       const int kAlignment = 8;
       const int kMargin = (kAlignment - 1) + (kNumCases * 2 + 6) * kInstrSize;
-      MacroAssembler::BlockTrampolinePoolScope block(&assm, kMargin);
+      MacroAssembler::BlockPoolsScope block_pools(&assm, kMargin);
       __ Align(kAlignment);  // This can emit up to (kAlignment - 1) bytes.
       __ bind(&dispatch);
       __ auipc(ra, 0);

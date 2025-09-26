@@ -523,7 +523,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   // We're going to use pc-relative addressing to load from the jump table,
   // so we need to block trampoline pool emission for the entire length of
   // the table including the preamble.
-  MacroAssembler::BlockTrampolinePoolScope block(
+  MacroAssembler::BlockPoolsScope block_pools(
       masm_, (2 + 5 + num_labels * 2) * kInstrSize);
 
   int64_t imm64;

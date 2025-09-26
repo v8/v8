@@ -1647,8 +1647,8 @@ TEST(jump_tables1) {
     __ Sw(ra, MemOperand(sp));
     __ Align(4);
     {
-      MacroAssembler::BlockTrampolinePoolScope block(
-          &assm, (kNumCases + 5) * kInstrSize);
+      MacroAssembler::BlockPoolsScope block_pools(&assm,
+                                                  (kNumCases + 5) * kInstrSize);
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 2);
@@ -1706,8 +1706,8 @@ TEST(jump_tables2) {
     __ bind(&dispatch);
 
     {
-      MacroAssembler::BlockTrampolinePoolScope block(
-          &assm, (kNumCases + 5) * kInstrSize);
+      MacroAssembler::BlockPoolsScope block_pools(&assm,
+                                                  (kNumCases + 5) * kInstrSize);
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 2);
@@ -1765,8 +1765,8 @@ TEST(jump_tables3) {
     __ bind(&dispatch);
 
     {
-      MacroAssembler::BlockTrampolinePoolScope block(
-          &assm, (kNumCases + 5) * kInstrSize);
+      MacroAssembler::BlockPoolsScope block_scope(&assm,
+                                                  (kNumCases + 5) * kInstrSize);
       __ auipc(ra, 0);
       __ slli(t3, a0, 2);
       __ add(t3, t3, ra);

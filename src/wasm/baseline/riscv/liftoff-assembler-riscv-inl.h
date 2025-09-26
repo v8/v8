@@ -157,6 +157,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   MacroAssembler patching_assembler(
       zone(), AssemblerOptions{}, CodeObjectRequired::kNo,
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
+  Assembler::BlockPoolsScope block_pools_patch(&patching_assembler);
 
   if (V8_LIKELY(frame_size < 4 * KB)) {
     // This is the standard case for small frames: just subtract from SP and be
@@ -183,7 +184,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // {pc_offset()}).
 
   int imm32 = pc_offset() - offset;
-  patching_assembler.GenPCRelativeJump(kScratchReg, imm32);
+  patching_assembler.GenPCRelativeJump(kScratchReg, imm32, block_pools_patch);
   CHECK_EQ(kPrepareStackFrameInstrSize, patching_assembler.pc_offset());
 
   // If the frame is bigger than the stack, we throw the stack overflow
@@ -223,7 +224,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // Since we're using a raw branch offset in the following code, we have to
   // protect against getting the trampoline pool emitted after computing the
   // offset, but before emitting the jump.
-  BlockTrampolinePoolScope block_trampoline_pool(this);
+  BlockPoolsScope block_pools(this);
   bind(&continuation);
 
   // Now allocate the stack space.
@@ -233,7 +234,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // the reserved space in the prologue, which is a branch now.
   int func_start_offset = offset + kPrepareStackFrameInstrSize;
   imm32 = func_start_offset - pc_offset();
-  GenPCRelativeJump(kScratchReg, imm32);
+  GenPCRelativeJump(kScratchReg, imm32, block_pools);
 }
 
 void LiftoffAssembler::LoadSpillAddress(Register dst, int offset,

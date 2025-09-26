@@ -268,7 +268,7 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         false, shift_amount);
-  Assembler::BlockPoolsScope blocked_pools_scope_(this);
+  Assembler::BlockPoolsScope block_pools(this);
   LoadTaggedField(dst, src_op, [protected_load_pc](int offset) {
     if (protected_load_pc) *protected_load_pc = offset;
   });
@@ -724,7 +724,7 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
                                                AtomicMemoryOrder memory_order,
                                                uint32_t* protected_load_pc,
                                                bool needs_shift) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
+  BlockPoolsScope block_pools(this);
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
   uint32_t pc_offset_of_load = 0;
 #if V8_COMPRESS_POINTERS

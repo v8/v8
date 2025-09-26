@@ -254,8 +254,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   MemOperand ExternalReferenceAsOperand(IsolateFieldId id) {
     return ExternalReferenceAsOperand(ExternalReference::Create(id), no_reg);
   }
-  inline void GenPCRelativeJump(Register rd, int32_t imm32) {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
+
+  void GenPCRelativeJump(Register rd, int32_t imm32,
+                         const BlockPoolsScope& scope) {
     DCHECK(is_int32(imm32 + 0x800));
     int32_t Hi20 = ((imm32 + 0x800) >> 12);
     int32_t Lo12 = imm32 << 20 >> 20;
@@ -263,8 +264,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     jr(rd, Lo12);     // jump PC + Hi20 + Lo12
   }
 
-  inline void GenPCRelativeJumpAndLink(Register rd, int32_t imm32) {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
+  void GenPCRelativeJumpAndLink(Register rd, int32_t imm32,
+                                const BlockPoolsScope& scope) {
     DCHECK(is_int32(imm32 + 0x800));
     int32_t Hi20 = ((imm32 + 0x800) >> 12);
     int32_t Lo12 = imm32 << 20 >> 20;
@@ -272,28 +273,24 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     jalr(rd, Lo12);   // jump PC + Hi20 + Lo12
   }
 
-  // Generate a B immediate instruction with the corresponding relocation info.
-  // 'offset' is the immediate to encode in the B instruction (so it is the
-  // difference between the target and the PC of the instruction, divided by
-  // the instruction size).
-  void near_jump(int offset, RelocInfo::Mode rmode) {
+  // Generate auipc+jr instructions with the corresponding relocation info.
+  // The 'offset' is the immediate to encode in the auipc+jr instructions.
+  void NearJump(int offset, RelocInfo::Mode rmode,
+                const BlockPoolsScope& scope) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
     if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode, offset);
-    GenPCRelativeJump(temp, offset);
+    GenPCRelativeJump(temp, offset, scope);
   }
-  // Generate a auipc+jalr instruction with the corresponding relocation info.
-  // As for near_jump, 'offset' is the immediate to encode in the auipc+jalr
-  // instruction.
-  void near_call(int offset, RelocInfo::Mode rmode) {
+  // Generate auipc+jalr instructions with the corresponding relocation info.
+  // The 'offset' is the immediate to encode in the auipc+jalr instructions.
+  void NearCall(int offset, RelocInfo::Mode rmode,
+                const BlockPoolsScope& scope) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
     if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode, offset);
-    GenPCRelativeJumpAndLink(temp, offset);
+    GenPCRelativeJumpAndLink(temp, offset, scope);
   }
-  // Generate a BL immediate instruction with the corresponding relocation info
-  // for the input HeapNumberRequest.
-  void near_call(HeapNumberRequest request) { UNIMPLEMENTED(); }
 
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
 #define COND_ARGS                              \
@@ -2019,7 +2016,7 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   // all unbound forward branches cannot be bound over it.
   int aligned_label_area_size =
       static_cast<int>(case_count) * kUIntptrSize + kSystemPointerSize;
-  BlockTrampolinePoolScope block_trampoline_pool(this, aligned_label_area_size);
+  BlockPoolsScope block_pools(this, aligned_label_area_size);
   // Emit the jump table inline, under the assumption that it's not too big.
   Align(kSystemPointerSize);
   bind(&jump_table);

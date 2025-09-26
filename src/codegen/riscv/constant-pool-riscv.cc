@@ -61,7 +61,7 @@ void ConstantPool::EmitAndClear(Jump require_jump) {
   DCHECK_LE(size, margin);
   Label size_check;
   assm_->bind(&size_check);
-  assm_->RecordConstPool(size);
+  assm_->RecordConstPool(size, block_pools);
 
   // Emit the constant pool. It is preceded by an optional branch if
   // {require_jump} and a header which will:
@@ -242,9 +242,9 @@ void ConstantPool::EmitPrologue(Alignment require_alignment) {
 
 int ConstantPool::PrologueSize(Jump require_jump) const {
   // Prologue is:
-  //   j     L               ;; Optional, only if {require_jump}.
-  //   auipc x0, x0, #words  ;; Pool marker, encodes size in words.
-  //   j     0x0             ;; Pool guard.
+  //   j     L           ;; Optional, only if {require_jump}.
+  //   auipc x0, #words  ;; Pool marker, encodes size in 32-bit words.
+  //   j     0x0         ;; Pool guard.
   // L:
   return (require_jump == Jump::kRequired) ? 3 * kInstrSize : 2 * kInstrSize;
 }
