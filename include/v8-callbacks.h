@@ -184,6 +184,7 @@ enum GCCallbackFlags {
   kGCCallbackFlagCollectAllAvailableGarbage = 1 << 4,
   kGCCallbackFlagCollectAllExternalMemory = 1 << 5,
   kGCCallbackScheduleIdleGarbageCollection = 1 << 6,
+  kGCCallbackFlagLastResort = 1 << 7,
 };
 
 using GCCallback = void (*)(GCType type, GCCallbackFlags flags);
