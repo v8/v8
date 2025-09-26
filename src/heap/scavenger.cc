@@ -1087,6 +1087,23 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
   DCHECK(!heap->incremental_marking()->IsMarking());
 }
 
+namespace {
+bool HeapObjectWillBeOld(const Heap* heap, Tagged<HeapObject> object) {
+  if (!HeapLayout::InYoungGeneration(object)) {
+    return true;
+  }
+  if (HeapLayout::InAnyLargeSpace(object)) {
+    return true;
+  }
+  if (HeapLayout::IsSelfForwarded(object) &&
+      MemoryChunkMetadata::FromHeapObject(heap->isolate(), object)
+          ->will_be_promoted()) {
+    return true;
+  }
+  return false;
+}
+}  // namespace
+
 template <ObjectAge Age>
 V8_INLINE bool Scavenger::ShouldRecordWeakObject(Tagged<HeapObject> host,
                                                  ObjectSlot slot) {
@@ -1108,6 +1125,7 @@ V8_INLINE bool Scavenger::ShouldRecordWeakObject(Tagged<HeapObject> host,
   DCHECK_IMPLIES(!HeapLayout::IsSelfForwarded(object),
                  !Heap::InFromPage(new_object));
   slot.store(new_object);
+  DCHECK_EQ(Age == ObjectAge::kOld, HeapObjectWillBeOld(heap_, host));
   if constexpr (Age == ObjectAge::kYoung) {
     return false;
   }
@@ -1428,8 +1446,8 @@ void ProcessWeakObjectField(const Heap* heap, Tagged<HeapObject> host,
       // old-to-new remembered set.
       DCHECK(!HeapLayout::InWritableSharedSpace(new_object));
       slot.store(new_object);
-      if (V8_UNLIKELY(!HeapLayout::InYoungGeneration(host) &&
-                      HeapLayout::InYoungGeneration(new_object))) {
+      if (V8_UNLIKELY(HeapObjectWillBeOld(heap, host) &&
+                      !HeapObjectWillBeOld(heap, new_object))) {
         AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
       }
     }
@@ -1464,7 +1482,10 @@ void ScavengerCollector::ProcessWeakCells(
                 ->map_word(kRelaxedLoad)
                 .IsForwardingAddress() ||
            HeapLayout::IsSelfForwarded(Cast<HeapObject>(target)));
-    USE(this);
+    if (V8_UNLIKELY(HeapObjectWillBeOld(heap_, object) &&
+                    !HeapObjectWillBeOld(heap_, Cast<HeapObject>(target)))) {
+      AddToRememberedSet<OLD_TO_NEW>(heap_, object, slot.address());
+    }
   };
   const auto on_dead_target_callback = [this, on_slot_updated_callback](
                                            Tagged<HeapObject> host,
@@ -1674,15 +1695,8 @@ ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::
 template <typename ConcreteVisitor, ObjectAge kExpectedObjectAge>
 void ScavengerObjectVisitorBase<ConcreteVisitor, kExpectedObjectAge>::
     CheckObjectAge(Tagged<HeapObject> object) {
-  DCHECK_IMPLIES(kExpectedObjectAge == ObjectAge::kYoung,
-                 HeapLayout::InYoungGeneration(object));
-  DCHECK_IMPLIES(kExpectedObjectAge == ObjectAge::kOld,
-                 !HeapLayout::InYoungGeneration(object) ||
-                     HeapLayout::InAnyLargeSpace(object) ||
-                     (HeapLayout::IsSelfForwarded(object) &&
-                      MemoryChunkMetadata::FromHeapObject(
-                          scavenger_->heap_->isolate(), object)
-                          ->will_be_promoted()));
+  DCHECK_EQ(kExpectedObjectAge == ObjectAge::kOld,
+            HeapObjectWillBeOld(scavenger_->heap_, object));
 }
 
 ScavengerCopiedObjectVisitor::ScavengerCopiedObjectVisitor(Scavenger* scavenger)
