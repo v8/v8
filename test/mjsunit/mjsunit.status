@@ -2935,7 +2935,6 @@
 ##############################################################################
 ['variant in [jit_fuzzing, jit_fuzzing_maglev]', {
   # Extremely slow tests.
-  'regress/wasm/regress-808848': [SKIP],
   'shared-memory/*': [SKIP],
   'typedarray-growablesharedarraybuffer-atomics': [SKIP],
 
@@ -2951,6 +2950,21 @@
   # Negative tests are not supported, because we pass --no-fail.
   'bugs/*': [SKIP],
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
+
+  # Tests that pass --enable-wasm-serialization (incompatible with --fuzzing).
+  'regress/wasm/regress-8896': [SKIP],
+  'regress/wasm/regress-808848': [SKIP],
+  'regress/wasm/regress-7785': [SKIP],
+  'regress/wasm/regress-808980': [SKIP],
+  'regress/wasm/regress-11024': [SKIP],
+  'regress/wasm/regress-441221187': [SKIP],
+  'wasm/test-partial-serialization': [SKIP],
+  'wasm/test-serialization-with-lazy-compilation': [SKIP],
+  'wasm/print-code': [SKIP],
+  'wasm/deopt/deopt-serialized-module': [SKIP],
+  'wasm/serialize-lazy-module': [SKIP],
+  'wasm/compiled-module-serialization': [SKIP],
+  'wasm/inlining': [SKIP],
 }],  # variant in [jit_fuzzing, jit_fuzzing_maglev]
 
 ##############################################################################

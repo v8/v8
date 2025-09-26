@@ -2942,15 +2942,13 @@ void Shell::SerializerDeserialize(
 void Shell::WasmSerializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  if (i::v8_flags.fuzzing) {
-    // Serializing modules is "safe", but differential fuzzing will observe
-    // differences in the serialized bytes depending on compiler flags.
-    // Strictly speaking, guarding this block on
-    // v8_flags.correctness_fuzzer_suppressions would be enough; for symmetry
-    // with deserialization we use the more general --fuzzing flag.
-    info.GetReturnValue().Set(Undefined(isolate));
-    return;
-  }
+  CHECK(options.enable_wasm_serialization);
+  // Serializing modules is "safe", but differential fuzzing will observe
+  // differences in the serialized bytes depending on compiler flags.
+  // Strictly speaking, guarding this block on
+  // v8_flags.correctness_fuzzer_suppressions would be enough; for symmetry
+  // with deserialization we use the more general --fuzzing flag.
+  CHECK(!i::v8_flags.fuzzing);
   HandleScope handle_scope(isolate);
   if (!info[0]->IsWasmModuleObject()) {
     ThrowError(isolate, "First argument must be a WasmModuleObject");
@@ -2978,12 +2976,8 @@ void Shell::WasmDeserializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
   i::PrintF("NOTE: d8.wasm.deserializeModule() is not VRP eligible.\n");
-  if (i::v8_flags.fuzzing) {
-    // Deserializing random bytes could violate arbitrary invariants. This
-    // function is not fuzzer-safe, so just do nothing.
-    info.GetReturnValue().Set(Undefined(isolate));
-    return;
-  }
+  CHECK(options.enable_wasm_serialization);
+  CHECK(!i::v8_flags.fuzzing);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
   if (!info[0]->IsArrayBuffer()) {
@@ -4403,7 +4397,7 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     d8_template->Set(isolate, "serializer", serializer_template);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  {
+  if (options.enable_wasm_serialization) {
     Local<ObjectTemplate> wasm_template = ObjectTemplate::New(isolate);
     wasm_template->Set(isolate, "serializeModule",
                        FunctionTemplate::New(isolate, WasmSerializeModule));
@@ -6260,6 +6254,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.expose_fast_api = true;
     } else if (FlagMatches("--flush-denormals", &argv[i])) {
       options.flush_denormals = true;
+    } else if (FlagMatches("--enable-wasm-serialization", &argv[i])) {
+      options.enable_wasm_serialization = true;
     } else {
 #ifdef V8_TARGET_OS_WIN
       PreProcessUnicodeFilenameArg(argv, i);
@@ -6303,6 +6299,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   if (i::v8_flags.stress_snapshot && options.expose_fast_api &&
       check_d8_flag_contradictions) {
     FATAL("Flag --expose-fast-api is incompatible with --stress-snapshot.");
+  }
+
+  if (i::v8_flags.fuzzing && options.enable_wasm_serialization) {
+    FATAL(
+        "The `d8.wasm.deserializeModule` function (enabled via "
+        "--enable-wasm-serialization) is not robust against malicious inputs "
+        "and thus incompatible with --fuzzing.");
   }
 
   // Set up isolated source groups.

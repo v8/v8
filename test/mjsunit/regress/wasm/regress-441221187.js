@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --enable-wasm-serialization
 // Flags: --wasm-lazy-validation --no-wasm-native-module-cache --allow-natives-syntax
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");

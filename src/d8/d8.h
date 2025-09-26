@@ -518,6 +518,8 @@ class ShellOptions {
   DisallowReassignment<bool> flush_denormals = {"flush-denormals", false};
   DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
                                                         1 * i::MB};
+  DisallowReassignment<bool> enable_wasm_serialization = {
+      "enable-wasm-serialization", false};
 };
 
 class Shell : public i::AllStatic {
