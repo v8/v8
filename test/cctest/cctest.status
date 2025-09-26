@@ -296,6 +296,7 @@
 ##############################################################################
 ['full_debug', {
   # Tests too slow in non-optimized debug mode.
+  'test-api/FastApiCalls': [SKIP],
   'test-api/InternalFieldsSubclassing': [SKIP],
   'test-api/Threading8': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
@@ -304,7 +305,9 @@
   'test-serialize/ContextSerializerCustomContext': [SKIP],
   'test-serialize/SharedStrings': [SKIP],
   'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 
   # https://issues.chromium.org/issues/407932138
   'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [SKIP],

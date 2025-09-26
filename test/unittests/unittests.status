@@ -386,4 +386,10 @@
   'CompilerTest.ProfilerEnabledDuringBackgroundCompile': [SKIP],
 }],
 
+##############################################################################
+['full_debug', {
+  # Tests too slow in non-optimized debug mode.
+  'LogAllTest.LogAll': [SKIP],
+}],  # 'full_debug'
+
 ]
