@@ -26,7 +26,7 @@ inline void MarkingBitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::ATOMIC>(
     uint32_t cell_index, MarkBit::CellType mask) {
-  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask, mask);
+  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask);
 }
 
 template <>

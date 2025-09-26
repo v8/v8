@@ -70,7 +70,7 @@ inline bool MarkBit::Set<AccessMode::NON_ATOMIC>() {
 
 template <>
 inline bool MarkBit::Set<AccessMode::ATOMIC>() {
-  return base::AsAtomicWord::Relaxed_SetBits(cell_, mask_, mask_);
+  return base::AsAtomicWord::Relaxed_SetBits(cell_, mask_);
 }
 
 template <>
