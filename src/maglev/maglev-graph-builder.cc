@@ -4531,7 +4531,13 @@ ValueNode* MaglevGraphBuilder::ConvertForField(ValueNode* value,
                                                AllocationType allocation_type) {
   switch (desc.type) {
     case vobj::FieldType::kTagged: {
-      if (value->Is<Float64Constant>()) {
+      if (value->Is<Float64Constant>() &&
+          !NodeTypeIs(GetType(value), NodeType::kSmi)) {
+        // Note that NodeType::kSmi MUST go through GetTaggedValue for proper
+        // canonicalization. If we see a Float64Constant with type kSmi, it has
+        // passed BuildCheckSmi, i.e. the runtime value is guaranteed to be
+        // convertible to smi (we would have deoptimized otherwise).
+        //
         // TODO(jgruber): We have to allocate a new object since the
         // object field could contain a mutable HeapNumber and thus cannot
         // share instances. However, we could specify such mutable fields
