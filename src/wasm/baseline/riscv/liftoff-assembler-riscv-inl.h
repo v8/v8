@@ -983,6 +983,7 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
   VU.SetSimd128Half(E32, tu);
   VU.set(FPURoundingMode::RTZ);
   vfncvt_x_f_w(dst.fp().toV(), kSimd128ScratchReg, MaskType::Mask);
+  VU.set(FPURoundingMode::RNE);
 }
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
@@ -994,6 +995,7 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
   VU.SetSimd128Half(E32, tu);
   VU.set(FPURoundingMode::RTZ);
   vfncvt_xu_f_w(dst.fp().toV(), kSimd128ScratchReg, MaskType::Mask);
+  VU.set(FPURoundingMode::RNE);
 }
 
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_s(LiftoffRegister dst,
@@ -1004,6 +1006,7 @@ void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_s(LiftoffRegister dst,
   vmv_vv(kSimd128ScratchReg, src.fp().toV());
   vmv_vx(dst.fp().toV(), zero_reg);
   vfcvt_x_f_v(dst.fp().toV(), kSimd128ScratchReg, MaskType::Mask);
+  VU.set(FPURoundingMode::RNE);
 }
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_u(LiftoffRegister dst,
                                                         LiftoffRegister src) {
@@ -1014,6 +1017,7 @@ void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_u(LiftoffRegister dst,
   vmv_vv(kSimd128ScratchReg, src.fp().toV());
   vmv_vx(dst.fp().toV(), kScratchReg);
   vfcvt_xu_f_v(dst.fp().toV(), kSimd128ScratchReg, MaskType::Mask);
+  VU.set(FPURoundingMode::RNE);
 }
 
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_s_zero(
@@ -1939,6 +1943,7 @@ void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
   vmv_vv(kSimd128ScratchReg, src.fp().toV());
   vmv_vx(dst.fp().toV(), zero_reg);
   vfcvt_x_f_v(dst.fp().toV(), kSimd128ScratchReg, Mask);
+  VU.set(FPURoundingMode::RNE);
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
@@ -1949,6 +1954,7 @@ void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
   vmv_vv(kSimd128ScratchReg, src.fp().toV());
   vmv_vx(dst.fp().toV(), zero_reg);
   vfcvt_xu_f_v(dst.fp().toV(), kSimd128ScratchReg, Mask);
+  VU.set(FPURoundingMode::RNE);
 }
 
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
@@ -1979,7 +1985,6 @@ void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
     // the 128-bit range.
     vslideup_vi(lhs_v, rhs_v, 8);
     VU.SetSimd128(E8);
-    VU.set(FPURoundingMode::RNE);
     vnclip_vi(dst_v, lhs_v, 0);
   } else {
     VU.SetSimd128(E16);
@@ -1987,7 +1992,6 @@ void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
     vmv_vv(kSimd128ScratchReg, lhs_v);
     vmv_vv(kSimd128ScratchReg2, rhs_v);
     VU.SetSimd128(E8);
-    VU.set(FPURoundingMode::RNE);
     vnclip_vi(dst_v, kSimd128ScratchReg, 0);
   }
 }
@@ -2009,7 +2013,6 @@ void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
     vslideup_vi(lhs_v, rhs_v, 8);
     vmax_vx(kSimd128ScratchReg, lhs_v, zero_reg);
     VU.SetSimd128(E8);
-    VU.set(FPURoundingMode::RNE);
     vnclipu_vi(dst_v, kSimd128ScratchReg, 0);
   } else {
     VU.SetSimd128(E16);
@@ -2019,7 +2022,6 @@ void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
     VU.SetSimd128x2(E16);
     vmax_vx(kSimd128ScratchReg, kSimd128ScratchReg, zero_reg);
     VU.SetSimd128(E8);
-    VU.set(FPURoundingMode::RNE);
     vnclipu_vi(dst_v, kSimd128ScratchReg, 0);
   }
 }
@@ -2040,7 +2042,6 @@ void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
     // the 128-bit range.
     vslideup_vi(lhs_v, rhs_v, 4);
     VU.SetSimd128(E16);
-    VU.set(FPURoundingMode::RNE);
     vnclip_vi(dst_v, lhs_v, 0);
   } else {
     VU.SetSimd128(E32);
@@ -2048,7 +2049,6 @@ void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
     vmv_vv(kSimd128ScratchReg, lhs_v);
     vmv_vv(kSimd128ScratchReg2, rhs_v);
     VU.SetSimd128(E16);
-    VU.set(FPURoundingMode::RNE);
     vnclip_vi(dst_v, kSimd128ScratchReg, 0);
   }
 }
@@ -2070,7 +2070,6 @@ void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
     vslideup_vi(lhs_v, rhs_v, 4);
     vmax_vx(kSimd128ScratchReg, lhs_v, zero_reg);
     VU.SetSimd128(E16);
-    VU.set(FPURoundingMode::RNE);
     vnclipu_vi(dst_v, kSimd128ScratchReg, 0);
   } else {
     VU.SetSimd128(E32);
@@ -2080,7 +2079,6 @@ void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
     VU.SetSimd128x2(E32);
     vmax_vx(kSimd128ScratchReg, kSimd128ScratchReg, zero_reg);
     VU.SetSimd128(E16);
-    VU.set(FPURoundingMode::RNE);
     vnclipu_vi(dst_v, kSimd128ScratchReg, 0);
   }
 }

@@ -621,6 +621,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
     explicit VectorUnit(Assembler* assm) : assm_(assm) {}
 
+    // Sets the floating-point rounding mode.
+    // Updating the rounding mode can be expensive, and therefore isn't done
+    // for every basic block. Instead, we assume that the rounding mode is
+    // RNE. Any instruction sequence that changes the rounding mode must
+    // change it back to RNE before it finishes.
     void set(FPURoundingMode mode) {
       if (mode_ != mode) {
         assm_->addi(kScratchReg, zero_reg, mode << kFcsrFrmShift);
@@ -735,6 +740,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     }
 
     void clear() {
+      // If the rounding mode isn't RNE, then we forgot to change it back.
+      DCHECK_EQ(RNE, mode_);
       avl_ = -1;
       sew_ = kVsInvalid;
       lmul_ = kVlInvalid;
@@ -790,7 +797,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Record the current pc for the next safepoint.
   void RecordPcForSafepoint() override {
-    pc_offset_for_safepoint_ = pc_offset();
+    set_pc_offset_for_safepoint(pc_offset());
+  }
+
+  void set_pc_offset_for_safepoint(int pc_offset) {
+    pc_offset_for_safepoint_ = pc_offset;
   }
 
   void StartBlockPools(ConstantPoolEmission cpe, int margin);

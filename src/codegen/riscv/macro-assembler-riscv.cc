@@ -3800,6 +3800,9 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
     }
     vfadd_vf(dst, src, kScratchDoubleReg, MaskType::Mask);
   }
+  if (frm != RNE) {
+    VU.set(RNE);
+  }
 }
 
 void MacroAssembler::Ceil(VRegister vdst, VRegister vsrc, Register scratch,
@@ -5431,6 +5434,25 @@ void MacroAssembler::CallBuiltin(Builtin builtin) {
       }
       break;
     }
+  }
+  if (v8_flags.debug_code) {
+    // Since the 'Abort' below might do a runtime call, we need to remember
+    // the current call's pc-offset, and restore it after the abort.
+    int old_offset = pc_offset_for_safepoint();
+    // Check that the builtin didn't leave the rounding mode in a bad state.
+    Label done;
+    li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+    // If != 0, then simd is available.
+    Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
+
+    static_assert(RNE == 0, "RNE must be 0");
+    // Get the floating-point control and status register.
+    csrr(kScratchReg, csr_fcsr);
+    And(kScratchReg, kScratchReg, Operand(kFcsrFrmMask));
+    beqz(kScratchReg, &done);  // Equal to RNE.
+    Abort(AbortReason::kUnexpectedFPCRMode);
+    bind(&done);
+    set_pc_offset_for_safepoint(old_offset);
   }
 }
 

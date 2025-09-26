@@ -2872,6 +2872,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.set(FPURoundingMode::RTZ);
       __ vfncvt_x_f_w(i.OutputSimd128Register(), kSimd128ScratchReg,
                       MaskType::Mask);
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvI32x4TruncSatF64x2UZero: {
@@ -2883,6 +2884,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.set(FPURoundingMode::RTZ);
       __ vfncvt_xu_f_w(i.OutputSimd128Register(), kSimd128ScratchReg,
                        MaskType::Mask);
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvI32x4ShrU: {
@@ -3473,12 +3475,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.SetSimd128(E32);
       __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_xu_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvF32x4SConvertI32x4: {
       __ VU.SetSimd128(E32);
       __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_x_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvF32x4ReplaceLane: {
@@ -3570,14 +3574,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // the 128-bit range.
         __ vslideup_vi(src0, src1, 4);
         __ VU.SetSimd128(E16);
-        __ VU.set(FPURoundingMode::RNE);
         __ vnclip_vi(dst, src0, 0);
 
       } else {
         CheckRegisterConstraints(
             opcode, i, RiscvRegisterConstraint::kRegisterGroupNoOverlap);
         __ VU.SetSimd128(E16);
-        __ VU.set(FPURoundingMode::RNE);
         // Implicitly uses src1, which is part of the register group.
         __ vnclip_vi(dst, src0, 0);
       }
@@ -3599,7 +3601,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Clip negative values to zero.
         __ vmax_vx(kSimd128ScratchReg, src0, zero_reg);
         __ VU.SetSimd128(E16);
-        __ VU.set(FPURoundingMode::RNE);
         __ vnclipu_vi(dst, kSimd128ScratchReg, 0);
       } else {
         CheckRegisterConstraints(
@@ -3613,7 +3614,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vmax_vx(kSimd128ScratchReg, i.InputSimd128Register(0), kScratchReg);
         // Convert the clipped values to 16-bit positive integers.
         __ VU.SetSimd128(E16);
-        __ VU.set(FPURoundingMode::RNE);
         // Implicitly uses kSimd128ScratchReg2, which is part of the register
         // group.
         __ vnclipu_vi(dst, kSimd128ScratchReg, 0);
@@ -3633,7 +3633,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(kScratchReg, 2);
       __ vdivu_vx(temp3, temp2, kScratchReg);
       __ VU.SetSimd128(E8);
-      __ VU.set(FPURoundingMode::RNE);
       __ vnclipu_vi(i.OutputSimd128Register(), temp3, 0);
       break;
     }
@@ -3651,13 +3650,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // the 128-bit range.
         __ vslideup_vi(src0, src1, 8);
         __ VU.SetSimd128(E8);
-        __ VU.set(FPURoundingMode::RNE);
         __ vnclip_vi(dst, src0, 0);
       } else {
         CheckRegisterConstraints(
             opcode, i, RiscvRegisterConstraint::kRegisterGroupNoOverlap);
         __ VU.SetSimd128(E8);
-        __ VU.set(FPURoundingMode::RNE);
         // If the vector size is only 128 bits, implicitly uses src1, which is
         // part of the register group.
         __ vnclip_vi(dst, src0, 0);
@@ -3680,7 +3677,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Clip negative values to zero.
         __ vmax_vx(kSimd128ScratchReg, src0, zero_reg);
         __ VU.SetSimd128(E8);
-        __ VU.set(FPURoundingMode::RNE);
         __ vnclipu_vi(dst, kSimd128ScratchReg, 0);
       } else {
         CheckRegisterConstraints(
@@ -3694,7 +3690,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vmax_vx(kSimd128ScratchReg, src0, kScratchReg);
         // Convert the clipped values.
         __ VU.SetSimd128(E8);
-        __ VU.set(FPURoundingMode::RNE);
         // Implicitly uses kSimd128ScratchReg2, which is part of the register
         // group.
         __ vnclipu_vi(dst, kSimd128ScratchReg, 0);
@@ -3716,7 +3711,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(kScratchReg, 2);
       __ vdivu_vx(temp, temp, kScratchReg);
       __ VU.SetSimd128(E16);
-      __ VU.set(FPURoundingMode::RNE);
       // Reduces the register group down to a single register.
       __ vnclipu_vi(i.OutputSimd128Register(), temp, 0);
       break;
@@ -3901,6 +3895,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vfcvt_x_f_v(kSimd128ScratchReg, i.InputSimd128Register(0), Mask);
         __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       }
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvI32x4UConvertF32x4: {
@@ -3916,6 +3911,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vfcvt_xu_f_v(kSimd128ScratchReg, i.InputSimd128Register(0), Mask);
         __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       }
+      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvI32x4SConvertI16x8High: {
