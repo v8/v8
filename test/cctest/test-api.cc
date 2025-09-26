@@ -8754,7 +8754,7 @@ THREADED_TEST(StringWrite) {
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<String> str = v8_str("abcde");
-  // abc<Icelandic eth><Unicode snowman>.
+  // "abc<Icelandic eth><Unicode snowman>" represented as u"abc\xf0\u2603".
   v8::Local<String> str2 = v8_str("abc\xC3\xB0\xE2\x98\x83");
   v8::Local<String> str3 =
       v8::String::NewFromUtf8Literal(context.isolate(), "abc\0def");
@@ -9051,6 +9051,39 @@ THREADED_TEST(StringWrite) {
   CHECK_NE(0, strcmp("abcde", buf));
   buf[5] = '\0';
   CHECK_EQ(0, strcmp("abcde", buf));
+
+  memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
+  str2->WriteOneByteV2(isolate, 0, 5, reinterpret_cast<uint8_t*>(buf));
+  str2->WriteV2(isolate, 0, 5, wbuf);
+  CHECK_EQ(0, strncmp("abc\xf0\x03\x01", buf, 6));
+  uint16_t answer9[] = {'a', 'b', 'c', 0xf0, 0x2603, 0x101};
+  CHECK_EQ(0, StrNCmp16(answer9, wbuf, 6));
+
+  memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
+  str2->WriteOneByteV2(isolate, 0, 3, reinterpret_cast<uint8_t*>(buf));
+  str2->WriteV2(isolate, 0, 3, wbuf);
+  CHECK_EQ(0, strncmp("abc\x01\x01\x01", buf, 6));
+  uint16_t answer10[] = {'a', 'b', 'c', 0x101, 0x101, 0x101};
+  CHECK_EQ(0, StrNCmp16(answer10, wbuf, 6));
+
+  memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
+  str2->WriteOneByteV2(isolate, 1, 3, reinterpret_cast<uint8_t*>(buf));
+  str2->WriteV2(isolate, 1, 3, wbuf);
+  CHECK_EQ(0, strncmp("bc\xf0\x01\x01\x01", buf, 6));
+  uint16_t answer11[] = {'b', 'c', 0xf0, 0x101, 0x101, 0x101};
+  CHECK_EQ(0, StrNCmp16(answer11, wbuf, 6));
+
+  memset(buf, 0x1, sizeof(buf));
+  memset(wbuf, 0x1, sizeof(wbuf));
+  str2->WriteOneByteV2(isolate, 4, 1, reinterpret_cast<uint8_t*>(buf),
+                       String::WriteFlags::kNullTerminate);
+  str2->WriteV2(isolate, 4, 1, wbuf, String::WriteFlags::kNullTerminate);
+  CHECK_EQ(0, strcmp("\x03", buf));
+  uint16_t answer12[] = {0x2603, '\0'};
+  CHECK_EQ(0, StrCmp16(answer12, wbuf));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   utf8buf[8] = 'X';

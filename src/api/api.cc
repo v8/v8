@@ -5938,7 +5938,6 @@ void String::WriteV2(Isolate* v8_isolate, uint32_t offset, uint32_t length,
 
 void String::WriteOneByteV2(Isolate* v8_isolate, uint32_t offset,
                             uint32_t length, uint8_t* buffer, int flags) const {
-  DCHECK(IsOneByte());
   WriteHelperV2(reinterpret_cast<i::Isolate*>(v8_isolate), this, buffer, offset,
                 length, flags);
 }
