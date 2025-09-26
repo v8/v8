@@ -3181,9 +3181,12 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StoreTaggedFieldWithWriteBarrier* node,
                                 const maglev::ProcessingState& state) {
+    WriteBarrierKind write_barrier =
+        node->value_can_be_smi() ? WriteBarrierKind::kFullWriteBarrier
+                                 : WriteBarrierKind::kPointerWriteBarrier;
     __ Store(Map(node->object_input()), Map(node->value_input()),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
-             WriteBarrierKind::kFullWriteBarrier, node->offset(),
+             write_barrier, node->offset(),
              node->initializing_or_transitioning());
     return maglev::ProcessResult::kContinue;
   }

@@ -4786,8 +4786,10 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
         }
       }
     }
-    GET_NODE_OR_ABORT(store_node, AddNewNode<StoreTaggedFieldWithWriteBarrier>(
-                                      {object, value}, offset, store_mode));
+    GET_NODE_OR_ABORT(store_node,
+                      AddNewNode<StoreTaggedFieldWithWriteBarrier>(
+                          {object, value}, offset, store_mode,
+                          NodeTypeCanBe(GetType(value), NodeType::kSmi)));
   }
   if (store) {
     *store = store_node;

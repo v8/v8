@@ -3357,7 +3357,8 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
       value_input().node()->decompresses_tagged_result()
           ? MaglevAssembler::kValueIsDecompressed
           : MaglevAssembler::kValueIsCompressed,
-      MaglevAssembler::kValueCanBeSmi);
+      value_can_be_smi() ? MaglevAssembler::kValueCanBeSmi
+                         : MaglevAssembler::kValueCannotBeSmi);
 }
 
 int StoreTrustedPointerFieldWithWriteBarrier::MaxCallStackArgs() const {

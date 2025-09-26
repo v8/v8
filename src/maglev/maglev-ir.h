@@ -9823,9 +9823,12 @@ class StoreTaggedFieldWithWriteBarrier
 
  public:
   explicit StoreTaggedFieldWithWriteBarrier(uint64_t bitfield, int offset,
-                                            StoreTaggedMode store_mode)
-      : Base(bitfield | InitializingOrTransitioningField::encode(
-                            IsInitializingOrTransitioning(store_mode))),
+                                            StoreTaggedMode store_mode,
+                                            bool value_can_be_smi)
+      : Base(bitfield |
+             InitializingOrTransitioningField::encode(
+                 IsInitializingOrTransitioning(store_mode)) |
+             ValueCanBeSmiField::encode(value_can_be_smi)),
         offset_(offset) {}
 
   static constexpr OpProperties kProperties =
@@ -9855,8 +9858,16 @@ class StoreTaggedFieldWithWriteBarrier
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
+  bool value_can_be_smi() const {
+    return ValueCanBeSmiField::decode(bitfield());
+  }
+  void set_can_be_smi(bool value) {
+    set_bitfield(ValueCanBeSmiField::update(bitfield(), value));
+  }
+
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
+  using ValueCanBeSmiField = InitializingOrTransitioningField::Next<bool, 1>;
 
   const int offset_;
 };

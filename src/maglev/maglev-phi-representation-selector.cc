@@ -905,6 +905,12 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
                   StoreTaggedFieldWithWriteBarrier::kValueIndex);
     node->OverwriteWith<StoreTaggedFieldWithWriteBarrier>();
+    // This store could be storing a Smi, since Int32 phis will be tagged to Smi
+    // if they fit in a Smi, and even Float64 phis will be tagged to Smis if
+    // this doesn't lose precision.
+    static constexpr bool kRetaggedPhiCouldBeSmi = true;
+    node->Cast<StoreTaggedFieldWithWriteBarrier>()->set_can_be_smi(
+        kRetaggedPhiCouldBeSmi);
   }
 
   return ProcessResult::kContinue;
