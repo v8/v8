@@ -92,7 +92,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
-#include "src/heap/scavenger-inl.h"
+#include "src/heap/scavenger.h"
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/trusted-range.h"

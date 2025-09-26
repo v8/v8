@@ -1879,7 +1879,6 @@ filegroup(
         "src/heap/safepoint.h",
         "src/heap/scavenger.cc",
         "src/heap/scavenger.h",
-        "src/heap/scavenger-inl.h",
         "src/heap/slot-set.cc",
         "src/heap/slot-set.h",
         "src/heap/spaces.cc",
