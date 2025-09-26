@@ -173,7 +173,7 @@ constexpr bool AlwaysPreserveDeoptReason(DeoptimizeReason reason) {
 #undef CASE
     return true;
     default:
-      return false;
+      return IsDeoptimizationWithoutCodeInvalidation(reason);
   }
 }
 
