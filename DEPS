@@ -272,7 +272,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/google_benchmark_chrome': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/google_benchmark.git' + '@' + 'd6e7f141ed7c93a66890f3750ab634b8b52057a5',
+    'url': Var('chromium_url') + '/chromium/src/third_party/google_benchmark.git' + '@' + '45598a57708c64954ca73cdd776773816ed4189d',
   },
   'third_party/google_benchmark_chrome/src': {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '761305ec3b33abf30e08d50eb829e19a802581cc',
@@ -305,6 +305,10 @@ deps = {
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '4b4a57f5cf627639c041368120af9d69ed40032c',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '864f61dc9253d56586ada34c388278565ef513f6',
+  'third_party/libpfm4':
+    Var('chromium_url') + '/chromium/src/third_party/libpfm4.git' + '@' + '25c29f04c9127e1ca09e6c1181f74850aa7f118b',
+  'third_party/libpfm4/src':
+    Var('chromium_url') + '/external/git.code.sf.net/p/perfmon2/libpfm4.git' + '@' + '964baf9d35d5f88d8422f96d8a82c672042e7064',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '322be580a5a193a921c349a15747eeeb9a716ad1',
   'third_party/llvm-libc/src':
