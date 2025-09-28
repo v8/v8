@@ -3272,18 +3272,13 @@ THREADED_TEST(InternalFieldsOfRegularObjects) {
   }
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
 THREADED_TEST(GlobalObjectInternalFields) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(1);
   LocalContext env(nullptr, global_template);
-  v8::Local<v8::Object> global_proxy = env->Global();
-  v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
+  v8::Local<v8::Object> global = env->Global();
   CHECK_EQ(1, global->InternalFieldCount());
   CHECK(global->GetInternalField(0).As<v8::Value>()->IsUndefined());
   global->SetInternalField(0, v8_num(17));
@@ -3292,10 +3287,6 @@ THREADED_TEST(GlobalObjectInternalFields) {
                    ->Int32Value(env.local())
                    .FromJust());
 }
-
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(GlobalObjectHasRealIndexedProperty) {
   LocalContext env;
@@ -19660,31 +19651,13 @@ TEST(RegExp) {
   }
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
 THREADED_TEST(Equals) {
   LocalContext localContext;
   v8::HandleScope handleScope(localContext.isolate());
 
-  v8::Local<v8::Object> globalProxy = localContext->Global();
-  v8::Local<Value> global = globalProxy->GetPrototype();
-
+  v8::Local<v8::Object> global = localContext->Global();
   CHECK(global->StrictEquals(global));
-  CHECK(!global->StrictEquals(globalProxy));
-  CHECK(!globalProxy->StrictEquals(global));
-  CHECK(globalProxy->StrictEquals(globalProxy));
-
-  CHECK(global->Equals(localContext.local(), global).FromJust());
-  CHECK(!global->Equals(localContext.local(), globalProxy).FromJust());
-  CHECK(!globalProxy->Equals(localContext.local(), global).FromJust());
-  CHECK(globalProxy->Equals(localContext.local(), globalProxy).FromJust());
 }
-
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
 
 namespace {
 v8::Intercepted Getter(v8::Local<v8::Name> property,
@@ -22568,9 +22541,18 @@ class ApiCallOptimizationChecker {
     }
   }
 
-  // Allow usages of v8::Object::GetPrototype() for now.
   // TODO(https://crbug.com/333672197): remove.
-  START_ALLOW_USE_DEPRECATED()
+  static v8::Local<v8::Object> GetHiddenPrototype(
+      v8::Isolate* isolate, v8::Local<v8::Object> global_proxy) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    DCHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*global_proxy)));
+    i::DirectHandle<i::JSGlobalProxy> i_global_proxy =
+        i::Cast<i::JSGlobalProxy>(v8::Utils::OpenHandle(*global_proxy));
+    DCHECK(!i_global_proxy->IsDetached());
+    i::DirectHandle<i::JSObject> global(
+        i::Cast<i::JSObject>(i_global_proxy->map()->prototype()), i_isolate);
+    return v8::Utils::ToLocal(global);
+  }
 
   void Run(SignatureType signature_type, bool global, int key) {
     v8::Isolate* isolate = CcTest::isolate();
@@ -22607,8 +22589,7 @@ class ApiCallOptimizationChecker {
               ->Set(context, v8_str("function_receiver"), function_receiver)
               .FromJust());
     // Get the holder objects.
-    Local<Object> inner_global =
-        Local<Object>::Cast(context->Global()->GetPrototype());
+    Local<Object> inner_global = GetHiddenPrototype(isolate, context->Global());
     Local<Object> new_object = Object::New(isolate);
     data.Reset(isolate, new_object);
     Local<FunctionTemplate> function_template = FunctionTemplate::New(
@@ -22618,8 +22599,8 @@ class ApiCallOptimizationChecker {
     Local<Object> global_holder = inner_global;
     Local<Object> function_holder = function_receiver;
     if (signature_type == kSignatureOnPrototype) {
-      function_holder = Local<Object>::Cast(function_holder->GetPrototype());
-      global_holder = Local<Object>::Cast(global_holder->GetPrototype());
+      function_holder = Local<Object>::Cast(function_holder->GetPrototypeV2());
+      global_holder = Local<Object>::Cast(global_holder->GetPrototypeV2());
     }
     global_holder->Set(context, v8_str("g_f"), function).FromJust();
     global_holder->SetAccessorProperty(v8_str("g_acc"), function, function);
@@ -22711,10 +22692,6 @@ class ApiCallOptimizationChecker {
     holder.Reset();
     callee.Reset();
   }
-
-  // Allow usages of v8::Object::GetPrototype() for now.
-  // TODO(https://crbug.com/333672197): remove.
-  END_ALLOW_USE_DEPRECATED()
 };
 
 v8::Global<Object> ApiCallOptimizationChecker::data;

@@ -4645,13 +4645,6 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   return api_scope.Escape(Utils::ToLocal(desc.ToObject(i_isolate)));
 }
 
-Local<Value> v8::Object::GetPrototype() {
-  auto self = Utils::OpenDirectHandle(this);
-  auto i_isolate = i::Isolate::Current();
-  i::PrototypeIterator iter(i_isolate, self);
-  return Utils::ToLocal(i::PrototypeIterator::GetCurrent(iter));
-}
-
 Local<Value> v8::Object::GetPrototypeV2() {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = i::Isolate::Current();
