@@ -1617,12 +1617,6 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   // Get the function and make sure it is compiled.
   DirectHandle<JSFunction> func = args.at<JSFunction>(0);
   IsCompiledScope is_compiled_scope;
-#ifndef V8_ENABLE_LEAPTIERING
-  if (!func->is_compiled(isolate) && func->HasAvailableOptimizedCode(isolate)) {
-    func->UpdateOptimizedCode(isolate,
-                              func->feedback_vector()->optimized_code(isolate));
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
   CHECK(func->shared()->is_compiled() ||
         Compiler::Compile(isolate, func, Compiler::KEEP_EXCEPTION,
                           &is_compiled_scope));

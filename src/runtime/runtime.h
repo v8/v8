@@ -135,8 +135,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(VerifyType, 1, 1)                             \
   F(CheckTurboshaftTypeOf, 2, 1)
 
-#ifdef V8_ENABLE_LEAPTIERING
-
 // TODO(olivf): Unify the Maglev/TF variants into one runtime function and pass
 // the optimization tier as an argument.
 #define FOR_EACH_INTRINSIC_TIERING(F, I) \
@@ -150,18 +148,6 @@ constexpr bool CanTriggerGC(T... properties) {
 #define FOR_EACH_INTRINSIC_COMPILER(F, I)   \
   FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I) \
   FOR_EACH_INTRINSIC_TIERING(F, I)
-
-#else
-
-#define FOR_EACH_INTRINSIC_TIERING(F, I)
-
-#define FOR_EACH_INTRINSIC_COMPILER(F, I) \
-  F(FunctionLogNextExecution, 1, 1)       \
-  F(HealOptimizedCodeSlot, 1, 1)          \
-  F(CompileOptimized, 1, 1)               \
-  FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I)
-
-#endif  // V8_ENABLE_LEAPTIERING
 
 #define FOR_EACH_INTRINSIC_DATE(F, I) F(DateCurrentTime, 0, 1)
 

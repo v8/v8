@@ -25,13 +25,9 @@ namespace {
 void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   DCHECK(v8_flags.log_function_events);
   if (!function->has_feedback_vector()) return;
-#ifdef V8_ENABLE_LEAPTIERING
   DCHECK(function->IsLoggingRequested(isolate));
   IsolateGroup::current()->js_dispatch_table()->ResetTieringRequest(
       function->dispatch_handle());
-#else
-  if (!function->feedback_vector()->log_next_execution()) return;
-#endif
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
   DirectHandle<String> name = SharedFunctionInfo::DebugName(isolate, sfi);
   DisallowGarbageCollection no_gc;
@@ -46,9 +42,6 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   LOG(isolate, FunctionEvent(
                    event_name.c_str(), Cast<Script>(raw_sfi->script())->id(), 0,
                    raw_sfi->StartPosition(), raw_sfi->EndPosition(), *name));
-#ifndef V8_ENABLE_LEAPTIERING
-  function->feedback_vector()->set_log_next_execution(false);
-#endif  // !V8_ENABLE_LEAPTIERING
 }
 }  // namespace
 
@@ -75,11 +68,6 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
                          &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).exception();
   }
-#ifndef V8_ENABLE_LEAPTIERING
-  if (V8_UNLIKELY(v8_flags.log_function_events)) {
-    LogExecution(isolate, function);
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
   DCHECK(function->is_compiled(isolate));
   return function->code(isolate);
 }
@@ -91,7 +79,7 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), isolate);
   DCHECK(sfi->HasBaselineCode());
   {
-    if (!V8_ENABLE_LEAPTIERING_BOOL || !function->has_feedback_vector()) {
+    if (!function->has_feedback_vector()) {
       IsCompiledScope is_compiled_scope(*sfi, isolate);
       IsBaselineCompiledScope is_baseline_compiled_scope(*sfi, isolate);
       DCHECK(is_baseline_compiled_scope.is_compiled());
@@ -103,17 +91,8 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
     DisallowGarbageCollection no_gc;
     Tagged<Code> baseline_code = sfi->baseline_code(kAcquireLoad);
     function->UpdateCodeKeepTieringRequests(isolate, baseline_code);
-#ifdef V8_ENABLE_LEAPTIERING
     return baseline_code;
   }
-#else
-    if V8_LIKELY (!v8_flags.log_function_events) return baseline_code;
-  }
-  DCHECK(v8_flags.log_function_events);
-  LogExecution(isolate, function);
-  // LogExecution might allocate, reload the baseline code
-  return sfi->baseline_code(kAcquireLoad);
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 RUNTIME_FUNCTION(Runtime_InstallSFICode) {
@@ -142,8 +121,6 @@ RUNTIME_FUNCTION(Runtime_InstallSFICode) {
   function->UpdateCode(isolate, sfi_code);
   return sfi_code;
 }
-
-#ifdef V8_ENABLE_LEAPTIERING
 
 namespace {
 
@@ -261,73 +238,6 @@ RUNTIME_FUNCTION(Runtime_MarkLazyDeoptimized) {
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
-
-#else
-
-RUNTIME_FUNCTION(Runtime_CompileOptimized) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-
-  CodeKind target_kind;
-  ConcurrencyMode mode;
-  DCHECK(function->has_feedback_vector());
-  switch (function->tiering_state()) {
-    case TieringState::kRequestMaglev_Synchronous:
-      target_kind = CodeKind::MAGLEV;
-      mode = ConcurrencyMode::kSynchronous;
-      break;
-    case TieringState::kRequestMaglev_Concurrent:
-      target_kind = CodeKind::MAGLEV;
-      mode = ConcurrencyMode::kConcurrent;
-      break;
-    case TieringState::kRequestTurbofan_Synchronous:
-      target_kind = CodeKind::TURBOFAN_JS;
-      mode = ConcurrencyMode::kSynchronous;
-      break;
-    case TieringState::kRequestTurbofan_Concurrent:
-      target_kind = CodeKind::TURBOFAN_JS;
-      mode = ConcurrencyMode::kConcurrent;
-      break;
-    case TieringState::kNone:
-    case TieringState::kInProgress:
-      UNREACHABLE();
-  }
-
-  // As a pre- and post-condition of CompileOptimized, the function *must* be
-  // compiled, i.e. the installed InstructionStream object must not be
-  // CompileLazy.
-  IsCompiledScope is_compiled_scope(function->shared(), isolate);
-  DCHECK(is_compiled_scope.is_compiled());
-
-  StackLimitCheck check(isolate);
-  // Concurrent optimization runs on another thread, thus no additional gap.
-  const int gap =
-      IsConcurrent(mode) ? 0 : kStackSpaceRequiredForCompilation * KB;
-  if (check.JsHasOverflowed(gap)) return isolate->StackOverflow();
-
-  Compiler::CompileOptimized(isolate, function, mode, target_kind);
-
-  DCHECK(function->is_compiled(isolate));
-  if (V8_UNLIKELY(v8_flags.log_function_events)) {
-    LogExecution(isolate, function);
-  }
-  return function->code(isolate);
-}
-
-RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
-
-  DCHECK(function->shared()->is_compiled());
-
-  function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
-      isolate, function->shared(), "Runtime_HealOptimizedCodeSlot");
-  return function->code(isolate);
-}
-
-#endif  // !V8_ENABLE_LEAPTIERING
 
 RUNTIME_FUNCTION(Runtime_FunctionLogNextExecution) {
   HandleScope scope(isolate);
@@ -634,13 +544,6 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
     // An empty result can mean one of two things:
     // 1) we've started a concurrent compilation job - everything is fine.
     // 2) synchronous compilation failed for some reason.
-
-#ifndef V8_ENABLE_LEAPTIERING
-    if (!function->HasAttachedOptimizedCode(isolate)) {
-      function->UpdateCode(isolate, function->shared()->GetCode(isolate));
-    }
-#endif  // V8_ENABLE_LEAPTIERING
-
     return Smi::zero();
   }
 
@@ -771,11 +674,6 @@ RUNTIME_FUNCTION(Runtime_LogOrTraceOptimizedOSREntry) {
            "[OSR - entry. function: %s, osr offset: %d]\n",
            function->DebugNameCStr().get(), osr_offset.ToInt());
   }
-#ifndef V8_ENABLE_LEAPTIERING
-  if (V8_UNLIKELY(v8_flags.log_function_events)) {
-    LogExecution(isolate, function);
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

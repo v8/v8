@@ -2556,7 +2556,6 @@ void TranslatedState::InitializeJSObjectAt(
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
     InstanceType instance_type = map->instance_type();
     USE(instance_type);
-#ifdef V8_ENABLE_LEAPTIERING
     if (InstanceTypeChecker::IsJSFunction(instance_type) &&
         offset == JSFunction::kDispatchHandleOffset) {
       // The JSDispatchHandle will be materialized as a number, but we need
@@ -2569,7 +2568,6 @@ void TranslatedState::InitializeJSObjectAt(
           JSFunction::kDispatchHandleOffset, handle.value());
       continue;
     }
-#endif  // V8_ENABLE_LEAPTIERING
 #ifdef V8_ENABLE_SANDBOX
     if (InstanceTypeChecker::IsJSRegExp(instance_type) &&
         offset == JSRegExp::kDataOffset) {

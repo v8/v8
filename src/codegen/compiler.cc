@@ -957,12 +957,12 @@ bool FinalizeDeferredUnoptimizedCompilationJobs(
 }
 
 // A wrapper to access the optimized code cache slots on the feedback vector.
-class OptimizedCodeCache : public AllStatic {
+class OptimizedOSRCodeCache : public AllStatic {
  public:
   static V8_WARN_UNUSED_RESULT MaybeHandle<Code> Get(
       Isolate* isolate, DirectHandle<JSFunction> function,
       BytecodeOffset osr_offset, CodeKind code_kind) {
-    DCHECK_IMPLIES(V8_ENABLE_LEAPTIERING_BOOL, IsOSR(osr_offset));
+    CHECK(IsOSR(osr_offset));
     if (!CodeKindIsStoredInOptimizedCodeCache(code_kind)) return {};
     if (!function->has_feedback_vector()) return {};
 
@@ -972,38 +972,22 @@ class OptimizedCodeCache : public AllStatic {
 
     Tagged<Code> code;
     Tagged<FeedbackVector> feedback_vector = function->feedback_vector();
-    if (IsOSR(osr_offset)) {
-      Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate),
-                                     isolate);
-      interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
-      // Bytecode may be different, so make sure we're at a valid OSR entry.
-      SBXCHECK(it.CurrentBytecodeIsValidOSREntry());
-      std::optional<Tagged<Code>> maybe_code =
-          feedback_vector->GetOptimizedOsrCode(isolate, bytecode,
-                                               it.GetSlotOperand(2));
-      if (maybe_code.has_value()) code = maybe_code.value();
-    } else {
-#ifdef V8_ENABLE_LEAPTIERING
-      UNREACHABLE();
-#else
-      feedback_vector->EvictOptimizedCodeMarkedForDeoptimization(
-          isolate, shared, "OptimizedCodeCache::Get");
-      code = feedback_vector->optimized_code(isolate);
-#endif  // V8_ENABLE_LEAPTIERING
-    }
 
-    // Normal tierup should never request a code-kind we already have. In case
-    // of OSR it can happen that we OSR from ignition to turbofan. This is
-    // explicitly allowed here by reusing any larger-kinded than requested
-    // code.
-    DCHECK_IMPLIES(!code.is_null() && code->kind() > code_kind,
-                   IsOSR(osr_offset));
+    Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate), isolate);
+    interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
+    // Bytecode may be different, so make sure we're at a valid OSR entry.
+    SBXCHECK(it.CurrentBytecodeIsValidOSREntry());
+    std::optional<Tagged<Code>> maybe_code =
+        feedback_vector->GetOptimizedOsrCode(isolate, bytecode,
+                                             it.GetSlotOperand(2));
+    if (maybe_code.has_value()) code = maybe_code.value();
+
     if (code.is_null() || code->kind() < code_kind) return {};
 
     DCHECK(!code->marked_for_deoptimization());
     DCHECK(shared->is_compiled());
     DCHECK(CodeKindIsStoredInOptimizedCodeCache(code->kind()));
-    DCHECK_IMPLIES(IsOSR(osr_offset), CodeKindCanOSR(code->kind()));
+    DCHECK(CodeKindCanOSR(code->kind()));
 
     CompilerTracer::TraceOptimizedCodeCacheHit(isolate, function, osr_offset,
                                                code_kind);
@@ -1013,44 +997,20 @@ class OptimizedCodeCache : public AllStatic {
   static void Insert(Isolate* isolate, Tagged<JSFunction> function,
                      BytecodeOffset osr_offset, Tagged<Code> code,
                      bool is_function_context_specializing) {
-    DCHECK_IMPLIES(V8_ENABLE_LEAPTIERING_BOOL, IsOSR(osr_offset));
+    CHECK(IsOSR(osr_offset));
     const CodeKind kind = code->kind();
     if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
 
     Tagged<FeedbackVector> feedback_vector = function->feedback_vector();
 
-    if (IsOSR(osr_offset)) {
-      DCHECK(CodeKindCanOSR(kind));
-      DCHECK(!is_function_context_specializing);
-      Tagged<SharedFunctionInfo> shared = function->shared();
-      Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate),
-                                     isolate);
-      interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
-      // Bytecode may be different, so make sure we're at a valid OSR entry.
-      SBXCHECK(it.CurrentBytecodeIsValidOSREntry());
-      feedback_vector->SetOptimizedOsrCode(isolate, it.GetSlotOperand(2), code);
-      return;
-    }
-
-#ifdef V8_ENABLE_LEAPTIERING
-    UNREACHABLE();
-#else
-    DCHECK(!IsOSR(osr_offset));
-
-    if (is_function_context_specializing) {
-      // Function context specialization folds-in the function context, so no
-      // sharing can occur. Make sure the optimized code cache is cleared.
-      // Only do so if the specialized code's kind matches the cached code kind.
-      if (feedback_vector->has_optimized_code() &&
-          feedback_vector->optimized_code(isolate)->kind() == code->kind()) {
-        feedback_vector->ClearOptimizedCode();
-      }
-      return;
-    }
-
-    function->shared()->set_function_context_independent_compiled(true);
-    feedback_vector->SetOptimizedCode(isolate, code);
-#endif  // V8_ENABLE_LEAPTIERING
+    DCHECK(CodeKindCanOSR(kind));
+    DCHECK(!is_function_context_specializing);
+    Tagged<SharedFunctionInfo> shared = function->shared();
+    Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate), isolate);
+    interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
+    // Bytecode may be different, so make sure we're at a valid OSR entry.
+    SBXCHECK(it.CurrentBytecodeIsValidOSREntry());
+    feedback_vector->SetOptimizedOsrCode(isolate, it.GetSlotOperand(2), code);
   }
 };
 
@@ -1102,8 +1062,8 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   // Success!
   job->RecordCompilationStats(ConcurrencyMode::kSynchronous, isolate);
   DCHECK(!isolate->has_exception());
-  if (!V8_ENABLE_LEAPTIERING_BOOL || job->compilation_info()->is_osr()) {
-    OptimizedCodeCache::Insert(
+  if (job->compilation_info()->is_osr()) {
+    OptimizedOSRCodeCache::Insert(
         isolate, *compilation_info->closure(), compilation_info->osr_offset(),
         *compilation_info->code(),
         compilation_info->function_context_specializing());
@@ -1380,11 +1340,10 @@ MaybeHandle<Code> GetOrCompileOptimized(
   // turbo_filter.
   if (!ShouldOptimize(code_kind, shared)) return {};
 
-  if (!V8_ENABLE_LEAPTIERING_BOOL || IsOSR(osr_offset)) {
+  if (IsOSR(osr_offset)) {
     Handle<Code> cached_code;
-    if (OptimizedCodeCache::Get(isolate, function, osr_offset, code_kind)
+    if (OptimizedOSRCodeCache::Get(isolate, function, osr_offset, code_kind)
             .ToHandle(&cached_code)) {
-      DCHECK_IMPLIES(!IsOSR(osr_offset), cached_code->kind() <= code_kind);
       return cached_code;
     }
 
@@ -3161,7 +3120,7 @@ void Compiler::CompileOptimized(Isolate* isolate,
   }
 
 #ifdef DEBUG
-  if (V8_ENABLE_LEAPTIERING_BOOL && mode == ConcurrencyMode::kConcurrent) {
+  if (mode == ConcurrencyMode::kConcurrent) {
     DCHECK_IMPLIES(code_kind == CodeKind::MAGLEV,
                    !function->ActiveTierIsMaglev(isolate));
     DCHECK_IMPLIES(code_kind == CodeKind::TURBOFAN_JS,
@@ -3178,7 +3137,6 @@ void Compiler::CompileOptimized(Isolate* isolate,
     DCHECK_IMPLIES(v8_flags.log_function_events,
                    function->IsLoggingRequested(isolate));
   } else {
-#ifdef V8_ENABLE_LEAPTIERING
     // We can get here from CompileLazy when we have requested optimized code
     // which isn't yet ready. Without Leaptiering, we'll already have set the
     // function's code to the bytecode/baseline code on the SFI. However, in the
@@ -3187,7 +3145,6 @@ void Compiler::CompileOptimized(Isolate* isolate,
       function->UpdateCodeKeepTieringRequests(
           isolate, function->shared()->GetCode(isolate));
     }
-#endif  // V8_ENABLE_LEAPTIERING
   }
 
 #ifdef DEBUG
@@ -4413,8 +4370,8 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
       if (V8_LIKELY(use_result)) {
         function->SetTieringInProgress(isolate, false,
                                        job->compilation_info()->osr_offset());
-        if (!V8_ENABLE_LEAPTIERING_BOOL || IsOSR(osr_offset)) {
-          OptimizedCodeCache::Insert(
+        if (IsOSR(osr_offset)) {
+          OptimizedOSRCodeCache::Insert(
               isolate, *compilation_info->closure(),
               compilation_info->osr_offset(), *compilation_info->code(),
               compilation_info->function_context_specializing());
@@ -4494,9 +4451,9 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     }
 
     DCHECK(code->is_maglevved());
-    if (!V8_ENABLE_LEAPTIERING_BOOL || IsOSR(osr_offset)) {
-      OptimizedCodeCache::Insert(isolate, *function, osr_offset, *code,
-                                 job->specialize_to_function_context());
+    if (IsOSR(osr_offset)) {
+      OptimizedOSRCodeCache::Insert(isolate, *function, osr_offset, *code,
+                                    job->specialize_to_function_context());
     }
 
     RecordMaglevFunctionCompilation(isolate, function,
@@ -4531,24 +4488,6 @@ void Compiler::PostInstantiation(Isolate* isolate,
     // are just creating a new closure that shares the same feedback cell.
     JSFunction::InitializeFeedbackCell(isolate, function, is_compiled_scope,
                                        false);
-
-#ifndef V8_ENABLE_LEAPTIERING
-    if (function->has_feedback_vector()) {
-      // Evict any deoptimized code on feedback vector. We need to do this after
-      // creating the closure, since any heap allocations could trigger a GC and
-      // deoptimized the code on the feedback vector. So check for any
-      // deoptimized code just before installing it on the function.
-      function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
-          isolate, *shared, "new function from shared function info");
-      Tagged<Code> code = function->feedback_vector()->optimized_code(isolate);
-      if (!code.is_null()) {
-        // Caching of optimized code enabled and optimized code found.
-        DCHECK(!code->marked_for_deoptimization());
-        DCHECK(function->shared()->is_compiled());
-        function->UpdateOptimizedCode(isolate, code);
-      }
-    }
-#endif  // !V8_ENABLE_LEAPTIERING
   }
 
   if (shared->is_toplevel() || shared->is_wrapped()) {

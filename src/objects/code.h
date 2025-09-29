@@ -275,10 +275,8 @@ class Code : public ExposedTrustedObject {
   inline Address metadata_start() const;
   inline Address metadata_end() const;
 
-#ifdef V8_ENABLE_LEAPTIERING
   inline void set_js_dispatch_handle(JSDispatchHandle handle);
   inline JSDispatchHandle js_dispatch_handle() const;
-#endif  // V8_ENABLE_LEAPTIERING
 
   // The size of the associated InstructionStream object, if it exists.
   inline int InstructionStreamObjectSize() const;
@@ -417,8 +415,7 @@ class Code : public ExposedTrustedObject {
   /* referenced via the kSelfIndirectPointerOffset field */                    \
   V(kInstructionStartOffset, V8_ENABLE_SANDBOX_BOOL ? 0 : kSystemPointerSize)  \
   /* The serializer needs to copy bytes starting from here verbatim. */        \
-  V(kDispatchHandleOffset,                                                     \
-    V8_ENABLE_LEAPTIERING_BOOL ? kJSDispatchHandleSize : 0)                    \
+  V(kDispatchHandleOffset, kJSDispatchHandleSize)                              \
   V(kFlagsOffset, kUInt32Size)                                                 \
   V(kInstructionSizeOffset, kIntSize)                                          \
   V(kMetadataSizeOffset, kIntSize)                                             \

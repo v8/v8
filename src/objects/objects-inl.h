@@ -1330,7 +1330,6 @@ template <typename ObjectType>
 JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
     ObjectType host, size_t offset, Isolate* isolate, uint16_t parameter_count,
     DirectHandle<Code> code, WriteBarrierMode mode) {
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* space =
       isolate->GetJSDispatchTableSpaceFor(host->field_address(offset));
   JSDispatchHandle handle =
@@ -1345,9 +1344,6 @@ JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle, mode);
 
   return handle;
-#else
-  UNREACHABLE();
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {
