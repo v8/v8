@@ -773,9 +773,9 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
       isolate, *old_map, ConcurrencyMode::kSynchronous);
   if (!new_map.has_value()) return MaybeHandle<Map>();
   if (v8_flags.fast_map_update) {
-    TransitionsAccessor::SetMigrationTarget(isolate, old_map, new_map.value());
+    TransitionsAccessor::SetMigrationTarget(isolate, old_map, *new_map);
   }
-  return handle(new_map.value(), isolate);
+  return handle(*new_map, isolate);
 }
 
 Tagged<Map> Map::TryReplayPropertyTransitions(Isolate* isolate,
