@@ -131,7 +131,7 @@ TEST_WITH_PLATFORM(IncrementalMarkingUsingTasks, MockPlatform) {
           GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
           "collector cctest", GCTracer::MarkingType::kIncremental);
       marking->Start(GarbageCollector::MARK_COMPACTOR,
-                     i::GarbageCollectionReason::kTesting);
+                     i::GarbageCollectionReason::kTesting, "testing");
     }
     CHECK(marking->IsMajorMarking());
     while (marking->IsMajorMarking()) {

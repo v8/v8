@@ -1903,7 +1903,8 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
 void Heap::StartIncrementalMarking(GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    GCCallbackFlags gc_callback_flags,
-                                   GarbageCollector collector) {
+                                   GarbageCollector collector,
+                                   const char* reason) {
   DCHECK(incremental_marking()->IsStopped());
   CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
                 !isolate()->InFastCCall());
@@ -1947,7 +1948,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   current_gc_flags_ = gc_flags;
   current_gc_callback_flags_ = gc_callback_flags;
 
-  incremental_marking()->Start(collector, gc_reason);
+  incremental_marking()->Start(collector, gc_reason, reason);
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     DCHECK(incremental_marking()->IsMajorMarking());
@@ -2020,7 +2021,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
               OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
                   ? GarbageCollectionReason::kAllocationLimit
                   : GarbageCollectionReason::kGlobalAllocationLimit,
-              gc_callback_flags);
+              gc_callback_flags, GarbageCollector::MARK_COMPACTOR, reason);
         } else {
           ExecutionAccess access(isolate());
           isolate()->stack_guard()->RequestStartIncrementalMarking();
