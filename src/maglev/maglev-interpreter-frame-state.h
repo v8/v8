@@ -465,6 +465,8 @@ class MergePointInterpreterFrameState {
            basic_block_type() == BasicBlockType::kUnusedExceptionHandlerStart;
   }
 
+  bool is_inline() const { return kIsInline::decode(bitfield_); }
+
   bool is_unmerged_loop() const {
     // If this is a loop and not all predecessors are set, then the loop isn't
     // merged yet.
@@ -518,6 +520,7 @@ class MergePointInterpreterFrameState {
   using kBasicBlockTypeBits = base::BitField<BasicBlockType, 0, 2>;
   using kIsResumableLoopBit = kBasicBlockTypeBits::Next<bool, 1>;
   using kIsLoopWithPeeledIterationBit = kIsResumableLoopBit::Next<bool, 1>;
+  using kIsInline = kIsLoopWithPeeledIterationBit::Next<bool, 1>;
 
   // For each non-Phi value in the frame state, store its alternative
   // representations to avoid re-converting on Phi creation.

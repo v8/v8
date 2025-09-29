@@ -262,6 +262,7 @@ class BasicBlock {
   bool is_exception_handler_block() const {
     return has_state() && state_->is_exception_handler();
   }
+  bool is_inline() const { return has_state() && state_->is_inline(); }
 
   // If the basic block is an empty (unnecessary) block containing only an
   // unconditional jump to the successor block, return the successor block.
