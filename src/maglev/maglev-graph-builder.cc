@@ -15735,7 +15735,7 @@ ReduceResult MaglevGraphBuilder::VisitForOfNext() {
   auto register_pair = iterator_.GetRegisterPairOperand(2);
 
   CallBuiltin* result_struct =
-      BuildCallBuiltin<Builtin::kForOfNextBaseline>({iterator, next_method});
+      BuildCallBuiltin<Builtin::kForOfNext>({iterator, next_method});
 
   StoreRegisterPair(register_pair, result_struct);
 

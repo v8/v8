@@ -936,6 +936,9 @@ extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
 extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
 extern macro LoadBufferIntptr(RawPtr, constexpr int32): intptr;
 
+extern macro LoadFullTagged(RawPtr): Object;
+extern macro StoreFullTaggedNoWriteBarrier(RawPtr, Object): void;
+
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(String, String): Boolean;
 extern builtin StringCompare(String, String): Smi;

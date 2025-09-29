@@ -2467,10 +2467,14 @@ void BaselineCompiler::VisitResumeGenerator() {
 }
 
 void BaselineCompiler::VisitForOfNext() {
-  SaveAccumulatorScope accumulator_scope(this, &basm_);
-  CallBuiltin<Builtin::kForOfNextBaseline>(RegisterOperand(0),   // object
-                                           RegisterOperand(1));  // next
-  StoreRegisterPair(2, kReturnRegister0, kReturnRegister1);
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  // Pass the output register slot as an argument, so that the builtin
+  // is responsible for writing into the slots.
+  Register out_reg_address = scratch_scope.AcquireScratch();
+  basm_.RegisterFrameAddress(RegisterOperand(2), out_reg_address);
+  CallBuiltin<Builtin::kForOfNextBaseline>(RegisterOperand(0),  // object
+                                           RegisterOperand(1),  // next
+                                           out_reg_address);    // out_reg
 }
 
 void BaselineCompiler::VisitGetIterator() {
