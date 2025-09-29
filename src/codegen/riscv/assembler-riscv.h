@@ -305,7 +305,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   static bool IsConstantPoolAt(Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
-  // See Assembler::CheckConstPool for more info.
   void EmitPoolGuard();
 
   void FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
@@ -473,56 +472,39 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
-  // Class for scoping postponing the trampoline pool generation.
-  class V8_NODISCARD BlockTrampolinePoolScope {
+  // Blocks the trampoline pool and constant pools emissions. Emits pools if
+  // necessary to ensure that {margin} more bytes can be emitted without
+  // triggering pool emission.
+  class V8_NODISCARD BlockPoolsScope {
    public:
     // We leave space for a number of trampoline pool slots, so we do not
     // have to pass in an explicit margin for all scopes.
     static constexpr int kGap = kTrampolineSlotsSize * 16;
 
-    explicit BlockTrampolinePoolScope(Assembler* assem, int margin = 0)
+    explicit BlockPoolsScope(Assembler* assem, int margin = 0)
+        : BlockPoolsScope(assem, ConstantPoolEmission::kCheck, margin) {}
+
+    BlockPoolsScope(Assembler* assem, ConstantPoolEmission cpe, int margin = 0)
         : assem_(assem), margin_(margin) {
-      if (margin > 0) {
-        assem->CheckTrampolinePoolQuick(margin);
-      }
-      assem->StartBlockTrampolinePool();
+      assem->StartBlockPools(cpe, margin);
       start_offset_ = assem->pc_offset();
     }
 
-    ~BlockTrampolinePoolScope() {
+    ~BlockPoolsScope() {
       int generated = assem_->pc_offset() - start_offset_;
       USE(generated);  // Only used in DCHECK.
       int allowed = margin_;
       if (allowed == 0) allowed = kGap - kTrampolinePoolOverhead;
       DCHECK_GE(generated, 0);
       DCHECK_LE(generated, allowed);
-      assem_->EndBlockTrampolinePool();
+      assem_->EndBlockPools();
     }
 
    private:
     Assembler* const assem_;
     const int margin_;
     int start_offset_;
-    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockTrampolinePoolScope);
-  };
 
-  class V8_NODISCARD BlockPoolsScope {
-   public:
-    // Block Trampoline Pool and Constant Pool. Emits pools if necessary to
-    // ensure that {margin} more bytes can be emitted without triggering pool
-    // emission.
-    explicit BlockPoolsScope(Assembler* assem, int margin = 0)
-        : block_const_pool_(assem, margin),
-          block_trampoline_pool_(assem, margin) {}
-
-    BlockPoolsScope(Assembler* assem, PoolEmissionCheck check, int margin = 0)
-        : block_const_pool_(assem, check),
-          block_trampoline_pool_(assem, margin) {}
-    ~BlockPoolsScope() {}
-
-   private:
-    ConstantPool::BlockScope block_const_pool_;
-    BlockTrampolinePoolScope block_trampoline_pool_;
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
 
@@ -585,8 +567,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     return reinterpret_cast<Address>(buffer_start_ + pos);
   }
 
-  void CheckTrampolinePool();
-
   // Get the code target object for a pc-relative call or jump.
   V8_INLINE Handle<Code> relative_code_target_object_handle_at(
       Address pc_) const;
@@ -620,13 +600,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   void CheckTrampolinePoolQuick(int margin = 0) {
     DEBUG_PRINTF("\tCheckTrampolinePoolQuick pc_offset:%d %d\n", pc_offset(),
-                 next_buffer_check_ - margin);
-    if (pc_offset() >= next_buffer_check_ - margin) {
+                 trampoline_check_ - margin);
+    if (pc_offset() >= trampoline_check_ - margin) {
       CheckTrampolinePool();
     }
   }
-
-  int next_buffer_check() const { return next_buffer_check_; }
 
   friend class VectorUnit;
   class VectorUnit {
@@ -815,36 +793,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     pc_offset_for_safepoint_ = pc_offset();
   }
 
-  void StartBlockTrampolinePool() {
-    DEBUG_PRINTF("\tStartBlockTrampolinePool %d\n", pc_offset());
-    trampoline_pool_blocked_nesting_++;
-  }
+  void StartBlockPools(ConstantPoolEmission cpe, int margin);
+  void EndBlockPools();
 
-  void EndBlockTrampolinePool() {
-    DEBUG_PRINTF("\tEndBlockTrampolinePool\n");
-    trampoline_pool_blocked_nesting_--;
-    DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
-                 trampoline_pool_blocked_nesting_);
-    if (trampoline_pool_blocked_nesting_ == 0) {
-      CheckTrampolinePoolQuick();
-    }
-  }
-
-  bool is_trampoline_pool_blocked() const {
-    return trampoline_pool_blocked_nesting_ > 0;
-  }
-
-  bool is_trampoline_emitted() const { return trampoline_emitted_; }
+  bool pools_blocked() const { return pools_blocked_nesting_ > 0; }
+  bool is_trampoline_emitted() const { return trampoline_check_ == kMaxInt; }
 
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
 
-  // Buffer size and constant pool distance are checked together at regular
-  // intervals of kBufferCheckInterval emitted bytes.
-  static constexpr int kBufferCheckInterval = 1 * KB / 2;
-
-  // InstructionStream generation.
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large
@@ -852,18 +810,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   static constexpr int kGap = 64;
   static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
-  // Repeated checking whether the trampoline pool should be emitted is rather
-  // expensive. By default we only check again once a number of instructions
-  // has been generated.
-  static constexpr int kCheckConstIntervalInst = 32;
-  static constexpr int kCheckConstInterval =
-      kCheckConstIntervalInst * kInstrSize;
-
-  int next_buffer_check_;  // pc offset of next buffer check.
-
-  // Emission of the trampoline pool may be blocked in some code sequences. The
-  // nesting is zero when the pool isn't blocked.
-  int trampoline_pool_blocked_nesting_ = 0;
+  // Emission of the pools may be blocked in some code sequences. The
+  // nesting is zero when the pools aren't blocked.
+  int pools_blocked_nesting_ = 0;
 
   // Relocation information generation.
   // Each relocation is encoded as a variable size value.
@@ -935,15 +884,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     int free_slot_count_;
   };
 
-  int32_t get_trampoline_entry(int32_t pos);
-  int unbound_labels_count_ = 0;
-  // After trampoline is emitted, long branches are used in generated code for
-  // the forward branches whose target offsets could be beyond reach of branch
-  // instruction. We use this information to trigger different mode of
-  // branch instruction generation, where we use jump instructions rather
-  // than regular branch instructions.
-  bool trampoline_emitted_ = false;
   static constexpr int kInvalidSlotPos = -1;
+  Trampoline trampoline_;
+
+  int unbound_labels_count_ = 0;
+  int trampoline_check_;  // The pc offset of next trampoline pool check.
+
+  void CheckTrampolinePool();
+  int32_t GetTrampolineEntry(int32_t pos);
 
   // Internal reference positions, required for unbounded internal reference
   // labels.
@@ -953,12 +901,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
            internal_reference_positions_.end();
   }
 
-  Trampoline trampoline_;
-
   RegList scratch_register_list_;
   DoubleRegList scratch_double_register_list_;
-
- private:
   ConstantPool constpool_;
 
   void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
@@ -967,7 +911,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   friend class RegExpMacroAssemblerRISCV;
   friend class RelocInfo;
-  friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
   friend class ConstantPool;
 };

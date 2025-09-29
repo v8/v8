@@ -273,10 +273,37 @@ Assembler::Assembler(const AssemblerOptions& options,
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
-  next_buffer_check_ = v8_flags.force_long_branches
-                           ? kMaxInt
-                           : kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
-  trampoline_emitted_ = v8_flags.force_long_branches;
+  trampoline_check_ = v8_flags.force_long_branches
+                          ? kMaxInt
+                          : kMaxBranchOffset - BlockPoolsScope::kGap;
+  CHECK(!v8_flags.force_long_branches || is_trampoline_emitted());
+}
+
+void Assembler::StartBlockPools(ConstantPoolEmission cpe, int margin) {
+  int current = pools_blocked_nesting_;
+  if (current == 0) {
+    if (cpe == ConstantPoolEmission::kCheck) {
+      EmitConstPoolWithJumpIfNeeded(margin);
+    }
+    if (margin > 0) {
+      CheckTrampolinePoolQuick(margin);
+    }
+    constpool_.DisableNextCheckIn();
+  }
+  pools_blocked_nesting_ = current + 1;
+  DEBUG_PRINTF("\tStartBlockPools @ %d (nesting=%d)\n", pc_offset(),
+               pools_blocked_nesting_);
+}
+
+void Assembler::EndBlockPools() {
+  pools_blocked_nesting_--;
+  DEBUG_PRINTF("\tEndBlockPools @ %d (nesting=%d)\n", pc_offset(),
+               pools_blocked_nesting_);
+  DCHECK_GE(pools_blocked_nesting_, 0);
+  if (pools_blocked_nesting_ > 0) return;  // Still blocked.
+  CheckTrampolinePoolQuick();
+  DCHECK(constpool_.IsInImmRangeIfEmittedAt(pc_offset()));
+  constpool_.SetNextCheckIn(0);
 }
 
 void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
@@ -648,10 +675,10 @@ void Assembler::bind_to(Label* L, int pos) {
   DEBUG_PRINTF("\tbinding %d to label %p\n", pos, L);
   int trampoline_pos = kInvalidSlotPos;
   bool is_internal = false;
-  if (L->is_linked() && !trampoline_emitted_) {
+  if (L->is_linked() && !is_trampoline_emitted()) {
     unbound_labels_count_--;
     if (!is_internal_reference(L)) {
-      next_buffer_check_ += kTrampolineSlotsSize;
+      trampoline_check_ += kTrampolineSlotsSize;
     }
   }
 
@@ -669,7 +696,7 @@ void Assembler::bind_to(Label* L, int pos) {
       if (IsBranch(instr)) {
         if (dist > kMaxBranchOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
-            trampoline_pos = get_trampoline_entry(fixup_pos);
+            trampoline_pos = GetTrampolineEntry(fixup_pos);
           }
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
           CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
@@ -680,7 +707,7 @@ void Assembler::bind_to(Label* L, int pos) {
       } else if (IsJal(instr)) {
         if (dist > kMaxJumpOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
-            trampoline_pos = get_trampoline_entry(fixup_pos);
+            trampoline_pos = GetTrampolineEntry(fixup_pos);
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxJumpOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
@@ -767,8 +794,8 @@ int Assembler::PatchBranchLongOffset(Address pc, Instr instr_auipc,
 }
 
 // Returns the next free trampoline entry.
-int32_t Assembler::get_trampoline_entry(int32_t pos) {
-  DEBUG_PRINTF("\ttrampoline start: %d,pos: %d\n", trampoline_.start(), pos);
+int32_t Assembler::GetTrampolineEntry(int32_t pos) {
+  DEBUG_PRINTF("\ttrampoline start: %d, pos: %d\n", trampoline_.start(), pos);
   CHECK(trampoline_.start() > pos);
   int32_t entry = trampoline_.take_slot();
   CHECK_NE(entry, kInvalidSlotPos);
@@ -788,9 +815,9 @@ uintptr_t Assembler::jump_address(Label* L) {
       L->link_to(pc_offset());
     } else {
       L->link_to(pc_offset());
-      if (!trampoline_emitted_) {
+      if (!is_trampoline_emitted()) {
         unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
+        trampoline_check_ -= kTrampolineSlotsSize;
       }
       DEBUG_PRINTF("\tstarted link\n");
       return kEndOfJumpChain;
@@ -819,9 +846,9 @@ int32_t Assembler::branch_long_offset(Label* L) {
       L->link_to(pc_offset());
     } else {
       L->link_to(pc_offset());
-      if (!trampoline_emitted_) {
+      if (!is_trampoline_emitted()) {
         unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
+        trampoline_check_ -= kTrampolineSlotsSize;
       }
       DEBUG_PRINTF("\tstarted link\n");
       return kEndOfJumpChain;
@@ -854,9 +881,9 @@ int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
       DEBUG_PRINTF("\tadded to link: %d\n", target_pos);
     } else {
       L->link_to(pc_offset());
-      if (!trampoline_emitted_) {
+      if (!is_trampoline_emitted()) {
         unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
+        trampoline_check_ -= kTrampolineSlotsSize;
       }
       DEBUG_PRINTF("\tstarted link\n");
       return kEndOfJumpChain;
@@ -1207,10 +1234,6 @@ void Assembler::stop(uint32_t code) {
 #endif
 }
 
-// Original MIPS Instructions
-
-// ------------Memory-instructions-------------
-
 bool Assembler::NeedAdjustBaseAndOffset(const MemOperand& src,
                                         OffsetAccessType access_type,
                                         int second_access_add_to_offset) {
@@ -1407,14 +1430,16 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 void Assembler::CheckTrampolinePool() {
-  if (trampoline_emitted_) return;
+  // Once we've emitted the trampoline pool, we bump the next check position,
+  // so we shouldn't get here again.
+  CHECK(!is_trampoline_emitted());
+
   // Some small sequences of instructions must not be broken up by the
   // insertion of a trampoline pool; such sequences are protected by increasing
-  // trampoline_pool_blocked_nesting_. This is also used to block recursive
-  // calls to CheckTrampolinePool.
-  DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
-               trampoline_pool_blocked_nesting_);
-  if (is_trampoline_pool_blocked()) {
+  // pools_blocked_nesting_. This is also used to block recursive calls to
+  // CheckTrampolinePool.
+  DEBUG_PRINTF("\tpools_blocked_nesting: %d\n", pools_blocked_nesting_);
+  if (pools_blocked()) {
     // Emission is currently blocked; we will check again when we leave the
     // blocking scope. We shouldn't move the next check position here, because
     // it would interfere with the adjustments we make when we produce new
@@ -1433,9 +1458,11 @@ void Assembler::CheckTrampolinePool() {
     int pc_offset_for_safepoint_before = pc_offset_for_safepoint();
     USE(pc_offset_for_safepoint_before);  // Only used in DCHECK below.
 
-    // Mark the trampoline pool as emitted eagerly to avoid recursive
-    // emissions occurring from the blocking scope.
-    trampoline_emitted_ = true;
+    // As we are only going to emit the trampoline pool once, we do not have
+    // to check ever again. To avoid recursive emissions occurring when the
+    // pools are blocked below, we *eagerly* set the next check position to
+    // something we will never reach.
+    trampoline_check_ = kMaxInt;
 
     // By construction, we know that any branch or jump up until this point
     // can reach the last entry in the trampoline pool. Therefore, we can
@@ -1444,7 +1471,7 @@ void Assembler::CheckTrampolinePool() {
     static_assert(kMaxBranchOffset <= kMaxJumpOffset - kTrampolineSlotsSize);
     int preamble_start = pc_offset();
     USE(preamble_start);  // Only used in DCHECK.
-    BlockPoolsScope block_pools(this, PoolEmissionCheck::kSkip, size);
+    BlockPoolsScope block_pools(this, ConstantPoolEmission::kSkip, size);
     j(size);
 
     int pool_start = pc_offset();
@@ -1464,16 +1491,10 @@ void Assembler::CheckTrampolinePool() {
     // Make sure we didn't mess with the recorded pc for the next safepoint
     // as part of emitting the branch trampolines.
     DCHECK_EQ(pc_offset_for_safepoint(), pc_offset_for_safepoint_before);
-
-    // As we are only going to emit the trampoline pool once, we do not have
-    // to check ever again. We set the next check position to something we
-    // will never reach.
-    next_buffer_check_ = kMaxInt;
   } else {
     // Number of branches to unbound label at this point is zero, so we can
-    // move next buffer check to maximum.
-    next_buffer_check_ =
-        pc_offset() + kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
+    // move next trampoline check to maximum.
+    trampoline_check_ = pc_offset() + kMaxBranchOffset - BlockPoolsScope::kGap;
   }
 }
 

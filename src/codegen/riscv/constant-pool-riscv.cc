@@ -9,9 +9,6 @@
 namespace v8 {
 namespace internal {
 
-ConstantPool::ConstantPool(Assembler* assm) : assm_(assm) {}
-ConstantPool::~ConstantPool() { DCHECK_EQ(blocked_nesting_, 0); }
-
 RelocInfoStatus ConstantPool::RecordEntry64(uint64_t data,
                                             RelocInfo::Mode rmode) {
   ConstantPoolKey key(data, rmode);
@@ -45,12 +42,15 @@ RelocInfoStatus ConstantPool::GetRelocInfoStatusFor(
 }
 
 void ConstantPool::EmitAndClear(Jump require_jump) {
-  DCHECK(!IsBlocked());
+  // Since we do not know how much space the constant pool is going to take
+  // up, we cannot handle getting here while the trampoline pool is blocked.
+  CHECK(!assm_->pools_blocked());
+
   // Prevent recursive pool emission. We conservatively assume that we will
   // have to add padding for alignment, so the margin is guaranteed to be
   // at least as large as the actual size of the constant pool.
   int margin = ComputeSize(require_jump, Alignment::kRequired);
-  Assembler::BlockPoolsScope block_pools(assm_, PoolEmissionCheck::kSkip,
+  Assembler::BlockPoolsScope block_pools(assm_, ConstantPoolEmission::kSkip,
                                          margin);
 
   // The pc offset may have changed as a result of blocking pools. We can
@@ -106,26 +106,6 @@ void ConstantPool::Clear() {
   deduped_entry_count_ = 0;
   next_check_ = 0;
 }
-
-void ConstantPool::StartBlock() {
-  if (blocked_nesting_ == 0) {
-    // Prevent constant pool checks from happening by setting the next check to
-    // the biggest possible offset.
-    next_check_ = kMaxInt;
-  }
-  ++blocked_nesting_;
-}
-
-void ConstantPool::EndBlock() {
-  --blocked_nesting_;
-  if (blocked_nesting_ == 0) {
-    DCHECK(IsInImmRangeIfEmittedAt(assm_->pc_offset()));
-    // Make sure a check happens quickly after getting unblocked.
-    next_check_ = 0;
-  }
-}
-
-bool ConstantPool::IsBlocked() const { return blocked_nesting_ > 0; }
 
 void ConstantPool::SetNextCheckIn(size_t bytes) {
   next_check_ = assm_->pc_offset() + static_cast<int>(bytes);
@@ -207,20 +187,6 @@ bool ConstantPool::IsInImmRangeIfEmittedAt(int pc_offset) {
   return pool_end < first_use_ + kMaxDistToPool;
 }
 
-ConstantPool::BlockScope::BlockScope(Assembler* assm, size_t margin)
-    : pool_(&assm->constpool_) {
-  pool_->assm_->EmitConstPoolWithJumpIfNeeded(margin);
-  pool_->StartBlock();
-}
-
-ConstantPool::BlockScope::BlockScope(Assembler* assm, PoolEmissionCheck check)
-    : pool_(&assm->constpool_) {
-  DCHECK_EQ(check, PoolEmissionCheck::kSkip);
-  pool_->StartBlock();
-}
-
-ConstantPool::BlockScope::~BlockScope() { pool_->EndBlock(); }
-
 void ConstantPool::MaybeCheck() {
   if (assm_->pc_offset() >= next_check_) {
     Check(Emission::kIfNeeded, Jump::kRequired);
@@ -274,8 +240,8 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
 void ConstantPool::Check(Emission force_emit, Jump require_jump,
                          size_t margin) {
   // Some short sequence of instruction must not be broken up by constant pool
-  // emission, such sequences are protected by a ConstPool::BlockScope.
-  if (IsBlocked() || assm_->is_trampoline_pool_blocked()) {
+  // emission, such sequences are protected by an Assembler::BlockPoolsScope.
+  if (assm_->pools_blocked()) {
     // Something is wrong if emission is forced and blocked at the same time.
     DCHECK_EQ(force_emit, Emission::kIfNeeded);
     return;
@@ -294,10 +260,6 @@ void ConstantPool::Check(Emission force_emit, Jump require_jump,
     while (assm_->buffer_space() <= needed_space) {
       assm_->GrowBuffer();
     }
-
-    // Since we do not know how much space the constant pool is going to take
-    // up, we cannot handle getting here while the trampoline pool is blocked.
-    CHECK(!assm_->is_trampoline_pool_blocked());
     EmitAndClear(require_jump);
   }
   // Since a constant pool is (now) empty, move the check offset forward by

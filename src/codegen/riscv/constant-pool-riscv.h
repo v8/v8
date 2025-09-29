@@ -67,7 +67,7 @@ enum class Jump { kOmitted, kRequired };
 enum class Emission { kIfNeeded, kForced };
 enum class Alignment { kOmitted, kRequired };
 enum class RelocInfoStatus { kMustRecord, kMustOmitForDuplicate };
-enum class PoolEmissionCheck { kSkip };
+enum class ConstantPoolEmission { kSkip, kCheck };
 
 // Pools are emitted in the instruction stream, preferably after unconditional
 // jumps or after returns from functions (in dead code locations).
@@ -79,8 +79,7 @@ enum class PoolEmissionCheck { kSkip };
 // if so, a relocation info entry is associated to the constant pool entry.
 class ConstantPool {
  public:
-  explicit ConstantPool(Assembler* assm);
-  ~ConstantPool();
+  explicit ConstantPool(Assembler* assm) : assm_(assm) {}
 
   // Records a constant pool entry. Returns whether we need to write RelocInfo.
   RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode);
@@ -103,27 +102,10 @@ class ConstantPool {
   V8_EXPORT_PRIVATE void MaybeCheck();
   void Clear();
 
-  // Constant pool emission can be blocked temporarily.
-  bool IsBlocked() const;
-
   // Repeated checking whether the constant pool should be emitted is expensive;
   // only check once a number of bytes have been generated.
   void SetNextCheckIn(size_t bytes);
-
-  // Class for scoping postponing the constant pool generation.
-  class V8_EXPORT_PRIVATE V8_NODISCARD BlockScope {
-   public:
-    // BlockScope immediatelly emits the pool if necessary to ensure that
-    // during the block scope at least {margin} bytes can be emitted without
-    // pool emission becomming necessary.
-    explicit BlockScope(Assembler* pool, size_t margin = 0);
-    BlockScope(Assembler* pool, PoolEmissionCheck);
-    ~BlockScope();
-
-   private:
-    ConstantPool* pool_;
-    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockScope);
-  };
+  void DisableNextCheckIn() { next_check_ = kMaxInt; }
 
   // Pool entries are accessed with pc relative load therefore this cannot be
   // more than 1 * MB. Since constant pool emission checks are interval based,
@@ -142,9 +124,6 @@ class ConstantPool {
   static const size_t kApproxMaxEntryCount = 512;
 
  private:
-  void StartBlock();
-  void EndBlock();
-
   void EmitEntries();
   void EmitPrologue(Alignment require_alignment);
   int PrologueSize(Jump require_jump) const;
@@ -175,7 +154,6 @@ class ConstantPool {
   size_t deduped_entry_count_ = 0;
 
   int next_check_ = 0;
-  int blocked_nesting_ = 0;
 };
 
 }  // namespace internal

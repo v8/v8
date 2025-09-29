@@ -242,7 +242,7 @@ void LiftoffAssembler::LoadSpillAddress(Register dst, int offset,
   SubWord(dst, fp, offset);
 }
 
-void LiftoffAssembler::FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
+void LiftoffAssembler::FinishCode() { MacroAssembler::FinishCode(); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
