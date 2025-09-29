@@ -81,21 +81,14 @@ class ConstantPool {
  public:
   explicit ConstantPool(Assembler* assm) : assm_(assm) {}
 
+  bool IsEmpty() const { return deduped_entry_count_ == 0; }
+
   // Records a constant pool entry. Returns whether we need to write RelocInfo.
   RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode);
 
-  size_t EntryCount() const { return deduped_entry_count_; }
-  bool IsEmpty() const { return deduped_entry_count_ == 0; }
-
   // Check if pool will be out of range at {pc_offset}.
-  bool IsInImmRangeIfEmittedAt(int pc_offset);
-  // Size in bytes of the constant pool. Depending on parameters, the size will
-  // include the branch over the pool and alignment padding.
-  int ComputeSize(Jump require_jump, Alignment require_alignment) const;
+  bool IsInRangeIfEmittedAt(int pc_offset) const;
 
-  // Emit the pool at the current pc with a branch over the pool if requested.
-  void EmitAndClear(Jump require);
-  bool ShouldEmitNow(Jump require_jump, size_t margin = 0) const;
   V8_EXPORT_PRIVATE void Check(Emission force_emission, Jump require_jump,
                                size_t margin = 0);
 
@@ -107,6 +100,7 @@ class ConstantPool {
   void SetNextCheckIn(size_t bytes);
   void DisableNextCheckIn() { next_check_ = kMaxInt; }
 
+ private:
   // Pool entries are accessed with pc relative load therefore this cannot be
   // more than 1 * MB. Since constant pool emission checks are interval based,
   // and we want to keep entries close to the code, we try to emit every 64KB.
@@ -123,10 +117,22 @@ class ConstantPool {
   // Number of entries in the pool which trigger a check.
   static const size_t kApproxMaxEntryCount = 512;
 
- private:
+  size_t EntryCount() const { return deduped_entry_count_; }
+
+  // Emit the pool at the current pc with a branch over the pool if requested.
+  void EmitAndClear(Jump require);
+  bool ShouldEmitNow(Jump require_jump, size_t margin = 0) const;
+
   void EmitEntries();
   void EmitPrologue(Alignment require_alignment);
-  int PrologueSize(Jump require_jump) const;
+
+  // Size in bytes of the constant pool. Depending on parameters, the size will
+  // include the branch over the pool and alignment padding.
+  int ComputeSize(Jump require_jump, Alignment require_alignment) const;
+
+  // Size of the prologue in bytes.
+  int ComputePrologueSize(Jump require_jump) const;
+
   RelocInfoStatus RecordKey(ConstantPoolKey key, int offset);
   RelocInfoStatus GetRelocInfoStatusFor(const ConstantPoolKey& key);
   void Emit(const ConstantPoolKey& key);

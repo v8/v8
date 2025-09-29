@@ -112,17 +112,26 @@ void ConstantPool::SetNextCheckIn(size_t bytes) {
 }
 
 void ConstantPool::EmitEntries() {
+  int count = 0;
+  USE(count);  // Only used in DCHECK below.
   for (auto iter = entries_.begin(); iter != entries_.end();) {
     DCHECK(IsAligned(assm_->pc_offset(), 8));
     auto range = entries_.equal_range(iter->first);
     bool shared = iter->first.AllowsDeduplication();
     for (auto it = range.first; it != range.second; ++it) {
       SetLoadOffsetToConstPoolEntry(it->second, assm_->pc(), it->first);
-      if (!shared) Emit(it->first);
+      if (!shared) {
+        Emit(it->first);
+        count++;
+      }
     }
-    if (shared) Emit(iter->first);
+    if (shared) {
+      Emit(iter->first);
+      count++;
+    }
     iter = range.second;
   }
+  DCHECK_EQ(EntryCount(), count);
 }
 
 void ConstantPool::Emit(const ConstantPoolKey& key) { assm_->dq(key.value()); }
@@ -153,7 +162,7 @@ bool ConstantPool::ShouldEmitNow(Jump require_jump, size_t margin) const {
 
 int ConstantPool::ComputeSize(Jump require_jump,
                               Alignment require_alignment) const {
-  int prologue_size = PrologueSize(require_jump);
+  int prologue_size = ComputePrologueSize(require_jump);
   // TODO(kasperl): It would be nice to just compute the exact amount of
   // padding needed, but that requires knowing the {pc_offset} where the
   // constant pool will be emitted. For now, we will just compute the
@@ -171,16 +180,16 @@ int ConstantPool::ComputeSize(Jump require_jump,
 
 Alignment ConstantPool::IsAlignmentRequiredIfEmittedAt(Jump require_jump,
                                                        int pc_offset) const {
-  if (EntryCount() == 0) return Alignment::kOmitted;
-  int prologue_size = PrologueSize(require_jump);
+  if (IsEmpty()) return Alignment::kOmitted;
+  int prologue_size = ComputePrologueSize(require_jump);
   return IsAligned(pc_offset + prologue_size, kInt64Size)
              ? Alignment::kOmitted
              : Alignment::kRequired;
 }
 
-bool ConstantPool::IsInImmRangeIfEmittedAt(int pc_offset) {
+bool ConstantPool::IsInRangeIfEmittedAt(int pc_offset) const {
   // Check that all entries are in range if the pool is emitted at {pc_offset}.
-  if (EntryCount() == 0) return true;
+  if (IsEmpty()) return true;
   Alignment require_alignment =
       IsAlignmentRequiredIfEmittedAt(Jump::kRequired, pc_offset);
   size_t pool_end = pc_offset + ComputeSize(Jump::kRequired, require_alignment);
@@ -206,7 +215,7 @@ void ConstantPool::EmitPrologue(Alignment require_alignment) {
   assm_->EmitPoolGuard();
 }
 
-int ConstantPool::PrologueSize(Jump require_jump) const {
+int ConstantPool::ComputePrologueSize(Jump require_jump) const {
   // Prologue is:
   //   j     L           ;; Optional, only if {require_jump}.
   //   auipc x0, #words  ;; Pool marker, encodes size in 32-bit words.

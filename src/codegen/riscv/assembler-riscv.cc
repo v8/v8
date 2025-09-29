@@ -302,7 +302,7 @@ void Assembler::EndBlockPools() {
   DCHECK_GE(pools_blocked_nesting_, 0);
   if (pools_blocked_nesting_ > 0) return;  // Still blocked.
   CheckTrampolinePoolQuick();
-  DCHECK(constpool_.IsInImmRangeIfEmittedAt(pc_offset()));
+  DCHECK(constpool_.IsInRangeIfEmittedAt(pc_offset()));
   constpool_.SetNextCheckIn(0);
 }
 
