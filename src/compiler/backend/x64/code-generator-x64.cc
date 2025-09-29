@@ -1931,9 +1931,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             MachineRepresentation::kTagged, instr);
       }
       if (mode > RecordWriteMode::kValueIsPointer) {
-        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
         __ JumpIfSmi(value, ool->exit());
       }
+      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
       __ CheckPageFlag(object, scratch0, MemoryChunk::kIncrementalMarking,
                        not_zero, ool->stub_call());
