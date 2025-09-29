@@ -6327,7 +6327,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   ValueNode* get(uint32_t offset) const {
-    return slots_[object_layout_->SlotAtOffset(offset)];
+    uint32_t slot_index = object_layout_->SlotAtOffset(offset);
+    SBXCHECK_LT(slot_index, slot_count());
+    return slots_[slot_index];
   }
 
   void set(uint32_t offset, ValueNode* value) {
@@ -6526,6 +6528,11 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     // Values set here can leak to the interpreter. Conversions should be stored
     // in known_node_aspects/NodeInfo.
     DCHECK(!value->properties().is_conversion());
+    // TODO(jgruber): Indices are commonly passed in from places that read
+    // potentially attacker-corrupted heap objects. Either we catch all such
+    // usages with CHECKs, or we add one here. Honestly I like neither option
+    // that much, but doing so in this chokepoint is safer.
+    SBXCHECK_LT(i, slot_count());
     slots_[i] = value;
   }
 
