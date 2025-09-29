@@ -16735,7 +16735,13 @@ ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
                                                       uint32_t offset,
                                                       LoadType type,
                                                       Args&&... args) {
-  if (!CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
+  // TODO(jgruber): The VirtualObject now stores map slots, so theoretically we
+  // could let the path below handle map loads as well. But, maglev currently
+  // doesn't like this at all - doing so creates problems like OOB vobject field
+  // loads, and missed JSArray elements kind transitions. We should understand
+  // whether this is an issue with --maglev-object-tracking.
+  if (offset == HeapObject::kMapOffset ||
+      !CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
     return AddNewNode<Instruction>({object}, offset,
                                    std::forward<Args>(args)..., type);
   }
