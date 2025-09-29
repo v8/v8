@@ -148,7 +148,8 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
     : merge_offset_(merge_offset),
       predecessor_count_(predecessor_count),
       predecessors_so_far_(predecessors_so_far),
-      bitfield_(kBasicBlockTypeBits::encode(type)),
+      bitfield_(kBasicBlockTypeBits::encode(type) |
+                kIsInline::encode(info.is_inline())),
       predecessors_(predecessors),
       frame_state_(info, liveness),
       per_predecessor_alternatives_(
