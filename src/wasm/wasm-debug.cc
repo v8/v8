@@ -263,6 +263,7 @@ class DebugInfoImpl {
         LiftoffOptions{}
             .set_func_index(func_index)
             .set_for_debugging(for_debugging)
+            .set_counter_updates(native_module_->counter_updates())
             .set_breakpoints(offsets)
             .set_dead_breakpoint(dead_breakpoint)
             .set_debug_sidetable(generate_debug_sidetable ? &debug_sidetable

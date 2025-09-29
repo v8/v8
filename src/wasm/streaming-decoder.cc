@@ -378,7 +378,7 @@ class CallMoreFunctionsCanBeSerializedCallback
     // As a baseline we also count the modules that could be cached but
     // never reach the threshold.
     if (std::shared_ptr<NativeModule> module = native_module_.lock()) {
-      module->counters()->wasm_cache_count()->AddSample(0);
+      module->counter_updates()->AddSample(&Counters::wasm_cache_count, 0);
     }
   }
 
@@ -387,7 +387,8 @@ class CallMoreFunctionsCanBeSerializedCallback
     // If the native module is still alive, get back a shared ptr and call the
     // callback.
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
-      native_module->counters()->wasm_cache_count()->AddSample(++cache_count_);
+      native_module->counter_updates()->AddSample(&Counters::wasm_cache_count,
+                                                  ++cache_count_);
       callback_(native_module);
     }
   }

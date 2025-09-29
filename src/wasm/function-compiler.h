@@ -103,15 +103,15 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   }
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
-                                           const WireBytesStorage*, Counters*,
-                                           WasmDetectedFeatures* detected);
+                                           const WireBytesStorage*,
+                                           DelayedCounterUpdates*,
+                                           WasmDetectedFeatures*);
 
   ExecutionTier tier() const { return tier_; }
   ForDebugging for_debugging() const { return for_debugging_; }
   int func_index() const { return func_index_; }
 
-  static void CompileWasmFunction(Counters*, NativeModule*,
-                                  WasmDetectedFeatures* detected,
+  static void CompileWasmFunction(NativeModule*, WasmDetectedFeatures*,
                                   const WasmFunction*, ExecutionTier);
 
  private:

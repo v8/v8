@@ -637,8 +637,8 @@ size_t WasmCode::EstimateCurrentMemoryConsumption() const {
   return result;
 }
 
-WasmCodeAllocator::WasmCodeAllocator(std::shared_ptr<Counters> async_counters)
-    : async_counters_(std::move(async_counters)) {
+WasmCodeAllocator::WasmCodeAllocator(DelayedCounterUpdates* counter_updates)
+    : counter_updates_(counter_updates) {
   owned_code_space_.reserve(4);
 }
 
@@ -653,10 +653,9 @@ void WasmCodeAllocator::Init(VirtualMemory code_space) {
   if (code_space.IsReserved()) {
     free_code_space_.Merge(code_space.region());
     owned_code_space_.emplace_back(std::move(code_space));
-    async_counters_->wasm_module_num_code_spaces()->AddSample(1);
-  } else {
-    async_counters_->wasm_module_num_code_spaces()->AddSample(0);
   }
+  counter_updates_->AddSample(&Counters::wasm_module_num_code_spaces,
+                              code_space.IsReserved() ? 1 : 0);
 }
 
 namespace {
@@ -883,8 +882,8 @@ base::Vector<uint8_t> WasmCodeAllocator::AllocateForCodeInRegion(
       code_manager->AssignRange(new_region, native_module);
       native_module->AddCodeSpaceLocked(new_region);
 
-      async_counters_->wasm_module_num_code_spaces()->AddSample(
-          static_cast<int>(owned_code_space_.size()));
+      counter_updates_->AddSample(&Counters::wasm_module_num_code_spaces,
+                                  static_cast<int>(owned_code_space_.size()));
     }
 
     code_space = free_code_space_.Allocate(size);
@@ -1004,11 +1003,10 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
                            CompileTimeImports compile_imports,
                            VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
-                           std::shared_ptr<Counters> async_counters,
                            std::shared_ptr<NativeModule>* shared_this)
     : engine_scope_(
           GetWasmEngine()->GetBarrierForBackgroundCompile()->TryLock()),
-      code_allocator_(async_counters),
+      code_allocator_(&counter_updates_),
       enabled_features_(enabled_features),
       compile_imports_(std::move(compile_imports)),
       module_(std::move(module)),
@@ -1023,8 +1021,7 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
   DCHECK_NOT_NULL(shared_this);
   DCHECK_NULL(*shared_this);
   shared_this->reset(this);
-  compilation_state_ = CompilationState::New(
-      *shared_this, std::move(async_counters), detected_features);
+  compilation_state_ = CompilationState::New(*shared_this, detected_features);
   compilation_state_->InitCompileJob();
   DCHECK_NOT_NULL(module_);
   if (module_->num_declared_functions > 0) {
@@ -2553,9 +2550,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
   std::shared_ptr<NativeModule> ret;
   new NativeModule(enabled_features, detected_features,
-                   std::move(compile_imports),
-                   std::move(code_space), std::move(module),
-                   isolate->async_counters(), &ret);
+                   std::move(compile_imports), std::move(code_space),
+                   std::move(module), &ret);
   // The constructor initialized the shared_ptr.
   DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: 0x%" PRIxPTR ",+%zu\n", ret.get(),
@@ -2848,7 +2844,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 480);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 520);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
@@ -2900,6 +2896,9 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   if (debug_info) {
     result += debug_info->EstimateCurrentMemoryConsumption();
   }
+
+  result += counter_updates_.EstimateCurrentMemoryConsumption() -
+            sizeof(counter_updates_);
 
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("NativeModule wire bytes: %zu\n", wire_bytes_size);

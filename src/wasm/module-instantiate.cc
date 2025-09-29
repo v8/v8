@@ -1096,6 +1096,11 @@ MaybeDirectHandle<WasmInstanceObject> InstanceBuilder::Build() {
                                                        context_id_);
   }
 
+  // Publish any delayed counter updates of the NativeModule and the import
+  // wrapper cache in the isolate.
+  native_module_->counter_updates()->Publish(isolate_);
+  GetWasmImportWrapperCache()->PublishCounterUpdates(isolate_);
+
   return direct_handle(trusted_data_->instance_object(), isolate_);
 }
 

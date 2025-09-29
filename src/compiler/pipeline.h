@@ -128,7 +128,8 @@ class Pipeline : public AllStatic {
 
   static wasm::WasmCompilationResult GenerateWasmCode(
       wasm::CompilationEnv* env, WasmCompilationData& compilation_data,
-      wasm::WasmDetectedFeatures* detected, Counters* counters);
+      wasm::WasmDetectedFeatures* detected,
+      DelayedCounterUpdates* counter_updates);
 
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(

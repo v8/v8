@@ -562,7 +562,6 @@ bool CompilationUnitQueues::Queue::ShouldPublish(
 class CompilationStateImpl {
  public:
   CompilationStateImpl(const std::shared_ptr<NativeModule>& native_module,
-                       std::shared_ptr<Counters> async_counters,
                        WasmDetectedFeatures detected_features);
   ~CompilationStateImpl() {
     if (baseline_compile_job_->IsValid()) {
@@ -696,8 +695,6 @@ class CompilationStateImpl {
     return outstanding_baseline_units_ == 0;
   }
 
-  Counters* counters() const { return async_counters_.get(); }
-
   void SetWireBytesStorage(
       std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
     base::MutexGuard guard(&mutex_);
@@ -739,7 +736,6 @@ class CompilationStateImpl {
 
   NativeModule* const native_module_;
   std::weak_ptr<NativeModule> const native_module_weak_;
-  const std::shared_ptr<Counters> async_counters_;
 
   // Compilation error, atomically updated. This flag can be updated and read
   // using relaxed semantics.
@@ -842,7 +838,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 464);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 448);
   size_t result = sizeof(CompilationStateImpl);
 
   {
@@ -955,11 +951,9 @@ std::vector<WasmCode*> CompilationState::PublishCode(
 // static
 std::unique_ptr<CompilationState> CompilationState::New(
     const std::shared_ptr<NativeModule>& native_module,
-    std::shared_ptr<Counters> async_counters,
     WasmDetectedFeatures detected_features) {
   return std::unique_ptr<CompilationState>(reinterpret_cast<CompilationState*>(
-      new CompilationStateImpl(std::move(native_module),
-                               std::move(async_counters), detected_features)));
+      new CompilationStateImpl(std::move(native_module), detected_features)));
 }
 
 WasmDetectedFeatures CompilationState::detected_features() const {
@@ -1171,8 +1165,8 @@ bool CompileLazy(Isolate* isolate,
   CompilationEnv env = CompilationEnv::ForModule(native_module);
   WasmDetectedFeatures detected_features;
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
-      &env, compilation_state->GetWireBytesStorage().get(), counters,
-      &detected_features);
+      &env, compilation_state->GetWireBytesStorage().get(),
+      native_module->counter_updates(), &detected_features);
   compilation_state->OnCompilationStopped(detected_features);
 
   // During lazy compilation, we can only get compilation errors when
@@ -1657,8 +1651,7 @@ void TierUpNowForTesting(Isolate* isolate,
     TransitiveTypeFeedbackProcessor::Process(isolate, trusted_instance_data,
                                              func_index);
   }
-  wasm::GetWasmEngine()->CompileFunction(isolate->counters(), native_module,
-                                         func_index,
+  wasm::GetWasmEngine()->CompileFunction(native_module, func_index,
                                          wasm::ExecutionTier::kTurbofan);
   CHECK(!native_module->compilation_state()->failed());
 }
@@ -2033,8 +2026,8 @@ constexpr uint8_t kMainTaskId = 0;
 
 // Run by the {BackgroundCompileJob} (on any thread).
 CompilationExecutionResult ExecuteCompilationUnits(
-    std::weak_ptr<NativeModule> native_module, Counters* counters,
-    JobDelegate* delegate, CompilationTier tier) {
+    std::weak_ptr<NativeModule> native_module, JobDelegate* delegate,
+    CompilationTier tier) {
   TRACE_EVENT0("v8.wasm", "wasm.ExecuteCompilationUnits");
 
   // Compilation must be disabled in jitless mode.
@@ -2053,6 +2046,10 @@ CompilationExecutionResult ExecuteCompilationUnits(
   DCHECK_LE(0, task_id);
   CompilationUnitQueues::Queue* queue;
   std::optional<WasmCompilationUnit> unit;
+  // Collect histogram samples per compilation thread and merge into the
+  // NativeModule on publication of the generated code. We can't directly use
+  // the field of the NativeModule as that could die while we compile.
+  DelayedCounterUpdates counter_updates;
 
   WasmDetectedFeatures global_detected_features;
 
@@ -2086,9 +2083,9 @@ CompilationExecutionResult ExecuteCompilationUnits(
       // into {global_detected_features}.
       WasmDetectedFeatures per_function_detected_features;
       // (asynchronous): Execute the compilation.
-      WasmCompilationResult result =
-          unit->ExecuteCompilation(&env.value(), wire_bytes.get(), counters,
-                                   &per_function_detected_features);
+      WasmCompilationResult result = unit->ExecuteCompilation(
+          &env.value(), wire_bytes.get(), &counter_updates,
+          &per_function_detected_features);
       global_detected_features.Add(per_function_detected_features);
       bool compilation_succeeded = result.succeeded();
       ExecutionTier result_tier = result.result_tier;
@@ -2118,6 +2115,9 @@ CompilationExecutionResult ExecuteCompilationUnits(
         std::vector<UnpublishedWasmCode> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(results_to_publish));
+        compile_scope.native_module()->counter_updates()->AddAll(
+            std::move(counter_updates));
+        DCHECK_EQ(0, counter_updates.NumOutstandingUpdates());
         results_to_publish.clear();
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
             std::move(unpublished_code), tier);
@@ -2314,18 +2314,15 @@ void CompileNativeModule(Isolate* isolate,
 class BackgroundCompileJob final : public JobTask {
  public:
   explicit BackgroundCompileJob(std::weak_ptr<NativeModule> native_module,
-                                std::shared_ptr<Counters> async_counters,
                                 CompilationTier tier)
       : native_module_(std::move(native_module)),
         engine_barrier_(GetWasmEngine()->GetBarrierForBackgroundCompile()),
-        async_counters_(std::move(async_counters)),
         tier_(tier) {}
 
   void Run(JobDelegate* delegate) override {
     auto engine_scope = engine_barrier_->TryLock();
     if (!engine_scope) return;
-    ExecuteCompilationUnits(native_module_, async_counters_.get(), delegate,
-                            tier_);
+    ExecuteCompilationUnits(native_module_, delegate, tier_);
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -2343,7 +2340,6 @@ class BackgroundCompileJob final : public JobTask {
  private:
   std::weak_ptr<NativeModule> native_module_;
   std::shared_ptr<OperationsBarrier> engine_barrier_;
-  const std::shared_ptr<Counters> async_counters_;
   const CompilationTier tier_;
 };
 
@@ -2802,6 +2798,8 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) && {
   // is enabled.
   PublishDetectedFeatures(compilation_state->detected_features(), isolate_,
                           true);
+  // Also publish any delayed counter updates in the isolate.
+  native_module_->counter_updates()->Publish(isolate_);
 
   // We might need debug code for the module, if the debugger was enabled while
   // streaming compilation was running. Since handling this while compiling via
@@ -2824,6 +2822,11 @@ void AsyncCompileJob::Failed() && {
   // {job} keeps the {this} pointer alive.
   std::unique_ptr<AsyncCompileJob> job =
       GetWasmEngine()->RemoveCompileJob(this);
+
+  if (native_module_) {
+    // Publish any delayed counter updates in the isolate.
+    native_module_->counter_updates()->Publish(isolate_);
+  }
 
   // Revalidate the whole module to produce a deterministic error message.
   constexpr bool kValidate = true;
@@ -3553,11 +3556,9 @@ bool AsyncStreamingProcessor::Deserialize(
 
 CompilationStateImpl::CompilationStateImpl(
     const std::shared_ptr<NativeModule>& native_module,
-    std::shared_ptr<Counters> async_counters,
     WasmDetectedFeatures detected_features)
     : native_module_(native_module.get()),
       native_module_weak_(std::move(native_module)),
-      async_counters_(std::move(async_counters)),
       compilation_unit_queues_(native_module->num_imported_functions(),
                                native_module->num_declared_functions()),
       detected_features_(detected_features) {}
@@ -3569,12 +3570,12 @@ void CompilationStateImpl::InitCompileJob() {
   // {NotifyConcurrencyIncrease}.
   baseline_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible,
-      std::make_unique<BackgroundCompileJob>(
-          native_module_weak_, async_counters_, CompilationTier::kBaseline));
+      std::make_unique<BackgroundCompileJob>(native_module_weak_,
+                                             CompilationTier::kBaseline));
   top_tier_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible,
-      std::make_unique<BackgroundCompileJob>(
-          native_module_weak_, async_counters_, CompilationTier::kTopTier));
+      std::make_unique<BackgroundCompileJob>(native_module_weak_,
+                                             CompilationTier::kTopTier));
 }
 
 void CompilationStateImpl::CancelCompilation(
@@ -3860,10 +3861,9 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   TRACE_EVENT2("v8.wasm", "wasm.CompilationAfterDeserialization",
                "num_lazy_functions", lazy_functions.size(),
                "num_eager_functions", eager_functions.size());
-  std::optional<TimedHistogramScope> lazy_compile_time_scope;
+  base::ElapsedTimer lazy_compile_time;
   if (base::TimeTicks::IsHighResolution()) {
-    lazy_compile_time_scope.emplace(
-        counters()->wasm_compile_after_deserialize());
+    lazy_compile_time.Start();
   }
 
   auto* module = native_module_->module();
@@ -3919,6 +3919,11 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   InitializeCompilationUnits(std::move(builder));
   if (!v8_flags.wasm_lazy_compilation) {
     WaitForBaselineCompileJob();
+  }
+
+  if (lazy_compile_time.IsStarted()) {
+    native_module_->counter_updates()->AddTimedSample(
+        &Counters::wasm_compile_after_deserialize, lazy_compile_time.Elapsed());
   }
 }
 
@@ -4356,7 +4361,7 @@ void CompilationStateImpl::TierUpAllFunctions() {
   };
 
   DummyDelegate delegate;
-  ExecuteCompilationUnits(native_module_weak_, async_counters_.get(), &delegate,
+  ExecuteCompilationUnits(native_module_weak_, &delegate,
                           CompilationTier::kTopTier);
 
   // We cannot wait for other compilation threads to finish, so we explicitly
@@ -4365,8 +4370,7 @@ void CompilationStateImpl::TierUpAllFunctions() {
     uint32_t func_index = module->num_imported_functions + i;
     WasmCode* code = native_module_->GetCode(func_index);
     if (!code || !code->is_turbofan()) {
-      wasm::GetWasmEngine()->CompileFunction(async_counters_.get(),
-                                             native_module_, func_index,
+      wasm::GetWasmEngine()->CompileFunction(native_module_, func_index,
                                              wasm::ExecutionTier::kTurbofan);
     }
   }

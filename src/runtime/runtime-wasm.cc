@@ -617,6 +617,7 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
         cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
     DCHECK_EQ(TrustedCast<WasmInternalFunction>(*origin)->call_target(),
               wrapper_handle->code_pointer());
+    cache->PublishCounterUpdates(isolate);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -654,6 +655,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   // pointer is owned by the import wrapper cache and was updated when compiling
   // the wrapper.
   DCHECK_EQ(dispatch_table->target(table_slot), wrapper_handle->code_pointer());
+
+  cache->PublishCounterUpdates(isolate);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

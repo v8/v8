@@ -67,15 +67,16 @@ bool CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
     constexpr bool kIsShared = false;
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
                            func_code.end(), kIsShared);
-    auto result =
-        ExecuteLiftoffCompilation(&env, func_body,
-                                  LiftoffOptions{}
-                                      .set_func_index(func.func_index)
-                                      .set_for_debugging(kForDebugging)
-                                      .set_max_steps(max_steps)
-                                      // TODO(clemensb): Fully remove
-                                      // nondeterminism detection.
-                                      .set_detect_nondeterminism(false));
+    auto result = ExecuteLiftoffCompilation(
+        &env, func_body,
+        LiftoffOptions{}
+            .set_func_index(func.func_index)
+            .set_for_debugging(kForDebugging)
+            .set_counter_updates(native_module->counter_updates())
+            .set_max_steps(max_steps)
+            // TODO(clemensb): Fully remove
+            // nondeterminism detection.
+            .set_detect_nondeterminism(false));
     if (!result.succeeded()) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
       // Liftoff compilation can bailout on x64 / ia32 if SSE4.1 is unavailable.

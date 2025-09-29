@@ -68,7 +68,7 @@ enum class LocationKindForDeopt : uint8_t {
 struct LiftoffOptions {
   int func_index = -1;
   ForDebugging for_debugging = kNotForDebugging;
-  Counters* counters = nullptr;
+  DelayedCounterUpdates* counter_updates = nullptr;
   WasmDetectedFeatures* detected_features = nullptr;
   base::Vector<const int> breakpoints = {};
   std::unique_ptr<DebugSideTable>* debug_sidetable = nullptr;
@@ -90,7 +90,7 @@ struct LiftoffOptions {
 
   SETTER(func_index)
   SETTER(for_debugging)
-  SETTER(counters)
+  SETTER(counter_updates)
   SETTER(detected_features)
   SETTER(breakpoints)
   SETTER(debug_sidetable)

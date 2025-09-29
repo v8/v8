@@ -77,8 +77,7 @@ void WasmImportWrapperCache::LazyInitialize(Isolate* triggering_isolate) {
     triggering_isolate->heap()->MemoryPressureNotification(
         MemoryPressureLevel::kCritical, true);
   }
-  code_allocator_.reset(
-      new WasmCodeAllocator(triggering_isolate->async_counters()));
+  code_allocator_.reset(new WasmCodeAllocator(&counter_updates_));
   base::AddressRegion initial_region = code_space.region();
   code_allocator_->Init(std::move(code_space));
   code_allocator_->InitializeCodeRange(nullptr, initial_region);
@@ -428,10 +427,12 @@ WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {
 }
 
 size_t WasmImportWrapperCache::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 88);
+  UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 136);
   base::MutexGuard lock(&mutex_);
   return sizeof(WasmImportWrapperCache) + ContentSize(entry_map_) +
-         ContentSize(codes_);
+         ContentSize(codes_) +
+         (counter_updates_.EstimateCurrentMemoryConsumption() -
+          sizeof(counter_updates_));
 }
 
 }  // namespace v8::internal::wasm

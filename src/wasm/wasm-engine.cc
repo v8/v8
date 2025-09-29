@@ -869,15 +869,14 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
       std::move(resolver));
 }
 
-void WasmEngine::CompileFunction(Counters* counters,
-                                 NativeModule* native_module,
+void WasmEngine::CompileFunction(NativeModule* native_module,
                                  uint32_t function_index, ExecutionTier tier) {
   DCHECK(!v8_flags.wasm_jitless);
 
   // Note we assume that "one-off" compilations can discard detected features.
   WasmDetectedFeatures detected;
   WasmCompilationUnit::CompileWasmFunction(
-      counters, native_module, &detected,
+      native_module, &detected,
       &native_module->module()->functions[function_index], tier);
 }
 

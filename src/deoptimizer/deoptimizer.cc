@@ -941,6 +941,7 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
       &env, body,
       wasm::LiftoffOptions{}
           .set_func_index(function_index)
+          .set_counter_updates(native_module->counter_updates())
           .set_deopt_info_bytecode_offset(deopt_point.ToInt())
           .set_deopt_location_kind(
               is_topmost ? wasm::LocationKindForDeopt::kEagerDeopt

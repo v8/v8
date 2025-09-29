@@ -10882,17 +10882,27 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);
 
-  if (auto* counters = compiler_options.counters) {
-    // Check that the histogram for the bailout reasons has the correct size.
-    DCHECK_EQ(0, counters->liftoff_bailout_reasons()->min());
-    DCHECK_EQ(kNumBailoutReasons - 1,
-              counters->liftoff_bailout_reasons()->max());
-    DCHECK_EQ(kNumBailoutReasons,
-              counters->liftoff_bailout_reasons()->num_buckets());
-    // Register the bailout reason (can also be {kSuccess}).
-    counters->liftoff_bailout_reasons()->AddSample(
-        static_cast<int>(compiler->bailout_reason()));
+  // Statically check that the "liftoff_bailout_reasons" histogram configuration
+  // matches what we expect according to kNumBailoutReasons.
+  constexpr int kCheckedHistograms = ([]() {
+    int checked_histograms = 0;
+#define HR(name, caption, min, max, num_buckets)                        \
+  if constexpr (std::string_view(#name) == "liftoff_bailout_reasons") { \
+    checked_histograms += 1;                                            \
+    CHECK_EQ(0, min);                                                   \
+    CHECK_EQ(kNumBailoutReasons - 1, max);                              \
+    CHECK_EQ(kNumBailoutReasons, num_buckets);                          \
   }
+    HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+    return checked_histograms;
+  })();
+  static_assert(kCheckedHistograms == 1);
+
+  // Register the bailout reason (can also be {kSuccess}).
+  compiler_options.counter_updates->AddSample(
+      &Counters::liftoff_bailout_reasons,
+      static_cast<int>(compiler->bailout_reason()));
 
   if (compiler->did_bailout()) return WasmCompilationResult{};
 
