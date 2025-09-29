@@ -258,10 +258,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--no-assert-types"
     ],
     "stress_wasm_stack_switching": ["--no-stress-wasm-stack-switching"],
-    "--turboshaft-assert-types": [
-        "--concurrent-recompilation", "--stress_concurrent_inlining",
-        "--no-turboshaft-assert-types"
-    ],
 }
 
 # Flags that lead to a contradiction under certain build variables.
