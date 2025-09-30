@@ -131,7 +131,7 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
     case UseRepresentation::kFloat64:
     case UseRepresentation::kHoleyFloat64: {
       auto cst = reducer_.TryGetFloat64Constant(
-          node, TaggedToFloat64ConversionType::kNumberOrOddball);
+          use_repr, node, TaggedToFloat64ConversionType::kNumberOrOddball);
       if (cst.has_value()) {
         return reducer_.GetFloat64Constant(cst.value());
       }

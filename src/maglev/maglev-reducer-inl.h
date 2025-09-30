@@ -524,8 +524,9 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
       return graph()->GetSmiConstant(*as_int32_constant);
     }
   }
-  if (auto as_float64_constant = TryGetFloat64Constant(
-          value, TaggedToFloat64ConversionType::kOnlyNumber)) {
+  if (auto as_float64_constant =
+          TryGetFloat64Constant(UseRepresentation::kFloat64, value,
+                                TaggedToFloat64ConversionType::kOnlyNumber)) {
     if (std::isnan(*as_float64_constant)) {
       return graph()->GetRootConstant(RootIndex::kNanValue);
     }
@@ -877,7 +878,8 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
 
   // Process constants first to avoid allocating NodeInfo for them.
   if (auto cst = TryGetFloat64Constant(
-          value, GetTaggedToFloat64ConversionType(allowed_input_type))) {
+          UseRepresentation::kFloat64, value,
+          GetTaggedToFloat64ConversionType(allowed_input_type))) {
     return graph()->GetFloat64Constant(cst.value());
   }
   // We could emit unconditional eager deopts for other kinds of constant, but
@@ -981,7 +983,10 @@ void MaglevReducer<BaseT>::EnsureInt32(ValueNode* value,
 
 template <typename BaseT>
 std::optional<double> MaglevReducer<BaseT>::TryGetFloat64Constant(
-    ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
+    UseRepresentation use_repr, ValueNode* value,
+    TaggedToFloat64ConversionType conversion_type) {
+  DCHECK(use_repr == UseRepresentation::kFloat64 ||
+         use_repr == UseRepresentation::kHoleyFloat64);
   switch (value->opcode()) {
     case Opcode::kConstant: {
       compiler::ObjectRef object = value->Cast<Constant>()->object();
@@ -1012,7 +1017,10 @@ std::optional<double> MaglevReducer<BaseT>::TryGetFloat64Constant(
           // We use the undefined nan and silence it to produce the same result
           // as a computation from non-constants would.
           auto ud = Float64::FromBits(kUndefinedNanInt64);
-          return ud.to_quiet_nan().get_scalar();
+          if (use_repr != UseRepresentation::kHoleyFloat64) {
+            ud = ud.to_quiet_nan();
+          }
+          return ud.get_scalar();
         }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
         return Cast<Oddball>(root_object)->to_number_raw();
@@ -1026,7 +1034,7 @@ std::optional<double> MaglevReducer<BaseT>::TryGetFloat64Constant(
       break;
   }
   if (auto c = TryGetConstantAlternative(value)) {
-    return TryGetFloat64Constant(*c, conversion_type);
+    return TryGetFloat64Constant(use_repr, *c, conversion_type);
   }
   return {};
 }
@@ -1429,7 +1437,8 @@ template <typename BaseT>
 template <Operation kOperation>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64UnaryOperationForToNumber(
     TaggedToFloat64ConversionType conversion_type, ValueNode* value) {
-  auto cst = TryGetFloat64Constant(value, conversion_type);
+  auto cst = TryGetFloat64Constant(UseRepresentation::kFloat64, value,
+                                   conversion_type);
   if (!cst.has_value()) return {};
   switch (kOperation) {
     case Operation::kNegate:
@@ -1449,7 +1458,8 @@ MaybeReduceResult
 MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
     TaggedToFloat64ConversionType conversion_type, ValueNode* left,
     ValueNode* right) {
-  auto cst_right = TryGetFloat64Constant(right, conversion_type);
+  auto cst_right = TryGetFloat64Constant(UseRepresentation::kFloat64, right,
+                                         conversion_type);
   if (!cst_right.has_value()) return {};
   return TryFoldFloat64BinaryOperationForToNumber<kOperation>(
       conversion_type, left, cst_right.value());
@@ -1461,7 +1471,8 @@ MaybeReduceResult
 MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
     TaggedToFloat64ConversionType conversion_type, ValueNode* left,
     double cst_right) {
-  auto cst_left = TryGetFloat64Constant(left, conversion_type);
+  auto cst_left =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, left, conversion_type);
   if (!cst_left.has_value()) return {};
   switch (kOperation) {
     case Operation::kAdd:

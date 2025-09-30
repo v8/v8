@@ -1807,8 +1807,9 @@ std::optional<double> MaglevGraphBuilder::TryGetHoleyFloat64Constant(
       return Cast<Oddball>(root_object)->to_number_raw();
     }
   }
-  std::optional<double> constant = TryGetFloat64Constant(
-      value, TaggedToFloat64ConversionType::kNumberOrOddball);
+  std::optional<double> constant =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, value,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
   if (constant.has_value() && std::isnan(constant.value())) {
     // If need to silence nans when converting from Float64 to HoleyFloat64
     // representation.
@@ -5708,7 +5709,8 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       return object;
     case ValueRepresentation::kFloat64:
       if (auto constant = TryGetFloat64Constant(
-              object, TaggedToFloat64ConversionType::kOnlyNumber)) {
+              UseRepresentation::kFloat64, object,
+              TaggedToFloat64ConversionType::kOnlyNumber)) {
         uint32_t uint32_value;
         if (!DoubleToUint32IfEqualToSelf(*constant, &uint32_value)) {
           return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
@@ -12294,7 +12296,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
       return Smi::IsValid(constant_int32.value()) ? NodeType::kSmi
                                                   : NodeType::kHeapNumber;
     }
-    return TryGetFloat64Constant(v, TaggedToFloat64ConversionType::kOnlyNumber)
+    return TryGetFloat64Constant(UseRepresentation::kFloat64, v,
+                                 TaggedToFloat64ConversionType::kOnlyNumber)
                ? NodeType::kHeapNumber
                : NodeType::kAnyHeapObject;
   };
@@ -16377,8 +16380,9 @@ std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
   return reducer_.TryGetUint32Constant(value);
 }
 std::optional<double> MaglevGraphBuilder::TryGetFloat64Constant(
-    ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
-  return reducer_.TryGetFloat64Constant(value, conversion_type);
+    UseRepresentation use_repr, ValueNode* value,
+    TaggedToFloat64ConversionType conversion_type) {
+  return reducer_.TryGetFloat64Constant(use_repr, value, conversion_type);
 }
 
 MaybeHandle<String> MaglevGraphBuilder::TryGetStringConstant(ValueNode* value) {
