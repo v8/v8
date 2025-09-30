@@ -1269,35 +1269,6 @@ void NativeModule::UseLazyStubLocked(uint32_t func_index) {
                         signature_hash);
 }
 
-std::unique_ptr<WasmCode> NativeModule::AddCode(
-    int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
-    uint32_t tagged_parameter_slots,
-    base::Vector<const uint8_t> protected_instructions_data,
-    base::Vector<const uint8_t> source_position_table,
-    base::Vector<const uint8_t> inlining_positions,
-    base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-    ExecutionTier tier, ForDebugging for_debugging) {
-  base::Vector<uint8_t> code_space;
-  NativeModule::JumpTablesRef jump_table_ref;
-  {
-    base::RecursiveMutexGuard guard{&allocation_mutex_};
-    code_space = code_allocator_.AllocateForCode(this, desc.instr_size);
-    jump_table_ref =
-        FindJumpTablesForRegionLocked(base::AddressRegionOf(code_space));
-  }
-  // Only Liftoff code can have the {frame_has_feedback_slot} bit set.
-  DCHECK_NE(tier, ExecutionTier::kLiftoff);
-  bool frame_has_feedback_slot = false;
-  ThreadIsolation::RegisterJitAllocation(
-      reinterpret_cast<Address>(code_space.begin()), code_space.size(),
-      ThreadIsolation::JitAllocationType::kWasmCode);
-  return AddCodeWithCodeSpace(
-      index, desc, stack_slots, ool_spill_count, tagged_parameter_slots,
-      protected_instructions_data, source_position_table, inlining_positions,
-      deopt_data, kind, tier, for_debugging, frame_has_feedback_slot,
-      code_space, jump_table_ref);
-}
-
 void NativeModule::FreeCodePointerTableHandles() {
   WasmCodePointerTable* code_pointer_table =
       GetProcessWideWasmCodePointerTable();

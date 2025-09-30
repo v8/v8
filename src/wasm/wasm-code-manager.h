@@ -630,18 +630,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
       std::ostream& out, std::vector<int>& function_body_offsets,
       std::map<uint32_t, uint32_t>& bytecode_disasm_offsets);
 
-  // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
-  // code below, i.e. it can be called concurrently from background threads.
-  // The returned code still needs to be published via {PublishCode}.
-  std::unique_ptr<WasmCode> AddCode(
-      int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
-      uint32_t tagged_parameter_slots,
-      base::Vector<const uint8_t> protected_instructions,
-      base::Vector<const uint8_t> source_position_table,
-      base::Vector<const uint8_t> inlining_positions,
-      base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-      ExecutionTier tier, ForDebugging for_debugging);
-
   // {PublishCode} makes the code available to the system by entering it into
   // the code table and patching the jump table. It returns a raw pointer to the
   // {WasmCode} object in the argument. Ownership is transferred to the
