@@ -216,6 +216,7 @@ std::unique_ptr<const uint8_t[]> WasmCode::ConcatenateBytes(
   std::unique_ptr<uint8_t[]> result{new uint8_t[total_size]};
   uint8_t* ptr = result.get();
   for (auto& vec : vectors) {
+    MSAN_CHECK_MEM_IS_INITIALIZED(vec.begin(), vec.size());
     if (vec.empty()) continue;  // Avoid nullptr in {memcpy}.
     memcpy(ptr, vec.begin(), vec.size());
     ptr += vec.size();

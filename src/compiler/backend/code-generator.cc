@@ -1101,7 +1101,7 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   wasm::WasmDeoptView view(base::VectorOf(result));
   wasm::WasmDeoptData data = view.GetDeoptData();
   DCHECK_EQ(data.deopt_exit_start_offset, deopt_exit_start_offset_);
-  DCHECK_EQ(data.deopt_literals_size, deoptimization_literals_.size());
+  DCHECK_EQ(data.num_deopt_literals, deoptimization_literals_.size());
   DCHECK_EQ(data.eager_deopt_count, eager_deopt_count_);
   DCHECK_EQ(data.entry_count, deoptimization_exits_.size());
   DCHECK_EQ(data.translation_array_size, frame_translations.size());
