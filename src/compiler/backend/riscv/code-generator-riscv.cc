@@ -3607,11 +3607,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             opcode, i, RiscvRegisterConstraint::kRegisterGroupNoOverlap);
         // Clip negative values to zero.
         __ VU.SetSimd128x2(E32);
-        __ li(kScratchReg, 0);
         // Implicitly uses kSimd128ScratchReg2 and src1, which are part of the
         // register groups.
         DCHECK(kSimd128ScratchReg.code() + 1 == kSimd128ScratchReg2.code());
-        __ vmax_vx(kSimd128ScratchReg, i.InputSimd128Register(0), kScratchReg);
+        __ vmax_vx(kSimd128ScratchReg, i.InputSimd128Register(0), zero_reg);
         // Convert the clipped values to 16-bit positive integers.
         __ VU.SetSimd128(E16);
         // Implicitly uses kSimd128ScratchReg2, which is part of the register
@@ -3683,11 +3682,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             opcode, i, RiscvRegisterConstraint::kRegisterGroupNoOverlap);
         // Clip negative values to zero.
         __ VU.SetSimd128x2(E16);
-        __ li(kScratchReg, 0);
         // Implicitly uses kSimd128ScratchReg2 and src1, which are part of the
         // register groups.
         DCHECK(kSimd128ScratchReg.code() + 1 == kSimd128ScratchReg2.code());
-        __ vmax_vx(kSimd128ScratchReg, src0, kScratchReg);
+        __ vmax_vx(kSimd128ScratchReg, src0, zero_reg);
         // Convert the clipped values.
         __ VU.SetSimd128(E8);
         // Implicitly uses kSimd128ScratchReg2, which is part of the register

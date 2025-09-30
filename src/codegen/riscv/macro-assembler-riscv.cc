@@ -3417,7 +3417,7 @@ void MacroAssembler::Trunc_w_d(Register rd, FPURegister fs, Register result) {
     bind(&bad);
     // scratch still holds proper max/min value
     Mv(rd, scratch);
-    li(result, 0);
+    mv(result, zero_reg);
     // set result to 1 if normal, otherwise set result to 0 for abnormal
     bind(&done);
   } else {
