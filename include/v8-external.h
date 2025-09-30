@@ -28,7 +28,7 @@ constexpr ExternalPointerTypeTag kExternalPointerTypeTagDefault = 0;
  */
 class V8_EXPORT External : public Value {
  public:
-  // TODO(ahaas): V8_DEPRECATE_SOON("Use the version with the type tag.")
+  V8_DEPRECATE_SOON("Use the version with the type tag.")
   static Local<External> New(Isolate* isolate, void* value) {
     return New(isolate, value, kExternalPointerTypeTagDefault);
   }
@@ -41,7 +41,7 @@ class V8_EXPORT External : public Value {
     return static_cast<External*>(value);
   }
 
-  // TODO(ahaas): V8_DEPRECATE_SOON("Use the version with the type tag.")
+  V8_DEPRECATE_SOON("Use the version with the type tag.")
   void* Value() const { return Value(kExternalPointerTypeTagDefault); }
 
   void* Value(ExternalPointerTypeTag tag) const;

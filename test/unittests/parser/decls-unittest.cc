@@ -120,11 +120,13 @@ DeclarationContext::DeclarationContext()
   // Do nothing.
 }
 
+constexpr v8::ExternalPointerTypeTag kDeclarationContextTag = 85;
+
 void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
   HandleScope scope(isolate_);
   Local<FunctionTemplate> function = FunctionTemplate::New(isolate_);
-  Local<Value> data = External::New(isolate_, this);
+  Local<Value> data = External::New(isolate_, this, kDeclarationContextTag);
   GetHolder(function)->SetHandler(v8::NamedPropertyHandlerConfiguration(
       &HandleGet, &HandleSet, &HandleQuery, nullptr, nullptr, data));
   Local<Context> context = Context::New(
@@ -218,7 +220,7 @@ v8::Intercepted DeclarationContext::HandleQuery(
 }
 
 DeclarationContext* DeclarationContext::GetInstance(Local<Value> data) {
-  void* value = Local<External>::Cast(data)->Value();
+  void* value = Local<External>::Cast(data)->Value(kDeclarationContextTag);
   return static_cast<DeclarationContext*>(value);
 }
 

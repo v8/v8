@@ -5825,6 +5825,10 @@ void Worker::SetCurrentWorker(Worker* worker) {
   current_worker_ = worker;
 }
 
+namespace {
+constexpr v8::ExternalPointerTypeTag kWorkerTag = 82;
+}  // namespace
+
 // static
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
 
@@ -5875,7 +5879,7 @@ void Worker::ExecuteInThread() {
           Context::Scope context_scope(context);
 
           Local<Object> global = context->Global();
-          Local<Value> this_value = External::New(isolate_, this);
+          Local<Value> this_value = External::New(isolate_, this, kWorkerTag);
 
           Local<FunctionTemplate> postmessage_fun_template =
               FunctionTemplate::New(isolate_, Worker::PostMessageOut,
@@ -5990,7 +5994,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (data) {
     DCHECK(info.Data()->IsExternal());
     Local<External> this_value = info.Data().As<External>();
-    Worker* worker = static_cast<Worker*>(this_value->Value());
+    Worker* worker = static_cast<Worker*>(this_value->Value(kWorkerTag));
 
     worker->out_queue_.Enqueue(std::move(data));
     worker->out_semaphore_.Signal();
@@ -6010,7 +6014,7 @@ void Worker::Close(const v8::FunctionCallbackInfo<v8::Value>& info) {
   HandleScope handle_scope(isolate);
   DCHECK(info.Data()->IsExternal());
   Local<External> this_value = info.Data().As<External>();
-  Worker* worker = static_cast<Worker*>(this_value->Value());
+  Worker* worker = static_cast<Worker*>(this_value->Value(kWorkerTag));
   worker->Terminate();
 }
 

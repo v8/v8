@@ -589,6 +589,10 @@ enum ExternalPointerTag : uint16_t {
   kFirstExternalTypeTag,
   kLastExternalTypeTag =
       kFirstExternalTypeTag + V8_EXTERNAL_POINTER_TAG_COUNT - 1,
+  // This tag is used when a fast-api callback as a parameter of type
+  // `kPointer`. The V8 fast API is only able to use this generic tag, and is
+  // therefore not supposed to be used in Chrome.
+  kFastApiExternalTypeTag = kLastExternalTypeTag,
   // This tag essentially stands for a `void*` pointer in the V8 API, and it is
   // the Embedder's responsibility to ensure type safety (against substitution)
   // and lifetime validity of these objects.

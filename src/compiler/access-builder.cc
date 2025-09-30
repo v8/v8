@@ -233,7 +233,7 @@ FieldAccess AccessBuilder::ForJSExternalObjectValue() {
       "JSExternalObjectValue",
       ConstFieldInfo::None(),
       false,
-      kExternalObjectValueTag,
+      kFastApiExternalTypeTag,
   };
   return access;
 }

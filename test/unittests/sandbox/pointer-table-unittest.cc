@@ -76,8 +76,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
       ExternalPointerHandle current_handle =
           obj->ReadField<ExternalPointerHandle>(JSExternalObject::kValueOffset);
       CHECK_EQ(original_handle, current_handle);
-      CHECK_EQ(obj->value({kFirstExternalTypeTag, kLastExternalTypeTag}),
-               external_2);
+      CHECK_EQ(obj->value(kExternalObjectValueTag), external_2);
 
       // Now at least one entry in the first segment must be free, so compaction
       // should be possible. This should leave the 2nd segment empty, causing it
@@ -87,8 +86,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
       current_handle =
           obj->ReadField<ExternalPointerHandle>(JSExternalObject::kValueOffset);
       CHECK_NE(original_handle, current_handle);
-      CHECK_EQ(obj->value({kFirstExternalTypeTag, kLastExternalTypeTag}),
-               external_2);
+      CHECK_EQ(obj->value(kExternalObjectValueTag), external_2);
     }
   }
 

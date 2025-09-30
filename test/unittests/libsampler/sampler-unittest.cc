@@ -105,6 +105,8 @@ static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
       .As<v8::Function>();
 }
 
+constexpr v8::ExternalPointerTypeTag kTestApiCallbacksTag = 92;
+
 TEST_F(SamplerTest, LibSamplerCollectSample) {
   v8::HandleScope scope(isolate());
 
@@ -114,7 +116,8 @@ TEST_F(SamplerTest, LibSamplerCollectSample) {
       func_template->InstanceTemplate();
 
   TestApiCallbacks accessors;
-  v8::Local<v8::External> data = v8::External::New(isolate(), &accessors);
+  v8::Local<v8::External> data =
+      v8::External::New(isolate(), &accessors, kTestApiCallbacksTag);
   instance_template->SetNativeDataProperty(NewString("foo"),
                                            &TestApiCallbacks::Getter,
                                            &TestApiCallbacks::Setter, data);

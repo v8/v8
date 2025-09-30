@@ -557,7 +557,7 @@ ExternalPointerHandle AllocateAndInitializeYoungExternalPointerTableEntry(
 #ifdef V8_ENABLE_SANDBOX
   return isolate->external_pointer_table().AllocateAndInitializeEntry(
       isolate->heap()->young_external_pointer_space(), pointer,
-      kExternalObjectValueTag);
+      kFastApiExternalTypeTag);
 #else
   return 0;
 #endif  // V8_ENABLE_SANDBOX

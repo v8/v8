@@ -416,6 +416,8 @@ void IndexedEnumerator(const PropertyCallbackInfo<Array>& info) {
   info.GetReturnValue().Set(names);
 }
 
+constexpr v8::ExternalPointerTypeTag kFunctionTemplateTag = 88;
+
 v8::Intercepted MethodGetter(Local<Name> property,
                              const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
@@ -423,7 +425,8 @@ v8::Intercepted MethodGetter(Local<Name> property,
 
   Local<External> data = info.Data().As<External>();
   Local<FunctionTemplate>& function_template =
-      *reinterpret_cast<Local<FunctionTemplate>*>(data->Value());
+      *reinterpret_cast<Local<FunctionTemplate>*>(
+          data->Value(kFunctionTemplateTag));
 
   info.GetReturnValue().Set(
       function_template->GetFunction(context).ToLocalChecked());
@@ -514,14 +517,15 @@ TEST_F(AccessCheckTest, CallFunctionWithRemoteContextReceiver) {
 
   Local<Signature> signature = Signature::New(isolate(), global_template);
   Local<FunctionTemplate> function_template = FunctionTemplate::New(
-      isolate(), MethodCallback, External::New(isolate(), &function_template),
+      isolate(), MethodCallback,
+      External::New(isolate(), &function_template, kFunctionTemplateTag),
       signature);
 
   global_template->InstanceTemplate()->SetAccessCheckCallbackAndHandler(
       AccessCheck,
       NamedPropertyHandlerConfiguration(
           MethodGetter, nullptr, nullptr, nullptr, nullptr,
-          External::New(isolate(), &function_template)),
+          External::New(isolate(), &function_template, kFunctionTemplateTag)),
       IndexedPropertyHandlerConfiguration());
 
   Local<Object> accessed_object =

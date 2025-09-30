@@ -65,6 +65,10 @@ class UnwindingWin64Callbacks {
   }
 };
 
+namespace {
+constexpr v8::ExternalPointerTypeTag kCallbackTag = 78;
+}  // namespace
+
 // Verifies that stack unwinding data has been correctly registered on Win64.
 UNINITIALIZED_TEST(StackUnwindingWin64) {
 #ifdef V8_WIN64_UNWINDING_INFO
@@ -100,7 +104,7 @@ UNINITIALIZED_TEST(StackUnwindingWin64) {
         func_template->InstanceTemplate();
 
     UnwindingWin64Callbacks accessors;
-    v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
+    v8::Local<v8::External> data = v8::External::New(isolate, &accessors, kCallbackTag);
     instance_template->SetNativeDataProperty(
         v8_str("foo"), &UnwindingWin64Callbacks::Getter,
         &UnwindingWin64Callbacks::Setter, data);
