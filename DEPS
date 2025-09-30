@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '04c85a1d0e324464c6be4b3d193b47cb6177d03a',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '7e7c9b8187d38f3102a035e50aadf7b29b4702b4',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -312,7 +312,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '322be580a5a193a921c349a15747eeeb9a716ad1',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '0c61a55402c6a0d9d6ca2aeb3c6a2613a8bc8c55',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '980223ac278cf17b5c874d9a91a7cd4d572dc47f',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
