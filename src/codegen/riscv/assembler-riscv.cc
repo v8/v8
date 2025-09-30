@@ -726,6 +726,7 @@ void Assembler::bind_to(Label* L, int pos) {
 void Assembler::bind(Label* L) {
   DCHECK(!L->is_bound());  // Label can only be bound once.
   bind_to(L, pc_offset());
+  VU.clear();
 }
 
 void Assembler::next(Label* L, bool is_internal) {

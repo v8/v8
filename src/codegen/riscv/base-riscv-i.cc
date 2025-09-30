@@ -19,47 +19,45 @@ void AssemblerRISCVI::auipc(Register rd, int32_t imm20) {
 void AssemblerRISCVI::jal(Register rd, int32_t imm21) {
   GenInstrJ(JAL, rd, imm21);
   // If we're linking, this could potentially be the location of a safepoint.
-  if (rd != zero_reg) RecordPcForSafepoint();
-  ClearVectorunit();
+  if (rd != zero_reg) {
+    RecordPcForSafepoint();
+    ClearVectorUnit();
+  }
 }
 
 void AssemblerRISCVI::jalr(Register rd, Register rs1, int16_t imm12) {
   GenInstrI(0b000, JALR, rd, rs1, imm12);
   // If we're linking, this could potentially be the location of a safepoint.
-  if (rd != zero_reg) RecordPcForSafepoint();
-  ClearVectorunit();
+  if (rd != zero_reg) {
+    RecordPcForSafepoint();
+    ClearVectorUnit();
+  }
 }
 
 // Branches
 
 void AssemblerRISCVI::beq(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b000, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::bne(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b001, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::blt(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b100, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::bge(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b101, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::bltu(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b110, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::bgeu(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b111, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 // Loads

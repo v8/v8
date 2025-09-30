@@ -757,7 +757,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   VectorUnit VU;
 
-  void ClearVectorunit() override { VU.clear(); }
+  void ClearVectorUnit() override { VU.clear(); }
 
  protected:
   // Readable constants for base and offset adjustment helper, these indicate if
