@@ -1502,47 +1502,27 @@ class MaglevFrameTranslationBuilder {
     translation_array_builder_->StoreLiteral(GetDeoptLiteral(*value));
   }
 
-  void BuildFixedDoubleArray(const VirtualObject* object,
-                             const InputLocation*& input_location,
-                             const VirtualObjectList& virtual_objects) {
-    DCHECK_EQ(object->object_type(), vobj::ObjectType::kFixedDoubleArray);
-
-    using Shape = VirtualFixedDoubleArrayShape;
-    static_assert(Shape::header_slot_count == 2);
-    translation_array_builder_->BeginCapturedObject(object->slot_count());
-    BuildNestedValue(object->get(HeapObject::kMapOffset), input_location,
-                     virtual_objects);
-    BuildNestedValue(object->get(FixedArrayBase::kLengthOffset), input_location,
-                     virtual_objects);
-
-    // TODO(jgruber): It's awkward that we have to do this translation here.
-    // Move it to an earlier pass and handle FixedDoubleArray vobjects on the
-    // default path.
-    ReadOnlyRoots roots{local_isolate_};
-    for (int i = Shape::header_slot_count; i < object->slot_count(); i++) {
-      vobj::Field desc = object->FieldForSlot(i);
-      ValueNode* node = object->get(desc.offset);
-      static_assert(Shape::kElementsAreFloat64Constant);
-      Float64 value = node->Cast<Float64Constant>()->value();
-      if (value.is_hole_nan()) {
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(roots.the_hole_value()));
-      } else {
-        BuildHeapNumber(value);
-      }
-    }
-  }
-
   void BuildNestedValue(const ValueNode* value,
                         const InputLocation*& input_location,
                         const VirtualObjectList& virtual_objects) {
-    if (IsConstantNode(value->opcode())) {
+    const Opcode opcode = value->opcode();
+    if (IsConstantNode(opcode)) {
+      if (opcode == Opcode::kFloat64Constant) {
+        Float64 value_as_float = value->Cast<Float64Constant>()->value();
+        if (value_as_float.is_hole_nan()) {
+          translation_array_builder_->StoreLiteral(
+              GetDeoptLiteral(ReadOnlyRoots{local_isolate_}.the_hole_value()));
+          return;
+        }
+        // TODO(nicohartmann): Handle is_undefined_nan here.
+        DCHECK(!value_as_float.is_nan());
+      }
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
       return;
     }
     // Special nodes.
-    switch (value->opcode()) {
+    switch (opcode) {
       case Opcode::kArgumentsElements:
         translation_array_builder_->ArgumentsElements(
             value->Cast<ArgumentsElements>()->type());
@@ -1581,10 +1561,6 @@ class MaglevFrameTranslationBuilder {
           virtual_objects, [&](ValueNode*) { input_location++; },
           VirtualObject::ForEachSlotIterationMode::kForDeopt);
       return;
-    }
-    // TODO(jgruber): Fold this into the standard path below.
-    if (object_type == vobj::ObjectType::kFixedDoubleArray) {
-      return BuildFixedDoubleArray(object, input_location, virtual_objects);
     }
 
     if (object_type == vobj::ObjectType::kConsString) {

@@ -5488,50 +5488,14 @@ class GraphBuildingNodeProcessor {
     // TODO(olivf): Support elided maglev cons strings in turbolev.
     DCHECK_NE(vobj->object_type(), maglev::vobj::ObjectType::kConsString);
 
-    if (vobj->object_type() == maglev::vobj::ObjectType::kFixedDoubleArray) {
-      using Shape = maglev::VirtualFixedDoubleArrayShape;
-      static_assert(Shape::header_slot_count == 2);
-      builder.AddDematerializedObject(dup_id.id, vobj->slot_count());
-      AddVirtualObjectNestedValue(builder, virtual_objects,
-                                  vobj->get(HeapObject::kMapOffset));
-      AddVirtualObjectNestedValue(builder, virtual_objects,
-                                  vobj->get(FixedArrayBase::kLengthOffset));
-
-      // TODO(jgruber): It's awkward that we have to do this translation here.
-      // Move it to an earlier pass and handle FixedDoubleArray vobjects on the
-      // default path.
-      ReadOnlyRoots roots{local_isolate_};
-      for (int i = Shape::header_slot_count; i < vobj->slot_count(); i++) {
-        maglev::vobj::Field desc = vobj->FieldForSlot(i);
-        maglev::ValueNode* node = vobj->get(desc.offset);
-        static_assert(Shape::kElementsAreFloat64Constant);
-        i::Float64 value = node->Cast<maglev::Float64Constant>()->value();
-        if (value.is_hole_nan()) {
-          builder.AddInput(
-              MachineType::AnyTagged(),
-              __ HeapConstantHole(local_factory_->the_hole_value()));
-        } else {
-          builder.AddInput(MachineType::AnyTagged(),
-                           __ NumberConstant(value.get_scalar()));
-        }
-      }
-      return;
-    }
-
     builder.AddDematerializedObject(dup_id.id, vobj->slot_count());
     vobj->ForEachSlot(
         [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) {
           switch (desc.type) {
             case maglev::vobj::FieldType::kTagged:
             case maglev::vobj::FieldType::kTrustedPointer:
-              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
-              break;
             case maglev::vobj::FieldType::kFloat64:
-              // TODO(jgruber): Support other node types.
-              builder.AddInput(
-                  MachineType::Float64(),
-                  __ Float64Constant(
-                      value_node->Cast<maglev::Float64Constant>()->value()));
+              AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
               break;
             case maglev::vobj::FieldType::kInt32:
             case maglev::vobj::FieldType::kNone:
@@ -5552,14 +5516,24 @@ class GraphBuildingNodeProcessor {
               __ HeapConstant(value->Cast<maglev::Constant>()->ref().object()));
           break;
 
-        case maglev::Opcode::kFloat64Constant:
-          builder.AddInput(
-              MachineType::AnyTagged(),
-              __ NumberConstant(value->Cast<maglev::Float64Constant>()
-                                    ->value()
-                                    .get_scalar()));
+        case maglev::Opcode::kFloat64Constant: {
+          i::Float64 value_as_float =
+              value->Cast<maglev::Float64Constant>()->value();
+          if (value_as_float.is_hole_nan()) {
+            builder.AddInput(
+                MachineType::AnyTagged(),
+                __ HeapConstantHole(local_factory_->the_hole_value()));
+          } else {
+            // TODO(nicohartmann): Handle is_undefined_nan here.
+            DCHECK(!value_as_float.is_nan());
+            builder.AddInput(
+                MachineType::AnyTagged(),
+                __ NumberConstant(value->Cast<maglev::Float64Constant>()
+                                      ->value()
+                                      .get_scalar()));
+          }
           break;
-
+        }
         case maglev::Opcode::kInt32Constant:
           builder.AddInput(
               MachineType::AnyTagged(),

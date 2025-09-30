@@ -6103,7 +6103,6 @@ namespace vobj {
 enum class ObjectType {
   kDefault,
   kConsString,
-  kFixedDoubleArray,
   kHeapNumber,
 };
 
@@ -6381,31 +6380,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   };
 
   template <typename Function>
-  inline void ForEachSlot(
-      Function&& callback,
-      ForEachSlotIterationMode mode = ForEachSlotIterationMode::kDefault) {
-    if (mode == ForEachSlotIterationMode::kForDeopt) {
-      if (object_type() == vobj::ObjectType::kConsString) {
-        // ConsString materialization uses a custom opcode that only cares about
-        // these two fields.
-        vobj::Field fst = FieldForOffset(ConsString::kFirstOffset);
-        callback(slots_[fst.slot_index], fst);
-        vobj::Field snd = FieldForOffset(ConsString::kSecondOffset);
-        callback(slots_[snd.slot_index], snd);
-        return;
-      }
-      if (object_type() == vobj::ObjectType::kHeapNumber) {
-        // HeapNumber materialization creates a literal object instead of
-        // slot traversal.
-        return;
-      }
-    }
-    for (int i = 0; i < slot_count(); i++) {
-      callback(slots_[i], FieldForSlot(i));
-    }
-  }
-
-  template <typename Function>
   inline void ForEachSlot(Function&& callback,
                           ForEachSlotIterationMode mode =
                               ForEachSlotIterationMode::kDefault) const {
@@ -6428,6 +6402,13 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     for (int i = 0; i < slot_count(); i++) {
       callback(slots_[i], FieldForSlot(i));
     }
+  }
+
+  template <typename Function>
+  inline void ForEachSlot(
+      Function&& callback,
+      ForEachSlotIterationMode mode = ForEachSlotIterationMode::kDefault) {
+    static_cast<const VirtualObject*>(this)->ForEachSlot(callback, mode);
   }
 
   // A runtime input is an input to the virtual object that has runtime
@@ -6734,9 +6715,6 @@ struct VirtualFixedDoubleArrayShape : VirtualHeapObjectShape {
   using Base = VirtualHeapObjectShape;
   static constexpr bool kInstancesHaveStaticSize = false;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kFloat64;
-  // Special handling needed; hole translation for deopt materialization.
-  static constexpr vobj::ObjectType kObjectType =
-      vobj::ObjectType::kFixedDoubleArray;
   // TODO(jgruber): Support other node kinds for elements.
   static constexpr bool kElementsAreFloat64Constant = true;
 #define FIELD_LIST(V) \
@@ -6961,48 +6939,6 @@ void ValueNode::remove_use() {
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f,
-    ForEachSlotIterationMode mode) {
-  ForEachSlot(
-      [&](ValueNode*& value, const vobj::Field& desc) {
-        value = value->UnwrapIdentities();
-        if (IsConstantNode(value->opcode())) {
-          // No location assigned to constants.
-          return;
-        }
-        // Special nodes.
-        switch (value->opcode()) {
-          case Opcode::kArgumentsElements:
-          case Opcode::kArgumentsLength:
-          case Opcode::kRestLength:
-            // No location assigned to these opcodes.
-            break;
-          case Opcode::kVirtualObject:
-            UNREACHABLE();
-          case Opcode::kInlinedAllocation: {
-            InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
-            VirtualObject* inner_vobject =
-                virtual_objects.FindAllocatedWith(alloc);
-            // Check if it has escaped.
-            if (inner_vobject &&
-                (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
-              inner_vobject->ForEachNestedRuntimeInput(virtual_objects, f,
-                                                       mode);
-            } else {
-              f(value);
-            }
-            break;
-          }
-          default:
-            f(value);
-            break;
-        }
-      },
-      mode);
-}
-
-template <typename Function>
-inline void VirtualObject::ForEachNestedRuntimeInput(
-    VirtualObjectList virtual_objects, Function&& f,
     ForEachSlotIterationMode mode) const {
   ForEachSlot(
       [&](ValueNode* value, const vobj::Field& desc) {
@@ -7040,6 +6976,14 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
         }
       },
       mode);
+}
+
+template <typename Function>
+void VirtualObject::ForEachNestedRuntimeInput(VirtualObjectList virtual_objects,
+                                              Function&& f,
+                                              ForEachSlotIterationMode mode) {
+  static_cast<const VirtualObject*>(this)->ForEachNestedRuntimeInput(
+      virtual_objects, f, mode);
 }
 
 class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
