@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --enable-wasm-serialization
 // Flags: --allow-natives-syntax --liftoff --no-wasm-tier-up --expose-gc
 // Flags: --no-wasm-dynamic-tiering --no-wasm-lazy-compilation
 // Compile functions 0 and 2 with Turbofan, the rest with Liftoff:

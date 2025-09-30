@@ -36,6 +36,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/cpu.h"
 #include "src/base/fpu.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
@@ -558,6 +559,11 @@ base::LazyMutex Shell::cached_code_mutex_;
 std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
     Shell::cached_code_map_;
 std::atomic<int> Shell::unhandled_promise_rejections_{0};
+
+#if V8_ENABLE_WEBASSEMBLY
+base::LazyMutex Shell::wasm_serialized_bytes_mutex_;
+std::unordered_set<size_t> Shell::wasm_serialized_bytes_hashes_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -2942,13 +2948,6 @@ void Shell::SerializerDeserialize(
 void Shell::WasmSerializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  CHECK(options.enable_wasm_serialization);
-  // Serializing modules is "safe", but differential fuzzing will observe
-  // differences in the serialized bytes depending on compiler flags.
-  // Strictly speaking, guarding this block on
-  // v8_flags.correctness_fuzzer_suppressions would be enough; for symmetry
-  // with deserialization we use the more general --fuzzing flag.
-  CHECK(!i::v8_flags.fuzzing);
   HandleScope handle_scope(isolate);
   if (!info[0]->IsWasmModuleObject()) {
     ThrowError(isolate, "First argument must be a WasmModuleObject");
@@ -2965,19 +2964,34 @@ void Shell::WasmSerializeModule(
 
   Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, byte_length);
 
-  bool serialized_successfully = wasm_serializer.SerializeNativeModule(
-      {static_cast<uint8_t*>(array_buffer->GetBackingStore()->Data()),
-       byte_length});
-  CHECK(serialized_successfully || i::v8_flags.fuzzing);
+  base::Vector<uint8_t> byte_buffer{
+      static_cast<uint8_t*>(array_buffer->GetBackingStore()->Data()),
+      byte_length};
+  if (!wasm_serializer.SerializeNativeModule(byte_buffer)) {
+    CHECK(i::v8_flags.fuzzing);
+    return;
+  }
+
+  // Remember a hash of the serialized bytes. This will be used to check that
+  // only serialized bytes are accepted when deserializing.
+  {
+    size_t hash = base::Hasher{}
+                      .AddRange(native_module->wire_bytes())
+                      .AddRange(byte_buffer)
+                      .hash();
+    base::MutexGuard mutex_guard(Shell::wasm_serialized_bytes_mutex_.Pointer());
+    Shell::wasm_serialized_bytes_hashes_.insert(hash);
+  }
+
   info.GetReturnValue().Set(array_buffer);
 }
 
 void Shell::WasmDeserializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  i::PrintF("NOTE: d8.wasm.deserializeModule() is not VRP eligible.\n");
-  CHECK(options.enable_wasm_serialization);
-  CHECK(!i::v8_flags.fuzzing);
+  i::PrintF(
+      "NOTE: d8.wasm.deserializeModule() is not safe against manipulated "
+      "input. It's not VRP eligible.\n");
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
   if (!info[0]->IsArrayBuffer()) {
@@ -3010,6 +3024,21 @@ void Shell::WasmDeserializeModule(
   base::Vector<uint8_t> buffer_vec{
       reinterpret_cast<uint8_t*>(buffer->backing_store()),
       buffer->byte_length()};
+
+  // Check that we only try to deserialize bytes that we previously produced via
+  // serialization.
+  // This is prone to hash collisions, but this check sufficiently prevents
+  // fuzzers from passing manipulated bytes (or bytes that do not match the wire
+  // bytes) in regular fuzzing.
+  {
+    size_t hash =
+        base::Hasher{}.AddRange(wire_bytes_vec).AddRange(buffer_vec).hash();
+    base::MutexGuard mutex_guard(Shell::wasm_serialized_bytes_mutex_.Pointer());
+    if (!Shell::wasm_serialized_bytes_hashes_.count(hash)) {
+      ThrowError(isolate, "Trying to deserialize manipulated bytes");
+      return;
+    }
+  }
 
   // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
   // JSArrayBuffer backing store doesn't get relocated.
@@ -4397,7 +4426,7 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     d8_template->Set(isolate, "serializer", serializer_template);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (options.enable_wasm_serialization) {
+  {
     Local<ObjectTemplate> wasm_template = ObjectTemplate::New(isolate);
     wasm_template->Set(isolate, "serializeModule",
                        FunctionTemplate::New(isolate, WasmSerializeModule));
@@ -6254,8 +6283,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.expose_fast_api = true;
     } else if (FlagMatches("--flush-denormals", &argv[i])) {
       options.flush_denormals = true;
-    } else if (FlagMatches("--enable-wasm-serialization", &argv[i])) {
-      options.enable_wasm_serialization = true;
     } else {
 #ifdef V8_TARGET_OS_WIN
       PreProcessUnicodeFilenameArg(argv, i);
@@ -6299,13 +6326,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   if (i::v8_flags.stress_snapshot && options.expose_fast_api &&
       check_d8_flag_contradictions) {
     FATAL("Flag --expose-fast-api is incompatible with --stress-snapshot.");
-  }
-
-  if (i::v8_flags.fuzzing && options.enable_wasm_serialization) {
-    FATAL(
-        "The `d8.wasm.deserializeModule` function (enabled via "
-        "--enable-wasm-serialization) is not robust against malicious inputs "
-        "and thus incompatible with --fuzzing.");
   }
 
   // Set up isolated source groups.

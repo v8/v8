@@ -30,7 +30,6 @@
 //    This leads to a DCHECK failure then as the outstanding_baseline_units_
 //    should never be negative.
 
-// Flags: --enable-wasm-serialization
 // Speculative inlining via deopts required:
 // Flags: --wasm-inlining --wasm-deopt
 // Dynamic tier-up required:
