@@ -1602,8 +1602,10 @@ class RepresentationSelector {
       BaseTaggedness base_taggedness,
       MachineRepresentation field_representation, Type field_type,
       MachineRepresentation value_representation, Node* value) {
-    if (base_taggedness == kTaggedBase &&
-        CanBeTaggedPointer(field_representation)) {
+    if (CanBeIndirectPointer(field_representation)) {
+      return kIndirectPointerWriteBarrier;
+    } else if (base_taggedness == kTaggedBase &&
+               CanBeTaggedPointer(field_representation)) {
       Type value_type = NodeProperties::GetType(value);
       if (value_representation == MachineRepresentation::kTaggedSigned) {
         // Write barriers are only for stores of heap objects.
