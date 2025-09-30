@@ -3499,15 +3499,16 @@ UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
 }
 
 namespace {
+constexpr v8::ExternalPointerTypeTag kIntPointerTag = 96;
 int serialized_static_field = 314;
 
 void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   if (info.Data()->IsExternal()) {
-    CHECK_EQ(info.Data().As<v8::External>()->Value(),
+    CHECK_EQ(info.Data().As<v8::External>()->Value(kIntPointerTag),
              static_cast<void*>(&serialized_static_field));
-    int* value =
-        reinterpret_cast<int*>(info.Data().As<v8::External>()->Value());
+    int* value = reinterpret_cast<int*>(
+        info.Data().As<v8::External>()->Value(kIntPointerTag));
     (*value)++;
   }
   info.GetReturnValue().Set(v8_num(42));
@@ -3586,11 +3587,11 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
           context->GetNumberOfEmbedderDataFields();
       v8::Context::Scope context_scope(context);
       v8::Local<v8::External> writable_external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       context->SetEmbedderData(my_context_embedder_field_index,
                                writable_external);
       v8::Local<v8::External> external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback, external);
       callback->SealAndPrepareForPromotionToReadOnly();
@@ -3702,7 +3703,7 @@ UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       v8::Local<v8::External> external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback, external);
       callback->SealAndPrepareForPromotionToReadOnly();
@@ -4044,7 +4045,7 @@ void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
       v8::Local<v8::ObjectTemplate> global_template =
           v8::ObjectTemplate::New(isolate, global_template_constructor);
       v8::Local<v8::External> external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback, external);
       global_template->Set(isolate, "f", callback);
@@ -4073,10 +4074,10 @@ void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
           object_template->NewInstance(context).ToLocalChecked();
       v8::Local<v8::Object> c =
           object_template->NewInstance(context).ToLocalChecked();
-      v8::Local<v8::External> resource_external =
-          v8::External::New(isolate, &serializable_one_byte_resource);
+      v8::Local<v8::External> resource_external = v8::External::New(
+          isolate, &serializable_one_byte_resource, kIntPointerTag);
       v8::Local<v8::External> field_external =
-          v8::External::New(isolate, &serialized_static_field);
+          v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
 
       a->SetInternalField(0, b);
       b->SetInternalField(0, c);
@@ -4203,10 +4204,10 @@ void TestSnapshotCreatorTemplates(bool promote_templates_to_read_only) {
 
         CHECK(a2->IsExternal());
         CHECK_EQ(static_cast<void*>(&serializable_one_byte_resource),
-                 v8::Local<v8::External>::Cast(a2)->Value());
+                 v8::Local<v8::External>::Cast(a2)->Value(kIntPointerTag));
         CHECK(b2->IsExternal());
         CHECK_EQ(static_cast<void*>(&serialized_static_field),
-                 v8::Local<v8::External>::Cast(b2)->Value());
+                 v8::Local<v8::External>::Cast(b2)->Value(kIntPointerTag));
         CHECK(c2->IsInt32() && c2->Int32Value(context).FromJust() == 35);
 
         // Calling GetDataFromSnapshotOnce again returns an empty MaybeLocal.

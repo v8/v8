@@ -698,8 +698,9 @@ class JSExternalObject::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     DCHECK_EQ(0, map->GetInObjectProperties());
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
-    v->VisitExternalPointer(obj, obj->RawExternalPointerField(
-                                     kValueOffset, kExternalObjectValueTag));
+    v->VisitExternalPointer(
+        obj, obj->RawExternalPointerField(
+                 kValueOffset, {kFirstExternalTypeTag, kLastExternalTypeTag}));
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {

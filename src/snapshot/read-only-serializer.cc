@@ -57,8 +57,9 @@ class ObjectPreProcessor final {
         extref_encoder_.Encode(value);
     DCHECK_LT(encoder_value.index(),
               1UL << ro::EncodedExternalReference::kIndexBits);
-    ro::EncodedExternalReference encoded{encoder_value.is_from_api(),
-                                         encoder_value.index()};
+    DCHECK(slot.ExactTagIsKnown());
+    ro::EncodedExternalReference encoded(
+        slot.exact_tag(), encoder_value.is_from_api(), encoder_value.index());
     // Constructing no_gc here is not the intended use pattern (instead we
     // should pass it along the entire callchain); but there's little point of
     // doing that here - all of the code in this file relies on GC being
@@ -66,6 +67,24 @@ class ObjectPreProcessor final {
     DisallowGarbageCollection no_gc;
     slot.ReplaceContentWithIndexForSerialization(no_gc, encoded.ToUint32());
   }
+
+  void EncodeExternalPointerSlotWithTagRange(ExternalPointerSlot slot) {
+    Address value = slot.load(isolate_);
+    ExternalPointerTag tag = slot.load_tag(isolate_);
+
+    ExternalReferenceEncoder::Value encoder_value =
+        extref_encoder_.Encode(value);
+
+    DCHECK_LT(encoder_value.index(),
+              1UL << ro::EncodedExternalReference::kIndexBits);
+
+    ro::EncodedExternalReference encoded(tag, encoder_value.is_from_api(),
+                                         encoder_value.index());
+
+    DisallowGarbageCollection no_gc;
+    slot.ReplaceContentWithIndexForSerialization(no_gc, encoded.ToUint32());
+  }
+
   void PreProcessAccessorInfo(Tagged<AccessorInfo> o) {
     EncodeExternalPointerSlot(
         o->RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset,
@@ -87,11 +106,10 @@ class ObjectPreProcessor final {
 #undef PROCESS_FIELD
   }
   void PreProcessJSExternalObject(Tagged<JSExternalObject> o) {
-    EncodeExternalPointerSlot(
-        o->RawExternalPointerField(JSExternalObject::kValueOffset,
-                                   kExternalObjectValueTag),
-        reinterpret_cast<Address>(
-            o->value(isolate_, {kFirstExternalTypeTag, kLastExternalTypeTag})));
+    ExternalPointerSlot value_slot = o->RawExternalPointerField(
+        JSExternalObject::kValueOffset,
+        {kFirstExternalTypeTag, kLastExternalTypeTag});
+    EncodeExternalPointerSlotWithTagRange(value_slot);
   }
   void PreProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     EncodeExternalPointerSlot(
