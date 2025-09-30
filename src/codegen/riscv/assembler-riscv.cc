@@ -1004,7 +1004,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
           }
         } else {
           sim_low = low_12;
-          ori(rd, zero_reg, low_12);
+          addi(rd, zero_reg, low_12);
         }
       }
       if (sim_low & 0x100000000) {
@@ -1036,7 +1036,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
           addi(temp_reg, temp_reg, low_12);
         }
       } else {
-        ori(temp_reg, zero_reg, low_12);
+        addi(temp_reg, zero_reg, low_12);
       }
       // Put it at the bgining of register
       slli(temp_reg, temp_reg, 32);
@@ -1059,7 +1059,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
         addi(rd, rd, low_12);
       }
     } else {
-      ori(rd, zero_reg, low_12);
+      addi(rd, zero_reg, low_12);
     }
     // upper part already in rd. Each part to be added to rd, has maximum of 11
     // bits, and always starts with a 1. rd is shifted by the size of the part
