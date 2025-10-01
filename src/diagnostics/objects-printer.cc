@@ -3066,15 +3066,16 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   os << "\n - function_index: " << function_index();
   os << "\n - wrapper_budget: " << wrapper_budget()->value();
   os << "\n - receiver_is_first_param: " << receiver_is_first_param();
-  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
-     << sig()->return_count() << " returns)";
+  os << "\n - packed_args_size: " << packed_args_size();
+  os << "\n - c_wrapper_code: "
+     << c_wrapper_code(GetCurrentIsolateForSandbox());
   os << "\n";
 }
 
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmJSFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - canonical_sig_index: " << canonical_sig_index();
+  os << "\n - offheap_data: " << offheap_data();
   os << "\n";
 }
 
@@ -3114,6 +3115,8 @@ void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   os << "\n - call target: [" << call_target().value() << "] -> "
      << AsHex::Address(wasm::GetProcessWideWasmCodePointerTable()
                            ->GetEntrypointWithoutSignatureCheck(call_target()));
+  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
+     << sig()->return_count() << " returns)";
   os << "\n";
 }
 
@@ -3128,8 +3131,6 @@ void WasmCapiFunctionData::WasmCapiFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmCapiFunctionData");
   WasmFunctionDataPrint(os);
   os << "\n - embedder_data: " << Brief(embedder_data());
-  os << "\n - sig: " << sig() << " (" << sig()->parameter_count() << " params, "
-     << sig()->return_count() << " returns)";
   os << "\n";
 }
 

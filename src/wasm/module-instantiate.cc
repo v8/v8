@@ -733,7 +733,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     if (Tagged<WasmExportedFunctionData> data;
         TryCast(*trusted_function_data_, &data)) {
       if (!wasm::GetTypeCanonicalizer()->IsCanonicalSubtype(
-              data->sig()->index(),
+              data->internal()->sig()->index(),
               wasm::CanonicalValueType::RefNull(expected_sig->index(),
                                                 false /* ignored by callee */,
                                                 RefTypeKind::kFunction))) {

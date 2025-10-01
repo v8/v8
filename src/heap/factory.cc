@@ -1825,23 +1825,22 @@ DirectHandle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 
 DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     DirectHandle<TrustedObject> implicit_arg, int function_index, bool shared,
-    WasmCodePointer call_target) {
+    WasmCodePointer call_target, const wasm::CanonicalSig* sig) {
   Tagged<WasmInternalFunction> internal =
       TrustedCast<WasmInternalFunction>(AllocateRawWithImmortalMap(
           WasmInternalFunction::kSize,
           shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
           *wasm_internal_function_map()));
+
+  DisallowGarbageCollection no_gc;
   internal->init_self_indirect_pointer(isolate());
-  {
-    DisallowGarbageCollection no_gc;
-    internal->set_call_target(call_target);
-    DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
-           IsWasmImportData(*implicit_arg));
-    internal->set_implicit_arg(*implicit_arg);
-    // Default values, will be overwritten by the caller.
-    internal->set_function_index(function_index);
-    internal->set_external(*undefined_value());
-  }
+  internal->set_call_target(call_target);
+  DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
+         IsWasmImportData(*implicit_arg));
+  internal->set_implicit_arg(*implicit_arg);
+  internal->set_function_index(function_index);
+  internal->set_external(*undefined_value());
+  internal->set_sig(sig);
 
   return direct_handle(internal, isolate());
 }
@@ -1871,7 +1870,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig, kShared);
 
   DirectHandle<WasmInternalFunction> internal = NewWasmInternalFunction(
-      import_data, -1, kShared, wrapper_handle->code_pointer());
+      import_data, -1, kShared, wrapper_handle->code_pointer(), sig);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
   import_data->SetFuncRefAsCallOrigin(*internal);
 
@@ -1894,7 +1893,6 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
-  result->set_canonical_sig_index(sig->index().index);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
                                WasmFunctionData::PromiseField::encode(promise));
   result->set_protected_offheap_data(*offheap_data);
@@ -1979,8 +1977,8 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<Code> export_wrapper,
     DirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<WasmFuncRef> func_ref,
-    DirectHandle<WasmInternalFunction> internal_function,
-    const wasm::CanonicalSig* sig, int wrapper_budget, wasm::Promise promise) {
+    DirectHandle<WasmInternalFunction> internal_function, int wrapper_budget,
+    wasm::Promise promise) {
   int func_index = internal_function->function_index();
   DirectHandle<Cell> wrapper_budget_cell =
       NewCell(Smi::FromInt(wrapper_budget));
@@ -1995,7 +1993,6 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result->set_wrapper_code(*export_wrapper);
   result->set_instance_data(*instance_data);
   result->set_function_index(func_index);
-  result->set_sig(sig);
   result->set_receiver_is_first_param(0);
   result->set_wrapper_budget(*wrapper_budget_cell);
   // We can't skip the write barrier because Code objects are not immovable.
@@ -2019,7 +2016,8 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   DirectHandle<WasmInternalFunction> internal = NewWasmInternalFunction(
       import_data, -1, kShared,
       wasm::GetProcessWideWasmCodePointerTable()
-          ->GetOrCreateHandleForNativeFunction(call_target));
+          ->GetOrCreateHandleForNativeFunction(call_target),
+      sig);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
   // We have no generic wrappers for C-API functions, so we don't need to
   // set any call origin on {import_data}.
@@ -2033,7 +2031,6 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
   result->set_embedder_data(*embedder_data);
-  result->set_sig(sig);
   result->set_js_promise_flags(
       WasmFunctionData::SuspendField::encode(wasm::kNoSuspend) |
       WasmFunctionData::PromiseField::encode(wasm::kNoPromise));

@@ -2213,9 +2213,7 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
   int func_index = data->function_index();
   const i::wasm::WasmModule* module = trusted_instance_data->module();
   i::wasm::ModuleTypeIndex sig_index = module->functions[func_index].sig_index;
-  const i::wasm::CanonicalSig* sig =
-      i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
-          module->canonical_sig_id(sig_index));
+  const i::wasm::CanonicalSig* sig = data->internal()->sig();
   i::DirectHandle<i::Code> wrapper;
   if (!internal::wasm::IsJSCompatibleSignature(sig)) {
     // If the signature is incompatible with JS, the original export will have
@@ -2249,7 +2247,7 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
   i::DirectHandle<i::WasmInternalFunction> internal =
       i_isolate->factory()->NewWasmInternalFunction(
           implicit_arg, func_index, kShared,
-          trusted_instance_data->GetCallTarget(func_index));
+          trusted_instance_data->GetCallTarget(func_index), sig);
   i::DirectHandle<i::WasmFuncRef> func_ref =
       i_isolate->factory()->NewWasmFuncRef(internal, rtt, kShared);
   if (func_index < num_imported_functions) {
@@ -2258,7 +2256,7 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
 
   i::DirectHandle<i::JSFunction> result = i::WasmExportedFunction::New(
       i_isolate, trusted_instance_data, func_ref, internal,
-      static_cast<int>(data->sig()->parameter_count()), wrapper);
+      static_cast<int>(sig->parameter_count()), wrapper);
   return result;
 }
 
@@ -2474,7 +2472,8 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
     const i::wasm::CanonicalSig* sig = i::Cast<i::WasmJSFunction>(fun)
                                            ->shared()
                                            ->wasm_js_function_data()
-                                           ->GetSignature();
+                                           ->internal()
+                                           ->sig();
     // As long as WasmJSFunctions cannot use indexed types, their canonical
     // signatures are bit-compatible with module-specific signatures.
 #if DEBUG

@@ -462,9 +462,6 @@ void WasmInternalFunction::set_call_target(WasmCodePointer code_pointer) {
 }
 
 // WasmJSFunctionData
-wasm::CanonicalTypeIndex WasmJSFunctionData::sig_index() const {
-  return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};
-}
 PROTECTED_POINTER_ACCESSORS(WasmJSFunctionData, protected_offheap_data,
                             TrustedManaged<WasmJSFunctionData::OffheapData>,
                             kProtectedOffheapDataOffset)

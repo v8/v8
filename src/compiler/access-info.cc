@@ -563,7 +563,7 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         // Supporting receiver-is-first-param mode would require passing
         // the Proxy's handler to the eventual building of the Call node.
         if (wasm_data->receiver_is_first_param()) return {};
-        const wasm::CanonicalSig* wasm_signature = wasm_data->sig();
+        const wasm::CanonicalSig* wasm_signature = wasm_data->internal()->sig();
         if (wasm_signature->parameter_count() < 2) return {};
         wasm::CanonicalValueType key_type = wasm_signature->GetParam(1);
 

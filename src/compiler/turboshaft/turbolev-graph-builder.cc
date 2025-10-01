@@ -1335,7 +1335,8 @@ class GraphBuildingNodeProcessor {
       if (speculation_mode == SpeculationMode::kAllowSpeculation) {
         Tagged<WasmExportedFunctionData> function_data =
             TrustedCast<WasmExportedFunctionData>(data);
-        const wasm::CanonicalSig* wasm_signature = function_data->sig();
+        const wasm::CanonicalSig* wasm_signature =
+            function_data->internal()->sig();
         if (CanInlineJSToWasmCall(wasm_signature)) {
           Tagged<WasmTrustedInstanceData> instance_data =
               function_data->instance_data();
