@@ -5128,7 +5128,12 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   uint8_t* data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
   if (data == nullptr) {
-    ThrowError(isolate, "Error reading file");
+    std::ostringstream error_msg;
+    error_msg << "Error reading file \""
+              << std::string_view{*filename,
+                                  std::min(size_t{50}, filename.length())}
+              << (filename.length() > 50 ? "[...]" : "") << "\"";
+    ThrowError(isolate, error_msg.str());
     return;
   }
   Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, length);
