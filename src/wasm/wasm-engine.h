@@ -298,17 +298,29 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // outstanding code objects (added via {LogCode}).
   void LogOutstandingCodesForIsolate(Isolate*);
 
-  // Create a new NativeModule. The caller is responsible for its
-  // lifetime. The native module will be given some memory for code,
-  // which will be page size aligned. The size of the initial memory
-  // is determined by {code_size_estimate}. The native module may later request
-  // more memory.
-  // TODO(wasm): isolate is only required here for CompilationState.
+  // Create a new NativeModule and register it for usage in `isolate`.
+  // The caller is responsible for its lifetime. The native module will be given
+  // some memory for code, which will be page size aligned. The size of the
+  // initial memory is determined by {code_size_estimate}. The native module may
+  // later request more memory.
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmEnabledFeatures enabled_features,
       WasmDetectedFeatures detected_features,
       CompileTimeImports compile_imports,
       std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
+
+  // Create a new unowned NativeModule (not belonging to any isolate yet).
+  // Add it to an isolate later via `UseNativeModuleInIsolate`.
+  std::shared_ptr<NativeModule> NewUnownedNativeModule(
+      WasmEnabledFeatures enabled_features,
+      WasmDetectedFeatures detected_features,
+      CompileTimeImports compile_imports,
+      std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
+
+  // Register a `NativeModule` with an isolate. This makes sure that the
+  // module's code is logged in the isolate, and the isolate's stack is scanned
+  // for code GC in that module.
+  void UseNativeModuleInIsolate(NativeModule*, Isolate*);
 
   // Try getting a cached {NativeModule}, or get ownership for its creation.
   // Return {nullptr} if no {NativeModule} exists for these bytes. In this case,

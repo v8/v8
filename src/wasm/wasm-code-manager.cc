@@ -2464,8 +2464,23 @@ bool WasmCodeManager::MemoryProtectionKeyWritable() {
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 }
 
+namespace {
+// Get a pointer to the current isolate, to be used for running a GC.
+// TODO(clemensb): Introduce wasm-engine-wide GCs.
+Isolate* GetCurrentIsolateForGc() {
+  // If we have entered an isolate, run GC in that isolate.
+  if (Isolate* isolate = Isolate::TryGetCurrent()) {
+    // Note: instead of failing, this CHECK could also crash if `isolate` was
+    // deallocated in the meantime (and hence is *not* the current isolate).
+    CHECK_EQ(isolate->thread_id(), ThreadId::Current());
+    return isolate;
+  }
+  return nullptr;
+}
+}  // namespace
+
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    Isolate* isolate, WasmEnabledFeatures enabled_features,
+    WasmEnabledFeatures enabled_features,
     WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
     size_t code_size_estimate, std::shared_ptr<const WasmModule> module) {
 #if V8_ENABLE_DRUMBRAKE
@@ -2488,8 +2503,10 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     if (v8_flags.flush_liftoff_code) {
       wasm::GetWasmEngine()->FlushLiftoffCode();
     }
-    (reinterpret_cast<v8::Isolate*>(isolate))
-        ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
+    if (Isolate* isolate = GetCurrentIsolateForGc()) {
+      isolate->heap()->MemoryPressureNotification(
+          MemoryPressureLevel::kCritical, true);
+    }
     size_t committed = total_committed_code_space_.load();
     DCHECK_GE(max_committed_code_space_, committed);
     critical_committed_code_space_.store(
@@ -2532,16 +2549,17 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     for (int retries = 0;; ++retries) {
       code_space = TryAllocate(code_vmem_size);
       if (code_space.IsReserved()) break;
-      if (retries == kAllocationRetries) {
+      Isolate* isolate_for_gc = GetCurrentIsolateForGc();
+      if (retries == kAllocationRetries || !isolate_for_gc) {
         auto oom_detail = base::FormattedString{}
                           << "NewNativeModule cannot allocate code space of "
                           << code_vmem_size << " bytes";
-        V8::FatalProcessOutOfMemory(isolate, "Allocate initial wasm code space",
+        V8::FatalProcessOutOfMemory(nullptr, "Allocate initial wasm code space",
                                     oom_detail.PrintToArray().data());
         UNREACHABLE();
       }
       // Run one GC, then try the allocation again.
-      isolate->heap()->MemoryPressureNotification(
+      isolate_for_gc->heap()->MemoryPressureNotification(
           MemoryPressureLevel::kCritical, true);
     }
     code_space_region = code_space.region();

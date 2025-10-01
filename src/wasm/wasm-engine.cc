@@ -1550,19 +1550,24 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
+  std::shared_ptr<NativeModule> native_module = NewUnownedNativeModule(
+      enabled_features, detected_features, compile_imports, std::move(module),
+      code_size_estimate);
+  UseNativeModuleInIsolate(native_module.get(), isolate);
+  return native_module;
+}
+
+std::shared_ptr<NativeModule> WasmEngine::NewUnownedNativeModule(
+    WasmEnabledFeatures enabled_features,
+    WasmDetectedFeatures detected_features, CompileTimeImports compile_imports,
+    std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.NewNativeModule");
-#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
-  if (v8_flags.wasm_gdb_remote && !gdb_server_) {
-    gdb_server_ = gdb_server::GdbServer::Create();
-    gdb_server_->AddIsolate(isolate);
-  }
-#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   std::shared_ptr<NativeModule> native_module =
       GetWasmCodeManager()->NewNativeModule(
-          isolate, enabled_features, detected_features,
-          std::move(compile_imports), code_size_estimate, std::move(module));
+          enabled_features, detected_features, std::move(compile_imports),
+          code_size_estimate, std::move(module));
   base::MutexGuard lock(&mutex_);
   if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
     if (!native_modules_kept_alive_for_pgo) {
@@ -1571,26 +1576,57 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     }
     native_modules_kept_alive_for_pgo->emplace_back(native_module);
   }
-  auto [iterator, inserted] = native_modules_.insert(std::make_pair(
+  DCHECK(!native_modules_.contains(native_module.get()));
+  native_modules_.insert(std::make_pair(
       native_module.get(), std::make_unique<NativeModuleInfo>(native_module)));
-  DCHECK(inserted);
-  NativeModuleInfo* native_module_info = iterator->second.get();
-  native_module_info->isolates.insert(isolate);
-  DCHECK_EQ(1, isolates_.count(isolate));
-  IsolateInfo* isolate_info = isolates_.find(isolate)->second.get();
-  isolate_info->native_modules.insert(native_module.get());
-  if (isolate_info->keep_in_debug_state) {
-    native_module->SetDebugState(kDebugging);
-  }
-  if (isolate_info->log_codes) {
-    EnableCodeLogging(native_module.get());
-  }
-
-  isolate->counters()->wasm_modules_per_isolate()->AddSample(
-      static_cast<int>(isolate_info->native_modules.size()));
-  isolate->counters()->wasm_modules_per_engine()->AddSample(
-      static_cast<int>(native_modules_.size()));
   return native_module;
+}
+
+void WasmEngine::UseNativeModuleInIsolate(NativeModule* native_module,
+                                          Isolate* isolate) {
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+  if (v8_flags.wasm_gdb_remote && !gdb_server_) {
+    gdb_server_ = gdb_server::GdbServer::Create();
+    gdb_server_->AddIsolate(isolate);
+  }
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
+  bool remove_all_code = false;
+  {
+    base::MutexGuard guard(&mutex_);
+    NativeModuleInfo* native_module_info = native_modules_[native_module].get();
+    IsolateInfo* isolate_info = isolates_[isolate].get();
+    DCHECK_NOT_NULL(native_module_info);
+    DCHECK_NOT_NULL(isolate_info);
+    bool is_first_use_in_isolate =
+        native_module_info->isolates.insert(isolate).second;
+    DCHECK_EQ(is_first_use_in_isolate ? 0 : 1,
+              isolate_info->native_modules.count(native_module));
+    if (is_first_use_in_isolate) {
+      isolate_info->native_modules.insert(native_module);
+      if (isolate_info->keep_in_debug_state &&
+          !native_module->IsInDebugState()) {
+        remove_all_code = true;
+        native_module->SetDebugState(kDebugging);
+      }
+      if (isolate_info->log_codes && !native_module->log_code()) {
+        EnableCodeLogging(native_module);
+      }
+      isolate->counters()->wasm_modules_per_isolate()->AddSample(
+          static_cast<int>(isolate_info->native_modules.size()));
+      // Log the number of modules per engine only for the first isolate which
+      // uses this NativeModule, to achieve roughly one sample per NativeModule.
+      if (native_module_info->isolates.size() == 1) {
+        isolate->counters()->wasm_modules_per_engine()->AddSample(
+            static_cast<int>(native_modules_.size()));
+      }
+    }
+  }
+  if (remove_all_code) {
+    WasmCodeRefScope ref_scope;
+    native_module->RemoveCompiledCode(
+        NativeModule::RemoveFilter::kRemoveNonDebugCode);
+  }
 }
 
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
@@ -1601,29 +1637,9 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes,
                                                 compile_imports);
-  bool remove_all_code = false;
   if (native_module) {
     TRACE_EVENT0("v8.wasm", "CacheHit");
-    base::MutexGuard guard(&mutex_);
-    auto& native_module_info = native_modules_[native_module.get()];
-    if (!native_module_info) {
-      native_module_info = std::make_unique<NativeModuleInfo>(native_module);
-    }
-    native_module_info->isolates.insert(isolate);
-    auto* isolate_data = isolates_[isolate].get();
-    isolate_data->native_modules.insert(native_module.get());
-    if (isolate_data->keep_in_debug_state && !native_module->IsInDebugState()) {
-      remove_all_code = true;
-      native_module->SetDebugState(kDebugging);
-    }
-    if (isolate_data->log_codes && !native_module->log_code()) {
-      EnableCodeLogging(native_module.get());
-    }
-  }
-  if (remove_all_code) {
-    WasmCodeRefScope ref_scope;
-    native_module->RemoveCompiledCode(
-        NativeModule::RemoveFilter::kRemoveNonDebugCode);
+    UseNativeModuleInIsolate(native_module.get(), isolate);
   }
   return native_module;
 }

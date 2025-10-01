@@ -1240,7 +1240,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   friend class WasmImportWrapperCache;
 
   std::shared_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, WasmEnabledFeatures enabled_features,
+      WasmEnabledFeatures enabled_features,
       WasmDetectedFeatures detected_features,
       CompileTimeImports compile_imports, size_t code_size_estimate,
       std::shared_ptr<const WasmModule> module);
