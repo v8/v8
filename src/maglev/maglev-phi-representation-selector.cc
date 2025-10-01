@@ -168,7 +168,10 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       // special case of the value originating from the loop entry branch, we
       // can try to hoist untagging out of the loop.
       if (graph_->is_osr() && v8_flags.maglev_hoist_osr_value_phi_untagging &&
-          input->Is<InitialValue>() && CanHoistUntaggingTo(*graph_->begin())) {
+          input->Is<InitialValue>() && CanHoistUntaggingTo(*graph_->begin()) &&
+          // Since this hoisting can skip over several blocks we must guarantee
+          // that we are not hoisting over a resumable loop.
+          !graph_->has_resumable_generator()) {
         hoist_untagging[i] = HoistType::kPrologue;
         continue;
       }
