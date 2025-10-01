@@ -1917,7 +1917,10 @@ void ScavengerCollector::ClearYoungEphemerons(
       Tagged<HeapObject> key = key_slot.ToHeapObject();
       // If the key is not in the from page, it's not being scavenged.
       if (!Heap::InFromPage(key)) continue;
-      DCHECK(!IsAnyHole(key));
+      // Checking whether an object is a hole without static roots requires a
+      // valid MapWord which is not guaranteed here in case we are looking at a
+      // forward pointer.
+      DCHECK_IMPLIES(v8_flags.unmap_holes, !IsAnyHole(key));
       MapWord map_word = key->map_word(kRelaxedLoad);
       if (!map_word.IsForwardingAddress()) {
         // If the key is not forwarded, then it's dead.
