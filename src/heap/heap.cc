@@ -143,6 +143,105 @@
 namespace v8 {
 namespace internal {
 
+class Heap::AllocationTrackerForDebugging final
+    : public HeapObjectAllocationTracker {
+ public:
+  static bool IsNeeded() {
+    return v8_flags.verify_predictable || v8_flags.fuzzer_gc_analysis ||
+           (v8_flags.trace_allocation_stack_interval > 0);
+  }
+
+  explicit AllocationTrackerForDebugging(Heap* heap) : heap_(heap) {
+    CHECK(IsNeeded());
+    heap_->AddHeapObjectAllocationTracker(this);
+  }
+
+  ~AllocationTrackerForDebugging() final {
+    heap_->RemoveHeapObjectAllocationTracker(this);
+    if (v8_flags.verify_predictable || v8_flags.fuzzer_gc_analysis) {
+      PrintAllocationsHash();
+    }
+  }
+
+  void AllocationEvent(Address addr, int size) final {
+    if (v8_flags.verify_predictable) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+      // Advance synthetic time by making a time request.
+      heap_->MonotonicallyIncreasingTimeInMs();
+
+      UpdateAllocationsHash(HeapObject::FromAddress(addr));
+      UpdateAllocationsHash(size);
+
+      if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
+        PrintAllocationsHash();
+      }
+    } else if (v8_flags.fuzzer_gc_analysis) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+    } else if (v8_flags.trace_allocation_stack_interval > 0) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+      if (allocations_count_ % v8_flags.trace_allocation_stack_interval == 0) {
+        heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
+      }
+    }
+  }
+
+  void MoveEvent(Address source, Address target, int size) final {
+    if (v8_flags.verify_predictable) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+      // Advance synthetic time by making a time request.
+      heap_->MonotonicallyIncreasingTimeInMs();
+
+      UpdateAllocationsHash(HeapObject::FromAddress(source));
+      UpdateAllocationsHash(HeapObject::FromAddress(target));
+      UpdateAllocationsHash(size);
+
+      if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
+        PrintAllocationsHash();
+      }
+    } else if (v8_flags.fuzzer_gc_analysis) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+    }
+  }
+
+  void UpdateObjectSizeEvent(Address, int) final {}
+
+ private:
+  void UpdateAllocationsHash(Tagged<HeapObject> object) {
+    Address object_address = object.address();
+    MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
+    AllocationSpace allocation_space =
+        MutablePageMetadata::cast(memory_chunk->Metadata())->owner_identity();
+
+    static_assert(kSpaceTagSize + kPageSizeBits <= 32);
+    uint32_t value =
+        static_cast<uint32_t>(memory_chunk->Offset(object_address)) |
+        (static_cast<uint32_t>(allocation_space) << kPageSizeBits);
+
+    UpdateAllocationsHash(value);
+  }
+
+  void UpdateAllocationsHash(uint32_t value) {
+    const uint16_t c1 = static_cast<uint16_t>(value);
+    const uint16_t c2 = static_cast<uint16_t>(value >> 16);
+    raw_allocations_hash_.AddCharacter(c1);
+    raw_allocations_hash_.AddCharacter(c2);
+  }
+
+  void PrintAllocationsHash() {
+    uint32_t hash = raw_allocations_hash_.Finalize();
+    PrintF("\n### Allocations = %zu, hash = 0x%08x\n",
+           allocations_count_.load(std::memory_order_relaxed), hash);
+  }
+
+  Heap* const heap_;
+  // Count of all allocations performed through C++ bottlenecks. This needs to
+  // be atomic as objects are moved in parallel in the GC which counts as
+  // allocations.
+  std::atomic<size_t> allocations_count_{0};
+  // Running hash over allocations performed.
+  RunningStringHasher raw_allocations_hash_{0};
+};
+
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
   DCHECK_EQ(Smi::zero(), construct_stub_create_deopt_pc_offset());
   set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
@@ -850,105 +949,6 @@ void Heap::ReportStatisticsAfterGC() {
   DCHECK(deferred_counters_.empty());
   isolate()->CountUsage(base::VectorOf(to_report));
 }
-
-class Heap::AllocationTrackerForDebugging final
-    : public HeapObjectAllocationTracker {
- public:
-  static bool IsNeeded() {
-    return v8_flags.verify_predictable || v8_flags.fuzzer_gc_analysis ||
-           (v8_flags.trace_allocation_stack_interval > 0);
-  }
-
-  explicit AllocationTrackerForDebugging(Heap* heap) : heap_(heap) {
-    CHECK(IsNeeded());
-    heap_->AddHeapObjectAllocationTracker(this);
-  }
-
-  ~AllocationTrackerForDebugging() final {
-    heap_->RemoveHeapObjectAllocationTracker(this);
-    if (v8_flags.verify_predictable || v8_flags.fuzzer_gc_analysis) {
-      PrintAllocationsHash();
-    }
-  }
-
-  void AllocationEvent(Address addr, int size) final {
-    if (v8_flags.verify_predictable) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-      // Advance synthetic time by making a time request.
-      heap_->MonotonicallyIncreasingTimeInMs();
-
-      UpdateAllocationsHash(HeapObject::FromAddress(addr));
-      UpdateAllocationsHash(size);
-
-      if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
-        PrintAllocationsHash();
-      }
-    } else if (v8_flags.fuzzer_gc_analysis) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-    } else if (v8_flags.trace_allocation_stack_interval > 0) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-      if (allocations_count_ % v8_flags.trace_allocation_stack_interval == 0) {
-        heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
-      }
-    }
-  }
-
-  void MoveEvent(Address source, Address target, int size) final {
-    if (v8_flags.verify_predictable) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-      // Advance synthetic time by making a time request.
-      heap_->MonotonicallyIncreasingTimeInMs();
-
-      UpdateAllocationsHash(HeapObject::FromAddress(source));
-      UpdateAllocationsHash(HeapObject::FromAddress(target));
-      UpdateAllocationsHash(size);
-
-      if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
-        PrintAllocationsHash();
-      }
-    } else if (v8_flags.fuzzer_gc_analysis) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-    }
-  }
-
-  void UpdateObjectSizeEvent(Address, int) final {}
-
- private:
-  void UpdateAllocationsHash(Tagged<HeapObject> object) {
-    Address object_address = object.address();
-    MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
-    AllocationSpace allocation_space =
-        MutablePageMetadata::cast(memory_chunk->Metadata())->owner_identity();
-
-    static_assert(kSpaceTagSize + kPageSizeBits <= 32);
-    uint32_t value =
-        static_cast<uint32_t>(memory_chunk->Offset(object_address)) |
-        (static_cast<uint32_t>(allocation_space) << kPageSizeBits);
-
-    UpdateAllocationsHash(value);
-  }
-
-  void UpdateAllocationsHash(uint32_t value) {
-    const uint16_t c1 = static_cast<uint16_t>(value);
-    const uint16_t c2 = static_cast<uint16_t>(value >> 16);
-    raw_allocations_hash_.AddCharacter(c1);
-    raw_allocations_hash_.AddCharacter(c2);
-  }
-
-  void PrintAllocationsHash() {
-    uint32_t hash = raw_allocations_hash_.Finalize();
-    PrintF("\n### Allocations = %zu, hash = 0x%08x\n",
-           allocations_count_.load(std::memory_order_relaxed), hash);
-  }
-
-  Heap* const heap_;
-  // Count of all allocations performed through C++ bottlenecks. This needs to
-  // be atomic as objects are moved in parallel in the GC which counts as
-  // allocations.
-  std::atomic<size_t> allocations_count_{0};
-  // Running hash over allocations performed.
-  RunningStringHasher raw_allocations_hash_{0};
-};
 
 void Heap::AddHeapObjectAllocationTracker(
     HeapObjectAllocationTracker* tracker) {

@@ -2436,6 +2436,67 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   return native_module;
 }
 
+// A closure to run a compilation step (either as foreground or background
+// task) and schedule the next step(s), if any.
+class AsyncCompileJob::CompileStep {
+ public:
+  virtual ~CompileStep() = default;
+
+  void Run(AsyncCompileJob* job, bool on_foreground) {
+    if (on_foreground) {
+      HandleScope scope(job->isolate_);
+      SaveAndSwitchContext saved_context(job->isolate_, *job->native_context_);
+      RunInForeground(job);
+    } else {
+      RunInBackground(job);
+    }
+  }
+
+  virtual void RunInForeground(AsyncCompileJob*) { UNREACHABLE(); }
+  virtual void RunInBackground(AsyncCompileJob*) { UNREACHABLE(); }
+};
+
+class AsyncCompileJob::CompileTask : public CancelableTask {
+ public:
+  CompileTask(AsyncCompileJob* job, bool on_foreground)
+      // We only manage the background tasks with the {CancelableTaskManager} of
+      // the {AsyncCompileJob}. Foreground tasks are managed by the system's
+      // {CancelableTaskManager}. Background tasks cannot spawn tasks managed by
+      // their own task manager.
+      : CancelableTask(on_foreground ? job->isolate_->cancelable_task_manager()
+                                     : &job->background_task_manager_),
+        job_(job),
+        on_foreground_(on_foreground) {}
+
+  ~CompileTask() override {
+    if (job_ != nullptr && on_foreground_) ResetPendingForegroundTask();
+  }
+
+  void RunInternal() final {
+    if (!job_) return;
+    if (on_foreground_) ResetPendingForegroundTask();
+    job_->step_->Run(job_, on_foreground_);
+    // After execution, reset {job_} such that we don't try to reset the pending
+    // foreground task when the task is deleted.
+    job_ = nullptr;
+  }
+
+  void Cancel() {
+    DCHECK_NOT_NULL(job_);
+    job_ = nullptr;
+  }
+
+ private:
+  // {job_} will be cleared to cancel a pending task.
+  AsyncCompileJob* job_;
+  bool on_foreground_;
+
+  void ResetPendingForegroundTask() const {
+    DCHECK_EQ(this, job_->pending_foreground_task_);
+    job_->pending_foreground_task_ = nullptr;
+  }
+};
+
 AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, base::OwnedVector<const uint8_t> bytes,
@@ -2914,67 +2975,6 @@ class AsyncCompileJob::CompilationStateCallback
   // synchronize, so no explicit synchronization (currently) needed here.
   std::optional<CompilationEvent> last_event_;
 #endif
-};
-
-// A closure to run a compilation step (either as foreground or background
-// task) and schedule the next step(s), if any.
-class AsyncCompileJob::CompileStep {
- public:
-  virtual ~CompileStep() = default;
-
-  void Run(AsyncCompileJob* job, bool on_foreground) {
-    if (on_foreground) {
-      HandleScope scope(job->isolate_);
-      SaveAndSwitchContext saved_context(job->isolate_, *job->native_context_);
-      RunInForeground(job);
-    } else {
-      RunInBackground(job);
-    }
-  }
-
-  virtual void RunInForeground(AsyncCompileJob*) { UNREACHABLE(); }
-  virtual void RunInBackground(AsyncCompileJob*) { UNREACHABLE(); }
-};
-
-class AsyncCompileJob::CompileTask : public CancelableTask {
- public:
-  CompileTask(AsyncCompileJob* job, bool on_foreground)
-      // We only manage the background tasks with the {CancelableTaskManager} of
-      // the {AsyncCompileJob}. Foreground tasks are managed by the system's
-      // {CancelableTaskManager}. Background tasks cannot spawn tasks managed by
-      // their own task manager.
-      : CancelableTask(on_foreground ? job->isolate_->cancelable_task_manager()
-                                     : &job->background_task_manager_),
-        job_(job),
-        on_foreground_(on_foreground) {}
-
-  ~CompileTask() override {
-    if (job_ != nullptr && on_foreground_) ResetPendingForegroundTask();
-  }
-
-  void RunInternal() final {
-    if (!job_) return;
-    if (on_foreground_) ResetPendingForegroundTask();
-    job_->step_->Run(job_, on_foreground_);
-    // After execution, reset {job_} such that we don't try to reset the pending
-    // foreground task when the task is deleted.
-    job_ = nullptr;
-  }
-
-  void Cancel() {
-    DCHECK_NOT_NULL(job_);
-    job_ = nullptr;
-  }
-
- private:
-  // {job_} will be cleared to cancel a pending task.
-  AsyncCompileJob* job_;
-  bool on_foreground_;
-
-  void ResetPendingForegroundTask() const {
-    DCHECK_EQ(this, job_->pending_foreground_task_);
-    job_->pending_foreground_task_ = nullptr;
-  }
 };
 
 void AsyncCompileJob::StartForegroundTask() {
