@@ -321,7 +321,7 @@ void AsmJsScanner::ConsumeNumber(base::uc32 ch) {
     token_ = '.';
     return;
   }
-  // Decode numbers, with seperate paths for prefixes and implicit octals.
+  // Decode numbers, with separate paths for prefixes and implicit octals.
   if (has_prefix && number[0] == '0') {
     // "0[xob]" by itself is a parse error.
     if (number.size() <= 2) {

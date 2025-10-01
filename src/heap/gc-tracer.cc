@@ -501,7 +501,7 @@ void GCTracer::StopCycle(GarbageCollector collector) {
     // If a young generation GC interrupted an unfinished full GC cycle, restore
     // the event corresponding to the full GC cycle.
     if (young_gc_during_full_gc_sweeping_) {
-      // Sweeping for full GC could have occured during the young GC. Copy over
+      // Sweeping for full GC could have occurred during the young GC. Copy over
       // any sweeping scope values to the previous_ event. The full GC sweeping
       // scopes are never reported by young cycles.
       previous_.scopes[Scope::MC_SWEEP] += current_.scopes[Scope::MC_SWEEP];

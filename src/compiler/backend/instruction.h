@@ -1973,7 +1973,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
       if (constant.type() == Constant::kRpoNumber) {
         // Ideally we would inline RPO numbers into the operand, however jump-
         // threading modifies RPO values and so we indirect through a vector
-        // of rpo_immediates to enable rewriting. We keep this seperate from the
+        // of rpo_immediates to enable rewriting. We keep this separate from the
         // immediates vector so that we don't repeatedly push the same rpo
         // number.
         RpoNumber rpo_number = constant.ToRpoNumber();
