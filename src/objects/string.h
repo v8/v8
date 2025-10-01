@@ -755,6 +755,14 @@ V8_OBJECT class String : public Name {
   V8_EXPORT_PRIVATE bool SlowEquals(
       Tagged<String> other, const SharedStringAccessGuardIfNeeded&) const;
 
+  // The part of SlowEquals that only checks the contents of strings of equal
+  // size. Should not be used for 0-length strings.
+  V8_EXPORT_PRIVATE bool SlowEqualsNonThinSameLength(
+      uint32_t len, Tagged<String> other) const;
+  V8_EXPORT_PRIVATE bool SlowEqualsNonThinSameLength(
+      uint32_t len, Tagged<String> other,
+      const SharedStringAccessGuardIfNeeded&) const;
+
   V8_EXPORT_PRIVATE static bool SlowEquals(Isolate* isolate,
                                            DirectHandle<String> one,
                                            DirectHandle<String> two);

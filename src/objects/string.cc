@@ -1263,6 +1263,25 @@ bool String::SlowEquals(
     if (this_hash != other_hash) return false;
   }
 
+  return SlowEqualsNonThinSameLength(len, other, access_guard);
+}
+
+bool String::SlowEqualsNonThinSameLength(uint32_t len,
+                                         Tagged<String> other) const {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(other));
+  return SlowEqualsNonThinSameLength(
+      len, other, SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
+bool String::SlowEqualsNonThinSameLength(
+    uint32_t len, Tagged<String> other,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
+  DisallowGarbageCollection no_gc;
+  DCHECK_NE(0, len);
+  DCHECK_EQ(len, length());
+  DCHECK_EQ(len, other->length());
+
   // We know the strings are both non-empty. Compare the first chars
   // before we try to flatten the strings.
   if (this->Get(0, access_guard) != other->Get(0, access_guard)) return false;
