@@ -423,15 +423,11 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
           // don't have to handle this case.
           UNREACHABLE();
         case ValueRepresentation::kHoleyFloat64:
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
           // When converting to kHoleyFloat64 representation, we need to turn
           // those NaN patterns that have a special interpretation in
           // HoleyFloat64 (e.g. undefined and hole) into the canonical NaN so
           // that they keep representing NaNs in the new representation.
           return Opcode::kFloat64ToHoleyFloat64;
-#else
-          return Opcode::kIdentity;
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kTagged:
@@ -550,14 +546,12 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                     bypassed_input, phi, input_index);
             break;
           }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
           case Opcode::kFloat64ToHoleyFloat64: {
             new_input =
                 GetReplacementForPhiInputConversion<Float64ToHoleyFloat64>(
                     bypassed_input, phi, input_index);
             break;
           }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
           case Opcode::kIdentity:
             TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
             new_input = bypassed_input;

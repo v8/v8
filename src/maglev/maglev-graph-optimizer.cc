@@ -1487,13 +1487,13 @@ ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToMaybeNanFloat64(
   return ProcessResult::kContinue;
 }
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-
 ProcessResult MaglevGraphOptimizer::VisitFloat64ToHoleyFloat64(
     Float64ToHoleyFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
+
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 
 ProcessResult MaglevGraphOptimizer::VisitConvertHoleNanToUndefinedNan(
     ConvertHoleNanToUndefinedNan* node, const ProcessingState& state) {

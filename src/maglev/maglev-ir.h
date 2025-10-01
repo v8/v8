@@ -308,7 +308,7 @@ class ExceptionHandlerInfo;
   V(CheckedNumberOrOddballToHoleyFloat64)                             \
   V(CheckedHoleyFloat64ToFloat64)                                     \
   V(HoleyFloat64ToMaybeNanFloat64)                                    \
-  IF_UD(V, Float64ToHoleyFloat64)                                     \
+  V(Float64ToHoleyFloat64)                                            \
   IF_UD(V, ConvertHoleNanToUndefinedNan)                              \
   IF_UD(V, HoleyFloat64IsUndefinedOrHole)                             \
   IF_NOT_UD(V, HoleyFloat64IsHole)                                    \
@@ -5028,7 +5028,6 @@ class HoleyFloat64ToMaybeNanFloat64
   void PrintParams(std::ostream&) const {}
 };
 
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 class Float64ToHoleyFloat64
     : public FixedInputValueNodeT<1, Float64ToHoleyFloat64> {
   using Base = FixedInputValueNodeT<1, Float64ToHoleyFloat64>;
@@ -5048,6 +5047,7 @@ class Float64ToHoleyFloat64
   void PrintParams(std::ostream&) const {}
 };
 
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 class ConvertHoleNanToUndefinedNan
     : public FixedInputValueNodeT<1, ConvertHoleNanToUndefinedNan> {
   using Base = FixedInputValueNodeT<1, ConvertHoleNanToUndefinedNan>;
