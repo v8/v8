@@ -1195,7 +1195,7 @@ template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForStringKey(
     TNode<CollectionType> table, TNode<String> key_tagged,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
-  const TNode<Uint32T> hash = LoadNameHash(key_tagged);
+  const TNode<Uint32T> hash = LoadNameHashAssumeComputed(key_tagged);
   *result = Signed(ChangeUint32ToWord(hash));
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
