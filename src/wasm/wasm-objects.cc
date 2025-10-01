@@ -3247,8 +3247,6 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
   }
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-  // Initialize the import wrapper cache if that hasn't happened yet.
-  cache->LazyInitialize(isolate);
   std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
       cache->Get(isolate, kind, expected_arity, suspend, canonical_sig);
 

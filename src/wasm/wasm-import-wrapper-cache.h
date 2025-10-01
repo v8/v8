@@ -69,10 +69,8 @@ class WasmImportWrapperCache {
     base::MutexGuard guard_;
   };
 
-  WasmImportWrapperCache() = default;
+  WasmImportWrapperCache() : code_allocator_{&counter_updates_} {}
   ~WasmImportWrapperCache() = default;
-
-  void LazyInitialize(Isolate* triggering_isolate);
 
   void Free(std::vector<WasmCode*>& wrappers);
 
@@ -122,7 +120,7 @@ class WasmImportWrapperCache {
       const wasm::CanonicalSig* sig,
       std::shared_ptr<WasmImportWrapperHandle> optional_handle);
 
-  std::unique_ptr<WasmCodeAllocator> code_allocator_;
+  WasmCodeAllocator code_allocator_;
   mutable base::Mutex mutex_;
   std::unordered_map<CacheKey, std::weak_ptr<WasmImportWrapperHandle>,
                      CacheKeyHash>
