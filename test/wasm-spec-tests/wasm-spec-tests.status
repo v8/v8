@@ -12,12 +12,9 @@
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
 
-  # The test is incorrect as it exports a function with an exnref in the
-  # signature, which is a runtime type error.
-  'ref_null': [FAIL],
-
   # TODO(clemensb/evih): Resolve https://github.com/WebAssembly/memory64/pull/103#issuecomment-2548870034
-  'memory64': [FAIL],
+  'memory64/memory64': [FAIL],
+  'memory64/table64': [FAIL],
   'table': [FAIL],
 }],  # ALWAYS
 
@@ -97,15 +94,7 @@
 
   'relaxed-simd*': [SKIP],
   'simd*': [SKIP],
-  'proposals/exception-handling/simd*': [SKIP],
-  'proposals/extended-const/simd*': [SKIP],
-  'proposals/gc/simd*': [SKIP],
   'proposals/js-promise-integration/simd*': [SKIP],
-  'proposals/js-types/simd*': [SKIP],
-  'proposals/memory64/relaxed-simd*': [SKIP],
-  'proposals/memory64/simd*': [SKIP],
-  'proposals/multi-memory/simd*': [SKIP],
-  'proposals/tail-call/simd*': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
@@ -119,7 +108,7 @@
 # Skip tests that require a large amount of virtual address space (inside the
 # sandbox if that is enabled) if tsan is enabled.
 ['tsan == True', {
-  'memory_copy': [SKIP],
+  'bulk-memory/memory_copy': [SKIP],
 }],  # tsan == True
 
 ]
