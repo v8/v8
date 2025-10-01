@@ -1434,6 +1434,7 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
 
   isolate()->counters()->wasm_deopts_executed()->AddSample(
       wasm::GetWasmEngine()->IncrementDeoptsExecutedCount());
+  native_module->counter_updates()->Publish(isolate());
 
   if (verbose_tracing_enabled()) {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());

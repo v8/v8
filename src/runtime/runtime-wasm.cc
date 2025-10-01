@@ -374,23 +374,23 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   TRACE_EVENT1("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
   DisallowHeapAllocation no_gc;
   SealHandleScope scope(isolate);
+  wasm::NativeModule* native_module = trusted_instance_data->native_module();
 
   DCHECK(isolate->context().is_null());
-  if (trusted_instance_data->has_native_context()) {
-    isolate->set_context(trusted_instance_data->native_context());
-  }
-  bool success = wasm::CompileLazy(isolate, trusted_instance_data, func_index);
+  DCHECK(trusted_instance_data->has_native_context());
+  isolate->set_context(trusted_instance_data->native_context());
+  bool success = wasm::CompileLazy(isolate, native_module, func_index);
+  native_module->counter_updates()->Publish(isolate);
   if (!success) {
     DCHECK(v8_flags.wasm_lazy_validation);
     AllowHeapAllocation throwing_unwinds_the_stack;
-    wasm::ThrowLazyCompilationError(
-        isolate, trusted_instance_data->native_module(), func_index);
+    wasm::ThrowLazyCompilationError(isolate, native_module, func_index);
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots{isolate}.exception();
   }
 
   return Smi::FromInt(
-      wasm::JumpTableOffset(trusted_instance_data->module(), func_index));
+      wasm::JumpTableOffset(native_module->module(), func_index));
 }
 
 namespace {

@@ -1132,11 +1132,9 @@ class CompileLazyTimingScope {
 
 }  // namespace
 
-bool CompileLazy(Isolate* isolate,
-                 Tagged<WasmTrustedInstanceData> trusted_instance_data,
+bool CompileLazy(Isolate* isolate, NativeModule* native_module,
                  int func_index) {
   DisallowGarbageCollection no_gc;
-  NativeModule* native_module = trusted_instance_data->native_module();
   Counters* counters = isolate->counters();
 
   // Put the timer scope around everything, including the {CodeSpaceWriteScope}
