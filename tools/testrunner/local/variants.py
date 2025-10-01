@@ -312,8 +312,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "!gdbjit": ["--gdbjit", "--gdbjit_full", "--gdbjit_dump"],
     "!has_maglev": ["--maglev"],
     "!has_turbofan": kIncompatibleFlagsForNoTurbofan,
-    "has_jitless": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-    "lite_mode": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
+    "has_jitless": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"] + ["--no-jitless"],
+    "lite_mode": INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"] + ["--no-jitless"],
     "verify_predictable": [
         "--parallel-compile-tasks-for-eager-toplevel",
         "--parallel-compile-tasks-for-lazy", "--concurrent-recompilation",
