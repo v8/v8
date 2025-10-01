@@ -1034,7 +1034,15 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     jdt->VerifyEntry(handle, space, ro_space);
 #endif  // DEBUG
     jdt->Mark(handle);
-    MarkObject(jdt->GetCode(handle));
+    if (handle != kNullJSDispatchHandle) {
+      MarkObject(jdt->GetCode(handle));
+    } else {
+      // The only case we are allowed to see a zero handle installed here is if
+      // the code is already marked deoptimized for cleared weak references.
+      DCHECK(CheckedCast<InstructionStream>(host)
+                 ->code(kAcquireLoad)
+                 ->marked_for_deoptimization());
+    }
   }
 
  private:
