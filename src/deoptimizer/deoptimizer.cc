@@ -3073,9 +3073,22 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Tagged<Code> code,
              RelocInfo::ModeMask(RelocInfo::DEOPT_SCRIPT_OFFSET) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_INLINING_ID) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_NODE_ID);
+  Address old_pc = 0;
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (info->pc() >= pc) break;
+
+    if (info->pc() != old_pc) {
+      // Moving on to a new entry; restore defaults to erase old data. Without
+      // this, optional fields which are not present in the new entry will have
+      // values from the previous entry instead of the default values.
+      last_position = SourcePosition::Unknown();
+      last_reason = DeoptimizeReason::kUnknown;
+      last_node_id = 0;
+      last_deopt_id = kNoDeoptimizationId;
+      old_pc = info->pc();
+    }
+
     if (info->rmode() == RelocInfo::DEOPT_SCRIPT_OFFSET) {
       int script_offset = static_cast<int>(info->data());
       it.next();
