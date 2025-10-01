@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3593a1fdf6594626182e5d8e1725db6448c6a0c3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '76f56e27d9e8890ba31e8822e44c811710603cc1',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c79eaa6eb2732865706ca6f4381260ba14cdbb4d',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '7e7c9b8187d38f3102a035e50aadf7b29b4702b4',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f60fc21eb8b56488b0e62823b74c0dca288c6b2d',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '675a3a9ccd7cf9367bb4caa58c30f08b56d45ef5',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '49ffe22ecdd00d319d5750ba494e4ba5ac6bb855',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -496,13 +496,13 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'fef7a765bb0d1122d32b99f588537b83e2dffe7b',
   'third_party/re2/src':
-    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'cd7b2823a8375371f7efe6dae17837c9ab407693',
+    Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '61c4644171ee6b480540bf9e569cba06d9090b4b',
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'cce698b88d3fef091feebc361a6c364fc3a29468',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '0eaaeed1ca501e8beaf0c2d96528827d199dd346',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '24494b071e019a2baea4355d9870ffc5fc0bbafe',
   'third_party/rust':
