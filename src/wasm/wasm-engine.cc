@@ -343,7 +343,7 @@ bool NativeModuleCache::GetStreamingCompilationOwnership(
     return false;
   }
   Key key{prefix_hash, compile_imports, {}};
-  DCHECK_EQ(0, map_.count(key));
+  DCHECK(!map_.contains(key));
   map_.emplace(key, std::nullopt);
   return true;
 }
@@ -645,11 +645,11 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     // Register the script with the isolate. We do this unconditionally for
     // consistency; it is in particular required for logging lazy-compiled code.
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, isolates_.count(isolate));
+    DCHECK(isolates_.contains(isolate));
     auto& scripts = isolates_[isolate]->scripts;
     // If the same asm.js module is instantiated repeatedly, then we
     // deduplicate the NativeModule, so the script exists already.
-    if (scripts.count(native_module.get()) == 0) {
+    if (!scripts.contains(native_module.get())) {
       scripts.emplace(native_module.get(), WeakScriptHandle(script, isolate));
     }
   }
@@ -716,10 +716,10 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // Ensure that code GC will check this isolate for live code.
   {
     base::MutexGuard lock(&mutex_);
-    DCHECK_EQ(1, isolates_.count(isolate));
-    DCHECK_EQ(1, isolates_[isolate]->native_modules.count(native_module.get()));
-    DCHECK_EQ(1, native_modules_.count(native_module.get()));
-    DCHECK_EQ(1, native_modules_[native_module.get()]->isolates.count(isolate));
+    DCHECK(isolates_.contains(isolate));
+    DCHECK(isolates_[isolate]->native_modules.contains(native_module.get()));
+    DCHECK(native_modules_.contains(native_module.get()));
+    DCHECK(native_modules_[native_module.get()]->isolates.contains(isolate));
   }
 #endif
 
@@ -892,7 +892,7 @@ void WasmEngine::EnterDebuggingForIsolate(Isolate* isolate) {
     if (isolates_[isolate]->keep_in_debug_state) return;
     isolates_[isolate]->keep_in_debug_state = true;
     for (auto* native_module : isolates_[isolate]->native_modules) {
-      DCHECK_EQ(1, native_modules_.count(native_module));
+      DCHECK(native_modules_.contains(native_module));
       if (auto shared_ptr = native_modules_[native_module]->weak_ptr.lock()) {
         native_modules.emplace_back(std::move(shared_ptr));
       }
@@ -915,15 +915,15 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
     base::MutexGuard lock(&mutex_);
     isolates_[isolate]->keep_in_debug_state = false;
     auto can_remove_debug_code = [this](NativeModule* native_module) {
-      DCHECK_EQ(1, native_modules_.count(native_module));
+      DCHECK(native_modules_.contains(native_module));
       for (auto* isolate : native_modules_[native_module]->isolates) {
-        DCHECK_EQ(1, isolates_.count(isolate));
+        DCHECK(isolates_.contains(isolate));
         if (isolates_[isolate]->keep_in_debug_state) return false;
       }
       return true;
     };
     for (auto* native_module : isolates_[isolate]->native_modules) {
-      DCHECK_EQ(1, native_modules_.count(native_module));
+      DCHECK(native_modules_.contains(native_module));
       auto shared_ptr = native_modules_[native_module]->weak_ptr.lock();
       if (!shared_ptr) continue;  // The module is not used any more.
       if (!native_module->IsInDebugState()) continue;
@@ -1072,10 +1072,10 @@ DirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
       WasmModuleObject::New(isolate, std::move(shared_native_module), script);
   {
     base::MutexGuard lock(&mutex_);
-    DCHECK_EQ(1, isolates_.count(isolate));
+    DCHECK(isolates_.contains(isolate));
     IsolateInfo* isolate_info = isolates_.find(isolate)->second.get();
     isolate_info->native_modules.insert(native_module);
-    DCHECK_EQ(1, native_modules_.count(native_module));
+    DCHECK(native_modules_.contains(native_module));
     native_modules_[native_module]->isolates.insert(isolate);
     if (isolate_info->log_codes && !native_module->log_code()) {
       EnableCodeLogging(native_module);
@@ -1175,7 +1175,7 @@ std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
 
 bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
-  DCHECK_EQ(1, isolates_.count(isolate));
+  DCHECK(isolates_.contains(isolate));
   for (auto& entry : async_compile_jobs_) {
     if (entry.first->isolate() == isolate) return true;
   }
@@ -1216,10 +1216,10 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
       jobs_to_delete.push_back(std::move(it->second));
       it = async_compile_jobs_.erase(it);
     }
-    DCHECK_EQ(1, isolates_.count(isolate));
+    DCHECK(isolates_.contains(isolate));
     auto* isolate_info = isolates_[isolate].get();
     for (auto* native_module : isolate_info->native_modules) {
-      DCHECK_EQ(1, native_modules_.count(native_module));
+      DCHECK(native_modules_.contains(native_module));
       modules_in_isolate.emplace_back(native_modules_[native_module]->weak_ptr);
     }
   }
@@ -1243,7 +1243,7 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     // critical section and to avoid lock-order-inversion issues.
     auto isolate_info = std::make_unique<IsolateInfo>(isolate, log_code);
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(0, isolates_.count(isolate));
+    DCHECK(!isolates_.contains(isolate));
     isolates_.emplace(isolate, std::move(isolate_info));
   }
 
@@ -1268,7 +1268,7 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     WasmEngine* engine = GetWasmEngine();
     {
       base::MutexGuard lock(&engine->mutex_);
-      DCHECK_EQ(1, engine->isolates_.count(isolate));
+      DCHECK(engine->isolates_.contains(isolate));
       for (auto* native_module : engine->isolates_[isolate]->native_modules) {
         native_module->SampleCodeSize(counters);
       }
@@ -1317,7 +1317,7 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
 
   // Remove the isolate from the per-native-module info, and other cleanup.
   for (auto* native_module : isolate_info->native_modules) {
-    DCHECK_EQ(1, native_modules_.count(native_module));
+    DCHECK(native_modules_.contains(native_module));
     NativeModuleInfo* native_module_info =
         native_modules_.find(native_module)->second.get();
 
@@ -1332,7 +1332,7 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
                          });
     };
     DCHECK_EQ(native_module->log_code(), has_isolate_with_code_logging());
-    DCHECK_EQ(1, native_module_info->isolates.count(isolate));
+    DCHECK(native_module_info->isolates.contains(isolate));
     native_module_info->isolates.erase(isolate);
     if (native_module->log_code() && !has_isolate_with_code_logging()) {
       DisableCodeLogging(native_module);
@@ -1379,7 +1379,7 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
   std::vector<TaskToSchedule> to_schedule;
   {
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, native_modules_.count(native_module));
+    DCHECK(native_modules_.contains(native_module));
     NativeModuleInfo* native_module_info =
         native_modules_.find(native_module)->second.get();
     std::shared_ptr<NativeModule> shared_native_module =
@@ -1387,7 +1387,7 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
     // The NativeModule cannot be dying already at this point.
     DCHECK_NOT_NULL(shared_native_module);
     for (Isolate* isolate : native_module_info->isolates) {
-      DCHECK_EQ(1, isolates_.count(isolate));
+      DCHECK(isolates_.contains(isolate));
       IsolateInfo* info = isolates_[isolate].get();
       if (info->log_codes == false) continue;
 
@@ -1525,7 +1525,7 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
   std::unordered_map<int, IsolateInfo::CodeToLogPerScript> code_to_log_map;
   {
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, isolates_.count(isolate));
+    DCHECK(isolates_.contains(isolate));
     code_to_log_map.swap(isolates_[isolate]->code_to_log);
   }
 
@@ -1600,8 +1600,8 @@ void WasmEngine::UseNativeModuleInIsolate(NativeModule* native_module,
     DCHECK_NOT_NULL(isolate_info);
     bool is_first_use_in_isolate =
         native_module_info->isolates.insert(isolate).second;
-    DCHECK_EQ(is_first_use_in_isolate ? 0 : 1,
-              isolate_info->native_modules.count(native_module));
+    DCHECK_EQ(is_first_use_in_isolate,
+              !isolate_info->native_modules.contains(native_module));
     if (is_first_use_in_isolate) {
       isolate_info->native_modules.insert(native_module);
       if (isolate_info->keep_in_debug_state &&
@@ -1656,9 +1656,9 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
   bool remove_all_code = false;
   {
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, native_modules_.count(native_module.get()));
+    DCHECK(native_modules_.contains(native_module.get()));
     native_modules_[native_module.get()]->isolates.insert(isolate);
-    DCHECK_EQ(1, isolates_.count(isolate));
+    DCHECK(isolates_.contains(isolate));
     auto* isolate_data = isolates_[isolate].get();
     isolate_data->native_modules.insert(native_module.get());
     if (isolate_data->keep_in_debug_state && !native_module->IsInDebugState()) {
@@ -1711,9 +1711,9 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
     native_module->counter_updates()->Publish(isolate);
   }
   for (Isolate* isolate : module->second->isolates) {
-    DCHECK_EQ(1, isolates_.count(isolate));
+    DCHECK(isolates_.contains(isolate));
     IsolateInfo* info = isolates_[isolate].get();
-    DCHECK_EQ(1, info->native_modules.count(native_module));
+    DCHECK(info->native_modules.contains(native_module));
     info->native_modules.erase(native_module);
     info->scripts.erase(native_module);
 
@@ -1913,7 +1913,7 @@ DirectHandle<Script> WasmEngine::GetOrCreateScript(
     base::Vector<const char> source_url) {
   {
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, isolates_.count(isolate));
+    DCHECK(isolates_.contains(isolate));
     auto& scripts = isolates_[isolate]->scripts;
     auto it = scripts.find(native_module.get());
     if (it != scripts.end()) {
@@ -1929,9 +1929,9 @@ DirectHandle<Script> WasmEngine::GetOrCreateScript(
   auto script = CreateWasmScript(isolate, native_module, source_url);
   {
     base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, isolates_.count(isolate));
+    DCHECK(isolates_.contains(isolate));
     auto& scripts = isolates_[isolate]->scripts;
-    DCHECK_EQ(0, scripts.count(native_module.get()));
+    DCHECK(!scripts.contains(native_module.get()));
     scripts.emplace(native_module.get(), WeakScriptHandle(script, isolate));
     return script;
   }
@@ -1961,7 +1961,7 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
     if (!gc_task) {
       auto new_task = std::make_unique<WasmGCForegroundTask>(isolate);
       gc_task = new_task.get();
-      DCHECK_EQ(1, isolates_.count(isolate));
+      DCHECK(isolates_.contains(isolate));
       isolates_[isolate]->foreground_task_runner->PostTask(std::move(new_task));
     }
     isolate->stack_guard()->RequestWasmCodeGC();
