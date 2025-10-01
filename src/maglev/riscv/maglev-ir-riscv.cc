@@ -952,6 +952,18 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
+void Float64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // A Float64 value could contain a NaN with the bit pattern that has a special
+  // interpretation in the HoleyFloat64 representation, so we need to canicalize
+  // those before changing representation.
+  __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
+}
+
 namespace {
 
 enum class ReduceInterruptBudgetType { kLoop, kReturn };
