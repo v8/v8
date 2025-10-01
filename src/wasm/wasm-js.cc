@@ -2789,17 +2789,12 @@ void WebAssemblyMemoryGetBufferImpl(
   DCHECK(IsJSArrayBuffer(*buffer_obj));
   i::DirectHandle<i::JSArrayBuffer> buffer(
       i::Cast<i::JSArrayBuffer>(*buffer_obj), i_isolate);
-  if (buffer->is_shared()) {
-    // TODO(gdeepti): More needed here for when cached buffer, and current
-    // buffer are out of sync, handle that here when bounds checks, and Grow
-    // are handled correctly.
-    Maybe<bool> result =
-        buffer->SetIntegrityLevel(i_isolate, buffer, i::FROZEN, i::kDontThrow);
-    if (!result.FromJust()) {
-      thrower.TypeError(
-          "Status of setting SetIntegrityLevel of buffer is false.");
-      return;
-    }
+  if (receiver->needs_new_buffer()) {
+    i::ResizableFlag resizable = buffer->is_resizable_by_js()
+                                     ? i::ResizableFlag::kResizable
+                                     : i::ResizableFlag::kNotResizable;
+    buffer = i::WasmMemoryObject::RefreshSharedBuffer(i_isolate, receiver,
+                                                      buffer, resizable);
   }
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
@@ -2815,20 +2810,11 @@ void WebAssemblyMemoryToFixedLengthBufferImpl(
   DCHECK(IsJSArrayBuffer(*buffer_obj));
   i::DirectHandle<i::JSArrayBuffer> buffer(
       i::Cast<i::JSArrayBuffer>(*buffer_obj), i_isolate);
-  if (buffer->is_resizable_by_js()) {
-    buffer = i::WasmMemoryObject::ToFixedLengthBuffer(i_isolate, receiver);
+  if (buffer->is_resizable_by_js() || receiver->needs_new_buffer()) {
+    buffer =
+        i::WasmMemoryObject::ToFixedLengthBuffer(i_isolate, receiver, buffer);
   }
-  if (buffer->is_shared()) {
-    Maybe<bool> result =
-        buffer->SetIntegrityLevel(i_isolate, buffer, i::FROZEN, i::kDontThrow);
-    if (!result.FromJust()) {
-      thrower.TypeError(
-          "Status of setting SetIntegrityLevel of buffer is false.");
-      return;
-    }
-  }
-  v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(Utils::ToLocal(buffer));
+  info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
 // WebAssembly.Memory.toResizableBuffer() -> ArrayBuffer
@@ -2842,24 +2828,15 @@ void WebAssemblyMemoryToResizableBufferImpl(
   DCHECK(IsJSArrayBuffer(*buffer_obj));
   i::DirectHandle<i::JSArrayBuffer> buffer(
       i::Cast<i::JSArrayBuffer>(*buffer_obj), i_isolate);
-  if (!buffer->is_resizable_by_js()) {
+  if (!buffer->is_resizable_by_js() || receiver->needs_new_buffer()) {
     if (!receiver->has_maximum_pages()) {
       thrower.TypeError("Memory must have a maximum");
       return;
     }
-    buffer = i::WasmMemoryObject::ToResizableBuffer(i_isolate, receiver);
+    buffer =
+        i::WasmMemoryObject::ToResizableBuffer(i_isolate, receiver, buffer);
   }
-  if (buffer->is_shared()) {
-    Maybe<bool> result =
-        buffer->SetIntegrityLevel(i_isolate, buffer, i::FROZEN, i::kDontThrow);
-    if (!result.FromJust()) {
-      thrower.TypeError(
-          "Status of setting SetIntegrityLevel of buffer is false.");
-      return;
-    }
-  }
-  v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(Utils::ToLocal(buffer));
+  info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
 // WebAssembly.Memory.type() -> MemoryType

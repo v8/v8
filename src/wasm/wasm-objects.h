@@ -405,7 +405,7 @@ class WasmMemoryObject
   // Makes a new SharedArrayBuffer backed by the same backing store.
   static DirectHandle<JSArrayBuffer> RefreshSharedBuffer(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      ResizableFlag resizable_by_js);
+      DirectHandle<JSArrayBuffer> old_buffer, ResizableFlag resizable_by_js);
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
                                         DirectHandle<WasmMemoryObject>,
@@ -414,12 +414,14 @@ class WasmMemoryObject
   // Makes the ArrayBuffer fixed-length. Assumes the current ArrayBuffer is
   // resizable. Detaches the existing buffer if it is not shared.
   static DirectHandle<JSArrayBuffer> ToFixedLengthBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
+      DirectHandle<JSArrayBuffer> old_buffer);
 
   // Makes the ArrayBuffer resizable by JS. Assumes the current ArrayBuffer is
   // fixed-length. Detaches the existing buffer if it is not shared.
   static DirectHandle<JSArrayBuffer> ToResizableBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
+      DirectHandle<JSArrayBuffer> old_buffer);
 
   static constexpr int kNoMaximum = -1;
 

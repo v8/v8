@@ -73,7 +73,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   V(API_INTERRUPT, ApiInterrupt, 4, InterruptLevel::kNoHeapWrites)             \
   V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 5,              \
     InterruptLevel::kNoHeapWrites)                                             \
-  V(GROW_SHARED_MEMORY, GrowSharedMemory, 6, InterruptLevel::kAnyEffect)       \
+  V(GROW_SHARED_MEMORY, GrowSharedMemory, 6, InterruptLevel::kNoGC)            \
   V(LOG_WASM_CODE, LogWasmCode, 7, InterruptLevel::kAnyEffect)                 \
   V(WASM_CODE_GC, WasmCodeGC, 8, InterruptLevel::kNoHeapWrites)                \
   V(INSTALL_MAGLEV_CODE, InstallMaglevCode, 9, InterruptLevel::kAnyEffect)     \

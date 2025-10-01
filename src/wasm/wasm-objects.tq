@@ -229,11 +229,11 @@ extern class WasmMemoryObject extends JSObject {
   array_buffer: JSArrayBuffer;
   maximum_pages: Smi;
   instances: WeakArrayList;
-  address_type: AddressType;
+  address_type: AddressType;  // 1 byte.
+  needs_new_buffer: uint8;    // 1 byte, used as bool.
   // TODO(clemensb): Support fixed-sized arrays in torque.
-  padding_for_address_type_0: uint8;
-  padding_for_address_type_1: uint16;
-  @if(TAGGED_SIZE_8_BYTES) padding_for_address_type_2: uint32;
+  padding_for_flags_1: uint16;
+  @if(TAGGED_SIZE_8_BYTES) padding_for_flags_2: uint32;
 }
 
 extern class WasmMemoryMapDescriptor extends JSObject {
