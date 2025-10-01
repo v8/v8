@@ -329,6 +329,11 @@ HeapAllocator::CollectGarbageAndRetryAllocation(AllocateFunction&& Allocate,
     if (auto result = RetryAllocation(Allocate)) {
       return result;
     }
+    if (v8_flags.ineffective_gcs_forces_last_resort &&
+        heap_for_allocation(allocation)
+            ->HasConsecutiveIneffectiveMarkCompact()) {
+      return {};
+    }
   }
 
   return {};

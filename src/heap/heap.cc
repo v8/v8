@@ -1358,7 +1358,8 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   GCCallbackFlags gc_callback_flags =
       GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage;
 
-  if (gc_reason == GarbageCollectionReason::kLastResort) {
+  if (gc_reason == GarbageCollectionReason::kLastResort ||
+      gc_reason == GarbageCollectionReason::kExternalMemoryPressure) {
     gc_flags |= GCFlag::kLastResort;
     gc_callback_flags = static_cast<GCCallbackFlags>(
         gc_callback_flags | GCCallbackFlags::kGCCallbackFlagLastResort);
@@ -1781,6 +1782,11 @@ void Heap::CollectGarbage(AllocationSpace space,
 
 bool Heap::ReachedHeapLimit() { return !CanExpandOldGeneration(0); }
 
+bool Heap::HasConsecutiveIneffectiveMarkCompact() const {
+  return consecutive_ineffective_mark_compacts_.load(
+             std::memory_order_relaxed) > 0;
+}
+
 void Heap::CheckHeapLimitReached() {
   if (ReachedHeapLimit()) {
     InvokeNearHeapLimitCallback();
@@ -2196,6 +2202,11 @@ void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
 
     if (!ReachedHeapLimit()) {
       return;
+    }
+
+    if (v8_flags.ineffective_gcs_forces_last_resort &&
+        HasConsecutiveIneffectiveMarkCompact()) {
+      break;
     }
   }
 
@@ -3199,6 +3210,11 @@ void* Heap::AllocateExternalBackingStore(
                      GarbageCollectionReason::kExternalMemoryPressure);
       result = allocate(byte_length);
       if (result) return result;
+
+      if (v8_flags.ineffective_gcs_forces_last_resort &&
+          HasConsecutiveIneffectiveMarkCompact()) {
+        break;
+      }
     }
     CollectAllAvailableGarbage(
         GarbageCollectionReason::kExternalMemoryPressure);
@@ -3864,8 +3880,7 @@ void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
     consecutive_ineffective_mark_compacts_ = 0;
     return;
   }
-  ++consecutive_ineffective_mark_compacts_;
-  if (consecutive_ineffective_mark_compacts_ ==
+  if (++consecutive_ineffective_mark_compacts_ ==
       kMaxConsecutiveIneffectiveMarkCompacts) {
     if (InvokeNearHeapLimitCallback()) {
       // The callback increased the heap limit.
