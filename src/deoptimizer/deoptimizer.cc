@@ -1780,6 +1780,44 @@ bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
 
   UNREACHABLE();
 }
+
+bool Deoptimizer::GetOutermostOuterLoopWithCodeKind(
+    Isolate* isolate, Tagged<JSFunction> function, BytecodeOffset osr_offset,
+    CodeKind outer_loop_code_kind, BytecodeOffset* outer_loop_osr_offset) {
+  DisallowGarbageCollection no_gc;
+  HandleScope scope(isolate);
+  DCHECK(!osr_offset.IsNone());
+
+  Handle<BytecodeArray> bytecode_array(
+      function->shared()->GetBytecodeArray(isolate), isolate);
+
+  interpreter::BytecodeArrayIterator it(bytecode_array, osr_offset.ToInt());
+  CHECK(it.CurrentBytecodeIsValidOSREntry());
+
+  bool loop_found = false;
+  for (; !it.done(); it.Advance()) {
+    // We're only interested in loop ranges.
+    if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
+    std::optional<Tagged<Code>> maybe_code =
+        function->feedback_vector()->GetOptimizedOsrCode(isolate, {},
+                                                         it.GetSlotOperand(2));
+    if (maybe_code.has_value() &&
+        (*maybe_code)->kind() == outer_loop_code_kind) {
+      *outer_loop_osr_offset = BytecodeOffset(it.current_offset());
+      loop_found = true;
+      // Keep iterating, maybe there's an outer loop of this loop with the
+      // suitable code kind.
+    }
+    const int loop_nesting_level = it.GetImmediateOperand(1);
+    if (loop_nesting_level == 0) {
+      // We've reached nesting level 0, i.e. the current JumpLoop concludes a top-level
+      // loop.
+      return loop_found;
+    }
+  }
+  UNREACHABLE();
+}
+
 namespace {
 
 // Get the dispatch builtin for unoptimized frames.

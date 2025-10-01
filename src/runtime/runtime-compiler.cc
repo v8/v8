@@ -418,6 +418,28 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
+  // If there's a turbolevved inner OSR loop and a maglevved outer OSR loop,
+  // force the outer loop to be turbolevved.
+  //
+  // Otherwise we're stuck in a state where the outer loop is maglevved and the
+  // inner loop is turbolevved, and we deopt the inner loop at every outer loop
+  // backedge.
+  const BytecodeOffset osr_offset = optimized_code->osr_offset();
+  BytecodeOffset outer_loop_osr_offset = BytecodeOffset::None();
+  if (v8_flags.turbolev && deopt_reason == DeoptimizeReason::kOSREarlyExit) {
+    CHECK_GT(deopt_exit_offset.ToInt(), osr_offset.ToInt());
+    if (optimized_code->kind() == CodeKind::TURBOFAN_JS &&
+        Deoptimizer::GetOutermostOuterLoopWithCodeKind(
+            isolate, *function, osr_offset, CodeKind::MAGLEV,
+            &outer_loop_osr_offset)) {
+      auto result = Compiler::CompileOptimizedOSR(
+          isolate, handle(*function, isolate), outer_loop_osr_offset,
+          ConcurrencyMode::kConcurrent, CodeKind::TURBOFAN_JS);
+      USE(result);
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+  }
+
   // Some eager deopts also don't invalidate InstructionStream (e.g. when
   // preparing for OSR from Maglev to Turbofan).
   if (IsDeoptimizationWithoutCodeInvalidation(deopt_reason)) {
@@ -443,7 +465,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // still worth jumping to the OSR'd code on the next run. The reduced cost of
   // the loop should pay for the deoptimization costs.
 
-  const BytecodeOffset osr_offset = optimized_code->osr_offset();
   bool any_marked = false;
 
   if (osr_offset.IsNone() || Deoptimizer::DeoptExitIsInsideOsrLoop(
