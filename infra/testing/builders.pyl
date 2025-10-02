@@ -402,7 +402,7 @@
       {'name': 'v8testing', 'shards': 5},
       {'name': 'benchmarks', 'shards': 5},
       {'name': 'mozilla', 'shards': 5},
-      {'name': 'test262', 'shards': 10},
+      {'name': 'test262', 'shards': 12},
     ],
   },
   'v8_linux64_dbg': {
@@ -1980,7 +1980,7 @@
       {'name': 'v8testing', 'shards': 5},
       {'name': 'benchmarks', 'shards': 5},
       {'name': 'mozilla', 'shards': 5},
-      {'name': 'test262', 'shards': 10},
+      {'name': 'test262', 'shards': 12},
     ],
   },
   'V8 Linux64 GC Stress - custom snapshot': {

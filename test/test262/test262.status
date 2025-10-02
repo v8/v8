@@ -609,7 +609,7 @@
   'annexB/built-ins/RegExp/RegExp-trailing-escape-BMP': [PASS, SLOW],
   'language/comments/S7.4_A5': [PASS, SLOW],
   'language/comments/S7.4_A6': [PASS, SLOW],
-
+  'staging/sm/Date/dst-offset-caching-*': [PASS, SLOW],
 }],  # ALWAYS
 
 ['not i18n', {
