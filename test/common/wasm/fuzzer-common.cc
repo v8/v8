@@ -73,10 +73,7 @@ bool CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
             .set_func_index(func.func_index)
             .set_for_debugging(kForDebugging)
             .set_counter_updates(native_module->counter_updates())
-            .set_max_steps(max_steps)
-            // TODO(clemensb): Fully remove
-            // nondeterminism detection.
-            .set_detect_nondeterminism(false));
+            .set_max_steps(max_steps));
     if (!result.succeeded()) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
       // Liftoff compilation can bailout on x64 / ia32 if SSE4.1 is unavailable.

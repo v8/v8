@@ -536,8 +536,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
             .set_func_index(function_->func_index)
             .set_for_debugging(kForDebugging)
             .set_counter_updates(native_module->counter_updates())
-            .set_max_steps(builder_->max_steps_ptr())
-            .set_detect_nondeterminism(true)));
+            .set_max_steps(builder_->max_steps_ptr())));
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
                              for_debugging);
