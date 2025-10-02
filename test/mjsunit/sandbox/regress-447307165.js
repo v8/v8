@@ -28,13 +28,12 @@ const w32 = (addr, val) => mem.setUint32(addr, val, true);
 
 oo = {};
 (async () => {
-  const m1 = new Atomics.Mutex();
-  const m2 = new Atomics.Mutex();
-  const p1 = Atomics.Mutex.lockAsync(m1, () => 1);
-  const p2 = Atomics.Mutex.lockAsync(m2, () => 2);
+  const m = new Atomics.Mutex();
+  const p1 = Atomics.Mutex.lockAsync(m, () => 1);
+  const p2 = Atomics.Mutex.lockAsync(m, () => 2);
 
   tasks = findForeign(Sandbox.getAddressOf(oo));
-  w32(tasks[1] + 24, r32(tasks[0] + 24));
+  w32(tasks[0] + 24, r32(tasks[2] + 24));
 
   await Promise.allSettled([p1, p2]);
 })();
