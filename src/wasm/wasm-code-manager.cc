@@ -2488,8 +2488,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     VirtualMemory code_space;
     std::shared_ptr<NativeModule> ret;
     new NativeModule(enabled_features, detected_features, compile_imports,
-                     std::move(code_space), std::move(module),
-                     isolate->async_counters(), &ret);
+                     std::move(code_space), std::move(module), &ret);
     // The constructor initialized the shared_ptr.
     DCHECK_NOT_NULL(ret);
     TRACE_HEAP("New NativeModule (wasm-jitless) %p\n", ret.get());
