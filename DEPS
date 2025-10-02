@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '58de1d33c025bc25bb6932ed41688ed073f33787',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7e085630d06eb0d100f551710a6580188b9c4617',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '674b131e2bf5dd1ed80df643db3d9bd3c27e6591',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '02f9e66e820bb27fed124ce2a46c0fb203cf99a6',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6cac3e72abac6538822382a2814bebf7f39eb25f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3f15de2ac33315ac4f08c0da2cb723ccf07f8217',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '2c0b9511ee24adbe38c491b169aa849e82adea5f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'cc5f928de999c9c86202d7eb1d0f8bdc3b53465f',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '864f61dc9253d56586ada34c388278565ef513f6',
   'third_party/libpfm4':
@@ -312,7 +312,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '6dc2f29f93268f9a72340c562cb6d714cc8e7e1b',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'cb9a1f6a47024809be698522092909a83b90400e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '761ff0251bf6f14dd19973e7043a8da937925824',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -494,7 +494,7 @@ deps = {
   'third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '40b529923598b739b2892a536a7692eedbed5685',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'fef7a765bb0d1122d32b99f588537b83e2dffe7b',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '6f024571103b1b611404a31141174325bb2cbab3',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '61c4644171ee6b480540bf9e569cba06d9090b4b',
   'third_party/requests': {
