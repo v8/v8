@@ -4524,6 +4524,24 @@ class GraphBuildingNodeProcessor {
   }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
+  maglev::ProcessResult Process(maglev::HoleyFloat64SilenceNumberNans* node,
+                                const maglev::ProcessingState& state) {
+    Label<Float64> done(this);
+
+    V<Float64> input = Map(node->input());
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    GOTO_IF(__ Float64IsUndefinedOrHole(input), done, input);
+#else
+    GOTO_IF(__ Float64IsHole(input), done, input);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+    GOTO(done, __ Float64SilenceNaN(input));
+
+    BIND(done, result);
+    SetMap(node, result);
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -4561,6 +4579,9 @@ class GraphBuildingNodeProcessor {
         kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
         break;
       case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
+        // The ConvertJSPrimitiveToUntaggedOrDeopt operation we emit will always
+        // silence number nans.
+        DCHECK_IMPLIES(V8_UNDEFINED_DOUBLE_BOOL, node->silence_number_nans());
         kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
             kNumberOrUndefined;
         break;
@@ -4569,6 +4590,9 @@ class GraphBuildingNodeProcessor {
             kNumberOrBoolean;
         break;
       case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
+        // The ConvertJSPrimitiveToUntaggedOrDeopt operation we emit will always
+        // silence number nans.
+        DCHECK_IMPLIES(V8_UNDEFINED_DOUBLE_BOOL, node->silence_number_nans());
         kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
             kNumberOrOddball;
         break;
@@ -4800,9 +4824,15 @@ class GraphBuildingNodeProcessor {
     V<Float64> input = Map(node->input());
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
 
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    __ DeoptimizeIf(__ Float64IsUndefinedOrHole(input), frame_state,
+                    DeoptimizeReason::kHole,
+                    node->eager_deopt_info()->feedback_to_update());
+#else
     __ DeoptimizeIf(__ Float64IsHole(input), frame_state,
                     DeoptimizeReason::kHole,
                     node->eager_deopt_info()->feedback_to_update());
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
     SetMap(node, input);
     return maglev::ProcessResult::kContinue;

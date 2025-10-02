@@ -298,6 +298,7 @@ class MaglevReducer {
 
   ValueNode* BuildNumberOrOddballToFloat64(ValueNode* node,
                                            NodeType allowed_input_type);
+  ValueNode* BuildHoleyFloat64SilenceNumberNans(ValueNode* node);
 
   // Get a tagged representation node whose value is equivalent to the given
   // node.
@@ -328,6 +329,8 @@ class MaglevReducer {
 
   ValueNode* GetFloat64ForToNumber(ValueNode* value,
                                    NodeType allowed_input_type);
+
+  ValueNode* GetHoleyFloat64(ValueNode* value);
 
   ValueNode* GetHoleyFloat64ForToNumber(ValueNode* value,
                                         NodeType allowed_input_type);

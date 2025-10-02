@@ -752,6 +752,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
 #else
     case Opcode::kHoleyFloat64IsHole:
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
+    case Opcode::kHoleyFloat64SilenceNumberNans:
     case Opcode::kSetPendingMessage:
     case Opcode::kStringLength:
     case Opcode::kAllocateElementsArray:
@@ -2138,9 +2139,31 @@ void CheckedNumberOrOddballToHoleyFloat64::GenerateCode(
   __ bind(&is_not_smi);
   JumpToFailIfNotHeapNumberOrOddball(masm, src, conversion_type(), fail);
   __ LoadHeapNumberOrOddballValue(dst, src);
-  __ JumpIfNotObjectType(src, InstanceType::HEAP_NUMBER_TYPE, &done,
-                         Label::kNear);
-  __ Float64SilenceNan(dst);
+  if (silence_number_nans()) {
+    __ JumpIfNotObjectType(src, InstanceType::HEAP_NUMBER_TYPE, &done,
+                           Label::kNear);
+    __ Float64SilenceNan(dst);
+  }
+  __ bind(&done);
+}
+
+void HoleyFloat64SilenceNumberNans::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void HoleyFloat64SilenceNumberNans::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  auto scratch = temps.Acquire();
+
+  Label done;
+  __ JumpIfHoleNan(value, scratch, &done, Label::kNear);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  // TODO(nicohartmann): Consider using a combined JumpIfUndefinedOrHoleNan.
+  __ JumpIfUndefinedNan(value, scratch, &done, Label::kNear);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+  __ Float64SilenceNan(value);
   __ bind(&done);
 }
 

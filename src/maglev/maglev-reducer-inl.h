@@ -296,8 +296,9 @@ ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
       case ValueRepresentation::kInt32:
         return GetInt32(input);
       case ValueRepresentation::kFloat64:
-      case ValueRepresentation::kHoleyFloat64:
         return GetFloat64(input);
+      case ValueRepresentation::kHoleyFloat64:
+        return GetHoleyFloat64(input);
       case ValueRepresentation::kUint32:
       case ValueRepresentation::kIntPtr:
       case ValueRepresentation::kNone:
@@ -966,6 +967,12 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
 }
 
 template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::GetHoleyFloat64(ValueNode* value) {
+  value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
+  return GetHoleyFloat64ForToNumber(value, NodeType::kNumberOrUndefined);
+}
+
+template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
@@ -1155,6 +1162,12 @@ ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64(
     return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>({node},
                                                               conversion_type);
   }
+}
+
+template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::BuildHoleyFloat64SilenceNumberNans(
+    ValueNode* node) {
+  return AddNewNodeNoAbort<HoleyFloat64SilenceNumberNans>({node});
 }
 
 template <typename BaseT>

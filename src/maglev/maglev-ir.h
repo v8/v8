@@ -312,6 +312,7 @@ class ExceptionHandlerInfo;
   IF_UD(V, ConvertHoleNanToUndefinedNan)                              \
   IF_UD(V, HoleyFloat64IsUndefinedOrHole)                             \
   IF_NOT_UD(V, HoleyFloat64IsHole)                                    \
+  V(HoleyFloat64SilenceNumberNans)                                    \
   V(LogicalNot)                                                       \
   V(SetPendingMessage)                                                \
   V(StringAt)                                                         \
@@ -850,6 +851,7 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
   V(Number, kSmi | kHeapNumber)                                           \
   V(NumberOrBoolean, kNumber | kBoolean)                                  \
+  V(NumberOrUndefined, kNumber | kUndefined)                              \
   V(NumberOrOddball, kNumber | kOddball)                                  \
   V(InternalizedString, kROSeqInternalizedOneByteString |                 \
                             kOtherSeqInternalizedOneByteString |          \
@@ -4896,9 +4898,12 @@ class CheckedNumberOrOddballToHoleyFloat64
 
  public:
   explicit CheckedNumberOrOddballToHoleyFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {}
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type,
+      bool silence_number_nans)
+      : Base(TaggedToFloat64SilenceNumberNansOffset::update(
+            TaggedToFloat64ConversionTypeOffset::update(bitfield,
+                                                        conversion_type),
+            silence_number_nans)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::HoleyFloat64() |
@@ -4910,6 +4915,9 @@ class CheckedNumberOrOddballToHoleyFloat64
 
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
+  }
+  bool silence_number_nans() const {
+    return TaggedToFloat64SilenceNumberNansOffset::decode(Base::bitfield());
   }
 
   DeoptimizeReason deoptimize_reason() const {
@@ -4929,11 +4937,15 @@ class CheckedNumberOrOddballToHoleyFloat64
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
 
-  auto options() const { return std::tuple{conversion_type()}; }
+  auto options() const {
+    return std::tuple{conversion_type(), silence_number_nans()};
+  }
 
  private:
   using TaggedToFloat64ConversionTypeOffset =
       Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
+  using TaggedToFloat64SilenceNumberNansOffset =
+      TaggedToFloat64ConversionTypeOffset::Next<bool, 1>;
 };
 
 class CheckedNumberToInt32
@@ -5017,6 +5029,25 @@ class HoleyFloat64ToMaybeNanFloat64
   explicit HoleyFloat64ToMaybeNanFloat64(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Float64();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+
+class HoleyFloat64SilenceNumberNans
+    : public FixedInputValueNodeT<1, HoleyFloat64SilenceNumberNans> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64SilenceNumberNans>;
+
+ public:
+  explicit HoleyFloat64SilenceNumberNans(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
@@ -9265,7 +9296,7 @@ class StoreFixedDoubleArrayElement
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
-      ValueRepresentation::kFloat64};
+      ValueRepresentation::kHoleyFloat64};
 
   static constexpr int kElementsIndex = 0;
   static constexpr int kIndexIndex = 1;

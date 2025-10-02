@@ -1434,6 +1434,22 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagFloat64(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitCheckedNumberOrOddballToHoleyFloat64(
+    CheckedNumberOrOddballToHoleyFloat64* node, const ProcessingState& state) {
+  if (ValueNode* input = GetUntaggedValueWithRepresentation(
+          GetInputAt(0), UseRepresentation::kHoleyFloat64,
+          NodeType::kNumberOrOddball)) {
+    if (node->silence_number_nans()) {
+      // We still need to keep the logic to silence number nans.
+      reducer_.BuildHoleyFloat64SilenceNumberNans(input);
+      return ProcessResult::kContinue;
+    } else {
+      return ReplaceWith(input);
+    }
+  }
+  return ProcessResult::kContinue;
+}
+
 #define UNTAGGING_CASE(Node, Repr, Type)                                     \
   ProcessResult MaglevGraphOptimizer::Visit##Node(                           \
       Node* node, const ProcessingState& state) {                            \
@@ -1451,8 +1467,6 @@ UNTAGGING_CASE(TruncateUnsafeNumberOrOddballToInt32, TruncatedInt32,
                NumberOrOddball)
 UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
 UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
-UNTAGGING_CASE(CheckedNumberOrOddballToHoleyFloat64, HoleyFloat64,
-               NumberOrOddball)
 #undef UNTAGGING_CASE
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
     CheckedSmiUntag* node, const ProcessingState& state) {
@@ -1524,6 +1538,12 @@ ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsHole(
 }
 
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
+
+ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64SilenceNumberNans(
+    HoleyFloat64SilenceNumberNans* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
 
 ProcessResult MaglevGraphOptimizer::VisitLogicalNot(
     LogicalNot* node, const ProcessingState& state) {

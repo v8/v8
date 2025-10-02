@@ -709,7 +709,8 @@ class MaglevGraphBuilder {
 
   ValueNode* GetHoleyFloat64(ValueNode* value,
                              TaggedToFloat64ConversionType conversion_type,
-                             bool convert_hole_to_undefined);
+                             bool convert_hole_to_undefined,
+                             bool silence_number_nans);
 
   // Get a Float64 representation node whose value is the result of ToNumber on
   // the given node. Only trivial ToNumber is allowed -- values that are already
