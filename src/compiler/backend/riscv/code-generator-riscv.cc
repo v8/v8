@@ -5322,7 +5322,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   __ Ret();
 }
 
-void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
+void CodeGenerator::FinishCode() { __ FinishCode(); }
 
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {
@@ -5330,7 +5330,6 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   // of the deoptimization exits, because it destroys our ability to compute
   // the deoptimization index based on the 'pc' and the offset of the start
   // of the exits section.
-  __ ForceConstantPoolEmissionWithoutJump();
   int total_size = 0;
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     if (exit->emitted()) continue;  // May have been emitted inline.
@@ -5338,7 +5337,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(
                       ? Deoptimizer::kLazyDeoptExitSize
                       : Deoptimizer::kEagerDeoptExitSize;
   }
-  __ CheckTrampolinePoolQuick(total_size);
+  __ StartBlockPools(ConstantPoolEmission::kCheck, total_size);
 }
 
 void CodeGenerator::MoveToTempLocation(InstructionOperand* source,

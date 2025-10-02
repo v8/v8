@@ -555,8 +555,8 @@ bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
   return !RelocInfo::IsNoInfo(rmode);
 }
 
-void Assembler::DisassembleInstruction(uint8_t* pc) {
-  if (!v8_flags.riscv_debug) return;
+void Assembler::DisassembleInstructionHelper(uint8_t* pc) {
+  CHECK(v8_flags.riscv_debug);
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
   base::EmbeddedVector<char, 128> disasm_buffer;
@@ -1766,24 +1766,17 @@ void Assembler::EmitHelper(T x) {
 
 void Assembler::emit(Instr x) {
   DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
-  CheckBuffer();
   EmitHelper(x);
   DisassembleInstruction(pc_ - sizeof(x));
+  CheckBuffer();
   CheckTrampolinePoolQuick();
 }
 
 void Assembler::emit(ShortInstr x) {
   DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
-  CheckBuffer();
   EmitHelper(x);
   DisassembleInstruction(pc_ - sizeof(x));
-  CheckTrampolinePoolQuick();
-}
-
-void Assembler::emit(uint64_t data) {
-  DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
   CheckBuffer();
-  EmitHelper(data);
   CheckTrampolinePoolQuick();
 }
 

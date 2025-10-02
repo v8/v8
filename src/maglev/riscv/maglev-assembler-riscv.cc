@@ -256,10 +256,9 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
   // of the deoptimization exits, because it destroys our ability to compute
   // the deoptimization index based on the 'pc' and the offset of the start
   // of the exits section.
-  ForceConstantPoolEmissionWithoutJump();
   size_t total_size = eager_deopt_count * Deoptimizer::kEagerDeoptExitSize +
                       lazy_deopt_count * Deoptimizer::kLazyDeoptExitSize;
-  CheckTrampolinePoolQuick(static_cast<int>(total_size));
+  StartBlockPools(ConstantPoolEmission::kCheck, static_cast<int>(total_size));
 }
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,

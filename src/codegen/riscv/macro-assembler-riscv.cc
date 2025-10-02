@@ -4893,9 +4893,6 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
       UNREACHABLE();
   }
 
-  // TODO(kasperl@rivosinc.com): We're always blocking the trampoline pool
-  // here so is it really necessary to check?
-  CheckTrampolinePoolQuick(1 * kInstrSize);
   return true;
 }
 

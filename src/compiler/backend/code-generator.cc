@@ -417,6 +417,10 @@ void CodeGenerator::AssembleCode() {
     }
   }
 
+#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
+  masm()->EndBlockPools();
+#endif  // defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
+
   offsets_info_.pools = masm()->pc_offset();
   // TODO(jgruber): Move all inlined metadata generation into a new,
   // architecture-independent version of FinishCode. Currently, this includes

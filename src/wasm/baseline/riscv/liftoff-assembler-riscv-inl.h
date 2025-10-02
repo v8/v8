@@ -242,7 +242,7 @@ void LiftoffAssembler::LoadSpillAddress(Register dst, int offset,
   SubWord(dst, fp, offset);
 }
 
-void LiftoffAssembler::FinishCode() { MacroAssembler::FinishCode(); }
+void LiftoffAssembler::FinishCode() { Assembler::FinishCode(); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 

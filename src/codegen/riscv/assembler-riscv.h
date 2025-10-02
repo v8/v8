@@ -307,6 +307,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   static int ConstantPoolSizeAt(Instruction* instr);
   void EmitPoolGuard();
 
+  bool pools_blocked() const { return pools_blocked_nesting_ > 0; }
+  void StartBlockPools(ConstantPoolEmission cpe, int margin);
+  void EndBlockPools();
+
   void FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
 
 #if defined(V8_TARGET_ARCH_RISCV64)
@@ -573,39 +577,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
-  void RecordConstPool(int size, const BlockPoolsScope& scope);
-
-  void ForceConstantPoolEmissionWithoutJump() {
-    constpool_.Check(Emission::kForced, Jump::kOmitted);
-  }
-
-  // Check if the const pool needs to be emitted while pretending that {margin}
-  // more bytes of instructions have already been emitted. This variant is used
-  // in positions in code that we might fall through to.
-  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
-  }
-
-  // Check if the const pool needs to be emitted while pretending that {margin}
-  // more bytes of instructions have already been emitted. This variant is used
-  // at unreachable positions in the code, such as right after an unconditional
-  // transfer of control (jump, return).
-  void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
-  }
-
-  RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode) {
-    return constpool_.RecordEntry64(data, rmode);
-  }
-
-  void CheckTrampolinePoolQuick(int margin = 0) {
-    DEBUG_PRINTF("\tCheckTrampolinePoolQuick pc_offset:%d %d\n", pc_offset(),
-                 trampoline_check_ - margin);
-    if (pc_offset() >= trampoline_check_ - margin) {
-      CheckTrampolinePool();
-    }
-  }
-
   friend class VectorUnit;
   class VectorUnit {
    public:
@@ -804,10 +775,31 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     pc_offset_for_safepoint_ = pc_offset;
   }
 
-  void StartBlockPools(ConstantPoolEmission cpe, int margin);
-  void EndBlockPools();
+  void ForceConstantPoolEmissionWithoutJump() {
+    constpool_.Check(Emission::kForced, Jump::kOmitted);
+  }
 
-  bool pools_blocked() const { return pools_blocked_nesting_ > 0; }
+  // Check if the const pool needs to be emitted while pretending that {margin}
+  // more bytes of instructions have already been emitted. This variant is used
+  // in positions in code that we might fall through to.
+  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
+  }
+
+  // Check if the const pool needs to be emitted while pretending that {margin}
+  // more bytes of instructions have already been emitted. This variant is used
+  // at unreachable positions in the code, such as right after an unconditional
+  // transfer of control (jump, return).
+  void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
+  }
+
+  RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode) {
+    return constpool_.RecordEntry64(data, rmode);
+  }
+
+  void RecordConstPool(int size, const BlockPoolsScope& scope);
+
   bool is_trampoline_emitted() const { return trampoline_check_ == kMaxInt; }
 
  private:
@@ -840,11 +832,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void GrowBuffer();
   void emit(Instr x) override;
   void emit(ShortInstr x) override;
-  void emit(uint64_t x) override;
   template <typename T>
   inline void EmitHelper(T x);
 
-  static void DisassembleInstruction(uint8_t* pc);
+  inline void DisassembleInstruction(uint8_t* pc);
+  static void DisassembleInstructionHelper(uint8_t* pc);
 
   // Labels.
   void print(const Label* L);
@@ -902,6 +894,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   int trampoline_check_;  // The pc offset of next trampoline pool check.
 
   void CheckTrampolinePool();
+  inline void CheckTrampolinePoolQuick(int margin = 0);
   int32_t GetTrampolineEntry(int32_t pos);
 
   // Internal reference positions, required for unbounded internal reference

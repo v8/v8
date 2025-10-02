@@ -56,8 +56,22 @@ namespace internal {
 bool CpuFeatures::SupportsOptimizer() { return IsSupported(FPU); }
 
 void Assembler::CheckBuffer() {
-  if (buffer_space() <= kGap) {
+  if (V8_UNLIKELY(buffer_space() <= kGap)) {
     GrowBuffer();
+  }
+}
+
+void Assembler::CheckTrampolinePoolQuick(int margin) {
+  DEBUG_PRINTF("\tCheckTrampolinePoolQuick pc_offset:%d %d\n", pc_offset(),
+               trampoline_check_ - margin);
+  if (V8_UNLIKELY(pc_offset() >= trampoline_check_ - margin)) {
+    CheckTrampolinePool();
+  }
+}
+
+void Assembler::DisassembleInstruction(uint8_t* pc) {
+  if (V8_UNLIKELY(v8_flags.riscv_debug)) {
+    DisassembleInstructionHelper(pc);
   }
 }
 

@@ -1914,6 +1914,10 @@ bool MaglevCodeGenerator::EmitDeopts() {
     deopt_index++;
   }
 
+#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
+  __ EndBlockPools();
+#endif  // defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
+
   return true;
 }
 
