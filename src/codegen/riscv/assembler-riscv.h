@@ -262,9 +262,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
-  // Manages the jump elimination optimization if the second parameter is true.
   int32_t branch_offset_helper(Label* L, OffsetSize bits) override;
-  uintptr_t jump_address(Label* L);
   int32_t branch_long_offset(Label* L);
 
   // During code generation builtin targets in PC-relative call/jump
@@ -567,15 +565,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void instr_at_put(int pos, ShortInstr instr,
                     WritableJitAllocation* jit_allocation = nullptr);
 
-  Address toAddress(int pos) {
-    return reinterpret_cast<Address>(buffer_start_ + pos);
-  }
-
   // Get the code target object for a pc-relative call or jump.
-  V8_INLINE Handle<Code> relative_code_target_object_handle_at(
-      Address pc_) const;
+  inline Handle<Code> relative_code_target_object_handle_at(Address pc) const;
 
-  inline int UnboundLabelsCount() { return unbound_labels_count_; }
+  inline int UnboundLabelsCount() const { return unbound_labels_count_; }
 
   friend class VectorUnit;
   class VectorUnit {
@@ -833,7 +826,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void emit(Instr x) override;
   void emit(ShortInstr x) override;
   template <typename T>
-  inline void EmitHelper(T x);
+  inline void EmitHelper(T x, bool disassemble);
 
   inline void DisassembleInstruction(uint8_t* pc);
   static void DisassembleInstructionHelper(uint8_t* pc);
@@ -897,12 +890,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   inline void CheckTrampolinePoolQuick(int margin = 0);
   int32_t GetTrampolineEntry(int32_t pos);
 
-  // Internal reference positions, required for unbounded internal reference
-  // labels.
+  // We keep track of the position of all internal reference uses of labels,
+  // so we can distinguish the use site from other kinds of uses. The other
+  // uses can be recognized by looking at the generated code at the position,
+  // but internal references are just data (like jump table entries), so we
+  // need something extra to tell them apart from other kinds of uses.
   std::set<intptr_t> internal_reference_positions_;
-  bool is_internal_reference(Label* L) {
-    return internal_reference_positions_.find(L->pos()) !=
-           internal_reference_positions_.end();
+  bool is_internal_reference(Label* L) const {
+    DCHECK(L->is_linked());
+    return internal_reference_positions_.contains(L->pos());
   }
 
   RegList scratch_register_list_;

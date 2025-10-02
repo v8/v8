@@ -4777,10 +4777,6 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
     case cc_always:
       if (!CalculateOffset(L, &offset, OffsetSize::kOffset21)) return false;
       j(offset);
-      // TODO(kasperl@rivosinc.com): This probably has no effect, because the
-      // trampoline pool is blocked and that effectively blocks the constant
-      // pool too.
-      EmitConstPoolWithoutJumpIfNeeded();
       break;
     case eq:
       // rs == rt
@@ -4893,6 +4889,9 @@ bool MacroAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
       UNREACHABLE();
   }
 
+  // TODO(kasperl@rivosinc.com): If we've just emitted an unconditional branch
+  // it would be great if we could consider emitting the constant pool without
+  // a jump after leaving the pool blocking scope.
   return true;
 }
 
@@ -5639,16 +5638,13 @@ void MacroAssembler::LoadAddress(Register dst, Label* target,
   // by any trampoline pool emission here.
   BlockPoolsScope block_pools(this);
   int32_t offset;
-  if (CalculateOffset(target, &offset, OffsetSize::kOffset32)) {
-    CHECK(is_int32(offset + 0x800));
-    int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
-    int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
-    auipc(dst, Hi20);
-    AddWord(dst, dst, Lo12);
-  } else {
-    uintptr_t address = jump_address(target);
-    li(dst, Operand(address, rmode), ADDRESS_LOAD);
-  }
+  bool ok = CalculateOffset(target, &offset, OffsetSize::kOffset32);
+  CHECK(ok);
+  CHECK(is_int32(offset + 0x800));
+  int32_t Hi20 = (static_cast<int32_t>(offset) + 0x800) >> 12;
+  int32_t Lo12 = static_cast<int32_t>(offset) << 20 >> 20;
+  auipc(dst, Hi20);
+  AddWord(dst, dst, Lo12);
 }
 
 void MacroAssembler::Switch(Register scratch, Register value,

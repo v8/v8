@@ -136,7 +136,7 @@ class ConstantPool {
   RelocInfoStatus RecordKey(ConstantPoolKey key, int offset);
   RelocInfoStatus GetRelocInfoStatusFor(const ConstantPoolKey& key);
   void Emit(const ConstantPoolKey& key);
-  void SetLoadOffsetToConstPoolEntry(int load_offset, Instruction* entry_offset,
+  void SetLoadOffsetToConstPoolEntry(int load_offset, int entry_offset,
                                      const ConstantPoolKey& key);
   Alignment IsAlignmentRequiredIfEmittedAt(Jump require_jump,
                                            int pc_offset) const;

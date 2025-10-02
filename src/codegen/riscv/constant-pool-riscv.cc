@@ -119,7 +119,7 @@ void ConstantPool::EmitEntries() {
     auto range = entries_.equal_range(iter->first);
     bool shared = iter->first.AllowsDeduplication();
     for (auto it = range.first; it != range.second; ++it) {
-      SetLoadOffsetToConstPoolEntry(it->second, assm_->pc(), it->first);
+      SetLoadOffsetToConstPoolEntry(it->second, assm_->pc_offset(), it->first);
       if (!shared) {
         Emit(it->first);
         count++;
@@ -225,7 +225,7 @@ int ConstantPool::ComputePrologueSize(Jump require_jump) const {
 }
 
 void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
-                                                 Instruction* entry_offset,
+                                                 int entry_offset,
                                                  const ConstantPoolKey& key) {
   Instr instr_auipc = assm_->instr_at(load_offset);
   Instr instr_load = assm_->instr_at(load_offset + 4);
@@ -236,9 +236,7 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
   DCHECK(assm_->IsLoadWord(instr_load));
   DCHECK_EQ(assm_->AuipcOffset(instr_auipc), 0);
   DCHECK_EQ(assm_->LoadOffset(instr_load), 1);
-  int32_t distance = static_cast<int32_t>(
-      reinterpret_cast<Address>(entry_offset) -
-      reinterpret_cast<Address>(assm_->toAddress(load_offset)));
+  int32_t distance = entry_offset - load_offset;
   CHECK(is_int32(distance + 0x800));
   int32_t Hi20 = (static_cast<int32_t>(distance) + 0x800) >> 12;
   int32_t Lo12 = static_cast<int32_t>(distance) << 20 >> 20;
