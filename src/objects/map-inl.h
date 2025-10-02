@@ -8,6 +8,7 @@
 #include "src/objects/map.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/common/globals.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks-inl.h"
@@ -49,8 +50,6 @@ ACCESSORS_CHECKED(Map, custom_descriptor, Tagged<WasmStruct>,
                   kInstanceDescriptorsOffset, IsWasmStructMap(*this))
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-RELAXED_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
-                  kInstanceDescriptorsOffset)
 RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
                           kInstanceDescriptorsOffset)
 
@@ -721,7 +720,7 @@ bool Map::is_stable() const {
 
 bool Map::CanBeDeprecated() const {
   for (InternalIndex i : IterateOwnDescriptors()) {
-    PropertyDetails details = instance_descriptors(kRelaxedLoad)->GetDetails(i);
+    PropertyDetails details = instance_descriptors(kAcquireLoad)->GetDetails(i);
     if (details.representation().MightCauseMapDeprecation()) return true;
     if (details.kind() == PropertyKind::kData &&
         details.location() == PropertyLocation::kDescriptor) {

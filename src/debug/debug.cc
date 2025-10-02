@@ -1916,7 +1916,7 @@ void Debug::InstallDebugBreakTrampoline() {
       } else if (IsJSObject(obj)) {
         Tagged<JSObject> object = Cast<JSObject>(obj);
         Tagged<DescriptorArray> descriptors =
-            object->map()->instance_descriptors(kRelaxedLoad);
+            object->map()->instance_descriptors(kAcquireLoad);
 
         for (InternalIndex i : object->map()->IterateOwnDescriptors()) {
           if (descriptors->GetDetails(i).kind() == PropertyKind::kAccessor) {
