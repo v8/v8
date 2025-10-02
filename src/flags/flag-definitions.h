@@ -1746,6 +1746,13 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, size_t{1})
 DEFINE_BOOL(reopt_after_lazy_deopts, true,
             "Immediately re-optimize code after some lazy deopts")
 
+// This verification doesn't work for debugger tests which set breakpoints
+// into builtin functions and thus make certain core JS builtins look like
+// they are not used.
+DEFINE_BOOL(verify_get_js_builtin_state, false,
+            "Enable verification of Builtins::GetJSBuiltinState().")
+DEFINE_IMPLICATION(enable_slow_asserts, verify_get_js_builtin_state)
+
 // Flags for WebAssembly.
 #if V8_ENABLE_WEBASSEMBLY
 

@@ -4533,6 +4533,14 @@ void Isolate::Deinit() {
     });
   }
 
+#ifdef DEBUG
+  // Don't run Builtins::VerifyGetJSBuiltinState() during snapshot creation.
+  if (v8_flags.verify_get_js_builtin_state && !serializer_enabled()) {
+    const bool kAllowNonInitialState = true;
+    builtins()->VerifyGetJSBuiltinState(kAllowNonInitialState);
+  }
+#endif
+
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.
   heap_.StartTearDown();

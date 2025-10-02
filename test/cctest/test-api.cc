@@ -27077,7 +27077,7 @@ MaybeLocal<Object> CheckResolveSource(Local<Context> context,
 }
 
 TEST(ImportSourceResolveModuleAndSource) {
-  i::FlagScope<bool> f(&i::v8_flags.js_source_phase_imports, true);
+  i::v8_flags.js_source_phase_imports = true;
 
   LocalContext context;
   v8::Isolate* isolate = context.isolate();

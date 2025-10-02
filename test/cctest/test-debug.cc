@@ -539,6 +539,7 @@ TEST(BreakPointConstructCallWithGC) {
 
 
 TEST(BreakPointBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -570,6 +571,7 @@ TEST(BreakPointBuiltin) {
 }
 
 TEST(BreakPointApiIntrinsics) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -673,6 +675,7 @@ TEST(BreakPointApiIntrinsics) {
 }
 
 TEST(BreakPointJSBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -704,6 +707,7 @@ TEST(BreakPointJSBuiltin) {
 }
 
 TEST(BreakPointBoundBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -737,6 +741,7 @@ TEST(BreakPointBoundBuiltin) {
 }
 
 TEST(BreakPointConstructorBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -799,6 +804,7 @@ TEST(BreakPointConstructorBuiltin) {
 }
 
 TEST(BreakPointInlinedBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -843,6 +849,7 @@ TEST(BreakPointInlinedBuiltin) {
 }
 
 TEST(BreakPointInlineBoundBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -891,6 +898,7 @@ TEST(BreakPointInlineBoundBuiltin) {
 }
 
 TEST(BreakPointInlinedConstructorBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -935,6 +943,7 @@ TEST(BreakPointInlinedConstructorBuiltin) {
 }
 
 TEST(BreakPointBuiltinConcurrentOpt) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -976,6 +985,7 @@ TEST(BreakPointBuiltinConcurrentOpt) {
 }
 
 TEST(BreakPointBuiltinTFOperator) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -1020,6 +1030,7 @@ TEST(BreakPointBuiltinTFOperator) {
 }
 
 TEST(BreakPointBuiltinNewContext) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1514,6 +1525,7 @@ TEST(BreakPointInlineApiFunction) {
 
 // Test that a break point can be set at a return store location.
 TEST(BreakPointConditionBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -5979,6 +5991,7 @@ TEST(TerminateOnResumeAtException) {
 }
 
 TEST(TerminateOnResumeAtBreakOnEntry) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   SetTerminateOnResumeDelegate delegate;
