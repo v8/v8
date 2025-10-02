@@ -3096,6 +3096,13 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
                      FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
+  // Increment the total invocation count of the function.
+  __ LoadTaggedField(scratch,
+                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  __ Move(r1, Smi::FromInt(1));
+  __ AddS64(scratch, scratch, r1);
+  __ StoreTaggedField(
+      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ push(kWasmImplicitArgRegister);
   __ push(vector);
   __ Ret();
