@@ -119,6 +119,8 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2953,6 +2955,7 @@ void Shell::WasmSerializeModule(
     ThrowError(isolate, "First argument must be a WasmModuleObject");
     return;
   }
+
   i::DirectHandle<i::WasmModuleObject> module_obj =
       i::Cast<i::WasmModuleObject>(Utils::OpenHandle(*info[0]));
 
@@ -2960,14 +2963,21 @@ void Shell::WasmSerializeModule(
   DCHECK(!native_module->compilation_state()->failed());
 
   i::wasm::WasmSerializer wasm_serializer(native_module);
-  size_t byte_length = wasm_serializer.GetSerializedNativeModuleSize();
+
+  // The content of the serialized byte buffer is nondeterministic (depends
+  // e.g. on timing, but also on the platform and on enabled features).
+  // Thus, return an empty array for correctness fuzzing.
+  size_t byte_length = i::v8_flags.correctness_fuzzer_suppressions
+                           ? 0
+                           : wasm_serializer.GetSerializedNativeModuleSize();
 
   Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, byte_length);
 
   base::Vector<uint8_t> byte_buffer{
       static_cast<uint8_t*>(array_buffer->GetBackingStore()->Data()),
       byte_length};
-  if (!wasm_serializer.SerializeNativeModule(byte_buffer)) {
+  if (!i::v8_flags.correctness_fuzzer_suppressions &&
+      !wasm_serializer.SerializeNativeModule(byte_buffer)) {
     CHECK(i::v8_flags.fuzzing);
     return;
   }
@@ -2989,9 +2999,12 @@ void Shell::WasmSerializeModule(
 void Shell::WasmDeserializeModule(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  i::PrintF(
-      "NOTE: d8.wasm.deserializeModule() is not safe against manipulated "
-      "input. It's not VRP eligible.\n");
+  static std::atomic<bool> print_warning{true};
+  if (print_warning.exchange(false, std::memory_order_relaxed)) {
+    i::PrintF(
+        "NOTE: d8.wasm.deserializeModule() is not safe against manipulated "
+        "input. It's not VRP eligible.\n");
+  }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
   if (!info[0]->IsArrayBuffer()) {
@@ -3040,17 +3053,31 @@ void Shell::WasmDeserializeModule(
     }
   }
 
-  // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
-  // JSArrayBuffer backing store doesn't get relocated.
-  i::wasm::CompileTimeImports compile_imports{};
-  i::MaybeDirectHandle<i::WasmModuleObject> maybe_module_object =
-      i::wasm::DeserializeNativeModule(i_isolate, buffer_vec, wire_bytes_vec,
-                                       compile_imports, {});
   i::DirectHandle<i::WasmModuleObject> module_object;
-  if (!maybe_module_object.ToHandle(&module_object)) {
-    info.GetReturnValue().Set(Undefined(isolate));
-    return;
+
+  // For correctness fuzzing, the `serializeModule` function always returns an
+  // empty buffer. We thus have to accept this empty buffer again here, and
+  // produce a valid module.
+  if (i::v8_flags.correctness_fuzzer_suppressions) {
+    CHECK(buffer_vec.empty());
+    i::wasm::ErrorThrower thrower{i_isolate, "d8.wasm.deserializeModule"};
+    module_object =
+        i::wasm::GetWasmEngine()
+            ->SyncCompile(i_isolate,
+                          i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate),
+                          i::wasm::CompileTimeImports{}, &thrower,
+                          base::OwnedCopyOf(wire_bytes_vec))
+            .ToHandleChecked();
+    DCHECK(!thrower.error());
+  } else {
+    // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
+    // JSArrayBuffer backing store doesn't get relocated.
+    module_object =
+        i::wasm::DeserializeNativeModule(i_isolate, buffer_vec, wire_bytes_vec,
+                                         i::wasm::CompileTimeImports{}, {})
+            .ToHandleChecked();
   }
+
   info.GetReturnValue().Set(Utils::ToLocal(module_object));
 }
 
