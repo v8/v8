@@ -1987,7 +1987,7 @@ bool WasmTrustedInstanceData::try_get_func_ref(int index,
 namespace {
 
 V8_INLINE DirectHandle<WasmExportedFunction> CreateExportedFunction(
-    Isolate* isolate, const WasmModule* module, int function_index,
+    Isolate* isolate, wasm::ModuleOrigin origin, int function_index,
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data) {
@@ -1999,11 +1999,11 @@ V8_INLINE DirectHandle<WasmExportedFunction> CreateExportedFunction(
   // we'll have to reset any existing compiled wrapper.
   bool receiver_is_first_param = false;
   DirectHandle<Code> wrapper_code = WasmExportedFunction::GetWrapper(
-      isolate, sig, receiver_is_first_param, module);
+      isolate, sig, receiver_is_first_param, origin);
   int arity = static_cast<int>(sig->parameter_count());
   DirectHandle<WasmExportedFunction> external = WasmExportedFunction::New(
       isolate, trusted_instance_data, func_ref, internal_function, arity,
-      wrapper_code, module, function_index, wasm::kNoPromise);
+      wrapper_code, origin, function_index, wasm::kNoPromise);
   internal_function->set_external(*external);
   return external;
 }
@@ -2063,7 +2063,7 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
   trusted_instance_data->func_refs()->set(function_index, *func_ref);
 
   if (precreate_external == wasm::kPrecreateExternal) {
-    CreateExportedFunction(isolate, module, function_index, func_ref,
+    CreateExportedFunction(isolate, module->origin, function_index, func_ref,
                            internal_function, trusted_instance_data);
   }
 
@@ -2099,23 +2099,21 @@ DirectHandle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
           : direct_handle(
                 TrustedCast<WasmImportData>(*implicit_arg)->instance_data(),
                 isolate);
-  // TODO(435582611): We shouldn't look at this module here; it can be either
-  // the importing module or the declaring module.
-  const WasmModule* module = instance_data->module();
+  wasm::ModuleOrigin export_origin = instance_data->module()->origin;
   int function_index = internal->function_index();
 
   DirectHandle<WasmFuncRef> func_ref{
       Cast<WasmFuncRef>(instance_data->func_refs()->get(function_index)),
       isolate};
 
-  return CreateExportedFunction(isolate, module, function_index, func_ref,
-                                internal, instance_data);
+  return CreateExportedFunction(isolate, export_origin, function_index,
+                                func_ref, internal, instance_data);
 }
 
 // static
 DirectHandle<Code> WasmExportedFunction::GetWrapper(
     Isolate* isolate, const wasm::CanonicalSig* sig,
-    bool receiver_is_first_param, const WasmModule* module) {
+    bool receiver_is_first_param, wasm::ModuleOrigin origin) {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     return isolate->builtins()->code_handle(
@@ -2127,7 +2125,7 @@ DirectHandle<Code> WasmExportedFunction::GetWrapper(
   if (!entry.is_null()) {
     return direct_handle(entry->code(isolate), isolate);
   }
-  if (wasm::CanUseGenericJsToWasmWrapper(module, sig)) {
+  if (wasm::CanUseGenericJsToWasmWrapper(origin, sig)) {
     if (v8_flags.stress_wasm_stack_switching) {
       return isolate->builtins()->code_handle(Builtin::kWasmStressSwitch);
     }
@@ -2156,7 +2154,7 @@ void WasmExportedFunction::MarkAsReceiverIsFirstParam(
   // Reset the wrapper code. If that's a compiled wrapper, it baked in the
   // bit we just flipped.
   DirectHandle<Code> wrapper =
-      GetWrapper(isolate, sig, true, data->instance_data()->module());
+      GetWrapper(isolate, sig, true, data->instance_data()->module()->origin);
   data = {};  // Might be stale due to GC.
   data_handle->set_wrapper_code(*wrapper);
   exported_function->UpdateCode(isolate, *wrapper);
@@ -2990,16 +2988,16 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
       export_wrapper->builtin_id() == Builtin::kWasmPromising
           ? wasm::kPromise
           : wasm::kNoPromise;
-  const wasm::WasmModule* module = instance_data->module();
   return New(isolate, instance_data, func_ref, internal_function, arity,
-             export_wrapper, module, func_index, promise);
+             export_wrapper, instance_data->module()->origin, func_index,
+             promise);
 }
 
 DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<WasmFuncRef> func_ref,
     DirectHandle<WasmInternalFunction> internal_function, int arity,
-    DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
+    DirectHandle<Code> export_wrapper, wasm::ModuleOrigin origin,
     int func_index, wasm::Promise promise) {
   Factory* factory = isolate->factory();
   DirectHandle<WasmExportedFunctionData> function_data =
@@ -3025,8 +3023,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
 
   DirectHandle<SharedFunctionInfo> shared;
   DirectHandle<Map> function_map;
-  bool is_asm_js_module = is_asmjs_module(module);
-  if (is_asm_js_module) {
+  if (origin != wasm::kWasmOrigin) {
     // We can use the function name only for asm.js. For WebAssembly, the
     // function name is specified as the function_index.toString().
     DirectHandle<String> name;
@@ -3038,7 +3035,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
     }
     shared = factory->NewSharedFunctionInfoForWasmExportedFunction(
         name, function_data, arity, kAdapt);
-    if (module->origin == wasm::kAsmJsSloppyOrigin) {
+    if (origin == wasm::kAsmJsSloppyOrigin) {
       function_map = isolate->sloppy_function_map();
     } else {
       function_map = isolate->strict_function_map();
@@ -3059,7 +3056,7 @@ DirectHandle<WasmExportedFunction> WasmExportedFunction::New(
 
   // According to the spec, exported functions should not have a [[Construct]]
   // method. This does not apply to functions exported from asm.js however.
-  DCHECK_EQ(is_asm_js_module, IsConstructor(*js_function));
+  DCHECK_EQ(origin != wasm::kWasmOrigin, IsConstructor(*js_function));
   if (instance_data->has_instance_object()) {
     shared->set_script(instance_data->module_object()->script(), kReleaseStore);
   } else {

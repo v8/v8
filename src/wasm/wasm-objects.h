@@ -1012,7 +1012,7 @@ class WasmExportedFunction : public JSFunction {
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
-      DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
+      DirectHandle<Code> export_wrapper, wasm::ModuleOrigin origin,
       int func_index, wasm::Promise promise);
 
   static void MarkAsReceiverIsFirstParam(
@@ -1023,7 +1023,7 @@ class WasmExportedFunction : public JSFunction {
   static DirectHandle<Code> GetWrapper(Isolate* isolate,
                                        const wasm::CanonicalSig* sig,
                                        bool receiver_is_first_param,
-                                       const wasm::WasmModule* module);
+                                       wasm::ModuleOrigin origin);
 
   // Return a null-terminated string with the debug name in the form
   // 'js-to-wasm:<sig>'.

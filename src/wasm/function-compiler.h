@@ -21,13 +21,12 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-tier.h"
 
-namespace v8 {
-namespace internal {
-
+namespace v8::internal {
 class Counters;
 class TurbofanCompilationJob;
+}  // namespace v8::internal
 
-namespace wasm {
+namespace v8::internal::wasm {
 
 class NativeModule;
 class WasmCode;
@@ -159,22 +158,20 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 
-inline bool CanUseGenericJsToWasmWrapper(const WasmModule* module,
+inline bool CanUseGenericJsToWasmWrapper(ModuleOrigin origin,
                                          const CanonicalSig* sig) {
 #if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 ||  \
      V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64 || \
      V8_TARGET_ARCH_LOONG64)
   // We don't use the generic wrapper for asm.js, because it creates invalid
   // stack traces.
-  return !is_asmjs_module(module) && v8_flags.wasm_generic_wrapper &&
+  return origin == kWasmOrigin && v8_flags.wasm_generic_wrapper &&
          IsJSCompatibleSignature(sig);
 #else
   return false;
 #endif
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_FUNCTION_COMPILER_H_
