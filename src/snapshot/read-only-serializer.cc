@@ -273,10 +273,22 @@ class EncodeRelocationsVisitor final : public ObjectVisitor {
                             ExternalPointerSlot slot) override {
     // This slot was encoded in a previous pass, see EncodeExternalPointerSlot.
 #ifdef DEBUG
+    ExternalPointerTag tag;
+    // `slot` can have a tag range, but below we need an exact tag. Therefore we
+    // load the actual tag of the slot. However, we do that only if there is
+    // actually a value stored in the slot. If not, then the slot is
+    // uninitialized, and so far code with tag ranges only handles initialized
+    // slots. Therefore we can use the exact tag of the slot.
+    if (slot.load(isolate_)) {
+      tag = slot.load_tag(isolate_);
+    } else {
+      DCHECK(slot.ExactTagIsKnown());
+      tag = slot.exact_tag();
+    }
     ExternalPointerSlot slot_in_segment{
         reinterpret_cast<Address>(segment_->contents.get() +
                                   SegmentOffsetOf(slot)),
-        slot.exact_tag()};
+        tag};
     // Constructing no_gc here is not the intended use pattern (instead we
     // should pass it along the entire callchain); but there's little point of
     // doing that here - all of the code in this file relies on GC being
