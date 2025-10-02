@@ -2059,11 +2059,52 @@ class Heap final {
 
   void RecomputeLimits(GarbageCollector collector, base::TimeTicks time);
   void RecomputeLimitsAfterLoadingIfNeeded();
+
   struct LimitsComputationResult {
     size_t old_generation_allocation_limit;
     size_t global_allocation_limit;
   };
-  LimitsComputationResult ComputeNewAllocationLimits();
+
+  struct LimitsComputationBoundaries {
+    size_t minimum_old_generation_allocation_limit = 0;
+    size_t maximum_old_generation_allocation_limit = SIZE_MAX;
+
+    size_t minimum_global_allocation_limit = 0;
+    size_t maximum_global_allocation_limit = SIZE_MAX;
+
+    size_t bounded_old_generation_allocation_limit(size_t val) {
+      DCHECK_LE(minimum_old_generation_allocation_limit,
+                maximum_old_generation_allocation_limit);
+      const size_t capped =
+          std::min(val, maximum_old_generation_allocation_limit);
+      return std::max(capped, minimum_old_generation_allocation_limit);
+    }
+
+    size_t bounded_global_allocation_limit(size_t val) {
+      DCHECK_LE(minimum_global_allocation_limit,
+                maximum_global_allocation_limit);
+      const size_t capped = std::min(val, maximum_global_allocation_limit);
+      return std::max(capped, minimum_global_allocation_limit);
+    }
+
+    static LimitsComputationBoundaries AtLeastCurrentLimits(Heap* heap) {
+      return {
+          .minimum_old_generation_allocation_limit =
+              heap->old_generation_allocation_limit(),
+          .minimum_global_allocation_limit = heap->global_allocation_limit()};
+    }
+
+    static LimitsComputationBoundaries AtMostCurrentLimits(Heap* heap) {
+      return {
+          .maximum_old_generation_allocation_limit =
+              heap->old_generation_allocation_limit(),
+          .maximum_global_allocation_limit = heap->global_allocation_limit()};
+    }
+  };
+
+  LimitsComputationResult UpdateAllocationLimits(
+      LimitsComputationBoundaries boundaries,
+      const char* caller = __builtin_FUNCTION());
 
   // ===========================================================================
   // GC Tasks. =================================================================
