@@ -789,7 +789,6 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   DCHECK(IsMajorMarking());
   const auto start = v8::base::TimeTicks::Now();
 
-  std::optional<SafepointScope> safepoint_scope;
   // Conceptually an incremental marking step (even though it always runs on the
   // main thread) may introduce a form of concurrent marking when background
   // threads access the heap concurrently (e.g. concurrent compilation). On
@@ -802,17 +801,12 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   DCHECK(!v8_flags.concurrent_marking);
   // Ensure that the isolate has no shared heap. Otherwise a shared GC might
   // happen when trying to enter the safepoint.
-  const bool did_run =
-      isolate()->heap()->safepoint()->RunIfCanAvoidGlobalSafepoint(
-          [&safepoint_scope, this]() {
-            AllowGarbageCollection allow_gc;
-            safepoint_scope.emplace(isolate(), SafepointKind::kIsolate);
-          });
-  CHECK_IMPLIES(!isolate()->has_shared_space(), did_run);
-  if (!did_run) {
+  std::optional<IsolateSafepointScope> safepoint_scope =
+      heap()->safepoint()->ReachSafepointWithoutTriggeringGC();
+  CHECK_IMPLIES(!isolate()->has_shared_space(), safepoint_scope.has_value());
+  if (!safepoint_scope.has_value()) {
     // A safepoint was not established. Marking now may result in false
     // positives. Bailout instead.
-    CHECK(!safepoint_scope.has_value());
     return;
   }
 #endif

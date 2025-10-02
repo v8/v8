@@ -3574,21 +3574,26 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   if (v8_flags.enable_slow_asserts) {
     // Make sure the stack or other roots (e.g., Handles) don't contain pointers
     // to the original FixedArray (which is now the filler object).
-    std::optional<IsolateSafepointScope> safepoint_scope;
 
-    {
-      AllowGarbageCollection allow_gc;
-      safepoint_scope.emplace(this);
+    // Iterating roots forces us to safepoint here. The safepoint allows a
+    // shared GC here though, while the JSArray holding the pointer to that
+    // FixedArray is still pointing to the old object start. To fix this we only
+    // safepoint here when we can grab the lock without blocking. This means we
+    // can also only conditionally verify roots.
+    std::optional<IsolateSafepointScope> safepoint_scope =
+        safepoint()->ReachSafepointWithoutTriggeringGC();
+    CHECK_IMPLIES(!isolate()->has_shared_space(), safepoint_scope.has_value());
+
+    if (safepoint_scope.has_value()) {
+      LeftTrimmerVerifierRootVisitor root_visitor(object);
+      ReadOnlyRoots(this).Iterate(&root_visitor);
+
+      // Stale references are allowed in some locations. IterateRoots() uses
+      // ClearStaleLeftTrimmedPointerVisitor internally to clear such references
+      // beforehand.
+      IterateRoots(&root_visitor,
+                   base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});
     }
-
-    LeftTrimmerVerifierRootVisitor root_visitor(object);
-    ReadOnlyRoots(this).Iterate(&root_visitor);
-
-    // Stale references are allowed in some locations. IterateRoots() uses
-    // ClearStaleLeftTrimmedPointerVisitor internally to clear such references
-    // beforehand.
-    IterateRoots(&root_visitor,
-                 base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});
   }
 #endif  // ENABLE_SLOW_DCHECKS
 
