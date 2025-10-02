@@ -5774,52 +5774,85 @@ TEST_F(FunctionBodyDecoderTest, WasmContBindNegative) {
 
 TEST_F(FunctionBodyDecoderTest, WasmResume) {
   WASM_FEATURE_SCOPE(wasmfx);
-  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex cont_i_i_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex cont_i_v_index = builder.AddCont(sigs.i_v());
   ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  // sig1: [] -> [ref $ct] where $ct : cont [] -> [i32]
+  FunctionSig* sig1 = FunctionSig::Build(
+      zone(), {ValueType::Ref(cont_i_v_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
+  // sig2: [] -> [i32, ref null $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig2 = FunctionSig::Build(
+      zone(),
+      {kWasmI32, ValueType::Ref(cont_i_i_index, false, RefTypeKind::kCont)},
+      {});
+  ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
   uint8_t func_index = builder.AddFunction(sig_index);
 
   uint8_t tag_v_v = builder.AddTag(sigs.v_v());
   uint8_t tag_i_i = builder.AddTag(sigs.i_i());
 
-  ExpectValidates(sigs.v_v(), {WASM_I32V(42), WASM_REF_FUNC(func_index),
-                               WASM_CONT_NEW(ToByte(cont_index)),
-                               WASM_RESUME(ToByte(cont_index), 0), WASM_DROP});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                   WASM_CONT_NEW(ToByte(cont_i_i_index)),
+                   WASM_RESUME(ToByte(cont_i_i_index), 0), WASM_DROP});
 
   ExpectValidates(
       sigs.v_v(),
-      {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
-                    WASM_CONT_NEW(ToByte(cont_index)),
-                    WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_i_i, 0)),
-                    WASM_RETURN0),
-       WASM_DROP});
+      {WASM_BLOCK_X(
+           sig2_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+           WASM_CONT_NEW(ToByte(cont_i_i_index)),
+           WASM_RESUME(ToByte(cont_i_i_index), 1, WASM_ON_TAG(tag_i_i, 0)),
+           WASM_RETURN0),
+       WASM_DROP, WASM_DROP});
 
   ExpectValidates(
       sigs.v_v(),
-      {WASM_BLOCK(WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
-                               WASM_CONT_NEW(ToByte(cont_index)),
-                               WASM_RESUME(ToByte(cont_index), 1,
-                                           WASM_ON_TAG(tag_i_i, 0),
-                                           WASM_ON_TAG(tag_v_v, 1)),
-                               WASM_RETURN0),
-                  WASM_DROP)});
+      {WASM_BLOCK_X(
+           sig1_index,
+           WASM_BLOCK_X(
+               sig2_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+               WASM_CONT_NEW(ToByte(cont_i_i_index)),
+               WASM_RESUME(ToByte(cont_i_i_index), 2, WASM_ON_TAG(tag_i_i, 0),
+                           WASM_ON_TAG(tag_v_v, 1)),
+               WASM_RETURN0),
+           WASM_DROP, WASM_DROP, WASM_RETURN0),
+       WASM_DROP, WASM_RETURN0});
 
   ExpectValidates(
       sigs.v_v(),
-      {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
-                    WASM_CONT_NEW(ToByte(cont_index)),
-                    WASM_RESUME(ToByte(cont_index), 2, WASM_ON_TAG(tag_i_i, 0),
-                                WASM_SWITCH_TAG(tag_v_v)),
-                    WASM_RETURN0),
-       WASM_DROP});
+      {WASM_BLOCK_X(
+           sig2_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+           WASM_CONT_NEW(ToByte(cont_i_i_index)),
+           WASM_RESUME(ToByte(cont_i_i_index), 2, WASM_ON_TAG(tag_i_i, 0),
+                       WASM_SWITCH_TAG(tag_v_v)),
+           WASM_RETURN0),
+       WASM_DROP, WASM_DROP});
 }
 
 TEST_F(FunctionBodyDecoderTest, WasmResumeNegative) {
   WASM_FEATURE_SCOPE(wasmfx);
   ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex cont_index_bad_return = builder.AddCont(sigs.f_v());
   ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  // sig1: [] -> [ref $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig1 = FunctionSig::Build(
+      zone(), {ValueType::Ref(cont_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
+  // sig2: [] -> [f64, ref $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig2 = FunctionSig::Build(
+      zone(), {kWasmF64, ValueType::Ref(cont_index, false, RefTypeKind::kCont)},
+      {});
+  ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
+  // sig3: [] -> [ref $ct] where $ct : cont [] -> [f32]
+  FunctionSig* sig3 = FunctionSig::Build(
+      zone(),
+      {ValueType::Ref(cont_index_bad_return, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig3_index = builder.AddSignature(sig3);
   uint8_t func_index = builder.AddFunction(sig_index);
 
   uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+  uint8_t tag_v_v = builder.AddTag(sigs.v_v());
 
   ExpectFailure(sigs.v_v(),
                 {WASM_I32V(42), WASM_REF_FUNC(func_index),
@@ -5834,11 +5867,54 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeNegative) {
                   WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_i_i, 0)),
                   WASM_RETURN0),
        WASM_DROP},
-      kAppendEnd, "handler generates 1 operand, target block returns 0");
+      kAppendEnd,
+      "expected (ref null? cont) as last return type of target block"
+      " for handler 0, no return type found");
 
   ExpectFailure(
       sigs.v_v(),
-      {WASM_BLOCK_D(WASM_I32V(43), WASM_REF_FUNC(func_index),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(0), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_v_v, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd,
+      "Type mismatch between cont parameters and tag returns for"
+      " handler 0");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig3_index, WASM_I32V(0), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_v_v, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd,
+      "Type mismatch between old and new cont returns for handler 0");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd,
+      "expected (ref null? cont) as last return type of target block"
+      " for handler 0, got i32");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "handler generates 2 operands, target block returns 1");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig2_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
                     WASM_CONT_NEW(ToByte(cont_index)),
                     WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_i_i, 0)),
                     WASM_RETURN0),
@@ -5864,45 +5940,61 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeNegative) {
 
 TEST_F(FunctionBodyDecoderTest, WasmResumeThrow) {
   WASM_FEATURE_SCOPE(wasmfx);
-  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex cont1_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex cont2_index = builder.AddCont(sigs.i_v());
   ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  // sig1: [] -> [i32, ref $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig1 = FunctionSig::Build(
+      zone(),
+      {kWasmI32, ValueType::Ref(cont1_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
+  // sig2: [] -> [ref $ct] where $ct : cont [] -> [i32]
+  FunctionSig* sig2 = FunctionSig::Build(
+      zone(), {ValueType::Ref(cont2_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
   uint8_t ex_tag = builder.AddTag(sigs.v_i());
   uint8_t func_index = builder.AddFunction(sig_index);
 
   uint8_t tag_v_v = builder.AddTag(sigs.v_v());
   uint8_t tag_i_i = builder.AddTag(sigs.i_i());
 
-  ExpectValidates(sigs.v_v(), {WASM_I32V(42), WASM_REF_FUNC(func_index),
-                               WASM_CONT_NEW(ToByte(cont_index)),
-                               WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 0),
-                               WASM_DROP});
-
-  ExpectValidates(sigs.v_v(),
-                  {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
-                                WASM_CONT_NEW(ToByte(cont_index)),
-                                WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
-                                                  WASM_ON_TAG(tag_i_i, 0)),
-                                WASM_RETURN0),
-                   WASM_DROP});
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_I32V(42), WASM_REF_FUNC(func_index),
+       WASM_CONT_NEW(ToByte(cont1_index)),
+       WASM_RESUME_THROW(ToByte(cont1_index), ex_tag, 0), WASM_DROP});
 
   ExpectValidates(
       sigs.v_v(),
-      {WASM_BLOCK(WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
-                               WASM_CONT_NEW(ToByte(cont_index)),
-                               WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 2,
-                                                 WASM_ON_TAG(tag_i_i, 0),
-                                                 WASM_ON_TAG(tag_v_v, 1)),
-                               WASM_RETURN0),
-                  WASM_DROP)});
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont1_index)),
+                    WASM_RESUME_THROW(ToByte(cont1_index), ex_tag, 1,
+                                      WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP, WASM_DROP});
 
-  ExpectValidates(sigs.v_v(),
-                  {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
-                                WASM_CONT_NEW(ToByte(cont_index)),
-                                WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 2,
-                                                  WASM_ON_TAG(tag_i_i, 0),
-                                                  WASM_SWITCH_TAG(tag_v_v)),
-                                WASM_RETURN0),
-                   WASM_DROP});
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK_X(
+           sig2_index,
+           WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                        WASM_CONT_NEW(ToByte(cont1_index)),
+                        WASM_RESUME_THROW(ToByte(cont1_index), ex_tag, 2,
+                                          WASM_ON_TAG(tag_i_i, 0),
+                                          WASM_ON_TAG(tag_v_v, 1)),
+                        WASM_RETURN0),
+           WASM_DROP, WASM_DROP, WASM_RETURN0),
+       WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK_X(
+           sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+           WASM_CONT_NEW(ToByte(cont1_index)),
+           WASM_RESUME_THROW(ToByte(cont1_index), ex_tag, 2,
+                             WASM_ON_TAG(tag_i_i, 0), WASM_SWITCH_TAG(tag_v_v)),
+           WASM_RETURN0),
+       WASM_DROP, WASM_DROP});
 }
 
 TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
@@ -5913,6 +6005,15 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
   uint8_t d_tag = builder.AddTag(sigs.v_d());
   uint8_t func_index = builder.AddFunction(sig_index);
   uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+  // sig1: [] -> [ref $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig1 = FunctionSig::Build(
+      zone(), {ValueType::Ref(cont_index, false, RefTypeKind::kCont)}, {});
+  ModuleTypeIndex sig1_index = builder.AddSignature(sig1);
+  // sig2: [] -> [f64, ref $ct] where $ct : cont [i32] -> [i32]
+  FunctionSig* sig2 = FunctionSig::Build(
+      zone(), {kWasmF64, ValueType::Ref(cont_index, false, RefTypeKind::kCont)},
+      {});
+  ModuleTypeIndex sig2_index = builder.AddSignature(sig2);
 
   ExpectFailure(sigs.v_v(),
                 {WASM_I32V(42), WASM_REF_FUNC(func_index),
@@ -5920,23 +6021,25 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
                  WASM_RESUME_THROW(ToByte(cont_index), 10, 0), WASM_DROP},
                 kAppendEnd, "Invalid tag index");
 
-  ExpectFailure(sigs.v_v(),
-                {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
-                              WASM_CONT_NEW(ToByte(cont_index)),
-                              WASM_RESUME_THROW(ToByte(cont_index), tag_i_i, 1,
-                                                WASM_ON_TAG(tag_i_i, 0)),
-                              WASM_RETURN0),
-                 WASM_DROP},
-                kAppendEnd, "tag signature 2 has non-void return");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME_THROW(ToByte(cont_index), tag_i_i, 1,
+                                      WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "tag signature 2 has non-void return");
 
-  ExpectFailure(sigs.v_v(),
-                {WASM_I32V(43), WASM_REF_FUNC(func_index),
-                 WASM_CONT_NEW(ToByte(cont_index)),
-                 WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
-                                   WASM_ON_TAG(tag_i_i, 0)),
-                 WASM_DROP},
-                kAppendEnd,
-                "handler generates 1 operand, target block returns 0");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig1_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                      WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "handler generates 2 operands, target block returns 1");
 
   ExpectFailure(sigs.v_v(),
                 {WASM_I32V(42.0), WASM_REF_FUNC(func_index),
@@ -5944,14 +6047,15 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
                  WASM_RESUME_THROW(ToByte(cont_index), d_tag, 0), WASM_DROP},
                 kAppendEnd, "expected type f64, found i32.const of type i32");
 
-  ExpectFailure(sigs.v_v(),
-                {WASM_BLOCK_D(WASM_I32V(43), WASM_REF_FUNC(func_index),
-                              WASM_CONT_NEW(ToByte(cont_index)),
-                              WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
-                                                WASM_ON_TAG(tag_i_i, 0)),
-                              WASM_RETURN0),
-                 WASM_DROP},
-                kAppendEnd, "type error in branch[0] (expected f64, got i32)");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_X(sig2_index, WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                      WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "type error in branch[0] (expected f64, got i32)");
 
   ExpectFailure(sigs.v_v(),
                 {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),

@@ -4590,13 +4590,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   V8_INLINE int DecodeEffectHandlerTable(
+      ContIndexImmediate cont_imm,
       EffectHandlerTableImmediate& handler_table_imm,
       base::Vector<HandlerCase>& handlers) {
-    EffectHandlerTableIterator<ValidationTag> handle_iterator(
+    EffectHandlerTableIterator<ValidationTag> handler_iterator(
         this, handler_table_imm);
     int i = 0;
-    while (handle_iterator.has_next()) {
-      HandlerCase handler = handle_iterator.next();
+    while (handler_iterator.has_next()) {
+      HandlerCase handler = handler_iterator.next();
 
       if (!this->Validate(this->pc_, handler.tag)) {
         return -1;
@@ -4606,17 +4607,69 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       uint32_t stack_size = stack_.size();
       uint32_t push_count = 0;
       if (handler.kind == kOnSuspend) {
-        const WasmTagSig* sig = handler.tag.tag->sig;
-        stack_.EnsureMoreCapacity(static_cast<int>(sig->parameter_count()),
-                                  this->zone_);
-        for (ValueType type : sig->parameters()) Push(type);
-        push_count += sig->parameter_count();
-
+        const WasmTagSig* tag_sig = handler.tag.tag->sig;
+        stack_.EnsureMoreCapacity(
+            static_cast<int>(tag_sig->parameter_count() + 1), this->zone_);
         if (!VALIDATE((this->Validate(this->pc_, handler.maybe_depth.br,
                                       control_depth())))) {
           return -1;
         }
         Control* target = control_at(handler.maybe_depth.br.depth);
+        int merge_arity = target->br_merge()->arity;
+        for (ValueType type : tag_sig->parameters()) Push(type);
+        push_count += tag_sig->parameter_count();
+
+        // The target block's last return type must be a continuation type
+        // index.
+        if (!VALIDATE(merge_arity > 0)) {
+          this->DecodeError(
+              "expected (ref null? cont) as last return type "
+              "of target block for handler %u"
+              ", no return type found",
+              handler_iterator.cur_index() - 1);
+          return -1;
+        }
+        Value& val = (*target->br_merge())[target->br_merge()->arity - 1];
+        ValueType type = val.type;
+        if (!VALIDATE(type.has_index() &&
+                      this->module_->has_cont_type(type.ref_index()))) {
+          this->DecodeError(
+              "expected (ref null? cont) as last return type "
+              "of target block for handler %u, got %s",
+              handler_iterator.cur_index() - 1, val.type.name().c_str());
+          return -1;
+        }
+        base::Vector<const ValueType> old_cont_returns =
+            this->module_->signature(cont_imm.cont_type->contfun_typeindex())
+                ->returns();
+        const ContType* cont_type = this->module_->cont_type(type.ref_index());
+        ModuleTypeIndex sig_index = cont_type->contfun_typeindex();
+        const FunctionSig* cont_sig = this->module_->signature(sig_index);
+
+        // The function type [t2*] -> [t*] must be a subtype of the continuation
+        // type, where t2* is the return type of the tag, and t* is the return
+        // type of the resumed continuation.
+        // This is contravariant in the parameters, so the continuation params
+        // should be a subtype of the tag returns t2*.
+        if (!VALIDATE(
+                IsSubtypeVec(cont_sig->parameters(), tag_sig->returns()))) {
+          this->DecodeError(
+              "Type mismatch between cont parameters and tag returns for "
+              "handler %u",
+              handler_iterator.cur_index() - 1);
+          return -1;
+        }
+        // And the old returns should be a subtype of the new ones.
+        if (!VALIDATE(IsSubtypeVec(old_cont_returns, cont_sig->returns()))) {
+          this->DecodeError(
+              "Type mismatch between old and new cont returns for handler %u",
+              handler_iterator.cur_index() - 1);
+          return -1;
+        }
+        Push(type);
+        push_count += 1;
+
+        // Finally, type check the branch itself.
         if (!VALIDATE(push_count == target->br_merge()->arity)) {
           this->DecodeError(
               "handler generates %d operand%s, target block returns %d",
@@ -4637,7 +4690,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       i++;
     }
-    return handle_iterator.length();
+    return handler_iterator.length();
   }
 
   DECODE(Resume) {
@@ -4656,7 +4709,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         this->zone_->template AllocateVector<HandlerCase>(
             handler_table_imm.table_count);
 
-    int table_length = DecodeEffectHandlerTable(handler_table_imm, handlers);
+    int table_length =
+        DecodeEffectHandlerTable(imm, handler_table_imm, handlers);
     if (table_length < 0) return 0;
 
     // Continuations are function-like values; check the args and returns.
@@ -4695,7 +4749,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         this->zone_->template AllocateVector<HandlerCase>(
             handler_table_imm.table_count);
 
-    int table_length = DecodeEffectHandlerTable(handler_table_imm, handlers);
+    int table_length =
+        DecodeEffectHandlerTable(cont_imm, handler_table_imm, handlers);
     if (table_length < 0) return 0;
 
     // The continuation might return, check the return type.
