@@ -1498,11 +1498,18 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   // Since this is combining untrusted data ({feedback} vector on the JS heap)
   // with trusted data ({call_targets}), make sure to avoid an OOB access.
   int checked_feedback_length = feedback->length();
-  SBXCHECK_EQ(checked_feedback_length, call_targets.size() * 2);
+  // The first slot is reserved for total invocation count.
+  SBXCHECK_EQ(checked_feedback_length,
+              call_targets.size() * FeedbackConstants::kSlotsPerInstruction +
+                  FeedbackConstants::kHeaderSlots);
   FeedbackMaker fm(isolate_, instance_data_, func_index,
-                   checked_feedback_length / 2);
-  for (int i = 0; i < checked_feedback_length; i += 2) {
-    uint32_t sentinel_or_target = call_targets[i / 2];
+                   (checked_feedback_length - FeedbackConstants::kHeaderSlots) /
+                       FeedbackConstants::kSlotsPerInstruction);
+  for (int i = FeedbackConstants::kHeaderSlots; i < checked_feedback_length;
+       i += FeedbackConstants::kSlotsPerInstruction) {
+    uint32_t sentinel_or_target =
+        call_targets[(i - FeedbackConstants::kHeaderSlots) /
+                     FeedbackConstants::kSlotsPerInstruction];
     Tagged<Object> first_slot = feedback->get(i);
     Tagged<Object> second_slot = feedback->get(i + 1);
 
@@ -1519,7 +1526,9 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       // Uninitialized call_ref or call_indirect.
       DCHECK_EQ(Smi::ToInt(first_slot), 0);
       if (v8_flags.trace_wasm_inlining) {
-        PrintF("[function %d: call #%d: uninitialized]\n", func_index, i / 2);
+        PrintF("[function %d: call #%d: uninitialized]\n", func_index,
+               (i - FeedbackConstants::kHeaderSlots) /
+                   FeedbackConstants::kSlotsPerInstruction);
       }
     } else if (IsWasmFuncRef(first_slot)) {
       // Monomorphic call_ref.
@@ -1536,16 +1545,19 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       Tagged<FixedArray> polymorphic = Cast<FixedArray>(first_slot);
       DCHECK(IsUndefined(second_slot));
       int checked_polymorphic_length = polymorphic->length();
-      SBXCHECK_LE(checked_polymorphic_length, 2 * kMaxPolymorphism);
+      SBXCHECK_LE(checked_polymorphic_length,
+                  FeedbackConstants::kSlotsPerInstruction * kMaxPolymorphism);
       if (sentinel_or_target == FunctionTypeFeedback::kCallRef) {
-        for (int j = 0; j < checked_polymorphic_length; j += 2) {
+        for (int j = 0; j < checked_polymorphic_length;
+             j += FeedbackConstants::kSlotsPerInstruction) {
           Tagged<WasmFuncRef> target = Cast<WasmFuncRef>(polymorphic->get(j));
           int count = Smi::ToInt(polymorphic->get(j + 1));
           fm.AddCallRefCandidate(target, count);
         }
       } else {
         DCHECK_EQ(sentinel_or_target, FunctionTypeFeedback::kCallIndirect);
-        for (int j = 0; j < checked_polymorphic_length; j += 2) {
+        for (int j = 0; j < checked_polymorphic_length;
+             j += FeedbackConstants::kSlotsPerInstruction) {
           Tagged<Object> target = polymorphic->get(j);
           int count = Smi::ToInt(polymorphic->get(j + 1));
           fm.AddCallIndirectCandidate(target, count);
@@ -1566,7 +1578,8 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       // their inlining decisions potentially causing deopt loops.
       const base::OwnedVector<CallSiteFeedback>& existing =
           feedback_for_function_[func_index].feedback_vector;
-      size_t feedback_index = i / 2;
+      size_t feedback_index = (i - FeedbackConstants::kHeaderSlots) /
+                              FeedbackConstants::kSlotsPerInstruction;
       if (feedback_index < existing.size()) {
         const CallSiteFeedback& old_feedback = existing[feedback_index];
         if (old_feedback.has_non_inlineable_targets()) {
@@ -1599,6 +1612,8 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   DCHECK_EQ(result.size(),
             feedback_for_function_[func_index].call_targets.size());
   feedback_for_function_[func_index].feedback_vector = std::move(result);
+  feedback_for_function_[func_index].num_invocations =
+      Cast<Smi>(feedback->get(0)).value();
 }
 
 void TriggerTierUp(Isolate* isolate,

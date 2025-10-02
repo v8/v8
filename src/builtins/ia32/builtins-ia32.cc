@@ -3180,6 +3180,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ JumpIfSmi(tmp, &allocate_vector);
 
   // Vector exists. Finish setting up the stack frame.
+  // Increment the total invocation count of the function.
+  __ add(FieldOperand(tmp, OFFSET_OF_DATA_START(FixedArray)),
+         Immediate(Smi::FromInt(1)));
   __ Push(tmp);                // Feedback vector.
   __ mov(tmp, instance_data_slot);  // Calling PC.
   __ Push(tmp);
@@ -3229,6 +3232,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   // [ WASM_LIFTOFF_SETUP ]      [       WASM         ]  <-- marker_slot
   // [      saved ebp     ]      [    saved ebp       ]
   __ mov(marker_slot, Immediate(StackFrame::TypeToMarker(StackFrame::WASM)));
+  // Increment the total invocation count of the function.
+  __ add(FieldOperand(tmp, OFFSET_OF_DATA_START(FixedArray)),
+         Immediate(Smi::FromInt(1)));
   __ Push(tmp);                // Feedback vector.
   __ mov(tmp, instance_data_slot);  // Calling PC.
   __ Push(tmp);

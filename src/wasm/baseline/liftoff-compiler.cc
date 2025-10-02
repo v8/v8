@@ -9734,9 +9734,7 @@ class LiftoffCompiler {
                             : compiler::kWasmFunction);
     call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
-    // One slot would be enough for call_direct, but would make index
-    // computations much more complicated.
-    size_t vector_slot = encountered_call_instructions_.size() * 2;
+    int vector_slot = NextFeedbackVectorSlot();
     if (v8_flags.wasm_inlining) {
       encountered_call_instructions_.push_back(imm.index);
     }
@@ -9785,9 +9783,9 @@ class LiftoffCompiler {
         LiftoffRegister vector = __ GetUnusedRegister(kGpReg, {});
         __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset,
                 kIntPtrKind);
-        __ IncrementSmi(vector,
-                        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                            static_cast<int>(vector_slot)));
+        __ IncrementSmi(
+            vector,
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(vector_slot));
         // Warning: {vector} may be clobbered by {IncrementSmi}!
       }
       // A direct call within this module just gets the current instance.
@@ -10091,14 +10089,7 @@ class LiftoffCompiler {
                 kRef);
         VarState vector_var{kRef, vector.reg(), 0};
 
-        // A constant `uint32_t` is sufficient for the vector slot index.
-        // The number of call instructions (and hence feedback vector slots) is
-        // capped by the number of instructions, which is capped by the maximum
-        // function body size.
-        static_assert(kV8MaxWasmFunctionSize <
-                      std::numeric_limits<uint32_t>::max() / 2);
-        uint32_t vector_slot =
-            static_cast<uint32_t>(encountered_call_instructions_.size()) * 2;
+        int vector_slot = NextFeedbackVectorSlot();
         encountered_call_instructions_.push_back(
             FunctionTypeFeedback::kCallIndirect);
         VarState index_var(kI32, vector_slot, 0);
@@ -10236,14 +10227,7 @@ class LiftoffCompiler {
 
       __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset, kRef);
       VarState vector_var{kRef, vector, 0};
-      // A constant `uint32_t` is sufficient for the vector slot index.
-      // The number of call instructions (and hence feedback vector slots) is
-      // capped by the number of instructions, which is capped by the maximum
-      // function body size.
-      static_assert(kV8MaxWasmFunctionSize <
-                    std::numeric_limits<uint32_t>::max() / 2);
-      uint32_t vector_slot =
-          static_cast<uint32_t>(encountered_call_instructions_.size()) * 2;
+      int vector_slot = NextFeedbackVectorSlot();
       encountered_call_instructions_.push_back(FunctionTypeFeedback::kCallRef);
       VarState index_var(kI32, vector_slot, 0);
 
@@ -10572,6 +10556,20 @@ class LiftoffCompiler {
     if (for_debugging_) {
       DefineSafepoint(protected_instruction_pc);
     }
+  }
+
+  int NextFeedbackVectorSlot() {
+    // A constant `int` is sufficient for the vector slot index.
+    // The number of call instructions (and hence feedback vector slots) is
+    // capped by the number of instructions, which is capped by the maximum
+    // function body size.
+    static_assert(kV8MaxWasmFunctionSize *
+                          FeedbackConstants::kSlotsPerInstruction +
+                      FeedbackConstants::kHeaderSlots <
+                  static_cast<size_t>(std::numeric_limits<int>::max()));
+    return static_cast<int>(encountered_call_instructions_.size() *
+                                FeedbackConstants::kSlotsPerInstruction +
+                            FeedbackConstants::kHeaderSlots);
   }
 
   bool has_outstanding_op() const {

@@ -2858,6 +2858,12 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ ldr(vector, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
+
+  // Increment the total invocation count of the function.
+  __ ldr(scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  __ add(scratch, scratch, Operand(Smi::FromInt(1)));
+  __ str(scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+
   __ push(kWasmImplicitArgRegister);
   __ push(vector);
   __ Ret();

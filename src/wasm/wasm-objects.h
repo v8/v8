@@ -473,6 +473,12 @@ class WasmGlobalObject
   TQ_OBJECT_CONSTRUCTORS(WasmGlobalObject)
 };
 
+class FeedbackConstants {
+ public:
+  static constexpr int kHeaderSlots = 1;
+  static constexpr int kSlotsPerInstruction = 2;
+};
+
 // The trusted part of a WebAssembly instance.
 // This object lives in trusted space and is never modified from user space.
 class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
