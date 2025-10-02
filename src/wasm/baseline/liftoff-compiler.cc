@@ -790,7 +790,6 @@ class LiftoffCompiler {
         dead_breakpoint_(options.dead_breakpoint),
         handlers_(zone),
         max_steps_(options.max_steps),
-        detect_nondeterminism_(options.detect_nondeterminism),
         deopt_info_bytecode_offset_(options.deopt_info_bytecode_offset),
         deopt_location_kind_(options.deopt_location_kind) {
     // We often see huge numbers of traps per function, so pre-reserve some
@@ -2293,16 +2292,6 @@ class LiftoffCompiler {
                               ? __ GetUnusedRegister(result_rc, {src}, {})
                               : __ GetUnusedRegister(result_rc, {});
     CallEmitFn(fn, dst, src);
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
-        CheckNan(dst, pinned, result_kind);
-      } else if (result_kind == ValueKind::kS128 &&
-                 (result_lane_kind == kF32 || result_lane_kind == kF64)) {
-        // TODO(irezvov): Add NaN detection for F16.
-        CheckS128Nan(dst, pinned, result_lane_kind);
-      }
-    }
     __ PushRegister(result_kind, dst);
   }
 
@@ -2567,8 +2556,6 @@ class LiftoffCompiler {
                                 : __ GetUnusedRegister(result_rc, pinned);
 
       CallEmitFn(fnImm, dst, lhs, imm);
-      static_assert(result_kind != kF32 && result_kind != kF64,
-                    "Unhandled nondeterminism for fuzzing.");
       __ PushRegister(result_kind, dst);
     } else {
       // The RHS was not an immediate.
@@ -2591,15 +2578,6 @@ class LiftoffCompiler {
     if (swap_lhs_rhs) std::swap(lhs, rhs);
 
     CallEmitFn(fn, dst, lhs, rhs);
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
-        CheckNan(dst, pinned, result_kind);
-      } else if (result_kind == ValueKind::kS128 &&
-                 (result_lane_kind == kF32 || result_lane_kind == kF64)) {
-        CheckS128Nan(dst, pinned, result_lane_kind);
-      }
-    }
     __ PushRegister(result_kind, dst);
   }
 
@@ -4602,16 +4580,6 @@ class LiftoffCompiler {
                  LiftoffRegister src2, LiftoffRegister src3,
                  ExtraArgs... extra_args) {
     CallEmitFn(fn, dst, src1, src2, src3, extra_args...);
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
-        CheckNan(dst, pinned, result_kind);
-      } else if (result_kind == ValueKind::kS128 &&
-                 (result_lane_kind == kF32 || result_lane_kind == kF64)) {
-        CheckS128Nan(dst, LiftoffRegList{src1, src2, src3, dst},
-                     result_lane_kind);
-      }
-    }
     __ PushRegister(result_kind, dst);
   }
 
@@ -4700,10 +4668,6 @@ class LiftoffCompiler {
       GenerateCCallWithStackBuffer(&dst, kVoid, kS128,
                                    {VarState{kS128, src, 0}}, ext_ref());
     }
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      CheckS128Nan(dst, pinned, result_lane_kind);
-    }
     __ PushRegister(kS128, dst);
   }
 
@@ -4725,10 +4689,6 @@ class LiftoffCompiler {
           &dst, kVoid, kS128,
           {VarState{kS128, src1, 0}, VarState{kS128, src2, 0}}, ext_ref());
     }
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      CheckS128Nan(dst, pinned, result_lane_kind);
-    }
     __ PushRegister(kS128, dst);
   }
 
@@ -4741,10 +4701,6 @@ class LiftoffCompiler {
     RegClass dst_rc = reg_class_for(kS128);
     LiftoffRegister dst = __ GetUnusedRegister(dst_rc, {});
     (asm_.*emit_fn)(dst, src1, src2, src3);
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned_inner{dst};
-      CheckS128Nan(dst, pinned_inner, result_lane_kind);
-    }
     __ PushRegister(kS128, dst);
   }
 
@@ -4764,10 +4720,6 @@ class LiftoffCompiler {
           {VarState{kS128, src1, 0}, VarState{kS128, src2, 0},
            VarState{kS128, src3, 0}},
           ext_ref());
-    }
-    if (V8_UNLIKELY(detect_nondeterminism_)) {
-      LiftoffRegList pinned_inner{dst};
-      CheckS128Nan(dst, pinned_inner, result_lane_kind);
     }
     __ PushRegister(kS128, dst);
   }
@@ -10576,27 +10528,6 @@ class LiftoffCompiler {
     __ FinishCall(sig, call_descriptor);
   }
 
-  void CheckNan(LiftoffRegister src, LiftoffRegList pinned, ValueKind kind) {
-    DCHECK(kind == ValueKind::kF32 || kind == ValueKind::kF64);
-    auto nondeterminism_addr = __ GetUnusedRegister(kGpReg, pinned);
-    __ LoadConstant(nondeterminism_addr,
-                    WasmValue::ForUintPtr(WasmEngine::GetNondeterminismAddr()));
-    __ emit_store_nonzero_if_nan(nondeterminism_addr.gp(), src.fp(), kind);
-  }
-
-  void CheckS128Nan(LiftoffRegister dst, LiftoffRegList pinned,
-                    ValueKind lane_kind) {
-    RegClass rc = reg_class_for(kS128);
-    LiftoffRegister tmp_gp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister tmp_s128 = pinned.set(__ GetUnusedRegister(rc, pinned));
-    LiftoffRegister nondeterminism_addr =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(nondeterminism_addr,
-                    WasmValue::ForUintPtr(WasmEngine::GetNondeterminismAddr()));
-    __ emit_s128_store_nonzero_if_nan(nondeterminism_addr.gp(), dst,
-                                      tmp_gp.gp(), tmp_s128, lane_kind);
-  }
-
   void ArrayFillImpl(FullDecoder* decoder, LiftoffRegList pinned,
                      LiftoffRegister obj, LiftoffRegister index,
                      LiftoffRegister value, LiftoffRegister length,
@@ -10790,8 +10721,6 @@ class LiftoffCompiler {
   // Pointer to information passed from the fuzzer. The pointer will be
   // embedded in generated code, which will update the value at runtime.
   int32_t* const max_steps_;
-  // Whether to track nondeterminism at runtime; used by differential fuzzers.
-  const bool detect_nondeterminism_;
 
   // Information for deopt'ed code.
   const uint32_t deopt_info_bytecode_offset_;

@@ -430,26 +430,20 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   size_t NativeModuleCount() const;
 
-  // Get the address of the static {had_nondeterminism_} flag, for embedding in
-  // generated code.
-  static Address GetNondeterminismAddr() {
-    return reinterpret_cast<Address>(&had_nondeterminism_);
-  }
-
   // Return {true} if nondeterminism was detected during previous execution.
   static bool had_nondeterminism() {
-    return had_nondeterminism_.load(std::memory_order_relaxed) != 0;
+    return had_nondeterminism_.load(std::memory_order_relaxed);
   }
 
   // Set the {had_nondeterminism_} flag.
   static void set_had_nondeterminism() {
-    had_nondeterminism_.store(1, std::memory_order_relaxed);
+    had_nondeterminism_.store(true, std::memory_order_relaxed);
   }
 
   // Clear the {had_nondeterminism_} flag and return whether nondeterminism was
   // detected before clearing.
   static bool clear_nondeterminism() {
-    return had_nondeterminism_.exchange(0, std::memory_order_relaxed) != 0;
+    return had_nondeterminism_.exchange(false, std::memory_order_relaxed);
   }
 
  private:
@@ -483,14 +477,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Remember in a global flag whether we saw nondeterminism during execution.
   // This is used in differential fuzzing.
-  // The address of this global is embedded in generated Liftoff code, and also
-  // some runtime functions update it (notably for growing memory, which can
-  // fail nondeterministically). In non-Liftoff executions, we still get the
-  // latter.
-  // This is typed as {int32_t} to have a deterministic bit pattern (in contrast
-  // to {bool}). A value of `0` means no nondeterminism, everything else
-  // indicates nondeterminism.
-  static std::atomic<int32_t> had_nondeterminism_;
+  // Some runtime functions will update this flag, e.g. when growing memory
+  // fails because of memory constraints.
+  static std::atomic<bool> had_nondeterminism_;
 
   AccountingAllocator allocator_;
 

@@ -119,7 +119,7 @@ class WasmOrphanedGlobalHandle {
 };
 
 // static
-std::atomic<int32_t> WasmEngine::had_nondeterminism_{0};
+std::atomic<bool> WasmEngine::had_nondeterminism_{false};
 
 // static
 WasmOrphanedGlobalHandle* WasmEngine::NewOrphanedGlobalHandle(

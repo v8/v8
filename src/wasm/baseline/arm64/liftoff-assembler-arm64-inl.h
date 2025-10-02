@@ -4520,45 +4520,6 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
-void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst,
-                                                 DoubleRegister src,
-                                                 ValueKind kind) {
-  Label not_nan;
-  if (kind == kF32) {
-    Fcmp(src.S(), src.S());
-    B(eq, &not_nan);  // x != x iff isnan(x)
-    // If it's a NaN, it must be non-zero, so store that as the set value.
-    Str(src.S(), MemOperand(dst));
-  } else {
-    DCHECK_EQ(kind, kF64);
-    Fcmp(src.D(), src.D());
-    B(eq, &not_nan);  // x != x iff isnan(x)
-    // Double-precision NaNs must be non-zero in the most-significant 32
-    // bits, so store that.
-    St1(src.V4S(), 1, MemOperand(dst));
-  }
-  Bind(&not_nan);
-}
-
-void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
-                                                      LiftoffRegister src,
-                                                      Register tmp_gp,
-                                                      LiftoffRegister tmp_s128,
-                                                      ValueKind lane_kind) {
-  DoubleRegister tmp_fp = tmp_s128.fp();
-  if (lane_kind == kF32) {
-    Fmaxv(tmp_fp.S(), src.fp().V4S());
-  } else {
-    DCHECK_EQ(lane_kind, kF64);
-    Fmaxp(tmp_fp.D(), src.fp().V2D());
-  }
-  emit_store_nonzero_if_nan(dst, tmp_fp, lane_kind);
-}
-
-void LiftoffAssembler::emit_store_nonzero(Register dst) {
-  Str(dst, MemOperand(dst));
-}
-
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   // The stack pointer is required to be quadword aligned.

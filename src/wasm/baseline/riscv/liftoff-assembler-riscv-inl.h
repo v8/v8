@@ -2322,28 +2322,6 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
   vfmerge_vf(dst.fp().toV(), src2.fp(), src1.fp().toV());
 }
 
-void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
-                                                      LiftoffRegister src,
-                                                      Register tmp_gp,
-                                                      LiftoffRegister tmp_s128,
-                                                      ValueKind lane_kind) {
-  ASM_CODE_COMMENT(this);
-  if (lane_kind == kF32) {
-    VU.SetSimd128(E32);
-    vmfeq_vv(kSimd128ScratchReg, src.fp().toV(),
-             src.fp().toV());  // scratch <- !IsNan(tmp_fp)
-  } else {
-    VU.SetSimd128(E64);
-    DCHECK_EQ(lane_kind, kF64);
-    vmfeq_vv(kSimd128ScratchReg, src.fp().toV(),
-             src.fp().toV());  // scratch <- !IsNan(tmp_fp)
-  }
-  vmv_xs(kScratchReg, kSimd128ScratchReg);
-  not_(kScratchReg, kScratchReg);
-  andi(kScratchReg, kScratchReg, int32_t(lane_kind == kF32 ? 0xF : 0x3));
-  Sw(kScratchReg, MemOperand(dst));
-}
-
 void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2,
@@ -2506,25 +2484,6 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 }
 
 void LiftoffAssembler::MaybeOSR() {}
-
-void LiftoffAssembler::emit_store_nonzero(Register dst) {
-  Sw(dst, MemOperand(dst));
-}
-
-void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst, FPURegister src,
-                                                 ValueKind kind) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  li(scratch, 1);
-  if (kind == kF32) {
-    feq_s(scratch, src, src);  // rd <- !isNan(src)
-  } else {
-    DCHECK_EQ(kind, kF64);
-    feq_d(scratch, src, src);  // rd <- !isNan(src)
-  }
-  seqz(scratch, scratch);
-  Sw(scratch, MemOperand(dst));
-}
 
 void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be
