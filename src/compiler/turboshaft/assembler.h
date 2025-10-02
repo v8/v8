@@ -4983,8 +4983,9 @@ class TurboshaftAssemblerOpInterface
                                         arguments, parameters, out_reps);
   }
 
-  void RuntimeAbort(AbortReason reason) {
+  V<None> RuntimeAbort(AbortReason reason) {
     ReduceIfReachableRuntimeAbort(reason);
+    return V<None>::Invalid();
   }
 
   V<Object> EnsureWritableFastElements(V<Object> object, V<Object> elements) {

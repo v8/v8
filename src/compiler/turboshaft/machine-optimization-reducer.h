@@ -2028,6 +2028,11 @@ class MachineOptimizationReducer : public Next {
           if (broker != nullptr) {
             UnparkedScopeIfNeeded scope(broker);
             AllowHandleDereference allow_handle_dereference;
+            // We don't expect holes to get here normally, but they might
+            // via some un-eliminated dead code.
+            if (IsAnyHole(*base.handle())) {
+              return __ RuntimeAbort(AbortReason::kUnreachable);
+            }
             OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
             if (MapLoadCanBeConstantFolded(map)) {
               return __ HeapConstant(map->object());
