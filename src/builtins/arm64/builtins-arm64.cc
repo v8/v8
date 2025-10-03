@@ -3370,10 +3370,10 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ LoadTaggedField(scratch,
                      FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   if (SmiValuesAre31Bits()) {
-    __ Adds(scratch.W(), scratch.W(), Immediate(Smi::FromInt(1)));
+    __ Add(scratch.W(), scratch.W(), Immediate(Smi::FromInt(1)));
   } else {
     DCHECK(scratch.IsX());
-    __ Adds(scratch.X(), scratch.X(), Immediate(Smi::FromInt(1)));
+    __ Add(scratch.X(), scratch.X(), Immediate(Smi::FromInt(1)));
   }
   __ StoreTaggedField(
       scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
