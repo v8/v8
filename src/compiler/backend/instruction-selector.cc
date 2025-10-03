@@ -1252,8 +1252,9 @@ void InstructionSelector::InitializeCallBuffer(
     case CallDescriptor::kCallJSFunction:
       // TODO(olivf): Implement the required kArchCallJSFunction with
       // immediate argument on all architectures.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM) || \
-    defined(V8_TARGET_ARCH_ARM64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM) ||     \
+    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
+    defined(V8_TARGET_ARCH_S390X)
       if (this->IsHeapConstant(callee)) {
         buffer->instruction_args.push_back(g.UseImmediate(callee));
         break;

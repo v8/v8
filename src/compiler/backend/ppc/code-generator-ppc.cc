@@ -720,6 +720,10 @@ void CodeGenerator::AssemblePrepareTailCall() {
   frame_access_state()->SetFrameAccessToSP();
 }
 
+bool HasImmediateInput(Instruction* instr, size_t index) {
+  return instr->InputAt(index)->IsImmediate();
+}
+
 namespace {
 
 void FlushPendingPushRegisters(MacroAssembler* masm,
@@ -937,17 +941,47 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallJSFunction: {
       v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
           masm());
-      Register func = i.InputRegister(0);
-      if (v8_flags.debug_code) {
-        // Check the function's context matches the context argument.
-        __ LoadTaggedField(
-            kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset), r0);
-        __ CmpS64(cp, kScratchReg);
-        __ Assert(eq, AbortReason::kWrongFunctionContext);
-      }
       uint32_t num_arguments =
           i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      __ CallJSFunction(func, num_arguments);
+      if (HasImmediateInput(instr, 0)) {
+        Handle<HeapObject> constant =
+            i.ToConstant(instr->InputAt(0)).ToHeapObject();
+        __ Move(kJavaScriptCallTargetRegister, constant);
+        if (Handle<JSFunction> function; TryCast(constant, &function)) {
+          if (function->shared()->HasBuiltinId()) {
+            Builtin builtin = function->shared()->builtin_id();
+            size_t expected = Builtins::GetFormalParameterCount(builtin);
+            if (num_arguments == expected) {
+              __ CallBuiltin(builtin);
+            } else {
+              __ AssertUnreachable(AbortReason::kJSSignatureMismatch);
+            }
+          } else {
+            JSDispatchHandle dispatch_handle = function->dispatch_handle();
+            size_t expected =
+                IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
+                    dispatch_handle);
+            if (num_arguments >= expected) {
+              __ CallJSDispatchEntry(dispatch_handle, expected);
+            } else {
+              __ AssertUnreachable(AbortReason::kJSSignatureMismatch);
+            }
+          }
+        } else {
+          __ CallJSFunction(kJavaScriptCallTargetRegister, num_arguments);
+        }
+      } else {
+        Register func = i.InputRegister(0);
+        if (v8_flags.debug_code) {
+          // Check the function's context matches the context argument.
+          __ LoadTaggedField(kScratchReg,
+                             FieldMemOperand(func, JSFunction::kContextOffset),
+                             r0);
+          __ CmpS64(cp, kScratchReg);
+          __ Assert(eq, AbortReason::kWrongFunctionContext);
+        }
+        __ CallJSFunction(func, num_arguments);
+      }
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();
