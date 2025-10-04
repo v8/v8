@@ -172,6 +172,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   DeoptimizeReason deoptimization_reason = exit->reason();
   Label* jump_deoptimization_entry_label =
       &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
+  if (info()->source_positions() ||
+      AlwaysPreserveDeoptReason(deoptimization_reason)) {
+    masm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
+                              exit->pos(), deoptimization_id);
+  }
 
   if (deopt_kind == DeoptimizeKind::kLazy ||
       deopt_kind == DeoptimizeKind::kLazyAfterFastCall) {
@@ -185,14 +190,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   masm()->CallForDeoptimization(target, deoptimization_id, exit->label(),
                                 deopt_kind, exit->continue_label(),
                                 jump_deoptimization_entry_label);
-
-  // RecordDeoptReason has to be right after the call so that the deopt is
-  // associated with the correct pc.
-  if (info()->source_positions() ||
-      AlwaysPreserveDeoptReason(deoptimization_reason)) {
-    masm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
-                              exit->pos(), deoptimization_id);
-  }
 
   exit->set_emitted();
 

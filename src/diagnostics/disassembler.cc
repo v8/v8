@@ -378,12 +378,12 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       if (pc_address <= current_pc - range_limit) continue;
     }
 
-    // Collect RelocInfo for this instruction (prev_pc+1 .. pc)
+    // Collect RelocInfo for this instruction (prev_pc .. pc-1)
     std::vector<const char*> comments;
     std::vector<Address> pcs;
     std::vector<RelocInfo::Mode> rmodes;
     std::vector<intptr_t> datas;
-    while (!rit.done() && rit.rinfo()->pc() <= reinterpret_cast<Address>(pc)) {
+    while (!rit.done() && rit.rinfo()->pc() < reinterpret_cast<Address>(pc)) {
       // Collect all data.
       pcs.push_back(rit.rinfo()->pc());
       rmodes.push_back(rit.rinfo()->rmode());

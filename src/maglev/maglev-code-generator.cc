@@ -1868,20 +1868,24 @@ bool MaglevCodeGenerator::EmitDeopts() {
     local_isolate_->heap()->Safepoint();
     translation_builder.BuildEagerDeopt(deopt_info);
 
+    if (masm_.compilation_info()->collect_source_positions() ||
+        AlwaysPreserveDeoptReason(deopt_info->reason()) ||
+        IsDeoptimizationWithoutCodeInvalidation(deopt_info->reason())) {
+      // Note: Maglev uses the deopt_reason to tell the deoptimizer not to
+      // discard optimized code on deopt during ML-TF OSR. This is why we
+      // unconditionally emit the deopt_reason when
+      // IsDeoptimizationWithoutCodeInvalidation is true.
+      __ RecordDeoptReason(deopt_info->reason(), 0,
+                           deopt_info->top_frame().GetSourcePosition(),
+                           deopt_index);
+    }
+
     __ bind(deopt_info->deopt_entry_label());
 
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, deopt_index,
                              deopt_info->deopt_entry_label(),
                              DeoptimizeKind::kEager, nullptr,
                              &eager_deopt_entry);
-    // RecordDeoptReason has to be right after the call so that the deopt is
-    // associated with the correct pc.
-    if (masm_.compilation_info()->collect_source_positions() ||
-        AlwaysPreserveDeoptReason(deopt_info->reason())) {
-      __ RecordDeoptReason(deopt_info->reason(), 0,
-                           deopt_info->top_frame().GetSourcePosition(),
-                           deopt_index);
-    }
 
     deopt_index++;
   }
@@ -1892,19 +1896,16 @@ bool MaglevCodeGenerator::EmitDeopts() {
     local_isolate_->heap()->Safepoint();
     translation_builder.BuildLazyDeopt(deopt_info);
 
-    __ BindExceptionHandler(deopt_info->deopt_entry_label());
-
-    __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, deopt_index,
-                             deopt_info->deopt_entry_label(),
-                             DeoptimizeKind::kLazy, nullptr, &lazy_deopt_entry);
-
-    // RecordDeoptReason has to be right after the call so that the deopt is
-    // associated with the correct pc.
     if (masm_.compilation_info()->collect_source_positions()) {
       __ RecordDeoptReason(DeoptimizeReason::kUnknown, 0,
                            deopt_info->top_frame().GetSourcePosition(),
                            deopt_index);
     }
+    __ BindExceptionHandler(deopt_info->deopt_entry_label());
+
+    __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, deopt_index,
+                             deopt_info->deopt_entry_label(),
+                             DeoptimizeKind::kLazy, nullptr, &lazy_deopt_entry);
 
     last_updated_safepoint = safepoint_table_builder_.UpdateDeoptimizationInfo(
         deopt_info->deopting_call_return_pc(),
