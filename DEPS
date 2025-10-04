@@ -87,7 +87,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:29.20250927.0.1',
+  'fuchsia_version': 'version:29.20251004.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '153778fdef706483966b63da24763ecf3ba2468a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4d06a1da7d3dd500370f0cd5536f0cbfcccfbebb',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2325cd98715bdbd532669717df8ce48cff9dc407',
   'buildtools/linux64': {
