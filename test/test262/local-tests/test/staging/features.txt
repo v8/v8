@@ -50,19 +50,11 @@ json-parse-with-source
 # https://github.com/tc39/proposal-explicit-resource-management
 explicit-resource-management
 
-# Math.sumPrecise
-# https://github.com/tc39/proposal-math-sum
-Math.sumPrecise
-
 # Source Phase Imports
 ## https://github.com/tc39/proposal-source-phase-imports
 source-phase-imports
 ## test262 special specifier
 source-phase-imports-module-source
-
-# Uint8Array Base64
-# https://github.com/tc39/proposal-arraybuffer-base64
-uint8array-base64
 
 # Atomics.pause
 # https://github.com/tc39/proposal-atomics-microwait
@@ -184,6 +176,7 @@ json-superset
 let
 logical-assignment-operators
 Map
+Math.sumPrecise
 new.target
 numeric-separator-literal
 object-rest
@@ -255,6 +248,7 @@ TypedArray
 TypedArray.prototype.at
 u180e
 Uint8Array
+uint8array-base64
 Uint16Array
 Uint32Array
 Uint8ClampedArray
