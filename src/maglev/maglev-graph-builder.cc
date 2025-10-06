@@ -1970,7 +1970,7 @@ using Int32NodeFor = typename Int32NodeForHelper<kOperation>::type;
 
 template <Operation kOperation>
 struct Float64NodeForHelper;
-#define SPECIALIZATION(op, OpNode)                \
+#define SPECIALIZATION(op, OpNode, ...)           \
   template <>                                     \
   struct Float64NodeForHelper<Operation::k##op> { \
     using type = OpNode;                          \

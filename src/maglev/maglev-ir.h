@@ -682,12 +682,12 @@ constexpr bool HasRangeType(Opcode opcode) {
 // MAP_OPERATION_TO_FLOAT64_NODE are tuples with the following format:
 // (Operation name, Float64 operation node).
 #define MAP_OPERATION_TO_FLOAT64_NODE(V) \
-  V(Add, Float64Add)                     \
-  V(Subtract, Float64Subtract)           \
-  V(Multiply, Float64Multiply)           \
-  V(Divide, Float64Divide)               \
-  V(Modulus, Float64Modulus)             \
-  V(Exponentiate, Float64Exponentiate)
+  V(Add, Float64Add, -0.0)               \
+  V(Subtract, Float64Subtract, 0.0)      \
+  V(Multiply, Float64Multiply, 1.0)      \
+  V(Divide, Float64Divide, 1.0)          \
+  V(Modulus, Float64Modulus, {})         \
+  V(Exponentiate, Float64Exponentiate, {})
 
 template <Operation kOperation>
 static constexpr std::optional<int32_t> Int32Identity() {
@@ -696,6 +696,19 @@ static constexpr std::optional<int32_t> Int32Identity() {
   case Operation::k##op:      \
     return identity;
     MAP_BINARY_OPERATION_TO_INT32_NODE(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Operation kOperation>
+static constexpr std::optional<double> Float64Identity() {
+  switch (kOperation) {
+#define CASE(op, _, identity) \
+  case Operation::k##op:      \
+    return identity;
+    MAP_OPERATION_TO_FLOAT64_NODE(CASE)
 #undef CASE
     default:
       UNREACHABLE();

@@ -1465,6 +1465,17 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64UnaryOperationForToNumber(
   }
 }
 
+namespace details {
+inline bool Float64Equal(std::optional<double> left,
+                         std::optional<double> right) {
+  if (!left.has_value() || !right.has_value()) return false;
+  // This is basically `==` but it returns false for mismatching +0.0/-0.0 and
+  // it returns true for NaN.
+  return base::bit_cast<uint64_t>(*left) == base::bit_cast<uint64_t>(*right) ||
+         (std::isnan(*left) && std::isnan(*right));
+}
+}  // namespace details
+
 template <typename BaseT>
 template <Operation kOperation>
 MaybeReduceResult
@@ -1474,6 +1485,14 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
   auto cst_right = TryGetFloat64Constant(UseRepresentation::kFloat64, right,
                                          conversion_type);
   if (!cst_right.has_value()) return {};
+  if (details::Float64Equal(cst_right, Float64Identity<kOperation>())) {
+    // Deopt if {left} is not a Float64.
+    GetFloat64(left);
+    if (left->properties().is_conversion()) {
+      return left->input(0).node();
+    }
+    return left;
+  }
   return TryFoldFloat64BinaryOperationForToNumber<kOperation>(
       conversion_type, left, cst_right.value());
 }
@@ -1486,7 +1505,15 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
     double cst_right) {
   auto cst_left =
       TryGetFloat64Constant(UseRepresentation::kFloat64, left, conversion_type);
-  if (!cst_left.has_value()) return {};
+  if (!cst_left.has_value()) {
+    // TODO(dmercadier): we could still do strength reduction, like
+    //     x * 2  ==> x + x
+    //     x ** 2 ==> x * x
+    //     etc.
+    // For inspiration, REDUCE(FloatBinop) in machine-optimization-reducer.h
+    // contains a lot of these.
+    return {};
+  }
   switch (kOperation) {
     case Operation::kAdd:
       return GetNumberConstant(cst_left.value() + cst_right);
