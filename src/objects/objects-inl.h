@@ -95,11 +95,6 @@ bool IsTaggedIndex(Tagged<Object> obj) {
          TaggedIndex::IsValid(Tagged<TaggedIndex>(obj.ptr()).value());
 }
 
-bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
-  return IsHeapObject(obj) &&
-         IsJSObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
-}
-
 #define IS_TYPE_FUNCTION_DEF(type_)                                          \
   bool Is##type_(Tagged<Object> obj) {                                       \
     return IsHeapObject(obj) && Is##type_(Cast<HeapObject>(obj));            \
@@ -506,11 +501,29 @@ bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #endif
 }
 
+bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
+  return IsHeapObject(obj) &&
+         IsJSObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
+}
+
 bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
   // never change.
   return IsJSObject(obj) && !HeapLayout::InWritableSharedSpace(*obj);
+}
+
+bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
+  return IsHeapObject(obj) &&
+         IsAnyObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
+}
+
+bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
+  // Do not optimize objects in the shared heap because it is not
+  // threadsafe. Objects in the shared heap have fixed layouts and their maps
+  // never change.
+  return (IsJSObject(obj) || IsWasmObject(obj)) &&
+         !HeapLayout::InWritableSharedSpace(*obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {

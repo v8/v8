@@ -2382,8 +2382,8 @@ void Map::SetInstanceDescriptors(Isolate* isolate,
 
 // static
 DirectHandle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(
-    DirectHandle<JSObject> prototype, Isolate* isolate) {
-  DCHECK(IsJSObjectThatCanBeTrackedAsPrototype(*prototype));
+    DirectHandle<JSReceiver> prototype, Isolate* isolate) {
+  DCHECK(IsAnyObjectThatCanBeTrackedAsPrototype(*prototype));
   {
     Tagged<PrototypeInfo> prototype_info;
     if (prototype->map()->TryGetPrototypeInfo(&prototype_info)) {
