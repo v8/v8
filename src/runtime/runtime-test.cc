@@ -1631,8 +1631,13 @@ RUNTIME_FUNCTION(Runtime_VerifyGetJSBuiltinState) {
   HandleScope scope(isolate);
 #ifdef DEBUG
   CHECK_UNLESS_FUZZING(args.length() == 1);
-  bool allow_non_initial_state = Object::BooleanValue(args[0], isolate);
-  isolate->builtins()->VerifyGetJSBuiltinState(allow_non_initial_state);
+  // Checking the state of builtins doesn't make sense with --fuzzing
+  // because the JS code could have modified the heap state in a way
+  // not expected by VerifyGetJSBuiltinState() machinery.
+  if (!v8_flags.fuzzing) {
+    bool allow_non_initial_state = Object::BooleanValue(args[0], isolate);
+    isolate->builtins()->VerifyGetJSBuiltinState(allow_non_initial_state);
+  }
 #endif
   return ReadOnlyRoots(isolate).undefined_value();
 }

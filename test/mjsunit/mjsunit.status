@@ -2952,6 +2952,9 @@
   # Requires lazy.
   'regress/regress-crbug-1407080': [SKIP],
 
+  # This test is not compatible with --fuzzing.
+  'regress/regress-435630464-verification-failure': [SKIP],
+
   # Negative tests are not supported, because we pass --no-fail.
   'bugs/*': [SKIP],
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
