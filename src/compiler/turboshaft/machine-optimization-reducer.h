@@ -691,6 +691,13 @@ class MachineOptimizationReducer : public Next {
         }
       }
 
+      if (kind == Kind::kAdd) {
+        // lhs + -0.0  =>  lhs
+        if (!signalling_nan_possible && matcher_.MatchFloat(rhs, -0.0)) {
+          return lhs;
+        }
+      }
+
       if (kind == Kind::kPower) {
         if (matcher_.MatchFloat(rhs, 0.0) || matcher_.MatchFloat(rhs, -0.0)) {
           // lhs ** 0  ==>  1
