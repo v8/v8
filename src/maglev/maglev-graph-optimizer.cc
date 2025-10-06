@@ -259,8 +259,10 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
 
 ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
     DeoptimizeReason reason) {
-  reducer_.current_block()->set_deferred(true);
-  reducer_.current_block()->reset_control_node();
+  BasicBlock* block = reducer_.current_block();
+  ControlNode* control = block->reset_control_node();
+  block->set_deferred(true);
+  block->RemovePredecessorFollowing(control);
   reducer_.AddNewControlNode<Deopt>({}, reason);
   return ReduceResult::DoneWithAbort();
 }

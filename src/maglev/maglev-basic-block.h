@@ -287,6 +287,24 @@ class BasicBlock {
     return current;
   }
 
+  void RemovePredecessorFollowing(ControlNode* control) {
+    ForEachSuccessorFollowing(control, [&](BasicBlock* succ) {
+      if (!succ->has_state()) {
+        succ->set_predecessor(nullptr);
+        return;
+      }
+      if (succ->is_loop() && succ->backedge_predecessor() == this) {
+        succ->state()->TurnLoopIntoRegularBlock();
+        return;
+      }
+      for (int i = succ->predecessor_count() - 1; i >= 0; i--) {
+        if (succ->predecessor_at(i) == this) {
+          succ->state()->RemovePredecessorAt(i);
+        }
+      }
+    });
+  }
+
   bool is_deferred() const { return deferred_; }
   void set_deferred(bool deferred) { deferred_ = deferred; }
 
