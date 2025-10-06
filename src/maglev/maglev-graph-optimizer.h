@@ -100,13 +100,12 @@ class MaglevGraphOptimizer {
   Jump* FoldBranch(BasicBlock* current, BranchControlNode* branch_node,
                    bool if_true);
 
-  ValueNode* GetInputAt(int index) const;
   ProcessResult ReplaceWith(ValueNode* node);
 
   template <Operation kOperation>
-  std::optional<ProcessResult> TryFoldInt32Operation();
+  std::optional<ProcessResult> TryFoldInt32Operation(ValueNode* node);
   template <Operation kOperation>
-  std::optional<ProcessResult> TryFoldFloat64Operation();
+  std::optional<ProcessResult> TryFoldFloat64Operation(ValueNode* node);
 };
 
 }  // namespace maglev
