@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import os
 import re
 
 from pathlib import Path
@@ -16,46 +15,17 @@ META_SCRIPT_REGEXP = re.compile(r"META:\s*script=(.*)")
 META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 
 proposal_flags = [
-    {
-        'name': 'js-types',
-        'flags': ['--experimental-wasm-type-reflection']
-    },
-    {
-        'name': 'tail-call',
-        'flags': []
-    },
-    {
-        'name': 'memory64',
-        # The memory64 repository is rebased on exnref, so also enable that.
-        'flags': ['--experimental-wasm-exnref']
-    },
-    {
-        'name': 'extended-const',
-        'flags': []
-    },
-    {
-        'name': 'function-references',
-        'flags': []
-    },
-    {
-        'name': 'gc',
-        'flags': []
-    },
-    {
-        'name': 'jspi',
-        'flags': ['--experimental-wasm-jspi']
-    },
-    {
-        'name': 'exception-handling',
-        'flags': ['--experimental-wasm-exnref']
-    },
+    # currently none; if needed add entries in this form:
+    # {
+    #     'name': 'exception-handling',
+    #     'flags': ['--experimental-wasm-exnref']
+    # },
 ]
-
 
 wpt_flags = [
     {
         'name': 'memory',
-        'flags': ['--experimental-wasm-rab-integration', '--wasm-staging']
+        'flags': ['--experimental-wasm-rab-integration']
     },
 ]
 
@@ -70,7 +40,7 @@ class TestSuite(testsuite.TestSuite):
 
   def __init__(self, ctx, *args, **kwargs):
     super(TestSuite, self).__init__(ctx, *args, **kwargs)
-    self.mjsunit_js = self.root.parent / "mjsunit" /"mjsunit.js"
+    self.mjsunit_js = self.root.parent / "mjsunit" / "mjsunit.js"
     self.test_root = self.root / "tests"
     self._test_loader.test_root = self.test_root
 
@@ -80,8 +50,10 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
+
 def get_proposal_identifier(proposal):
   return f"proposals/{proposal['name']}"
+
 
 class TestCase(testcase.D8TestCase):
   def _get_timeout_param(self):
@@ -109,22 +81,21 @@ class TestCase(testcase.D8TestCase):
       if script.startswith(WPT_ROOT):
         # Matched an absolute path, strip the root and replace it with our
         # local root.
-        found = False
-        for proposal in proposal_flags:
-          prop_path = get_proposal_identifier(proposal)
-          if prop_path in current_dir.as_posix():
-            found = True
-            script = self.suite.test_root / prop_path / script[len(WPT_ROOT):]
-        if 'wpt' in current_dir.as_posix():
-          found = True
-          script = self.suite.test_root / 'wpt' / script[len(WPT_ROOT):]
-        if not found:
-          script = self.suite.test_root / script[len(WPT_ROOT):]
+        script_suffix = script[len(WPT_ROOT):]
+        subdirs = []
+        # If the test is in the 'proposals' directory, load relative to that
+        # proposal.
+        if self.path.parts[0] == 'proposals':
+          subdirs = self.path.parts[0:2]
+        # Similarly, load from the 'wpt' directory for wpt tests.
+        elif self.path.parts[0] == 'wpt':
+          subdirs = ['wpt']
+        script = self.suite.test_root.joinpath(*subdirs) / script_suffix
       elif not Path(script).is_absolute():
         # Matched a relative path, prepend this test's directory.
         script = current_dir / script
       else:
-        raise Exception(f"Unexpected absolute path for script: \"{script}\"");
+        raise Exception(f"Unexpected absolute path for script: \"{script}\"")
 
       files.append(script)
 

@@ -43,15 +43,12 @@
   'wpt/tag/type.tentative': [FAIL],
 
   # TODO(449581914): Investigate these failures and fix either in the proposal or in V8.
-  # assert_function_name is not defined
-  # assert_function_length is not defined
+  # WebAssembly.Memory(): Unknown address type '0'; pass 'i32' or 'i64'
   'proposals/threads/memory/constructor': [FAIL],
   # assert_equals: WebAssembly.Table.set length should be 2 expected 2 but got 1
   'proposals/threads/interface': [FAIL],
   # self is not defined
   'proposals/threads/memory/grow': [FAIL],
-  # WebAssembly.Module(): reached end while decoding globals count @+37
-  'proposals/threads/module/exports': [FAIL],
   # assert_throws_js: function "() => table.set(0)" did not throw
   'proposals/threads/table/get-set': [FAIL],
 }], # ALWAYS
