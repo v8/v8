@@ -4936,11 +4936,13 @@ void JSObject::MakePrototypesFast(DirectHandle<Object> receiver,
                                   WhereToStart where_to_start,
                                   Isolate* isolate) {
   if (!IsJSReceiver(*receiver)) return;
-  if (IsWasmObject(*receiver)) where_to_start = kStartAtPrototype;
   for (PrototypeIterator iter(isolate, Cast<JSReceiver>(receiver),
                               where_to_start);
        !iter.IsAtEnd(); iter.Advance()) {
     DirectHandle<Object> current = PrototypeIterator::GetCurrent(iter);
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmObject(*current)) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
     if (!IsJSObjectThatCanBeTrackedAsPrototype(*current)) return;
     DirectHandle<JSObject> current_obj = Cast<JSObject>(current);
     Tagged<Map> current_map = current_obj->map();
@@ -5079,7 +5081,11 @@ void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
                                          Isolate* isolate) {
   // Contract: In line with InvalidatePrototypeChains()'s requirements,
   // leaf maps don't need to register as users, only prototypes do.
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(user->is_prototype_map() || IsWasmObjectMap(*user));
+#else
   DCHECK(user->is_prototype_map());
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   DirectHandle<Map> current_user = user;
   DirectHandle<PrototypeInfo> current_user_info =
@@ -5099,8 +5105,8 @@ void JSObject::LazyRegisterPrototypeUser(DirectHandle<Map> user,
     // change, so they don't need to be tracked as prototypes
     // anyway. Additionally, registering users of shared objects is not
     // threadsafe.
-    if (!IsJSObjectThatCanBeTrackedAsPrototype(*maybe_proto)) continue;
-    auto proto = Cast<JSObject>(maybe_proto);
+    if (!IsAnyObjectThatCanBeTrackedAsPrototype(*maybe_proto)) continue;
+    DirectHandle<JSReceiver> proto = Cast<JSReceiver>(maybe_proto);
     DirectHandle<PrototypeInfo> proto_info =
         Map::GetOrCreatePrototypeInfo(proto, isolate);
     Handle<Object> maybe_registry(proto_info->prototype_users(), isolate);
@@ -5173,7 +5179,12 @@ namespace {
 // AccessorAssembler::InvalidateValidityCellIfPrototype() which does pre-checks
 // before jumping here.
 void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(map->is_prototype_map() || IsWasmObjectMap(map));
+#else
   DCHECK(map->is_prototype_map());
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   if (v8_flags.trace_prototype_users) {
     PrintF("Invalidating prototype map %p 's cell\n",
            reinterpret_cast<void*>(map.ptr()));
