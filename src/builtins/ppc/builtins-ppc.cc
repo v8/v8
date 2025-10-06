@@ -3083,8 +3083,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
   // Increment the total invocation count of the function.
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  __ LoadTaggedField(
+      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)), r0);
   __ Move(r0, Smi::FromInt(1));
   __ AddS64(scratch, scratch, r0);
   __ StoreTaggedField(
