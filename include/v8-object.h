@@ -517,7 +517,7 @@ class V8_EXPORT Object : public Value {
                                                      int index,
                                                      EmbedderDataTypeTag tag);
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE void* GetAlignedPointerFromInternalField(int index) {
@@ -525,7 +525,7 @@ class V8_EXPORT Object : public Value {
                                               kEmbedderDataTypeTagDefault);
   }
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE void* GetAlignedPointerFromInternalField(v8::Isolate* isolate,
@@ -542,7 +542,7 @@ class V8_EXPORT Object : public Value {
         index, tag);
   }
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE static void* GetAlignedPointerFromInternalField(
@@ -559,7 +559,7 @@ class V8_EXPORT Object : public Value {
         index, tag);
   }
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use GetAlignedPointerFromInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE static void* GetAlignedPointerFromInternalField(
@@ -576,14 +576,14 @@ class V8_EXPORT Object : public Value {
   void SetAlignedPointerInInternalField(int index, void* value,
                                         EmbedderDataTypeTag tag);
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag parameter "
       "instead.")
   void SetAlignedPointerInInternalField(int index, void* value) {
     SetAlignedPointerInInternalField(index, value, kEmbedderDataTypeTagDefault);
   }
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag "
       "parameter instead.")
   void SetAlignedPointerInInternalFields(int argc, int indices[],
@@ -821,7 +821,7 @@ class V8_EXPORT Object : public Value {
   void* GetAlignedPointerFromEmbedderDataInCreationContext(
       int index, EmbedderDataTypeTag tag);
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
       "EmbedderDataTypeTag parameter instead.")
   void* GetAlignedPointerFromEmbedderDataInCreationContext(v8::Isolate* isolate,
@@ -830,7 +830,7 @@ class V8_EXPORT Object : public Value {
         isolate, index, kEmbedderDataTypeTagDefault);
   }
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use GetAlignedPointerFromEmbedderDataInCreationContext with "
       "EmbedderDataTypeTag parameter instead.")
   void* GetAlignedPointerFromEmbedderDataInCreationContext(int index) {

@@ -304,7 +304,7 @@ class V8_EXPORT Context : public Data {
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index,
                                                     EmbedderDataTypeTag tag);
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate,
@@ -313,7 +313,7 @@ class V8_EXPORT Context : public Data {
                                              kEmbedderDataTypeTagDefault);
   }
 
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index) {
@@ -329,7 +329,7 @@ class V8_EXPORT Context : public Data {
    * index, growing the data as needed. Note that index 0 currently has a
    * special meaning for Chrome's debugger.
    */
-  V8_DEPRECATED(
+  V8_DEPRECATE_SOON(
       "Use SetAlignedPointerInEmbedderData with EmbedderDataTypeTag parameter "
       "instead.")
   void SetAlignedPointerInEmbedderData(int index, void* value) {
