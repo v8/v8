@@ -140,7 +140,7 @@ log_and_run rm -rf wpt
 # Generate the proposal tests.
 ###############################################################################
 
-repos='js-promise-integration'
+repos='js-promise-integration threads'
 
 for repo in ${repos}; do
   new_section "Process ${repo}: core tests"
@@ -158,27 +158,32 @@ for repo in ${repos}; do
   CHANGED_FILES=${TMP_DIR}/${repo}/changed-files-since-merge-base
   log git diff --name-only ${MERGE_BASE} -- test/core test/js-api
   git diff --name-only ${MERGE_BASE} -- test/core test/js-api >$CHANGED_FILES
-  # Compile the spec interpreter to generate the .js test cases later.
-  # TODO: Switch to distclean and remove this manual "rm" once all proposals are rebased.
-  log_and_run rm -f interpreter/wasm
-  log_and_run make -C interpreter clean wasm
 
-  DST_DIR=${SPEC_TEST_DIR}/tests/proposals/${repo}
-  # Iterate over all proposal tests. Those which differ from the spec tests are
-  # copied to the output directory and converted to .js tests.
-  for filename in $(find test/core -name '*.wast'); do
-    if [ -f ${TMP_DIR}/spec/$filename ] && cmp -s $filename ${TMP_DIR}/spec/$filename; then
-      echo "Test identical to the spec repo: ${filename}"
-    elif ! grep -E "^${filename}$" $CHANGED_FILES >/dev/null; then
-      echo "Test unchanged since merge base: ${filename}"
-    else
-      echo "Changed test: ${filename}"
-      copy_file_relative ${filename} test/core ${DST_DIR}
-      log_and_run test/core/run.py --wasm interpreter/wasm --out ${TMP_BUILD_DIR} ${filename}
-      DST_FILE=${DST_DIR}/${filename#test/core/}
-      log_and_run mv -v ${TMP_BUILD_DIR}/*.js $(dirname ${DST_FILE})
-    fi
-  done
+  # Skip spec tests from the "threads" repo because the `thread` construct cannot
+  # be translated to JS yet (see https://github.com/WebAssembly/threads/issues/218).
+  if [[ $repo != "threads" ]]; then
+    # Compile the spec interpreter to generate the .js test cases later.
+    # TODO: Switch to distclean and remove this manual "rm" once all proposals are rebased.
+    log_and_run rm -f interpreter/wasm
+    log_and_run make -C interpreter clean wasm
+
+    DST_DIR=${SPEC_TEST_DIR}/tests/proposals/${repo}
+    # Iterate over all proposal tests. Those which differ from the spec tests are
+    # copied to the output directory and converted to .js tests.
+    for filename in $(find test/core -name '*.wast'); do
+      if [ -f ${TMP_DIR}/spec/$filename ] && cmp -s $filename ${TMP_DIR}/spec/$filename; then
+        echo "Test identical to the spec repo: ${filename}"
+      elif ! grep -E "^${filename}$" $CHANGED_FILES >/dev/null; then
+        echo "Test unchanged since merge base: ${filename}"
+      else
+        echo "Changed test: ${filename}"
+        copy_file_relative ${filename} test/core ${DST_DIR}
+        log_and_run test/core/run.py --wasm interpreter/wasm --out ${TMP_BUILD_DIR} ${filename}
+        DST_FILE=${DST_DIR}/${filename#test/core/}
+        log_and_run mv -v ${TMP_BUILD_DIR}/*.js $(dirname ${DST_FILE})
+      fi
+    done
+  fi
 
   new_section "Process ${repo}: js-api tests"
   for filename in $(find test/js-api -name '*.any.js'); do
