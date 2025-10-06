@@ -31,19 +31,38 @@ asm(
     ".p2align 2                                         \n"
     "PushAllRegistersAndIterateStack:                   \n"
 #endif  // !defined(__APPLE__)
+    ".cfi_startproc                                     \n"
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
     // Sign return address.
     "  paciasp                                          \n"
+    ".cfi_negate_ra_state                               \n"
 #endif
     "  stp fp, lr,   [sp, #-16]!                        \n"
+    // CFA (Canonical Frame Address) starts 16 bytes above stack pointer.
+    ".cfi_def_cfa_offset 16                             \n"
+    // Return address in lr is saved 8 bytes below CFA.
+    ".cfi_offset lr, -8                                 \n"
+    // Previous value of rbp is saved 16 bytes below CFA.
+    ".cfi_offset fp, -16                                \n"
     // Maintain frame pointer.
     "  mov fp, sp                                       \n"
+    ".cfi_def_cfa_register fp                           \n"
     // x19-x28 are callee-saved.
     "  stp x19, x20, [sp, #-16]!                        \n"
+    ".cfi_offset x19, -32                               \n"
+    ".cfi_offset x20, -24                               \n"
     "  stp x21, x22, [sp, #-16]!                        \n"
+    ".cfi_offset x21, -48                               \n"
+    ".cfi_offset x22, -40                               \n"
     "  stp x23, x24, [sp, #-16]!                        \n"
+    ".cfi_offset x23, -64                               \n"
+    ".cfi_offset x24, -56                               \n"
     "  stp x25, x26, [sp, #-16]!                        \n"
+    ".cfi_offset x25, -80                               \n"
+    ".cfi_offset x26, -72                               \n"
     "  stp x27, x28, [sp, #-16]!                        \n"
+    ".cfi_offset x27, -96                               \n"
+    ".cfi_offset x28, -88                               \n"
     // Pass 1st parameter (x0) unchanged (Stack*).
     // Pass 2nd parameter (x1) unchanged (StackVisitor*).
     // Save 3rd parameter (x2; IterateStackCallback)
@@ -60,6 +79,7 @@ asm(
     "  autiasp                                          \n"
 #endif
     "  ret                                              \n"
+    ".cfi_endproc                                       \n"
 #if !defined(__APPLE__) && !defined(_WIN64)
     ".Lfunc_end0:                                       \n"
     ".size PushAllRegistersAndIterateStack, "
