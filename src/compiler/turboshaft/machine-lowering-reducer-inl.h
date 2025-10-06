@@ -3473,6 +3473,10 @@ class MachineLoweringReducer : public Next {
   V<None> REDUCE(RuntimeAbort)(AbortReason reason) {
     __ CallRuntime_Abort(isolate_, __ NoContextConstant(),
                          __ TagSmi(static_cast<int>(reason)));
+    // RuntimeAbort exits the function and should thus be a block terminator,
+    // but we currently don't allow Simplified operations to be block
+    // terminators. We thus manually add an Unreachable after it.
+    __ Unreachable();
     return V<None>::Invalid();
   }
 

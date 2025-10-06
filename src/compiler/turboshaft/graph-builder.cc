@@ -2173,7 +2173,6 @@ OpIndex GraphBuilder::Process(
 #define ELSE_UNREACHABLE                                    \
   ELSE {                                                    \
     __ RuntimeAbort(AbortReason::kFastCallFallbackInvalid); \
-    __ Unreachable();                                       \
   }
         switch (return_type) {
           case CTypeInfo::Type::kVoid:

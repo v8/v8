@@ -4985,6 +4985,10 @@ class TurboshaftAssemblerOpInterface
 
   V<None> RuntimeAbort(AbortReason reason) {
     ReduceIfReachableRuntimeAbort(reason);
+    // RuntimeAbort exits the function and should thus be a block terminator,
+    // but we currently don't allow Simplified operations to be block
+    // terminators. We thus manually add an Unreachable after it.
+    Unreachable();
     return V<None>::Invalid();
   }
 

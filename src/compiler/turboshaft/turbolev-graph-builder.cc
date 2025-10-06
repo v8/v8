@@ -4164,7 +4164,6 @@ class GraphBuildingNodeProcessor {
 
       BIND(abort);
       __ RuntimeAbort(AbortReason::kUnexpectedValue);
-      __ Unreachable();
 
       BIND(heap_number);
 #endif
@@ -5026,9 +5025,6 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::Abort* node,
                                 const maglev::ProcessingState& state) {
     __ RuntimeAbort(node->reason());
-    // TODO(dmercadier): remove this `Unreachable` once RuntimeAbort is marked
-    // as a block terminator.
-    __ Unreachable();
     return maglev::ProcessResult::kContinue;
   }
 
@@ -5143,7 +5139,6 @@ class GraphBuildingNodeProcessor {
 
     BIND(abort);
     __ RuntimeAbort(node->reason());
-    __ Unreachable();
 
     BIND(end);
     return maglev::ProcessResult::kContinue;
