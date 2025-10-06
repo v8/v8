@@ -531,8 +531,21 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       ValueRepresentation from_repr = bypassed_input->value_representation();
       ValueNode* new_input;
       if (from_repr == repr) {
-        TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
-        new_input = bypassed_input;
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        if (input->Is<HoleyFloat64ToTagged>()) {
+          DCHECK_EQ(from_repr, ValueRepresentation::kHoleyFloat64);
+          // HoleyFloat64ToTagged conversion does convert holes to undefined, so
+          // we need to preserve this behavior even if we eliminate that node.
+          new_input =
+              GetReplacementForPhiInputConversion<ConvertHoleNanToUndefinedNan>(
+                  bypassed_input, phi, input_index);
+        } else {
+#endif
+          TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
+          new_input = bypassed_input;
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+        }
+#endif
       } else {
         Opcode conv_opcode =
             GetOpcodeForConversion(from_repr, repr, /*truncating*/ false);

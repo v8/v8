@@ -9309,7 +9309,12 @@ class StoreFixedDoubleArrayElement
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
-      ValueRepresentation::kHoleyFloat64};
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+      ValueRepresentation::kHoleyFloat64
+#else
+      ValueRepresentation::kFloat64
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+  };
 
   static constexpr int kElementsIndex = 0;
   static constexpr int kIndexIndex = 1;
