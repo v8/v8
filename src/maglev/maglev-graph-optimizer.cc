@@ -13,6 +13,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-range-analysis.h"
 #include "src/maglev/maglev-reducer-inl.h"
 #include "src/maglev/maglev-reducer.h"
 
@@ -47,8 +48,9 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
 }  // namespace
 
 MaglevGraphOptimizer::MaglevGraphOptimizer(
-    Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor)
-    : reducer_(this, graph), kna_processor_(kna_processor) {}
+    Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor,
+    NodeRanges* ranges)
+    : reducer_(this, graph), kna_processor_(kna_processor), ranges_(ranges) {}
 
 BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
     BasicBlock* block) {
@@ -89,6 +91,11 @@ void MaglevGraphOptimizer::PostProcessNode(ControlNode*) {}
 
 compiler::JSHeapBroker* MaglevGraphOptimizer::broker() const {
   return reducer_.broker();
+}
+
+std::optional<Range> MaglevGraphOptimizer::GetRange(ValueNode* node) {
+  if (!ranges_) return {};
+  return ranges_->Get(reducer_.current_block(), node);
 }
 
 ValueNode* MaglevGraphOptimizer::GetInputAt(int index) const {
@@ -312,6 +319,13 @@ ProcessResult MaglevGraphOptimizer::VisitCheckHeapObject(
 ProcessResult MaglevGraphOptimizer::VisitCheckInt32Condition(
     CheckInt32Condition* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  if (node->condition() == AssertCondition::kUnsignedLessThan) {
+    auto r1 = GetRange(GetInputAt(0));
+    auto r2 = GetRange(GetInputAt(1));
+    if (r1 && r2 && r1->IsUint32() && *r1 < *r2) {
+      return ProcessResult::kRemove;
+    }
+  }
   return ProcessResult::kContinue;
 }
 
@@ -1204,7 +1218,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiSizedInt32(
     CheckedSmiSizedInt32* node, const ProcessingState& state) {
   if (auto cst = reducer_.TryGetInt32Constant(GetInputAt(0))) {
     if (Smi::IsValid(cst.value())) {
-      return ProcessResult::kRemove;
+      return ReplaceWith(reducer_.GetInt32Constant(cst.value()));
     }
   }
   return ProcessResult::kContinue;
@@ -1213,6 +1227,13 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiSizedInt32(
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagInt32(
     CheckedSmiTagInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  if (auto range = GetRange(GetInputAt(0))) {
+    if (Range::Smi().contains(*range)) {
+      return ReplaceWith(
+          reducer_.AddNewNodeNoInputConversion<UnsafeSmiTagInt32>(
+              {GetInputAt(0)}));
+    }
+  }
   return ProcessResult::kContinue;
 }
 

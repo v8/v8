@@ -49,13 +49,16 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-labeller.h"
+#include "src/maglev/maglev-graph-optimizer.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-inlining.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-kna-processor.h"
 #include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
+#include "src/maglev/maglev-range-analysis.h"
 #include "src/maglev/maglev-truncation.h"
 #include "src/objects/contexts.h"
 #include "src/objects/elements-kind.h"
@@ -6513,6 +6516,26 @@ bool ShouldPrintMaglevGraph(PipelineData* data) {
   return data->info()->trace_turbo_graph() || v8_flags.print_turbolev_frontend;
 }
 
+void RunMaglevOptimizer(PipelineData* data, maglev::Graph* graph,
+                        maglev::NodeRanges* ranges) {
+  maglev::RecomputeKnownNodeAspectsProcessor kna_processor(graph);
+  maglev::MaglevGraphOptimizer optimizer(graph, kna_processor, ranges);
+  maglev::GraphMultiProcessor<maglev::MaglevGraphOptimizer&,
+                              maglev::RecomputeKnownNodeAspectsProcessor&>
+      optimization_pass(optimizer, kna_processor);
+  optimization_pass.ProcessGraph(graph);
+
+  // Remove unreachable blocks if we have any.
+  if (graph->may_have_unreachable_blocks()) {
+    graph->RemoveUnreachableBlocks();
+  }
+
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
+    std::cout << "\nAfter optimization " << std::endl;
+    PrintGraph(std::cout, graph);
+  }
+}
+
 // TODO(dmercadier, nicohartmann): consider doing some of these optimizations on
 // the Turboshaft graph after the Maglev->Turboshaft translation. For instance,
 // MaglevPhiRepresentationSelector is the Maglev equivalent of Turbofan's
@@ -6552,6 +6575,15 @@ bool RunMaglevOptimizations(PipelineData* data,
 
   if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
     PrintMaglevGraph(*data, maglev_graph, "After phi untagging");
+  }
+
+  if (v8_flags.maglev_range_analysis) {
+    maglev::NodeRanges ranges(maglev_graph);
+    ranges.ProcessGraph();
+    if (V8_UNLIKELY(v8_flags.trace_maglev_range_analysis)) {
+      ranges.Print();
+    }
+    RunMaglevOptimizer(data, maglev_graph, &ranges);
   }
 
   // Escape analysis.

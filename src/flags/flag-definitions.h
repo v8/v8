@@ -624,11 +624,18 @@ DEFINE_BOOL(maglev_pretenure_store_values, true,
             "allocation sites.")
 DEFINE_BOOL(maglev_poly_calls, true, "Support (inlining) polymorphic calls")
 DEFINE_BOOL(maglev_truncation, true, "Enable Maglev truncation pass")
+
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
+
+DEFINE_EXPERIMENTAL_FEATURE(maglev_range_analysis,
+                            "Enable Maglev range value analysis pass")
+DEFINE_BOOL(trace_maglev_range_analysis, false,
+            "Trace Maglev range value analysis pass")
+DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
 
 DEFINE_UINT(
     concurrent_maglev_max_threads, 2,

@@ -13,6 +13,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-kna-processor.h"
+#include "src/maglev/maglev-range-analysis.h"
 #include "src/maglev/maglev-reducer.h"
 
 namespace v8 {
@@ -22,7 +23,8 @@ namespace maglev {
 class MaglevGraphOptimizer {
  public:
   explicit MaglevGraphOptimizer(
-      Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor);
+      Graph* graph, RecomputeKnownNodeAspectsProcessor& kna_processor,
+      NodeRanges* ranges = nullptr);
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
@@ -56,6 +58,7 @@ class MaglevGraphOptimizer {
  private:
   MaglevReducer<MaglevGraphOptimizer> reducer_;
   RecomputeKnownNodeAspectsProcessor& kna_processor_;
+  NodeRanges* ranges_;
 
   NodeBase* current_node_;
 
@@ -65,6 +68,8 @@ class MaglevGraphOptimizer {
   }
 
   compiler::JSHeapBroker* broker() const;
+
+  std::optional<Range> GetRange(ValueNode* node);
 
   // Iterates the deopt frames unwrapping its inputs, ie, removing Identity or
   // ReturnedValue nodes.
