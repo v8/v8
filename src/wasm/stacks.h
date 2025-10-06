@@ -168,7 +168,13 @@ class StackMemory {
   void set_func_ref(Tagged<WasmFuncRef> func_ref) { func_ref_ = func_ref; }
   static int func_ref_offset() { return OFFSET_OF(StackMemory, func_ref_); }
 
-  static int JSCentralStackLimitMarginKB() { return DEBUG_BOOL ? 80 : 40; }
+  static int JSCentralStackLimitMarginKB() {
+#if defined(DEBUG) || defined(V8_USE_ADDRESS_SANITIZER)
+    return 80;
+#else
+    return 40;
+#endif
+  }
 
   static int JSGrowableStackLimitMarginKB() {
     if (!v8_flags.experimental_wasm_growable_stacks) {
