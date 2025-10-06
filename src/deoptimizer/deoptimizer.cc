@@ -3065,33 +3065,38 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(Tagged<Code> code) {
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Tagged<Code> code,
                                                  Address pc) {
   CHECK(code->instruction_start() <= pc && pc <= code->instruction_end());
-  SourcePosition last_position = SourcePosition::Unknown();
-  DeoptimizeReason last_reason = DeoptimizeReason::kUnknown;
-  uint32_t last_node_id = 0;
-  int last_deopt_id = kNoDeoptimizationId;
+  SourcePosition position = SourcePosition::Unknown();
+  DeoptimizeReason reason = DeoptimizeReason::kUnknown;
+  uint32_t node_id = 0;
+  int deopt_id = kNoDeoptimizationId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_SCRIPT_OFFSET) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_INLINING_ID) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_NODE_ID);
-  for (RelocIterator it(code, mask); !it.done(); it.next()) {
+  RelocIterator it(code, mask);
+  while (!it.done() && it.rinfo()->pc() < pc) {
+    it.next();
+  }
+  while (!it.done() && it.rinfo()->pc() == pc) {
     RelocInfo* info = it.rinfo();
-    if (info->pc() >= pc) break;
     if (info->rmode() == RelocInfo::DEOPT_SCRIPT_OFFSET) {
       int script_offset = static_cast<int>(info->data());
       it.next();
       DCHECK(it.rinfo()->rmode() == RelocInfo::DEOPT_INLINING_ID);
       int inlining_id = static_cast<int>(it.rinfo()->data());
-      last_position = SourcePosition(script_offset, inlining_id);
+      position = SourcePosition(script_offset, inlining_id);
     } else if (info->rmode() == RelocInfo::DEOPT_ID) {
-      last_deopt_id = static_cast<int>(info->data());
+      deopt_id = static_cast<int>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
-      last_reason = static_cast<DeoptimizeReason>(info->data());
+      reason = static_cast<DeoptimizeReason>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_NODE_ID) {
-      last_node_id = static_cast<uint32_t>(info->data());
+      node_id = static_cast<uint32_t>(info->data());
     }
+    it.next();
   }
-  return DeoptInfo(last_position, last_reason, last_node_id, last_deopt_id);
+
+  return DeoptInfo(position, reason, node_id, deopt_id);
 }
 
 }  // namespace internal
