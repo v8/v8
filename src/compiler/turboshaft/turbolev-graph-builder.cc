@@ -5555,13 +5555,12 @@ class GraphBuildingNodeProcessor {
                 MachineType::AnyTagged(),
                 __ HeapConstantHole(local_factory_->the_hole_value()));
           } else {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
             // TODO(nicohartmann): Handle is_undefined_nan here.
-            DCHECK(!value_as_float.is_nan());
-            builder.AddInput(
-                MachineType::AnyTagged(),
-                __ NumberConstant(value->Cast<maglev::Float64Constant>()
-                                      ->value()
-                                      .get_scalar()));
+            DCHECK(!value_as_float.is_undefined_nan());
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+            builder.AddInput(MachineType::AnyTagged(),
+                             __ NumberConstant(value_as_float));
           }
           break;
         }

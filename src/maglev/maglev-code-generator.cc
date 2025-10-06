@@ -1514,8 +1514,10 @@ class MaglevFrameTranslationBuilder {
               GetDeoptLiteral(ReadOnlyRoots{local_isolate_}.the_hole_value()));
           return;
         }
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
         // TODO(nicohartmann): Handle is_undefined_nan here.
-        DCHECK(!value_as_float.is_nan());
+        DCHECK(!value_as_float.is_undefined_nan());
+#endif  //  V8_ENABLE_UNDEFINED_DOUBLE
       }
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
