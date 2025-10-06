@@ -2765,7 +2765,11 @@ Maybe<bool> Object::TransitionAndWriteDataProperty(
   it->PrepareTransitionToDataProperty(receiver, value, attributes,
                                       store_origin);
   DCHECK_EQ(LookupIterator::TRANSITION, it->state());
-  it->ApplyTransitionToDataProperty(receiver);
+
+  // Apply the transitions -- this can fail if there are too many properties.
+  Maybe<bool> transitioned =
+      it->ApplyTransitionToDataProperty(receiver, should_throw);
+  if (!transitioned.FromMaybe(false)) return transitioned;
 
   // Write the property value.
   it->WriteDataValue(value, true);
@@ -3494,8 +3498,10 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate,
     if (!dict.is_identical_to(result)) proxy->SetProperties(*result);
   } else {
     DirectHandle<NameDictionary> dict(proxy->property_dictionary(), isolate);
-    DirectHandle<NameDictionary> result =
-        NameDictionary::Add(isolate, dict, private_name, value, details);
+    DirectHandle<NameDictionary> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        NameDictionary::Add(isolate, dict, private_name, value, details));
     if (!dict.is_identical_to(result)) proxy->SetProperties(*result);
   }
   return Just(true);
@@ -5238,9 +5244,13 @@ HandleType<Derived> Dictionary<Derived, Shape>::DeleteEntry(
 template <typename Derived, typename Shape>
 template <template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
-HandleType<Derived> Dictionary<Derived, Shape>::AtPut(
-    Isolate* isolate, HandleType<Derived> dictionary, Key key,
-    DirectHandle<Object> value, PropertyDetails details) {
+auto Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
+                                       HandleType<Derived> dictionary, Key key,
+                                       DirectHandle<Object> value,
+                                       PropertyDetails details) {
+  using AtPutReturnType =
+      decltype(Derived::Add(isolate, dictionary, key, value, details));
+
   InternalIndex entry = dictionary->FindEntry(isolate, key);
 
   // If the entry is present set the value;
@@ -5251,7 +5261,7 @@ HandleType<Derived> Dictionary<Derived, Shape>::AtPut(
   // We don't need to copy over the enumeration index.
   dictionary->ValueAtPut(entry, *value);
   if (TodoShape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
-  return dictionary;
+  return AtPutReturnType(dictionary);
 }
 
 template <typename Derived, typename Shape>
@@ -5286,7 +5296,7 @@ BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
 template <typename Derived, typename Shape>
 template <template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
-HandleType<Derived> BaseNameDictionary<Derived, Shape>::Add(
+HandleType<Derived>::MaybeType BaseNameDictionary<Derived, Shape>::Add(
     Isolate* isolate, HandleType<Derived> dictionary, Key key,
     DirectHandle<Object> value, PropertyDetails details,
     InternalIndex* entry_out) {
@@ -5295,6 +5305,10 @@ HandleType<Derived> BaseNameDictionary<Derived, Shape>::Add(
   // Assign an enumeration index to the property and update
   // SetNextEnumerationIndex.
   int index = Derived::NextEnumerationIndex(isolate, dictionary);
+  if (!PropertyDetails::CanSetIndex(index)) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kTooManyProperties));
+  }
   details = details.set_index(index);
   dictionary = AddNoUpdateNextEnumerationIndex(isolate, dictionary, key, value,
                                                details, entry_out);
@@ -6324,11 +6338,11 @@ bool MapWord::IsMapOrForwarded(Tagged<Map> map) {
   BaseNameDictionary<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,  \
                                           MinimumCapacity);                    \
                                                                                \
-  template V8_EXPORT_PRIVATE DirectHandle<DERIVED>                             \
+  template V8_EXPORT_PRIVATE MaybeDirectHandle<DERIVED>                        \
   BaseNameDictionary<DERIVED, SHAPE>::Add(                                     \
       Isolate* isolate, DirectHandle<DERIVED>, Key, DirectHandle<Object>,      \
       PropertyDetails, InternalIndex*);                                        \
-  template V8_EXPORT_PRIVATE IndirectHandle<DERIVED>                           \
+  template V8_EXPORT_PRIVATE MaybeIndirectHandle<DERIVED>                      \
   BaseNameDictionary<DERIVED, SHAPE>::Add(                                     \
       Isolate* isolate, IndirectHandle<DERIVED>, Key, DirectHandle<Object>,    \
       PropertyDetails, InternalIndex*);                                        \

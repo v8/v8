@@ -1021,7 +1021,8 @@ void TestNameDictionaryLookup() {
     DirectHandle<Object> value =
         factory->NewPropertyCell(keys[i], fake_details, keys[i]);
     dictionary =
-        Dictionary::Add(isolate, dictionary, keys[i], value, fake_details);
+        Dictionary::Add(isolate, dictionary, keys[i], value, fake_details)
+            .ToHandleChecked();
   }
 
   for (size_t i = 0; i < arraysize(keys); i++) {

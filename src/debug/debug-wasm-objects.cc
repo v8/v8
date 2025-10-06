@@ -13,6 +13,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug-wasm-objects-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/isolate.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/property-descriptor.h"
 #include "src/wasm/canonical-types.h"
@@ -238,7 +239,8 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
       if (table->FindEntry(isolate, key).is_found()) continue;
       DirectHandle<Smi> value(Smi::FromInt(index), isolate);
       table = NameDictionary::Add(isolate, table, key, value,
-                                  PropertyDetails::Empty());
+                                  PropertyDetails::Empty())
+                  .ToHandleChecked();
     }
     Object::SetProperty(isolate, holder, symbol, table).Check();
     return table;

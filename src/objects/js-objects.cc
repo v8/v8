@@ -2800,7 +2800,8 @@ void JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
       details = details.set_cell_type(cell_type);
       auto cell = isolate->factory()->NewPropertyCell(name, details, value);
       dictionary =
-          GlobalDictionary::Add(isolate, dictionary, name, cell, details);
+          GlobalDictionary::Add(isolate, dictionary, name, cell, details)
+              .ToHandleChecked();
       global_obj->set_global_dictionary(*dictionary, kReleaseStore);
     } else {
       PropertyCell::PrepareForAndSetValue(isolate, dictionary, entry, value,
@@ -2830,7 +2831,8 @@ void JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
         DCHECK_IMPLIES(object->map()->is_prototype_map(),
                        !object->map()->IsPrototypeValidityCellValid());
         dictionary =
-            NameDictionary::Add(isolate, dictionary, name, value, details);
+            NameDictionary::Add(isolate, dictionary, name, value, details)
+                .ToHandleChecked();
         object->SetProperties(*dictionary);
       } else {
         PropertyDetails original_details = dictionary->DetailsAt(entry);
@@ -3398,7 +3400,8 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
       ord_dictionary =
           SwissNameDictionary::Add(isolate, ord_dictionary, key, value, d);
     } else {
-      dictionary = NameDictionary::Add(isolate, dictionary, key, value, d);
+      dictionary = NameDictionary::Add(isolate, dictionary, key, value, d)
+                       .ToHandleChecked();
     }
   }
 
