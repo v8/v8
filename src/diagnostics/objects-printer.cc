@@ -2630,6 +2630,7 @@ void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
   os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
   os << "\n - instruction_start: "
      << reinterpret_cast<void*>(instruction_start());
+  os << "\n - is_disabled_builtin: " << is_disabled_builtin();
   os << "\n - is_turbofanned: " << is_turbofanned();
   os << "\n - stack_slots: " << stack_slots();
   os << "\n - marked_for_deoptimization: " << marked_for_deoptimization();

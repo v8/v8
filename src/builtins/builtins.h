@@ -533,6 +533,19 @@ class Builtins {
   using JSBuiltinStateFlags = base::Flags<JSBuiltinStateFlag>;
   static JSBuiltinStateFlags GetJSBuiltinState(Builtin builtin);
 
+  // Returns true for disabled builtins with JS linkage (all non-JS builtins
+  // are considered enabled).
+  static bool IsDisabled(Builtin builtin) {
+    auto flags = Builtins::GetJSBuiltinState(builtin);
+    DCHECK_EQ(Builtins::HasJSLinkage(builtin),
+              !(flags & Builtins::JSBuiltinStateFlag::kNonJSLinkage));
+    if (!(flags & Builtins::JSBuiltinStateFlag::kNonJSLinkage) &&
+        !(flags & Builtins::JSBuiltinStateFlag::kEnabled)) {
+      return true;
+    }
+    return false;
+  }
+
 #ifdef DEBUG
   // Verify correctness of GetJSBuiltinState() which has to be maintained
   // manually. The idea is to iterate the heap to figure out which builtins

@@ -27076,9 +27076,9 @@ MaybeLocal<Object> CheckResolveSource(Local<Context> context,
   return {};
 }
 
-TEST(ImportSourceResolveModuleAndSource) {
-  i::v8_flags.js_source_phase_imports = true;
-
+TEST_WITH_FLAGS(ImportSourceResolveModuleAndSource,
+                "--js-source-phase-imports") {
+  DCHECK(i::v8_flags.js_source_phase_imports);
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -27247,8 +27247,9 @@ v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackStatic(
   return v8::Context::New(CcTest::isolate());
 }
 
-TEST(CreateShadowRealmContextHostNotSupported) {
-  i::v8_flags.harmony_shadow_realm = true;
+TEST_WITH_FLAGS(CreateShadowRealmContextHostNotSupported,
+                "--harmony-shadow-realm") {
+  DCHECK(i::v8_flags.harmony_shadow_realm);
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -27273,8 +27274,8 @@ TEST(CreateShadowRealmContextHostNotSupported) {
             .FromJust());
 }
 
-TEST(CreateShadowRealmContext) {
-  i::v8_flags.harmony_shadow_realm = true;
+TEST_WITH_FLAGS(CreateShadowRealmContext, "--harmony-shadow-realm") {
+  DCHECK(i::v8_flags.harmony_shadow_realm);
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
@@ -27302,8 +27303,8 @@ v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackThrow(
   return v8::MaybeLocal<v8::Context>();
 }
 
-TEST(CreateShadowRealmContextThrow) {
-  i::v8_flags.harmony_shadow_realm = true;
+TEST_WITH_FLAGS(CreateShadowRealmContextThrow, "--harmony-shadow-realm") {
+  DCHECK(i::v8_flags.harmony_shadow_realm);
   LocalContext context;
   v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);

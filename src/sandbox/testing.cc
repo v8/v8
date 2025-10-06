@@ -423,7 +423,7 @@ void SandboxGetFieldOffset(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(offset);
 }
 
-// Returns an array of all builtin names, index of the name is the bulitin id.
+// Returns an array of all builtin names, index of the name is the builtin id.
 //
 // This can be used to determine the id of a specific builtin for use with
 // Sandbox.setFunctionCodeToBuiltin().

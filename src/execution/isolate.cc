@@ -517,8 +517,16 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
                   Code::kParameterCountOffset);
     static_assert(Code::kParameterCountOffsetEnd + 1 == Code::kBuiltinIdOffset);
     static_assert(Code::kBuiltinIdOffsetEnd + 1 == Code::kUnalignedSize);
-    static constexpr int kStartOffset = Code::kFlagsOffset;
 
+    // Hash Code::flags field ignoring the Code::IsDisabledBuiltinField bit.
+    // This bit is set for certain builtins during RO heap deserialization
+    // and thus might differ from the default state.
+    uint32_t flags = code->flags(kRelaxedLoad);
+    flags &= ~Code::IsDisabledBuiltinField::kMask;
+    hash = base::hash_combine(hash, flags);
+
+    // Proceed past the flags field.
+    static constexpr int kStartOffset = Code::kInstructionSizeOffset;
     for (int j = kStartOffset; j < Code::kUnalignedSize; j++) {
       hash = base::hash_combine(hash, size_t{code_ptr[j]});
     }
@@ -7879,6 +7887,12 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
       Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
       DCHECK(Builtins::IsIsolateIndependent(builtin));
       Tagged<Code> code = builtins_.code(builtin);
+      if (code->is_disabled_builtin()) {
+        // Initialize preallocated entry for disabled builtin with kIllegal
+        // builtin's Code to ensure that the actual builtin's code can't be
+        // called by reusing the dispatch table handle.
+        code = builtins_.code(Builtin::kIllegal);
+      }
       DCHECK_EQ(code->entrypoint_tag(), CodeEntrypointTag::kJSEntrypointTag);
       // Since we are sharing the dispatch handles we need all isolates to
       // share the builtin code objects.
@@ -7903,10 +7917,15 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
            static_cast<int>(idx) + 1)) {
     Builtin builtin = JSBuiltinDispatchHandleRoot::to_builtin(idx);
     Tagged<Code> code = builtins_.code(builtin);
-    int parameter_count = code->parameter_count();
     DCHECK_LT(idx, JSBuiltinDispatchHandleRoot::kTableSize);
-    JSDispatchHandle handle = jdt->AllocateAndInitializeEntry(
-        heap()->js_dispatch_table_space(), parameter_count, code);
+    JSDispatchHandle handle = kNullJSDispatchHandle;
+    // Don't allocate dispatch table entry for disabled builtin to ensure
+    // it's impossible to call it.
+    if (!code->is_disabled_builtin()) {
+      int parameter_count = code->parameter_count();
+      handle = jdt->AllocateAndInitializeEntry(
+          heap()->js_dispatch_table_space(), parameter_count, code);
+    }
     isolate_data_.builtin_dispatch_table()[idx] = handle;
   }
 #endif  // !V8_STATIC_DISPATCH_HANDLES_BOOL

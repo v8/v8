@@ -376,9 +376,14 @@ class ObjectPostProcessor final {
     // attached InstructionStream.
     DCHECK(o->is_builtin());
     DCHECK(!o->has_instruction_stream());
+    Builtin builtin = o->builtin_id();
+    // Mark disabled bultins as such (RO space serializer resets this flag).
+    DCHECK(!o->is_disabled_builtin());
+    if (Builtins::IsDisabled(builtin)) {
+      o->set_is_disabled_builtin(true);
+    }
     o->SetInstructionStartForOffHeapBuiltin(
-        isolate_,
-        EmbeddedData::FromBlob(isolate_).InstructionStartOf(o->builtin_id()));
+        isolate_, EmbeddedData::FromBlob(isolate_).InstructionStartOf(builtin));
 
 #if V8_ENABLE_GEARBOX
     UpdateGearboxPlaceholderBuiltin(o);

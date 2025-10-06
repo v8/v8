@@ -196,6 +196,9 @@ class Code : public ExposedTrustedObject {
   inline Builtin builtin_id() const;
   inline bool is_builtin() const;
 
+  inline bool is_disabled_builtin() const;
+  inline void set_is_disabled_builtin(bool value);
+
   inline bool is_optimized_code() const;
   inline bool is_wasm_code() const;
 
@@ -462,6 +465,7 @@ class Code : public ExposedTrustedObject {
   // Flags layout.
 #define FLAGS_BIT_FIELDS(V, _)                \
   V(KindField, CodeKind, 4, _)                \
+  V(IsDisabledBuiltinField, bool, 1, _)       \
   V(IsTurbofannedField, bool, 1, _)           \
   V(IsContextSpecializedField, bool, 1, _)    \
   WITH_GEARBOX_FLAG(V, _)                     \

@@ -438,6 +438,17 @@ inline bool Code::has_tagged_outgoing_params() const {
 #endif
 }
 
+inline bool Code::is_disabled_builtin() const {
+  return IsDisabledBuiltinField::decode(flags(kRelaxedLoad));
+}
+
+inline void Code::set_is_disabled_builtin(bool value) {
+  DCHECK(is_builtin());
+  int32_t previous = flags(kRelaxedLoad);
+  int32_t updated = IsDisabledBuiltinField::update(previous, value);
+  set_flags(updated, kRelaxedStore);
+}
+
 inline bool Code::is_context_specialized() const {
   return IsContextSpecializedField::decode(flags(kRelaxedLoad));
 }
@@ -789,11 +800,16 @@ void Code::set_instruction_start(IsolateForSandbox isolate, Address value) {
 }
 
 CodeEntrypointTag Code::entrypoint_tag() const {
+  // TODO(40948502, sandbox): cache the unshifted entrypoint_tag value
+  // in the Code object to simplify things and avoid the need to execute
+  // multiple switches for builtin case.
   switch (kind()) {
     case CodeKind::BYTECODE_HANDLER:
       return kBytecodeHandlerEntrypointTag;
-    case CodeKind::BUILTIN:
+    case CodeKind::BUILTIN: {
+      if (is_disabled_builtin()) return kDisabledBuiltinEntrypointTag;
       return Builtins::EntrypointTagFor(builtin_id());
+    }
     case CodeKind::REGEXP:
       return kRegExpEntrypointTag;
     case CodeKind::WASM_FUNCTION:

@@ -138,6 +138,10 @@ class ObjectPreProcessor final {
   }
 #endif
   void PreProcessCode(Tagged<Code> o) {
+    // Clear disabled builtin flag to make snapshot state predictable.
+    if (o->is_builtin()) {
+      o->set_is_disabled_builtin(false);
+    }
     o->ClearInstructionStartForSerialization(isolate_);
     CHECK(!o->has_source_position_table_or_bytecode_offset_table());
     CHECK(!o->has_deoptimization_data_or_interpreter_data());
