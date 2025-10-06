@@ -181,29 +181,29 @@ void AssemblerRISCVI::and_(Register rd, Register rs1, Register rs2) {
 void AssemblerRISCVI::fence(uint8_t pred, uint8_t succ) {
   DCHECK(is_uint4(pred) && is_uint4(succ));
   uint16_t imm12 = succ | (pred << 4) | (0b0000 << 8);
-  GenInstrI(0b000, MISC_MEM, ToRegister(0), ToRegister(0), imm12);
+  GenInstrI(0b000, MISC_MEM, zero_reg, zero_reg, imm12);
 }
 
 void AssemblerRISCVI::fence_tso() {
   uint16_t imm12 = (0b0011) | (0b0011 << 4) | (0b1000 << 8);
-  GenInstrI(0b000, MISC_MEM, ToRegister(0), ToRegister(0), imm12);
+  GenInstrI(0b000, MISC_MEM, zero_reg, zero_reg, imm12);
 }
 
 // Environment call / break
 
 void AssemblerRISCVI::ecall() {
-  GenInstrI(0b000, SYSTEM, ToRegister(0), ToRegister(0), 0);
+  GenInstrI(0b000, SYSTEM, zero_reg, zero_reg, 0);
 }
 
 void AssemblerRISCVI::ebreak() {
-  GenInstrI(0b000, SYSTEM, ToRegister(0), ToRegister(0), 1);
+  GenInstrI(0b000, SYSTEM, zero_reg, zero_reg, 1);
 }
 
 // This is a de facto standard (as set by GNU binutils) 32-bit unimplemented
 // instruction (i.e., it should always trap, if your implementation has invalid
 // instruction traps).
 void AssemblerRISCVI::unimp() {
-  GenInstrI(0b001, SYSTEM, ToRegister(0), ToRegister(0), 0b110000000000);
+  GenInstrI(0b001, SYSTEM, zero_reg, zero_reg, 0b110000000000);
 }
 
 bool AssemblerRISCVI::IsBranch(Instr instr) {

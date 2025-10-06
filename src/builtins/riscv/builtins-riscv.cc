@@ -4846,7 +4846,8 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ SubWord(sp, sp, kNumberOfRegisters * kSystemPointerSize);
   for (int16_t i = kNumberOfRegisters - 1; i >= 0; i--) {
     if ((saved_regs.bits() & (1 << i)) != 0) {
-      __ StoreWord(ToRegister(i), MemOperand(sp, kSystemPointerSize * i));
+      __ StoreWord(Register::from_code(i),
+                   MemOperand(sp, kSystemPointerSize * i));
     }
   }
 
@@ -5003,7 +5004,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     int offset =
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
     if ((restored_regs.bits() & (1 << i)) != 0) {
-      __ LoadWord(ToRegister(i), MemOperand(t3, offset));
+      __ LoadWord(Register::from_code(i), MemOperand(t3, offset));
     }
   }
 

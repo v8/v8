@@ -143,52 +143,6 @@ void CpuFeatures::PrintFeatures() {
          CpuFeatures::IsSupported(ZBA), CpuFeatures::IsSupported(ZBB),
          CpuFeatures::IsSupported(ZBS), CpuFeatures::IsSupported(ZICOND));
 }
-int ToNumber(Register reg) {
-  DCHECK(reg.is_valid());
-  const int kNumbers[] = {
-      0,   // zero_reg
-      1,   // ra
-      2,   // sp
-      3,   // gp
-      4,   // tp
-      5,   // t0
-      6,   // t1
-      7,   // t2
-      8,   // s0/fp
-      9,   // s1
-      10,  // a0
-      11,  // a1
-      12,  // a2
-      13,  // a3
-      14,  // a4
-      15,  // a5
-      16,  // a6
-      17,  // a7
-      18,  // s2
-      19,  // s3
-      20,  // s4
-      21,  // s5
-      22,  // s6
-      23,  // s7
-      24,  // s8
-      25,  // s9
-      26,  // s10
-      27,  // s11
-      28,  // t3
-      29,  // t4
-      30,  // t5
-      31,  // t6
-  };
-  return kNumbers[reg.code()];
-}
-
-Register ToRegister(int num) {
-  DCHECK(num >= 0 && num < kNumRegisters);
-  const Register kRegisters[] = {
-      zero_reg, ra, sp, gp, tp, t0, t1, t2, fp, s1, a0,  a1,  a2, a3, a4, a5,
-      a6,       a7, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, t3, t4, t5, t6};
-  return kRegisters[num];
-}
 
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo.
@@ -283,12 +237,12 @@ void Assembler::StartBlockPools(ConstantPoolEmission cpe, int margin) {
   int current = pools_blocked_nesting_;
   if (current == 0) {
     if (cpe == ConstantPoolEmission::kCheck) {
-      EmitConstPoolWithJumpIfNeeded(margin);
+      CheckConstantPoolQuick(margin);
     }
-    if (margin > 0) {
-      CheckTrampolinePoolQuick(margin);
-    }
+    CheckTrampolinePoolQuick(margin);
     constpool_.DisableNextCheckIn();
+    // TODO(kasperl): Once we can compute the next trampoline check
+    // reliably, we can also disable the trampoline checks here.
   }
   pools_blocked_nesting_ = current + 1;
   DEBUG_PRINTF("\tStartBlockPools @ %d (nesting=%d)\n", pc_offset(),
@@ -301,9 +255,10 @@ void Assembler::EndBlockPools() {
                pools_blocked_nesting_);
   DCHECK_GE(pools_blocked_nesting_, 0);
   if (pools_blocked_nesting_ > 0) return;  // Still blocked.
-  CheckTrampolinePoolQuick();
   DCHECK(constpool_.IsInRangeIfEmittedAt(pc_offset()));
-  constpool_.SetNextCheckIn(0);
+  constpool_.EnableNextCheckIn();
+  CheckConstantPoolQuick(0);
+  CheckTrampolinePoolQuick(0);
 }
 
 void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
@@ -315,6 +270,13 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
 void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
                         SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
+  // In most cases, the constant pool will already have been emitted when
+  // we get here - sometimes through a call to {FinishCode}. For now, it
+  // is safe to call this again, but it might be worth changing its name
+  // to make that clearer.
+  FinishCode();
+  DCHECK(constpool_.IsEmpty());
+
   // As a crutch to avoid having to add manual Align calls wherever we use a
   // raw workflow to create InstructionStream objects (mostly in tests), add
   // another Align call here. It does no harm - the end of the InstructionStream
@@ -324,11 +286,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   // comments).
   DataAlign(InstructionStream::kMetadataAlignment);
 
-  ForceConstantPoolEmissionWithoutJump();
-
   int code_comments_size = WriteCodeComments();
-
-  DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
+  DCHECK_GE(buffer_space(), 0);  // No buffer overflow.
 
   AllocateAndInstallRequestedHeapNumbers(isolate);
 
@@ -385,8 +344,8 @@ void Assembler::CodeTargetAlign() {
 // The link chain is terminated by a value in the instruction of 0,
 // which is an otherwise illegal value (branch 0 is inf loop). When this case
 // is detected, return an position of -1, an otherwise illegal position.
-const int kEndOfChain = -1;
-const int kEndOfJumpChain = 0;
+static constexpr int kEndOfChain = -1;
+static constexpr int kEndOfJumpChain = 0;
 
 int Assembler::target_at(int pos, bool is_internal) {
   if (is_internal) {
@@ -865,7 +824,7 @@ void Assembler::EBREAK() {
 
 // Assembler Pseudo Instructions (Tables 25.2 and 25.3, RISC-V Unprivileged ISA)
 
-void Assembler::nop() { addi(ToRegister(0), ToRegister(0), 0); }
+void Assembler::nop() { addi(zero_reg, zero_reg, 0); }
 
 inline int64_t SignExtend(uint64_t V, int N) {
   return static_cast<int64_t>(V << (64 - N)) >> (64 - N);
@@ -1074,8 +1033,8 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
 }
 
 void Assembler::li_constant(Register rd, int64_t imm) {
-  DEBUG_PRINTF("\tli_constant(%d, %" PRIx64 " <%" PRId64 ">)\n", ToNumber(rd),
-               imm, imm);
+  DEBUG_PRINTF("\tli_constant(%d, %" PRIx64 " <%" PRId64 ">)\n", rd.code(), imm,
+               imm);
   lui(rd, (imm + (1LL << 47) + (1LL << 35) + (1LL << 23) + (1LL << 11)) >>
               48);  // Bits 63:48
   addiw(rd, rd,
@@ -1091,7 +1050,7 @@ void Assembler::li_constant(Register rd, int64_t imm) {
 
 void Assembler::li_constant32(Register rd, int32_t imm) {
   ASM_CODE_COMMENT(this);
-  DEBUG_PRINTF("\tli_constant(%d, %x <%d>)\n", ToNumber(rd), imm, imm);
+  DEBUG_PRINTF("\tli_constant(%d, %x <%d>)\n", rd.code(), imm, imm);
   int32_t high_20 = ((imm + 0x800) >> 12);  // bits31:12
   int32_t low_12 = imm & 0xfff;             // bits11:0
   lui(rd, high_20);
@@ -1142,7 +1101,7 @@ void Assembler::li_ptr(Register rd, int32_t imm) {
 
 void Assembler::li_constant(Register rd, int32_t imm) {
   ASM_CODE_COMMENT(this);
-  DEBUG_PRINTF("\tli_constant(%d, %x <%d>)\n", ToNumber(rd), imm, imm);
+  DEBUG_PRINTF("\tli_constant(%d, %x <%d>)\n", rd.code(), imm, imm);
   int32_t high_20 = ((imm + 0x800) >> 12);  // bits31:12
   int32_t low_12 = imm & 0xfff;             // bits11:0
   lui(rd, high_20);
@@ -1707,7 +1666,8 @@ void Assembler::EmitHelper(T x, bool disassemble) {
   }
   pc_ = pc + sizeof(x);
   CheckBuffer();
-  CheckTrampolinePoolQuick();
+  CheckConstantPoolQuick(0);
+  CheckTrampolinePoolQuick(0);
 }
 
 void Assembler::emit(Instr x) { EmitHelper(x, true); }

@@ -19,12 +19,10 @@ RelocInfoStatus ConstantPool::RecordKey(ConstantPoolKey key, int offset) {
   RelocInfoStatus status = GetRelocInfoStatusFor(key);
   if (status == RelocInfoStatus::kMustRecord) {
     size_t count = ++deduped_entry_count_;
-    if (count == 1) {
-      first_use_ = offset;
-    } else if (count > ConstantPool::kApproxMaxEntryCount) {
-      // Request constant pool emission after the next instruction.
-      SetNextCheckIn(kInstrSize);
-    }
+    if (count == 1) first_use_ = offset;
+    // The next check in position depends on the entry count, so we
+    // potentially update the position here.
+    MaybeUpdateNextCheckIn();
   }
   entries_.insert(std::make_pair(key, offset));
   return status;
@@ -104,11 +102,6 @@ void ConstantPool::Clear() {
   entries_.clear();
   first_use_ = -1;
   deduped_entry_count_ = 0;
-  next_check_ = 0;
-}
-
-void ConstantPool::SetNextCheckIn(size_t bytes) {
-  next_check_ = assm_->pc_offset() + static_cast<int>(bytes);
 }
 
 void ConstantPool::EmitEntries() {
@@ -196,12 +189,6 @@ bool ConstantPool::IsInRangeIfEmittedAt(int pc_offset) const {
   return pool_end < first_use_ + kMaxDistToPool;
 }
 
-void ConstantPool::MaybeCheck() {
-  if (assm_->pc_offset() >= next_check_) {
-    Check(Emission::kIfNeeded, Jump::kRequired);
-  }
-}
-
 void ConstantPool::EmitPrologue(Alignment require_alignment) {
   // Recorded constant pool size is expressed in number of 32-bits words,
   // and includes prologue and alignment, but not the jump around the pool
@@ -260,18 +247,12 @@ void ConstantPool::Check(Emission force_emit, Jump require_jump,
   //  * emission is mandatory or opportune according to {ShouldEmitNow}.
   if (!IsEmpty() && (force_emit == Emission::kForced ||
                      ShouldEmitNow(require_jump, margin))) {
-    // Check that the code buffer is large enough before emitting the constant
-    // pool (this includes the gap to the relocation information).
-    int worst_case_size = ComputeSize(Jump::kRequired, Alignment::kRequired);
-    int needed_space = worst_case_size + assm_->kGap;
-    while (assm_->buffer_space() <= needed_space) {
-      assm_->GrowBuffer();
-    }
     EmitAndClear(require_jump);
   }
-  // Since a constant pool is (now) empty, move the check offset forward by
-  // the standard interval.
-  SetNextCheckIn(ConstantPool::kCheckInterval);
+
+  // Update the last check position and maybe the next one.
+  check_last_ = assm_->pc_offset();
+  MaybeUpdateNextCheckIn();
 }
 
 }  // namespace internal

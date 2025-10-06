@@ -54,10 +54,17 @@ namespace internal {
 [[nodiscard]] static inline Instr SetLo12Offset(int32_t lo12, Instr instr);
 
 bool CpuFeatures::SupportsOptimizer() { return IsSupported(FPU); }
+EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 
 void Assembler::CheckBuffer() {
   if (V8_UNLIKELY(buffer_space() <= kGap)) {
     GrowBuffer();
+  }
+}
+
+void Assembler::CheckConstantPoolQuick(int margin) {
+  if (V8_UNLIKELY(pc_offset() >= constpool_.NextCheckIn() - margin)) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
   }
 }
 
@@ -74,9 +81,6 @@ void Assembler::DisassembleInstruction(uint8_t* pc) {
     DisassembleInstructionHelper(pc);
   }
 }
-
-// -----------------------------------------------------------------------------
-// WritableRelocInfo.
 
 void WritableRelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
@@ -366,8 +370,6 @@ Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
-
-EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 
 int32_t Assembler::target_constant32_at(Address pc) {
   Instruction* instr0 = Instruction::At((unsigned char*)pc);

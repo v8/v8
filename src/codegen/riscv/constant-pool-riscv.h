@@ -82,6 +82,7 @@ class ConstantPool {
   explicit ConstantPool(Assembler* assm) : assm_(assm) {}
 
   bool IsEmpty() const { return deduped_entry_count_ == 0; }
+  void Clear();
 
   // Records a constant pool entry. Returns whether we need to write RelocInfo.
   RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode);
@@ -89,16 +90,24 @@ class ConstantPool {
   // Check if pool will be out of range at {pc_offset}.
   bool IsInRangeIfEmittedAt(int pc_offset) const;
 
-  V8_EXPORT_PRIVATE void Check(Emission force_emission, Jump require_jump,
-                               size_t margin = 0);
-
-  V8_EXPORT_PRIVATE void MaybeCheck();
-  void Clear();
+  void Check(Emission force_emission, Jump require_jump, size_t margin = 0);
 
   // Repeated checking whether the constant pool should be emitted is expensive;
   // only check once a number of bytes have been generated.
-  void SetNextCheckIn(size_t bytes);
-  void DisableNextCheckIn() { next_check_ = kMaxInt; }
+  int NextCheckIn() const { return check_next_; }
+
+  void EnableNextCheckIn() {
+    DCHECK_NE(kCheckNextNoSaved, check_next_saved_);
+    check_next_ = check_next_saved_;
+    check_next_saved_ = kCheckNextNoSaved;
+  }
+
+  void DisableNextCheckIn() {
+    DCHECK_EQ(kCheckNextNoSaved, check_next_saved_);
+    check_next_saved_ = check_next_;
+    check_next_ = kMaxInt;
+    DCHECK_NE(kCheckNextNoSaved, check_next_saved_);
+  }
 
  private:
   // Pool entries are accessed with pc relative load therefore this cannot be
@@ -108,12 +117,12 @@ class ConstantPool {
   // Hard limit to the const pool which must not be exceeded.
   static const size_t kMaxDistToPool = 1 * MB;
   // Approximate distance where the pool should be emitted.
-  V8_EXPORT_PRIVATE static const size_t kApproxDistToPool = 64 * KB;
+  static const size_t kApproxDistToPool = 64 * KB;
   // Approximate distance where the pool may be emitted if no jump is required
   // (due to a recent unconditional jump).
   static const size_t kOpportunityDistToPool = 64 * KB;
   // PC distance between constant pool checks.
-  V8_EXPORT_PRIVATE static const size_t kCheckInterval = 128 * kInstrSize;
+  static const size_t kCheckInterval = 128 * kInstrSize;
   // Number of entries in the pool which trigger a check.
   static const size_t kApproxMaxEntryCount = 512;
 
@@ -132,6 +141,19 @@ class ConstantPool {
 
   // Size of the prologue in bytes.
   int ComputePrologueSize(Jump require_jump) const;
+
+  // Compute the position for the next check in.
+  int ComputeNextCheckIn() const {
+    int gap = (EntryCount() > kApproxMaxEntryCount) ? 0 : kCheckInterval;
+    return check_last_ + gap;
+  }
+
+  // Update the next check in position, unless we've temporarily disabled
+  // the next check in through a call to {DisableNextCheckIn}.
+  void MaybeUpdateNextCheckIn() {
+    if (check_next_ == kMaxInt) return;
+    check_next_ = ComputeNextCheckIn();
+  }
 
   RelocInfoStatus RecordKey(ConstantPoolKey key, int offset);
   RelocInfoStatus GetRelocInfoStatusFor(const ConstantPoolKey& key);
@@ -159,7 +181,11 @@ class ConstantPool {
   // which represents the total number of entries.
   size_t deduped_entry_count_ = 0;
 
-  int next_check_ = 0;
+  // Check in positions.
+  int check_last_ = 0;
+  int check_next_ = 0;
+  int check_next_saved_ = kCheckNextNoSaved;
+  static constexpr int kCheckNextNoSaved = -1;
 };
 
 }  // namespace internal

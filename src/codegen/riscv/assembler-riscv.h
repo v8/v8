@@ -309,7 +309,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void StartBlockPools(ConstantPoolEmission cpe, int margin);
   void EndBlockPools();
 
-  void FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
+  void FinishCode() { constpool_.Check(Emission::kForced, Jump::kOmitted); }
 
 #if defined(V8_TARGET_ARCH_RISCV64)
   static void set_target_value_at(
@@ -768,23 +768,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     pc_offset_for_safepoint_ = pc_offset;
   }
 
-  void ForceConstantPoolEmissionWithoutJump() {
-    constpool_.Check(Emission::kForced, Jump::kOmitted);
-  }
-
-  // Check if the const pool needs to be emitted while pretending that {margin}
-  // more bytes of instructions have already been emitted. This variant is used
-  // in positions in code that we might fall through to.
-  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
-  }
-
   // Check if the const pool needs to be emitted while pretending that {margin}
   // more bytes of instructions have already been emitted. This variant is used
   // at unreachable positions in the code, such as right after an unconditional
   // transfer of control (jump, return).
-  void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
+  void EmitConstPoolWithoutJumpIfNeeded() {
+    constpool_.Check(Emission::kIfNeeded, Jump::kOmitted);
   }
 
   RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode) {
@@ -887,7 +876,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   int trampoline_check_;  // The pc offset of next trampoline pool check.
 
   void CheckTrampolinePool();
-  inline void CheckTrampolinePoolQuick(int margin = 0);
+  inline void CheckTrampolinePoolQuick(int margin);
+  inline void CheckConstantPoolQuick(int margin);
   int32_t GetTrampolineEntry(int32_t pos);
 
   // We keep track of the position of all internal reference uses of labels,
@@ -909,10 +899,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   int WriteCodeComments();
 
-  friend class RegExpMacroAssemblerRISCV;
-  friend class RelocInfo;
   friend class EnsureSpace;
   friend class ConstantPool;
+  friend class RelocInfo;
+  friend class RegExpMacroAssemblerRISCV;
 };
 
 class EnsureSpace {
