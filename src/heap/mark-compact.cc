@@ -1249,12 +1249,16 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
 
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
 // are retained.
-class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
+class MarkCompactWeakObjectRetainer final : public WeakObjectRetainer {
  public:
-  MarkCompactWeakObjectRetainer(Heap* heap, MarkingState* marking_state)
-      : heap_(heap), marking_state_(marking_state) {}
+  MarkCompactWeakObjectRetainer(
+      MarkCompactCollector* const mark_compact_collector,
+      MarkingState* marking_state)
+      : mark_compact_collector_(mark_compact_collector),
+        heap_(mark_compact_collector_->heap()),
+        marking_state_(marking_state) {}
 
-  Tagged<Object> RetainAs(Tagged<Object> object) override {
+  Tagged<Object> RetainAs(Tagged<Object> object) final {
     Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_,
                                             heap_object)) {
@@ -1280,8 +1284,24 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
     }
   }
 
+  bool ShouldRecordSlots() const final { return true; }
+
+  void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                  Tagged<HeapObject> object) final {
+    // `VisitWeakList` doesn't call write barriers. If `host` is old and
+    // `object` is young, which may be possible for JSFinalizationRegistries,
+    // record the slot for old-to-new.
+    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(host),
+                   IsJSFinalizationRegistry(host));
+    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(object),
+                   IsJSFinalizationRegistry(object));
+    MarkCompactCollector::RecordSlot<ObjectSlot, RecordYoungSlot::kYes>(
+        host, slot, object);
+  }
+
  private:
-  Heap* const heap_;
+  const MarkCompactCollector* const mark_compact_collector_;
+  const Heap* const heap_;
   MarkingState* const marking_state_;
 };
 
@@ -3158,7 +3178,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_LISTS);
     // Process the weak references.
-    MarkCompactWeakObjectRetainer mark_compact_object_retainer(heap_,
+    MarkCompactWeakObjectRetainer mark_compact_object_retainer(this,
                                                                marking_state_);
     heap_->ProcessAllWeakReferences(&mark_compact_object_retainer);
   }
@@ -5052,6 +5072,16 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
       }
     }
     return object;
+  }
+
+  bool ShouldRecordSlots() const final {
+    // We are already in evacuation. All slots should already be recorded.
+    return false;
+  }
+
+  void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                  Tagged<HeapObject> object) final {
+    UNREACHABLE();
   }
 };
 

@@ -1991,6 +1991,8 @@ void ScavengerCollector::ClearOldEphemerons() {
 namespace {
 class ScavengerWeakObjectRetainer : public WeakObjectRetainer {
  public:
+  explicit ScavengerWeakObjectRetainer(const Heap* heap) : heap_(heap) {}
+
   Tagged<Object> RetainAs(Tagged<Object> object) override {
     Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
     if (IsUnscavengedHeapObject(heap_object)) {
@@ -2004,13 +2006,30 @@ class ScavengerWeakObjectRetainer : public WeakObjectRetainer {
     DCHECK(map_word.IsForwardingAddress());
     return map_word.ToForwardingAddress(heap_object);
   }
+
+  bool ShouldRecordSlots() const final { return true; }
+
+  void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                  Tagged<HeapObject> object) final {
+    DCHECK(GCAwareObjectTypeCheck<JSFinalizationRegistry>(host, heap_));
+    DCHECK(GCAwareObjectTypeCheck<JSFinalizationRegistry>(object, heap_));
+    // `JSFinalizationRegsitry` objects are generally long living and thus are
+    // unlikely to be young.
+    if (V8_LIKELY(HeapObjectWillBeOld(heap_, host)) &&
+        V8_UNLIKELY(!HeapObjectWillBeOld(heap_, object))) {
+      AddToRememberedSet<OLD_TO_NEW>(heap_, host, slot.address());
+    }
+  }
+
+ private:
+  const Heap* const heap_;
 };
 }  // namespace
 
 void ScavengerCollector::ProcessWeakObjects(
     Scavenger::JSWeakRefsList& js_weak_refs,
     Scavenger::WeakCellsList& weak_cells) {
-  ScavengerWeakObjectRetainer weak_object_retainer;
+  ScavengerWeakObjectRetainer weak_object_retainer(heap_);
   // Iterate the weak list of dirty finalization registries. Dead registries are
   // dropped from the list, and addresses of live scavenged registries are
   // updated.

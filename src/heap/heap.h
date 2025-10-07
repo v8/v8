@@ -2809,6 +2809,12 @@ class WeakObjectRetainer {
   // object has no references. Otherwise the address of the retained object
   // should be returned as in some GC situations the object has been moved.
   virtual Tagged<Object> RetainAs(Tagged<Object> object) = 0;
+
+  // Return whether updated slots should be recorded.
+  virtual bool ShouldRecordSlots() const = 0;
+
+  virtual void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                          Tagged<HeapObject> object) = 0;
 };
 
 // -----------------------------------------------------------------------------
