@@ -9,6 +9,7 @@
 
 #include "src/base/base-export.h"
 #include "src/base/logging.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -35,7 +36,9 @@ concept IsNodeT = std::is_base_of_v<Node, T>;
 class RecomputeKnownNodeAspectsProcessor {
  public:
   explicit RecomputeKnownNodeAspectsProcessor(Graph* graph)
-      : graph_(graph), known_node_aspects_(nullptr) {}
+      : graph_(graph),
+        known_node_aspects_(nullptr),
+        reachable_exception_handlers_(zone()) {}
 
   void PreProcessGraph(Graph* graph) {
     known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
@@ -43,18 +46,31 @@ class RecomputeKnownNodeAspectsProcessor {
       if (block->has_state()) {
         block->state()->ClearKnownNodeAspects();
       }
-      if (block->is_loop() && block->state()->IsUnreachableByForwardEdge()) {
-        DCHECK(block->state()->is_resumable_loop());
-        block->state()->MergeNodeAspects(zone(), *known_node_aspects_);
-      }
     }
   }
   void PostProcessGraph(Graph* graph) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    // TODO(victorgomes): Support removing the unreachable blocks instead of
+    // just skipping it.
     if (V8_UNLIKELY(block->IsUnreachable())) {
-      // The block is unreachable, we probably never set the KNA to this
-      // block. Just use an empty one.
-      // TODO(victorgomes): Maybe we shouldn't visit unreachable blocks.
+      // Ensure successors can also be unreachable.
+      AbortBlock(block);
+      return BlockProcessResult::kSkip;
+    }
+
+    if (block->is_exception_handler_block()) {
+      if (!reachable_exception_handlers_.contains(block)) {
+        // This is an unreachable exception handler block.
+        // Ensure successors can also be unreachable.
+        AbortBlock(block);
+        return BlockProcessResult::kSkip;
+      }
+    }
+
+    if (block->is_loop() && block->state()->IsUnreachableByForwardEdge()) {
+      // TODO(victorgomes): Ideally, we should use the loop backedge KNA cache
+      // for all loops.
+      DCHECK(block->state()->is_resumable_loop());
       known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
     } else if (block->has_state()) {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
@@ -77,7 +93,10 @@ class RecomputeKnownNodeAspectsProcessor {
     if constexpr (NodeT::kProperties.can_throw()) {
       ExceptionHandlerInfo* info = node->exception_handler_info();
       if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
-        Merge(node->exception_handler_info()->catch_block());
+        BasicBlock* exception_handler =
+            node->exception_handler_info()->catch_block();
+        reachable_exception_handlers_.insert(exception_handler);
+        Merge(exception_handler);
       }
     }
     MarkPossibleSideEffect(node);
@@ -137,6 +156,7 @@ class RecomputeKnownNodeAspectsProcessor {
  private:
   Graph* graph_;
   KnownNodeAspects* known_node_aspects_;
+  ZoneAbslFlatHashSet<BasicBlock*> reachable_exception_handlers_;
 
   Zone* zone() { return graph_->zone(); }
   compiler::JSHeapBroker* broker() { return graph_->broker(); }
@@ -149,6 +169,14 @@ class RecomputeKnownNodeAspectsProcessor {
   }
   NodeType GetType(ValueNode* node) {
     return known_node_aspects().GetType(broker(), node);
+  }
+
+  void AbortBlock(BasicBlock* block) {
+    ControlNode* control = block->reset_control_node();
+    block->RemovePredecessorFollowing(control);
+    control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
+    block->set_deferred(true);
+    block->set_control_node(control);
   }
 
   void Merge(BasicBlock* block) {

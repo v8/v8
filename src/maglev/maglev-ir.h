@@ -12104,13 +12104,18 @@ class Abort : public TerminalControlNodeT<0, Abort> {
 
  public:
   explicit Abort(uint64_t bitfield, AbortReason reason)
-      : Base(bitfield), reason_(reason) {
+      : Base(bitfield | AbortReasonField::encode(reason)) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Abort>);
   }
 
   static constexpr OpProperties kProperties = OpProperties::Call();
 
-  AbortReason reason() const { return reason_; }
+  void set_reason(AbortReason reason) {
+    set_bitfield(AbortReasonField::update(bitfield(), reason));
+  }
+  AbortReason reason() const {
+    return AbortReasonField::decode(Base::bitfield());
+  }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -12118,7 +12123,9 @@ class Abort : public TerminalControlNodeT<0, Abort> {
   void PrintParams(std::ostream&) const;
 
  private:
-  const AbortReason reason_;
+  static constexpr int kAbortReasonBitSize =
+      std::bit_width(static_cast<unsigned>(AbortReason::kLastReason));
+  using AbortReasonField = Base::NextBitField<AbortReason, kAbortReasonBitSize>;
 };
 
 class Return : public TerminalControlNodeT<1, Return> {

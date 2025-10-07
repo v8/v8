@@ -168,7 +168,7 @@ class BasicBlock {
 
   bool IsUnreachable() const {
     if (has_state()) return state()->IsUnreachable();
-    return predecessor_ == nullptr;
+    return predecessor_ == nullptr && id_ != 0;
   }
 
   BasicBlock* predecessor_at(int i) const {
