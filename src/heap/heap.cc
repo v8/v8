@@ -1333,6 +1333,11 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   static constexpr int kMaxNumberOfAttempts = 7;
   static constexpr int kMinNumberOfAttempts = 2;
 
+  // Stop background threads from running/allocating until all individual GCs
+  // triggered by this function are done.
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
+
   // Returns the number of roots. We assume stack layout is stable but global
   // roots could change between GCs due to finalizers and weak callbacks.
   const auto num_roots = [this]() {
