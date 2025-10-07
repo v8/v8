@@ -38,7 +38,9 @@ TEST_F(ObjectTest, SetAccessorWhenUnconfigurablePropAlreadyDefined) {
 }
 
 using LapContextTest = TestWithIsolate;
-constexpr v8::ExternalPointerTypeTag kContextTag = 93;
+// This tag value has been picked arbitrarily between 0 and
+// V_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kContextTag = 25;
 
 TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
   // The receiver object is created in |receiver_context|, but its prototype

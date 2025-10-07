@@ -4173,7 +4173,9 @@ TEST(DebugBreakOffThreadTerminate) {
   CHECK(try_catch.HasTerminated());
 }
 
-constexpr v8::ExternalPointerTypeTag kArchiveRestoreThreadTag = 84;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kArchiveRestoreThreadTag = 20;
 
 class ArchiveRestoreThread : public v8::base::Thread,
                              public v8::debug::DebugDelegate {
@@ -6070,7 +6072,9 @@ TEST(TerminateOnResumeAtUnhandledRejection) {
 }
 
 namespace {
-constexpr v8::ExternalPointerTypeTag kDataTag = 83;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kDataTag = 21;
 
 void RejectPromiseThroughCppInternal(
     const v8::FunctionCallbackInfo<v8::Value>& info, bool silent) {

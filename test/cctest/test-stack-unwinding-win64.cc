@@ -66,7 +66,9 @@ class UnwindingWin64Callbacks {
 };
 
 namespace {
-constexpr v8::ExternalPointerTypeTag kCallbackTag = 78;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kCallbackTag = 22;
 }  // namespace
 
 // Verifies that stack unwinding data has been correctly registered on Win64.

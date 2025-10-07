@@ -120,7 +120,9 @@ DeclarationContext::DeclarationContext()
   // Do nothing.
 }
 
-constexpr v8::ExternalPointerTypeTag kDeclarationContextTag = 85;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kDeclarationContextTag = 27;
 
 void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;

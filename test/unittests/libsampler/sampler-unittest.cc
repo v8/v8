@@ -105,7 +105,9 @@ static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
       .As<v8::Function>();
 }
 
-constexpr v8::ExternalPointerTypeTag kTestApiCallbacksTag = 92;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestApiCallbacksTag = 26;
 
 TEST_F(SamplerTest, LibSamplerCollectSample) {
   v8::HandleScope scope(isolate());

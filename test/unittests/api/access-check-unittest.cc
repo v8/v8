@@ -416,7 +416,9 @@ void IndexedEnumerator(const PropertyCallbackInfo<Array>& info) {
   info.GetReturnValue().Set(names);
 }
 
-constexpr v8::ExternalPointerTypeTag kFunctionTemplateTag = 88;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kFunctionTemplateTag = 24;
 
 v8::Intercepted MethodGetter(Local<Name> property,
                              const PropertyCallbackInfo<Value>& info) {

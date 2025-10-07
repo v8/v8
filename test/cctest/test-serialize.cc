@@ -3499,7 +3499,9 @@ UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
 }
 
 namespace {
-constexpr v8::ExternalPointerTypeTag kIntPointerTag = 96;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kIntPointerTag = 28;
 int serialized_static_field = 314;
 
 void SerializedCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {

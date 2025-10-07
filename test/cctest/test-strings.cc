@@ -2145,7 +2145,9 @@ TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
 
 TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
 #if V8_INTL_SUPPORT
-  constexpr v8::ExternalPointerTypeTag kWorkerThreadTag = 91;
+  // This tag value has been picked arbitrarily between 0 and
+  // V8_EXTERNAL_POINTER_TAG_COUNT.
+  constexpr v8::ExternalPointerTypeTag kWorkerThreadTag = 23;
   class WorkerThread : public v8::base::Thread {
    public:
     WorkerThread(v8::base::Mutex& m, v8::base::ConditionVariable& cv)

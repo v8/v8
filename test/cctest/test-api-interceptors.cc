@@ -5479,7 +5479,9 @@ struct PreprocessExceptionTestConfig {
   bool descriptor_should_throw : 1 = false;
 };
 
-constexpr v8::ExternalPointerTypeTag kTestConfigTag = 87;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestConfigTag = 14;
 
 template <typename T>
 PreprocessExceptionTestConfig* GetPETConfig(
@@ -6537,7 +6539,7 @@ TEST(Regress609134Interceptor) {
 
 namespace {
 
-constexpr v8::ExternalPointerTypeTag kCallsTag = 86;
+constexpr v8::ExternalPointerTypeTag kCallsTag = 15;
 
 v8::Intercepted Regress42204611_Getter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {

@@ -199,7 +199,9 @@ class V8Console : public v8::debug::ConsoleDelegate {
   void queryObjectsCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             int sessionId);
 
-  constexpr static v8::ExternalPointerTypeTag kV8ConsoleTag = 98;
+  // This tag value has been picked arbitrarily between 0 and
+  // V8_EXTERNAL_POINTER_TAG_COUNT.
+  constexpr static v8::ExternalPointerTypeTag kV8ConsoleTag = 10;
 
   // Lazily creates m_taskInfoKey and returns a local handle to it. We can't
   // initialize m_taskInfoKey in the constructor as it would be part of

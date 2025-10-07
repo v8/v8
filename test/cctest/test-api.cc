@@ -1556,7 +1556,9 @@ THREADED_TEST(FunctionTemplateSetLength) {
 }
 
 static void* expected_ptr;
-constexpr v8::ExternalPointerTypeTag kTestPtrTag = 91;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestPtrTag = 16;
 
 static void callback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(i::ValidateCallbackInfo(args));
@@ -6283,7 +6285,9 @@ TEST(CustomErrorMessage) {
   context.isolate()->RemoveMessageListeners(check_custom_error_message);
 }
 
-constexpr v8::ExternalPointerTypeTag kIntPointerTag = 89;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kIntPointerTag = 17;
 
 static void check_custom_rethrowing_message(v8::Local<v8::Message> message,
                                             v8::Local<v8::Value> data) {
@@ -30963,7 +30967,9 @@ class MyObject {
   v8::Local<v8::Object> internal_data_;
 };
 
-constexpr v8::ExternalPointerTypeTag kMyObjectTag = 90;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kMyObjectTag = 18;
 
 class HiddenDataDelegate : public v8::Context::DeepFreezeDelegate {
  public:

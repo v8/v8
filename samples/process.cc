@@ -349,7 +349,9 @@ Global<ObjectTemplate> JsHttpRequestProcessor::map_template_;
 // -----------------------------------
 
 namespace {
-constexpr v8::ExternalPointerTypeTag kMapTag = 80;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kMapTag = 6;
 }  // namespace
 
 // Utility function that wraps a C++ http request object in a
@@ -459,7 +461,7 @@ Local<ObjectTemplate> JsHttpRequestProcessor::MakeMapTemplate(
 // -------------------------------------------
 
 namespace {
-constexpr v8::ExternalPointerTypeTag kHttpRequestTag = 79;
+constexpr v8::ExternalPointerTypeTag kHttpRequestTag = 7;
 }  // namespace
 
 /**

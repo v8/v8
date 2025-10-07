@@ -34,7 +34,9 @@ struct IncumbentTestExpectations {
   Local<Context> function_context;
   int call_count = 0;
 };
-constexpr v8::ExternalPointerTypeTag kIncumbentTestExpectationsTag = 96;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kIncumbentTestExpectationsTag = 13;
 
 // This callback checks that the incumbent context equals to the expected one
 // and returns the function's context ID (i.e. "globalThis.id").

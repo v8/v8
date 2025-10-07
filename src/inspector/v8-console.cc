@@ -520,7 +520,9 @@ void V8Console::createTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 namespace {
-constexpr v8::ExternalPointerTypeTag kTaskInfoTag = 97;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTaskInfoTag = 9;
 }  // namespace
 
 void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {

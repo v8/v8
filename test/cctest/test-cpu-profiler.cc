@@ -996,7 +996,9 @@ static const char* native_accessor_test_source =
     "  }\n"
     "}\n";
 
-constexpr v8::ExternalPointerTypeTag kTestApiCallbacksTag = 86;
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestApiCallbacksTag = 19;
 
 class TestApiCallbacks {
  public:
