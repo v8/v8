@@ -91,7 +91,7 @@ class Range {
 #undef KNOWN_RANGES
 
   bool is_all() const { return min_ == kInfMin && max_ == kInfMax; }
-  bool is_empty() const { return max_ < min_; }
+  constexpr bool is_empty() const { return max_ < min_; }
 
   bool is_constant() const { return max_ == min_ && max_ != kInfMax; }
 
