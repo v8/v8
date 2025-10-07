@@ -231,43 +231,8 @@ class BranchEliminationReducer : public Next {
         if (!known_conditions_.Contains(branch->condition())) {
           known_conditions_.InsertNewKey(branch->condition(), condition_value);
         }
-      } else if (const SwitchOp* switch_op = op.TryCast<SwitchOp>()) {
-        if (known_conditions_.Contains(switch_op->input())) return;
-        for (SwitchOp::Case& cas : switch_op->cases) {
-          if (cas.destination == new_block) {
-            known_conditions_.InsertNewKey(switch_op->input(), cas.value);
-            return;
-          }
-        }
-        // We are in the default case, which means that we are not learning
-        // anything about `switch_op->input()`.
       }
     }
-  }
-
-  V<None> REDUCE(Switch)(V<Word32> input, base::Vector<SwitchOp::Case> cases,
-                         Block* default_case, BranchHint default_hint) {
-    LABEL_BLOCK(no_change) {
-      return Next::ReduceSwitch(input, cases, default_case, default_hint);
-    }
-    if (ShouldSkipOptimizationStep()) goto no_change;
-
-    if (std::optional<int> cond_value = known_conditions_.Get(input)) {
-      // We already know the value of {cond}. We thus remove this switch and
-      // just Goto to the right destination.
-      for (SwitchOp::Case& cas : cases) {
-        if (cas.value == *cond_value) {
-          __ Goto(cas.destination);
-          return V<None>::Invalid();
-        }
-      }
-      // No case matched the current value of the input, which means that we'll
-      // end up in the default case.
-      __ Goto(default_case);
-      return V<None>::Invalid();
-    }
-    // We can't optimize this branch.
-    goto no_change;
   }
 
   V<None> REDUCE(Branch)(V<Word32> cond, Block* if_true, Block* if_false,
@@ -299,7 +264,7 @@ class BranchEliminationReducer : public Next {
       }
     }
 
-    if (std::optional<int> cond_value = known_conditions_.Get(cond)) {
+    if (auto cond_value = known_conditions_.Get(cond)) {
       // We already know the value of {cond}. We thus remove the branch (this is
       // the "first" optimization in the documentation at the top of this
       // module).
@@ -362,7 +327,7 @@ class BranchEliminationReducer : public Next {
       V<Word32> condition =
           __ template MapToNewGraph<true>(branch->condition());
       if (condition.valid()) {
-        std::optional<int> condition_value = known_conditions_.Get(condition);
+        std::optional<bool> condition_value = known_conditions_.Get(condition);
         if (!condition_value.has_value()) {
           // We've already visited the subsequent block's Branch condition, but
           // we don't know its value right now.
@@ -440,7 +405,7 @@ class BranchEliminationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    std::optional<int> condition_value = known_conditions_.Get(condition);
+    std::optional<bool> condition_value = known_conditions_.Get(condition);
     if (!condition_value.has_value()) {
       known_conditions_.InsertNewKey(condition, negated);
       goto no_change;
@@ -463,7 +428,7 @@ class BranchEliminationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    std::optional<int> condition_value = known_conditions_.Get(condition);
+    std::optional<bool> condition_value = known_conditions_.Get(condition);
     if (!condition_value.has_value()) {
       known_conditions_.InsertNewKey(condition, negated);
       goto no_change;
@@ -637,7 +602,7 @@ class BranchEliminationReducer : public Next {
   // {known_conditions_}, and to reuse the existing merging/replay logic of the
   // SnapshotTable.
   ZoneVector<Block*> dominator_path_{__ phase_zone()};
-  LayeredHashMap<V<Word32>, int> known_conditions_{
+  LayeredHashMap<V<Word32>, bool> known_conditions_{
       __ phase_zone(), __ input_graph().DominatorTreeDepth() * 2};
 };
 
