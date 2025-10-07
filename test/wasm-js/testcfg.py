@@ -14,20 +14,14 @@ WPT_ROOT = "/wasm/jsapi/"
 META_SCRIPT_REGEXP = re.compile(r"META:\s*script=(.*)")
 META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 
-proposal_flags = [
+# Flags per Wasm proposal.
+proposal_flags = {
     # currently none; if needed add entries in this form:
-    # {
-    #     'name': 'exception-handling',
-    #     'flags': ['--experimental-wasm-exnref']
-    # },
-]
+    # 'exception-handling': ['--experimental-wasm-exnref'],
+}
 
-wpt_flags = [
-    {
-        'name': 'memory',
-        'flags': ['--experimental-wasm-rab-integration']
-    },
-]
+# Flags per WPT subdirectory.
+wpt_flags = {'memory': ['--experimental-wasm-rab-integration']}
 
 
 class TestLoader(testsuite.JSTestLoader):
@@ -49,10 +43,6 @@ class TestSuite(testsuite.TestSuite):
 
   def _test_class(self):
     return TestCase
-
-
-def get_proposal_identifier(proposal):
-  return f"proposals/{proposal['name']}"
 
 
 class TestCase(testcase.D8TestCase):
@@ -103,12 +93,14 @@ class TestCase(testcase.D8TestCase):
     return files
 
   def _get_source_flags(self):
-    for proposal in proposal_flags:
-      if get_proposal_identifier(proposal) in self.name:
-        return proposal['flags']
-    for wpt_entry in wpt_flags:
-      if f"wpt/{wpt_entry['name']}" in self.name:
-        return wpt_entry['flags']
+    if self.path.parts[0] == 'proposals':
+      proposal_name = self.path.parts[1]
+      if proposal_name in proposal_flags:
+        return proposal_flags[proposal_name]
+    if self.path.parts[0] == 'wpt':
+      wpt_subdir = self.path.parts[1]
+      if wpt_subdir in wpt_flags:
+        return wpt_flags[wpt_subdir]
     return ['--wasm-staging']
 
   def _get_source_path(self):
