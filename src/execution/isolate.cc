@@ -5027,12 +5027,8 @@ void Isolate::NotifyExceptionPropagationCallback() {
             reinterpret_cast<const v8::PropertyCallbackInfo<v8::Value>*>(
                 ext_callback_scope->callback_info());
 
-        // Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
-        // TODO(https://crbug.com/333672197): remove.
-        START_ALLOW_USE_DEPRECATED()
-
         DirectHandle<Object> holder =
-            Utils::OpenDirectHandle(*callback_info->Holder());
+            Utils::OpenDirectHandle(*callback_info->HolderV2());
         Handle<Object> maybe_name =
             PropertyCallbackArguments::GetPropertyKeyHandle(*callback_info);
         DirectHandle<Name> name =
@@ -5042,10 +5038,6 @@ void Isolate::NotifyExceptionPropagationCallback() {
                           *callback_info))
                 : Cast<Name>(maybe_name);
         DCHECK(IsJSReceiver(*holder));
-
-        // Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
-        // TODO(https://crbug.com/333672197): remove.
-        END_ALLOW_USE_DEPRECATED()
 
         // Currently we call only ApiGetters from JS code.
         ReportExceptionPropertyCallback(Cast<JSReceiver>(holder), name, kind);

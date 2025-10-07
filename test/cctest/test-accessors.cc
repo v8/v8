@@ -348,36 +348,28 @@ THREADED_TEST(HandleScopePop) {
   CHECK_EQ(count_before, count_after);
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
 static void CheckAccessorArgsCorrect(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::ValidateCallbackInfo(info);
   CHECK(info.GetIsolate() == CcTest::isolate());
-  CHECK(info.This() == info.Holder());
+  CHECK(info.This() == info.HolderV2());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   ApiTestFuzzer::Fuzz();
   CHECK(info.GetIsolate() == CcTest::isolate());
-  CHECK(info.This() == info.Holder());
+  CHECK(info.This() == info.HolderV2());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   CHECK(info.GetIsolate() == CcTest::isolate());
   i::heap::InvokeMajorGC(CcTest::heap());
-  CHECK(info.This() == info.Holder());
+  CHECK(info.This() == info.HolderV2());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   info.GetReturnValue().Set(17);
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(DirectCall) {
   LocalContext context;
@@ -897,12 +889,69 @@ TEST(ObjectSetLazyDataProperty) {
   ExpectInt32("obj.bar = -1; obj.bar;", -1);
 }
 
-TEST(ObjectSetLazyDataPropertyForIndex) {
-  // Regression test for crbug.com/1136800 .
+TEST(GlobalObjectSetLazyDataProperty) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  v8::Local<v8::Object> obj = env->Global();
+  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+
+  // Despite getting the property multiple times, the getter should only be
+  // called once and data property reads should continue to produce the same
+  // value.
+  static int getter_call_count;
+  getter_call_count = 0;
+  auto result = obj->SetLazyDataProperty(
+      env.local(), v8_str("foo"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        getter_call_count++;
+        info.GetReturnValue().Set(getter_call_count);
+      });
+  CHECK(result.FromJust());
+  CHECK_EQ(0, getter_call_count);
+  for (int i = 0; i < 2; i++) {
+    ExpectInt32("obj.foo", 1);
+    CHECK_EQ(1, getter_call_count);
+  }
+
+  // Try with contextful access.
+  getter_call_count = 0;
+  result = obj->SetLazyDataProperty(
+      env.local(), v8_str("foo2"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        getter_call_count++;
+        info.GetReturnValue().Set(getter_call_count);
+      });
+  CHECK(result.FromJust());
+  CHECK_EQ(0, getter_call_count);
+  for (int i = 0; i < 2; i++) {
+    ExpectInt32("var foo2; foo2", 1);
+    CHECK_EQ(1, getter_call_count);
+  }
+
+  // Setting should overwrite the data property.
+  result = obj->SetLazyDataProperty(
+      env.local(), v8_str("bar"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        CHECK(false);
+      });
+  CHECK(result.FromJust());
+  ExpectInt32("obj.bar = -1; obj.bar;", -1);
+
+  // Try with contextful access.
+  result = obj->SetLazyDataProperty(
+      env.local(), v8_str("bar2"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        CHECK(false);
+      });
+  CHECK(result.FromJust());
+  ExpectInt32("var bar2; bar2 = -11; bar2;", -11);
+}
+
+namespace {
+
+void TestObjectSetLazyDataPropertyForIndex(LocalContext& env,
+                                           v8::Local<v8::Object> obj) {
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
   static int getter_call_count;
@@ -919,6 +968,24 @@ TEST(ObjectSetLazyDataPropertyForIndex) {
     ExpectInt32("obj[1]", 1);
     CHECK_EQ(1, getter_call_count);
   }
+}
+
+}  // namespace
+
+TEST(ObjectSetLazyDataPropertyForIndex) {
+  // Regression test for http://crbug.com/1136800.
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  TestObjectSetLazyDataPropertyForIndex(env, obj);
+}
+
+TEST(GlobalObjectSetLazyDataPropertyForIndex) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  TestObjectSetLazyDataPropertyForIndex(env, env->Global());
 }
 
 TEST(ObjectTemplateSetLazyPropertySurvivesIC) {

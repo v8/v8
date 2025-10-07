@@ -245,25 +245,9 @@ class PropertyCallbackInfo {
    * \return The object in the prototype chain of the receiver that has the
    * interceptor. Suppose you have `x` and its prototype is `y`, and `y`
    * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
-   * The Holder() could be a hidden object (the global object, rather
-   * than the global proxy).
-   *
-   * \note For security reasons, do not pass the object back into the runtime.
-   */
-  V8_DEPRECATED(
-      "V8 will stop providing access to hidden prototype (i.e. "
-      "JSGlobalObject). Use HolderV2() instead. \n"
-      "DO NOT try to workaround this by accessing JSGlobalObject via "
-      "v8::Object::GetPrototype() - it'll be deprecated soon too. \n"
-      "See http://crbug.com/333672197. ")
-  V8_INLINE Local<Object> Holder() const;
-
-  /**
-   * \return The object in the prototype chain of the receiver that has the
-   * interceptor. Suppose you have `x` and its prototype is `y`, and `y`
-   * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
    * In case the property is installed on the global object the Holder()
    * would return the global proxy.
+   * TODO(http://crbug.com/333672197): rename back to Holder().
    */
   V8_INLINE Local<Object> HolderV2() const;
 
@@ -296,6 +280,7 @@ class PropertyCallbackInfo {
 
   static constexpr int kPropertyKeyIndex = 0;
   static constexpr int kShouldThrowOnErrorIndex = 1;
+  // TODO(http://crbug.com/333672197): drop this in favor of HolderV2.
   static constexpr int kHolderIndex = 2;
   static constexpr int kIsolateIndex = 3;
   static constexpr int kHolderV2Index = 4;
@@ -674,11 +659,6 @@ Local<Value> PropertyCallbackInfo<T>::Data() const {
 template <typename T>
 Local<Object> PropertyCallbackInfo<T>::This() const {
   return Local<Object>::FromSlot(&args_[kThisIndex]);
-}
-
-template <typename T>
-Local<Object> PropertyCallbackInfo<T>::Holder() const {
-  return Local<Object>::FromSlot(&args_[kHolderIndex]);
 }
 
 namespace api_internal {
