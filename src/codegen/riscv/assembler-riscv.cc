@@ -255,7 +255,7 @@ void Assembler::EndBlockPools() {
                pools_blocked_nesting_);
   DCHECK_GE(pools_blocked_nesting_, 0);
   if (pools_blocked_nesting_ > 0) return;  // Still blocked.
-  DCHECK(constpool_.IsInRangeIfEmittedAt(pc_offset()));
+  DCHECK(constpool_.IsInRangeIfEmittedAt(Jump::kRequired, pc_offset()));
   constpool_.EnableNextCheckIn();
   CheckConstantPoolQuick(0);
   CheckTrampolinePoolQuick(0);

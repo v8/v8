@@ -65,7 +65,6 @@ inline bool operator==(const ConstantPoolKey& a, const ConstantPoolKey& b) {
 // Constant pool generation
 enum class Jump { kOmitted, kRequired };
 enum class Emission { kIfNeeded, kForced };
-enum class Alignment { kOmitted, kRequired };
 enum class RelocInfoStatus { kMustRecord, kMustOmitForDuplicate };
 enum class ConstantPoolEmission { kSkip, kCheck };
 
@@ -88,9 +87,9 @@ class ConstantPool {
   RelocInfoStatus RecordEntry64(uint64_t data, RelocInfo::Mode rmode);
 
   // Check if pool will be out of range at {pc_offset}.
-  bool IsInRangeIfEmittedAt(int pc_offset) const;
+  bool IsInRangeIfEmittedAt(Jump jump, int pc_offset) const;
 
-  void Check(Emission force_emission, Jump require_jump, size_t margin = 0);
+  void Check(Emission force_emission, Jump jump, size_t margin = 0);
 
   // Repeated checking whether the constant pool should be emitted is expensive;
   // only check once a number of bytes have been generated.
@@ -129,18 +128,15 @@ class ConstantPool {
   size_t EntryCount() const { return deduped_entry_count_; }
 
   // Emit the pool at the current pc with a branch over the pool if requested.
-  void EmitAndClear(Jump require);
-  bool ShouldEmitNow(Jump require_jump, size_t margin = 0) const;
+  void EmitAndClear(Jump jump);
+  bool ShouldEmitNow(Jump jump, size_t margin = 0) const;
 
   void EmitEntries();
-  void EmitPrologue(Alignment require_alignment);
-
-  // Size in bytes of the constant pool. Depending on parameters, the size will
-  // include the branch over the pool and alignment padding.
-  int ComputeSize(Jump require_jump, Alignment require_alignment) const;
+  void EmitPrologue(int size, Label* after);
 
   // Size of the prologue in bytes.
-  int ComputePrologueSize(Jump require_jump) const;
+  int SizeOfPrologue(Jump jump) const;
+  int SizeOfPool(Jump jump, int padding) const;
 
   // Compute the position for the next check in.
   int ComputeNextCheckIn() const {
@@ -160,8 +156,17 @@ class ConstantPool {
   void Emit(const ConstantPoolKey& key);
   void SetLoadOffsetToConstPoolEntry(int load_offset, int entry_offset,
                                      const ConstantPoolKey& key);
-  Alignment IsAlignmentRequiredIfEmittedAt(Jump require_jump,
-                                           int pc_offset) const;
+
+  // Alignment and padding in bytes if emitted at the given {pc_offset}.
+  int AlignmentIfEmittedAt(Jump jump, int pc_offset) const;
+  int PaddingIfEmittedAt(Jump jump, int pc_offset) const;
+
+  // Size in bytes of the constant pool if emitted at the given {pc_offset}.
+  // Depending on parameters, the size will include the branch over the pool
+  // and padding for alignment.
+  int SizeIfEmittedAt(Jump jump, int pc_offset) const {
+    return SizeOfPool(jump, PaddingIfEmittedAt(jump, pc_offset));
+  }
 
   Assembler* assm_;
 
