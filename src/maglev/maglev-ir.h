@@ -4849,6 +4849,11 @@ DEFINE_TRUNCATE_NODE(TruncateHoleyFloat64ToInt32, HoleyFloat64,
                      OpProperties::Int32())
 #undef DEFINE_TRUNCATE_NODE
 
+// TODO(dmercadier): Number->Float64 conversions are exact and could still be
+// marked with the ConversionNode OpProperties, but Oddball->Float64 are not,
+// which is why this node doesn't have the ConversionNode property. We could
+// consider splitting this node in 2 (or for Numbers, one for NumberOrOddball),
+// as well as adding a "tonumber_float64" alternative.
 template <typename Derived, ValueRepresentation FloatType>
   requires(FloatType == ValueRepresentation::kFloat64 ||
            FloatType == ValueRepresentation::kHoleyFloat64)
@@ -4865,8 +4870,7 @@ class CheckedNumberOrOddballToFloat64OrHoleyFloat64
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() |
-      OpProperties::ForValueRepresentation(FloatType) |
-      OpProperties::ConversionNode();
+      OpProperties::ForValueRepresentation(FloatType);
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 

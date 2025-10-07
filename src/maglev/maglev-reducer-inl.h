@@ -1486,8 +1486,8 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
                                          conversion_type);
   if (!cst_right.has_value()) return {};
   if (details::Float64Equal(cst_right, Float64Identity<kOperation>())) {
-    // Deopt if {left} is not a Float64.
-    GetFloat64(left);
+    // This needs to return a Float64.
+    left = GetFloat64(left);
     if (left->properties().is_conversion()) {
       return left->input(0).node();
     }
