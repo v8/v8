@@ -86,10 +86,19 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
       isolate, initial_map,
       JSFunction::GetDerivedMap(isolate, constructor, new_target));
 
-  ElementsKind to_kind = can_use_type_feedback ? site->GetElementsKind()
-                                               : initial_map->elements_kind();
-  if (holey && !IsHoleyElementsKind(to_kind)) {
-    to_kind = GetHoleyElementsKind(to_kind);
+  ElementsKind initial_kind = can_use_type_feedback
+                                  ? site->GetElementsKind()
+                                  : initial_map->elements_kind();
+  ElementsKind to_kind =
+      holey ? GetHoleyElementsKind(initial_kind) : initial_kind;
+
+  if (argv.length() > 1 || (argv.length() == 1 && !IsNumber(argv[0]))) {
+    to_kind = JSObject::GetTransitionedElementsKind(
+        isolate, initial_kind, FullObjectSlot(argv.address_of_arg_at(0)),
+        argv.length(), ALLOW_CONVERTED_DOUBLE_ELEMENTS);
+  }
+
+  if (to_kind != initial_kind) {
     // Update the allocation site info to reflect the advice alteration.
     if (!site.is_null()) site->SetElementsKind(to_kind);
   }

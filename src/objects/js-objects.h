@@ -633,6 +633,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static inline void EnsureCanContainHeapObjectElements(
       Isolate* isolate, DirectHandle<JSObject> obj);
 
+  template <typename TSlot>
+  static inline ElementsKind GetTransitionedElementsKind(
+      Isolate* isolate, ElementsKind current_kind, TSlot elements,
+      uint32_t count, EnsureElementsMode mode);
+
   // Makes sure that this object can contain the specified elements.
   // TSlot here is either ObjectSlot or FullObjectSlot.
   template <typename TSlot>

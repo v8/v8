@@ -176,6 +176,68 @@ void JSObject::EnsureCanContainHeapObjectElements(
 }
 
 template <typename TSlot>
+ElementsKind JSObject::GetTransitionedElementsKind(Isolate* isolate,
+                                                   ElementsKind current_kind,
+                                                   TSlot elements,
+                                                   uint32_t count,
+                                                   EnsureElementsMode mode) {
+  static_assert(std::is_same_v<TSlot, FullObjectSlot> ||
+                    std::is_same_v<TSlot, ObjectSlot>,
+                "Only ObjectSlot and FullObjectSlot are expected here");
+  DisallowGarbageCollection no_gc;
+  if (current_kind == HOLEY_ELEMENTS) return current_kind;
+  ElementsKind target_kind = current_kind;
+
+  DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
+  bool is_holey = IsHoleyElementsKind(current_kind);
+  Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
+  TSlot end = elements + count;
+  for (; elements < end; ++elements) {
+    Tagged<Object> current = *elements;
+    if (current == the_hole) {
+      is_holey = true;
+      target_kind = GetHoleyElementsKind(target_kind);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    } else if (IsUndefined(current)) {
+      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS) {
+        if (IsSmiElementsKind(target_kind)) {
+          target_kind = HOLEY_DOUBLE_ELEMENTS;
+        } else if (target_kind == PACKED_DOUBLE_ELEMENTS) {
+          target_kind = HOLEY_DOUBLE_ELEMENTS;
+        } else {
+          DCHECK(target_kind == PACKED_ELEMENTS ||
+                 target_kind == HOLEY_ELEMENTS ||
+                 target_kind == HOLEY_DOUBLE_ELEMENTS);
+        }
+      } else if (is_holey) {
+        if (IsSmiElementsKind(target_kind)) {
+          return HOLEY_ELEMENTS;
+        }
+      } else {
+        target_kind = PACKED_ELEMENTS;
+      }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+    } else if (!IsSmi(current)) {
+      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && IsNumber(current)) {
+        if (IsSmiElementsKind(target_kind)) {
+          if (is_holey) {
+            target_kind = HOLEY_DOUBLE_ELEMENTS;
+          } else {
+            target_kind = PACKED_DOUBLE_ELEMENTS;
+          }
+        }
+      } else if (is_holey) {
+        return HOLEY_ELEMENTS;
+      } else {
+        target_kind = PACKED_ELEMENTS;
+      }
+    }
+  }
+
+  return target_kind;
+}
+
+template <typename TSlot>
 void JSObject::EnsureCanContainElements(Isolate* isolate,
                                         DirectHandle<JSObject> object,
                                         TSlot objects, uint32_t count,
@@ -184,57 +246,8 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
                     std::is_same_v<TSlot, ObjectSlot>,
                 "Only ObjectSlot and FullObjectSlot are expected here");
   ElementsKind current_kind = object->GetElementsKind();
-  ElementsKind target_kind = current_kind;
-  {
-    DisallowGarbageCollection no_gc;
-    DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
-    bool is_holey = IsHoleyElementsKind(current_kind);
-    if (current_kind == HOLEY_ELEMENTS) return;
-    Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
-    for (uint32_t i = 0; i < count; ++i, ++objects) {
-      Tagged<Object> current = *objects;
-      if (current == the_hole) {
-        is_holey = true;
-        target_kind = GetHoleyElementsKind(target_kind);
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-      } else if (IsUndefined(current)) {
-        if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS) {
-          if (IsSmiElementsKind(target_kind)) {
-            target_kind = HOLEY_DOUBLE_ELEMENTS;
-          } else if (target_kind == PACKED_DOUBLE_ELEMENTS) {
-            target_kind = HOLEY_DOUBLE_ELEMENTS;
-          } else {
-            DCHECK(target_kind == PACKED_ELEMENTS ||
-                   target_kind == HOLEY_ELEMENTS ||
-                   target_kind == HOLEY_DOUBLE_ELEMENTS);
-          }
-        } else if (is_holey) {
-          if (IsSmiElementsKind(target_kind)) {
-            target_kind = HOLEY_ELEMENTS;
-            break;
-          }
-        } else {
-          target_kind = PACKED_ELEMENTS;
-        }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-      } else if (!IsSmi(current)) {
-        if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && IsNumber(current)) {
-          if (IsSmiElementsKind(target_kind)) {
-            if (is_holey) {
-              target_kind = HOLEY_DOUBLE_ELEMENTS;
-            } else {
-              target_kind = PACKED_DOUBLE_ELEMENTS;
-            }
-          }
-        } else if (is_holey) {
-          target_kind = HOLEY_ELEMENTS;
-          break;
-        } else {
-          target_kind = PACKED_ELEMENTS;
-        }
-      }
-    }
-  }
+  ElementsKind target_kind =
+      GetTransitionedElementsKind(isolate, current_kind, objects, count, mode);
   if (target_kind != current_kind) {
     TransitionElementsKind(isolate, object, target_kind);
   }
