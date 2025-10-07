@@ -970,7 +970,9 @@ class Heap final {
       AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
       PerformHeapLimitCheck check_heap_limit_reached =
-          PerformHeapLimitCheck::kYes);
+          PerformHeapLimitCheck::kYes,
+      PerformIneffectiveMarkCompactCheck check_ineffective_mark_compact =
+          PerformIneffectiveMarkCompactCheck::kYes);
 
   // Performs a full garbage collection.
   V8_EXPORT_PRIVATE void CollectAllGarbage(

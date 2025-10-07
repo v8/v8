@@ -1457,6 +1457,7 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
 }
 
 enum class PerformHeapLimitCheck { kYes, kNo };
+enum class PerformIneffectiveMarkCompactCheck { kYes, kNo };
 
 class AllocationHint final {
  public:
