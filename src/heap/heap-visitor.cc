@@ -164,7 +164,7 @@ template <>
 struct WeakListVisitor<JSFinalizationRegistry> {
   static void SetWeakNext(Heap* heap, Tagged<JSFinalizationRegistry> obj,
                           Tagged<HeapObject> next) {
-    obj->set_next_dirty(
+    obj->set_next_dirty_unchecked(
         GCSafeCast<UnionOf<Undefined, JSFinalizationRegistry>>(next, heap),
         UPDATE_WRITE_BARRIER);
   }

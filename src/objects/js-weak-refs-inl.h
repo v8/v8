@@ -159,7 +159,8 @@ bool JSFinalizationRegistry::NeedsCleanup() const {
 }
 
 void JSFinalizationRegistry::set_next_dirty_unchecked(
-    Tagged<JSFinalizationRegistry> value, WriteBarrierMode mode) {
+    Tagged<Union<JSFinalizationRegistry, Undefined>> value,
+    WriteBarrierMode mode) {
   WRITE_FIELD(*this, kNextDirtyOffset, value);
   CONDITIONAL_WRITE_BARRIER(*this, kNextDirtyOffset, value, mode);
 }

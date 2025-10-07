@@ -78,7 +78,7 @@ class JSFinalizationRegistry
       Isolate* isolate, Tagged<WeakCell> weak_cell);
 
   inline void set_next_dirty_unchecked(
-      Tagged<JSFinalizationRegistry> value,
+      Tagged<Union<JSFinalizationRegistry, Undefined>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set_active_cells_unchecked(
       Tagged<Union<Undefined, WeakCell>> value,
