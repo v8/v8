@@ -1182,7 +1182,6 @@ class OffHeapCompressedMaybeObjectSlot;
 class FullObjectSlot;
 class FullMaybeObjectSlot;
 class FullHeapObjectSlot;
-class OffHeapFullObjectSlot;
 class OldSpace;
 class ReadOnlySpace;
 class RelocInfo;
@@ -1257,8 +1256,8 @@ struct SlotTraits {
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
-  using TOffHeapObjectSlot = OffHeapFullObjectSlot;
-  using TInstructionStreamSlot = OffHeapFullObjectSlot;
+  using TOffHeapObjectSlot = FullObjectSlot;
+  using TInstructionStreamSlot = FullObjectSlot;
 #endif  // V8_COMPRESS_POINTERS
 #ifdef V8_ENABLE_SANDBOX
   using TProtectedPointerSlot =

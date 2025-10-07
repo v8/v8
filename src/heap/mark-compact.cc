@@ -1152,9 +1152,9 @@ class InternalizedStringTableCleaner final : public RootVisitor {
     UNREACHABLE();
   }
 
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) override {
     DCHECK_EQ(root, Root::kStringTable);
     // Visit all HeapObject pointers in [start, end).
     Isolate* const isolate = heap_->isolate();
@@ -2897,9 +2897,9 @@ class SharedStructTypeRegistryCleaner final : public RootVisitor {
     UNREACHABLE();
   }
 
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) override {
     DCHECK_EQ(root, Root::kSharedStructTypeRegistry);
     // The SharedStructTypeRegistry holds the canonical SharedStructType
     // instance maps weakly. Visit all Map pointers in [start, end), deleting
@@ -4148,111 +4148,26 @@ void MarkCompactCollector::RecordRelocSlot(Tagged<InstructionStream> host,
 
 namespace {
 
-// Missing specialization MakeSlotValue<FullObjectSlot, WEAK>() will turn
-// attempt to store a weak reference to strong-only slot to a compilation error.
+// MakeSlotValue for slots that cannot be weak.
+// Only STRONG reference type is accepted. Attempts to use WEAK reference type
+// will fail to compile due to missing template instantiation.
 template <typename TSlot, HeapObjectReferenceType reference_type>
-typename TSlot::TObject MakeSlotValue(Tagged<HeapObject> heap_object);
-
-template <>
-Tagged<Object> MakeSlotValue<ObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
+  requires(!TSlot::kCanBeWeak &&
+           reference_type == HeapObjectReferenceType::STRONG)
+TSlot::TObject MakeSlotValue(Tagged<HeapObject> heap_object) {
   return heap_object;
 }
 
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
+// MakeSlotValue for slots that can be weak.
+template <typename TSlot, HeapObjectReferenceType reference_type>
+  requires(TSlot::kCanBeWeak)
+TSlot::TObject MakeSlotValue(Tagged<HeapObject> heap_object) {
+  if constexpr (reference_type == HeapObjectReferenceType::WEAK) {
+    return MakeWeak(heap_object);
+  } else {
+    return heap_object;
+  }
 }
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::WEAK>(
-    Tagged<HeapObject> heap_object) {
-  return MakeWeak(heap_object);
-}
-
-template <>
-Tagged<Object>
-MakeSlotValue<WriteProtectedSlot<ObjectSlot>, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-#ifdef V8_ENABLE_SANDBOX
-template <>
-Tagged<Object> MakeSlotValue<WriteProtectedSlot<ProtectedPointerSlot>,
-                             HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<ProtectedMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<ProtectedMaybeObjectSlot, HeapObjectReferenceType::WEAK>(
-    Tagged<HeapObject> heap_object) {
-  return MakeWeak(heap_object);
-}
-#endif
-
-template <>
-Tagged<Object>
-MakeSlotValue<OffHeapObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-#ifdef V8_COMPRESS_POINTERS
-template <>
-Tagged<Object> MakeSlotValue<FullObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::WEAK>(
-    Tagged<HeapObject> heap_object) {
-  return MakeWeak(heap_object);
-}
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-template <>
-Tagged<Object>
-MakeSlotValue<InstructionStreamSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-#endif  // V8_EXTERNAL_CODE_SPACE
-
-#ifdef V8_ENABLE_SANDBOX
-template <>
-Tagged<Object>
-MakeSlotValue<ProtectedPointerSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-#endif  // V8_ENABLE_SANDBOX
-
-// The following specialization
-//   MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::WEAK>()
-// is not used.
-#endif  // V8_COMPRESS_POINTERS
 
 template <HeapObjectReferenceType reference_type, typename TSlot>
 static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
@@ -4425,9 +4340,9 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
     }
   }
 
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) override {
     for (OffHeapObjectSlot p = start; p < end; ++p) {
       UpdateRootSlotInternal(cage_base(), p);
     }
@@ -4446,13 +4361,9 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
   }
 
  private:
-  static inline void UpdateRootSlotInternal(PtrComprCageBase cage_base,
-                                            FullObjectSlot slot) {
-    UpdateStrongSlot(cage_base, slot);
-  }
-
-  static inline void UpdateRootSlotInternal(PtrComprCageBase cage_base,
-                                            OffHeapObjectSlot slot) {
+  template <typename TSlot>
+    requires(!TSlot::kCanBeWeak)
+  void UpdateRootSlotInternal(PtrComprCageBase cage_base, TSlot slot) {
     UpdateStrongSlot(cage_base, slot);
   }
 
