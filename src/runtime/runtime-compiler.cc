@@ -375,6 +375,69 @@ bool DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
   return any_marked;
 }
 
+void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
+                                   Handle<JSFunction>* function) {
+  DCHECK(osr_offset->IsNone());
+  DCHECK(function->is_null());
+
+  // Determine the frame that triggered the OSR request.
+  JavaScriptStackFrameIterator it(isolate);
+  UnoptimizedJSFrame* frame = UnoptimizedJSFrame::cast(it.frame());
+  DCHECK_IMPLIES(frame->is_interpreted(),
+                 frame->LookupCode()->is_interpreter_trampoline_builtin());
+  DCHECK_IMPLIES(frame->is_baseline(),
+                 frame->LookupCode()->kind() == CodeKind::BASELINE);
+
+  *osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
+  *function = handle(frame->function(), isolate);
+
+  DCHECK(!osr_offset->IsNone());
+  DCHECK((*function)->shared()->HasBytecodeArray());
+}
+
+Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
+                                   DirectHandle<JSFunction> function,
+                                   CodeKind min_opt_level,
+                                   BytecodeOffset osr_offset) {
+  ConcurrencyMode mode =
+      V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
+                v8_flags.concurrent_osr)
+          ? ConcurrencyMode::kConcurrent
+          : ConcurrencyMode::kSynchronous;
+
+  if (V8_UNLIKELY(isolate->EfficiencyModeEnabled() &&
+                  min_opt_level == CodeKind::MAGLEV)) {
+    mode = ConcurrencyMode::kSynchronous;
+  }
+
+  DirectHandle<Code> result;
+  if (!Compiler::CompileOptimizedOSR(
+           isolate, function, osr_offset, mode,
+           (maglev::IsMaglevOsrEnabled() && min_opt_level == CodeKind::MAGLEV)
+               ? CodeKind::MAGLEV
+               : CodeKind::TURBOFAN_JS)
+           .ToHandle(&result) ||
+      result->marked_for_deoptimization()) {
+    // An empty result can mean one of two things:
+    // 1) we've started a concurrent compilation job - everything is fine.
+    // 2) synchronous compilation failed for some reason.
+    return Smi::zero();
+  }
+
+  DCHECK(!result.is_null());
+  DCHECK(result->is_turbofanned() || result->is_maglevved());
+  DCHECK(CodeKindIsOptimizedJSFunction(result->kind()));
+
+#ifdef DEBUG
+  Tagged<DeoptimizationData> data = result->deoptimization_data();
+  DCHECK_EQ(BytecodeOffset(data->OsrBytecodeOffset().value()), osr_offset);
+  DCHECK_GE(data->OsrPcOffset().value(), 0);
+#endif  // DEBUG
+
+  // First execution logging happens in LogOrTraceOptimizedOSREntry
+  return *result;
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
@@ -432,9 +495,9 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
         Deoptimizer::GetOutermostOuterLoopWithCodeKind(
             isolate, *function, osr_offset, CodeKind::MAGLEV,
             &outer_loop_osr_offset)) {
-      auto result = Compiler::CompileOptimizedOSR(
-          isolate, handle(*function, isolate), outer_loop_osr_offset,
-          ConcurrencyMode::kConcurrent, CodeKind::TURBOFAN_JS);
+      auto result =
+          CompileOptimizedOSR(isolate, handle(*function, isolate),
+                              CodeKind::TURBOFAN_JS, outer_loop_osr_offset);
       USE(result);
       return ReadOnlyRoots(isolate).undefined_value();
     }
@@ -516,73 +579,6 @@ RUNTIME_FUNCTION(Runtime_CheckTurboshaftTypeOf) {
   DirectHandle<Object> obj = args.at(0);
   return *obj;
 }
-
-namespace {
-
-void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
-                                   Handle<JSFunction>* function) {
-  DCHECK(osr_offset->IsNone());
-  DCHECK(function->is_null());
-
-  // Determine the frame that triggered the OSR request.
-  JavaScriptStackFrameIterator it(isolate);
-  UnoptimizedJSFrame* frame = UnoptimizedJSFrame::cast(it.frame());
-  DCHECK_IMPLIES(frame->is_interpreted(),
-                 frame->LookupCode()->is_interpreter_trampoline_builtin());
-  DCHECK_IMPLIES(frame->is_baseline(),
-                 frame->LookupCode()->kind() == CodeKind::BASELINE);
-
-  *osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
-  *function = handle(frame->function(), isolate);
-
-  DCHECK(!osr_offset->IsNone());
-  DCHECK((*function)->shared()->HasBytecodeArray());
-}
-
-Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
-                                   DirectHandle<JSFunction> function,
-                                   CodeKind min_opt_level,
-                                   BytecodeOffset osr_offset) {
-  ConcurrencyMode mode =
-      V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
-                v8_flags.concurrent_osr)
-          ? ConcurrencyMode::kConcurrent
-          : ConcurrencyMode::kSynchronous;
-
-  if (V8_UNLIKELY(isolate->EfficiencyModeEnabled() &&
-                  min_opt_level == CodeKind::MAGLEV)) {
-    mode = ConcurrencyMode::kSynchronous;
-  }
-
-  DirectHandle<Code> result;
-  if (!Compiler::CompileOptimizedOSR(
-           isolate, function, osr_offset, mode,
-           (maglev::IsMaglevOsrEnabled() && min_opt_level == CodeKind::MAGLEV)
-               ? CodeKind::MAGLEV
-               : CodeKind::TURBOFAN_JS)
-           .ToHandle(&result) ||
-      result->marked_for_deoptimization()) {
-    // An empty result can mean one of two things:
-    // 1) we've started a concurrent compilation job - everything is fine.
-    // 2) synchronous compilation failed for some reason.
-    return Smi::zero();
-  }
-
-  DCHECK(!result.is_null());
-  DCHECK(result->is_turbofanned() || result->is_maglevved());
-  DCHECK(CodeKindIsOptimizedJSFunction(result->kind()));
-
-#ifdef DEBUG
-  Tagged<DeoptimizationData> data = result->deoptimization_data();
-  DCHECK_EQ(BytecodeOffset(data->OsrBytecodeOffset().value()), osr_offset);
-  DCHECK_GE(data->OsrPcOffset().value(), 0);
-#endif  // DEBUG
-
-  // First execution logging happens in LogOrTraceOptimizedOSREntry
-  return *result;
-}
-
-}  // namespace
 
 RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   HandleScope handle_scope(isolate);
