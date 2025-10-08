@@ -1308,7 +1308,6 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   base::Vector<uint8_t> reloc_info{
       desc.buffer + desc.buffer_size - desc.reloc_size,
       static_cast<size_t>(desc.reloc_size)};
-  UpdateCodeSize(desc.instr_size, tier, for_debugging);
 
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // CodeDesc contains real offsets but WasmCode expects an offset of 0 to mean
@@ -1614,8 +1613,6 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     base::Vector<const uint8_t> inlining_positions,
     base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
     ExecutionTier tier) {
-  UpdateCodeSize(instructions.size(), tier, kNotForDebugging);
-
   uint64_t signature_hash =
       module_->signature_hash(GetTypeCanonicalizer(), index);
 
@@ -1725,7 +1722,6 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
   base::Vector<uint8_t> code_space =
       code_allocator_.AllocateForCodeInRegion(this, jump_table_size, region);
   DCHECK(!code_space.empty());
-  UpdateCodeSize(jump_table_size, ExecutionTier::kNone, kNotForDebugging);
   {
     WritableJitAllocation jit_allocation =
         ThreadIsolation::RegisterJitAllocation(
@@ -1757,15 +1753,6 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    0}};                   // signature_hash
   return PublishCodeLocked(std::move(code),
                            UnpublishedWasmCode::kNoAssumptions);
-}
-
-void NativeModule::UpdateCodeSize(size_t size, ExecutionTier tier,
-                                  ForDebugging for_debugging) {
-  if (for_debugging != kNotForDebugging) return;
-  // Count jump tables (ExecutionTier::kNone) for both Liftoff and TurboFan as
-  // this is shared code.
-  if (tier != ExecutionTier::kTurbofan) liftoff_code_size_.fetch_add(size);
-  if (tier != ExecutionTier::kLiftoff) turbofan_code_size_.fetch_add(size);
 }
 
 void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target,
@@ -2861,7 +2848,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 520);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 504);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 

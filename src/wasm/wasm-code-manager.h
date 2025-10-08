@@ -764,12 +764,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t liftoff_bailout_count() const {
     return liftoff_bailout_count_.load(std::memory_order_relaxed);
   }
-  size_t liftoff_code_size() const {
-    return liftoff_code_size_.load(std::memory_order_relaxed);
-  }
-  size_t turbofan_code_size() const {
-    return turbofan_code_size_.load(std::memory_order_relaxed);
-  }
 
   void AddLazyCompilationTimeSample(int64_t sample);
 
@@ -1004,8 +998,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // up there. Return an empty struct if no suitable jump tables exist.
   JumpTablesRef FindJumpTablesForRegionLocked(base::AddressRegion) const;
 
-  void UpdateCodeSize(size_t, ExecutionTier, ForDebugging);
-
   // Hold the {allocation_mutex_} when calling one of these methods.
   // {slot_index} is the index in the declared functions, i.e. function index
   // minus the number of imported functions.
@@ -1146,8 +1138,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   bool lazy_compile_frozen_ = false;
   std::atomic<size_t> liftoff_bailout_count_{0};
-  std::atomic<size_t> liftoff_code_size_{0};
-  std::atomic<size_t> turbofan_code_size_{0};
 
   // Metrics for lazy compilation.
   std::atomic<int> num_lazy_compilations_{0};

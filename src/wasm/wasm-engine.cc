@@ -847,7 +847,7 @@ void WasmEngine::AsyncCompile(
       isolate, enabled, std::move(compile_imports), std::move(bytes),
       isolate->native_context(), api_method_name_for_errors,
       std::move(resolver), compilation_id);
-  job->Start();
+  job->StartAsyncDecoding();
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(

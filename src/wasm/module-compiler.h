@@ -119,7 +119,9 @@ class AsyncCompileJob {
                   int compilation_id);
   ~AsyncCompileJob();
 
-  void Start();
+  // Start asynchronous decoding; this triggers the full asynchronous
+  // (non-streaming) compilation.
+  void StartAsyncDecoding();
 
   std::shared_ptr<StreamingDecoder> CreateStreamingDecoder();
 
@@ -137,7 +139,8 @@ class AsyncCompileJob {
   class CompilationStateCallback;
 
   // States of the AsyncCompileJob.
-  // Step 1 (async). Decodes the wasm module.
+  // Step 1 (async). Decodes the wasm module (only called for non-streaming
+  //                 compilation; streaming uses the StreamingDecoder instead).
   // --> Fail on decoding failure,
   // --> PrepareAndStartCompile on success.
   class DecodeModule;
@@ -230,7 +233,6 @@ class AsyncCompileJob {
   IndirectHandle<NativeContext> native_context_;
   IndirectHandle<NativeContext> incumbent_context_;
   v8::metrics::Recorder::ContextId context_id_;
-  v8::metrics::WasmModuleDecoded metrics_event_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
   IndirectHandle<WasmModuleObject> module_object_;
