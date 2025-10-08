@@ -1485,14 +1485,6 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
   auto cst_right = TryGetFloat64Constant(UseRepresentation::kFloat64, right,
                                          conversion_type);
   if (!cst_right.has_value()) return {};
-  if (details::Float64Equal(cst_right, Float64Identity<kOperation>())) {
-    // This needs to return a Float64.
-    left = GetFloat64(left);
-    if (left->properties().is_conversion()) {
-      return left->input(0).node();
-    }
-    return left;
-  }
   return TryFoldFloat64BinaryOperationForToNumber<kOperation>(
       conversion_type, left, cst_right.value());
 }
@@ -1506,6 +1498,11 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
   auto cst_left =
       TryGetFloat64Constant(UseRepresentation::kFloat64, left, conversion_type);
   if (!cst_left.has_value()) {
+    if (details::Float64Equal(cst_right, Float64Identity<kOperation>())) {
+      // This needs to return a Float64.
+      left = GetFloat64(left);
+      return left->Unwrap();
+    }
     // TODO(dmercadier): we could still do strength reduction, like
     //     x * 2  ==> x + x
     //     x ** 2 ==> x * x
