@@ -2200,7 +2200,7 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
   // the maximum number of matches we can count in the vector before it
   // overflows.
   int max_count = std::numeric_limits<SChar>::max();
-  while (block + stride * max_count <= end) {
+  while (stride * max_count <= static_cast<size_t>(end - block)) {
     for (int i = 0; i < max_count; i++, block += stride) {
       const auto input = hw::LoadU(tag, block);
       // TODO(floitsch): use an operator for the comparison when it is available
@@ -2224,7 +2224,7 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
   // For blocks shorter than stride * max_count, lanes in submatches can't
   // overflow.
   DCHECK_LT(end - block, stride * max_count);
-  for (; block + stride <= end; block += stride) {
+  for (; stride <= static_cast<size_t>(end - block); block += stride) {
     const auto input = hw::LoadU(tag, block);
     // TODO(floitsch): use an operator for the comparison when it is available
     // on RISC-V.
