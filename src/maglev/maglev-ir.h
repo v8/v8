@@ -2545,6 +2545,8 @@ class NodeBase : public ZoneObject {
         EagerDeoptInfo(zone, deopt_frame, feedback_to_update);
   }
 
+  inline void ClearInputs();
+
   template <typename NodeT>
   NodeT* OverwriteWith() {
     OverwriteWith(NodeBase::opcode_of<NodeT>, NodeT::kProperties);
@@ -2554,6 +2556,9 @@ class NodeBase : public ZoneObject {
   inline void OverwriteWith(
       Opcode new_opcode,
       std::optional<OpProperties> maybe_new_properties = std::nullopt);
+
+  template <typename NodeT, typename... Args>
+  NodeT* OverwriteWith(Args&&... args);
 
   inline void UnwrapDeoptFrames();
   inline void OverwriteWithIdentityTo(ValueNode* node);

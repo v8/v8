@@ -280,6 +280,11 @@ class MaglevReducer {
 
   void AddInitializedNodeToGraph(Node* node);
 
+  // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
+  // since std::intializer_list can be converted to std::span.
+  template <typename NodeT, typename InputsT>
+  ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
+
   ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
 
   compiler::OptionalHeapObjectRef TryGetConstant(
@@ -548,11 +553,6 @@ class MaglevReducer {
       return UseReprHintRecording::kRecord;
     }
   }
-
-  // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
-  // since std::intializer_list can be converted to std::span.
-  template <typename NodeT, typename InputsT>
-  ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
 
   template <typename NodeT, typename InputsT>
   void SetNodeInputsOld(NodeT* node, InputsT inputs);

@@ -109,6 +109,29 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   return ProcessResult::kRemove;
 }
 
+template <typename NodeT, typename... Args>
+ProcessResult MaglevGraphOptimizer::ReplaceWith(
+    std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  // If current node is not a value node, we shouldn't try to replace it.
+  CHECK(current_node()->Cast<ValueNode>());
+  ValueNode* current_value = current_node()->Cast<ValueNode>();
+  current_value->ClearInputs();
+  // Unfortunately we cannot remove uses from deopt frames, since these could be
+  // shared with other nodes. But we can remove uses from Identity and
+  // ReturnedValue nodes.
+  current_value->UnwrapDeoptFrames();
+  NodeT* new_node =
+      current_value->OverwriteWith<NodeT>(std::forward<Args>(args)...);
+  ReduceResult result = reducer_.SetNodeInputs(new_node, inputs);
+  DCHECK(result.IsDone());
+  if (result.IsDoneWithAbort()) {
+    ReduceResult deopt = EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+    USE(deopt);
+    return ProcessResult::kTruncateBlock;
+  }
+  return ProcessResult::kContinue;
+}
+
 void MaglevGraphOptimizer::UnwrapInputs() {
   for (int i = 0; i < current_node()->input_count(); i++) {
     ValueNode* input = current_node()->input(i).node();
@@ -1226,9 +1249,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagInt32(
   // TODO(b/424157317): Optimize.
   if (auto range = GetRange(node->input_node(0))) {
     if (Range::Smi().contains(*range)) {
-      return ReplaceWith(
-          reducer_.AddNewNodeNoInputConversion<UnsafeSmiTagInt32>(
-              {node->input_node(0)}));
+      return ReplaceWith<UnsafeSmiTagInt32>({node->input_node(0)});
     }
   }
   return ProcessResult::kContinue;

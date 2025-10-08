@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_OPTIMIZER_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_OPTIMIZER_H_
 
+#include <initializer_list>
+
 #include "src/base/logging.h"
 #include "src/common/scoped-modification.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -101,6 +103,10 @@ class MaglevGraphOptimizer {
                    bool if_true);
 
   ProcessResult ReplaceWith(ValueNode* node);
+
+  template <typename NodeT, typename... Args>
+  ProcessResult ReplaceWith(std::initializer_list<ValueNode*> inputs,
+                            Args&&...);
 
   template <Operation kOperation>
   std::optional<ProcessResult> TryFoldInt32Operation(ValueNode* node);
