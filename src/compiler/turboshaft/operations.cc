@@ -576,12 +576,15 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "trusted heap object: " << JSONEscaped(handle());
       break;
     case Kind::kRelocatableWasmCall:
-      os << "relocatable wasm call: 0x"
-         << reinterpret_cast<void*>(storage.integral);
+      os << "relocatable wasm call: 0x" << std::hex << storage.integral
+         << std::dec;
       break;
     case Kind::kRelocatableWasmStubCall:
-      os << "relocatable wasm stub call: 0x"
-         << reinterpret_cast<void*>(storage.integral);
+      os << "relocatable wasm stub call: "
+         << (Builtins::IsBuiltinId(static_cast<int>(storage.integral))
+                 ? Builtins::name(Builtin(storage.integral))
+                 : "<not a builtin>")
+         << " (0x" << std::hex << storage.integral << std::dec << ")";
       break;
     case Kind::kRelocatableWasmCanonicalSignatureId:
       os << "relocatable wasm canonical signature ID: "

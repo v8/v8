@@ -30,6 +30,6 @@
 }], # single_generation
 
 ['not has_webassembly', {
-  'wasm-pause': [SKIP],
-}], # single_generation
+  'wasm-*': [SKIP],
+}], # not has_webassembly
 ]
