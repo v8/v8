@@ -902,6 +902,10 @@ builtin ThrowWasmTrapFuncSigMismatch(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncSigMismatch));
 }
 
+builtin ThrowWasmTrapNullFunc(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapNullFunc));
+}
+
 builtin ThrowWasmTrapDataSegmentOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDataSegmentOutOfBounds));
 }

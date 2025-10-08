@@ -9983,17 +9983,20 @@ class LiftoffCompiler {
 
       if (!needs_type_check) {
         DCHECK(needs_null_check);
+        OolTrapLabel null_func =
+            AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapNullFunc);
         // Only check for -1 (nulled table entry).
-        __ emit_i32_cond_jumpi(kEqual, sig_mismatch.label(),
-                               real_sig_id.gp_reg(), -1, sig_mismatch.frozen());
+        __ emit_i32_cond_jumpi(kEqual, null_func.label(), real_sig_id.gp_reg(),
+                               -1, null_func.frozen());
       } else if (!decoder->module_->type(imm.sig_imm.index).is_final) {
         Label success_label;
         __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id.gp_reg(),
                                canonical_sig_id.index, sig_mismatch.frozen());
         if (needs_null_check) {
-          __ emit_i32_cond_jumpi(kEqual, sig_mismatch.label(),
-                                 real_sig_id.gp_reg(), -1,
-                                 sig_mismatch.frozen());
+          OolTrapLabel null_func =
+              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapNullFunc);
+          __ emit_i32_cond_jumpi(kEqual, null_func.label(),
+                                 real_sig_id.gp_reg(), -1, null_func.frozen());
         }
         ScopedTempRegister real_rtt{temps, kGpReg};
         __ LoadFullPointer(
