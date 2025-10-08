@@ -1810,12 +1810,12 @@ bool Deoptimizer::GetOutermostOuterLoopWithCodeKind(
     }
     const int loop_nesting_level = it.GetImmediateOperand(1);
     if (loop_nesting_level == 0) {
-      // We've reached nesting level 0, i.e. the current JumpLoop concludes a top-level
-      // loop.
-      return loop_found;
+      // We've reached nesting level 0, i.e. the current JumpLoop concludes a
+      // top-level loop.
+      break;
     }
   }
-  UNREACHABLE();
+  return loop_found;
 }
 
 namespace {
