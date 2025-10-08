@@ -1484,13 +1484,21 @@ JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
     uint16_t parameter_count, DirectHandle<Code> code,
     JSDispatchTable::Space* space) {
   JSDispatchTable* jdt = isolate()->isolate_group()->js_dispatch_table();
+  auto result =
+      jdt->TryAllocateAndInitializeEntry(space, parameter_count, *code);
+  if (result) {
+    return *result;
+  }
   auto Allocate = [&]() {
-    return jdt->TryAllocateAndInitializeEntry(space, parameter_count, *code);
+    return (result = jdt->TryAllocateAndInitializeEntry(space, parameter_count,
+                                                        *code))
+        .has_value();
   };
   // Dispatch entries are only freed on major GCs.
   AllocationType type = AllocationType::kOld;
   auto allocator = isolate()->heap()->allocator();
-  return allocator->CustomAllocateWithRetryOrFail(Allocate, type);
+  std::ignore = allocator->RetryCustomAllocateOrFail(Allocate, type);
+  return *result;
 }
 
 // Instantiate FactoryBase for the two variants we want.

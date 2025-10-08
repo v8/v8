@@ -238,15 +238,20 @@ HeapAllocator::AllocateRawWith(int size, AllocationType allocation,
     if (result.To(&object)) {
       return object;
     }
+  } else {
+    result = AllocateRaw(size, allocation, origin, alignment, hint);
+    if (result.To(&object)) {
+      return object;
+    }
   }
   switch (mode) {
     case kLightRetry:
-      result = AllocateRawWithLightRetrySlowPath(size, allocation, origin,
-                                                 alignment, hint);
+      result = RetryAllocateRawLightSlowPath(size, allocation, origin,
+                                             alignment, hint);
       break;
     case kRetryOrFail:
-      result = AllocateRawWithRetryOrFailSlowPath(size, allocation, origin,
-                                                  alignment, hint);
+      result = RetryAllocateRawOrFailSlowPath(size, allocation, origin,
+                                              alignment, hint);
       break;
   }
   if (result.To(&object)) {
@@ -257,13 +262,9 @@ HeapAllocator::AllocateRawWith(int size, AllocationType allocation,
 
 template <typename AllocateFunction>
 V8_WARN_UNUSED_RESULT std::invoke_result_t<AllocateFunction>
-HeapAllocator::AllocateRawWithLightRetrySlowPath(AllocateFunction&& Allocate,
-                                                 AllocationType allocation) {
+HeapAllocator::RetryAllocateRawLightSlowPath(AllocateFunction&& Allocate,
+                                             AllocationType allocation) {
   DCHECK_NE(AllocationType::kYoung, allocation);
-
-  if (auto result = Allocate()) [[likely]] {
-    return result;
-  }
 
   if (auto result = CollectGarbageAndRetryAllocation(Allocate, allocation)) {
     return result;
@@ -275,13 +276,8 @@ HeapAllocator::AllocateRawWithLightRetrySlowPath(AllocateFunction&& Allocate,
 }
 
 template <typename AllocateFunction>
-std::invoke_result_t<AllocateFunction>
-HeapAllocator::AllocateRawWithRetryOrFailSlowPath(AllocateFunction&& Allocate,
-                                                  AllocationType allocation) {
-  if (auto result = Allocate()) [[likely]] {
-    return result;
-  }
-
+std::invoke_result_t<AllocateFunction> HeapAllocator::RetryAllocateRawSlowPath(
+    AllocateFunction&& Allocate, AllocationType allocation) {
   if (auto result = CollectGarbageAndRetryAllocation(Allocate, allocation)) {
     return result;
   }
@@ -299,7 +295,15 @@ HeapAllocator::AllocateRawWithRetryOrFailSlowPath(AllocateFunction&& Allocate,
   // GCs. It will also enforce the heap limit if still violated.
   CollectAllAvailableGarbage(allocation);
 
-  if (auto result = RetryAllocation(Allocate)) {
+  return Allocate();
+}
+
+template <typename AllocateFunction>
+std::invoke_result_t<AllocateFunction>
+HeapAllocator::RetryAllocateRawOrFailSlowPath(AllocateFunction&& Allocate,
+                                              AllocationType allocation) {
+  if (auto result = RetryAllocateRawSlowPath(
+          std::forward<AllocateFunction>(Allocate), allocation)) {
     return result;
   }
 
@@ -333,30 +337,12 @@ HeapAllocator::CollectGarbageAndRetryAllocation(AllocateFunction&& Allocate,
       continue;
     }
 
-    if (auto result = RetryAllocation(Allocate)) {
+    if (auto result = Allocate()) {
       return result;
     }
   }
 
   return {};
-}
-
-template <typename AllocateFunction>
-std::invoke_result_t<AllocateFunction> HeapAllocator::RetryAllocation(
-    AllocateFunction&& Allocate) {
-  // Initially flags on the LocalHeap are always disabled. They are only
-  // active while this method is running.
-  DCHECK(!local_heap_->IsRetryOfFailedAllocation());
-  local_heap_->SetRetryOfFailedAllocation(true);
-  auto result = Allocate();
-  local_heap_->SetRetryOfFailedAllocation(false);
-  return result;
-}
-
-template <typename AllocateFunction>
-V8_WARN_UNUSED_RESULT auto HeapAllocator::CustomAllocateWithRetryOrFail(
-    AllocateFunction&& Allocate, AllocationType allocation) {
-  return *AllocateRawWithRetryOrFailSlowPath(Allocate, allocation);
 }
 
 }  // namespace internal
