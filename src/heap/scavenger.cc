@@ -2119,7 +2119,8 @@ void ScavengerCollector::ProcessWeakCells(
                                            heap_);
     if (!finalization_registry->scheduled_for_cleanup()) {
       heap_->EnqueueDirtyJSFinalizationRegistry(finalization_registry,
-                                                on_slot_updated_callback);
+                                                on_slot_updated_callback,
+                                                SKIP_WRITE_BARRIER_FOR_GC);
     }
     // We're modifying the pointers in WeakCell and JSFinalizationRegistry
     // during GC; thus we need to record the slots it writes. The normal
@@ -2147,7 +2148,7 @@ void ScavengerCollector::ProcessWeakCells(
         finalization_registry->RemoveUnregisterToken(
             dead_unregister_token, heap_->isolate(),
             JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
-            on_slot_updated_callback);
+            on_slot_updated_callback, SKIP_WRITE_BARRIER_FOR_GC);
       };
 
   Scavenger::WeakCellsList::Local local_weak_cells(weak_cells);

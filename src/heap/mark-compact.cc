@@ -4042,9 +4042,11 @@ void MarkCompactCollector::ProcessJSWeakRefs() {
   while (local_weak_objects()->weak_cells_local.Pop(&weak_cell)) {
     auto gc_notify_updated_slot = [](Tagged<HeapObject> object, ObjectSlot slot,
                                      Tagged<Object> target) {
-      if (IsHeapObject(target)) {
-        RecordSlot(object, slot, Cast<HeapObject>(target));
-      }
+      DCHECK(IsHeapObject(target));
+      // Callers of `gc_notify_updated_slot` skip write barriers so this method
+      // needs to cover old-to-new as well.
+      RecordSlot<ObjectSlot, RecordYoungSlot::kYes>(object, slot,
+                                                    Cast<HeapObject>(target));
     };
     Tagged<HeapObject> target = Cast<HeapObject>(weak_cell->target());
     if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
@@ -4055,7 +4057,8 @@ void MarkCompactCollector::ProcessJSWeakRefs() {
           Cast<JSFinalizationRegistry>(weak_cell->finalization_registry());
       if (!finalization_registry->scheduled_for_cleanup()) {
         heap_->EnqueueDirtyJSFinalizationRegistry(finalization_registry,
-                                                  gc_notify_updated_slot);
+                                                  gc_notify_updated_slot,
+                                                  SKIP_WRITE_BARRIER_FOR_GC);
       }
       // We're modifying the pointers in WeakCell and JSFinalizationRegistry
       // during GC; thus we need to record the slots it writes. The normal write
@@ -4083,7 +4086,7 @@ void MarkCompactCollector::ProcessJSWeakRefs() {
       finalization_registry->RemoveUnregisterToken(
           unregister_token, isolate,
           JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
-          gc_notify_updated_slot);
+          gc_notify_updated_slot, SKIP_WRITE_BARRIER_FOR_GC);
     } else {
       // The unregister_token is alive.
       ObjectSlot slot(&weak_cell->unregister_token_);

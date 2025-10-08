@@ -53,7 +53,8 @@ class JSFinalizationRegistry
   inline bool RemoveUnregisterToken(
       Tagged<HeapObject> unregister_token, Isolate* isolate,
       RemoveUnregisterTokenMode removal_mode,
-      GCNotifyUpdatedSlotCallback gc_notify_updated_slot);
+      GCNotifyUpdatedSlotCallback gc_notify_updated_slot,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER);
 
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
@@ -148,9 +149,11 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   inline void RemoveFromFinalizationRegistryCells(Isolate* isolate);
 
  private:
-  inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value);
+  inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set_unregister_token(
-      Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value);
+      Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   TaggedMember<JSFinalizationRegistry> finalization_registry_;
   TaggedMember<JSAny> holdings_;

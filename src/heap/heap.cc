@@ -7299,7 +7299,8 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
     Tagged<JSFinalizationRegistry> finalization_registry,
     std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                        Tagged<Object> target)>
-        gc_notify_updated_slot) {
+        gc_notify_updated_slot,
+    WriteBarrierMode write_barrier_mode) {
   // Add a FinalizationRegistry to the tail of the dirty list.
   DCHECK_IMPLIES(HasDirtyJSFinalizationRegistries(),
                  GCAwareObjectTypeCheck<JSFinalizationRegistry>(
@@ -7315,7 +7316,7 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
   } else {
     Tagged<JSFinalizationRegistry> tail = GCSafeCast<JSFinalizationRegistry>(
         dirty_js_finalization_registries_list_tail(), this);
-    tail->set_next_dirty_unchecked(finalization_registry);
+    tail->set_next_dirty_unchecked(finalization_registry, write_barrier_mode);
     gc_notify_updated_slot(
         tail, tail->RawField(JSFinalizationRegistry::kNextDirtyOffset),
         finalization_registry);

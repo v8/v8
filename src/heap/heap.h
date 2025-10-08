@@ -924,7 +924,8 @@ class Heap final {
       Tagged<JSFinalizationRegistry> finalization_registry,
       std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                          Tagged<Object> target)>
-          gc_notify_updated_slot);
+          gc_notify_updated_slot,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER);
 
   MaybeDirectHandle<JSFinalizationRegistry>
   DequeueDirtyJSFinalizationRegistry();

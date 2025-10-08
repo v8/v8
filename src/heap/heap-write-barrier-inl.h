@@ -164,6 +164,9 @@ void WriteBarrier::VerifySkipWriteBarrier(Tagged<HeapObject> host,
   if (v8_flags.verify_write_barriers) {
     if (mode == SKIP_WRITE_BARRIER) {
       CHECK(!WriteBarrier::IsRequired(host, value));
+    } else if (mode == SKIP_WRITE_BARRIER_FOR_GC) {
+      CHECK(LocalHeap::Current()->heap()->IsInGC());
+      CHECK(LocalHeap::Current()->heap()->tracer()->IsInAtomicPause());
     } else if (mode == UNSAFE_SKIP_WRITE_BARRIER) {
       // C++ write barriers should not need UNSAFE_SKIP_WRITE_BARRIER.
       UNREACHABLE();

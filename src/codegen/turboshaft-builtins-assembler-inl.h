@@ -265,8 +265,8 @@ class FeedbackCollectorReducer : public Next {
         return;
       }
       case SKIP_WRITE_BARRIER_SCOPE:
+      case SKIP_WRITE_BARRIER_FOR_GC:
       case UNSAFE_SKIP_WRITE_BARRIER:
-        UNIMPLEMENTED();
       case UPDATE_WRITE_BARRIER:
         UNIMPLEMENTED();
       case UPDATE_EPHEMERON_KEY_WRITE_BARRIER:
