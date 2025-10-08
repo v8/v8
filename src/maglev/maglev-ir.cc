@@ -784,6 +784,8 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kInt32ShiftRightLogical:
     case Opcode::kInt32BitwiseNot:
     case Opcode::kInt32NegateWithOverflow:
+    case Opcode::kInt32Increment:
+    case Opcode::kInt32Decrement:
     case Opcode::kInt32IncrementWithOverflow:
     case Opcode::kInt32DecrementWithOverflow:
     case Opcode::kInt32ToBoolean:

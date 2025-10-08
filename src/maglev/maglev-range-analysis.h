@@ -145,6 +145,13 @@ class Range {
     return widened_range;
   }
 
+  static Range Negate(Range r) {
+    if (r.is_empty()) return Range::Empty();
+    int64_t min = r.max_ == kInfMax ? kInfMin : -r.max_;
+    int64_t max = r.min_ == kInfMin ? kInfMax : -r.min_;
+    return Range(min, max);
+  }
+
   // [a, b] + [c, d] = [a+c, b+d]
   static Range Add(Range r1, Range r2) {
     if (r1.is_empty() || r2.is_empty()) return Range::Empty();
@@ -162,7 +169,9 @@ class Range {
   }
 
   // [a, b] - [c, d] = [a-c, b-d]
-  static Range Sub(Range r1, Range r2) { UNIMPLEMENTED(); }
+  static Range Sub(Range r1, Range r2) {
+    return Range::Add(r1, Range::Negate(r2));
+  }
 
   // [a, b] * [c, d] = [min(ac,ad,bc,bd), max(ac,ad,bc,bd)]
   static Range Mul(Range r1, Range r2) { UNIMPLEMENTED(); }
@@ -412,7 +421,15 @@ class RangeProcessor {
 
   void PostPhiProcessing() {}
 
+  ProcessResult Process(UnsafeSmiUntag* node, const ProcessingState&) {
+    UnionUpdate(node, Range::Intersect(Get(node->input_node(0)), Range::Smi()));
+    return ProcessResult::kContinue;
+  }
   ProcessResult Process(CheckedSmiUntag* node, const ProcessingState&) {
+    UnionUpdate(node, Range::Intersect(Get(node->input_node(0)), Range::Smi()));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(CheckedSmiSizedInt32* node, const ProcessingState&) {
     UnionUpdate(node, Range::Intersect(Get(node->input_node(0)), Range::Smi()));
     return ProcessResult::kContinue;
   }

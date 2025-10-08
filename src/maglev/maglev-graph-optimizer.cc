@@ -1769,6 +1769,24 @@ ProcessResult MaglevGraphOptimizer::VisitInt32AbsWithOverflow(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitInt32Increment(
+    Int32Increment* node, const ProcessingState& state) {
+  // TODO(victorgomes): TryFoldInt32Operation can emit a
+  // Int32IncrementWithOverflow which needs an eager deopt point. We need to
+  // propagate this information and we can add a non-deopting version of the
+  // increment.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitInt32Decrement(
+    Int32Decrement* node, const ProcessingState& state) {
+  // TODO(victorgomes): TryFoldInt32Operation can emit a
+  // Int32DecrementWithOverflow which needs an eager deopt point. We need to
+  // propagate this information and we can add a non-deopting version of the
+  // increment.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitInt32Add(
     Int32Add* node, const ProcessingState& state) {
   // TODO(victorgomes): TryFoldInt32Operation can emit a
@@ -1810,12 +1828,28 @@ ProcessResult MaglevGraphOptimizer::VisitInt32Divide(
 ProcessResult MaglevGraphOptimizer::VisitInt32AddWithOverflow(
     Int32AddWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kAdd>(node));
+  if (auto lhs_range = GetRange(node->input_node(0))) {
+    if (auto rhs_range = GetRange(node->input_node(1))) {
+      if (Range::Add(*lhs_range, *rhs_range).IsInt32()) {
+        return ReplaceWith<Int32Add>(
+            {node->input_node(0), node->input_node(1)});
+      }
+    }
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32SubtractWithOverflow(
     Int32SubtractWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kSubtract>(node));
+  if (auto lhs_range = GetRange(node->input_node(0))) {
+    if (auto rhs_range = GetRange(node->input_node(1))) {
+      if (Range::Sub(*lhs_range, *rhs_range).IsInt32()) {
+        return ReplaceWith<Int32Subtract>(
+            {node->input_node(0), node->input_node(1)});
+      }
+    }
+  }
   return ProcessResult::kContinue;
 }
 
@@ -1888,12 +1922,28 @@ ProcessResult MaglevGraphOptimizer::VisitInt32NegateWithOverflow(
 ProcessResult MaglevGraphOptimizer::VisitInt32IncrementWithOverflow(
     Int32IncrementWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kIncrement>(node));
+  if (auto range = GetRange(node->input_node(0))) {
+    // TODO(victorgomes): We should actually DCHECK(IsInt32) here, but the range
+    // seems to sometimes be bigger than int32, I guess it is because we are
+    // missing some refinement in the range analysis.
+    if (range->IsInt32() && *range->max() != INT32_MAX) {
+      return ReplaceWith<Int32Increment>({node->input_node(0)});
+    }
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32DecrementWithOverflow(
     Int32DecrementWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kDecrement>(node));
+  if (auto range = GetRange(node->input_node(0))) {
+    // TODO(victorgomes): We should actually DCHECK(IsInt32) here, but the range
+    // seems to sometimes be bigger than int32, I guess it is because we are
+    // missing some refinement in the range analysis.
+    if (range->IsInt32() && *range->min() != INT32_MIN) {
+      return ReplaceWith<Int32Decrement>({node->input_node(0)});
+    }
+  }
   return ProcessResult::kContinue;
 }
 

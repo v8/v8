@@ -125,6 +125,8 @@ class ExceptionHandlerInfo;
   V(Int32Multiply)                             \
   V(Int32MultiplyOverflownBits)                \
   V(Int32Divide)                               \
+  V(Int32Increment)                            \
+  V(Int32Decrement)                            \
   V(Int32AddWithOverflow)                      \
   V(Int32SubtractWithOverflow)                 \
   V(Int32MultiplyWithOverflow)                 \
@@ -3446,6 +3448,27 @@ DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Negate)
 DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Increment)
 DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Decrement)
 #undef DEF_INT32_UNARY_WITH_OVERFLOW_NODE
+
+template <class Derived, Operation kOperation>
+class Int32Unary : public FixedInputValueNodeT<1, Derived> {
+  using Base = FixedInputValueNodeT<1, Derived>;
+
+ public:
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  static constexpr int kValueIndex = 0;
+  Input value_input() { return Node::input(kValueIndex); }
+
+ protected:
+  explicit Int32Unary(uint64_t bitfield) : Base(bitfield) {}
+};
+
+#define DEF_INT32_NODE(Name) DEF_OPERATION_NODE(Int32##Name, Int32Unary, Name)
+DEF_INT32_NODE(Increment)
+DEF_INT32_NODE(Decrement)
+#undef DEF_INT32_NODE
 
 class Int32ShiftRightLogical
     : public FixedInputValueNodeT<2, Int32ShiftRightLogical> {

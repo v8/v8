@@ -674,6 +674,24 @@ DEF_SHIFT_BINOP(Int32ShiftRight, sarl)
 DEF_SHIFT_BINOP(Int32ShiftRightLogical, shrl)
 #undef DEF_SHIFT_BINOP
 
+void Int32Increment::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineSameAsFirst(this);
+}
+void Int32Increment::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  __ incl(ToRegister(value_input()));
+}
+
+void Int32Decrement::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineSameAsFirst(this);
+}
+void Int32Decrement::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  __ decl(ToRegister(value_input()));
+}
+
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineSameAsFirst(this);
