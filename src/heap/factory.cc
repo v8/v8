@@ -977,6 +977,12 @@ StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
   if (v8_flags.shared_string_table && !HeapLayout::InAnySharedSpace(*string)) {
     return StringTransitionStrategy::kCopy;
   }
+  // If the string table is not shared and the string is in shared space, we
+  // need to copy the string to the local heap.
+  if (!v8_flags.shared_string_table && HeapLayout::InAnySharedSpace(*string)) {
+    DCHECK(v8_flags.shared_strings);
+    return StringTransitionStrategy::kCopy;
+  }
   DCHECK_NOT_NULL(internalized_map);
   DisallowGarbageCollection no_gc;
   // This method may be called concurrently, so snapshot the map from the input
@@ -1017,7 +1023,7 @@ template DirectHandle<ExternalTwoByteString> Factory::InternalizeExternalString<
 
 StringTransitionStrategy Factory::ComputeSharingStrategyForString(
     DirectHandle<String> string, MaybeDirectHandle<Map>* shared_map) {
-  DCHECK(v8_flags.shared_string_table);
+  DCHECK(v8_flags.shared_strings);
   // TODO(pthier): Avoid copying LO-space strings. Update page flags instead.
   if (!HeapLayout::InAnySharedSpace(*string)) {
     return StringTransitionStrategy::kCopy;

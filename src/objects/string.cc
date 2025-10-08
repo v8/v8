@@ -40,7 +40,7 @@ template <template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
 HandleType<String> String::SlowShare(Isolate* isolate,
                                      HandleType<String> source) {
-  DCHECK(v8_flags.shared_string_table);
+  DCHECK(v8_flags.shared_strings);
   HandleType<String> flat =
       Flatten(isolate, source, AllocationType::kSharedOld);
 
@@ -556,6 +556,13 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
 
   // Only strings in old space can be externalized.
   if (HeapLayout::InYoungGeneration(Tagged(this))) {
+    return false;
+  }
+
+  // Externalization of shared strings is only supported with shared string
+  // table.
+  if (HeapLayout::InAnySharedSpace(Tagged(this)) &&
+      !v8_flags.shared_string_table) {
     return false;
   }
 

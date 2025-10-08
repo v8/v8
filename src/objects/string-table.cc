@@ -303,6 +303,11 @@ void SetInternalizedReference(Isolate* isolate, Tagged<String> string,
   DCHECK(IsInternalizedString(internalized));
   DCHECK(!internalized->HasInternalizedForwardingIndex(kAcquireLoad));
   if (string->IsShared() || v8_flags.always_use_string_forwarding_table) {
+    if (!v8_flags.shared_string_table) {
+      // Shared Strings without a shared string table can't transition
+      // to a ThinString. We do nothing here.
+      return;
+    }
     uint32_t field = string->raw_hash_field(kAcquireLoad);
     // Don't use the forwarding table for strings that have an integer index.
     // Using the hash field for the integer index is more beneficial than

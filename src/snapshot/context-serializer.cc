@@ -275,12 +275,6 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o) {
          o->map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
 }
 
-bool ContextSerializer::ShouldBeInTheSharedObjectCache(Tagged<HeapObject> o) {
-  // v8_flags.shared_string_table may be true during deserialization, so put
-  // internalized strings into the shared object snapshot.
-  return IsInternalizedString(o);
-}
-
 namespace {
 bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace

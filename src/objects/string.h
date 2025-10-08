@@ -458,7 +458,7 @@ V8_OBJECT class String : public Name {
       Isolate* isolate, v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       Isolate* isolate, v8::String::ExternalOneByteStringResource* resource);
-  bool SupportsExternalization(v8::String::Encoding);
+  V8_EXPORT_PRIVATE bool SupportsExternalization(v8::String::Encoding);
 
   // Conversion.
   // "array index": an index allowed by the ES spec for JSArrays.
