@@ -10756,6 +10756,48 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
   return AddNewNode<Float64Round>({float64_value}, kind);
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathMin(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetConstant(broker()->infinity_value());
+  }
+  return TryReduceMathMinMax(args,
+                             [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
+                               return BuildInt32Min(v1, v2);
+                             });
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (args.count() == 0) {
+    return GetConstant(broker()->minus_infinity_value());
+  }
+  return TryReduceMathMinMax(args,
+                             [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
+                               return BuildInt32Max(v1, v2);
+                             });
+}
+
+template <typename Int32Binop>
+MaybeReduceResult MaglevGraphBuilder::TryReduceMathMinMax(
+    CallArguments& args, Int32Binop int32_case) {
+  bool all_args_are_int32_or_smi =
+      std::all_of(args.begin(), args.end(), [&](ValueNode* arg) {
+        return GetType(arg) == NodeType::kSmi ||
+               arg->properties().value_representation() ==
+                   ValueRepresentation::kInt32;
+      });
+
+  if (all_args_are_int32_or_smi) {
+    // TODO(C++23): Use std::ranges::fold_left_first.
+    // Parameters will be converted to Int32 automatically.
+    return std::reduce(args.begin() + 1, args.end(), *args.begin(), int32_case);
+  }
+
+  // TODO(marja): Add Float64 and/or speculative Float64 cases.
+  return {};
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayConstructor(
     compiler::JSFunctionRef target, CallArguments& args) {
   return TryReduceConstructArrayConstructor(target, args);
