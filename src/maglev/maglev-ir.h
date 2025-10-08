@@ -5005,6 +5005,11 @@ class CheckedNumberToInt32
   void PrintParams(std::ostream&) const {}
 };
 
+// TODO(dmercadier): Number->Float64 conversions are exact and could still be
+// marked with the ConversionNode OpProperties, but Oddball->Float64 are not,
+// which is why this node doesn't have the ConversionNode property. We could
+// consider splitting this node in 2 (or for Numbers, one for NumberOrOddball),
+// as well as adding a "tonumber_float64" alternative.
 class UncheckedNumberOrOddballToFloat64
     : public FixedInputValueNodeT<1, UncheckedNumberOrOddballToFloat64> {
   using Base = FixedInputValueNodeT<1, UncheckedNumberOrOddballToFloat64>;
@@ -5015,8 +5020,7 @@ class UncheckedNumberOrOddballToFloat64
       : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
                                                          conversion_type)) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Float64() | OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
