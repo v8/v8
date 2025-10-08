@@ -2162,8 +2162,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
 }
 
 std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
-    Isolate* isolate, NativeModule* native_module,
-    ProfileInformation* pgo_info) {
+    NativeModule* native_module, ProfileInformation* pgo_info) {
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module);
@@ -2210,7 +2209,7 @@ WasmError ValidateFunctions(const NativeModule& native_module,
   return result;
 }
 
-void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
+void CompileNativeModule(ErrorThrower* thrower,
                          std::shared_ptr<NativeModule> native_module,
                          ProfileInformation* pgo_info) {
   CHECK(!v8_flags.jitless || v8_flags.wasm_jitless);
@@ -2220,7 +2219,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
 
   // Initialize the compilation units and kick off background compile tasks.
   std::unique_ptr<CompilationUnitBuilder> builder =
-      InitializeCompilation(isolate, native_module.get(), pgo_info);
+      InitializeCompilation(native_module.get(), pgo_info);
   compilation_state->InitializeCompilationUnits(std::move(builder));
 
   // Validate wasm modules for lazy compilation if requested. Never validate
@@ -2334,7 +2333,7 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
 
   if (!v8_flags.wasm_jitless) {
     // Compile / validate the new module.
-    CompileNativeModule(isolate, thrower, native_module, pgo_info);
+    CompileNativeModule(thrower, native_module, pgo_info);
   }
 
   bool failed = thrower->error();
@@ -3126,7 +3125,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // TODO(13209): Use PGO for async compilation, if available.
       constexpr ProfileInformation* kNoProfileInformation = nullptr;
       std::unique_ptr<CompilationUnitBuilder> builder = InitializeCompilation(
-          job->isolate(), job->native_module_.get(), kNoProfileInformation);
+          job->native_module_.get(), kNoProfileInformation);
       compilation_state->InitializeCompilationUnits(std::move(builder));
       // In single-threaded mode there are no worker tasks that will do the
       // compilation. We call {WaitForCompilationEvent} here so that the main
@@ -3286,8 +3285,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   job_->outstanding_finishers_.store(2);
   // TODO(13209): Use PGO for streaming compilation, if available.
   constexpr ProfileInformation* kNoProfileInformation = nullptr;
-  compilation_unit_builder_ = InitializeCompilation(
-      job_->isolate(), job_->native_module_.get(), kNoProfileInformation);
+  compilation_unit_builder_ =
+      InitializeCompilation(job_->native_module_.get(), kNoProfileInformation);
   return true;
 }
 
