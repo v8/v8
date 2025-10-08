@@ -4441,6 +4441,10 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, prototype, "values",
                           Builtin::kMapPrototypeValues, 0, kAdapt);
 
+    // TODO(olivf, 434977728): Remove initial_map_prototype once --js-upsert
+    // flag is removed.
+    USE(v8_flags.js_upsert);
+    native_context()->set_initial_map_prototype(*prototype);
     native_context()->set_initial_map_prototype_map(prototype->map());
 
     InstallSpeciesGetter(isolate_, js_map_fun);
@@ -4702,7 +4706,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     native_context()->set_weakmap_delete(*weakmap_delete);
 
     DirectHandle<JSFunction> weakmap_get = SimpleInstallFunction(
-        isolate_, prototype, "get", Builtin::kWeakMapGet, 1, kAdapt);
+        isolate_, prototype, "get", Builtin::kWeakMapPrototypeGet, 1, kAdapt);
     native_context()->set_weakmap_get(*weakmap_get);
 
     DirectHandle<JSFunction> weakmap_set = SimpleInstallFunction(
@@ -4710,13 +4714,17 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     // Check that index of "set" function in JSWeakCollection is correct.
     DCHECK_EQ(JSWeakCollection::kAddFunctionDescriptorIndex,
               prototype->map()->LastAdded().as_int());
-
     native_context()->set_weakmap_set(*weakmap_set);
+
     SimpleInstallFunction(isolate_, prototype, "has",
                           Builtin::kWeakMapPrototypeHas, 1, kAdapt);
 
     InstallToStringTag(isolate_, prototype, "WeakMap");
 
+    // TODO(olivf, 434977728): Remove initial_weakmap_prototype once --js-upsert
+    // flag is removed.
+    USE(v8_flags.js_upsert);
+    native_context()->set_initial_weakmap_prototype(*prototype);
     native_context()->set_initial_weakmap_prototype_map(prototype->map());
   }
 
@@ -5521,6 +5529,28 @@ void Genesis::InitializeGlobal_js_error_iserror() {
                                      isolate());
   InstallFunctionWithBuiltinId(isolate(), error_fun, "isError",
                                Builtin::kErrorIsError, 1, kAdapt);
+}
+
+void Genesis::InitializeGlobal_js_upsert() {
+  if (!v8_flags.js_upsert) return;
+
+  {
+    auto prototype =
+        handle(native_context()->initial_map_prototype(), isolate_);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
+                          Builtin::kMapPrototypeGetOrInsert, 2, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
+                          Builtin::kMapPrototypeGetOrInsertComputed, 2, kAdapt);
+  }
+  {
+    auto prototype =
+        handle(native_context()->initial_weakmap_prototype(), isolate_);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsert",
+                          Builtin::kWeakMapPrototypeGetOrInsert, 2, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
+                          Builtin::kWeakMapPrototypeGetOrInsertComputed, 2,
+                          kAdapt);
+  }
 }
 
 void Genesis::InitializeGlobal_harmony_shadow_realm() {

@@ -1113,56 +1113,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Map/prototype/getOrInsert/append-new-values': [SKIP],
-  'built-ins/Map/prototype/getOrInsert/append-new-values-normalizes-zero-key': [SKIP],
-  'built-ins/Map/prototype/getOrInsert/append-value-if-key-is-not-present-different-key-types': [SKIP],
-  'built-ins/Map/prototype/getOrInsert/getOrInsert': [SKIP],
-  'built-ins/Map/prototype/getOrInsert/length': [SKIP],
-  'built-ins/Map/prototype/getOrInsert/name': [SKIP],
-  'built-ins/Map/prototype/getOrInsert/not-a-constructor': [SKIP],
-  'built-ins/Map/prototype/getOrInsert/returns-value-if-key-is-not-present-different-key-types': [SKIP],
-  'built-ins/Map/prototype/getOrInsert/returns-value-if-key-is-present-different-key-types': [SKIP],
-  'built-ins/Map/prototype/getOrInsert/returns-value-normalized-zero-key': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/append-new-values': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/append-new-values-normalizes-zero-key': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/append-value-if-key-is-not-present-different-key-types': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/callbackfn-throws': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/different-types-function-callbackfn-does-not-throw': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/does-not-evaluate-callbackfn-if-key-present': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/getOrInsertComputed': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/not-a-constructor': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/overwrites-mutation-from-callbackfn': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-different-key-types': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/returns-value-normalized-zero-key': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/adds-object-element': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/adds-symbol-element': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/getOrInsert': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/length': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/name': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/not-a-constructor': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-not-present-object-key': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-not-present-symbol-key': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-present-object-key': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsert/returns-value-if-key-is-present-symbol-key': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/adds-object-element': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/adds-symbol-element': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/adds-value-different-callbackfn': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/callbackfn-throws': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/does-not-evaluate-callbackfn-if-key-present': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/getOrInsertComputed': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/not-a-constructor': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/overwrites-mutation-from-callbackfn': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-object-key': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-symbol-key': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-present-object-key': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/returns-value-if-key-is-present-symbol-key': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/throw-rejected-return': [SKIP],
   'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/throw-return': [SKIP],
   'built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/throw-return-getter': [SKIP],
@@ -1196,9 +1146,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Map/prototype/getOrInsertComputed/check-callback-fn-args': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/check-state-after-callback-fn-throws': [SKIP],
-  'built-ins/Map/prototype/getOrInsertComputed/returns-value-if-key-is-present-different-key-types': [SKIP],
   'intl402/Collator/prototype/resolvedOptions/resolved-case-first-unicode-extensions-and-options': [SKIP],
   'intl402/Collator/prototype/resolvedOptions/resolved-collation-unicode-extensions-and-options': [SKIP],
   'intl402/Collator/prototype/resolvedOptions/resolved-numeric-unicode-extensions-and-options': [SKIP],
@@ -1219,19 +1166,8 @@
 # End roll-watcher patch
 
 ####
-# import test262@a073f479f80b336256b7fc4e04700c827293e2fe
-[ALWAYS, {
-  'built-ins/Map/prototype/getOrInsertComputed/canonical-key-passed-to-callback': [FAIL],
-}],
-# end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
-###
-####
-
-####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/WeakMap/prototype/getOrInsertComputed/check-callback-fn-args': [SKIP],
-  'built-ins/WeakMap/prototype/getOrInsertComputed/check-state-after-callback-fn-throws': [SKIP],
   'language/expressions/assignmenttargettype/direct-callexpression': [SKIP],
   'language/expressions/assignmenttargettype/direct-callexpression-as-for-in-lhs': [SKIP],
   'language/expressions/assignmenttargettype/direct-callexpression-as-for-of-lhs': [SKIP],

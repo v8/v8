@@ -712,7 +712,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kMapPrototypeValues:
     // WeakMap builtins.
     case Builtin::kWeakMapConstructor:
-    case Builtin::kWeakMapGet:
+    case Builtin::kWeakMapPrototypeGet:
     case Builtin::kWeakMapPrototypeHas:
     // Math builtins.
     case Builtin::kMathAbs:

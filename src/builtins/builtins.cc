@@ -878,6 +878,13 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kUint8ArrayPrototypeSetFromHex:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_base_64);
 
+    // --js-upsert
+    case Builtin::kMapPrototypeGetOrInsert:
+    case Builtin::kMapPrototypeGetOrInsertComputed:
+    case Builtin::kWeakMapPrototypeGetOrInsert:
+    case Builtin::kWeakMapPrototypeGetOrInsertComputed:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_upsert);
+
     default: {
       // Treat all other JS builtins as mandatory core JS language builtins.
       // This will allow us to detect optional builtins (because mandatory JS
