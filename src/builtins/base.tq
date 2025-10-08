@@ -2232,7 +2232,7 @@ operator '==' macro HashFieldTypeEquals(
 
 const kNoHashSentinel:
     constexpr int32 generates 'PropertyArray::kNoHashSentinel';
-extern macro LoadNameHash(Name): uint32;
+extern macro LoadNameHashAssumeComputed(Name): uint32;
 
 extern transitioning builtin ToName(implicit context: Context)(JSAny): AnyName;
 

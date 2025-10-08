@@ -2681,11 +2681,10 @@ TNode<Uint32T> CodeStubAssembler::LoadNameHashAssumeComputed(TNode<Name> name) {
 
 TNode<Uint32T> CodeStubAssembler::LoadNameHash(TNode<Name> name,
                                                Label* if_hash_not_computed) {
+  DCHECK_NOT_NULL(if_hash_not_computed);
   TNode<Uint32T> raw_hash_field = LoadNameRawHashField(name);
-  if (if_hash_not_computed != nullptr) {
-    GotoIf(IsSetWord32(raw_hash_field, Name::kHashNotComputedMask),
-           if_hash_not_computed);
-  }
+  GotoIf(IsSetWord32(raw_hash_field, Name::kHashNotComputedMask),
+         if_hash_not_computed);
   return DecodeWord32<Name::HashBits>(raw_hash_field);
 }
 

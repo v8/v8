@@ -1461,10 +1461,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsDictionaryMap(TNode<Map> map);
 
   // Load the Name::hash() value of a name as an uint32 value.
-  // If {if_hash_not_computed} label is specified then it also checks if
-  // hash is actually computed.
-  TNode<Uint32T> LoadNameHash(TNode<Name> name,
-                              Label* if_hash_not_computed = nullptr);
+  // The caller is responsible to deal with hashes that are not computed via
+  // |if_hash_not_computed|. If the hash is guaranteed to be computed, use
+  // LoadNameHashAssumeComputed instead.
+  TNode<Uint32T> LoadNameHash(TNode<Name> name, Label* if_hash_not_computed);
+  // Load the Name::hash() value of a name as uint32 value. Use only if the hash
+  // is guaranteed to be computed, otherwise use LoadNameHash and handle the
+  // non-computed case manually.
   TNode<Uint32T> LoadNameHashAssumeComputed(TNode<Name> name);
 
   // Load the Name::RawHash() value of a name as an uint32 value. Follows

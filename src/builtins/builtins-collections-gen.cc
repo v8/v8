@@ -1911,7 +1911,8 @@ void CollectionsBuiltinsAssembler::AddNewToOrderedHashTable(
   {
     CSA_DCHECK(this, IsInternalizedStringInstanceType(key_instance_type));
 
-    hash = Signed(ChangeUint32ToWord(LoadNameHash(CAST(normalised_key))));
+    hash = Signed(
+        ChangeUint32ToWord(LoadNameHashAssumeComputed(CAST(normalised_key))));
     Goto(&call_store);
   }
 
@@ -2703,7 +2704,7 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::GetHash(
   CSA_DCHECK(this, Word32BinaryNot(
                        Word32And(LoadSymbolFlags(CAST(key)),
                                  Symbol::IsInPublicSymbolTableBit::kMask)));
-  var_hash = Signed(ChangeUint32ToWord(LoadNameHash(CAST(key), nullptr)));
+  var_hash = Signed(ChangeUint32ToWord(LoadNameHashAssumeComputed(CAST(key))));
   Goto(&return_result);
   Bind(&return_result);
   return var_hash.value();
