@@ -986,6 +986,7 @@
   'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
   'regress/regress-crbug-1437346': [PASS,FAIL],
+  'regress/regress-449341185': [PASS,FAIL],
 
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
@@ -2669,6 +2670,7 @@
   'icu-date-to-string': [FAIL],
   'regress/regress-5036': [FAIL],
   'regress/regress-793588': [FAIL],
+  'regress/regress-449341185': [FAIL],
   'tzoffset-transition-apia': [FAIL],
   'tzoffset-transition-lord-howe': [FAIL],
   'tzoffset-transition-moscow': [FAIL],
