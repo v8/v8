@@ -47,10 +47,9 @@ RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
 }
 
 template <typename Operands, typename Operands::Operand Operand>
-auto RegExpCodeGenerator::GetArgumentValue() {
+auto RegExpCodeGenerator::GetArgumentValue(const uint8_t* pc) const {
   constexpr RegExpBytecodeOperandType op_type = Operands::Type(Operand);
-  auto value = Operands::template Get<Operand>(bytecode_,
-                                               iter_.current_offset(), &zone_);
+  auto value = Operands::template Get<Operand>(pc);
 
   // If the operand is a JumpTarget, we return the Label created during the
   // first pass instead of an offset to the bytecode.
@@ -62,11 +61,11 @@ auto RegExpCodeGenerator::GetArgumentValue() {
 }
 
 template <typename Operands>
-auto RegExpCodeGenerator::GetArgumentValuesAsTuple() {
+auto RegExpCodeGenerator::GetArgumentValuesAsTuple(const uint8_t* pc) const {
   constexpr auto filtered_ops = Operands::GetOperandsTuple();
   return std::apply(
       [&](auto... ops) {
-        return std::make_tuple(GetArgumentValue<Operands, ops.value>()...);
+        return std::make_tuple(GetArgumentValue<Operands, ops.value>(pc)...);
       },
       filtered_ops);
 }
@@ -93,7 +92,8 @@ auto RegExpCodeGenerator::GetArgumentValuesAsTuple() {
   VISIT_COMMENT(#Name);                                                      \
   using Operands [[maybe_unused]] =                                          \
       RegExpBytecodeOperands<RegExpBytecode::k##Name>;                       \
-  __VA_OPT__(auto argument_tuple = GetArgumentValuesAsTuple<Operands>();     \
+  const uint8_t* pc [[maybe_unused]] = iter_.current_address();              \
+  __VA_OPT__(auto argument_tuple = GetArgumentValuesAsTuple<Operands>(pc);   \
              static_assert(std::tuple_size_v<decltype(argument_tuple)> ==    \
                                Operands::kCountWithoutPadding,               \
                            "Number of arguments to VISIT doesn't match the " \
@@ -291,7 +291,7 @@ namespace {
 // ByteArray. Optionally also populates a nibble_table used for SIMD variants
 // (see BoyerMooreLookahead::GetSkipTable).
 Handle<ByteArray> CreateBitTableByteArray(
-    Isolate* isolate, const ZoneVector<uint8_t> table_data,
+    Isolate* isolate, const uint8_t* table_data,
     Handle<ByteArray> nibble_table = Handle<ByteArray>::null()) {
   Handle<ByteArray> table =
       isolate->factory()->NewByteArray(RegExpMacroAssembler::kTableSize);
@@ -498,12 +498,11 @@ void RegExpCodeGenerator::Visit() {
 }
 
 void RegExpCodeGenerator::PreVisitBytecodes() {
-  DisallowGarbageCollection no_gc;
   iter_.ForEachBytecode([&]<RegExpBytecode bc>() {
     using Operands = RegExpBytecodeOperands<bc>;
     auto ensure_label = [&]<auto operand>() {
       const uint8_t* pc = iter_.current_address();
-      uint32_t offset = Operands::template Get<operand>(pc, no_gc);
+      uint32_t offset = Operands::template Get<operand>(pc);
       if (!jump_targets_.Contains(offset)) {
         jump_targets_.Add(offset);
         Label* label = &labels_[offset];
