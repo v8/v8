@@ -1274,6 +1274,21 @@ constexpr TaggedToFloat64ConversionType GetTaggedToFloat64ConversionType(
   return TaggedToFloat64ConversionType::kNumberOrOddball;
 }
 
+constexpr NodeType GetAllowedTypeFromConversionType(
+    TaggedToFloat64ConversionType conversion) {
+  switch (conversion) {
+    case TaggedToFloat64ConversionType::kOnlyNumber:
+      return NodeType::kNumber;
+    case TaggedToFloat64ConversionType::kNumberOrUndefined:
+      return NodeType::kNumberOrUndefined;
+    case TaggedToFloat64ConversionType::kNumberOrBoolean:
+      return NodeType::kNumberOrBoolean;
+    case TaggedToFloat64ConversionType::kNumberOrOddball:
+      return NodeType::kNumberOrOddball;
+  }
+  UNREACHABLE();
+}
+
 constexpr Condition ConditionFor(Operation cond);
 constexpr Condition ConditionForNaN();
 

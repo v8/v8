@@ -78,14 +78,15 @@ class MaglevGraphOptimizer {
   void UnwrapDeoptFrames();
   void UnwrapInputs();
 
-  ValueNode* GetConstantWithRepresentation(ValueNode* node,
-                                           UseRepresentation repr);
+  ValueNode* GetConstantWithRepresentation(
+      ValueNode* node, UseRepresentation repr,
+      std::optional<TaggedToFloat64ConversionType> conversion_type);
 
   // Returns a variant of the node with the value representation given. It
   // returns nullptr if we need to emit a tagged conversion.
-  ValueNode* GetUntaggedValueWithRepresentation(ValueNode* node,
-                                                UseRepresentation repr,
-                                                NodeType allowed_type);
+  ValueNode* GetUntaggedValueWithRepresentation(
+      ValueNode* node, UseRepresentation repr,
+      std::optional<TaggedToFloat64ConversionType> conversion_type);
 
   void PreProcessNode(Node*, const ProcessingState& state);
   void PostProcessNode(Node*);

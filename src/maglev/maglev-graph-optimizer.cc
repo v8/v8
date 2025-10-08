@@ -141,7 +141,8 @@ void MaglevGraphOptimizer::UnwrapInputs() {
 }
 
 ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
-    ValueNode* node, UseRepresentation use_repr) {
+    ValueNode* node, UseRepresentation use_repr,
+    std::optional<TaggedToFloat64ConversionType> conversion_type) {
   switch (use_repr) {
     case UseRepresentation::kInt32:
     case UseRepresentation::kTruncatedInt32: {
@@ -153,8 +154,9 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
     }
     case UseRepresentation::kFloat64:
     case UseRepresentation::kHoleyFloat64: {
-      auto cst = reducer_.TryGetFloat64Constant(
-          use_repr, node, TaggedToFloat64ConversionType::kNumberOrOddball);
+      DCHECK(conversion_type.has_value());
+      auto cst =
+          reducer_.TryGetFloat64Constant(use_repr, node, *conversion_type);
       if (cst.has_value()) {
         return reducer_.GetFloat64Constant(cst.value());
       }
@@ -166,17 +168,20 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
 }
 
 ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
-    ValueNode* node, UseRepresentation use_repr, NodeType allowed_type) {
+    ValueNode* node, UseRepresentation use_repr,
+    std::optional<TaggedToFloat64ConversionType> conversion_type) {
   DCHECK_NE(use_repr, UseRepresentation::kTagged);
-  if (node->value_representation() == ValueRepresentationFromUse(use_repr))
+  if (node->value_representation() == ValueRepresentationFromUse(use_repr)) {
     return node;
+  }
   if (node->Is<ReturnedValue>()) {
     ValueNode* input = node->input_node(0);
-    return GetUntaggedValueWithRepresentation(input, use_repr, allowed_type);
+    return GetUntaggedValueWithRepresentation(input, use_repr, conversion_type);
   }
   // We try getting constant before bailing out and/or calling the reducer,
   // since it does not emit a conversion node.
-  if (auto cst = GetConstantWithRepresentation(node, use_repr)) return cst;
+  if (auto cst = GetConstantWithRepresentation(node, use_repr, conversion_type))
+    return cst;
   if (node->is_tagged()) return nullptr;
   // TODO(victorgomes): The GetXXX functions may emit a conversion node that
   // might eager deopt. We need to find a correct eager deopt frame for them if
@@ -189,11 +194,17 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     case UseRepresentation::kInt32:
       return reducer_.GetInt32(node);
     case UseRepresentation::kTruncatedInt32:
-      return reducer_.GetTruncatedInt32ForToNumber(node, allowed_type);
+      DCHECK(conversion_type.has_value());
+      return reducer_.GetTruncatedInt32ForToNumber(
+          node, GetAllowedTypeFromConversionType(*conversion_type));
     case UseRepresentation::kFloat64:
-      return reducer_.GetFloat64ForToNumber(node, allowed_type);
+      DCHECK(conversion_type.has_value());
+      return reducer_.GetFloat64ForToNumber(
+          node, GetAllowedTypeFromConversionType(*conversion_type));
     case UseRepresentation::kHoleyFloat64:
-      return reducer_.GetHoleyFloat64ForToNumber(node, allowed_type);
+      DCHECK(conversion_type.has_value());
+      return reducer_.GetHoleyFloat64ForToNumber(
+          node, GetAllowedTypeFromConversionType(*conversion_type));
     default:
       return nullptr;
   }
@@ -1479,7 +1490,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedNumberOrOddballToHoleyFloat64(
     CheckedNumberOrOddballToHoleyFloat64* node, const ProcessingState& state) {
   if (ValueNode* input = GetUntaggedValueWithRepresentation(
           node->input_node(0), UseRepresentation::kHoleyFloat64,
-          NodeType::kNumberOrOddball)) {
+          node->conversion_type())) {
     if (node->silence_number_nans()) {
       // We still need to keep the logic to silence number nans.
       reducer_.BuildHoleyFloat64SilenceNumberNans(input);
@@ -1491,29 +1502,30 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedNumberOrOddballToHoleyFloat64(
   return ProcessResult::kContinue;
 }
 
-#define UNTAGGING_CASE(Node, Repr, Type)                       \
-  ProcessResult MaglevGraphOptimizer::Visit##Node(             \
-      Node* node, const ProcessingState& state) {              \
-    if (ValueNode* input = GetUntaggedValueWithRepresentation( \
-            node->input_node(0), UseRepresentation::k##Repr,   \
-            NodeType::k##Type)) {                              \
-      return ReplaceWith(input);                               \
-    }                                                          \
-    return ProcessResult::kContinue;                           \
+#define UNTAGGING_CASE(Node, Repr, ConvType)                              \
+  ProcessResult MaglevGraphOptimizer::Visit##Node(                        \
+      Node* node, const ProcessingState& state) {                         \
+    if (ValueNode* input = GetUntaggedValueWithRepresentation(            \
+            node->input_node(0), UseRepresentation::k##Repr, ConvType)) { \
+      return ReplaceWith(input);                                          \
+    }                                                                     \
+    return ProcessResult::kContinue;                                      \
   }
-UNTAGGING_CASE(UnsafeSmiUntag, Int32, Number)
-UNTAGGING_CASE(CheckedNumberToInt32, Int32, Number)
+UNTAGGING_CASE(UnsafeSmiUntag, Int32, {})
+UNTAGGING_CASE(CheckedNumberToInt32, Int32, {})
 UNTAGGING_CASE(TruncateCheckedNumberOrOddballToInt32, TruncatedInt32,
-               NumberOrOddball)
+               node->conversion_type())
 UNTAGGING_CASE(TruncateUnsafeNumberOrOddballToInt32, TruncatedInt32,
-               NumberOrOddball)
-UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
-UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64, NumberOrOddball)
+               node->conversion_type())
+UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64,
+               node->conversion_type())
+UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64,
+               node->conversion_type())
 #undef UNTAGGING_CASE
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
     CheckedSmiUntag* node, const ProcessingState& state) {
   if (ValueNode* input = GetUntaggedValueWithRepresentation(
-          node->input_node(0), UseRepresentation::kInt32, NodeType::kNumber)) {
+          node->input_node(0), UseRepresentation::kInt32, {})) {
     if (SmiValuesAre31Bits()) {
       // When the graph builder introduced the CheckedSmiUntag, it also recorded
       // in the alternatives that its input was a known Smi from this point on.
