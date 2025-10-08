@@ -4836,7 +4836,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreTrustedPointerField(
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
-                                                            int index) {
+                                                            int index,
+                                                            LoadType type) {
   // We won't try to reason about the type of the elements array and thus also
   // cannot end up with an empty type for it.
   DCHECK(!IsEmptyNodeType(GetType(elements)));
@@ -4870,14 +4871,14 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
     return BuildAbort(AbortReason::kUnreachable);
   }
   return AddNewNodeNoInputConversion<LoadTaggedField>(
-      {elements}, FixedArray::OffsetOfElementAt(index), LoadType::kUnknown);
+      {elements}, FixedArray::OffsetOfElementAt(index), type);
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
                                                             ValueNode* index,
                                                             LoadType type) {
   if (auto constant = TryGetInt32Constant(index)) {
-    return BuildLoadFixedArrayElement(elements, constant.value());
+    return BuildLoadFixedArrayElement(elements, constant.value(), type);
   }
   return AddNewNode<LoadFixedArrayElement>({elements, index}, type);
 }

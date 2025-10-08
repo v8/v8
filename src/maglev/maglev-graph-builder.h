@@ -1276,7 +1276,8 @@ class MaglevGraphBuilder {
                                              IndirectPointerTag tag,
                                              StoreTaggedMode store_mode);
 
-  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, int index);
+  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, int index,
+                                          LoadType type = LoadType::kUnknown);
   ReduceResult BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index,
                                           LoadType type = LoadType::kUnknown);
   ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
