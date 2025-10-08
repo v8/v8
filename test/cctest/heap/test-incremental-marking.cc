@@ -126,7 +126,8 @@ TEST_WITH_PLATFORM(IncrementalMarkingUsingTasks, MockPlatform) {
     i::IncrementalMarking* marking = heap->incremental_marking();
     marking->Stop();
     {
-      IsolateSafepointScope scope(heap);
+      SafepointScope scope(heap->isolate(),
+                           kGlobalSafepointForSharedSpaceIsolate);
       heap->tracer()->StartCycle(
           GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
           "collector cctest", GCTracer::MarkingType::kIncremental);

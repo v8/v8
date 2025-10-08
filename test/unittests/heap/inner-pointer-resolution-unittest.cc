@@ -5,6 +5,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/conservative-stack-visitor-inl.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/safepoint.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -683,7 +684,8 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     // Start incremental marking and mark the third object.
     i::IncrementalMarking* marking = heap()->incremental_marking();
     if (marking->IsStopped()) {
-      IsolateSafepointScope scope(heap());
+      SafepointScope scope(heap()->isolate(),
+                           kGlobalSafepointForSharedSpaceIsolate);
       heap()->tracer()->StartCycle(
           GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
           "unit test", GCTracer::MarkingType::kIncremental);

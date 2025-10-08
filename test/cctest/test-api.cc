@@ -13626,9 +13626,9 @@ static void TestAllocateAndNewForTwoIsolateGroups(
     v8::Isolate::Initialize(isolate1bis, create_params_1);
     v8::Isolate::Initialize(isolate2, create_params_2);
 
-    isolate1->Dispose();
-    isolate1bis->Dispose();
     isolate2->Dispose();
+    isolate1bis->Dispose();
+    isolate1->Dispose();
   }
 
   // New() can control groups into which isolates are allocated.
@@ -13641,9 +13641,9 @@ static void TestAllocateAndNewForTwoIsolateGroups(
     CHECK_EQ(group1, isolate1bis->GetGroup());
     CHECK_EQ(group2, isolate2->GetGroup());
 
-    isolate1->Dispose();
-    isolate1bis->Dispose();
     isolate2->Dispose();
+    isolate1bis->Dispose();
+    isolate1->Dispose();
   }
 }
 
@@ -28264,8 +28264,8 @@ UNINITIALIZED_TEST(NestedIsolates) {
     ExpectInt32("c", 4);
   }
 
-  isolate_1->Dispose();
   isolate_2->Dispose();
+  isolate_1->Dispose();
 }
 
 #undef THREADED_PROFILED_TEST

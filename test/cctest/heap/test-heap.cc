@@ -5993,7 +5993,8 @@ TEST(Regress598319) {
     }
   }
 
-  IsolateSafepointScope safepoint_scope(heap);
+  SafepointScope safepoint_scope(heap->isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   MarkingBarrier::PublishAll(heap);
 
   // Finish marking with bigger steps to speed up test.
@@ -6687,7 +6688,8 @@ HEAP_TEST(Regress670675) {
   heap->tracer()->StopFullCycleIfFinished();
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
-    IsolateSafepointScope safepoint_scope(heap);
+    SafepointScope safepoint_scope(heap->isolate(),
+                                   kGlobalSafepointForSharedSpaceIsolate);
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);

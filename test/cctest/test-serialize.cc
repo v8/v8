@@ -190,7 +190,7 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
 
   // Note this effectively reimplements Snapshot::Create, keep in sync.
 
-  SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
+  SafepointScope safepoint(i_isolate, kGlobalSafepointForSharedSpaceIsolate);
   DisallowGarbageCollection no_gc;
   HandleScope scope(i_isolate);
 
@@ -410,7 +410,7 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
     env.Reset();
 
-    SafepointScope safepoint(isolate, SafepointKind::kIsolate);
+    SafepointScope safepoint(isolate, kGlobalSafepointForSharedSpaceIsolate);
     DisallowGarbageCollection no_gc;
 
     if (!isolate->initialized_from_snapshot()) {
@@ -603,7 +603,8 @@ static void SerializeCustomContext(
       // so that it is found below, during heap verification at the GC before
       // isolate disposal.
 
-      SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
+      SafepointScope safepoint(i_isolate,
+                               kGlobalSafepointForSharedSpaceIsolate);
       DisallowGarbageCollection no_gc;
 
       if (i_isolate->heap()->read_only_space()->writable()) {
@@ -4885,7 +4886,7 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
   FreeCurrentEmbeddedBlob();
 }
 
-TEST(SnapshotCreatorUnknownHandles) {
+UNINITIALIZED_TEST(SnapshotCreatorUnknownHandles) {
   v8::StartupData blob;
 
   {

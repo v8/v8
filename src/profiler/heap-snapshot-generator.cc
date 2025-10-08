@@ -3361,9 +3361,9 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8::base::ElapsedTimer timer;
   timer.Start();
 
-  IsolateSafepointScope scope(heap_);
-
   Isolate* isolate = heap_->isolate();
+  SafepointScope scope(isolate, kGlobalSafepointForSharedSpaceIsolate);
+
   auto temporary_native_context_tags =
       v8_heap_explorer_.CollectTemporaryNativeContextTags();
 
