@@ -69,6 +69,10 @@ HeapType FuncHeapType(ModuleTypeIndex index) {
   return HeapType::Index(index, kNotShared, RefTypeKind::kFunction);
 }
 
+HeapType ContHeapType(ModuleTypeIndex index) {
+  return HeapType::Index(index, kNotShared, RefTypeKind::kCont);
+}
+
 using F = std::pair<ValueType, bool>;
 
 // Used to construct fixed-size signatures: MakeSig::Returns(...).Params(...);
@@ -4341,6 +4345,7 @@ TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
 
 TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   WASM_FEATURE_SCOPE(exnref);
+  WASM_FEATURE_SCOPE(wasmfx);
 
   HeapType array_heap = HeapType(builder.AddArray(kWasmI8, true));
   HeapType super_struct_heap = HeapType(builder.AddStruct({F(kWasmI16, true)}));
@@ -4350,6 +4355,12 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
 
   HeapType func_heap_1 = FuncHeapType(builder.AddSignature(sigs.i_i()));
   HeapType func_heap_2 = FuncHeapType(builder.AddSignature(sigs.i_v()));
+
+  ModuleTypeIndex cont_index_1 = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex cont_index_2 = builder.AddCont(sigs.i_v());
+
+  HeapType cont_type_1 = ContHeapType(cont_index_1);
+  HeapType cont_type_2 = ContHeapType(cont_index_2);
 
   std::tuple<HeapType, HeapType, bool> tests[] = {
       std::make_tuple(kWasmArrayRef, array_heap, true),
@@ -4429,9 +4440,51 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
       kAppendEnd,
       "Invalid types for ref.cast: i32.const of type i32 has to be "
       "in the same reference type hierarchy as (ref 0)");
+
+  // No casting of cont types
+  std::tuple<HeapType, HeapType> cont_tests[] = {
+      std::make_tuple(cont_type_1, kWasmContRef),
+      std::make_tuple(kWasmContRef, cont_type_1),
+      std::make_tuple(cont_type_1, cont_type_1),
+      std::make_tuple(cont_type_1, cont_type_2),
+      std::make_tuple(cont_type_2, cont_type_1),
+      std::make_tuple(kWasmNullContRef, kWasmContRef),
+  };
+
+  for (auto [from_heap, to_heap] : cont_tests) {
+    SCOPED_TRACE("from_heap = " + from_heap.name() +
+                 ", to_heap = " + to_heap.name());
+
+    ValueType test_reps[] = {kWasmI32, ValueType::RefNull(from_heap)};
+    FunctionSig test_sig(1, 1, test_reps);
+
+    ValueType cast_reps[] = {ValueType::RefNull(to_heap),
+                             ValueType::RefNull(from_heap)};
+    FunctionSig cast_sig(1, 1, cast_reps);
+
+    std::string error_message = "may not cast";
+    ExpectFailure(
+        &test_sig, {WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+        kAppendEnd, ("Invalid type for ref.test: " + error_message).c_str());
+    ExpectFailure(
+        &cast_sig, {WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+        kAppendEnd, ("Invalid type for ref.cast: " + error_message).c_str());
+    ExpectFailure(
+        &test_sig,
+        {WASM_REF_TEST_NULL(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+        kAppendEnd,
+        ("Invalid type for ref.test null: " + error_message).c_str());
+    ExpectFailure(
+        &cast_sig,
+        {WASM_REF_CAST_NULL(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
+        kAppendEnd,
+        ("Invalid type for ref.cast null: " + error_message).c_str());
+  }
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
+  WASM_FEATURE_SCOPE(wasmfx);
+
   HeapType super_struct_type = builder.AddStruct({F(kWasmI16, true)});
   ModuleTypeIndex super_struct = super_struct_type.ref_index();
   HeapType sub_struct_type =
@@ -4440,6 +4493,12 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
 
   ValueType supertype = ValueType::RefNull(super_struct_type);
   ValueType subtype = ValueType::RefNull(sub_struct_type);
+
+  ModuleTypeIndex cont_index_1 = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex cont_index_2 = builder.AddCont(sigs.i_v());
+
+  ValueType cont_type_1 = ValueType::RefNull(ContHeapType(cont_index_1));
+  ValueType cont_type_2 = ValueType::RefNull(ContHeapType(cont_index_2));
 
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, subtype}, {supertype}),
@@ -4551,9 +4610,21 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
       kAppendEnd,
       "invalid types for br_on_cast_fail: (ref null 1) is not a subtype "
       "of externref");
+  // Not permitted to cast continuation types
+  ExpectFailure(FunctionSig::Build(this->zone(), {}, {cont_type_1}),
+                {WASM_LOCAL_GET(0),
+                 WASM_BR_ON_CAST_FAIL_NULL(0, cont_index_1, cont_index_1)},
+                kAppendEnd, "continuation type");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {cont_type_2}, {kWasmNullContRef}),
+      {WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST_FAIL_NULL(0, cont_index_2, cont_index_2)},
+      kAppendEnd, "continuation type");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
+  WASM_FEATURE_SCOPE(wasmfx);
+
   ValueType kNonNullableFunc = kWasmFuncRef.AsNonNull();
 
   ExpectValidates(
@@ -4601,6 +4672,13 @@ TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
        WASM_GC_OP(kExprRefCast), kI31RefCode},
       kAppendEnd,
       "br_on_cast[0] expected type anyref, found local.get of type i32");
+
+  // May not cast to an abstract continuation type
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {}, {kWasmContRef}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, kContRefCode, kContRefCode)},
+      kAppendEnd,
+      "Invalid type for br_on_cast: may not cast contref continuation type");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrWithBottom) {
