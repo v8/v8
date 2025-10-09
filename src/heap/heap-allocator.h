@@ -35,6 +35,8 @@ class Space;
 // right bottleneck.
 class V8_EXPORT_PRIVATE HeapAllocator final {
  public:
+  using CustomAllocationFunction = base::FunctionRef<bool()>;
+
   explicit HeapAllocator(LocalHeap*);
 
   // Set up all LABs for this LocalHeap.
@@ -139,9 +141,9 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
     return &shared_space_allocator_.value();
   }
 
-  bool RetryCustomAllocate(base::FunctionRef<bool()> allocate,
+  bool RetryCustomAllocate(CustomAllocationFunction allocate,
                            AllocationType allocation);
-  bool RetryCustomAllocateOrFail(base::FunctionRef<bool()> allocate,
+  void RetryCustomAllocateOrFail(CustomAllocationFunction allocate,
                                  AllocationType allocation);
 
 #if V8_VERIFY_WRITE_BARRIERS
@@ -172,28 +174,13 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       int size_in_bytes, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment, AllocationHint hint);
 
-  template <typename AllocateFunction>
-  V8_WARN_UNUSED_RESULT inline std::invoke_result_t<AllocateFunction>
-  RetryAllocateRawSlowPath(AllocateFunction&& Allocate,
-                           AllocationType allocation);
-
-  template <typename AllocateFunction>
-  V8_WARN_UNUSED_RESULT inline std::invoke_result_t<AllocateFunction>
-  RetryAllocateRawOrFailSlowPath(AllocateFunction&& Allocate,
-                                 AllocationType allocation);
-
-  V8_WARN_UNUSED_RESULT AllocationResult RetryAllocateRawOrFailSlowPath(
-      int size, AllocationType allocation, AllocationOrigin origin,
-      AllocationAlignment alignment, AllocationHint hint);
-
-  template <typename AllocateFunction>
-  V8_WARN_UNUSED_RESULT inline std::invoke_result_t<AllocateFunction>
-  RetryAllocateRawLightSlowPath(AllocateFunction&& Allocate,
+  bool RetryCustomAllocateLight(CustomAllocationFunction allocate,
                                 AllocationType allocation);
 
-  V8_WARN_UNUSED_RESULT AllocationResult RetryAllocateRawLightSlowPath(
-      int size, AllocationType allocation, AllocationOrigin origin,
-      AllocationAlignment alignment, AllocationHint hint);
+  V8_WARN_UNUSED_RESULT Tagged<HeapObject> AllocateRawSlowPath(
+      AllocationRetryMode retry_mode, int size, AllocationType allocation,
+      AllocationOrigin origin, AllocationAlignment alignment,
+      AllocationHint hint);
 
   void CollectGarbage(AllocationType allocation,
                       PerformHeapLimitCheck perform_heap_limit_check =
@@ -202,10 +189,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
 
   // Performs a GC and retries the allocation in a loop. The caller of this
   // method needs to perform the heap limit check.
-  template <typename AllocateFunction>
-  V8_WARN_UNUSED_RESULT std::invoke_result_t<AllocateFunction>
-  CollectGarbageAndRetryAllocation(AllocateFunction&& Allocate,
-                                   AllocationType allocation);
+  bool CollectGarbageAndRetryAllocation(CustomAllocationFunction,
+                                        AllocationType allocation);
 
   bool ReachedAllocationTimeout();
 

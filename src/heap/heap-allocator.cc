@@ -4,6 +4,7 @@
 
 #include "src/heap/heap-allocator.h"
 
+#include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -128,22 +129,6 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
 
 }  // namespace
 
-AllocationResult HeapAllocator::RetryAllocateRawLightSlowPath(
-    int size, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment, AllocationHint hint) {
-  auto Allocate = [&]() {
-    // Initially flags on the LocalHeap are always disabled. They are only
-    // active while this method is running.
-    DCHECK(!local_heap_->IsRetryOfFailedAllocation());
-    local_heap_->SetRetryOfFailedAllocation(true);
-    auto result = AllocateRaw(size, allocation, origin, alignment, hint);
-    local_heap_->SetRetryOfFailedAllocation(false);
-    return result;
-  };
-
-  return RetryAllocateRawLightSlowPath(Allocate, allocation);
-}
-
 void HeapAllocator::CollectGarbage(
     AllocationType allocation, PerformHeapLimitCheck perform_heap_limit_check) {
   if (IsSharedAllocationType(allocation)) {
@@ -161,19 +146,33 @@ void HeapAllocator::CollectGarbage(
   }
 }
 
-AllocationResult HeapAllocator::RetryAllocateRawOrFailSlowPath(
-    int size, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment, AllocationHint hint) {
-  auto Allocate = [&]() {
+Tagged<HeapObject> HeapAllocator::AllocateRawSlowPath(
+    AllocationRetryMode retry_mode, int size, AllocationType allocation,
+    AllocationOrigin origin, AllocationAlignment alignment,
+    AllocationHint hint) {
+  AllocationResult result;
+  auto allocate = [&result, size, allocation, origin, alignment, hint, this]() {
     // Initially flags on the LocalHeap are always disabled. They are only
     // active while this method is running.
     DCHECK(!local_heap_->IsRetryOfFailedAllocation());
     local_heap_->SetRetryOfFailedAllocation(true);
-    auto result = AllocateRaw(size, allocation, origin, alignment, hint);
+    result = AllocateRaw(size, allocation, origin, alignment, hint);
     local_heap_->SetRetryOfFailedAllocation(false);
-    return result;
+    return !result.IsFailure();
   };
-  return RetryAllocateRawOrFailSlowPath(Allocate, allocation);
+
+  if (retry_mode == AllocationRetryMode::kLightRetry) {
+    RetryCustomAllocateLight(allocate, allocation);
+  } else {
+    DCHECK_EQ(retry_mode, AllocationRetryMode::kRetryOrFail);
+    RetryCustomAllocateOrFail(allocate, allocation);
+  }
+
+  Tagged<HeapObject> object;
+  if (result.To(&object)) {
+    return object;
+  }
+  return Tagged<HeapObject>();
 }
 
 void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {
@@ -460,14 +459,77 @@ Heap* HeapAllocator::heap_for_allocation(AllocationType allocation) {
   }
 }
 
-bool HeapAllocator::RetryCustomAllocate(base::FunctionRef<bool()> allocate,
+bool HeapAllocator::RetryCustomAllocate(CustomAllocationFunction allocate,
                                         AllocationType allocation) {
-  return RetryAllocateRawSlowPath(std::move(allocate), allocation);
+  if (CollectGarbageAndRetryAllocation(allocate, allocation)) {
+    return true;
+  }
+
+  // In the case of young allocations, the GCs above were minor GCs. Try "light"
+  // full GCs before performing the last-resort GCs.
+  if (allocation == AllocationType::kYoung) {
+    if (CollectGarbageAndRetryAllocation(allocate, AllocationType::kOld)) {
+      return true;
+    }
+  }
+
+  // Perform last resort GC. This call will clear more caches and perform more
+  // GCs. It will also enforce the heap limit if still violated.
+  CollectAllAvailableGarbage(allocation);
+
+  return allocate();
 }
 
-bool HeapAllocator::RetryCustomAllocateOrFail(
-    base::FunctionRef<bool()> allocate, AllocationType allocation) {
-  return RetryAllocateRawOrFailSlowPath(std::move(allocate), allocation);
+void HeapAllocator::RetryCustomAllocateOrFail(CustomAllocationFunction allocate,
+                                              AllocationType allocation) {
+  if (RetryCustomAllocate(allocate, allocation)) return;
+  V8::FatalProcessOutOfMemory(heap_->isolate(), "CALL_AND_RETRY_LAST",
+                              V8::kHeapOOM);
+}
+
+bool HeapAllocator::RetryCustomAllocateLight(CustomAllocationFunction allocate,
+                                             AllocationType allocation) {
+  DCHECK_NE(AllocationType::kYoung, allocation);
+
+  if (auto result = CollectGarbageAndRetryAllocation(allocate, allocation)) {
+    return result;
+  }
+
+  heap_for_allocation(allocation)->CheckHeapLimitReached();
+
+  return {};
+}
+
+bool HeapAllocator::CollectGarbageAndRetryAllocation(
+    CustomAllocationFunction allocate, AllocationType allocation) {
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
+  for (int i = 0; i < 2; i++) {
+    if (v8_flags.ineffective_gcs_forces_last_resort &&
+        allocation != AllocationType::kYoung &&
+        heap_for_allocation(allocation)
+            ->HasConsecutiveIneffectiveMarkCompact()) {
+      return false;
+    }
+
+    // Skip the heap limit check in the GC if enabled. The heap limit needs to
+    // be enforced by the caller.
+    CollectGarbage(allocation, perform_heap_limit_check);
+
+    // As long as we are at or above the heap limit, we definitely need another
+    // GC.
+    if (heap_for_allocation(allocation)->ReachedHeapLimit()) {
+      continue;
+    }
+
+    if (allocate()) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 #if V8_VERIFY_WRITE_BARRIERS
