@@ -130,10 +130,6 @@ void Heap::StartIncrementalGarbageCollection(GCConfig config) {
   StartGarbageCollection(config);
 }
 
-bool Heap::RetryAllocate(v8::base::FunctionRef<bool()> allocate) {
-  UNIMPLEMENTED();
-}
-
 void Heap::FinalizeIncrementalGarbageCollectionIfRunning(GCConfig config) {
   CheckConfig(config, marking_support_, sweeping_support_);
 

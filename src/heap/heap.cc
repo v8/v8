@@ -2199,9 +2199,39 @@ bool Heap::CollectionRequested() {
 void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    const GCCallbackFlags gc_callback_flags) {
-  std::ignore = allocator()->RetryCustomAllocate(
-      [&]() { return !ReachedHeapLimit(); },
-      space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
+  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
+                                            ? PerformHeapLimitCheck::kNo
+                                            : PerformHeapLimitCheck::kYes;
+
+  if (space == NEW_SPACE) {
+    DCHECK_EQ(GCFlags(), gc_flags);
+
+    for (int i = 0; i < 2; i++) {
+      CollectGarbage(NEW_SPACE, gc_reason, gc_callback_flags,
+                     perform_heap_limit_check);
+
+      if (!ReachedHeapLimit()) {
+        return;
+      }
+    }
+  }
+
+  for (int i = 0; i < 2; i++) {
+    if (v8_flags.ineffective_gcs_forces_last_resort &&
+        HasConsecutiveIneffectiveMarkCompact()) {
+      break;
+    }
+    current_gc_flags_ = gc_flags;
+    CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
+                   perform_heap_limit_check);
+    DCHECK_EQ(GCFlags(), current_gc_flags_);
+
+    if (!ReachedHeapLimit()) {
+      return;
+    }
+  }
+
+  CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
 }
 
 void Heap::CollectGarbageForBackground(LocalHeap* local_heap) {
@@ -3222,12 +3252,22 @@ void* Heap::AllocateExternalBackingStore(
     }
   }
   void* result = allocate(byte_length);
-  if (result || always_allocate()) {
-    return result;
+  if (result) return result;
+  if (!always_allocate()) {
+    for (int i = 0; i < 2; i++) {
+      if (v8_flags.ineffective_gcs_forces_last_resort &&
+          HasConsecutiveIneffectiveMarkCompact()) {
+        break;
+      }
+      CollectGarbage(OLD_SPACE,
+                     GarbageCollectionReason::kExternalMemoryPressure);
+      result = allocate(byte_length);
+      if (result) return result;
+    }
+    CollectAllAvailableGarbage(
+        GarbageCollectionReason::kExternalMemoryPressure);
   }
-  std::ignore = allocator()->RetryCustomAllocate(
-      [&]() { return result = allocate(byte_length); }, AllocationType::kOld);
-  return result;
+  return allocate(byte_length);
 }
 
 // When old generation allocation limit is not configured (before the first full

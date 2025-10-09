@@ -128,20 +128,14 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
 
 }  // namespace
 
-AllocationResult HeapAllocator::RetryAllocateRawLightSlowPath(
+AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment, AllocationHint hint) {
   auto Allocate = [&]() {
-    // Initially flags on the LocalHeap are always disabled. They are only
-    // active while this method is running.
-    DCHECK(!local_heap_->IsRetryOfFailedAllocation());
-    local_heap_->SetRetryOfFailedAllocation(true);
-    auto result = AllocateRaw(size, allocation, origin, alignment, hint);
-    local_heap_->SetRetryOfFailedAllocation(false);
-    return result;
+    return AllocateRaw(size, allocation, origin, alignment, hint);
   };
 
-  return RetryAllocateRawLightSlowPath(Allocate, allocation);
+  return AllocateRawWithLightRetrySlowPath(Allocate, allocation);
 }
 
 void HeapAllocator::CollectGarbage(
@@ -161,19 +155,13 @@ void HeapAllocator::CollectGarbage(
   }
 }
 
-AllocationResult HeapAllocator::RetryAllocateRawOrFailSlowPath(
+AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment, AllocationHint hint) {
   auto Allocate = [&]() {
-    // Initially flags on the LocalHeap are always disabled. They are only
-    // active while this method is running.
-    DCHECK(!local_heap_->IsRetryOfFailedAllocation());
-    local_heap_->SetRetryOfFailedAllocation(true);
-    auto result = AllocateRaw(size, allocation, origin, alignment, hint);
-    local_heap_->SetRetryOfFailedAllocation(false);
-    return result;
+    return AllocateRaw(size, allocation, origin, alignment, hint);
   };
-  return RetryAllocateRawOrFailSlowPath(Allocate, allocation);
+  return AllocateRawWithRetryOrFailSlowPath(Allocate, allocation);
 }
 
 void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {
@@ -458,16 +446,6 @@ Heap* HeapAllocator::heap_for_allocation(AllocationType allocation) {
   } else {
     return heap_;
   }
-}
-
-bool HeapAllocator::RetryCustomAllocate(base::FunctionRef<bool()> allocate,
-                                        AllocationType allocation) {
-  return RetryAllocateRawSlowPath(std::move(allocate), allocation);
-}
-
-bool HeapAllocator::RetryCustomAllocateOrFail(
-    base::FunctionRef<bool()> allocate, AllocationType allocation) {
-  return RetryAllocateRawOrFailSlowPath(std::move(allocate), allocation);
 }
 
 #if V8_VERIFY_WRITE_BARRIERS

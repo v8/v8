@@ -188,7 +188,6 @@ class V8_EXPORT_PRIVATE CppHeap final
   void clear_overridden_stack_state() override;
 
   void StartIncrementalGarbageCollection(cppgc::internal::GCConfig) override;
-  bool RetryAllocate(v8::base::FunctionRef<bool()> allocate) override;
   size_t epoch() const override;
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   std::optional<int> UpdateAllocationTimeout() final;
