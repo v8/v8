@@ -1631,15 +1631,15 @@ void WasmEngine::UseNativeModuleInIsolate(NativeModule* native_module,
 
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-    const CompileTimeImports& compile_imports, Isolate* isolate) {
+    const CompileTimeImports& compile_imports) {
   TRACE_EVENT1("v8.wasm", "wasm.GetNativeModuleFromCache", "wire_bytes",
                wire_bytes.size());
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes,
                                                 compile_imports);
   if (native_module) {
+    // Create a marker in the trace.
     TRACE_EVENT0("v8.wasm", "CacheHit");
-    UseNativeModuleInIsolate(native_module.get(), isolate);
   }
   return native_module;
 }

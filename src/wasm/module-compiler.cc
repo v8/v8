@@ -2292,8 +2292,10 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
 
   std::shared_ptr<NativeModule> native_module =
       GetWasmEngine()->MaybeGetNativeModule(
-          module->origin, wire_bytes.as_vector(), compile_imports, isolate);
+          module->origin, wire_bytes.as_vector(), compile_imports);
   if (native_module) {
+    GetWasmEngine()->UseNativeModuleInIsolate(native_module.get(), isolate);
+
     base::TimeDelta duration = base::TimeTicks::Now() - start_time;
     v8::metrics::WasmModuleCompiled event{
         false,                                   // async
@@ -2696,12 +2698,10 @@ AsyncCompileJob::~AsyncCompileJob() {
 
 void AsyncCompileJob::CreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
-  // Create the module object and populate with compiled functions and
-  // information needed at instantiation time.
-
-  native_module_ = GetWasmEngine()->NewNativeModule(
-      isolate_, enabled_features_, detected_features_,
-      std::move(compile_imports_), std::move(module), code_size_estimate);
+  DCHECK_NULL(native_module_);
+  native_module_ = GetWasmEngine()->NewUnownedNativeModule(
+      enabled_features_, detected_features_, std::move(compile_imports_),
+      std::move(module), code_size_estimate);
   native_module_->SetWireBytes(std::move(bytes_copy_));
   native_module_->compilation_state()->set_compilation_id(compilation_id_);
 #if V8_ENABLE_TURBOFAN
@@ -2722,7 +2722,7 @@ void AsyncCompileJob::CreateNativeModule(
 bool AsyncCompileJob::GetOrCreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   native_module_ = GetWasmEngine()->MaybeGetNativeModule(
-      module->origin, wire_bytes_.module_bytes(), compile_imports_, isolate_);
+      module->origin, wire_bytes_.module_bytes(), compile_imports_);
   if (native_module_ == nullptr) {
     CreateNativeModule(std::move(module), code_size_estimate);
     return false;
@@ -2749,6 +2749,7 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) && {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.FinishAsyncCompile");
+  GetWasmEngine()->UseNativeModuleInIsolate(native_module_.get(), isolate_);
   if (stream_) {
     stream_->NotifyNativeModuleCreated(native_module_);
   }

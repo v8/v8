@@ -1122,8 +1122,10 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
 
   WasmEngine* wasm_engine = GetWasmEngine();
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
-      module->origin, owned_wire_bytes.as_vector(), compile_imports, isolate);
-  if (shared_native_module == nullptr) {
+      module->origin, owned_wire_bytes.as_vector(), compile_imports);
+  if (shared_native_module) {
+    wasm_engine->UseNativeModuleInIsolate(shared_native_module.get(), isolate);
+  } else {
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
     shared_native_module = wasm_engine->NewNativeModule(

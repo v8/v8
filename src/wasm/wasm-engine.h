@@ -335,7 +335,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // NativeModule later.
   std::shared_ptr<NativeModule> MaybeGetNativeModule(
       ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-      const CompileTimeImports& compile_imports, Isolate* isolate);
+      const CompileTimeImports& compile_imports);
 
   // Replace the temporary {nullopt} with the new native module, or
   // erase it if any error occurred. Wake up blocked threads waiting for this
