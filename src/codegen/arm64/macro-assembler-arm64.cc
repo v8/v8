@@ -2965,13 +2965,11 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
   Bind(&regular_invoke);
 }
 
-void MacroAssembler::CallDebugOnFunctionCall(
-    Register fun, Register new_target,
-    Register expected_parameter_count_or_dispatch_handle,
-    Register actual_parameter_count) {
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             Register dispatch_handle,
+                                             Register actual_parameter_count) {
   ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(x5, fun, new_target,
-                     expected_parameter_count_or_dispatch_handle,
+  DCHECK(!AreAliased(x5, fun, new_target, dispatch_handle,
                      actual_parameter_count));
   // Load receiver to pass it later to DebugOnFunctionCall hook.
   Peek(x5, ReceiverOperand());
@@ -2981,18 +2979,17 @@ void MacroAssembler::CallDebugOnFunctionCall(
   if (!new_target.is_valid()) new_target = padreg;
 
   // Save values on stack.
-  SmiTag(expected_parameter_count_or_dispatch_handle);
+  // We must not Smi-tag the dispatch handle, because its top bits are
+  // meaningful; and we also don't need to, because its low bits are zero.
+  static_assert(kJSDispatchHandleShift >= 1);
   SmiTag(actual_parameter_count);
-  Push(expected_parameter_count_or_dispatch_handle, actual_parameter_count,
-       new_target, fun);
+  Push(dispatch_handle, actual_parameter_count, new_target, fun);
   Push(fun, x5);
   CallRuntime(Runtime::kDebugOnFunctionCall);
 
   // Restore values from stack.
-  Pop(fun, new_target, actual_parameter_count,
-      expected_parameter_count_or_dispatch_handle);
+  Pop(fun, new_target, actual_parameter_count, dispatch_handle);
   SmiUntag(actual_parameter_count);
-  SmiUntag(expected_parameter_count_or_dispatch_handle);
 }
 
 #ifdef V8_ENABLE_LEAPTIERING

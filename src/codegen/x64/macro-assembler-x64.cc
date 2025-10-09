@@ -4695,10 +4695,9 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     bind(&regular_invoke);
 }
 
-void MacroAssembler::CallDebugOnFunctionCall(
-    Register fun, Register new_target,
-    Register expected_parameter_count_or_dispatch_handle,
-    Register actual_parameter_count) {
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             Register dispatch_handle,
+                                             Register actual_parameter_count) {
   ASM_CODE_COMMENT(this);
   // Load receiver to pass it later to DebugOnFunctionCall hook.
   // Receiver is located on top of the stack if we have a frame (usually a
@@ -4709,8 +4708,10 @@ void MacroAssembler::CallDebugOnFunctionCall(
   FrameScope frame(
       this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
 
-  SmiTag(expected_parameter_count_or_dispatch_handle);
-  Push(expected_parameter_count_or_dispatch_handle);
+  // We must not Smi-tag the dispatch handle, because its top bits are
+  // meaningful; and we also don't need to, because its low bits are zero.
+  static_assert(kJSDispatchHandleShift >= 1);
+  Push(dispatch_handle);
 
   SmiTag(actual_parameter_count);
   Push(actual_parameter_count);
@@ -4729,8 +4730,7 @@ void MacroAssembler::CallDebugOnFunctionCall(
   }
   Pop(actual_parameter_count);
   SmiUntag(actual_parameter_count);
-  Pop(expected_parameter_count_or_dispatch_handle);
-  SmiUntag(expected_parameter_count_or_dispatch_handle);
+  Pop(dispatch_handle);
 }
 
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
