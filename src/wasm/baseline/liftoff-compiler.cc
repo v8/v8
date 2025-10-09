@@ -797,7 +797,6 @@ class LiftoffCompiler {
     // modern modules, as of 2022-06-03.
     out_of_line_code_.reserve(128);
 
-    DCHECK(options.is_initialized());
     // If there are no breakpoints, both pointers should be nullptr.
     DCHECK_IMPLIES(
         next_breakpoint_ptr_ == next_breakpoint_end_,
@@ -10759,7 +10758,6 @@ std::unique_ptr<AssemblerBuffer> NewLiftoffAssemblerBuffer(int func_body_size) {
 WasmCompilationResult ExecuteLiftoffCompilation(
     CompilationEnv* env, const FunctionBody& func_body,
     const LiftoffOptions& compiler_options) {
-  DCHECK(compiler_options.is_initialized());
   // Liftoff does not validate the code, so that should have run before.
   DCHECK(env->module->function_was_validated(compiler_options.func_index));
   base::TimeTicks start_time;
@@ -10898,10 +10896,9 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       func_body, call_descriptor, &env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
       &debug_sidetable_builder,
-      LiftoffOptions{}
-          .set_func_index(code->index())
-          .set_for_debugging(code->for_debugging())
-          .set_breakpoints(breakpoints),
+      LiftoffOptions{.func_index = code->index(),
+                     .for_debugging = code->for_debugging(),
+                     .breakpoints = breakpoints},
       nullptr);
   decoder.Decode();
   DCHECK(decoder.ok());
