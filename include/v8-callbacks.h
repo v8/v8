@@ -233,6 +233,10 @@ struct OOMDetails {
 using OOMErrorCallback = void (*)(const char* location,
                                   const OOMDetails& details);
 
+using OOMErrorCallbackWithData = void (*)(const char* location,
+                                          const OOMDetails& details,
+                                          void* data);
+
 using MessageCallback = void (*)(Local<Message> message, Local<Value> data);
 
 // --- Tracing ---

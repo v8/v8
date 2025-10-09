@@ -285,7 +285,7 @@ void Utils::ReportApiFailure(const char* location, const char* message) {
 void Utils::ReportOOMFailure(i::Isolate* i_isolate, const char* location,
                              const OOMDetails& details) {
   if (auto oom_callback = i_isolate->oom_behavior()) {
-    oom_callback(location, details);
+    oom_callback(location, details, i_isolate->oom_callback_data());
   } else {
     // TODO(wfh): Remove this fallback once Blink is setting OOM handler. See
     // crbug.com/614440.
@@ -10658,7 +10658,6 @@ size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
   }
 
 CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
-CALLBACK_SETTER(OOMErrorHandler, OOMErrorCallback, oom_behavior)
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback2,
                 modify_code_gen_callback)
@@ -10701,6 +10700,22 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
   i::WasmJs::InstallConditionalFeatures(i_isolate,
                                         Utils::OpenDirectHandle(*context));
 #endif  // V8_ENABLE_WEBASSEMBLY
+}
+
+void Isolate::SetOOMErrorHandler(OOMErrorCallback callback) {
+  void* data = reinterpret_cast<void*>(callback);
+  SetOOMErrorHandler(
+      [](const char* location, const OOMDetails& details, void* data) {
+        reinterpret_cast<OOMErrorCallback>(data)(location, details);
+      },
+      data);
+}
+
+void Isolate::SetOOMErrorHandler(OOMErrorCallbackWithData callback,
+                                 void* data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->set_oom_behavior(callback);
+  i_isolate->set_oom_callback_data(data);
 }
 
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,

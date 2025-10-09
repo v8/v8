@@ -1656,6 +1656,13 @@ class V8_EXPORT Isolate {
   void SetOOMErrorHandler(OOMErrorCallback that);
 
   /**
+   * \copydoc SetOOMErrorHandler(OOMErrorCallback)
+   *
+   * \param data Additional data that should be passed to the callback.
+   */
+  void SetOOMErrorHandler(OOMErrorCallbackWithData that, void* data);
+
+  /**
    * Add a callback to invoke in case the heap size is close to the heap limit.
    * If multiple callbacks are added, only the most recently added callback is
    * invoked.
