@@ -141,15 +141,16 @@ class AsyncCompileJob {
   // Step 1 (async). Decodes the wasm module (only called for non-streaming
   //                 compilation; streaming uses the StreamingDecoder instead).
   // --> Fail on decoding failure,
-  // --> PrepareAndStartCompile on success.
+  // --> PrepareNativeModule on success.
   class DecodeModule;
 
-  // Step 2 (async). Allocates NativeModule and starts background compilation.
+  // Step 2 (async). Allocates NativeModule and potentially starts background
+  // compilation.
   // --> finish directly on native module cache hit,
   // --> finish directly on validation error,
-  // --> trigger eager compilation, if any; FinishCompile is triggered when
+  // --> trigger eager compilation, if any; FinishCompilation is triggered when
   // done.
-  class PrepareAndStartCompile;
+  class PrepareNativeModule;
 
   // Step 3 (sync). Compilation finished. Finalize the module and resolve the
   // promise.
@@ -186,8 +187,6 @@ class AsyncCompileJob {
   void FinishSuccessfully();
 
   void StartForegroundTask();
-  void ExecuteBackgroundTaskImmediately();
-
   void StartBackgroundTask();
 
   enum UseExistingForegroundTask : bool {
@@ -202,10 +201,6 @@ class AsyncCompileJob {
             UseExistingForegroundTask = kAssertNoExistingForegroundTask,
             typename... Args>
   void DoSync(Args&&... args);
-
-  // Switches to the compilation step {Step} and immediately executes that step.
-  template <typename Step, typename... Args>
-  void DoImmediately(Args&&... args);
 
   // Switches to the compilation step {Step} and starts a background task to
   // execute it.
