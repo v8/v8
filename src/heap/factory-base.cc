@@ -1489,7 +1489,7 @@ JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
   if (result) {
     return *result;
   }
-  auto allocate = [&]() {
+  auto Allocate = [&]() {
     return (result = jdt->TryAllocateAndInitializeEntry(space, parameter_count,
                                                         *code))
         .has_value();
@@ -1497,7 +1497,7 @@ JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
   // Dispatch entries are only freed on major GCs.
   AllocationType type = AllocationType::kOld;
   auto allocator = isolate()->heap()->allocator();
-  allocator->RetryCustomAllocateOrFail(allocate, type);
+  std::ignore = allocator->RetryCustomAllocateOrFail(Allocate, type);
   return *result;
 }
 
