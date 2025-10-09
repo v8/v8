@@ -7298,7 +7298,7 @@ void Heap::PostFinalizationRegistryCleanupTaskIfNeeded() {
 void Heap::EnqueueDirtyJSFinalizationRegistry(
     Tagged<JSFinalizationRegistry> finalization_registry,
     std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
-                       Tagged<Object> target)>
+                       Tagged<HeapObject> target)>
         gc_notify_updated_slot,
     WriteBarrierMode write_barrier_mode) {
   // Add a FinalizationRegistry to the tail of the dirty list.

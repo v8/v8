@@ -2067,9 +2067,12 @@ void ProcessWeakObjectField(const Heap* heap, Tagged<HeapObject> host,
       // old-to-new remembered set.
       DCHECK(!HeapLayout::InWritableSharedSpace(new_object));
       slot.store(new_object);
-      if (V8_UNLIKELY(HeapObjectWillBeOld(heap, host) &&
-                      !HeapObjectWillBeOld(heap, new_object))) {
-        AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
+      if (HeapObjectWillBeOld(heap, host)) {
+        if (V8_UNLIKELY(!HeapObjectWillBeOld(heap, new_object))) {
+          AddToRememberedSet<OLD_TO_NEW>(heap, host, slot.address());
+        } else if (V8_UNLIKELY(HeapLayout::InWritableSharedSpace(new_object))) {
+          AddToRememberedSet<OLD_TO_SHARED>(heap, host, slot.address());
+        }
       }
     }
   }
@@ -2097,14 +2100,15 @@ void ScavengerCollector::ProcessWeakCells(
     Scavenger::WeakCellsList& weak_cells) {
   const auto on_slot_updated_callback = [this](Tagged<HeapObject> object,
                                                ObjectSlot slot,
-                                               Tagged<Object> target) {
+                                               Tagged<HeapObject> target) {
     DCHECK(!IsUnscavengedHeapObject(target));
     DCHECK(!Cast<HeapObject>(target)
                 ->map_word(kRelaxedLoad)
                 .IsForwardingAddress() ||
-           HeapLayout::IsSelfForwarded(Cast<HeapObject>(target)));
+           HeapLayout::IsSelfForwarded(target));
+    DCHECK(!HeapLayout::InWritableSharedSpace(target));
     if (V8_UNLIKELY(HeapObjectWillBeOld(heap_, object) &&
-                    !HeapObjectWillBeOld(heap_, Cast<HeapObject>(target)))) {
+                    !HeapObjectWillBeOld(heap_, target))) {
       AddToRememberedSet<OLD_TO_NEW>(heap_, object, slot.address());
     }
   };

@@ -4041,12 +4041,10 @@ void MarkCompactCollector::ProcessJSWeakRefs() {
   Tagged<WeakCell> weak_cell;
   while (local_weak_objects()->weak_cells_local.Pop(&weak_cell)) {
     auto gc_notify_updated_slot = [](Tagged<HeapObject> object, ObjectSlot slot,
-                                     Tagged<Object> target) {
-      DCHECK(IsHeapObject(target));
+                                     Tagged<HeapObject> target) {
       // Callers of `gc_notify_updated_slot` skip write barriers so this method
       // needs to cover old-to-new as well.
-      RecordSlot<ObjectSlot, RecordYoungSlot::kYes>(object, slot,
-                                                    Cast<HeapObject>(target));
+      RecordSlot<ObjectSlot, RecordYoungSlot::kYes>(object, slot, target);
     };
     Tagged<HeapObject> target = Cast<HeapObject>(weak_cell->target());
     if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
