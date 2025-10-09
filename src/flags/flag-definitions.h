@@ -296,10 +296,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V) V(js_upsert, "upsert")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V)                    \
-  HARMONY_STAGED_BASE(V)                     \
-  V(harmony_remove_intl_locale_info_getters, \
-    "Remove Obsoleted Intl Locale Info getters")
+#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -323,7 +320,10 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_base_64, "Uint8Array to/from base64 and hex")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
+#define HARMONY_SHIPPING(V)                  \
+  HARMONY_SHIPPING_BASE(V)                   \
+  V(harmony_remove_intl_locale_info_getters, \
+    "Remove Obsoleted Intl Locale Info getters")
 #define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
