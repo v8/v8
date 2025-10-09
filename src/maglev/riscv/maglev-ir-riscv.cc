@@ -347,6 +347,28 @@ void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
 #endif
 }
 
+void Int32Increment::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Increment::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ addiw(out, value, 1);
+}
+
+void Int32Decrement::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Decrement::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ addiw(out, value, -1);
+}
+
 void Int32Divide::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
