@@ -1492,8 +1492,6 @@ class MaglevGraphBuilder {
 
   VirtualObject* DeepCopyVirtualObject(VirtualObject* vobj);
   VirtualObject* CreateHeapNumber(ValueNode* value);
-  VirtualObject* CreateFixedDoubleArray(
-      const compiler::FixedDoubleArrayRef& elements);
   VirtualObject* CreateJSObject(compiler::MapRef map);
   VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
                                   ValueNode* first, ValueNode* second);
@@ -1504,6 +1502,7 @@ class MaglevGraphBuilder {
                                        IterationKind kind);
   VirtualObject* CreateJSConstructor(compiler::JSFunctionRef constructor);
   VirtualObject* CreateFixedArray(base::Vector<ValueNode* const> values);
+  VirtualObject* CreateFixedDoubleArray(base::Vector<ValueNode* const> values);
   VirtualObject* CreateContext(compiler::MapRef map, int length,
                                compiler::ScopeInfoRef scope_info,
                                ValueNode* previous_context,

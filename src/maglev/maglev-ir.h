@@ -6810,8 +6810,6 @@ struct VirtualFixedDoubleArrayShape : VirtualHeapObjectShape {
   using Base = VirtualHeapObjectShape;
   static constexpr bool kInstancesHaveStaticSize = false;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kFloat64;
-  // TODO(jgruber): Support other node kinds for elements.
-  static constexpr bool kElementsAreFloat64Constant = true;
 #define FIELD_LIST(V) \
   V(length, FixedArrayBase::kLengthOffset, vobj::FieldType::kTagged)
   DEF_SHAPE(Base, FIELD_LIST);

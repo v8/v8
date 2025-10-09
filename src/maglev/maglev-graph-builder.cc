@@ -4556,13 +4556,12 @@ ValueNode* MaglevGraphBuilder::ConvertForField(ValueNode* value,
       DCHECK(value->Is<TrustedConstant>());
       return value;
     case vobj::FieldType::kInt32:
+      // TODO(jgruber): Add conversions here once needed.
       DCHECK_EQ(value->properties().value_representation(),
                 ValueRepresentation::kInt32);
       return value;
     case vobj::FieldType::kFloat64:
-      DCHECK_EQ(value->properties().value_representation(),
-                ValueRepresentation::kFloat64);
-      return value;
+      return GetFloat64(value);
     case vobj::FieldType::kNone:
       UNREACHABLE();
   }
@@ -4914,12 +4913,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedDoubleArrayElement(
         TryGetUint32Constant(vobject->get(FixedArrayBase::kLengthOffset));
     if (length.has_value()) {
       if (static_cast<uint32_t>(index) < length.value()) {
-        ValueNode* value =
-            vobject->get(FixedDoubleArray::OffsetOfElementAt(index));
-        static_assert(
-            VirtualFixedDoubleArrayShape::kElementsAreFloat64Constant);
-        DCHECK(value->Is<Float64Constant>());
-        return value;
+        return vobject->get(FixedDoubleArray::OffsetOfElementAt(index));
       } else {
         return BuildAbort(AbortReason::kUnreachable);
       }
@@ -12294,11 +12288,8 @@ ValueNode* MaglevGraphBuilder::BuildElementsArray(int length) {
 ValueNode* MaglevGraphBuilder::BuildElementsArray(
     ElementsKind elements_kind, base::Vector<ValueNode*> values) {
   DCHECK_GT(static_cast<int>(values.size()), 1);
-  if (IsDoubleElementsKind(elements_kind)) {
-    UNIMPLEMENTED();
-  }
-
-  return CreateFixedArray(values);
+  return IsDoubleElementsKind(elements_kind) ? CreateFixedDoubleArray(values)
+                                             : CreateFixedArray(values);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
@@ -12308,11 +12299,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
       maybe_allocation_site.has_value()
           ? maybe_allocation_site->GetElementsKind()
           : array_function.initial_map(broker()).elements_kind();
-  // TODO(victorgomes): Support double elements array.
-  if (IsDoubleElementsKind(elements_kind)) return {};
   DCHECK(IsFastElementsKind(elements_kind));
-
   const int arity = static_cast<int>(args.count());
+
+  if (IsDoubleElementsKind(elements_kind) && arity < 2) {
+    // TODO(jgruber): Support double elements array for the 0- and 1-arity
+    // case.
+    return {};
+  }
+
   std::optional<int> maybe_length;
   if (arity == 1) {
     maybe_length = TryGetInt32Constant(args[0]);
@@ -12390,60 +12385,42 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   // Arity > 1, `new Array(x0, x1, ...)`.
   DCHECK_GT(arity, 1);
 
-  auto node_type_of = [=, this](ValueNode* v) {
-    DCHECK(IsConstantNode(v->opcode()));
-    if (std::optional<int32_t> constant_int32 = TryGetInt32Constant(v)) {
-      return Smi::IsValid(constant_int32.value()) ? NodeType::kSmi
-                                                  : NodeType::kHeapNumber;
-    }
-    return TryGetFloat64Constant(UseRepresentation::kFloat64, v,
-                                 TaggedToFloat64ConversionType::kOnlyNumber)
-               ? NodeType::kHeapNumber
-               : NodeType::kAnyHeapObject;
-  };
-
   // Gather the values to store into the newly created array, and remember
   // sufficient information about node types so we can select a suitable
   // elements_kind below.
+  bool values_all_smis = true, values_all_numbers = true,
+       values_any_nonnumber = false;
   base::SmallVector<ValueNode*, 16> values;
   values.reserve(arity);
-  NodeType combined_type = NodeType::kNone;
-  bool any_value_has_unknown_type = false;
   for (ValueNode* v : args) {
     NodeType node_type = GetType(v);
-    if (NodeTypeIs(node_type, NodeType::kUnknown)) {
-      if (IsConstantNode(v->opcode())) {
-        // Even without NodeType, we can extract some information from
-        // constants. This is used to generalize elements_kind in case we see
-        // constants that require doing so.
-        combined_type = UnionType(combined_type, node_type_of(v));
+    if (!NodeTypeIs(node_type, NodeType::kSmi)) {
+      values_all_smis = false;
+      if (!NodeTypeIs(node_type, NodeType::kNumber)) {
+        values_all_numbers = false;
+        if (!NodeTypeCanBe(node_type, NodeType::kNumber)) {
+          values_any_nonnumber = true;
+        }
       }
-      // No static type info available; this is tracked separately from static
-      // types, since we may still speculate on present static types from
-      // other value nodes below.
-      any_value_has_unknown_type = true;
-    } else {
-      combined_type = UnionType(combined_type, node_type);
     }
     values.push_back(v);
   }
 
-  if (NodeTypeIs(combined_type, NodeType::kSmi)) {
+  if (values_all_smis) {
     // Smis can be stored with any elements kind.
-  } else if (NodeTypeIs(combined_type, NodeType::kNumber)) {
+  } else if (values_all_numbers) {
     elements_kind = GetMoreGeneralElementsKind(
         elements_kind, IsHoleyElementsKind(elements_kind)
                            ? HOLEY_DOUBLE_ELEMENTS
                            : PACKED_DOUBLE_ELEMENTS);
-  } else if (!NodeTypeCanBe(combined_type, NodeType::kNumber)) {
+  } else if (values_any_nonnumber) {
     // We statically know that at least one value is not a number.
     elements_kind = GetMoreGeneralElementsKind(
         elements_kind,
         IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS : PACKED_ELEMENTS);
-  }
-
-  if (IsDoubleElementsKind(elements_kind)) {
-    // TODO(jgruber): Implement.
+  } else if (!can_speculate_call) {
+    // We cannot precisely determine the elements_kind based on static types,
+    // and speculation has already been disabled via feedback.
     return {};
   }
 
@@ -12455,19 +12432,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     initial_map = maybe_updated_map.value();
   }
 
-  if (any_value_has_unknown_type && !IsObjectElementsKind(elements_kind)) {
-    if (!can_speculate_call) return {};
-
-    // We speculate, ignoring values without static types wrt elements_kind
-    // selection and inserting Check nodes instead.
+  // Insert type checks as necessary.
+  if (IsSmiElementsKind(elements_kind)) {
     for (ValueNode* v : args) {
-      if (!NodeTypeIs(GetType(v), NodeType::kUnknown)) continue;
-      if (IsSmiElementsKind(elements_kind)) {
-        RETURN_IF_ABORT(BuildCheckSmi(v));
-      } else {
-        DCHECK(IsDoubleElementsKind(elements_kind));
-        RETURN_IF_ABORT(BuildCheckNumber(v));
-      }
+      if (NodeTypeIs(GetType(v), NodeType::kSmi)) continue;
+      RETURN_IF_ABORT(BuildCheckSmi(v));
+    }
+  } else if (IsDoubleElementsKind(elements_kind)) {
+    for (ValueNode* v : args) {
+      if (NodeTypeIs(GetType(v), NodeType::kNumber)) continue;
+      RETURN_IF_ABORT(BuildCheckNumber(v));
     }
   }
 
@@ -13539,9 +13513,18 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     if (boilerplate_elements.IsFixedDoubleArray()) {
       int const size = FixedDoubleArray::SizeFor(elements_length);
       if (size > kMaxRegularHeapObjectSize) return {};
-      fast_literal->set(
-          JSObject::kElementsOffset,
-          CreateFixedDoubleArray(boilerplate_elements.AsFixedDoubleArray()));
+
+      compiler::FixedDoubleArrayRef boilerplate_elements_as_fda =
+          boilerplate_elements.AsFixedDoubleArray();
+      base::SmallVector<ValueNode*, 16> values;
+      values.reserve(elements_length);
+      for (uint32_t i = 0; i < elements_length; i++) {
+        values.push_back(GetFloat64Constant(
+            boilerplate_elements_as_fda.GetFromImmutableFixedDoubleArray(i)));
+      }
+
+      fast_literal->set(JSObject::kElementsOffset,
+                        CreateFixedDoubleArray(base::VectorOf(values)));
     } else {
       int const size = FixedArray::SizeFor(elements_length);
       if (size > kMaxRegularHeapObjectSize) return {};
@@ -13594,26 +13577,6 @@ VirtualObject* MaglevGraphBuilder::CreateHeapNumber(ValueNode* value) {
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
   vobj->set(offsetof(HeapNumber, value_), value);
-  return vobj;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
-    const compiler::FixedDoubleArrayRef& elements) {
-  using Shape = VirtualFixedDoubleArrayShape;
-  uint32_t length = elements.length();
-  SBXCHECK_GT(length, 0);
-  int slot_count = Shape::header_slot_count + length;
-  compiler::MapRef map = broker()->fixed_double_array_map();
-  VirtualObject* vobj = NodeBase::New<VirtualObject>(
-      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
-  DCHECK_EQ(Shape::header_slot_count, 2);
-  vobj->set(HeapObject::kMapOffset, GetConstant(map));
-  vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
-  for (uint32_t i = 0; i < length; i++) {
-    static_assert(Shape::kElementsAreFloat64Constant);
-    vobj->set(FixedDoubleArray::OffsetOfElementAt(i),
-              GetFloat64Constant(elements.GetFromImmutableFixedDoubleArray(i)));
-  }
   return vobj;
 }
 
@@ -13752,6 +13715,29 @@ VirtualObject* MaglevGraphBuilder::CreateFixedArray(
     vobj->set(FixedArray::OffsetOfElementAt(i), values[i]);
   }
 
+  return vobj;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateFixedDoubleArray(
+    base::Vector<ValueNode* const> values) {
+  compiler::MapRef map = broker()->fixed_double_array_map();
+
+  using T = FixedDoubleArray;
+  using Shape = VirtualFixedDoubleArrayShape;
+  uint32_t length = values.length();
+  DCHECK_NE(length, 0);  // Use kEmptyFixedArray instead.
+
+  int slot_count = Shape::header_slot_count + length;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
+  DCHECK_EQ(vobj->size(), T::SizeFor(length));
+
+  DCHECK_EQ(Shape::header_slot_count, 2);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(FixedArrayBase::kLengthOffset, GetInt32Constant(length));
+  for (uint32_t i = 0; i < length; i++) {
+    vobj->set(T::OffsetOfElementAt(i), values[i]);
+  }
   return vobj;
 }
 
