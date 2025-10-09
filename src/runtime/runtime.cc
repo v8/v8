@@ -274,6 +274,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kClearFunctionFeedback:
     case Runtime::kStringIsFlat:
     case Runtime::kGetInitializerFunction:
+    case Runtime::kArrayBufferDetachForceWasm:
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Runtime::kWasmTraceEnter:
     case Runtime::kWasmTraceExit:
