@@ -2953,12 +2953,8 @@ void AsyncCompileJob::StartForegroundTask() {
   foreground_task_runner_->PostTask(std::move(new_task));
 }
 
-void AsyncCompileJob::ExecuteForegroundTaskImmediately() {
-  DCHECK_NULL(pending_foreground_task_);
-
-  auto new_task = std::make_unique<CompileTask>(this, true);
-  pending_foreground_task_ = new_task.get();
-  new_task->Run();
+void AsyncCompileJob::ExecuteBackgroundTaskImmediately() {
+  CompileTask{this, false}.Run();
 }
 
 void AsyncCompileJob::CancelPendingForegroundTask() {
@@ -2992,7 +2988,7 @@ void AsyncCompileJob::DoSync(Args&&... args) {
 template <typename Step, typename... Args>
 void AsyncCompileJob::DoImmediately(Args&&... args) {
   NextStep<Step>(std::forward<Args>(args)...);
-  ExecuteForegroundTaskImmediately();
+  ExecuteBackgroundTaskImmediately();
 }
 
 template <typename Step, typename... Args>
@@ -3056,7 +3052,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       std::shared_ptr<WasmModule> module = std::move(result).value();
       size_t code_size_estimate =
           wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
-      job->DoSync<PrepareAndStartCompile>(
+      job->DoAsync<PrepareAndStartCompile>(
           std::move(module), true /* start_compilation */,
           true /* lazy_functions_are_validated */, code_size_estimate);
     }
@@ -3068,7 +3064,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
 };
 
 //==========================================================================
-// Step 2 (sync): Create heap-allocated data and start compilation.
+// Step 2 (async): Create heap-allocated data and start compilation.
 //==========================================================================
 class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
  public:
@@ -3082,7 +3078,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
         code_size_estimate_(code_size_estimate) {}
 
  private:
-  void RunInForeground(AsyncCompileJob* job) override {
+  void RunInBackground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
 
     const bool streaming = job->wire_bytes_.length() == 0;
@@ -3091,8 +3087,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       job->CreateNativeModule(module_, code_size_estimate_);
     } else if (job->GetOrCreateNativeModule(std::move(module_),
                                             code_size_estimate_)) {
-      // Finish compilation, invalidating the {AsyncCompileJob}.
-      std::move(*job).FinishCompile(true);
+      // Cache hit.
+      // Finish compilation synchronously.
+      job->DoSync<FinishCompilation>(nullptr);
       return;
     } else if (!lazy_functions_are_validated_) {
       // If we are not streaming and did not get a cache hit, we might have hit
@@ -3107,15 +3104,11 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       if (!v8_flags.wasm_lazy_validation &&
           ValidateFunctions(*job->native_module_, kOnlyLazyFunctions)
               .has_error()) {
-        // Fail compilation, invalidating the {AsyncCompileJob}.
-        std::move(*job).Failed();
+        // Fail compilation synchronously.
+        job->DoSync<Fail>();
         return;
       }
     }
-
-    // Make sure all compilation tasks stopped running. Decoding (async step)
-    // is done.
-    job->background_task_manager_.CancelAndWait();
 
     CompilationStateImpl* compilation_state =
         Impl(job->native_module_->compilation_state());
@@ -3129,7 +3122,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
           job->native_module_.get(), kNoProfileInformation);
       compilation_state->InitializeCompilationUnits(std::move(builder));
       // In single-threaded mode there are no worker tasks that will do the
-      // compilation. We call {WaitForCompilationEvent} here so that the main
+      // compilation. We call {WaitForCompilationEvent} here so that the current
       // thread participates and finishes the compilation.
       if (v8_flags.wasm_num_compilation_tasks == 0 || v8_flags.wasm_jitless) {
         compilation_state->WaitForBaselineCompileJob();
@@ -3432,7 +3425,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
     // {PrepareAndStartCompile} will get the native module from the cache.
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
-    job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(
+    job_->DoAsync<AsyncCompileJob::PrepareAndStartCompile>(
         std::move(module), true /* start_compilation */,
         false /* lazy_functions_are_validated_ */, code_size_estimate);
     return;

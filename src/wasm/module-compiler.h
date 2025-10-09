@@ -32,7 +32,6 @@ namespace internal {
 
 class JSArrayBuffer;
 class JSPromise;
-class Counters;
 class WasmModuleObject;
 class WasmInstanceObject;
 class WasmTrustedInstanceData;
@@ -145,7 +144,7 @@ class AsyncCompileJob {
   // --> PrepareAndStartCompile on success.
   class DecodeModule;
 
-  // Step 2 (sync). Prepares runtime objects and starts background compilation.
+  // Step 2 (async). Allocates NativeModule and starts background compilation.
   // --> finish directly on native module cache hit,
   // --> finish directly on validation error,
   // --> trigger eager compilation, if any; FinishCompile is triggered when
@@ -187,7 +186,7 @@ class AsyncCompileJob {
   void FinishSuccessfully();
 
   void StartForegroundTask();
-  void ExecuteForegroundTaskImmediately();
+  void ExecuteBackgroundTaskImmediately();
 
   void StartBackgroundTask();
 
