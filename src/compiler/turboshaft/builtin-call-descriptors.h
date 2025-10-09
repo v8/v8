@@ -19,6 +19,7 @@
 #include "src/objects/turbofan-types.h"
 
 // Use this macro to define Arguments in builtins' Descriptor's Arguments.
+// For builtins without arguments, use `builtin::NoArguments`.
 #define ARG(type, name)                                                        \
   type name;                                                                   \
   static constexpr const size_t name##_index =                                 \
@@ -86,6 +87,16 @@ struct builtin {
     return decltype(A::index_counter(
         detail::IndexTag<kMaxArgumentCount>{}))::value;
   }
+
+  class NoArguments {
+   public:
+    static constexpr base::tmp::list<> make_args_type_list_n(
+        detail::IndexTag<0>);
+    static constexpr inline detail::IndexTag<0> index_counter(
+        detail::IndexTag<0>);
+    void CollectArguments(arguments_vector_t& args, detail::IndexTag<0>) const {
+    }
+  };
 
   template <typename Derived>
   struct Descriptor {
@@ -767,6 +778,20 @@ struct builtin {
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
+
+#if V8_ENABLE_WEBASSEMBLY
+  struct WasmTypeAssertionFailed : public Descriptor<WasmTypeAssertionFailed> {
+    static constexpr auto kFunction = Builtin::kWasmTypeAssertionFailed;
+    using Arguments = NoArguments;
+    using returns_t = Never;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+    static constexpr OpEffects kEffects = base_effects.RequiredWhenUnused();
+  };
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 // TODO(nicohartmann): These call descriptors are deprecated and shall be

@@ -5133,23 +5133,6 @@ class TurboshaftGraphBuildingInterface
 
   using SubtypeCheckExactness = compiler::SubtypeCheckExactness;
 
-  SubtypeCheckExactness GetExactness(FullDecoder* decoder, HeapType target) {
-    // For exact target types, an exact match is needed for correctness;
-    // for final target types, it's a performance optimization.
-    // For types with custom descriptors, we need to look at their immediate
-    // supertype instead of the object's map.
-    // See Liftoff's {SubtypeCheck()} for detailed explanation. This function
-    // here is not called for instructions using custom descriptors
-    // (ref.cast_desc, br_on_cast_desc{,_fail}).
-    const TypeDefinition& type = decoder->module_->type(target.ref_index());
-    if (type.is_final || target.is_exact()) {
-      return type.has_descriptor()
-                 ? SubtypeCheckExactness::kExactMatchLastSupertype
-                 : SubtypeCheckExactness::kExactMatchOnly;
-    }
-    return SubtypeCheckExactness::kMayBeSubtype;
-  }
-
   void RefTest(FullDecoder* decoder, HeapType target, const Value& object,
                Value* result, bool null_succeeds) {
     V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
@@ -5158,7 +5141,7 @@ class TurboshaftGraphBuildingInterface
         object.type,
         ValueType::RefMaybeNull(target,
                                 null_succeeds ? kNullable : kNonNullable),
-        GetExactness(decoder, target)};
+        compiler::GetExactness(decoder->module_, target)};
     result->op = __ WasmTypeCheck(object.op, rtt, config);
   }
 
@@ -5167,7 +5150,7 @@ class TurboshaftGraphBuildingInterface
     compiler::WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
                          type, null_succeeds ? kNullable : kNonNullable)};
-    V<Map> rtt = OpIndex::Invalid();
+    OptionalV<Map> rtt = OpIndex::Invalid();
     result->op = __ WasmTypeCheck(object.op, rtt, config);
   }
 
@@ -5181,7 +5164,8 @@ class TurboshaftGraphBuildingInterface
     V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
                              target.ref_index());
     compiler::WasmTypeCheckConfig config{
-        object.type, target, GetExactness(decoder, target.heap_type())};
+        object.type, target,
+        compiler::GetExactness(decoder->module_, target.heap_type())};
     result->op = __ WasmTypeCast(object.op, rtt, config);
   }
 
@@ -5225,8 +5209,9 @@ class TurboshaftGraphBuildingInterface
         target_type, null_succeeds ? kNullable : kNonNullable);
     V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
                              target_type.ref_index());
-    compiler::WasmTypeCheckConfig config{object.type, target,
-                                         GetExactness(decoder, target_type)};
+    compiler::WasmTypeCheckConfig config{
+        object.type, target,
+        compiler::GetExactness(decoder->module_, target_type)};
     return BrOnCastImpl(decoder, rtt, config, object, value_on_branch, br_depth,
                         null_succeeds);
   }
@@ -5262,8 +5247,9 @@ class TurboshaftGraphBuildingInterface
         target_type, null_succeeds ? kNullable : kNonNullable);
     V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
                              target_type.ref_index());
-    compiler::WasmTypeCheckConfig config{object.type, target,
-                                         GetExactness(decoder, target_type)};
+    compiler::WasmTypeCheckConfig config{
+        object.type, target,
+        compiler::GetExactness(decoder->module_, target_type)};
     return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
                             br_depth, null_succeeds);
   }

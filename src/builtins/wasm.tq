@@ -88,6 +88,7 @@ extern runtime AllocateInSharedHeap(Context, Smi, Smi): HeapObject;
 
 extern runtime WasmConfigureAllPrototypesOpt(
     Context, Object, JSAny, WasmTrustedInstanceData): Object;
+extern runtime WasmTypeAssertionFailed(NoContext): never;
 }
 
 extern operator '.wasm_exported_function_data' macro
@@ -941,6 +942,10 @@ builtin ThrowWasmTrapArrayTooLarge(): JSAny {
 
 builtin ThrowWasmTrapStringOffsetOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapStringOffsetOutOfBounds));
+}
+
+builtin WasmTypeAssertionFailed(): JSAny {
+  runtime::WasmTypeAssertionFailed(kNoContext);
 }
 
 macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {

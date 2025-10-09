@@ -1911,6 +1911,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Enable direct calls from wasm to fast API functions with bound "
     "call function to pass the the receiver as first parameter")
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    wasm_assert_types,
+    "Enable additional type assertions in generated code (e.g. turbofan)")
+
 #if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || \
     V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X ||     \
     (V8_TARGET_ARCH_MIPS64 && V8_TARGET_BIG_ENDIAN)

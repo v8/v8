@@ -3828,12 +3828,17 @@ class TurboshaftAssemblerOpInterface
     }
     auto arguments = builtin::ArgumentsToVector(args);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    return result_t::Cast(Call(call_target,
-                               OptionalV<turboshaft::FrameState>::Nullopt(),
-                               base::VectorOf(arguments),
-                               Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                                            Asm().output_graph().graph_zone()),
-                               Desc::kEffects));
+    auto result =
+        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+             base::VectorOf(arguments),
+             Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                          Asm().output_graph().graph_zone()),
+             Desc::kEffects);
+    if constexpr (requires { result_t::Cast(result); }) {
+      return result_t::Cast(result);
+    } else {
+      return result;
+    }
   }
 
   template <typename Desc>
@@ -5149,11 +5154,15 @@ class TurboshaftAssemblerOpInterface
 
   V<Word32> WasmTypeCheck(V<Object> object, OptionalV<Map> rtt,
                           WasmTypeCheckConfig config) {
+    DCHECK(__ generating_unreachable_operations() ||
+           rtt.valid() != config.to.is_abstract_ref());
     return ReduceIfReachableWasmTypeCheck(object, rtt, config);
   }
 
   V<Object> WasmTypeCast(V<Object> object, OptionalV<Map> rtt,
                          WasmTypeCheckConfig config) {
+    DCHECK(__ generating_unreachable_operations() ||
+           rtt.valid() != config.to.is_abstract_ref());
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
 

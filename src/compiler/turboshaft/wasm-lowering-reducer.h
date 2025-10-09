@@ -783,7 +783,7 @@ class WasmLoweringReducer : public Next {
       // check or instance type check we'll do later.
       if (object_can_be_null && null_succeeds) {
         const int kResult = 1;
-        GOTO_IF(UNLIKELY(__ IsNull(object, wasm::kWasmAnyRef)), end_label,
+        GOTO_IF(UNLIKELY(__ IsNull(object, config.from)), end_label,
                 __ Word32Constant(kResult));
       }
       // i31 is special in that the Smi check is the last thing to do.

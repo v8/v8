@@ -17,6 +17,7 @@
 
 ['variant == jitless', {
   'wasm-pause': [SKIP],
+  'crash/wasm-failed-type-assertion': [SKIP],
 }],  # variant == jitless
 
 ['variant in (jitless, nooptimization)', {

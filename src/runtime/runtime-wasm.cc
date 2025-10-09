@@ -2423,4 +2423,11 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   return *cont;
 }
 
+RUNTIME_FUNCTION(Runtime_WasmTypeAssertionFailed) {
+  DCHECK_EQ(0, args.length());
+  // The "FuzzerSecurityIssueHigh" is needed to label crashes of this as
+  // security issues in ClusterFuzz.
+  FATAL("[FuzzerSecurityIssueHigh] Wasm type assertion violation");
+}
+
 }  // namespace v8::internal
