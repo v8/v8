@@ -3514,6 +3514,8 @@ filegroup(
         "src/compiler/turboshaft/machine-lowering-phase.h",
         "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
         "src/compiler/turboshaft/turbolev-early-lowering-reducer-inl.h",
+        "src/compiler/turboshaft/turbolev-frontend-pipeline.cc",
+        "src/compiler/turboshaft/turbolev-frontend-pipeline.h",
         "src/compiler/turboshaft/turbolev-graph-builder.cc",
         "src/compiler/turboshaft/turbolev-graph-builder.h",
         "src/compiler/turboshaft/machine-optimization-reducer.h",
