@@ -7583,14 +7583,15 @@ void MacroAssembler::BailoutIfDeoptimized() {
 #endif
 }
 
-void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
-                                           DeoptimizeKind kind, Label* ret,
-                                           Label*) {
+void MacroAssembler::CallForDeoptimization(
+    Builtin target, int, Label* exit, DeoptimizeKind kind, Label* ret,
+    Label* jump_deoptimization_entry_label) {
   ASM_CODE_COMMENT(this);
+  // make sure the label is within jal's 21 bit range(near)
+  DCHECK_WITH_MSG(is_near(jump_deoptimization_entry_label),
+                  "deopt exit is too far from deopt entry jump");
   BlockPoolsScope block_pools(this);
-  LoadWord(t6, MemOperand(kRootRegister,
-                          IsolateData::BuiltinEntrySlotOffset(target)));
-  Call(t6);
+  Call(jump_deoptimization_entry_label);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
                                             : Deoptimizer::kEagerDeoptExitSize);

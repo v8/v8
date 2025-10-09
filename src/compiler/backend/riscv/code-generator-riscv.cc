@@ -5338,6 +5338,24 @@ void CodeGenerator::PrepareForDeoptimizationExits(
                       : Deoptimizer::kEagerDeoptExitSize;
   }
   __ StartBlockPools(ConstantPoolEmission::kCheck, total_size);
+
+  // Check which deopt kinds exist in this InstructionStream object, to avoid
+  // emitting jumps to unused entries.
+  bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
+  for (auto exit : *exits) {
+    saw_deopt_kind[static_cast<int>(exit->kind())] = true;
+  }
+  // Emit the jumps to deoptimization entries.
+  static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  for (int i = 0; i < kDeoptimizeKindCount; i++) {
+    if (!saw_deopt_kind[i]) continue;
+    DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ bind(&jump_deoptimization_entry_labels_[i]);
+    __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptimizationEntry(kind), scratch);
+    __ Jump(scratch);
+  }
 }
 
 void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
