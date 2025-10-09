@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-phi-representation-selector.h"
 
+#include <algorithm>
 #include <optional>
 
 #include "src/base/enum-set.h"
@@ -322,10 +323,14 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   // When hoisting we must ensure that we don't turn a tagged flowing into
   // CheckedSmiUntag into a float64. This would cause us to loose the smi check
   // which in turn can invalidate assumptions on aliasing values.
-  if (hoist_untagging.size() && node->uses_require_31_bit_value()) {
-    TRACE_UNTAGGING("  => Leaving tagged [depends on smi check]");
-    EnsurePhiInputsTagged(node);
-    return default_result;
+  if (node->uses_require_31_bit_value()) {
+    bool needs_hoisting = std::ranges::any_of(
+        hoist_untagging, [](HoistType t) { return t != HoistType::kNone; });
+    if (needs_hoisting) {
+      TRACE_UNTAGGING("  => Leaving tagged [depends on smi check]");
+      EnsurePhiInputsTagged(node);
+      return default_result;
+    }
   }
 
   auto intersection = possible_inputs & allowed_inputs_for_uses;
