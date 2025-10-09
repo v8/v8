@@ -7,6 +7,7 @@
 
 #include "src/base/strings.h"
 #include "src/codegen/label.h"
+#include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
@@ -123,19 +124,24 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
                                    RegExpFlags flags) override;
 
  private:
-  void ExpandBuffer();
+  using BCWordT = uint32_t;
 
   // Code and bitmap emission.
+  template <RegExpBytecode bytecode, typename... Args>
+  void Emit(Args... args);
+
+  static constexpr BCWordT kEmptyWord = 0;
+  template <RegExpBytecodeOperandType OperandType, typename T>
+  BCWordT EmitOperand(T value, BCWordT cur_word, int shift);
+
   inline void EmitOrLink(Label* label);
-  inline void Emit32(uint32_t x);
-  inline void Emit16(uint32_t x);
-  inline void Emit8(uint32_t x);
-  inline void Emit(uint32_t bc, uint32_t arg);
-  inline void Emit(uint32_t bc, int32_t arg);
-  void EmitSkipTable(DirectHandle<ByteArray> table);
+  inline void EmitWord(BCWordT word);
+
   // Bytecode buffer.
   int length();
   void Copy(uint8_t* a);
+  void EnsureCapacity(size_t size);
+  void ExpandBuffer();
 
   // The buffer into which code and relocation info are generated.
   static constexpr int kInitialBufferSize = 1024;

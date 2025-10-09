@@ -13,6 +13,10 @@
 namespace v8 {
 namespace internal {
 
+// Bytecode is 4-byte aligned.
+// We can pack operands if multiple operands fit into 4 bytes.
+static constexpr int kRegExpBytecodeAlignment = 4;
+
 // Maximum number of bytecodes that will be used (next power of 2 of actually
 // defined bytecodes).
 // All slots between the last actually defined bytecode and maximum id will be
@@ -34,10 +38,15 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
   V(Int32, int32_t)                         \
   V(Uint32, uint32_t)                       \
   V(Char, base::uc16)                       \
-  V(JumpTarget, uint32_t)                   \
-  V(Offset, int16_t)                        \
-  V(Register, uint16_t)                     \
-  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag)
+  V(JumpTarget, uint32_t)
+
+#define BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V)             \
+  V(Offset, int16_t, RegExpMacroAssembler::kMinCPOffset,       \
+    RegExpMacroAssembler::kMaxCPOffset)                        \
+  V(Register, uint16_t, 0, RegExpMacroAssembler::kMaxRegister) \
+  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag,      \
+    RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck,  \
+    RegExpMacroAssembler::StackCheckFlag::kCheckStackLimit)
 
 // Special operand types that don't have a direct mapping to a C-type.
 // Getters/Setters for these types need to be specialized manually.
@@ -49,8 +58,9 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
   V(Padding1, 1)                                                           \
   V(Padding2, 2)
 
-#define BYTECODE_OPERAND_TYPE_LIST(V) \
-  BASIC_BYTECODE_OPERAND_TYPE_LIST(V) \
+#define BYTECODE_OPERAND_TYPE_LIST(V)        \
+  BASIC_BYTECODE_OPERAND_TYPE_LIST(V)        \
+  BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V) \
   SPECIAL_BYTECODE_OPERAND_TYPE_LIST(V)
 
 enum class RegExpBytecodeOperandType : uint8_t {
@@ -122,10 +132,10 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* matches a character (e.g. used when two characters in a disjunction    */ \
   /* differ by only a single bit                                            */ \
   V(CheckCharacterAfterAnd, AND_CHECK_CHAR, (character, mask, on_equal),       \
-    (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget))           \
+    (ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))         \
   V(CheckNotCharacterAfterAnd, AND_CHECK_NOT_CHAR,                             \
     (character, mask, on_not_equal),                                           \
-    (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget))           \
+    (ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))         \
   V(CheckNotCharacterAfterMinusAnd, MINUS_AND_CHECK_NOT_CHAR,                  \
     (character, minus, mask, on_not_equal),                                    \
     (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kChar,                  \
@@ -246,7 +256,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
     (cp_offset, advance_by, character, mask, eats_at_least, on_match,          \
      on_no_match),                                                             \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
-     ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,          \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
      ReBcOpType::kJumpTarget)) /* TODO(pthier): eats_at_least should be Offset \
                                 */                                             \
   /* Combination of:                                                        */ \

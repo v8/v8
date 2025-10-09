@@ -5,11 +5,13 @@
 #include "src/regexp/regexp-bytecode-generator.h"
 
 #include <limits>
+#include <type_traits>
 
 #include "src/ast/ast.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
 #include "src/regexp/regexp-bytecode-peephole.h"
+#include "src/regexp/regexp-bytecodes-inl.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
@@ -33,6 +35,154 @@ RegExpBytecodeGenerator::Implementation() {
   return kBytecodeImplementation;
 }
 
+namespace {
+
+// Helper to determine if Operands update the current 4-byte word or emit full
+// words on their own.
+template <RegExpBytecodeOperandType OperandType>
+struct OperandUpdatesWord {
+  static constexpr bool value = true;
+};
+
+template <>
+struct OperandUpdatesWord<RegExpBytecodeOperandType::kJumpTarget> {
+  static constexpr bool value = false;
+};
+
+template <>
+struct OperandUpdatesWord<RegExpBytecodeOperandType::kBitTable> {
+  static constexpr bool value = false;
+};
+
+template <typename Operands, Operands::OptionalOperand op>
+consteval bool EmitOperandUpdatesWord() {
+  if constexpr (op.has_value) {
+    constexpr RegExpBytecodeOperandType op_type = Operands::Type(op.value);
+    return OperandUpdatesWord<op_type>::value;
+  } else {
+    return false;
+  }
+}
+
+}  // namespace
+
+template <RegExpBytecode bytecode, typename... Args>
+void RegExpBytecodeGenerator::Emit(Args... args) {
+  using Operands = RegExpBytecodeOperands<bytecode>;
+  static_assert(sizeof...(Args) == Operands::kCountWithoutPadding,
+                "Wrong number of operands");
+
+  auto arguments_tuple = std::make_tuple(args...);
+  EnsureCapacity(Operands::kTotalSize);
+  int instruction_start = pc_;
+  // We always write a 4-byte word at a time, accumulating the current bytes
+  // in `cur_word`.
+  BCWordT cur_word = RegExpBytecodes::ToByte(bytecode);
+  Operands::ForEachOperandWithIndex([&]<auto op, size_t index>() {
+    constexpr RegExpBytecodeOperandType type = Operands::Type(op);
+    constexpr int offset = Operands::Offset(op);
+    constexpr int offset_in_word = offset % kRegExpBytecodeAlignment;
+    auto value = std::get<index>(arguments_tuple);
+    // The current operand starts a new 4-byte word. If previous operands
+    // accumulated any data in `cur_word`, we need to emit it now.
+    if constexpr (offset_in_word == 0) {
+      // Determine if the previous operand updated `cur_word`.
+      constexpr bool word_updated =
+          EmitOperandUpdatesWord<Operands, Operands::Previous(op)>();
+      // Emit `cur_word` if either the previous operand updated it, or the first
+      // operand is 4-byte aligned. In the latter case we need to emit the
+      // bytecode stored in `cur_word`.
+      if constexpr (index == 0 || word_updated) {
+        EmitWord(cur_word);
+        cur_word = kEmptyWord;
+      } else {
+        DCHECK_EQ(cur_word, kEmptyWord);
+      }
+    }
+    constexpr int shift = offset_in_word * kBitsPerByte;
+    cur_word = EmitOperand<type>(value, cur_word, shift);
+  });
+  // Determine if the last operand updated `cur_word`.
+  constexpr bool word_updated =
+      EmitOperandUpdatesWord<Operands, Operands::Last()>();
+  // Emit `cur_word` if either the last operand updated it, or there are no
+  // operands. In the latter case we need to emit the bytecode stored in
+  // `cur_word`.
+  if constexpr (Operands::kCount == 0 || word_updated) {
+    EmitWord(cur_word);
+  } else {
+    DCHECK_EQ(cur_word, kEmptyWord);
+  }
+  USE(instruction_start);
+  DCHECK_EQ(pc_, instruction_start + Operands::kTotalSize);
+}
+
+namespace {
+
+// Helper to get the underlying type of an enum, or the type itself if it isn't
+// an enum.
+template <typename T>
+struct get_underlying_or_self {
+  using type = T;
+};
+
+template <typename T>
+  requires std::is_enum_v<T>
+struct get_underlying_or_self<T> {
+  using type = std::underlying_type_t<T>;
+};
+
+}  // namespace
+
+template <RegExpBytecodeOperandType OperandType, typename T>
+RegExpBytecodeGenerator::BCWordT RegExpBytecodeGenerator::EmitOperand(
+    T value, BCWordT cur_word, int shift) {
+  static_assert(RegExpOperandTypeTraits<OperandType>::kIsBasic);
+  static_assert(OperandUpdatesWord<OperandType>::value);
+  using Traits = RegExpOperandTypeTraits<OperandType>;
+  using EnumOrCType = Traits::kCType;
+  using CType = get_underlying_or_self<EnumOrCType>::type;
+  if constexpr (std::is_enum_v<EnumOrCType>) {
+    static_assert(std::is_same_v<T, EnumOrCType>);
+  } else {
+    static_assert(std::is_convertible_v<T, CType>);
+  }
+  DCHECK_GE(value, Traits::kMinValue);
+  DCHECK_LE(value, Traits::kMaxValue);
+  return cur_word | static_cast<CType>(value) << shift;
+}
+
+template <>
+RegExpBytecodeGenerator::BCWordT
+RegExpBytecodeGenerator::EmitOperand<ReBcOpType::kJumpTarget>(Label* label,
+                                                              BCWordT cur_word,
+                                                              int shift) {
+  static_assert(!OperandUpdatesWord<ReBcOpType::kJumpTarget>::value);
+  DCHECK_EQ(cur_word, kEmptyWord);
+  DCHECK_EQ(shift, 0);
+  EmitOrLink(label);
+  return kEmptyWord;
+}
+
+template <>
+RegExpBytecodeGenerator::BCWordT
+RegExpBytecodeGenerator::EmitOperand<ReBcOpType::kBitTable>(
+    Handle<ByteArray> table, BCWordT cur_word, int shift) {
+  static_assert(!OperandUpdatesWord<ReBcOpType::kBitTable>::value);
+  DCHECK_EQ(cur_word, kEmptyWord);
+  DCHECK_EQ(shift, 0);
+  BCWordT word = kEmptyWord;
+  static constexpr int kWordSizeBits = sizeof(word) * kBitsPerByte;
+  for (int w = 0; w < kTableSize; w += kWordSizeBits) {
+    for (int bit = 0; bit < kWordSizeBits; bit++) {
+      if (table->get(w + bit) != 0) word |= 1 << bit;
+    }
+    EmitWord(word);
+    word = kEmptyWord;
+  }
+  return kEmptyWord;
+}
+
 void RegExpBytecodeGenerator::Bind(Label* l) {
   advance_current_end_ = kInvalidPC;
   DCHECK(!l->is_bound());
@@ -41,7 +191,7 @@ void RegExpBytecodeGenerator::Bind(Label* l) {
     while (pos != 0) {
       int fixup = pos;
       pos = *reinterpret_cast<int32_t*>(buffer_.data() + fixup);
-      *reinterpret_cast<uint32_t*>(buffer_.data() + fixup) = pc_;
+      *reinterpret_cast<BCWordT*>(buffer_.data() + fixup) = pc_;
       jump_edges_.emplace(fixup, pc_);
     }
   }
@@ -60,130 +210,101 @@ void RegExpBytecodeGenerator::EmitOrLink(Label* l) {
     }
     l->link_to(pc_);
   }
-  Emit32(pos);
+  EmitWord(pos);
 }
 
 void RegExpBytecodeGenerator::PopRegister(int register_index) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_POP_REGISTER, register_index);
+  Emit<RegExpBytecode::kPopRegister>(register_index);
 }
 
 void RegExpBytecodeGenerator::PushRegister(int register_index,
                                            StackCheckFlag check_stack_limit) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_PUSH_REGISTER, register_index);
-  Emit32(static_cast<uint32_t>(check_stack_limit));
+  Emit<RegExpBytecode::kPushRegister>(register_index, check_stack_limit);
 }
 
 void RegExpBytecodeGenerator::WriteCurrentPositionToRegister(int register_index,
                                                              int cp_offset) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_SET_REGISTER_TO_CP, register_index);
-  Emit32(cp_offset);  // Current position offset.
+  Emit<RegExpBytecode::kWriteCurrentPositionToRegister>(register_index,
+                                                        cp_offset);
 }
 
 void RegExpBytecodeGenerator::ClearRegisters(int reg_from, int reg_to) {
   DCHECK_LE(reg_from, reg_to);
-  DCHECK_LE(reg_from, kMaxRegister);
-  DCHECK_LE(reg_to, kMaxRegister);
-  static_assert(kMaxRegister <= std::numeric_limits<uint16_t>::max());
-  Emit(BC_CLEAR_REGISTERS, 0);
-  Emit16(reg_from);
-  Emit16(reg_to);
+  Emit<RegExpBytecode::kClearRegisters>(reg_from, reg_to);
 }
 
 void RegExpBytecodeGenerator::ReadCurrentPositionFromRegister(
     int register_index) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_SET_CP_TO_REGISTER, register_index);
+  Emit<RegExpBytecode::kReadCurrentPositionFromRegister>(register_index);
 }
 
 void RegExpBytecodeGenerator::WriteStackPointerToRegister(int register_index) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_SET_REGISTER_TO_SP, register_index);
+  Emit<RegExpBytecode::kWriteStackPointerToRegister>(register_index);
 }
 
 void RegExpBytecodeGenerator::ReadStackPointerFromRegister(int register_index) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_SET_SP_TO_REGISTER, register_index);
+  Emit<RegExpBytecode::kReadStackPointerFromRegister>(register_index);
 }
 
 void RegExpBytecodeGenerator::SetCurrentPositionFromEnd(int by) {
-  DCHECK(is_uint24(by));
-  Emit(BC_SET_CURRENT_POSITION_FROM_END, by);
+  Emit<RegExpBytecode::kSetCurrentPositionFromEnd>(by);
 }
 
 void RegExpBytecodeGenerator::SetRegister(int register_index, int to) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_SET_REGISTER, register_index);
-  Emit32(to);
+  Emit<RegExpBytecode::kSetRegister>(register_index, to);
 }
 
 void RegExpBytecodeGenerator::AdvanceRegister(int register_index, int by) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_ADVANCE_REGISTER, register_index);
-  Emit32(by);
+  Emit<RegExpBytecode::kAdvanceRegister>(register_index, by);
 }
 
-void RegExpBytecodeGenerator::PopCurrentPosition() { Emit(BC_POP_CP, 0); }
+void RegExpBytecodeGenerator::PopCurrentPosition() {
+  Emit<RegExpBytecode::kPopCurrentPosition>();
+}
 
-void RegExpBytecodeGenerator::PushCurrentPosition() { Emit(BC_PUSH_CP, 0); }
+void RegExpBytecodeGenerator::PushCurrentPosition() {
+  Emit<RegExpBytecode::kPushCurrentPosition>();
+}
 
 void RegExpBytecodeGenerator::Backtrack() {
   int error_code =
       can_fallback() ? RegExp::RE_FALLBACK_TO_EXPERIMENTAL : RegExp::RE_FAILURE;
-  Emit(BC_POP_BT, error_code);
+  Emit<RegExpBytecode::kBacktrack>(error_code);
 }
 
 void RegExpBytecodeGenerator::GoTo(Label* l) {
   if (advance_current_end_ == pc_) {
     // Combine advance current and goto.
     pc_ = advance_current_start_;
-    Emit(BC_ADVANCE_CP_AND_GOTO, advance_current_offset_);
-    EmitOrLink(l);
+    Emit<RegExpBytecode::kAdvanceCpAndGoto>(advance_current_offset_, l);
     advance_current_end_ = kInvalidPC;
   } else {
     // Regular goto.
-    Emit(BC_GOTO, 0);
-    EmitOrLink(l);
+    Emit<RegExpBytecode::kGoTo>(l);
   }
 }
 
 void RegExpBytecodeGenerator::PushBacktrack(Label* l) {
-  Emit(BC_PUSH_BT, 0);
-  EmitOrLink(l);
+  Emit<RegExpBytecode::kPushBacktrack>(l);
 }
 
 bool RegExpBytecodeGenerator::Succeed() {
-  Emit(BC_SUCCEED, 0);
+  Emit<RegExpBytecode::kSucceed>();
   return false;  // Restart matching for global regexp not supported.
 }
 
-void RegExpBytecodeGenerator::Fail() { Emit(BC_FAIL, 0); }
+void RegExpBytecodeGenerator::Fail() { Emit<RegExpBytecode::kFail>(); }
 
 void RegExpBytecodeGenerator::AdvanceCurrentPosition(int by) {
-  // TODO(chromium:1166138): Turn back into DCHECKs once the underlying issue
-  // is fixed.
-  CHECK_LE(kMinCPOffset, by);
-  CHECK_GE(kMaxCPOffset, by);
   advance_current_start_ = pc_;
   advance_current_offset_ = by;
-  Emit(BC_ADVANCE_CP, by);
+  Emit<RegExpBytecode::kAdvanceCurrentPosition>(by);
   advance_current_end_ = pc_;
 }
 
 void RegExpBytecodeGenerator::CheckFixedLengthLoop(
     Label* on_tos_equals_current_position) {
-  Emit(BC_CHECK_FIXED_LENGTH, 0);
-  EmitOrLink(on_tos_equals_current_position);
+  Emit<RegExpBytecode::kCheckFixedLengthLoop>(on_tos_equals_current_position);
 }
 
 void RegExpBytecodeGenerator::CheckPosition(int cp_offset,
@@ -198,158 +319,123 @@ void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
                                                        int eats_at_least) {
   DCHECK_GE(eats_at_least, characters);
   if (eats_at_least > characters && check_bounds) {
-    DCHECK(is_int24(cp_offset + eats_at_least));
-    Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least - 1);
-    EmitOrLink(on_failure);
+    Emit<RegExpBytecode::kCheckPosition>(cp_offset + eats_at_least - 1,
+                                         on_failure);
     check_bounds = false;  // Load below doesn't need to check.
   }
 
   DCHECK_LE(kMinCPOffset, cp_offset);
   DCHECK_GE(kMaxCPOffset, cp_offset);
-  int bytecode;
   if (check_bounds) {
     if (characters == 4) {
-      bytecode = BC_LOAD_4_CURRENT_CHARS;
+      Emit<RegExpBytecode::kLoad4CurrentChars>(cp_offset, on_failure);
     } else if (characters == 2) {
-      bytecode = BC_LOAD_2_CURRENT_CHARS;
+      Emit<RegExpBytecode::kLoad2CurrentChars>(cp_offset, on_failure);
     } else {
       DCHECK_EQ(1, characters);
-      bytecode = BC_LOAD_CURRENT_CHAR;
+      Emit<RegExpBytecode::kLoadCurrentCharacter>(cp_offset, on_failure);
     }
   } else {
     if (characters == 4) {
-      bytecode = BC_LOAD_4_CURRENT_CHARS_UNCHECKED;
+      Emit<RegExpBytecode::kLoad4CurrentCharsUnchecked>(cp_offset);
     } else if (characters == 2) {
-      bytecode = BC_LOAD_2_CURRENT_CHARS_UNCHECKED;
+      Emit<RegExpBytecode::kLoad2CurrentCharsUnchecked>(cp_offset);
     } else {
       DCHECK_EQ(1, characters);
-      bytecode = BC_LOAD_CURRENT_CHAR_UNCHECKED;
+      Emit<RegExpBytecode::kLoadCurrentCharacterUnchecked>(cp_offset);
     }
   }
-  Emit(bytecode, cp_offset);
-  if (check_bounds) EmitOrLink(on_failure);
 }
 
 void RegExpBytecodeGenerator::CheckCharacterLT(base::uc16 limit,
                                                Label* on_less) {
-  Emit(BC_CHECK_LT, limit);
-  EmitOrLink(on_less);
+  Emit<RegExpBytecode::kCheckCharacterLT>(limit, on_less);
 }
 
 void RegExpBytecodeGenerator::CheckCharacterGT(base::uc16 limit,
                                                Label* on_greater) {
-  Emit(BC_CHECK_GT, limit);
-  EmitOrLink(on_greater);
+  Emit<RegExpBytecode::kCheckCharacterGT>(limit, on_greater);
 }
 
 void RegExpBytecodeGenerator::CheckCharacter(uint32_t c, Label* on_equal) {
   if (c > MAX_FIRST_ARG) {
-    Emit(BC_CHECK_4_CHARS, 0);
-    Emit32(c);
+    Emit<RegExpBytecode::kCheck4Chars>(c, on_equal);
   } else {
-    Emit(BC_CHECK_CHAR, c);
+    Emit<RegExpBytecode::kCheckCharacter>(c, on_equal);
   }
-  EmitOrLink(on_equal);
 }
 
 void RegExpBytecodeGenerator::CheckAtStart(int cp_offset, Label* on_at_start) {
-  Emit(BC_CHECK_AT_START, cp_offset);
-  EmitOrLink(on_at_start);
+  Emit<RegExpBytecode::kCheckAtStart>(cp_offset, on_at_start);
 }
 
 void RegExpBytecodeGenerator::CheckNotAtStart(int cp_offset,
                                               Label* on_not_at_start) {
-  Emit(BC_CHECK_NOT_AT_START, cp_offset);
-  EmitOrLink(on_not_at_start);
+  Emit<RegExpBytecode::kCheckNotAtStart>(cp_offset, on_not_at_start);
 }
 
 void RegExpBytecodeGenerator::CheckNotCharacter(uint32_t c,
                                                 Label* on_not_equal) {
   if (c > MAX_FIRST_ARG) {
-    Emit(BC_CHECK_NOT_4_CHARS, 0);
-    Emit32(c);
+    Emit<RegExpBytecode::kCheckNot4Chars>(c, on_not_equal);
   } else {
-    Emit(BC_CHECK_NOT_CHAR, c);
+    Emit<RegExpBytecode::kCheckNotCharacter>(c, on_not_equal);
   }
-  EmitOrLink(on_not_equal);
 }
 
 void RegExpBytecodeGenerator::CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
                                                      Label* on_equal) {
+  // TOOD(pthier): This is super hacky. We could still check for 4 characters
+  // (with the last 2 being 0 after masking them), but not emit AndCheck4Chars.
+  // This is rather confusing and should be changed.
   if (c > MAX_FIRST_ARG) {
-    Emit(BC_AND_CHECK_4_CHARS, 0);
-    Emit32(c);
+    Emit<RegExpBytecode::kAndCheck4Chars>(c, mask, on_equal);
   } else {
-    Emit(BC_AND_CHECK_CHAR, c);
+    Emit<RegExpBytecode::kCheckCharacterAfterAnd>(c, mask, on_equal);
   }
-  Emit32(mask);
-  EmitOrLink(on_equal);
 }
 
 void RegExpBytecodeGenerator::CheckNotCharacterAfterAnd(uint32_t c,
                                                         uint32_t mask,
                                                         Label* on_not_equal) {
+  // TOOD(pthier): This is super hacky. We could still check for 4 characters
+  // (with the last 2 being 0 after masking them), but not emit
+  // AndCheckNot4Chars. This is rather confusing and should be changed.
   if (c > MAX_FIRST_ARG) {
-    Emit(BC_AND_CHECK_NOT_4_CHARS, 0);
-    Emit32(c);
+    Emit<RegExpBytecode::kAndCheckNot4Chars>(c, mask, on_not_equal);
   } else {
-    Emit(BC_AND_CHECK_NOT_CHAR, c);
+    Emit<RegExpBytecode::kCheckNotCharacterAfterAnd>(c, mask, on_not_equal);
   }
-  Emit32(mask);
-  EmitOrLink(on_not_equal);
 }
 
 void RegExpBytecodeGenerator::CheckNotCharacterAfterMinusAnd(
     base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
-  Emit(BC_MINUS_AND_CHECK_NOT_CHAR, c);
-  Emit16(minus);
-  Emit16(mask);
-  EmitOrLink(on_not_equal);
+  Emit<RegExpBytecode::kCheckNotCharacterAfterMinusAnd>(c, minus, mask,
+                                                        on_not_equal);
 }
 
 void RegExpBytecodeGenerator::CheckCharacterInRange(base::uc16 from,
                                                     base::uc16 to,
                                                     Label* on_in_range) {
-  Emit(BC_CHECK_CHAR_IN_RANGE, 0);
-  Emit16(from);
-  Emit16(to);
-  EmitOrLink(on_in_range);
+  Emit<RegExpBytecode::kCheckCharacterInRange>(from, to, on_in_range);
 }
 
 void RegExpBytecodeGenerator::CheckCharacterNotInRange(base::uc16 from,
                                                        base::uc16 to,
                                                        Label* on_not_in_range) {
-  Emit(BC_CHECK_CHAR_NOT_IN_RANGE, 0);
-  Emit16(from);
-  Emit16(to);
-  EmitOrLink(on_not_in_range);
-}
-
-void RegExpBytecodeGenerator::EmitSkipTable(DirectHandle<ByteArray> table) {
-  for (int i = 0; i < kTableSize; i += kBitsPerByte) {
-    int byte = 0;
-    for (int j = 0; j < kBitsPerByte; j++) {
-      if (table->get(i + j) != 0) byte |= 1 << j;
-    }
-    Emit8(byte);
-  }
+  Emit<RegExpBytecode::kCheckCharacterNotInRange>(from, to, on_not_in_range);
 }
 
 void RegExpBytecodeGenerator::CheckBitInTable(Handle<ByteArray> table,
                                               Label* on_bit_set) {
-  Emit(BC_CHECK_BIT_IN_TABLE, 0);
-  EmitOrLink(on_bit_set);
-  EmitSkipTable(table);
+  Emit<RegExpBytecode::kCheckBitInTable>(on_bit_set, table);
 }
 
 void RegExpBytecodeGenerator::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
     int advance_by, Label* on_match, Label* on_no_match) {
-  Emit(BC_SKIP_UNTIL_BIT_IN_TABLE, cp_offset);
-  Emit32(advance_by);
-  EmitSkipTable(table);
-  EmitOrLink(on_match);
-  EmitOrLink(on_no_match);
+  Emit<RegExpBytecode::kSkipUntilBitInTable>(cp_offset, advance_by, table,
+                                             on_match, on_no_match);
 }
 
 void RegExpBytecodeGenerator::SkipUntilCharAnd(int cp_offset, int advance_by,
@@ -402,49 +488,47 @@ void RegExpBytecodeGenerator::SkipUntilOneOfMasked(
 void RegExpBytecodeGenerator::CheckNotBackReference(int start_reg,
                                                     bool read_backward,
                                                     Label* on_not_equal) {
-  DCHECK_LE(0, start_reg);
-  DCHECK_GE(kMaxRegister, start_reg);
-  Emit(read_backward ? BC_CHECK_NOT_BACK_REF_BACKWARD : BC_CHECK_NOT_BACK_REF,
-       start_reg);
-  EmitOrLink(on_not_equal);
+  if (read_backward) {
+    Emit<RegExpBytecode::kCheckNotBackRefBackward>(start_reg, on_not_equal);
+  } else {
+    Emit<RegExpBytecode::kCheckNotBackRef>(start_reg, on_not_equal);
+  }
 }
 
 void RegExpBytecodeGenerator::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_not_equal) {
-  DCHECK_LE(0, start_reg);
-  DCHECK_GE(kMaxRegister, start_reg);
-  Emit(read_backward ? (unicode ? BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD
-                                : BC_CHECK_NOT_BACK_REF_NO_CASE_BACKWARD)
-                     : (unicode ? BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE
-                                : BC_CHECK_NOT_BACK_REF_NO_CASE),
-       start_reg);
-  EmitOrLink(on_not_equal);
+  if (read_backward) {
+    if (unicode) {
+      Emit<RegExpBytecode::kCheckNotBackRefNoCaseUnicodeBackward>(start_reg,
+                                                                  on_not_equal);
+    } else {
+      Emit<RegExpBytecode::kCheckNotBackRefNoCaseBackward>(start_reg,
+                                                           on_not_equal);
+    }
+  } else {
+    if (unicode) {
+      Emit<RegExpBytecode::kCheckNotBackRefNoCaseUnicode>(start_reg,
+                                                          on_not_equal);
+    } else {
+      Emit<RegExpBytecode::kCheckNotBackRefNoCase>(start_reg, on_not_equal);
+    }
+  }
 }
 
 void RegExpBytecodeGenerator::IfRegisterLT(int register_index, int comparand,
                                            Label* on_less_than) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_CHECK_REGISTER_LT, register_index);
-  Emit32(comparand);
-  EmitOrLink(on_less_than);
+  Emit<RegExpBytecode::kIfRegisterLT>(register_index, comparand, on_less_than);
 }
 
 void RegExpBytecodeGenerator::IfRegisterGE(int register_index, int comparand,
                                            Label* on_greater_or_equal) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_CHECK_REGISTER_GE, register_index);
-  Emit32(comparand);
-  EmitOrLink(on_greater_or_equal);
+  Emit<RegExpBytecode::kIfRegisterGE>(register_index, comparand,
+                                      on_greater_or_equal);
 }
 
 void RegExpBytecodeGenerator::IfRegisterEqPos(int register_index,
                                               Label* on_eq) {
-  DCHECK_LE(0, register_index);
-  DCHECK_GE(kMaxRegister, register_index);
-  Emit(BC_CHECK_REGISTER_EQ_POS, register_index);
-  EmitOrLink(on_eq);
+  Emit<RegExpBytecode::kIfRegisterEqPos>(register_index, on_eq);
 }
 
 DirectHandle<HeapObject> RegExpBytecodeGenerator::GetCode(
