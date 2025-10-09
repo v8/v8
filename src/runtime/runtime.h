@@ -189,7 +189,8 @@ constexpr bool CanTriggerGC(T... properties) {
 #endif
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
-#define FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I) F(TraceUpdateFeedback, 3, 1)
+#define FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I) \
+  F(TraceUpdateFeedback, 3, 1, RuntimeCallProperty::kCannotTriggerGC)
 #else
 #define FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I)
 #endif
