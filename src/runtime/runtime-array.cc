@@ -124,19 +124,16 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   ElementsKind old_kind = array->GetElementsKind();
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, ArrayConstructInitializeElements(isolate, array, &argv));
-  // If we have an allocation site, and the array constructor can't be inlined,
-  // mark this on the allocation site. If there's no allocation site yet, the
-  // optimized code will eventually optimistically try to inline and worst case
-  // will deopt and set the allocation site itself, or set the CallIC disable
-  // speculation bit.
-  if (!site.is_null()) {
-    if ((old_kind != array->GetElementsKind() || !can_use_type_feedback ||
-         !can_inline_array_constructor)) {
-      // The arguments passed in caused a transition. This kind of complexity
-      // can't be dealt with in the inlined optimized array constructor case.
-      // We must mark the allocationsite as un-inlinable.
-      site->SetDoNotInlineCall();
-    }
+
+  if (!site.is_null() &&
+      (old_kind != array->GetElementsKind() || !can_use_type_feedback ||
+       !can_inline_array_constructor)) {
+    // Protect against deopt loops by disabling speculating optimizations in
+    // some cases.  If there's no allocation site yet, the optimized code will
+    // eventually optimistically try to inline and worst case will deopt and
+    // set the allocation site itself, or set the CallIC disable speculation
+    // bit.
+    site->SetSpeculationDisabled();
   }
 
   return *array;

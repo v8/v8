@@ -12325,18 +12325,19 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
       broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
           array_function);
 
-  // Tells whether we are protected by either the {site} or a
-  // call speculation bit to do certain speculative optimizations.
-  bool can_inline_call = false;
+  // Tells whether we are protected by either the {site} or a call speculation
+  // bit to do certain speculative optimizations. This mechanism protects
+  // against deopt loops.
+  bool can_speculate_call;
   AllocationType allocation_type = AllocationType::kYoung;
 
   if (maybe_allocation_site) {
-    can_inline_call = maybe_allocation_site->CanInlineCall();
+    can_speculate_call = !maybe_allocation_site->IsSpeculationDisabled();
     allocation_type =
         broker()->dependencies()->DependOnPretenureMode(*maybe_allocation_site);
     broker()->dependencies()->DependOnElementsKind(*maybe_allocation_site);
   } else {
-    can_inline_call = CanSpeculateCall();
+    can_speculate_call = CanSpeculateCall();
   }
 
   // Arity 0, `new Array()`.
@@ -12361,7 +12362,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     // allocate an array with one element.
     // We don't know anything about the length, so we rely on the allocation
     // site to avoid deopt loops.
-    if (!can_inline_call) return {};
+    if (!can_speculate_call) return {};
 
     return SelectReduction(
         [&](BranchBuilder& builder) {
@@ -12455,7 +12456,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   }
 
   if (any_value_has_unknown_type && !IsObjectElementsKind(elements_kind)) {
-    if (!can_inline_call) return {};
+    if (!can_speculate_call) return {};
 
     // We speculate, ignoring values without static types wrt elements_kind
     // selection and inserting Check nodes instead.
