@@ -7194,9 +7194,11 @@ class AllocateElementsArray
   using Base = FixedInputValueNodeT<1, AllocateElementsArray>;
 
  public:
-  explicit AllocateElementsArray(uint64_t bitfield,
+  explicit AllocateElementsArray(uint64_t bitfield, ElementsKind elements_kind,
                                  AllocationType allocation_type)
-      : Base(bitfield), allocation_type_(allocation_type) {}
+      : Base(bitfield),
+        elements_kind_(elements_kind),
+        allocation_type_(allocation_type) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::EagerDeopt() |
@@ -7210,12 +7212,14 @@ class AllocateElementsArray
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
+  void PrintParams(std::ostream&) const;
 
+  ElementsKind elements_kind() const { return elements_kind_; }
   AllocationType allocation_type() const { return allocation_type_; }
 
  private:
-  AllocationType allocation_type_;
+  const ElementsKind elements_kind_;
+  const AllocationType allocation_type_;
 };
 
 class CreateFunctionContext

@@ -1579,6 +1579,7 @@ void AllocateElementsArray::SetValueLocationConstraints() {
   UseAndClobberRegister(length_input());
   DefineAsRegister(this);
   set_temporaries_needed(1);
+  set_double_temporaries_needed(1);
 }
 void AllocateElementsArray::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
@@ -1604,16 +1605,30 @@ void AllocateElementsArray::GenerateCode(MaglevAssembler* masm,
       __ GetDeoptLabel(this,
                        DeoptimizeReason::kGreaterThanMaxFastElementArray));
   {
+    int element_size_log2;
+    RootIndex map_index;
+    static constexpr int kDataStartOffset = OFFSET_OF_DATA_START(FixedArray);
+    static_assert(kDataStartOffset == OFFSET_OF_DATA_START(FixedDoubleArray));
+    if (IsDoubleElementsKind(elements_kind_)) {
+      element_size_log2 = kDoubleSizeLog2;
+      map_index = RootIndex::kFixedDoubleArrayMap;
+    } else {
+      element_size_log2 = kTaggedSizeLog2;
+      map_index = RootIndex::kFixedArrayMap;
+    }
+
     Register size_in_bytes = scratch;
     __ Move(size_in_bytes, length);
-    __ ShiftLeft(size_in_bytes, kTaggedSizeLog2);
-    __ AddInt32(size_in_bytes, OFFSET_OF_DATA_START(FixedArray));
+    __ ShiftLeft(size_in_bytes, element_size_log2);
+    __ AddInt32(size_in_bytes, kDataStartOffset);
     __ Allocate(snapshot, elements, size_in_bytes, allocation_type_);
-    __ SetMapAsRoot(elements, RootIndex::kFixedArrayMap);
+    __ SetMapAsRoot(elements, map_index);
   }
   {
     Register smi_length = scratch;
     __ UncheckedSmiTagInt32(smi_length, length);
+    static_assert(offsetof(FixedArray, length_) ==
+                  offsetof(FixedDoubleArray, length_));
     __ StoreTaggedFieldNoWriteBarrier(elements, offsetof(FixedArray, length_),
                                       smi_length);
   }
@@ -1621,15 +1636,26 @@ void AllocateElementsArray::GenerateCode(MaglevAssembler* masm,
   // Initialize the array with holes.
   {
     Label loop;
-    Register the_hole = scratch;
-    __ LoadTaggedRoot(the_hole, RootIndex::kTheHoleValue);
-    __ bind(&loop);
-    __ DecrementInt32(length);
-    // TODO(victorgomes): This can be done more efficiently  by have the root
-    // (the_hole) as an immediate in the store.
-    __ StoreFixedArrayElementNoWriteBarrier(elements, length, the_hole);
-    __ CompareInt32AndJumpIf(length, 0, kGreaterThan, &loop,
-                             Label::Distance::kNear);
+    if (IsDoubleElementsKind(elements_kind_)) {
+      MaglevAssembler::TemporaryRegisterScope double_temps(masm);
+      DoubleRegister double_hole = double_temps.AcquireDouble();
+      __ Move(double_hole, Float64::hole_nan());
+      __ bind(&loop);
+      __ DecrementInt32(length);
+      __ StoreFixedDoubleArrayElement(elements, length, double_hole);
+      __ CompareInt32AndJumpIf(length, 0, kGreaterThan, &loop,
+                               Label::Distance::kNear);
+    } else {
+      Register the_hole = scratch;
+      __ LoadTaggedRoot(the_hole, RootIndex::kTheHoleValue);
+      __ bind(&loop);
+      __ DecrementInt32(length);
+      // TODO(victorgomes): This can be done more efficiently  by have the root
+      // (the_hole) as an immediate in the store.
+      __ StoreFixedArrayElementNoWriteBarrier(elements, length, the_hole);
+      __ CompareInt32AndJumpIf(length, 0, kGreaterThan, &loop,
+                               Label::Distance::kNear);
+    }
   }
   __ bind(&done);
 }
@@ -8549,6 +8575,10 @@ void BranchIfTypeOf::PrintParams(std::ostream& os) const {
 
 void ExtendPropertiesBackingStore::PrintParams(std::ostream& os) const {
   os << "(" << old_length_ << ")";
+}
+
+void AllocateElementsArray::PrintParams(std::ostream& os) const {
+  os << "(" << elements_kind_ << ", " << allocation_type_ << ")";
 }
 
 // Keeping track of the effects this instruction has on known node aspects.

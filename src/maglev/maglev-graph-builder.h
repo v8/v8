@@ -1121,7 +1121,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildCallFromRegisters(int argc_count,
                                       ConvertReceiverMode receiver_mode);
 
-  ValueNode* BuildElementsArray(int length);
+  ValueNode* BuildElementsArray(ElementsKind elements_kind, int length);
   ValueNode* BuildElementsArray(ElementsKind elements_kind,
                                 base::Vector<ValueNode*> values);
   ReduceResult BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);

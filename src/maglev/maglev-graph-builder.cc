@@ -12262,32 +12262,57 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
 
 namespace {
 
+enum class InlineArrayCtorVariant {
+  kZeroArgs,
+  kOneArg_InterpretAsLength,
+  kOneArg_InterpretAsElementValue,
+  kMultipleArgs,
+};
+
 compiler::OptionalMapRef GetArrayConstructorInitialMap(
     compiler::JSHeapBroker* broker, compiler::JSFunctionRef array_function,
-    ElementsKind elements_kind, size_t argc, std::optional<int> maybe_length) {
+    ElementsKind* elements_kind, InlineArrayCtorVariant variant) {
   compiler::MapRef initial_map = array_function.initial_map(broker);
-  if (argc == 1 && (!maybe_length.has_value() || *maybe_length > 0)) {
+  if (variant == InlineArrayCtorVariant::kOneArg_InterpretAsLength) {
     // Constructing an Array via new Array(N) where N is an unsigned
     // integer, always creates a holey backing store.
-    elements_kind = GetHoleyElementsKind(elements_kind);
+    *elements_kind = GetHoleyElementsKind(*elements_kind);
   }
-  return initial_map.AsElementsKind(broker, elements_kind);
+  return initial_map.AsElementsKind(broker, *elements_kind);
 }
 
 }  // namespace
 
-ValueNode* MaglevGraphBuilder::BuildElementsArray(int length) {
+ValueNode* MaglevGraphBuilder::BuildElementsArray(ElementsKind elements_kind,
+                                                  int length) {
+  DCHECK_GE(length, 0);
+  DCHECK(IsFastElementsKind(elements_kind));
   if (length == 0) {
     return GetRootConstant(RootIndex::kEmptyFixedArray);
   }
-  base::SmallVector<ValueNode*, 16> values(
-      length, GetRootConstant(RootIndex::kTheHoleValue));
-  return CreateFixedArray(base::VectorOf(values));
+
+  // This DCHECK is slightly hacky since it relies on callers passing
+  // kPreallocatedArrayElements for length 0 arrays. The intent is to make sure
+  // that callers use a holey elements kind for the `Array(length)` 1-argument
+  // constructor.
+  DCHECK(IsHoleyElementsKind(elements_kind) ||
+         length == JSArray::kPreallocatedArrayElements);
+
+  ValueNode* the_hole_value;
+  if (IsDoubleElementsKind(elements_kind)) {
+    the_hole_value = GetFloat64Constant(Float64::hole_nan());
+  } else {
+    the_hole_value = GetRootConstant(RootIndex::kTheHoleValue);
+  }
+
+  base::SmallVector<ValueNode*, 16> values(length, the_hole_value);
+  return BuildElementsArray(elements_kind, base::VectorOf(values));
 }
 
 ValueNode* MaglevGraphBuilder::BuildElementsArray(
     ElementsKind elements_kind, base::Vector<ValueNode*> values) {
-  DCHECK_GT(static_cast<int>(values.size()), 1);
+  DCHECK(IsFastElementsKind(elements_kind));
+  DCHECK_GT(static_cast<int>(values.size()), 0);
   return IsDoubleElementsKind(elements_kind) ? CreateFixedDoubleArray(values)
                                              : CreateFixedArray(values);
 }
@@ -12302,18 +12327,30 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   DCHECK(IsFastElementsKind(elements_kind));
   const int arity = static_cast<int>(args.count());
 
-  if (IsDoubleElementsKind(elements_kind) && arity < 2) {
-    // TODO(jgruber): Support double elements array for the 0- and 1-arity
-    // case.
-    return {};
+  InlineArrayCtorVariant variant;
+  if (arity == 0) {
+    variant = InlineArrayCtorVariant::kZeroArgs;
+  } else if (arity == 1) {
+    // TODO(jgruber): Also handle kOneArg_InterpretAsElementValue, for when the
+    // single argument is not a number. That case, once recognized, could be
+    // merged with kMultipleArgs.
+    variant = InlineArrayCtorVariant::kOneArg_InterpretAsLength;
+  } else {
+    variant = InlineArrayCtorVariant::kMultipleArgs;
   }
 
   std::optional<int> maybe_length;
-  if (arity == 1) {
+  if (variant == InlineArrayCtorVariant::kOneArg_InterpretAsLength) {
     maybe_length = TryGetInt32Constant(args[0]);
+    if (maybe_length.has_value()) {
+      if (*maybe_length < 0) return {};
+      if (*maybe_length >= JSArray::kInitialMaxFastElementArray) return {};
+      static_assert(JSArray::kInitialMaxFastElementArray <
+                    JSArray::kMaxFastArrayLength);
+    }
   }
   compiler::OptionalMapRef maybe_initial_map = GetArrayConstructorInitialMap(
-      broker(), array_function, elements_kind, arity, maybe_length);
+      broker(), array_function, &elements_kind, variant);
   if (!maybe_initial_map.has_value()) return {};
   compiler::MapRef initial_map = maybe_initial_map.value();
   compiler::SlackTrackingPrediction slack_tracking_prediction =
@@ -12336,25 +12373,24 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   }
 
   // Arity 0, `new Array()`.
-  if (arity == 0) {
+  if (variant == InlineArrayCtorVariant::kZeroArgs) {
     return BuildAndAllocateJSArray(
         initial_map, GetSmiConstant(0),
-        BuildElementsArray(JSArray::kPreallocatedArrayElements),
+        BuildElementsArray(elements_kind, JSArray::kPreallocatedArrayElements),
         slack_tracking_prediction, allocation_type);
   }
 
   // Arity 1, `new Array(maybe_length)`.
-  if (arity == 1) {
-    if (maybe_length.has_value() && *maybe_length >= 0 &&
-        *maybe_length < JSArray::kInitialMaxFastElementArray) {
-      return BuildAndAllocateJSArray(initial_map, GetSmiConstant(*maybe_length),
-                                     BuildElementsArray(*maybe_length),
-                                     slack_tracking_prediction,
-                                     allocation_type);
+  if (variant == InlineArrayCtorVariant::kOneArg_InterpretAsLength) {
+    if (maybe_length.has_value()) {
+      DCHECK_GE(*maybe_length, 0);
+      DCHECK_LT(*maybe_length, JSArray::kInitialMaxFastElementArray);
+      return BuildAndAllocateJSArray(
+          initial_map, GetSmiConstant(*maybe_length),
+          BuildElementsArray(elements_kind, *maybe_length),
+          slack_tracking_prediction, allocation_type);
     }
 
-    // TODO(victorgomes): If we know the argument cannot be a number, we should
-    // allocate an array with one element.
     // We don't know anything about the length, so we rely on the allocation
     // site to avoid deopt loops.
     if (!can_speculate_call) return {};
@@ -12367,8 +12403,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         },
         [&] {
           ValueNode* elements;
-          GET_VALUE_OR_ABORT(elements, AddNewNode<AllocateElementsArray>(
-                                           {args[0]}, allocation_type));
+          GET_VALUE_OR_ABORT(elements,
+                             AddNewNode<AllocateElementsArray>(
+                                 {args[0]}, elements_kind, allocation_type));
           return BuildAndAllocateJSArray(initial_map, args[0], elements,
                                          slack_tracking_prediction,
                                          allocation_type);
@@ -12384,6 +12421,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
 
   // Arity > 1, `new Array(x0, x1, ...)`.
   DCHECK_GT(arity, 1);
+  DCHECK_EQ(variant, InlineArrayCtorVariant::kMultipleArgs);
 
   // Gather the values to store into the newly created array, and remember
   // sufficient information about node types so we can select a suitable
@@ -12447,7 +12485,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
 
   return BuildAndAllocateJSArray(
       initial_map, GetSmiConstant(arity),
-      BuildElementsArray(elements_kind, base::VectorOf(values.begin(), arity)),
+      BuildElementsArray(elements_kind, base::VectorOf(values)),
       slack_tracking_prediction, allocation_type);
 }
 
