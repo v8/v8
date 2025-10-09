@@ -376,6 +376,8 @@ TEST(Liftoff_debug_side_table_indirect_call) {
           // OOL trap (invalid index), local still spilled, stack has {kConst,
           // kStack}.
           {3, {Constant(1, kWasmI32, kConst), Stack(2, kWasmI32)}},
+          // OOL trap (null func), stack unmodified.
+          {3, {}},
           // OOL trap (sig mismatch), stack unmodified.
           {3, {}},
       },

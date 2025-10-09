@@ -9976,27 +9976,30 @@ class LiftoffCompiler {
       // isolates / processes) the canonical signature ID is a static integer.
       CanonicalTypeIndex canonical_sig_id =
           decoder->module_->canonical_sig_id(imm.sig_imm.index);
+      // Register both traps first and get their labels in a second step,
+      // otherwise the second trap can invalidate the first OolTrapLabel by
+      // growing the vector of ool code.
+      AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapNullFunc);
+      AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
+      OolTrapLabel null_func =
+          OolTrapLabel(asm_, out_of_line_code_.end()[-2].label.get());
       OolTrapLabel sig_mismatch =
-          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
+          OolTrapLabel(asm_, out_of_line_code_.end()[-1].label.get());
       __ DropValues(1);
 
       if (!needs_type_check) {
         DCHECK(needs_null_check);
-        OolTrapLabel null_func =
-            AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapNullFunc);
         // Only check for -1 (nulled table entry).
         __ emit_i32_cond_jumpi(kEqual, null_func.label(), real_sig_id.gp_reg(),
                                -1, null_func.frozen());
       } else if (!decoder->module_->type(imm.sig_imm.index).is_final) {
         Label success_label;
-        __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id.gp_reg(),
-                               canonical_sig_id.index, sig_mismatch.frozen());
         if (needs_null_check) {
-          OolTrapLabel null_func =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapNullFunc);
           __ emit_i32_cond_jumpi(kEqual, null_func.label(),
                                  real_sig_id.gp_reg(), -1, null_func.frozen());
         }
+        __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id.gp_reg(),
+                               canonical_sig_id.index, sig_mismatch.frozen());
         ScopedTempRegister real_rtt{temps, kGpReg};
         __ LoadFullPointer(
             real_rtt.gp_reg(), kRootRegister,
