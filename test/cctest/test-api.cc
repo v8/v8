@@ -30182,14 +30182,10 @@ TEST(TriggerMainThreadMetricsEvent) {
     context_id = v8::metrics::Recorder::GetContextId(context);
 
     // Check that event submission works.
-    {
-      i::metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope(
-          &event);
-      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
-    }
+    event.wall_clock_duration_in_us = 100;
     i_iso->metrics_recorder()->AddMainThreadEvent(event, context_id);
     CHECK_EQ(recorder->count_, 1);  // Increased.
-    CHECK_GT(recorder->time_in_us_, 100);
+    CHECK_EQ(recorder->time_in_us_, 100);
   }
 
   {
@@ -30227,11 +30223,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
     context_id = v8::metrics::Recorder::GetContextId(context);
 
     // Check that event submission works.
-    {
-      i::metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope(
-          &event);
-      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
-    }
+    event.wall_clock_duration_in_us = 100;
     i_iso->metrics_recorder()->DelayMainThreadEvent(event, context_id);
     CHECK_EQ(recorder->count_, 0);        // Unchanged.
     CHECK_EQ(recorder->time_in_us_, -1);  // Unchanged.
@@ -30239,7 +30231,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
     while (v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(), iso)) {
     }
     CHECK_EQ(recorder->count_, 1);  // Increased.
-    CHECK_GT(recorder->time_in_us_, 100);
+    CHECK_EQ(recorder->time_in_us_, 100);
   }
 
   {
