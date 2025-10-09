@@ -2983,7 +2983,7 @@ UNINITIALIZED_TEST(ExternalizeSharedWithoutSharedStringTable) {
   HandleScope main_scope(main_isolate);
 
   // Create a new shared string on the main isolate.
-  const char raw_one_byte[] = "foo";
+  const char raw_one_byte[] = "foobarstringtest";
 
   DirectHandle<String> string = main_factory->NewStringFromAsciiChecked(
       raw_one_byte, AllocationType::kOld);
