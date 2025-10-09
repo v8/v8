@@ -234,10 +234,10 @@ void InliningTree::Inline() {
               ? static_cast<double>(type_feedback[i].call_count(the_case)) /
                     feedback.num_invocations
               : 0.0;
-      // TODO(jkummerow): Experiment with propagating relative call counts
-      // into the nested InliningTree, and weighting scores there accordingly.
       function_calls_[i][the_case] = data_->zone->New<InliningTree>(
-          data_, callee_index, relative_call_count,
+          data_, callee_index,
+          // Propagate relative call counts into the nested InliningTree.
+          relative_call_count * relative_call_count_,
           data_->module->functions[callee_index].code.length(), function_index_,
           static_cast<int>(i), the_case, depth_ + 1);
     }
