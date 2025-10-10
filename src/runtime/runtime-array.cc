@@ -61,22 +61,33 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   bool holey = false;
   bool can_use_type_feedback = !site.is_null();
   bool can_inline_array_constructor = true;
+
+  // For arity 1, the constructor call  is treated as `Array(length)` if it is a
+  // number, and `Array(single_element_value)` otherwise. For the length call,
+  // check various bounds.
   if (argv.length() == 1) {
-    DirectHandle<Object> argument_one = argv.at<Object>(0);
-    if (IsSmi(*argument_one)) {
-      int value = Cast<Smi>(*argument_one).value();
-      if (value < 0 ||
-          JSArray::SetLengthWouldNormalize(isolate->heap(), value)) {
-        // the array is a dictionary in this case.
+    // Keep in sync with: `ArrayConstructInitializeElements`.
+    DirectHandle<Object> arg0 = argv.at<Object>(0);
+    if (IsNumber(*arg0)) {
+      uint32_t length;
+      if (!Object::ToArrayLength(*arg0, &length)) {
+        // The array is a dictionary in this case.
         can_use_type_feedback = false;
-      } else if (value != 0) {
+      } else if (JSArray::SetLengthWouldNormalize(isolate->heap(), length)) {
+        // The array is a dictionary in this case.
+        can_use_type_feedback = false;
+      } else if (length != 0) {
         holey = true;
-        if (value >= JSArray::kInitialMaxFastElementArray) {
+        if (length >= JSArray::kInitialMaxFastElementArray) {
           can_inline_array_constructor = false;
         }
       }
     } else {
-      // Non-smi length argument produces a dictionary
+      // TODO(jgruber): There's no fundamental reason to disable speculation
+      // here. Currently, we have to do so to avoid deopt loops when the
+      // constructor is sometimes called with a single Number, sometimes with
+      // a single non-number. We could track the variant instead, and disable
+      // speculation only when it changes.
       can_use_type_feedback = false;
     }
   }
