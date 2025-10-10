@@ -3509,8 +3509,8 @@ bool AsyncStreamingProcessor::Deserialize(
   SaveAndSwitchContext saved_context(job_->isolate_, *job_->native_context_);
 
   MaybeDirectHandle<WasmModuleObject> result = DeserializeNativeModule(
-      job_->isolate_, job_->enabled_features_, module_bytes, wire_bytes,
-      job_->compile_imports_, base::VectorOf(job_->stream_->url()));
+      job_->isolate_, module_bytes, wire_bytes, job_->compile_imports_,
+      base::VectorOf(job_->stream_->url()));
 
   if (result.is_null()) return false;
 

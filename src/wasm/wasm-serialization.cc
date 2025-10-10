@@ -1096,11 +1096,12 @@ bool IsSupportedVersion(base::Vector<const uint8_t> header,
 }
 
 MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
-    Isolate* isolate, WasmEnabledFeatures enabled_features,
-    base::Vector<const uint8_t> data,
+    Isolate* isolate, base::Vector<const uint8_t> data,
     base::Vector<const uint8_t> wire_bytes_vec,
     const CompileTimeImports& compile_imports,
     base::Vector<const char> source_url) {
+  WasmEnabledFeatures enabled_features =
+      WasmEnabledFeatures::FromIsolate(isolate);
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!IsSupportedVersion(data, enabled_features)) return {};
 
