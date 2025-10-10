@@ -33,4 +33,8 @@
 ['not has_webassembly', {
   'wasm-*': [SKIP],
 }], # not has_webassembly
+
+['official_build', {
+  'crash/wasm-failed-type-assertion': [SKIP],
+}], # official_build
 ]
