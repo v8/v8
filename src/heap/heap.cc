@@ -287,14 +287,10 @@ Heap::Heap()
                                        : AllocationType::kOld),
       marking_state_(isolate_),
       non_atomic_marking_state_(isolate_),
-      pretenuring_handler_(this)
-#if defined(V8_USE_PERFETTO)
-      ,
+      pretenuring_handler_(this),
       tracing_track_(perfetto::NamedTrack::FromPointer(
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
-                         .disable_sibling_merge())
-#endif
-{
+                         .disable_sibling_merge()) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (PageMetadata::kPageSize - 1));
 
@@ -1545,7 +1541,6 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
     size_t new_old_generation_allocation_limit,
     size_t new_global_allocation_limit, const char* reason) {
   CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
-#if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
       "v8.memory",
       perfetto::CounterTrack("OldGenerationAllocationLimit", tracing_track_),
@@ -1553,7 +1548,7 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
   TRACE_COUNTER("v8.memory",
                 perfetto::CounterTrack("GlobalAllocationLimit", tracing_track_),
                 new_global_allocation_limit);
-#endif
+
   old_generation_allocation_limit_.store(new_old_generation_allocation_limit,
                                          std::memory_order_relaxed);
   global_allocation_limit_.store(new_global_allocation_limit,
@@ -2560,7 +2555,6 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
 
   const size_t new_space_capacity = NewSpaceTargetCapacity();
 
-#if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
       TRACE_DISABLED_BY_DEFAULT("v8.gc"),
       perfetto::CounterTrack("NewSpaceTargetCapacity", tracing_track()),
@@ -2571,7 +2565,6 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                 perfetto::CounterTrack("EmbedderSpeed", tracing_track()),
                 embedder_gc_speed.value_or(0.0));
-#endif
 
   const size_t old_gen_consumed_bytes_at_last_gc =
       OldGenerationConsumedBytesAtLastGC();
@@ -2642,11 +2635,9 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
     isolate()->PrintWithTimestamp("UpdateAllocationLimits: %s\n",
                                   json_str.c_str());
 
-#if defined(V8_USE_PERFETTO)
     TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
                          TRACE_EVENT_SCOPE_THREAD, "value",
                          TRACE_STR_COPY(json_str.c_str()));
-#endif  // V8_USE_PERFETTO
   }
 
   SetOldGenerationAndGlobalAllocationLimit(next_old_generation_allocation_limit,

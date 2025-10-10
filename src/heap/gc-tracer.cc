@@ -180,10 +180,8 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
       previous_(current_),
       allocation_time_(startup_time),
       previous_mark_compact_end_time_(startup_time)
-#if defined(V8_USE_PERFETTO)
       ,
       parent_track_(heap->tracing_track())
-#endif
 {
   // All accesses to incremental_marking_scope assume that incremental marking
   // scopes come first.
@@ -685,7 +683,6 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
                                      allocation_duration);
   }
 
-#if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                 perfetto::CounterTrack("OldGenerationAllocationThroughput",
                                        parent_track_),
@@ -698,7 +695,6 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
       TRACE_DISABLED_BY_DEFAULT("v8.gc"),
       perfetto::CounterTrack("NewSpaceAllocationThroughput", parent_track_),
       NewSpaceAllocationThroughputInBytesPerMillisecond());
-#endif
 }
 
 void GCTracer::SampleConcurrencyEsimate(size_t concurrency) {
@@ -1127,11 +1123,9 @@ void GCTracer::PrintNVP() const {
   std::string json_str = json.object_end().ToString();
   heap_->isolate()->PrintWithTimestamp("GC: %s\n", json_str.c_str());
 
-#if defined(V8_USE_PERFETTO)
   TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCTraceGCNVP",
                        TRACE_EVENT_SCOPE_THREAD, "value",
                        TRACE_STR_COPY(json_str.c_str()));
-#endif
 }
 
 void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes,
@@ -1406,7 +1400,6 @@ void GCTracer::RecordGCSumCounters() {
 }
 
 void GCTracer::RecordGCSizeCounters() const {
-#if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
       "v8.memory",
       perfetto::CounterTrack("OldGenerationConsumedBytes", parent_track_),
@@ -1417,7 +1410,6 @@ void GCTracer::RecordGCSizeCounters() const {
   TRACE_COUNTER("v8.memory",
                 perfetto::CounterTrack("ExternalMemoryBytes", parent_track_),
                 heap_->external_memory());
-#endif
 }
 
 namespace {
