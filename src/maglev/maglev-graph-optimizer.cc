@@ -1860,6 +1860,14 @@ ProcessResult MaglevGraphOptimizer::VisitInt32SubtractWithOverflow(
 ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyWithOverflow(
     Int32MultiplyWithOverflow* node, const ProcessingState& state) {
   RETURN_IF_SUCCESS(TryFoldInt32Operation<Operation::kMultiply>(node));
+  if (auto lhs_range = GetRange(node->input_node(0))) {
+    if (auto rhs_range = GetRange(node->input_node(1))) {
+      if (Range::Mul(*lhs_range, *rhs_range).IsInt32()) {
+        return ReplaceWith<Int32Multiply>(
+            {node->input_node(0), node->input_node(1)});
+      }
+    }
+  }
   return ProcessResult::kContinue;
 }
 

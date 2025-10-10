@@ -174,11 +174,28 @@ class Range {
   }
 
   // [a, b] * [c, d] = [min(ac,ad,bc,bd), max(ac,ad,bc,bd)]
-  static Range Mul(Range r1, Range r2) { UNIMPLEMENTED(); }
-
-  // [a, b] / [c, d] = [min(a/c,a/d,b/c,b/d), max(a/c,a/d,b/c,b/d)]
-  // If [c, d] contains 0, then return All().
-  static Range Div(Range r1, Range r2) { UNIMPLEMENTED(); }
+  static Range Mul(Range r1, Range r2) {
+    if (r1.is_empty() || r2.is_empty()) return Range::Empty();
+    if (r1.is_all() || r2.is_all()) return Range::All();
+    int64_t results[4];
+    if (base::bits::SignedMulOverflow64(r1.min_, r2.min_, &results[0])) {
+      return Range::All();
+    }
+    if (base::bits::SignedMulOverflow64(r1.min_, r2.max_, &results[1])) {
+      return Range::All();
+    }
+    if (base::bits::SignedMulOverflow64(r1.max_, r2.min_, &results[2])) {
+      return Range::All();
+    }
+    if (base::bits::SignedMulOverflow64(r1.max_, r2.max_, &results[3])) {
+      return Range::All();
+    }
+    int64_t min = *std::ranges::min_element(results);
+    int64_t max = *std::ranges::max_element(results);
+    if (!IsSafeInteger(min)) min = kInfMin;
+    if (!IsSafeInteger(max)) max = kInfMax;
+    return Range(min, max);
+  }
 
   static Range BitwiseAnd(Range r1, Range r2) {
     // TODO(victorgomes): This is copying OperationTyper::NumberBitwiseAnd. Not
@@ -207,16 +224,168 @@ class Range {
     return Range(min, max);
   }
 
-  Range ConstrainLessEqual(Range upper_bound) {
-    if (is_empty() || upper_bound.is_empty()) return Range::Empty();
-    max_ = std::min(max_, upper_bound.max_);
-    return *this;
+  static Range BitwiseOr(Range r1, Range r2) {
+    if (!r1.IsInt32() || !r2.IsInt32()) return Range::All();
+    int64_t lmin = r1.min_;
+    int64_t rmin = r2.min_;
+    int64_t lmax = r1.max_;
+    int64_t rmax = r2.max_;
+    // Or-ing any two values results in a value no smaller than their minimum.
+    // Even no smaller than their maximum if both values are non-negative.
+    int64_t min =
+        lmin >= 0 && rmin >= 0 ? std::max(lmin, rmin) : std::min(lmin, rmin);
+    int64_t max = INT32_MAX;
+    // Or-ing with 0 is essentially a conversion to int32.
+    if (rmin == 0 && rmax == 0) {
+      min = lmin;
+      max = lmax;
+    }
+    if (lmin == 0 && lmax == 0) {
+      min = rmin;
+      max = rmax;
+    }
+    if (lmax < 0 || rmax < 0) {
+      // Or-ing two values of which at least one is negative results in a
+      // negative value.
+      max = std::min<int64_t>(max, -1);
+    }
+    return Range(min, max);
   }
 
-  Range ConstraintGreater(Range lower_bound) {
-    if (is_empty() || lower_bound.is_empty()) return Range::Empty();
-    min_ = std::max(min_, lower_bound.min_);
-    return *this;
+  static Range BitwiseXor(Range r1, Range r2) {
+    // TODO(victorgomes): Improve/refine this case.
+    if (!r1.IsInt32() || !r2.IsInt32()) return Range::All();
+    int64_t lmin = r1.min_;
+    int64_t rmin = r2.min_;
+    int64_t lmax = r1.max_;
+    int64_t rmax = r2.max_;
+    if ((lmin >= 0 && rmin >= 0) || (lmax < 0 && rmax < 0)) {
+      // Xor-ing negative or non-negative values results in a non-negative
+      // value.
+      return Range(0, INT32_MAX);
+    }
+    if ((lmax < 0 && rmin >= 0) || (lmin >= 0 && rmax < 0)) {
+      // Xor-ing a negative and a non-negative value results in a negative
+      // value.
+      return Range(INT32_MIN, -1);
+    }
+    return Range::Int32();
+  }
+
+  static Range ShiftLeft(Range r1, Range r2) {
+    if (!r1.IsInt32() || !r2.IsUint32()) return Range::All();
+    int64_t min_lhs = r1.min_;
+    int64_t max_lhs = r1.max_;
+    int64_t min_rhs = r2.min_;
+    int64_t max_rhs = r2.max_;
+    DCHECK_GE(min_rhs, 0);
+    if (max_rhs > 31) {
+      // rhs can be larger than the bitmask
+      max_rhs = 31;
+      min_rhs = 0;
+    }
+    if (max_lhs > (INT32_MAX >> max_rhs) || min_lhs < (INT32_MIN >> max_rhs)) {
+      // overflow possible
+      return Range::All();
+    }
+    int64_t min = std::min(
+        static_cast<int32_t>(static_cast<uint32_t>(min_lhs) << min_rhs),
+        static_cast<int32_t>(static_cast<uint32_t>(min_lhs) << max_rhs));
+    int64_t max = std::max(
+        static_cast<int32_t>(static_cast<uint32_t>(max_lhs) << min_rhs),
+        static_cast<int32_t>(static_cast<uint32_t>(max_lhs) << max_rhs));
+    return Range(min, max);
+  }
+
+  static Range ShiftRight(Range r1, Range r2) {
+    if (!r1.IsInt32() || !r2.IsUint32()) return Range::All();
+    int64_t min_lhs = r1.min_;
+    int64_t max_lhs = r1.max_;
+    int64_t min_rhs = r2.min_;
+    int64_t max_rhs = r2.max_;
+    DCHECK_GE(min_rhs, 0);
+    if (max_rhs > 31) {
+      // rhs can be larger than the bitmask
+      max_rhs = 31;
+      min_rhs = 0;
+    }
+    int64_t min = std::min(min_lhs >> min_rhs, min_lhs >> max_rhs);
+    int64_t max = std::max(max_lhs >> min_rhs, max_lhs >> max_rhs);
+    return Range(min, max);
+  }
+
+  static Range ShiftRightLogical(Range r1, Range r2) {
+    if (!r1.IsUint32() || !r2.IsUint32()) return Range::All();
+    int64_t min_lhs = r1.min_;
+    int64_t max_lhs = r1.max_;
+    DCHECK_GE(min_lhs, 0);
+    int64_t min_rhs = r2.min_;
+    int64_t max_rhs = r2.max_;
+    DCHECK_GE(min_rhs, 0);
+    if (max_rhs > 31) {
+      // rhs can be larger than the bitmask
+      max_rhs = 31;
+      min_rhs = 0;
+    }
+    int64_t min = min_lhs >> max_rhs;
+    int64_t max = max_lhs >> min_rhs;
+    DCHECK_LE(0, min);
+    DCHECK_LE(max, UINT32_MAX);
+    return Range(min, max);
+  }
+
+  static Range ConstrainLessThan(Range lhs, Range rhs) {
+    if (lhs.is_empty() || rhs.is_empty()) {
+      return Range::Empty();
+    }
+    if (rhs.max_ == kInfMax) return lhs;
+    if (rhs.max_ == kMinSafeInteger) {
+      // TODO(victorgomes): The range should actually be then be greater than
+      // [kInfMin, kMinSafeInteger].
+      return Range::Empty();
+    }
+    if (lhs.min_ >= rhs.max_) return lhs;
+    lhs.max_ = std::min(lhs.max_, rhs.max_ - 1);
+    DCHECK_LE(lhs.min_, lhs.max_);
+    return lhs;
+  }
+
+  static Range ConstrainLessThanOrEqual(Range lhs, Range rhs) {
+    if (lhs.is_empty() || rhs.is_empty()) {
+      return Range::Empty();
+    }
+    if (rhs.is_all()) return lhs;
+    if (lhs.min_ >= rhs.max_) return lhs;
+    lhs.max_ = std::min(lhs.max_, rhs.max_);
+    DCHECK_LE(lhs.min_, lhs.max_);
+    return lhs;
+  }
+
+  static Range ConstrainGreaterThan(Range lhs, Range rhs) {
+    if (lhs.is_empty() || rhs.is_empty()) {
+      return Range::Empty();
+    }
+    if (rhs.min_ == kInfMin) return lhs;
+    if (rhs.min_ == kMaxSafeInteger) {
+      // TODO(victorgomes): The range should actually be then be greater than
+      // [kMaxSafeInteger, kInfMax].
+      return Range::Empty();
+    }
+    if (lhs.max_ <= rhs.min_) return lhs;
+    lhs.min_ = std::max(lhs.min_, rhs.min_ + 1);
+    DCHECK_LE(lhs.min_, lhs.max_);
+    return lhs;
+  }
+
+  static Range ConstrainGreaterThanOrEqual(Range lhs, Range rhs) {
+    if (lhs.is_empty() || rhs.is_empty()) {
+      return Range::Empty();
+    }
+    if (rhs.is_all()) return lhs;
+    if (lhs.max_ <= rhs.min_) return lhs;
+    lhs.min_ = std::max(lhs.min_, rhs.min_);
+    DCHECK_LE(lhs.min_, lhs.max_);
+    return lhs;
   }
 
   friend std::ostream& operator<<(std::ostream& os, const Range& r) {
@@ -434,47 +603,136 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(TruncateCheckedNumberOrOddballToInt32* node) {
-    UnionUpdate(node,
-                Range::Intersect(Get(node->input_node(0)), Range::Int32()));
+    UnionUpdateInt32(node, Get(node->input_node(0)));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32Increment* node, const ProcessingState&) {
+    UnionUpdateInt32(node, Range::Add(Get(node->input_node(0)), Range(1)));
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32IncrementWithOverflow* node,
                         const ProcessingState&) {
-    UnionUpdate(node, Range::Add(Get(node->input_node(0)), Range(1)));
+    UnionUpdateInt32(node, Range::Add(Get(node->input_node(0)), Range(1)));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32Add* node, const ProcessingState&) {
+    UnionUpdateInt32(
+        node, Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32AddWithOverflow* node, const ProcessingState&) {
-    UnionUpdate(node,
-                Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
+    UnionUpdateInt32(
+        node, Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32Decrement* node, const ProcessingState&) {
+    UnionUpdateInt32(node, Range::Sub(Get(node->input_node(0)), Range(1)));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32DecrementWithOverflow* node,
+                        const ProcessingState&) {
+    UnionUpdateInt32(node, Range::Sub(Get(node->input_node(0)), Range(1)));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32Subtract* node, const ProcessingState&) {
+    UnionUpdateInt32(
+        node, Range::Sub(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32SubtractWithOverflow* node,
+                        const ProcessingState&) {
+    UnionUpdateInt32(
+        node, Range::Sub(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32Multiply* node, const ProcessingState&) {
+    UnionUpdateInt32(
+        node, Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32MultiplyWithOverflow* node,
+                        const ProcessingState&) {
+    UnionUpdateInt32(
+        node, Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32BitwiseAnd* node, const ProcessingState&) {
-    UnionUpdate(node, Range::BitwiseAnd(Get(node->input_node(0)),
-                                        Get(node->input_node(1))));
+    UnionUpdateInt32(node, Range::BitwiseAnd(Get(node->input_node(0)),
+                                             Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32BitwiseOr* node, const ProcessingState&) {
+    UnionUpdateInt32(node, Range::BitwiseOr(Get(node->input_node(0)),
+                                            Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32BitwiseXor* node, const ProcessingState&) {
+    UnionUpdateInt32(node, Range::BitwiseXor(Get(node->input_node(0)),
+                                             Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32ShiftLeft* node, const ProcessingState&) {
+    UnionUpdateInt32(node, Range::ShiftLeft(Get(node->input_node(0)),
+                                            Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32ShiftRight* node, const ProcessingState&) {
+    UnionUpdateInt32(node, Range::ShiftRight(Get(node->input_node(0)),
+                                             Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Int32ShiftRightLogical* node, const ProcessingState&) {
+    UnionUpdateInt32(node, Range::ShiftRightLogical(Get(node->input_node(0)),
+                                                    Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
 
-  ProcessResult Process(NodeBase* node, const ProcessingState&) {
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState&) {
+    if constexpr (!IsConstantNode(Node::opcode_of<NodeT>) &&
+                  NodeT::kProperties.value_representation() ==
+                      ValueRepresentation::kInt32) {
+      UnionUpdate(node, Range::Int32());
+    }
     return ProcessResult::kContinue;
   }
 
   void ProcessControlNodeFor(BranchIfInt32Compare* node, BasicBlock* succ) {
-    // TODO(victorgomes): Implement more operations.
-    if (node->operation() == Operation::kLessThanOrEqual) {
-      ValueNode* lhs = node->input_node(0);
-      ValueNode* rhs = node->input_node(1);
-      Range lhs_range = ranges_.Get(succ, lhs);
-      Range rhs_range = ranges_.Get(succ, rhs);
-      if (node->if_true() == succ) {
-        ranges_.NarrowUpdate(succ, lhs,
-                             lhs_range.ConstrainLessEqual(rhs_range));
-        ranges_.NarrowUpdate(succ, rhs, rhs_range.ConstraintGreater(lhs_range));
-      } else {
-        DCHECK_EQ(node->if_false(), succ);
-        ranges_.NarrowUpdate(succ, lhs, lhs_range.ConstraintGreater(rhs_range));
-        ranges_.NarrowUpdate(succ, rhs,
-                             rhs_range.ConstrainLessEqual(lhs_range));
-      }
+    ValueNode* lhs = node->input_node(0);
+    ValueNode* rhs = node->input_node(1);
+    Range lhs_range = ranges_.Get(succ, lhs);
+    Range rhs_range = ranges_.Get(succ, rhs);
+    switch (node->operation()) {
+#define CASE(Op, NegOp)                                                       \
+  case Operation::k##Op:                                                      \
+    if (node->if_true() == succ) {                                            \
+      ranges_.NarrowUpdate(succ, lhs,                                         \
+                           lhs_range.Constrain##Op(lhs_range, rhs_range));    \
+      ranges_.NarrowUpdate(succ, rhs,                                         \
+                           rhs_range.Constrain##NegOp(rhs_range, lhs_range)); \
+    } else {                                                                  \
+      DCHECK_EQ(node->if_false(), succ);                                      \
+      ranges_.NarrowUpdate(succ, lhs,                                         \
+                           lhs_range.Constrain##NegOp(lhs_range, rhs_range)); \
+      ranges_.NarrowUpdate(succ, rhs,                                         \
+                           rhs_range.Constrain##Op(rhs_range, lhs_range));    \
+    }                                                                         \
+    break;
+      CASE(LessThan, GreaterThanOrEqual)
+      CASE(LessThanOrEqual, GreaterThan)
+      CASE(GreaterThan, LessThanOrEqual)
+      CASE(GreaterThanOrEqual, LessThan)
+#undef CASE
+      case Operation::kEqual:
+      case Operation::kStrictEqual:
+        if (node->if_true() == succ) {
+          Range eq = Range::Intersect(lhs_range, rhs_range);
+          ranges_.NarrowUpdate(succ, lhs, eq);
+          ranges_.NarrowUpdate(succ, rhs, eq);
+        }
+        break;
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -510,6 +768,14 @@ class RangeProcessor {
     ranges_.UnionUpdate(current_block_, node, range);
   }
 
+  void UnionUpdateInt32(ValueNode* node, Range range) {
+    // WARNING: This entails that the current range analysis cannot be used to
+    // identify truncation, since we always intersect Int32 operations range.
+    DCHECK_NOT_NULL(current_block_);
+    ranges_.UnionUpdate(current_block_, node,
+                        Range::Intersect(Range::Int32(), range));
+  }
+
   void ProcessPhis(BasicBlock* block, BasicBlock* pred) {
     int predecessor_id = -1;
     for (int i = 0; i < block->predecessor_count(); ++i) {
@@ -529,7 +795,7 @@ class RangeProcessor {
   bool ProcessLoopPhisBackedge(BasicBlock* block, BasicBlock* backedge_pred) {
     if (!block->has_phi()) return true;
     DCHECK_EQ(backedge_pred, block->backedge_predecessor());
-    ranges_.EnsureMapExistsFor(block);  // TODO: not sure if needed
+    ranges_.EnsureMapExistsFor(block);  // TODO(victorgomes): not sure if needed
     TRACE_RANGE("[range] >>> Processing backedges for block b" << block->id());
     int backedge_id = block->state()->predecessor_count() - 1;
     bool is_done = true;
