@@ -5,6 +5,7 @@
 # Use this to run several variants of the tests.
 ALL_VARIANT_FLAGS = {
     "assert_types": [["--assert-types"]],
+    "wasm_assert_types": [["--wasm-assert-types", "--no-liftoff"]],
     "code_serializer": [["--cache=code"]],
     "default": [[]],
     "future": [["--future"]],
@@ -257,6 +258,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
     ],
+    "wasm_assert_types": ["--liftoff-only", "--wasm-dynamic-tiering"],
     "stress_wasm_stack_switching": ["--no-stress-wasm-stack-switching"],
 }
 
