@@ -141,8 +141,11 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     if (v8_flags.maglev_untagged_phis) {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.PhiUntagging");
-      GraphProcessor<MaglevPhiRepresentationSelector> representation_selector(
-          graph);
+      MaglevPhiRepresentationSelector phi_selector(graph);
+      GraphMultiProcessor<PhiIdentityCleanerProcessor,
+                          MaglevPhiRepresentationSelector&,
+                          IdentityInputCleanerProcessor>
+          representation_selector(phi_selector);
       representation_selector.ProcessGraph(graph);
       PrintGraph(graph, v8_flags.print_maglev_graphs, "After Phi untagging");
       VerifyGraph(graph);

@@ -9,6 +9,7 @@
 
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
@@ -17,6 +18,43 @@
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::maglev {
+
+// Removes Phis whose inputs are all equal.
+class PhiIdentityCleanerProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    if (!block->has_state()) return BlockProcessResult::kContinue;
+    block->state()->ClearIdentityPhis();
+    return BlockProcessResult::kContinue;
+  }
+
+  void PostPhiProcessing() {}
+
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+};
+
+// Removes identity inputs.
+class IdentityInputCleanerProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+
+  void PostPhiProcessing() {}
+
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    node->UnwrapIdentityInputs();
+    return ProcessResult::kContinue;
+  }
+};
 
 // Recomputes the use hints for all Phi nodes in the graph. This is
 // necessary after inlining, as the original use hints may be out of date.

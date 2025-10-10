@@ -55,6 +55,9 @@ MaglevGraphOptimizer::MaglevGraphOptimizer(
 BlockProcessResult MaglevGraphOptimizer::PreProcessBasicBlock(
     BasicBlock* block) {
   reducer_.set_current_block(block);
+  if (block->has_state()) {
+    block->state()->ClearIdentityPhis();
+  }
   return BlockProcessResult::kContinue;
 }
 
@@ -130,14 +133,6 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(
     return ProcessResult::kTruncateBlock;
   }
   return ProcessResult::kContinue;
-}
-
-void MaglevGraphOptimizer::UnwrapInputs() {
-  for (int i = 0; i < current_node()->input_count(); i++) {
-    ValueNode* input = current_node()->input(i).node();
-    if (!input) continue;
-    current_node()->change_input(i, input->UnwrapIdentities());
-  }
 }
 
 ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(

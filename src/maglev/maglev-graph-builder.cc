@@ -16311,6 +16311,13 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
       ProcessMergePoint(offset, preserve_known_node_aspects);
     }
 
+    if (!merge_state->is_loop()) {
+      // If some phi inputs were loop phis that have since been shown to be
+      // Identities, then phis in this merge state could themselves turn out to
+      // be identities.
+      merge_state->ClearIdentityPhis();
+    }
+
     if (is_loop_effect_tracking_enabled() && merge_state->is_loop()) {
       BeginLoopEffects(offset);
     }

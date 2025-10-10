@@ -32,7 +32,7 @@ void PrintMaglevGraph(PipelineData& data, maglev::Graph* maglev_graph,
 }
 
 void RunMaglevOptimizer(PipelineData* data, maglev::Graph* graph,
-                        maglev::NodeRanges* ranges) {
+                        maglev::NodeRanges* ranges = nullptr) {
   maglev::RecomputeKnownNodeAspectsProcessor kna_processor(graph);
   maglev::MaglevGraphOptimizer optimizer(graph, kna_processor, ranges);
   maglev::GraphMultiProcessor<maglev::MaglevGraphOptimizer&,
@@ -65,6 +65,14 @@ bool RunMaglevOptimizations(PipelineData* data,
     maglev::MaglevInliner inliner(maglev_graph);
     if (!inliner.Run()) return false;
   }
+  // TODO(dmercadier): if the inliner didn't inline anything, consider calling
+  // RunMaglevOptimizer once, in order to remove identity phi and do whatever
+  // optimisations this enables. Currently this sounds a bit expensive for
+  // little benefits since there aren't that many identity phis, but 1) this
+  // would allow to remove the PhiIdentityCleanerProcessor and
+  // IdentityInputCleanerProcessor from the phi untagging phase, and 2) if we
+  // ever see interesting optimisations not happening because of identity phis,
+  // this would help.
 
   // Truncation pass.
   if (v8_flags.maglev_truncation && maglev_graph->may_have_truncation()) {
@@ -83,9 +91,12 @@ bool RunMaglevOptimizations(PipelineData* data,
 
   // Phi untagging.
   {
-    maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector> processor(
-        maglev_graph);
-    processor.ProcessGraph(maglev_graph);
+    maglev::MaglevPhiRepresentationSelector phi_selector(maglev_graph);
+    maglev::GraphMultiProcessor<maglev::PhiIdentityCleanerProcessor,
+                                maglev::MaglevPhiRepresentationSelector&,
+                                maglev::IdentityInputCleanerProcessor>
+        representation_selector(phi_selector);
+    representation_selector.ProcessGraph(maglev_graph);
   }
 
   if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {

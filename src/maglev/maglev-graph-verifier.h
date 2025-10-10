@@ -48,6 +48,7 @@ class MaglevGraphVerifier {
       CHECK_GE(op, kFirstOpcode);
       CHECK_LE(op, kLastOpcode);
     }
+    if (node->template Is<Identity>()) return ProcessResult::kContinue;
     node->VerifyInputs();
     return ProcessResult::kContinue;
   }
