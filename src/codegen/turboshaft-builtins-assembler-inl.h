@@ -174,6 +174,13 @@ class BuiltinArgumentsTS {
   V<WordPtr> base_;
 };
 
+// Deduction guide.
+template <typename A, typename T>
+BuiltinArgumentsTS(
+    A*, compiler::turboshaft::V<T>,
+    compiler::turboshaft::OptionalV<compiler::turboshaft::WordPtr>)
+    -> BuiltinArgumentsTS<A>;
+
 }  // namespace detail
 
 template <typename Next>

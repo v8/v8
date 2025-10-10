@@ -4312,12 +4312,12 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     FloatUnaryOp::Kind kind;
     switch (node->ieee_function()) {
-#define CASE(MathName, ExpName, EnumName)                         \
+#define IEEE_UNARY_CASE(MathName, ExpName, EnumName)              \
   case maglev::Float64Ieee754Unary::Ieee754Function::k##EnumName: \
     kind = FloatUnaryOp::Kind::k##EnumName;                       \
     break;
-      IEEE_754_UNARY_LIST(CASE)
-#undef CASE
+      IEEE_754_UNARY_LIST(IEEE_UNARY_CASE)
+#undef IEEE_UNARY_CASE
     }
     SetMap(node, __ Float64Unary(Map(node->input()), kind));
     return maglev::ProcessResult::kContinue;
@@ -4327,12 +4327,12 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     FloatBinopOp::Kind kind;
     switch (node->ieee_function()) {
-#define CASE(MathName, ExpName, EnumName)                          \
+#define IEEE_BINARY_CASE(MathName, ExpName, EnumName)              \
   case maglev::Float64Ieee754Binary::Ieee754Function::k##EnumName: \
     kind = FloatBinopOp::Kind::k##EnumName;                        \
     break;
-      IEEE_754_BINARY_LIST(CASE)
-#undef CASE
+      IEEE_754_BINARY_LIST(IEEE_BINARY_CASE)
+#undef IEEE_BINARY_CASE
     }
     SetMap(node, __ Float64Binary(Map(node->input_lhs()),
                                   Map(node->input_rhs()), kind));

@@ -308,7 +308,8 @@ class Builtins {
   V8_EXPORT_PRIVATE Tagged<Code> code(Builtin builtin);
   V8_EXPORT_PRIVATE Handle<Code> code_handle(Builtin builtin);
 
-  static CallInterfaceDescriptor CallInterfaceDescriptorFor(Builtin builtin);
+  V8_EXPORT_PRIVATE static CallInterfaceDescriptor CallInterfaceDescriptorFor(
+      Builtin builtin);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate,
                                                 Builtin builtin);
   V8_EXPORT_PRIVATE static bool HasJSLinkage(Builtin builtin);

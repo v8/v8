@@ -2787,6 +2787,36 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
   return turboshaft_pipeline.FinalizeCode();
 }
 
+MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
+    turboshaft::PipelineData* turboshaft_data, CallDescriptor* call_descriptor,
+    const char* debug_name) {
+  Isolate* isolate = turboshaft_data->isolate();
+
+  PipelineJobScope scope(turboshaft_data,
+                         isolate->counters()->runtime_call_stats());
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
+
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics(
+      CreatePipelineStatistics(Handle<Script>::null(), turboshaft_data->info(),
+                               isolate, turboshaft_data->zone_stats()));
+
+  turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data);
+  OptimizedCompilationInfo* info = turboshaft_data->info();
+  if (info->trace_turbo_graph() || info->trace_turbo_json()) {
+    turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
+        turboshaft_data->zone_stats(), turboshaft::kTempZoneName);
+    std::string name_buffer = "Testing: ";
+    name_buffer += debug_name;
+    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.c_str());
+  }
+
+  turboshaft_pipeline.OptimizeBuiltin();
+
+  Linkage linkage(call_descriptor);
+  CHECK(turboshaft_pipeline.GenerateCode(&linkage, {}, nullptr, nullptr, 0));
+  return turboshaft_pipeline.FinalizeCode();
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 
 namespace {

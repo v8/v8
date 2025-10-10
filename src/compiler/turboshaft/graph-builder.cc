@@ -1210,16 +1210,16 @@ OpIndex GraphBuilder::Process(
           CheckTaggedInputParametersOf(node->op());
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind from_kind;
       switch (params.mode()) {
-#define CASE(mode)                                                       \
+#define CHECKED_TAGGED_TO_CASE(mode)                                     \
   case CheckTaggedInputMode::k##mode:                                    \
     from_kind =                                                          \
         ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::k##mode; \
     break;
-        CASE(AdditiveSafeInteger)
-        CASE(Number)
-        CASE(NumberOrBoolean)
-        CASE(NumberOrOddball)
-#undef CASE
+        CHECKED_TAGGED_TO_CASE(AdditiveSafeInteger)
+        CHECKED_TAGGED_TO_CASE(Number)
+        CHECKED_TAGGED_TO_CASE(NumberOrBoolean)
+        CHECKED_TAGGED_TO_CASE(NumberOrOddball)
+#undef CHECKED_TAGGED_TO_CASE
       }
       return __ ConvertJSPrimitiveToUntaggedOrDeopt(
           Map(node->InputAt(0)), dominating_frame_state, from_kind,

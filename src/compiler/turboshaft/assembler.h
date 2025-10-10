@@ -2344,6 +2344,12 @@ class TurboshaftAssemblerOpInterface
                                                          input_assumptions);
   }
 
+  V<Word32> ConvertBooleanToWord32(V<Boolean> boolean) {
+    return V<Word32>::Cast(ConvertJSPrimitiveToUntagged(
+        boolean, ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kBit,
+        ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kBoolean));
+  }
+
   V<Untagged> ConvertJSPrimitiveToUntaggedOrDeopt(
       V<Object> object, V<turboshaft::FrameState> frame_state,
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind from_kind,

@@ -3568,6 +3568,7 @@ filegroup(
         "src/compiler/turboshaft/typer.h",
         "src/compiler/turboshaft/types.cc",
         "src/compiler/turboshaft/types.h",
+        "src/compiler/turboshaft/typeswitch.h",
         "src/compiler/turboshaft/undef-assembler-macros.inc",
         "src/compiler/turboshaft/uniform-reducer-adapter.h",
         "src/compiler/turboshaft/use-map.cc",

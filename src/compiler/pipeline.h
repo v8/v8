@@ -149,6 +149,10 @@ class Pipeline : public AllStatic {
       CallDescriptor* call_descriptor, Builtin builtin, const char* debug_name,
       const ProfileDataFromFile* profile_data);
 
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
+      turboshaft::PipelineData* turboshaft_data,
+      CallDescriptor* call_descriptor, const char* debug_name);
+
   // ---------------------------------------------------------------------------
   // The following methods are for testing purposes only. Avoid production use.
   // ---------------------------------------------------------------------------
