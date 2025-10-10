@@ -1211,6 +1211,11 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   uint8_t configuration_byte = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
 
+  // Enable Wasm type assertions half the time.
+  const bool assert_types = configuration_byte & 1;
+  configuration_byte >>= 1;
+  FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
+
   // Derive the compiler configuration for the first four functions from the
   // configuration byte, to choose for each function between:
   // 0: TurboFan
@@ -1223,6 +1228,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     tier_mask |= (compiler_config == 0) << i;
     debug_mask |= (compiler_config == 2) << i;
   }
+  configuration_byte = 0;
   // The purpose of setting the tier mask (which affects the initial
   // compilation of each function) is to deterministically test a combination
   // of Liftoff and Turbofan.

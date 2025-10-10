@@ -275,6 +275,8 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // parameters and returns with all kinds of types.
   const bool optimize_main_function =
       inlinees.empty() || data.empty() || !(data.last() & 1);
+  const bool assert_types = !data.empty() && (data.last() & 2);
+  FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     StdoutStream os;
