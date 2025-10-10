@@ -2823,6 +2823,7 @@ void WebAssemblyMemoryToResizableBufferImpl(
   WasmJSApiScope js_api_scope{info, "WebAssembly.Memory.toResizableBuffer()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmMemoryObject);
+  i_isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmResizableBuffers);
 
   i::DirectHandle<i::Object> buffer_obj(receiver->array_buffer(), i_isolate);
   DCHECK(IsJSArrayBuffer(*buffer_obj));
