@@ -153,17 +153,19 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
                                 V<Word32> callee,
                                 const base::Vector<OpIndex> args,
                                 base::Vector<OpIndex> returns,
-                                OptionalV<FrameState> frame_state);
+                                OptionalV<FrameState> frame_state,
+                                compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   OpIndex BuildCallAndReturn(V<Context> js_context, V<HeapObject> function_data,
                              base::Vector<OpIndex> args, bool do_conversion,
-                             OptionalV<FrameState> frame_state);
+                             OptionalV<FrameState> frame_state,
+                             compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
-  V<Any> BuildJSToWasmWrapperImpl(bool receiver_is_first_param,
-                                  V<JSFunction> js_closure,
-                                  V<Context> js_context,
-                                  base::Vector<const OpIndex> arguments,
-                                  OptionalV<FrameState> frame_state);
+  V<Any> BuildJSToWasmWrapperImpl(
+      bool receiver_is_first_param, V<JSFunction> js_closure,
+      V<Context> js_context, base::Vector<const OpIndex> arguments,
+      OptionalV<FrameState> frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   void BuildJSToWasmWrapper(bool receiver_is_first_param);
 
@@ -676,11 +678,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
   }
 
  private:
-  V<Object> InlineWasmFunctionInsideWrapper(V<Context> js_context,
-                                            V<WasmFunctionData> function_data,
-                                            base::Vector<OpIndex> inlined_args,
-                                            bool do_conversion,
-                                            OptionalV<FrameState> frame_state);
+  V<Object> InlineWasmFunctionInsideWrapper(
+      V<Context> js_context, V<WasmFunctionData> function_data,
+      base::Vector<OpIndex> inlined_args, bool do_conversion,
+      OptionalV<FrameState> frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   Isolate* isolate_;  // Only available when inlining the wrapper into JS.
   const CanonicalSig* const sig_;

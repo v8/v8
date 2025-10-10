@@ -198,14 +198,21 @@ template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildCallWasmFromWrapper(
     Zone* zone, const CanonicalSig* sig, V<Word32> callee,
     const base::Vector<OpIndex> args, base::Vector<OpIndex> returns,
-    OptionalV<FrameState> frame_state) {
+    OptionalV<FrameState> frame_state,
+    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
   const bool needs_frame_state = frame_state.valid();
+
+  // If we have a current_catch_block() there is a catch handler, the reduction
+  // was triggered from AssembleOutputGraphCheckException, and we don't need to
+  // lazy-deoptimize. Otherwise we use the LazyDeoptOnThrow value from the call
+  // descriptor of the Call we are inlining.
+  DCHECK_IMPLIES(lazy_deopt_on_throw == compiler::LazyDeoptOnThrow::kYes,
+                 !__ current_catch_block());
   const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
       compiler::GetWasmCallDescriptor(
           __ graph_zone(), sig, compiler::WasmCallKind::kWasmIndirectFunction,
           needs_frame_state),
-      compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
-      __ graph_zone());
+      compiler::CanThrow::kYes, lazy_deopt_on_throw, __ graph_zone());
 
   OpIndex call = __ Call(callee, frame_state, base::VectorOf(args), descriptor,
                          OpEffects().CanCallAnything());
@@ -224,7 +231,8 @@ template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
     V<Context> js_context, V<HeapObject> function_data,
     base::Vector<OpIndex> args, bool do_conversion,
-    OptionalV<FrameState> frame_state) -> OpIndex {
+    OptionalV<FrameState> frame_state,
+    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> OpIndex {
   const int rets_count = static_cast<int>(sig_->return_count());
   base::SmallVector<OpIndex, 1> rets(rets_count);
 
@@ -236,7 +244,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
       this->BuildFunctionTargetAndImplicitArg(internal);
   args[0] = implicit_arg;
   BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, args,
-                           base::VectorOf(rets), frame_state);
+                           base::VectorOf(rets), frame_state,
+                           lazy_deopt_on_throw);
 
   V<Object> jsval;
   if (sig_->return_count() == 0) {
@@ -268,7 +277,8 @@ template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
     V<Context> js_context, V<WasmFunctionData> function_data,
     base::Vector<OpIndex> inlined_args, bool do_conversion,
-    OptionalV<FrameState> frame_state) -> V<Object> {
+    OptionalV<FrameState> frame_state,
+    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> V<Object> {
   if constexpr (requires(const Assembler& assembler) {
                   assembler.has_wasm_in_js_inlining_reducer;
                 }) {
@@ -292,14 +302,15 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
 
   // If the wasm function was not inlined, we need to call it.
   return BuildCallAndReturn(js_context, function_data, inlined_args,
-                            do_conversion, frame_state);
+                            do_conversion, frame_state, lazy_deopt_on_throw);
 }
 
 template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     bool receiver_is_first_param, V<JSFunction> js_closure,
     V<Context> js_context, base::Vector<const OpIndex> arguments,
-    OptionalV<FrameState> frame_state) -> V<Any> {
+    OptionalV<FrameState> frame_state,
+    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> V<Any> {
   const bool do_conversion = true;
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
   const int args_count = wasm_param_count + 1;  // +1 for wasm_code.
@@ -384,8 +395,9 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     }
 
     // Inline the wasm function, if possible.
-    jsval = InlineWasmFunctionInsideWrapper(
-        js_context, function_data, VectorOf(args), do_conversion, frame_state);
+    jsval = InlineWasmFunctionInsideWrapper(js_context, function_data,
+                                            VectorOf(args), do_conversion,
+                                            frame_state, lazy_deopt_on_throw);
 
     GOTO(done, jsval);
     __ Bind(slow_path);
@@ -414,8 +426,9 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
   }
 
   // Inline the wasm function, if possible.
-  jsval = InlineWasmFunctionInsideWrapper(
-      js_context, function_data, VectorOf(args), do_conversion, frame_state);
+  jsval = InlineWasmFunctionInsideWrapper(js_context, function_data,
+                                          VectorOf(args), do_conversion,
+                                          frame_state, lazy_deopt_on_throw);
 
   // If both the default and a fast transformation paths are present,
   // get the return value based on the path used.
@@ -432,7 +445,8 @@ template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     bool receiver_is_first_param) {
   V<Any> result = BuildJSToWasmWrapperImpl(
-      receiver_is_first_param, OpIndex::Invalid(), OpIndex::Invalid(), {}, {});
+      receiver_is_first_param, OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
+      compiler::LazyDeoptOnThrow::kNo);
   if (result != OpIndex::Invalid()) {  // Invalid signature.
     __ Return(result);
   }
@@ -651,7 +665,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
       this->BuildFunctionTargetAndImplicitArg(internal_function);
   OpIndex arg = instance;
   BuildCallWasmFromWrapper(__ phase_zone(), sig_, target,
-                           base::VectorOf(&arg, 1), {}, {});
+                           base::VectorOf(&arg, 1), {}, {},
+                           compiler::LazyDeoptOnThrow::kNo);
   CallBuiltin<WasmFXReturnDescriptor>(Builtin::kWasmFXReturn,
                                       Operator::kNoProperties);
   __ Unreachable();
