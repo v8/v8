@@ -1346,6 +1346,14 @@ void CppHeap::StartIncrementalGarbageCollection(cppgc::internal::GCConfig) {
   UNIMPLEMENTED();
 }
 
+bool CppHeap::RetryAllocate(v8::base::FunctionRef<bool()> allocate) {
+  if (!IsGCAllowed()) {
+    return false;
+  }
+  return isolate_->heap()->allocator()->RetryCustomAllocate(
+      std::move(allocate), AllocationType::kOld);
+}
+
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
