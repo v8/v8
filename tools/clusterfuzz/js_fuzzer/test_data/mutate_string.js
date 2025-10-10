@@ -15,3 +15,13 @@ obj.property = 2;
 var obj2 = {
   key: 3
 };
+
+const complexRegex = /user-(id[0-9]+)-group([A-Z]+)/;
+"user-id12345-groupABC".match(complexRegex);
+
+const parts = "valueAseparatorvalueBseparatorvalueC".split(/separator/);
+\u0063\u006f\u006e\u0073\u006f\u006c\u0065.\u006c\u006f\u0067("hello");
+
+const some_loooooooong_user = "Alice";
+const templateWithExpression = `User profile for ${some_loooooooong_user} is now active.`;
+console.log(templateWithExpression);
