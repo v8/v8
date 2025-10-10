@@ -58,6 +58,34 @@ builder.addFunction("call_next_in_catch_all", kSig_v_v)
         kExprCallRef, sig_v_v,
       kExprEnd,
     ]).exportFunc();
+let nop_index = builder.addFunction("nop", kSig_v_v).addBody([]).exportFunc().index;
+builder.addFunction("resume_next_with_handler", kSig_v_v)
+    .addBody([
+        kExprBlock, kWasmRef, cont_index,
+          kExprCallFunction, get_next_index,
+          kExprContNew, cont_index,
+          kExprResume, cont_index, 1, kOnSuspend, tag_index, 0,
+          kExprReturn,
+        kExprEnd,
+        kExprDrop,
+    ]).exportFunc();
+builder.addFunction("resume_next_with_handler_and_catch_all", kSig_v_v)
+    .addBody([
+        kExprTryTable, kWasmVoid, 1,
+        kCatchAllNoRef, 0,
+          kExprBlock, kWasmRef, cont_index,
+            kExprCallFunction, get_next_index,
+            kExprContNew, cont_index,
+            kExprResume, cont_index, 1, kOnSuspend, tag_index, 0,
+            kExprReturn,
+          kExprEnd,
+          kExprDrop,
+        kExprEnd,
+    ]).exportFunc();
+builder.addFunction("throw_exn", kSig_v_v)
+    .addBody([
+        kExprThrow, tag_index
+    ]).exportFunc();
 let instance;
 instance = builder.instantiate( {m: {
   gc,
@@ -135,6 +163,23 @@ instance = builder.instantiate( {m: {
       instance.exports.rejecting_promise,
   ];
   WebAssembly.promising(instance.exports.call_next_as_cont)()
+})();
+
+(function TestEffectHandlers() {
+  print(arguments.callee.name);
+
+  instance.exports.call_stack.value = [
+      instance.exports.nop,
+  ];
+  instance.exports.resume_next_with_handler();
+
+  // A resume instruction within a try scope triggers interesting code paths:
+  // the resume builtin call must be able to handle either exceptions or
+  // effects.
+  instance.exports.call_stack.value = [
+      instance.exports.throw_exn
+  ];
+  instance.exports.resume_next_with_handler_and_catch_all();
 })();
 
 (function TestResumeSuspendReturn() {

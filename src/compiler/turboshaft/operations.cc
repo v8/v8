@@ -1119,7 +1119,12 @@ std::ostream& operator<<(std::ostream& os, BlockIndex b) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Block* b) {
-  return os << b->index();
+  if (b == nullptr) {
+    os << "nullptr";
+  } else {
+    os << b->index();
+  }
+  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, OpEffects effects) {
@@ -2148,9 +2153,16 @@ size_t CheckExceptionOp::hash_value(HashingStrategy strategy) const {
   if (strategy == HashingStrategy::kMakeSnapshotStable) {
     // Destructure here to cause a compilation error in case `options` is
     // changed.
-    auto [didnt_throw_block_value, catch_block_value] = options();
+    auto [didnt_throw_block_value, catch_block_value, effect_block_value] =
+        options();
+    BlockIndex catch_block_index = catch_block_value
+                                       ? index_for_bound_block(catch_block)
+                                       : BlockIndex::Invalid();
+    BlockIndex effect_block_index =
+        effect_block_value ? index_for_bound_block(effect_block_value)
+                           : BlockIndex::Invalid();
     return HashWithOptions(index_for_bound_block(didnt_throw_block_value),
-                           index_for_bound_block(catch_block_value));
+                           catch_block_index, effect_block_index);
   } else {
     return Base::hash_value(strategy);
   }

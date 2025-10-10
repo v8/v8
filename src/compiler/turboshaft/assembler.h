@@ -1289,11 +1289,14 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     Block* current_block = Asm().current_block();
     if (current_block->IsBranchTarget()) {
       DCHECK_EQ(current_block->PredecessorCount(), 1);
-      DCHECK_EQ(current_block->LastPredecessor()
-                    ->LastOperation(Asm().output_graph())
-                    .template Cast<CheckExceptionOp>()
-                    .catch_block,
-                current_block);
+      const CheckExceptionOp& check_op =
+          current_block->LastPredecessor()
+              ->LastOperation(Asm().output_graph())
+              .template Cast<CheckExceptionOp>();
+      USE(check_op);
+      DCHECK(check_op.catch_block == current_block ||
+             (check_op.effect_handler.has_value() &&
+              check_op.effect_handler->block == current_block));
       return Base::ReduceCatchBlockBegin();
     }
     // We are trying to emit a CatchBlockBegin into a block that used to be the
@@ -1341,7 +1344,8 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     V<Any> raw_call =
         Base::ReduceCall(callee, frame_state, arguments, descriptor, effects);
     bool has_catch_block = false;
-    if (descriptor->can_throw == CanThrow::kYes) {
+    if (descriptor->can_throw == CanThrow::kYes ||
+        Asm().effect_handler_for_next_call().has_value()) {
       // TODO(nicohartmann@): Unfortunately, we have many descriptors where
       // effects are not set consistently with {can_throw}. We should fix those
       // and reenable this DCHECK.
@@ -1389,23 +1393,32 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
   // never explicitly.
   using Base::ReduceDidntThrow;
   V<None> REDUCE(CheckException)(V<Any> throwing_operation, Block* successor,
-                                 Block* catch_block) {
+                                 Block* catch_block,
+                                 std::optional<EffectHandler> effect_handler) {
     // {successor} and {catch_block} should never be the same.  AddPredecessor
     // and SplitEdge rely on this.
     DCHECK_NE(successor, catch_block);
     Block* saved_current_block = Asm().current_block();
-    V<None> new_opindex =
-        Base::ReduceCheckException(throwing_operation, successor, catch_block);
+    V<None> new_opindex = Base::ReduceCheckException(
+        throwing_operation, successor, catch_block, effect_handler);
     Asm().AddPredecessor(saved_current_block, successor, true);
-    Asm().AddPredecessor(saved_current_block, catch_block, true);
+    DCHECK(catch_block || effect_handler.has_value());
+    if (catch_block) {
+      Asm().AddPredecessor(saved_current_block, catch_block, true);
+    }
+    if (effect_handler.has_value()) {
+      Asm().AddPredecessor(saved_current_block, effect_handler->block, true);
+    }
     return new_opindex;
   }
 
   bool CatchIfInCatchScope(OpIndex throwing_operation) {
-    if (Asm().current_catch_block()) {
+    if (Asm().current_catch_block() ||
+        Asm().effect_handler_for_next_call().has_value()) {
       Block* successor = Asm().NewBlock();
       ReduceCheckException(throwing_operation, successor,
-                           Asm().current_catch_block());
+                           Asm().current_catch_block(),
+                           Asm().effect_handler_for_next_call());
       Asm().BindReachable(successor);
       return true;
     }
@@ -5726,6 +5739,14 @@ class Assembler : public AssemblerData,
   // this is sometimes impractical.
   void set_current_catch_block(Block* block) { current_catch_block_ = block; }
 
+  std::optional<EffectHandler> effect_handler_for_next_call() const {
+    return effect_handler_for_next_call_;
+  }
+  void set_effect_handler_for_next_call(int tag_index, Block* block) {
+    effect_handler_for_next_call_.emplace(tag_index, block);
+  }
+  void clear_effect_handler() { effect_handler_for_next_call_.reset(); }
+
 #ifdef DEBUG
   int& intermediate_tracing_depth() { return intermediate_tracing_depth_; }
 #endif
@@ -5903,12 +5924,22 @@ class Assembler : public AssemblerData,
           // can never be the same (there is a DCHECK in
           // CheckExceptionOp::Validate enforcing that).
           DCHECK_NE(catch_exception_op.catch_block, destination);
-        } else {
-          DCHECK_EQ(catch_exception_op.catch_block, destination);
+        } else if (catch_exception_op.catch_block == destination) {
           catch_exception_op.catch_block = intermediate_block;
           // A catch block always has to start with a `CatchBlockBeginOp`.
           BindReachable(intermediate_block);
           intermediate_block->SetOrigin(source->OriginForBlockEnd());
+          this->CatchBlockBegin();
+          this->Goto(destination);
+          return;
+        } else {
+          DCHECK(catch_exception_op.effect_handler.has_value());
+          DCHECK_EQ(catch_exception_op.effect_handler->block, destination);
+          catch_exception_op.effect_handler->block = intermediate_block;
+          BindReachable(intermediate_block);
+          intermediate_block->SetOrigin(source->OriginForBlockEnd());
+          // An effect handler block always has to start with a
+          // `CatchBlockBeginOp`.
           this->CatchBlockBegin();
           this->Goto(destination);
           return;
@@ -6013,6 +6044,8 @@ class Assembler : public AssemblerData,
 #ifdef DEBUG
   int intermediate_tracing_depth_ = 0;
 #endif
+
+  std::optional<EffectHandler> effect_handler_for_next_call_ = {};
 
   template <class Next>
   friend class TSReducerBase;

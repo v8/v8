@@ -4254,11 +4254,21 @@ struct CallOp : OperationT<CallOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+struct EffectHandler {
+  int tag_index;
+  Block* block;
+};
+
 // Catch an exception from the first operation of the `successor` block and
 // continue execution in `catch_block` in this case.
 struct CheckExceptionOp : FixedArityOperationT<1, CheckExceptionOp> {
   Block* didnt_throw_block;
   Block* catch_block;
+  // For WasmFX: an optional effect handler.
+  // A CheckExceptionOp is inserted if the operation must handle either
+  // exceptions, effects, or both. So users of this op must handle the case
+  // where {catch_block} is null or {effect_handler} is empty.
+  std::optional<EffectHandler> effect_handler;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
@@ -4271,15 +4281,21 @@ struct CheckExceptionOp : FixedArityOperationT<1, CheckExceptionOp> {
   }
 
   CheckExceptionOp(V<Any> throwing_operation, Block* successor,
-                   Block* catch_block)
+                   Block* catch_block,
+                   std::optional<EffectHandler> effect_handler = {})
       : Base(throwing_operation),
         didnt_throw_block(successor),
-        catch_block(catch_block) {}
+        catch_block(catch_block),
+        effect_handler(effect_handler) {}
 
   V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
 
   size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
-  auto options() const { return std::tuple{didnt_throw_block, catch_block}; }
+  auto options() const {
+    return std::tuple{
+        didnt_throw_block, catch_block,
+        effect_handler.has_value() ? effect_handler->block : nullptr};
+  }
 };
 
 // This is a pseudo-operation that marks the beginning of a catch block. It
@@ -4589,7 +4605,14 @@ inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
   switch (op.opcode) {
     case Opcode::kCheckException: {
       auto& casted = op.Cast<CheckExceptionOp>();
-      return {casted.didnt_throw_block, casted.catch_block};
+      base::SmallVector<Block*, 4> res{casted.didnt_throw_block};
+      if (casted.catch_block) {
+        res.push_back(casted.catch_block);
+      }
+      if (casted.effect_handler.has_value()) {
+        res.push_back(casted.effect_handler->block);
+      }
+      return res;
     }
     case Opcode::kGoto: {
       auto& casted = op.Cast<GotoOp>();
@@ -9685,6 +9708,7 @@ constexpr size_t input_count(const base::Flags<T>) {
 }
 constexpr size_t input_count(const Block*) { return 0; }
 constexpr size_t input_count(const TSCallDescriptor*) { return 0; }
+constexpr size_t input_count(std::optional<EffectHandler>) { return 0; }
 constexpr size_t input_count(const char*) { return 0; }
 constexpr size_t input_count(const DeoptimizeParameters*) { return 0; }
 constexpr size_t input_count(const FastApiCallParameters*) { return 0; }
@@ -9714,7 +9738,6 @@ constexpr size_t input_count(wasm::ValueType) { return 0; }
 constexpr size_t input_count(WasmTypeCheckConfig) { return 0; }
 constexpr size_t input_count(wasm::ModuleTypeIndex) { return 0; }
 constexpr size_t input_count(std::optional<AtomicMemoryOrder>) { return 0; }
-
 #endif
 
 // All parameters that are OpIndex-like (ie, OpIndex, and OpIndex containers)

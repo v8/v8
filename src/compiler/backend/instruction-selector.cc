@@ -2172,7 +2172,9 @@ void InstructionSelector::UpdateMaxPushedArgumentCount(size_t count) {
   *max_pushed_argument_count_ = std::max(count, *max_pushed_argument_count_);
 }
 
-void InstructionSelector::VisitCall(OpIndex node, Block* handler) {
+void InstructionSelector::VisitCall(
+    OpIndex node, Block* exception_handler,
+    std::optional<EffectHandler> effect_handler) {
   OperandGenerator g(this);
   const CallOp& call_op = Cast<CallOp>(node);
   const CallDescriptor* call_descriptor = call_op.descriptor->descriptor;
@@ -2232,15 +2234,25 @@ void InstructionSelector::VisitCall(OpIndex node, Block* handler) {
   }
 
   // Pass label of exception handler block.
-  if (handler) {
+  bool lazy_deopt_on_throw =
+      call_op.descriptor->lazy_deopt_on_throw == LazyDeoptOnThrow::kYes;
+  if (exception_handler) {
     flags |= CallDescriptor::kHasExceptionHandler;
-    buffer.instruction_args.push_back(g.Label(handler));
+    buffer.instruction_args.push_back(g.Label(exception_handler));
+  } else if (lazy_deopt_on_throw) {
+    flags |= CallDescriptor::kHasExceptionHandler;
+    buffer.instruction_args.push_back(
+        g.UseImmediate(kLazyDeoptOnThrowSentinel));
+  }
+  if (effect_handler.has_value()) {
+    flags |= CallDescriptor::kHasEffectHandler;
+    buffer.instruction_args.push_back(g.Label(effect_handler->block));
+    buffer.instruction_args.push_back(
+        g.UseImmediate(effect_handler->tag_index));
   } else {
-    if (call_op.descriptor->lazy_deopt_on_throw == LazyDeoptOnThrow::kYes) {
-      flags |= CallDescriptor::kHasExceptionHandler;
-      buffer.instruction_args.push_back(
-          g.UseImmediate(kLazyDeoptOnThrowSentinel));
-    }
+    // This bit had a different meaning before isel, so ensure that it is
+    // cleared:
+    flags &= ~CallDescriptor::kHasEffectHandler;
   }
 
   // Select the appropriate opcode based on the call type.
@@ -2702,7 +2714,8 @@ void InstructionSelector::VisitControl(const Block* block) {
     }
     case Opcode::kCheckException: {
       const CheckExceptionOp& check = op.Cast<CheckExceptionOp>();
-      VisitCall(check.throwing_operation(), check.catch_block);
+      VisitCall(check.throwing_operation(), check.catch_block,
+                check.effect_handler);
       VisitGoto(check.didnt_throw_block);
       return;
     }

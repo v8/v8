@@ -3779,8 +3779,18 @@ class TurboshaftGraphBuildingInterface
               TrapId::kTrapNullDereference);
     V<WordPtr> stack = __ LoadExternalPointerFromObject(
         cont_ref.op, WasmContinuationObject::kStackOffset, kWasmStackMemoryTag);
-    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume>(decoder,
-                                                                     {stack});
+    if (handlers.size() == 1 && handlers[0].kind == kOnSuspend) {
+      TSBlock* handler =
+          decoder->control_at(handlers[0].maybe_depth.br.depth)->merge_block;
+      int tag_index = handlers[0].tag.index;
+      asm_.set_effect_handler_for_next_call(tag_index, handler);
+    } else if (handlers.size() > 1 ||
+               (handlers.size() == 1 && handlers[0].kind == kSwitch)) {
+      UNIMPLEMENTED();
+    }
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume>(
+        decoder, {stack}, CheckForException::kCatchInThisFrame);
+    asm_.clear_effect_handler();
   }
 
   void ResumeThrow(FullDecoder* decoder,
@@ -8098,7 +8108,6 @@ class TurboshaftGraphBuildingInterface
     OpIndex call;
     {
       Assembler::CatchScope scope(asm_, exception_block);
-
       call = __ Call(callee, OpIndex::Invalid(), args, descriptor, effects);
       __ Goto(success_block);
     }

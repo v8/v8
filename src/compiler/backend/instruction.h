@@ -1084,10 +1084,9 @@ class V8_EXPORT_PRIVATE Instruction final {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
     switch (arch_opcode()) {
       case kArchCallWasmFunctionIndirect:
-        return InputCount() -
-               (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)
-                    ? 2
-                    : 1);
+        return InputCount() - 1 -
+               HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -
+               2 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
       case kArchTailCallWasmIndirect:
         return InputCount() - 3;
       default:
@@ -1101,10 +1100,9 @@ class V8_EXPORT_PRIVATE Instruction final {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
     switch (arch_opcode()) {
       case kArchCallCodeObject:
-        return InputCount() -
-               (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)
-                    ? 2
-                    : 1);
+        return InputCount() - 1 -
+               HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -
+               2 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
       case kArchTailCallCodeObject:
         return InputCount() - 3;
       default:
@@ -1115,11 +1113,9 @@ class V8_EXPORT_PRIVATE Instruction final {
   // For JS call instructions, computes the index of the argument count input.
   size_t JSCallArgumentCountInputIndex() const {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
-    if (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
-      return InputCount() - 2;
-    } else {
-      return InputCount() - 1;
-    }
+    return InputCount() - 1 -
+           HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -
+           2 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
   }
 
   enum GapPosition {
