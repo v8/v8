@@ -4554,6 +4554,19 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CheckedNumberToFloat64* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind =
+        ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
+    SetMap(node,
+           __ ConvertJSPrimitiveToUntaggedOrDeopt(
+               Map(node->input()), frame_state, kind,
+               ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64,
+               CheckForMinusZeroMode::kCheckForMinusZero,
+               node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckedNumberOrOddballToFloat64* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -4620,6 +4633,18 @@ class GraphBuildingNodeProcessor {
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
             CheckForMinusZeroMode::kCheckForMinusZero,
             node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::UncheckedNumberToFloat64* node,
+                                const maglev::ProcessingState& state) {
+    // `node->conversion_type()` doesn't matter here, since for both HeapNumbers
+    // and Oddballs, the Float64 value is at the same index (and this node never
+    // deopts, regardless of its input).
+    SetMap(node, __ ConvertJSPrimitiveToUntagged(
+                     Map(node->input()),
+                     ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64,
+                     ConvertJSPrimitiveToUntaggedOp::InputAssumptions::
+                         kNumberOrOddball));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::UncheckedNumberOrOddballToFloat64* node,

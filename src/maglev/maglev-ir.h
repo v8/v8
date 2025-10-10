@@ -305,7 +305,9 @@ class ExceptionHandlerInfo;
   V(HoleyFloat64ToTagged)                                             \
   V(CheckedSmiTagFloat64)                                             \
   V(CheckedNumberToInt32)                                             \
+  V(CheckedNumberToFloat64)                                           \
   V(CheckedNumberOrOddballToFloat64)                                  \
+  V(UncheckedNumberToFloat64)                                         \
   V(UncheckedNumberOrOddballToFloat64)                                \
   V(CheckedNumberOrOddballToHoleyFloat64)                             \
   V(CheckedHoleyFloat64ToFloat64)                                     \
@@ -4892,28 +4894,26 @@ DEFINE_TRUNCATE_NODE(TruncateHoleyFloat64ToInt32, HoleyFloat64,
                      OpProperties::Int32())
 #undef DEFINE_TRUNCATE_NODE
 
-// TODO(dmercadier): Number->Float64 conversions are exact and could still be
-// marked with the ConversionNode OpProperties, but Oddball->Float64 are not,
-// which is why this node doesn't have the ConversionNode property. We could
-// consider splitting this node in 2 (or for Numbers, one for NumberOrOddball),
-// as well as adding a "tonumber_float64" alternative.
-template <typename Derived, ValueRepresentation FloatType>
-  requires(FloatType == ValueRepresentation::kFloat64 ||
-           FloatType == ValueRepresentation::kHoleyFloat64)
-class CheckedNumberOrOddballToFloat64OrHoleyFloat64
+template <typename Derived, bool IsConversion>
+class CheckedNumberOrOddballToFloat64T
     : public FixedInputValueNodeT<1, Derived> {
   using Base = FixedInputValueNodeT<1, Derived>;
   using Base::result;
 
  public:
-  explicit CheckedNumberOrOddballToFloat64OrHoleyFloat64(
+  explicit CheckedNumberOrOddballToFloat64T(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
       : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {}
+                                                         conversion_type)) {
+    // Only Number->Float64 can be considered as a conversion, since
+    // Oddball->Float64 is not reversible.
+    DCHECK_EQ(conversion_type == TaggedToFloat64ConversionType::kOnlyNumber,
+              IsConversion);
+  }
 
   static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() |
-      OpProperties::ForValueRepresentation(FloatType);
+      OpProperties::EagerDeopt() | OpProperties::Float64() |
+      (IsConversion ? OpProperties::ConversionNode() : OpProperties(0));
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -4941,15 +4941,26 @@ class CheckedNumberOrOddballToFloat64OrHoleyFloat64
 };
 
 class CheckedNumberOrOddballToFloat64
-    : public CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-          CheckedNumberOrOddballToFloat64, ValueRepresentation::kFloat64> {
-  using Base = CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-      CheckedNumberOrOddballToFloat64, ValueRepresentation::kFloat64>;
+    : public CheckedNumberOrOddballToFloat64T<CheckedNumberOrOddballToFloat64,
+                                              false> {
+  using Base =
+      CheckedNumberOrOddballToFloat64T<CheckedNumberOrOddballToFloat64, false>;
 
  public:
   explicit CheckedNumberOrOddballToFloat64(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
       : Base(bitfield, conversion_type) {}
+};
+
+class CheckedNumberToFloat64
+    : public CheckedNumberOrOddballToFloat64T<CheckedNumberToFloat64, true> {
+  using Base = CheckedNumberOrOddballToFloat64T<CheckedNumberToFloat64, true>;
+
+ public:
+  explicit CheckedNumberToFloat64(uint64_t bitfield)
+      : Base(bitfield, TaggedToFloat64ConversionType::kOnlyNumber) {}
+
+  auto options() const { return std::tuple{}; }
 };
 
 class CheckedNumberOrOddballToHoleyFloat64
@@ -4963,7 +4974,10 @@ class CheckedNumberOrOddballToHoleyFloat64
       : Base(TaggedToFloat64SilenceNumberNansOffset::update(
             TaggedToFloat64ConversionTypeOffset::update(bitfield,
                                                         conversion_type),
-            silence_number_nans)) {}
+            silence_number_nans)) {
+    // CheckedNumberToFloat64 should be used instead for kOnlyNumber.
+    DCHECK_NE(conversion_type, TaggedToFloat64ConversionType::kOnlyNumber);
+  }
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::HoleyFloat64() |
@@ -5028,22 +5042,26 @@ class CheckedNumberToInt32
   void PrintParams(std::ostream&) const {}
 };
 
-// TODO(dmercadier): Number->Float64 conversions are exact and could still be
-// marked with the ConversionNode OpProperties, but Oddball->Float64 are not,
-// which is why this node doesn't have the ConversionNode property. We could
-// consider splitting this node in 2 (or for Numbers, one for NumberOrOddball),
-// as well as adding a "tonumber_float64" alternative.
-class UncheckedNumberOrOddballToFloat64
-    : public FixedInputValueNodeT<1, UncheckedNumberOrOddballToFloat64> {
-  using Base = FixedInputValueNodeT<1, UncheckedNumberOrOddballToFloat64>;
+template <typename Derived, bool IsConversion>
+class UncheckedNumberOrOddballToFloat64T
+    : public FixedInputValueNodeT<1, Derived> {
+  using Base = FixedInputValueNodeT<1, Derived>;
+  using Base::result;
 
  public:
-  explicit UncheckedNumberOrOddballToFloat64(
+  explicit UncheckedNumberOrOddballToFloat64T(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
       : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
-                                                         conversion_type)) {}
+                                                         conversion_type)) {
+    // Only Number->Float64 can be considered as a conversion, since
+    // Oddball->Float64 is not reversible.
+    DCHECK_EQ(conversion_type == TaggedToFloat64ConversionType::kOnlyNumber,
+              IsConversion);
+  }
 
-  static constexpr OpProperties kProperties = OpProperties::Float64();
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() |
+      (IsConversion ? OpProperties::ConversionNode() : OpProperties(0));
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -5054,14 +5072,42 @@ class UncheckedNumberOrOddballToFloat64
   void PrintParams(std::ostream&) const;
 
   TaggedToFloat64ConversionType conversion_type() const {
-    return TaggedToFloat64ConversionTypeOffset::decode(bitfield());
+    return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
   }
 
   auto options() const { return std::tuple{conversion_type()}; }
 
  private:
   using TaggedToFloat64ConversionTypeOffset =
-      NextBitField<TaggedToFloat64ConversionType, 2>;
+      Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
+};
+
+class UncheckedNumberOrOddballToFloat64
+    : public UncheckedNumberOrOddballToFloat64T<
+          UncheckedNumberOrOddballToFloat64, false> {
+  using Base =
+      UncheckedNumberOrOddballToFloat64T<UncheckedNumberOrOddballToFloat64,
+                                         false>;
+
+ public:
+  explicit UncheckedNumberOrOddballToFloat64(
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
+      : Base(bitfield, conversion_type) {
+    // UncheckedNumberToFloat64 should be used instead for kOnlyNumber.
+    DCHECK_NE(conversion_type, TaggedToFloat64ConversionType::kOnlyNumber);
+  }
+};
+class UncheckedNumberToFloat64
+    : public UncheckedNumberOrOddballToFloat64T<UncheckedNumberToFloat64,
+                                                true> {
+  using Base =
+      UncheckedNumberOrOddballToFloat64T<UncheckedNumberToFloat64, true>;
+
+ public:
+  explicit UncheckedNumberToFloat64(uint64_t bitfield)
+      : Base(bitfield, TaggedToFloat64ConversionType::kOnlyNumber) {}
+
+  auto options() const { return std::tuple{}; }
 };
 
 class CheckedHoleyFloat64ToFloat64

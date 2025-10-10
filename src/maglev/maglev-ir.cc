@@ -741,7 +741,9 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kCheckedNumberToUint8Clamped:
     case Opcode::kFloat64ToHeapNumberForField:
     case Opcode::kCheckedNumberOrOddballToFloat64:
+    case Opcode::kCheckedNumberToFloat64:
     case Opcode::kUncheckedNumberOrOddballToFloat64:
+    case Opcode::kUncheckedNumberToFloat64:
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
     case Opcode::kCheckedHoleyFloat64ToFloat64:
     case Opcode::kHoleyFloat64ToMaybeNanFloat64:
@@ -2127,20 +2129,15 @@ void TryUnboxNumberOrOddball(MaglevAssembler* masm, DoubleRegister dst,
 }
 
 }  // namespace
-template <typename Derived, ValueRepresentation FloatType>
-  requires(FloatType == ValueRepresentation::kFloat64 ||
-           FloatType == ValueRepresentation::kHoleyFloat64)
-void CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-    Derived, FloatType>::SetValueLocationConstraints() {
+template <typename Derived, bool IsConversion>
+void CheckedNumberOrOddballToFloat64T<
+    Derived, IsConversion>::SetValueLocationConstraints() {
   UseAndClobberRegister(input());
   DefineAsRegister(this);
 }
-template <typename Derived, ValueRepresentation FloatType>
-  requires(FloatType == ValueRepresentation::kFloat64 ||
-           FloatType == ValueRepresentation::kHoleyFloat64)
-void CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-    Derived, FloatType>::GenerateCode(MaglevAssembler* masm,
-                                      const ProcessingState& state) {
+template <typename Derived, bool IsConversion>
+void CheckedNumberOrOddballToFloat64T<Derived, IsConversion>::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(input());
   TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
                           conversion_type(),
@@ -2194,12 +2191,14 @@ void HoleyFloat64SilenceNumberNans::GenerateCode(MaglevAssembler* masm,
   __ Float64SilenceNan(value);
   __ bind(&done);
 }
-
-void UncheckedNumberOrOddballToFloat64::SetValueLocationConstraints() {
+template <typename Derived, bool IsConversion>
+void UncheckedNumberOrOddballToFloat64T<
+    Derived, IsConversion>::SetValueLocationConstraints() {
   UseAndClobberRegister(input());
   DefineAsRegister(this);
 }
-void UncheckedNumberOrOddballToFloat64::GenerateCode(
+template <typename Derived, bool IsConversion>
+void UncheckedNumberOrOddballToFloat64T<Derived, IsConversion>::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(input());
   TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
@@ -8287,15 +8286,15 @@ void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {
   os << "(" << index_ << ")";
 }
 
-template <typename Derived, ValueRepresentation FloatType>
-  requires(FloatType == ValueRepresentation::kFloat64 ||
-           FloatType == ValueRepresentation::kHoleyFloat64)
-void CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-    Derived, FloatType>::PrintParams(std::ostream& os) const {
+template <typename Derived, bool IsConversion>
+void CheckedNumberOrOddballToFloat64T<Derived, IsConversion>::PrintParams(
+    std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
-void UncheckedNumberOrOddballToFloat64::PrintParams(std::ostream& os) const {
+template <typename Derived, bool IsConversion>
+void UncheckedNumberOrOddballToFloat64T<Derived, IsConversion>::PrintParams(
+    std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
@@ -8653,10 +8652,13 @@ template class AbstractLoadTaggedField<LoadTaggedField>;
 template class AbstractLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>;
 template class AbstractLoadTaggedField<LoadTaggedFieldForProperty>;
 
-template class CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-    CheckedNumberOrOddballToFloat64, ValueRepresentation::kFloat64>;
-template class CheckedNumberOrOddballToFloat64OrHoleyFloat64<
-    CheckedNumberOrOddballToHoleyFloat64, ValueRepresentation::kHoleyFloat64>;
+template class CheckedNumberOrOddballToFloat64T<CheckedNumberToFloat64, true>;
+template class CheckedNumberOrOddballToFloat64T<CheckedNumberOrOddballToFloat64,
+                                                false>;
+template class UncheckedNumberOrOddballToFloat64T<UncheckedNumberToFloat64,
+                                                  true>;
+template class UncheckedNumberOrOddballToFloat64T<
+    UncheckedNumberOrOddballToFloat64, false>;
 
 std::optional<int32_t> NodeBase::TryGetInt32ConstantInput(int index) {
   Node* node = input(index).node();

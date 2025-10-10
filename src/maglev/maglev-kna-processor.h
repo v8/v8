@@ -267,9 +267,13 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_SAFE_CONV(CheckedNumberToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
   PROCESS_SAFE_CONV(CheckedSmiTagFloat64, float64, Smi)
+  // TODO(victorgomes): pass node->conversion_type() rather than always
+  // NumberOrOddball for CheckedNumberOrOddballToFloat64.
   PROCESS_SAFE_CONV(CheckedNumberOrOddballToFloat64, float64, NumberOrOddball)
+  PROCESS_SAFE_CONV(CheckedNumberToFloat64, float64, Number)
   PROCESS_UNSAFE_CONV(UncheckedNumberOrOddballToFloat64, float64,
                       NumberOrOddball)
+  PROCESS_UNSAFE_CONV(UncheckedNumberToFloat64, float64, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
   PROCESS_UNSAFE_CONV(HoleyFloat64ToMaybeNanFloat64, float64, Number)
 #undef PROCESS_SAFE_CONV

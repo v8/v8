@@ -1519,8 +1519,12 @@ UNTAGGING_CASE(TruncateUnsafeNumberOrOddballToInt32, TruncatedInt32,
                node->conversion_type())
 UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64,
                node->conversion_type())
+UNTAGGING_CASE(CheckedNumberToFloat64, Float64,
+               TaggedToFloat64ConversionType::kOnlyNumber)
 UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64,
                node->conversion_type())
+UNTAGGING_CASE(UncheckedNumberToFloat64, Float64,
+               TaggedToFloat64ConversionType::kOnlyNumber)
 #undef UNTAGGING_CASE
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
     CheckedSmiUntag* node, const ProcessingState& state) {

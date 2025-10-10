@@ -10743,11 +10743,11 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
   ToNumberOrNumeric* conversion;
   GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
                                      {arg}, Object::Conversion::kToNumber));
+  // TODO(victorgomes): rely on automatic input conversion here rather than
+  // calling UncheckedNumberToFloat64 manually.
   ValueNode* float64_value;
-  GET_VALUE_OR_ABORT(
-      float64_value,
-      AddNewNode<UncheckedNumberOrOddballToFloat64>(
-          {conversion}, TaggedToFloat64ConversionType::kOnlyNumber));
+  GET_VALUE_OR_ABORT(float64_value,
+                     AddNewNode<UncheckedNumberToFloat64>({conversion}));
   return AddNewNode<Float64Round>({float64_value}, kind);
 }
 
@@ -10837,11 +10837,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
   ToNumberOrNumeric* conversion;
   GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
                                      {arg}, Object::Conversion::kToNumber));
+  // TODO(victorgomes): rely on automatic input conversion here rather than
+  // calling UncheckedNumberToFloat64 manually.
   ValueNode* float64_value;
-  GET_VALUE_OR_ABORT(
-      float64_value,
-      AddNewNode<UncheckedNumberOrOddballToFloat64>(
-          {conversion}, TaggedToFloat64ConversionType::kOnlyNumber));
+  GET_VALUE_OR_ABORT(float64_value,
+                     AddNewNode<UncheckedNumberToFloat64>({conversion}));
   return AddNewNode<Float64CountLeadingZeros>({float64_value});
 }
 

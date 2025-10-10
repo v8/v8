@@ -1150,17 +1150,28 @@ template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64(
     ValueNode* node, NodeType allowed_input_type) {
   NodeType old_type;
-  auto conversion_type = GetTaggedToFloat64ConversionType(allowed_input_type);
+  TaggedToFloat64ConversionType conversion_type =
+      GetTaggedToFloat64ConversionType(allowed_input_type);
   if (EnsureType(node, allowed_input_type, &old_type)) {
     if (old_type == NodeType::kSmi) {
       ValueNode* untagged_smi = BuildSmiUntag(node);
       return AddNewNodeNoAbort<ChangeInt32ToFloat64>({untagged_smi});
     }
-    return AddNewNodeNoAbort<UncheckedNumberOrOddballToFloat64>(
-        {node}, conversion_type);
+    if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
+      return AddNewNodeNoAbort<UncheckedNumberToFloat64>({node});
+
+    } else {
+      return AddNewNodeNoAbort<UncheckedNumberOrOddballToFloat64>(
+          {node}, conversion_type);
+    }
   } else {
-    return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>({node},
-                                                              conversion_type);
+    if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
+      return AddNewNodeNoAbort<CheckedNumberToFloat64>({node});
+
+    } else {
+      return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>(
+          {node}, conversion_type);
+    }
   }
 }
 
