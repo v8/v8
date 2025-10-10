@@ -1249,7 +1249,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   {
 #ifdef ENABLE_DISASSEMBLER
     if (v8_flags.print_regexp_code &&
-        data->compilation_target == RegExpCompilationTarget::kNative) {
+        data->compilation_target == RegExpCompilationTarget::kNative &&
+        result.Succeeded()) {
       CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
       OFStream os(trace_scope.file());
       auto code = CheckedCast<Code>(result.code);
@@ -1258,7 +1259,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     }
 #endif
     if (v8_flags.print_regexp_bytecode &&
-        data->compilation_target == RegExpCompilationTarget::kBytecode) {
+        data->compilation_target == RegExpCompilationTarget::kBytecode &&
+        result.Succeeded()) {
       auto bytecode = CheckedCast<TrustedByteArray>(result.code);
       std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
       RegExpBytecodeDisassemble(bytecode->begin(), bytecode->length(),
