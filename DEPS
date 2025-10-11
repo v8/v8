@@ -87,7 +87,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:29.20251004.3.1',
+  'fuchsia_version': 'version:29.20251011.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -130,7 +130,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '99f8d0f4dbccc2724258ab280f0e000b94681e8d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '86343db8bb208c734b7c49485f51c0442acd5498',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '66c901ce4f8beba61ac6ef0244e4505840f18070',
   'buildtools/linux64': {
@@ -312,7 +312,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd200a5352ef186e2af83f56bd4fd230972f3c8f8',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'bd0c0334345f1ffa2c4bbfa611ebfefb5da0c39e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '42896a2dc20f55c4bdd0b78b82a7e94740ebbac7',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
