@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '86343db8bb208c734b7c49485f51c0442acd5498',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '59946837f911a29ca16bd255174d6f3a9f7f3c16',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '66c901ce4f8beba61ac6ef0244e4505840f18070',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e05d19157e5cfb3c0ec365be4f4076300dd7bb48',
   'buildtools/linux64': {
     'packages': [
       {
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'b698d495e36ca7f61e8adf348248c8fa0798c9d9',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '975c43dbece420669acf88795f5f16fc14da38c9',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '8e720a3a3ae30fcfffe436aae418c91acacc34d0',
   'third_party/libpfm4':
@@ -310,7 +310,7 @@ deps = {
   'third_party/libpfm4/src':
     Var('chromium_url') + '/external/git.code.sf.net/p/perfmon2/libpfm4.git' + '@' + '964baf9d35d5f88d8422f96d8a82c672042e7064',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd200a5352ef186e2af83f56bd4fd230972f3c8f8',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'a8f7d512055916d1069093a1672d4705019e36f8',
   'third_party/llvm-libc/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '42896a2dc20f55c4bdd0b78b82a7e94740ebbac7',
   'third_party/llvm-build/Release+Asserts': {
