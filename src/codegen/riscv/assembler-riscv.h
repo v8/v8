@@ -178,7 +178,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                     public AssemblerRISCVZifencei,
                                     public AssemblerRISCVZicsr,
                                     public AssemblerRISCVZicond,
-                                    public AssemblerRISCVZimop,
+                                    public AssemblerRISCVZicfiss,
                                     public AssemblerRISCVZfh,
                                     public AssemblerRISCVV {
  public:

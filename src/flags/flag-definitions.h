@@ -2680,6 +2680,12 @@ DEFINE_BOOL(riscv_b_extension, false,
 DEFINE_BOOL(
     use_aliases, true,
     "use aliases for instruction mnemonics when printing code (RISCV only)")
+
+#ifdef USE_SIMULATOR
+DEFINE_BOOL(sim_abort_on_shadowstack_mismatch, true,
+            "Stop execution when shadowstack match fails in the "
+            "riscv simulator.")
+#endif
 #endif
 
 // Controlling source positions for Torque/CSA code.
