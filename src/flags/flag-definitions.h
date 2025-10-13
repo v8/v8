@@ -999,7 +999,7 @@ DEFINE_BOOL(
     "reducing GCs.")
 DEFINE_BOOL(high_end_android, false,
             "Enables high-end mode unconditionally for Android.")
-DEFINE_UINT(high_end_android_physical_memory_threshold, UINT_MAX,
+DEFINE_UINT(high_end_android_physical_memory_threshold, 8,
             "Enables high-end mode for devices with more than X GB of physical "
             "memory (if X greater than 0).")
 
