@@ -1098,6 +1098,14 @@ static uint8_t kDummyModuleWireBytes[]{
 }  // namespace
 
 void AddDummyTypesToTypeCanonicalizer(Isolate* isolate) {
+#ifdef DEBUG
+  // We do not want to dump this dummy module; it would be confusing to dump two
+  // modules.
+  FlagScope<bool> no_dump_module(&v8_flags.dump_wasm_module, false);
+#else
+  static_assert(v8_flags.dump_wasm_module.value() == false);
+#endif
+
   const size_t type_count = GetTypeCanonicalizer()->GetCurrentNumberOfTypes();
   const bool is_valid = GetWasmEngine()->SyncValidate(
       isolate, WasmEnabledFeatures(), CompileTimeImportsForFuzzing(),
