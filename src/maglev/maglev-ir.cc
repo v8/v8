@@ -107,15 +107,6 @@ void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
 
 #endif  // DEBUG
 
-void NodeBase::UnwrapIdentityInputs() {
-  for (int i = 0; i < input_count(); i++) {
-    ValueNode* input = input_node(i);
-    if (!input) continue;
-    if (!input->Is<Identity>()) continue;
-    change_input(i, input->UnwrapIdentities());
-  }
-}
-
 std::ostream& operator<<(std::ostream& os, UseRepresentation repr) {
   switch (repr) {
     case UseRepresentation::kTagged:
@@ -176,35 +167,6 @@ void Phi::SetUseRequires31BitValue() {
       phi->SetUseRequires31BitValue();
     }
   }
-}
-
-bool Phi::IsIdentityPhi() const {
-  if (input_count() == 0) {
-    DCHECK(is_exception_phi());
-    return false;
-  }
-  if (merge_state_->is_resumable_loop()) {
-    // Resumable loops aren't always entered through the loop header, which
-    // means that they can contain Phis with a single input but this input is
-    // the backedge, and removing the Phi will mean using the backedge value
-    // instead, but it's possible that it isn't defined yet.
-    return false;
-  }
-
-  const ValueNode* first_input = input_node(0)->UnwrapIdentities();
-  const int skip_backedge = is_loop_phi() ? 1 : 0;
-  for (int i = 1; i < input_count() - skip_backedge; i++) {
-    if (input_node(i)->UnwrapIdentities() != first_input) {
-      return false;
-    }
-  }
-
-  if (!is_loop_phi()) return true;
-
-  // If the backedge if either the phi itself, or equal to the other inputs,
-  // then this is an identity phi.
-  return backedge_input().node() == this ||
-         backedge_input().node() == first_input;
 }
 
 InitialValue::InitialValue(uint64_t bitfield, interpreter::Register source)
@@ -912,7 +874,8 @@ ValueRepresentation ToValueRepresentation(MachineType type) {
 
 void CheckValueInputIs(const NodeBase* node, int i,
                        ValueRepresentation expected) {
-  const ValueNode* input = node->input(i).node()->UnwrapIdentities();
+  const ValueNode* input = node->input(i).node();
+  DCHECK(!input->Is<Identity>());
   ValueRepresentation got = input->properties().value_representation();
   bool valid = ValueRepresentationIs(got, expected);
   if (!valid) {
@@ -928,7 +891,7 @@ void CheckValueInputIs(const NodeBase* node, int i,
 }
 
 void CheckValueInputIs(const NodeBase* node, int i, Opcode expected) {
-  const ValueNode* input = node->input(i).node()->UnwrapIdentities();
+  const ValueNode* input = node->input(i).node();
   Opcode got = input->opcode();
   if (got != expected) {
     std::ostringstream str;

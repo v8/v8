@@ -195,8 +195,8 @@ class MaglevPhiRepresentationSelector {
   // the 1st input, 1 for the 2nd, etc.), so that we can use the SnapshotTable
   // to find existing tagging for {phi} in the {predecessor_index}th predecessor
   // of the current block.
-  ValueNode* EnsureNodeTagged(
-      ValueNode* node, BasicBlock* block, BasicBlockPosition pos,
+  ValueNode* EnsurePhiTagged(
+      Phi* phi, BasicBlock* block, BasicBlockPosition pos,
       const ProcessingState* state,
       std::optional<int> predecessor_index = std::nullopt);
 

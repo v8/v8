@@ -102,8 +102,6 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     return ProcessPhiResult::kNone;
   }
 
-  node->UnwrapIdentityInputs();
-
   TRACE_UNTAGGING("Considering for untagging: " << PrintNodeLabel(node));
 
   // {input_mask} represents the ValueRepresentation that {node} could have,
@@ -373,9 +371,9 @@ void MaglevPhiRepresentationSelector::EnsurePhiInputsTagged(Phi* phi) {
   for (int i = 0; i < phi->input_count() - skip_backedge; i++) {
     ValueNode* input = phi->input(i).node();
     if (Phi* phi_input = input->TryCast<Phi>()) {
-      phi->change_input(
-          i, EnsureNodeTagged(phi_input, phi->predecessor_at(i),
-                              BasicBlockPosition::End(), nullptr, i));
+      phi->change_input(i,
+                        EnsurePhiTagged(phi_input, phi->predecessor_at(i),
+                                        BasicBlockPosition::End(), nullptr, i));
     } else {
       // Inputs of Phis that aren't Phi should always be tagged (except for the
       // phis untagged by this class, but {phi} isn't one of them).
@@ -919,8 +917,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     // an Int32/Uint32 phi that doesn't fit on 31 bits), so we need the write
     // barrier.
     node->change_input(input_index,
-                       EnsureNodeTagged(phi, reducer_.current_block(),
-                                        BasicBlockPosition::Start(), state));
+                       EnsurePhiTagged(phi, reducer_.current_block(),
+                                       BasicBlockPosition::Start(), state));
     static_assert(StoreTaggedFieldNoWriteBarrier::kObjectIndex ==
                   StoreTaggedFieldWithWriteBarrier::kObjectIndex);
     static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
@@ -954,8 +952,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     // an Int32/Uint32 phi that doesn't fit on 31 bits), so we need the write
     // barrier.
     node->change_input(input_index,
-                       EnsureNodeTagged(phi, reducer_.current_block(),
-                                        BasicBlockPosition::Start(), state));
+                       EnsurePhiTagged(phi, reducer_.current_block(),
+                                       BasicBlockPosition::Start(), state));
     static_assert(StoreFixedArrayElementNoWriteBarrier::kElementsIndex ==
                   StoreFixedArrayElementWithWriteBarrier::kElementsIndex);
     static_assert(StoreFixedArrayElementNoWriteBarrier::kIndexIndex ==
@@ -1013,24 +1011,23 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     DCHECK_NE(new_nodes_.find(node), new_nodes_.end());
   } else {
     node->change_input(input_index,
-                       EnsureNodeTagged(phi, reducer_.current_block(),
-                                        BasicBlockPosition::Start(), state));
+                       EnsurePhiTagged(phi, reducer_.current_block(),
+                                       BasicBlockPosition::Start(), state));
   }
   return ProcessResult::kContinue;
 }
 
-ValueNode* MaglevPhiRepresentationSelector::EnsureNodeTagged(
-    ValueNode* node, BasicBlock* block, BasicBlockPosition pos,
+ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
+    Phi* phi, BasicBlock* block, BasicBlockPosition pos,
     const ProcessingState* state, std::optional<int> predecessor_index) {
   DCHECK_IMPLIES(state == nullptr, pos == BasicBlockPosition::End());
-  node = node->UnwrapIdentities();
 
-  if (node->value_representation() == ValueRepresentation::kTagged) {
-    return node;
+  if (phi->value_representation() == ValueRepresentation::kTagged) {
+    return phi;
   }
 
   // Try to find an existing Tagged conversion for {phi} in {phi_taggings_}.
-  if (Phi* phi = node->TryCast<Phi>(); phi && phi->has_key()) {
+  if (phi->has_key()) {
     if (predecessor_index.has_value()) {
       if (ValueNode* tagging = phi_taggings_.GetPredecessorValue(
               phi->key(), predecessor_index.value())) {
@@ -1045,26 +1042,25 @@ ValueNode* MaglevPhiRepresentationSelector::EnsureNodeTagged(
 
   // We didn't already Tag {phi} on the current path; creating this tagging now.
   ValueNode* tagged = nullptr;
-  switch (node->value_representation()) {
+  switch (phi->value_representation()) {
     case ValueRepresentation::kFloat64:
       // It's important to use kCanonicalizeSmi for Float64ToTagged, as
       // otherwise, we could end up storing HeapNumbers in Smi fields.
       tagged = AddNewNodeNoInputConversion<Float64ToTagged>(
-          block, pos, {node},
-          Float64ToTagged::ConversionMode::kCanonicalizeSmi);
+          block, pos, {phi}, Float64ToTagged::ConversionMode::kCanonicalizeSmi);
       break;
     case ValueRepresentation::kHoleyFloat64:
       // It's important to use kCanonicalizeSmi for HoleyFloat64ToTagged, as
       // otherwise, we could end up storing HeapNumbers in Smi fields.
       tagged = AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-          block, pos, {node},
+          block, pos, {phi},
           HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
       break;
     case ValueRepresentation::kInt32:
-      tagged = AddNewNodeNoInputConversion<Int32ToNumber>(block, pos, {node});
+      tagged = AddNewNodeNoInputConversion<Int32ToNumber>(block, pos, {phi});
       break;
     case ValueRepresentation::kUint32:
-      tagged = AddNewNodeNoInputConversion<Uint32ToNumber>(block, pos, {node});
+      tagged = AddNewNodeNoInputConversion<Uint32ToNumber>(block, pos, {phi});
       break;
     case ValueRepresentation::kTagged:
       // Already handled at the begining of this function.
@@ -1082,9 +1078,6 @@ ValueNode* MaglevPhiRepresentationSelector::EnsureNodeTagged(
                        block->successors().at(0) == block);
     return tagged;
   }
-
-  Phi* phi = node->TryCast<Phi>();
-  if (!phi) return tagged;
 
   if (phi->has_key()) {
     // The Key already existed, but wasn't set on the current path.
@@ -1109,13 +1102,20 @@ void MaglevPhiRepresentationSelector::FixLoopPhisBackedge(BasicBlock* block) {
       // If the backedge is a Phi that was untagged, but {phi} is tagged, then
       // we need to retag the backedge.
 
+      // Identity nodes are used to replace outdated untagging nodes after a phi
+      // has been untagged. Here, since the backedge was initially tagged, it
+      // couldn't have been such an untagging node, so it shouldn't be an
+      // Identity node now.
+      DCHECK(!backedge->Is<Identity>());
+
       if (backedge->value_representation() != ValueRepresentation::kTagged) {
         // Since all Phi inputs are initially tagged, the fact that the backedge
         // is not tagged means that it's a Phi that we recently untagged.
+        DCHECK(backedge->Is<Phi>());
         phi->change_input(
             last_input_idx,
-            EnsureNodeTagged(backedge, reducer_.current_block(),
-                             BasicBlockPosition::End(), /*state*/ nullptr));
+            EnsurePhiTagged(backedge->Cast<Phi>(), reducer_.current_block(),
+                            BasicBlockPosition::End(), /*state*/ nullptr));
       }
     } else {
       // If {phi} was untagged and its backedge became Identity, then we need to

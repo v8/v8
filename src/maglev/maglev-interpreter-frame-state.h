@@ -72,7 +72,7 @@ class InterpreterFrameState {
                        reg == interpreter::Register::function_closure() ||
                        reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
-    return frame_[reg]->Unwrap();
+    return frame_[reg];
   }
 
   const RegisterFrameArray<ValueNode*>& frame() const { return frame_; }
@@ -376,7 +376,6 @@ class MergePointInterpreterFrameState {
     MergeDead(compilation_unit);
     // This means that this is no longer a loop.
     clear_is_loop();
-    ClearIdentityPhis();
   }
 
   // Clears dead loop state, after all merges have already be done.
@@ -386,7 +385,6 @@ class MergePointInterpreterFrameState {
     predecessors_so_far_--;
     ReducePhiPredecessorCount(1);
     clear_is_loop();
-    ClearIdentityPhis();
   }
 
   void RemovePredecessorAt(int predecessor_id);
@@ -420,10 +418,6 @@ class MergePointInterpreterFrameState {
 
   bool has_phi() const { return !phis_.is_empty(); }
   Phi::List* phis() { return &phis_; }
-
-  // ClearIdentityPhis iterates {phis_} and removes the "identity phis", ie,
-  // phis whose inputs are all the same.
-  void ClearIdentityPhis();
 
   uint32_t predecessor_count() const { return predecessor_count_; }
 

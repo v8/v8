@@ -414,7 +414,6 @@ void MergePointInterpreterFrameState::MergeLoop(
                        value, loop_end_state.get(reg));
         PrintAfterMerge(builder, value, known_node_aspects_);
       });
-  ClearIdentityPhis();
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
 
@@ -503,7 +502,6 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
                        value, loop_end_state.get(reg));
         PrintAfterMerge(builder, value, known_node_aspects_);
       });
-  ClearIdentityPhis();
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
   ClearLoopInfo();
@@ -733,7 +731,6 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
     ValueNode* unmerged, Alternatives::List* per_predecessor_alternatives,
     bool optimistic_loop_phis) {
-  unmerged = unmerged->UnwrapIdentities();
   // If the merged node is null, this is a pre-created loop header merge
   // frame will null values for anything that isn't a loop Phi.
   if (merged == nullptr) {
@@ -750,7 +747,6 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
     return unmerged;
   }
-  merged = merged->UnwrapIdentities();
 
   auto UpdateLoopPhiType = [&](Phi* result, NodeType unmerged_type) {
     DCHECK(result->is_loop_phi());
@@ -1068,48 +1064,6 @@ bool MergePointInterpreterFrameState::IsUnreachableByForwardEdge() const {
       return is_loop();
     default:
       return false;
-  }
-}
-
-namespace {
-// Returns true if {phi} has uses, excluding itself for loop phis.
-bool HasUsesExcludingSelf(Phi* phi) {
-  if (phi->use_count() == 0) return false;
-  if (phi->use_count() != 1) return true;
-  if (!phi->is_loop_phi()) return true;
-  // We have a loop phi with a single use. We need to check whether this use is
-  // itself or not (if that's the case, it can only be through the backedge).
-  if (phi->backedge_input().node() == phi) return false;
-  // The use of the phi is not the phi itself.
-  return true;
-}
-}  // namespace
-
-void MergePointInterpreterFrameState::ClearIdentityPhis() {
-  if (!has_phi()) return;
-
-  for (auto it = phis_.begin(); it != phis_.end();) {
-    DCHECK(it->Is<Phi>());
-    if (it->IsIdentityPhi()) {
-      ValueNode* input = it->input_node(0);
-      ValueNode* replacement = nullptr;
-      if (HasUsesExcludingSelf(*it)) {
-        // The Phi already has uses. It need to stay tagged so that those uses
-        // keep receiving a Tagged value as they expect.
-        // TODO(dmercadier): consider replacing the Phi with a ReturnValue so
-        // that taggedness can be easily adapted later on.
-        replacement = input->UnwrapIdentities();
-      } else {
-        // The Phi doesn't have any uses yet. We can thus replace it an untagged
-        // value so that future uses don't need to untag it.
-        replacement = input->Unwrap();
-      }
-      it->OverwriteWithIdentityTo(replacement);
-      phis_.RemoveAt(it);
-      continue;
-    }
-
-    ++it;
   }
 }
 
