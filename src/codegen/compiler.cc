@@ -1313,7 +1313,8 @@ MaybeHandle<Code> GetOrCompileOptimized(
     // Always reset the OSR urgency to ensure we reset it on function entry.
     int invocation_count =
         function->feedback_vector()->invocation_count(kRelaxedLoad);
-    if (!(V8_UNLIKELY(v8_flags.allow_natives_syntax) &&
+    if (!(V8_UNLIKELY(v8_flags.testing_d8_test_runner ||
+                      v8_flags.allow_natives_syntax) &&
           ManualOptimizationTable::IsMarkedForManualOptimization(isolate,
                                                                  *function)) &&
         invocation_count < v8_flags.minimum_invocations_before_optimization) {

@@ -339,8 +339,10 @@ bool CanOptimizeFunction(CodeKind target_kind,
 
   CHECK_UNLESS_FUZZING_RETURN_FALSE(!IsAsmWasmFunction(isolate, *function));
 
-  CHECK_UNLESS_FUZZING_RETURN_FALSE(
-      CheckMarkedForManualOptimization(isolate, *function));
+  if (v8_flags.testing_d8_test_runner) {
+    CHECK_UNLESS_FUZZING_RETURN_FALSE(
+        CheckMarkedForManualOptimization(isolate, *function));
+  }
 
   CHECK_UNLESS_FUZZING_RETURN_FALSE(
       !function->is_compiled(isolate) ||
@@ -615,8 +617,10 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
-  ManualOptimizationTable::MarkFunctionForManualOptimization(
-      isolate, function, &is_compiled_scope);
+  if (v8_flags.testing_d8_test_runner || v8_flags.allow_natives_syntax) {
+    ManualOptimizationTable::MarkFunctionForManualOptimization(
+        isolate, function, &is_compiled_scope);
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -710,7 +714,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   CHECK_UNLESS_FUZZING(!function->shared()->all_optimization_disabled());
 
-  CHECK_UNLESS_FUZZING(CheckMarkedForManualOptimization(isolate, *function));
+  if (v8_flags.testing_d8_test_runner) {
+    CHECK_UNLESS_FUZZING(CheckMarkedForManualOptimization(isolate, *function));
+  }
 
   if (function->HasAvailableOptimizedCode(isolate) &&
       (!function->code(isolate)->is_maglevved() || !v8_flags.osr_from_maglev)) {
