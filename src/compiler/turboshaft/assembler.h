@@ -3512,7 +3512,10 @@ class TurboshaftAssemblerOpInterface
               BranchHint default_hint = BranchHint::kNone) {
     ReduceIfReachableSwitch(input, cases, default_case, default_hint);
   }
-  void Unreachable() { ReduceIfReachableUnreachable(); }
+  V<None> Unreachable() {
+    ReduceIfReachableUnreachable();
+    return V<None>::Invalid();
+  }
 
   OpIndex Parameter(int index, RegisterRepresentation rep,
                     const char* debug_name = nullptr) {

@@ -2038,7 +2038,11 @@ class MachineOptimizationReducer : public Next {
             // We don't expect holes to get here normally, but they might
             // via some un-eliminated dead code.
             if (IsAnyHole(*base.handle())) {
-              return __ RuntimeAbort(AbortReason::kUnreachable);
+              // Note: we cannot emit a RuntimeAbort here, since RuntimeAbort is
+              // a simplified operation which should thus be lowered in
+              // MachineLoweringPhase, but the MachineOptimizationReducer also
+              // runs after this phase.
+              return __ Unreachable();
             }
             OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
             if (MapLoadCanBeConstantFolded(map)) {
