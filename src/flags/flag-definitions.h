@@ -2408,6 +2408,13 @@ DEFINE_GENERIC_IMPLICATION(
     trace_gc_object_stats,
     TracingFlags::gc_stats.store(
         v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
+
+#ifdef V8_COMPRESS_POINTERS
+DEFINE_BOOL(trace_gc_object_stats_all_objects, false,
+            "trace all objects on each gc (warning: large output)")
+DEFINE_IMPLICATION(trace_gc_object_stats_all_objects, trace_gc_object_stats)
+#endif  // V8_COMPRESS_POINTERS
+
 DEFINE_NEG_IMPLICATION(trace_gc_object_stats, incremental_marking)
 DEFINE_NEG_NEG_IMPLICATION(incremental_marking, concurrent_marking)
 DEFINE_NEG_NEG_IMPLICATION(parallel_marking, concurrent_marking)
