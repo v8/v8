@@ -11,7 +11,7 @@ Macros:
   # Make clang-format think TurboShaft `ELSE` expands to just `else`, so that
   # it formats well alongside `if`
   - ELSE=else
-  - CASE=case
+  - CASE_=case
   - FOR_WITH_HANDLE_SCOPE(isolate, init, loop_var, limit_check, increment)=for(init; loop_var; increment)
   - WHILE_WITH_HANDLE_SCOPE(isolate, limit_check)=while(limit_check)
 StatementMacros:

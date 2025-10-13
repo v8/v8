@@ -20,22 +20,22 @@ TEST_F(TypeswitchTest, Simple) {
     Label<Word32> done(&Asm);
 
     TYPESWITCH(arg) {
-      CASE(V<Smi>, smi): {
+      CASE_(V<Smi>, smi): {
         GOTO(done, __ UntagSmi(smi));
       }
-      CASE(V<String>, str): {
+      CASE_(V<String>, str): {
         GOTO(done, __ StringLength(str));
       }
-      CASE(V<Number>, num): {
+      CASE_(V<Number>, num): {
         GOTO(done, 1001);
       }
-      CASE(V<BigInt>, bi): {
+      CASE_(V<BigInt>, bi): {
         auto bi888 = __ HeapConstantNoHole(BigInt::FromInt64(isolate, 888));
         GOTO_IF(__ ConvertBooleanToWord32(__ BigIntEqual(bi, bi888)), done,
                 1002);
         // Otherwise unhandled.
       }
-      CASE(V<Undefined>, ud): {
+      CASE_(V<Undefined>, ud): {
         GOTO(done, 1003);
       }
     }
