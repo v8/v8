@@ -30171,7 +30171,7 @@ TEST(TriggerMainThreadMetricsEvent) {
   v8::Isolate* iso = CcTest::isolate();
   i::Isolate* i_iso = reinterpret_cast<i::Isolate*>(iso);
   CHECK(i_iso->metrics_recorder());
-  v8::metrics::WasmModuleDecoded event;
+  v8::metrics::WasmModuleDecoded event{false, false, false, 0, 0};
   v8::metrics::Recorder::ContextId context_id;
   std::shared_ptr<MetricsRecorder> recorder =
       std::make_shared<MetricsRecorder>(iso);
@@ -30212,7 +30212,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
   v8::Isolate* iso = CcTest::isolate();
   i::Isolate* i_iso = reinterpret_cast<i::Isolate*>(iso);
   CHECK(i_iso->metrics_recorder());
-  v8::metrics::WasmModuleDecoded event;
+  v8::metrics::WasmModuleDecoded event{false, false, false, 0, 0};
   v8::metrics::Recorder::ContextId context_id;
   std::shared_ptr<MetricsRecorder> recorder =
       std::make_shared<MetricsRecorder>(iso);
@@ -30256,13 +30256,12 @@ TEST(TriggerThreadSafeMetricsEvent) {
   v8::Isolate* iso = CcTest::isolate();
   i::Isolate* i_iso = reinterpret_cast<i::Isolate*>(iso);
   CHECK(i_iso->metrics_recorder());
-  v8::metrics::WasmModulesPerIsolate event;
+  v8::metrics::WasmModulesPerIsolate event{42};
   std::shared_ptr<MetricsRecorder> recorder =
       std::make_shared<MetricsRecorder>(iso);
   iso->SetMetricsRecorder(recorder);
 
   // Check that event submission works.
-  event.count = 42;
   i_iso->metrics_recorder()->AddThreadSafeEvent(event);
   CHECK_EQ(recorder->count_, 1);  // Increased.
   CHECK_EQ(recorder->module_count_, 42);

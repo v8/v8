@@ -2287,9 +2287,7 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
     base::OwnedVector<const uint8_t> wire_bytes, int compilation_id,
     v8::metrics::Recorder::ContextId context_id, ProfileInformation* pgo_info) {
   base::TimeTicks start_time;
-  if (base::TimeTicks::IsHighResolution()) {
-    start_time = base::TimeTicks::Now();
-  }
+  if (base::TimeTicks::IsHighResolution()) start_time = base::TimeTicks::Now();
 
   std::shared_ptr<NativeModule> native_module =
       GetWasmEngine()->MaybeGetNativeModule(
@@ -2297,18 +2295,21 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
   if (native_module) {
     GetWasmEngine()->UseNativeModuleInIsolate(native_module.get(), isolate);
 
-    base::TimeDelta duration = base::TimeTicks::Now() - start_time;
-    v8::metrics::WasmModuleCompiled event{
-        false,                                   // async
-        false,                                   // streamed
-        true,                                    // cached
-        false,                                   // deserialized
-        v8_flags.wasm_lazy_compilation,          // lazy
-        true,                                    // success
-        native_module->generated_code_size(),    // code_size_in_bytes
-        native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-        duration.InMicroseconds()};              // wall_clock_duration_in_us
-    isolate->metrics_recorder()->DelayMainThreadEvent(event, context_id);
+    v8::metrics::WasmModuleCompiled compile_event{
+        .async = false,
+        .streamed = false,
+        .cached = true,
+        .deserialized = false,
+        .lazy = v8_flags.wasm_lazy_compilation,
+        .success = true,
+        .code_size_in_bytes = native_module->generated_code_size(),
+        .liftoff_bailout_count = native_module->liftoff_bailout_count()};
+    if (!start_time.IsNull()) {
+      base::TimeDelta duration = base::TimeTicks::Now() - start_time;
+      compile_event.wall_clock_duration_in_us = duration.InMicroseconds();
+    }
+    isolate->metrics_recorder()->DelayMainThreadEvent(compile_event,
+                                                      context_id);
     return native_module;
   }
 
@@ -2345,24 +2346,25 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
   native_module = GetWasmEngine()->UpdateNativeModuleCache(
       failed, std::move(native_module), isolate);
 
+  v8::metrics::WasmModuleCompiled compile_event{
+      .async = false,
+      .streamed = false,
+      .cached = false,
+      .deserialized = false,
+      .lazy = v8_flags.wasm_lazy_compilation,
+      .success = !failed,
+      .code_size_in_bytes = native_module->generated_code_size(),
+      .liftoff_bailout_count = native_module->liftoff_bailout_count()};
+
   if (!start_time.IsNull()) {
     base::TimeDelta duration = base::TimeTicks::Now() - start_time;
     SELECT_WASM_COUNTER(isolate->counters(), module->origin, wasm_compile,
                         module_time)
         ->AddTimedSample(duration);
-
-    v8::metrics::WasmModuleCompiled event{
-        false,                                   // async
-        false,                                   // streamed
-        false,                                   // cached
-        false,                                   // deserialized
-        v8_flags.wasm_lazy_compilation,          // lazy
-        !failed,                                 // success
-        native_module->generated_code_size(),    // code_size_in_bytes
-        native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-        duration.InMicroseconds()};              // wall_clock_duration_in_us
-    isolate->metrics_recorder()->DelayMainThreadEvent(event, context_id);
+    compile_event.wall_clock_duration_in_us = duration.InMicroseconds();
   }
+
+  isolate->metrics_recorder()->DelayMainThreadEvent(compile_event, context_id);
 
   if (failed) native_module = {};
   return native_module;
@@ -2463,7 +2465,8 @@ AsyncCompileJob::AsyncCompileJob(
       api_method_name_(api_method_name),
       enabled_features_(enabled_features),
       compile_imports_(std::move(compile_imports)),
-      start_time_(base::TimeTicks::Now()),
+      start_time_(base::TimeTicks::IsHighResolution() ? base::TimeTicks::Now()
+                                                      : base::TimeTicks{}),
       bytes_copy_(std::move(bytes)),
       wire_bytes_(bytes_copy_.as_vector()),
       resolver_(std::move(resolver)),
@@ -2778,8 +2781,20 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) && {
     PrepareRuntimeObjects();
   }
 
+  // We should only get here if compilation succeeded.
+  DCHECK(!compilation_state->failed());
+  v8::metrics::WasmModuleCompiled compile_event{
+      .async = true,
+      .streamed = stream_ != nullptr,
+      .cached = is_after_cache_hit,
+      .deserialized = is_after_deserialization,
+      .lazy = v8_flags.wasm_lazy_compilation,
+      .success = true,
+      .code_size_in_bytes = native_module_->generated_code_size(),
+      .liftoff_bailout_count = native_module_->liftoff_bailout_count()};
+
   // Measure duration of baseline compilation or deserialization from cache.
-  if (base::TimeTicks::IsHighResolution()) {
+  if (!start_time_.IsNull()) {
     base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
     TimedHistogram* histogram =
         stream_ == nullptr
@@ -2787,20 +2802,11 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) && {
             : isolate_->counters()->wasm_streaming_compile_wasm_module_time();
     histogram->AddTimedSample(duration);
 
-    // We should only get here if compilation succeeded.
-    DCHECK(!compilation_state->failed());
-    v8::metrics::WasmModuleCompiled event{
-        true,                                     // async
-        stream_ != nullptr,                       // streamed
-        is_after_cache_hit,                       // cached
-        is_after_deserialization,                 // deserialized
-        v8_flags.wasm_lazy_compilation,           // lazy
-        true,                                     // success
-        native_module_->generated_code_size(),    // code_size_in_bytes
-        native_module_->liftoff_bailout_count(),  // liftoff_bailout_count
-        duration.InMicroseconds()};               // wall_clock_duration_in_us
-    isolate_->metrics_recorder()->DelayMainThreadEvent(event, context_id_);
+    compile_event.wall_clock_duration_in_us = duration.InMicroseconds();
   }
+
+  isolate_->metrics_recorder()->DelayMainThreadEvent(compile_event,
+                                                     context_id_);
 
   DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
@@ -2878,18 +2884,21 @@ void AsyncCompileJob::Failed() && {
     thrower.CompileError("%s", error.message().c_str());
   }
 
-  base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
-  v8::metrics::WasmModuleCompiled event{
-      true,                            // async
-      stream_ != nullptr,              // streamed
-      false,                           // cached
-      false,                           // deserialized
-      v8_flags.wasm_lazy_compilation,  // lazy
-      false,                           // success
-      0,                               // code_size_in_bytes
-      0,                               // liftoff_bailout_count
-      duration.InMicroseconds()};      // wall_clock_duration_in_us
-  isolate_->metrics_recorder()->DelayMainThreadEvent(event, context_id_);
+  v8::metrics::WasmModuleCompiled compile_event{
+      .async = true,
+      .streamed = stream_ != nullptr,
+      .cached = false,
+      .deserialized = false,
+      .lazy = v8_flags.wasm_lazy_compilation,
+      .success = false,
+      .code_size_in_bytes = 0,
+      .liftoff_bailout_count = 0};
+  if (!start_time_.IsNull()) {
+    base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
+    compile_event.wall_clock_duration_in_us = duration.InMicroseconds();
+  }
+  isolate_->metrics_recorder()->DelayMainThreadEvent(compile_event,
+                                                     context_id_);
 
   resolver_->OnCompilationFailed(thrower.Reify());
 }
@@ -3370,16 +3379,17 @@ void AsyncStreamingProcessor::OnFinishedStream(
   }
 
   // Record event metrics.
-  base::TimeDelta duration = base::TimeTicks::Now() - job_->start_time_;
-  v8::metrics::WasmModuleDecoded event{
-      true,                                 // async
-      true,                                 // streamed
-      !after_error,                         // success
-      job_->wire_bytes_.length(),           // module_size_in_bytes
-      static_cast<size_t>(num_functions_),  // function_count
-      duration.InMicroseconds()             // wall_clock_duration_in_us
-  };
-  job_->isolate_->metrics_recorder()->DelayMainThreadEvent(event,
+  v8::metrics::WasmModuleDecoded decode_event{
+      .async = true,
+      .streamed = true,
+      .success = !after_error,
+      .module_size_in_bytes = job_->wire_bytes_.length(),
+      .function_count = static_cast<size_t>(num_functions_)};
+  if (!job_->start_time_.IsNull()) {
+    base::TimeDelta duration = base::TimeTicks::Now() - job_->start_time_;
+    decode_event.wall_clock_duration_in_us = duration.InMicroseconds();
+  }
+  job_->isolate_->metrics_recorder()->DelayMainThreadEvent(decode_event,
                                                            job_->context_id_);
 
   if (after_error) {
