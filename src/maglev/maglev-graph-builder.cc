@@ -6978,7 +6978,7 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoadImpl() {
         // TODO(leszeks): I guess we could split that merge if we wanted to,
         // introducing a new merge that has the polymorphic loads+calls on one
         // side and the generic call on the other.
-        if (IsOffsetAMergePoint(offset)) return false;
+        if (IsOffsetAMergePoint(offset)) return true;
 
         // We currently can't continue a polymorphic load across a peeled
         // loop header -- not because of any actual semantic reason, a peeled
@@ -6989,7 +6989,7 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoadImpl() {
         // JumpLoop rather than loop header, and then this continuation code
         // would work. Only for the first peeled iteration though, not for
         // speeling.
-        if (loop_headers_to_peel_.Contains(offset)) return false;
+        if (loop_headers_to_peel_.Contains(offset)) return true;
 
         // Loop peeling should be the only reason there was no merge point for a
         // loop header.
@@ -7004,8 +7004,8 @@ MaglevGraphBuilder::FindContinuationForPolymorphicPropertyLoadImpl() {
         // strict nesting of handlers (since the first polymorphic call would
         // be inside the handler range, but the second polymorphic load after it
         // in linear scan order would be outside of the handler range).
-        if (offset >= next_handler_change) return false;
-        return true;
+        if (offset >= next_handler_change) return true;
+        return false;
       };
 
   // Skip GetNamedProperty.
