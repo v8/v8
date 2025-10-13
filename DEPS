@@ -92,7 +92,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '81b93883f50bc4948aa65711dc8bd12ef51351b1',
+  'partition_alloc_version': 'eb106c8d4435c9c513b7623be5e114d8d45b216d',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '59946837f911a29ca16bd255174d6f3a9f7f3c16',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8430d5fb6a98a7f28c3e0563d1f2cbca0fb1f6b5',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'e05d19157e5cfb3c0ec365be4f4076300dd7bb48',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0e7d35148beeb23122a72c2a0cba21e77b83f36f',
   'buildtools/linux64': {
     'packages': [
       {
@@ -232,7 +232,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '67287c8f0b4e1fa72b8382d791f20687eaa66c3f',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e505cd0f484628206d18cc753e83c52e88da772f',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '975c43dbece420669acf88795f5f16fc14da38c9',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'dc1441a0c244cb94e5d1b992911c7b8895d88e2c',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '8e720a3a3ae30fcfffe436aae418c91acacc34d0',
   'third_party/libpfm4':
