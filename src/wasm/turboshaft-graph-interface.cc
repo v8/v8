@@ -3780,17 +3780,32 @@ class TurboshaftGraphBuildingInterface
     V<WordPtr> stack = __ LoadExternalPointerFromObject(
         cont_ref.op, WasmContinuationObject::kStackOffset, kWasmStackMemoryTag);
     if (handlers.size() == 1 && handlers[0].kind == kOnSuspend) {
-      TSBlock* handler =
-          decoder->control_at(handlers[0].maybe_depth.br.depth)->merge_block;
       int tag_index = handlers[0].tag.index;
+      TSBlock* handler = __ NewBlock();
       asm_.set_effect_handler_for_next_call(tag_index, handler);
     } else if (handlers.size() > 1 ||
                (handlers.size() == 1 && handlers[0].kind == kSwitch)) {
       UNIMPLEMENTED();
     }
-    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume>(
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
+                                HandleEffects::kYes>(
         decoder, {stack}, CheckForException::kCatchInThisFrame);
+  }
+
+  void ResumeHandler(FullDecoder* decoder, Value* cont_val,
+                     const BranchDepthImmediate& br_imm) {
+    TSBlock* skip = __ NewBlock();
+    __ Goto(skip);
+    __ Bind(asm_.effect_handler_for_next_call()->block);
+    // Reuse the "CatchBlockBegin" pseudo op to mark the beginning of an effect
+    // handler block. It works the same way but generates the continuation
+    // object instead of the exception.
+    OpIndex cont = __ CatchBlockBegin();
+    instance_cache_.ReloadCachedMemory();
+    cont_val->op = cont;
     asm_.clear_effect_handler();
+    BrOrRet(decoder, br_imm.depth);
+    __ Bind(skip);
   }
 
   void ResumeThrow(FullDecoder* decoder,
@@ -7984,7 +7999,8 @@ class TurboshaftGraphBuildingInterface
     }
   }
 
-  template <typename Descriptor>
+  enum HandleEffects : bool { kYes = true, kNo = false };
+  template <typename Descriptor, HandleEffects handle_effects = kNo>
   compiler::turboshaft::detail::index_type_for_t<typename Descriptor::results_t>
   CallBuiltinThroughJumptable(
       FullDecoder* decoder, const typename Descriptor::arguments_t& args,
@@ -8003,7 +8019,7 @@ class TurboshaftGraphBuildingInterface
         },
         args);
 
-    return CallAndMaybeCatchException(
+    return CallAndMaybeCatchException<handle_effects>(
         decoder, callee, base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
                            __ output_graph().graph_zone()),
@@ -8076,6 +8092,7 @@ class TurboshaftGraphBuildingInterface
     }
   }
 
+  template <HandleEffects handle_effects = kNo>
   OpIndex CallAndMaybeCatchException(FullDecoder* decoder, V<CallTarget> callee,
                                      base::Vector<const OpIndex> args,
                                      const TSCallDescriptor* descriptor,
@@ -8087,45 +8104,49 @@ class TurboshaftGraphBuildingInterface
     bool handled_in_this_frame =
         decoder && decoder->current_catch() != -1 &&
         check_for_exception == CheckForException::kCatchInThisFrame;
-    if (!handled_in_this_frame && mode_ != kInlinedWithCatch) {
+    if (!handled_in_this_frame && mode_ != kInlinedWithCatch &&
+        !handle_effects) {
       OpIndex call =
           __ Call(callee, OpIndex::Invalid(), args, descriptor, effects);
       MaybeSetPositionToParent(call, check_for_exception);
       return call;
     }
 
-    TSBlock* catch_block;
+    TSBlock* catch_block = nullptr;
     if (handled_in_this_frame) {
       Control* current_catch =
           decoder->control_at(decoder->control_depth_of_current_catch());
       catch_block = current_catch->false_or_loop_or_catch_block;
-    } else {
-      DCHECK_EQ(mode_, kInlinedWithCatch);
+    } else if (mode_ == kInlinedWithCatch) {
       catch_block = return_catch_block_;
     }
     TSBlock* success_block = __ NewBlock();
     TSBlock* exception_block = __ NewBlock();
     OpIndex call;
     {
-      Assembler::CatchScope scope(asm_, exception_block);
+      std::optional<Assembler::CatchScope> scope;
+      if (catch_block) {
+        scope.emplace(asm_, exception_block);
+      }
       call = __ Call(callee, OpIndex::Invalid(), args, descriptor, effects);
       __ Goto(success_block);
     }
 
-    __ Bind(exception_block);
-    OpIndex exception = __ CatchBlockBegin();
-    if (handled_in_this_frame) {
-      // The exceptional operation could have modified memory size; we need
-      // to reload the memory context into the exceptional control path.
-      instance_cache_.ReloadCachedMemory();
-      SetupControlFlowEdge(decoder, catch_block, 0, exception);
-    } else {
-      DCHECK_EQ(mode_, kInlinedWithCatch);
-      if (exception.valid()) return_phis_->AddIncomingException(exception);
-      // Reloading the InstanceCache will happen when {return_exception_phis_}
-      // are retrieved.
+    if (catch_block) {
+      __ Bind(exception_block);
+      OpIndex exception = __ CatchBlockBegin();
+      if (handled_in_this_frame) {
+        // The exceptional operation could have modified memory size; we need
+        // to reload the memory context into the exceptional control path.
+        instance_cache_.ReloadCachedMemory();
+        SetupControlFlowEdge(decoder, catch_block, 0, exception);
+      } else if (mode_ == kInlinedWithCatch) {
+        if (exception.valid()) return_phis_->AddIncomingException(exception);
+        // Reloading the InstanceCache will happen when {return_exception_phis_}
+        // are retrieved.
+      }
+      __ Goto(catch_block);
     }
-    __ Goto(catch_block);
 
     __ Bind(success_block);
 

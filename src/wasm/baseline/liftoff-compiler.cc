@@ -2013,6 +2013,12 @@ class LiftoffCompiler {
     unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: resume");
   }
 
+  void ResumeHandler(FullDecoder* decoder, Value* cont,
+                     const BranchDepthImmediate& br_imm) {
+    // "Resume" bails out before this can be reached.
+    UNREACHABLE();
+  }
+
   void ResumeThrow(FullDecoder* decoder,
                    const wasm::ContIndexImmediate& cont_imm,
                    const TagIndexImmediate& exc_imm,

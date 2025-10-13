@@ -682,6 +682,11 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
+  void ResumeHandler(FullDecoder* decoder, Value* cont_val,
+                     const wasm::BranchDepthImmediate& br_imm) {
+    Bailout(decoder);
+  }
+
   void ResumeThrow(FullDecoder* decoder,
                    const wasm::ContIndexImmediate& cont_imm,
                    const TagIndexImmediate& exc_imm,

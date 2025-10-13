@@ -59,7 +59,7 @@ builder.addFunction("call_next_in_catch_all", kSig_v_v)
       kExprEnd,
     ]).exportFunc();
 let nop_index = builder.addFunction("nop", kSig_v_v).addBody([]).exportFunc().index;
-builder.addFunction("resume_next_with_handler", kSig_v_v)
+builder.addFunction("resume_next_twice", kSig_v_v)
     .addBody([
         kExprBlock, kWasmRef, cont_index,
           kExprCallFunction, get_next_index,
@@ -67,7 +67,7 @@ builder.addFunction("resume_next_with_handler", kSig_v_v)
           kExprResume, cont_index, 1, kOnSuspend, tag_index, 0,
           kExprReturn,
         kExprEnd,
-        kExprDrop,
+        kExprResume, cont_index, 0,
     ]).exportFunc();
 builder.addFunction("resume_next_with_handler_and_catch_all", kSig_v_v)
     .addBody([
@@ -171,7 +171,7 @@ instance = builder.instantiate( {m: {
   instance.exports.call_stack.value = [
       instance.exports.nop,
   ];
-  instance.exports.resume_next_with_handler();
+  instance.exports.resume_next_twice();
 
   // A resume instruction within a try scope triggers interesting code paths:
   // the resume builtin call must be able to handle either exceptions or
