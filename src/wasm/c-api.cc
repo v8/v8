@@ -1348,9 +1348,17 @@ WASM_EXPORT auto Module::deserialize(Store* store_abs,
   i::DirectHandle<i::WasmModuleObject> module_obj;
   if (serial_size > 0) {
     size_t data_size = static_cast<size_t>(binary_size);
-    i::wasm::CompileTimeImports compile_imports{};
+    // The C-API does not allow passing compile imports.
+    // We thus use an empty `CompileTimeImports` object, analogous to module
+    // creation.
+    // Note that in contrast to the JS API, this does not handle different
+    // denormals flushing modes (see base::FPU::GetFlushDenormals /
+    // `CompileTimeImport::kDisableDenormalFloats`).
+    i::wasm::CompileTimeImports compile_imports;
+    i::wasm::WasmEnabledFeatures features =
+        i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
     if (!i::wasm::DeserializeNativeModule(
-             isolate,
+             isolate, features,
              {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
              {reinterpret_cast<const uint8_t*>(ptr), data_size},
              compile_imports, {})

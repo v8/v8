@@ -120,6 +120,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3028,6 +3029,12 @@ void Shell::WasmDeserializeModule(
     return;
   }
 
+  i::wasm::WasmEnabledFeatures enabled_features =
+      i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
+  i::wasm::CompileTimeImports compile_time_imports =
+      i::WasmJs::CompileTimeImportsFromArgument(
+          Utils::OpenDirectHandle(*info[2]), i_isolate, enabled_features);
+
   i::DirectHandle<i::JSArrayBuffer> wire_bytes_buffer =
       wire_bytes->GetBuffer(i_isolate);
   base::Vector<const uint8_t> wire_bytes_vec{
@@ -3063,19 +3070,25 @@ void Shell::WasmDeserializeModule(
     i::wasm::ErrorThrower thrower{i_isolate, "d8.wasm.deserializeModule"};
     module_object =
         i::wasm::GetWasmEngine()
-            ->SyncCompile(i_isolate,
-                          i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate),
-                          i::wasm::CompileTimeImports{}, &thrower,
-                          base::OwnedCopyOf(wire_bytes_vec))
+            ->SyncCompile(i_isolate, enabled_features, compile_time_imports,
+                          &thrower, base::OwnedCopyOf(wire_bytes_vec))
             .ToHandleChecked();
     DCHECK(!thrower.error());
   } else {
     // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
     // JSArrayBuffer backing store doesn't get relocated.
-    module_object =
-        i::wasm::DeserializeNativeModule(i_isolate, buffer_vec, wire_bytes_vec,
-                                         i::wasm::CompileTimeImports{}, {})
-            .ToHandleChecked();
+    if (!i::wasm::DeserializeNativeModule(i_isolate, enabled_features,
+                                          buffer_vec, wire_bytes_vec,
+                                          compile_time_imports, {})
+             .ToHandle(&module_object)) {
+      // Deserialization failed, probably because of mismatched compile time
+      // imports. Invalid wire bytes are unlikely because of the hash check
+      // above.
+      ThrowError(isolate,
+                 "Deserialization failed, probably because of mismatched "
+                 "compile time imports");
+      return;
+    }
   }
 
   info.GetReturnValue().Set(Utils::ToLocal(module_object));

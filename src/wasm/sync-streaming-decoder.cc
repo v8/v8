@@ -50,7 +50,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
       SaveAndSwitchContext saved_context(isolate_, *context_);
 
       MaybeDirectHandle<WasmModuleObject> module_object =
-          DeserializeNativeModule(isolate_, compiled_module_bytes_,
+          DeserializeNativeModule(isolate_, enabled_, compiled_module_bytes_,
                                   bytes.as_vector(), compile_imports_,
                                   base::VectorOf(url()));
 

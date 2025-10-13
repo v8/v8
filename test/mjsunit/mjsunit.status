@@ -1620,6 +1620,10 @@
   'wasm/wasm-to-js-tierup': [SKIP],
   'wasm/deopt/deopt-debugging': [SKIP],
 
+  # This test runs a GC to guarantee that the module is deserialized instead of
+  # using the cached module; this does not work in multi-isolate mode.
+  'wasm/compiled-module-serialization': [SKIP],
+
   # The test enables the global profiler, and there can only exist one profiler
   # at a time.
   'wasm/log-code-after-post-message': [SKIP],
