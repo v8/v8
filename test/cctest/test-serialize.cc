@@ -695,13 +695,6 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
                  .ToHandleChecked();
       CHECK(IsContext(*root));
       DirectHandle<NativeContext> context = Cast<NativeContext>(root);
-
-      // Add context to the weak native context list
-      Cast<Context>(context)->SetNoCell(Context::NEXT_CONTEXT_LINK,
-                                        isolate->heap()->native_contexts_list(),
-                                        UPDATE_WRITE_BARRIER);
-      isolate->heap()->set_native_contexts_list(*context);
-
       CHECK(context->global_proxy() == *global_proxy);
       DirectHandle<String> o =
           isolate->factory()->NewStringFromAsciiChecked("o");

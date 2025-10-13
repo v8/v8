@@ -3100,6 +3100,26 @@ void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
       retainer->RetainAs(dirty_js_finalization_registries_list_tail()));
 }
 
+void Heap::AddToWeakNativeContextList(Tagged<Context> context) {
+  DCHECK(IsNativeContext(context));
+  DCHECK(LocalHeap::Current()->is_main_thread());
+
+#ifdef DEBUG
+  {
+    DCHECK(IsUndefined(context->next_context_link(), isolate()));
+    // Check that context is not in the list yet.
+    for (Tagged<Object> current = native_contexts_list();
+         !IsUndefined(current, isolate());
+         current = Cast<Context>(current)->next_context_link()) {
+      DCHECK(current != context);
+    }
+  }
+#endif
+  context->SetNoCell(Context::NEXT_CONTEXT_LINK, native_contexts_list(),
+                     UPDATE_WRITE_BARRIER);
+  set_native_contexts_list(context);
+}
+
 void Heap::ForeachAllocationSite(
     Tagged<Object> list,
     const std::function<void(Tagged<AllocationSite>)>& visitor) {

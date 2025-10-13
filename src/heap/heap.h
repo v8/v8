@@ -506,6 +506,8 @@ class Heap final {
         native_contexts_list_.load(std::memory_order_acquire));
   }
 
+  V8_EXPORT_PRIVATE void AddToWeakNativeContextList(Tagged<Context> context);
+
   void set_allocation_sites_list(
       Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>> object) {
     allocation_sites_list_ = object;

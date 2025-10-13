@@ -1327,26 +1327,6 @@ void Genesis::AddRestrictedFunctionProperties(DirectHandle<JSFunction> empty) {
                    accessors);
 }
 
-static void AddToWeakNativeContextList(Isolate* isolate,
-                                       Tagged<Context> context) {
-  DCHECK(IsNativeContext(context));
-  Heap* heap = isolate->heap();
-#ifdef DEBUG
-  {
-    DCHECK(IsUndefined(context->next_context_link(), isolate));
-    // Check that context is not in the list yet.
-    for (Tagged<Object> current = heap->native_contexts_list();
-         !IsUndefined(current, isolate);
-         current = Cast<Context>(current)->next_context_link()) {
-      DCHECK(current != context);
-    }
-  }
-#endif
-  context->SetNoCell(Context::NEXT_CONTEXT_LINK, heap->native_contexts_list(),
-                     UPDATE_WRITE_BARRIER);
-  heap->set_native_contexts_list(context);
-}
-
 void Genesis::CreateRoots() {
   // Allocate the native context FixedArray first and then patch the
   // closure and extension object later (we need the empty function
@@ -1354,7 +1334,7 @@ void Genesis::CreateRoots() {
   // native context).
   native_context_ = factory()->NewNativeContext();
 
-  AddToWeakNativeContextList(isolate(), *native_context());
+  isolate()->heap()->AddToWeakNativeContextList(*native_context());
   isolate()->set_context(*native_context());
 }
 
@@ -6985,7 +6965,6 @@ Genesis::Genesis(Isolate* isolate,
   }
 
   if (!native_context().is_null()) {
-    AddToWeakNativeContextList(isolate, *native_context());
     isolate->set_context(*native_context());
 
     // If no global proxy template was passed in, simply use the global in the

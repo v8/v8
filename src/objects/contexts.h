@@ -592,6 +592,8 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline Tagged<Context> previous() const;
 
   inline Tagged<Object> next_context_link() const;
+  inline void set_next_context_link(
+      Tagged<Object> object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline bool has_extension() const;
   inline Tagged<HeapObject> extension() const;
