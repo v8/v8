@@ -415,7 +415,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
   static void FillEntriesWithHoles(DirectHandle<Derived>);
 
   // Adds (or overwrites) the value associated with the given key.
-  static Handle<Derived> Put(Handle<Derived> table, DirectHandle<Object> key,
+  static Handle<Derived> Put(Isolate* isolate, Handle<Derived> table,
+                             DirectHandle<Object> key,
                              DirectHandle<Object> value);
   static Handle<Derived> Put(Isolate* isolate, Handle<Derived> table,
                              DirectHandle<Object> key,

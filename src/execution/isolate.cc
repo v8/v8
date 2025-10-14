@@ -7808,7 +7808,7 @@ void Isolate::LocalsBlockListCacheSet(
   }
 
   CHECK(!value.is_null());
-  cache = EphemeronHashTable::Put(cache, scope_info, value);
+  cache = EphemeronHashTable::Put(this, cache, scope_info, value);
   heap()->set_locals_block_list_cache(*cache);
 }
 

@@ -5608,9 +5608,8 @@ int NameToIndexHashTable::IndexAt(InternalIndex entry) {
 
 template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(
-    Handle<Derived> table, DirectHandle<Object> key,
+    Isolate* isolate, Handle<Derived> table, DirectHandle<Object> key,
     DirectHandle<Object> value) {
-  Isolate* isolate = Heap::FromWritableHeapObject(*table)->isolate();
   DCHECK(table->IsKey(ReadOnlyRoots(isolate), *key));
   DCHECK(!IsTheHole(*value, ReadOnlyRoots(isolate)));
 
