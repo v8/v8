@@ -16,6 +16,7 @@
 #include "src/codegen/compiler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-deopt-data.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -91,6 +92,7 @@ struct WasmCompilationResult {
   Kind kind = kFunction;
   ForDebugging for_debugging = kNotForDebugging;
   bool frame_has_feedback_slot = false;
+  base::OwnedVector<const WasmCode::EffectHandler> effect_handlers;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {

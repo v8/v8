@@ -76,7 +76,7 @@ using trap_handler::ProtectedInstructionData;
 // Increase the limit if needed, but first check if the size increase is
 // justified.
 #ifndef V8_GC_MOLE
-static_assert(sizeof(WasmCode) <= 112);
+static_assert(sizeof(WasmCode) <= 128);
 #endif
 
 base::AddressRegion DisjointAllocationPool::Merge(
@@ -628,7 +628,7 @@ std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
 }
 
 size_t WasmCode::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 112);
+  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 128);
   size_t result = sizeof(WasmCode);
   // For meta_data_.
   result += protected_instructions_size_ + reloc_info_size_ +
@@ -1188,7 +1188,8 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code,
                    WasmCode::kWasmFunction,  // kind
                    ExecutionTier::kNone,     // tier
                    kNotForDebugging,         // for_debugging
-                   signature_hash}};         // signature_hash
+                   signature_hash,           // signature_hash
+                   {}}};                     // effect handlers
   new_code->MaybePrint();
   new_code->Validate();
 
@@ -1303,6 +1304,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     base::Vector<const uint8_t> inlining_positions,
     base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging,
+    base::OwnedVector<const WasmCode::EffectHandler> effect_handlers,
     bool frame_has_feedback_slot, base::Vector<uint8_t> dst_code_bytes,
     const JumpTablesRef& jump_tables) {
   base::Vector<uint8_t> reloc_info{
@@ -1394,6 +1396,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
                                               tier,
                                               for_debugging,
                                               signature_hash,
+                                              std::move(effect_handlers),
                                               frame_has_feedback_slot}};
 
   code->MaybePrint();
@@ -1612,7 +1615,8 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     base::Vector<const uint8_t> source_position_table,
     base::Vector<const uint8_t> inlining_positions,
     base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-    ExecutionTier tier) {
+    ExecutionTier tier,
+    base::OwnedVector<const WasmCode::EffectHandler> effect_handlers) {
   uint64_t signature_hash =
       module_->signature_hash(GetTypeCanonicalizer(), index);
 
@@ -1636,7 +1640,8 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
                                                 kind,
                                                 tier,
                                                 kNotForDebugging,
-                                                signature_hash}};
+                                                signature_hash,
+                                                std::move(effect_handlers)}};
 }
 
 std::pair<std::vector<WasmCode*>, std::vector<WellKnownImport>>
@@ -1750,7 +1755,8 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    WasmCode::kJumpTable,  // kind
                    ExecutionTier::kNone,  // tier
                    kNotForDebugging,      // for_debugging
-                   0}};                   // signature_hash
+                   0,                     // signature_hash
+                   {}}};                  // effect handlers
   return PublishCodeLocked(std::move(code),
                            UnpublishedWasmCode::kNoAssumptions);
 }
@@ -2716,7 +2722,8 @@ std::vector<UnpublishedWasmCode> NativeModule::AddCompiledCode(
             result.inlining_positions.as_vector(),
             result.deopt_data.as_vector(), GetCodeKind(result),
             result.result_tier, result.for_debugging,
-            result.frame_has_feedback_slot, this_code_space, jump_tables),
+            std::move(result.effect_handlers), result.frame_has_feedback_slot,
+            this_code_space, jump_tables),
         std::move(result.assumptions));
   }
   DCHECK_EQ(0, code_space.size());

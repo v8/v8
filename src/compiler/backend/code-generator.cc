@@ -75,6 +75,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       resolver_(this),
       safepoints_(codegen_zone),
       handlers_(codegen_zone),
+      effect_handlers_(codegen_zone),
       deoptimization_exits_(codegen_zone),
       protected_deoptimization_literals_(codegen_zone),
       deoptimization_literals_(codegen_zone),
@@ -1127,6 +1128,17 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
 #endif
   return result;
 }
+
+base::OwnedVector<wasm::WasmCode::EffectHandler>
+CodeGenerator::GenerateWasmEffectHandler() {
+  auto handlers = base::OwnedVector<wasm::WasmCode::EffectHandler>::New(
+      effect_handlers_.size());
+  for (size_t i = 0; i < effect_handlers_.size(); ++i) {
+    handlers[i] = {effect_handlers_[i].pc_offset, effect_handlers_[i].tag_index,
+                   effect_handlers_[i].handler->pos()};
+  }
+  return handlers;
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Label* CodeGenerator::AddJumpTable(base::Vector<Label*> targets) {
@@ -1150,8 +1162,8 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler)) {
     int tag_index = i.ToConstant(instr->InputAt(index--)).ToInt32();
     RpoNumber handler_rpo = i.ToConstant(instr->InputAt(index--)).ToRpoNumber();
-    USE(tag_index);
-    USE(handler_rpo);
+    effect_handlers_.push_back(
+        {tag_index, GetLabel(handler_rpo), masm()->pc_offset()});
   }
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
     Constant handler_input = i.ToConstant(instr->InputAt(index--));

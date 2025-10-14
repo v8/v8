@@ -123,6 +123,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
                                 ExecutionTier::kNone,
                                 wasm::kNotForDebugging,
                                 signature_hash,
+                                {},  // effect handlers
                                 frame_has_feedback_slot};
 
   code->Validate();
