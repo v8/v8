@@ -3031,14 +3031,7 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      LoadTransformationKind transform,
                                      uint32_t* protected_load_pc,
                                      bool i64_offset) {
-  if (!is_int20(offset_imm)) {
-    mov(ip, Operand(offset_imm));
-    if (offset_reg != no_reg) {
-      AddS64(ip, offset_reg);
-    }
-    offset_reg = ip;
-    offset_imm = 0;
-  }
+  PREP_MEM_OPERAND(offset_reg, offset_imm, ip)
   MemOperand src_op =
       MemOperand(src_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
   *protected_load_pc = pc_offset();
