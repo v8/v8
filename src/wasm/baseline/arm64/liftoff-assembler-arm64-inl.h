@@ -124,8 +124,7 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
 inline Register GetEffectiveAddress(LiftoffAssembler* assm,
                                     UseScratchRegisterScope* temps,
                                     Register addr, Register offset,
-                                    uintptr_t offset_imm,
-                                    bool i64_offset = false) {
+                                    uintptr_t offset_imm, bool i64_offset) {
   if (!offset.is_valid() && offset_imm == 0) return addr;
   Register tmp = temps->AcquireX();
   if (offset.is_valid()) {
@@ -2439,8 +2438,8 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   UseScratchRegisterScope temps(this);
   MemOperand src_op =
       transform == LoadTransformationKind::kSplat
-          ? MemOperand{liftoff::GetEffectiveAddress(this, &temps, src_addr,
-                                                    offset_reg, offset_imm)}
+          ? MemOperand{liftoff::GetEffectiveAddress(
+                this, &temps, src_addr, offset_reg, offset_imm, i64_offset)}
           : liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm,
                               i64_offset);
   *protected_load_pc = pc_offset();

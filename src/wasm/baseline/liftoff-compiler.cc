@@ -3855,6 +3855,8 @@ class LiftoffCompiler {
   void TraceMemoryOperation(bool is_store, uint32_t mem_index,
                             MachineRepresentation rep, Register index,
                             uintptr_t offset, WasmCodePosition position) {
+    DCHECK(v8_flags.trace_wasm_memory);
+    SCOPED_CODE_COMMENT("TraceMemoryOperation");
     // Before making the runtime call, spill all cache registers.
     __ SpillAllRegisters();
 
