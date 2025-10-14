@@ -3124,8 +3124,9 @@ DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 DEFINE_BOOL(trace_regexp_graph, false, "trace the regexp graph")
 
-DEFINE_BOOL(enable_experimental_regexp_engine, false,
-            "recognize regexps with 'l' flag, run them on experimental engine")
+DEFINE_EXPERIMENTAL_FEATURE(
+    enable_experimental_regexp_engine,
+    "recognize regexps with 'l' flag, run them on experimental engine")
 DEFINE_BOOL(default_to_experimental_regexp_engine, false,
             "run regexps with the experimental engine where possible")
 DEFINE_IMPLICATION(default_to_experimental_regexp_engine,
@@ -3140,9 +3141,10 @@ DEFINE_UINT64(experimental_regexp_engine_capture_group_opt_max_memory_usage,
 DEFINE_BOOL(trace_experimental_regexp_engine, false,
             "trace execution of experimental regexp engine")
 
-DEFINE_BOOL(enable_experimental_regexp_engine_on_excessive_backtracks, false,
-            "fall back to a breadth-first regexp engine on excessive "
-            "backtracking")
+DEFINE_EXPERIMENTAL_FEATURE(
+    enable_experimental_regexp_engine_on_excessive_backtracks,
+    "fall back to a breadth-first regexp engine on excessive "
+    "backtracking")
 DEFINE_UINT(regexp_backtracks_before_fallback, 50000,
             "number of backtracks during regexp execution before fall back "
             "to experimental engine if "
