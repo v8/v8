@@ -1209,13 +1209,6 @@ void HeapObject::SetupLazilyInitializedCppHeapPointerField(size_t offset) {
   CppHeapPointerSlot(field_address(offset)).init();
 }
 
-template <CppHeapPointerTag tag>
-void HeapObject::WriteLazilyInitializedCppHeapPointerField(
-    size_t offset, IsolateForPointerCompression isolate, Address value) {
-  i::WriteLazilyInitializedCppHeapPointerField<tag>(field_address(offset),
-                                                    isolate, value);
-}
-
 void HeapObject::WriteLazilyInitializedCppHeapPointerField(
     size_t offset, IsolateForPointerCompression isolate, Address value,
     CppHeapPointerTag tag) {

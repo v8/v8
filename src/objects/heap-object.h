@@ -381,9 +381,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
       ExternalPointerTag tag);
 
   inline void SetupLazilyInitializedCppHeapPointerField(size_t offset);
-  template <CppHeapPointerTag tag>
-  inline void WriteLazilyInitializedCppHeapPointerField(
-      size_t offset, IsolateForPointerCompression isolate, Address value);
   inline void WriteLazilyInitializedCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate, Address value,
       CppHeapPointerTag tag);
