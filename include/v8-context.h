@@ -317,12 +317,10 @@ class V8_EXPORT Context : public Data {
       "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
       "parameter instead.")
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index) {
-    return GetAlignedPointerFromEmbedderData(index,
-                                             kEmbedderDataTypeTagDefault);
+    return GetAlignedPointerFromEmbedderData(index,kEmbedderDataTypeTagDefault);
   }
 
-  void SetAlignedPointerInEmbedderData(int index, void* value,
-                                       EmbedderDataTypeTag tag);
+  void SetAlignedPointerInEmbedderData(int index, void* value,EmbedderDataTypeTag tag);
 
   /**
    * Sets a 2-byte-aligned native pointer in the embedder data with the given
@@ -394,9 +392,7 @@ class V8_EXPORT Context : public Data {
    * operation is used on a promise, the init will additionally receive
    * the parent promise as the second argument.
    */
-  void SetPromiseHooks(Local<Function> init_hook, Local<Function> before_hook,
-                       Local<Function> after_hook,
-                       Local<Function> resolve_hook);
+  void SetPromiseHooks(Local<Function> init_hook, Local<Function> before_hook, Local<Function> after_hook,Local<Function> resolve_hook);
 
   bool HasTemplateLiteralObject(Local<Value> object);
   /**
@@ -450,8 +446,8 @@ class V8_EXPORT Context : public Data {
 
   static void CheckCast(Data* obj);
 
-  internal::ValueHelper::InternalRepresentationType GetDataFromSnapshotOnce(
-      size_t index);
+  internal::ValueHelper::InternalRepresentationType GetDataFromSnapshotOnce
+(size_t index);
   Local<Value> SlowGetEmbedderData(int index);
   void* SlowGetAlignedPointerFromEmbedderData(int index,
                                               EmbedderDataTypeTag tag);
@@ -464,10 +460,8 @@ Local<Value> Context::GetEmbedderData(int index) {
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
-  int value_offset =
-      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+  A embedder_data = I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
+  int value_offset = I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
   A value = I::ReadRawField<A>(embedder_data, value_offset);
 #ifdef V8_COMPRESS_POINTERS
   // We read the full pointer value and then decompress it in order to avoid
@@ -482,17 +476,13 @@ Local<Value> Context::GetEmbedderData(int index) {
 #endif
 }
 
-void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
-                                                 EmbedderDataTypeTag tag) {
+void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,EmbedderDataTypeTag tag) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
-  int value_offset = I::kEmbedderDataArrayHeaderSize +
-                     (I::kEmbedderDataSlotSize * index) +
-                     I::kEmbedderDataSlotExternalPointerOffset;
+  A embedder_data = I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
+  int value_offset =I::kEmbedderDataArrayHeaderSize +(I::kEmbedderDataSlotSize * index) +I::kEmbedderDataSlotExternalPointerOffset;
   return reinterpret_cast<void*>(I::ReadExternalPointerField(
       isolate, embedder_data, value_offset, ToExternalPointerTag(tag)));
 #else
@@ -500,20 +490,15 @@ void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
 #endif
 }
 
-void* Context::GetAlignedPointerFromEmbedderData(int index,
-                                                 EmbedderDataTypeTag tag) {
+void* Context::GetAlignedPointerFromEmbedderData(int index,EmbedderDataTypeTag tag) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
-  int value_offset = I::kEmbedderDataArrayHeaderSize +
-                     (I::kEmbedderDataSlotSize * index) +
-                     I::kEmbedderDataSlotExternalPointerOffset;
+  A embedder_data =I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
+  int value_offset = I::kEmbedderDataArrayHeaderSize +(I::kEmbedderDataSlotSize * index) +I::kEmbedderDataSlotExternalPointerOffset;
   Isolate* isolate = I::GetCurrentIsolateForSandbox();
-  return reinterpret_cast<void*>(I::ReadExternalPointerField(
-      isolate, embedder_data, value_offset, ToExternalPointerTag(tag)));
+  return reinterpret_cast<void*>(I::ReadExternalPointerField(isolate, embedder_data, value_offset, ToExternalPointerTag(tag)));
 #else
   return SlowGetAlignedPointerFromEmbedderData(index, tag);
 #endif
