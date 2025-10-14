@@ -26,7 +26,6 @@
 .cache
 .ccls-cache
 .clangd
-.clang-format-cache
 .cpplint-cache
 .cproject
 .DS_Store
