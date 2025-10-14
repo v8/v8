@@ -49,6 +49,7 @@ namespace v8::internal::wasm {
   V(WasmTableSetFuncRef)                                                       \
   V(WasmFunctionTableGet)                                                      \
   V(WasmStackGuard)                                                            \
+  V(WasmStackGuardLoop)                                                        \
   V(WasmGrowableStackGuard)                                                    \
   V(WasmStackOverflow)                                                         \
   V(WasmAllocateFixedArray)                                                    \

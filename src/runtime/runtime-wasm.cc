@@ -365,6 +365,21 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
       StackGuard::InterruptLevel::kAnyEffect);
 }
 
+// For loop back edges in optimized code. Avoids triggering side effects that
+// could get in the way of optimizations, and doesn't need to check for real
+// stack overflows because loops don't change the stack height.
+// Note: API interrupts for debugging purposes can execute arbitrary JS,
+// and we don't guard against that here. So for very particular circumstances,
+// debugging sessions can cause crashes. To properly fix that, we should
+// implement lazy-deopt support for Wasm.
+RUNTIME_FUNCTION(Runtime_WasmStackGuardLoop) {
+  DCHECK_EQ(0, args.length());
+  SealHandleScope shs(isolate);
+
+  return isolate->stack_guard()->HandleInterrupts(
+      StackGuard::InterruptLevel::kNoHeapWrites);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   DCHECK_EQ(2, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =

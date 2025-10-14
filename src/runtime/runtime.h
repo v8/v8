@@ -688,6 +688,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmI64AtomicWait, 5, 1)                                     \
   F(WasmMemoryGrow, 2, 1)                                        \
   F(WasmStackGuard, 1, 1)                                        \
+  F(WasmStackGuardLoop, 0, 1)                                    \
   F(WasmThrow, 2, 1)                                             \
   F(WasmReThrow, 1, 1, RuntimeCallProperty::kCannotTriggerGC)    \
   F(WasmThrowJSTypeError, 0, 1)                                  \
