@@ -129,7 +129,7 @@ bool CompareWithNormalizedCType(const CTypeInfo& info,
     return false;
   }
 
-  if (t.representation() == MachineRepresentation::kWord64) {
+  if (t == MachineType::Int64() || t == MachineType::Uint64()) {
     if (int64_rep == CFunctionInfo::Int64Representation::kBigInt) {
       return expected == kWasmI64;
     }
@@ -212,6 +212,10 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
         log_imported_function_mismatch(c_func_id, "too many return values");
         continue;
       }
+      if (return_info.GetType() == CTypeInfo::Type::kPointer) {
+        log_imported_function_mismatch(c_func_id,
+                                       "pointer types unsupported in Wasm");
+      }
       if (!CompareWithNormalizedCType(return_info, expected_sig->GetReturn(0),
                                       info->GetInt64Representation())) {
         log_imported_function_mismatch(c_func_id, "mismatching return value");
@@ -248,6 +252,10 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
       // Arg 0 is the receiver, skip over it since either the receiver does not
       // matter, or we already checked it above.
       CTypeInfo arg = info->ArgumentInfo(i + 1);
+      if (arg.GetType() == CTypeInfo::Type::kPointer) {
+        log_imported_function_mismatch(c_func_id,
+                                       "pointer types unsupported in Wasm");
+      }
       if (!CompareWithNormalizedCType(arg, expected_sig->GetParam(sig_index),
                                       info->GetInt64Representation())) {
         log_imported_function_mismatch(c_func_id, "parameter type mismatch");

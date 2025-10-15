@@ -1912,6 +1912,7 @@ class TurboshaftGraphBuildingInterface
 
     Label<> value_out_of_range(&asm_);
     for (size_t i = 1; i < param_count; ++i) {
+      inputs[i] = OpIndex::Invalid();
       if (sig->GetParam(i).is_reference()) {
         inputs[i] = __ AdaptLocalArgument(args[i].op);
       } else if (callback_sig->GetParam(i - 1).representation() ==
@@ -1940,7 +1941,8 @@ class TurboshaftGraphBuildingInterface
                         __ Word32Equal(__ template Projection<1>(truncate), 0)),
                     value_out_of_range);
           }
-        } else if (callback_sig->GetParam(i - 1) == MachineType::Uint64()) {
+        } else {
+          CHECK_EQ(callback_sig->GetParam(i - 1), MachineType::Uint64());
           if (sig->GetParam(i) == kWasmF64) {
             V<Tuple<Word64, Word32>> truncate =
                 __ TryTruncateFloat64ToUint64(args[i].op);
@@ -1964,6 +1966,7 @@ class TurboshaftGraphBuildingInterface
       } else {
         inputs[i] = args[i].op;
       }
+      DCHECK(inputs[i].valid());
     }
 
     OpIndex options_object;
