@@ -1272,4 +1272,12 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+[ALWAYS, {
+  'language/module-code/top-level-await/rejection-order': [FAIL],
+}],
+# end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+####
 ]
