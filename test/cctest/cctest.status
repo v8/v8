@@ -846,6 +846,9 @@
 }],  # direct_handle
 
 ['clang_coverage and mode == debug', {
+  # Slow tests.
+  'test-ptr-compr-cage/SharedPtrComprCageRace': [PASS, SLOW],
+
   # Too slow tests.
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-serialize/ContextSerializerContext': [SKIP],
