@@ -321,7 +321,7 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
     return;
   }
 
-  if (V8_UNLIKELY(v8_flags.testing_d8_test_runner) &&
+  if (V8_UNLIKELY(v8_flags.allow_natives_syntax) &&
       ManualOptimizationTable::IsMarkedForManualOptimization(isolate_,
                                                              function)) {
     TraceHeuristicOptimizationDisallowed(function);
