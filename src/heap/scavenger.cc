@@ -112,7 +112,7 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
            GCAwareObjectTypeCheck<WeakCell>(host, scavenger_->heap_) ||
            GCAwareObjectTypeCheck<JSFinalizationRegistry>(host,
                                                           scavenger_->heap_));
-    if (v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+    if (scavenger_->ShouldHandleWeakObjectsWeakly()) {
       return;
     }
     // Strongify the weak pointers.
@@ -962,14 +962,25 @@ void ScavengerCollector::CollectGarbage() {
 
   PinnedObjects pinned_objects;
 
+  const Heap::StackScanMode stack_scan_mode =
+      heap_->ConservativeStackScanningModeForMinorGC();
+  const bool is_using_conservative_stack_scanning =
+      stack_scan_mode != Heap::StackScanMode::kNone && heap_->IsGCWithStack();
+  const bool is_using_precise_pinning =
+      heap_->ShouldUsePrecisePinningForMinorGC();
+  const bool should_handle_weak_objects_weakly =
+      v8_flags.handle_weak_ref_weakly_in_minor_gc &&
+      !is_using_conservative_stack_scanning && !is_using_precise_pinning;
+
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   std::vector<std::unique_ptr<Scavenger>> scavengers;
 
   const bool is_logging = isolate_->log_object_relocation();
   for (int i = 0; i < num_scavenge_tasks; ++i) {
-    scavengers.emplace_back(new Scavenger(
-        this, heap_, is_logging, &empty_chunks, &copied_list, &promoted_list,
-        &ephemeron_table_list, &js_weak_refs_list, &weak_cells_list));
+    scavengers.emplace_back(
+        new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
+                      &promoted_list, &ephemeron_table_list, &js_weak_refs_list,
+                      &weak_cells_list, should_handle_weak_objects_weakly));
   }
   Scavenger& main_thread_scavenger = *scavengers[kMainThreadId].get();
 
@@ -998,10 +1009,7 @@ void ScavengerCollector::CollectGarbage() {
           }
         });
 
-    const Heap::StackScanMode stack_scan_mode =
-        heap_->ConservativeStackScanningModeForMinorGC();
-    if (stack_scan_mode != Heap::StackScanMode::kNone &&
-        heap_->IsGCWithStack()) {
+    if (is_using_conservative_stack_scanning) {
       // Pinning objects must be the first step and must happen before
       // scavenging any objects. Specifically we must all pin all objects
       // before visiting other pinned objects. If we scavenge some object X
@@ -1024,8 +1032,7 @@ void ScavengerCollector::CollectGarbage() {
         heap_->IterateRootsForPrecisePinning(&handles_visitor);
       }
     }
-    const bool is_using_precise_pinning =
-        heap_->ShouldUsePrecisePinningForMinorGC();
+
     if (is_using_precise_pinning) {
       PreciseObjectPinningVisitor precise_pinning_visitor(
           heap_, main_thread_scavenger, pinned_objects);
@@ -1117,7 +1124,13 @@ void ScavengerCollector::CollectGarbage() {
   }
 
   ProcessWeakReferences(&ephemeron_table_list);
-  ProcessWeakObjects(js_weak_refs_list, weak_cells_list);
+
+  DCHECK_IMPLIES(!should_handle_weak_objects_weakly,
+                 js_weak_refs_list.IsEmpty());
+  DCHECK_IMPLIES(!should_handle_weak_objects_weakly, weak_cells_list.IsEmpty());
+  if (should_handle_weak_objects_weakly) {
+    ProcessWeakObjects(js_weak_refs_list, weak_cells_list);
+  }
 
   {
     TRACE_GC(heap_->tracer(),
@@ -1255,7 +1268,8 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                      ScavengedObjectList* promoted_list,
                      EphemeronRememberedSet::TableList* ephemeron_table_list,
                      JSWeakRefsList* js_weak_refs_list,
-                     WeakCellsList* weak_cells_list)
+                     WeakCellsList* weak_cells_list,
+                     bool should_handle_weak_objects_weakly)
     : collector_(collector),
       heap_(heap),
       local_empty_chunks_(*empty_chunks),
@@ -1271,7 +1285,8 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                            heap->isolate()->has_shared_space()),
       mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
       shortcut_strings_(
-          heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)) {
+          heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)),
+      should_handle_weak_objects_weakly_(should_handle_weak_objects_weakly) {
   DCHECK(!heap->incremental_marking()->IsMarking());
 }
 
@@ -1703,7 +1718,7 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
 template <ObjectAge Age>
 V8_INLINE bool Scavenger::ShouldRecordWeakObject(Tagged<HeapObject> host,
                                                  ObjectSlot slot) {
-  DCHECK(v8_flags.handle_weak_ref_weakly_in_minor_gc);
+  DCHECK(ShouldHandleWeakObjectsWeakly());
   Tagged<HeapObject> object = Cast<HeapObject>(slot.load());
   DCHECK_NE(kNullAddress, object.ptr());
   SynchronizePageAccess(object);
@@ -1742,7 +1757,7 @@ template void Scavenger::RecordJSWeakRefIfNeeded<ObjectAge::kOld>(
 
 template <ObjectAge Age>
 void Scavenger::RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref) {
-  if (!v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+  if (!ShouldHandleWeakObjectsWeakly()) {
     return;
   }
 
@@ -1759,7 +1774,7 @@ template void Scavenger::RecordWeakCellIfNeeded<ObjectAge::kOld>(
 
 template <ObjectAge Age>
 void Scavenger::RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell) {
-  if (!v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+  if (!ShouldHandleWeakObjectsWeakly()) {
     return;
   }
 

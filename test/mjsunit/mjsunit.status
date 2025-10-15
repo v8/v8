@@ -2934,9 +2934,12 @@
   'ignition/regress-672027': [PASS, SLOW],
 
   # Test checks that object is reclaimed but cannot use async GCs.
-  'weakrefs/minor-gc-two-weakrefs': [SKIP],
-  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == conservative_stack_scanning
+
+['variant == precise_pinning', {
+  'weakrefs/minor-gc-*': [SKIP],
+}],  # variant == precise_pinning
 
 ##############################################################################
 ['variant == code_serializer', {

@@ -3389,6 +3389,10 @@ DEFINE_BOOL(
     handle_weak_ref_weakly_in_minor_gc, false,
     "Enables weak handling of WeakRef and FinalizationRegistry in minor GCs.")
 DEFINE_NEG_IMPLICATION(minor_ms, handle_weak_ref_weakly_in_minor_gc)
+DEFINE_NEG_IMPLICATION(scavenger_precise_object_pinning,
+                       handle_weak_ref_weakly_in_minor_gc)
+DEFINE_NEG_IMPLICATION(scavenger_conservative_object_pinning,
+                       handle_weak_ref_weakly_in_minor_gc)
 
 //
 // Dev shell flags

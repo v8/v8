@@ -67,7 +67,8 @@ class Scavenger {
             EmptyChunksList* empty_chunks, ScavengedObjectList* copied_list,
             ScavengedObjectList* promoted_list,
             EphemeronRememberedSet::TableList* ephemeron_table_list,
-            JSWeakRefsList* js_weak_refs_list, WeakCellsList* weak_cells_list);
+            JSWeakRefsList* js_weak_refs_list, WeakCellsList* weak_cells_list,
+            bool should_handle_weak_objects_weakly);
 
   // Entry point for scavenging an old generation page. For scavenging single
   // objects see RootScavengingVisitor and ScavengerCopiedObjectVisitor below.
@@ -197,6 +198,9 @@ class Scavenger {
   void PushPinnedPromotedObject(Tagged<HeapObject> object, Tagged<Map> map,
                                 SafeHeapObjectSize object_size);
 
+  V8_INLINE bool ShouldHandleWeakObjectsWeakly() const {
+    return should_handle_weak_objects_weakly_;
+  }
   template <ObjectAge>
   V8_INLINE bool ShouldRecordWeakObject(Tagged<HeapObject> host,
                                         ObjectSlot slot);
@@ -224,6 +228,7 @@ class Scavenger {
   const bool shared_string_table_;
   const bool mark_shared_heap_;
   const bool shortcut_strings_;
+  const bool should_handle_weak_objects_weakly_;
 
   friend class RootScavengeVisitor;
   template <typename ConcreteVisitor, ObjectAge>
