@@ -33,7 +33,6 @@ extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
 extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmTrustedInstanceData): JSAny;
 extern runtime WasmStackGuard(Context, Smi): JSAny;
-extern runtime WasmStackGuardLoop(Context): JSAny;
 extern runtime ThrowWasmStackOverflow(Context): JSAny;
 extern runtime WasmTraceGlobal(NoContext, Smi): JSAny;
 extern runtime WasmTraceMemory(NoContext, Smi): JSAny;
@@ -488,10 +487,6 @@ builtin WasmGrowableStackGuard(paramSlotsSize: intptr): JSAny {
 
 builtin WasmStackGuard(): JSAny {
   tail runtime::WasmStackGuard(LoadContextFromFrame(), SmiConstant(0));
-}
-
-builtin WasmStackGuardLoop(): JSAny {
-  tail runtime::WasmStackGuardLoop(LoadContextFromFrame());
 }
 
 builtin WasmStackOverflow(): JSAny {

@@ -112,18 +112,12 @@ class StackCheckLoweringReducer : public Next {
       const TSCallDescriptor* ts_call_descriptor =
           TSCallDescriptor::Create(call_descriptor, compiler::CanThrow::kNo,
                                    LazyDeoptOnThrow::kNo, __ graph_zone());
-      Builtin builtin;
+      V<WordPtr> builtin =
+          __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
       // Pass custom effects to the `Call` node to mark it as non-writing.
-      OpEffects effects = OpEffects().CanReadMemory();
-      if (kind == WasmStackCheckOp::Kind::kLoop) {
-        builtin = Builtin::kWasmStackGuardLoop;
-        effects = effects.RequiredWhenUnused().CanAllocate();
-      } else {
-        builtin = Builtin::kWasmStackGuard;
-        effects = effects.CanAllocate().CanThrowOrTrap();
-      }
-      V<WordPtr> target = __ RelocatableWasmBuiltinCallTarget(builtin);
-      __ Call(target, {}, ts_call_descriptor, effects);
+      // TODO(jkummerow): Distinguish loop stack checks here.
+      __ Call(builtin, {}, ts_call_descriptor,
+              OpEffects().CanReadMemory().CanThrowOrTrap());
     }
 
     return V<None>::Invalid();

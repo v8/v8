@@ -3909,18 +3909,7 @@ struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
   using Kind = JSStackCheckOp::Kind;
   Kind kind;
 
-  OpEffects Effects() const {
-    switch (kind) {
-      case Kind::kLoop:
-        return OpEffects().RequiredWhenUnused().CanReadMemory().CanAllocate();
-      case Kind::kFunctionEntry:
-        // For function entry stack checks, we could model their side effects
-        // somewhat more accurately, but it probably doesn't matter.
-        return OpEffects().CanCallAnything();
-      case Kind::kBuiltinEntry:
-        UNREACHABLE();
-    }
-  }
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
 
   explicit WasmStackCheckOp(Kind kind) : Base(), kind(kind) {}
 
@@ -3930,6 +3919,7 @@ struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return {};
   }
+
 
   auto options() const { return std::tuple{kind}; }
 };
