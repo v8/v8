@@ -26,6 +26,7 @@ let call_stack = builder.addGlobal(kWasmAnyRef, true).exportAs("call_stack");
 let rejecting_promise_index = builder.addImport(
     "m", "rejecting_promise", sig_v_v);
 builder.addExport("rejecting_promise", rejecting_promise_index);
+let g_cont = builder.addGlobal(wasmRefNullType(cont_index), true, false);
 builder.addFunction("cont_new_null", kSig_v_v)
     .addBody([
         kExprRefNull, kNullFuncRefCode,
@@ -116,13 +117,54 @@ builder.addFunction("throw_exn", kSig_v_v)
     .addBody([
         kExprThrow, tag0_index
     ]).exportFunc();
-builder.addFunction("suspend_tag0", kSig_v_v)
+let suspend_tag0 = builder.addFunction("suspend_tag0", kSig_v_v)
     .addBody([
         kExprSuspend, tag0_index
     ]).exportFunc();
 builder.addFunction("suspend_tag1", kSig_v_v)
     .addBody([
         kExprSuspend, tag1_index
+    ]).exportFunc();
+builder.addFunction("resume_bad_cont_1", kSig_v_v)
+    .addBody([
+          kExprRefFunc, nop_index,
+          kExprContNew, cont_index,
+          kExprGlobalSet, g_cont.index,
+          kExprGlobalGet, g_cont.index,
+          kExprResume, cont_index, 0,
+          // Reusing cont after return.
+          kExprGlobalGet, g_cont.index,
+          kExprResume, cont_index, 0
+    ]).exportFunc();
+builder.addFunction("resume_bad_cont_2", kSig_v_v)
+    .addBody([
+          kExprBlock, kWasmRef, cont_index,
+            kExprRefFunc, suspend_tag0.index,
+            kExprContNew, cont_index,
+            kExprGlobalSet, g_cont.index,
+            kExprGlobalGet, g_cont.index,
+            kExprResume, cont_index, 1, kOnSuspend, tag0_index, 0,
+            kExprReturn,
+          kExprEnd,
+          kExprDrop,
+          // Reusing cont after suspend.
+          kExprGlobalGet, g_cont.index,
+          kExprResume, cont_index, 0
+    ]).exportFunc();
+let helper = builder.addFunction("resume_bad_cont_3_helper", kSig_v_v)
+    .addBody([
+        kExprGlobalGet, g_cont.index,
+        // Reusing cont before return/suspend.
+        kExprResume, cont_index, 0,
+    ]).exportFunc();
+builder.addFunction("resume_bad_cont_3", kSig_v_v)
+    .addLocals(wasmRefNullType(cont_index), 1)
+    .addBody([
+          kExprRefFunc, helper.index,
+          kExprContNew, cont_index,
+          kExprGlobalSet, g_cont.index,
+          kExprGlobalGet, g_cont.index,
+          kExprResume, cont_index, 0
     ]).exportFunc();
 let instance;
 instance = builder.instantiate( {m: {
@@ -270,6 +312,13 @@ instance = builder.instantiate( {m: {
       instance.exports.suspend_tag1];
   assertThrows(instance.exports.resume_next_handle_tag0,
       WebAssembly.SuspendError);
+})();
+
+(function TestInvalidContinuation() {
+  print(arguments.callee.name);
+  assertThrows(instance.exports.resume_bad_cont_1, WebAssembly.RuntimeError);
+  assertThrows(instance.exports.resume_bad_cont_2, WebAssembly.RuntimeError);
+  assertThrows(instance.exports.resume_bad_cont_3, WebAssembly.RuntimeError);
 })();
 
 (function TestResumeSuspendReturn() {

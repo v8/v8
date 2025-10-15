@@ -948,6 +948,10 @@ builtin WasmTypeAssertionFailed(): JSAny {
   runtime::WasmTypeAssertionFailed(kNoContext);
 }
 
+builtin ThrowWasmTrapResume(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapResume));
+}
+
 macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {
   return torque_internal::unsafe::NewOffHeapReference<T>(
       %RawDownCast<RawPtr<T>>(base + offset));

@@ -712,6 +712,7 @@ namespace internal {
   T(WasmTrapStringInvalidUtf8, "invalid UTF-8 string")                         \
   T(WasmTrapStringInvalidWtf8, "invalid WTF-8 string")                         \
   T(WasmTrapStringOffsetOutOfBounds, "string offset out of bounds")            \
+  T(WasmTrapResume, "resuming an invalid continuation")                        \
   T(WasmSuspendError, "trying to suspend without WebAssembly.promising")       \
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \

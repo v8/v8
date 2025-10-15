@@ -83,6 +83,9 @@ class StackMemory {
 #endif
     return memory_limit - kStackBaseSafetyOffset;
   }
+  void set_current_continuation(Tagged<WasmContinuationObject> cont) {
+    current_cont_ = cont;
+  }
   bool IsValidContinuation(Tagged<WasmContinuationObject> cont);
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   bool Contains(Address addr) {
@@ -203,6 +206,9 @@ class StackMemory {
   }
   constexpr static uint32_t jmpbuf_offset() {
     return OFFSET_OF(StackMemory, jmpbuf_);
+  }
+  constexpr static uint32_t current_continuation_offset() {
+    return OFFSET_OF(StackMemory, current_cont_);
   }
   Address central_stack_sp() const { return central_stack_sp_; }
   void set_central_stack_sp(Address sp) { central_stack_sp_ = sp; }

@@ -2739,6 +2739,7 @@ enum IsolateAddressId {
   V(TrapIllegalCast)               \
   V(TrapArrayOutOfBounds)          \
   V(TrapArrayTooLarge)             \
+  V(TrapResume)                    \
   V(TrapStringOffsetOutOfBounds)
 
 enum class KeyedAccessLoadMode : uint8_t {

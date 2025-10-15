@@ -3782,6 +3782,10 @@ class TurboshaftGraphBuildingInterface
               TrapId::kTrapNullDereference);
     V<WordPtr> stack = __ LoadExternalPointerFromObject(
         cont_ref.op, WasmContinuationObject::kStackOffset, kWasmStackMemoryTag);
+    V<WasmContinuationObject> stack_cont = __ Load(
+        stack, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+        StackMemory::current_continuation_offset());
+    __ TrapIfNot(__ TaggedEqual(cont_ref.op, stack_cont), TrapId::kTrapResume);
     if (handlers.size() == 1 && handlers[0].kind == kOnSuspend) {
       int tag_index = handlers[0].tag.index;
       TSBlock* handler = __ NewBlock();

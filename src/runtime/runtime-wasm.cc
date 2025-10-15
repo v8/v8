@@ -2435,6 +2435,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   isolate->wasm_stacks().emplace_back(std::move(stack));
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject(stack_ptr);
+  stack_ptr->set_current_continuation(*cont);
   return *cont;
 }
 
