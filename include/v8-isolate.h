@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -861,6 +862,12 @@ class V8_EXPORT Isolate {
    * the isolate is executing long running JavaScript code.
    */
   void MemoryPressureNotification(MemoryPressureLevel level);
+
+  /**
+   * This triggers garbage collections until either `allocate` succeeds, or
+   * until v8 gives up and triggers an OOM error.
+   */
+  bool RetryCustomAllocate(std::function<bool()> allocate);
 
   /**
    * Optional request from the embedder to tune v8 towards energy efficiency
