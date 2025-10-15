@@ -11,14 +11,15 @@ let sig_v_v = builder.addType(kSig_v_v);
 let cont_index = builder.addCont(sig_v_v);
 let gc_index = builder.addImport("m", "gc", kSig_v_v);
 builder.addExport("gc", gc_index);
-let suspending_index = builder.addImport("m", "suspending", sig_v_v);
-builder.addExport("suspending", suspending_index);
+let jspi_suspending_index = builder.addImport("m", "jspi_suspending", sig_v_v);
+builder.addExport("jspi_suspending", jspi_suspending_index);
 let call_next_from_js_index =
     builder.addImport("m", "call_next_from_js", kSig_v_v);
 builder.addExport("call_next_from_js", call_next_from_js_index);
 let get_next_sig = builder.addType(makeSig([], [wasmRefNullType(sig_v_v)]));
 let get_next_index = builder.addImport("m", "get_next", get_next_sig);
-let tag_index = builder.addTag(kSig_v_v);
+let tag0_index = builder.addTag(kSig_v_v);
+let tag1_index = builder.addTag(kSig_v_v);
 // A list of wasm functions where each function is expected to pop and call
 // the next one in the list, to easily create specific call stacks.
 let call_stack = builder.addGlobal(kWasmAnyRef, true).exportAs("call_stack");
@@ -38,7 +39,7 @@ builder.addFunction("resume_null", kSig_v_v)
         kExprUnreachable,
     ]).exportFunc();
 builder.addFunction("throw_error", kSig_v_v)
-    .addBody([kExprThrow, tag_index]).exportFunc();
+    .addBody([kExprThrow, tag0_index]).exportFunc();
 builder.addFunction("call_next_as_cont", kSig_v_v)
     .addBody([
         kExprCallFunction, get_next_index,
@@ -59,37 +60,74 @@ builder.addFunction("call_next_in_catch_all", kSig_v_v)
       kExprEnd,
     ]).exportFunc();
 let nop_index = builder.addFunction("nop", kSig_v_v).addBody([]).exportFunc().index;
+builder.addFunction("resume_next_handle_tag0", kSig_v_v)
+    .addBody([
+        kExprBlock, kWasmRef, cont_index,
+          kExprCallFunction, get_next_index,
+          kExprContNew, cont_index,
+          kExprResume, cont_index, 1, kOnSuspend, tag0_index, 0,
+          kExprUnreachable,
+        kExprEnd,
+        kExprDrop,
+    ]).exportFunc();
+builder.addFunction("resume_next_handle_tag1", kSig_v_v)
+    .addBody([
+        kExprBlock, kWasmRef, cont_index,
+          kExprCallFunction, get_next_index,
+          kExprContNew, cont_index,
+          kExprResume, cont_index, 1, kOnSuspend, tag1_index, 0,
+          kExprUnreachable,
+        kExprEnd,
+        kExprDrop,
+        kExprUnreachable,
+    ]).exportFunc();
 builder.addFunction("resume_next_twice", kSig_v_v)
     .addBody([
         kExprBlock, kWasmRef, cont_index,
           kExprCallFunction, get_next_index,
           kExprContNew, cont_index,
-          kExprResume, cont_index, 1, kOnSuspend, tag_index, 0,
-          kExprReturn,
+          kExprResume, cont_index, 1, kOnSuspend, tag0_index, 0,
+          kExprUnreachable,
         kExprEnd,
         kExprResume, cont_index, 0,
     ]).exportFunc();
-builder.addFunction("resume_next_with_handler_and_catch_all", kSig_v_v)
+builder.addFunction("resume_next_with_handler_and_catch_all", kSig_i_v)
     .addBody([
-        kExprTryTable, kWasmVoid, 1,
-        kCatchAllNoRef, 0,
-          kExprBlock, kWasmRef, cont_index,
-            kExprCallFunction, get_next_index,
-            kExprContNew, cont_index,
-            kExprResume, cont_index, 1, kOnSuspend, tag_index, 0,
+        kExprBlock, kWasmVoid,
+          kExprTryTable, kWasmVoid, 1,
+          kCatchAllNoRef, 0,
+            kExprBlock, kWasmRef, cont_index,
+              kExprCallFunction, get_next_index,
+              kExprContNew, cont_index,
+              kExprResume, cont_index, 1, kOnSuspend, tag0_index, 0,
+              kExprI32Const, 10,
+              kExprReturn,
+            kExprEnd,
+            kExprDrop,
+            kExprI32Const, 11,
             kExprReturn,
           kExprEnd,
-          kExprDrop,
+          kExprUnreachable,
         kExprEnd,
+        kExprI32Const, 12,
+        kExprReturn,
     ]).exportFunc();
 builder.addFunction("throw_exn", kSig_v_v)
     .addBody([
-        kExprThrow, tag_index
+        kExprThrow, tag0_index
+    ]).exportFunc();
+builder.addFunction("suspend_tag0", kSig_v_v)
+    .addBody([
+        kExprSuspend, tag0_index
+    ]).exportFunc();
+builder.addFunction("suspend_tag1", kSig_v_v)
+    .addBody([
+        kExprSuspend, tag1_index
     ]).exportFunc();
 let instance;
 instance = builder.instantiate( {m: {
   gc,
-  suspending: new WebAssembly.Suspending(() => {}),
+  jspi_suspending: new WebAssembly.Suspending(() => {}),
   call_next_from_js: () => instance.exports.call_stack.value.shift()(),
   get_next: () => instance.exports.call_stack.value.shift(),
   rejecting_promise: new WebAssembly.Suspending(() => Promise.reject())
@@ -131,7 +169,7 @@ instance = builder.instantiate( {m: {
   // Suspend multiple WasmFX stacks with JSPI.
   instance.exports.call_stack.value = [
       instance.exports.call_next_as_cont,
-      instance.exports.suspending
+      instance.exports.jspi_suspending
   ];
   WebAssembly.promising(instance.exports.call_next)();
 
@@ -139,7 +177,7 @@ instance = builder.instantiate( {m: {
   instance.exports.call_stack.value = [
       instance.exports.call_next_as_cont,
       instance.exports.call_next_from_js,
-      instance.exports.suspending
+      instance.exports.jspi_suspending
   ];
   assertThrowsAsync(
       WebAssembly.promising(instance.exports.call_next_as_cont)(),
@@ -150,7 +188,7 @@ instance = builder.instantiate( {m: {
       instance.exports.call_next_as_cont,
       instance.exports.call_next_from_js,
       instance.exports.call_next_as_cont,
-      instance.exports.suspending
+      instance.exports.jspi_suspending
   ];
   assertThrowsAsync(
       WebAssembly.promising(instance.exports.call_next_as_cont)(),
@@ -165,21 +203,73 @@ instance = builder.instantiate( {m: {
   WebAssembly.promising(instance.exports.call_next_as_cont)()
 })();
 
-(function TestEffectHandlers() {
+(function TestSuspend() {
   print(arguments.callee.name);
 
   instance.exports.call_stack.value = [
-      instance.exports.nop,
+      instance.exports.suspend_tag0
   ];
   instance.exports.resume_next_twice();
 
   // A resume instruction within a try scope triggers interesting code paths:
   // the resume builtin call must be able to handle either exceptions or
   // effects.
+  // Test the three possible successors of the resume instruction: normal
+  // return, exception handler and effect handler.
+  instance.exports.call_stack.value = [
+      instance.exports.nop
+  ];
+  assertEquals(10, instance.exports.resume_next_with_handler_and_catch_all());
+
+  instance.exports.call_stack.value = [
+      instance.exports.suspend_tag0
+  ];
+  assertEquals(11, instance.exports.resume_next_with_handler_and_catch_all());
+
   instance.exports.call_stack.value = [
       instance.exports.throw_exn
   ];
-  instance.exports.resume_next_with_handler_and_catch_all();
+  assertEquals(12, instance.exports.resume_next_with_handler_and_catch_all());
+
+  instance.exports.call_stack.value = [
+      instance.exports.call_next_as_cont,
+      instance.exports.call_next_as_cont,
+      instance.exports.suspend_tag0,
+  ];
+  instance.exports.resume_next_twice();
+
+  instance.exports.call_stack.value = [
+      instance.exports.resume_next_handle_tag1,
+      instance.exports.suspend_tag0
+  ];
+  instance.exports.resume_next_handle_tag0();
+})();
+
+(function TestSuspendError() {
+  print(arguments.callee.name);
+  // Throw if the top WasmFX stack contains JS frames:
+  instance.exports.call_stack.value = [
+      instance.exports.call_next_as_cont,
+      instance.exports.call_next_from_js,
+      instance.exports.suspend_tag0,
+  ];
+  assertThrows(instance.exports.resume_next_handle_tag0,
+      WebAssembly.SuspendError);
+
+  // Throw if an intermediate stack contains JS frames.
+  instance.exports.call_stack.value = [
+      instance.exports.call_next_as_cont,
+      instance.exports.call_next_from_js,
+      instance.exports.call_next_as_cont,
+      instance.exports.suspend_tag0,
+  ];
+  assertThrows(instance.exports.resume_next_handle_tag0,
+      WebAssembly.SuspendError);
+
+  instance.exports.call_stack.value = [
+      instance.exports.suspend_tag1];
+  assertThrows(instance.exports.resume_next_handle_tag0,
+      WebAssembly.SuspendError);
 })();
 
 (function TestResumeSuspendReturn() {

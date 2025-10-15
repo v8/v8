@@ -787,7 +787,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObject();
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObjectInitialized();
-  DirectHandle<WasmContinuationObject> NewWasmContinuationObject();
+  DirectHandle<WasmContinuationObject> NewWasmContinuationObject(
+      wasm::StackMemory* stack);
   DirectHandle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                          wasm::WasmValue* args,
                                          DirectHandle<Map> map);

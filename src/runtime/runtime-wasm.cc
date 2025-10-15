@@ -12,8 +12,10 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/heap/factory.h"
+#include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -2421,6 +2423,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
   return Smi::FromInt(static_cast<int>(hash));
 }
 
+// For cont.new: this initializes the continuation with a new stack and with the
+// given function reference, such that calling "resume" on it will call the
+// function on the new stack.
 RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
@@ -2428,13 +2433,33 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
       TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   DirectHandle<WasmFuncRef> func_ref =
       handle(Cast<WasmFuncRef>(args[1]), isolate);
-  DirectHandle<WasmContinuationObject> cont =
-      isolate->factory()->NewWasmContinuationObject();
+  std::unique_ptr<wasm::StackMemory> stack = wasm::StackMemory::New();
+  stack->jmpbuf()->fp = kNullAddress;
+  stack->jmpbuf()->sp = stack->base();
+  stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  stack->jmpbuf()->stack_limit = stack->jslimit();
+  stack->jmpbuf()->is_on_central_stack = false;
+  stack->jmpbuf()->parent = nullptr;
+  stack->set_index(isolate->wasm_stacks().size());
   // TODO(thibaudm): Store the WasmCodePointer instead.
-  cont->stack()->jmpbuf()->pc = trusted_instance_data->native_module()
-                                    ->continuation_wrapper()
-                                    ->instruction_start();
-  cont->stack()->set_func_ref(*func_ref);
+  stack->jmpbuf()->pc = trusted_instance_data->native_module()
+                            ->continuation_wrapper()
+                            ->instruction_start();
+  stack->set_func_ref(*func_ref);
+  wasm::StackMemory* stack_ptr = stack.get();
+  isolate->wasm_stacks().emplace_back(std::move(stack));
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject(stack_ptr);
+  return *cont;
+}
+
+// For suspend: allocates an uninitialized continuation, to be initialized by
+// the suspend builtin with the current stack and register state.
+RUNTIME_FUNCTION(Runtime_WasmAllocateEmptyContinuation) {
+  DCHECK_EQ(0, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject(nullptr);
   return *cont;
 }
 

@@ -1769,6 +1769,18 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 
+  struct WasmFXSuspend : public Descriptor<WasmFXSuspend> {
+    static constexpr auto kFunction = Builtin::kWasmFXSuspend;
+    using arguments_t =
+        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>>;
+    using results_t = std::tuple<>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

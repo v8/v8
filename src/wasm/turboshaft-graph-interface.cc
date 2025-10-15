@@ -3824,7 +3824,27 @@ class TurboshaftGraphBuildingInterface
 
   void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
                const Value args[], const Value returns[]) {
-    UNIMPLEMENTED();
+    V<WordPtr> root = __ LoadRootRegister();
+    V<Word32> is_on_central_stack =
+        __ Load(root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+                IsolateData::is_on_central_stack_flag_offset());
+    V<Context> native_context = instance_cache_.native_context();
+    IF (is_on_central_stack) {
+      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {},
+                         native_context);
+      __ Unreachable();
+    }
+    V<FixedArray> instance_tags =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
+                                      MemoryRepresentation::TaggedPointer());
+    auto wanted_tag = V<WasmExceptionTag>::Cast(
+        __ LoadFixedArrayElement(instance_tags, imm.index));
+    V<WasmContinuationObject> cont = __ WasmCallRuntime(
+        decoder->zone(), Runtime::kWasmAllocateEmptyContinuation, {},
+        native_context);
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXSuspend>(
+        decoder, native_context, {wanted_tag, cont},
+        CheckForException::kCatchInThisFrame);
   }
 
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,

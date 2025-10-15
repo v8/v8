@@ -1959,23 +1959,14 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObjectInitialized() {
   return suspender;
 }
 
-DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject() {
+DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject(
+    wasm::StackMemory* stack) {
   Tagged<Map> map = *wasm_continuation_object_map();
   Tagged<WasmContinuationObject> obj =
       Cast<WasmContinuationObject>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kYoung, map));
   DirectHandle<WasmContinuationObject> cont(obj, isolate());
-  cont->init_stack(IsolateForSandbox(isolate()), nullptr);
-  std::unique_ptr<wasm::StackMemory> stack = wasm::StackMemory::New();
-  stack->jmpbuf()->fp = kNullAddress;
-  stack->jmpbuf()->sp = stack->base();
-  stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
-  stack->jmpbuf()->stack_limit = stack->jslimit();
-  stack->jmpbuf()->is_on_central_stack = false;
-  stack->jmpbuf()->parent = nullptr;
-  stack->set_index(isolate()->wasm_stacks().size());
-  cont->set_stack(isolate(), stack.get());
-  isolate()->wasm_stacks().emplace_back(std::move(stack));
+  cont->init_stack(IsolateForSandbox(isolate()), stack);
   return cont;
 }
 

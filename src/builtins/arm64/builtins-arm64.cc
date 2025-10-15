@@ -3936,6 +3936,43 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ Ret(lr);
 }
 
+void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Label resume;
+  __ Push(cont, kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    DCHECK_NE(kCArgRegs[4], cont);
+    __ Mov(kCArgRegs[4], tag);
+    __ Mov(kCArgRegs[5], cont);
+    __ Mov(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Mov(kCArgRegs[1], sp);
+    __ Mov(kCArgRegs[2], fp);
+    __ Adr(kCArgRegs[3], &resume);
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 6);
+  }
+  Register target_stack = x1;
+  __ Move(target_stack, kReturnRegister0);
+  cont = kReturnRegister0;
+  __ Pop(kContextRegister, cont);
+
+  Label ok;
+  __ cmp(target_stack, Operand(0));
+  __ B(ne, &ok);
+  // No handler found.
+  __ CallRuntime(Runtime::kThrowWasmSuspendError);
+
+  __ bind(&ok);
+  DCHECK_EQ(cont, kReturnRegister0);
+  LoadJumpBuffer(masm, target_stack, true, x3);
+  __ Trap();
+  __ Bind(&resume, BranchTargetIdentifier::kBtiJump);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Ret();
+}
+
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
   Register active_stack = x0;
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());

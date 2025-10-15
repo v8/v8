@@ -721,6 +721,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmArrayInitSegment, 6, 1)                                  \
   F(WasmAllocateSuspender, 0, 1)                                 \
   F(WasmAllocateContinuation, 2, 1)                              \
+  F(WasmAllocateEmptyContinuation, 0, 1)                         \
   F(ClearWasmSuspenderResumeField, 1, 1)                         \
   F(WasmCastToSpecialPrimitiveArray, 2, 1)                       \
   F(WasmStringNewSegmentWtf8, 5, 1)                              \
