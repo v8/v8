@@ -835,7 +835,7 @@
     'tests': [
       {'name': 'benchmarks', 'shards': 2},
       {'name': 'mozilla', 'shards': 4},
-      {'name': 'test262', 'variant': 'default', 'shards': 5},
+      {'name': 'test262', 'variant': 'default', 'shards': 10},
       {'name': 'v8testing', 'shards': 12},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 9},
     ],
@@ -2029,7 +2029,7 @@
     'tests': [
       {'name': 'benchmarks', 'shards': 2},
       {'name': 'mozilla', 'shards': 4},
-      {'name': 'test262', 'variant': 'default', 'shards': 6},
+      {'name': 'test262', 'variant': 'default', 'shards': 10},
       {'name': 'v8testing', 'shards': 12},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 10},
     ],
