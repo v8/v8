@@ -11,6 +11,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/string-format.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
@@ -567,13 +568,13 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "external: " << external_reference();
       break;
     case Kind::kHeapObject:
-      os << "heap object: " << JSONEscaped(handle());
+      os << "heap object: " << base::JSONEscaped(handle());
       break;
     case Kind::kCompressedHeapObject:
-      os << "compressed heap object: " << JSONEscaped(handle());
+      os << "compressed heap object: " << base::JSONEscaped(handle());
       break;
     case Kind::kTrustedHeapObject:
-      os << "trusted heap object: " << JSONEscaped(handle());
+      os << "trusted heap object: " << base::JSONEscaped(handle());
       break;
     case Kind::kRelocatableWasmCall:
       os << "relocatable wasm call: 0x" << std::hex << storage.integral
@@ -1594,7 +1595,7 @@ void PrintMapSet(std::ostream& os, const ZoneRefSet<Map>& maps) {
   os << "{";
   for (size_t i = 0; i < maps.size(); ++i) {
     if (i != 0) os << ",";
-    os << JSONEscaped(maps[i].object());
+    os << base::JSONEscaped(maps[i].object());
   }
   os << "}";
 }
