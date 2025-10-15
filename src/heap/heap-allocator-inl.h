@@ -318,7 +318,6 @@ HeapAllocator::CollectGarbageAndRetryAllocation(AllocateFunction&& Allocate,
   const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
                                             ? PerformHeapLimitCheck::kNo
                                             : PerformHeapLimitCheck::kYes;
-
   for (int i = 0; i < 2; i++) {
     if (v8_flags.ineffective_gcs_forces_last_resort &&
         allocation != AllocationType::kYoung &&

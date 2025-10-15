@@ -116,11 +116,11 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
     case AllocationType::kCode:
     case AllocationType::kMap:
     case AllocationType::kTrusted:
+    case AllocationType::kSharedMap:
+    case AllocationType::kSharedOld:
       // OLD_SPACE indicates full GC.
       return OLD_SPACE;
     case AllocationType::kReadOnly:
-    case AllocationType::kSharedMap:
-    case AllocationType::kSharedOld:
     case AllocationType::kSharedTrusted:
       UNREACHABLE();
   }
@@ -147,8 +147,19 @@ AllocationResult HeapAllocator::RetryAllocateRawLightSlowPath(
 void HeapAllocator::CollectGarbage(
     AllocationType allocation, PerformHeapLimitCheck perform_heap_limit_check) {
   if (IsSharedAllocationType(allocation)) {
-    heap_->CollectGarbageShared(local_heap_,
-                                GarbageCollectionReason::kAllocationFailure);
+    auto* isolate = heap_->isolate();
+    if (isolate->shared_space_isolate() == isolate &&
+        local_heap_->is_main_thread()) {
+      AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
+      heap_->CollectGarbage(space_to_gc,
+                            GarbageCollectionReason::kAllocationFailure,
+                            kNoGCCallbackFlags, perform_heap_limit_check);
+    } else {
+      isolate->shared_space_isolate()
+          ->heap()
+          ->TriggerAndWaitForGCFromBackgroundThread(local_heap_,
+                                                    RequestedGCKind::kMajor);
+    }
   } else if (local_heap_->is_main_thread()) {
     // On the main thread we can directly start the GC.
     AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
@@ -157,7 +168,29 @@ void HeapAllocator::CollectGarbage(
                           kNoGCCallbackFlags, perform_heap_limit_check);
   } else {
     // Request GC from main thread.
-    heap_->CollectGarbageFromAnyThread(local_heap_);
+    heap_->TriggerAndWaitForGCFromBackgroundThread(local_heap_,
+                                                   RequestedGCKind::kMajor);
+  }
+}
+
+void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {
+  if (IsSharedAllocationType(allocation)) {
+    auto* isolate = heap_->isolate();
+    if (isolate->shared_space_isolate() == isolate &&
+        local_heap_->is_main_thread()) {
+      heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+    } else {
+      isolate->shared_space_isolate()
+          ->heap()
+          ->TriggerAndWaitForGCFromBackgroundThread(
+              local_heap_, RequestedGCKind::kLastResort);
+    }
+  } else if (local_heap_->is_main_thread()) {
+    heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+  } else {
+    // Request GC from main thread.
+    heap_->TriggerAndWaitForGCFromBackgroundThread(
+        local_heap_, RequestedGCKind::kLastResort);
   }
 }
 
@@ -174,19 +207,6 @@ AllocationResult HeapAllocator::RetryAllocateRawOrFailSlowPath(
     return result;
   };
   return RetryAllocateRawOrFailSlowPath(Allocate, allocation);
-}
-
-void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {
-  if (IsSharedAllocationType(allocation)) {
-    heap_->CollectGarbageShared(heap_->main_thread_local_heap(),
-                                GarbageCollectionReason::kLastResort);
-  } else if (local_heap_->is_main_thread()) {
-    // On the main thread we can directly start the GC.
-    heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
-  } else {
-    // Request GC from main thread.
-    heap_->CollectGarbageFromAnyThread(local_heap_);
-  }
 }
 
 bool HeapAllocator::TryResizeLargeObject(Tagged<HeapObject> object,

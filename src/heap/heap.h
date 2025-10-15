@@ -590,7 +590,7 @@ class Heap final {
   bool CanShortcutStringsDuringGC(GarbageCollector collector) const;
 
   // Performs GC after background allocation failure.
-  void CollectGarbageForBackground(LocalHeap* local_heap);
+  void PerformRequestedGC(LocalHeap* local_heap);
 
   //
   // Support for the API.
@@ -701,8 +701,6 @@ class Heap final {
   }
 
   bool CollectionRequested();
-
-  void CheckCollectionRequested();
 
   void RestoreHeapLimit(size_t heap_limit) {
     // Do not set the limit lower than the live size + some slack.
@@ -978,7 +976,9 @@ class Heap final {
   // Performs a full garbage collection.
   V8_EXPORT_PRIVATE void CollectAllGarbage(
       GCFlags gc_flags, GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
+      PerformHeapLimitCheck check_heap_limit_reached =
+          PerformHeapLimitCheck::kYes);
 
   // Last hope garbage collection. Will try to free as much memory as possible
   // with multiple rounds of garbage collection.
@@ -997,10 +997,8 @@ class Heap final {
       LocalHeap* local_heap, GarbageCollectionReason gc_reason);
 
   // Requests garbage collection from some other thread.
-  V8_EXPORT_PRIVATE bool CollectGarbageFromAnyThread(
-      LocalHeap* local_heap,
-      GarbageCollectionReason gc_reason =
-          GarbageCollectionReason::kBackgroundAllocationFailure);
+  V8_EXPORT_PRIVATE bool TriggerAndWaitForGCFromBackgroundThread(
+      LocalHeap* local_heap, RequestedGCKind kind);
 
   // Performs a GC through CollectGarbage(). However, if the GC reaches the heap
   // limit instead of crashing immediately, more and stronger GCs are performed

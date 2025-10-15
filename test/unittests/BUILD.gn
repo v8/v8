@@ -337,6 +337,7 @@ v8_source_set("v8_unittests_sources") {
     "gay-shortest.h",
     "heap/allocation-observer-unittest.cc",
     "heap/code-range-unittest.cc",
+    "heap/collection-barrier-unittest.cc",
     "heap/conservative-stack-visitor-unittest.cc",
     "heap/cppgc-js/embedder-roots-handler-unittest.cc",
     "heap/cppgc-js/traced-reference-unittest.cc",
