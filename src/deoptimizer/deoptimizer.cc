@@ -682,7 +682,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
 #endif
 
   compiled_code_ = isolate_->heap()->FindCodeForInnerPointer(from);
-  deopt_info_ = ComputeDeoptInfo(compiled_code_, from);
   DCHECK(!compiled_code_.is_null());
   DCHECK(IsCode(compiled_code_));
 
@@ -807,31 +806,15 @@ int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
   return -1;
 }
 
-const char* CodeValidityToString(Deoptimizer::CodeValidity code_validity) {
-  switch (code_validity) {
-    case Deoptimizer::CodeValidity::kUnaffected:
-      return "unaffected";
-    case Deoptimizer::CodeValidity::kInvalidated:
-      return "invalidated";
-    case Deoptimizer::CodeValidity::kInvalidatedOsr:
-      return "invalidated-osr";
-    case Deoptimizer::CodeValidity::kUnknown:
-      return "unknown";
-  }
-}
-
 }  // namespace
 
 void Deoptimizer::TraceDeoptBegin(int optimization_id,
                                   BytecodeOffset bytecode_offset) {
   DCHECK(tracing_enabled());
   FILE* file = trace_scope()->file();
-  PrintF(file,
-         "[bailout (kind: %s, reason: %s, code_invalidation: %s): begin. "
-         "deoptimizing ",
-         MessageFor(deopt_kind_),
-         DeoptimizeReasonToString(deopt_info().deopt_reason),
-         CodeValidityToString(code_validity()));
+  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo();
+  PrintF(file, "[bailout (kind: %s, reason: %s): begin. deoptimizing ",
+         MessageFor(deopt_kind_), DeoptimizeReasonToString(info.deopt_reason));
   if (IsJSFunction(function_)) {
     ShortPrint(function_, file);
     PrintF(file, ", ");
@@ -847,14 +830,14 @@ void Deoptimizer::TraceDeoptBegin(int optimization_id,
          "caller SP " V8PRIxPTR_FMT ", pc " V8PRIxPTR_FMT "]\n",
          optimization_id,
 #ifdef DEBUG
-         deopt_info().node_id,
+         info.node_id,
 #endif  // DEBUG
          bytecode_offset.ToInt(), deopt_exit_index_, fp_to_sp_delta_,
          caller_frame_top_, PointerAuthentication::StripPAC(from_));
   if (verbose_tracing_enabled() && deopt_kind_ != DeoptimizeKind::kLazy) {
     PrintF(file, "            ;;; deoptimize at ");
     OFStream outstr(file);
-    deopt_info().position.Print(outstr, compiled_code_);
+    info.position.Print(outstr, compiled_code_);
     PrintF(file, "\n");
   }
 }
@@ -1564,6 +1547,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   if (tracing_enabled()) {
     timer.Start();
+    TraceDeoptBegin(input_data->OptimizationId().value(), bytecode_offset);
   }
 
   FILE* trace_file =
@@ -1695,38 +1679,21 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
-  // Determine if the code object must be replaced or not.
-  code_validity_ = CodeValidity::kUnaffected;
-  // Lazy deopts don't invalidate the underlying optimized code since the code
-  // object itself is still valid (as far as we know); the called function
-  // caused the deopt, not the function we're currently looking at.
-  if (deopt_kind_ == DeoptimizeKind::kEager &&
-      !IsDeoptimizationWithoutCodeInvalidation(deopt_info().deopt_reason) &&
-      !compiled_code_->marked_for_deoptimization()) {
-    if (compiled_code_->osr_offset().IsNone()) {
-      // TODO(saelo): We have to use full pointer comparisons here while not all
-      // Code objects have been migrated into trusted space.
-      static_assert(!kAllCodeObjectsLiveInTrustedSpace);
-      if (IsJSFunction(function_) &&
-          function_->code(isolate()).SafeEquals(compiled_code_)) {
-        // Deopting code is the currently active tier.
-        code_validity_ = CodeValidity::kInvalidated;
-      }
-    } else {
-      DCHECK_NE(deopt_info().deopt_reason, DeoptimizeReason::kOSREarlyExit);
-      if (DeoptExitIsInsideOsrLoop(
-              isolate(), function_, bytecode_offset_in_outermost_frame_,
-              compiled_code_->osr_offset(), compiled_code_->kind())) {
-        // Deopting inside OSR loop.
-        // TODO(olivf): We should also check if this osr code is actually the
-        // active one.
-        code_validity_ = CodeValidity::kInvalidatedOsr;
-      }
-    }
-  }
-
-  // Only invalidated code affects tiering decisions.
-  if (code_validity_ != CodeValidity::kUnaffected) {
+  // Don't reset the tiering state for OSR code since we might reuse OSR code
+  // after deopt, and we still want to tier up to non-OSR code even if OSR code
+  // deoptimized.
+  bool osr_early_exit = Deoptimizer::GetDeoptInfo().deopt_reason ==
+                        DeoptimizeReason::kOSREarlyExit;
+  // TODO(saelo): We have to use full pointer comparisons here while not all
+  // Code objects have been migrated into trusted space.
+  static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+  if (IsJSFunction(function_) &&
+      (compiled_code_->osr_offset().IsNone()
+           ? function_->code(isolate()).SafeEquals(compiled_code_)
+           : (!osr_early_exit &&
+              DeoptExitIsInsideOsrLoop(
+                  isolate(), function_, bytecode_offset_in_outermost_frame_,
+                  compiled_code_->osr_offset(), compiled_code_->kind())))) {
     if (v8_flags.profile_guided_optimization &&
         function_->shared()->cached_tiering_decision() !=
             CachedTieringDecision::kDelayMaglev) {
@@ -1738,7 +1705,6 @@ void Deoptimizer::DoComputeOutputFrames() {
             CachedTieringDecision::kNormal);
       }
     }
-
     function_->ResetTieringRequests();
     // This allows us to quickly re-spawn a new compilation request even if
     // there is already one running. In particular it helps to squeeze in a
@@ -1755,10 +1721,6 @@ void Deoptimizer::DoComputeOutputFrames() {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());
   }
   isolate()->counters()->deopts()->Increment();
-
-  if (tracing_enabled()) {
-    TraceDeoptBegin(input_data->OptimizationId().value(), bytecode_offset);
-  }
 
   // The following invariant is fairly tricky to guarantee, since the size of
   // an optimized frame and its deoptimized counterparts usually differs. We
@@ -3035,10 +2997,11 @@ void Deoptimizer::ProcessDeoptReason(DeoptimizeReason reason) {
   bool feedback_updated = translated_state_.DoUpdateFeedback(reason);
   if (verbose_tracing_enabled() && feedback_updated) {
     FILE* file = trace_scope()->file();
+    Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo();
     PrintF(file, "Feedback updated from deoptimization at ");
     OFStream outstr(file);
-    deopt_info().position.Print(outstr, compiled_code_);
-    PrintF(file, ", %s\n", DeoptimizeReasonToString(deopt_info().deopt_reason));
+    info.position.Print(outstr, compiled_code_);
+    PrintF(file, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
   }
 }
 
@@ -3138,9 +3101,8 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(Tagged<Code> code) {
   return parameter_slots * kSystemPointerSize;
 }
 
-// static
-Deoptimizer::DeoptInfo Deoptimizer::ComputeDeoptInfo(Tagged<Code> code,
-                                                     Address pc) {
+Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Tagged<Code> code,
+                                                 Address pc) {
   CHECK(code->instruction_start() <= pc && pc <= code->instruction_end());
   SourcePosition position = SourcePosition::Unknown();
   DeoptimizeReason reason = DeoptimizeReason::kUnknown;

@@ -61,9 +61,9 @@ function createWasmModuleForLazyDeopt(returnType, createValue, callback) {
   %OptimizeFunctionOnNextCall(test);
 
   // CHECK: [marking dependent code {{.*}} <Code TURBOFAN_JS> ({{.*}} <SharedFunctionInfo test>)
+  // CHECK: [bailout (kind: deopt-lazy, reason: (unknown))
   // CHECK: reading JS to Wasm builtin continuation frame test
   // CHECK: translating BuiltinContinuation to JSToWasmLazyDeoptContinuation
-  // CHECK: [bailout (kind: deopt-lazy, reason: (unknown), code_invalidation: unaffected)
   // CHECK: Materialization {{.*}} <HeapNumber 3.14>
   assertEqualsDelta(3.14, test(0));
 }

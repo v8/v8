@@ -35,39 +35,47 @@ class Isolate;
 
 class Deoptimizer : public Malloced {
  public:
-  enum class CodeValidity {
-    kUnknown,
-    kInvalidated,
-    kInvalidatedOsr,
-    kUnaffected
-  };
-
   struct DeoptInfo {
-    SourcePosition position;
-    DeoptimizeReason deopt_reason;
-    uint32_t node_id;
-    int deopt_id = std::numeric_limits<int>::min();
+    DeoptInfo(SourcePosition position, DeoptimizeReason deopt_reason,
+              uint32_t node_id, int deopt_id)
+        : position(position),
+          deopt_reason(deopt_reason),
+          node_id(node_id),
+          deopt_id(deopt_id) {}
+
+    const SourcePosition position;
+    const DeoptimizeReason deopt_reason;
+    const uint32_t node_id;
+    const int deopt_id;
   };
 
-  static DeoptInfo ComputeDeoptInfo(Tagged<Code> code, Address pc);
-
+  // Whether the deopt exit is contained by the outermost loop containing the
+  // osr'd loop. For example:
+  //
+  //  for (;;) {
+  //    for (;;) {
+  //    }  // OSR is triggered on this backedge (osr_offset = JumpLoop's
+  //    offset).
+  //  }  // This is the outermost loop containing the osr'd loop.
+  static bool DeoptExitIsInsideOsrLoop(Isolate* isolate,
+                                       Tagged<JSFunction> function,
+                                       BytecodeOffset deopt_exit_offset,
+                                       BytecodeOffset osr_offset,
+                                       CodeKind code_kind);
   static bool GetOutermostOuterLoopWithCodeKind(
       Isolate* isolate, Tagged<JSFunction> function, BytecodeOffset osr_offset,
       CodeKind outer_loop_code_kind, BytecodeOffset* outer_loop_osr_offset);
+
+  static DeoptInfo GetDeoptInfo(Tagged<Code> code, Address from);
+  DeoptInfo GetDeoptInfo() const {
+    return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
+  }
 
   static const char* MessageFor(DeoptimizeKind kind);
 
   DirectHandle<JSFunction> function() const;
   DirectHandle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
-  CodeValidity code_validity() const {
-    DCHECK_NE(code_validity_, CodeValidity::kUnknown);
-    return code_validity_;
-  }
-  DeoptInfo deopt_info() const {
-    DCHECK_NE(deopt_info_.deopt_id, std::numeric_limits<int>::min());
-    return deopt_info_;
-  }
   int output_count() const { return output_count_; }
 
   // Where the deopt exit occurred *in the outermost frame*, i.e in the
@@ -185,20 +193,6 @@ class Deoptimizer : public Malloced {
   static void ZapCode(Address start, Address end, RelocIterator& it);
 
  private:
-  // Whether the deopt exit is contained by the outermost loop containing the
-  // osr'd loop. For example:
-  //
-  //  for (;;) {
-  //    for (;;) {
-  //    }  // OSR is triggered on this backedge (osr_offset = JumpLoop's
-  //    offset).
-  //  }  // This is the outermost loop containing the osr'd loop.
-  static bool DeoptExitIsInsideOsrLoop(Isolate* isolate,
-                                       Tagged<JSFunction> function,
-                                       BytecodeOffset deopt_exit_offset,
-                                       BytecodeOffset osr_offset,
-                                       CodeKind code_kind);
-
   void QueueValueForMaterialization(Address output_address, Tagged<Object> obj,
                                     const TranslatedFrame::iterator& iterator);
   void QueueFeedbackVectorForMaterialization(
@@ -276,8 +270,6 @@ class Deoptimizer : public Malloced {
   unsigned deopt_exit_index_;
   BytecodeOffset bytecode_offset_in_outermost_frame_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;
-  DeoptInfo deopt_info_;
-  CodeValidity code_validity_ = CodeValidity::kUnknown;
   Address from_;
   int fp_to_sp_delta_;
   bool deoptimizing_throw_;
