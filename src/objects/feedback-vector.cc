@@ -1071,8 +1071,19 @@ void FeedbackNexus::ConfigurePolymorphic(
   DCHECK_GT(receiver_count, 1);
   DirectHandle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
 
-  for (int current = 0; current < receiver_count; ++current) {
+  int current = 0;
+
+  for (; current < receiver_count; ++current) {
     auto [map, handler] = maps_and_handlers[current];
+    if (map->is_deprecated()) continue;
+    array->set(current * 2, MakeWeak(*map));
+    DCHECK(IC::IsHandler(*handler));
+    array->set(current * 2 + 1, *handler);
+  }
+
+  for (; current < receiver_count; ++current) {
+    auto [map, handler] = maps_and_handlers[current];
+    if (!map->is_deprecated()) continue;
     array->set(current * 2, MakeWeak(*map));
     DCHECK(IC::IsHandler(*handler));
     array->set(current * 2 + 1, *handler);
