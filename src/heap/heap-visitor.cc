@@ -29,8 +29,6 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
 
   while (list != undefined) {
     // Check whether to keep the candidate in the list.
-    DCHECK(GCAwareObjectTypeCheck<T>(list, heap));
-
     Tagged<Object> retained = retainer->RetainAs(list);
 
     // Move to the next element before the WeakNext is cleared.
@@ -54,7 +52,7 @@ Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
       }
       // Retained object is new tail.
       DCHECK(!IsUndefined(retained, heap->isolate()));
-      tail = GCSafeCast<T>(retained, heap);
+      tail = Cast<T>(retained);
 
       // tail is a live object, visit it.
       WeakListVisitor<T>::VisitLiveObject(heap, tail);

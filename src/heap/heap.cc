@@ -7288,9 +7288,8 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
         gc_notify_updated_slot,
     WriteBarrierMode write_barrier_mode) {
   // Add a FinalizationRegistry to the tail of the dirty list.
-  DCHECK_IMPLIES(HasDirtyJSFinalizationRegistries(),
-                 GCAwareObjectTypeCheck<JSFinalizationRegistry>(
-                     dirty_js_finalization_registries_list(), this));
+  DCHECK(!HasDirtyJSFinalizationRegistries() ||
+         IsJSFinalizationRegistry(dirty_js_finalization_registries_list()));
   DCHECK(IsUndefined(finalization_registry->next_dirty(), isolate()));
   DCHECK(!finalization_registry->scheduled_for_cleanup());
   finalization_registry->set_scheduled_for_cleanup(true);
@@ -7300,9 +7299,9 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
     // dirty_js_finalization_registries_list_ is rescanned by
     // ProcessWeakListRoots.
   } else {
-    Tagged<JSFinalizationRegistry> tail = GCSafeCast<JSFinalizationRegistry>(
-        dirty_js_finalization_registries_list_tail(), this);
-    tail->set_next_dirty_unchecked(finalization_registry, write_barrier_mode);
+    Tagged<JSFinalizationRegistry> tail = Cast<JSFinalizationRegistry>(
+        dirty_js_finalization_registries_list_tail());
+    tail->set_next_dirty(finalization_registry, write_barrier_mode);
     gc_notify_updated_slot(
         tail, tail->RawField(JSFinalizationRegistry::kNextDirtyOffset),
         finalization_registry);

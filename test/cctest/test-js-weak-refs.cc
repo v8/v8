@@ -144,7 +144,7 @@ void NullifyWeakCell(DirectHandle<WeakCell> weak_cell, Isolate* isolate) {
   auto empty_func = [](Tagged<HeapObject> object, ObjectSlot slot,
                        Tagged<Object> target) {};
   FakeAtomicPauseScope fake_atomic_pause_scope(isolate->heap());
-  weak_cell->GCSafeNullify(isolate, empty_func);
+  weak_cell->Nullify(isolate, empty_func);
 #ifdef VERIFY_HEAP
   weak_cell->WeakCellVerify(isolate);
 #endif  // VERIFY_HEAP

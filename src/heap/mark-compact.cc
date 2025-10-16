@@ -4061,7 +4061,7 @@ void MarkCompactCollector::ProcessJSWeakRefs() {
       // We're modifying the pointers in WeakCell and JSFinalizationRegistry
       // during GC; thus we need to record the slots it writes. The normal write
       // barrier is not enough, since it's disabled before GC.
-      weak_cell->GCSafeNullify(isolate, gc_notify_updated_slot);
+      weak_cell->Nullify(isolate, gc_notify_updated_slot);
       DCHECK(finalization_registry->NeedsCleanup());
       DCHECK(finalization_registry->scheduled_for_cleanup());
     } else {
