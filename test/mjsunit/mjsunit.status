@@ -2549,8 +2549,7 @@
   # These tests need to disable conservative stack scanning and are thus not
   # compatible with direct handles.
   'wasm/compiled-module-management': [SKIP],
-  'weakrefs/minor-gc-two-weakrefs': [SKIP],
-  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }], # direct_handle
 
 ##############################################################################
