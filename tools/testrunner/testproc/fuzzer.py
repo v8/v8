@@ -76,6 +76,7 @@ EXTRA_FLAGS = [
     (0.1, '--no-memory-pool'),
     (0.1, '--handle-weak-ref-weakly-in-minor-gc'),
     (0.1, '--wasm-assert-types'),
+    (0.5, '--proto-assign-seq-opt')
 ]
 
 MIN_DEOPT = 1
