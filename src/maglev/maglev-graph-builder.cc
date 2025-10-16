@@ -8361,6 +8361,18 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
     return {};
   }
 
+  if (max_inline_depth() == 1) {
+    compiler::OptionalHeapObjectRef target_function = TryGetConstant(function);
+    if (target_function && target_function->IsJSFunction()) {
+      if (compiler::OptionalCodeRef code =
+              target_function->AsJSFunction().code(broker())) {
+        if (code->GetInlinedBytecodeSize()) {
+          return {};
+        }
+      }
+    }
+  }
+
   if (!is_non_eager_inlining_enabled()) {
     if (graph()->total_inlined_bytecode_size() >=
         max_inlined_bytecode_size_cumulative()) {
