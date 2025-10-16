@@ -403,7 +403,7 @@ class MaglevReducer {
   }
 
   template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
-  ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected);
+  ReduceResult ConvertInputTo(ValueNode* input, ValueRepresentation expected);
 
 #ifdef DEBUG
   // TODO(victorgomes): Investigate if we can create a better API for this!
@@ -537,9 +537,9 @@ class MaglevReducer {
   };
 
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeOrGetEquivalent(bool convert_inputs,
-                                   std::initializer_list<ValueNode*> raw_inputs,
-                                   Args&&... args);
+  ReduceResult AddNewNodeOrGetEquivalent(
+      bool convert_inputs, std::initializer_list<ValueNode*> raw_inputs,
+      Args&&... args);
 
   template <typename NodeT>
   static constexpr UseReprHintRecording ShouldRecordUseReprHint() {
@@ -553,9 +553,6 @@ class MaglevReducer {
       return UseReprHintRecording::kRecord;
     }
   }
-
-  template <typename NodeT, typename InputsT>
-  void SetNodeInputsOld(NodeT* node, InputsT inputs);
 
   // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
   // since std::intializer_list can be converted to std::span.

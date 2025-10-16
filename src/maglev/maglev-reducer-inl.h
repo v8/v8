@@ -127,13 +127,16 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeNoAbort(
   if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
                 ReducerBaseWithKNA<BaseT>) {
     if (v8_flags.maglev_cse) {
-      return AddNewNodeOrGetEquivalent<NodeT>(true, inputs,
-                                              std::forward<Args>(args)...);
+      ReduceResult result = AddNewNodeOrGetEquivalent<NodeT>(
+          true, inputs, std::forward<Args>(args)...);
+      CHECK(result.IsDoneWithPayload());
+      return result.node()->Cast<NodeT>();
     }
   }
   NodeT* node =
       NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
-  SetNodeInputsOld(node, inputs);
+  ReduceResult result = SetNodeInputs(node, inputs);
+  CHECK(result.IsDoneWithoutPayload());
   return AttachExtraInfoAndAddToGraph(node);
 }
 
@@ -145,8 +148,11 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeNoInputConversion(
   if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
                 ReducerBaseWithKNA<BaseT>) {
     if (v8_flags.maglev_cse) {
-      return AddNewNodeOrGetEquivalent<NodeT>(false, inputs,
-                                              std::forward<Args>(args)...);
+      ReduceResult result = AddNewNodeOrGetEquivalent<NodeT>(
+          false, inputs, std::forward<Args>(args)...);
+      // Without input conversion, AddNewNodeOrGetEquivalent cannot bail out.
+      DCHECK(result.IsDoneWithPayload());
+      return result.node()->Cast<NodeT>();
     }
   }
   NodeT* node =
@@ -175,7 +181,8 @@ void MaglevReducer<BaseT>::AddNewControlNode(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
   ControlNodeT* control_node = NodeBase::New<ControlNodeT>(
       zone(), inputs.size(), std::forward<Args>(args)...);
-  SetNodeInputsOld(control_node, inputs);
+  ReduceResult result = SetNodeInputs(control_node, inputs);
+  CHECK(result.IsDoneWithoutPayload());
   AttachEagerDeoptInfo(control_node);
   AttachDeoptCheckpoint(control_node);
   static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
@@ -199,7 +206,7 @@ void MaglevReducer<BaseT>::AddNewControlNode(
 
 template <typename BaseT>
 template <typename NodeT, typename... Args>
-NodeT* MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
+ReduceResult MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
     bool convert_inputs, std::initializer_list<ValueNode*> raw_inputs,
     Args&&... args) {
   DCHECK(v8_flags.maglev_cse);
@@ -220,9 +227,8 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
     for (ValueNode* raw_input : raw_inputs) {
       if (convert_inputs) {
-        // TODO(marja): Here we might already have the empty type for the
-        // node. Generate a deopt and make callers handle it.
-        inputs[i] = ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]);
+        GET_VALUE_OR_ABORT(
+            inputs[i], ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]));
       } else {
         CHECK(ValueRepresentationIs(
             raw_input->properties().value_representation(),
@@ -284,8 +290,8 @@ void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
 
 template <typename BaseT>
 template <UseReprHintRecording hint>
-ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
-                                                ValueRepresentation expected) {
+ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
+    ValueNode* input, ValueRepresentation expected) {
   ValueRepresentation repr = input->properties().value_representation();
   if (repr == expected) return input;
   // If the reducer base does not track KNA, it must convert its own input.
@@ -317,24 +323,20 @@ ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
 template <typename BaseT>
 template <typename NodeT, typename InputsT>
 ReduceResult MaglevReducer<BaseT>::SetNodeInputs(NodeT* node, InputsT inputs) {
-  // TODO(marja): Abort if input conversion fails.
-  SetNodeInputsOld(node, inputs);
-  return ReduceResult::Done();
-}
-
-template <typename BaseT>
-template <typename NodeT, typename InputsT>
-void MaglevReducer<BaseT>::SetNodeInputsOld(NodeT* node, InputsT inputs) {
   // Nodes with zero input count don't have kInputTypes defined.
   if constexpr (NodeT::kInputCount > 0) {
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
     int i = 0;
     for (ValueNode* input : inputs) {
       DCHECK_NOT_NULL(input);
-      node->set_input(i, ConvertInputTo<hint>(input, NodeT::kInputTypes[i]));
+      ValueNode* converted;
+      GET_VALUE_OR_ABORT(converted,
+                         ConvertInputTo<hint>(input, NodeT::kInputTypes[i]));
+      node->set_input(i, converted);
       i++;
     }
   }
+  return ReduceResult::Done();
 }
 
 template <typename BaseT>

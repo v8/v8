@@ -104,8 +104,13 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   DCHECK(!node->Is<Identity>());
   ValueNode* current_value = current_node()->Cast<ValueNode>();
   // Automatically convert node to the same representation of current_node.
-  current_value->OverwriteWithIdentityTo(reducer_.ConvertInputTo(
-      node, current_value->properties().value_representation()));
+  ReduceResult result = reducer_.ConvertInputTo(
+      node, current_value->properties().value_representation());
+  if (result.IsDoneWithAbort()) {
+    reducer_.graph()->set_may_have_unreachable_blocks(true);
+    return ProcessResult::kTruncateBlock;
+  }
+  current_value->OverwriteWithIdentityTo(result.value());
   return ProcessResult::kRemove;
 }
 
