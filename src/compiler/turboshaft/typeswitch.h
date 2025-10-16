@@ -143,6 +143,15 @@ class MatchState {
 template <typename T>
 struct MatchCase;
 
+namespace detail {
+template <typename T, typename = void>
+struct TestIsSmiCase : std::false_type {};
+
+template <typename T>
+struct TestIsSmiCase<T, std::void_t<decltype(MatchCase<T>::kIsSmiCase)>>
+    : std::true_type {};
+}  // namespace detail
+
 template <>
 struct MatchCase<Smi> {
   static constexpr bool kIsSmiCase = true;
@@ -243,8 +252,7 @@ struct MatchCase<BigInt> {
 
 template <typename... Ts>
 struct MatchCase<Union<Ts...>> {
-  static constexpr bool kIsSmiCase = (MatchCase<Ts>::kIsSmiCase || ...);
-
+  static constexpr bool kIsSmiCase = (detail::TestIsSmiCase<Ts>::value || ...);
   template <typename AssemblerT>
   static void Match(AssemblerT& Asm, MatchState& state, Block* target) {
     std::initializer_list<int> _{
@@ -252,14 +260,6 @@ struct MatchCase<Union<Ts...>> {
   }
 };
 
-namespace detail {
-template <typename T, typename = void>
-struct TestIsSmiCase : std::false_type {};
-
-template <typename T>
-struct TestIsSmiCase<T, std::void_t<decltype(MatchCase<T>::kIsSmiCase)>>
-    : std::true_type {};
-}  // namespace detail
 
 template <typename AssemblerT>
 class TypeswitchBuilder {
