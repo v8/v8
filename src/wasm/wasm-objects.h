@@ -1469,6 +1469,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   V8_EXPORT_PRIVATE wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Tagged<Map> map, int length);
+  static constexpr int SizeFor(int element_size, int length);
 
   // Returns boxed value of the array's element.
   static inline DirectHandle<Object> GetElement(Isolate* isolate,
@@ -1486,7 +1487,9 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
     // The total object size must fit into a Smi, for filler objects. To make
     // the behavior of Wasm programs independent from the Smi configuration,
     // we hard-code the smaller of the two supported ranges.
-    return (SmiTagging<4>::kSmiMaxValue - kHeaderSize) / element_size_bytes;
+    return RoundDown(
+        (int{SmiTagging<4>::kSmiMaxValue} - kHeaderSize) / element_size_bytes,
+        kTaggedSize);
   }
 
   static int MaxLength(const wasm::ArrayType* type) {
