@@ -953,7 +953,7 @@ std::unique_ptr<CompilationState> CompilationState::New(
     const std::shared_ptr<NativeModule>& native_module,
     WasmDetectedFeatures detected_features) {
   return std::unique_ptr<CompilationState>(reinterpret_cast<CompilationState*>(
-      new CompilationStateImpl(std::move(native_module), detected_features)));
+      new CompilationStateImpl(native_module, detected_features)));
 }
 
 WasmDetectedFeatures CompilationState::detected_features() const {
@@ -3520,7 +3520,7 @@ CompilationStateImpl::CompilationStateImpl(
     const std::shared_ptr<NativeModule>& native_module,
     WasmDetectedFeatures detected_features)
     : native_module_(native_module.get()),
-      native_module_weak_(std::move(native_module)),
+      native_module_weak_(native_module),
       compilation_unit_queues_(native_module->num_imported_functions(),
                                native_module->num_declared_functions()),
       detected_features_(detected_features) {}
