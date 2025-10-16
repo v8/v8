@@ -798,6 +798,8 @@
 
   # --experimental-wasm-custom-descriptors
   'regress/wasm/regress-433984397': [SKIP],
+  'regress/wasm/regress-447613211': [SKIP],
+  'regress/wasm/regress-448404198': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
 
