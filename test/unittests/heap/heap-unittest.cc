@@ -448,7 +448,9 @@ static size_t GetRememberedSetSize(Isolate* isolate, Tagged<HeapObject> obj) {
 }  // namespace
 
 TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
-  if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
+  if (v8_flags.single_generation || v8_flags.stress_incremental_marking ||
+      v8_flags.scavenger_chaos_mode)
+    return;
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.scavenger_precise_object_pinning = false;
   ManualGCScope manual_gc_scope(isolate());
@@ -731,6 +733,7 @@ TEST_F(
     ConservativePinningScavengerDoesntMoveObjectReachableFromStackNoPromotion) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
+  if (v8_flags.scavenger_chaos_mode) return;
   v8_flags.scavenger_conservative_object_pinning = true;
   v8_flags.scavenger_precise_object_pinning = false;
   v8_flags.scavenger_promote_quarantined_pages = false;

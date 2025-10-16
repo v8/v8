@@ -530,6 +530,16 @@ DEFINE_BOOL(scavenger_promote_quarantined_pages, true,
             "Quarantined pages in the intermediate generation will be promoted "
             "to old space")
 
+DEFINE_BOOL(scavenger_chaos_mode, false,
+            "Scavenger will ignore age when making promotion decisions and "
+            "instead choose objects to be promoted at random. This only "
+            "applies to non-large objects.")
+DEFINE_UINT(
+    scavenger_chaos_mode_threshold, 50,
+    "Percentage of non-large young objects that will be promoted during "
+    "Scavenger in chaos mode")
+DEFINE_REQUIREMENT(v8_flags.scavenger_chaos_mode_threshold <= 100)
+
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
 #else

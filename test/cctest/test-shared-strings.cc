@@ -875,6 +875,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 UNINITIALIZED_TEST(PromotionScavenge) {
   if (v8_flags.minor_ms) return;
   if (v8_flags.single_generation) return;
+  if (v8_flags.scavenger_chaos_mode) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
@@ -924,6 +925,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
   }
   if (v8_flags.single_generation) return;
   if (v8_flags.stress_concurrent_allocation) return;
+  if (v8_flags.scavenger_chaos_mode) return;
 
   v8_flags.shared_string_table = true;
   v8_flags.scavenger_precise_object_pinning = false;

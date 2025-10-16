@@ -8246,6 +8246,7 @@ static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
 }
 
 static void IndependentWeakHandle(bool global_gc, bool interlinked) {
+  if (i::v8_flags.scavenger_chaos_mode) return;
   i::ManualGCScope manual_gc_scope;
   // Parallel scavenge introduces too much fragmentation.
   i::v8_flags.parallel_scavenge = false;
@@ -8435,6 +8436,7 @@ static void ResetUseValueAndSetFlag(
 }
 
 void i::heap::HeapTester::ResetWeakHandle(bool global_gc) {
+  if (v8_flags.scavenger_chaos_mode) return;
   if (v8_flags.stress_incremental_marking) return;
   using v8::Context;
   using v8::Local;

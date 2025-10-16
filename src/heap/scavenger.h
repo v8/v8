@@ -6,6 +6,7 @@
 #define V8_HEAP_SCAVENGER_H_
 
 #include <atomic>
+#include <memory>
 
 #include "src/base/platform/condition-variable.h"
 #include "src/heap/base/worklist.h"
@@ -25,12 +26,6 @@ namespace internal {
 class RootScavengeVisitor;
 class Scavenger;
 class ScavengerCopiedObjectVisitor;
-
-enum class CopyAndForwardResult {
-  SUCCESS_YOUNG_GENERATION,
-  SUCCESS_OLD_GENERATION,
-  FAILURE
-};
 
 enum class ObjectAge { kOld, kYoung };
 
@@ -130,32 +125,27 @@ class Scavenger {
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
   V8_INLINE bool MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
                                Tagged<HeapObject> target,
-                               SafeHeapObjectSize size,
-                               PromotionHeapChoice promotion_heap_choice);
-
-  V8_INLINE SlotCallbackResult
-  RememberedSetEntryNeeded(CopyAndForwardResult result);
+                               SafeHeapObjectSize size);
 
   template <typename THeapObjectSlot, typename OnSuccessCallback>
   V8_INLINE bool TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
                                   Tagged<HeapObject> object,
                                   SafeHeapObjectSize object_size,
                                   AllocationSpace space,
-                                  PromotionHeapChoice promotion_heap_choice,
                                   OnSuccessCallback on_success);
 
   template <typename THeapObjectSlot>
-  V8_INLINE CopyAndForwardResult SemiSpaceCopyObject(
-      Tagged<Map> map, THeapObjectSlot slot, Tagged<HeapObject> object,
-      SafeHeapObjectSize object_size, ObjectFields object_fields);
+  V8_INLINE bool SemiSpaceCopyObject(Tagged<Map> map, THeapObjectSlot slot,
+                                     Tagged<HeapObject> object,
+                                     SafeHeapObjectSize object_size,
+                                     ObjectFields object_fields);
 
   template <typename THeapObjectSlot,
             PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
-  V8_INLINE CopyAndForwardResult PromoteObject(Tagged<Map> map,
-                                               THeapObjectSlot slot,
-                                               Tagged<HeapObject> object,
-                                               SafeHeapObjectSize object_size,
-                                               ObjectFields object_fields);
+  V8_INLINE bool PromoteObject(Tagged<Map> map, THeapObjectSlot slot,
+                               Tagged<HeapObject> object,
+                               SafeHeapObjectSize object_size,
+                               ObjectFields object_fields);
 
   template <typename THeapObjectSlot>
   V8_INLINE SlotCallbackResult EvacuateObject(THeapObjectSlot slot,
@@ -209,6 +199,8 @@ class Scavenger {
   template <ObjectAge>
   void RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell);
 
+  bool ShouldBePromoted(Address object_address);
+
   ScavengerCollector* const collector_;
   Heap* const heap_;
   EmptyChunksList::Local local_empty_chunks_;
@@ -223,6 +215,7 @@ class Scavenger {
   size_t copied_size_{0};
   size_t promoted_size_{0};
   EvacuationAllocator allocator_;
+  std::optional<base::RandomNumberGenerator> rng_;
 
   const bool is_logging_;
   const bool shared_string_table_;
