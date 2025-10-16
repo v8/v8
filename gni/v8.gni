@@ -46,7 +46,8 @@ declare_args() {
   v8_enable_builtins_optimization = ""
 
   # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
-  # within a release Chrome.
+  # within a release Chrome. This implies verification features to detect more
+  # bugs and additionally includes features that aid developers when debugging.
   v8_enable_debugging_features = is_debug
 
   # Enable ECMAScript Internationalization API. Enabling this feature will
@@ -249,6 +250,14 @@ declare_args() {
   # For binary size reasons this functionality is not always available.
   v8_wasm_random_fuzzers = ""
 }
+
+declare_args() {
+  # Enable more (costly) verification features that help to detect bugs.
+  v8_enable_verification_features = v8_enable_debugging_features
+}
+
+assert(!v8_enable_debugging_features || v8_enable_verification_features,
+       "Debugging features require verification features.")
 
 if (v8_use_external_startup_data == "") {
   # If not specified as a gn arg, use external startup data by default if

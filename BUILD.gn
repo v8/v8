@@ -494,14 +494,14 @@ declare_args() {
 
 # Derived defaults.
 if (cppgc_enable_verify_heap == "") {
-  cppgc_enable_verify_heap = v8_enable_debugging_features || v8_dcheck_always_on
+  cppgc_enable_verify_heap = v8_enable_verification_features || v8_dcheck_always_on
 }
 if (v8_enable_verify_heap == "") {
-  v8_enable_verify_heap = v8_enable_debugging_features
+  v8_enable_verify_heap = v8_enable_verification_features
 }
 if (v8_enable_verify_write_barriers == "") {
   v8_enable_verify_write_barriers =
-      (v8_enable_debugging_features || v8_dcheck_always_on) &&
+      (v8_enable_verification_features || v8_dcheck_always_on) &&
       !v8_disable_write_barriers
 }
 if (v8_enable_object_print == "") {
@@ -517,18 +517,18 @@ if (v8_enable_trace_maps == "") {
   v8_enable_trace_maps = v8_enable_debugging_features
 }
 if (v8_enable_test_features == "") {
-  v8_enable_test_features = v8_enable_debugging_features || v8_dcheck_always_on
+  v8_enable_test_features = v8_enable_verification_features || v8_dcheck_always_on
 }
 if (v8_enable_v8_checks == "") {
-  v8_enable_v8_checks = v8_enable_debugging_features
+  v8_enable_v8_checks = v8_enable_verification_features
 }
 if (v8_enable_memory_accounting_checks == "") {
   v8_enable_memory_accounting_checks =
-      v8_enable_debugging_features || v8_dcheck_always_on
+      v8_enable_verification_features || v8_dcheck_always_on
 }
 if (v8_enable_heap_snapshot_verify == "") {
   v8_enable_heap_snapshot_verify =
-      v8_enable_debugging_features || v8_dcheck_always_on
+      v8_enable_verification_features || v8_dcheck_always_on
 }
 if (v8_enable_snapshot_code_comments) {
   assert(v8_code_comments == true || v8_code_comments == "",
@@ -538,7 +538,7 @@ if (v8_enable_snapshot_code_comments) {
   v8_code_comments = v8_enable_debugging_features
 }
 if (v8_enable_debug_code == "") {
-  v8_enable_debug_code = v8_enable_debugging_features || v8_dcheck_always_on
+  v8_enable_debug_code = v8_enable_verification_features || v8_dcheck_always_on
 }
 if (v8_enable_snapshot_native_code_counters == "") {
   v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
@@ -651,9 +651,9 @@ assert(!v8_enable_trace_ignition || v8_enable_trace_unoptimized,
 assert(!v8_enable_trace_baseline_exec || v8_enable_trace_unoptimized,
        "Baseline tracing requires unoptimized tracing to be enabled.")
 assert(
-    v8_enable_debugging_features == true || v8_dcheck_always_on ||
+    v8_enable_verification_features == true || v8_dcheck_always_on ||
         !v8_enable_slow_dchecks,
-    "v8_enable_slow_dchecks requires v8_enable_debugging_features or dcheck_always_on.")
+    "v8_enable_slow_dchecks requires v8_enable_verification_features or dcheck_always_on.")
 
 if (v8_enable_short_builtin_calls &&
     (!v8_enable_pointer_compression && v8_current_cpu != "x64")) {
@@ -825,7 +825,7 @@ assert(
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
-is_DEBUG_defined = v8_enable_debugging_features || v8_dcheck_always_on
+is_DEBUG_defined = v8_enable_verification_features || v8_dcheck_always_on
 
 ###############################################################################
 # Configurations
@@ -1264,7 +1264,7 @@ config("features") {
   }
   if (v8_enable_debug_code) {
     defines += [ "V8_ENABLE_DEBUG_CODE" ]
-    if (v8_enable_debugging_features) {
+    if (v8_enable_verification_features) {
       defines += [ "V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT" ]
     }
   }
@@ -1646,7 +1646,7 @@ config("toolchain") {
   # TODO(infra): Support v8_enable_prof on Windows.
   # TODO(infra): Add support for compiling with simulators.
 
-  if (v8_enable_debugging_features || v8_dcheck_always_on) {
+  if (v8_enable_verification_features || v8_dcheck_always_on) {
     defines += [ "DEBUG" ]
     if (v8_enable_slow_dchecks) {
       defines += [ "ENABLE_SLOW_DCHECKS" ]
@@ -2696,7 +2696,7 @@ template("run_mksnapshot") {
         args += [ "--no-turbo-rewrite-far-jumps" ]
       }
 
-      if (v8_enable_debugging_features && v8_enable_slow_dchecks) {
+      if (v8_enable_verification_features && v8_enable_slow_dchecks) {
         # mksnapshot only accepts this flag if ENABLE_SLOW_DCHECKS is defined.
         args += [ "--no-enable-slow-asserts" ]
       }
@@ -2830,7 +2830,7 @@ if (v8_verify_builtins_compatibility) {
 action("v8_dump_build_config") {
   script = "tools/testrunner/utils/dump_build_config.py"
   outputs = [ "$root_out_dir/v8_build_config.json" ]
-  is_full_debug = v8_enable_debugging_features && !v8_optimized_debug
+  is_full_debug = v8_enable_verification_features && !v8_optimized_debug
 
   arch = v8_target_cpu
   if (v8_target_cpu == "x86") {
@@ -2915,6 +2915,7 @@ action("v8_dump_build_config") {
     "v8_cfi=$v8_control_flow_integrity",
     "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_target_cpu=\"$v8_target_cpu\"",
+    "verification_features=$v8_enable_verification_features",
     "verify_csa=$v8_enable_verify_csa",
     "verify_heap=$v8_enable_verify_heap",
     "verify_predictable=$v8_enable_verify_predictable",
