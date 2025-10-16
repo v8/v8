@@ -3040,17 +3040,16 @@ void JSObject::PrintInstanceMigration(FILE* file, Tagged<Map> original_map,
   for (InternalIndex i : original_map->IterateOwnDescriptors()) {
     Representation o_r = o->GetDetails(i).representation();
     Representation n_r = n->GetDetails(i).representation();
+    Tagged<Name> name = o->GetKey(i);
+    if (IsString(name)) {
+      Cast<String>(name)->PrintOn(file);
+    } else {
+      PrintF(file, "{symbol %p}", reinterpret_cast<void*>(name.ptr()));
+    }
     if (!o_r.Equals(n_r)) {
-      Cast<String>(o->GetKey(i))->PrintOn(file);
       PrintF(file, ":%s->%s ", o_r.Mnemonic(), n_r.Mnemonic());
     } else if (o->GetDetails(i).location() == PropertyLocation::kDescriptor &&
                n->GetDetails(i).location() == PropertyLocation::kField) {
-      Tagged<Name> name = o->GetKey(i);
-      if (IsString(name)) {
-        Cast<String>(name)->PrintOn(file);
-      } else {
-        PrintF(file, "{symbol %p}", reinterpret_cast<void*>(name.ptr()));
-      }
       PrintF(file, " ");
     }
   }
