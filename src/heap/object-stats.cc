@@ -416,9 +416,13 @@ void ObjectStats::RecordObject(Tagged<HeapObject> obj, int type, size_t size) {
         ObjectData{TrustedSpaceCompressionScheme::CompressObject(obj.address()),
                    size, type});
   } else {
+#ifdef V8_EXTERNAL_CODE_SPACE
     objects_code_.emplace_back(
         ObjectData{ExternalCodeCompressionScheme::CompressObject(obj.address()),
                    size, type});
+#else
+    UNREACHABLE();
+#endif  // V8_EXTERNAL_CODE_SPACE
   }
 #endif  // V8_COMPRESS_POINTERS
 }
