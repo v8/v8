@@ -389,6 +389,8 @@ class SharedFunctionInfo
   inline uint16_t internal_formal_parameter_count_with_receiver() const;
   inline uint16_t internal_formal_parameter_count_without_receiver() const;
 
+  inline bool CannotAccessVariableArguments() const;
+
  private:
   using TorqueGeneratedSharedFunctionInfo::formal_parameter_count;
   using TorqueGeneratedSharedFunctionInfo::set_formal_parameter_count;
@@ -753,7 +755,7 @@ class SharedFunctionInfo
   // Returns `false` if formal parameters include rest parameters, optional
   // parameters, or destructuring parameters.
   // TODO(caitp): make this a flag set during parsing
-  inline bool has_simple_parameters();
+  inline bool has_simple_parameters() const;
 
   // Initialize a SharedFunctionInfo from a parsed or preparsed function
   // literal.
