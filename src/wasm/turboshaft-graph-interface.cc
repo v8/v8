@@ -926,7 +926,8 @@ class TurboshaftGraphBuildingInterface
     bool shared = decoder->module_->globals[imm.index].shared;
     result->op = __ GlobalGet(trusted_instance_data(shared), imm.global);
 
-    if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+    if (V8_UNLIKELY(v8_flags.trace_wasm_globals) &&
+        !is_asmjs_module(decoder->module_)) {
       TraceGlobalOperation(decoder, imm.index, false);
     }
   }
@@ -936,7 +937,8 @@ class TurboshaftGraphBuildingInterface
     bool shared = decoder->module_->globals[imm.index].shared;
     __ GlobalSet(trusted_instance_data(shared), value.op, imm.global);
 
-    if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+    if (V8_UNLIKELY(v8_flags.trace_wasm_globals) &&
+        !is_asmjs_module(decoder->module_)) {
       TraceGlobalOperation(decoder, imm.index, true);
     }
   }
