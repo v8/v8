@@ -1052,7 +1052,7 @@ DEFINE_INT(invocation_count_for_turbofan, 3000,
 DEFINE_INT(invocation_count_for_osr, 500, "invocation count required for OSR")
 DEFINE_INT(osr_to_tierup, 1,
            "number to decrease the invocation budget by when we follow OSR")
-DEFINE_INT(minimum_invocations_after_ic_update, 500,
+DEFINE_INT(minimum_invocations_after_ic_update, 150,
            "How long to minimally wait after IC update before tier up")
 DEFINE_INT(minimum_invocations_before_optimization, 2,
            "Minimum number of invocations we need before non-OSR optimization")
