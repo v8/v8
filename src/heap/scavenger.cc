@@ -108,9 +108,9 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
   V8_INLINE void VisitCustomWeakPointers(Tagged<HeapObject> host,
                                          ObjectSlot start,
                                          ObjectSlot end) override {
-    DCHECK(IsJSWeakRef(host) || IsWeakCell(host) ||
-           IsJSFinalizationRegistry(host));
     if (scavenger_->ShouldHandleWeakObjectsWeakly()) {
+      DCHECK(IsJSWeakRef(host) || IsWeakCell(host) ||
+             IsJSFinalizationRegistry(host));
       return;
     }
     // Strongify the weak pointers.
