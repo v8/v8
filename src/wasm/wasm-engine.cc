@@ -889,9 +889,10 @@ void WasmEngine::EnterDebuggingForIsolate(Isolate* isolate) {
   // called outside the lock.
   {
     base::MutexGuard lock(&mutex_);
-    if (isolates_[isolate]->keep_in_debug_state) return;
-    isolates_[isolate]->keep_in_debug_state = true;
-    for (auto* native_module : isolates_[isolate]->native_modules) {
+    IsolateInfo* isolate_info = isolates_[isolate].get();
+    if (isolate_info->keep_in_debug_state) return;
+    isolate_info->keep_in_debug_state = true;
+    for (auto* native_module : isolate_info->native_modules) {
       DCHECK(native_modules_.contains(native_module));
       if (auto shared_ptr = native_modules_[native_module]->weak_ptr.lock()) {
         native_modules.emplace_back(std::move(shared_ptr));
