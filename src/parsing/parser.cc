@@ -475,15 +475,15 @@ Expression* Parser::NewSuperPropertyReference(int pos) {
 
 SuperCallReference* Parser::NewSuperCallReference(int pos) {
   VariableProxy* new_target_proxy =
-      NewUnresolved(ast_value_factory()->new_target_string(), pos);
+      NewUnresolved(ast_value_factory()->dot_new_target_string(), pos);
   VariableProxy* this_function_proxy =
-      NewUnresolved(ast_value_factory()->this_function_string(), pos);
+      NewUnresolved(ast_value_factory()->dot_this_function_string(), pos);
   return factory()->NewSuperCallReference(new_target_proxy, this_function_proxy,
                                           pos);
 }
 
 Expression* Parser::NewTargetExpression(int pos) {
-  auto proxy = NewUnresolved(ast_value_factory()->new_target_string(), pos);
+  auto proxy = NewUnresolved(ast_value_factory()->dot_new_target_string(), pos);
   proxy->set_is_new_target();
   return proxy;
 }
