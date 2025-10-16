@@ -67,6 +67,19 @@ double BoundedThroughput(const ::heap::base::SmoothedBytesAndDuration& buffer) {
   return std::min(buffer.GetThroughput(), kMaxSpeedInBytesPerMs);
 }
 
+const char* ToString(GCTracer::Event::State state) {
+  switch (state) {
+    case GCTracer::Event::State::MARKING:
+      return "Marking";
+    case GCTracer::Event::State::ATOMIC:
+      return "Atomic";
+    case GCTracer::Event::State::SWEEPING:
+      return "Sweeping";
+    case GCTracer::Event::State::NOT_RUNNING:
+      return nullptr;
+  }
+}
+
 }  // namespace
 
 GCTracer::Event::Event(Type type, State state,
@@ -84,11 +97,13 @@ const char* ToString(GCTracer::Event::Type type, bool short_name) {
     case GCTracer::Event::Type::SCAVENGER:
       return (short_name) ? "s" : "Scavenge";
     case GCTracer::Event::Type::MARK_COMPACTOR:
-    case GCTracer::Event::Type::INCREMENTAL_MARK_COMPACTOR:
       return (short_name) ? "mc" : "Mark-Compact";
+    case GCTracer::Event::Type::INCREMENTAL_MARK_COMPACTOR:
+      return (short_name) ? "mc" : "Incremental Mark-Compact";
     case GCTracer::Event::Type::MINOR_MARK_SWEEPER:
-    case GCTracer::Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
       return (short_name) ? "mms" : "Minor Mark-Sweep";
+    case GCTracer::Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
+      return (short_name) ? "mms" : "Incremental Minor Mark-Sweep";
     case GCTracer::Event::Type::START:
       return (short_name) ? "st" : "Start";
   }
@@ -179,10 +194,10 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
                nullptr, heap_->isolate()->priority()),
       previous_(current_),
       allocation_time_(startup_time),
-      previous_mark_compact_end_time_(startup_time)
-      ,
-      parent_track_(heap->tracing_track())
-{
+      previous_mark_compact_end_time_(startup_time),
+      parent_track_(heap->tracing_track()),
+      phase_track_("GCPhase", 0, parent_track_),
+      state_track_("GCState", 0, parent_track_) {
   // All accesses to incremental_marking_scope assume that incremental marking
   // scopes come first.
   static_assert(0 == Scope::FIRST_INCREMENTAL_SCOPE);
@@ -224,6 +239,13 @@ void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
   // reconsidered.
   current_.start_time = start_of_observable_pause_.value();
   current_.reduce_memory = heap_->ShouldReduceMemory();
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), phase_track_,
+                  current_.start_time);
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ObservablePause",
+                    phase_track_, current_.start_time);
+  TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                      perfetto::StaticString(ToString(current_.gc_reason)),
+                      phase_track_, current_.start_time);
 }
 
 void GCTracer::StartCycle(GarbageCollector collector,
@@ -275,6 +297,12 @@ void GCTracer::StartCycle(GarbageCollector collector,
   previous_ = current_;
   current_ = Event(type, Event::State::MARKING, gc_reason, collector_reason,
                    heap_->isolate()->priority());
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                    perfetto::StaticString(ToString(type, false)),
+                    parent_track_);
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                    perfetto::StaticString(ToString(Event::State::MARKING)),
+                    state_track_);
 
   switch (marking) {
     case MarkingType::kAtomic:
@@ -284,6 +312,11 @@ void GCTracer::StartCycle(GarbageCollector collector,
       // reconsidered.
       current_.start_time = start_of_observable_pause_.value();
       current_.reduce_memory = heap_->ShouldReduceMemory();
+      TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "ObservablePause",
+                        phase_track_, current_.start_time);
+      TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                          perfetto::StaticString(ToString(gc_reason)),
+                          phase_track_, current_.start_time);
       break;
     case MarkingType::kIncremental:
       // The current event will be updated later.
@@ -322,6 +355,10 @@ void GCTracer::StartCycle(GarbageCollector collector,
 void GCTracer::StartAtomicPause() {
   DCHECK_EQ(Event::State::MARKING, current_.state);
   current_.state = Event::State::ATOMIC;
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), state_track_);
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                    perfetto::StaticString(ToString(Event::State::ATOMIC)),
+                    state_track_);
 }
 
 void GCTracer::StartInSafepoint(base::TimeTicks time) {
@@ -364,6 +401,7 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
   // currently the end time of the observable pause. This should be
   // reconsidered.
   current_.end_time = time;
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), phase_track_, time);
 
   FetchBackgroundCounters();
 
@@ -461,6 +499,10 @@ void GCTracer::UpdateMemoryBalancerGCSpeed() {
 void GCTracer::StopAtomicPause() {
   DCHECK_EQ(Event::State::ATOMIC, current_.state);
   current_.state = Event::State::SWEEPING;
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), state_track_);
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                    perfetto::StaticString(ToString(Event::State::SWEEPING)),
+                    state_track_);
 }
 
 namespace {
@@ -483,6 +525,9 @@ constexpr v8::base::TimeDelta YoungGenerationWallTime(
 void GCTracer::StopCycle(GarbageCollector collector) {
   DCHECK_EQ(Event::State::SWEEPING, current_.state);
   current_.state = Event::State::NOT_RUNNING;
+
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), state_track_);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), parent_track_);
 
   DCHECK(IsConsistentWithCollector(collector));
 
@@ -1302,6 +1347,13 @@ void GCTracer::ResetSurvivalEvents() { recorded_survival_ratios_.Clear(); }
 
 void GCTracer::NotifyIncrementalMarkingStart() {
   current_.incremental_marking_start_time = base::TimeTicks::Now();
+  if (!start_of_observable_pause_) {
+    TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "IncrementalMarking",
+                      phase_track_, current_.incremental_marking_start_time);
+    TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                        perfetto::StaticString(ToString(current_.gc_reason)),
+                        phase_track_, current_.incremental_marking_start_time);
+  }
 }
 
 void GCTracer::FetchBackgroundCounters() {

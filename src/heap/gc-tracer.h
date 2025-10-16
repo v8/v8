@@ -626,6 +626,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::TimeDelta background_scopes_[Scope::NUMBER_OF_SCOPES];
 
   perfetto::NamedTrack parent_track_;
+  perfetto::NamedTrack phase_track_;
+  perfetto::NamedTrack state_track_;
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
