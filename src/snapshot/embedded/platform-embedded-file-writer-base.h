@@ -30,7 +30,6 @@ int DataDirectiveSize(DataDirective directive);
 
 enum class EmbeddedTargetOs {
   kAIX,
-  kAndroid,
   kChromeOS,
   kFuchsia,
   kMac,
