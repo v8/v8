@@ -426,6 +426,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining','shards': 2},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode', 'shards': 2},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan', 'shards': 2},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'v8testing', 'variant': 'maglev', 'shards': 2},
@@ -557,6 +558,12 @@
         'test_args': ['--gc-stress'],
         'shards': 2
       },
+      {
+        'name': 'mjsunit',
+        'variant': 'scavenger_chaos_mode',
+        'test_args': ['--gc-stress'],
+        'shards': 2
+      },
     ],
   },
   'v8_linux64_gcc_rel': {
@@ -639,6 +646,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
       {
         'name': 'v8testing',
         'suffix': 'noavx',
@@ -761,6 +769,7 @@
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'v8testing', 'variant': 'maglev'},
@@ -826,6 +835,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning', 'shards': 2},
       {'name': 'v8testing', 'variant': 'precise_pinning', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'v8_linux64_tsan_dbg': {
@@ -1048,6 +1058,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'v8_win64_drumbrake_dbg': {
@@ -1073,6 +1084,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'v8_win64_rel': {
@@ -1088,6 +1100,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   ##############################################################################
@@ -1114,6 +1127,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning', 'shards': 2},
       {'name': 'v8testing', 'variant': 'precise_pinning', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'v8_mac_arm64_gc_stress_dbg': {
@@ -1147,6 +1161,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'v8_mac_arm64_rel': {
@@ -1169,6 +1184,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'v8_mac_arm64_dbg': {
@@ -1191,6 +1207,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'v8_mac_arm64_full_dbg': {
@@ -1213,6 +1230,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'v8_mac_arm64_no_pointer_compression_dbg': {
@@ -1515,6 +1533,7 @@
       {'name': 'v8testing', 'variant': 'precise_pinning'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'v8testing', 'variant': 'maglev'},
@@ -1627,6 +1646,7 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
       {'name': 'mjsunit', 'variant': 'stress_maglev_tests_with_turbofan'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'v8testing', 'variant': 'maglev'},
@@ -1861,6 +1881,12 @@
         'test_args': ['--gc-stress'],
         'shards': 2
       },
+      {
+        'name': 'mjsunit',
+        'variant': 'scavenger_chaos_mode',
+        'test_args': ['--gc-stress'],
+        'shards': 2
+      },
     ],
   },
   'V8 Linux64 - internal snapshot': {
@@ -2020,6 +2046,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning', 'shards': 2},
       {'name': 'v8testing', 'variant': 'precise_pinning', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode', 'shards': 2},
     ],
   },
   'V8 Linux64 TSAN - debug': {
@@ -2108,6 +2135,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'V8 Mac64 - debug': {
@@ -2123,6 +2151,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms', 'shards': 2},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning', 'shards': 2},
       {'name': 'v8testing', 'variant': 'precise_pinning', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode', 'shards': 2},
     ],
   },
   'V8 Mac64 ASAN': {
@@ -2164,6 +2193,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'V8 Mac - arm64 - release': {
@@ -2187,6 +2217,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'V8 Mac - arm64 - debug': {
@@ -2210,6 +2241,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'V8 Mac - arm64 - no pointer compression debug': {
@@ -2265,6 +2297,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'V8 Win64 - CET shadow stack': {
@@ -2289,6 +2322,7 @@
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'conservative_stack_scanning'},
       {'name': 'v8testing', 'variant': 'precise_pinning'},
+      {'name': 'v8testing', 'variant': 'scavenger_chaos_mode'},
     ],
   },
   'V8 Win64 - drumbrake - debug': {

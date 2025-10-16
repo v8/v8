@@ -137,6 +137,7 @@ ALL_VARIANT_FLAGS = {
     "stress_wasm_stack_switching": [["--stress-wasm-stack-switching"]],
     "stress_incremental_marking": [["--stress-incremental-marking"]],
     "stress_snapshot": [["--stress-snapshot"]],
+    "scavenger_chaos_mode": [["--scavenger-chaos-mode"]],
     # Trigger stress sampling allocation profiler with sample interval = 2^14
     "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
     "no_wasm_traps": [["--no-wasm-trap-handler"]],

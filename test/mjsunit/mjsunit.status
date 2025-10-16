@@ -3016,4 +3016,8 @@
   'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == minor_ms
 
+['variant == scavenger_chaos_mode', {
+  'weakrefs/minor-gc-*': [SKIP],
+}],  # variant == scavenger_chaos_mode
+
 ]
