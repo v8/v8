@@ -1123,13 +1123,6 @@
   'built-ins/Atomics/wait/retrieve-length-before-index-coercion': [SKIP],
   'built-ins/Atomics/waitAsync/retrieve-length-before-index-coercion': [SKIP],
   'harness/verifyProperty-value-error': [SKIP],
-  'intl402/PluralRules/constructor-option-read-order': [SKIP],
-  'intl402/PluralRules/constructor-options-throwing-getters': [SKIP],
-  'intl402/PluralRules/default-options-object-prototype': [SKIP],
-  'intl402/PluralRules/notation': [SKIP],
-  'intl402/PluralRules/prototype/resolvedOptions/order': [SKIP],
-  'intl402/PluralRules/prototype/resolvedOptions/properties': [SKIP],
-  'intl402/PluralRules/prototype/select/notation': [SKIP],
 }],
 # End roll-watcher patch
 ####
