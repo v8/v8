@@ -1434,6 +1434,14 @@ class MaglevGraphBuilder {
       const ZoneVector<compiler::PropertyAccessInfo>& access_infos,
       GenericAccessFunc&& build_generic_access);
 
+  // Checks if {index_object} is a int32 and {object} is an array whose length
+  // is more than {index_object}. If that's the case, then we don't need a bound
+  // check to store at offset {index_object}. In that case, this function
+  // returns the int32 index, otherwise, returns std::nullopt.
+  std::optional<int32_t> CanElideBoundCheckAndResizing(
+      ValueNode* object, ValueNode* index_object, bool is_jsarray,
+      const compiler::KeyedAccessMode& keyed_mode);
+
   struct ContinuationOffsets {
     int last_continuation;
     int after_continuation;

@@ -6216,6 +6216,43 @@ ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
   return value;
 }
 
+std::optional<int32_t> MaglevGraphBuilder::CanElideBoundCheckAndResizing(
+    ValueNode* elements_array, ValueNode* index_object, bool is_jsarray,
+    const compiler::KeyedAccessMode& keyed_mode) {
+  if (!is_jsarray) return {};
+
+  if (keyed_mode.access_mode() != compiler::AccessMode::kStoreInLiteral) {
+    // We get the length of the array from the vobj, but if the AccessMode is
+    // not kStoreInLiteral, then this store could be after the array has shrunk.
+    // StoreInLiteral is only used for initializing stores, so there shouldn't
+    // be anything in between the allocation and here to shrink the array.
+    return {};
+  }
+
+  if (keyed_mode.store_mode() == KeyedAccessStoreMode::kHandleCOW) {
+    // TODO(dmercadier): we could handle this by still eliding the bounds check
+    // but simply calling EnsureWritableElements. However, this currently
+    // doesn't seem to ever happen, but it should happen if we improve load
+    // elimination.
+    return {};
+  }
+
+  std::optional<int32_t> int32_index = TryGetInt32Constant(index_object);
+  if (!int32_index.has_value()) return {};
+
+  if (!elements_array->Is<InlinedAllocation>()) return {};
+  VirtualObject* vobj = elements_array->Cast<InlinedAllocation>()->object();
+
+  if (!vobj->map().IsJSArrayMap()) return {};
+
+  SmiConstant* array_length =
+      vobj->get(JSArray::kLengthOffset)->TryCast<SmiConstant>();
+  if (!array_length) return {};
+
+  if (array_length->value().value() <= *int32_index) return {};
+  return int32_index;
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     ValueNode* object, ValueNode* index_object, ValueNode* value,
     base::Vector<const compiler::MapRef> maps, ElementsKind elements_kind,
@@ -6229,15 +6266,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
   ValueNode* elements_array;
   GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(object));
   GET_VALUE_OR_ABORT(value, ConvertForStoring(value, elements_kind));
-  ValueNode* index;
+  ValueNode* index = nullptr;
 
-  // TODO(verwaest): Loop peeling will turn the first iteration index of spread
-  // literals into smi constants as well, breaking the assumption that we'll
-  // have preallocated the space if we see known indices. Turn off this
-  // optimization if loop peeling is on.
-  if (keyed_mode.access_mode() == compiler::AccessMode::kStoreInLiteral &&
-      index_object->Is<SmiConstant>() && is_jsarray && !any_peeled_loop_) {
-    GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
+  if (std::optional<int32_t> int32_index = CanElideBoundCheckAndResizing(
+          object, index_object, is_jsarray, keyed_mode)) {
+    index = GetInt32Constant(*int32_index);
   } else {
     // Check boundaries.
     ValueNode* elements_array_length = nullptr;
