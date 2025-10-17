@@ -237,10 +237,10 @@ using RefTypeKindField = IsSharedField::Next<RefTypeKind, 3>;
 static_assert(RefTypeKindField::is_valid(RefTypeKind::kLastValue));
 
 // Stores the index if {has_index()}, or the {StandardType} otherwise.
-using PayloadField = RefTypeKindField::Next<uint32_t, 21>;
+using PayloadField = RefTypeKindField::Next<uint32_t, 20>;
 
 // Reserved for future use.
-using ReservedField = PayloadField::Next<uint32_t, 3>;
+using ReservedField = PayloadField::Next<uint32_t, 4>;
 static_assert(ReservedField::kShift + ReservedField::kSize == 32);
 
 // Useful for HeapTypes, whose "shared" bit is orthogonal to their kind.
