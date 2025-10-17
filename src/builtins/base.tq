@@ -809,8 +809,6 @@ extern macro GetInterestingProperty(Context, JSReceiver, Name): JSAny
     labels NotFound;
 extern transitioning builtin SetProperty(
     implicit context: Context)(JSAny, JSAny, JSAny): JSAny;
-extern transitioning builtin SetPropertyIgnoreAttributes(
-    implicit context: Context)(JSObject, String, JSAny, Smi): JSAny;
 extern transitioning builtin CreateDataProperty(
     implicit context: Context)(JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin DeleteProperty(
