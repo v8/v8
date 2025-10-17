@@ -288,23 +288,48 @@ TaggedArrayBase<D, S, P>::RawFieldOfElementAt(int index) const {
 
 // static
 template <class IsolateT>
-Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
+Handle<FixedArray> FixedArray::New(IsolateT* isolate, int length,
                                    AllocationType allocation,
                                    AllocationHint hint) {
-  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
-                  FixedArrayBase::kMaxLength)) {
+  if (V8_UNLIKELY(static_cast<unsigned>(length) > FixedArrayBase::kMaxLength)) {
     FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          capacity);
-  } else if (V8_UNLIKELY(capacity == 0)) {
+          length);
+  } else if (V8_UNLIKELY(length == 0)) {
     return isolate->factory()->empty_fixed_array();
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
   Handle<FixedArray> result =
-      Cast<FixedArray>(Allocate(isolate, capacity, &no_gc, allocation, hint));
+      Cast<FixedArray>(Allocate(isolate, length, &no_gc, allocation, hint));
   ReadOnlyRoots roots{isolate};
   MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
-               capacity);
+               length);
+  return result;
+}
+
+// static
+template <class IsolateT, typename ElementsCallback>
+Handle<FixedArray> FixedArray::New(IsolateT* isolate, int length,
+                                   ElementsCallback elements_callback,
+                                   AllocationType allocation,
+                                   AllocationHint hint) {
+  if (V8_UNLIKELY(static_cast<unsigned>(length) > FixedArrayBase::kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          length);
+  } else if (V8_UNLIKELY(length == 0)) {
+    return isolate->factory()->empty_fixed_array();
+  }
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<FixedArray> result =
+      Cast<FixedArray>(Allocate(isolate, length, &no_gc, allocation, hint));
+  const WriteBarrierMode write_barrier =
+      allocation == AllocationType::kYoung
+          ? WriteBarrierMode::SKIP_WRITE_BARRIER
+          : WriteBarrierMode::UPDATE_WRITE_BARRIER;
+  for (int i = 0; i < length; ++i) {
+    result->set(i, elements_callback(i), write_barrier);
+  }
   return result;
 }
 
@@ -519,6 +544,27 @@ Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
 
   std::optional<DisallowGarbageCollection> no_gc;
   return Cast<FixedDoubleArray>(Allocate(isolate, length, &no_gc, allocation));
+}
+
+// static
+template <class IsolateT, typename ElementsCallback>
+Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
+                                             ElementsCallback elements_callback,
+                                             AllocationType allocation) {
+  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          length);
+  } else if (V8_UNLIKELY(length == 0)) {
+    return isolate->factory()->empty_fixed_array();
+  }
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<FixedDoubleArray> array =
+      Cast<FixedDoubleArray>(Allocate(isolate, length, &no_gc, allocation));
+  for (int i = 0; i < length; ++i) {
+    array->set(i, elements_callback(i));
+  }
+  return array;
 }
 
 // static

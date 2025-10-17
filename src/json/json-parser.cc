@@ -1425,25 +1425,19 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
     }
   }
 
-  Handle<JSArray> array = factory()->NewJSArray(kind, length, length);
-  if (kind == PACKED_DOUBLE_ELEMENTS) {
-    DisallowGarbageCollection no_gc;
-    Tagged<FixedDoubleArray> elements =
-        Cast<FixedDoubleArray>(array->elements());
-    for (int i = 0; i < length; i++) {
-      elements->set(i, Object::NumberValue(*element_stack_[start + i]));
-    }
-  } else {
-    DisallowGarbageCollection no_gc;
-    Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
-    WriteBarrierModeScope mode = kind == PACKED_SMI_ELEMENTS
-                                     ? WriteBarrierModeScope(SKIP_WRITE_BARRIER)
-                                     : elements->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < length; i++) {
-      elements->set(i, *element_stack_[start + i], *mode);
-    }
-  }
-  return array;
+  HandleScope inner_scope(isolate());
+  Handle<FixedArrayBase> elements =
+      (kind == PACKED_DOUBLE_ELEMENTS)
+          ? FixedDoubleArray::New(
+                isolate(), length,
+                [this, start](int i) {
+                  return Object::NumberValue(*element_stack_[start + i]);
+                })
+          : FixedArray::New(isolate(), length, [this, start](int i) {
+              return *element_stack_[start + i];
+            });
+  return inner_scope.CloseAndEscape(
+      factory()->NewJSArrayWithElements(elements, kind, length));
 }
 
 // Parse rawJSON value.
