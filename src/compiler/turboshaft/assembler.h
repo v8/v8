@@ -1198,7 +1198,6 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
   using Base = ReducerBaseForwarder<Next>;
 
   void Bind(Block* block) {}
-  void TurnLoopIntoMerge(Block* old_header) {}
 
   // CanAutoInlineBlocksWithSinglePredecessor is used to control whether the
   // CopyingPhase is allowed to automatically inline blocks with a single
@@ -5706,7 +5705,6 @@ class Assembler : public AssemblerData,
   // can be added anymore.
   void FinalizeLoop(Block* loop_header) {
     if (loop_header->IsLoop() && loop_header->PredecessorCount() == 1) {
-      Stack::TurnLoopIntoMerge(loop_header);
       this->output_graph().TurnLoopIntoMerge(loop_header);
     }
   }

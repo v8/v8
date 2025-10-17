@@ -8433,8 +8433,7 @@ class TurboshaftGraphBuildingInterface
   OpIndex AsmjsLoadMem(V<Word32> index, MemoryRepresentation repr) {
     // Since asmjs does not support unaligned accesses, we can bounds-check
     // ignoring the access size.
-    Variable result =
-        __ NewLoopInvariantVariable(repr.ToRegisterRepresentation());
+    Variable result = __ NewVariable(repr.ToRegisterRepresentation());
 
     // Technically, we should do a signed 32-to-ptr extension here. However,
     // that is an explicit instruction, whereas unsigned extension is implicit.

@@ -3677,8 +3677,6 @@ filegroup(
             "src/compiler/turboshaft/wasm-shuffle-reducer.h",
             "src/compiler/turboshaft/wasm-simd-phase.cc",
             "src/compiler/turboshaft/wasm-simd-phase.h",
-            "src/compiler/turboshaft/wasm-type-cast-rtt-optimization-helpers.cc",
-            "src/compiler/turboshaft/wasm-type-cast-rtt-optimization-helpers.h",
             "src/compiler/wasm-address-reassociation.cc",
             "src/compiler/wasm-address-reassociation.h",
             "src/compiler/wasm-call-descriptors.cc",

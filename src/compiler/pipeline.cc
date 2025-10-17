@@ -3229,16 +3229,6 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
 
   if (v8_flags.wasm_opt && uses_wasm_gc_features) {
     CHECK(turboshaft_pipeline.Run<turboshaft::WasmGCOptimizePhase>());
-  } else {
-    // `has_wasm_type_cast_rtt_in_loop` needs to be initialized before the
-    // WasmLoweringPhase. If we reach this point, then either wasm_opt is
-    // disabled in which case it makes sense to skip the optimization it
-    // controls, or the graph doesn't use WasmGC features, in which case this
-    // optimization won't apply anyways. By just calling
-    // `initialize_has_wasm_type_cast_rtt_in_loop` and never calling
-    // `set_has_wasm_type_cast_rtt_in_loop`, we effectively disable the
-    // wasm_type_cast_rtt_in_loop optimization.
-    turboshaft_data.initialize_has_wasm_type_cast_rtt_in_loop();
   }
 
   // TODO(mliedtke): This phase could be merged with the WasmGCOptimizePhase
