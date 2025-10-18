@@ -2171,6 +2171,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(LocalePrototypeTimeZones, JSParameterCount(0))                           \
   /* ecma402 #sec-Intl.Locale.prototype.toString */                            \
   CPP(LocalePrototypeToString, kDontAdaptArgumentsSentinel)                    \
+  /* ecma402 #sec-Intl.Locale.prototype.variants */                            \
+  CPP(LocalePrototypeVariants, JSParameterCount(0))                            \
   /* ecma402 #sec-Intl.Locale.prototype.weekInfo */                            \
   CPP(LocalePrototypeWeekInfo, JSParameterCount(0))                            \
   /* ecma402 #sec-intl.numberformat */                                         \

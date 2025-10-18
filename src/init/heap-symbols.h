@@ -142,6 +142,7 @@
   V(_, usage_string, "usage")                                       \
   V(_, useGrouping_string, "useGrouping")                           \
   V(_, unitDisplay_string, "unitDisplay")                           \
+  V(_, variants_string, "variants")                                 \
   V(_, weekday_string, "weekday")                                   \
   V(_, weekend_string, "weekend")                                   \
   V(_, weeksDisplay_string, "weeksDisplay")                         \

@@ -962,6 +962,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kLocalePrototypeTextInfo:
     case Builtin::kLocalePrototypeTimeZones:
     case Builtin::kLocalePrototypeToString:
+    case Builtin::kLocalePrototypeVariants:
     case Builtin::kLocalePrototypeWeekInfo:
     // Intl.NumberFormat builtins.
     case Builtin::kNumberFormatConstructor:
