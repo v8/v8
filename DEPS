@@ -130,9 +130,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bcf5f8cbc8079684cad70f85e945342f074870b4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1982190a93baa99fa5c8e4d9887cce1565e3f8fe',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '28a4e2e3dc4dea96027664dd777316c335de1f28',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a9f685b975e59e46e6558e45d2fdb84d27bbdda0',
   'buildtools/linux64': {
     'packages': [
       {
@@ -246,7 +246,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ddb97c1c77ee11a8a5d1ab04cffaa9ea5433b45b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '12b3e1f95e1377c0fe9cc3c84bc64193b234346b',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '1af2c657e2646fd13cf50f426059b696194fff10',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '1cd4ad8d27d77b11c3780a27854a1c2b8670c969',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '8e720a3a3ae30fcfffe436aae418c91acacc34d0',
   'third_party/libpfm4':
