@@ -1622,9 +1622,6 @@ void Heap::CollectGarbage(
   DisableTrustedPointerPublishingScope no_trusted_pointer_tracking(isolate());
 
   DCHECK(AllowGarbageCollection::IsAllowed());
-  // TODO(chromium:1523607): Ensure this for standalone cppgc as well.
-  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
-                !isolate()->InFastCCall());
 
   const char* collector_reason = nullptr;
   const GarbageCollector collector =
@@ -1935,8 +1932,6 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
                                    GarbageCollector collector,
                                    const char* reason) {
   DCHECK(incremental_marking()->IsStopped());
-  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
-                !isolate()->InFastCCall());
   DCHECK_EQ(isolate(), Isolate::TryGetCurrent());
 
   if (gc_callbacks_depth_ > 0) {

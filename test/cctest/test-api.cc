@@ -29073,7 +29073,6 @@ void FastApiCallWithAllocationAndGC(AllocationChecker::GCLocation gc_location) {
   i::v8_flags.turbofan = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.allow_allocation_in_fast_api_call = true;
   i::v8_flags.expose_gc = true;
   i::FlagList::EnforceFlagImplications();
 
@@ -29116,7 +29115,6 @@ TEST(FastApiCallWithThrowInReentrantCode) {
   i::v8_flags.turbofan = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.allow_allocation_in_fast_api_call = true;
   i::FlagList::EnforceFlagImplications();
 
   CcTest::InitializeVM();
@@ -29222,7 +29220,6 @@ void FastApiCallRecursion(bool inner_most_throws) {
   i::v8_flags.turbofan = true;
   i::v8_flags.turbo_fast_api_calls = true;
   i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.allow_allocation_in_fast_api_call = true;
   i::FlagList::EnforceFlagImplications();
 
   CcTest::InitializeVM();

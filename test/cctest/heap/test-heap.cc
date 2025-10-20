@@ -6015,6 +6015,7 @@ TEST(Regress598319) {
 }
 
 DirectHandle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   // Make sure there is no garbage and the compilation cache is empty.
   for (int i = 0; i < 5; i++) {
     heap::InvokeMajorGC(heap);
@@ -6024,8 +6025,9 @@ DirectHandle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
   // are correct.
   heap->DisableInlineAllocation();
   size_t size_before_allocation = heap->SizeOfObjects();
-  DirectHandle<FixedArray> array =
-      heap->isolate()->factory()->NewFixedArray(length, AllocationType::kOld);
+  IndirectHandle<FixedArray> array(
+      *heap->isolate()->factory()->NewFixedArray(length, AllocationType::kOld),
+      heap->isolate());
   size_t size_after_allocation = heap->SizeOfObjects();
   CHECK_EQ(size_after_allocation, size_before_allocation + array->Size());
   array->RightTrim(heap->isolate(), 1);

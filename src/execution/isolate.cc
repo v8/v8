@@ -1822,7 +1822,10 @@ void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
   DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
   // Avoid printing anything if there are no frames.
-  if (c_entry_fp(thread_local_top()) == 0 && !InFastCCall()) return;
+  if (c_entry_fp(thread_local_top()) == kNullAddress &&
+      isolate_data()->fast_c_call_caller_fp() == kNullAddress) {
+    return;
+  }
 
   accumulator->Add(
       "\n==== JS stack trace =========================================\n\n");

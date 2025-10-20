@@ -4993,15 +4993,10 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     ReportAbortedEvacuationCandidateDueToFlags(page);
   }
 
-  if (heap_->IsGCWithStack()) {
-    if (!v8_flags.compact_with_stack) {
-      for (PageMetadata* page : old_space_evacuation_pages_) {
-        ReportAbortedEvacuationCandidateDueToFlags(page);
-      }
+  if (heap_->IsGCWithStack() && !v8_flags.compact_with_stack) {
+    for (PageMetadata* page : old_space_evacuation_pages_) {
+      ReportAbortedEvacuationCandidateDueToFlags(page);
     }
-  } else {
-    // There should always be a stack when we are in a fast c call.
-    DCHECK(!heap_->isolate()->InFastCCall());
   }
 
   if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {

@@ -3055,8 +3055,6 @@ DEFINE_BOOL(adjust_os_scheduling_parameters, true,
             "adjust OS specific scheduling params for the isolate")
 DEFINE_BOOL(experimental_flush_embedded_blob_icache, true,
             "Used in an experiment to evaluate icache flushing on certain CPUs")
-DEFINE_BOOL(allow_allocation_in_fast_api_call, true,
-            "Allow allocations in fast API calls.")
 
 // Flags for short builtin calls feature
 #if V8_SHORT_BUILTIN_CALLS
