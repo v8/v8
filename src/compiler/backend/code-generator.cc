@@ -1158,12 +1158,19 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   RecordSafepoint(instr->reference_map());
 
   InstructionOperandConverter i(this, instr);
-  size_t index = instr->InputCount() - 1;
+  int index = static_cast<int>(instr->InputCount()) - 1;
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler)) {
-    int tag_index = i.ToConstant(instr->InputAt(index--)).ToInt32();
-    RpoNumber handler_rpo = i.ToConstant(instr->InputAt(index--)).ToRpoNumber();
-    effect_handlers_.push_back(
-        {tag_index, GetLabel(handler_rpo), masm()->pc_offset()});
+    int num_handlers = i.ToConstant(instr->InputAt(index)).ToInt32();
+    // Start from the first handler, order matters.
+    for (int handler_idx = index - 2 * num_handlers; handler_idx < index;
+         handler_idx += 2) {
+      RpoNumber handler_rpo =
+          i.ToConstant(instr->InputAt(handler_idx)).ToRpoNumber();
+      int tag_index = i.ToConstant(instr->InputAt(handler_idx + 1)).ToInt32();
+      effect_handlers_.push_back(
+          {tag_index, GetLabel(handler_rpo), masm()->pc_offset()});
+    }
+    index = index - 2 * num_handlers - 1;
   }
   if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
     Constant handler_input = i.ToConstant(instr->InputAt(index--));

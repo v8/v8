@@ -166,6 +166,50 @@ builder.addFunction("resume_bad_cont_3", kSig_v_v)
           kExprGlobalGet, g_cont.index,
           kExprResume, cont_index, 0
     ]).exportFunc();
+builder.addFunction("resume_next_with_two_handlers", kSig_i_v)
+    .addBody([
+        kExprBlock, kWasmVoid,
+          kExprBlock, kWasmRef, cont_index,
+            kExprBlock, kWasmRef, cont_index,
+              kExprCallFunction, get_next_index,
+              kExprContNew, cont_index,
+              kExprResume, cont_index, 2,
+                kOnSuspend, tag0_index, 0,
+                kOnSuspend, tag1_index, 1,
+              kExprUnreachable,
+            kExprEnd,
+            kExprDrop,
+            kExprI32Const, 0,
+            kExprReturn,
+          kExprEnd,
+          kExprDrop,
+          kExprI32Const, 1,
+          kExprReturn,
+        kExprEnd,
+        kExprUnreachable,
+    ]).exportFunc();
+builder.addFunction("resume_next_with_two_handlers_same_tag", kSig_i_v)
+    .addBody([
+        kExprBlock, kWasmVoid,
+          kExprBlock, kWasmRef, cont_index,
+            kExprBlock, kWasmRef, cont_index,
+              kExprCallFunction, get_next_index,
+              kExprContNew, cont_index,
+              kExprResume, cont_index, 2,
+                kOnSuspend, tag0_index, 0,
+                kOnSuspend, tag0_index, 1,
+              kExprUnreachable,
+            kExprEnd,
+            kExprDrop,
+            kExprI32Const, 0,
+            kExprReturn,
+          kExprEnd,
+          kExprDrop,
+          kExprI32Const, 1,
+          kExprReturn,
+        kExprEnd,
+        kExprUnreachable,
+    ]).exportFunc();
 let instance;
 instance = builder.instantiate( {m: {
   gc,
@@ -319,6 +363,18 @@ instance = builder.instantiate( {m: {
   assertThrows(instance.exports.resume_bad_cont_1, WebAssembly.RuntimeError);
   assertThrows(instance.exports.resume_bad_cont_2, WebAssembly.RuntimeError);
   assertThrows(instance.exports.resume_bad_cont_3, WebAssembly.RuntimeError);
+})();
+
+(function TestMultipleHandlers() {
+  print(arguments.callee.name);
+  instance.exports.call_stack.value = [instance.exports.suspend_tag0];
+  assertEquals(0, instance.exports.resume_next_with_two_handlers());
+  instance.exports.call_stack.value = [instance.exports.suspend_tag1];
+  assertEquals(1, instance.exports.resume_next_with_two_handlers());
+
+  // If the same tag is used multiple times, use the first occurrence.
+  instance.exports.call_stack.value = [instance.exports.suspend_tag0];
+  assertEquals(0, instance.exports.resume_next_with_two_handlers_same_tag());
 })();
 
 (function TestResumeSuspendReturn() {

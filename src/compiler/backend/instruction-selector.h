@@ -1392,7 +1392,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   void VisitConstant(turboshaft::OpIndex node);
   void VisitCall(
       turboshaft::OpIndex call, turboshaft::Block* exception_handler = {},
-      std::optional<turboshaft::EffectHandler> wasm_effect_handler = {});
+      base::Vector<turboshaft::EffectHandler> wasm_effect_handlers = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
   void VisitTrapIf(turboshaft::OpIndex node);
   void VisitTailCall(turboshaft::OpIndex call);

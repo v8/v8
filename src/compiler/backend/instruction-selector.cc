@@ -2174,7 +2174,7 @@ void InstructionSelector::UpdateMaxPushedArgumentCount(size_t count) {
 
 void InstructionSelector::VisitCall(
     OpIndex node, Block* exception_handler,
-    std::optional<EffectHandler> effect_handler) {
+    base::Vector<EffectHandler> effect_handlers) {
   OperandGenerator g(this);
   const CallOp& call_op = Cast<CallOp>(node);
   const CallDescriptor* call_descriptor = call_op.descriptor->descriptor;
@@ -2244,11 +2244,14 @@ void InstructionSelector::VisitCall(
     buffer.instruction_args.push_back(
         g.UseImmediate(kLazyDeoptOnThrowSentinel));
   }
-  if (effect_handler.has_value()) {
+  if (!effect_handlers.empty()) {
     flags |= CallDescriptor::kHasEffectHandler;
-    buffer.instruction_args.push_back(g.Label(effect_handler->block));
+    for (auto& handler : effect_handlers) {
+      buffer.instruction_args.push_back(g.Label(handler.block));
+      buffer.instruction_args.push_back(g.UseImmediate(handler.tag_index));
+    }
     buffer.instruction_args.push_back(
-        g.UseImmediate(effect_handler->tag_index));
+        g.UseImmediate(static_cast<int>(effect_handlers.size())));
   } else {
     // This bit had a different meaning before isel, so ensure that it is
     // cleared:
@@ -2715,7 +2718,7 @@ void InstructionSelector::VisitControl(const Block* block) {
     case Opcode::kCheckException: {
       const CheckExceptionOp& check = op.Cast<CheckExceptionOp>();
       VisitCall(check.throwing_operation(), check.catch_block,
-                check.effect_handler);
+                check.effect_handlers);
       VisitGoto(check.didnt_throw_block);
       return;
     }

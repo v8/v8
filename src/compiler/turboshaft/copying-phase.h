@@ -914,19 +914,27 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
         // handler or both, so the catch block may be empty.
         catch_scope.emplace(Asm(), MapToNewGraph(op.catch_block));
       }
-      if (op.effect_handler.has_value()) {
+      if (!op.effect_handlers.empty()) {
         // Similar logic as the catch scope, but effect handlers cannot be
         // nested, so just set it and clear it after the reduction.
-        Asm().set_effect_handler_for_next_call(
-            op.effect_handler->tag_index,
-            MapToNewGraph(op.effect_handler->block));
+        base::Vector<EffectHandler> output_handlers =
+            Asm()
+                .output_graph()
+                .graph_zone()
+                ->template AllocateVector<EffectHandler>(
+                    op.effect_handlers.size());
+        for (int i = 0; i < op.effect_handlers.length(); ++i) {
+          output_handlers[i].tag_index = op.effect_handlers[i].tag_index;
+          output_handlers[i].block = MapToNewGraph(op.effect_handlers[i].block);
+        }
+        Asm().set_effect_handlers_for_next_call(output_handlers);
       }
       DCHECK(Asm().input_graph().Get(*it).template Is<DidntThrowOp>());
       if (!Asm().InlineOp(*it, op.didnt_throw_block)) {
-        Asm().clear_effect_handler();
+        Asm().clear_effect_handlers();
         return V<None>::Invalid();
       }
-      Asm().clear_effect_handler();
+      Asm().clear_effect_handlers();
       ++it;
     }
     for (; it != end; ++it) {
