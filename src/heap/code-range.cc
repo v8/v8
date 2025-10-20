@@ -415,11 +415,16 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   return true;
 }
 
-// Preferred region for the code range is:
-//   [builtins - kMaxPCRelativeDistance, builtins + kMaxPCRelativeDistance)
-// This requirement is to ensure that embedded builtins are reachable from
-// the code range for architectures where PC-relative jump/call distance is
-// big enough.
+// Preferred region for the code range is an intersection of the following
+// regions:
+// a) [builtins - kMaxPCRelativeDistance, builtins + kMaxPCRelativeDistance)
+// b) [RoundDown(builtins, 4GB), RoundUp(builtins, 4GB)) in order to ensure
+// Requirement (a) is there to avoid remaping of embedded builtins into
+// the code for architectures where PC-relative jump/call distance is big
+// enough.
+// Requirement (b) is aiming at helping CPU branch predictors in general and
+// in case V8_EXTERNAL_CODE_SPACE is enabled it ensures that
+// ExternalCodeCompressionScheme works for all pointers in the code range.
 // static
 base::AddressRegion CodeRange::GetPreferredRegion(size_t radius_in_megabytes,
                                                   size_t allocate_page_size) {
@@ -439,6 +444,7 @@ base::AddressRegion CodeRange::GetPreferredRegion(size_t radius_in_megabytes,
         embedded_blob_code_start + Isolate::CurrentEmbeddedBlobCodeSize();
   }
 
+  // Fulfil requirement (a).
   constexpr size_t max_size = std::numeric_limits<size_t>::max();
   size_t radius = radius_in_megabytes * MB;
 
@@ -454,6 +460,14 @@ base::AddressRegion CodeRange::GetPreferredRegion(size_t radius_in_megabytes,
     // |region_end| overflowed.
     region_end = RoundDown(max_size, allocate_page_size);
   }
+
+  // Fulfil requirement (b).
+  constexpr size_t k4GB = size_t{4} * GB;
+  Address four_gb_cage_start = RoundDown(embedded_blob_code_start, k4GB);
+  Address four_gb_cage_end = four_gb_cage_start + k4GB;
+
+  region_start = std::max(region_start, four_gb_cage_start);
+  region_end = std::min(region_end, four_gb_cage_end);
 
   return base::AddressRegion(region_start, region_end - region_start);
 #else
