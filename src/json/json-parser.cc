@@ -2598,10 +2598,19 @@ MaybeHandle<Object> JsonParser<Char>::Parse(
   if (IsJSFunction(*reviver)) {
     Handle<SharedFunctionInfo> reviver_sfi(Cast<JSFunction>(*reviver)->shared(),
                                            isolate);
-    if (reviver_sfi->CannotAccessVariableArguments() &&
+    if (reviver_sfi->has_simple_parameters() &&
+        reviver_sfi->kind() == FunctionKind::kArrowFunction &&
         reviver_sfi->internal_formal_parameter_count_without_receiver() < 3) {
       // The reviver function has only one or two arguments, so we don't need
       // to collect the information on the source for each primitive value.
+      // Since it is an arrow function it doesn't get the 'this' which it can
+      // use to mutate the parsed data structure while its properties are being
+      // passed to the reviver.  This also reduces the amount of work we need
+      // to do.
+      //
+      // We could do part of this optimization for non-arrow functions, if we
+      // were willing to ignore the issue of the missing third parameter being
+      // detectable through the 'arguments' object.
       //
       // Note that on the first run, we don't get here because the optimizers
       // have not set enough information on the shared function info.  So we

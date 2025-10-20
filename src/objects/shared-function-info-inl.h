@@ -233,10 +233,6 @@ uint16_t SharedFunctionInfo::internal_formal_parameter_count_with_receiver()
   return param_count;
 }
 
-bool SharedFunctionInfo::CannotAccessVariableArguments() const {
-  return scope_info(kAcquireLoad)->CannotAccessVariableArguments();
-}
-
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()
     const {
   const uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
@@ -770,7 +766,7 @@ IsBaselineCompiledScope::IsBaselineCompiledScope(
   }
 }
 
-bool SharedFunctionInfo::has_simple_parameters() const {
+bool SharedFunctionInfo::has_simple_parameters() {
   return scope_info(kAcquireLoad)->HasSimpleParameters();
 }
 

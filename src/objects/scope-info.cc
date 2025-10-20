@@ -154,9 +154,9 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   bool has_inlined_local_names =
       context_local_count < kScopeInfoMaxInlinedLocalNamesSize;
 
-  const bool allocates_arguments =
-      scope->is_function_scope() &&
-      scope->AsDeclarationScope()->arguments() == nullptr;
+  const bool has_new_target =
+      scope->is_declaration_scope() &&
+      scope->AsDeclarationScope()->new_target_var() != nullptr;
   // TODO(cbruni): Don't always waste a field for the inferred name.
   const bool has_inferred_function_name = scope->is_function_scope();
 
@@ -271,7 +271,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         ReceiverVariableBits::encode(receiver_info) |
         ClassScopeHasPrivateBrandBit::encode(has_brand) |
         HasSavedClassVariableBit::encode(should_save_class_variable) |
-        AllocatesArgumentsBit::encode(allocates_arguments) |
+        HasNewTargetBit::encode(has_new_target) |
         FunctionVariableBits::encode(function_name_info) |
         HasInferredFunctionNameBit::encode(has_inferred_function_name) |
         IsAsmModuleBit::encode(is_asm_module) |
@@ -481,8 +481,7 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
       DeclarationScopeBit::encode(false) |
       ReceiverVariableBits::encode(VariableAllocationInfo::NONE) |
       ClassScopeHasPrivateBrandBit::encode(false) |
-      HasSavedClassVariableBit::encode(false) |
-      AllocatesArgumentsBit::encode(false) |
+      HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
       FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
       IsAsmModuleBit::encode(false) | HasSimpleParametersBit::encode(true) |
       FunctionKindBits::encode(FunctionKind::kNormalFunction) |
@@ -582,8 +581,7 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
       ReceiverVariableBits::encode(is_script ? VariableAllocationInfo::CONTEXT
                                              : VariableAllocationInfo::UNUSED) |
       ClassScopeHasPrivateBrandBit::encode(false) |
-      HasSavedClassVariableBit::encode(false) |
-      AllocatesArgumentsBit::encode(type == BootstrappingType::kFunction) |
+      HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
       FunctionVariableBits::encode(is_empty_function
                                        ? VariableAllocationInfo::UNUSED
                                        : VariableAllocationInfo::NONE) |
@@ -810,9 +808,8 @@ bool ScopeInfo::HasSavedClassVariable() const {
   return HasSavedClassVariableBit::decode(Flags());
 }
 
-bool ScopeInfo::CannotAccessVariableArguments() const {
-  return is_strict(this->language_mode()) && HasSimpleParameters() &&
-         !AllocatesArgumentsBit::decode(Flags());
+bool ScopeInfo::HasNewTarget() const {
+  return HasNewTargetBit::decode(Flags());
 }
 
 bool ScopeInfo::HasFunctionName() const {
