@@ -4701,18 +4701,17 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
     v8::Local<FunctionTemplate> tmpl) {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = i::Isolate::Current();
-  i::PrototypeIterator iter(i_isolate, *self, i::kStartAtReceiver);
   i::Tagged<i::FunctionTemplateInfo> tmpl_info =
       *Utils::OpenDirectHandle(*tmpl);
-  if (!IsJSObject(iter.GetCurrent())) return {};
-  while (!tmpl_info->IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
-    iter.Advance();
-    if (iter.IsAtEnd()) return {};
-    if (!IsJSObject(iter.GetCurrent())) return {};
+  for (i::PrototypeIterator iter(i_isolate, *self, i::kStartAtReceiver);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (IsJSObject(iter.GetCurrent()) &&
+        tmpl_info->IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
+      return Utils::ToLocal(
+          i::direct_handle(iter.GetCurrent<i::JSObject>(), i_isolate));
+    }
   }
-  // IsTemplateFor() ensures that iter.GetCurrent() can't be a Proxy here.
-  return Utils::ToLocal(
-      i::direct_handle(iter.GetCurrent<i::JSObject>(), i_isolate));
+  return {};
 }
 
 MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context) {
@@ -5017,7 +5016,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
       context, RCCId::kAPI_Object_GetRealNamedPropertyInPrototypeChain};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*self)) return {};
+  if (!IsJSObject(*self) && !IsWasmObject(*self)) return {};
   auto key_obj = Utils::OpenDirectHandle(*key);
   i::PrototypeIterator iter(i_isolate, self);
   if (iter.IsAtEnd()) return {};
@@ -5039,7 +5038,7 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
       i_isolate, context,
       RCCId::kAPI_Object_GetRealNamedPropertyAttributesInPrototypeChain};
   auto self = Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*self)) return {};
+  if (!IsJSObject(*self) && !IsWasmObject(*self)) return {};
   auto key_obj = Utils::OpenDirectHandle(*key);
   i::PrototypeIterator iter(i_isolate, self);
   if (iter.IsAtEnd()) return {};
