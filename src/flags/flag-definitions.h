@@ -284,9 +284,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define HARMONY_INPROGRESS(V) \
   HARMONY_INPROGRESS_BASE(V)  \
   V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher")
-#define JAVASCRIPT_INPROGRESS_FEATURES(V) \
-  JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)  \
-  V(js_intl_locale_variants, "Intl.Locale.prototype.variants")
+#define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #define JAVASCRIPT_INPROGRESS_FEATURES(V) JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
@@ -299,7 +297,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
-#define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
+#define JAVASCRIPT_STAGED_FEATURES(V) \
+  JAVASCRIPT_STAGED_FEATURES_BASE(V)  \
+  V(js_intl_locale_variants, "Intl.Locale.prototype.variants")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #define JAVASCRIPT_STAGED_FEATURES(V) JAVASCRIPT_STAGED_FEATURES_BASE(V)
