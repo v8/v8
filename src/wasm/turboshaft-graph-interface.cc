@@ -5,6 +5,7 @@
 #include "src/wasm/turboshaft-graph-interface.h"
 
 #include <optional>
+#include <type_traits>
 
 #include "absl/container/btree_map.h"
 #include "include/v8-fast-api-calls.h"
@@ -171,6 +172,7 @@ class TurboshaftGraphBuildingInterface
   struct Value : public ValueBase<ValidationTag> {
     OpIndex op = OpIndex::Invalid();
     template <typename... Args>
+      requires std::constructible_from<ValueBase, Args...>
     explicit Value(Args&&... args) V8_NOEXCEPT
         : ValueBase(std::forward<Args>(args)...) {}
   };
@@ -2676,8 +2678,8 @@ class TurboshaftGraphBuildingInterface
             __ Bind(inline_block);
           }
 
-          SmallZoneVector<Value, 4> direct_returns(return_count,
-                                                   decoder->zone_);
+          SmallZoneVector<Value, 4> direct_returns(decoder->zone_);
+          direct_returns.resize_no_init(return_count);
           if (v8_flags.trace_wasm_inlining) {
             PrintF(
                 "[function %d%s: Speculatively inlining call_indirect #%d, "
@@ -2710,8 +2712,8 @@ class TurboshaftGraphBuildingInterface
           auto [call_target, call_implicit_arg] =
               BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr,
                                                     imm);
-          SmallZoneVector<Value, 4> indirect_returns(return_count,
-                                                     decoder->zone_);
+          SmallZoneVector<Value, 4> indirect_returns(decoder->zone_);
+          indirect_returns.resize_no_init(return_count);
           BuildWasmCall(decoder, imm.sig, call_target, call_implicit_arg, args,
                         indirect_returns.data(),
                         compiler::kWasmIndirectFunction);
@@ -2936,7 +2938,8 @@ class TurboshaftGraphBuildingInterface
           __ Bind(inline_block);
         }
 
-        SmallZoneVector<Value, 4> direct_returns(return_count, decoder->zone_);
+        SmallZoneVector<Value, 4> direct_returns(decoder->zone_);
+        direct_returns.resize_no_init(return_count);
         if (v8_flags.trace_wasm_inlining) {
           PrintF(
               "[function %d%s: Speculatively inlining call_ref #%d, case #%zu, "
@@ -2965,7 +2968,8 @@ class TurboshaftGraphBuildingInterface
         auto [target, implicit_arg] =
             BuildFunctionReferenceTargetAndImplicitArg(func_ref.op,
                                                        func_ref.type);
-        SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
+        SmallZoneVector<Value, 4> ref_returns(decoder->zone_);
+        ref_returns.resize_no_init(return_count);
         BuildWasmCall(decoder, sig, target, implicit_arg, args,
                       ref_returns.data(), compiler::kWasmIndirectFunction);
         for (size_t ret = 0; ret < ref_returns.size(); ret++) {
@@ -8023,7 +8027,8 @@ class TurboshaftGraphBuildingInterface
       // Transform the tail call into a regular call, and return the return
       // values to the caller.
       size_t return_count = sig->return_count();
-      SmallZoneVector<Value, 16> returns(return_count, decoder->zone_);
+      SmallZoneVector<Value, 16> returns(decoder->zone_);
+      returns.resize_no_init(return_count);
       // Since an exception in a tail call cannot be caught in this frame, we
       // should only catch exceptions in the generated call if this is a
       // recursively inlined function, and the parent frame provides a handler.
