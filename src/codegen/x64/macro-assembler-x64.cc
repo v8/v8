@@ -4035,6 +4035,8 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
   } else {
     PopReturnAddressTo(scratch);
     addq(rsp, Immediate(bytes_dropped));
+    // Push and ret (instead of jmp) to keep the RSB and the CET shadow stack
+    // balanced.
     PushReturnAddressFrom(scratch);
     ret(0);
   }
@@ -5330,7 +5332,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);
-    __ ret(slots_to_drop_on_return * kSystemPointerSize);
+    __ Ret(slots_to_drop_on_return * kSystemPointerSize, scratch);
   } else {
     __ PopReturnAddressTo(scratch);
     // {argc_operand} was loaded into {argc_reg} above.
