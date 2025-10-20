@@ -17394,7 +17394,9 @@ TNode<Object> CodeStubAssembler::GetResultValueForHole(TNode<Object> value) {
 std::pair<TNode<Object>, TNode<Object>> CodeStubAssembler::CallIteratorNext(
     TNode<Object> iterator, TNode<Object> next_method, TNode<Context> context) {
   Label callable(this), not_callable(this, Label::kDeferred);
-  Branch(IsCallable(CAST(next_method)), &callable, &not_callable);
+  GotoIf(TaggedIsSmi(next_method), &not_callable);
+  Branch(IsCallable(UncheckedCast<HeapObject>(next_method)), &callable,
+         &not_callable);
   BIND(&not_callable);
   {
     CallRuntime(Runtime::kThrowCalledNonCallable, context, next_method);
@@ -17438,6 +17440,9 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
   // the iterator record in bytecode generator (BuildGetIterator).
   TNode<BoolT> is_array_iterator = IsJSArrayIterator(CAST(object));
   GotoIfNot(is_array_iterator, &slow_path);
+
+  // Check that the array iterator prototype chain is intact.
+  GotoIf(IsArrayIteratorProtectorCellInvalid(), &slow_path);
 
   // Fast path for JSArrayIterator.
   {
