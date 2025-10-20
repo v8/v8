@@ -89,7 +89,7 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
 
   // Computes the required capacity for a table holding the given
   // number of elements. May be more than HashTable::kMaxCapacity.
-  static inline uint32_t ComputeCapacity(uint32_t at_least_space_for);
+  static constexpr inline uint32_t ComputeCapacity(uint32_t at_least_space_for);
 
   // Note: these are currently Smi fields but treated as uint32_t.
   // TODO(saelo): these really should be raw uint32_t fields and not Smis. This
@@ -206,8 +206,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Maximal capacity of HashTable. Based on maximal length of underlying
   // FixedArray. Staying below kMaxCapacity also ensures that EntryToIndex
   // cannot overflow.
-  static const uint32_t kMaxCapacity =
-      (FixedArray::kMaxLength - kElementsStartIndex) / kEntrySize;
+  static const uint32_t kMaxCapacity = base::bits::RoundDownToPowerOfTwo32(
+      (FixedArray::kMaxLength - kElementsStartIndex) / kEntrySize);
 
   // Don't shrink a HashTable below this capacity.
   static const int kMinShrinkCapacity = 16;

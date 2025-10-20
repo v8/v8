@@ -4862,14 +4862,29 @@ MaybeHandle<Derived> HashTable<Derived, Shape>::TryNew(
     IsolateT* isolate, uint32_t at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
-  DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
-                 base::bits::IsPowerOfTwo(at_least_space_for));
 
-  uint32_t capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
-                          ? at_least_space_for
-                          : ComputeCapacity(at_least_space_for);
-  if (capacity > HashTable::kMaxCapacity) {
-    return kNullMaybeHandle;
+  uint32_t capacity;
+  if (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY) {
+    DCHECK(base::bits::IsPowerOfTwo(at_least_space_for));
+    capacity = at_least_space_for;
+    if (capacity > HashTable::kMaxCapacity) {
+      return kNullMaybeHandle;
+    }
+  } else {
+    // Max |at_least_space_for| value that's about to make the table capacity
+    // exceed the HashTable::kMaxCapacity.
+    const uint32_t kMaxAtLeastSpaceFor = HashTable::kMaxCapacity * 2 / 3;
+    static_assert(ComputeCapacity(kMaxAtLeastSpaceFor) <=
+                  HashTable::kMaxCapacity);
+    static_assert(ComputeCapacity(kMaxAtLeastSpaceFor + 1) >=
+                  HashTable::kMaxCapacity);
+    static_assert(ComputeCapacity(kMaxAtLeastSpaceFor + 4) >
+                  HashTable::kMaxCapacity);
+    if (at_least_space_for > kMaxAtLeastSpaceFor) {
+      return kNullMaybeHandle;
+    }
+    capacity = ComputeCapacity(at_least_space_for);
+    DCHECK_LE(capacity, HashTable::kMaxCapacity);
   }
   return NewInternal(isolate, capacity, allocation);
 }
