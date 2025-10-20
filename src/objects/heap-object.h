@@ -203,11 +203,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void set_map_safe_transition(IsolateT* isolate, Tagged<Map> value,
                                       ReleaseStoreTag);
 
-  // Compare-and-swaps map word using release store, returns true if the map
-  // word was actually swapped.
-  inline bool release_compare_and_swap_map_word_forwarded(
-      MapWord old_map_word, Tagged<HeapObject> new_target_object);
-
   // Compare-and-swaps map word using relaxed store, returns true if the map
   // word was actually swapped.
   inline bool relaxed_compare_and_swap_map_word_forwarded(

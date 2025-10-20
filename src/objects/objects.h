@@ -832,7 +832,7 @@ class MapWord {
 
   // View this map word as a forwarding address.
   inline Tagged<HeapObject> ToForwardingAddress(
-      Tagged<HeapObject> map_word_host);
+      Tagged<HeapObject> map_word_host) const;
 
   constexpr inline Address ptr() const { return value_; }
 

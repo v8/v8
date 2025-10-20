@@ -1424,7 +1424,7 @@ MapWord MapWord::FromForwardingAddress(Tagged<HeapObject> map_word_host,
 }
 
 Tagged<HeapObject> MapWord::ToForwardingAddress(
-    Tagged<HeapObject> map_word_host) {
+    Tagged<HeapObject> map_word_host) const {
   DCHECK(IsForwardingAddress());
 #ifdef V8_EXTERNAL_CODE_SPACE
   // When the sandbox or the external code space is enabled, forwarding
@@ -1753,14 +1753,6 @@ void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
                                         ReleaseStoreTag) {
   MapField::Release_Store_Map_Word(
       *this, MapWord::FromForwardingAddress(*this, target_object));
-}
-
-bool HeapObject::release_compare_and_swap_map_word_forwarded(
-    MapWord old_map_word, Tagged<HeapObject> new_target_object) {
-  Tagged_t result = MapField::Release_CompareAndSwap(
-      *this, old_map_word,
-      MapWord::FromForwardingAddress(*this, new_target_object));
-  return result == static_cast<Tagged_t>(old_map_word.ptr());
 }
 
 bool HeapObject::relaxed_compare_and_swap_map_word_forwarded(

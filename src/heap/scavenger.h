@@ -122,11 +122,11 @@ class Scavenger {
   inline SlotCallbackResult ScavengeObject(THeapObjectSlot p,
                                            Tagged<HeapObject> object);
 
-  // Copies |source| to |target| and sets the forwarding pointer in |source|.
-  V8_INLINE bool MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
-                               Tagged<HeapObject> target,
-                               SafeHeapObjectSize size);
-
+  // Tries to allocate a new target and migrate `object` over to it. Returns
+  // false if the space could not be allocated. Will return true if the object
+  // was migrated and the `slot` was updated, independent of whether this
+  // migrate operation copied the object or some other racing operation
+  // succeeded.
   template <typename THeapObjectSlot, typename OnSuccessCallback>
   V8_INLINE bool TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
                                   Tagged<HeapObject> object,

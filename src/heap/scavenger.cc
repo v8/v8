@@ -1315,9 +1315,24 @@ void Scavenger::SynchronizePageAccess(Tagged<MaybeObject> object) const {
 #endif
 }
 
-bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
-                              Tagged<HeapObject> target,
-                              SafeHeapObjectSize size) {
+template <typename THeapObjectSlot, typename OnSuccessCallback>
+bool Scavenger::TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
+                                 Tagged<HeapObject> source,
+                                 SafeHeapObjectSize object_size,
+                                 AllocationSpace space,
+                                 OnSuccessCallback on_success) {
+  // We should never reach this path for large objects.
+  DCHECK_LE(static_cast<size_t>(object_size.value()),
+            MemoryChunkLayout::AllocatableMemoryInDataPage());
+  Tagged<HeapObject> target;
+  if (!allocator_
+           .Allocate(space, object_size,
+                     HeapObject::RequiredAlignment(space, map))
+           .To(&target)) [[unlikely]] {
+    return false;
+  }
+  DCHECK(heap()->marking_state()->IsUnmarked(target));
+
   // This CAS can be relaxed because we do not access the object body if the
   // object was already copied by another thread. We only access the page header
   // of such objects and this is safe because of the memory fence after page
@@ -1325,7 +1340,12 @@ bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
   if (!source->relaxed_compare_and_swap_map_word_forwarded(
           MapWord::FromMap(map), target)) {
     // Other task migrated the object.
-    return false;
+    allocator_.FreeLast(space, target, object_size);
+    const MapWord map_word = source->map_word(kRelaxedLoad);
+    UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(source));
+    SynchronizePageAccess(*slot);
+    DCHECK(!Heap::InFromPage(*slot));
+    return true;
   }
 
   // Copy the content of source to target. Note that we do this on purpose
@@ -1334,47 +1354,18 @@ bool Scavenger::MigrateObject(Tagged<Map> map, Tagged<HeapObject> source,
   // memory ordering for the CAS above.
   target->set_map_word(map, kRelaxedStore);
   heap()->CopyBlock(target.address() + kTaggedSize,
-                    source.address() + kTaggedSize, size.value() - kTaggedSize);
+                    source.address() + kTaggedSize,
+                    object_size.value() - kTaggedSize);
 
-  if (V8_UNLIKELY(is_logging_)) {
+  if (is_logging_) [[unlikely]] {
     // TODO(425150995): We should have uint versions for allocation to avoid
     // introducing OOBs via sign-extended ints along the way.
-    heap()->OnMoveEvent(source, target, size.value());
+    heap()->OnMoveEvent(source, target, object_size.value());
   }
 
-  PretenuringHandler::UpdateAllocationSite(heap_, map, source, size,
-                                           &local_pretenuring_feedback_);
-
+  UpdateHeapObjectReferenceSlot(slot, target);
+  on_success(target);
   return true;
-}
-
-template <typename THeapObjectSlot, typename OnSuccessCallback>
-bool Scavenger::TryMigrateObject(Tagged<Map> map, THeapObjectSlot slot,
-                                 Tagged<HeapObject> object,
-                                 SafeHeapObjectSize object_size,
-                                 AllocationSpace space,
-                                 OnSuccessCallback on_success) {
-  AllocationAlignment alignment = HeapObject::RequiredAlignment(space, map);
-  AllocationResult allocation =
-      allocator_.Allocate(space, object_size, alignment);
-
-  Tagged<HeapObject> target;
-  if (allocation.To(&target)) {
-    DCHECK(heap()->marking_state()->IsUnmarked(target));
-    const bool self_success = MigrateObject(map, object, target, object_size);
-    if (!self_success) {
-      allocator_.FreeLast(space, target, object_size);
-      MapWord map_word = object->map_word(kRelaxedLoad);
-      UpdateHeapObjectReferenceSlot(slot, map_word.ToForwardingAddress(object));
-      SynchronizePageAccess(*slot);
-      DCHECK(!Heap::InFromPage(*slot));
-      return true;
-    }
-    UpdateHeapObjectReferenceSlot(slot, target);
-    on_success(target);
-    return true;
-  }
-  return false;
 }
 
 template <typename THeapObjectSlot>
@@ -1388,7 +1379,10 @@ bool Scavenger::SemiSpaceCopyObject(Tagged<Map> map, THeapObjectSlot slot,
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
   return TryMigrateObject(
       map, slot, object, object_size, NEW_SPACE,
-      [this, map, object_fields, object_size](Tagged<HeapObject> target) {
+      [this, map, object_fields, object,
+       object_size](Tagged<HeapObject> target) {
+        PretenuringHandler::UpdateAllocationSite(
+            heap_, map, object, object_size, &local_pretenuring_feedback_);
         copied_size_ += object_size.value();
         if (object_fields == ObjectFields::kMaybePointers) {
           local_copied_list_.Push({target, map, object_size});
@@ -1426,7 +1420,7 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
   // page (code pages have a different offset but are never young). This check
   // avoids the page flag access.
   if (MemoryChunk::AddressToOffset(object.address()) !=
-      MemoryChunkLayout::ObjectStartOffsetInDataPage()) {
+      MemoryChunkLayout::ObjectStartOffsetInDataPage()) [[likely]] {
     return false;
   }
 
@@ -1487,17 +1481,17 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   SLOW_DCHECK(object->SafeSizeFromMap(map).value() == object_size.value());
 
-  if (HandleLargeObject(map, object, object_size, object_fields)) {
+  if (HandleLargeObject(map, object, object_size, object_fields)) [[unlikely]] {
     return REMOVE_SLOT;
   }
-
-  SLOW_DCHECK(static_cast<size_t>(object_size.value()) <=
-              MemoryChunkLayout::AllocatableMemoryInDataPage());
+  DCHECK_LE(static_cast<size_t>(object_size.value()),
+            MemoryChunkLayout::AllocatableMemoryInDataPage());
 
   if (!ShouldBePromoted(object.address())) {
     // A semi-space copy may fail due to fragmentation. In that case, we
     // try to promote the object.
-    if (SemiSpaceCopyObject(map, slot, object, object_size, object_fields)) {
+    if (SemiSpaceCopyObject(map, slot, object, object_size, object_fields))
+        [[likely]] {
       return RememberedSetEntryNeeded(heap_, slot);
     }
   }
@@ -1506,7 +1500,7 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(
   // copied in a previous young generation GC or if the semi-space copy above
   // failed.
   if (PromoteObject<THeapObjectSlot, promotion_heap_choice>(
-          map, slot, object, object_size, object_fields)) {
+          map, slot, object, object_size, object_fields)) [[likely]] {
     return RememberedSetEntryNeeded(heap_, slot);
   }
 
