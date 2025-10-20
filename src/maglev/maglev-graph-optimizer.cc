@@ -1558,6 +1558,12 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToFloat64(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitUnsafeHoleyFloat64ToFloat64(
+    UnsafeHoleyFloat64ToFloat64* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToMaybeNanFloat64(
     HoleyFloat64ToMaybeNanFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

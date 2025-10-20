@@ -311,6 +311,7 @@ class ExceptionHandlerInfo;
   V(UncheckedNumberOrOddballToFloat64)                                \
   V(CheckedNumberOrOddballToHoleyFloat64)                             \
   V(CheckedHoleyFloat64ToFloat64)                                     \
+  V(UnsafeHoleyFloat64ToFloat64)                                      \
   V(HoleyFloat64ToMaybeNanFloat64)                                    \
   V(Float64ToHoleyFloat64)                                            \
   IF_UD(V, ConvertHoleNanToUndefinedNan)                              \
@@ -5120,6 +5121,25 @@ class CheckedHoleyFloat64ToFloat64
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Float64() |
                                               OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+
+class UnsafeHoleyFloat64ToFloat64
+    : public FixedInputValueNodeT<1, UnsafeHoleyFloat64ToFloat64> {
+  using Base = FixedInputValueNodeT<1, UnsafeHoleyFloat64ToFloat64>;
+
+ public:
+  explicit UnsafeHoleyFloat64ToFloat64(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Float64();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 

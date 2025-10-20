@@ -4874,6 +4874,12 @@ class GraphBuildingNodeProcessor {
     SetMap(node, input);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::UnsafeHoleyFloat64ToFloat64* node,
+                                const maglev::ProcessingState& state) {
+    V<Float64> input = Map(node->input());
+    SetMap(node, input);
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::ConvertHoleToUndefined* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> cond = RootEqual(node->object_input(), RootIndex::kTheHoleValue);

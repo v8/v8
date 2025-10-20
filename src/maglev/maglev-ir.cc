@@ -746,6 +746,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kUncheckedNumberToFloat64:
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
     case Opcode::kCheckedHoleyFloat64ToFloat64:
+    case Opcode::kUnsafeHoleyFloat64ToFloat64:
     case Opcode::kHoleyFloat64ToMaybeNanFloat64:
     case Opcode::kFloat64ToHoleyFloat64:
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
@@ -2910,6 +2911,13 @@ void CheckedHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
   __ JumpIfUndefinedNan(ToDoubleRegister(input()), scratch, deopt_label);
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 }
+
+void UnsafeHoleyFloat64ToFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void UnsafeHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {}
 
 void LoadFloat64::SetValueLocationConstraints() {
   UseRegister(object_input());

@@ -1513,7 +1513,12 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
   if (!cst_left.has_value()) {
     if (details::Float64Equal(cst_right, Float64Identity<kOperation>())) {
       // This needs to return a Float64.
-      left = GetFloat64(left);
+      if (left->is_holey_float64()) {
+        // However we can treat Undefineds (Holes) as NaNs.
+        left = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({left});
+      } else {
+        left = GetFloat64(left);
+      }
       return left->Unwrap();
     }
     // TODO(dmercadier): we could still do strength reduction, like
