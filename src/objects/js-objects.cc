@@ -5147,17 +5147,23 @@ bool JSObject::UnregisterPrototypeUser(DirectHandle<Map> user,
   DCHECK(IsPrototypeInfo(user->prototype_info()));
   // If it had no prototype before, see if it had users that might expect
   // registration.
-  if (!IsJSObject(user->prototype())) {
+  if (!IsAnyObjectThatCanBeTrackedAsPrototype(user->prototype())) {
     Tagged<Object> users =
         Cast<PrototypeInfo>(user->prototype_info())->prototype_users();
     return IsWeakArrayList(users);
   }
-  DirectHandle<JSObject> prototype(Cast<JSObject>(user->prototype()), isolate);
+  DirectHandle<JSReceiver> prototype(Cast<JSReceiver>(user->prototype()),
+                                     isolate);
   DirectHandle<PrototypeInfo> user_info =
       Map::GetOrCreatePrototypeInfo(user, isolate);
   int slot = user_info->registry_slot();
   if (slot == PrototypeInfo::UNREGISTERED) return false;
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(prototype->map()->is_prototype_map() ||
+         IsWasmObjectMap(prototype->map()));
+#else
   DCHECK(prototype->map()->is_prototype_map());
+#endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> maybe_proto_info = prototype->map()->prototype_info();
   // User knows its registry slot, prototype info and user registry must exist.
   DCHECK(IsPrototypeInfo(maybe_proto_info));
