@@ -484,7 +484,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register temp = temps.AcquireScratch();
-  __ mullw(out, left, right, LeaveOE, SetRC);
+  __ mullw(out, left, right, SetOE, SetRC);
 
   DCHECK_REGLIST_EMPTY(RegList{temp, out} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
