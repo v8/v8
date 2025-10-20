@@ -6,9 +6,9 @@ Documentation can be found at https://v8.dev/docs.
 
 ## Key Commands
 
--   **Build (Debug):** `tools/dev/gm.py quiet x64.debug`
--   **Build (Optimized Debug):** `tools/dev/gm.py quiet x64.optdebug`
--   **Build (Release):** `tools/dev/gm.py quiet x64.release`
+-   **Build (Debug):** `tools/dev/gm.py quiet x64.debug tests`
+-   **Build (Optimized Debug):** `tools/dev/gm.py quiet x64.optdebug tests`
+-   **Build (Release):** `tools/dev/gm.py quiet x64.release tests`
 -   **Run All Tests:** `tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug`
 -   **Run C++ Tests:** `tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug cctest unittests`
 -   **Run JavaScript Tests:** `tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug mjsunit`
