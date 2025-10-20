@@ -211,12 +211,6 @@ auto GetUnderlyingEnumTypeForPrinting(T val) {
 
 }  // namespace detail
 
-// Define default PrintCheckOperand<T> for non-printable types.
-template <typename T>
-std::string PrintCheckOperand(T val) {
-  return "<unprintable>";
-}
-
 // Define PrintCheckOperand<T> for each T which defines operator<< for ostream,
 // except types explicitly specialized below.
 template <typename T>
@@ -265,21 +259,25 @@ std::string PrintCheckOperand(T val) {
 template <typename T>
   requires(!has_output_operator<T, CheckMessageStream> &&
            requires(T t) {
-             { t.begin() } -> std::forward_iterator;
+             { std::begin(t) } -> std::forward_iterator;
            })
-std::string PrintCheckOperand(T container) {
+std::string PrintCheckOperand(const T& container) {
   CheckMessageStream oss;
-  oss << "{";
-  bool first = true;
-  for (const auto& val : container) {
-    if (!first) {
-      oss << ",";
-    } else {
-      first = false;
+  const size_t size = std::size(container);
+  oss << size << " element" << (size == 1 ? "" : "s");
+  if constexpr (requires(const T& t) { PrintCheckOperand(*std::begin(t)); }) {
+    oss << ": {";
+    bool first = true;
+    for (const auto& val : container) {
+      if (!first) {
+        oss << ",";
+      } else {
+        first = false;
+      }
+      oss << PrintCheckOperand(val);
     }
-    oss << PrintCheckOperand(val);
+    oss << "}";
   }
-  oss << "}";
   return oss.str();
 }
 
@@ -303,16 +301,27 @@ DEFINE_PRINT_CHECK_OPERAND_CHAR(unsigned char)
 // takes ownership of the returned string.
 template <typename Lhs, typename Rhs>
 V8_NOINLINE std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
-  std::string lhs_str = PrintCheckOperand<Lhs>(lhs);
-  std::string rhs_str = PrintCheckOperand<Rhs>(rhs);
+  constexpr bool kLhsIsPrintable = requires { PrintCheckOperand(lhs); };
+  constexpr bool kRhsIsPrintable = requires { PrintCheckOperand(rhs); };
+
   CheckMessageStream ss;
   ss << msg;
-  constexpr size_t kMaxInlineLength = 50;
-  if (lhs_str.size() <= kMaxInlineLength &&
-      rhs_str.size() <= kMaxInlineLength) {
-    ss << " (" << lhs_str << " vs. " << rhs_str << ")";
-  } else {
-    ss << "\n   " << lhs_str << "\n vs.\n   " << rhs_str << "\n";
+  if constexpr (kLhsIsPrintable || kRhsIsPrintable) {
+    std::string tmp_lhs_str;
+    std::string tmp_rhs_str;
+    if constexpr (kLhsIsPrintable) tmp_lhs_str = PrintCheckOperand(lhs);
+    if constexpr (kRhsIsPrintable) tmp_rhs_str = PrintCheckOperand(rhs);
+    std::string_view lhs_str{kLhsIsPrintable ? std::string_view{tmp_lhs_str}
+                                             : "<unprintable>"};
+    std::string_view rhs_str{kRhsIsPrintable ? std::string_view{tmp_rhs_str}
+                                             : "<unprintable>"};
+
+    constexpr size_t kMaxInlineLength = 50;
+    if (std::max(lhs_str.size(), rhs_str.size()) <= kMaxInlineLength) {
+      ss << " (" << lhs_str << " vs. " << rhs_str << ")";
+    } else {
+      ss << "\n   " << lhs_str << "\n vs.\n   " << rhs_str << "\n";
+    }
   }
   return new std::string(ss.str());
 }
