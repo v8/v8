@@ -651,9 +651,10 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   __ Bind(__ NewBlock());
   V<WordPtr> stack_metadata =
       __ Parameter(0, RegisterRepresentation::WordPtr());
-  V<WasmFuncRef> func_ref = __ Load(stack_metadata, LoadOp::Kind::RawAligned(),
-                                    MemoryRepresentation::TaggedPointer(),
-                                    StackMemory::func_ref_offset());
+  V<WasmFuncRef> func_ref =
+      __ Load(stack_metadata, LoadOp::Kind::RawAligned(),
+              MemoryRepresentation::UncompressedTaggedPointer(),
+              StackMemory::func_ref_offset());
   AbortIfNot(__ HasInstanceType(func_ref, WASM_FUNC_REF_TYPE),
              AbortReason::kUnexpectedInstanceType);
   V<WasmInternalFunction> internal_function =
