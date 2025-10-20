@@ -208,34 +208,9 @@ class WasmGCTypedOptimizationReducer : public Next {
       return;
     }
 
-    wasm::ValueType null_type = wasm::ToNullSentinel({type, module_});
     // Use the top type (e.g. so that for anyref we always emit a smi check.)
-    wasm::ValueType top_type;
-    switch (null_type.heap_representation()) {
-      case wasm::HeapType::kNone:
-        top_type = wasm::kWasmAnyRef;
-        break;
-      case wasm::HeapType::kNoExtern:
-        top_type = wasm::kWasmExternRef;
-        break;
-      case wasm::HeapType::kNoFunc:
-        top_type = wasm::kWasmFuncRef;
-        break;
-      case wasm::HeapType::kNoExn:
-        top_type = wasm::kWasmExnRef;
-        break;
-      case wasm::HeapType::kNoneShared:
-        top_type = wasm::kWasmSharedAnyRef;
-        break;
-      case wasm::HeapType::kNoExternShared:
-        top_type = wasm::kWasmSharedExternRef;
-        break;
-      case wasm::HeapType::kNoExnShared:
-        top_type = wasm::kWasmSharedExnRef;
-        break;
-      default:
-        UNIMPLEMENTED();
-    }
+    wasm::ValueType top_type = wasm::ToTopType(type);
+
     if (top_type == type) {
       // TODO(mliedtke): For kWasmFuncRef we could still check if it is a
       // function reference.

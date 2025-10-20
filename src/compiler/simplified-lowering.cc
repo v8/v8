@@ -2442,7 +2442,7 @@ class RepresentationSelector {
     if (wasm_signature->return_count() == 1) {
       wasm::CanonicalValueType return_type = wasm_signature->GetReturn();
       DCHECK_IMPLIES(return_type.is_ref(),
-                     return_type.is_reference_to(wasm::HeapType::kExtern));
+                     return_type.is_reference_to(wasm::GenericKind::kExtern));
       MachineType machine_type = MachineTypeForWasmReturnType(return_type);
       SetOutput<T>(node, machine_type.representation(),
                    JSWasmCallNode::TypeForWasmReturnKind(return_type.kind()));

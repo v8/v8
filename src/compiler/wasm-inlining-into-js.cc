@@ -187,8 +187,8 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
 
  private:
   Value ParseAnyConvertExtern(Value input) {
-    DCHECK(input.type.is_reference_to(wasm::HeapType::kExtern) ||
-           input.type.is_reference_to(wasm::HeapType::kNoExtern));
+    DCHECK(input.type.is_reference_to(wasm::GenericKind::kExtern) ||
+           input.type.is_reference_to(wasm::GenericKind::kNoExtern));
     wasm::ValueType result_type = wasm::ValueType::Generic(
         wasm::GenericKind::kAny, input.type.nullability(), kNotShared);
     Node* internalized = gasm_.WasmAnyConvertExtern(input.node);
@@ -196,7 +196,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   }
 
   Value ParseExternConvertAny(Value input) {
-    DCHECK(input.type.is_reference());
+    DCHECK(input.type.is_ref());
     wasm::ValueType result_type = wasm::ValueType::Generic(
         wasm::GenericKind::kExtern, input.type.nullability(), kNotShared);
     Node* internalized = gasm_.WasmExternConvertAny(input.node);

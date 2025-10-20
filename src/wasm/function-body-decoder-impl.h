@@ -5601,14 +5601,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             (!null_succeeds || !obj.type.is_nullable() ||
              obj.type.is_string_view() || expected_type.is_string_view())) ||
            ((!null_succeeds || !obj.type.is_nullable()) &&
-            (expected_type.representation() == HeapType::kNone ||
-             expected_type.representation() == HeapType::kNoFunc ||
-             expected_type.representation() == HeapType::kNoExtern ||
-             expected_type.representation() == HeapType::kNoExn ||
-             expected_type.representation() == HeapType::kNoneShared ||
-             expected_type.representation() == HeapType::kNoFuncShared ||
-             expected_type.representation() == HeapType::kNoExternShared ||
-             expected_type.representation() == HeapType::kNoExnShared));
+            (expected_type.is_none_type()));
   }
 
   // Checks if {obj} is a subtype of type, thus checking will always
@@ -7774,7 +7767,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // spec doesn't say this explicitly yet, but it's consistent with the rest
     // of Wasm. (Of course such inputs will trap at runtime.) See:
     // https://github.com/WebAssembly/stringref/issues/66
-    if (array.type.is_reference_to(HeapType::kNone)) return array;
+    if (array.type.is_reference_to(GenericKind::kNone)) return array;
     if (VALIDATE(array.type.is_object_reference() && array.type.has_index())) {
       ModuleTypeIndex ref_index = array.type.ref_index();
       if (VALIDATE(this->module_->has_array(ref_index))) {

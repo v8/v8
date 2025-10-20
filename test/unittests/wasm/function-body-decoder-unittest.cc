@@ -4430,13 +4430,13 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   // Trivial type error.
   ExpectFailure(
       sigs.v_v(),
-      {WASM_REF_TEST(WASM_I32V(1), array_heap.representation()), kExprDrop},
+      {WASM_REF_TEST(WASM_I32V(1), array_heap.ref_index()), kExprDrop},
       kAppendEnd,
       "Invalid types for ref.test: i32.const of type i32 has to be "
       "in the same reference type hierarchy as (ref 0)");
   ExpectFailure(
       sigs.v_v(),
-      {WASM_REF_CAST(WASM_I32V(1), array_heap.representation()), kExprDrop},
+      {WASM_REF_CAST(WASM_I32V(1), array_heap.ref_index()), kExprDrop},
       kAppendEnd,
       "Invalid types for ref.cast: i32.const of type i32 has to be "
       "in the same reference type hierarchy as (ref 0)");

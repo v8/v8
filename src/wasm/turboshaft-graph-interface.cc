@@ -1842,10 +1842,10 @@ class TurboshaftGraphBuildingInterface
   // the extern string type.
   template <typename T>
   V<T> AnnotateAsString(V<T> value, wasm::ValueType type) {
-    DCHECK(type.is_reference_to(HeapType::kString) ||
-           type.is_reference_to(HeapType::kExternString) ||
-           type.is_reference_to(HeapType::kExtern));
-    if (type.is_reference_to(HeapType::kExtern)) {
+    DCHECK(type.is_reference_to(GenericKind::kString) ||
+           type.is_reference_to(GenericKind::kExternString) ||
+           type.is_reference_to(GenericKind::kExtern));
+    if (type.is_reference_to(GenericKind::kExtern)) {
       type = ValueType::RefMaybeNull(kWasmRefExternString, type.nullability());
     }
     return __ AnnotateWasmType(value, type);
@@ -2244,7 +2244,7 @@ class TurboshaftGraphBuildingInterface
             BuiltinCallDescriptor::WasmFloat64ToString>(decoder, {args[0].op});
         result = AnnotateAsString(result_value, returns[0].type);
         decoder->detected_->Add(
-            returns[0].type.is_reference_to(wasm::HeapType::kString)
+            returns[0].type.is_reference_to(wasm::GenericKind::kString)
                 ? WasmDetectedFeature::stringref
                 : WasmDetectedFeature::imported_strings);
         break;
@@ -2255,7 +2255,7 @@ class TurboshaftGraphBuildingInterface
                 decoder, {args[0].op, args[1].op});
         result = AnnotateAsString(result_value, returns[0].type);
         decoder->detected_->Add(
-            returns[0].type.is_reference_to(wasm::HeapType::kString)
+            returns[0].type.is_reference_to(wasm::GenericKind::kString)
                 ? WasmDetectedFeature::stringref
                 : WasmDetectedFeature::imported_strings);
         break;
@@ -3555,7 +3555,7 @@ class TurboshaftGraphBuildingInterface
     block->false_or_loop_or_catch_block = if_no_catch;
 
     if (imm.tag->sig->parameter_count() == 1 &&
-        imm.tag->sig->GetParam(0).is_reference_to(HeapType::kExtern)) {
+        imm.tag->sig->GetParam(0).is_reference_to(GenericKind::kExtern)) {
       // Check for the special case where the tag is WebAssembly.JSTag and the
       // exception is not a WebAssembly.Exception. In this case the exception is
       // caught and pushed on the operand stack.

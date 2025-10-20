@@ -8151,7 +8151,7 @@ class LiftoffCompiler {
                     const FreezeCacheState& frozen) {
     const WasmModule* module = decoder->module_;
     Label match;
-    bool is_cast_from_any = obj_type.is_reference_to(HeapType::kAny);
+    bool is_cast_from_any = obj_type.is_reference_to(GenericKind::kAny);
 
     // Skip the null check if casting from any and not {null_succeeds}.
     // In that case the instance type check will identify null as not being a
@@ -8305,59 +8305,60 @@ class LiftoffCompiler {
 
   void RefTestAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
                        Value* result_val, bool null_succeeds) {
-    switch (type.representation()) {
-      case HeapType::kEq:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+    switch (type.generic_kind()) {
+      case GenericKind::kEq:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedTestFromAny(
               decoder, Builtin::kWasmLiftoffIsEqRefUnshared, null_succeeds);
         }
-        [[fallthrough]];
-      case HeapType::kEqShared:
         return AbstractTypeCheck<&LiftoffCompiler::EqCheck>(decoder, obj,
                                                             null_succeeds);
-      case HeapType::kI31:
-      case HeapType::kI31Shared:
+      case GenericKind::kI31:
         return AbstractTypeCheck<&LiftoffCompiler::I31Check>(decoder, obj,
                                                              null_succeeds);
-      case HeapType::kStruct:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+      case GenericKind::kStruct:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedTestFromAny(
               decoder, Builtin::kWasmLiftoffIsStructRefUnshared, null_succeeds);
         }
-        [[fallthrough]];
-      case HeapType::kStructShared:
         return AbstractTypeCheck<&LiftoffCompiler::StructCheck>(decoder, obj,
                                                                 null_succeeds);
-      case HeapType::kArray:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+      case GenericKind::kArray:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedTestFromAny(
               decoder, Builtin::kWasmLiftoffIsArrayRefUnshared, null_succeeds);
         }
-        [[fallthrough]];
-      case HeapType::kArrayShared:
         return AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(decoder, obj,
                                                                null_succeeds);
-      case HeapType::kString:
+      case GenericKind::kString:
         return AbstractTypeCheck<&LiftoffCompiler::StringCheck>(decoder, obj,
                                                                 null_succeeds);
-      case HeapType::kNone:
-      case HeapType::kNoExtern:
-      case HeapType::kNoFunc:
-      case HeapType::kNoExn:
-      case HeapType::kNoneShared:
-      case HeapType::kNoExternShared:
-      case HeapType::kNoFuncShared:
-      case HeapType::kNoExnShared:
+      case GenericKind::kNone:
+      case GenericKind::kNoExtern:
+      case GenericKind::kNoFunc:
+      case GenericKind::kNoExn:
+      case GenericKind::kNoCont:
         DCHECK(null_succeeds);
         return EmitIsNull(kExprRefIsNull, obj.type);
-      case HeapType::kAny:
-      case HeapType::kAnyShared:
+      case GenericKind::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
-      default:
+      case GenericKind::kVoid:
+      case GenericKind::kTop:
+      case GenericKind::kBottom:
+      case GenericKind::kExternString:
+        // Internal-only sentinels.
+      case GenericKind::kFunc:
+      case GenericKind::kExtern:
+      case GenericKind::kExn:
+      case GenericKind::kCont:
+      case GenericKind::kStringViewWtf8:
+      case GenericKind::kStringViewWtf16:
+      case GenericKind::kStringViewIter:
+        // Not type testable.
         UNREACHABLE();
     }
   }
@@ -8418,61 +8419,62 @@ class LiftoffCompiler {
   void RefCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
                        Value* result_val, bool null_succeeds) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
-    switch (type.representation()) {
-      case HeapType::kEq:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+    switch (type.generic_kind()) {
+      case GenericKind::kEq:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedCastFromAny(
               decoder, Builtin::kWasmLiftoffCastEqRefUnshared, null_succeeds);
         }
-        [[fallthrough]];
-      case HeapType::kEqShared:
         return AbstractTypeCast<&LiftoffCompiler::EqCheck>(obj, decoder,
                                                            null_succeeds);
-      case HeapType::kI31:
-      case HeapType::kI31Shared:
+      case GenericKind::kI31:
         return AbstractTypeCast<&LiftoffCompiler::I31Check>(obj, decoder,
                                                             null_succeeds);
-      case HeapType::kStruct:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+      case GenericKind::kStruct:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedCastFromAny(
               decoder, Builtin::kWasmLiftoffCastStructRefUnshared,
               null_succeeds);
         }
-        [[fallthrough]];
-      case HeapType::kStructShared:
         return AbstractTypeCast<&LiftoffCompiler::StructCheck>(obj, decoder,
                                                                null_succeeds);
-      case HeapType::kArray:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+      case GenericKind::kArray:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return CallBuiltinUnsharedCastFromAny(
               decoder, Builtin::kWasmLiftoffCastArrayRefUnshared,
               null_succeeds);
         }
-        [[fallthrough]];
-      case HeapType::kArrayShared:
         return AbstractTypeCast<&LiftoffCompiler::ArrayCheck>(obj, decoder,
                                                               null_succeeds);
-      case HeapType::kString:
+      case GenericKind::kString:
         return AbstractTypeCast<&LiftoffCompiler::StringCheck>(obj, decoder,
                                                                null_succeeds);
-      case HeapType::kNone:
-      case HeapType::kNoExtern:
-      case HeapType::kNoFunc:
-      case HeapType::kNoExn:
-      case HeapType::kNoneShared:
-      case HeapType::kNoExternShared:
-      case HeapType::kNoFuncShared:
-      case HeapType::kNoExnShared:
+      case GenericKind::kNone:
+      case GenericKind::kNoExtern:
+      case GenericKind::kNoFunc:
+      case GenericKind::kNoExn:
+      case GenericKind::kNoCont:
         DCHECK(null_succeeds);
         return AssertNullTypecheck(decoder, obj, result_val);
-      case HeapType::kAny:
-      case HeapType::kAnyShared:
+      case GenericKind::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
-      default:
+      case GenericKind::kVoid:
+      case GenericKind::kTop:
+      case GenericKind::kBottom:
+      case GenericKind::kExternString:
+        // Internal-only sentinels.
+      case GenericKind::kFunc:
+      case GenericKind::kExtern:
+      case GenericKind::kExn:
+      case GenericKind::kCont:
+      case GenericKind::kStringViewWtf8:
+      case GenericKind::kStringViewWtf16:
+      case GenericKind::kStringViewIter:
+        // Not castable.
         UNREACHABLE();
     }
   }
@@ -8602,63 +8604,64 @@ class LiftoffCompiler {
   void BrOnCastAbstract(FullDecoder* decoder, const Value& obj, HeapType type,
                         Value* result_on_branch, uint32_t depth,
                         bool null_succeeds) {
-    switch (type.representation()) {
-      case HeapType::kEq:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+    switch (type.generic_kind()) {
+      case GenericKind::kEq:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
               Builtin::kWasmLiftoffIsEqRefUnshared, false);
         }
-        [[fallthrough]];
-      case HeapType::kEqShared:
         return BrOnAbstractType<&LiftoffCompiler::EqCheck>(obj, decoder, depth,
                                                            null_succeeds);
-      case HeapType::kI31:
-      case HeapType::kI31Shared:
+      case GenericKind::kI31:
         return BrOnAbstractType<&LiftoffCompiler::I31Check>(obj, decoder, depth,
                                                             null_succeeds);
-      case HeapType::kStruct:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+      case GenericKind::kStruct:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
               Builtin::kWasmLiftoffIsStructRefUnshared, false);
         }
-        [[fallthrough]];
-      case HeapType::kStructShared:
         return BrOnAbstractType<&LiftoffCompiler::StructCheck>(
             obj, decoder, depth, null_succeeds);
-      case HeapType::kArray:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+      case GenericKind::kArray:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
               Builtin::kWasmLiftoffIsArrayRefUnshared, false);
         }
-        [[fallthrough]];
-      case HeapType::kArrayShared:
         return BrOnAbstractType<&LiftoffCompiler::ArrayCheck>(
             obj, decoder, depth, null_succeeds);
-      case HeapType::kString:
+      case GenericKind::kString:
         return BrOnAbstractType<&LiftoffCompiler::StringCheck>(
             obj, decoder, depth, null_succeeds);
-      case HeapType::kNone:
-      case HeapType::kNoExtern:
-      case HeapType::kNoFunc:
-      case HeapType::kNoExn:
-      case HeapType::kNoneShared:
-      case HeapType::kNoExternShared:
-      case HeapType::kNoFuncShared:
-      case HeapType::kNoExnShared:
+      case GenericKind::kNone:
+      case GenericKind::kNoExtern:
+      case GenericKind::kNoFunc:
+      case GenericKind::kNoExn:
+      case GenericKind::kNoCont:
         DCHECK(null_succeeds);
         return BrOnNull(decoder, obj, depth, /*pass_null_along_branch*/ true,
                         nullptr);
-      case HeapType::kAny:
-      case HeapType::kAnyShared:
+      case GenericKind::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
-      default:
+      case GenericKind::kVoid:
+      case GenericKind::kTop:
+      case GenericKind::kBottom:
+      case GenericKind::kExternString:
+        // Internal sentinels.
+      case GenericKind::kFunc:
+      case GenericKind::kExtern:
+      case GenericKind::kExn:
+      case GenericKind::kCont:
+      case GenericKind::kStringViewWtf8:
+      case GenericKind::kStringViewWtf16:
+      case GenericKind::kStringViewIter:
+        // Not castable.
         UNREACHABLE();
     }
   }
@@ -8666,63 +8669,64 @@ class LiftoffCompiler {
   void BrOnCastFailAbstract(FullDecoder* decoder, const Value& obj,
                             HeapType type, Value* result_on_fallthrough,
                             uint32_t depth, bool null_succeeds) {
-    switch (type.representation()) {
-      case HeapType::kEq:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+    switch (type.generic_kind()) {
+      case GenericKind::kEq:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
               Builtin::kWasmLiftoffIsEqRefUnshared, true);
         }
-        [[fallthrough]];
-      case HeapType::kEqShared:
         return BrOnNonAbstractType<&LiftoffCompiler::EqCheck>(
             obj, decoder, depth, null_succeeds);
-      case HeapType::kI31:
-      case HeapType::kI31Shared:
+      case GenericKind::kI31:
         return BrOnNonAbstractType<&LiftoffCompiler::I31Check>(
             obj, decoder, depth, null_succeeds);
-      case HeapType::kStruct:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+      case GenericKind::kStruct:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
               Builtin::kWasmLiftoffIsStructRefUnshared, true);
         }
-        [[fallthrough]];
-      case HeapType::kStructShared:
         return BrOnNonAbstractType<&LiftoffCompiler::StructCheck>(
             obj, decoder, depth, null_succeeds);
-      case HeapType::kArray:
-        if (v8_flags.experimental_wasm_shared &&
-            obj.type.heap_representation() == wasm::HeapType::kAny) {
+      case GenericKind::kArray:
+        if (v8_flags.experimental_wasm_shared && !type.is_shared() &&
+            obj.type.AsNullable() == wasm::kWasmAnyRef) {
           return BrOnCastAbstractFromAnyRejectShared(
               decoder, depth, null_succeeds,
               Builtin::kWasmLiftoffIsArrayRefUnshared, true);
         }
-        [[fallthrough]];
-      case HeapType::kArrayShared:
         return BrOnNonAbstractType<&LiftoffCompiler::ArrayCheck>(
             obj, decoder, depth, null_succeeds);
-      case HeapType::kString:
+      case GenericKind::kString:
         return BrOnNonAbstractType<&LiftoffCompiler::StringCheck>(
             obj, decoder, depth, null_succeeds);
-      case HeapType::kNone:
-      case HeapType::kNoExtern:
-      case HeapType::kNoFunc:
-      case HeapType::kNoExn:
-      case HeapType::kNoneShared:
-      case HeapType::kNoExternShared:
-      case HeapType::kNoFuncShared:
-      case HeapType::kNoExnShared:
+      case GenericKind::kNone:
+      case GenericKind::kNoExtern:
+      case GenericKind::kNoFunc:
+      case GenericKind::kNoExn:
+      case GenericKind::kNoCont:
         DCHECK(null_succeeds);
         return BrOnNonNull(decoder, obj, nullptr, depth,
                            /*drop_null_on_fallthrough*/ false);
-      case HeapType::kAny:
-      case HeapType::kAnyShared:
+      case GenericKind::kAny:
         // Any may never need a cast as it is either implicitly convertible or
         // never convertible for any given type.
-      default:
+      case GenericKind::kVoid:
+      case GenericKind::kTop:
+      case GenericKind::kBottom:
+      case GenericKind::kExternString:
+        // Internal sentinels.
+      case GenericKind::kFunc:
+      case GenericKind::kExtern:
+      case GenericKind::kExn:
+      case GenericKind::kCont:
+      case GenericKind::kStringViewWtf8:
+      case GenericKind::kStringViewWtf16:
+      case GenericKind::kStringViewIter:
+        // Not castable.
         UNREACHABLE();
     }
   }

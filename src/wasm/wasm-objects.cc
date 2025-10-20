@@ -3428,38 +3428,95 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                          DirectHandle<Object> value,
                                          CanonicalValueType expected,
                                          const char** error_message) {
-  DCHECK(expected.is_object_reference());
-  if (expected.kind() == kRefNull && IsNull(*value, isolate)) {
-    switch (expected.heap_representation()) {
-      case HeapType::kStringViewWtf8:
-        *error_message = "stringview_wtf8 has no JS representation";
+  DCHECK(expected.is_ref());
+  if (expected.is_nullable() && IsNull(*value, isolate)) {
+    if (expected.is_abstract_ref()) {
+      switch (expected.generic_kind()) {
+        case GenericKind::kStringViewWtf8:
+          *error_message = "stringview_wtf8 has no JS representation";
+          return {};
+        case GenericKind::kStringViewWtf16:
+          *error_message = "stringview_wtf16 has no JS representation";
+          return {};
+        case GenericKind::kStringViewIter:
+          *error_message = "stringview_iter has no JS representation";
+          return {};
+        case GenericKind::kExn:
+          *error_message = "invalid type (ref null exn)";
+          return {};
+        case GenericKind::kNoExn:
+          *error_message = "invalid type (ref null noexn)";
+          return {};
+        case GenericKind::kNoCont:
+          *error_message = "invalid type (ref null nocont)";
+          return {};
+        case GenericKind::kCont:
+          *error_message = "invalid type (ref null cont)";
+          return {};
+        default:
+          break;
+      }
+    }
+    return expected.use_wasm_null() ? isolate->factory()->wasm_null() : value;
+  }
+  if (expected.has_index()) {
+    CanonicalTypeIndex canonical_index = expected.ref_index();
+    auto type_canonicalizer = GetWasmEngine()->type_canonicalizer();
+
+    if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
+      Tagged<WasmExportedFunction> function =
+          Cast<WasmExportedFunction>(*value);
+      CanonicalTypeIndex real_type_index = function->shared()
+                                               ->wasm_exported_function_data()
+                                               ->internal()
+                                               ->sig()
+                                               ->index();
+      if (!type_canonicalizer->IsCanonicalSubtype(real_type_index, expected)) {
+        *error_message =
+            "assigned exported function has to be a subtype of the "
+            "expected type";
         return {};
-      case HeapType::kStringViewWtf16:
-        *error_message = "stringview_wtf16 has no JS representation";
+      }
+      return direct_handle(Cast<WasmExternalFunction>(*value)->func_ref(),
+                           isolate);
+    } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
+      if (!Cast<WasmJSFunction>(*value)
+               ->shared()
+               ->wasm_js_function_data()
+               ->MatchesSignature(canonical_index)) {
+        *error_message =
+            "assigned WebAssembly.Function has to be a subtype of the "
+            "expected type";
         return {};
-      case HeapType::kStringViewIter:
-        *error_message = "stringview_iter has no JS representation";
+      }
+      return direct_handle(Cast<WasmExternalFunction>(*value)->func_ref(),
+                           isolate);
+    } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
+      if (!Cast<WasmCapiFunction>(*value)->MatchesSignature(canonical_index)) {
+        *error_message =
+            "assigned C API function has to be a subtype of the expected "
+            "type";
         return {};
-      case HeapType::kExn:
-        *error_message = "invalid type (ref null exn)";
+      }
+      return direct_handle(Cast<WasmExternalFunction>(*value)->func_ref(),
+                           isolate);
+    } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
+      DirectHandle<WasmObject> wasm_obj = Cast<WasmObject>(value);
+      Tagged<WasmTypeInfo> type_info = wasm_obj->map()->wasm_type_info();
+      CanonicalTypeIndex actual_type = type_info->type_index();
+      if (!type_canonicalizer->IsCanonicalSubtype(actual_type, expected)) {
+        *error_message = "object is not a subtype of expected type";
         return {};
-      case HeapType::kNoExn:
-        *error_message = "invalid type (ref null noexn)";
-        return {};
-      case HeapType::kNoCont:
-        *error_message = "invalid type (ref null nocont)";
-        return {};
-      case HeapType::kCont:
-        *error_message = "invalid type (ref null cont)";
-        return {};
-      default:
-        return expected.use_wasm_null() ? isolate->factory()->wasm_null()
-                                        : value;
+      }
+      return value;
+    } else {
+      *error_message = "JS object does not match expected wasm type";
+      return {};
     }
   }
 
-  switch (expected.heap_representation_non_shared()) {
-    case HeapType::kFunc: {
+  switch (expected.generic_kind()) {
+    case GenericKind::kFunc: {
       if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
             WasmCapiFunction::IsWasmCapiFunction(*value))) {
         *error_message =
@@ -3471,7 +3528,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
           Cast<JSFunction>(*value)->shared()->wasm_function_data()->func_ref(),
           isolate);
     }
-    case HeapType::kExtern: {
+    case GenericKind::kExtern: {
       if (!ConvertToSharedIfExpected(isolate, &value, expected,
                                      error_message)) {
         return {};
@@ -3480,7 +3537,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
       *error_message = "null is not allowed for (ref extern)";
       return {};
     }
-    case HeapType::kAny: {
+    case GenericKind::kAny: {
       if (IsSmi(*value)) {
         return CanonicalizeSmi(value, isolate, expected.is_shared());
       }
@@ -3495,13 +3552,13 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
       *error_message = "null is not allowed for (ref any)";
       return {};
     }
-    case HeapType::kExn:
+    case GenericKind::kExn:
       *error_message = "invalid type (ref exn)";
       return {};
-    case HeapType::kCont:
+    case GenericKind::kCont:
       *error_message = "invalid type (ref cont)";
       return {};
-    case HeapType::kStruct: {
+    case GenericKind::kStruct: {
       if (!CheckExpectedSharedness(isolate, value, expected, error_message)) {
         return {};
       }
@@ -3512,7 +3569,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
           "structref object must be null (if nullable) or a wasm struct";
       return {};
     }
-    case HeapType::kArray: {
+    case GenericKind::kArray: {
       if (!CheckExpectedSharedness(isolate, value, expected, error_message)) {
         return {};
       }
@@ -3523,7 +3580,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
           "arrayref object must be null (if nullable) or a wasm array";
       return {};
     }
-    case HeapType::kEq: {
+    case GenericKind::kEq: {
       if (IsSmi(*value)) {
         DirectHandle<Object> truncated =
             CanonicalizeSmi(value, isolate, expected.is_shared());
@@ -3543,7 +3600,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
           "struct/array, or a Number that fits in i31ref range";
       return {};
     }
-    case HeapType::kI31: {
+    case GenericKind::kI31: {
       if (IsSmi(*value)) {
         DirectHandle<Object> truncated =
             CanonicalizeSmi(value, isolate, expected.is_shared());
@@ -3558,85 +3615,32 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
           "in i31ref range";
       return {};
     }
-    case HeapType::kString:
+    case GenericKind::kString:
       if (IsString(*value)) return value;
       *error_message = "wrong type (expected a string)";
       return {};
-    case HeapType::kStringViewWtf8:
+    case GenericKind::kStringViewWtf8:
       *error_message = "stringview_wtf8 has no JS representation";
       return {};
-    case HeapType::kStringViewWtf16:
+    case GenericKind::kStringViewWtf16:
       *error_message = "stringview_wtf16 has no JS representation";
       return {};
-    case HeapType::kStringViewIter:
+    case GenericKind::kStringViewIter:
       *error_message = "stringview_iter has no JS representation";
       return {};
-    case HeapType::kNoFunc:
-    case HeapType::kNoExtern:
-    case HeapType::kNoExn:
-    case HeapType::kNoCont:
-    case HeapType::kNone: {
+    case GenericKind::kNoFunc:
+    case GenericKind::kNoExtern:
+    case GenericKind::kNoExn:
+    case GenericKind::kNoCont:
+    case GenericKind::kNone: {
       *error_message = "only null allowed for null types";
       return {};
     }
-    default: {
-      DCHECK(expected.has_index());
-      CanonicalTypeIndex canonical_index = expected.ref_index();
-      auto type_canonicalizer = GetWasmEngine()->type_canonicalizer();
-
-      if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
-        Tagged<WasmExportedFunction> function =
-            Cast<WasmExportedFunction>(*value);
-        CanonicalTypeIndex real_type_index = function->shared()
-                                                 ->wasm_exported_function_data()
-                                                 ->internal()
-                                                 ->sig()
-                                                 ->index();
-        if (!type_canonicalizer->IsCanonicalSubtype(real_type_index,
-                                                    expected)) {
-          *error_message =
-              "assigned exported function has to be a subtype of the "
-              "expected type";
-          return {};
-        }
-        return direct_handle(Cast<WasmExternalFunction>(*value)->func_ref(),
-                             isolate);
-      } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
-        if (!Cast<WasmJSFunction>(*value)
-                 ->shared()
-                 ->wasm_js_function_data()
-                 ->MatchesSignature(canonical_index)) {
-          *error_message =
-              "assigned WebAssembly.Function has to be a subtype of the "
-              "expected type";
-          return {};
-        }
-        return direct_handle(Cast<WasmExternalFunction>(*value)->func_ref(),
-                             isolate);
-      } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
-        if (!Cast<WasmCapiFunction>(*value)->MatchesSignature(
-                canonical_index)) {
-          *error_message =
-              "assigned C API function has to be a subtype of the expected "
-              "type";
-          return {};
-        }
-        return direct_handle(Cast<WasmExternalFunction>(*value)->func_ref(),
-                             isolate);
-      } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
-        DirectHandle<WasmObject> wasm_obj = Cast<WasmObject>(value);
-        Tagged<WasmTypeInfo> type_info = wasm_obj->map()->wasm_type_info();
-        CanonicalTypeIndex actual_type = type_info->type_index();
-        if (!type_canonicalizer->IsCanonicalSubtype(actual_type, expected)) {
-          *error_message = "object is not a subtype of expected type";
-          return {};
-        }
-        return value;
-      } else {
-        *error_message = "JS object does not match expected wasm type";
-        return {};
-      }
-    }
+    case GenericKind::kVoid:
+    case GenericKind::kTop:
+    case GenericKind::kBottom:
+    case GenericKind::kExternString:
+      UNREACHABLE();
   }
 }
 

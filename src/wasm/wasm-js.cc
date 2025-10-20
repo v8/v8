@@ -1278,7 +1278,7 @@ i::DirectHandle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
   DCHECK(type.is_object_reference());
   // Use undefined for JS type (externref) but null for wasm types as wasm does
   // not know undefined.
-  if (type.heap_representation() == i::wasm::HeapType::kExtern) {
+  if (type.AsNullable() == i::wasm::kWasmExternRef) {
     return isolate->factory()->undefined_value();
   } else if (!type.use_wasm_null()) {
     return isolate->factory()->null_value();
@@ -1437,22 +1437,20 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     }
   } else if (initial > 0) {
     DCHECK_EQ(type, table_obj->unsafe_type());
-    switch (type.heap_representation()) {
-      case i::wasm::HeapType::kString:
-        thrower.TypeError(
-            "Missing initial value when creating stringref table");
-        return;
-      case i::wasm::HeapType::kStringViewWtf8:
-        thrower.TypeError("stringview_wtf8 has no JS representation");
-        return;
-      case i::wasm::HeapType::kStringViewWtf16:
-        thrower.TypeError("stringview_wtf16 has no JS representation");
-        return;
-      case i::wasm::HeapType::kStringViewIter:
-        thrower.TypeError("stringview_iter has no JS representation");
-        return;
-      default:
-        break;
+    if (type.is_abstract_ref()) {
+      switch (type.generic_kind()) {
+        case i::wasm::GenericKind::kString:
+          thrower.TypeError(
+              "Missing initial value when creating stringref table");
+          return;
+        case i::wasm::GenericKind::kStringViewWtf8:
+        case i::wasm::GenericKind::kStringViewWtf16:
+        case i::wasm::GenericKind::kStringViewIter:
+          thrower.TypeError("%s has no JS representation", type.name().c_str());
+          return;
+        default:
+          break;
+      }
     }
   }
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
@@ -2505,26 +2503,23 @@ namespace {
 V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
     v8::ReturnValue<v8::Value>& return_value, i::DirectHandle<i::Object> value,
     i::wasm::ValueType type, i::Isolate* isolate, ErrorThrower* thrower) {
-  switch (type.heap_type().representation()) {
-    case internal::wasm::HeapType::kStringViewWtf8:
-      thrower->TypeError("%s", "stringview_wtf8 has no JS representation");
-      return false;
-    case internal::wasm::HeapType::kStringViewWtf16:
-      thrower->TypeError("%s", "stringview_wtf16 has no JS representation");
-      return false;
-    case internal::wasm::HeapType::kStringViewIter:
-      thrower->TypeError("%s", "stringview_iter has no JS representation");
-      return false;
-    case internal::wasm::HeapType::kExn:
-    case internal::wasm::HeapType::kNoExn:
-    case internal::wasm::HeapType::kCont:
-    case internal::wasm::HeapType::kNoCont:
-      thrower->TypeError("invalid type %s", type.name().c_str());
-      return false;
-    default:
-      return_value.Set(Utils::ToLocal(i::wasm::WasmToJSObject(isolate, value)));
-      return true;
+  if (type.is_abstract_ref()) {
+    switch (type.generic_kind()) {
+      case i::wasm::GenericKind::kStringViewIter:
+      case i::wasm::GenericKind::kStringViewWtf8:
+      case i::wasm::GenericKind::kStringViewWtf16:
+      case i::wasm::GenericKind::kExn:
+      case i::wasm::GenericKind::kNoExn:
+      case i::wasm::GenericKind::kCont:
+      case i::wasm::GenericKind::kNoCont:
+        thrower->TypeError("invalid type %s", type.name().c_str());
+        return false;
+      default:
+        break;
+    }
   }
+  return_value.Set(Utils::ToLocal(i::wasm::WasmToJSObject(isolate, value)));
+  return true;
 }
 }  // namespace
 
@@ -2938,7 +2933,8 @@ void WebAssemblyGlobalGetValueCommon(WasmJSApiScope& js_api_scope) {
 
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
 
-  switch (receiver->type().kind()) {
+  i::wasm::ValueType receiver_type = receiver->type();
+  switch (receiver_type.kind()) {
     case i::wasm::kI32:
       return_value.Set(receiver->GetI32());
       break;
@@ -2959,7 +2955,7 @@ void WebAssemblyGlobalGetValueCommon(WasmJSApiScope& js_api_scope) {
     case i::wasm::kRef:
     case i::wasm::kRefNull:
       if (!WasmObjectToJSReturnValue(return_value, receiver->GetRef(),
-                                     receiver->type(), i_isolate, &thrower)) {
+                                     receiver_type, i_isolate, &thrower)) {
         return js_api_scope.AssertException();
       }
       break;

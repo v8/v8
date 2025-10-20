@@ -62,136 +62,79 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
                                                 CanonicalValueType type,
                                                 V<Context> context)
     -> V<Object> {
-  switch (type.kind()) {
-    case kI32:
-      return BuildChangeInt32ToNumber(ret);
-    case kI64:
-      return this->BuildChangeInt64ToBigInt(ret,
-                                            StubCallMode::kCallBuiltinPointer);
-    case kF32:
-      return BuildChangeFloat32ToNumber(ret);
-    case kF64:
-      return BuildChangeFloat64ToNumber(ret);
-    case kRef:
-      switch (type.heap_representation_non_shared()) {
-        case HeapType::kEq:
-        case HeapType::kI31:
-        case HeapType::kStruct:
-        case HeapType::kArray:
-        case HeapType::kAny:
-        case HeapType::kExtern:
-        case HeapType::kString:
-        case HeapType::kNone:
-        case HeapType::kNoFunc:
-        case HeapType::kNoExtern:
-          return ret;
-        case HeapType::kExn:
-        case HeapType::kNoExn:
-        case HeapType::kBottom:
-        case HeapType::kTop:
-        case HeapType::kStringViewWtf8:
-        case HeapType::kStringViewWtf16:
-        case HeapType::kStringViewIter:
-          UNREACHABLE();
-        case HeapType::kFunc:
-        default:
-          if (type.heap_representation_non_shared() == HeapType::kFunc ||
-              GetTypeCanonicalizer()->IsFunctionSignature(type.ref_index())) {
-            // Function reference. Extract the external function.
-            V<WasmInternalFunction> internal =
-                V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
-                    ret, LoadOp::Kind::TaggedBase(),
-                    kWasmInternalFunctionIndirectPointerTag,
-                    WasmFuncRef::kTrustedInternalOffset));
-            ScopedVar<Object> maybe_external(
-                this, __ Load(internal, LoadOp::Kind::TaggedBase(),
-                              MemoryRepresentation::TaggedPointer(),
-                              WasmInternalFunction::kExternalOffset));
-            IF (__ TaggedEqual(maybe_external, LOAD_ROOT(UndefinedValue))) {
-              maybe_external =
-                  CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
-                      Builtin::kWasmInternalFunctionCreateExternal,
-                      Operator::kNoProperties, internal, context);
-            }
-            return maybe_external;
-          } else {
-            return ret;
-          }
-      }
-    case kRefNull:
-      switch (type.heap_representation_non_shared()) {
-        case HeapType::kExtern:
-        case HeapType::kNoExtern:
-          return ret;
-        case HeapType::kNone:
-        case HeapType::kNoFunc:
-          return LOAD_ROOT(NullValue);
-        case HeapType::kExn:
-        case HeapType::kNoExn:
-          UNREACHABLE();
-        case HeapType::kEq:
-        case HeapType::kStruct:
-        case HeapType::kArray:
-        case HeapType::kString:
-        case HeapType::kI31:
-        case HeapType::kAny: {
-          ScopedVar<Object> result(this, OpIndex::Invalid());
-          IF_NOT (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
-            result = ret;
-          } ELSE{
-            result = LOAD_ROOT(NullValue);
-          }
-          return result;
-        }
-        case HeapType::kFunc:
-        default: {
-          if (type.heap_representation_non_shared() == HeapType::kFunc ||
-              GetTypeCanonicalizer()->IsFunctionSignature(type.ref_index())) {
-            ScopedVar<Object> result(this, OpIndex::Invalid());
-            IF (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
-              result = LOAD_ROOT(NullValue);
-            } ELSE{
-              V<WasmInternalFunction> internal =
-                  V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
-                      ret, LoadOp::Kind::TaggedBase(),
-                      kWasmInternalFunctionIndirectPointerTag,
-                      WasmFuncRef::kTrustedInternalOffset));
-              V<Object> maybe_external =
-                  __ Load(internal, LoadOp::Kind::TaggedBase(),
-                          MemoryRepresentation::AnyTagged(),
-                          WasmInternalFunction::kExternalOffset);
-              IF (__ TaggedEqual(maybe_external, LOAD_ROOT(UndefinedValue))) {
-                V<Object> from_builtin =
-                    CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
-                        Builtin::kWasmInternalFunctionCreateExternal,
-                        Operator::kNoProperties, internal, context);
-                result = from_builtin;
-              } ELSE{
-                result = maybe_external;
-              }
-            }
-            return result;
-          } else {
-            ScopedVar<Object> result(this, OpIndex::Invalid());
-            IF (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
-              result = LOAD_ROOT(NullValue);
-            } ELSE{
-              result = ret;
-            }
-            return result;
-          }
-        }
-      }
-    case kI8:
-    case kI16:
-    case kF16:
-    case kS128:
-    case kVoid:
-    case kTop:
-    case kBottom:
-      // If this is reached, then IsJSCompatibleSignature() is too permissive.
-      UNREACHABLE();
+  if (type.is_numeric()) {
+    switch (type.numeric_kind()) {
+      case NumericKind::kI32:
+        return BuildChangeInt32ToNumber(ret);
+      case NumericKind::kI64:
+        return this->BuildChangeInt64ToBigInt(
+            ret, StubCallMode::kCallBuiltinPointer);
+      case NumericKind::kF32:
+        return BuildChangeFloat32ToNumber(ret);
+      case NumericKind::kF64:
+        return BuildChangeFloat64ToNumber(ret);
+      case NumericKind::kS128:
+      case NumericKind::kI8:
+      case NumericKind::kI16:
+      case NumericKind::kF16:
+        UNREACHABLE();
+    }
   }
+
+  if (type.ref_type_kind() == RefTypeKind::kFunction) {
+    // Function reference. Extract the external function.
+    ScopedVar<Object> result(this, OpIndex::Invalid());
+    if (type.is_nullable()) {
+      IF (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
+        result = LOAD_ROOT(NullValue);
+      } ELSE{
+        V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
+            __ LoadTrustedPointerField(ret, LoadOp::Kind::TaggedBase(),
+                                       kWasmInternalFunctionIndirectPointerTag,
+                                       WasmFuncRef::kTrustedInternalOffset));
+        V<Object> maybe_external =
+            __ Load(internal, LoadOp::Kind::TaggedBase(),
+                    MemoryRepresentation::AnyTagged(),
+                    WasmInternalFunction::kExternalOffset);
+        IF (__ TaggedEqual(maybe_external, LOAD_ROOT(UndefinedValue))) {
+          result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
+              Builtin::kWasmInternalFunctionCreateExternal,
+              Operator::kNoProperties, internal, context);
+        } ELSE{
+          result = maybe_external;
+        }
+      }
+    } else {
+      // Non-nullable funcref.
+      V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
+          __ LoadTrustedPointerField(ret, LoadOp::Kind::TaggedBase(),
+                                     kWasmInternalFunctionIndirectPointerTag,
+                                     WasmFuncRef::kTrustedInternalOffset));
+      result = __ Load(internal, LoadOp::Kind::TaggedBase(),
+                       MemoryRepresentation::TaggedPointer(),
+                       WasmInternalFunction::kExternalOffset);
+      IF (__ TaggedEqual(result, LOAD_ROOT(UndefinedValue))) {
+        result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
+            Builtin::kWasmInternalFunctionCreateExternal,
+            Operator::kNoProperties, internal, context);
+      }
+    }
+    return result;
+  }
+
+  // Cases that are never or always null:
+  if (!type.is_nullable()) return ret;
+  if (!type.use_wasm_null()) return ret;
+  if (type.is_none_type()) return LOAD_ROOT(NullValue);
+
+  // Nullable reference. Convert WasmNull if needed.
+  ScopedVar<Object> result(this, OpIndex::Invalid());
+  IF_NOT (__ TaggedEqual(ret, LOAD_ROOT(WasmNull))) {
+    result = ret;
+  } ELSE{
+    result = LOAD_ROOT(NullValue);
+  }
+  return result;
 }
 
 template <typename Assembler>

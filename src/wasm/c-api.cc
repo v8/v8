@@ -128,10 +128,10 @@ ValKind V8ValueTypeToWasm(T v8_valtype)
       return ValKind::F64;
     case i::wasm::kRef:
     case i::wasm::kRefNull:
-      switch (v8_valtype.heap_representation()) {
-        case i::wasm::HeapType::kFunc:
+      switch (v8_valtype.generic_kind()) {
+        case i::wasm::GenericKind::kFunc:
           return ValKind::FUNCREF;
-        case i::wasm::HeapType::kExtern:
+        case i::wasm::GenericKind::kExtern:
           return ValKind::EXTERNREF;
         default:
           UNREACHABLE();
@@ -2176,11 +2176,11 @@ WASM_EXPORT auto Table::type() const -> own<TableType> {
   uint32_t max = static_cast<uint32_t>(std::min<uint64_t>(
       i::kMaxUInt32, table->maximum_length_u64().value_or(i::kMaxUInt32)));
   ValKind kind;
-  switch (table->unsafe_type().heap_representation()) {
-    case i::wasm::HeapType::kFunc:
+  switch (table->unsafe_type().raw_bit_field()) {
+    case i::wasm::kWasmFuncRef.raw_bit_field():
       kind = ValKind::FUNCREF;
       break;
-    case i::wasm::HeapType::kExtern:
+    case i::wasm::kWasmExternRef.raw_bit_field():
       kind = ValKind::EXTERNREF;
       break;
     default:

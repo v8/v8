@@ -1865,7 +1865,7 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
             import.module_name.offset(), import.module_name.end_offset()))) {
       if (import.kind != kExternalGlobal ||
           !module->globals[import.index].type.is_reference_to(
-              HeapType::kExtern) ||
+              GenericKind::kExtern) ||
           module->globals[import.index].mutability != false) {
         TruncatedUserString<> name(
             wire_bytes.data() + import.field_name.offset(),

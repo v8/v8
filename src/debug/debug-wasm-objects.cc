@@ -1033,7 +1033,7 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
     case wasm::kRefNull:
     case wasm::kRef: {
       DirectHandle<Object> ref = value.to_ref();
-      if (value.type().is_reference_to(wasm::HeapType::kExn)) {
+      if (value.type().is_reference_to(wasm::GenericKind::kExn)) {
         t = isolate->factory()->InternalizeString(
             base::StaticCharVector("exnref"));
         v = ref;
@@ -1057,8 +1057,8 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
         t = GetRefTypeName(isolate, value.type());
       } else if (IsJSFunction(*ref) || IsSmi(*ref) || IsNull(*ref) ||
                  IsString(*ref) ||
-                 value.type().is_reference_to(wasm::HeapType::kExtern) ||
-                 value.type().is_reference_to(wasm::HeapType::kAny)) {
+                 value.type().is_reference_to(wasm::GenericKind::kExtern) ||
+                 value.type().is_reference_to(wasm::GenericKind::kAny)) {
         t = GetRefTypeName(isolate, value.type());
         v = ref;
       } else {
