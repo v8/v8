@@ -764,7 +764,7 @@ size_t ReservationSizeForWasmCode(size_t needed_size,
                       << max_code_space_size << ")";
     V8::FatalProcessOutOfMemory(nullptr,
                                 "Exceeding maximum wasm code space size",
-                                oom_detail.PrintToArray().data());
+                                {.detail = oom_detail.PrintToArray().data()});
     UNREACHABLE();
   }
 
@@ -790,7 +790,7 @@ size_t ReservationSizeForWrappers(size_t needed_size,
                       << max_code_space_size << ")";
     V8::FatalProcessOutOfMemory(nullptr,
                                 "Exceeding maximum wasm code space size",
-                                oom_detail.PrintToArray().data());
+                                {.detail = oom_detail.PrintToArray().data()});
     UNREACHABLE();
   }
 
@@ -862,7 +862,7 @@ base::Vector<uint8_t> WasmCodeAllocator::AllocateForCodeInRegion(
                         << "bytes of code (maximum reservation size is "
                         << reserve_size << ")";
       V8::FatalProcessOutOfMemory(nullptr, "Grow wasm code space",
-                                  oom_detail.PrintToArray().data());
+                                  {.detail = oom_detail.PrintToArray().data()});
     }
     VirtualMemory new_mem = code_manager->TryAllocate(reserve_size);
     if (!new_mem.IsReserved()) {
@@ -870,7 +870,7 @@ base::Vector<uint8_t> WasmCodeAllocator::AllocateForCodeInRegion(
                         << "cannot allocate more code space (" << reserve_size
                         << " bytes, currently " << total_reserved << ")";
       V8::FatalProcessOutOfMemory(nullptr, "Grow wasm code space",
-                                  oom_detail.PrintToArray().data());
+                                  {.detail = oom_detail.PrintToArray().data()});
       UNREACHABLE();
     }
 
@@ -2187,7 +2187,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
                         << ", already committed " << old_value;
       V8::FatalProcessOutOfMemory(nullptr,
                                   "Exceeding maximum wasm committed code space",
-                                  oom_detail.PrintToArray().data());
+                                  {.detail = oom_detail.PrintToArray().data()});
       UNREACHABLE();
     }
     if (total_committed_code_space_.compare_exchange_weak(
@@ -2206,7 +2206,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
     auto oom_detail = base::FormattedString{} << "region size: "
                                               << region.size();
     V8::FatalProcessOutOfMemory(nullptr, "Commit wasm code space",
-                                oom_detail.PrintToArray().data());
+                                {.detail = oom_detail.PrintToArray().data()});
     UNREACHABLE();
   }
 }
@@ -2226,7 +2226,7 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
     auto oom_detail = base::FormattedString{} << "region size: "
                                               << region.size();
     V8::FatalProcessOutOfMemory(nullptr, "Decommit Wasm code space",
-                                oom_detail.PrintToArray().data());
+                                {.detail = oom_detail.PrintToArray().data()});
   }
 }
 
@@ -2546,8 +2546,9 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
         auto oom_detail = base::FormattedString{}
                           << "NewNativeModule cannot allocate code space of "
                           << code_vmem_size << " bytes";
-        V8::FatalProcessOutOfMemory(nullptr, "Allocate initial wasm code space",
-                                    oom_detail.PrintToArray().data());
+        V8::FatalProcessOutOfMemory(
+            nullptr, "Allocate initial wasm code space",
+            {.detail = oom_detail.PrintToArray().data()});
         UNREACHABLE();
       }
       // Run one GC, then try the allocation again.
@@ -2660,10 +2661,10 @@ std::vector<UnpublishedWasmCode> NativeModule::AddCompiledCode(
           auto oom_detail = base::FormattedString{}
                             << "--wasm-max-code-space-size="
                             << v8_flags.wasm_max_code_space_size_mb.value();
-          V8::FatalProcessOutOfMemory(nullptr,
-                                      "A single code object needs more than "
-                                      "half of the code space size",
-                                      oom_detail.PrintToArray().data());
+          V8::FatalProcessOutOfMemory(
+              nullptr,
+              "A single code object needs more than half of the codespace size",
+              {.detail = oom_detail.PrintToArray().data()});
         } else {
           // Otherwise make this a CHECK failure so we see if this is happening
           // in the wild or in tests.
