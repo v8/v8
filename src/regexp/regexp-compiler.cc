@@ -2595,6 +2595,7 @@ void TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   // If we advance backward, we may end up at the start.
   successor_trace.AdvanceCurrentPositionInTrace(
       read_backward() ? -Length() : Length(), compiler);
+  if (compiler->IsRegExpTooBig()) return;
   successor_trace.set_at_start(read_backward() ? Trace::UNKNOWN
                                                : Trace::FALSE_VALUE);
   RecursionCheck rc(compiler);

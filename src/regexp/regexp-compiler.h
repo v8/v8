@@ -561,6 +561,7 @@ class RegExpCompiler {
   inline void set_flags(RegExpFlags flags) { flags_ = flags; }
 
   void SetRegExpTooBig() { reg_exp_too_big_ = true; }
+  bool IsRegExpTooBig() const { return reg_exp_too_big_; }
 
   inline bool one_byte() { return one_byte_; }
   inline bool optimize() { return optimize_; }
