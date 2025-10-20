@@ -147,6 +147,12 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
            offsetof(ThreadLocal, real_jslimit_);
   }
 
+  static constexpr int no_heap_write_interrupt_request_offset() {
+    return offsetof(StackGuard, thread_local_) +
+           offsetof(ThreadLocal, interrupt_requested_) +
+           static_cast<size_t>(InterruptLevel::kNoHeapWrites);
+  }
+
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
   // Only interrupts that match the given `InterruptLevel` will be handled,

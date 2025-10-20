@@ -297,6 +297,11 @@ class IsolateData final {
     return stack_guard_offset() + StackGuard::real_jslimit_offset();
   }
 
+  static constexpr int no_heap_write_interrupt_request_offset() {
+    return stack_guard_offset() +
+           StackGuard::no_heap_write_interrupt_request_offset();
+  }
+
 #define V(CamelName, Size, name) \
   Address name##_address() const { return reinterpret_cast<Address>(&name##_); }
   ISOLATE_DATA_FIELDS(V)
