@@ -7313,9 +7313,10 @@ void Isolate::CheckDetachedContextsAfterGC() {
     }
   }
   detached_contexts->set_length(new_length);
-  while (new_length < length) {
-    detached_contexts->Set(new_length, Smi::zero());
-    ++new_length;
+  int last_context_index = new_length;
+  while (last_context_index < length) {
+    detached_contexts->Set(last_context_index, Smi::zero());
+    ++last_context_index;
   }
 
   if (v8_flags.trace_detached_contexts) {
