@@ -628,6 +628,7 @@
   V(_, daysInWeek_string, "daysInWeek")                                       \
   V(_, daysInYear_string, "daysInYear")                                       \
   V(_, default_string, "default")                                             \
+  V(_, defer_string, "defer")                                                 \
   V(_, defineProperty_string, "defineProperty")                               \
   V(_, deleteProperty_string, "deleteProperty")                               \
   V(_, detached_string, "detached")                                           \

@@ -5846,6 +5846,8 @@ void Genesis::InitializeGlobal_js_regexp_escape() {
                         1, kAdapt);
 }
 
+void Genesis::InitializeGlobal_js_defer_import_eval() {}
+
 void Genesis::InitializeGlobal_js_source_phase_imports() {
   if (!v8_flags.js_source_phase_imports) return;
   Factory* factory = isolate()->factory();

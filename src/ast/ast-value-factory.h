@@ -254,6 +254,7 @@ using AstRawStringMap =
   F(computed_string, "<computed>")                        \
   F(constructor_string, "constructor")                    \
   F(default_string, "default")                            \
+  F(defer_string, "defer")                                \
   F(done_string, "done")                                  \
   F(dot_brand_string, ".brand")                           \
   F(dot_catch_string, ".catch")                           \

@@ -338,6 +338,7 @@ using SharedArrayBufferConstructorEnabledCallback =
  */
 enum class ModuleImportPhase {
   kSource,
+  kDefer,
   kEvaluation,
 };
 
