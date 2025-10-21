@@ -148,6 +148,15 @@ bool fuzzilli_reprl = true;
 bool fuzzilli_reprl = false;
 #endif  // V8_FUZZILLI
 
+Isolate::CreateParams GetDefaultIsolateCreateParams() {
+  Isolate::CreateParams create_params;
+  create_params.constraints.ConfigureDefaults(
+      base::SysInfo::AmountOfPhysicalMemory(),
+      base::SysInfo::AmountOfVirtualMemory());
+  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  return create_params;
+}
+
 // Base class for shell ArrayBuffer allocators. It forwards all operations to
 // the default v8 allocator.
 class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
@@ -5568,8 +5577,7 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
 void SourceGroup::ExecuteInThread() {
   base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
 
-  Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
   Isolate* isolate = Isolate::New(create_params);
 
   {
@@ -5877,8 +5885,7 @@ Worker* Worker::GetCurrentWorker() { return current_worker_; }
 void Worker::ExecuteInThread() {
   base::FlushDenormalsScope denormals_scope(flush_denormals_);
 
-  Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
   isolate_ = Isolate::New(create_params);
 
   // Make the Worker instance available to the whole thread.
@@ -7117,7 +7124,7 @@ int Shell::Main(int argc, char* argv[]) {
     v8::V8::InitializeExternalStartupData(argv[0]);
   }
   int result = 0;
-  Isolate::CreateParams create_params;
+  Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
   ShellArrayBufferAllocator shell_array_buffer_allocator;
   MockArrayBufferAllocator mock_arraybuffer_allocator;
   const size_t memory_limit =
@@ -7148,9 +7155,6 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.code_event_handler = vTune::GetVtuneCodeEventHandler();
   }
 #endif  // ENABLE_VTUNE_JIT_INTERFACE
-  create_params.constraints.ConfigureDefaults(
-      base::SysInfo::AmountOfPhysicalMemory(),
-      base::SysInfo::AmountOfVirtualMemory());
 
   Shell::counter_map_ = new CounterMap();
   if (options.dump_counters || options.dump_counters_nvp ||
@@ -7273,9 +7277,8 @@ int Shell::Main(int argc, char* argv[]) {
             ->ExecuteMainThreadWhileParked([&result]() {
               printf("============ Run: Produce code cache ============\n");
               // First run to produce the cache
-              Isolate::CreateParams create_params2;
-              create_params2.array_buffer_allocator =
-                  Shell::array_buffer_allocator;
+              Isolate::CreateParams create_params2 =
+                  GetDefaultIsolateCreateParams();
               // Use a different hash seed.
               i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
               Isolate* isolate2 = Isolate::New(create_params2);
