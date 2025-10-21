@@ -125,36 +125,33 @@ TEST(Heap, GenerationSizesFromHeapSize) {
             young);
 }
 
-TEST(Heap, HeapSizeFromPhysicalMemory) {
-  const uint64_t physical_memory = 0;
-  const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
+void AssertLowMemoryHeapSizeFromPhysicalMemory(uint64_t physical_memory) {
+  ASSERT_EQ(128 * i::Heap::HeapLimitMultiplier(physical_memory) * MB +
+                (v8_flags.minor_ms ? 4 : 3) * 512 * KB,
+            i::Heap::HeapSizeFromPhysicalMemory(physical_memory));
+}
 
+void AssertHighMemoryHeapSizeFromPhysicalMemory(uint64_t physical_memory,
+                                                size_t adjust) {
   // The expected value is old_generation_size + semi_space_multiplier *
   // semi_space_size.
 
+  ASSERT_EQ(i::Heap::DefaultMaxHeapSize(physical_memory) / adjust +
+                (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / adjust) *
+                    (v8_flags.minor_ms ? (2 * adjust) : 3),
+            i::Heap::HeapSizeFromPhysicalMemory(physical_memory));
+}
+
+TEST(Heap, HeapSizeFromPhysicalMemory) {
   // Low memory
-  ASSERT_EQ(128 * hlm * MB + (v8_flags.minor_ms ? 4 : 3) * 512 * KB,
-            i::Heap::HeapSizeFromPhysicalMemory(0u));
-  ASSERT_EQ(128 * hlm * MB + (v8_flags.minor_ms ? 4 : 3) * 512 * KB,
-            i::Heap::HeapSizeFromPhysicalMemory(512u * MB));
+  AssertLowMemoryHeapSizeFromPhysicalMemory(0);
+  AssertLowMemoryHeapSizeFromPhysicalMemory(512u * MB);
+
   // High memory
-  ASSERT_EQ(max_heap_size / 4 +
-                (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
-                    (v8_flags.minor_ms ? (2 * 4) : 3),
-            i::Heap::HeapSizeFromPhysicalMemory(1u * GB));
-  ASSERT_EQ(max_heap_size / 2 +
-                (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
-                    (v8_flags.minor_ms ? (2 * 2) : 3),
-            i::Heap::HeapSizeFromPhysicalMemory(2u * GB));
-  ASSERT_EQ(
-      max_heap_size + i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                          (v8_flags.minor_ms ? 2 : 3),
-      i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(4u) * GB));
-  ASSERT_EQ(
-      max_heap_size + i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                          (v8_flags.minor_ms ? 2 : 3),
-      i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(8u) * GB));
+  AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(1) * GB, 4);
+  AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(2) * GB, 2);
+  AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(4) * GB, 1);
+  AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(8) * GB, 1);
 }
 
 TEST_F(HeapTest, ASLR) {
