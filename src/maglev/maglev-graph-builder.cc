@@ -5090,6 +5090,27 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
   return ReduceResult::Done();
 }
 
+namespace {
+bool AccessInfoGuaranteedConst(
+    compiler::PropertyAccessInfo const& access_info) {
+  if (!access_info.IsFastDataConstant() && !access_info.IsStringLength()) {
+    return false;
+  }
+
+  // Even if we have a constant load, if the map is not stable, we cannot
+  // guarantee that the load is preserved across side-effecting calls.
+  // TODO(v8:7700): It might be possible to track it as const if we know
+  // that we're still on the main transition tree; and if we add a
+  // dependency on the stable end-maps of the entire tree.
+  for (auto& map : access_info.lookup_start_object_maps()) {
+    if (!map.is_stable()) {
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
 ReduceResult MaglevGraphBuilder::BuildLoadField(
     compiler::PropertyAccessInfo const& access_info,
     ValueNode* lookup_start_object, compiler::NameRef name) {
@@ -5138,7 +5159,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
   ValueNode* value;
   GET_VALUE_OR_ABORT(
       value, BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-                 load_source, field_index.offset(), LoadType::kUnknown, name));
+                 load_source, field_index.offset(), LoadType::kUnknown, name,
+                 AccessInfoGuaranteedConst(access_info)));
   // Insert stable field information if present.
   if (access_info.field_representation().IsSmi()) {
     NodeInfo* known_info = GetOrCreateInfoFor(value);
@@ -5185,7 +5207,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
   ValueNode* length;
   GET_VALUE_OR_ABORT(length, BuildLoadTaggedField<LoadTaggedFieldForProperty>(
                                  js_array, JSArray::kLengthOffset, length_type,
-                                 broker()->length_string()));
+                                 broker()->length_string(), false));
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
   return length;
@@ -5352,27 +5374,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
   return ReduceResult::Done();
 }
 
-namespace {
-bool AccessInfoGuaranteedConst(
-    compiler::PropertyAccessInfo const& access_info) {
-  if (!access_info.IsFastDataConstant() && !access_info.IsStringLength()) {
-    return false;
-  }
-
-  // Even if we have a constant load, if the map is not stable, we cannot
-  // guarantee that the load is preserved across side-effecting calls.
-  // TODO(v8:7700): It might be possible to track it as const if we know
-  // that we're still on the main transition tree; and if we add a
-  // dependency on the stable end-maps of the entire tree.
-  for (auto& map : access_info.lookup_start_object_maps()) {
-    if (!map.is_stable()) {
-      return false;
-    }
-  }
-  return true;
-}
-}  // namespace
-
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
     compiler::PropertyAccessInfo const& access_info) {
@@ -5410,7 +5411,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kModuleExport: {
       ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
       return BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-          cell, Cell::kValueOffset, LoadType::kUnknown, name);
+          cell, Cell::kValueOffset, LoadType::kUnknown, name, false);
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);

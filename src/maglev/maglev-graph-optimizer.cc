@@ -1043,7 +1043,14 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
 
 ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForProperty(
     LoadTaggedFieldForProperty* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (node->is_const()) {
+    if (ValueNode* cache = known_node_aspects().TryFindLoadedConstantProperty(
+            node->object_input().node(),
+            KnownNodeAspects::LoadedPropertyMapKey(node->name()))) {
+      return ReplaceWith(cache);
+    }
+  }
+  // TODO(victorgomes): Implement it for non-const loads.
   return ProcessResult::kContinue;
 }
 
