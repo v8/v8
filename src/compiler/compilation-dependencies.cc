@@ -133,8 +133,9 @@ class PendingDependencies final {
     // have transitions or change the shape of their fields. See
     // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
     if (HeapLayout::InWritableSharedSpace(*object) ||
-        HeapLayout::InReadOnlySpace(*object))
+        HeapLayout::InReadOnlySpace(*object)) {
       return;
+    }
     deps_.LookupOrInsert(object, HandleValueHash(object))->value |= group;
   }
 
@@ -403,6 +404,8 @@ class ConstantInDictionaryPrototypeChainDependency final
                                           : ValidationResult::kFoundIncorrect;
     };
 
+    // TODO(jkummerow): Consider supporting Wasm structs in this loop (by
+    // skipping over them) if that becomes a relevant use case.
     while (IsJSObject(prototype)) {
       // We only care about JSObjects because that's the only type of holder
       // (and types of prototypes on the chain to the holder) that

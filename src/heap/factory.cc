@@ -1750,10 +1750,7 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   // kMinimumSupertypeArraySize, so that generated code can skip the bounds
   // check when the index is statically known to be sufficiently small.
   // {num_supertypes-1} supertypes will be copied from {opt_parent}'s
-  // supertypes list; any remaining slots will be filled with {opt_parent}.
-  // Padding any over-allocated slots with copies of {opt_parent} is
-  // load-bearing for casts to exact types: for those, we look at the last
-  // slot's value, ignoring the target type's inheritance depth.
+  // supertypes list, then {opt_parent} is appended.
   int min_supertypes = wasm::kMinimumSupertypeArraySize;
   int actual_supertypes = std::max(min_supertypes, num_supertypes);
 
@@ -1763,19 +1760,16 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
       shared ? AllocationType::kSharedOld : AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
   result->set_supertypes_length(actual_supertypes);
-  if (opt_parent.is_null()) {
-    for (int i = 0; i < actual_supertypes; i++) {
-      result->set_supertypes(i, *undefined_value());
-    }
-  } else {
+  int i = 0;
+  if (!opt_parent.is_null()) {
     Tagged<WasmTypeInfo> parent_type_info = opt_parent->wasm_type_info();
-    int i = 0;
     for (; i < num_supertypes - 1; i++) {
       result->set_supertypes(i, parent_type_info->supertypes(i));
     }
-    for (; i < actual_supertypes; i++) {
-      result->set_supertypes(i, *opt_parent);
-    }
+    result->set_supertypes(i++, *opt_parent);
+  }
+  for (; i < actual_supertypes; i++) {
+    result->set_supertypes(i, *undefined_value());
   }
   result->set_canonical_type(type.raw_bit_field());
   result->set_canonical_element_type(element_type.raw_bit_field());

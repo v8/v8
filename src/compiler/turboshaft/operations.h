@@ -8130,8 +8130,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(F64x2Floor)                                                               \
   V(F64x2Trunc)                                                               \
   V(F64x2NearestInt)                                                          \
-  /* TODO(mliedtke): Rename to ReverseBytes once the naming is decoupled from \
-   * Turbofan naming. */                                                      \
+  /* TODO(mliedtke): Rename to ReverseBytes once the naming is decoupled   */ \
+  /* from Turbofan naming. */                                                 \
   V(Simd128ReverseBytes)
 
 #define FOREACH_SIMD_128_UNARY_OPCODE(V)        \

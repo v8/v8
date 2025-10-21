@@ -2295,6 +2295,7 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
   int num_supertypes = module->type(type.describes).subtyping_depth + 1;
   DirectHandle<Map> rtt = CreateStructMap(isolate, described_index, rtt_parent,
                                           num_supertypes, context);
+  rtt->set_immediate_supertype_map(*rtt_parent);
 
   if (!IsSmi(*first_field) && IsJSObject(Cast<HeapObject>(*first_field))) {
     DirectHandle<JSPrototype> prototype =

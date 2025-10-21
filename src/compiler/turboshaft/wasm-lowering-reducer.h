@@ -305,6 +305,10 @@ class WasmLoweringReducer : public Next {
     MemoryRepresentation repr =
         RepresentationFor(type->field(field_index), true);
 
+    // TODO(jkummerow): Be smarter when selecting the WriteBarrierKind:
+    //  - if {value} is always an i31: kNoWriteBarrier
+    //  - if {value} is never an i31: kPointerWriteBarrier
+    // And apply the same logic to ArraySet.
     __ Store(object, value, store_kind, repr,
              type->field(field_index).is_reference() ? kFullWriteBarrier
                                                      : kNoWriteBarrier,
@@ -860,19 +864,9 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Object> LoadImmediateSuperRTT(V<Map> map) {
-    V<Object> type_info = LoadWasmTypeInfo(map);
-    V<Word32> supertypes_length =
-        __ UntagSmi(__ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
-                            MemoryRepresentation::TaggedSigned(),
-                            WasmTypeInfo::kSupertypesLengthOffset));
-    // Instead of subtracting 1 from {supertypes_length}, subtract the size
-    // of one entry from the offset.
-    constexpr int kOffsetOfLastEntry =
-        WasmTypeInfo::kSupertypesOffset - kTaggedSize;
-    return __ Load(type_info, __ ChangeInt32ToIntPtr(supertypes_length),
-                   LoadOp::Kind::TaggedBase().Immutable(),
-                   MemoryRepresentation::TaggedPointer(), kOffsetOfLastEntry,
-                   kTaggedSizeLog2);
+    return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
+                   MemoryRepresentation::TaggedPointer(),
+                   Map::kImmediateSupertypeOffset);
   }
 
   V<Object> ReduceWasmTypeCastRtt(V<Object> object, OptionalV<Map> rtt,
@@ -912,6 +906,8 @@ class WasmLoweringReducer : public Next {
       __ TrapIfNot(__ TaggedEqual(map, rtt.value()), TrapId::kTrapIllegalCast);
       GOTO(end_label);
     } else if (config.exactness == kExactMatchLastSupertype) {
+      // This only used for custom descriptors, and only structs can have them.
+      DCHECK_EQ(config.to.ref_type_kind(), wasm::RefTypeKind::kStruct);
       // Check if map instance type identifies a wasm object.
       if (is_cast_from_any) {
         V<Word32> is_wasm_obj = IsDataRefMap(map);
@@ -922,6 +918,7 @@ class WasmLoweringReducer : public Next {
                    TrapId::kTrapIllegalCast);
       GOTO(end_label);
     } else {
+      DCHECK_EQ(config.exactness, kMayBeSubtype);
       // First, check if types happen to be equal. This has been shown to give
       // large speedups.
       GOTO_IF(LIKELY(__ TaggedEqual(map, rtt.value())), end_label);
@@ -994,6 +991,8 @@ class WasmLoweringReducer : public Next {
     if (config.exactness == kExactMatchOnly) {
       GOTO(end_label, __ TaggedEqual(map, rtt.value()));
     } else if (config.exactness == kExactMatchLastSupertype) {
+      // This only used for custom descriptors, and only structs can have them.
+      DCHECK_EQ(config.to.ref_type_kind(), wasm::RefTypeKind::kStruct);
       // Check if map instance type identifies a wasm object.
       if (is_cast_from_any) {
         V<Word32> is_wasm_obj = IsDataRefMap(map);
@@ -1002,6 +1001,7 @@ class WasmLoweringReducer : public Next {
       V<Object> maybe_match = LoadImmediateSuperRTT(map);
       GOTO(end_label, __ TaggedEqual(maybe_match, rtt.value()));
     } else {
+      DCHECK_EQ(config.exactness, kMayBeSubtype);
       // First, check if types happen to be equal. This has been shown to give
       // large speedups.
       GOTO_IF(LIKELY(__ TaggedEqual(map, rtt.value())), end_label,
@@ -1099,6 +1099,8 @@ class WasmLoweringReducer : public Next {
         return __ Load(base, load_kind, MemoryRepresentation::AnyTagged(),
                        offset);
       } else {
+        // TODO(jkummerow): Set {WriteBarrierKind::kPointerWriteBarrier} when
+        // we know that {value} cannot be a Smi.
         __ Store(base, value, StoreOp::Kind::TaggedBase(),
                  MemoryRepresentation::AnyTagged(),
                  WriteBarrierKind::kFullWriteBarrier, offset);

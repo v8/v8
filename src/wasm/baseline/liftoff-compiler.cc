@@ -8218,22 +8218,18 @@ class LiftoffCompiler {
 
       // Constant-time subtyping check: load exactly one candidate RTT from the
       // supertypes list.
-      // Load the WasmTypeInfo into {tmp1}.
-      constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
-          Map::kConstructorOrBackPointerOrNativeContextOffset);
-      __ LoadTaggedPointer(tmp1, tmp1, no_reg, kTypeInfoOffset);
-      constexpr int kLengthOffset =
-          ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
       if (compare_last_super) {
-        LiftoffRegister list_length(scratch2);
-        __ LoadSmiAsInt32(list_length, tmp1, kLengthOffset);
-        // Load the candidate list slot into {tmp1}.
-        __ emit_i32_shli(list_length.gp(), list_length.gp(), kTaggedSizeLog2);
+        DCHECK(type.has_descriptor());
         __ LoadTaggedPointer(
-            tmp1, tmp1, list_length.gp(),
-            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset -
-                                   kTaggedSize));
+            tmp1, tmp1, no_reg,
+            wasm::ObjectAccess::ToTagged(Map::kImmediateSupertypeOffset));
       } else {
+        // Load the WasmTypeInfo into {tmp1}.
+        constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
+            Map::kConstructorOrBackPointerOrNativeContextOffset);
+        __ LoadTaggedPointer(tmp1, tmp1, no_reg, kTypeInfoOffset);
+        constexpr int kLengthOffset =
+            ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
         // Check the list's length if needed.
         uint32_t rtt_depth = GetSubtypingDepth(module, target_type.ref_index());
         if (rtt_depth >= kMinimumSupertypeArraySize) {
