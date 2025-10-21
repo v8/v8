@@ -953,6 +953,7 @@ class MaglevGraphBuilder {
   V(StringPrototypeCharAt)                     \
   V(StringPrototypeCharCodeAt)                 \
   V(StringPrototypeCodePointAt)                \
+  V(StringPrototypeSlice)                      \
   V(StringPrototypeStartsWith)                 \
   V(StringPrototypeIterator)                   \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \

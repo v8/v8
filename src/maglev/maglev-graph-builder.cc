@@ -9575,6 +9575,35 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   return GetCodePointAt();
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSlice(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  if (args.count() != 1) return {};
+
+  // Reduce slice(-1).
+  ValueNode* index = args[0];
+  std::optional<int32_t> index_const = TryGetInt32Constant(index);
+  if (!index_const || *index_const != -1) return {};
+
+  ValueNode* receiver = args.receiver();
+  ValueNode* receiver_length;
+  GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
+
+  return SelectReduction(
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfInt32Compare(builder, Operation::kEqual,
+                                         receiver_length, GetInt32Constant(0));
+      },
+      [&] { return GetRootConstant(RootIndex::kempty_string); },
+      [&] {
+        ValueNode* index_last;
+        GET_VALUE_OR_ABORT(
+            index_last,
+            AddNewNode<Int32Subtract>({receiver_length, GetInt32Constant(1)}));
+        return AddNewNode<StringAt>({receiver, index_last});
+      });
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
