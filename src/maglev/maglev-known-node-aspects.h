@@ -447,87 +447,27 @@ class KnownNodeAspects {
 
   // Cached property loads.
 
-  // Represents a key into the cache. This is either a NameRef, or an enum
-  // value.
-  class LoadedPropertyMapKey {
-   public:
-    enum Type {
-      // kName must be zero so that pointers are unaffected.
-      kName = 0,
-      kElements,
-      kTypedArrayLength,
-      // TODO(leszeks): We could probably share kStringLength with
-      // kTypedArrayLength if needed.
-      kStringLength
-    };
-    static constexpr int kTypeMask = 0x3;
-    static_assert((kName & ~kTypeMask) == 0);
-    static_assert((kElements & ~kTypeMask) == 0);
-    static_assert((kTypedArrayLength & ~kTypeMask) == 0);
-    static_assert((kStringLength & ~kTypeMask) == 0);
-
-    static LoadedPropertyMapKey Elements() {
-      return LoadedPropertyMapKey(kElements);
-    }
-
-    static LoadedPropertyMapKey TypedArrayLength() {
-      return LoadedPropertyMapKey(kTypedArrayLength);
-    }
-
-    static LoadedPropertyMapKey StringLength() {
-      return LoadedPropertyMapKey(kStringLength);
-    }
-
-    // Allow implicit conversion from NameRef to key, so that callers in the
-    // common path can use a NameRef directly.
-    // NOLINTNEXTLINE
-    LoadedPropertyMapKey(compiler::NameRef ref)
-        : data_(reinterpret_cast<Address>(ref.data())) {
-      DCHECK_EQ(data_ & kTypeMask, kName);
-    }
-
-    bool operator==(const LoadedPropertyMapKey& other) const {
-      return data_ == other.data_;
-    }
-    bool operator<(const LoadedPropertyMapKey& other) const {
-      return data_ < other.data_;
-    }
-
-    compiler::NameRef name() {
-      DCHECK_EQ(type(), kName);
-      return compiler::NameRef(reinterpret_cast<compiler::ObjectData*>(data_),
-                               false);
-    }
-
-    Type type() { return static_cast<Type>(data_ & kTypeMask); }
-
-   private:
-    explicit LoadedPropertyMapKey(Type type) : data_(type) {
-      DCHECK_NE(type, kName);
-    }
-
-    Address data_;
-  };
   // Maps key->object->value, so that stores to a key can invalidate all loads
   // of that key (in case the objects are aliasing).
   using LoadedPropertyMap =
-      ZoneMap<LoadedPropertyMapKey, ZoneMap<ValueNode*, ValueNode*>>;
+      ZoneMap<PropertyKey, ZoneMap<ValueNode*, ValueNode*>>;
 
   using LoadedContextSlotsKey = std::tuple<ValueNode*, int>;
   using LoadedContextSlots = ZoneMap<LoadedContextSlotsKey, ValueNode*>;
 
   ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
-                                   LoadedPropertyMapKey name) {
+                                   PropertyKey name) {
     return TryFindLoadedProperty(loaded_properties_, lookup_start_object, name);
   }
   ValueNode* TryFindLoadedConstantProperty(ValueNode* lookup_start_object,
-                                           LoadedPropertyMapKey name) {
+                                           PropertyKey name) {
     return TryFindLoadedProperty(loaded_constant_properties_,
                                  lookup_start_object, name);
   }
 
-  ZoneMap<ValueNode*, ValueNode*>& GetLoadedPropertiesForKey(
-      Zone* zone, bool is_const, KnownNodeAspects::LoadedPropertyMapKey key) {
+  ZoneMap<ValueNode*, ValueNode*>& GetLoadedPropertiesForKey(Zone* zone,
+                                                             bool is_const,
+                                                             PropertyKey key) {
     LoadedPropertyMap& properties =
         is_const ? loaded_constant_properties_ : loaded_properties_;
     // Try to get loaded_properties[key] if it already exists, otherwise
@@ -535,9 +475,8 @@ class KnownNodeAspects {
     return properties.try_emplace(key, zone).first->second;
   }
 
-  bool ClearLoadedPropertiesForKey(KnownNodeAspects::LoadedPropertyMapKey key) {
-    auto it = loaded_properties_.find(
-        KnownNodeAspects::LoadedPropertyMapKey::Elements());
+  bool ClearLoadedPropertiesForKey(PropertyKey key) {
+    auto it = loaded_properties_.find(PropertyKey::Elements());
     if (it != loaded_properties_.end()) {
       it->second.clear();
       return true;
@@ -702,7 +641,7 @@ class KnownNodeAspects {
 
   ValueNode* TryFindLoadedProperty(const LoadedPropertyMap& properties,
                                    ValueNode* lookup_start_object,
-                                   LoadedPropertyMapKey name) {
+                                   PropertyKey name) {
     auto props_for_name = properties.find(name);
     if (props_for_name == properties.end()) return nullptr;
 

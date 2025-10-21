@@ -1260,10 +1260,10 @@ class MaglevGraphBuilder {
 
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
                                             int offset);
-  template <typename Instruction = LoadTaggedField, typename... Args>
   ReduceResult BuildLoadTaggedField(ValueNode* object, uint32_t offset,
                                     LoadType type = LoadType::kUnknown,
-                                    Args&&... args);
+                                    bool is_const = false,
+                                    PropertyKey key = PropertyKey::None());
 
   ReduceResult BuildStoreTaggedField(ValueNode* object, ValueNode* value,
                                      int offset, StoreTaggedMode store_mode);
@@ -1457,8 +1457,7 @@ class MaglevGraphBuilder {
   // Load elimination -- when loading or storing a simple property without
   // side effects, record its value, and allow that value to be reused on
   // subsequent loads.
-  void RecordKnownProperty(ValueNode* lookup_start_object,
-                           KnownNodeAspects::LoadedPropertyMapKey key,
+  void RecordKnownProperty(ValueNode* lookup_start_object, PropertyKey key,
                            ValueNode* value, bool is_const,
                            compiler::AccessMode access_mode);
   MaybeReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
@@ -2092,8 +2091,7 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
   if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
     node->ClearElementsProperties(is_tracing_enabled(), known_node_aspects());
     if (is_loop_effect_tracking()) {
-      loop_effects_->keys_cleared.insert(
-          KnownNodeAspects::LoadedPropertyMapKey::Elements());
+      loop_effects_->keys_cleared.insert(PropertyKey::Elements());
     }
   } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
                        !IsTypedArrayStore(Node::opcode_of<NodeT>)) {

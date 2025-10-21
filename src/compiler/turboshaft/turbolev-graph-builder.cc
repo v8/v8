@@ -3047,9 +3047,9 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  template <typename T>
-  maglev::ProcessResult Process(maglev::AbstractLoadTaggedField<T>* node,
-                                const maglev::ProcessingState& state) {
+  template <typename NodeT>
+  maglev::ProcessResult ProcessAbstractLoadTaggedField(
+      NodeT* node, const maglev::ProcessingState& state) {
     V<Object> value =
         __ LoadTaggedField(Map(node->object_input()), node->offset());
     SetMap(node, value);
@@ -3066,7 +3066,15 @@ class GraphBuildingNodeProcessor {
 
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::LoadTaggedFieldForContextSlot* node,
+  maglev::ProcessResult Process(maglev::LoadTaggedField* node,
+                                const maglev::ProcessingState& state) {
+    return ProcessAbstractLoadTaggedField(node, state);
+  }
+  maglev::ProcessResult Process(maglev::LoadContextSlotNoCells* node,
+                                const maglev::ProcessingState& state) {
+    return ProcessAbstractLoadTaggedField(node, state);
+  }
+  maglev::ProcessResult Process(maglev::LoadContextSlot* node,
                                 const maglev::ProcessingState& state) {
     V<Context> script_context = V<Context>::Cast(Map(node->context()));
     V<Object> value = __ LoadTaggedField(script_context, node->offset());

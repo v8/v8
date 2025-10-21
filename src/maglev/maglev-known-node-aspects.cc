@@ -193,8 +193,7 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     compiler::JSHeapBroker* broker, LocalIsolate* local_isolate,
     ValueNode* context) {
   while (true) {
-    if (auto load_prev_ctxt =
-            context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
+    if (auto load_prev_ctxt = context->TryCast<LoadContextSlotNoCells>()) {
       DCHECK_EQ(load_prev_ctxt->offset(),
                 Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
       // Recurse until we find the root.

@@ -601,12 +601,6 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
       return NodeType::kJSFunction;
     case Opcode::kLoadTaggedField:
       return Cast<LoadTaggedField>()->type();
-    case Opcode::kLoadTaggedFieldForProperty:
-      return Cast<LoadTaggedFieldForProperty>()->type();
-    case Opcode::kLoadTaggedFieldForContextSlotNoCells:
-      return Cast<LoadTaggedFieldForContextSlotNoCells>()->type();
-    case Opcode::kLoadTaggedFieldForContextSlot:
-      return Cast<LoadTaggedFieldForContextSlot>()->type();
     case Opcode::kLoadFixedArrayElement:
       return Cast<LoadFixedArrayElement>()->type();
     case Opcode::kInt32Compare:
@@ -684,6 +678,8 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kInitialValue:
     case Opcode::kLoadFloat64:
     case Opcode::kLoadInt32:
+    case Opcode::kLoadContextSlot:
+    case Opcode::kLoadContextSlotNoCells:
     case Opcode::kLoadTaggedFieldByFieldIndex:
     case Opcode::kLoadFixedDoubleArrayElement:
     case Opcode::kLoadHoleyFixedDoubleArrayElement:
@@ -2943,14 +2939,12 @@ void LoadInt32::GenerateCode(MaglevAssembler* masm,
   __ LoadInt32(ToRegister(result()), FieldMemOperand(object, offset()));
 }
 
-template <typename T>
-void AbstractLoadTaggedField<T>::SetValueLocationConstraints() {
+void LoadTaggedField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
 }
-template <typename T>
-void AbstractLoadTaggedField<T>::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
+void LoadTaggedField::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
   Register object = ToRegister(object_input());
   __ AssertNotSmi(object);
   if (this->decompresses_tagged_result()) {
@@ -2961,15 +2955,15 @@ void AbstractLoadTaggedField<T>::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void LoadTaggedFieldForContextSlot::SetValueLocationConstraints() {
+void LoadContextSlot::SetValueLocationConstraints() {
   UseRegister(context());
   set_temporaries_needed(2);
   set_double_temporaries_needed(1);
   DefineAsRegister(this);
 }
 
-void LoadTaggedFieldForContextSlot::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
+void LoadContextSlot::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register script_context = ToRegister(context());
   Register value = ToRegister(result());
@@ -2986,7 +2980,7 @@ void LoadTaggedFieldForContextSlot::GenerateCode(MaglevAssembler* masm,
   __ JumpToDeferredIf(
       kEqual,
       [](MaglevAssembler* masm, Register value, Register scratch,
-         LoadTaggedFieldForContextSlot* node, ZoneLabelRef done) {
+         LoadContextSlot* node, ZoneLabelRef done) {
         MaglevAssembler::TemporaryRegisterScope temps(masm);
         DoubleRegister double_value = temps.AcquireDouble();
         Label allocate, is_untagged;
@@ -3019,6 +3013,22 @@ void LoadTaggedFieldForContextSlot::GenerateCode(MaglevAssembler* masm,
       value, scratch, this, done);
 
   __ bind(*done);
+}
+
+void LoadContextSlotNoCells::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+}
+void LoadContextSlotNoCells::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  if (this->decompresses_tagged_result()) {
+    __ LoadTaggedField(ToRegister(result()), object, offset());
+  } else {
+    __ LoadTaggedFieldWithoutDecompressing(ToRegister(result()), object,
+                                           offset());
+  }
 }
 
 void LoadTaggedFieldByFieldIndex::SetValueLocationConstraints() {
@@ -8317,21 +8327,8 @@ void TruncateUnsafeNumberOrOddballToInt32::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
-template <typename T>
-void AbstractLoadTaggedField<T>::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << std::dec;
-  // TODO(victorgomes): Print compression status only after the result is
-  // allocated, since that's when we do decompression marking.
-  if (decompresses_tagged_result()) {
-    os << ", decompressed";
-  } else {
-    os << ", compressed";
-  }
-  os << ")";
-}
-
-void LoadTaggedFieldForProperty::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << ": " << name().object() << std::dec;
+void LoadTaggedField::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << offset() << ": " << property_key() << std::dec;
   // TODO(victorgomes): Print compression status only after the result is
   // allocated, since that's when we do decompression marking.
   if (decompresses_tagged_result()) {
@@ -8345,7 +8342,11 @@ void LoadTaggedFieldForProperty::PrintParams(std::ostream& os) const {
   os << ")";
 }
 
-void LoadTaggedFieldForContextSlot::PrintParams(std::ostream& os) const {
+void LoadContextSlotNoCells::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void LoadContextSlot::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
@@ -8610,8 +8611,7 @@ void NodeBase::ClearElementsProperties(bool is_tracing_enabled,
                                        KnownNodeAspects& known_node_aspects) {
   DCHECK(IsElementsArrayWrite(opcode()));
   // Clear Elements cache.
-  if (known_node_aspects.ClearLoadedPropertiesForKey(
-          KnownNodeAspects::LoadedPropertyMapKey::Elements())) {
+  if (known_node_aspects.ClearLoadedPropertiesForKey(PropertyKey::Elements())) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                     is_tracing_enabled)) {
       std::cout << "  * Removing non-constant cached [Elements]";
@@ -8672,10 +8672,6 @@ void MigrateMapIfNeeded::ClearUnstableNodeAspects(
   // This instruction only migrates representations of values, not the values
   // themselves, so cached values are still valid.
 }
-
-template class AbstractLoadTaggedField<LoadTaggedField>;
-template class AbstractLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>;
-template class AbstractLoadTaggedField<LoadTaggedFieldForProperty>;
 
 template class CheckedNumberOrOddballToFloat64T<CheckedNumberToFloat64, true>;
 template class CheckedNumberOrOddballToFloat64T<CheckedNumberOrOddballToFloat64,

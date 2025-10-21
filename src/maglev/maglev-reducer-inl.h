@@ -52,6 +52,10 @@ static inline size_t gvn_hash_value(const PolymorphicAccessInfo& access_info) {
   return access_info.hash_value();
 }
 
+static inline size_t gvn_hash_value(const PropertyKey& key) {
+  return base::hash_value(key.data());
+}
+
 template <typename T>
 static inline size_t gvn_hash_value(
     const v8::internal::ZoneCompactSet<T>& vector) {

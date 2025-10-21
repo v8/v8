@@ -1038,15 +1038,9 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
     }
   }
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForProperty(
-    LoadTaggedFieldForProperty* node, const ProcessingState& state) {
-  if (node->is_const()) {
+  if (node->is_const() && !node->property_key().is_none()) {
     if (ValueNode* cache = known_node_aspects().TryFindLoadedConstantProperty(
-            node->object_input().node(),
-            KnownNodeAspects::LoadedPropertyMapKey(node->name()))) {
+            node->object_input().node(), node->property_key())) {
       return ReplaceWith(cache);
     }
   }
@@ -1054,14 +1048,14 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForProperty(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlotNoCells(
-    LoadTaggedFieldForContextSlotNoCells* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitLoadContextSlotNoCells(
+    LoadContextSlotNoCells* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitLoadTaggedFieldForContextSlot(
-    LoadTaggedFieldForContextSlot* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitLoadContextSlot(
+    LoadContextSlot* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

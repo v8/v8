@@ -283,10 +283,10 @@ class RecomputeKnownNodeAspectsProcessor {
 #undef PROCESS_SAFE_CONV
 #undef PROCESS_UNSAFE_CONV
 
-  ProcessResult ProcessNode(LoadTaggedFieldForProperty* node) {
-    if (node->is_const()) {
+  ProcessResult ProcessNode(LoadTaggedField* node) {
+    if (node->is_const() && !node->property_key().is_none()) {
       auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-          zone(), true, KnownNodeAspects::LoadedPropertyMapKey(node->name()));
+          zone(), true, node->property_key());
       props_for_key[node->object_input().node()] = node;
     }
     // TODO(victorgomes): Implement it for non-const loads.

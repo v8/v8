@@ -154,6 +154,13 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     variable = res.value()->Cast<T>();                                 \
   } while (false)
 
+#define RETURN_VALUE(result)          \
+  do {                                \
+    MaybeReduceResult res = (result); \
+    CHECK(res.IsDoneWithValue());     \
+    return res.value();               \
+  } while (false)
+
 #define GET_VALUE_OR_ABORT(variable, result)                           \
   do {                                                                 \
     MaybeReduceResult res = (result);                                  \

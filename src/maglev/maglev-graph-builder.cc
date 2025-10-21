@@ -3116,10 +3116,7 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
   int offset = Context::OffsetOfElementAt(index);
   if (!maybe_value->IsContextCell()) {
     // No need to check for context cells anymore.
-    ValueNode* value;
-    GET_VALUE(value, BuildLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>(
-                         context_node, offset));
-    return value;
+    RETURN_VALUE(AddNewNode<LoadContextSlotNoCells>({context_node}, offset));
   }
   compiler::ContextCellRef slot_ref = maybe_value->AsContextCell();
   ContextCell::State state = slot_ref.state();
@@ -3127,23 +3124,17 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
     case ContextCell::kConst: {
       auto constant = slot_ref.tagged_value(broker());
       if (!constant.has_value()) {
-        ValueNode* value;
-        GET_VALUE(value,
-                  BuildLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>(
-                      context_node, offset));
-        return value;
+        RETURN_VALUE(
+            AddNewNode<LoadContextSlotNoCells>({context_node}, offset));
       }
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return GetConstant(*constant);
     }
     case ContextCell::kSmi: {
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      ValueNode* value;
-      GET_VALUE(value,
-                BuildLoadTaggedField(GetConstant(slot_ref),
-                                     offsetof(ContextCell, tagged_value_),
-                                     LoadType::kSmi));
-      return value;
+      RETURN_VALUE(BuildLoadTaggedField(GetConstant(slot_ref),
+                                        offsetof(ContextCell, tagged_value_),
+                                        LoadType::kSmi));
     }
     case ContextCell::kInt32:
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
@@ -3156,11 +3147,7 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
           {GetConstant(slot_ref)},
           static_cast<int>(offsetof(ContextCell, double_value_)));
     case ContextCell::kDetached: {
-      ValueNode* value;
-      GET_VALUE(value,
-                BuildLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>(
-                    context_node, offset));
-      return value;
+      RETURN_VALUE(AddNewNode<LoadContextSlotNoCells>({context_node}, offset));
     }
   }
   UNREACHABLE();
@@ -3189,13 +3176,11 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     // We collect feedback only for mutable context slots.
     cached_value = TrySpecializeLoadContextSlot(context, index);
     if (cached_value) return cached_value;
-    GET_VALUE(cached_value, BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(
-                                context, offset));
+    GET_VALUE(cached_value, AddNewNode<LoadContextSlot>({context}, offset));
     return cached_value;
   }
   GET_VALUE(cached_value,
-            BuildLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>(context,
-                                                                       offset));
+            AddNewNode<LoadContextSlotNoCells>({context}, offset));
   return cached_value;
 }
 
@@ -4844,7 +4829,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
     return BuildAbort(AbortReason::kUnreachable);
   }
   return AddNewNodeNoInputConversion<LoadTaggedField>(
-      {elements}, FixedArray::OffsetOfElementAt(index), type);
+      {elements}, FixedArray::OffsetOfElementAt(index), type, false,
+      PropertyKey::None());
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
@@ -5124,17 +5110,18 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
   // Do the load.
   if (field_index.is_double()) {
     ValueNode* heap_number;
-    GET_VALUE_OR_ABORT(heap_number, AddNewNode<LoadTaggedField>(
-                                        {load_source}, field_index.offset(),
-                                        LoadType::kHeapNumber));
+    GET_VALUE_OR_ABORT(heap_number,
+                       AddNewNode<LoadTaggedField>(
+                           {load_source}, field_index.offset(),
+                           LoadType::kHeapNumber, false, PropertyKey::None()));
     return AddNewNode<LoadFloat64>(
         {heap_number}, static_cast<int>(offsetof(HeapNumber, value_)));
   }
   ValueNode* value;
-  GET_VALUE_OR_ABORT(
-      value, BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-                 load_source, field_index.offset(), LoadType::kUnknown, name,
-                 AccessInfoGuaranteedConst(access_info)));
+  GET_VALUE_OR_ABORT(value,
+                     BuildLoadTaggedField(
+                         load_source, field_index.offset(), LoadType::kUnknown,
+                         AccessInfoGuaranteedConst(access_info), name));
   // Insert stable field information if present.
   if (access_info.field_representation().IsSmi()) {
     NodeInfo* known_info = GetOrCreateInfoFor(value);
@@ -5179,9 +5166,9 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
   }
 
   ValueNode* length;
-  GET_VALUE_OR_ABORT(length, BuildLoadTaggedField<LoadTaggedFieldForProperty>(
+  GET_VALUE_OR_ABORT(length, BuildLoadTaggedField(
                                  js_array, JSArray::kLengthOffset, length_type,
-                                 broker()->length_string(), false));
+                                 false, broker()->length_string()));
   RecordKnownProperty(js_array, broker()->length_string(), length, false,
                       compiler::AccessMode::kLoad);
   return length;
@@ -5318,9 +5305,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
                            StoreMap::Kind::kTransitioning);
     } else {
       ValueNode* heap_number;
-      GET_VALUE_OR_ABORT(heap_number, AddNewNode<LoadTaggedField>(
-                                          {store_target}, field_index.offset(),
-                                          LoadType::kHeapNumber));
+      GET_VALUE_OR_ABORT(
+          heap_number, AddNewNode<LoadTaggedField>(
+                           {store_target}, field_index.offset(),
+                           LoadType::kHeapNumber, false, PropertyKey::None()));
       return AddNewNode<StoreFloat64>(
           {heap_number, value}, static_cast<int>(offsetof(HeapNumber, value_)));
     }
@@ -5384,8 +5372,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
                                         lookup_start_object);
     case compiler::PropertyAccessInfo::kModuleExport: {
       ValueNode* cell = GetConstant(access_info.constant().value().AsCell());
-      return BuildLoadTaggedField<LoadTaggedFieldForProperty>(
-          cell, Cell::kValueOffset, LoadType::kUnknown, name, false);
+      return BuildLoadTaggedField(cell, Cell::kValueOffset, LoadType::kUnknown,
+                                  false, name);
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
@@ -5840,7 +5828,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
 
 ReduceResult MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
   ValueNode* known_elements = known_node_aspects().TryFindLoadedProperty(
-      object, KnownNodeAspects::LoadedPropertyMapKey::Elements());
+      object, PropertyKey::Elements());
   if (known_elements) {
     TRACE("  * Reusing non-constant [Elements] "
           << PrintNodeLabel(known_elements) << ": "
@@ -5852,9 +5840,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
   ValueNode* elements;
   GET_VALUE_OR_ABORT(elements,
                      BuildLoadTaggedField(object, JSObject::kElementsOffset));
-  RecordKnownProperty(object,
-                      KnownNodeAspects::LoadedPropertyMapKey::Elements(),
-                      elements, false, compiler::AccessMode::kLoad);
+  RecordKnownProperty(object, PropertyKey::Elements(), elements, false,
+                      compiler::AccessMode::kLoad);
   return elements;
 }
 
@@ -5883,8 +5870,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
     // conflict with redefinitions of the TypedArray length property.
 
     if (ValueNode* length = known_node_aspects().TryFindLoadedConstantProperty(
-            object,
-            KnownNodeAspects::LoadedPropertyMapKey::TypedArrayLength())) {
+            object, PropertyKey::TypedArrayLength())) {
       return length;
     }
   }
@@ -5893,9 +5879,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
   GET_VALUE_OR_ABORT(result,
                      AddNewNode<LoadTypedArrayLength>({object}, elements_kind));
   if (!is_variable_length) {
-    RecordKnownProperty(
-        object, KnownNodeAspects::LoadedPropertyMapKey::TypedArrayLength(),
-        result, true, compiler::AccessMode::kLoad);
+    RecordKnownProperty(object, PropertyKey::TypedArrayLength(), result, true,
+                        compiler::AccessMode::kLoad);
   }
   return result;
 }
@@ -7121,9 +7106,10 @@ void MaglevGraphBuilder::AdvanceThroughContinuationForPolymorphicPropertyLoad(
   }
 }
 
-void MaglevGraphBuilder::RecordKnownProperty(
-    ValueNode* lookup_start_object, KnownNodeAspects::LoadedPropertyMapKey key,
-    ValueNode* value, bool is_const, compiler::AccessMode access_mode) {
+void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
+                                             PropertyKey key, ValueNode* value,
+                                             bool is_const,
+                                             compiler::AccessMode access_mode) {
   DCHECK(!value->properties().is_conversion());
   auto& props_for_key =
       known_node_aspects().GetLoadedPropertiesForKey(zone(), is_const, key);
@@ -7139,22 +7125,8 @@ void MaglevGraphBuilder::RecordKnownProperty(
     // whether there's an intersection of known maps.
     if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                     is_tracing_enabled())) {
-      std::cout << "  * Removing all non-constant cached ";
-      switch (key.type()) {
-        case KnownNodeAspects::LoadedPropertyMapKey::kName:
-          std::cout << "properties with name " << *key.name().object();
-          break;
-        case KnownNodeAspects::LoadedPropertyMapKey::kElements:
-          std::cout << "Elements";
-          break;
-        case KnownNodeAspects::LoadedPropertyMapKey::kTypedArrayLength:
-          std::cout << "TypedArray length";
-          break;
-        case KnownNodeAspects::LoadedPropertyMapKey::kStringLength:
-          std::cout << "String length";
-          break;
-      }
-      std::cout << std::endl;
+      std::cout << "  * Removing all non-constant cached properties with "
+                << key << std::endl;
     }
     props_for_key.clear();
   }
@@ -7163,22 +7135,8 @@ void MaglevGraphBuilder::RecordKnownProperty(
                   is_tracing_enabled())) {
     std::cout << "  * Recording " << (is_const ? "constant" : "non-constant")
               << " known property " << PrintNodeLabel(lookup_start_object)
-              << ": " << PrintNode(lookup_start_object) << " [";
-    switch (key.type()) {
-      case KnownNodeAspects::LoadedPropertyMapKey::kName:
-        std::cout << *key.name().object();
-        break;
-      case KnownNodeAspects::LoadedPropertyMapKey::kElements:
-        std::cout << "Elements";
-        break;
-      case KnownNodeAspects::LoadedPropertyMapKey::kTypedArrayLength:
-        std::cout << "TypedArray length";
-        break;
-      case KnownNodeAspects::LoadedPropertyMapKey::kStringLength:
-        std::cout << "String length";
-        break;
-    }
-    std::cout << "] = " << PrintNodeLabel(value) << ": " << PrintNode(value)
+              << ": " << PrintNode(lookup_start_object) << " [" << key
+              << "] = " << PrintNodeLabel(value) << ": " << PrintNode(value)
               << std::endl;
   }
 
@@ -7227,16 +7185,15 @@ ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
   }
   if (ValueNode* const_length =
           known_node_aspects().TryFindLoadedConstantProperty(
-              string, KnownNodeAspects::LoadedPropertyMapKey::StringLength())) {
+              string, PropertyKey::StringLength())) {
     TRACE("  * Reusing constant [String length]"
           << PrintNodeLabel(const_length) << ": " << PrintNode(const_length));
     return const_length;
   }
   ValueNode* result;
   GET_VALUE_OR_ABORT(result, AddNewNode<StringLength>({string}));
-  RecordKnownProperty(string,
-                      KnownNodeAspects::LoadedPropertyMapKey::StringLength(),
-                      result, true, compiler::AccessMode::kLoad);
+  RecordKnownProperty(string, PropertyKey::StringLength(), result, true,
+                      compiler::AccessMode::kLoad);
   return result;
 }
 
@@ -16931,11 +16888,11 @@ ReduceResult MaglevGraphBuilder::BuildLoadMap(ValueNode* object) {
   return BuildLoadTaggedField(object, HeapObject::kMapOffset);
 }
 
-template <typename Instruction, typename... Args>
 ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
                                                       uint32_t offset,
                                                       LoadType type,
-                                                      Args&&... args) {
+                                                      bool is_const,
+                                                      PropertyKey key) {
   // TODO(jgruber): The VirtualObject now stores map slots, so theoretically we
   // could let the path below handle map loads as well. But, maglev currently
   // doesn't like this at all - doing so creates problems like OOB vobject field
@@ -16943,8 +16900,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
   // whether this is an issue with --maglev-object-tracking.
   if (offset == HeapObject::kMapOffset ||
       !CanTrackObjectChanges(object, TrackObjectMode::kLoad)) {
-    return AddNewNode<Instruction>({object}, offset,
-                                   std::forward<Args>(args)..., type);
+    return AddNewNode<LoadTaggedField>({object}, offset, type, is_const, key);
   }
 
   VirtualObject* vobject =

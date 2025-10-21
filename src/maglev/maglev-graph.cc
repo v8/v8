@@ -79,13 +79,11 @@ compiler::OptionalScopeInfoRef Graph::TryGetScopeInfo(ValueNode* context) {
   if (auto context_const = context->TryCast<Constant>()) {
     res = context_const->object().AsContext().scope_info(broker());
     DCHECK(res->HasContext());
-  } else if (auto load =
-                 context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
+  } else if (auto load = context->TryCast<LoadContextSlotNoCells>()) {
     compiler::OptionalScopeInfoRef cur =
         TryGetScopeInfoForContextLoad(load->input(0).node(), load->offset());
     if (cur.has_value()) res = cur;
-  } else if (auto load_script =
-                 context->TryCast<LoadTaggedFieldForContextSlot>()) {
+  } else if (auto load_script = context->TryCast<LoadContextSlot>()) {
     compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
         load_script->input(0).node(), load_script->offset());
     if (cur.has_value()) res = cur;
