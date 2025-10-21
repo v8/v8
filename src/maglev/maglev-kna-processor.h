@@ -67,11 +67,14 @@ class RecomputeKnownNodeAspectsProcessor {
       }
     }
 
-    if (block->is_loop() && block->state()->IsUnreachableByForwardEdge()) {
+    if (block->is_loop() && block->state()->is_resumable_loop()) {
       // TODO(victorgomes): Ideally, we should use the loop backedge KNA cache
       // for all loops.
-      DCHECK(block->state()->is_resumable_loop());
       known_node_aspects_ = zone()->New<KnownNodeAspects>(zone());
+    } else if (block->is_loop()) {
+      known_node_aspects_ =
+          block->state()->TakeKnownNodeAspects()->CloneForLoopHeader(
+              false, nullptr, zone());
     } else if (block->has_state()) {
       known_node_aspects_ = block->state()->TakeKnownNodeAspects();
     } else if (block->is_edge_split_block()) {
@@ -279,6 +282,16 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_SAFE_CONV(ChangeInt32ToFloat64, float64, Number)
 #undef PROCESS_SAFE_CONV
 #undef PROCESS_UNSAFE_CONV
+
+  ProcessResult ProcessNode(LoadTaggedFieldForProperty* node) {
+    if (node->is_const()) {
+      auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
+          zone(), true, KnownNodeAspects::LoadedPropertyMapKey(node->name()));
+      props_for_key[node->object_input().node()] = node;
+    }
+    // TODO(victorgomes): Implement it for non-const loads.
+    return ProcessResult::kContinue;
+  }
 
   ProcessResult ProcessNode(Node* node) { return ProcessResult::kContinue; }
 };
