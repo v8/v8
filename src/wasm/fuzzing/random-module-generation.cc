@@ -1118,8 +1118,8 @@ class BodyGen {
   void drop(DataRange* data) {
     ValueType type =
         GetValueType(options_, data,
-                     static_cast<uint32_t>(functions_.size() + structs_.size() +
-                                           arrays_.size()));
+                     static_cast<uint32_t>(function_types_.size() +
+                                           structs_.size() + arrays_.size()));
     types_fixer_.FixupValueType(&type);
     Generate(type, data);
     builder_->Emit(kExprDrop);
@@ -2886,8 +2886,15 @@ class BodyGen {
       blocks_.back().push_back(sig->GetReturn(i));
     }
     locals_.resize(data->get<uint8_t>() % kMaxLocals);
+
+    // Deduplicate function types to get an accurate count of available types.
+    std::set<uint32_t> function_types;
+    for (ModuleTypeIndex type : functions_) function_types.insert(type.index);
+    for (uint32_t type : function_types) {
+      function_types_.push_back(ModuleTypeIndex{type});
+    }
     uint32_t num_types = static_cast<uint32_t>(
-        functions_.size() + structs_.size() + arrays_.size());
+        function_types_.size() + structs_.size() + arrays_.size());
     for (ValueType& local : locals_) {
       local = GetValueType(options, data, num_types);
       types_fixer.FixupValueType(&local);
@@ -4115,7 +4122,7 @@ class BodyGen {
   std::vector<ValueType> GenerateTypes(DataRange* data) {
     return fuzzing::GenerateTypes(
         options_, data,
-        static_cast<uint32_t>(functions_.size() + structs_.size() +
+        static_cast<uint32_t>(function_types_.size() + structs_.size() +
                               arrays_.size()));
   }
 
@@ -4263,6 +4270,7 @@ class BodyGen {
   WasmFunctionBuilder* const builder_;
   std::vector<std::vector<ValueType>> blocks_;
   const std::vector<ModuleTypeIndex>& functions_;
+  std::vector<ModuleTypeIndex> function_types_;
   std::vector<ValueType> locals_;
   std::vector<ValueType> globals_;
   std::vector<uint8_t> mutable_globals_;  // indexes into {globals_}.

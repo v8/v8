@@ -1278,7 +1278,7 @@ i::DirectHandle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
   DCHECK(type.is_object_reference());
   // Use undefined for JS type (externref) but null for wasm types as wasm does
   // not know undefined.
-  if (type.AsNullable() == i::wasm::kWasmExternRef) {
+  if (type.is_reference_to(i::wasm::GenericKind::kExtern)) {
     return isolate->factory()->undefined_value();
   } else if (!type.use_wasm_null()) {
     return isolate->factory()->null_value();

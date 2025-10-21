@@ -707,7 +707,7 @@ class WasmLoweringReducer : public Next {
     const bool object_can_be_i31 =
         wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
                           config.from.AsNonShared(), module_) ||
-        config.from.AsNonShared() == wasm::kWasmExternRef;
+        config.from.is_reference_to(wasm::GenericKind::kExtern);
 
     V<Word32> result;
     Label<Word32> end_label(&Asm());
@@ -793,7 +793,7 @@ class WasmLoweringReducer : public Next {
     const bool object_can_be_i31 =
         wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(),
                           config.from.AsNonShared(), module_) ||
-        config.from.AsNonShared() == wasm::kWasmExternRef;
+        config.from.is_reference_to(wasm::GenericKind::kExtern);
 
     Label<> end_label(&Asm());
 

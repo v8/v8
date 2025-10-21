@@ -206,7 +206,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
   const bool null_succeeds = config.to.is_nullable();
   const bool object_can_be_i31 =
       wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
-      config.from.AsNullable() == wasm::kWasmExternRef;
+      config.from.is_reference_to(wasm::GenericKind::kExtern);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
@@ -382,7 +382,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
   const bool null_succeeds = config.to.is_nullable();
   const bool object_can_be_i31 =
       wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
-      config.from.AsNullable() == wasm::kWasmExternRef;
+      config.from.is_reference_to(wasm::GenericKind::kExtern);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
