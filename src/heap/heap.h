@@ -2544,6 +2544,7 @@ class Heap final {
   uint64_t physical_memory_;
 
   perfetto::NamedTrack tracing_track_;
+  perfetto::NamedTrack loading_track_;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;

@@ -290,7 +290,8 @@ Heap::Heap()
       pretenuring_handler_(this),
       tracing_track_(perfetto::NamedTrack::FromPointer(
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
-                         .disable_sibling_merge()) {
+                         .disable_sibling_merge()),
+      loading_track_("Loading", 0, tracing_track_) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (PageMetadata::kPageSize - 1));
 
@@ -7801,6 +7802,11 @@ void Heap::EnsureYoungSweepingCompleted() {
 }
 
 void Heap::NotifyLoadingStarted() {
+  if (IsLoading()) {
+    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
+  }
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "IsLoading",
+                    loading_track_);
   update_allocation_limits_after_loading_ = true;
   double now_ms = MonotonicallyIncreasingTimeInMs();
   DCHECK_NE(now_ms, kLoadTimeNotLoading);
@@ -7815,6 +7821,7 @@ void Heap::NotifyLoadingEnded() {
     // and advance marking if incremental marking is active.
     job->ScheduleTask(TaskPriority::kUserVisible);
   }
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
 }
 
 int Heap::NextScriptId() {
