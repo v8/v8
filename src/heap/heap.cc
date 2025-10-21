@@ -354,7 +354,7 @@ size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
                    MaxOldGenerationSizeFromPhysicalMemory(physical_memory)));
   old_generation =
       std::max({old_generation,
-                static_cast<uint64_t>(DefaulMinHeapSize(physical_memory))});
+                static_cast<uint64_t>(DefaultMinHeapSize(physical_memory))});
   old_generation = RoundUp(old_generation, PageMetadata::kPageSize);
 
   size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
@@ -413,7 +413,7 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 
 // static
 size_t Heap::MaxOldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
-  size_t max_size = DefaulMaxHeapSize(physical_memory);
+  size_t max_size = DefaultMaxHeapSize(physical_memory);
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
   // memory at least 16GB. The threshold is set to 15GB to accommodate for some
   // memory being reserved by the hardware.
@@ -5172,12 +5172,12 @@ size_t Heap::DefaultMaxSemiSpaceSize(uint64_t physical_memory) {
 }
 
 // static
-size_t Heap::DefaulMinHeapSize(uint64_t physical_memory) {
+size_t Heap::DefaultMinHeapSize(uint64_t physical_memory) {
   return 128u * HeapLimitMultiplier(physical_memory) * MB;
 }
 
 // static
-size_t Heap::DefaulMaxHeapSize(uint64_t physical_memory) {
+size_t Heap::DefaultMaxHeapSize(uint64_t physical_memory) {
   return 1024u * HeapLimitMultiplier(physical_memory) * MB;
 }
 
@@ -5188,7 +5188,7 @@ size_t Heap::OldGenerationToSemiSpaceRatio(uint64_t physical_memory) {
   // supported value, young gen max capacity would also be set to the max.
   const size_t max_semi_space_size = DefaultMaxSemiSpaceSize(physical_memory);
   DCHECK_GT(max_semi_space_size, 0);
-  return DefaulMaxHeapSize(physical_memory) / max_semi_space_size;
+  return DefaultMaxHeapSize(physical_memory) / max_semi_space_size;
 }
 
 // static

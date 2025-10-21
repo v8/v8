@@ -44,7 +44,7 @@ using HeapTest = TestWithHeapInternalsAndContext;
 TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
   const uint64_t physical_memory = 0;
   const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
 
   // Low memory
   ASSERT_EQ((v8_flags.minor_ms ? 4 : 3) * 512u * KB,
@@ -68,7 +68,7 @@ TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
 TEST(Heap, GenerationSizesFromHeapSize) {
   const uint64_t physical_memory = 0;
   const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
 
   size_t old, young;
 
@@ -128,7 +128,7 @@ TEST(Heap, GenerationSizesFromHeapSize) {
 TEST(Heap, HeapSizeFromPhysicalMemory) {
   const uint64_t physical_memory = 0;
   const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
 
   // The expected value is old_generation_size + semi_space_multiplier *
   // semi_space_size.

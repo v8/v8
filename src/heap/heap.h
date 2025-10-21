@@ -336,8 +336,8 @@ class Heap final {
   static size_t OldGenerationToSemiSpaceRatioLowMemory(
       uint64_t physical_memory);
 
-  V8_EXPORT_PRIVATE static size_t DefaulMinHeapSize(uint64_t physical_memory);
-  V8_EXPORT_PRIVATE static size_t DefaulMaxHeapSize(uint64_t physical_memory);
+  V8_EXPORT_PRIVATE static size_t DefaultMinHeapSize(uint64_t physical_memory);
+  V8_EXPORT_PRIVATE static size_t DefaultMaxHeapSize(uint64_t physical_memory);
 
   // Calculates the maximum amount of filler that could be required by the
   // given alignment.
