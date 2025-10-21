@@ -5611,7 +5611,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           node->RemoveInput(n.FeedbackVectorIndex());
           NodeProperties::ChangeOp(
               node,
-              javascript()->CreateArray(arity, std::nullopt, FeedbackSource()));
+              javascript()->CreateArray(arity, std::nullopt, p.feedback()));
           return Changed(node);
         }
         case Builtin::kObjectConstructor: {
