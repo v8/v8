@@ -499,6 +499,9 @@ class MaglevReducer {
       TaggedToFloat64ConversionType conversion_type, ValueNode* left,
       double cst_right);
 
+  MaybeReduceResult TryFoldFloat64Min(ValueNode* left, ValueNode* right);
+  MaybeReduceResult TryFoldFloat64Max(ValueNode* left, ValueNode* right);
+
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
     return known_node_aspects().CheckType(broker(), node, type, old);
   }

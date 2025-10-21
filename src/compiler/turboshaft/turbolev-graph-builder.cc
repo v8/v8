@@ -4205,6 +4205,20 @@ class GraphBuildingNodeProcessor {
   PROCESS_FLOAT64_BINOP(Exponentiate, Power)
 #undef PROCESS_FLOAT64_BINOP
 
+  maglev::ProcessResult Process(maglev::Float64Min* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ Float64Min(Map(node->left_input()), Map(node->right_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::Float64Max* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ Float64Max(Map(node->left_input()), Map(node->right_input())));
+    return maglev::ProcessResult::kContinue;
+  }
+
 #define PROCESS_INT32_BITWISE_BINOP(Name)                               \
   maglev::ProcessResult Process(maglev::Int32Bitwise##Name* node,       \
                                 const maglev::ProcessingState& state) { \

@@ -151,6 +151,8 @@ class ExceptionHandlerInfo;
   V(Float64Round)                       \
   V(Float64Compare)                     \
   V(Float64ToBoolean)                   \
+  V(Float64Min)                         \
+  V(Float64Max)                         \
   V(Float64Ieee754Unary)                \
   V(Float64Ieee754Binary)               \
   V(Float64Sqrt)
@@ -538,6 +540,8 @@ constexpr bool IsConstantNode(Opcode opcode) {
 constexpr bool IsCommutativeNode(Opcode opcode) {
   switch (opcode) {
     case Opcode::kFloat64Add:
+    case Opcode::kFloat64Min:
+    case Opcode::kFloat64Max:
     case Opcode::kFloat64Multiply:
     case Opcode::kGenericStrictEqual:
     case Opcode::kInt32Add:
@@ -3756,6 +3760,46 @@ class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
   Input input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+
+class Float64Min : public FixedInputValueNodeT<2, Float64Min> {
+  using Base = FixedInputValueNodeT<2, Float64Min>;
+
+ public:
+  explicit Float64Min(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Float64();
+  static constexpr Base::InputTypes kInputTypes{
+      ValueRepresentation::kHoleyFloat64, ValueRepresentation::kHoleyFloat64};
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input left_input() { return Node::input(kLeftIndex); }
+  Input right_input() { return Node::input(kRightIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+};
+
+class Float64Max : public FixedInputValueNodeT<2, Float64Max> {
+  using Base = FixedInputValueNodeT<2, Float64Max>;
+
+ public:
+  explicit Float64Max(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Float64();
+  static constexpr Base::InputTypes kInputTypes{
+      ValueRepresentation::kHoleyFloat64, ValueRepresentation::kHoleyFloat64};
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input left_input() { return Node::input(kLeftIndex); }
+  Input right_input() { return Node::input(kRightIndex); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

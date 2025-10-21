@@ -10784,10 +10784,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMin(
   if (args.count() == 0) {
     return GetConstant(broker()->infinity_value());
   }
-  return TryReduceMathMinMax(args,
-                             [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
-                               return BuildInt32Min(v1, v2);
-                             });
+  return TryReduceMathMinMax(
+      args,
+      [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
+        return BuildInt32Min(v1, v2);
+      },
+      [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
+        RETURN_IF_DONE(reducer_.TryFoldFloat64Min(v1, v2));
+        return AddNewNode<Float64Min>({v1, v2});
+      });
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
@@ -10795,15 +10800,20 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
   if (args.count() == 0) {
     return GetConstant(broker()->minus_infinity_value());
   }
-  return TryReduceMathMinMax(args,
-                             [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
-                               return BuildInt32Max(v1, v2);
-                             });
+  return TryReduceMathMinMax(
+      args,
+      [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
+        return BuildInt32Max(v1, v2);
+      },
+      [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
+        RETURN_IF_DONE(reducer_.TryFoldFloat64Max(v1, v2));
+        return AddNewNode<Float64Max>({v1, v2});
+      });
 }
 
-template <typename Int32Binop>
+template <typename Int32Binop, typename Float64Binop>
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathMinMax(
-    CallArguments& args, Int32Binop int32_case) {
+    CallArguments& args, Int32Binop&& int32_case, Float64Binop&& float64_case) {
   bool all_args_are_int32_or_smi =
       std::all_of(args.begin(), args.end(), [&](ValueNode* arg) {
         return GetType(arg) == NodeType::kSmi ||
@@ -10813,12 +10823,25 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMinMax(
 
   if (all_args_are_int32_or_smi) {
     // TODO(C++23): Use std::ranges::fold_left_first.
-    // Parameters will be converted to Int32 automatically.
+    // int32_case will convert the parameters to Int32.
     return std::reduce(args.begin() + 1, args.end(), *args.begin(), int32_case);
   }
 
-  // TODO(marja): Add Float64 and/or speculative Float64 cases.
-  return {};
+  // TODO(marja): Investigate whether a non-speculative Float64 case helps.
+  if (!CanSpeculateCall()) return {};
+
+  // float64_case will convert the parameters to Float64. Only the first one
+  // has to be converted explicitly.
+  return std::reduce(
+      args.begin() + 1, args.end(),
+      ReduceResult(reducer_.GetHoleyFloat64(args[0])->Unwrap()),
+      [&](ReduceResult lhs_result, ReduceResult rhs_result) -> ReduceResult {
+        ValueNode* lhs;
+        GET_VALUE_OR_ABORT(lhs, lhs_result);
+        ValueNode* rhs;
+        GET_VALUE_OR_ABORT(rhs, rhs_result);
+        return float64_case(lhs, rhs);
+      });
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayConstructor(

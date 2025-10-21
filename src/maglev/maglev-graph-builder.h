@@ -1010,9 +1010,10 @@ class MaglevGraphBuilder {
   MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
                                          Float64Round::Kind kind);
 
-  template <typename Int32Binop>
+  template <typename Int32Binop, typename Float64Binop>
   MaybeReduceResult TryReduceMathMinMax(CallArguments& args,
-                                        Int32Binop int32_case);
+                                        Int32Binop&& int32_case,
+                                        Float64Binop&& float64_case);
 
   template <typename CallNode, typename... Args>
   ReduceResult AddNewCallNode(const CallArguments& args, Args&&... extra_args);

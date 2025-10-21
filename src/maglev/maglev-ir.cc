@@ -805,6 +805,8 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kFloat64Ieee754Unary:
     case Opcode::kFloat64Ieee754Binary:
     case Opcode::kFloat64Sqrt:
+    case Opcode::kFloat64Min:
+    case Opcode::kFloat64Max:
     case Opcode::kInt32CountLeadingZeros:
     case Opcode::kTaggedCountLeadingZeros:
     case Opcode::kFloat64CountLeadingZeros:

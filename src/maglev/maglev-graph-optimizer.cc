@@ -2055,6 +2055,28 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64ToBoolean(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitFloat64Min(
+    Float64Min* node, const ProcessingState& state) {
+  MaybeReduceResult result = reducer_.TryFoldFloat64Min(
+      node->left_input().node(), node->right_input().node());
+  if (result.IsDoneWithValue()) {
+    return ReplaceWith(result.value());
+  }
+  DCHECK(!result.IsDone());
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitFloat64Max(
+    Float64Max* node, const ProcessingState& state) {
+  MaybeReduceResult result = reducer_.TryFoldFloat64Max(
+      node->left_input().node(), node->right_input().node());
+  if (result.IsDoneWithValue()) {
+    return ReplaceWith(result.value());
+  }
+  DCHECK(!result.IsDone());
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitFloat64Ieee754Unary(
     Float64Ieee754Unary* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

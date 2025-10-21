@@ -843,6 +843,48 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
   __ MovFromFloatResult(out);
 }
 
+void Float64Min::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Min::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+
+  Label has_nan, done;
+  __ FloatMin(out, left, right, &has_nan);
+  __ Jump(&done);
+
+  __ bind(&has_nan);
+  __ FloatMinOutOfLine(out, left, right);
+  __ bind(&done);
+}
+
+void Float64Max::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Max::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+
+  Label has_nan, done;
+  __ FloatMax(out, left, right, &has_nan);
+  __ Jump(&done);
+
+  __ bind(&has_nan);
+  __ FloatMaxOutOfLine(out, left, right);
+  __ bind(&done);
+}
+
 int Float64Ieee754Unary::MaxCallStackArgs() const { return 0; }
 void Float64Ieee754Unary::SetValueLocationConstraints() {
   UseFixed(input(), d0);
