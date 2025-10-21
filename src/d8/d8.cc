@@ -3333,7 +3333,7 @@ MaybeLocal<String> Shell::ReadFromStdin(Isolate* isolate) {
       if (accumulator->Length() == 0) return {};
       return accumulator;
     }
-    int length = static_cast<int>(strlen(buffer));
+    int length = base::checked_cast<int>(strlen(buffer));
     if (length == 0) {
       return accumulator;
     } else if (buffer[length - 1] != '\n') {
@@ -5129,7 +5129,7 @@ char* Shell::ReadChars(const char* name, int* size_out) {
     }
   }
   base::Fclose(file);
-  *size_out = static_cast<int>(size);
+  *size_out = base::checked_cast<int>(size);
   return chars;
 }
 
@@ -5148,7 +5148,7 @@ MaybeLocal<PrimitiveArray> Shell::ReadLines(Isolate* isolate,
     lines.emplace_back(line);
   }
   // Create a Local<PrimitiveArray> off the read lines.
-  int size = static_cast<int>(lines.size());
+  int size = base::checked_cast<int>(lines.size());
   Local<PrimitiveArray> exports = PrimitiveArray::New(isolate, size);
   for (int i = 0; i < size; ++i) {
     MaybeLocal<String> maybe_str = v8::String::NewFromUtf8(
@@ -5227,7 +5227,11 @@ MaybeLocal<String> Shell::ReadFile(Isolate* isolate, const char* name,
   if (!file) {
     return MaybeLocal<String>();
   }
-  int size = static_cast<int>(file->size());
+  size_t full_file_size = file->size();
+  if (full_file_size > size_t{i::kMaxInt}) {
+    FATAL("Input file too large (%zu bytes)", full_file_size);
+  }
+  int size = static_cast<int>(full_file_size);
   char* chars = static_cast<char*>(file->memory());
   if (i::v8_flags.use_external_strings && i::String::IsAscii(chars, size)) {
     String::ExternalOneByteStringResource* resource =
