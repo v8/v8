@@ -868,6 +868,34 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
   __ MultiPop({r3, r4, r5, r6, r7, r8, r9, r10, r11});
 }
 
+void Float64Min::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Min::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ MinF64(out, left, right);
+}
+
+void Float64Max::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Max::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ MaxF64(out, left, right);
+}
+
 int Float64Ieee754Unary::MaxCallStackArgs() const { return 0; }
 void Float64Ieee754Unary::SetValueLocationConstraints() {
   UseFixed(input(), d1);
