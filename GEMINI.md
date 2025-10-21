@@ -139,7 +139,7 @@ If there are any failing tests, they will be reported along their stderr and a c
 #
 ...stack trace...
 Received signal 6
-Command: out/x64.optdebug/d8 --test test/mjsunit/mjsunit.js test/mjsunit/maglev/regress-429656023.js --random-seed=-190258694 --nohard-abort --verify-heap --testing-d8-test-runner --allow-natives-syntax
+Command: out/x64.optdebug/d8 --test test/mjsunit/mjsunit.js test/mjsunit/maglev/regress-429656023.js --random-seed=-190258694 --nohard-abort --verify-heap --allow-natives-syntax
 ```
 
 You can retry the test either by running the test name with `tools/run-tests.py`, e.g. `tools/run-tests.py --progress dots --outdir=out/x64.optdebug mjsunit/maglev/regress-429656023`, or by running the command directly. When running the command directly, you can add additional flags to help debug the issue, and you can try running a different build (e.g. running a debug build if a release build fails).

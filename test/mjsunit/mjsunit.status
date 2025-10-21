@@ -2972,6 +2972,12 @@
 }],  # variant in [jit_fuzzing, jit_fuzzing_maglev]
 
 ##############################################################################
+['variant in [no_lfa, always_sparkplug_and_stress_regexp_jit, stress_concurrent_inlining]', {
+  # https://crbug.com/453967876
+  'osr-elements-kind': [FAIL],
+}],
+
+##############################################################################
 ['not disassembler', {
   # Sets a flag which is read-only if the disassembler is disabled.
   'regress/regress-392928803': [FAIL],

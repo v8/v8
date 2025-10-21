@@ -3192,12 +3192,6 @@ DEFINE_FLOAT(testing_float_flag, 2.5, "float-flag")
 DEFINE_STRING(testing_string_flag, "Hello, world!", "string-flag")
 DEFINE_INT(testing_prng_seed, 42, "Seed used for threading test randomness")
 
-// Test flag for a check in %OptimizeFunctionOnNextCall
-DEFINE_BOOL(
-    testing_d8_test_runner, false,
-    "test runner turns on this flag to enable a check that the function was "
-    "prepared for optimization before marking it for optimization")
-
 DEFINE_EXPERIMENTAL_FEATURE(
     strict_termination_checks,
     "Enable strict terminating DCHECKs to prevent accidentally "

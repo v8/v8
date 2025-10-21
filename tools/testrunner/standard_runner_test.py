@@ -593,8 +593,7 @@ class StandardRunnerTest(TestRunnerTest):
         '-v',
     )
 
-    result.stdout_includes(
-        '--test bananas --random-seed=42 --nohard-abort --testing-d8-test-runner')
+    result.stdout_includes('--test bananas --random-seed=42 --nohard-abort')
     result.has_returncode(0)
 
 
