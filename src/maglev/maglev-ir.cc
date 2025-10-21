@@ -8330,21 +8330,6 @@ void AbstractLoadTaggedField<T>::PrintParams(std::ostream& os) const {
   os << ")";
 }
 
-void LoadTaggedFieldForProperty::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << ": " << name().object() << std::dec;
-  // TODO(victorgomes): Print compression status only after the result is
-  // allocated, since that's when we do decompression marking.
-  if (decompresses_tagged_result()) {
-    os << ", decompressed";
-  } else {
-    os << ", compressed";
-  }
-  if (is_const()) {
-    os << ", is_const";
-  }
-  os << ")";
-}
-
 void LoadTaggedFieldForContextSlot::PrintParams(std::ostream& os) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }

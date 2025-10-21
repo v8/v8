@@ -9013,7 +9013,7 @@ class AbstractLoadTaggedField : public FixedInputValueNodeT<1, Derived> {
 
   using Base::decompresses_tagged_result;
 
- protected:
+ private:
   const int offset_;
   using LoadTypeField = Base::template NextBitField<LoadType, kLoadTypeBitSize>;
 };
@@ -9032,23 +9032,14 @@ class LoadTaggedFieldForProperty
 
  public:
   explicit LoadTaggedFieldForProperty(uint64_t bitfield, const int offset,
-                                      compiler::NameRef name, bool is_const,
-                                      LoadType type)
-      : Base(bitfield | IsConstantLoadField::encode(is_const), offset, type),
-        name_(name) {}
-  compiler::NameRef name() const { return name_; }
+                                      compiler::NameRef name, LoadType type)
+      : Base(bitfield, offset, type), name_(name) {}
+  compiler::NameRef name() { return name_; }
 
-  bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
-
-  auto options() const {
-    return std::tuple{offset(), name_, is_const(), load_type()};
-  }
-
-  void PrintParams(std::ostream&) const;
+  auto options() const { return std::tuple{offset(), name_, load_type()}; }
 
  private:
   compiler::NameRef name_;
-  using IsConstantLoadField = LoadTypeField::Next<bool, 1>;
 };
 
 class LoadTaggedFieldForContextSlotNoCells
