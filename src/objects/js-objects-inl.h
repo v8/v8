@@ -352,16 +352,22 @@ bool JSObject::MayHaveEmbedderFields() const {
 
 // static
 int JSObject::GetEmbedderFieldCount(Tagged<Map> map) {
-  int instance_size = map->instance_size();
+  // We inline some code from Map::instance_size and Map::GetInObjectProperties
+  // here, to avoid reading the map's instance size field twice.
+  // See https://crbug.com/355120682.
+  int instance_size_in_words = map->instance_size_in_words();
+  int instance_size = instance_size_in_words << kTaggedSizeLog2;
   if (instance_size == kVariableSizeSentinel) return 0;
   // Embedder fields are located after the object header, whereas in-object
   // properties are located at the end of the object. We don't have to round up
   // the header size here because division by kEmbedderDataSlotSizeInTaggedSlots
   // will swallow potential padding in case of (kTaggedSize !=
   // kSystemPointerSize) anyway.
+  int in_object_properties =
+      instance_size_in_words - map->GetInObjectPropertiesStartInWords();
   return (((instance_size - GetEmbedderFieldsStartOffset(map)) >>
            kTaggedSizeLog2) -
-          map->GetInObjectProperties()) /
+          in_object_properties) /
          kEmbedderDataSlotSizeInTaggedSlots;
 }
 
