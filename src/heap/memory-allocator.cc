@@ -593,7 +593,7 @@ MemoryAllocator::AllocateUninitializedPageFromDelayedOrPool(Space* space) {
     if (!delayed_then_pooled_pages_.empty()) {
       PageMetadata* metadata = delayed_then_pooled_pages_.back();
       delayed_then_pooled_pages_.pop_back();
-      maybe_result = PooledPage::Create(metadata).ToResult();
+      maybe_result = memory_pool()->CreatePooledPage(metadata).ToResult();
     }
   }
   if (!maybe_result.has_value() && memory_pool()) {

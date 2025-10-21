@@ -1019,10 +1019,13 @@ void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
   gc_count_++;
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
-  if (v8_flags.large_page_pool_timeout == 0 &&
+  // We provide a fallback for the case when the page pool timeout is disabled.
+  // This is to prevent unbounded growth of the pool for the non-default
+  // configuration.
+  if (V8_UNLIKELY(v8_flags.page_pool_timeout == 0) &&
       collector == GarbageCollector::MARK_COMPACTOR) {
     if (auto* memory_pool = isolate_->isolate_group()->memory_pool()) {
-      memory_pool->ReleaseLargeImmediately();
+      memory_pool->ReleaseImmediately(isolate_);
     }
   }
 }
