@@ -195,7 +195,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   JSDispatchTable& operator=(const JSDispatchTable&) = delete;
 
   // The Spaces used by a JSDispatchTable.
-  using Space = Base::SpaceWithBlackAllocationSupport;
+  using Space = Base::Space;
 
   // Retrieves the entrypoint of the entry referenced by the given handle.
   inline Address GetEntrypoint(JSDispatchHandle handle);
