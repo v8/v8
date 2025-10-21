@@ -223,7 +223,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
 #define PROCESS_SAFE_CONV(Node, Alt, Type)                                     \
   ProcessResult ProcessNode(Node* node) {                                      \
-    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0)->Unwrap());        \
     if (!info->alternative().Alt()) {                                          \
       /* TODO(victorgomes): What happens if we we have an alternative already? \
        * Should we remove this one as well? */                                 \
@@ -238,7 +238,7 @@ class RecomputeKnownNodeAspectsProcessor {
 // This happens for instance for LoadProperty.
 #define PROCESS_UNSAFE_CONV(Node, Alt, Type)                                   \
   ProcessResult ProcessNode(Node* node) {                                      \
-    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0)->Unwrap());        \
     if (!info->alternative().Alt()) {                                          \
       /* TODO(victorgomes): What happens if we we have an alternative already? \
        * Should we remove this one as well? */                                 \
@@ -276,6 +276,7 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_UNSAFE_CONV(UncheckedNumberToFloat64, float64, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
   PROCESS_UNSAFE_CONV(HoleyFloat64ToMaybeNanFloat64, float64, Number)
+  PROCESS_SAFE_CONV(ChangeInt32ToFloat64, float64, Number)
 #undef PROCESS_SAFE_CONV
 #undef PROCESS_UNSAFE_CONV
 
