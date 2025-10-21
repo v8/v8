@@ -1071,6 +1071,9 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
         isolate, *compilation_info->closure(), compilation_info->osr_offset(),
         *compilation_info->code(),
         compilation_info->function_context_specializing());
+  } else if (!compilation_info->function_context_specializing()) {
+    compilation_info->shared_info()->set_function_context_independent_compiled(
+        true);
   }
   job->RecordFunctionCompilation(LogEventListener::CodeTag::kFunction, isolate);
   return true;
@@ -4504,6 +4507,8 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
               isolate, *compilation_info->closure(),
               compilation_info->osr_offset(), *compilation_info->code(),
               compilation_info->function_context_specializing());
+        } else if (!compilation_info->function_context_specializing()) {
+          shared->set_function_context_independent_compiled(true);
         }
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
         if (IsOSR(osr_offset)) {
@@ -4583,6 +4588,8 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     if (IsOSR(osr_offset)) {
       OptimizedOSRCodeCache::Insert(isolate, *function, osr_offset, *code,
                                     job->specialize_to_function_context());
+    } else if (!job->specialize_to_function_context()) {
+      shared->set_function_context_independent_compiled(true);
     }
 
     RecordMaglevFunctionCompilation(isolate, function,
