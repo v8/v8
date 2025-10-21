@@ -3221,13 +3221,11 @@ bool MaglevGraphBuilder::ContextMayAlias(
 }
 
 MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
-    ValueNode* context, int index, ValueNode* value, Node** store) {
-  DCHECK_NOT_NULL(store);
+    ValueNode* context, int index, ValueNode* value) {
   DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   if (!context->Is<Constant>()) {
-    GET_NODE_OR_ABORT(*store, AddNewNode<StoreContextSlotWithWriteBarrier>(
-                                  {context, value}, index));
-    return ReduceResult::Done();
+    return AddNewNode<StoreContextSlotWithWriteBarrier>({context, value},
+                                                        index);
   }
 
   if (IsEmptyNodeType(GetType(value))) {
@@ -3239,15 +3237,14 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
   auto maybe_value = context_ref.get(broker(), index);
   if (!maybe_value || maybe_value->IsTheHole() ||
       maybe_value->IsUndefinedContextCell()) {
-    GET_NODE_OR_ABORT(*store, AddNewNode<StoreContextSlotWithWriteBarrier>(
-                                  {context, value}, index));
-    return ReduceResult::Done();
+    return AddNewNode<StoreContextSlotWithWriteBarrier>({context, value},
+                                                        index);
   }
 
   int offset = Context::OffsetOfElementAt(index);
   if (!maybe_value->IsContextCell()) {
     return BuildStoreTaggedField(context, value, offset,
-                                 StoreTaggedMode::kDefault, store);
+                                 StoreTaggedMode::kDefault);
   }
 
   compiler::ContextCellRef slot_ref = maybe_value->AsContextCell();
@@ -3257,9 +3254,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
       auto constant = slot_ref.tagged_value(broker());
       if (!constant.has_value() ||
           (constant->IsString() && !constant->IsInternalizedString())) {
-        GET_NODE_OR_ABORT(*store, AddNewNode<StoreContextSlotWithWriteBarrier>(
-                                      {context, value}, index));
-        return ReduceResult::Done();
+        return AddNewNode<StoreContextSlotWithWriteBarrier>({context, value},
+                                                            index);
       }
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return BuildCheckNumericalValueOrByReference(
@@ -3272,26 +3268,23 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return BuildStoreTaggedFieldNoWriteBarrier(
           GetConstant(slot_ref), value, offsetof(ContextCell, tagged_value_),
-          StoreTaggedMode::kDefault, store);
+          StoreTaggedMode::kDefault);
     case ContextCell::kInt32:
       EnsureInt32(value, true);
-      GET_NODE_OR_ABORT(
-          *store, AddNewNode<StoreInt32>(
-                      {GetConstant(slot_ref), value},
-                      static_cast<int>(offsetof(ContextCell, double_value_))));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return ReduceResult::Done();
+      return AddNewNode<StoreInt32>(
+          {GetConstant(slot_ref), value},
+          static_cast<int>(offsetof(ContextCell, double_value_)));
+
     case ContextCell::kFloat64:
       RETURN_IF_ABORT(BuildCheckNumber(value));
-      GET_NODE_OR_ABORT(
-          *store, AddNewNode<StoreFloat64>(
-                      {GetConstant(slot_ref), value},
-                      static_cast<int>(offsetof(ContextCell, double_value_))));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return ReduceResult::Done();
+      return AddNewNode<StoreFloat64>(
+          {GetConstant(slot_ref), value},
+          static_cast<int>(offsetof(ContextCell, double_value_)));
     case ContextCell::kDetached:
       return BuildStoreTaggedField(context, value, offset,
-                                   StoreTaggedMode::kDefault, store);
+                                   StoreTaggedMode::kDefault);
   }
   UNREACHABLE();
 }
@@ -3306,17 +3299,17 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
   if ((v8_flags.script_context_cells || v8_flags.function_context_cells) &&
       context_mode == ContextMode::kHasContextCells) {
     MaybeReduceResult result =
-        TrySpecializeStoreContextSlot(context, index, value, &store);
+        TrySpecializeStoreContextSlot(context, index, value);
     RETURN_IF_ABORT(result);
-    if (!store && result.IsDone()) {
+    if (result.IsDoneWithoutPayload()) {
       // If we didn't need to emit any store, there is nothing to cache.
       return result.Checked();
     }
-  }
-
-  if (!store) {
-    RETURN_IF_ABORT(BuildStoreTaggedField(context, value, offset,
-                                          StoreTaggedMode::kDefault, &store));
+    DCHECK(result.IsDoneWithPayload());
+    store = result.node();
+  } else {
+    GET_NODE_OR_ABORT(store, BuildStoreTaggedField(context, value, offset,
+                                                   StoreTaggedMode::kDefault));
   }
 
   TRACE("  * Recording context slot store " << PrintNodeLabel(context) << "["
@@ -4763,8 +4756,8 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
-    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
-    Node** store) {
+    ValueNode* object, ValueNode* value, int offset,
+    StoreTaggedMode store_mode) {
   // The value may be used to initialize a VO, which can leak to IFS.
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
@@ -4775,10 +4768,9 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
   if (store_mode != StoreTaggedMode::kInitializing) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
-  Node* store_node;
   if (CanElideWriteBarrier(object, value)) {
-    GET_NODE_OR_ABORT(store_node, AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-                                      {object, value}, offset, store_mode));
+    return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
+                                                      store_mode);
   } else {
     // Detect stores that would create old-to-new references and pretenure the
     // value.
@@ -4790,20 +4782,15 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
         }
       }
     }
-    GET_NODE_OR_ABORT(store_node,
-                      AddNewNode<StoreTaggedFieldWithWriteBarrier>(
-                          {object, value}, offset, store_mode,
-                          NodeTypeCanBe(GetType(value), NodeType::kSmi)));
+    return AddNewNode<StoreTaggedFieldWithWriteBarrier>(
+        {object, value}, offset, store_mode,
+        NodeTypeCanBe(GetType(value), NodeType::kSmi));
   }
-  if (store) {
-    *store = store_node;
-  }
-  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
-    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
-    Node** store) {
+    ValueNode* object, ValueNode* value, int offset,
+    StoreTaggedMode store_mode) {
   // The value may be used to initialize a VO, which can leak to IFS.
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
@@ -4814,13 +4801,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   if (store_mode != StoreTaggedMode::kInitializing) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
-  Node* store_node;
-  GET_NODE_OR_ABORT(store_node, AddNewNode<StoreTaggedFieldNoWriteBarrier>(
-                                    {object, value}, offset, store_mode));
-  if (store) {
-    *store = store_node;
-  }
-  return ReduceResult::Done();
+  return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
+                                                    store_mode);
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreTrustedPointerField(

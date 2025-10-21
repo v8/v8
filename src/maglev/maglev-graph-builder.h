@@ -505,8 +505,7 @@ class MaglevGraphBuilder {
                                      ContextSlotMutability slot_mutability,
                                      ContextMode context_mode);
   MaybeReduceResult TrySpecializeStoreContextSlot(ValueNode* context, int index,
-                                                  ValueNode* value,
-                                                  Node** store);
+                                                  ValueNode* value);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
                                         ValueNode* value,
                                         ContextMode context_mode);
@@ -1265,12 +1264,10 @@ class MaglevGraphBuilder {
                                     Args&&... args);
 
   ReduceResult BuildStoreTaggedField(ValueNode* object, ValueNode* value,
-                                     int offset, StoreTaggedMode store_mode,
-                                     Node** store = nullptr);
+                                     int offset, StoreTaggedMode store_mode);
   ReduceResult BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object,
                                                    ValueNode* value, int offset,
-                                                   StoreTaggedMode store_mode,
-                                                   Node** store = nullptr);
+                                                   StoreTaggedMode store_mode);
   ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
                                              ValueNode* value, int offset,
                                              IndirectPointerTag tag,
