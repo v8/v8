@@ -8328,7 +8328,7 @@ bool MaglevGraphBuilder::ShouldEagerInlineCall(
     return false;
   }
 
-  if (graph()->total_inlined_bytecode_size_small() >
+  if (graph()->total_inlined_bytecode_size_small() >=
       max_inlined_bytecode_size_small_total()) {
     compilation_unit_->info()->set_could_not_inline_all_candidates();
     TRACE_CANNOT_INLINE("maximum inlined bytecode size for small functions");
