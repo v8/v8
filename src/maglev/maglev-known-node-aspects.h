@@ -476,7 +476,7 @@ class KnownNodeAspects {
   }
 
   bool ClearLoadedPropertiesForKey(PropertyKey key) {
-    auto it = loaded_properties_.find(PropertyKey::Elements());
+    auto it = loaded_properties_.find(key);
     if (it != loaded_properties_.end()) {
       it->second.clear();
       return true;
