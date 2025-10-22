@@ -1367,13 +1367,25 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   Block* unreachable = __ NewBlock();
   __ Bind(unreachable);
 
+  // Before executing compilation, make sure that the function was validated.
+  if (V8_UNLIKELY(!env.module->function_was_validated(func_idx))) {
+    CHECK(v8_flags.wasm_lazy_validation);
+    if (ValidateFunctionBody(Asm().phase_zone(), env.enabled_features,
+                             env.module, &detected, func_body)
+            .failed()) {
+      TRACE("- not inlining: validation failed");
+      __ Bind(inlinee_body_and_rest);
+      return OpIndex::Invalid();
+    }
+    env.module->set_function_validated(func_idx);
+  }
+
   using Interface = WasmInJsInliningInterface<Assembler<ReducerList>>;
   using Decoder =
       wasm::WasmFullDecoder<typename Interface::ValidationTag, Interface>;
   Decoder can_inline_decoder(Asm().phase_zone(), env.module,
                              env.enabled_features, &detected, func_body, Asm(),
                              arguments_without_instance, trusted_instance_data);
-  DCHECK(env.module->function_was_validated(func_idx));
   can_inline_decoder.Decode();
 
   // The function was already validated, so decoding can only fail if we bailed
