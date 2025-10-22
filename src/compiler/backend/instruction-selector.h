@@ -463,9 +463,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   std::optional<BailoutReason> SelectInstructions();
 
   void StartBlock(RpoNumber rpo);
-  void EndBlock(RpoNumber rpo);
+  void EndBlock(RpoNumber rpo, Instruction* terminator);
   void AddInstruction(Instruction* instr);
-  void AddTerminator(Instruction* instr);
 
   // ===========================================================================
   // ============= Architecture-independent code emission methods. =============

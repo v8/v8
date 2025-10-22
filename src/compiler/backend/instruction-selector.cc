@@ -160,9 +160,9 @@ std::optional<BailoutReason> InstructionSelector::SelectInstructions() {
         AddInstruction(instructions_[start]);
       }
       UpdateRenames(instructions_[end]);
-      AddTerminator(instructions_[end]);
     }
-    EndBlock(this->rpo_number(block));
+    Instruction* terminator = instructions_[end];
+    EndBlock(this->rpo_number(block), terminator);
   }
 #if DEBUG
   sequence()->ValidateSSA();
@@ -179,21 +179,12 @@ void InstructionSelector::StartBlock(RpoNumber rpo) {
   }
 }
 
-void InstructionSelector::EndBlock(RpoNumber rpo) {
+void InstructionSelector::EndBlock(RpoNumber rpo, Instruction* terminator) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
-    scheduler_->EndBlock(rpo);
+    scheduler_->EndBlock(rpo, terminator);
   } else {
-    sequence()->EndBlock(rpo);
-  }
-}
-
-void InstructionSelector::AddTerminator(Instruction* instr) {
-  if (UseInstructionScheduling()) {
-    DCHECK_NOT_NULL(scheduler_);
-    scheduler_->AddTerminator(instr);
-  } else {
-    sequence()->AddInstruction(instr);
+    sequence()->EndBlock(rpo, terminator);
   }
 }
 

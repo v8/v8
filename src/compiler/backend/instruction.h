@@ -1943,6 +1943,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   int AddInstruction(Instruction* instr);
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
+  void EndBlock(RpoNumber rpo, Instruction* terminator);
 
   void AddConstant(int virtual_register, Constant constant) {
     // TODO(titzer): allow RPO numbers as constants?
