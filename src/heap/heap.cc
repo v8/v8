@@ -402,11 +402,10 @@ size_t Heap::MinOldGenerationSize() {
 // static
 size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 #ifdef V8_COMPRESS_POINTERS
-  // Isolate and the young generation are also allocated on the heap.
+  // The young generation is also allocated on the heap.
   return kPtrComprCageReservationSize -
          YoungGenerationSizeFromSemiSpaceSize(
-             DefaultMaxSemiSpaceSize(physical_memory)) -
-         RoundUp(sizeof(Isolate), size_t{1} << kPageSizeBits);
+             DefaultMaxSemiSpaceSize(physical_memory));
 #else
   return std::numeric_limits<size_t>::max();
 #endif

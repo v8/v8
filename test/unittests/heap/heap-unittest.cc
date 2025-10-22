@@ -5,6 +5,7 @@
 #include "src/heap/heap.h"
 
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 #include <utility>
@@ -153,6 +154,56 @@ TEST(Heap, HeapSizeFromPhysicalMemory) {
   AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(4) * GB, 1);
   AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(8) * GB, 1);
 }
+
+#if V8_COMPRESS_POINTERS
+namespace {
+size_t MaxOldGenerationSizeForIsolate(uint64_t physical_memory) {
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = array_buffer_allocator.get();
+  create_params.constraints.ConfigureDefaults(physical_memory, 0);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  size_t max_old_generation_size = i_isolate->heap()->MaxOldGenerationSize();
+  isolate->Dispose();
+  return max_old_generation_size;
+}
+}  // anonymous namespace
+
+TEST_F(HeapTest, ExpectedMaxOldGenerationSize) {
+#if V8_OS_ANDROID
+  static constexpr bool is_android = true;
+  v8_flags.high_end_android_physical_memory_threshold = 8;
+#else
+  static constexpr bool is_android = false;
+#endif  // V8_OS_ANDROID
+
+  ASSERT_EQ(is_android ? static_cast<uint64_t>(256) * MB
+                       : static_cast<uint64_t>(512) * MB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(1) * GB));
+  ASSERT_EQ(is_android ? static_cast<uint64_t>(512) * MB
+                       : static_cast<uint64_t>(1) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(2) * GB));
+
+  ASSERT_EQ(is_android ? static_cast<uint64_t>(1) * GB
+                       : static_cast<uint64_t>(2) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(4) * GB));
+  ASSERT_EQ(is_android ? static_cast<uint64_t>(1) * GB
+                       : static_cast<uint64_t>(2) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(8) * GB - 1));
+  ASSERT_EQ(static_cast<uint64_t>(2) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(8) * GB));
+  ASSERT_EQ(static_cast<uint64_t>(2) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(15) * GB - 1));
+
+  size_t young_gen = v8_flags.minor_ms ? (2 * 72 * MB) : (3 * 32 * MB);
+  ASSERT_EQ(static_cast<uint64_t>(4) * GB - young_gen,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(15) * GB));
+  ASSERT_EQ(static_cast<uint64_t>(4) * GB - young_gen,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(16) * GB));
+}
+#endif  // V8_COMPRESS_POINTERS
 
 TEST_F(HeapTest, ASLR) {
 #if V8_TARGET_ARCH_X64
