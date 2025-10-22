@@ -3665,6 +3665,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/branch-elimination-reducer.h",
     "src/compiler/turboshaft/build-graph-phase.h",
     "src/compiler/turboshaft/builtin-call-descriptors.h",
+    "src/compiler/turboshaft/call-descriptors-util.h",
     "src/compiler/turboshaft/code-elimination-and-simplification-phase.h",
     "src/compiler/turboshaft/copying-phase.h",
     "src/compiler/turboshaft/csa-branch-elimination-phase.h",

@@ -3888,6 +3888,55 @@ class TurboshaftAssemblerOpInterface
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  template <typename Desc>
+  typename Desc::returns_t CallRuntimeImpl(
+      OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
+      const Desc::Arguments& args, LazyDeoptOnThrow lazy_deopt_on_throw) {
+    using returns_t = typename Desc::returns_t;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return returns_t::Invalid();
+    }
+    const size_t argc = runtime::GetArgumentCount<typename Desc::Arguments>();
+    const int result_size =
+        Runtime::FunctionForId(Desc::kFunction)->result_size;
+    DCHECK(context.valid());
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins,
+                   frame_state.valid() == Desc::kCanTriggerLazyDeopt);
+    auto arguments = runtime::ArgumentsToVector(args);
+    DCHECK_EQ(argc, arguments.size());
+    arguments.push_back(
+        ExternalConstant(ExternalReference::Create(Desc::kFunction)));
+    arguments.push_back(Word32Constant(static_cast<int>(argc)));
+    arguments.push_back(context);
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+
+    const TSCallDescriptor* desc =
+        Desc::Create(Asm().output_graph().graph_zone(), lazy_deopt_on_throw,
+                     !compiling_builtins);
+    return returns_t::Cast(Call(CEntryStubConstant(isolate, result_size),
+                                frame_state, base::VectorOf(arguments), desc));
+  }
+
+  template <typename Desc>
+    requires(Desc::kCanTriggerLazyDeopt)
+  typename Desc::returns_t CallRuntime(
+      OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
+      const Desc::Arguments& args, LazyDeoptOnThrow lazy_deopt_on_throw) {
+    return CallRuntimeImpl<Desc>(frame_state, context, args,
+                                 lazy_deopt_on_throw);
+  }
+
+  template <typename Desc>
+    requires(!Desc::kCanTriggerLazyDeopt)
+  typename Desc::returns_t CallRuntime(V<Context> context,
+                                       const Desc::Arguments& args) {
+    return CallRuntimeImpl<Desc>(OptionalV<turboshaft::FrameState>::Nullopt(),
+                                 context, args, LazyDeoptOnThrow::kNo);
+  }
+
   V<Any> CallBuiltinImpl(Isolate* isolate, Builtin builtin,
                          OptionalV<turboshaft::FrameState> frame_state,
                          base::Vector<const OpIndex> arguments,
@@ -3968,230 +4017,6 @@ class TurboshaftAssemblerOpInterface
     return CallBuiltinWithVarStackArgs(
         isolate, graph_zone, builtin, frame_state, num_args,
         base::VectorOf(arguments), lazy_deopt_on_throw);
-  }
-
-  template <typename Descriptor>
-  typename Descriptor::result_t CallRuntime(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
-      const typename Descriptor::arguments_t& args)
-    requires Descriptor::kNeedsFrameState
-  {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
-    }
-    DCHECK(frame_state.valid());
-    DCHECK(context.valid());
-    return CallRuntimeImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::kFunction,
-        Descriptor::Create(Asm().output_graph().graph_zone(),
-                           lazy_deopt_on_throw),
-        frame_state, context, args);
-  }
-  template <typename Descriptor>
-  typename Descriptor::result_t CallRuntime(
-      Isolate* isolate, V<Context> context,
-      const typename Descriptor::arguments_t& args)
-    requires(!Descriptor::kNeedsFrameState)
-  {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
-    }
-    DCHECK(context.valid());
-    return CallRuntimeImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::kFunction,
-        Descriptor::Create(Asm().output_graph().graph_zone(),
-                           LazyDeoptOnThrow::kNo),
-        {}, context, args);
-  }
-
-  template <typename Ret, typename Args>
-  Ret CallRuntimeImpl(Isolate* isolate, Runtime::FunctionId function,
-                      const TSCallDescriptor* desc,
-                      V<turboshaft::FrameState> frame_state, V<Context> context,
-                      const Args& args) {
-    const int result_size = Runtime::FunctionForId(function)->result_size;
-    constexpr size_t kMaxNumArgs = 6;
-    const size_t argc = std::tuple_size_v<Args>;
-    static_assert(kMaxNumArgs >= argc);
-    // Convert arguments from `args` tuple into a `SmallVector<OpIndex>`.
-    using vector_t = base::SmallVector<OpIndex, argc + 4>;
-    auto inputs = std::apply(
-        [](auto&&... as) {
-          return vector_t{std::forward<decltype(as)>(as)...};
-        },
-        args);
-    DCHECK(context.valid());
-    inputs.push_back(ExternalConstant(ExternalReference::Create(function)));
-    inputs.push_back(Word32Constant(static_cast<int>(argc)));
-    inputs.push_back(context);
-
-    if constexpr (std::is_same_v<Ret, void>) {
-      Call(CEntryStubConstant(isolate, result_size), frame_state,
-           base::VectorOf(inputs), desc);
-    } else {
-      return Ret::Cast(Call(CEntryStubConstant(isolate, result_size),
-                            frame_state, base::VectorOf(inputs), desc));
-    }
-  }
-
-  void CallRuntime_Abort(Isolate* isolate, V<Context> context, V<Smi> reason) {
-    CallRuntime<typename RuntimeCallDescriptor::Abort>(isolate, context,
-                                                       {reason});
-  }
-  V<BigInt> CallRuntime_BigIntUnaryOp(Isolate* isolate, V<Context> context,
-                                      V<BigInt> input, ::Operation operation) {
-    DCHECK_EQ(operation,
-              any_of(::Operation::kBitwiseNot, ::Operation::kNegate,
-                     ::Operation::kIncrement, ::Operation::kDecrement));
-    return CallRuntime<typename RuntimeCallDescriptor::BigIntUnaryOp>(
-        isolate, context, {input, __ SmiConstant(Smi::FromEnum(operation))});
-  }
-  V<Number> CallRuntime_DateCurrentTime(Isolate* isolate, V<Context> context) {
-    return CallRuntime<typename RuntimeCallDescriptor::DateCurrentTime>(
-        isolate, context, {});
-  }
-  void CallRuntime_DebugPrint(Isolate* isolate, V<Object> object) {
-    CallRuntime<typename RuntimeCallDescriptor::DebugPrint>(
-        isolate, NoContextConstant(), {object});
-  }
-  V<Object> CallRuntime_HandleNoHeapWritesInterrupts(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context) {
-    return CallRuntime<
-        typename RuntimeCallDescriptor::HandleNoHeapWritesInterrupts>(
-        isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
-  }
-  V<Object> CallRuntime_StackGuard(Isolate* isolate, V<Context> context) {
-    return CallRuntime<typename RuntimeCallDescriptor::StackGuard>(isolate,
-                                                                   context, {});
-  }
-  V<Object> CallRuntime_StackGuardWithGap(Isolate* isolate,
-                                          V<turboshaft::FrameState> frame_state,
-                                          V<Context> context, V<Smi> gap) {
-    return CallRuntime<typename RuntimeCallDescriptor::StackGuardWithGap>(
-        isolate, frame_state, context, LazyDeoptOnThrow::kNo, {gap});
-  }
-  V<Object> CallRuntime_StringCharCodeAt(Isolate* isolate, V<Context> context,
-                                         V<String> string, V<Number> index) {
-    return CallRuntime<typename RuntimeCallDescriptor::StringCharCodeAt>(
-        isolate, context, {string, index});
-  }
-#ifdef V8_INTL_SUPPORT
-  V<String> CallRuntime_StringToUpperCaseIntl(Isolate* isolate,
-                                              V<Context> context,
-                                              V<String> string) {
-    return CallRuntime<typename RuntimeCallDescriptor::StringToUpperCaseIntl>(
-        isolate, context, {string});
-  }
-#endif  // V8_INTL_SUPPORT
-  V<String> CallRuntime_SymbolDescriptiveString(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<Symbol> symbol,
-      LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallRuntime<typename RuntimeCallDescriptor::SymbolDescriptiveString>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {symbol});
-  }
-  V<Object> CallRuntime_TerminateExecution(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context) {
-    return CallRuntime<typename RuntimeCallDescriptor::TerminateExecution>(
-        isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
-  }
-  V<Object> CallRuntime_TransitionElementsKind(Isolate* isolate,
-                                               V<Context> context,
-                                               V<HeapObject> object,
-                                               V<Map> target_map) {
-    return CallRuntime<typename RuntimeCallDescriptor::TransitionElementsKind>(
-        isolate, context, {object, target_map});
-  }
-  V<Object> CallRuntime_TryMigrateInstance(Isolate* isolate, V<Context> context,
-                                           V<HeapObject> heap_object) {
-    return CallRuntime<typename RuntimeCallDescriptor::TryMigrateInstance>(
-        isolate, context, {heap_object});
-  }
-  V<Object> CallRuntime_TryMigrateInstanceAndMarkMapAsMigrationTarget(
-      Isolate* isolate, V<Context> context, V<HeapObject> heap_object) {
-    return CallRuntime<typename RuntimeCallDescriptor::
-                           TryMigrateInstanceAndMarkMapAsMigrationTarget>(
-        isolate, context, {heap_object});
-  }
-  void CallRuntime_ThrowAccessedUninitializedVariable(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
-      V<Object> object) {
-    CallRuntime<
-        typename RuntimeCallDescriptor::ThrowAccessedUninitializedVariable>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {object});
-  }
-  void CallRuntime_ThrowConstructorReturnedNonObject(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
-    CallRuntime<
-        typename RuntimeCallDescriptor::ThrowConstructorReturnedNonObject>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {});
-  }
-  void CallRuntime_ThrowNotSuperConstructor(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
-      V<Object> constructor, V<Object> function) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowNotSuperConstructor>(
-        isolate, frame_state, context, lazy_deopt_on_throw,
-        {constructor, function});
-  }
-  void CallRuntime_ThrowRangeError(Isolate* isolate, V<Context> context,
-                                   V<Smi> template_index) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowRangeError>(
-        isolate, context, {template_index});
-  }
-  void CallRuntime_ThrowSuperAlreadyCalledError(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowSuperAlreadyCalledError>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {});
-  }
-  void CallRuntime_ThrowSuperNotCalled(Isolate* isolate,
-                                       V<turboshaft::FrameState> frame_state,
-                                       V<Context> context,
-                                       LazyDeoptOnThrow lazy_deopt_on_throw) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowSuperNotCalled>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {});
-  }
-  void CallRuntime_ThrowCalledNonCallable(Isolate* isolate,
-                                          V<turboshaft::FrameState> frame_state,
-                                          V<Context> context,
-                                          LazyDeoptOnThrow lazy_deopt_on_throw,
-                                          V<Object> value) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowCalledNonCallable>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {value});
-  }
-  void CallRuntime_ThrowInvalidStringLength(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowInvalidStringLength>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {});
-  }
-  V<JSFunction> CallRuntime_NewClosure(
-      Isolate* isolate, V<Context> context,
-      V<SharedFunctionInfo> shared_function_info,
-      V<FeedbackCell> feedback_cell) {
-    return CallRuntime<typename RuntimeCallDescriptor::NewClosure>(
-        isolate, context, {shared_function_info, feedback_cell});
-  }
-  V<JSFunction> CallRuntime_NewClosure_Tenured(
-      Isolate* isolate, V<Context> context,
-      V<SharedFunctionInfo> shared_function_info,
-      V<FeedbackCell> feedback_cell) {
-    return CallRuntime<typename RuntimeCallDescriptor::NewClosure_Tenured>(
-        isolate, context, {shared_function_info, feedback_cell});
-  }
-  V<Boolean> CallRuntime_HasInPrototypeChain(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
-      V<Object> object, V<HeapObject> prototype) {
-    return CallRuntime<typename RuntimeCallDescriptor::HasInPrototypeChain>(
-        isolate, frame_state, context, lazy_deopt_on_throw,
-        {object, prototype});
   }
 
 #if V8_ENABLE_WEBASSEMBLY

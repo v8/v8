@@ -3451,6 +3451,7 @@ filegroup(
         "src/compiler/turboshaft/build-graph-phase.h",
         "src/compiler/turboshaft/builtin-call-descriptors.h",
         "src/compiler/turboshaft/builtin-compiler.h",
+        "src/compiler/turboshaft/call-descriptors-util.h",
         "src/compiler/turboshaft/csa-branch-elimination-phase.cc",
         "src/compiler/turboshaft/csa-branch-elimination-phase.h",
         "src/compiler/turboshaft/csa-early-machine-optimization-phase.cc",

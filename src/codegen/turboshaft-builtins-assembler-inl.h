@@ -452,9 +452,8 @@ class BuiltinsReducer : public Next {
         V<Object> exception = __ CatchBlockBegin();
         __ CombineExceptionFeedback();
         __ UpdateFeedback();
-        __ template CallRuntime<
-            compiler::turboshaft::RuntimeCallDescriptor::ReThrow>(
-            __ data()->isolate(), __ NoContextConstant(), {exception});
+        __ template CallRuntime<compiler::turboshaft::runtime::ReThrow>(
+            __ NoContextConstant(), {.exception = exception});
         __ Unreachable();
       }
     }

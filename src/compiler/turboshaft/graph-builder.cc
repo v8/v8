@@ -2387,7 +2387,8 @@ OpIndex GraphBuilder::Process(
       return OpIndex::Invalid();
 
     case IrOpcode::kDateNow:
-      return __ CallRuntime_DateCurrentTime(isolate, __ NoContextConstant());
+      return __ template CallRuntime<runtime::DateCurrentTime>(
+          __ NoContextConstant(), {});
 
     case IrOpcode::kEnsureWritableFastElements:
       return __ EnsureWritableFastElements(Map(node->InputAt(0)),

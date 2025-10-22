@@ -1635,9 +1635,10 @@ class GraphBuildingNodeProcessor {
 
     IF (UNLIKELY(RootEqual(node->value(), RootIndex::kTheHoleValue))) {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-      __ CallRuntime_ThrowAccessedUninitializedVariable(
-          isolate_, frame_state, native_context(), ShouldLazyDeoptOnThrow(node),
-          __ HeapConstant(node->name().object()));
+      __ template CallRuntime<runtime::ThrowAccessedUninitializedVariable>(
+          frame_state, native_context(),
+          {.object = __ HeapConstant(node->name().object())},
+          ShouldLazyDeoptOnThrow(node));
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
       // it's a block terminator and 2) it doesn't call the runtime when
@@ -1659,9 +1660,10 @@ class GraphBuildingNodeProcessor {
     IF_NOT (LIKELY(__ Word32BitwiseAnd(bitfield,
                                        Map::Bits1::IsConstructorBit::kMask))) {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-      __ CallRuntime_ThrowNotSuperConstructor(
-          isolate_, frame_state, native_context(), ShouldLazyDeoptOnThrow(node),
-          constructor, Map(node->function()));
+      __ template CallRuntime<runtime::ThrowNotSuperConstructor>(
+          frame_state, native_context(),
+          {.constructor = constructor, .function = Map(node->function())},
+          ShouldLazyDeoptOnThrow(node));
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
       // it's a block terminator and 2) it doesn't call the runtime when
@@ -1679,9 +1681,8 @@ class GraphBuildingNodeProcessor {
     IF_NOT (LIKELY(__ RootEqual(Map(node->value()), RootIndex::kTheHoleValue,
                                 isolate_))) {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-      __ CallRuntime_ThrowSuperAlreadyCalledError(isolate_, frame_state,
-                                                  native_context(),
-                                                  ShouldLazyDeoptOnThrow(node));
+      __ template CallRuntime<runtime::ThrowSuperAlreadyCalledError>(
+          frame_state, native_context(), {}, ShouldLazyDeoptOnThrow(node));
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
       // it's a block terminator and 2) it doesn't call the runtime when
@@ -1699,9 +1700,8 @@ class GraphBuildingNodeProcessor {
     IF (UNLIKELY(__ RootEqual(Map(node->value()), RootIndex::kTheHoleValue,
                               isolate_))) {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-      __ CallRuntime_ThrowSuperNotCalled(isolate_, frame_state,
-                                         native_context(),
-                                         ShouldLazyDeoptOnThrow(node));
+      __ template CallRuntime<runtime::ThrowSuperNotCalled>(
+          frame_state, native_context(), {}, ShouldLazyDeoptOnThrow(node));
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
       // it's a block terminator and 2) it doesn't call the runtime when
@@ -1720,9 +1720,9 @@ class GraphBuildingNodeProcessor {
 
     IF_NOT (LIKELY(__ ObjectIsCallable(value))) {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-      __ CallRuntime_ThrowCalledNonCallable(
-          isolate_, frame_state, native_context(), ShouldLazyDeoptOnThrow(node),
-          value);
+      __ template CallRuntime<runtime::ThrowCalledNonCallable>(
+          frame_state, native_context(), {.value = value},
+          ShouldLazyDeoptOnThrow(node));
       // TODO(dmercadier): use RuntimeAbort here instead of Unreachable.
       // However, before doing so, RuntimeAbort should be changed so that 1)
       // it's a block terminator and 2) it doesn't call the runtime when
@@ -1788,11 +1788,13 @@ class GraphBuildingNodeProcessor {
 
     V<JSFunction> closure;
     if (node->pretenured()) {
-      closure = __ CallRuntime_NewClosure_Tenured(
-          isolate_, context, shared_function_info, feedback_cell);
+      closure = __ template CallRuntime<runtime::NewClosure_Tenured>(
+          context, {.shared_function_info = shared_function_info,
+                    .feedback_cell = feedback_cell});
     } else {
-      closure = __ CallRuntime_NewClosure(isolate_, context,
-                                          shared_function_info, feedback_cell);
+      closure = __ template CallRuntime<runtime::NewClosure>(
+          context, {.shared_function_info = shared_function_info,
+                    .feedback_cell = feedback_cell});
     }
 
     SetMap(node, closure);
@@ -2863,9 +2865,8 @@ class GraphBuildingNodeProcessor {
     BIND(throw_invalid_length);
     {
       GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-      __ CallRuntime_ThrowInvalidStringLength(isolate_, frame_state,
-                                              native_context(),
-                                              ShouldLazyDeoptOnThrow(node));
+      __ template CallRuntime<runtime::ThrowInvalidStringLength>(
+          frame_state, native_context(), {}, ShouldLazyDeoptOnThrow(node));
       // We should not return from Throw.
       __ Unreachable();
     }
@@ -3001,9 +3002,10 @@ class GraphBuildingNodeProcessor {
         V<i::Map> map = __ LoadMapField(value);
         V<Word32> instance_type = __ LoadInstanceTypeField(map);
         IF (__ Word32Equal(instance_type, SYMBOL_TYPE)) {
-          GOTO(done, __ CallRuntime_SymbolDescriptiveString(
-                         isolate_, frame_state, Map(node->context()),
-                         V<Symbol>::Cast(value), ShouldLazyDeoptOnThrow(node)));
+          GOTO(done, __ template CallRuntime<runtime::SymbolDescriptiveString>(
+                         frame_state, Map(node->context()),
+                         {.symbol = V<Symbol>::Cast(value)},
+                         ShouldLazyDeoptOnThrow(node)));
         }
       }
     }

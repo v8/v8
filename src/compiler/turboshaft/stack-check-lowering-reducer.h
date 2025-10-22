@@ -45,8 +45,9 @@ class StackCheckLoweringReducer : public Next {
 
         IF_NOT (LIKELY(__ StackPointerGreaterThan(
                     limit, StackCheckKind::kJSFunctionEntry))) {
-          __ CallRuntime_StackGuardWithGap(isolate(), frame_state.value(),
-                                           context, __ StackCheckOffset());
+          __ template CallRuntime<runtime::StackGuardWithGap>(
+              frame_state.value(), context, {.gap = __ StackCheckOffset()},
+              LazyDeoptOnThrow::kNo);
         }
         break;
       }
@@ -57,7 +58,7 @@ class StackCheckLoweringReducer : public Next {
             MemoryRepresentation::UintPtr());
         IF_NOT (LIKELY(__ StackPointerGreaterThan(
                     stack_limit, StackCheckKind::kCodeStubAssembler))) {
-          __ CallRuntime_StackGuard(isolate(), context);
+          __ template CallRuntime<runtime::StackGuard>(context, {});
         }
         break;
       }
@@ -70,8 +71,8 @@ class StackCheckLoweringReducer : public Next {
             MemoryRepresentation::Uint8());
 
         IF_NOT (LIKELY(__ Word32Equal(limit, 0))) {
-          __ CallRuntime_HandleNoHeapWritesInterrupts(
-              isolate(), frame_state.value(), context);
+          __ template CallRuntime<runtime::HandleNoHeapWritesInterrupts>(
+              frame_state.value(), context, {}, LazyDeoptOnThrow::kNo);
         }
         break;
       }
