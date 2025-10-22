@@ -284,12 +284,36 @@ class RecomputeKnownNodeAspectsProcessor {
 #undef PROCESS_UNSAFE_CONV
 
   ProcessResult ProcessNode(LoadTaggedField* node) {
-    if (node->is_const() && !node->property_key().is_none()) {
+    if (!node->property_key().is_none()) {
       auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
-          zone(), true, node->property_key());
+          zone(), node->is_const(), node->property_key());
       props_for_key[node->object_input().node()] = node;
     }
-    // TODO(victorgomes): Implement it for non-const loads.
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  void ProcessStoreTaggedField(NodeT* node) {
+    if (node->property_key().is_none()) return;
+    auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
+        zone(), false, node->property_key());
+    // We don't do any aliasing analysis, so stores clobber all other cached
+    // loads of a property with that key. We only need to do this for
+    // non-constant properties, since constant properties are known not to
+    // change and therefore can't be clobbered.
+    // TODO(leszeks): Do some light aliasing analysis here, e.g. checking
+    // whether there's an intersection of known maps.
+    props_for_key.clear();
+    props_for_key[node->object_input().node()] = node->value_input().node();
+  }
+
+  ProcessResult ProcessNode(StoreTaggedFieldNoWriteBarrier* node) {
+    ProcessStoreTaggedField(node);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(StoreTaggedFieldWithWriteBarrier* node) {
+    ProcessStoreTaggedField(node);
     return ProcessResult::kContinue;
   }
 

@@ -9974,11 +9974,13 @@ class StoreTaggedFieldNoWriteBarrier
   using Base = FixedInputNodeT<2, StoreTaggedFieldNoWriteBarrier>;
 
  public:
-  explicit StoreTaggedFieldNoWriteBarrier(uint64_t bitfield, int offset,
-                                          StoreTaggedMode store_mode)
+  explicit StoreTaggedFieldNoWriteBarrier(
+      uint64_t bitfield, int offset, StoreTaggedMode store_mode,
+      PropertyKey property_key = PropertyKey::None())
       : Base(bitfield | InitializingOrTransitioningField::encode(
                             IsInitializingOrTransitioning(store_mode))),
-        offset_(offset) {}
+        offset_(offset),
+        property_key_(property_key) {}
 
   // StoreTaggedFieldNoWriteBarrier never does a Deferred Call. However,
   // PhiRepresentationSelector can cause some StoreTaggedFieldNoWriteBarrier to
@@ -10018,10 +10020,13 @@ class StoreTaggedFieldNoWriteBarrier
 
   void VerifyInputs() const;
 
+  PropertyKey property_key() const { return property_key_; }
+
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
 
   const int offset_;
+  const PropertyKey property_key_;
 };
 
 class StoreMap : public FixedInputNodeT<1, StoreMap> {
@@ -10067,12 +10072,14 @@ class StoreTaggedFieldWithWriteBarrier
  public:
   explicit StoreTaggedFieldWithWriteBarrier(uint64_t bitfield, int offset,
                                             StoreTaggedMode store_mode,
-                                            bool value_can_be_smi)
+                                            bool value_can_be_smi,
+                                            PropertyKey property_key)
       : Base(bitfield |
              InitializingOrTransitioningField::encode(
                  IsInitializingOrTransitioning(store_mode)) |
              ValueCanBeSmiField::encode(value_can_be_smi)),
-        offset_(offset) {}
+        offset_(offset),
+        property_key_(property_key) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanWrite() | OpProperties::DeferredCall();
@@ -10108,11 +10115,14 @@ class StoreTaggedFieldWithWriteBarrier
     set_bitfield(ValueCanBeSmiField::update(bitfield(), value));
   }
 
+  PropertyKey property_key() const { return property_key_; }
+
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
   using ValueCanBeSmiField = InitializingOrTransitioningField::Next<bool, 1>;
 
   const int offset_;
+  const PropertyKey property_key_;
 };
 
 class StoreContextSlotWithWriteBarrier

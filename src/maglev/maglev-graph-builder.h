@@ -1265,11 +1265,14 @@ class MaglevGraphBuilder {
                                     bool is_const = false,
                                     PropertyKey key = PropertyKey::None());
 
-  ReduceResult BuildStoreTaggedField(ValueNode* object, ValueNode* value,
-                                     int offset, StoreTaggedMode store_mode);
-  ReduceResult BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object,
-                                                   ValueNode* value, int offset,
-                                                   StoreTaggedMode store_mode);
+  ReduceResult BuildStoreTaggedField(
+      ValueNode* object, ValueNode* value, int offset,
+      StoreTaggedMode store_mode,
+      PropertyKey property_key = PropertyKey::None());
+  ReduceResult BuildStoreTaggedFieldNoWriteBarrier(
+      ValueNode* object, ValueNode* value, int offset,
+      StoreTaggedMode store_mode,
+      PropertyKey property_key = PropertyKey::None());
   ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
                                              ValueNode* value, int offset,
                                              IndirectPointerTag tag,
@@ -1326,7 +1329,7 @@ class MaglevGraphBuilder {
                               compiler::NameRef name);
   MaybeReduceResult TryBuildStoreField(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
-      compiler::AccessMode access_mode);
+      compiler::AccessMode access_mode, compiler::NameRef name);
   MaybeReduceResult TryBuildPropertyGetterCall(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* lookup_start_object);

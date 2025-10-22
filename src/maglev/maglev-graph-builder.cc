@@ -4733,8 +4733,8 @@ void MaglevGraphBuilder::TryBuildStoreTaggedFieldToAllocation(ValueNode* object,
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
-    ValueNode* object, ValueNode* value, int offset,
-    StoreTaggedMode store_mode) {
+    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
+    PropertyKey property_key) {
   // The value may be used to initialize a VO, which can leak to IFS.
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
@@ -4747,7 +4747,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
   }
   if (CanElideWriteBarrier(object, value)) {
     return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
-                                                      store_mode);
+                                                      store_mode, property_key);
   } else {
     // Detect stores that would create old-to-new references and pretenure the
     // value.
@@ -4761,13 +4761,13 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
     }
     return AddNewNode<StoreTaggedFieldWithWriteBarrier>(
         {object, value}, offset, store_mode,
-        NodeTypeCanBe(GetType(value), NodeType::kSmi));
+        NodeTypeCanBe(GetType(value), NodeType::kSmi), property_key);
   }
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
-    ValueNode* object, ValueNode* value, int offset,
-    StoreTaggedMode store_mode) {
+    ValueNode* object, ValueNode* value, int offset, StoreTaggedMode store_mode,
+    PropertyKey property_key) {
   // The value may be used to initialize a VO, which can leak to IFS.
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
@@ -4779,7 +4779,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
   return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
-                                                    store_mode);
+                                                    store_mode, property_key);
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreTrustedPointerField(
@@ -5230,7 +5230,7 @@ ReduceResult MaglevGraphBuilder::BuildExtendPropertiesBackingStore(
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
     compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
-    compiler::AccessMode access_mode) {
+    compiler::AccessMode access_mode, compiler::NameRef name) {
   FieldIndex field_index = access_info.field_index();
   Representation field_representation = access_info.field_representation();
 
@@ -5298,9 +5298,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
       ValueNode* heapnumber_value;
       GET_VALUE_OR_ABORT(heapnumber_value,
                          AddNewNode<Float64ToHeapNumberForField>({value}));
-      RETURN_IF_ABORT(BuildStoreTaggedField(store_target, heapnumber_value,
-                                            field_index.offset(),
-                                            StoreTaggedMode::kTransitioning));
+      RETURN_IF_ABORT(BuildStoreTaggedField(
+          store_target, heapnumber_value, field_index.offset(),
+          StoreTaggedMode::kTransitioning, name));
       return BuildStoreMap(receiver, access_info.transition_map().value(),
                            StoreMap::Kind::kTransitioning);
     } else {
@@ -5320,12 +5320,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
                                    : StoreTaggedMode::kDefault;
   if (field_representation.IsSmi()) {
     RETURN_IF_ABORT(BuildStoreTaggedFieldNoWriteBarrier(
-        store_target, value, field_index.offset(), store_mode));
+        store_target, value, field_index.offset(), store_mode, name));
   } else {
     DCHECK(field_representation.IsHeapObject() ||
            field_representation.IsTagged());
-    RETURN_IF_ABORT(BuildStoreTaggedField(store_target, value,
-                                          field_index.offset(), store_mode));
+    RETURN_IF_ABORT(BuildStoreTaggedField(
+        store_target, value, field_index.offset(), store_mode, name));
   }
   if (access_info.HasTransitionMap()) {
     RETURN_IF_ABORT(BuildStoreMap(receiver,
@@ -5426,7 +5426,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant: {
       MaybeReduceResult res =
-          TryBuildStoreField(access_info, receiver, access_mode);
+          TryBuildStoreField(access_info, receiver, access_mode, name);
       if (res.IsDone()) {
         RecordKnownProperty(
             receiver, name, current_interpreter_frame_.accumulator(),
