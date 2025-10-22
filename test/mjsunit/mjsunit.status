@@ -966,7 +966,7 @@
   'regress/regress-1078913': [SKIP],
 
   # Flag --no-jitless incompatible with jitless
-  'ignition/opt-proto-seq/*': [SKIP],
+  'opt-proto-seq/*': [SKIP],
 
   # Baseline incompatible with jitless
   'baseline/*': [SKIP],
