@@ -10769,8 +10769,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMin(
         return BuildInt32Min(v1, v2);
       },
       [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
-        RETURN_IF_DONE(reducer_.TryFoldFloat64Min(v1, v2));
-        return AddNewNode<Float64Min>({v1, v2});
+        ValueNode* v1_float = reducer_.GetHoleyFloat64(v1);
+        ValueNode* v2_float = reducer_.GetHoleyFloat64(v2);
+        RETURN_IF_DONE(reducer_.TryFoldFloat64Min(v1_float, v2_float));
+        return AddNewNode<Float64Min>({v1_float, v2_float});
       });
 }
 
@@ -10785,8 +10787,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
         return BuildInt32Max(v1, v2);
       },
       [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
-        RETURN_IF_DONE(reducer_.TryFoldFloat64Max(v1, v2));
-        return AddNewNode<Float64Max>({v1, v2});
+        ValueNode* v1_float = reducer_.GetHoleyFloat64(v1);
+        ValueNode* v2_float = reducer_.GetHoleyFloat64(v2);
+        RETURN_IF_DONE(reducer_.TryFoldFloat64Max(v1_float, v2_float));
+        return AddNewNode<Float64Max>({v1_float, v2_float});
       });
 }
 

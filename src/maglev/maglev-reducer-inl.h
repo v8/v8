@@ -1556,6 +1556,16 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
 template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Min(ValueNode* lhs,
                                                           ValueNode* rhs) {
+  // lhs and rhs need to be already converted to HoleyFloat64. Otherwise
+  // equality checking is not valid.
+  DCHECK(ValueRepresentationIs(lhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  DCHECK(ValueRepresentationIs(rhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  if (lhs == rhs) {
+    return lhs;
+  }
+
   std::optional<double> lhs_const =
       TryGetFloat64Constant(UseRepresentation::kFloat64, lhs,
                             TaggedToFloat64ConversionType::kNumberOrOddball);
