@@ -463,9 +463,9 @@ WasmInterpreterThread::WasmInterpreterThread(Isolate* isolate)
   if (!stack_mem_ ||
       !SetPermissions(page_allocator, stack_mem_, current_stack_size_,
                       PageAllocator::Permission::kReadWrite)) {
-    V8::FatalProcessOutOfMemory(nullptr,
-                                "WasmInterpreterThread::WasmInterpreterThread",
-                                "Cannot allocate Wasm interpreter stack");
+    V8::FatalProcessOutOfMemory(
+        nullptr, "WasmInterpreterThread::WasmInterpreterThread",
+        {.detail = "Cannot allocate Wasm interpreter stack"});
     UNREACHABLE();
   }
 }
