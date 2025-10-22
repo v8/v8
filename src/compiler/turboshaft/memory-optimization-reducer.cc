@@ -8,6 +8,8 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8::internal::compiler::turboshaft {

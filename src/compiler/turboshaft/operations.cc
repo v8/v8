@@ -2316,4 +2316,69 @@ bool Operation::IsProtectedLoad() const {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+IsSmiDecision CombineDecisions(IsSmiDecision left, IsSmiDecision right) {
+  if (left == right) return left;
+  return IsSmiDecision::kUnknown;
+}
+IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx, int depth) {
+  constexpr int kMaxDepth = 3;
+  DCHECK_LE(depth, kMaxDepth);
+
+  const Operation& op = graph.Get(idx);
+  switch (op.opcode) {
+    case Opcode::kConstant: {
+      const ConstantOp& cst = op.Cast<ConstantOp>();
+      if (cst.kind == ConstantOp::Kind::kNumber) {
+        // For kNumber, we don't know yet whether this will turn into a Smi or
+        // a HeapNumber.
+        return IsSmiDecision::kUnknown;
+      }
+      return (cst.IsIntegral() || cst.kind == ConstantOp::Kind::kSmi)
+                 ? IsSmiDecision::kTrue
+                 : IsSmiDecision::kFalse;
+    }
+    case Opcode::kAllocate:
+      return IsSmiDecision::kFalse;
+    case Opcode::kConvertUntaggedToJSPrimitive: {
+      using Kind = ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind;
+      switch (op.Cast<ConvertUntaggedToJSPrimitiveOp>().kind) {
+        case Kind::kBigInt:
+        case Kind::kBoolean:
+        case Kind::kHeapNumber:
+        case Kind::kHeapNumberOrUndefined:
+        case Kind::kString:
+          return IsSmiDecision::kFalse;
+        case Kind::kSmi:
+          return IsSmiDecision::kTrue;
+        case Kind::kNumber:
+          return IsSmiDecision::kUnknown;
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kLoad: {
+      switch (op.Cast<LoadOp>().loaded_rep) {
+        case MemoryRepresentation::TaggedPointer():
+          return IsSmiDecision::kFalse;
+        case MemoryRepresentation::TaggedSigned():
+          return IsSmiDecision::kTrue;
+        default:
+          return IsSmiDecision::kUnknown;
+      }
+    }
+    case Opcode::kPhi:
+      if (depth == kMaxDepth) return IsSmiDecision::kUnknown;
+      return std::accumulate(
+          op.inputs().begin() + 1, op.inputs().end(),
+          DecideObjectIsSmi(graph, op.input(0), depth + 1),
+          [&](IsSmiDecision acc, OpIndex input_idx) {
+            return CombineDecisions(
+                acc, DecideObjectIsSmi(graph, input_idx, depth + 1));
+          });
+    default:
+      break;
+  }
+
+  return IsSmiDecision::kUnknown;
+}
+
 }  // namespace v8::internal::compiler::turboshaft
