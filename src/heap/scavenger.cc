@@ -2347,7 +2347,7 @@ void ScavengerCollector::ClearOldEphemerons() {
 }
 
 namespace {
-class ScavengerWeakObjectRetainer : public WeakObjectRetainer {
+class ScavengerWeakObjectRetainer final : public WeakObjectRetainer {
  public:
   explicit ScavengerWeakObjectRetainer(const Heap* heap) : heap_(heap) {}
 
@@ -2356,8 +2356,8 @@ class ScavengerWeakObjectRetainer : public WeakObjectRetainer {
     if (IsUnscavengedHeapObject(heap_object)) {
       return Smi::zero();
     }
-    DCHECK(!Heap::InToPage(heap_object));
-    if (!HeapLayout::InYoungGeneration(heap_object)) {
+    if (!Heap::InFromPage(heap_object)) {
+      DCHECK(!heap_object->map_word(kRelaxedLoad).IsForwardingAddress());
       return object;
     }
     MapWord map_word = heap_object->map_word(kRelaxedLoad);
