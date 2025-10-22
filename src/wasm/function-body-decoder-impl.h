@@ -918,7 +918,8 @@ class BranchTableIterator {
     return result;
   }
   // Length, including the length of the {BranchTableImmediate}, but not the
-  // opcode. Must be called after consuming the table entries.
+  // opcode. Must be called after consuming the table entries and before the
+  // interface call (in case that leaves the decoder in failed state).
   uint32_t length() const {
     DCHECK(!has_next());
     return static_cast<uint32_t>(pc_ - start_);
@@ -975,7 +976,8 @@ class TryTableIterator {
   }
 
   // Length, including the length of the {TryTableImmediate}, but not the
-  // opcode. Must be called after consumingthe table entries.
+  // opcode. Must be called after consuming the table entries and before the
+  // interface call (in case that leaves the decoder in failed state).
   uint32_t length() const {
     DCHECK(!has_next());
     return static_cast<uint32_t>(pc_ - start_);
@@ -1035,7 +1037,8 @@ class EffectHandlerTableIterator {
   }
 
   // Length, including the length of the {EffectHandlerTableImmediate}, but not
-  // the opcode. Must be called after consuming the table entries.
+  // the opcode. Must be called after consuming the table entries and before the
+  // interface call (in case that leaves the decoder in failed state).
   uint32_t length() const {
     DCHECK(!has_next());
     return static_cast<uint32_t>(pc_ - start_);
@@ -3774,6 +3777,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       try_block->catch_cases[i] = catch_case;
       ++i;
     }
+    // We must get the `length()` before the interface call, see method comment.
     uint32_t try_table_length = try_table_iterator.length();
     CALL_INTERFACE_IF_OK_AND_REACHABLE(TryTable, try_block);
     return 1 + block_imm.length + try_table_length;
@@ -4151,6 +4155,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
     }
 
+    // We must get the `length()` before the interface call, see method comment.
+    uint32_t br_table_length = iterator.length();
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       CALL_INTERFACE(BrTable, imm, key);
 
@@ -4159,7 +4165,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
     }
     EndControl();
-    return 1 + iterator.length();
+    return 1 + br_table_length;
   }
 
   DECODE(Return) {
