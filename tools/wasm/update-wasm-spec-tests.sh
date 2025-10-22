@@ -67,7 +67,7 @@ new_section() {
 # Setup directories.
 ###############################################################################
 
-TOOLS_WASM_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)
+TOOLS_WASM_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) > /dev/null && pwd)
 V8_DIR=$(cd ${TOOLS_WASM_DIR}/../.. && pwd)
 SPEC_TEST_DIR=${V8_DIR}/test/wasm-spec-tests
 TMP_DIR=$(mktemp -d)
@@ -140,7 +140,7 @@ log_and_run rm -rf wpt
 # Generate the proposal tests.
 ###############################################################################
 
-repos='js-promise-integration threads stack-switching'
+repos='js-promise-integration threads stack-switching custom-descriptors'
 
 for repo in ${repos}; do
   new_section "Process ${repo}: core tests"

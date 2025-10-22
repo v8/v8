@@ -62,6 +62,10 @@ proposal_flags = [
     {
         'name': 'stack-switching',
         'flags': ['--experimental-wasm-wasmfx']
+    },
+    {
+        'name': 'custom-descriptors',
+        'flags': ['--experimental-wasm-custom-descriptors']
     }
 ]
 
