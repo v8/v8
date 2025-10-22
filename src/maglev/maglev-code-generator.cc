@@ -1527,7 +1527,7 @@ class MaglevFrameTranslationBuilder {
     switch (opcode) {
       case Opcode::kArgumentsElements:
         translation_array_builder_->ArgumentsElements(
-            value->Cast<ArgumentsElements>()->type());
+            value->Cast<ArgumentsElements>()->create_arguments_type());
         // We simulate the deoptimizer deduplication machinery, which will give
         // a fresh id to the ArgumentsElements. For that, we need to push
         // something object_ids_ We push -1, since no object should have id -1.

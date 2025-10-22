@@ -11716,7 +11716,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
       }
     }
     int start_index = 0;
-    if (elements_value->Cast<ArgumentsElements>()->type() ==
+    if (elements_value->Cast<ArgumentsElements>()->create_arguments_type() ==
         CreateArgumentsType::kRestParameter) {
       start_index =
           elements_value->Cast<ArgumentsElements>()->formal_parameter_count();

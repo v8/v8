@@ -3039,7 +3039,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::ArgumentsElements* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ NewArgumentsElements(Map(node->arguments_count_input()),
-                                         node->type(),
+                                         node->create_arguments_type(),
                                          node->formal_parameter_count()));
     return maglev::ProcessResult::kContinue;
   }
@@ -3494,7 +3494,7 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ LoadDataViewElement(
                      data_view, storage,
                      __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
-                     is_little_endian, node->type()));
+                     is_little_endian, node->external_array_type()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadDoubleDataViewElement* node,
@@ -3524,7 +3524,8 @@ class GraphBuildingNodeProcessor {
     __ StoreDataViewElement(
         data_view, storage,
         __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
-        Map<Word32>(node->value_input()), is_little_endian, node->type());
+        Map<Word32>(node->value_input()), is_little_endian,
+        node->external_array_type());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreDoubleDataViewElement* node,
@@ -5676,7 +5677,7 @@ class GraphBuildingNodeProcessor {
     switch (value->opcode()) {
       case maglev::Opcode::kArgumentsElements:
         builder.AddArgumentsElements(
-            value->Cast<maglev::ArgumentsElements>()->type());
+            value->Cast<maglev::ArgumentsElements>()->create_arguments_type());
         break;
       case maglev::Opcode::kArgumentsLength:
         builder.AddArgumentsLength();
