@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <map>
+#include <memory>
 
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/turboshaft-builtins-assembler-inl.h"
@@ -73,6 +74,9 @@ class TestInstance {
           instance.Asm().Parameter(i, RegisterRepresentation::Tagged()));
     }
     builder(instance);
+    // Need to clear the Assembler before returning so that we don't end up with
+    // multiple Assemblers alive later.
+    instance.ClearAssembler();
     return instance;
   }
 
@@ -90,15 +94,23 @@ class TestInstance {
           instance.Asm().Parameter(static_cast<int>(i), parameter_reps[i]));
     }
     builder(instance);
+    // Need to clear the Assembler before returning so that we don't end up with
+    // multiple Assemblers alive later.
+    instance.ClearAssembler();
     return instance;
   }
 
-  Assembler& Asm() { return assembler_; }
+  Assembler& Asm() {
+    DCHECK(assembler_);
+    return *assembler_;
+  }
   Graph& graph() { return *graph_; }
   Factory& factory() { return *isolate_->factory(); }
   Zone* zone() { return zone_; }
 
   Assembler& operator()() { return Asm(); }
+
+  void ClearAssembler() { assembler_.reset(); }
 
   template <template <typename> typename... Reducers>
   void Run(bool trace_reductions = v8_flags.turboshaft_trace_reduction) {
@@ -225,13 +237,14 @@ class TestInstance {
  private:
   TestInstance(PipelineData* data, Isolate* isolate, Zone* zone)
       : data_(data),
-        assembler_(data, data_->graph(), data_->graph(), zone),
+        assembler_(std::make_unique<Assembler>(data, data_->graph(),
+                                               data_->graph(), zone)),
         graph_(&data_->graph()),
         isolate_(isolate),
         zone_(zone) {}
 
   PipelineData* data_;
-  Assembler assembler_;
+  std::unique_ptr<Assembler> assembler_;
   Graph* graph_;
   std::unique_ptr<std::ofstream> stream_;
   Isolate* isolate_;

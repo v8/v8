@@ -5640,7 +5640,18 @@ class Assembler : public AssemblerData,
                      Graph& output_graph, Zone* phase_zone)
       : AssemblerData(data, input_graph, output_graph, phase_zone), Stack() {
     SupportedOperations::Initialize();
+#ifdef DEBUG
+    DCHECK_NULL(detail::current_assembler_block);
+    detail::current_assembler_block = &this->current_block_;
+#endif
   }
+
+#ifdef DEBUG
+  ~Assembler() {
+    DCHECK_EQ(detail::current_assembler_block, &this->current_block_);
+    detail::current_assembler_block = nullptr;
+  }
+#endif
 
   using Stack::Asm;
 
