@@ -94,7 +94,8 @@ void ValidateOpInputRep(
       std::cerr << "Input has results " << PrintCollection(input_reps)
                 << ", but expected at least " << (*projection_index + 1)
                 << " results.\n";
-      UNREACHABLE();
+      FATAL("Wrong input arity in a %s: not enough inputs.\n",
+            OpcodeName(input_op.opcode));
     }
   } else if (input_reps.size() == 1) {
     input_rep = input_reps[0];
@@ -107,7 +108,8 @@ void ValidateOpInputRep(
               << " with wrong arity.\n";
     std::cerr << "Expected a single output but found " << input_reps.size()
               << ".\n";
-    UNREACHABLE();
+    FATAL("Wrong input arity in a %s: too many inputs.\n",
+          OpcodeName(input_op.opcode));
   }
   for (RegisterRepresentation expected_rep : expected_reps) {
     if (input_rep.AllowImplicitRepresentationChangeTo(
@@ -125,7 +127,7 @@ void ValidateOpInputRep(
             << PrintCollection(expected_reps).WithoutBrackets() << " but found "
             << input_rep << ".\n";
   std::cout << "Input: " << graph.Get(input) << "\n";
-  UNREACHABLE();
+  FATAL("Wrong input representation in a %s.\n", OpcodeName(input_op.opcode));
 }
 
 void ValidateOpInputRep(const Graph& graph, OpIndex input,
