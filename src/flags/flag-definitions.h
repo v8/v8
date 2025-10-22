@@ -376,6 +376,9 @@ DEFINE_BOOL(builtin_subclassing, true,
 DEFINE_BOOL(enable_sharedarraybuffer_per_context, false,
             "enable the SharedArrayBuffer constructor per context")
 
+DEFINE_BOOL(js_nonextensible_applies_to_private, false,
+            "non-extensibility includes private fields")
+
 DEFINE_EXPERIMENTAL_FEATURE(
     for_of_optimization,
     "Experimental flag for improving ForOf loops on ArrayIterator")

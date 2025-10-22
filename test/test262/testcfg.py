@@ -70,6 +70,7 @@ FEATURE_FLAGS = {
     'RegExp.escape': '--js-regexp-escape',
     'upsert': '--js-upsert',
     'Intl.Locale': '--js-intl-locale-variants',
+    'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',
 }
 
 SKIPPED_FEATURES = set([])
