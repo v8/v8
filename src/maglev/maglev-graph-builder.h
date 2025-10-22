@@ -1642,8 +1642,8 @@ class MaglevGraphBuilder {
   bool HasValidInitialMap(compiler::JSFunctionRef new_target,
                           compiler::JSFunctionRef constructor);
 
-  ValueNode* BuildTaggedEqual(ValueNode* lhs, ValueNode* rhs);
-  ValueNode* BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index);
+  ReduceResult BuildTaggedEqual(ValueNode* lhs, ValueNode* rhs);
+  ReduceResult BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index);
 
   class BranchBuilder;
 

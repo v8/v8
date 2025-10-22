@@ -2749,10 +2749,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
       right->properties().value_representation() !=
           ValueRepresentation::kTagged) {
     SetAccumulator(GetBooleanConstant(false));
-  } else {
-    SetAccumulator(BuildTaggedEqual(left, right));
+    return ReduceResult::Done();
   }
-  return ReduceResult::Done();
+  return SetAccumulator(BuildTaggedEqual(left, right));
 }
 
 template <Operation kOperation>
@@ -2926,8 +2925,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
           right,
           GetInternalizedString(interpreter::Register::virtual_accumulator()));
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
-      SetAccumulator(BuildTaggedEqual(left, right));
-      return ReduceResult::Done();
+      return SetAccumulator(BuildTaggedEqual(left, right));
     }
     case CompareOperationHint::kSymbol: {
       DCHECK(kOperation == Operation::kEqual ||
@@ -2938,8 +2936,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       RETURN_IF_ABORT(BuildCheckSymbol(left));
       RETURN_IF_ABORT(BuildCheckSymbol(right));
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
-      SetAccumulator(BuildTaggedEqual(left, right));
-      return ReduceResult::Done();
+      return SetAccumulator(BuildTaggedEqual(left, right));
     }
     case CompareOperationHint::kString: {
       ValueNode* left = LoadRegister(0);
@@ -3015,8 +3012,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       ValueNode* right = GetAccumulator();
       RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(left));
       RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(right));
-      SetAccumulator(BuildTaggedEqual(left, right));
-      return ReduceResult::Done();
+      return SetAccumulator(BuildTaggedEqual(left, right));
     }
     case CompareOperationHint::kReceiver: {
       DCHECK(kOperation == Operation::kEqual ||
@@ -3026,8 +3022,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       ValueNode* right = GetAccumulator();
       RETURN_IF_ABORT(BuildCheckJSReceiver(left));
       RETURN_IF_ABORT(BuildCheckJSReceiver(right));
-      SetAccumulator(BuildTaggedEqual(left, right));
-      return ReduceResult::Done();
+      return SetAccumulator(BuildTaggedEqual(left, right));
     }
   }
 
@@ -3503,8 +3498,8 @@ ReduceResult MaglevGraphBuilder::VisitPopContext() {
   return ReduceResult::Done();
 }
 
-ValueNode* MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
-                                                ValueNode* rhs) {
+ReduceResult MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
+                                                  ValueNode* rhs) {
   ValueNode* tagged_lhs = GetTaggedValue(lhs);
   ValueNode* tagged_rhs = GetTaggedValue(rhs);
   if (tagged_lhs == tagged_rhs) {
@@ -3524,16 +3519,15 @@ ValueNode* MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
   return AddNewNodeNoInputConversion<TaggedEqual>({tagged_lhs, tagged_rhs});
 }
 
-ValueNode* MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
-                                                RootIndex rhs_index) {
+ReduceResult MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
+                                                  RootIndex rhs_index) {
   return BuildTaggedEqual(lhs, GetRootConstant(rhs_index));
 }
 
 ReduceResult MaglevGraphBuilder::VisitTestReferenceEqual() {
   ValueNode* lhs = LoadRegister(0);
   ValueNode* rhs = GetAccumulator();
-  SetAccumulator(BuildTaggedEqual(lhs, rhs));
-  return ReduceResult::Done();
+  return SetAccumulator(BuildTaggedEqual(lhs, rhs));
 }
 
 ValueNode* MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
@@ -3618,14 +3612,12 @@ ReduceResult MaglevGraphBuilder::VisitTestUndetectable() {
 
 ReduceResult MaglevGraphBuilder::VisitTestNull() {
   ValueNode* value = GetAccumulator();
-  SetAccumulator(BuildTaggedEqual(value, RootIndex::kNullValue));
-  return ReduceResult::Done();
+  return SetAccumulator(BuildTaggedEqual(value, RootIndex::kNullValue));
 }
 
 ReduceResult MaglevGraphBuilder::VisitTestUndefined() {
   ValueNode* value = GetAccumulator();
-  SetAccumulator(BuildTaggedEqual(value, RootIndex::kUndefinedValue));
-  return ReduceResult::Done();
+  return SetAccumulator(BuildTaggedEqual(value, RootIndex::kUndefinedValue));
 }
 
 template <typename Function>
@@ -9674,7 +9666,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
   GET_VALUE_OR_ABORT(lhs_ch, BuildGetCharCodeAt(receiver, pos));
   ValueNode* rhs_ch;
   GET_VALUE_OR_ABORT(rhs_ch, BuildGetCharCodeAt(search_element, index_int32));
-  ValueNode* is_equal = BuildTaggedEqual(lhs_ch, rhs_ch);
+  ValueNode* is_equal;
+  GET_VALUE_OR_ABORT(is_equal, BuildTaggedEqual(lhs_ch, rhs_ch));
 
   // If chars are not equal, return false.
   sub_graph.GotoIfFalse<BranchIfRootConstant>(&return_false, {is_equal},
