@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_KNOWN_NODE_ASPECTS_H_
 #define V8_MAGLEV_MAGLEV_KNOWN_NODE_ASPECTS_H_
 
+#include <utility>
+
 #include "src/maglev/maglev-ir.h"
 
 namespace v8 {
@@ -573,6 +575,16 @@ class KnownNodeAspects {
                                      ValueNode* context);
 
   LoadedContextSlots& loaded_context_slots() { return loaded_context_slots_; }
+
+  ValueNode* TryGetContextCachedValue(ValueNode* context, int offset,
+                                      ContextSlotMutability slot_mutability) {
+    auto map = slot_mutability == kMutable ? loaded_context_slots_
+                                           : loaded_context_constants_;
+    auto it = map.find({context, offset});
+    if (it == map.end()) return nullptr;
+    it->second = it->second->UnwrapIdentities();
+    return it->second;
+  }
 
   ValueNode*& GetContextCachedValue(ValueNode* context, int offset,
                                     ContextSlotMutability slot_mutability) {

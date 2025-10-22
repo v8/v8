@@ -15,6 +15,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-known-node-aspects.h"
 
 namespace v8 {
 namespace internal {
@@ -301,6 +302,26 @@ class RecomputeKnownNodeAspectsProcessor {
 
   ProcessResult ProcessNode(StoreTaggedFieldWithWriteBarrier* node) {
     ProcessStoreTaggedField(node);
+    return ProcessResult::kContinue;
+  }
+
+  template <typename NodeT>
+  void ProcessLoadContextSlot(NodeT* node) {
+    if (node->is_const()) {
+      ValueNode*& cached_value = known_node_aspects().GetContextCachedValue(
+          node->input_node(0), node->offset(),
+          ContextSlotMutability::kImmutable);
+      if (!cached_value) cached_value = node;
+    }
+  }
+
+  ProcessResult ProcessNode(LoadContextSlot* node) {
+    ProcessLoadContextSlot(node);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(LoadContextSlotNoCells* node) {
+    ProcessLoadContextSlot(node);
     return ProcessResult::kContinue;
   }
 

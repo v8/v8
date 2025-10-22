@@ -52,6 +52,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-known-node-aspects.h"
 #include "src/maglev/maglev-reducer-inl.h"
 #include "src/maglev/maglev-reducer.h"
 #include "src/numbers/conversions.h"
@@ -3116,7 +3117,8 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
   int offset = Context::OffsetOfElementAt(index);
   if (!maybe_value->IsContextCell()) {
     // No need to check for context cells anymore.
-    RETURN_VALUE(AddNewNode<LoadContextSlotNoCells>({context_node}, offset));
+    RETURN_VALUE(
+        AddNewNode<LoadContextSlotNoCells>({context_node}, offset, false));
   }
   compiler::ContextCellRef slot_ref = maybe_value->AsContextCell();
   ContextCell::State state = slot_ref.state();
@@ -3125,7 +3127,7 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
       auto constant = slot_ref.tagged_value(broker());
       if (!constant.has_value()) {
         RETURN_VALUE(
-            AddNewNode<LoadContextSlotNoCells>({context_node}, offset));
+            AddNewNode<LoadContextSlotNoCells>({context_node}, offset, false));
       }
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return GetConstant(*constant);
@@ -3147,7 +3149,8 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
           {GetConstant(slot_ref)},
           static_cast<int>(offsetof(ContextCell, double_value_)));
     case ContextCell::kDetached: {
-      RETURN_VALUE(AddNewNode<LoadContextSlotNoCells>({context_node}, offset));
+      RETURN_VALUE(
+          AddNewNode<LoadContextSlotNoCells>({context_node}, offset, false));
     }
   }
   UNREACHABLE();
@@ -3176,11 +3179,16 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     // We collect feedback only for mutable context slots.
     cached_value = TrySpecializeLoadContextSlot(context, index);
     if (cached_value) return cached_value;
-    GET_VALUE(cached_value, AddNewNode<LoadContextSlot>({context}, offset));
+    GET_VALUE(cached_value,
+              AddNewNode<LoadContextSlot>(
+                  {context}, offset,
+                  slot_mutability == ContextSlotMutability::kImmutable));
     return cached_value;
   }
   GET_VALUE(cached_value,
-            AddNewNode<LoadContextSlotNoCells>({context}, offset));
+            AddNewNode<LoadContextSlotNoCells>(
+                {context}, offset,
+                slot_mutability == ContextSlotMutability::kImmutable));
   return cached_value;
 }
 

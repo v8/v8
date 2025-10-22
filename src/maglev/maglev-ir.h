@@ -9197,14 +9197,17 @@ class LoadContextSlotNoCells
   using Base = FixedInputValueNodeT<1, LoadContextSlotNoCells>;
 
  public:
-  explicit LoadContextSlotNoCells(uint64_t bitfield, const int offset)
-      : Base(bitfield), offset_(offset) {}
+  explicit LoadContextSlotNoCells(uint64_t bitfield, const int offset,
+                                  bool is_const)
+      : Base(bitfield | IsConstantLoadField::encode(is_const)),
+        offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanRead();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   int offset() const { return offset_; }
+  bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
 
   using Base::input;
   static constexpr int kObjectIndex = 0;
@@ -9214,20 +9217,22 @@ class LoadContextSlotNoCells
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const { return std::tuple{offset()}; }
+  auto options() const { return std::tuple{offset(), is_const()}; }
 
   using Base::decompresses_tagged_result;
 
  private:
   const int offset_;
+  using IsConstantLoadField = NextBitField<bool, 1>;
 };
 
 class LoadContextSlot : public FixedInputValueNodeT<1, LoadContextSlot> {
   using Base = FixedInputValueNodeT<1, LoadContextSlot>;
 
  public:
-  explicit LoadContextSlot(uint64_t bitfield, const int offset)
-      : Base(bitfield), offset_(offset) {}
+  explicit LoadContextSlot(uint64_t bitfield, const int offset, bool is_const)
+      : Base(bitfield | IsConstantLoadField::encode(is_const)),
+        offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanRead() |
                                               OpProperties::CanAllocate() |
@@ -9236,6 +9241,7 @@ class LoadContextSlot : public FixedInputValueNodeT<1, LoadContextSlot> {
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   int offset() const { return offset_; }
+  bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
 
   using Base::input;
   static constexpr int kContextIndex = 0;
@@ -9246,12 +9252,13 @@ class LoadContextSlot : public FixedInputValueNodeT<1, LoadContextSlot> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const { return std::tuple{offset()}; }
+  auto options() const { return std::tuple{offset(), is_const()}; }
 
   using Base::decompresses_tagged_result;
 
  private:
   const int offset_;
+  using IsConstantLoadField = NextBitField<bool, 1>;
 };
 
 class LoadFloat64 : public FixedInputValueNodeT<1, LoadFloat64> {
