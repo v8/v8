@@ -2794,7 +2794,8 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=4200',
-          '--allocation-offset=2',
+          '--allocation-offset=1',
+          '--scavenge-chaos=4',
           '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
@@ -2806,12 +2807,17 @@
           '--stress-stack-size=1',
           '--stress-interrupt-budget=1',
         ],
-        'shards': 4
+        'shards': 5
       },
       {
         'name': 'numfuzz',
         'suffix': 'scavenge',
         'test_args': ['--total-timeout-sec=4200', '--stress-scavenge=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'scavenge chaos',
+        'test_args': ['--total-timeout-sec=4200', '--scavenge-chaos=1']
       },
     ],
   },
@@ -2872,7 +2878,8 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=4200',
-          '--allocation-offset=2',
+          '--allocation-offset=1',
+          '--scavenge-chaos=4',
           '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
@@ -2884,12 +2891,17 @@
           '--stress-stack-size=1',
           '--stress-interrupt-budget=1',
         ],
-        'shards': 3
+        'shards': 5
       },
       {
         'name': 'numfuzz',
         'suffix': 'scavenge',
         'test_args': ['--total-timeout-sec=4200', '--stress-scavenge=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'scavenge chaos',
+        'test_args': ['--total-timeout-sec=4200', '--scavenge-chaos=1']
       },
       {
         'name': 'numfuzz',
@@ -2970,7 +2982,8 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=900',
-          '--allocation-offset=2',
+          '--allocation-offset=1',
+          '--scavenge-chaos=4',
           '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
@@ -2987,6 +3000,11 @@
         'name': 'numfuzz',
         'suffix': 'scavenge',
         'test_args': ['--total-timeout-sec=900', '--stress-scavenge=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'scavenge chaos',
+        'test_args': ['--total-timeout-sec=900', '--scavenge-chaos=1']
       },
     ],
   },
@@ -3039,7 +3057,8 @@
         'suffix': 'combined',
         'test_args': [
           '--total-timeout-sec=900',
-          '--allocation-offset=2',
+          '--allocation-offset=1',
+          '--scavenge-chaos=4',
           '--stress-bytecode-budget=1',
           '--stress-delay-tasks=4',
           '--stress-deopt=2',
@@ -3056,6 +3075,11 @@
         'name': 'numfuzz',
         'suffix': 'scavenge',
         'test_args': ['--total-timeout-sec=900', '--stress-scavenge=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'scavenge chaos',
+        'test_args': ['--total-timeout-sec=900', '--scavenge-chaos=1']
       },
       {
         'name': 'numfuzz',

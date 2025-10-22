@@ -625,7 +625,9 @@ class NumFuzzerTest(TestRunnerTest):
   def testNumFuzzer(self):
     fuzz_flags = [
       f'{flag}=1' for flag in self.get_runner_options()
-      if flag.startswith('--stress-') or flag.startswith('--allocation')
+      if (flag.startswith('--stress-') or
+          flag.startswith('--allocation') or
+          flag.startswith('--scavenge'))
     ]
     self.assertEqual(len(fuzz_flags), len(fuzzer.FUZZERS))
     for fuzz_flag in fuzz_flags:
