@@ -466,6 +466,13 @@ class KnownNodeAspects {
     return TryFindLoadedProperty(loaded_constant_properties_,
                                  lookup_start_object, name);
   }
+  ValueNode* TryFindLoadedProperty(ValueNode* lookup_start_object,
+                                   PropertyKey name, bool is_const) {
+    if (is_const) {
+      return TryFindLoadedConstantProperty(lookup_start_object, name);
+    }
+    return TryFindLoadedProperty(lookup_start_object, name);
+  }
 
   ZoneMap<ValueNode*, ValueNode*>& GetLoadedPropertiesForKey(Zone* zone,
                                                              bool is_const,

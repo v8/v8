@@ -8047,7 +8047,10 @@ void TruncateUnsafeNumberOrOddballToInt32::PrintParams(std::ostream& os) const {
 }
 
 void LoadTaggedField::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << ": " << property_key() << std::dec;
+  os << "(0x" << std::hex << offset() << std::dec;
+  if (!property_key().is_none()) {
+    os << ": " << property_key();
+  }
   // TODO(victorgomes): Print compression status only after the result is
   // allocated, since that's when we do decompression marking.
   if (decompresses_tagged_result()) {
@@ -8096,7 +8099,11 @@ void StoreInt32::PrintParams(std::ostream& os) const {
 }
 
 void StoreTaggedFieldNoWriteBarrier::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec;
+  if (!property_key().is_none()) {
+    os << ": " << property_key();
+  }
+  os << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, StoreMap::Kind kind) {
@@ -8119,7 +8126,11 @@ void StoreMap::PrintParams(std::ostream& os) const {
 }
 
 void StoreTaggedFieldWithWriteBarrier::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec;
+  if (!property_key().is_none()) {
+    os << ": " << property_key();
+  }
+  os << ")";
 }
 
 void StoreTrustedPointerFieldWithWriteBarrier::PrintParams(

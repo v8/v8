@@ -10417,7 +10417,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
     // Store new length.
     RETURN_IF_ABORT(AddNewNode<StoreTaggedFieldNoWriteBarrier>(
         {receiver, new_array_length_smi}, JSArray::kLengthOffset,
-        StoreTaggedMode::kDefault));
+        StoreTaggedMode::kDefault, broker()->length_string()));
 
     // Load the value and store the hole in it's place.
     ValueNode* value;

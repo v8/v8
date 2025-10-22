@@ -1038,13 +1038,13 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
     }
   }
-  if (node->is_const() && !node->property_key().is_none()) {
-    if (ValueNode* cache = known_node_aspects().TryFindLoadedConstantProperty(
-            node->object_input().node(), node->property_key())) {
+  if (!node->property_key().is_none()) {
+    if (ValueNode* cache = known_node_aspects().TryFindLoadedProperty(
+            node->object_input().node(), node->property_key(),
+            node->is_const())) {
       return ReplaceWith(cache);
     }
   }
-  // TODO(victorgomes): Implement it for non-const loads.
   return ProcessResult::kContinue;
 }
 
