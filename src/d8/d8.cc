@@ -7194,6 +7194,13 @@ int Shell::Main(int argc, char* argv[]) {
             "security will suffer.\n");
   }
 
+  if (i::v8_flags.mock_arraybuffer_allocator) {
+    fprintf(stderr,
+            "V8 is running with an unsupported configuration. Important "
+            "subsystems are mocked or disabled. Bugs reported under this "
+            "configuration will be considered invalid.\n");
+  }
+
   Isolate* isolate = Isolate::New(create_params);
 
 #ifdef V8_FUZZILLI

@@ -1183,6 +1183,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       // https://crbug.com/393401455
       RESET_WHEN_FUZZING(turboshaft),
 
+      // OOBs are expected when using --mock-arraybuffer-allocator.
+      RESET_WHEN_FUZZING(mock_arraybuffer_allocator),
+
 #if V8_ENABLE_WEBASSEMBLY
       // https://crbug.com/448681081
       // Lazy validation does change whether or when exceptions are thrown for
