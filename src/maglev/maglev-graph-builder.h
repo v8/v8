@@ -2071,6 +2071,10 @@ void MaglevGraphBuilder::ResetBuilderCachedState() {
 
 template <typename NodeT>
 void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
+  // We only need to clear unstable node aspects on the current builder, not
+  // the parent, since we'll anyway copy the known_node_aspects to the parent
+  // once we finish the inlined function.
+
   if constexpr (NodeT::kProperties.can_read() ||
                 NodeT::kProperties.can_deopt() ||
                 NodeT::kProperties.can_throw()) {
@@ -2087,23 +2091,11 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
   // Don't do anything for nodes without side effects.
   if constexpr (!NodeT::kProperties.can_write()) return;
 
-  // We only need to clear unstable node aspects on the current builder, not
-  // the parent, since we'll anyway copy the known_node_aspects to the parent
-  // once we finish the inlined function.
-
-  if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
-    node->ClearElementsProperties(is_tracing_enabled(), known_node_aspects());
-    if (is_loop_effect_tracking()) {
+  if (is_loop_effect_tracking()) {
+    if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
       loop_effects_->keys_cleared.insert(PropertyKey::Elements());
-    }
-  } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
-                       !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
-    // Don't change known node aspects for simple field stores. The only
-    // relevant side effect on these is writes to objects which invalidate
-    // loaded properties and context slots, and we invalidate these already as
-    // part of emitting the store.
-    node->ClearUnstableNodeAspects(is_tracing_enabled(), known_node_aspects());
-    if (is_loop_effect_tracking()) {
+    } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
+                         !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
       loop_effects_->unstable_aspects_cleared = true;
     }
   }

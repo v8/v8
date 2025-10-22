@@ -435,7 +435,8 @@ void MaglevReducer<BaseT>::MarkPossibleSideEffect(NodeT* node) {
   if constexpr (!NodeT::kProperties.can_write()) return;
 
   if constexpr (ReducerBaseWithKNA<BaseT>) {
-    known_node_aspects().increment_effect_epoch();
+    known_node_aspects().MarkPossibleSideEffect(node, broker(),
+                                                is_tracing_enabled());
   }
 }
 

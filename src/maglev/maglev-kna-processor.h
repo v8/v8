@@ -193,21 +193,8 @@ class RecomputeKnownNodeAspectsProcessor {
 
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node) {
-    // Don't do anything for nodes without side effects.
-    if constexpr (!NodeT::kProperties.can_write()) return;
-
-    if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
-      node->ClearElementsProperties(graph_->is_tracing_enabled(),
-                                    known_node_aspects());
-    } else if constexpr (!IsSimpleFieldStore(Node::opcode_of<NodeT>) &&
-                         !IsTypedArrayStore(Node::opcode_of<NodeT>)) {
-      // Don't change known node aspects for simple field stores. The only
-      // relevant side effect on these is writes to objects which invalidate
-      // loaded properties and context slots, and we invalidate these already as
-      // part of emitting the store.
-      node->ClearUnstableNodeAspects(graph_->is_tracing_enabled(),
-                                     known_node_aspects());
-    }
+    known_node_aspects().MarkPossibleSideEffect(node, broker(),
+                                                graph_->is_tracing_enabled());
   }
 
 #define PROCESS_CHECK(Type)                             \
