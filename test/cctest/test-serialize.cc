@@ -940,6 +940,75 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCodeClearCode) {
       v8::SnapshotCreator::FunctionCodeHandling::kClear);
 }
 
+UNINITIALIZED_TEST(TestCustomSnapshotDataBlobWithLargeObjectString) {
+  if (V8_SINGLE_GENERATION_BOOL) {
+    // The relevant strings are in-place internalized in this mode, and thus
+    // never reach the codepath that allocates them in RO space. Skip the test.
+    return;
+  }
+
+  i::v8_flags.allow_natives_syntax = true;
+  std::stringstream ss;
+  ss << "var short_onebyte_string = %InternalizeString('a'.repeat(128));"
+     << std::endl
+     << "var lo_onebyte_string = %InternalizeString('a'.repeat("
+     << kMaxRegularHeapObjectSize << "));" << std::endl;
+  ss << "var short_twobyte_string = "
+        "%InternalizeString('\\u{1F600}'.repeat(128));"
+     << std::endl
+     << "var lo_twobyte_string = %InternalizeString('\\u{1F600}'.repeat("
+     << kMaxRegularHeapObjectSize << "));" << std::endl;
+  std::string src = ss.str();
+
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData data1 = CreateSnapshotDataBlob(src.c_str());
+
+  v8::Isolate::CreateParams params1;
+  params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate1 = TestSerializer::NewIsolate(params1);
+  {
+    v8::Isolate::Scope i_scope(isolate1);
+    v8::HandleScope h_scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope c_scope(context);
+    {
+      // Short internalized strings go into RO space.
+      i::DirectHandle<i::String> obj_handle = Utils::OpenDirectHandle(
+          *CompileRun("short_onebyte_string").As<v8::String>());
+      Tagged<String> obj = *obj_handle;
+      CHECK(HeapLayout::InReadOnlySpace(obj));
+    }
+    {
+      // Large objects (according to kMaxRegularHeapObjectSize) go into LO
+      // spaces.
+      i::DirectHandle<i::String> obj_handle = Utils::OpenDirectHandle(
+          *CompileRun("lo_onebyte_string").As<v8::String>());
+      Tagged<String> obj = *obj_handle;
+      CHECK(HeapLayout::InAnyLargeSpace(obj));
+    }
+    {
+      i::DirectHandle<i::String> obj_handle = Utils::OpenDirectHandle(
+          *CompileRun("short_twobyte_string").As<v8::String>());
+      Tagged<String> obj = *obj_handle;
+      CHECK(StringShape{obj}.IsTwoByte());
+      CHECK(HeapLayout::InReadOnlySpace(obj));
+    }
+    {
+      i::DirectHandle<i::String> obj_handle = Utils::OpenDirectHandle(
+          *CompileRun("lo_twobyte_string").As<v8::String>());
+      Tagged<String> obj = *obj_handle;
+      CHECK(StringShape{obj}.IsTwoByte());
+      CHECK(HeapLayout::InAnyLargeSpace(obj));
+    }
+  }
+  isolate1->Dispose();
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(SnapshotChecksum) {
   const char* source1 = "function f() { return 42; }";
 

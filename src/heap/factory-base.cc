@@ -1281,10 +1281,15 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
 
   Tagged<Map> map = read_only_roots().internalized_one_byte_string_map();
   const int size = SeqOneByteString::SizeFor(length);
+  // TODO(jgruber): Can we promote these in ReadOnlyPromotion instead? There
+  // must've been a reason we didn't do so initially, but it may no longer
+  // apply.
+  bool can_alloc_in_ro_space =
+      impl()->CanAllocateInReadOnlySpace() && size <= kMaxRegularHeapObjectSize;
   const AllocationType allocation =
       RefineAllocationTypeForInPlaceInternalizableString(
-          impl()->CanAllocateInReadOnlySpace() ? AllocationType::kReadOnly
-                                               : AllocationType::kOld,
+          can_alloc_in_ro_space ? AllocationType::kReadOnly
+                                : AllocationType::kOld,
           map);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(size, allocation, map);
   Tagged<SeqOneByteString> answer = Cast<SeqOneByteString>(result);
@@ -1305,11 +1310,18 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
 
   Tagged<Map> map = read_only_roots().internalized_two_byte_string_map();
   int size = SeqTwoByteString::SizeFor(length);
+  // TODO(jgruber): Can we promote these in ReadOnlyPromotion instead? There
+  // must've been a reason we didn't do so initially, but it may no longer
+  // apply.
+  bool can_alloc_in_ro_space =
+      impl()->CanAllocateInReadOnlySpace() && size <= kMaxRegularHeapObjectSize;
   Tagged<SeqTwoByteString> answer =
       Cast<SeqTwoByteString>(AllocateRawWithImmortalMap(
           size,
           RefineAllocationTypeForInPlaceInternalizableString(
-              AllocationType::kOld, map),
+              can_alloc_in_ro_space ? AllocationType::kReadOnly
+                                    : AllocationType::kOld,
+              map),
           map));
   DisallowGarbageCollection no_gc;
   answer->clear_padding_destructively(length);
