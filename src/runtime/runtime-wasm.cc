@@ -2262,6 +2262,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
   uint16_t* dst = reinterpret_cast<uint16_t*>(
       trusted_instance_data->memory_base(memory) + offset);
   String::WriteToFlat(string, dst, start, length);
+
+  return Smi::zero();  // Unused.
 #elif defined(V8_TARGET_BIG_ENDIAN)
   // TODO(12868): The host is big-endian but we need to write the string
   // contents as little-endian.
@@ -2271,8 +2273,6 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
 #else
 #error Unknown endianness
 #endif
-
-  return Smi::zero();  // Unused.
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
