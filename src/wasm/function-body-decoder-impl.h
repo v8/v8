@@ -2849,7 +2849,11 @@ class WasmDecoder : public Decoder {
             IndexImmediate data_imm(decoder, pc + length + array_imm.length,
                                     "segment index", validate);
             (ios.TypeIndex(array_imm), ...);
-            (ios.DataSegmentIndex(data_imm), ...);
+            if (opcode == kExprArrayNewData || opcode == kExprArrayInitData) {
+              (ios.DataSegmentIndex(data_imm), ...);
+            } else {
+              (ios.ElemSegmentIndex(data_imm), ...);
+            }
             return length + array_imm.length + data_imm.length;
           }
           case kExprRefCast:
