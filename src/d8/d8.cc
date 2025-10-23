@@ -7194,7 +7194,7 @@ int Shell::Main(int argc, char* argv[]) {
             "security will suffer.\n");
   }
 
-  if (i::v8_flags.mock_arraybuffer_allocator) {
+  if (i::v8_flags.test_only_unsafe) {
     fprintf(stderr,
             "V8 is running with an unsupported configuration. Important "
             "subsystems are mocked or disabled. Bugs reported under this "

@@ -233,6 +233,16 @@ DEFINE_BOOL(experimental, false,
   FLAG(BOOL, bool, nam, false, cmt " (experimental)") \
   DEFINE_IMPLICATION(nam, experimental)
 
+// Test-only flags that expose unsafe and/or unsupported configurations.
+DEFINE_BOOL(test_only_unsafe, false,
+            "Indicates that V8 is running in an unsupported and unsafe "
+            "configuration, e.g. used for internal testing. This flag is "
+            "typically not set explicitly but instead enabled as an "
+            "implication of other flags")
+#define DEFINE_TEST_ONLY_FLAG(nam, cmt)                     \
+  FLAG(BOOL, bool, nam, false, cmt " (test-only / unsafe)") \
+  DEFINE_IMPLICATION(nam, test_only_unsafe)
+
 // ATTENTION: This is set to true by default in d8. But for API compatibility,
 // it generally defaults to false.
 DEFINE_BOOL(abort_on_contradictory_flags, false,
@@ -1970,16 +1980,16 @@ FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_EXPERIMENTAL_WASM_FLAG
 
 // Unsafe additions to the GC proposal for performance experiments.
-DEFINE_EXPERIMENTAL_FEATURE(
+DEFINE_TEST_ONLY_FLAG(
     experimental_wasm_assume_ref_cast_succeeds,
-    "assume ref.cast always succeeds and skip the related type check (unsafe)")
-DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_ref_cast_nop,
-                            "enable unsafe ref.cast_nop instruction")
-DEFINE_EXPERIMENTAL_FEATURE(
+    "assume ref.cast always succeeds and skip the related type check")
+DEFINE_TEST_ONLY_FLAG(experimental_wasm_ref_cast_nop,
+                      "enable unsafe ref.cast_nop instruction")
+DEFINE_TEST_ONLY_FLAG(
     experimental_wasm_skip_null_checks,
-    "skip null checks for call.ref and array and struct operations (unsafe)")
-DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_skip_bounds_checks,
-                            "skip array bounds checks (unsafe)")
+    "skip null checks for call.ref and array and struct operations")
+DEFINE_TEST_ONLY_FLAG(experimental_wasm_skip_bounds_checks,
+                      "skip array bounds checks")
 
 // Experimental variants of the Custom Descriptors prototype implementation.
 DEFINE_EXPERIMENTAL_FEATURE(
@@ -3418,8 +3428,8 @@ DEFINE_BOOL(slow_histograms, false,
 
 DEFINE_BOOL(use_external_strings, false, "Use external strings for source code")
 DEFINE_STRING(map_counters, "", "Map counters to a file")
-DEFINE_BOOL(mock_arraybuffer_allocator, false,
-            "Use a mock ArrayBuffer allocator for testing.")
+DEFINE_TEST_ONLY_FLAG(mock_arraybuffer_allocator,
+                      "Use a mock ArrayBuffer allocator for testing.")
 DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
               "Memory limit for mock ArrayBuffer allocator used to simulate "
               "OOM for testing.")
