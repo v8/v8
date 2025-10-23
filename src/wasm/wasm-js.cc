@@ -73,8 +73,8 @@ class WasmStreaming::WasmStreamingImpl {
   void OnBytesReceived(const uint8_t* bytes, size_t size) {
     streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
   }
-  void Finish(bool can_use_compiled_module) {
-    streaming_decoder_->Finish(can_use_compiled_module);
+  void Finish(const WasmStreaming::ModuleCachingCallback& caching_callback) {
+    streaming_decoder_->Finish(caching_callback);
   }
 
   void Abort(i::MaybeHandle<i::JSAny> exception) {
@@ -89,12 +89,6 @@ class WasmStreaming::WasmStreamingImpl {
     resolver_->OnCompilationFailed(exception.ToHandleChecked());
   }
 
-  bool SetCompiledModuleBytes(base::Vector<const uint8_t> bytes) {
-    if (!i::wasm::IsSupportedVersion(bytes, enabled_features_)) return false;
-    streaming_decoder_->SetCompiledModuleBytes(bytes);
-    return true;
-  }
-
   void SetMoreFunctionsCanBeSerializedCallback(
       std::function<void(CompiledWasmModule)> callback) {
     streaming_decoder_->SetMoreFunctionsCanBeSerializedCallback(
@@ -103,6 +97,10 @@ class WasmStreaming::WasmStreamingImpl {
             const std::shared_ptr<i::wasm::NativeModule>& native_module) {
           callback(CompiledWasmModule{native_module, url->data(), url->size()});
         });
+  }
+
+  void SetHasCompiledModuleBytes() {
+    streaming_decoder_->SetHasCompiledModuleBytes();
   }
 
   void SetUrl(base::Vector<const char> url) { streaming_decoder_->SetUrl(url); }
@@ -128,9 +126,10 @@ void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
   impl_->OnBytesReceived(bytes, size);
 }
 
-void WasmStreaming::Finish(bool can_use_compiled_module) {
+void WasmStreaming::Finish(
+    const WasmStreaming::ModuleCachingCallback& caching_callback) {
   TRACE_EVENT0("v8.wasm", "wasm.FinishStreaming");
-  impl_->Finish(can_use_compiled_module);
+  impl_->Finish(caching_callback);
 }
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) {
@@ -143,9 +142,8 @@ void WasmStreaming::Abort(MaybeLocal<Value> exception) {
   impl_->Abort(maybe_exception);
 }
 
-bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
-  TRACE_EVENT0("v8.wasm", "wasm.SetCompiledModuleBytes");
-  return impl_->SetCompiledModuleBytes(base::VectorOf(bytes, size));
+void WasmStreaming::SetHasCompiledModuleBytes() {
+  impl_->SetHasCompiledModuleBytes();
 }
 
 void WasmStreaming::SetMoreFunctionsCanBeSerializedCallback(
@@ -672,7 +670,7 @@ void WasmStreamingCallbackForTesting(
     return;
   }
   streaming->OnBytesReceived(bytes.begin(), bytes.size());
-  streaming->Finish();
+  streaming->Finish(WasmStreaming::ModuleCachingCallback{});
   CHECK(!thrower.error());
 }
 

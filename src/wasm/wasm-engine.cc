@@ -839,7 +839,7 @@ void WasmEngine::AsyncCompile(
     for (auto range : ranges) {
       streaming_decoder->OnBytesReceived(range);
     }
-    streaming_decoder->Finish();
+    streaming_decoder->Finish({});
     return;
   }
 

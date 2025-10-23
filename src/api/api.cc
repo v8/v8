@@ -11930,13 +11930,14 @@ void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
   UNREACHABLE();
 }
 
-void WasmStreaming::Finish(bool can_use_compiled_module) { UNREACHABLE(); }
+void WasmStreaming::Finish(
+    const WasmStreaming::ModuleCachingCallback& caching_callback) {
+  UNREACHABLE();
+}
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) { UNREACHABLE(); }
 
-bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
-  UNREACHABLE();
-}
+void WasmStreaming::SetHasCompiledModuleBytes() { UNREACHABLE(); }
 
 void WasmStreaming::SetMoreFunctionsCanBeSerializedCallback(
     std::function<void(CompiledWasmModule)>) {
