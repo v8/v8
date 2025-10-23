@@ -4220,7 +4220,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return 0;
     }
     ValueType type = ValueType::RefNull(imm.type);
-    if (type.has_index()) type = type.AsExactIfEnabled(this->enabled_);
     Value* value = Push(type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(RefNull, type, value);
     return 1 + imm.length;
@@ -6097,6 +6096,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         Value ref = Pop(ValueType::RefNull(imm.heap_type()));
+        if (!VALIDATE(this->ok())) return 0;
         // "none" and "bottom" are subtypes of "exact $t", and to maintain
         // subsumption, the result must not be less specific when the input is
         // more specific, so here we must treat them both as if they were exact.

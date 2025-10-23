@@ -17,12 +17,6 @@
   'memory64/table64': [FAIL],
   'table': [FAIL],
 
-  # TODO(jkummerow): crbug/454401192
-  'proposals/custom-descriptors/custom-descriptors/ref_get_desc': [FAIL],
-  'proposals/custom-descriptors/custom-descriptors/ref_cast_desc': [FAIL],
-  'proposals/custom-descriptors/custom-descriptors/br_on_cast_desc': [FAIL],
-  'proposals/custom-descriptors/custom-descriptors/br_on_cast_desc_fail': [FAIL],
-
   # TODO(jkummerow): Implement changes in https://github.com/WebAssembly/custom-descriptors/pull/72
   'proposals/custom-descriptors/custom-descriptors/exact-func-import': [FAIL],
 
