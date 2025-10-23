@@ -2598,6 +2598,7 @@ class Heap final {
   friend class DisableConservativeStackScanningScopeForTesting;
   friend class Scavenger;
   friend class ScavengerCollector;
+  friend class ScavengerWeakObjectsProcessor;
   friend class ScheduleMinorGCTaskObserver;
   friend class SemiSpaceNewSpace;
   friend class SemiSpaceNewSpaceAllocatorPolicy;

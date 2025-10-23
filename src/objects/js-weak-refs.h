@@ -162,7 +162,7 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   // `Scavenger and `ScavengerCollector` for accessing `set_target` and
   // `set_unregister_token` for updating references during GC.
   friend class Scavenger;
-  friend class ScavengerCollector;
+  friend class ScavengerWeakObjectsProcessor;
   friend class TorqueGeneratedWeakCellAsserts;
   friend class V8HeapExplorer;
 } V8_OBJECT_END;

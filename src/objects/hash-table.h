@@ -473,7 +473,7 @@ class V8_EXPORT_PRIVATE EphemeronHashTable
  protected:
   friend class MarkCompactCollector;
   friend class MinorMarkSweepCollector;
-  friend class ScavengerCollector;
+  friend class ScavengerEphemeronProcessor;
   friend class HashTable<EphemeronHashTable, EphemeronHashTableShape>;
   friend class ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
   inline void set_key(int index, Tagged<Object> value);
