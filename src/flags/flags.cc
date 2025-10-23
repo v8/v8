@@ -138,7 +138,9 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
     struct FatalError : public std::ostringstream {
       // MSVC complains about non-returning destructor; disable that.
       MSVC_SUPPRESS_WARNING(4722)
-      ~FatalError() { FATAL("%s.\n%s", str().c_str(), kHint); }
+      ~FatalError() {
+        base::FatalNoSecurityImpact("%s.\n%s", str().c_str(), kHint);
+      }
     };
     // Readonly flags cannot change value.
     if (change_flag && IsReadOnly()) {
