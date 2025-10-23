@@ -2119,10 +2119,13 @@ RUNTIME_FUNCTION(Runtime_IsInWritableSharedSpace) {
 }
 
 RUNTIME_FUNCTION(Runtime_ShareObject) {
-  // TODO(354005312): This function is not currently exposed to fuzzers.
-  // Investigate if it should be.
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(v8_flags.shared_heap);
+  // String sharing needs to be enabled explicitly. For simplicity, this runtime
+  // function only shares any object if shared strings are enabled.
+  CHECK_UNLESS_FUZZING(v8_flags.shared_strings);
+  if (IsSmi(args[0])) return args[0];
   CHECK_UNLESS_FUZZING(IsHeapObject(args[0]));
   Handle<HeapObject> obj = args.at<HeapObject>(0);
   ShouldThrow should_throw = v8_flags.fuzzing ? kDontThrow : kThrowOnError;
