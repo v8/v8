@@ -239,7 +239,7 @@ DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
   DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_fixed_array();
   if (length > FixedArray::kMaxLength) {
-    FATAL("Invalid FixedArray size %d", length);
+    base::FatalNoSecurityImpact("Invalid FixedArray size %d", length);
   }
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
@@ -336,7 +336,8 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   DCHECK(allocation == AllocationType::kTrusted ||
          allocation == AllocationType::kSharedTrusted);
   if (length < 0 || length > BytecodeArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
+                                length);
     UNREACHABLE();
   }
   DirectHandle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
@@ -1185,7 +1186,8 @@ template <typename Impl>
 Handle<FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
     uint32_t length, AllocationType allocation) {
   if (length > BigInt::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
+                                length);
     UNREACHABLE();
   }
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -1351,7 +1353,8 @@ template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawFixedArray(
     int length, AllocationType allocation) {
   if (length < 0 || length > FixedArray::kMaxLength) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
+                                length);
     UNREACHABLE();
   }
   return AllocateRawArray(FixedArray::SizeFor(length), allocation);
@@ -1361,7 +1364,8 @@ template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWeakArrayList(
     int capacity, AllocationType allocation) {
   if (capacity < 0 || capacity > WeakArrayList::kMaxCapacity) {
-    FATAL("Fatal JavaScript invalid size error %d", capacity);
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
+                                capacity);
     UNREACHABLE();
   }
   return AllocateRawArray(WeakArrayList::SizeForCapacity(capacity), allocation);
@@ -1410,7 +1414,8 @@ FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
   }
 
   if (capacity < 0 || capacity > SwissNameDictionary::MaxCapacity()) {
-    FATAL("Fatal JavaScript invalid size error %d", capacity);
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
+                                capacity);
     UNREACHABLE();
   }
 

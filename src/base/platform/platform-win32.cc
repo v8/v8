@@ -1261,6 +1261,7 @@ void OS::Abort() {
       ExitProcess(-1);
     case AbortMode::kImmediateCrash:
       IMMEDIATE_CRASH();
+    case AbortMode::kExitIfNoSecurityImpact:
     case AbortMode::kDefault:
       break;
   }

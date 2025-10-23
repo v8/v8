@@ -101,6 +101,26 @@ void FatalOOM(OOMType type, const char* msg) {
 #endif  // V8_FUZZILLI
 }
 
+void FatalNoSecurityImpact(const char* format, ...) {
+  OS::PrintError("\n\n#\n# Fatal error with no security impact:\n# ");
+
+  va_list arguments;
+  va_start(arguments, format);
+  v8::base::OS::VPrintError(format, arguments);
+  va_end(arguments);
+
+  OS::PrintError("\n#\n");
+
+  if (g_print_stack_trace) v8::base::g_print_stack_trace();
+
+  fflush(stderr);
+  if (FatalErrorsWithNoSecurityImpactShouldExit()) {
+    OS::ExitProcess(-1);
+  } else {
+    OS::Abort();
+  }
+}
+
 // Define specialization to pretty print characters (escaping non-printable
 // characters) and to print c strings as pointers instead of strings.
 #define DEFINE_PRINT_CHECK_OPERAND_CHAR(type)                    \

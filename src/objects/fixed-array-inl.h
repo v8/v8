@@ -292,8 +292,9 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int length,
                                    AllocationType allocation,
                                    AllocationHint hint) {
   if (V8_UNLIKELY(static_cast<unsigned>(length) > FixedArrayBase::kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          length);
+    base::FatalNoSecurityImpact(
+        "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+        length);
   } else if (V8_UNLIKELY(length == 0)) {
     return isolate->factory()->empty_fixed_array();
   }
@@ -314,8 +315,9 @@ Handle<FixedArray> FixedArray::New(IsolateT* isolate, int length,
                                    AllocationType allocation,
                                    AllocationHint hint) {
   if (V8_UNLIKELY(static_cast<unsigned>(length) > FixedArrayBase::kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          length);
+    base::FatalNoSecurityImpact(
+        "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+        length);
   } else if (V8_UNLIKELY(length == 0)) {
     return isolate->factory()->empty_fixed_array();
   }
@@ -343,8 +345,9 @@ Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
 
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
                   TrustedFixedArray::kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          capacity);
+    base::FatalNoSecurityImpact(
+        "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+        capacity);
   }
   // TODO(saelo): once we have trusted read-only roots, we can return the
   // empty_trusted_fixed_array here. Currently this isn't possible because the
@@ -365,8 +368,9 @@ Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
                                                      bool shared) {
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
                   ProtectedFixedArray::kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          capacity);
+    base::FatalNoSecurityImpact(
+        "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+        capacity);
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
@@ -536,8 +540,9 @@ template <class IsolateT>
 Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
                                              AllocationType allocation) {
   if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          length);
+    base::FatalNoSecurityImpact(
+        "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+        length);
   } else if (V8_UNLIKELY(length == 0)) {
     return isolate->factory()->empty_fixed_array();
   }
@@ -552,8 +557,9 @@ Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
                                              ElementsCallback elements_callback,
                                              AllocationType allocation) {
   if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          length);
+    base::FatalNoSecurityImpact(
+        "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+        length);
   } else if (V8_UNLIKELY(length == 0)) {
     return isolate->factory()->empty_fixed_array();
   }
@@ -694,8 +700,9 @@ Handle<TrustedWeakFixedArray> TrustedWeakFixedArray::New(IsolateT* isolate,
                                                          int capacity) {
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
                   TrustedFixedArray::kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          capacity);
+    base::FatalNoSecurityImpact(
+        "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+        capacity);
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
@@ -710,8 +717,9 @@ Handle<ProtectedWeakFixedArray> ProtectedWeakFixedArray::New(IsolateT* isolate,
                                                              int capacity) {
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
                   TrustedFixedArray::kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
-          capacity);
+    base::FatalNoSecurityImpact(
+        "Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+        capacity);
   }
   std::optional<DisallowGarbageCollection> no_gc;
   Handle<ProtectedWeakFixedArray> result = TrustedCast<ProtectedWeakFixedArray>(
@@ -799,7 +807,8 @@ template <class IsolateT>
 Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
                                  AllocationType allocation) {
   if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
+                                length);
   } else if (V8_UNLIKELY(length == 0)) {
     return isolate->factory()->empty_byte_array();
   }
@@ -835,7 +844,8 @@ Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
   DCHECK(allocation_type == AllocationType::kTrusted ||
          allocation_type == AllocationType::kSharedTrusted);
   if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
-    FATAL("Fatal JavaScript invalid size error %d", length);
+    base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
+                                length);
   }
 
   std::optional<DisallowGarbageCollection> no_gc;

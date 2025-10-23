@@ -105,6 +105,11 @@ enum class OOMType {
 // recognizes as such by fuzzers and other tooling.
 [[noreturn]] V8_BASE_EXPORT void FatalOOM(OOMType type, const char* msg);
 
+// A variant of Fatal that makes it clear that the failure does not have any
+// security impact. This is useful for automatic vulnerability discover systems
+// (e.g. fuzzers) to ignore or discard such crashes.
+[[noreturn]] V8_BASE_EXPORT void FatalNoSecurityImpact(const char* format, ...);
+
 // In official builds, assume all check failures can be debugged given just the
 // stack trace.
 #if !defined(DEBUG) && defined(OFFICIAL_BUILD)
