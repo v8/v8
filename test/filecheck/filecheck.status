@@ -32,6 +32,7 @@
 
 ['not has_webassembly', {
   'wasm-*': [SKIP],
+  'crash/wasm-*': [SKIP],
 }], # not has_webassembly
 
 ['official_build', {
