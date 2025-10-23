@@ -9543,7 +9543,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSlice(
   std::optional<int32_t> index_const = TryGetInt32Constant(index);
   if (!index_const || *index_const != -1) return {};
 
-  ValueNode* receiver = args.receiver();
+  // Ensure that {receiver} is actually a String.
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+
   ValueNode* receiver_length;
   GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
 
