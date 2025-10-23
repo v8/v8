@@ -89,16 +89,13 @@ void FatalOOM(OOMType type, const char* msg) {
   OS::PrintError("\n\n#\n# Fatal %s out of memory: %s\n#", type_str, msg);
 
   if (g_print_stack_trace) v8::base::g_print_stack_trace();
-  fflush(stderr);
 
-#ifdef V8_FUZZILLI
-  // When fuzzing, we generally want to ignore OOM failures.
-  // It's important that we exit with a non-zero exit status here so that the
-  // fuzzer treats it as a failed execution.
-  _exit(1);
-#else
-  OS::Abort();
-#endif  // V8_FUZZILLI
+  fflush(stderr);
+  if (FatalErrorsWithNoSecurityImpactShouldExit()) {
+    OS::ExitProcess(-1);
+  } else {
+    OS::Abort();
+  }
 }
 
 void FatalNoSecurityImpact(const char* format, ...) {
