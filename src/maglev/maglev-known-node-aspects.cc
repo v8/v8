@@ -459,6 +459,38 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
   return true;
 }
 
+SmallZoneVector<KnownNodeAspects::LoadedContextSlotsKey, 8>
+KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
+                                              int offset, ValueNode* value) {
+  SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots_(graph->zone());
+  if (!loaded_context_slots_.empty()) {
+    UpdateMayHaveAliasingContexts(graph->broker(),
+                                  graph->broker()->local_isolate(), context);
+  }
+  if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::kYes) {
+    compiler::OptionalScopeInfoRef scope_info = graph->TryGetScopeInfo(context);
+    for (auto& cache : loaded_context_slots_) {
+      int cached_offset = std::get<int>(cache.first);
+      ValueNode* cached_context = std::get<ValueNode*>(cache.first);
+      if (cached_offset == offset && cached_context != context) {
+        if (graph->ContextMayAlias(cached_context, scope_info) &&
+            cache.second != value) {
+          if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                          graph->is_tracing_enabled())) {
+            std::cout << "  * Clearing probably aliasing value "
+                      << PrintNodeLabel(std::get<ValueNode*>(cache.first))
+                      << "[" << offset << "]: " << PrintNode(value)
+                      << std::endl;
+          }
+          cache.second = nullptr;
+          aliased_slots_.push_back(cache.first);
+        }
+      }
+    }
+  }
+  return aliased_slots_;
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

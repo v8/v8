@@ -3303,47 +3303,27 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
   TRACE("  * Recording context slot store " << PrintNodeLabel(context) << "["
                                             << offset
                                             << "]: " << PrintNode(value));
-  KnownNodeAspects::LoadedContextSlots& loaded_context_slots =
-      known_node_aspects().loaded_context_slots();
-  if (!loaded_context_slots.empty()) {
-    known_node_aspects().UpdateMayHaveAliasingContexts(
-        broker(), local_isolate(), context);
-  }
-  if (known_node_aspects().may_have_aliasing_contexts() ==
-      KnownNodeAspects::ContextSlotLoadsAlias::kYes) {
-    compiler::OptionalScopeInfoRef scope_info =
-        graph()->TryGetScopeInfo(context);
-    for (auto& cache : loaded_context_slots) {
-      if (std::get<int>(cache.first) == offset &&
-          std::get<ValueNode*>(cache.first) != context) {
-        if (ContextMayAlias(std::get<ValueNode*>(cache.first), scope_info) &&
-            cache.second != value) {
-          TRACE("  * Clearing probably aliasing value "
-                << PrintNodeLabel(std::get<ValueNode*>(cache.first)) << "["
-                << offset << "]: " << PrintNode(value));
-          cache.second = nullptr;
-          if (is_loop_effect_tracking()) {
-            loop_effects_->context_slot_written.insert(cache.first);
-            loop_effects_->may_have_aliasing_contexts = true;
-          }
-        }
-      }
-    }
-  }
+
+  auto aliased_slots = known_node_aspects().ClearAliasedContextSlotsFor(
+      graph(), context, offset, value);
+  bool added_to_cache =
+      known_node_aspects().SetContextCachedValue(context, offset, value);
+
+  // Update loop effect state.
   KnownNodeAspects::LoadedContextSlotsKey key{context, offset};
-  auto updated = loaded_context_slots.emplace(key, value);
-  if (updated.second) {
-    if (is_loop_effect_tracking()) {
-      loop_effects_->context_slot_written.insert(key);
+  if (is_loop_effect_tracking()) {
+    for (auto slot : aliased_slots) {
+      loop_effects_->context_slot_written.insert(slot);
+      loop_effects_->may_have_aliasing_contexts = true;
     }
+    loop_effects_->context_slot_written.insert(key);
+  }
+
+  // Update last context store cache and kill the previous store.
+  // TODO(victorgomes): Port this store-store elimination to the optimizer.
+  if (added_to_cache) {
     unobserved_context_slot_stores_[key] = store;
   } else {
-    if (updated.first->second != value) {
-      updated.first->second = value;
-      if (is_loop_effect_tracking()) {
-        loop_effects_->context_slot_written.insert(key);
-      }
-    }
     if (known_node_aspects().may_have_aliasing_contexts() !=
         KnownNodeAspects::ContextSlotLoadsAlias::kYes) {
       auto last_store = unobserved_context_slot_stores_.find(key);
@@ -3355,6 +3335,7 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
       }
     }
   }
+
   return ReduceResult::Done();
 }
 
