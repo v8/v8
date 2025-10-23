@@ -1074,7 +1074,7 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::Uint32Constant* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Word32SignHintUnsigned(__ Word32Constant(node->value())));
+    SetMap(node, __ TypeHintUint32(__ Word32Constant(node->value())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4280,7 +4280,7 @@ class GraphBuildingNodeProcessor {
     }
     V<Word32> ts_op =
         __ Word32ShiftRightLogical(Map(node->left_input()), right);
-    SetMap(node, __ Word32SignHintUnsigned(ts_op));
+    SetMap(node, __ TypeHintUint32(ts_op));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4696,7 +4696,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::TruncateUint32ToInt32* node,
                                 const maglev::ProcessingState& state) {
     // This doesn't matter in Turboshaft: both Uint32 and Int32 are Word32.
-    SetMap(node, __ Word32SignHintSigned(Map(node->input())));
+    SetMap(node, __ TypeHintInt32(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckedInt32ToUint32* node,
@@ -4705,7 +4705,7 @@ class GraphBuildingNodeProcessor {
     __ DeoptimizeIf(__ Int32LessThan(Map(node->input()), 0), frame_state,
                     DeoptimizeReason::kNotUint32,
                     node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, __ Word32SignHintUnsigned(Map(node->input())));
+    SetMap(node, __ TypeHintUint32(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4719,8 +4719,8 @@ class GraphBuildingNodeProcessor {
                                   std::numeric_limits<uint32_t>::max()),
         frame_state, DeoptimizeReason::kNotUint32,
         node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, __ Word32SignHintUnsigned(
-                     __ TruncateWordPtrToWord32(Map(node->input()))));
+    SetMap(node,
+           __ TypeHintUint32(__ TruncateWordPtrToWord32(Map(node->input()))));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4730,7 +4730,7 @@ class GraphBuildingNodeProcessor {
     __ DeoptimizeIf(__ Int32LessThan(Map(node->input()), 0), frame_state,
                     DeoptimizeReason::kNotInt32,
                     node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, __ Word32SignHintSigned(Map(node->input())));
+    SetMap(node, __ TypeHintInt32(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4744,14 +4744,14 @@ class GraphBuildingNodeProcessor {
                                   std::numeric_limits<int32_t>::max()),
         frame_state, DeoptimizeReason::kNotInt32,
         node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, __ Word32SignHintSigned(
-                     __ TruncateWordPtrToWord32(Map(node->input()))));
+    SetMap(node,
+           __ TypeHintInt32(__ TruncateWordPtrToWord32(Map(node->input()))));
     return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::UnsafeInt32ToUint32* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Word32SignHintUnsigned(Map(node->input())));
+    SetMap(node, __ TypeHintUint32(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckedObjectToIndex* node,
@@ -4905,13 +4905,13 @@ class GraphBuildingNodeProcessor {
                     node->eager_deopt_info()->feedback_to_update());
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
-    SetMap(node, input);
+    SetMap(node, __ TypeHintFloat64(input));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::UnsafeHoleyFloat64ToFloat64* node,
                                 const maglev::ProcessingState& state) {
     V<Float64> input = Map(node->input());
-    SetMap(node, input);
+    SetMap(node, __ TypeHintFloat64(input));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::ConvertHoleToUndefined* node,

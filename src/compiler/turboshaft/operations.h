@@ -288,7 +288,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(TransitionElementsKindOrCheckMap)           \
   V(DebugPrint)                                 \
   V(CheckTurboshaftTypeOf)                      \
-  V(Word32SignHint)
+  V(TypeHint)
 
 // These Operations are the lowest level handled by Turboshaft, and are
 // supported by the InstructionSelector.
@@ -1549,34 +1549,48 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
   auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 
-// Word32SignHint is a type-hint used during Maglev->Turboshaft
-// translation to avoid having multiple values being used as both Int32 and
-// Uint32: for such cases, Maglev has explicit conversions, and it's helpful to
-// also have them in Turboshaft. Eventually, Word32SignHint is just a
-// nop in Turboshaft, since as far as Machine level graph is concerned, both
-// Int32 and Uint32 are just Word32 registers.
-struct Word32SignHintOp : FixedArityOperationT<1, Word32SignHintOp> {
-  enum class Sign : bool { kSigned, kUnsigned };
-  Sign sign;
+// TypeHint is a type-hint used during Maglev->Turboshaft
+// translation to avoid having multiple values being used as different types
+// (typically both as Int32/Uint32 or Float64/HoleyFloat64). Eventually,
+// TypeHint is just a nop in Turboshaft, since as far as Machine level
+// graph is concerned, both Int32 and Uint32 are just Word32 registers, and
+// Float64/HoleyFloat64 are just Float64 registers.
+struct TypeHintOp : FixedArityOperationT<1, TypeHintOp> {
+  enum class Type : uint8_t { kInt32, kUint32, kFloat64, kHoleyFloat64 };
+  Type type;
 
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Word32()>();
+    switch (type) {
+      case Type::kInt32:
+      case Type::kUint32:
+        return RepVector<RegisterRepresentation::Word32()>();
+      case Type::kFloat64:
+      case Type::kHoleyFloat64:
+        return RepVector<RegisterRepresentation::Float64()>();
+    }
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
+    switch (type) {
+      case Type::kInt32:
+      case Type::kUint32:
+        return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
+      case Type::kFloat64:
+      case Type::kHoleyFloat64:
+        return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
+    }
   }
 
-  V<Word32> input() const { return Base::input<Word32>(0); }
+  V<Float64OrWord32> input() const { return Base::input<Float64OrWord32>(0); }
 
-  Word32SignHintOp(V<Word32> input, Sign sign) : Base(input), sign(sign) {}
+  TypeHintOp(V<Float64OrWord32> input, Type type) : Base(input), type(type) {}
 
-  auto options() const { return std::tuple{sign}; }
+  auto options() const { return std::tuple{type}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           Word32SignHintOp::Sign sign);
+                                           TypeHintOp::Type type);
 
 struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   enum class Kind : uint8_t {

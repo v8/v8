@@ -1660,15 +1660,21 @@ class TurboshaftAssemblerOpInterface
   // Methods to be used by the reducers to reducer operations with the whole
   // reducer stack.
 
-  V<Word32> Word32SignHint(V<Word32> input, Word32SignHintOp::Sign sign) {
-    return ReduceIfReachableWord32SignHint(input, sign);
+  V<Float64OrWord32> TypeHint(V<Float64OrWord32> input, TypeHintOp::Type type) {
+    return ReduceIfReachableTypeHint(input, type);
   }
 
-  V<Word32> Word32SignHintUnsigned(V<Word32> input) {
-    return Word32SignHint(input, Word32SignHintOp::Sign::kUnsigned);
+  V<Word32> TypeHintUint32(V<Word32> input) {
+    return V<Word32>::Cast(TypeHint(input, TypeHintOp::Type::kUint32));
   }
-  V<Word32> Word32SignHintSigned(V<Word32> input) {
-    return Word32SignHint(input, Word32SignHintOp::Sign::kSigned);
+  V<Word32> TypeHintInt32(V<Word32> input) {
+    return V<Word32>::Cast(TypeHint(input, TypeHintOp::Type::kInt32));
+  }
+  V<Float64> TypeHintFloat64(V<Float64> input) {
+    return V<Float64>::Cast(TypeHint(input, TypeHintOp::Type::kFloat64));
+  }
+  V<Float64> TypeHintHoleyFloat64(V<Float64> input) {
+    return V<Float64>::Cast(TypeHint(input, TypeHintOp::Type::kHoleyFloat64));
   }
 
   V<Object> GenericBinop(V<Object> left, V<Object> right,

@@ -181,12 +181,16 @@ std::ostream& operator<<(std::ostream& os, GenericUnopOp::Kind kind) {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, Word32SignHintOp::Sign sign) {
-  switch (sign) {
-    case Word32SignHintOp::Sign::kSigned:
-      return os << "Signed";
-    case Word32SignHintOp::Sign::kUnsigned:
-      return os << "Unsigned";
+std::ostream& operator<<(std::ostream& os, TypeHintOp::Type type) {
+  switch (type) {
+    case TypeHintOp::Type::kInt32:
+      return os << "Int32";
+    case TypeHintOp::Type::kUint32:
+      return os << "Uint32";
+    case TypeHintOp::Type::kFloat64:
+      return os << "Float64";
+    case TypeHintOp::Type::kHoleyFloat64:
+      return os << "HoleyFloat64";
   }
 }
 
