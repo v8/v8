@@ -54,6 +54,8 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-function.h"
+#include "src/objects/literal-objects-inl.h"
+#include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-body-descriptors-inl.h"
@@ -1792,6 +1794,8 @@ class MergeAssumptionChecker final : public ObjectVisitor {
         if (IsSharedFunctionInfo(obj)) {
           CHECK((current_object_kind_ == kConstantPool && !is_weak) ||
                 (current_object_kind_ == kScriptInfosList && is_weak) ||
+                (current_object_kind_ == kObjectBoilerplateDescription &&
+                 !is_weak) ||
                 (IsScript(host) &&
                  current.address() ==
                      host.address() +
@@ -1808,6 +1812,11 @@ class MergeAssumptionChecker final : public ObjectVisitor {
           // Constant pools can contain nested fixed arrays, which in turn can
           // point to SFIs.
           QueueVisit(obj, kConstantPool);
+        } else if (IsObjectBoilerplateDescription(obj) &&
+                   current_object_kind_ == kConstantPool) {
+          // Constant pools can contain ObjectBoilerplates, which in turn can
+          // point to SFIs.
+          QueueVisit(obj, kObjectBoilerplateDescription);
         }
 
         QueueVisit(obj, kNormalObject);
@@ -1836,6 +1845,7 @@ class MergeAssumptionChecker final : public ObjectVisitor {
     kNormalObject,
     kConstantPool,
     kScriptInfosList,
+    kObjectBoilerplateDescription
   };
 
   // If the object hasn't yet been added to the worklist, add it. Subsequent
@@ -2167,6 +2177,22 @@ class ConstantPoolPointerForwarder {
     } else if (!scope_infos_to_update_.empty() &&
                IsScopeInfo(heap_obj, cage_base_)) {
       VisitScopeInfo(constant_pool, i, Cast<ScopeInfo>(heap_obj));
+    } else if (IsObjectBoilerplateDescription(heap_obj, cage_base_)) {
+      VisitObjectBoilerplateDescription(
+          Cast<ObjectBoilerplateDescription>(heap_obj));
+    }
+  }
+
+  void VisitObjectBoilerplateDescription(
+      Tagged<ObjectBoilerplateDescription> boilerplate) {
+    for (int idx = 0; idx < boilerplate->boilerplate_properties_count();
+         ++idx) {
+      // there is an SFI at entry "idx"
+      if (Tagged<SharedFunctionInfo> new_sfi;
+          TryCast<SharedFunctionInfo>(boilerplate->value(idx), &new_sfi)) {
+        // The same SFI on the old script by function_literal_id
+        VisitSharedFunctionInfo(boilerplate, idx, new_sfi);
+      }
     }
   }
 
