@@ -1300,7 +1300,7 @@ class Heap final {
   V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize(
       uint64_t physical_memory);
 
-  V8_EXPORT_PRIVATE static size_t HeapSizeFromPhysicalMemory(
+  V8_EXPORT_PRIVATE static size_t OldGenerationSizeFromPhysicalMemory(
       uint64_t physical_memory);
   V8_EXPORT_PRIVATE static void GenerationSizesFromHeapSize(
       uint64_t physical_memory, size_t heap_size, size_t* young_generation_size,

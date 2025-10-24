@@ -344,7 +344,7 @@ size_t Heap::YoungGenerationSizeFromOldGenerationSize(uint64_t physical_memory,
   return YoungGenerationSizeFromSemiSpaceSize(semi_space);
 }
 
-size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
+size_t Heap::OldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
   // Compute the old generation size and cap it.
   uint64_t old_generation = physical_memory /
                             kPhysicalMemoryToOldGenerationRatio *
@@ -358,9 +358,7 @@ size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
                 static_cast<uint64_t>(DefaultMinHeapSize(physical_memory))});
   old_generation = RoundUp(old_generation, PageMetadata::kPageSize);
 
-  size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
-      physical_memory, static_cast<size_t>(old_generation));
-  return static_cast<size_t>(old_generation) + young_generation;
+  return static_cast<size_t>(old_generation);
 }
 
 // static

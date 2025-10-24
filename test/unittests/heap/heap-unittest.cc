@@ -126,33 +126,35 @@ TEST(Heap, GenerationSizesFromHeapSize) {
             young);
 }
 
-void AssertLowMemoryHeapSizeFromPhysicalMemory(uint64_t physical_memory) {
-  ASSERT_EQ(128 * i::Heap::HeapLimitMultiplier(physical_memory) * MB +
-                (v8_flags.minor_ms ? 4 : 3) * 512 * KB,
-            i::Heap::HeapSizeFromPhysicalMemory(physical_memory));
+void AssertLowMemoryOldGenerationSizeFromPhysicalMemory(
+    uint64_t physical_memory) {
+  ASSERT_EQ(128 * i::Heap::HeapLimitMultiplier(physical_memory) * MB,
+            i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory));
 }
 
-void AssertHighMemoryHeapSizeFromPhysicalMemory(uint64_t physical_memory,
-                                                size_t adjust) {
+void AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+    uint64_t physical_memory, size_t adjust) {
   // The expected value is old_generation_size + semi_space_multiplier *
   // semi_space_size.
 
-  ASSERT_EQ(i::Heap::DefaultMaxHeapSize(physical_memory) / adjust +
-                (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / adjust) *
-                    (v8_flags.minor_ms ? (2 * adjust) : 3),
-            i::Heap::HeapSizeFromPhysicalMemory(physical_memory));
+  ASSERT_EQ(i::Heap::DefaultMaxHeapSize(physical_memory) / adjust,
+            i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory));
 }
 
-TEST(Heap, HeapSizeFromPhysicalMemory) {
+TEST(Heap, OldGenerationSizeFromPhysicalMemory) {
   // Low memory
-  AssertLowMemoryHeapSizeFromPhysicalMemory(0);
-  AssertLowMemoryHeapSizeFromPhysicalMemory(512u * MB);
+  AssertLowMemoryOldGenerationSizeFromPhysicalMemory(0);
+  AssertLowMemoryOldGenerationSizeFromPhysicalMemory(512u * MB);
 
   // High memory
-  AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(1) * GB, 4);
-  AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(2) * GB, 2);
-  AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(4) * GB, 1);
-  AssertHighMemoryHeapSizeFromPhysicalMemory(static_cast<uint64_t>(8) * GB, 1);
+  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+      static_cast<uint64_t>(1) * GB, 4);
+  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+      static_cast<uint64_t>(2) * GB, 2);
+  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+      static_cast<uint64_t>(4) * GB, 1);
+  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+      static_cast<uint64_t>(8) * GB, 1);
 }
 
 #if V8_COMPRESS_POINTERS
