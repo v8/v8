@@ -3887,7 +3887,7 @@ bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
   bool high_heap_ratio =
       (old_generation_size >=
        v8_flags.ineffective_gc_size_threshold * max_old_generation_size());
-  if (v8_flags.external_memory_accounted_in_global_limit) {
+  if (v8_flags.ineffective_gc_includes_global) {
     high_heap_ratio |= (global_size >= v8_flags.ineffective_gc_size_threshold *
                                            max_global_memory_size_);
   }
