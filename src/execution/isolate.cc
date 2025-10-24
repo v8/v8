@@ -7117,8 +7117,7 @@ void Isolate::RunPromiseHook(PromiseHookType type,
                              DirectHandle<Object> parent) {
   if (!HasIsolatePromiseHooks()) return;
   DCHECK(promise_hook_ != nullptr);
-  promise_hook_(type, v8::Utils::PromiseToLocal(promise),
-                v8::Utils::ToLocal(parent));
+  promise_hook_(type, v8::Utils::ToLocal(promise), v8::Utils::ToLocal(parent));
 }
 
 void Isolate::OnAsyncFunctionSuspended(DirectHandle<JSPromise> promise,
@@ -7258,7 +7257,7 @@ void Isolate::ReportPromiseReject(DirectHandle<JSPromise> promise,
                                   v8::PromiseRejectEvent event) {
   if (promise_reject_callback_ == nullptr) return;
   promise_reject_callback_(v8::PromiseRejectMessage(
-      v8::Utils::PromiseToLocal(promise), event, v8::Utils::ToLocal(value)));
+      v8::Utils::ToLocal(promise), event, v8::Utils::ToLocal(value)));
 }
 
 void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {

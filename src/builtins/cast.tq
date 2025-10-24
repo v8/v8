@@ -837,6 +837,20 @@ Cast<JSReceiver|Symbol>(implicit context: Context)(o: Object): JSReceiver|
   }
 }
 
+Cast<Undefined|JSPromise>(o: Object): Undefined|JSPromise labels CastError {
+  typeswitch (o) {
+    case (o: Undefined): {
+      return o;
+    }
+    case (o: JSPromise): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
 Cast<Smi|PromiseReaction>(o: Object): Smi|PromiseReaction labels CastError {
   typeswitch (o) {
     case (o: Smi): {

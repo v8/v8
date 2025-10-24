@@ -389,12 +389,12 @@ class V8_NODISCARD AsyncWaiterQueueNode final : public WaiterQueueNode {
         GetWeakGlobal(requester, Utils::ToLocal(requester->native_context()));
     synchronization_primitive_ = GetWeakGlobal(
         requester, Utils::ToLocal(Cast<JSObject>(synchronization_primitive)));
-    internal_waiting_promise_ = GetWeakGlobal(
-        requester, Utils::PromiseToLocal(internal_waiting_promise));
+    internal_waiting_promise_ =
+        GetWeakGlobal(requester, Utils::ToLocal(internal_waiting_promise));
     if (!unlocked_promise.is_null()) {
       DCHECK(IsJSAtomicsMutex(*synchronization_primitive));
       unlocked_promise_ = GetWeakGlobal(
-          requester, Utils::PromiseToLocal(unlocked_promise.ToHandleChecked()));
+          requester, Utils::ToLocal(unlocked_promise.ToHandleChecked()));
     }
   }
 

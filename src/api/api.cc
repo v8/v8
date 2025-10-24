@@ -8542,14 +8542,18 @@ MaybeLocal<Promise> Promise::Catch(Local<Context> context,
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Promise_Catch};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
+  i::Handle<i::JSPromise> return_promise = i_isolate->factory()->NewJSPromise();
   i::DirectHandle<i::Object> args[] = {i_isolate->factory()->undefined_value(),
-                                       Utils::OpenDirectHandle(*handler)};
+                                       Utils::OpenDirectHandle(*handler),
+                                       return_promise};
   // Do not call the built-in Promise.prototype.catch!
   // v8::Promise should not call out to a monkeypatched Promise.prototype.then
   // as the implementation of Promise.prototype.catch does.
-  return api_scope.EscapeMaybe(
-      MaybeLocal<Promise>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->promise_then(), self, base::VectorOf(args)))));
+  auto result = Utils::ToMaybeLocal(
+      i::Execution::CallBuiltin(i_isolate, i_isolate->perform_promise_then(),
+                                self, base::VectorOf(args)));
+  if (result.IsEmpty()) return {};
+  return api_scope.Escape(Utils::ToLocal(return_promise));
 }
 
 MaybeLocal<Promise> Promise::Then(Local<Context> context,
@@ -8557,10 +8561,18 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Promise_Then};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
-  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*handler)};
-  return api_scope.EscapeMaybe(
-      MaybeLocal<Promise>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->promise_then(), self, base::VectorOf(args)))));
+  i::Handle<i::JSPromise> return_promise = i_isolate->factory()->NewJSPromise();
+  i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*handler),
+                                       i_isolate->factory()->undefined_value(),
+                                       return_promise};
+  // Do not call the built-in Promise.prototype.then!
+  // v8::Promise should not trigger species lookup on a monkeypatched Promise
+  // as the implementation of Promise.prototype.then does.
+  auto result = Utils::ToMaybeLocal(
+      i::Execution::CallBuiltin(i_isolate, i_isolate->perform_promise_then(),
+                                self, base::VectorOf(args)));
+  if (result.IsEmpty()) return {};
+  return api_scope.Escape(Utils::ToLocal(return_promise));
 }
 
 MaybeLocal<Promise> Promise::Then(Local<Context> context,
@@ -8569,11 +8581,18 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
   PrepareForExecutionScope api_scope{context, RCCId::kAPI_Promise_Then};
   i::Isolate* i_isolate = api_scope.i_isolate();
   auto self = Utils::OpenDirectHandle(this);
+  i::Handle<i::JSPromise> return_promise = i_isolate->factory()->NewJSPromise();
   i::DirectHandle<i::Object> args[] = {Utils::OpenDirectHandle(*on_fulfilled),
-                                       Utils::OpenDirectHandle(*on_rejected)};
-  return api_scope.EscapeMaybe(
-      MaybeLocal<Promise>::Cast(Utils::ToMaybeLocal(i::Execution::CallBuiltin(
-          i_isolate, i_isolate->promise_then(), self, base::VectorOf(args)))));
+                                       Utils::OpenDirectHandle(*on_rejected),
+                                       return_promise};
+  // Do not call the built-in Promise.prototype.then!
+  // v8::Promise should not trigger species lookup on a monkeypatched Promise
+  // as the implementation of Promise.prototype.then does.
+  auto result = Utils::ToMaybeLocal(
+      i::Execution::CallBuiltin(i_isolate, i_isolate->perform_promise_then(),
+                                self, base::VectorOf(args)));
+  if (result.IsEmpty()) return {};
+  return api_scope.Escape(Utils::ToLocal(return_promise));
 }
 
 bool Promise::HasHandler() const {
