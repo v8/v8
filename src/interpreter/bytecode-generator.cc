@@ -2423,6 +2423,7 @@ void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
       if (first_idx == -1) {
         first_idx = idx;
       }
+      AddToEagerLiteralsIfEager(func);
     }
   }
 
