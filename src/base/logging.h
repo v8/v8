@@ -108,6 +108,11 @@ enum class OOMType {
 // A variant of Fatal that makes it clear that the failure does not have any
 // security impact. This is useful for automatic vulnerability discover systems
 // (e.g. fuzzers) to ignore or discard such crashes.
+//
+// USE WITH CARE! Using this function means that fuzzers will *not* report
+// situations in which the function is reached. Legitimate use cases include
+// expected crashes due to misconfigurations (e.g. invalid runtime flags) or
+// invalid use of (debug-only) runtime functions exposed to JS.
 [[noreturn]] V8_BASE_EXPORT void FatalNoSecurityImpact(const char* format, ...);
 
 // In official builds, assume all check failures can be debugged given just the
