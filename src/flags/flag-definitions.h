@@ -2929,6 +2929,12 @@ DEFINE_BOOL(heap_profiler_use_embedder_graph, true,
             "Use the new EmbedderGraph API to get embedder nodes")
 DEFINE_BOOL(heap_snapshot_on_oom, false,
             "Write a heap snapshot to disk on last-resort GCs")
+DEFINE_STRING(heap_snapshot_path, nullptr,
+              "Directory to write heap snapshots to. (If not set, "
+              "the snapshot is written to the current working directory.)")
+// Fuzzing should not set a potentially invalid path.
+DEFINE_VALUE_IMPLICATION(fuzzing, heap_snapshot_path,
+                         static_cast<const char*>(nullptr))
 DEFINE_INT(heap_snapshot_on_gc, -1,
            "Write a heap snapshot to disk on a certain GC invocation")
 DEFINE_UINT(heap_snapshot_string_limit, 1024,
