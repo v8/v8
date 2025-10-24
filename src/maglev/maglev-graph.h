@@ -24,7 +24,8 @@ using BlockConstReverseIterator =
 struct MaglevCallSiteInfo;
 class MaglevCallSiteInfoCompare {
  public:
-  bool operator()(const MaglevCallSiteInfo*, const MaglevCallSiteInfo*);
+  V8_EXPORT_PRIVATE bool operator()(const MaglevCallSiteInfo*,
+                                    const MaglevCallSiteInfo*);
 };
 using MaglevCallSiteCandidates =
     ZonePriorityQueue<MaglevCallSiteInfo*, MaglevCallSiteInfoCompare>;
