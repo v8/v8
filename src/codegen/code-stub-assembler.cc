@@ -17459,6 +17459,8 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
     TNode<Smi> length = LoadFastJSArrayLength(iterated_array);
     TNode<Number> current_index = LoadObjectField<Number>(
         array_iterator, JSArrayIterator::kNextIndexOffset);
+    GotoIf(TaggedIsNotSmi(current_index), &reach_end);
+
     TNode<Smi> smi_index = CAST(current_index);
     GotoIf(SmiGreaterThanOrEqual(smi_index, length), &reach_end);
 
