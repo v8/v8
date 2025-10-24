@@ -722,6 +722,14 @@ class CompilationStateImpl {
 
   std::vector<WasmCode*> PublishCode(base::Vector<UnpublishedWasmCode> codes);
 
+  // TODO(clemensb): Remove when https://crbug.com/452200374 is resolved.
+  V8_NOINLINE void CheckNativeModule(NativeModule* native_module) const {
+    CHECK_EQ(native_module, native_module_);
+    std::shared_ptr<NativeModule> shared = native_module_weak_.lock();
+    CHECK_NOT_NULL(shared);
+    CHECK_EQ(native_module, shared.get());
+  }
+
  private:
   // Trigger callbacks according to the internal counters below
   // (outstanding_...).
@@ -3098,6 +3106,7 @@ class AsyncCompileJob::PrepareNativeModule : public CompileStep {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
 
     const bool streaming = job->wire_bytes_.length() == 0;
+    const void* expected_module_ptr_for_checks_below = module_.get();
     if (streaming) {
       // Streaming compilation already checked for cache hits.
       job->CreateNativeModule(module_, code_size_estimate_);
@@ -3138,6 +3147,26 @@ class AsyncCompileJob::PrepareNativeModule : public CompileStep {
       constexpr ProfileInformation* kNoProfileInformation = nullptr;
       std::unique_ptr<CompilationUnitBuilder> builder = InitializeCompilation(
           job->native_module_.get(), kNoProfileInformation);
+
+      // See https://crbug.com/452200374:
+      // We see crashes inside `InitializeCompilationUnits` when calling
+      // `NativeModule::module()` on the `native_module_` in
+      // `compilation_state`.
+      // The native module is held alive via the shared ptr in
+      // `job->native_module_` though, so it's unclear what's going wrong there.
+      // The following CHECKs are for debugging this further and will be removed
+      // when the issue is resolved.
+      CHECK_NOT_NULL(job->native_module_);
+      // Note: Holding this shared_ptr *could* make the bug disappear, but
+      // actually the same shared_ptr should be held in job->native_module_
+      // already throughout the execution of this method.
+      std::shared_ptr<NativeModule> explicit_native_module{job->native_module_};
+      CHECK_NOT_NULL(explicit_native_module);
+      CHECK_NOT_NULL(explicit_native_module->module());
+      CHECK_EQ(explicit_native_module->module(),
+               expected_module_ptr_for_checks_below);
+      compilation_state->CheckNativeModule(explicit_native_module.get());
+
       compilation_state->InitializeCompilationUnits(std::move(builder));
       // In single-threaded mode there are no worker tasks that will do the
       // compilation. We call {WaitForCompilationEvent} here so that the current
