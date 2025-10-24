@@ -414,7 +414,6 @@ v8_source_set("v8_unittests_sources") {
     "logging/counters-unittest.cc",
     "logging/log-unittest.cc",
     "maglev/maglev-assembler-unittest.cc",
-    "maglev/maglev-graph-builder-unittest.cc",
     "maglev/maglev-test.cc",
     "maglev/maglev-test.h",
     "maglev/node-type-unittest.cc",

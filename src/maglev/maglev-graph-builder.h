@@ -96,11 +96,12 @@ class MaglevGraphBuilder {
     int result_size_;
   };
 
-  V8_EXPORT_PRIVATE explicit MaglevGraphBuilder(
-      LocalIsolate* local_isolate, MaglevCompilationUnit* compilation_unit,
-      Graph* graph, MaglevCallerDetails* caller_details = nullptr);
+  explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
+                              MaglevCompilationUnit* compilation_unit,
+                              Graph* graph,
+                              MaglevCallerDetails* caller_details = nullptr);
 
-  V8_EXPORT_PRIVATE bool Build();
+  bool Build();
 
   ReduceResult BuildInlineFunction(SourcePosition call_site_position,
                                    ValueNode* context, ValueNode* function,
