@@ -758,8 +758,12 @@ TEST(TestJSWeakRef) {
 }
 
 TEST(TestJSWeakRefMinorGC) {
+  // This test assumes objects reside in the young generation, so that minor GCs
+  // can handle them. If scavenger chaos mode is enabled, object may randomly
+  // move to the old generation, which will make the test fail.
   if (v8_flags.single_generation ||
-      !v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+      !v8_flags.handle_weak_ref_weakly_in_minor_gc ||
+      v8_flags.scavenger_chaos_mode) {
     return;
   }
   ManualGCScope manual_gc_scope;
