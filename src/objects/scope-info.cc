@@ -51,8 +51,9 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
   for (int index = 0; index < length(); ++index) {
     if (out_last_checked_field) *out_last_checked_field = index;
     if (index == kFlags) continue;
-    if (is_live_edit_compare && index >= kPositionInfoStart &&
-        index <= kPositionInfoEnd) {
+    if (is_live_edit_compare &&
+        ((index >= kPositionInfoStart && index <= kPositionInfoEnd) ||
+         index == InferredFunctionNameIndex())) {
       continue;
     }
     Tagged<Object> entry = get(index);
