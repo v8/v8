@@ -6,10 +6,19 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
+#include "include/v8-callbacks.h"
+#include "include/v8-initialization.h"
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
 #include "src/common/globals.h"
@@ -35,6 +44,7 @@
 #include "src/sandbox/external-pointer-table.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -1120,6 +1130,243 @@ TEST_F(HeapTest,
   ConservativePinningScopeScavengeRetainsObjectReachableFromStack(
       this, AllocationType::kOld,
       [this](Tagged<String> object) { InvokeMajorGC(); });
+}
+
+namespace {
+using v8::CrashKey;
+using v8::CrashKeySize;
+using v8::OOMDetails;
+
+class CrashKeyStore {
+ public:
+  explicit CrashKeyStore(Isolate* isolate) : isolate_(isolate) {
+    InstallCallbacks();
+  }
+
+  CrashKeyStore(const CrashKeyStore&) = delete;
+  CrashKeyStore& operator=(const CrashKeyStore&) = delete;
+
+  ~CrashKeyStore() { isolate_->SetCrashKeyStringCallbacks({}, {}); }
+
+  const std::string& ValueForKey(const std::string& name) const {
+    auto it = entries_.find(name);
+    CHECK(it != entries_.end());
+    CHECK_NOT_NULL(it->second.get());
+    return it->second->value;
+  }
+
+  bool HasKey(const std::string& name) const {
+    return entries_.find(name) != entries_.end();
+  }
+
+  size_t size() const { return entries_.size(); }
+
+  std::unordered_set<std::string> KeyNames() const {
+    std::unordered_set<std::string> names;
+    names.reserve(entries_.size());
+    for (const auto& [name, unused] : entries_) {
+      static_cast<void>(unused);
+      names.insert(name);
+    }
+    return names;
+  }
+
+ private:
+  struct Entry {
+    CrashKeySize size;
+    std::string value;
+  };
+
+  void InstallCallbacks() {
+    isolate_->SetCrashKeyStringCallbacks(
+        [this](const char key[], CrashKeySize size) {
+          return AllocateKey(key, size);
+        },
+        [this](CrashKey crash_key, const std::string_view value) {
+          SetValue(crash_key, value);
+        });
+  }
+
+  CrashKey AllocateKey(const char key[], CrashKeySize size) {
+    auto [it, inserted] = entries_.emplace(key, nullptr);
+    if (inserted || it->second == nullptr) {
+      it->second = std::make_unique<Entry>();
+    }
+    Entry* entry_ptr = it->second.get();
+    entry_ptr->size = size;
+    entry_ptr->value.clear();
+    return static_cast<CrashKey>(entry_ptr);
+  }
+
+  void SetValue(CrashKey crash_key, const std::string_view value) {
+    auto* entry = static_cast<Entry*>(crash_key);
+    bool found = false;
+    for (const auto& [name, entry_holder] : entries_) {
+      if (entry_holder.get() == entry) {
+        found = true;
+        break;
+      }
+    }
+    CHECK(found);
+    entry->value.assign(value.begin(), value.end());
+  }
+
+  Isolate* isolate_;
+  std::unordered_map<std::string, std::unique_ptr<Entry>> entries_;
+};
+}  // anonymous namespace
+
+TEST_F(HeapTest, ReportStatsAsCrashKeys) {
+  CrashKeyStore crash_key_store(i_isolate());
+
+  HeapStats stats;
+  auto next_value = [value = size_t{1}]() mutable { return value++; };
+  stats.ro_space_size = next_value();
+  stats.ro_space_capacity = next_value();
+  stats.new_space_size = next_value();
+  stats.new_space_capacity = next_value();
+  stats.old_space_size = next_value();
+  stats.old_space_capacity = next_value();
+  stats.code_space_size = next_value();
+  stats.code_space_capacity = next_value();
+  stats.map_space_size = next_value();
+  stats.map_space_capacity = next_value();
+  stats.lo_space_size = next_value();
+  stats.code_lo_space_size = next_value();
+  stats.global_handle_count = next_value();
+  stats.weak_global_handle_count = next_value();
+  stats.pending_global_handle_count = next_value();
+  stats.near_death_global_handle_count = next_value();
+  stats.free_global_handle_count = next_value();
+  stats.memory_allocator_size = next_value();
+  stats.memory_allocator_capacity = next_value();
+  stats.malloced_memory = next_value();
+  stats.malloced_peak_memory = next_value();
+  stats.last_os_error = next_value();
+
+  stats.main_cage.start = 0x1000;
+  stats.main_cage.size = next_value();
+  stats.main_cage.free_size = next_value();
+  stats.main_cage.largest_free_region = next_value();
+  stats.main_cage.last_allocation_status = next_value();
+
+  stats.trusted_cage.start = 0x2000;
+  stats.trusted_cage.size = next_value();
+  stats.trusted_cage.free_size = next_value();
+  stats.trusted_cage.largest_free_region = next_value();
+  stats.trusted_cage.last_allocation_status = next_value();
+
+  stats.code_cage.start = 0x3000;
+  stats.code_cage.size = next_value();
+  stats.code_cage.free_size = next_value();
+  stats.code_cage.largest_free_region = next_value();
+  stats.code_cage.last_allocation_status = next_value();
+
+  constexpr char kMessages[] = "Last GC: minor; reason: testing";
+  std::strncpy(stats.last_few_messages, kMessages,
+               sizeof(stats.last_few_messages) - 1);
+  stats.last_few_messages[sizeof(stats.last_few_messages) - 1] = '\0';
+
+  heap()->ReportStatsAsCrashKeys(stats);
+  auto remaining_keys = crash_key_store.KeyNames();
+
+  const std::vector<std::pair<std::string, size_t>> expected_size_fields = {
+      {"v8-oom-ro-space-size", stats.ro_space_size},
+      {"v8-oom-ro-space-capacity", stats.ro_space_capacity},
+      {"v8-oom-new-space-size", stats.new_space_size},
+      {"v8-oom-new-space-capacity", stats.new_space_capacity},
+      {"v8-oom-old-space-size", stats.old_space_size},
+      {"v8-oom-old-space-capacity", stats.old_space_capacity},
+      {"v8-oom-code-space-size", stats.code_space_size},
+      {"v8-oom-code-space-capacity", stats.code_space_capacity},
+      {"v8-oom-map-space-size", stats.map_space_size},
+      {"v8-oom-map-space-capacity", stats.map_space_capacity},
+      {"v8-oom-lo-space-size", stats.lo_space_size},
+      {"v8-oom-code-lo-space-size", stats.code_lo_space_size},
+      {"v8-oom-global-handle-count", stats.global_handle_count},
+      {"v8-oom-weak-global-handle-count", stats.weak_global_handle_count},
+      {"v8-oom-pending-global-handle-count", stats.pending_global_handle_count},
+      {"v8-oom-near-death-global-handle-count",
+       stats.near_death_global_handle_count},
+      {"v8-oom-free-global-handle-count", stats.free_global_handle_count},
+      {"v8-oom-memory-allocator-size", stats.memory_allocator_size},
+      {"v8-oom-memory-allocator-capacity", stats.memory_allocator_capacity},
+      {"v8-oom-malloced-memory", stats.malloced_memory},
+      {"v8-oom-malloced-peak-memory", stats.malloced_peak_memory},
+      {"v8-oom-last-os-error", stats.last_os_error},
+  };
+
+  for (const auto& [key, value] : expected_size_fields) {
+    EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
+    EXPECT_EQ(std::to_string(value), crash_key_store.ValueForKey(key)) << key;
+    remaining_keys.erase(key);
+  }
+
+  const std::vector<std::pair<std::string, size_t>> expected_cage_fields = {
+      {"v8-oom-main-cage-size", stats.main_cage.size},
+      {"v8-oom-main-cage-free-size", stats.main_cage.free_size},
+      {"v8-oom-main-cage-largest-free-region",
+       stats.main_cage.largest_free_region},
+      {"v8-oom-main-cage-last-allocation-status",
+       stats.main_cage.last_allocation_status},
+      {"v8-oom-trusted-cage-size", stats.trusted_cage.size},
+      {"v8-oom-trusted-cage-free-size", stats.trusted_cage.free_size},
+      {"v8-oom-trusted-cage-largest-free-region",
+       stats.trusted_cage.largest_free_region},
+      {"v8-oom-trusted-cage-last-allocation-status",
+       stats.trusted_cage.last_allocation_status},
+      {"v8-oom-code-cage-size", stats.code_cage.size},
+      {"v8-oom-code-cage-free-size", stats.code_cage.free_size},
+      {"v8-oom-code-cage-largest-free-region",
+       stats.code_cage.largest_free_region},
+      {"v8-oom-code-cage-last-allocation-status",
+       stats.code_cage.last_allocation_status},
+  };
+
+  for (const auto& [key, value] : expected_cage_fields) {
+    EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
+    EXPECT_EQ(std::to_string(value), crash_key_store.ValueForKey(key)) << key;
+    remaining_keys.erase(key);
+  }
+
+  const std::vector<std::pair<std::string, std::string>>
+      expected_string_fields = {{"v8-oom-main-cage-start", "0x1000"},
+                                {"v8-oom-trusted-cage-start", "0x2000"},
+                                {"v8-oom-code-cage-start", "0x3000"},
+                                {"v8-oom-last-few-messages", kMessages}};
+
+  for (const auto& [key, expected] : expected_string_fields) {
+    EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
+    EXPECT_EQ(expected, crash_key_store.ValueForKey(key)) << key;
+    remaining_keys.erase(key);
+  }
+
+  EXPECT_THAT(remaining_keys, ::testing::IsEmpty());
+}
+
+namespace {
+CrashKeyStore* g_crash_key_store_for_oom = nullptr;
+
+void FatalMemoryErrorCallbackForTest(const char* location,
+                                     const OOMDetails& details) {
+  static_cast<void>(location);
+  static_cast<void>(details);
+  CHECK_NOT_NULL(g_crash_key_store_for_oom);
+  CHECK_GT(g_crash_key_store_for_oom->size(), 0u);
+  g_crash_key_store_for_oom = nullptr;
+  std::abort();
+}
+}  // anonymous namespace
+
+TEST_F(HeapTest, CheckCrashKeysAreReportedInOOM) {
+  CrashKeyStore crash_key_store(i_isolate());
+  g_crash_key_store_for_oom = &crash_key_store;
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        v8::V8::SetFatalMemoryErrorCallback(FatalMemoryErrorCallbackForTest);
+        heap()->FatalProcessOutOfMemory("CheckCrashKeysAreReportedInOOM");
+      },
+      "");
 }
 
 }  // namespace internal

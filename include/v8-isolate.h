@@ -1493,6 +1493,13 @@ class V8_EXPORT Isolate {
   void SetAddCrashKeyCallback(AddCrashKeyCallback);
 
   /**
+   * Enables the host application to provide a mechanism for allocating a new
+   * crash key and setting/updating values for them.
+   */
+  void SetCrashKeyStringCallbacks(AllocateCrashKeyStringCallback,
+                                  SetCrashKeyStringCallback);
+
+  /**
    * Optional notification that the system is running low on memory.
    * V8 uses these notifications to attempt to free memory.
    */

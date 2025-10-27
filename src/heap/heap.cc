@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "include/v8-callbacks.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
@@ -2468,10 +2469,11 @@ bool Heap::CollectGarbageShared(LocalHeap* local_heap,
     shared_space_isolate->heap()->CollectAllGarbage(
         current_gc_flags_, gc_reason, current_gc_callback_flags_);
     return true;
-  } else
+  } else {
     return shared_space_isolate->heap()
         ->TriggerAndWaitForGCFromBackgroundThread(local_heap,
                                                   RequestedGCKind::kMajor);
+  }
 }
 
 bool Heap::TriggerAndWaitForGCFromBackgroundThread(LocalHeap* local_heap,
@@ -5470,7 +5472,7 @@ void Heap::RecordStats(HeapStats* stats) {
   stats->memory_allocator_size = memory_allocator()->Size();
   stats->memory_allocator_capacity =
       memory_allocator()->Size() + memory_allocator()->Available();
-  stats->os_error = base::OS::GetLastError();
+  stats->last_os_error = base::OS::GetLastError();
   stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage() +
                            isolate_->string_table()->GetCurrentMemoryUsage();
 #if V8_COMPRESS_POINTERS
@@ -5509,6 +5511,87 @@ size_t Heap::OldGenerationSizeOfObjects() const {
   total += trusted_space()->SizeOfObjects();
   total += trusted_lo_space()->SizeOfObjects();
   return total;
+}
+
+namespace {
+constexpr char kCrashKeyPrefix[] = "v8-oom-";
+constexpr size_t kCrashKeyPrefixLen = sizeof(kCrashKeyPrefix) - 1;
+
+// Turn a field name like `last_few_messages` into the crash key
+// `v8-oom-last-few-messages`. The result needs to be static because of the
+// CrashKey API.
+template <size_t N>
+consteval std::array<char, kCrashKeyPrefixLen + N> BuildCrashKeyName(
+    const char (&name)[N]) {
+  std::array<char, kCrashKeyPrefixLen + N> data{};
+  for (size_t i = 0; i < kCrashKeyPrefixLen; ++i) data[i] = kCrashKeyPrefix[i];
+  for (size_t i = 0; i < N; ++i) {
+    char c = name[i];
+    data[kCrashKeyPrefixLen + i] = (c == '_') ? '-' : c;
+  }
+  return data;
+}
+}  // anonymous namespace
+
+void Heap::ReportStatsAsCrashKeys(const HeapStats& heap_stats) {
+  if (!isolate()->HasCrashKeyStringCallbacks()) {
+    return;
+  }
+
+  auto add_sizet_crash_key = [isolate = isolate()](const char key[],
+                                                   size_t value) {
+    constexpr size_t kBufferSize = 32;
+    static char buffer[kBufferSize];
+    size_t len = std::snprintf(buffer, kBufferSize, "%zu", value);
+    isolate->AddCrashKeyString(key, CrashKeySize::Size32,
+                               std::string_view(buffer, len));
+  };
+
+  auto add_sizet_crash_key_hex = [isolate = isolate()](const char key[],
+                                                       size_t value) {
+    constexpr size_t kBufferSize = 32;
+    static char buffer[kBufferSize];
+    size_t len = std::snprintf(buffer, kBufferSize, "0x%zx", value);
+    isolate->AddCrashKeyString(key, CrashKeySize::Size32,
+                               std::string_view(buffer, len));
+  };
+
+#define ADD_SIZET_FIELD_HEX(key, value)                          \
+  static constexpr auto name_of_##key = BuildCrashKeyName(#key); \
+  add_sizet_crash_key_hex(name_of_##key.data(), value);
+
+#define ADD_SIZET_FIELD(key, value)                              \
+  static constexpr auto name_of_##key = BuildCrashKeyName(#key); \
+  add_sizet_crash_key(name_of_##key.data(), value);
+
+#define ADD_HEAP_STATS_SIZET_FIELD(key) ADD_SIZET_FIELD(key, heap_stats.key)
+  HEAP_STATS_SIZET_FIELDS(ADD_HEAP_STATS_SIZET_FIELD)
+
+#undef ADD_HEAP_STATS_SIZET_FIELD
+
+#define ADD_CAGE_FIELDS(cage)                                  \
+  ADD_SIZET_FIELD_HEX(cage##_start, heap_stats.cage.start)     \
+  ADD_SIZET_FIELD(cage##_size, heap_stats.cage.size)           \
+  ADD_SIZET_FIELD(cage##_free_size, heap_stats.cage.free_size) \
+  ADD_SIZET_FIELD(cage##_largest_free_region,                  \
+                  heap_stats.cage.largest_free_region)         \
+  ADD_SIZET_FIELD(cage##_last_allocation_status,               \
+                  heap_stats.cage.last_allocation_status)
+
+  ADD_CAGE_FIELDS(main_cage);
+  ADD_CAGE_FIELDS(trusted_cage);
+  ADD_CAGE_FIELDS(code_cage);
+
+#undef ADD_CAGE_SIZET_FIELD
+#undef ADD_CAGE_SIZET_FIELD_HEX
+#undef ADD_CAGE_FIELDS
+
+  static constexpr auto name_of_last_few_messages =
+      BuildCrashKeyName("last_few_messages");
+  std::string_view last_few_messages(heap_stats.last_few_messages,
+                                     std::strlen(heap_stats.last_few_messages));
+  isolate()->AddCrashKeyString(name_of_last_few_messages.data(),
+                               CrashKeySize::Size1024, last_few_messages);
 }
 
 size_t Heap::OldGenerationWastedBytes() const {

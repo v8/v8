@@ -2024,6 +2024,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     }
   }
 
+  v8::CrashKey AddCrashKeyString(const char key[], CrashKeySize size,
+                                 std::string_view value);
+  void SetCrashKeyString(CrashKey crash_key, std::string_view value);
+
+  void SetCrashKeyStringCallbacks(
+      AllocateCrashKeyStringCallback allocate_callback,
+      SetCrashKeyStringCallback set_callback);
+
+  bool HasCrashKeyStringCallbacks();
+
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
   // Specifies the callback called when an ETW tracing session starts.
 
@@ -2905,6 +2915,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // predefined set of data as crash keys to be used in postmortem debugging
   // in case of a crash.
   AddCrashKeyCallback add_crash_key_callback_ = nullptr;
+
+  AllocateCrashKeyStringCallback allocate_crash_key_string_callback_;
+  SetCrashKeyStringCallback set_crash_key_string_callback_;
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
   compiler::turboshaft::WasmRevecVerifier* wasm_revec_verifier_for_test_ =

@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "include/v8-callbacks.h"
 #include "include/v8-template.h"
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api-inl.h"
@@ -7062,6 +7063,32 @@ void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
 
   // Log the initial set of data.
   AddCrashKeysForIsolateAndHeapPointers();
+}
+
+void Isolate::SetCrashKeyStringCallbacks(
+    AllocateCrashKeyStringCallback allocate_callback,
+    SetCrashKeyStringCallback set_callback) {
+  allocate_crash_key_string_callback_ = allocate_callback;
+  set_crash_key_string_callback_ = set_callback;
+}
+
+bool Isolate::HasCrashKeyStringCallbacks() {
+  DCHECK_EQ(static_cast<bool>(allocate_crash_key_string_callback_),
+            static_cast<bool>(set_crash_key_string_callback_));
+  return static_cast<bool>(allocate_crash_key_string_callback_);
+}
+
+CrashKey Isolate::AddCrashKeyString(const char key[], CrashKeySize size,
+                                    std::string_view value) {
+  CHECK(HasCrashKeyStringCallbacks());
+  CrashKey crash_key = allocate_crash_key_string_callback_(key, size);
+  set_crash_key_string_callback_(crash_key, value);
+  return crash_key;
+}
+
+void Isolate::SetCrashKeyString(CrashKey key, std::string_view value) {
+  if (!set_crash_key_string_callback_) return;
+  set_crash_key_string_callback_(key, value);
 }
 
 void Isolate::SetReleaseCppHeapCallback(

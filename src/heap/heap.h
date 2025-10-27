@@ -628,6 +628,7 @@ class Heap final {
 #endif  // DEBUG
 
   void RecordStats(HeapStats* stats);
+  V8_EXPORT_PRIVATE void ReportStatsAsCrashKeys(const HeapStats& heap_stats);
 
   bool MeasureMemory(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
                      v8::MeasureMemoryExecution execution);
@@ -2642,6 +2643,32 @@ class CodeCageStats {
   size_t last_allocation_status = 0;
 };
 
+#define HEAP_STATS_SIZET_FIELDS(V)  \
+  V(ro_space_size)                  \
+  V(ro_space_capacity)              \
+  V(new_space_size)                 \
+  V(new_space_capacity)             \
+  V(old_space_size)                 \
+  V(old_space_capacity)             \
+  V(code_space_size)                \
+  V(code_space_capacity)            \
+  V(map_space_size)                 \
+  V(map_space_capacity)             \
+  V(lo_space_size)                  \
+  V(code_lo_space_size)             \
+  V(global_handle_count)            \
+  V(weak_global_handle_count)       \
+  V(pending_global_handle_count)    \
+  V(near_death_global_handle_count) \
+  V(free_global_handle_count)       \
+  V(memory_allocator_size)          \
+  V(memory_allocator_capacity)      \
+  V(malloced_memory)                \
+  V(malloced_peak_memory)           \
+  V(last_os_error)
+
+#define DEFINE_HEAP_STATS_SIZET_FIELD(name) size_t name = 0;
+
 // When changing any of these fields please also update cs/crash::ReadHeapStats.
 class HeapStats {
  public:
@@ -2649,36 +2676,15 @@ class HeapStats {
   static const int kEndMarker = 0xDECADE01;
 
   intptr_t start_marker = 0;
-  size_t ro_space_size = 0;
-  size_t ro_space_capacity = 0;
-  size_t new_space_size = 0;
-  size_t new_space_capacity = 0;
-  size_t old_space_size = 0;
-  size_t old_space_capacity = 0;
-  size_t code_space_size = 0;
-  size_t code_space_capacity = 0;
-  size_t map_space_size = 0;
-  size_t map_space_capacity = 0;
-  size_t lo_space_size = 0;
-  size_t code_lo_space_size = 0;
-  size_t global_handle_count = 0;
-  size_t weak_global_handle_count = 0;
-  size_t pending_global_handle_count = 0;
-  size_t near_death_global_handle_count = 0;
-  size_t free_global_handle_count = 0;
-  size_t memory_allocator_size = 0;
-  size_t memory_allocator_capacity = 0;
-  size_t malloced_memory = 0;
-  size_t malloced_peak_memory = 0;
-  size_t objects_per_type = 0;
-  size_t size_per_type = 0;
+  HEAP_STATS_SIZET_FIELDS(DEFINE_HEAP_STATS_SIZET_FIELD)
   CodeCageStats main_cage;
   CodeCageStats trusted_cage;
   CodeCageStats code_cage;
-  int os_error = 0;
   char last_few_messages[Heap::kTraceRingBufferSize + 1] = {0};
   intptr_t end_marker = 0;
 };
+
+#undef DEFINE_HEAP_STATS_SIZET_FIELD
 
 // Disables GC for all allocations. It should not be used
 // outside heap, deserializer, and isolate bootstrap.
