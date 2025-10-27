@@ -389,6 +389,66 @@ void GrowNewSpaceToMaximumCapacity(Heap* heap) {
   heap->new_space()->GrowToMaximumCapacityForTesting();
 }
 
+class MockTaskRunner : public v8::TaskRunner {
+ public:
+  void PostTaskImpl(std::unique_ptr<v8::Task> task,
+                    const SourceLocation& location) override {
+    task_ = std::move(task);
+  }
+
+  void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
+                               const SourceLocation& location) override {
+    PostTask(std::move(task));
+  }
+
+  void PostDelayedTaskImpl(std::unique_ptr<Task> task, double delay_in_seconds,
+                           const SourceLocation& location) override {
+    delay_ = delay_in_seconds;
+    PostTask(std::move(task));
+  }
+
+  void PostNonNestableDelayedTaskImpl(std::unique_ptr<Task> task,
+                                      double delay_in_seconds,
+                                      const SourceLocation& location) override {
+    PostDelayedTaskImpl(std::move(task), delay_in_seconds, location);
+  }
+
+  void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                        const SourceLocation& location) override {
+    UNREACHABLE();
+  }
+
+  bool IdleTasksEnabled() override { return false; }
+  bool NonNestableTasksEnabled() const override { return true; }
+  bool NonNestableDelayedTasksEnabled() const override { return true; }
+
+  bool PendingTask() { return task_ != nullptr; }
+
+  double Delay() { return delay_; }
+
+  void PerformTask() {
+    std::unique_ptr<Task> task = std::move(task_);
+    task->Run();
+  }
+
+ private:
+  double delay_ = -1;
+  std::unique_ptr<Task> task_;
+};
+
+MockPlatform::MockPlatform() : taskrunner_(new MockTaskRunner()) {}
+
+std::shared_ptr<v8::TaskRunner> MockPlatform::GetForegroundTaskRunner(
+    v8::Isolate* isolate, v8::TaskPriority) {
+  return taskrunner_;
+}
+
+bool MockPlatform::PendingTask() { return taskrunner_->PendingTask(); }
+
+void MockPlatform::PerformTask() { taskrunner_->PerformTask(); }
+
+double MockPlatform::Delay() { return taskrunner_->Delay(); }
+
 }  // namespace heap
 
 ManualGCScope::ManualGCScope(Isolate* isolate)

@@ -95,6 +95,40 @@ class ManualEvacuationCandidatesSelectionScope {
  private:
 };
 
+class MockTaskRunner;
+class MockPlatform : public TestPlatform {
+ public:
+  MockPlatform();
+  ~MockPlatform() override {
+    for (auto& task : worker_tasks_) {
+      CcTest::default_platform()->PostTaskOnWorkerThread(
+          TaskPriority::kUserVisible, std::move(task));
+    }
+    worker_tasks_.clear();
+  }
+
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate, v8::TaskPriority) override;
+
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override {
+    worker_tasks_.push_back(std::move(task));
+  }
+
+  bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
+
+  bool PendingTask();
+
+  void PerformTask();
+
+  double Delay();
+
+ private:
+  std::shared_ptr<MockTaskRunner> taskrunner_;
+  std::vector<std::unique_ptr<Task>> worker_tasks_;
+};
+
 }  // namespace heap
 
 // ManualGCScope allows for disabling GC heuristics. This is useful for tests
