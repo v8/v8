@@ -96,7 +96,13 @@ class PropagateTruncationProcessor {
     return ProcessResult::kContinue;
   }
 
-  ProcessResult Process(Identity* node) { return ProcessResult::kContinue; }
+  ProcessResult Process(Identity* node) {
+    return ProcessSingleInputSpecialNode(node);
+  }
+  ProcessResult Process(ReturnedValue* node) {
+    return ProcessSingleInputSpecialNode(node);
+  }
+
   ProcessResult Process(Dead* node) { return ProcessResult::kContinue; }
 
   // TODO(victorgomes): We can only truncate CheckedHoleyFloat64ToInt32
@@ -130,16 +136,20 @@ class PropagateTruncationProcessor {
       return UnsetCanTruncateToInt32ForFixedInputNodes<NodeT, 0>(node);
     }
 #ifdef DEBUG
-    // Non-fixed input nodes don't expect float64 as inputs, except
-    // ReturnedValue.
-    if constexpr (std::is_same_v<NodeT, ReturnedValue>) {
-      return;
-    }
     for (Input input : node->inputs()) {
-      DCHECK_NE(input.node()->value_representation(),
-                ValueRepresentation::kFloat64);
+      DCHECK(!input.node()->can_truncate_to_int32());
     }
 #endif  // DEBUG
+  }
+
+  ProcessResult ProcessSingleInputSpecialNode(ValueNode* node) {
+    if (!node->can_truncate_to_int32()) {
+      ValueNode* input_node = node->input_node(0);
+      if (input_node->value_representation() != ValueRepresentation::kTagged) {
+        input_node->set_can_truncate_to_int32(false);
+      }
+    }
+    return ProcessResult::kContinue;
   }
 
   void UnsetCanTruncateToInt32ForDeoptFrameInput(ValueNode* node) {
