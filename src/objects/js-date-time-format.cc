@@ -946,8 +946,10 @@ bool CalendarEquals(temporal_rs::AnyCalendarKind kind,
     case HijriTabularTypeIIFriday:
       return other_kind == "islamic-civil" || other_kind == "islamicc" ||
              other_kind == "islamic";
+#ifdef TEMPORAL_CAPI_VERSION_0_1
     case HijriSimulatedMecca:
       return other_kind == "islamic-rgsa" || other_kind == "islamic";
+#endif
     case HijriTabularTypeIIThursday:
       return other_kind == "islamic-tbla" || other_kind == "islamic";
     case HijriUmmAlQura:
