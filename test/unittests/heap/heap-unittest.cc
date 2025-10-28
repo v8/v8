@@ -1242,21 +1242,23 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
   stats.memory_allocator_capacity = next_value();
   stats.malloced_memory = next_value();
   stats.malloced_peak_memory = next_value();
+  stats.isolate_count = next_value();
+  stats.is_main_isolate = true;
   stats.last_os_error = next_value();
 
-  stats.main_cage.start = 0x1000;
+  stats.main_cage.start = HexAddress(0x1000);
   stats.main_cage.size = next_value();
   stats.main_cage.free_size = next_value();
   stats.main_cage.largest_free_region = next_value();
   stats.main_cage.last_allocation_status = next_value();
 
-  stats.trusted_cage.start = 0x2000;
+  stats.trusted_cage.start = HexAddress(0x2000);
   stats.trusted_cage.size = next_value();
   stats.trusted_cage.free_size = next_value();
   stats.trusted_cage.largest_free_region = next_value();
   stats.trusted_cage.last_allocation_status = next_value();
 
-  stats.code_cage.start = 0x3000;
+  stats.code_cage.start = HexAddress(0x3000);
   stats.code_cage.size = next_value();
   stats.code_cage.free_size = next_value();
   stats.code_cage.largest_free_region = next_value();
@@ -1293,6 +1295,7 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
       {"v8-oom-memory-allocator-capacity", stats.memory_allocator_capacity},
       {"v8-oom-malloced-memory", stats.malloced_memory},
       {"v8-oom-malloced-peak-memory", stats.malloced_peak_memory},
+      {"v8-oom-isolate-count", stats.isolate_count},
       {"v8-oom-last-os-error", stats.last_os_error},
   };
 
@@ -1333,6 +1336,7 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
       expected_string_fields = {{"v8-oom-main-cage-start", "0x1000"},
                                 {"v8-oom-trusted-cage-start", "0x2000"},
                                 {"v8-oom-code-cage-start", "0x3000"},
+                                {"v8-oom-is-main-isolate", "true"},
                                 {"v8-oom-last-few-messages", kMessages}};
 
   for (const auto& [key, expected] : expected_string_fields) {

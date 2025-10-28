@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "absl/functional/overload.h"
 #include "include/v8-callbacks.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
@@ -5441,7 +5442,7 @@ void Heap::ConfigureHeapDefault() {
 namespace {
 
 void RecordStatsForCage(VirtualMemoryCage* cage, CodeCageStats* stats) {
-  stats->start = cage->base();
+  stats->start = HexAddress(cage->base());
   stats->size = cage->size();
   base::BoundedPageAllocator::Stats allocator_stats =
       cage->page_allocator()->RecordStats();
@@ -5472,9 +5473,12 @@ void Heap::RecordStats(HeapStats* stats) {
   stats->memory_allocator_size = memory_allocator()->Size();
   stats->memory_allocator_capacity =
       memory_allocator()->Size() + memory_allocator()->Available();
+  stats->isolate_count = isolate_->isolate_group()->GetIsolateCount();
   stats->last_os_error = base::OS::GetLastError();
   stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage() +
                            isolate_->string_table()->GetCurrentMemoryUsage();
+  stats->is_main_isolate =
+      isolate_->isolate_group()->main_isolate() == isolate_;
 #if V8_COMPRESS_POINTERS
   RecordStatsForCage(isolate_->isolate_group()->GetPtrComprCage(),
                      &stats->main_cage);
@@ -5538,60 +5542,62 @@ void Heap::ReportStatsAsCrashKeys(const HeapStats& heap_stats) {
     return;
   }
 
-  auto add_sizet_crash_key = [isolate = isolate()](const char key[],
-                                                   size_t value) {
-    constexpr size_t kBufferSize = 32;
-    static char buffer[kBufferSize];
-    size_t len = std::snprintf(buffer, kBufferSize, "%zu", value);
-    isolate->AddCrashKeyString(key, CrashKeySize::Size32,
-                               std::string_view(buffer, len));
-  };
+  Isolate* isolate = this->isolate();
+  auto add_crash_key = absl::Overload(
+      [isolate](const char* name, const size_t& value) {
+        constexpr size_t kBufferSize = 32;
+        static char buffer[kBufferSize];
+        size_t len = std::snprintf(buffer, kBufferSize, "%zu", value);
+        isolate->AddCrashKeyString(name, CrashKeySize::Size32,
+                                   std::string_view(buffer, len));
+      },
+      [isolate](const char* name, const HexAddress& value) {
+        constexpr size_t kBufferSize = 32;
+        static char buffer[kBufferSize];
+        size_t len = std::snprintf(buffer, kBufferSize, "0x%zx", *value);
+        isolate->AddCrashKeyString(name, CrashKeySize::Size32,
+                                   std::string_view(buffer, len));
+      },
+      [isolate](const char* name, const TraceRingBuffer& value) {
+        std::string_view value_view(value, std::strlen(value));
+        isolate->AddCrashKeyString(name, CrashKeySize::Size1024, value_view);
+      },
+      [isolate](const char* name, bool value) {
+        isolate->AddCrashKeyString(name, CrashKeySize::Size32,
+                                   value ? "true" : "false");
+      },
+      []<typename T>(const char*, const T&) {
+        static_assert(std::is_void_v<T>);
+      });
 
-  auto add_sizet_crash_key_hex = [isolate = isolate()](const char key[],
-                                                       size_t value) {
-    constexpr size_t kBufferSize = 32;
-    static char buffer[kBufferSize];
-    size_t len = std::snprintf(buffer, kBufferSize, "0x%zx", value);
-    isolate->AddCrashKeyString(key, CrashKeySize::Size32,
-                               std::string_view(buffer, len));
-  };
+#define HANDLE_PRIMITIVE_FIELD(name, value)                          \
+  static constexpr auto crash_key_##name = BuildCrashKeyName(#name); \
+  add_crash_key(crash_key_##name.data(), value);
 
-#define ADD_SIZET_FIELD_HEX(key, value)                          \
-  static constexpr auto name_of_##key = BuildCrashKeyName(#key); \
-  add_sizet_crash_key_hex(name_of_##key.data(), value);
+#define HANDLE_CAGE_STATS_FIELD(name, value)                 \
+  HANDLE_PRIMITIVE_FIELD(name##_start, value.start);         \
+  HANDLE_PRIMITIVE_FIELD(name##_size, value.size);           \
+  HANDLE_PRIMITIVE_FIELD(name##_free_size, value.free_size); \
+  HANDLE_PRIMITIVE_FIELD(name##_largest_free_region,         \
+                         value.largest_free_region);         \
+  HANDLE_PRIMITIVE_FIELD(name##_last_allocation_status,      \
+                         value.last_allocation_status);
 
-#define ADD_SIZET_FIELD(key, value)                              \
-  static constexpr auto name_of_##key = BuildCrashKeyName(#key); \
-  add_sizet_crash_key(name_of_##key.data(), value);
-
-#define ADD_HEAP_STATS_SIZET_FIELD(key) ADD_SIZET_FIELD(key, heap_stats.key)
-  HEAP_STATS_SIZET_FIELDS(ADD_HEAP_STATS_SIZET_FIELD)
-
-#undef ADD_HEAP_STATS_SIZET_FIELD
-
-#define ADD_CAGE_FIELDS(cage)                                  \
-  ADD_SIZET_FIELD_HEX(cage##_start, heap_stats.cage.start)     \
-  ADD_SIZET_FIELD(cage##_size, heap_stats.cage.size)           \
-  ADD_SIZET_FIELD(cage##_free_size, heap_stats.cage.free_size) \
-  ADD_SIZET_FIELD(cage##_largest_free_region,                  \
-                  heap_stats.cage.largest_free_region)         \
-  ADD_SIZET_FIELD(cage##_last_allocation_status,               \
-                  heap_stats.cage.last_allocation_status)
-
-  ADD_CAGE_FIELDS(main_cage);
-  ADD_CAGE_FIELDS(trusted_cage);
-  ADD_CAGE_FIELDS(code_cage);
-
-#undef ADD_CAGE_SIZET_FIELD
-#undef ADD_CAGE_SIZET_FIELD_HEX
-#undef ADD_CAGE_FIELDS
-
-  static constexpr auto name_of_last_few_messages =
-      BuildCrashKeyName("last_few_messages");
-  std::string_view last_few_messages(heap_stats.last_few_messages,
-                                     std::strlen(heap_stats.last_few_messages));
-  isolate()->AddCrashKeyString(name_of_last_few_messages.data(),
-                               CrashKeySize::Size1024, last_few_messages);
+#define HANDLE_GENERIC_FIELD(type, name)               \
+  do {                                                 \
+    auto visitor = absl::Overload(                     \
+        [&add_crash_key](const CodeCageStats& value) { \
+          HANDLE_CAGE_STATS_FIELD(name, value)         \
+        },                                             \
+        [&add_crash_key](const auto& value) {          \
+          HANDLE_PRIMITIVE_FIELD(name, value)          \
+        });                                            \
+    visitor(heap_stats.name);                          \
+  } while (false);
+  HEAP_STATS_FIELDS(HANDLE_GENERIC_FIELD);
+#undef HANDLE_GENERIC_FIELD
+#undef HANDLE_CAGE_STATS_FIELD
+#undef HANDLE_PRIMITIVE_FIELD
 }
 
 size_t Heap::OldGenerationWastedBytes() const {

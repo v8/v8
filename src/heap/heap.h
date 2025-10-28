@@ -26,6 +26,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
 #include "src/common/code-memory-access.h"
@@ -2633,41 +2634,55 @@ class Heap final {
 RIGHT_TRIMMABLE_ARRAY_LIST(DECL_RIGHT_TRIM)
 #undef DECL_RIGHT_TRIM
 
+struct HexAddressTag;
+using HexAddress = base::StrongAlias<HexAddressTag, Address>;
+
+#define CAGE_STATS_FIELDS(V)     \
+  V(HexAddress, start)           \
+  V(size_t, size)                \
+  V(size_t, free_size)           \
+  V(size_t, largest_free_region) \
+  V(size_t, last_allocation_status)
+
 // When changing any of these fields please also update cs/crash::ReadHeapStats.
 class CodeCageStats {
  public:
-  size_t start = 0;
-  size_t size = 0;
-  size_t free_size = 0;
-  size_t largest_free_region = 0;
-  size_t last_allocation_status = 0;
+#define DECL_FIELD(type, name) type name = {};
+  CAGE_STATS_FIELDS(DECL_FIELD)
+#undef DECL_FIELD
 };
 
-#define HEAP_STATS_SIZET_FIELDS(V)  \
-  V(ro_space_size)                  \
-  V(ro_space_capacity)              \
-  V(new_space_size)                 \
-  V(new_space_capacity)             \
-  V(old_space_size)                 \
-  V(old_space_capacity)             \
-  V(code_space_size)                \
-  V(code_space_capacity)            \
-  V(map_space_size)                 \
-  V(map_space_capacity)             \
-  V(lo_space_size)                  \
-  V(code_lo_space_size)             \
-  V(global_handle_count)            \
-  V(weak_global_handle_count)       \
-  V(pending_global_handle_count)    \
-  V(near_death_global_handle_count) \
-  V(free_global_handle_count)       \
-  V(memory_allocator_size)          \
-  V(memory_allocator_capacity)      \
-  V(malloced_memory)                \
-  V(malloced_peak_memory)           \
-  V(last_os_error)
+using TraceRingBuffer = char[Heap::kTraceRingBufferSize + 1];
 
-#define DEFINE_HEAP_STATS_SIZET_FIELD(name) size_t name = 0;
+#define HEAP_STATS_FIELDS(V)                \
+  V(size_t, ro_space_size)                  \
+  V(size_t, ro_space_capacity)              \
+  V(size_t, new_space_size)                 \
+  V(size_t, new_space_capacity)             \
+  V(size_t, old_space_size)                 \
+  V(size_t, old_space_capacity)             \
+  V(size_t, code_space_size)                \
+  V(size_t, code_space_capacity)            \
+  V(size_t, map_space_size)                 \
+  V(size_t, map_space_capacity)             \
+  V(size_t, lo_space_size)                  \
+  V(size_t, code_lo_space_size)             \
+  V(size_t, global_handle_count)            \
+  V(size_t, weak_global_handle_count)       \
+  V(size_t, pending_global_handle_count)    \
+  V(size_t, near_death_global_handle_count) \
+  V(size_t, free_global_handle_count)       \
+  V(size_t, memory_allocator_size)          \
+  V(size_t, memory_allocator_capacity)      \
+  V(size_t, malloced_memory)                \
+  V(size_t, malloced_peak_memory)           \
+  V(size_t, isolate_count)                  \
+  V(size_t, last_os_error)                  \
+  V(bool, is_main_isolate)                  \
+  V(CodeCageStats, main_cage)               \
+  V(CodeCageStats, trusted_cage)            \
+  V(CodeCageStats, code_cage)               \
+  V(TraceRingBuffer, last_few_messages)
 
 // When changing any of these fields please also update cs/crash::ReadHeapStats.
 class HeapStats {
@@ -2676,15 +2691,11 @@ class HeapStats {
   static const int kEndMarker = 0xDECADE01;
 
   intptr_t start_marker = 0;
-  HEAP_STATS_SIZET_FIELDS(DEFINE_HEAP_STATS_SIZET_FIELD)
-  CodeCageStats main_cage;
-  CodeCageStats trusted_cage;
-  CodeCageStats code_cage;
-  char last_few_messages[Heap::kTraceRingBufferSize + 1] = {0};
+#define DECL_FIELD(type, name) type name = {};
+  HEAP_STATS_FIELDS(DECL_FIELD)
+#undef DECL_FIELD
   intptr_t end_marker = 0;
 };
-
-#undef DEFINE_HEAP_STATS_SIZET_FIELD
 
 // Disables GC for all allocations. It should not be used
 // outside heap, deserializer, and isolate bootstrap.

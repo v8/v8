@@ -314,6 +314,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
 
+  size_t GetIsolateCount();
+
+  Isolate* main_isolate() { return main_isolate_; }
+
   MemoryPool* memory_pool() const { return memory_pool_.get(); }
 
   template <typename Callback>

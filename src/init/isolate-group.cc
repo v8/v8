@@ -418,6 +418,11 @@ void IsolateGroup::RemoveIsolate(Isolate* isolate) {
   }
 }
 
+size_t IsolateGroup::GetIsolateCount() {
+  base::MutexGuard guard(&mutex_);
+  return isolates_.size();
+}
+
 // static
 IsolateGroup* IsolateGroup::New() {
   if (!CanCreateNewGroups()) {
