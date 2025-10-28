@@ -352,69 +352,49 @@ class SetOncePointer {
   T* pointer_ = nullptr;
 };
 
-template <typename LChar, typename RChar>
-concept AllowedMemEqualTypes =
-    (std::is_same_v<LChar, uint8_t> && std::is_same_v<RChar, uint8_t>) ||
-    (std::is_same_v<LChar, uint16_t> && std::is_same_v<RChar, uint16_t>) ||
-    (std::is_same_v<LChar, uint8_t> && std::is_same_v<RChar, uint16_t>);
-
 #if defined(__SSE3__)
 
-template <typename LChar, typename RChar>
-  requires AllowedMemEqualTypes<LChar, RChar>
-V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const LChar* lhs,
-                                                              const RChar* rhs,
-                                                              size_t count,
-                                                              size_t order) {
-  constexpr int LCharSize = sizeof(LChar);
-  constexpr int RCharSize = sizeof(RChar);
-  constexpr int overlapping_order = 6 - RCharSize;
-  DCHECK_GE(order, overlapping_order);
-
-  constexpr auto vcmp = RCharSize == 2 ? _mm_cmpeq_epi16 : _mm_cmpeq_epi8;
-  constexpr auto vextend = [](__m128i str) {
-    if constexpr (LCharSize < RCharSize) {
-      return _mm_unpacklo_epi8(str, _mm_setzero_si128());
-    } else {
-      return str;
-    }
-  };
+template <typename Char>
+V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count,
+                            size_t order) {
+  static_assert(sizeof(Char) == 1);
+  DCHECK_GE(order, 5);
 
   static constexpr uint16_t kSIMDMatched16Mask = UINT16_MAX;
   static constexpr uint32_t kSIMDMatched32Mask = UINT32_MAX;
 
-  if (order == overlapping_order) {
+  if (order == 5) {  // count: [17, 32]
     // Utilize more simd registers for better pipelining.
-    constexpr int overlap_width = sizeof(__m128i) / sizeof(RChar);
     const __m128i lhs128_start =
-        vextend(_mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs)));
-    const __m128i lhs128_end = vextend(_mm_lddqu_si128(
-        reinterpret_cast<const __m128i*>(lhs + count - overlap_width)));
+        _mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs));
+    const __m128i lhs128_end = _mm_lddqu_si128(
+        reinterpret_cast<const __m128i*>(lhs + count - sizeof(__m128i)));
     const __m128i rhs128_start =
         _mm_lddqu_si128(reinterpret_cast<const __m128i*>(rhs));
     const __m128i rhs128_end = _mm_lddqu_si128(
-        reinterpret_cast<const __m128i*>(rhs + count - overlap_width));
-    const __m128i res_start = vcmp(lhs128_start, rhs128_start);
-    const __m128i res_end = vcmp(lhs128_end, rhs128_end);
+        reinterpret_cast<const __m128i*>(rhs + count - sizeof(__m128i)));
+    const __m128i res_start = _mm_cmpeq_epi8(lhs128_start, rhs128_start);
+    const __m128i res_end = _mm_cmpeq_epi8(lhs128_end, rhs128_end);
     const uint32_t res =
         _mm_movemask_epi8(res_start) << 16 | _mm_movemask_epi8(res_end);
     return res == kSIMDMatched32Mask;
   }
 
+  // count: [33, ...]
   const __m128i lhs128_unrolled =
-      vextend(_mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs)));
+      _mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs));
   const __m128i rhs128_unrolled =
       _mm_lddqu_si128(reinterpret_cast<const __m128i*>(rhs));
-  const __m128i res_unrolled = vcmp(lhs128_unrolled, rhs128_unrolled);
+  const __m128i res_unrolled = _mm_cmpeq_epi8(lhs128_unrolled, rhs128_unrolled);
   const uint16_t res_unrolled_mask = _mm_movemask_epi8(res_unrolled);
   if (res_unrolled_mask != kSIMDMatched16Mask) return false;
 
   for (size_t i = count % sizeof(__m128i); i < count; i += sizeof(__m128i)) {
     const __m128i lhs128 =
-        vextend(_mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs + i)));
+        _mm_lddqu_si128(reinterpret_cast<const __m128i*>(lhs + i));
     const __m128i rhs128 =
         _mm_lddqu_si128(reinterpret_cast<const __m128i*>(rhs + i));
-    const __m128i res = vcmp(lhs128, rhs128);
+    const __m128i res = _mm_cmpeq_epi8(lhs128, rhs128);
     const uint16_t res_mask = _mm_movemask_epi8(res);
     if (res_mask != kSIMDMatched16Mask) return false;
   }
@@ -425,187 +405,86 @@ V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const LChar* lhs,
 
 // We intentionally use misaligned read/writes for NEON intrinsics, disable
 // alignment sanitization explicitly.
-template <typename LChar, typename RChar>
-  requires AllowedMemEqualTypes<LChar, RChar>
-V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const LChar* lhs,
-                                                              const RChar* rhs,
+template <typename Char>
+V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const Char* lhs,
+                                                              const Char* rhs,
                                                               size_t count,
                                                               size_t order) {
-  constexpr int RCharSize = sizeof(RChar);
-  constexpr int overlapping_order = 6 - RCharSize;
-  DCHECK_GE(order, overlapping_order);
-  using vec_type = std::conditional_t<RCharSize == 2, uint16x8_t, uint8x16_t>;
+  static_assert(sizeof(Char) == 1);
+  DCHECK_GE(order, 5);
 
-  constexpr auto vload = []<typename Char>(Char* chars) {
-    if constexpr (sizeof(Char) == 2) {
-      return vld1q_u16(chars);
-    } else {
-      if constexpr (RCharSize == 2) {
-        return vmovl_u8(*reinterpret_cast<const uint8x8_t*>(chars));
-      } else {
-        return vld1q_u8(chars);
-      }
-    }
-  };
-  constexpr auto vxor = [](vec_type vec1, vec_type vec2) {
-    if constexpr (RCharSize == 2) {
-      return veorq_u16(vec1, vec2);
-    } else {
-      return veorq_u8(vec1, vec2);
-    }
-  };
-  constexpr auto vor = [](vec_type vec1, vec_type vec2) {
-    if constexpr (RCharSize == 2) {
-      return vorrq_u16(vec1, vec2);
-    } else {
-      return vorrq_u8(vec1, vec2);
-    }
-  };
-  constexpr auto vany_set = [](vec_type vec) {
-    uint64x2_t res;
-    if constexpr (RCharSize == 2) {
-      res = vreinterpretq_u64_u16(vpmaxq_u16(vec, vec));
-    } else {
-      res = vreinterpretq_u64_u8(vpmaxq_u8(vec, vec));
-    }
-    return static_cast<bool>(vgetq_lane_u64(res, 0));
-  };
-
-  if (order == overlapping_order) {
+  if (order == 5) {  // count: [17, 32]
     // Utilize more simd registers for better pipelining.
-    constexpr int overlap_width = sizeof(vec_type) / RCharSize;
-    const vec_type lhs0 = vload(lhs);
-    const vec_type lhs1 = vload(lhs + count - overlap_width);
-
-    const vec_type rhs0 = vload(rhs);
-    const vec_type rhs1 = vload(rhs + count - overlap_width);
-    const vec_type xored0 = vxor(lhs0, rhs0);
-    const vec_type xored1 = vxor(lhs1, rhs1);
-    const vec_type ored = vor(xored0, xored1);
-    return !vany_set(ored);
+    const auto lhs0 = vld1q_u8(lhs);
+    const auto lhs1 = vld1q_u8(lhs + count - sizeof(uint8x16_t));
+    const auto rhs0 = vld1q_u8(rhs);
+    const auto rhs1 = vld1q_u8(rhs + count - sizeof(uint8x16_t));
+    const auto xored0 = veorq_u8(lhs0, rhs0);
+    const auto xored1 = veorq_u8(lhs1, rhs1);
+    const auto ored = vorrq_u8(xored0, xored1);
+    return !static_cast<bool>(
+        vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(ored, ored)), 0));
   }
 
-  const vec_type first_lhs0 = vload(lhs);
-  const vec_type first_rhs0 = vload(rhs);
-  const vec_type first_xored = vxor(first_lhs0, first_rhs0);
-  if (vany_set(first_xored)) return false;
-  for (size_t i = count % sizeof(vec_type); i < count; i += sizeof(vec_type)) {
-    const vec_type lhs0 = vload(lhs + i);
-    const vec_type rhs0 = vload(rhs + i);
-    const vec_type xored = vxor(lhs0, rhs0);
-    if (vany_set(xored)) return false;
+  // count: [33, ...]
+  const auto first_lhs0 = vld1q_u8(lhs);
+  const auto first_rhs0 = vld1q_u8(rhs);
+  const auto first_xored = veorq_u8(first_lhs0, first_rhs0);
+  if (static_cast<bool>(vgetq_lane_u64(
+          vreinterpretq_u64_u8(vpmaxq_u8(first_xored, first_xored)), 0))) {
+    return false;
+  }
+  for (size_t i = count % sizeof(uint8x16_t); i < count;
+       i += sizeof(uint8x16_t)) {
+    const auto lhs0 = vld1q_u8(lhs + i);
+    const auto rhs0 = vld1q_u8(rhs + i);
+    const auto xored = veorq_u8(lhs0, rhs0);
+    if (static_cast<bool>(
+            vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(xored, xored)), 0)))
+      return false;
   }
   return true;
 }
 
-#endif  // defined(__SSE3__) || defined(V8_OPTIMIZE_WITH_NEON)
+#endif
 
-#if defined(__SSE3__) || defined(V8_OPTIMIZE_WITH_NEON)
-
-template <typename T, typename... AllowedTypes>
-concept TypeIsOneOf = (std::same_as<T, AllowedTypes> || ...);
-
-// Loads characters from `str` and extends them to two-byte.
-// E.g. ExtendToTwoByte<uint64_t>({'a','b','c','d'}) returns 0x0064006300620061.
-template <typename IntType>
-V8_INLINE IntType ExtendToTwoByte(const uint8_t* str);
-
-template <typename IntType>
-  requires TypeIsOneOf<IntType, uint32_t, uint64_t>
-V8_INLINE IntType ExtendToTwoByte(const uint8_t* str) {
-  using half_type =
-      std::conditional_t<std::is_same_v<IntType, uint32_t>, uint16_t, uint32_t>;
-  constexpr int half_length = sizeof(half_type) / 2;
-  constexpr int half_shift = sizeof(half_type) * kBitsPerByte;
-  half_type lower = ExtendToTwoByte<half_type>(str);
-  half_type upper = ExtendToTwoByte<half_type>(str + half_length);
-  return static_cast<IntType>(upper) << half_shift | lower;
-}
-
-template <>
-V8_INLINE uint16_t ExtendToTwoByte(const uint8_t* str) {
-  return static_cast<uint16_t>(*str);
-}
-
-template <typename IntType, typename LChar, typename RChar>
-  requires AllowedMemEqualTypes<LChar, RChar>
+template <typename IntType, typename Char>
 V8_CLANG_NO_SANITIZE("alignment")
-V8_INLINE
-    bool OverlappingCompare(const LChar* lhs, const RChar* rhs, size_t count) {
-  constexpr int overlap_width = sizeof(IntType) / sizeof(RChar);
-  const size_t end_offset = count - overlap_width;
-  IntType lhs_start;
-  IntType lhs_end;
-  if constexpr (sizeof(LChar) < sizeof(RChar)) {
-    lhs_start = ExtendToTwoByte<IntType>(lhs);
-    lhs_end = ExtendToTwoByte<IntType>(lhs + end_offset);
-  } else {
-    lhs_start = *reinterpret_cast<const IntType*>(lhs);
-    lhs_end = *reinterpret_cast<const IntType*>(lhs + end_offset);
-  }
-  return lhs_start == *reinterpret_cast<const IntType*>(rhs) &&
-         lhs_end == *reinterpret_cast<const IntType*>(rhs + end_offset);
+V8_INLINE bool OverlappingCompare(const Char* lhs, const Char* rhs,
+                                  size_t count) {
+  static_assert(sizeof(Char) == 1);
+  return *reinterpret_cast<const IntType*>(lhs) ==
+             *reinterpret_cast<const IntType*>(rhs) &&
+         *reinterpret_cast<const IntType*>(lhs + count - sizeof(IntType)) ==
+             *reinterpret_cast<const IntType*>(rhs + count - sizeof(IntType));
 }
 
-template <typename LChar, typename RChar>
-V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const LChar* lhs,
-                                                              const RChar* rhs,
-                                                              size_t count);
-
-template <typename LChar, typename RChar>
-  requires AllowedMemEqualTypes<LChar, RChar>
-V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const LChar* lhs,
-                                                              const RChar* rhs,
-                                                              size_t count) {
-  constexpr int LCharSize = sizeof(LChar);
-  constexpr int RCharSize = sizeof(RChar);
-
-  using overlap2chars_t =
-      std::conditional_t<RCharSize == 2, uint32_t, uint16_t>;
-  using overlap4chars_t =
-      std::conditional_t<RCharSize == 2, uint64_t, uint32_t>;
-
+template <typename Char>
+V8_CLANG_NO_SANITIZE("alignment")
+V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count) {
+  static_assert(sizeof(Char) == 1);
   if (count == 0) {
     return true;
   }
   if (count == 1) {
     return *lhs == *rhs;
   }
-
   const size_t order =
       sizeof(count) * CHAR_BIT - base::bits::CountLeadingZeros(count - 1);
   switch (order) {
     case 1:  // count: [2, 2]
-      overlap2chars_t lhs_maybe_extended;
-      if constexpr (LCharSize < RCharSize) {
-        lhs_maybe_extended = ExtendToTwoByte<overlap2chars_t>(lhs);
-      } else {
-        lhs_maybe_extended = *reinterpret_cast<const overlap2chars_t*>(lhs);
-      }
-      return lhs_maybe_extended ==
-             *reinterpret_cast<const overlap2chars_t*>(rhs);
+      return *reinterpret_cast<const uint16_t*>(lhs) ==
+             *reinterpret_cast<const uint16_t*>(rhs);
     case 2:  // count: [3, 4]
-      return OverlappingCompare<overlap2chars_t>(lhs, rhs, count);
+      return OverlappingCompare<uint16_t>(lhs, rhs, count);
     case 3:  // count: [5, 8]
-      return OverlappingCompare<overlap4chars_t>(lhs, rhs, count);
+      return OverlappingCompare<uint32_t>(lhs, rhs, count);
     case 4:  // count: [9, 16]
-      if constexpr (LCharSize == 1 && RCharSize == 1) {
-        return OverlappingCompare<uint64_t>(lhs, rhs, count);
-      } else {
-        return SimdMemEqual(lhs, rhs, count, order);
-      }
+      return OverlappingCompare<uint64_t>(lhs, rhs, count);
     default:
       return SimdMemEqual(lhs, rhs, count, order);
   }
 }
-
-template <>
-V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(
-    const uint16_t* lhs, const uint8_t* rhs, size_t count) {
-  return SimdMemEqual(rhs, lhs, count);
-}
-
-#endif  // defined(__SSE3__) || defined(V8_OPTIMIZE_WITH_NEON)
 
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
@@ -613,19 +492,20 @@ inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
                                       size_t chars) {
   static_assert(std::is_unsigned_v<lchar>);
   static_assert(std::is_unsigned_v<rchar>);
-#if defined(__SSE3__) || defined(V8_OPTIMIZE_WITH_NEON)
-  return SimdMemEqual(lhs, rhs, chars);
-#endif
   if constexpr (sizeof(*lhs) == sizeof(*rhs)) {
+#if defined(__SSE3__) || defined(V8_OPTIMIZE_WITH_NEON)
+    if constexpr (sizeof(*lhs) == 1) {
+      return SimdMemEqual(lhs, rhs, chars);
+    }
+#endif
     // memcmp compares byte-by-byte, but for equality it doesn't matter whether
     // two-byte char comparison is little- or big-endian.
     return memcmp(lhs, rhs, chars * sizeof(*lhs)) == 0;
-  } else {
-    for (const lchar* limit = lhs + chars; lhs < limit; ++lhs, ++rhs) {
-      if (*lhs != *rhs) return false;
-    }
-    return true;
   }
+  for (const lchar* limit = lhs + chars; lhs < limit; ++lhs, ++rhs) {
+    if (*lhs != *rhs) return false;
+  }
+  return true;
 }
 
 template <typename lchar, typename rchar>
