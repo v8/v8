@@ -256,12 +256,10 @@ class JsonParser final {
     return false;
   }
 
+  template <bool skip_whitespace = true>
   V8_WARN_UNUSED_RESULT bool ExpectNext(
       JsonToken token,
-      std::optional<MessageTemplate> errorMessage = std::nullopt) {
-    SkipWhitespace();
-    return errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
-  }
+      std::optional<MessageTemplate> errorMessage = std::nullopt);
 
   V8_WARN_UNUSED_RESULT bool Check(JsonToken token) {
     SkipWhitespace();

@@ -138,6 +138,10 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
   if (V8_UNLIKELY(!ExpectNext(token, msg))) {        \
     return ret;                                      \
   }
+#define EXPECT_NEXT_NO_SPACE_RETURN_ON_ERROR(token, msg, ret) \
+  if (V8_UNLIKELY(!ExpectNext<false>(token, msg))) {          \
+    return ret;                                               \
+  }
 
 }  // namespace
 
@@ -614,6 +618,18 @@ JsonToken GetTokenForCharacter(Char c) {
                                                    : JsonToken::ILLEGAL;
 }
 }  // namespace
+
+template <typename Char>
+template <bool skip_whitespace>
+V8_WARN_UNUSED_RESULT bool JsonParser<Char>::ExpectNext(
+    JsonToken token, std::optional<MessageTemplate> errorMessage) {
+  if constexpr (skip_whitespace) {
+    SkipWhitespace();
+  } else {
+    DCHECK_NE(GetTokenForCharacter(CurrentCharacter()), JsonToken::WHITESPACE);
+  }
+  return errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
+}
 
 template <typename Char>
 void JsonParser<Char>::SkipWhitespace() {
@@ -1796,11 +1812,12 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
   size_t start = element_stack_.size();
 
   // Avoid allocating HeapNumbers until we really need to.
-  SkipWhitespace();
   bool saw_double = false;
   bool success = false;
   DCHECK_EQ(double_elements_.size(), 0);
   DCHECK_EQ(smi_elements_.size(), 0);
+  // SkipWhitespace and setting next_ was performed by Check(JsonToken::RBRACK).
+  DCHECK_NE(GetTokenForCharacter(CurrentCharacter()), JsonToken::WHITESPACE);
   while (peek() == JsonToken::NUMBER) {
     double current_double;
     int current_smi;
@@ -1997,7 +2014,8 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                                   property_stack_.size());
 
           // Parse the property key.
-          EXPECT_NEXT_RETURN_ON_ERROR(
+          // SkipWhitespace was already performed by Check(JsonToken::RBRACE).
+          EXPECT_NEXT_NO_SPACE_RETURN_ON_ERROR(
               JsonToken::STRING,
               MessageTemplate::kJsonParseExpectedPropNameOrRBrace, {});
           property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
