@@ -312,14 +312,12 @@ ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
 
 template <typename NodeT>
 ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
-  if (node->is_const()) {
-    if (ValueNode* cached_value = known_node_aspects().TryGetContextCachedValue(
-            node->input_node(0), node->offset(),
-            ContextSlotMutability::kImmutable)) {
-      return ReplaceWith(cached_value);
-    }
+  if (ValueNode* cached_value = known_node_aspects().TryGetContextCachedValue(
+          node->input_node(0), node->offset(),
+          node->is_const() ? ContextSlotMutability::kImmutable
+                           : ContextSlotMutability::kMutable)) {
+    return ReplaceWith(cached_value);
   }
-  // TODO(victorgomes): Optimize non-immutable loads.
   return ProcessResult::kContinue;
 }
 

@@ -281,7 +281,22 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   template <typename NodeT>
+  void ProcessStoreContextSlot(NodeT* node) {
+    ValueNode* context = node->input_node(0);
+    ValueNode* value = node->input_node(1);
+    int offset = node->offset();
+    known_node_aspects().ClearAliasedContextSlotsFor(graph_, context, offset,
+                                                     value);
+    known_node_aspects().SetContextCachedValue(context, offset, value);
+  }
+
+  template <typename NodeT>
   void ProcessStoreTaggedField(NodeT* node) {
+    // If a store to a context, we use the specialized context slot cache.
+    if (node->is_store_to_context()) {
+      return ProcessStoreContextSlot(node);
+    }
+    // ... otherwise we try the properties cache.
     if (node->property_key().is_none()) return;
     auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
         zone(), false, node->property_key());
@@ -322,6 +337,11 @@ class RecomputeKnownNodeAspectsProcessor {
 
   ProcessResult ProcessNode(LoadContextSlotNoCells* node) {
     ProcessLoadContextSlot(node);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(StoreContextSlotWithWriteBarrier* node) {
+    ProcessStoreContextSlot(node);
     return ProcessResult::kContinue;
   }
 

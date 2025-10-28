@@ -192,6 +192,8 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
 void KnownNodeAspects::UpdateMayHaveAliasingContexts(
     compiler::JSHeapBroker* broker, LocalIsolate* local_isolate,
     ValueNode* context) {
+  if (may_have_aliasing_contexts_ == ContextSlotLoadsAlias::kYes) return;
+
   while (true) {
     if (auto load_prev_ctxt = context->TryCast<LoadContextSlotNoCells>()) {
       DCHECK_EQ(load_prev_ctxt->offset(),

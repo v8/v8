@@ -584,7 +584,9 @@ class KnownNodeAspects {
                                            : loaded_context_constants_;
     auto it = map.find({context, offset});
     if (it == map.end()) return nullptr;
-    it->second = it->second->UnwrapIdentities();
+    if (it->second) {
+      it->second = it->second->UnwrapIdentities();
+    }
     return it->second;
   }
   // Returns the value in the cache and add a new entry.

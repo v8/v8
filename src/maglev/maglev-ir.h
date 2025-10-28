@@ -10052,12 +10052,16 @@ class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
 
 enum class StoreTaggedMode : uint8_t {
   kDefault,
+  kDefaultToContext,
   kInitializing,
-  kTransitioning
+  kTransitioning,
 };
 inline bool IsInitializingOrTransitioning(StoreTaggedMode mode) {
   return mode == StoreTaggedMode::kInitializing ||
          mode == StoreTaggedMode::kTransitioning;
+}
+inline bool IsDefaultStoreToContext(StoreTaggedMode mode) {
+  return mode == StoreTaggedMode::kDefaultToContext;
 }
 
 class StoreTaggedFieldNoWriteBarrier
@@ -10068,8 +10072,11 @@ class StoreTaggedFieldNoWriteBarrier
   explicit StoreTaggedFieldNoWriteBarrier(
       uint64_t bitfield, int offset, StoreTaggedMode store_mode,
       PropertyKey property_key = PropertyKey::None())
-      : Base(bitfield | InitializingOrTransitioningField::encode(
-                            IsInitializingOrTransitioning(store_mode))),
+      : Base(
+            bitfield |
+            InitializingOrTransitioningField::encode(
+                IsInitializingOrTransitioning(store_mode)) |
+            IsStoreToContextField::encode(IsDefaultStoreToContext(store_mode))),
         offset_(offset),
         property_key_(property_key) {}
 
@@ -10087,6 +10094,9 @@ class StoreTaggedFieldNoWriteBarrier
   int offset() const { return offset_; }
   bool initializing_or_transitioning() const {
     return InitializingOrTransitioningField::decode(bitfield());
+  }
+  bool is_store_to_context() const {
+    return IsStoreToContextField::decode(bitfield());
   }
 
   static constexpr int kObjectIndex = 0;
@@ -10115,6 +10125,7 @@ class StoreTaggedFieldNoWriteBarrier
 
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
+  using IsStoreToContextField = InitializingOrTransitioningField::Next<bool, 1>;
 
   const int offset_;
   const PropertyKey property_key_;
@@ -10163,10 +10174,12 @@ class StoreTaggedFieldWithWriteBarrier
                                             StoreTaggedMode store_mode,
                                             bool value_can_be_smi,
                                             PropertyKey property_key)
-      : Base(bitfield |
-             InitializingOrTransitioningField::encode(
-                 IsInitializingOrTransitioning(store_mode)) |
-             ValueCanBeSmiField::encode(value_can_be_smi)),
+      : Base(
+            bitfield |
+            InitializingOrTransitioningField::encode(
+                IsInitializingOrTransitioning(store_mode)) |
+            IsStoreToContextField::encode(IsDefaultStoreToContext(store_mode)) |
+            ValueCanBeSmiField::encode(value_can_be_smi)),
         offset_(offset),
         property_key_(property_key) {}
 
@@ -10178,6 +10191,9 @@ class StoreTaggedFieldWithWriteBarrier
   int offset() const { return offset_; }
   bool initializing_or_transitioning() const {
     return InitializingOrTransitioningField::decode(bitfield());
+  }
+  bool is_store_to_context() const {
+    return IsStoreToContextField::decode(bitfield());
   }
 
   static constexpr int kObjectIndex = 0;
@@ -10208,7 +10224,8 @@ class StoreTaggedFieldWithWriteBarrier
 
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
-  using ValueCanBeSmiField = InitializingOrTransitioningField::Next<bool, 1>;
+  using IsStoreToContextField = InitializingOrTransitioningField::Next<bool, 1>;
+  using ValueCanBeSmiField = IsStoreToContextField::Next<bool, 1>;
 
   const int offset_;
   const PropertyKey property_key_;

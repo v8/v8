@@ -3279,7 +3279,7 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
           static_cast<int>(offsetof(ContextCell, double_value_)));
     case ContextCell::kDetached:
       return BuildStoreTaggedField(context, value, offset,
-                                   StoreTaggedMode::kDefault);
+                                   StoreTaggedMode::kDefaultToContext);
   }
   UNREACHABLE();
 }
@@ -3303,8 +3303,9 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
     DCHECK(result.IsDoneWithPayload());
     store = result.node();
   } else {
-    GET_NODE_OR_ABORT(store, BuildStoreTaggedField(context, value, offset,
-                                                   StoreTaggedMode::kDefault));
+    GET_NODE_OR_ABORT(
+        store, BuildStoreTaggedField(context, value, offset,
+                                     StoreTaggedMode::kDefaultToContext));
   }
 
   TRACE("  * Recording context slot store " << PrintNodeLabel(context) << "["
