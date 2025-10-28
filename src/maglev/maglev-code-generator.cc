@@ -1291,8 +1291,7 @@ class MaglevFrameTranslationBuilder {
         frame.unit().register_count(), return_offset, result_size);
 
     BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
-                          current_input_location, virtual_objects,
-                          result_location, result_size);
+                          current_input_location, virtual_objects);
   }
 
   void BuildSingleDeoptFrame(const InterpretedDeoptFrame& frame,
@@ -1310,8 +1309,7 @@ class MaglevFrameTranslationBuilder {
         frame.unit().register_count(), return_offset, return_count);
 
     BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
-                          current_input_location, virtual_objects,
-                          interpreter::Register::invalid_value(), return_count);
+                          current_input_location, virtual_objects);
   }
 
   void BuildSingleDeoptFrame(const InlinedArgumentsDeoptFrame& frame,
@@ -1610,8 +1608,7 @@ class MaglevFrameTranslationBuilder {
       const MaglevCompilationUnit& compilation_unit,
       const CompactInterpreterFrameState* checkpoint_state,
       const ValueNode* closure, const InputLocation*& input_location,
-      const VirtualObjectList& virtual_objects,
-      interpreter::Register result_location, int result_size) {
+      const VirtualObjectList& virtual_objects) {
     // TODO(leszeks): The input locations array happens to be in the same
     // order as closure+parameters+context+locals+accumulator are accessed
     // here. We should make this clearer and guard against this invariant
@@ -1626,14 +1623,7 @@ class MaglevFrameTranslationBuilder {
       checkpoint_state->ForEachParameter(
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_EQ(reg.ToParameterIndex(), i);
-            if (LazyDeoptInfo::InReturnValues(reg, result_location,
-                                              result_size)) {
-              translation_array_builder_->StoreOptimizedOut();
-              input_location++;
-            } else {
-              BuildDeoptFrameSingleValue(value, input_location,
-                                         virtual_objects);
-            }
+            BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
             i++;
           });
     }
@@ -1648,11 +1638,6 @@ class MaglevFrameTranslationBuilder {
       checkpoint_state->ForEachLocal(
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
-            if (LazyDeoptInfo::InReturnValues(reg, result_location,
-                                              result_size)) {
-              input_location++;
-              return;
-            }
             while (i < reg.index()) {
               translation_array_builder_->StoreOptimizedOut();
               i++;
@@ -1669,10 +1654,7 @@ class MaglevFrameTranslationBuilder {
 
     // Accumulator
     {
-      if (checkpoint_state->liveness()->AccumulatorIsLive() &&
-          !LazyDeoptInfo::InReturnValues(
-              interpreter::Register::virtual_accumulator(), result_location,
-              result_size)) {
+      if (checkpoint_state->liveness()->AccumulatorIsLive()) {
         ValueNode* value = checkpoint_state->accumulator(compilation_unit);
         BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
       } else {
