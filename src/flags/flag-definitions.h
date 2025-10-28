@@ -2551,7 +2551,8 @@ DEFINE_BOOL(large_page_pool, true, "Add large pages to the page pool")
 DEFINE_WEAK_IMPLICATION(future, large_page_pool)
 DEFINE_SIZE_T(max_large_page_pool_size, 32,
               "Maximum size of pooled large pages in MB.")
-DEFINE_INT(page_pool_timeout, 8, "Release pooled pages after X seconds.")
+DEFINE_INT(large_page_pool_timeout, 3,
+           "Release pooled large pages after X seconds.")
 DEFINE_BOOL(managed_zone_memory, false,
             "Manage zone memory in V8 instead of using malloc().")
 DEFINE_NEG_NEG_IMPLICATION(memory_pool, managed_zone_memory)
