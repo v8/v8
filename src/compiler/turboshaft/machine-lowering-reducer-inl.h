@@ -3650,6 +3650,10 @@ class MachineLoweringReducer : public Next {
                 __ Word32Equal(__ UntagSmi(V<Smi>::Cast(candidate_key)), key),
                 done, candidate);
           } ELSE IF (__ TaggedEqual(
+                        candidate_key,
+                        __ HeapConstant(factory_->hash_table_hole_value()))) {
+            // Deleted entry, continue to the next one.
+          } ELSE IF (__ TaggedEqual(
                         __ LoadMapField(candidate_key),
                         __ HeapConstant(factory_->heap_number_map()))) {
             GOTO_IF(__ Float64Equal(__ LoadHeapNumberValue(
