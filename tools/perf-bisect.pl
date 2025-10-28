@@ -74,7 +74,7 @@ Options:
 I bisected the regressions at https://chromeperf.appspot.com/group_report?rev=85409 with:
 (the offending CL was obvious, but this was just to showcase this script)
 
-    perl bisect.pl --start b71cdae --end 54d255a --run "V8 --future cli.js -- ML" --run-dir v8-perf/v8-perf/benchmarks/JetStream2 --score-regex "Average-Score: (\d+)"
+    perl bisect.pl --start b71cdae --end 54d255a --run "V8 --future cli.js -- ML" --run-dir v8-perf/v8-perf/benchmarks/JetStream/v3.0-custom --score-regex "Average-Score: (\d+)"
 
 
 And that regression https://chromeperf.appspot.com/group_report?bug_id=1409635&project_id=chromium with:
