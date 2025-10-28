@@ -574,7 +574,14 @@ EmitResult Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor,
   assembler->PushBacktrack(&undo);
   if (successor->KeepRecursing(compiler)) {
     Trace new_state;
-    RETURN_IF_ERROR(successor->Emit(compiler, &new_state));
+    EmitResult r = successor->Emit(compiler, &new_state);
+    if (V8_UNLIKELY(r.IsError())) {
+      // TODO(jgruber): If this pattern emerges elsewhere, let's wrap affected
+      // labels in a scope object and add a convenience macro.
+      undo.UnuseNear();
+      undo.Unuse();
+      return r;
+    }
   } else {
     compiler->AddWork(successor);
     assembler->GoTo(successor->label());
