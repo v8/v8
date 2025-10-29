@@ -186,9 +186,18 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   }
   // We try getting constant before bailing out and/or calling the reducer,
   // since it does not emit a conversion node.
-  if (auto cst = GetConstantWithRepresentation(node, use_repr, conversion_type))
+  if (ValueNode* cst =
+          GetConstantWithRepresentation(node, use_repr, conversion_type)) {
     return cst;
-  if (node->is_tagged()) return nullptr;
+  }
+  if (node->is_tagged()) {
+    // Check if we already have a canonical conversion.
+    NodeInfo* node_info =
+        known_node_aspects().GetOrCreateInfoFor(broker(), node);
+    auto& alternative = node_info->alternative();
+    if (ValueNode* alt = alternative.get(use_repr)) return alt;
+    return nullptr;
+  }
   // TODO(victorgomes): The GetXXX functions may emit a conversion node that
   // might eager deopt. We need to find a correct eager deopt frame for them if
   // current_node_ does not have a deopt info.

@@ -7,6 +7,7 @@
 
 #include <utility>
 
+#include "src/base/logging.h"
 #include "src/maglev/maglev-ir.h"
 
 namespace v8 {
@@ -80,6 +81,22 @@ class NodeInfo {
     ALTERNATIVES(API)
 #undef API
 #undef ALTERNATIVES
+
+    ValueNode* get(UseRepresentation repr) {
+      switch (repr) {
+        case UseRepresentation::kTagged:
+          return tagged();
+        case UseRepresentation::kInt32:
+          return int32();
+        case UseRepresentation::kTruncatedInt32:
+          return truncated_int32_to_number();
+        case UseRepresentation::kFloat64:
+        case UseRepresentation::kHoleyFloat64:
+          return float64();
+        case UseRepresentation::kUint32:
+          UNREACHABLE();
+      }
+    }
 
     bool has_none() const { return store_ == AlternativeNodes().store_; }
 
