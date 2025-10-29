@@ -121,7 +121,8 @@ bool Flag::ShouldCheckFlagContradictions() {
     FindFlagByPointer(&v8_flags.allow_overwriting_for_next_flag)->Reset();
     return false;
   }
-  return v8_flags.abort_on_contradictory_flags && !v8_flags.fuzzing;
+  return (v8_flags.abort_on_contradictory_flags && !v8_flags.fuzzing) ||
+         v8_flags.disallow_unsafe_flags;
 }
 
 bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,

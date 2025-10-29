@@ -3824,6 +3824,69 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
 #endif
 
+// The --disallow-unsafe-flags is meant to block known unsafe configurations and
+// mitigate spurious reports due invalid flag combinations/values. To prevent AI
+// agents and/or fuzzers from using a new unsafe flag, add an implication from
+// --disallow-unsafe-flags below.
+DEFINE_BOOL(disallow_unsafe_flags, false,
+            "Prevents the use of flags that are considered unsafe. Setting "
+            "this flag will make V8 treat the unsafe flags below as flag "
+            "contradiction and either crash or exit gracefully with a message "
+            "(depending on the curreny AbortMode)")
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
+// Profiling flags.
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling_verbose)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_annotate_wasm)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_delete_file)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_unwinding_info)
+// Experimental PGO flags.
+#if V8_ENABLE_WEBASSEMBLY
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_pgo_to_file)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_pgo_from_file)
+#endif  // V8_ENABLE_WEBASSEMBLY
+// Known-broken features/configurations (some are experimental).
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, feedback_normalization)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, harmony_struct)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, gc_verbose)
+DEFINE_IMPLICATION(disallow_unsafe_flags, script_context_cells)
+// Misc. "unsafe" flags.
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, mock_arraybuffer_allocator)
+DEFINE_IMPLICATION(disallow_unsafe_flags, fuzzing)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_contradictory_flags)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_bad_builtin_profile_data)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_uncaught_exception)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_far_code_range)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, correctness_fuzzer_suppressions)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, force_memory_protection_keys)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, expose_trigger_failure)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_code_traces)
+#if V8_ENABLE_WEBASSEMBLY
+DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
+DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
+                       experimental_wasm_skip_null_checks)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_ref_cast_nop)
+#ifdef V8_ENABLE_DRUMBRAKE
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
+#endif  // V8_ENABLE_DRUMBRAKE
+#endif  // V8_ENABLE_WEBASSEMBLY
+// Disabling CPU features can lead to DCHECK failures.
+DEFINE_IMPLICATION(disallow_unsafe_flags, enable_avx)
+DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse3)
+DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_1)
+DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_2)
+// Experimental features.
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, maglev_non_eager_inlining)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, cppgc_young_generation)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, for_of_optimization)
+#if V8_ENABLE_WEBASSEMBLY
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_shared)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_wasmfx)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_memory_control)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #undef FLAG
 
 #ifdef VERIFY_PREDICTABLE
