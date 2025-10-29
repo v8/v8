@@ -273,12 +273,10 @@
 
   # Remapping out-of-range eras (https://github.com/boa-dev/temporal/issues/448)
   'intl402/Temporal/PlainDate/from/remapping-era': [FAIL],
-  'staging/Intl402/Temporal/old/japanese-before-era': [FAIL],
   'intl402/Temporal/PlainYearMonth/from/remapping-era': [FAIL],
 
   # We need a way to regulate non-ISO on construction (https://github.com/unicode-org/icu4x/issues/6790)
   'staging/Intl402/Temporal/old/indian-calendar': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/with/gregorian-mutually-exclusive-fields': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [FAIL],
   'intl402/Temporal/PlainMonthDay/from/reference-year-1972': [FAIL],
 
@@ -293,12 +291,8 @@
   'intl402/Temporal/PlainDate/prototype/until/until-across-lunisolar-leap-months': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
-  'intl402/Temporal/PlainDate/from/calendar-not-supporting-eras': [FAIL],
-  'intl402/Temporal/PlainDateTime/from/calendar-not-supporting-eras': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/calendar-not-supporting-eras': [FAIL],
 
   # Non-ISO datetime arithmetic (https://github.com/unicode-org/icu4x/issues/1174)
-  'intl402/Temporal/PlainYearMonth/prototype/with/minimum-valid-year-month': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-buddhist': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-coptic': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-ethioaa': [FAIL],
