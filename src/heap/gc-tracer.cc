@@ -1125,6 +1125,8 @@ void GCTracer::PrintNVP() const {
           .p("sweep.new_lo", current_scope(Scope::MC_SWEEP_NEW_LO))
           .p("sweep.old", current_scope(Scope::MC_SWEEP_OLD))
           .p("sweep.start_jobs", current_scope(Scope::MC_SWEEP_START_JOBS))
+          .p("is_incremental",
+             current_.type == Event::Type::INCREMENTAL_MARK_COMPACTOR)
           .p("incremental", current_scope(Scope::MC_INCREMENTAL))
           .p("incremental.finalize.external.prologue",
              current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE))

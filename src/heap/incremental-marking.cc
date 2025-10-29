@@ -205,7 +205,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
         .p("reason", reason)
         .p("old_gen_allocation_limit", heap_->old_generation_allocation_limit())
         .p("old_gen_consumed_bytes", heap_->OldGenerationConsumedBytes())
-        .p("old_gen_allocation_limit_bytes",
+        .p("old_gen_allocation_limit_consumed_bytes",
            heap_->OldGenerationAllocationLimitConsumedBytes())
         .p("old_gen_space_available", heap_->OldGenerationSpaceAvailable())
         .p("global_allocation_limit", heap_->global_allocation_limit())

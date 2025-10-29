@@ -2633,12 +2633,16 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
            old_gen_consumed_bytes_at_last_gc)
         .p("global_gc_speed", embedder_gc_speed.value_or(0))
         .p("global_mutator_speed", embedder_speed)
-        .p("global_growing_factor", embedder_growing_factor)
+        .p("global_growing_factor", global_growing_factor)
         .p("global_allocation_limit", global_allocation_limit())
-        .p("new_global_allocation_limit", next_global_allocation_limit)
+        .p("next_global_allocation_limit", next_global_allocation_limit)
         .p("preliminary_global_allocation_limit",
            preliminary_global_allocation_limit)
         .p("global_consumed_bytes_at_last_gc", global_consumed_bytes_at_last_gc)
+        .p("embedder_size_at_last_gc", embedder_size_at_last_gc_)
+        .p("external_growing_factor", external_growing_factor)
+        .p("external_memory_low_since_mark_compact",
+           external_memory_.low_since_mark_compact())
         .object_end();
 
     std::string json_str = json.ToString();
