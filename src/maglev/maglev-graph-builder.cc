@@ -5189,6 +5189,24 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array,
   return length;
 }
 
+ReduceResult MaglevGraphBuilder::BuildLoadJSDataViewByteLength(
+    ValueNode* js_data_view) {
+  // Note: We can't use broker()->byte_length_string() here, because it could
+  // conflict with redefinitions of the ArrayBufferView byteLength property.
+  if (ValueNode* byte_length =
+          known_node_aspects().TryFindLoadedConstantProperty(
+              js_data_view, PropertyKey::ArrayBufferViewByteLength())) {
+    return byte_length;
+  }
+
+  ValueNode* result;
+  GET_VALUE_OR_ABORT(result,
+                     AddNewNode<LoadDataViewByteLength>({js_data_view}));
+  RecordKnownProperty(js_data_view, PropertyKey::ArrayBufferViewByteLength(),
+                      result, true, compiler::AccessMode::kLoad);
+  return result;
+}
+
 ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
     ValueNode* closure) {
   DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
@@ -9808,7 +9826,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadDataView(
   } else {
     offset = GetInt32Constant(0);
   }
-  RETURN_IF_ABORT(AddNewNode<CheckJSDataViewBounds>({receiver, offset}, type));
+
+  ValueNode* byte_length;
+  GET_VALUE_OR_ABORT(byte_length, BuildLoadJSDataViewByteLength(receiver));
+
+  RETURN_IF_ABORT(
+      AddNewNode<CheckJSDataViewBounds>({receiver, offset, byte_length}, type));
   ValueNode* is_little_endian = args[1] ? args[1] : GetBooleanConstant(false);
   return AddNewNode<LoadNode>({receiver, offset, is_little_endian}, type);
 }
@@ -9834,8 +9857,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
   } else {
     offset = GetInt32Constant(0);
   }
+  ValueNode* byte_length;
+  GET_VALUE_OR_ABORT(byte_length, BuildLoadJSDataViewByteLength(receiver));
+
   RETURN_IF_ABORT(AddNewNode<CheckJSDataViewBounds>(
-      {receiver, offset}, ExternalArrayType::kExternalFloat64Array));
+      {receiver, offset, byte_length},
+      ExternalArrayType::kExternalFloat64Array));
   ValueNode* value = getValue(args[1]);
   ValueNode* is_little_endian = args[2] ? args[2] : GetBooleanConstant(false);
   RETURN_IF_ABORT(
@@ -9869,18 +9896,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
     }
   }
 
-  // Note: We can't use broker()->byte_length_string() here, because it could
-  // conflict with redefinitions of the ArrayBufferView byteLength property.
-  if (ValueNode* length = known_node_aspects().TryFindLoadedConstantProperty(
-          receiver, PropertyKey::ArrayBufferViewByteLength())) {
-    return length;
-  }
-
-  ValueNode* result;
-  GET_VALUE_OR_ABORT(result, AddNewNode<LoadDataViewByteLength>({receiver}));
-  RecordKnownProperty(receiver, PropertyKey::ArrayBufferViewByteLength(),
-                      result, true, compiler::AccessMode::kLoad);
-  return result;
+  return BuildLoadJSDataViewByteLength(receiver);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt8(

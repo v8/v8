@@ -7800,8 +7800,8 @@ class CheckCacheIndicesNotCleared
   void PrintParams(std::ostream&) const {}
 };
 
-class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
-  using Base = FixedInputNodeT<2, CheckJSDataViewBounds>;
+class CheckJSDataViewBounds : public FixedInputNodeT<3, CheckJSDataViewBounds> {
+  using Base = FixedInputNodeT<3, CheckJSDataViewBounds>;
 
  public:
   explicit CheckJSDataViewBounds(uint64_t bitfield,
@@ -7810,12 +7810,15 @@ class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kIntPtr};
 
   static constexpr int kReceiverIndex = 0;
   static constexpr int kIndexIndex = 1;
+  static constexpr int kByteLengthIndex = 2;
   Input receiver_input() { return input(kReceiverIndex); }
   Input index_input() { return input(kIndexIndex); }
+  Input byte_length_input() { return input(kByteLengthIndex); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
