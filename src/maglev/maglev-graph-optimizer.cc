@@ -1114,6 +1114,16 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTypedArrayLength(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitLoadDataViewByteLength(
+    LoadDataViewByteLength* node, const ProcessingState& state) {
+  if (ValueNode* cached = known_node_aspects().TryFindLoadedConstantProperty(
+          node->receiver_input().node(),
+          PropertyKey::ArrayBufferViewByteLength())) {
+    return ReplaceWith(cached);
+  }
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitLoadSignedIntTypedArrayElement(
     LoadSignedIntTypedArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

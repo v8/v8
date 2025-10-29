@@ -242,6 +242,7 @@ class ExceptionHandlerInfo;
   V(LoadSignedIntDataViewElement)                                     \
   V(LoadDoubleDataViewElement)                                        \
   V(LoadTypedArrayLength)                                             \
+  V(LoadDataViewByteLength)                                           \
   V(LoadSignedIntTypedArrayElement)                                   \
   V(LoadUnsignedIntTypedArrayElement)                                 \
   V(LoadDoubleTypedArrayElement)                                      \
@@ -8282,6 +8283,27 @@ class LoadTypedArrayLength
   ElementsKind elements_kind_;
 };
 
+class LoadDataViewByteLength
+    : public FixedInputValueNodeT<1, LoadDataViewByteLength> {
+  using Base = FixedInputValueNodeT<1, LoadDataViewByteLength>;
+
+ public:
+  explicit LoadDataViewByteLength(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr OpProperties kProperties =
+      OpProperties::IntPtr() | OpProperties::CanRead();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input receiver_input() { return input(kReceiverIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+
+  auto options() const { return std::tuple{}; }
+};
+
 class CheckTypedArrayNotDetached
     : public FixedInputNodeT<1, CheckTypedArrayNotDetached> {
   using Base = FixedInputNodeT<1, CheckTypedArrayNotDetached>;
@@ -9076,6 +9098,7 @@ class PropertyKey {
     // TODO(leszeks): We could probably share kStringLength with
     // kTypedArrayLength if needed.
     kStringLength,
+    kArrayBufferViewByteLength,
     kNone,
   };
   static constexpr int kTypeMask = 0x7;
@@ -9092,6 +9115,9 @@ class PropertyKey {
   }
 
   static PropertyKey StringLength() { return PropertyKey(kStringLength); }
+  static PropertyKey ArrayBufferViewByteLength() {
+    return PropertyKey(kArrayBufferViewByteLength);
+  }
 
   static PropertyKey None() { return PropertyKey(kNone); }
 
@@ -9141,6 +9167,9 @@ inline std::ostream& operator<<(std::ostream& os, PropertyKey key) {
       break;
     case PropertyKey::kStringLength:
       os << "String length";
+      break;
+    case PropertyKey::kArrayBufferViewByteLength:
+      os << "TypedArray/DataView byteLength";
       break;
     case PropertyKey::kNone:
       os << "None";

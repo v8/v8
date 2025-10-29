@@ -9800,6 +9800,46 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
   return GetRootConstant(RootIndex::kUndefinedValue);
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetByteLength(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  // We cannot check CanSpeculateCall here, since this is a getter.
+
+  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // TODO(victorgomes): Add checks whether the array has been detached.
+    return {};
+  }
+  // TODO(victorgomes): Add data view to known types.
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+
+  auto possible_receiver_maps =
+      known_node_aspects().TryGetPossibleMaps(receiver);
+  if (!possible_receiver_maps) {
+    FAIL(" to reduce DataView.get byteLength - unknown receiver map");
+  }
+
+  // Don't optimize if any of the known maps is something else than a DataView
+  // map.
+  for (compiler::MapRef map : *possible_receiver_maps) {
+    // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
+    if (map.instance_type() != JS_DATA_VIEW_TYPE) {
+      return {};
+    }
+  }
+
+  // Note: We can't use broker()->byte_length_string() here, because it could
+  // conflict with redefinitions of the ArrayBufferView byteLength property.
+  if (ValueNode* length = known_node_aspects().TryFindLoadedConstantProperty(
+          receiver, PropertyKey::ArrayBufferViewByteLength())) {
+    return length;
+  }
+
+  ValueNode* result;
+  GET_VALUE_OR_ABORT(result, AddNewNode<LoadDataViewByteLength>({receiver}));
+  RecordKnownProperty(receiver, PropertyKey::ArrayBufferViewByteLength(),
+                      result, true, compiler::AccessMode::kLoad);
+  return result;
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceDataViewPrototypeGetInt8(
     compiler::JSFunctionRef target, CallArguments& args) {
   return TryBuildLoadDataView<LoadSignedIntDataViewElement>(

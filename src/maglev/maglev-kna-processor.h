@@ -280,6 +280,13 @@ class RecomputeKnownNodeAspectsProcessor {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult ProcessNode(LoadDataViewByteLength* node) {
+    auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
+        zone(), true, PropertyKey::ArrayBufferViewByteLength());
+    props_for_key[node->receiver_input().node()] = node;
+    return ProcessResult::kContinue;
+  }
+
   template <typename NodeT>
   void ProcessStoreContextSlot(NodeT* node) {
     ValueNode* context = node->input_node(0);

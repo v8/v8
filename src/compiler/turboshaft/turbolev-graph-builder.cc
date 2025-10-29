@@ -3339,6 +3339,15 @@ class GraphBuildingNodeProcessor {
     SetMap(node, length);
     return maglev::ProcessResult::kContinue;
   }
+
+  maglev::ProcessResult Process(maglev::LoadDataViewByteLength* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ LoadField<WordPtr>(Map<JSDataView>(node->receiver_input()),
+                                 AccessBuilder::ForJSDataViewByteLength()));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CheckTypedArrayBounds* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());

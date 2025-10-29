@@ -7265,6 +7265,27 @@ DEF_STORE_CONSTANT_TYPED_ARRAY(StoreDoubleConstantTypedArrayElement,
                                DoubleRegister, ToDoubleRegister)
 #undef DEF_STORE_CONSTANT_TYPED_ARRAY
 
+void LoadDataViewByteLength::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  DefineAsRegister(this);
+}
+
+void LoadDataViewByteLength::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register return_value = ToRegister(result());
+
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(object);
+    __ AssertObjectType(object, InstanceType::JS_DATA_VIEW_TYPE,
+                        AbortReason::kUnexpectedValue);
+  }
+
+  // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
+  __ LoadBoundedSizeFromObject(return_value, object,
+                               JSDataView::kRawByteLengthOffset);
+}
+
 // ---
 // Arch agnostic control nodes
 // ---
