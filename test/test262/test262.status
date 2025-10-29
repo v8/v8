@@ -271,60 +271,18 @@
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
 
-  # Remapping out-of-range eras (https://github.com/boa-dev/temporal/issues/448)
-  'intl402/Temporal/PlainDate/from/remapping-era': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/remapping-era': [FAIL],
-
-  # We need a way to regulate non-ISO on construction (https://github.com/unicode-org/icu4x/issues/6790)
-  'staging/Intl402/Temporal/old/indian-calendar': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/reference-year-1972': [FAIL],
-
-  # We need to be able to construct from ordinal months (https://github.com/unicode-org/icu4x/issues/6790)
-  'staging/Intl402/Temporal/old/hebrew-leap-months': [FAIL],
-
-  # PlainMonthDay needs to support Chinese/Dangi (https://github.com/boa-dev/temporal/issues/450)
-  'intl402/Temporal/PlainMonthDay/from/constrain-to-leap-day': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
-
-  # Chinese/Dangi need to use related_iso as their arithmetical year (https://github.com/unicode-org/icu4x/pull/6800)
-  'intl402/Temporal/PlainDate/prototype/until/until-across-lunisolar-leap-months': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
-
-  # Non-ISO datetime arithmetic (https://github.com/unicode-org/icu4x/issues/1174)
-  'staging/Intl402/Temporal/old/non-iso-calendars-buddhist': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-coptic': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-ethioaa': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-ethiopic': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-gregory': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-hebrew': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-indian': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamicc': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-civil': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-tbla': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-persian': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-roc': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-civil': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-tbla': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-umalqura': [FAIL],
-  'staging/Intl402/Temporal/old/persian-calendar': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/reference-day-hebrew': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/calendar-not-supporting-eras': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/add/options-undefined': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/subtract/options-undefined': [FAIL],
-  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-chinese': [FAIL],
-  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-hebrew': [FAIL],
-
   # No issue filed
 
   # Temporal should error on the ambiguous `islamic` calendar
   'staging/Intl402/Temporal/old/islamic-calendars-islamic': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-rgsa': [FAIL],
 
   # ICU4C and ICU4X disagree on canonical timezones
   'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal': [FAIL],
+
+  # Test errors for out-of-ground-truth-range calendars (expected, test is broken)
+  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
+  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
 
   # End Temporal test expectations
 
