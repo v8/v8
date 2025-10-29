@@ -2601,6 +2601,33 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     maybe_result = outer_function_sfi_;
   }
 
+#ifdef DEBUG
+  /* Some defensive debug checks to handle race conditions with IIFE and
+     Background Compilation related corner cases.
+  */
+  Tagged<WeakFixedArray> infos = script->infos();
+  int length = infos->length();
+  for (int i = 0; i < length; ++i) {
+    Tagged<MaybeObject> maybe_obj = infos->get(i);
+    Tagged<HeapObject> obj;
+    if (!maybe_obj.GetHeapObject(&obj)) continue;
+    if (Tagged<SharedFunctionInfo> shared; TryCast(obj, &shared)) {
+      // Once all compilation jobs are over, and before merging, we expect that
+      // a function is either compiled (HasBytecodeArray) or is ready for lazy
+      // compilation (HasUncompiledData). Function here are all user defined
+      // functions and should not have a builtin_id.
+      DCHECK(!shared->HasBuiltinId());
+      DCHECK(shared->HasBytecodeArray() ||
+             shared->HasUncompiledData(isolate)
+#if V8_ENABLE_WEBASSEMBLY
+             // compiled data for 'use asm' functions
+             || shared->HasAsmWasmData()
+#endif
+      );
+    }
+  }
+#endif
+
   if (DirectHandle<Script> cached_script;
       maybe_cached_script.ToHandle(&cached_script) && !maybe_result.is_null()) {
     BackgroundMergeTask merge;
