@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'db8446987dfff3cfc0c100b7d58e6a404ef639eb',
+  'partition_alloc_version': '2f4069fb8d7afbd9e3c078a14a5bab8280a68cf6',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7a0b52e7d296b079bc99e959fc17258d6de4a664',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8c2e4caf42ac5e2d3dbe5f568079f7df2ce8a3e4',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '24b075a4d7ea447126ff322e3e8bfecb78012b75',
   'buildtools/linux64': {
@@ -314,7 +314,7 @@ deps = {
   'third_party/libpfm4/src':
     Var('chromium_url') + '/external/git.code.sf.net/p/perfmon2/libpfm4.git' + '@' + '964baf9d35d5f88d8422f96d8a82c672042e7064',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'b7c3dda13e46ced88a6f7230e271ebd633b4cef2',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '14b9dee79c12dd8cdd3d662ee0be49200c6d9b71',
   'third_party/llvm-libc/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '006672b9b6481bae04b9428100ed0486ab99f452',
   'third_party/llvm-build/Release+Asserts': {
@@ -510,7 +510,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '24494b071e019a2baea4355d9870ffc5fc0bbafe',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '5ee65622b5aebec46d79145ec2457c03f6ecbaa1',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '9410a262967bceef8d2c00ecdb349a4eba2f9b4c',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
