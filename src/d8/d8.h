@@ -429,6 +429,10 @@ class ShellOptions {
     }
     void Overwrite(T value) { value_ = value; }
 
+    bool WasSpecified() const { return specified_; }
+
+    const char* name() const { return name_; }
+
    private:
     const char* name_;
     T value_;

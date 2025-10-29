@@ -6151,6 +6151,7 @@ bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
 
 bool Shell::SetOptions(int argc, char* argv[]) {
   options.d8_path = argv[0];
+  bool disallow_unsafe_flags = false;
   for (int i = 0; i < argc; i++) {
     char* flag_value = nullptr;
     if (FlagMatches("--", &argv[i])) {
@@ -6173,6 +6174,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagMatches("--abort-on-contradictory-flags", &argv[i],
                            /*keep_flag=*/true)) {
       check_d8_flag_contradictions = true;
+    } else if (FlagMatches("--disallow-unsafe-flags", &argv[i],
+                           /*keep_flag=*/true)) {
+      disallow_unsafe_flags = true;
     } else if (FlagMatches("--shell", &argv[i])) {
       options.interactive_shell = true;
     } else if (FlagMatches("--test", &argv[i])) {
@@ -6350,6 +6354,35 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   }
 
   DCHECK(options.num_isolates);
+
+  if (disallow_unsafe_flags) {
+    const auto check_flag_is_not_specified =
+        []<typename T>(const ShellOptions::DisallowReassignment<T>& flag) {
+          if (!flag.WasSpecified()) {
+            return;
+          }
+          base::FatalNoSecurityImpact(
+              "Command-line provided flag --%s is prohibited by "
+              "--disallow-unsafe-flags.",
+              flag.name());
+        };
+    // The --disallow-unsafe-flags is meant to block known unsafe configurations
+    // and mitigate spurious reports due invalid flag combinations/values. To
+    // prevent AI agents and/or fuzzers from using a new unsafe flag, add it to
+    // the list below.
+    check_flag_is_not_specified(options.trace_enabled);
+    check_flag_is_not_specified(options.trace_config);
+    check_flag_is_not_specified(options.trace_path);
+    check_flag_is_not_specified(options.enable_inspector);
+    check_flag_is_not_specified(options.lcov_file);
+    check_flag_is_not_specified(options.simulate_errors);
+    check_flag_is_not_specified(options.enable_os_system);
+    check_flag_is_not_specified(options.snapshot_blob);
+    check_flag_is_not_specified(options.thread_pool_size);
+    check_flag_is_not_specified(options.thread_pool_size);
+    check_flag_is_not_specified(options.dump_counters);
+    check_flag_is_not_specified(options.dump_counters_nvp);
+  }
 
 #ifdef V8_OS_LINUX
   if (options.scope_linux_perf_to_mark_measure) {
