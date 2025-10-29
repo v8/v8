@@ -2188,8 +2188,10 @@ class ConstantPoolPointerForwarder {
     for (int idx = 0; idx < boilerplate->boilerplate_properties_count();
          ++idx) {
       // there is an SFI at entry "idx"
+      Tagged<Object> maybe_sfi = boilerplate->value(idx);
+      if (IsUninitializedHole(maybe_sfi)) continue;
       if (Tagged<SharedFunctionInfo> new_sfi;
-          TryCast<SharedFunctionInfo>(boilerplate->value(idx), &new_sfi)) {
+          TryCast<SharedFunctionInfo>(maybe_sfi, &new_sfi)) {
         // The same SFI on the old script by function_literal_id
         VisitSharedFunctionInfo(boilerplate, idx, new_sfi);
       }
