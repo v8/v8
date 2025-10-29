@@ -125,6 +125,20 @@ bool Flag::ShouldCheckFlagContradictions() {
          v8_flags.disallow_unsafe_flags;
 }
 
+namespace {
+struct FatalError : public std::ostringstream {
+  static constexpr const char kHint[] =
+      "If a test variant caused this, it might be necessary to specify "
+      "additional contradictory flags in "
+      "tools/testrunner/local/variants.py.";
+  // MSVC complains about non-returning destructor; disable that.
+  MSVC_SUPPRESS_WARNING(4722)
+  ~FatalError() {
+    base::FatalNoSecurityImpact("%s.\n%s", str().c_str(), kHint);
+  }
+};
+}  // namespace
+
 bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
                            const char* implied_by) {
   if (new_set_by == SetBy::kWeakImplication &&
@@ -132,17 +146,6 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
     return false;
   }
   if (ShouldCheckFlagContradictions()) {
-    static constexpr const char kHint[] =
-        "If a test variant caused this, it might be necessary to specify "
-        "additional contradictory flags in "
-        "tools/testrunner/local/variants.py.";
-    struct FatalError : public std::ostringstream {
-      // MSVC complains about non-returning destructor; disable that.
-      MSVC_SUPPRESS_WARNING(4722)
-      ~FatalError() {
-        base::FatalNoSecurityImpact("%s.\n%s", str().c_str(), kHint);
-      }
-    };
     // Readonly flags cannot change value.
     if (change_flag && IsReadOnly()) {
       // Exit instead of abort for certain testing situations.
@@ -1063,6 +1066,21 @@ class ImplicationProcessor {
     // returned false.
     DCHECK_EQ(value, conclusion_flag->GetDefaultValue<T>());
     return true;
+  }
+
+  // Called from DEFINE_NOT_EXPLICITLY_SET_IMPLICATION in flag-definitions.h.
+  void TriggerNotExplicitlySetImplication(bool premise,
+                                          const char* premise_name,
+                                          const char* conclusion_name) {
+    if (!premise) {
+      return;
+    }
+    Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
+    if (conclusion_flag->set_by_ != Flag::SetBy::kCommandLine) {
+      return;
+    }
+    FatalError{} << "Command-line provided flag " << FlagName{conclusion_name}
+                 << " is prohibited by " << FlagName{premise_name};
   }
 
   void CheckForCycle() {

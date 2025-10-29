@@ -75,6 +75,9 @@
 
 #define DEFINE_REQUIREMENT(statement) CHECK(statement);
 
+#define DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(whenflag, thenflag) \
+  TriggerNotExplicitlySetImplication(v8_flags.whenflag, #whenflag, #thenflag);
+
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)    \
   changed |= TriggerImplication(!v8_flags.whenflag, "!" #whenflag, \
                                 &v8_flags.thenflag, #thenflag, value, false);
@@ -148,6 +151,10 @@
 
 #ifndef DEFINE_REQUIREMENT
 #define DEFINE_REQUIREMENT(statement)
+#endif
+
+#ifndef DEFINE_NOT_EXPLICITLY_SET_IMPLICATION
+#define DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(whenflag, thenflag)
 #endif
 
 #ifndef DEBUG_BOOL
@@ -3845,10 +3852,15 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
 // Profiling flags.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling_verbose)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
+                                      turbo_profiling_output)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
+                                      turbo_profiling_input)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_annotate_wasm)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_delete_file)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_unwinding_info)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, perf_prof_path)
 // Experimental PGO flags.
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_pgo_to_file)
@@ -3870,6 +3882,8 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, correctness_fuzzer_suppressions)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, force_memory_protection_keys)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, expose_trigger_failure)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_code_traces)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
+                                      redirect_code_traces_to)
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
@@ -3879,6 +3893,13 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_ref_cast_nop)
 #ifdef V8_ENABLE_DRUMBRAKE
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
 #endif  // V8_ENABLE_DRUMBRAKE
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, max_wasm_functions)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
+                                      wasm_max_initial_code_space_reservation)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
+                                      wasm_wrapper_tiering_budget)
+DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
+                                      wasm_eager_tier_up_function)
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Disabling CPU features can lead to DCHECK failures.
 DEFINE_IMPLICATION(disallow_unsafe_flags, enable_avx)
@@ -3964,6 +3985,7 @@ DEFINE_IMPLICATION(gdbjit, log)
 #undef DEFINE_WEAK_VALUE_IMPLICATION
 #undef DEFINE_GENERIC_IMPLICATION
 #undef DEFINE_REQUIREMENT
+#undef DEFINE_NOT_EXPLICITLY_SET_IMPLICATION
 #undef DEFINE_ALIAS_BOOL
 #undef DEFINE_ALIAS_INT
 #undef DEFINE_ALIAS_STRING
