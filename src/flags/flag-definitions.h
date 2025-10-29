@@ -541,6 +541,8 @@ DEFINE_IMPLICATION(stress_scavenger_conservative_object_pinning_random,
 DEFINE_BOOL(scavenger_precise_object_pinning, false,
             "Objects reachable from handles during scavenge "
             "will be pinned and won't move.")
+DEFINE_BOOL(scavenger_updates_allocation_limit, true,
+            "Scavenger updates allocation limits if allocation rate is low")
 
 DEFINE_BOOL(
     precise_object_pinning, false,

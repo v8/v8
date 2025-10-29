@@ -1746,7 +1746,7 @@ void Heap::CollectGarbage(
     } else {
       tracer()->StopFullCycleIfFinished();
     }
-    RecomputeLimits(collector, base::TimeTicks::Now());
+    RecomputeLimits(collector);
   });
 
   if ((collector == GarbageCollector::MARK_COMPACTOR) &&
@@ -2657,16 +2657,7 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
   return {next_old_generation_allocation_limit, next_global_allocation_limit};
 }
 
-void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
-  if (IsYoungGenerationCollector(collector) &&
-      !HasLowYoungGenerationAllocationRate()) {
-    return;
-  }
-  if (using_initial_limit()) {
-    DCHECK(IsYoungGenerationCollector(collector));
-    return;
-  }
-
+void Heap::RecomputeLimits(GarbageCollector collector) {
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     const LimitsComputationResult new_limits = UpdateAllocationLimits({});
 
@@ -2674,15 +2665,14 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
       // Now recompute the new allocation limit.
       mb_->RecomputeLimits(new_limits.global_allocation_limit -
                                new_limits.old_generation_allocation_limit,
-                           time);
+                           base::TimeTicks::Now());
     }
-  } else {
-    DCHECK(HasLowYoungGenerationAllocationRate());
+  } else if (v8_flags.scavenger_updates_allocation_limit &&
+             IsYoungGenerationCollector(collector) &&
+             HasLowYoungGenerationAllocationRate() && !using_initial_limit()) {
     UpdateAllocationLimits(
         LimitsComputationBoundaries::AtMostCurrentLimits(this));
   }
-
-  CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
 }
 
 void Heap::RecomputeLimitsAfterLoadingIfNeeded() {

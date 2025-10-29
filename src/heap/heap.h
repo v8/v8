@@ -2065,7 +2065,7 @@ class Heap final {
 
   size_t GlobalMemoryAvailable();
 
-  void RecomputeLimits(GarbageCollector collector, base::TimeTicks time);
+  void RecomputeLimits(GarbageCollector collector);
   void RecomputeLimitsAfterLoadingIfNeeded();
 
   struct LimitsComputationResult {
