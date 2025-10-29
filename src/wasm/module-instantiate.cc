@@ -8,6 +8,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/base/atomicops.h"
 #include "src/codegen/compiler.h"
+#include "src/compiler/fast-api-calls.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
@@ -142,6 +143,24 @@ bool CompareWithNormalizedCType(const CTypeInfo& info,
 
 enum class ReceiverKind { kFirstParamIsReceiver, kAnyReceiver };
 
+bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
+  if (sig->ReturnInfo().GetType() == CTypeInfo::Type::kPointer) {
+    return false;
+  }
+  for (unsigned int i = 0; i < sig->ArgumentCount(); ++i) {
+    // In WebAssembly, we don't support any flags on arguments.
+    auto flags = static_cast<std::underlying_type_t<CTypeInfo::Flags>>(
+        sig->ArgumentInfo(i).GetFlags());
+    if (flags != 0) {
+      return false;
+    }
+    if (sig->ArgumentInfo(i).GetType() == CTypeInfo::Type::kPointer) {
+      return false;
+    }
+  }
+  return compiler::fast_api_call::CanOptimizeFastSignature(sig);
+}
+
 bool IsSupportedWasmFastApiFunction(Isolate* isolate,
                                     const wasm::CanonicalSig* expected_sig,
                                     Tagged<SharedFunctionInfo> shared,
@@ -193,7 +212,7 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
        c_func_id < end; ++c_func_id) {
     const CFunctionInfo* info =
         shared->api_func_data()->GetCSignature(isolate, c_func_id);
-    if (!compiler::IsFastCallSupportedSignature(info)) {
+    if (!IsFastCallSupportedSignature(info)) {
       log_imported_function_mismatch(c_func_id,
                                      "signature not supported by the fast API");
       continue;
@@ -211,10 +230,6 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
       if (return_info.GetType() == CTypeInfo::Type::kVoid) {
         log_imported_function_mismatch(c_func_id, "too many return values");
         continue;
-      }
-      if (return_info.GetType() == CTypeInfo::Type::kPointer) {
-        log_imported_function_mismatch(c_func_id,
-                                       "pointer types unsupported in Wasm");
       }
       if (!CompareWithNormalizedCType(return_info, expected_sig->GetReturn(0),
                                       info->GetInt64Representation())) {
@@ -252,10 +267,6 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
       // Arg 0 is the receiver, skip over it since either the receiver does not
       // matter, or we already checked it above.
       CTypeInfo arg = info->ArgumentInfo(i + 1);
-      if (arg.GetType() == CTypeInfo::Type::kPointer) {
-        log_imported_function_mismatch(c_func_id,
-                                       "pointer types unsupported in Wasm");
-      }
       if (!CompareWithNormalizedCType(arg, expected_sig->GetParam(sig_index),
                                       info->GetInt64Representation())) {
         log_imported_function_mismatch(c_func_id, "parameter type mismatch");
