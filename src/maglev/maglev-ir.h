@@ -8386,9 +8386,11 @@ class Throw : public FixedInputNodeT<1, Throw> {
   using Base = FixedInputNodeT<1, Throw>;
 
  public:
-  static constexpr OpProperties kProperties = OpProperties::CanThrow() |
-                                              OpProperties::Call() |
-                                              OpProperties::NotIdempotent();
+  // Throw does not do a deferred call, but we mark as such because we often
+  // overwrite ThrowXXXIfYYY to Throw.
+  static constexpr OpProperties kProperties =
+      OpProperties::CanThrow() | OpProperties::Call() |
+      OpProperties::DeferredCall() | OpProperties::NotIdempotent();
 
 #define THROW_FUNCTIONS_LIST(V)          \
   V(kThrow)                              \

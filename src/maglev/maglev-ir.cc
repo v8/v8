@@ -86,24 +86,48 @@ void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
 
   DCHECK_LE(SizeOfNodeForOpcode(new_opcode), SizeOfNodeForOpcode(opcode()));
 
+  // Memory layout before a Node (cf. NodeBase::Allocate):
+  // +---------------------------------------------+
+  // [ ExceptionHandlerInfo (if needed)            ]
+  // [ RegisterSnapshot (if needed)                ]
+  // [ DeoptInfo (if needed, either eager or lazy) ]
+  // [ Inputs                                      ]
+  // +---------------------------------------------+
+
   int old_input_count = input_count();
   int new_input_count = StaticInputCountForOpcode(new_opcode);
-  if (old_input_count == new_input_count) {
-    // We can keep the same properties.
-    DCHECK_IMPLIES(new_properties.can_eager_deopt(),
-                   properties().can_eager_deopt());
-    DCHECK_IMPLIES(new_properties.can_lazy_deopt(),
-                   properties().can_lazy_deopt());
-    DCHECK_IMPLIES(new_properties.needs_register_snapshot(),
-                   properties().needs_register_snapshot());
-  } else {
+  if (old_input_count != new_input_count) {
+    // Do not reuse DeoptInfo, RegisterSnapshot and ExceptionHandlerInfo, since
+    // their locations are no longer valid.
+    // TODO(victorgomes): support moving them.
     DCHECK_LT(new_input_count, old_input_count);
-    // We must not deopt, since the location of the DeoptInfo will be incorrect.
-    // TODO(victorgomes): support moving the deopt info.
     DCHECK(!new_properties.can_eager_deopt());
     DCHECK(!new_properties.can_lazy_deopt());
     DCHECK(!new_properties.needs_register_snapshot());
+    DCHECK(!new_properties.can_throw());
+    return;
   }
+  if ((properties().can_eager_deopt() && !new_properties.can_eager_deopt()) ||
+      (properties().can_lazy_deopt() && !new_properties.can_lazy_deopt())) {
+    // Do not reuse RegisterSnapshot and ExceptionHandlerInfo, since their
+    // locations are no longer valid.
+    DCHECK(!new_properties.needs_register_snapshot());
+    DCHECK(!new_properties.can_throw());
+    return;
+  }
+  if (properties().needs_register_snapshot() &&
+      !new_properties.needs_register_snapshot()) {
+    // Do not reuse ExceptionHandlerInfo, since its location is no longer valid.
+    DCHECK(!new_properties.can_throw());
+    return;
+  }
+  DCHECK_IMPLIES(new_properties.can_eager_deopt(),
+                 properties().can_eager_deopt());
+  DCHECK_IMPLIES(new_properties.can_lazy_deopt(),
+                 properties().can_lazy_deopt());
+  DCHECK_IMPLIES(new_properties.needs_register_snapshot(),
+                 properties().needs_register_snapshot());
+  DCHECK_IMPLIES(new_properties.can_throw(), properties().can_throw());
 }
 
 #endif  // DEBUG
