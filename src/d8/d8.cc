@@ -6150,7 +6150,6 @@ bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
 }  // namespace
 
 bool Shell::SetOptions(int argc, char* argv[]) {
-  bool logfile_per_isolate = false;
   options.d8_path = argv[0];
   for (int i = 0; i < argc; i++) {
     char* flag_value = nullptr;
@@ -6174,8 +6173,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagMatches("--abort-on-contradictory-flags", &argv[i],
                            /*keep_flag=*/true)) {
       check_d8_flag_contradictions = true;
-    } else if (FlagMatches("--logfile-per-isolate", &argv[i])) {
-      logfile_per_isolate = true;
     } else if (FlagMatches("--shell", &argv[i])) {
       options.interactive_shell = true;
     } else if (FlagMatches("--test", &argv[i])) {
@@ -6352,6 +6349,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
 
+  DCHECK(options.num_isolates);
+
 #ifdef V8_OS_LINUX
   if (options.scope_linux_perf_to_mark_measure) {
     if (options.perf_ctl_fd == -1 || options.perf_ack_fd == -1) {
@@ -6374,6 +6373,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       "  --module  execute a file as a JavaScript module\n";
   using HelpOptions = i::FlagList::HelpOptions;
   i::v8_flags.abort_on_contradictory_flags = true;
+  static constexpr char kStandaloneD8ShellFlag[] = "--is_standalone_d8_shell";
+  i::FlagList::SetFlagsFromString(kStandaloneD8ShellFlag,
+                                  strlen(kStandaloneD8ShellFlag));
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
                                        HelpOptions(HelpOptions::kExit, usage));
   i::FlagList::ResolveContradictionsWhenFuzzing();
@@ -6415,10 +6417,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
   current->End(argc);
-
-  if (!logfile_per_isolate && options.num_isolates) {
-    V8::SetFlagsFromString("--no-logfile-per-isolate");
-  }
 
   return true;
 }
@@ -7107,12 +7105,6 @@ int Shell::Main(int argc, char* argv[]) {
     g_platform = MakeDelayedTasksPlatform(std::move(g_platform), random_seed);
   }
 
-  if (i::v8_flags.trace_turbo_cfg_file == nullptr) {
-    V8::SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
-  }
-  if (i::v8_flags.redirect_code_traces_to == nullptr) {
-    V8::SetFlagsFromString("--redirect-code-traces-to=code.asm");
-  }
   v8::V8::InitializePlatform(g_platform.get());
 
   // Disable flag freezing if we are producing a code cache, because for that we

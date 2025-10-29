@@ -3824,6 +3824,15 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
 #endif
 
+DEFINE_BOOL(is_standalone_d8_shell, false,
+            "Tells V8 it's running as part of the d8. This flag should not be "
+            "set in other cases.")
+DEFINE_WEAK_NEG_IMPLICATION(is_standalone_d8_shell, logfile_per_isolate)
+DEFINE_WEAK_VALUE_IMPLICATION(is_standalone_d8_shell, trace_turbo_cfg_file,
+                              "turbo.cfg")
+DEFINE_WEAK_VALUE_IMPLICATION(is_standalone_d8_shell, redirect_code_traces_to,
+                              "code.asm")
+
 // The --disallow-unsafe-flags is meant to block known unsafe configurations and
 // mitigate spurious reports due invalid flag combinations/values. To prevent AI
 // agents and/or fuzzers from using a new unsafe flag, add an implication from
