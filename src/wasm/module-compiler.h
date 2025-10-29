@@ -172,14 +172,15 @@ class AsyncCompileJob {
 
   void CreateNativeModule(std::shared_ptr<const WasmModule> module,
                           size_t code_size_estimate);
-  // Return true for cache hit, false for cache miss.
-  bool GetOrCreateNativeModule(std::shared_ptr<const WasmModule> module,
-                               size_t code_size_estimate);
-  void PrepareRuntimeObjects();
+  // Return the module (cached or freshly allocated) and true for cache hit,
+  // false for cache miss.
+  std::tuple<std::shared_ptr<NativeModule>, bool> GetOrCreateNativeModule(
+      std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
 
   // {FinishCompile} and {Failed} invalidate the {AsyncCompileJob}, so we only
   // allow to call them on r-value references to make this clear at call sites.
-  void FinishCompile(bool is_after_cache_hit) &&;
+  void FinishCompile(std::shared_ptr<NativeModule> final_native_module,
+                     bool cache_hit) &&;
   void Failed() &&;
 
   void AsyncCompileSucceeded(DirectHandle<WasmModuleObject> result);
@@ -219,11 +220,11 @@ class AsyncCompileJob {
   CompileTimeImports compile_imports_;
   base::TimeTicks start_time_;
   base::TimeTicks compilation_finished_time_;
-  // Copy of the module wire bytes, moved into the {native_module_} on its
+  // Copy of the module wire bytes, moved into the {new_native_module_} on its
   // creation.
   base::OwnedVector<const uint8_t> bytes_copy_;
   // Reference to the wire bytes (held in {bytes_copy_} or as part of
-  // {native_module_}).
+  // {new_native_module_}).
   ModuleWireBytes wire_bytes_;
   IndirectHandle<NativeContext> native_context_;
   IndirectHandle<NativeContext> incumbent_context_;
@@ -231,7 +232,11 @@ class AsyncCompileJob {
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
   IndirectHandle<WasmModuleObject> module_object_;
-  std::shared_ptr<NativeModule> native_module_;
+  // The {NativeModule} which was created for this async compilation.
+  // This is only set once, and stays alive as long as this job stays alive.
+  // Note that the finally used module can be different, if we find a module in
+  // the cache.
+  std::shared_ptr<NativeModule> new_native_module_;
 
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
