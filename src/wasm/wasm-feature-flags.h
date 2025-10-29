@@ -35,12 +35,6 @@
   /* V8 side owner: jabraham */                                                \
   V(instruction_tracing, "instruction tracing section", false)                 \
                                                                                \
-  /* Custom Descriptors proposal. */                                           \
-  /* https://github.com/WebAssembly/custom-descriptors */                      \
-  /* Note: the JS Interop part of the proposal is enabled by */                \
-  /* --experimental-wasm-js-interop for now. */                                \
-  /* V8 side owner: jkummerow */                                               \
-  V(custom_descriptors, "custom descriptors", false)                           \
                                                                                \
   /* Shared-Everything Threads proposal. */                                    \
   /* https://github.com/WebAssembly/shared-everything-threads */               \
@@ -75,6 +69,12 @@
 // that this list is empty most of the time and that features spend extended
 // time right before or after this phase.
 #define FOREACH_WASM_PRE_STAGING_FEATURE_FLAG(V) /*      (force 80 columns) */ \
+  /* Custom Descriptors proposal. */                                           \
+  /* https://github.com/WebAssembly/custom-descriptors */                      \
+  /* Note: the JS Interop part of the proposal is enabled by */                \
+  /* --experimental-wasm-js-interop for now. */                                \
+  /* V8 side owner: jkummerow */                                               \
+  V(custom_descriptors, "custom descriptors", false)                           \
   // add pre-staged features right before this line
 
 // #############################################################################
