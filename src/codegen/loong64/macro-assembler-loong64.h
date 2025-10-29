@@ -291,8 +291,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DropArguments(Register count);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver);
 
-  void Ld_d(Register rd, const MemOperand& rj);
-  void St_d(Register rd, const MemOperand& rj);
+  void Ld_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void St_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
   void Push(Handle<HeapObject> handle);
   void Push(Tagged<Smi> smi);
@@ -631,29 +631,29 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Change endianness
   void ByteSwap(Register dest, Register src, int operand_size);
 
-  void Ld_b(Register rd, const MemOperand& rj);
-  void Ld_bu(Register rd, const MemOperand& rj);
-  void St_b(Register rd, const MemOperand& rj);
+  void Ld_b(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Ld_bu(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void St_b(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
-  void Ld_h(Register rd, const MemOperand& rj);
-  void Ld_hu(Register rd, const MemOperand& rj);
-  void St_h(Register rd, const MemOperand& rj);
+  void Ld_h(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Ld_hu(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void St_h(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
-  void Ld_w(Register rd, const MemOperand& rj);
-  void Ld_wu(Register rd, const MemOperand& rj);
-  void St_w(Register rd, const MemOperand& rj);
+  void Ld_w(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Ld_wu(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void St_w(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
-  void Fld_s(FPURegister fd, const MemOperand& src);
-  void Fst_s(FPURegister fj, const MemOperand& dst);
+  void Fld_s(FPURegister fd, const MemOperand& src, int* trap_pc = NULL);
+  void Fst_s(FPURegister fj, const MemOperand& dst, int* trap_pc = NULL);
 
-  void Fld_d(FPURegister fd, const MemOperand& src);
-  void Fst_d(FPURegister fj, const MemOperand& dst);
+  void Fld_d(FPURegister fd, const MemOperand& src, int* trap_pc = NULL);
+  void Fst_d(FPURegister fj, const MemOperand& dst, int* trap_pc = NULL);
 
-  void Ll_w(Register rd, const MemOperand& rj);
-  void Sc_w(Register rd, const MemOperand& rj);
+  void Ll_w(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Sc_w(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
-  void Ll_d(Register rd, const MemOperand& rj);
-  void Sc_d(Register rd, const MemOperand& rj);
+  void Ll_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Sc_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
   // These functions assume (and assert) that src1!=src2. It is permitted
   // for the result to alias either input register.
@@ -862,7 +862,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Pointer compression Support
 
   // Loads a field containing any tagged value and decompresses it if necessary.
-  void LoadTaggedField(Register destination, const MemOperand& field_operand);
+  void LoadTaggedField(Register destination, const MemOperand& field_operand,
+                       int* trap_pc = NULL);
 
   // Loads a field containing a tagged signed value and decompresses it if
   // necessary.
@@ -873,20 +874,27 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void SmiUntagField(Register dst, const MemOperand& src);
 
   // Compresses and stores tagged value to given on-heap location.
-  void StoreTaggedField(Register src, const MemOperand& dst);
+  void StoreTaggedField(Register src, const MemOperand& dst,
+                        int* trap_pc = NULL);
 
-  void AtomicStoreTaggedField(Register dst, const MemOperand& src);
+  void AtomicStoreTaggedField(Register dst, const MemOperand& src,
+                              int* trap_pc = NULL);
 
-  void DecompressTaggedSigned(Register dst, const MemOperand& src);
-  void DecompressTagged(Register dst, const MemOperand& src);
+  void DecompressTaggedSigned(Register dst, const MemOperand& src,
+                              int* trap_pc = NULL);
+  void DecompressTagged(Register dst, const MemOperand& src,
+                        int* trap_pc = NULL);
   void DecompressTagged(Register dst, Register src);
   void DecompressTagged(Register dst, Tagged_t immediate);
   void DecompressProtected(const Register& destination,
-                           const MemOperand& field_operand);
+                           const MemOperand& field_operand,
+                           int* trap_pc = NULL);
 
-  void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
+  void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src,
+                                    int* trap_pc = NULL);
   // Returns the pc offset of the atomic load instruction.
-  int AtomicDecompressTagged(Register dst, const MemOperand& src);
+  void AtomicDecompressTagged(Register dst, const MemOperand& src,
+                              int* trap_pc = NULL);
 
   // ---------------------------------------------------------------------------
   // V8 Sandbox support
@@ -895,9 +903,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
   void DecodeSandboxedPointer(Register value);
-  void LoadSandboxedPointerField(Register destination,
-                                 MemOperand field_operand);
-  void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand);
+  void LoadSandboxedPointerField(Register destination, MemOperand field_operand,
+                                 int* trap_pc = NULL);
+  void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand,
+                                  int* trap_pc = NULL);
 
   // Loads a field containing an off-heap ("external") pointer and does
   // necessary decoding if sandbox is enabled.
@@ -935,7 +944,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Store an indirect pointer field.
   // Only available when the sandbox is enabled, but always visible to avoid
   // having to place the #ifdefs into the caller.
-  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand);
+  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand,
+                                 int* trap_pc = NULL);
 
 #ifdef V8_ENABLE_SANDBOX
   // Retrieve the heap object referenced by the given indirect pointer handle,
