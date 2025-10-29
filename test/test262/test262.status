@@ -273,13 +273,10 @@
 
   # No issue filed
 
-  # Temporal should error on the ambiguous `islamic` calendar
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic': [FAIL],
-
   # ICU4C and ICU4X disagree on canonical timezones
   'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal': [FAIL],
 
-  # Test errors for out-of-ground-truth-range calendars (expected, test is broken)
+  # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
   'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
   'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
