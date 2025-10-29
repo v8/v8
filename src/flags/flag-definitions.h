@@ -312,7 +312,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V) V(harmony_temporal, "Temporal")
+#define HARMONY_STAGED_BASE(V)
 
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V) V(js_upsert, "upsert")
 
@@ -327,8 +327,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V) \
-  V(harmony_import_attributes, "harmony import attributes")
+#define HARMONY_SHIPPING_BASE(V)                            \
+  V(harmony_import_attributes, "harmony import attributes") \
+  V(harmony_temporal, "Temporal")
 
 #define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                                 \
   V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups")       \
