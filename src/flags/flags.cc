@@ -121,11 +121,11 @@ bool Flag::ShouldCheckFlagContradictions() {
     FindFlagByPointer(&v8_flags.allow_overwriting_for_next_flag)->Reset();
     return false;
   }
-  return (v8_flags.abort_on_contradictory_flags && !v8_flags.fuzzing) ||
-         v8_flags.disallow_unsafe_flags;
+  return v8_flags.abort_on_contradictory_flags && !v8_flags.fuzzing;
 }
 
 namespace {
+
 struct FatalError : public std::ostringstream {
   static constexpr const char kHint[] =
       "If a test variant caused this, it might be necessary to specify "
@@ -137,6 +137,13 @@ struct FatalError : public std::ostringstream {
     base::FatalNoSecurityImpact("%s.\n%s", str().c_str(), kHint);
   }
 };
+
+bool ShouldCheckDisallowUnsafeFlagContradictions(const char* implied_by) {
+  static constexpr char kDisallowUnsafeFlagsStr[] = "disallow_unsafe_flags";
+  return implied_by && v8_flags.disallow_unsafe_flags &&
+         !std::strcmp(implied_by, kDisallowUnsafeFlagsStr);
+}
+
 }  // namespace
 
 bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
@@ -145,7 +152,8 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
       (set_by_ == SetBy::kImplication || set_by_ == SetBy::kCommandLine)) {
     return false;
   }
-  if (ShouldCheckFlagContradictions()) {
+  if (ShouldCheckFlagContradictions() ||
+      ShouldCheckDisallowUnsafeFlagContradictions(implied_by)) {
     // Readonly flags cannot change value.
     if (change_flag && IsReadOnly()) {
       // Exit instead of abort for certain testing situations.
