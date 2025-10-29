@@ -24,7 +24,9 @@ namespace internal {
 
 namespace maglev {
 class MaglevGraphBuilder;
-class MaglevAssembler;
+class StoreSmiContextCell;
+class StoreInt32ContextCell;
+class StoreFloat64ContextCell;
 }  // namespace maglev
 class JSGlobalObject;
 class JSGlobalProxy;
@@ -922,6 +924,9 @@ V8_OBJECT class ContextCell : public HeapObjectLayout {
   friend class CodeStubAssembler;
   friend struct ObjectTraits<ContextCell>;
   friend class TorqueGeneratedContextCellAsserts;
+  friend class maglev::StoreSmiContextCell;
+  friend class maglev::StoreInt32ContextCell;
+  friend class maglev::StoreFloat64ContextCell;
   friend class maglev::MaglevGraphBuilder;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;

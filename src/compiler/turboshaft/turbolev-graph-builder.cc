@@ -3231,6 +3231,27 @@ class GraphBuildingNodeProcessor {
     }
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::StoreSmiContextCell* node,
+                                const maglev::ProcessingState& state) {
+    __ Store(__ HeapConstant(node->cell().object()), Map(node->value_input()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
+             WriteBarrierKind::kNoWriteBarrier, node->offset(), false);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreInt32ContextCell* node,
+                                const maglev::ProcessingState& state) {
+    __ Store(__ HeapConstant(node->cell().object()), Map(node->value_input()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
+             WriteBarrierKind::kNoWriteBarrier, node->offset());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::StoreFloat64ContextCell* node,
+                                const maglev::ProcessingState& state) {
+    __ Store(__ HeapConstant(node->cell().object()), Map(node->value_input()),
+             StoreOp::Kind::TaggedBase(), MemoryRepresentation::Float64(),
+             WriteBarrierKind::kNoWriteBarrier, node->offset());
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(
       maglev::StoreTrustedPointerFieldWithWriteBarrier* node,
       const maglev::ProcessingState& state) {

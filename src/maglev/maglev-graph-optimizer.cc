@@ -648,6 +648,24 @@ ProcessResult MaglevGraphOptimizer::VisitStoreContextSlotWithWriteBarrier(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitStoreSmiContextCell(
+    StoreSmiContextCell* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreInt32ContextCell(
+    StoreInt32ContextCell* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreFloat64ContextCell(
+    StoreFloat64ContextCell* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult
 MaglevGraphOptimizer::VisitStoreTrustedPointerFieldWithWriteBarrier(
     StoreTrustedPointerFieldWithWriteBarrier* node,

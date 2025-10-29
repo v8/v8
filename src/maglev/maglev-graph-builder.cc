@@ -3239,7 +3239,7 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
   int offset = Context::OffsetOfElementAt(index);
   if (!maybe_value->IsContextCell()) {
     return BuildStoreTaggedField(context, value, offset,
-                                 StoreTaggedMode::kDefault);
+                                 StoreTaggedMode::kDefaultToContext);
   }
 
   compiler::ContextCellRef slot_ref = maybe_value->AsContextCell();
@@ -3261,22 +3261,19 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
       // GetSmiValue to force canonicalization for the value if necessary.
       RETURN_IF_ABORT(GetSmiValue(value));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return BuildStoreTaggedFieldNoWriteBarrier(
-          GetConstant(slot_ref), value, offsetof(ContextCell, tagged_value_),
-          StoreTaggedMode::kDefault);
+      return AddNewNode<StoreSmiContextCell>({value}, context_ref, slot_ref,
+                                             offset);
     case ContextCell::kInt32:
       EnsureInt32(value, true);
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return AddNewNode<StoreInt32>(
-          {GetConstant(slot_ref), value},
-          static_cast<int>(offsetof(ContextCell, double_value_)));
+      return AddNewNode<StoreInt32ContextCell>({value}, context_ref, slot_ref,
+                                               offset);
 
     case ContextCell::kFloat64:
       RETURN_IF_ABORT(BuildCheckNumber(value));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return AddNewNode<StoreFloat64>(
-          {GetConstant(slot_ref), value},
-          static_cast<int>(offsetof(ContextCell, double_value_)));
+      return AddNewNode<StoreFloat64ContextCell>({value}, context_ref, slot_ref,
+                                                 offset);
     case ContextCell::kDetached:
       return BuildStoreTaggedField(context, value, offset,
                                    StoreTaggedMode::kDefaultToContext);
