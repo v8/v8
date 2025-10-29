@@ -29,7 +29,6 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/compiler/backend/register-allocator.h"
-#include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/branch-elimination.h"
 #include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/checkpoint-elimination.h"

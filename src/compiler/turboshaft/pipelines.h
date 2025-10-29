@@ -9,7 +9,7 @@
 
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
-#include "src/compiler/basic-block-instrumentor.h"
+#include "src/compiler/basic-block-call-graph-profiler.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/block-instrumentation-phase.h"
