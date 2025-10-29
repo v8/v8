@@ -55,6 +55,10 @@ class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
 class DescriptorArray
     : public TorqueGeneratedDescriptorArray<DescriptorArray, HeapObject> {
  public:
+  // Do linear search for small arrays, and for searches in the background
+  // thread.
+  static constexpr int kMaxElementsForLinearSearch = 32;
+
   DECL_INT16_ACCESSORS(number_of_all_descriptors)
   DECL_INT16_ACCESSORS(number_of_descriptors)
   DECL_RELAXED_PRIMITIVE_ACCESSORS(flags, uint32_t)
@@ -137,7 +141,7 @@ class DescriptorArray
       int enumeration_index, PropertyAttributes attributes, int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
-  V8_EXPORT_PRIVATE void Sort();
+  inline void Sort();
 
   // Iterate through Name hash collisions in the descriptor array starting from
   // insertion index checking for Name collisions. Note: If we ever add binary
@@ -252,6 +256,8 @@ class DescriptorArray
   using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
+  V8_EXPORT_PRIVATE void SortImpl(const int len);
+
   inline void SetKey(InternalIndex descriptor_number, Tagged<Name> key);
   inline void SetValue(InternalIndex descriptor_number,
                        Tagged<MaybeObject> value);

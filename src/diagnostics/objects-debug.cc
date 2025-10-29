@@ -2974,6 +2974,8 @@ void JSObject::SpillInformation::Print() {
 }
 
 bool DescriptorArray::IsSortedNoDuplicates() {
+  // Up to the linear search limit the array is not sorted and that's fine.
+  if (number_of_descriptors() <= kMaxElementsForLinearSearch) return true;
   Tagged<Name> current_key;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
@@ -2996,6 +2998,8 @@ bool DescriptorArray::IsSortedNoDuplicates() {
 }
 
 bool TransitionArray::IsSortedNoDuplicates() {
+  // Up to the linear search limit the array is not sorted and that's fine.
+  if (number_of_transitions() <= kMaxElementsForLinearSearch) return true;
   Tagged<Name> prev_key;
   PropertyKind prev_kind = PropertyKind::kData;
   PropertyAttributes prev_attributes = NONE;
