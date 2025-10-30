@@ -143,6 +143,7 @@ bool CompareWithNormalizedCType(const CTypeInfo& info,
 
 enum class ReceiverKind { kFirstParamIsReceiver, kAnyReceiver };
 
+#ifdef V8_ENABLE_TURBOFAN
 bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
   if (sig->ReturnInfo().GetType() == CTypeInfo::Type::kPointer) {
     return false;
@@ -160,6 +161,7 @@ bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
   }
   return compiler::fast_api_call::CanOptimizeFastSignature(sig);
 }
+#endif
 
 bool IsSupportedWasmFastApiFunction(Isolate* isolate,
                                     const wasm::CanonicalSig* expected_sig,

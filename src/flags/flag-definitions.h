@@ -3892,9 +3892,9 @@ DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
                        experimental_wasm_skip_null_checks)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_ref_cast_nop)
-#ifdef V8_ENABLE_DRUMBRAKE
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
-#endif  // V8_ENABLE_DRUMBRAKE
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, max_wasm_functions)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
                                       wasm_max_initial_code_space_reservation)
