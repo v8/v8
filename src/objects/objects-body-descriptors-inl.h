@@ -1184,6 +1184,27 @@ class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class WasmDispatchTableForImports::BodyDescriptor final
+    : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IterateProtectedPointer(obj, kProtectedOffheapDataOffset, v);
+    int length =
+        TrustedCast<WasmDispatchTableForImports>(obj)->length(kAcquireLoad);
+    for (int i = 0; i < length; ++i) {
+      IterateProtectedPointer(obj, OffsetOf(i) + kImplicitArgBias, v);
+    }
+  }
+
+  static inline int SizeOf(Tagged<Map> map,
+                           Tagged<WasmDispatchTableForImports> object) {
+    int length = object->length();
+    return SizeFor(length);
+  }
+};
+
 class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>

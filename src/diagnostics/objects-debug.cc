@@ -297,6 +297,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case WASM_DISPATCH_TABLE_TYPE:
       TrustedCast<WasmDispatchTable>(*this)->WasmDispatchTableVerify(isolate);
       break;
+    case WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE:
+      TrustedCast<WasmDispatchTableForImports>(*this)
+          ->WasmDispatchTableForImportsVerify(isolate);
+      break;
     case WASM_VALUE_OBJECT_TYPE:
       Cast<WasmValueObject>(*this)->WasmValueObjectVerify(isolate);
       break;
@@ -2573,6 +2577,23 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
       CHECK(uses->get(i).IsCleared() ||
             IsWasmTrustedInstanceData(uses->get(i).GetHeapObjectAssumeWeak()));
       CHECK(IsSmi(uses->get(i + 1)));
+    }
+  }
+}
+
+void WasmDispatchTableForImports::WasmDispatchTableForImportsVerify(
+    Isolate* isolate) {
+  TrustedObjectVerify(isolate);
+
+  int len = length();
+  for (int i = 0; i < len; ++i) {
+    Tagged<Object> arg = implicit_arg(i);
+    Object::VerifyPointer(isolate, arg);
+    CHECK(IsWasmTrustedInstanceData(arg) || IsWasmImportData(arg) ||
+          arg == Smi::zero());
+    if (!v8_flags.wasm_jitless) {
+      // call_target always null with the interpreter.
+      CHECK_EQ(arg == Smi::zero(), target(i) == wasm::kInvalidWasmCodePointer);
     }
   }
 }
