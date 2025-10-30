@@ -1,7 +1,7 @@
 // Copyright 2021 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// Flags: --harmony-temporal
+// Flags: --js-staging
 
 let bigint_nano = 567890123456789000000n;
 let milli = 567890123456789;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-temporal
+// Flags: --js-staging
 
 // For now, just make sure to call this function at least once in our tests.
 // TODO(temporal): Functional tests.

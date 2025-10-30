@@ -1,7 +1,7 @@
 // Copyright 2021 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// Flags: --harmony-temporal
+// Flags: --js-staging
 
 
 assertEquals("1970-01-01T00:00:00Z",
