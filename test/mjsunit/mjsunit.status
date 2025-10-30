@@ -46,10 +46,6 @@
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 
-  # Temporal is temporarily disabled until we have enough of it reimplemented
-  # with ICU4X (b/42201538)
-  'temporal/*': [SKIP],
-
   ##############################################################################
   # Open bugs.
 
@@ -1014,13 +1010,6 @@
   'regress/regress-1447383': [SKIP],
   'regress/regress-crbug-335592010': [SKIP],
   'regress/regress-352402863': [SKIP],
-
-  # Temporal intl tests won't work without i18n
-  'temporal/function-exist': [FAIL],
-  'temporal/plain-date-get-era': [FAIL],
-  'temporal/plain-date-get-eraYear': [FAIL],
-  'temporal/plain-date-time-get-era': [FAIL],
-  'temporal/plain-date-time-get-eraYear': [FAIL],
 
   # Non-BMP characters currently aren't considered identifiers without i18n
   'harmony/private-name-surrogate-pair': [PASS,FAIL],
