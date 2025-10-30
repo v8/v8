@@ -85,7 +85,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* size unmodified to avoid unexpected performance implications. */       \
   /* It should be removed. */
 
-#ifdef V8_ENABLE_LEAPTIERING
 
 /* Tiering related builtins
  *
@@ -117,13 +116,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(MarkReoptimizeLazyDeoptimized, JSTrampoline) \
   TFC(MarkLazyDeoptimized, JSTrampoline)
 
-#else
-
-#define BUILTIN_LIST_BASE_TIERING(TFC)                       \
-  /* TODO(saelo): should this use a different descriptor? */ \
-  TFC(CompileLazyDeoptimizedCode, JSTrampoline)
-
-#endif
 
 #define BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH,     \
                                 ASM)                                           \

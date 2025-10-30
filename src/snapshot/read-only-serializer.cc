@@ -145,9 +145,7 @@ class ObjectPreProcessor final {
     o->ClearInstructionStartForSerialization(isolate_);
     CHECK(!o->has_source_position_table_or_bytecode_offset_table());
     CHECK(!o->has_deoptimization_data_or_interpreter_data());
-#ifdef V8_ENABLE_LEAPTIERING
     CHECK_EQ(o->js_dispatch_handle(), kNullJSDispatchHandle);
-#endif
 #if V8_ENABLE_GEARBOX
     ResetGearboxPlaceholderBuiltin(o);
 #endif

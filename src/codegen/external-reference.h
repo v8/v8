@@ -514,12 +514,8 @@ enum class IsolateFieldId : uint8_t;
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
 #define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V) \
   V(js_dispatch_table_address, "IsolateGroup::current()->js_dispatch_table()")
-#else
-#define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)
-#endif  // V8_ENABLE_LEAPTIERING
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
 #define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)            \

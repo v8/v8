@@ -11646,9 +11646,7 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   // Inputs must be initialized manually.
   inline CallKnownJSFunction(
       uint64_t bitfield,
-#ifdef V8_ENABLE_LEAPTIERING
       JSDispatchHandle dispatch_handle,
-#endif
       compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
       ValueNode* context, ValueNode* receiver, ValueNode* new_target,
       const compiler::FeedbackSource& feedback_source);
@@ -11701,9 +11699,7 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   UseRepresentationSet use_repr_hints() { return use_repr_hints_; }
 
  private:
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle dispatch_handle_;
-#endif
   const compiler::SharedFunctionInfoRef shared_function_info_;
   // Cache the expected parameter count so that we can access it in
   // MaxCallStackArgs without needing to unpark the local isolate.

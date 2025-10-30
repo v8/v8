@@ -551,10 +551,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
-#ifdef V8_ENABLE_LEAPTIERING
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
                            uint16_t argument_count);
-#endif
 #ifdef V8_ENABLE_WEBASSEMBLY
   void CallWasmCodePointer(Register target, uint64_t signature_hash,
                            CallJumpMode call_jump_mode = CallJumpMode::kCall);
@@ -914,7 +912,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void LoadCodePointerTableBase(Register destination);
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   void LoadEntrypointFromJSDispatchTable(Register destination,
                                          Register dispatch_handle);
   void LoadEntrypointFromJSDispatchTable(Register destination,
@@ -923,7 +920,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                              Register dispatch_handle);
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle);
-#endif  // V8_ENABLE_LEAPTIERING
 
   void LoadProtectedPointerField(Register destination, Operand field_operand);
 
@@ -1012,7 +1008,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // leaptiering will be used on all platforms. At that point, the
   // non-leaptiering variants will disappear.
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
                           Register actual_parameter_count, InvokeType type,
@@ -1025,21 +1020,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
                       Register actual_parameter_count, InvokeType type,
                       ArgumentAdaptionMode argument_adaption_mode =
                           ArgumentAdaptionMode::kAdapt);
-#else
-  // Invoke the JavaScript function code by either calling or jumping.
-  void InvokeFunctionCode(Register function, Register new_target,
-                          Register expected_parameter_count,
-                          Register actual_parameter_count, InvokeType type);
-
-  // Invoke the JavaScript function in the given register. Changes the
-  // current context to the context in the function before invoking.
-  void InvokeFunction(Register function, Register new_target,
-                      Register actual_parameter_count, InvokeType type);
-
-  void InvokeFunction(Register function, Register new_target,
-                      Register expected_parameter_count,
-                      Register actual_parameter_count, InvokeType type);
-#endif  // V8_ENABLE_LEAPTIERING
 
   // On function call, call into the debugger.
   void CallDebugOnFunctionCall(
@@ -1139,25 +1119,6 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       JumpMode jump_mode = JumpMode::kJump);
-#ifndef V8_ENABLE_LEAPTIERING
-  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
-                                           Register closure, Register scratch1,
-                                           Register slot_address);
-  Condition CheckFeedbackVectorFlagsNeedsProcessing(Register feedback_vector,
-                                                    CodeKind current_code_kind);
-  void CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      Register feedback_vector, CodeKind current_code_kind,
-      Label* flags_need_processing);
-  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register feedback_vector,
-                                               Register closure,
-                                               JumpMode jump_mode);
-  // For compatibility with other archs.
-  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                               Register feedback_vector) {
-    OptimizeCodeOrTailCallOptimizedCodeSlot(
-        feedback_vector, kJSFunctionRegister, JumpMode::kJump);
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE;

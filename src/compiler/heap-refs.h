@@ -701,9 +701,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   int InitialMapInstanceSizeWithMinSlack(JSHeapBroker* broker) const;
   FeedbackCellRef raw_feedback_cell(JSHeapBroker* broker) const;
   OptionalFeedbackVectorRef feedback_vector(JSHeapBroker* broker) const;
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle dispatch_handle() const;
-#endif
 };
 
 class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
@@ -861,9 +859,7 @@ class FeedbackCellRef : public HeapObjectRef {
   OptionalFeedbackVectorRef feedback_vector(JSHeapBroker* broker) const;
   OptionalSharedFunctionInfoRef shared_function_info(
       JSHeapBroker* broker) const;
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle dispatch_handle() const;
-#endif
 };
 
 class FeedbackVectorRef : public HeapObjectRef {

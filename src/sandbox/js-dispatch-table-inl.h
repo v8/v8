@@ -16,7 +16,6 @@
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 
-#ifdef V8_ENABLE_LEAPTIERING
 
 namespace v8 {
 namespace internal {
@@ -393,6 +392,5 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ENABLE_LEAPTIERING
 
 #endif  // V8_SANDBOX_JS_DISPATCH_TABLE_INL_H_

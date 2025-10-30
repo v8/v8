@@ -1346,7 +1346,6 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
 
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override {
-#ifdef V8_ENABLE_LEAPTIERING
     // TODO(saelo): implement proper support for these fields here, similar to
     // how we handle indirect pointer or protected pointer fields.
     // Currently we only expect to see FeedbackCells or JSFunctions here.
@@ -1360,7 +1359,6 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     } else {
       UNREACHABLE();
     }
-#endif  // V8_ENABLE_LEAPTIERING
   }
 
  private:
@@ -1581,13 +1579,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     TagObject(js_fun->context(), "(context)");
     SetInternalReference(entry, "context", js_fun->context(),
                          JSFunction::kContextOffset);
-#ifdef V8_ENABLE_LEAPTIERING
     SetInternalReference(entry, "code", js_fun->code(isolate),
                          JSFunction::kDispatchHandleOffset);
-#else
-    SetInternalReference(entry, "code", js_fun->code(isolate),
-                         JSFunction::kCodeOffset);
-#endif  // V8_ENABLE_LEAPTIERING
   } else if (IsJSGlobalObject(obj)) {
     Tagged<JSGlobalObject> global_obj = Cast<JSGlobalObject>(obj);
     SetInternalReference(entry, "global_proxy", global_obj->global_proxy(),
@@ -2187,14 +2180,6 @@ void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
     HeapEntry* entry, Tagged<FeedbackVector> feedback_vector) {
-#ifndef V8_ENABLE_LEAPTIERING
-  Tagged<MaybeObject> code = feedback_vector->maybe_optimized_code();
-  Tagged<HeapObject> code_heap_object;
-  if (code.GetHeapObjectIfWeak(&code_heap_object)) {
-    SetWeakReference(entry, "optimized code", code_heap_object,
-                     FeedbackVector::kMaybeOptimizedCodeOffset);
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
   for (int i = 0; i < feedback_vector->length(); ++i) {
     Tagged<MaybeObject> maybe_entry = *(feedback_vector->slots_start() + i);
     Tagged<HeapObject> entry_obj;

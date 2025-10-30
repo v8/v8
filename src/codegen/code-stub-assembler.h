@@ -4269,7 +4269,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load a builtin's code from the builtin array in the isolate.
   TNode<Code> LoadBuiltin(TNode<Smi> builtin_id);
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Load a builtin's handle into the JSDispatchTable.
 #if V8_STATIC_DISPATCH_HANDLES_BOOL
   TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(
@@ -4286,7 +4285,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<UintPtrT> ComputeJSDispatchTableEntryOffset(
       TNode<JSDispatchHandleT> handle);
-#endif  // V8_ENABLE_LEAPTIERING
 
   // Tailcalls to the given code object with JSCall linkage. The JS arguments
   // (including receiver) are supposed to be already on the stack.
@@ -4302,8 +4300,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                       TNode<Int32T> arg_count,
                       TNode<JSDispatchHandleT> dispatch_handle);
   // Same as above, but the code object is loaded from the dispatch table
-  // entry or from the function according to V8_ENABLE_LEAPTIERING state and
-  // thus the parameter count check is not necessary.
+  // entry and thus the parameter count check is not necessary.
   void TailCallJSCode(TNode<Context> context, TNode<JSFunction> function,
                       TNode<Object> new_target, TNode<Int32T> arg_count,
                       TNode<JSDispatchHandleT> dispatch_handle);

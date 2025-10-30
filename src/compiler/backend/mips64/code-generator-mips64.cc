@@ -552,7 +552,6 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
             kJavaScriptCallCodeStartRegister, Operand(kScratchReg));
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 // Check that {kJavaScriptCallDispatchHandleRegister} is correct.
 void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
@@ -580,7 +579,6 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   __ Assert(eq, AbortReason::kWrongFunctionDispatchHandle,
             actual_parameter_count, Operand(parameter_count_));
 }
-#endif  // V8_ENABLE_LEAPTIERING
 
 void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
 // Assembles an instruction after register allocation, producing machine code.

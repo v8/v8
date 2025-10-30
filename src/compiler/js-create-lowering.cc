@@ -942,9 +942,6 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   CreateClosureParameters const& p = n.Parameters();
   SharedFunctionInfoRef shared = p.shared_info();
   FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
-#ifndef V8_ENABLE_LEAPTIERING
-  HeapObjectRef code = p.code();
-#endif
   Effect effect = n.effect();
   Control control = n.control();
   Node* context = n.context();
@@ -964,7 +961,6 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK(!function_map.IsInobjectSlackTrackingInProgress());
   DCHECK(!function_map.is_dictionary_map());
 
-#ifdef V8_ENABLE_LEAPTIERING
   // TODO(saelo): we should embed the dispatch handle directly into the
   // generated code instead of loading it at runtime from the FeedbackCell.
   // This will likely first require GC support though.
@@ -987,7 +983,6 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
             AccessBuilder::ForFeedbackCellDispatchHandleNoWriteBarrier()),
         feedback_cell_node, effect, control);
   }
-#endif  // V8_ENABLE_LEAPTIERING
 
   // TODO(turbofan): We should use the pretenure flag from {p} here,
   // but currently the heuristic in the parser works against us, as
@@ -1013,12 +1008,8 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
   a.Store(AccessBuilder::ForJSFunctionContext(), context);
   a.Store(AccessBuilder::ForJSFunctionFeedbackCell(), feedback_cell);
-#ifdef V8_ENABLE_LEAPTIERING
   a.Store(AccessBuilder::ForJSFunctionDispatchHandleNoWriteBarrier(),
           dispatch_handle);
-#else
-  a.Store(AccessBuilder::ForJSFunctionCode(), code);
-#endif  // V8_ENABLE_LEAPTIERING
   static_assert(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   if (function_map.has_prototype_slot()) {
     a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),

@@ -243,11 +243,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // contains the expected pointer to the start of the instruction stream.
   void AssembleCodeStartRegisterCheck();
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Generates code to check whether the {kJavaScriptCallDispatchHandleRegister}
   // references a valid entry compatible with this code.
   void AssembleDispatchHandleRegisterCheck();
-#endif  // V8_ENABLE_LEAPTIERING
 
   // When entering a code that is marked for deoptimization, rather continuing
   // with its execution, we jump to a lazy compiled code. We need to do this

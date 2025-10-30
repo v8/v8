@@ -6353,11 +6353,7 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
 
     __ CallBuiltin(builtin);
   } else {
-#if V8_ENABLE_LEAPTIERING
     __ CallJSDispatchEntry(dispatch_handle_, expected_parameter_count_);
-#else
-    __ CallJSFunction(kJavaScriptCallTargetRegister, expected_parameter_count_);
-#endif
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }

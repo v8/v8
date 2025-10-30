@@ -149,7 +149,6 @@ namespace internal {
 #define V8_STATIC_ROOTS_GENERATION_BOOL false
 #endif
 
-#ifdef V8_ENABLE_LEAPTIERING
 #define V8_ENABLE_LEAPTIERING_BOOL true
 
 #ifdef V8_COMPRESS_POINTERS
@@ -157,10 +156,6 @@ namespace internal {
 #else
 #define V8_STATIC_DISPATCH_HANDLES_BOOL false
 #endif  // !V8_COMPRESS_POINTERS
-
-#else
-#define V8_ENABLE_LEAPTIERING_BOOL false
-#endif
 
 #ifdef V8_ENABLE_SANDBOX
 #define V8_ENABLE_SANDBOX_BOOL true
@@ -2553,65 +2548,6 @@ using FileAndLine = std::pair<const char*, int>;
 // happen. Define this constant so we can static_assert it at related code
 // sites.
 static constexpr bool kTieringStateInProgressBlocksTierup = true;
-
-#ifndef V8_ENABLE_LEAPTIERING
-
-#define TIERING_STATE_LIST(V)           \
-  V(None, 0b000)                        \
-  V(InProgress, 0b001)                  \
-  V(RequestMaglev_Synchronous, 0b010)   \
-  V(RequestMaglev_Concurrent, 0b011)    \
-  V(RequestTurbofan_Synchronous, 0b100) \
-  V(RequestTurbofan_Concurrent, 0b101)
-
-enum class TieringState : int32_t {
-#define V(Name, Value) k##Name = Value,
-  TIERING_STATE_LIST(V)
-#undef V
-      kLastTieringState = kRequestTurbofan_Concurrent,
-};
-
-// To efficiently check whether a marker is kNone or kInProgress using a single
-// mask, we expect the kNone to be 0 and kInProgress to be 1 so that we can
-// mask off the lsb for checking.
-static_assert(static_cast<int>(TieringState::kNone) == 0b00 &&
-              static_cast<int>(TieringState::kInProgress) == 0b01);
-static_assert(static_cast<int>(TieringState::kLastTieringState) <= 0b111);
-static constexpr uint32_t kNoneOrInProgressMask = 0b110;
-
-#define V(Name, Value)                          \
-  constexpr bool Is##Name(TieringState state) { \
-    return state == TieringState::k##Name;      \
-  }
-TIERING_STATE_LIST(V)
-#undef V
-
-constexpr bool IsRequestMaglev(TieringState state) {
-  return IsRequestMaglev_Concurrent(state) ||
-         IsRequestMaglev_Synchronous(state);
-}
-constexpr bool IsRequestTurbofan(TieringState state) {
-  return IsRequestTurbofan_Concurrent(state) ||
-         IsRequestTurbofan_Synchronous(state);
-}
-
-constexpr const char* ToString(TieringState marker) {
-  switch (marker) {
-#define V(Name, Value)        \
-  case TieringState::k##Name: \
-    return "TieringState::k" #Name;
-    TIERING_STATE_LIST(V)
-#undef V
-  }
-}
-
-inline std::ostream& operator<<(std::ostream& os, TieringState marker) {
-  return os << ToString(marker);
-}
-
-#undef TIERING_STATE_LIST
-
-#endif  // !V8_ENABLE_LEAPTIERING
 
 // State machine:
 // S(tate)0: kPending

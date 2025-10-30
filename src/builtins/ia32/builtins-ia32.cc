@@ -913,20 +913,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
                         Label::kNear);
 
 #ifndef V8_JITLESS
-#ifndef V8_ENABLE_LEAPTIERING
-  // If feedback vector is valid, check for optimized code and update invocation
-  // count. Load the optimization state from the feedback vector and reuse the
-  // register.
-  Label flags_need_processing;
-  Register flags = ecx;
-  XMMRegister saved_feedback_vector = xmm1;
-  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      flags, saved_feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &flags_need_processing);
-
-  // Reload the feedback vector.
-  __ movd(feedback_vector, saved_feedback_vector);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, scratch);
 
@@ -1106,14 +1092,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
 #ifndef V8_JITLESS
-#ifndef V8_ENABLE_LEAPTIERING
-  __ bind(&flags_need_processing);
-  {
-    // Restore actual argument count.
-    __ movd(eax, xmm0);
-    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, xmm1);
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
 
   __ bind(&compile_lazy);
   // Restore actual argument count.
@@ -1122,39 +1100,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ bind(&is_baseline);
   {
-#ifndef V8_ENABLE_LEAPTIERING
-    __ movd(xmm2, ecx);  // Save baseline data.
-    // Load the feedback vector from the closure.
-    __ mov(feedback_vector,
-           FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-    __ mov(feedback_vector,
-           FieldOperand(feedback_vector, FeedbackCell::kValueOffset));
-
-    Label install_baseline_code;
-    // Check if feedback vector is valid. If not, call prepare for baseline to
-    // allocate it.
-    __ LoadMap(eax, feedback_vector);
-    __ CmpInstanceType(eax, FEEDBACK_VECTOR_TYPE);
-    __ j(not_equal, &install_baseline_code);
-
-    // Check the tiering state.
-    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        flags, xmm1, CodeKind::BASELINE, &flags_need_processing);
-
-    // Load the baseline code into the closure.
-    __ movd(ecx, xmm2);
-    static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-    __ push(edx);  // Spill.
-    __ push(ecx);
-    __ Push(xmm0, eax);  // Save the argument count (currently in xmm0).
-    __ ReplaceClosureCodeWithOptimizedCode(ecx, closure, eax, ecx);
-    __ pop(eax);  // Restore the argument count.
-    __ pop(ecx);
-    __ pop(edx);
-    __ JumpCodeObject(ecx);
-
-    __ bind(&install_baseline_code);
-#endif  // !V8_ENABLE_LEAPTIERING
 
     __ movd(eax, xmm0);  // Recover argument count.
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1878,19 +1823,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ AssertFeedbackVector(feedback_vector, scratch);
   feedback_cell = no_reg;
 
-#ifdef V8_ENABLE_LEAPTIERING
   __ movd(saved_feedback_vector, feedback_vector);
-#else
-  // Load the optimization state from the feedback vector and reuse the
-  // register.
-  Label flags_need_processing;
-  Register flags = ecx;
-  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      flags, saved_feedback_vector, CodeKind::BASELINE, &flags_need_processing);
-
-  // Reload the feedback vector.
-  __ movd(feedback_vector, saved_feedback_vector);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   {
     DCHECK_EQ(arg_count, eax);
@@ -1955,20 +1888,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
-#ifndef V8_ENABLE_LEAPTIERING
-  __ bind(&flags_need_processing);
-  {
-    ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
-    // Drop the return address and bytecode array, rebalancing the return stack
-    // buffer by using JumpMode::kPushAndReturn. We can't leave the slot and
-    // overwrite it on return since we may do a runtime call along the way that
-    // requires the stack to only contain valid frames.
-    __ Drop(2);
-    __ movd(arg_count, saved_arg_count);  // Restore actual argument count.
-    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, saved_feedback_vector);
-    __ Trap();
-  }
-#endif  //! V8_ENABLE_LEAPTIERING
 
   __ bind(&call_stack_guard);
   {

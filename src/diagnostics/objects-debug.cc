@@ -892,7 +892,6 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   Object::VerifyPointer(isolate, v);
   CHECK(IsUndefined(v) || IsClosureFeedbackCellArray(v) || IsFeedbackVector(v));
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return;
 
@@ -902,7 +901,6 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   CHECK(kind == CodeKind::FOR_TESTING_JS || kind == CodeKind::BUILTIN ||
         kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BASELINE ||
         kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN_JS);
-#endif
 }
 
 void ClosureFeedbackCellArray::ClosureFeedbackCellArrayVerify(
@@ -1362,7 +1360,6 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   // Ensure that the function's meta map belongs to the same native context.
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   JSDispatchHandle handle = dispatch_handle();
   CHECK_NE(handle, kNullJSDispatchHandle);
@@ -1399,7 +1396,6 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
             entrypoint == code_from_table->instruction_start());
 #undef CASE
 
-#endif  // V8_ENABLE_LEAPTIERING
 
   DirectHandle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),

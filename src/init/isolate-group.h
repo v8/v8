@@ -21,9 +21,7 @@
 #include "src/sandbox/code-pointer-table.h"
 #include "src/utils/allocation.h"
 
-#ifdef V8_ENABLE_LEAPTIERING
 #include "src/sandbox/js-dispatch-table.h"
-#endif  // V8_ENABLE_LEAPTIERING
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/base/region-allocator.h"
@@ -304,9 +302,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   SandboxedArrayBufferAllocatorBase* GetSandboxedArrayBufferAllocator();
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* js_dispatch_table() { return &js_dispatch_table_; }
-#endif  // V8_ENABLE_LEAPTIERING
 
   void SetupReadOnlyHeap(Isolate* isolate,
                          SnapshotData* read_only_snapshot_data,
@@ -431,9 +427,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   TrustedRange trusted_range_;
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable js_dispatch_table_;
-#endif  // V8_ENABLE_LEAPTIERING
 };
 
 }  // namespace internal

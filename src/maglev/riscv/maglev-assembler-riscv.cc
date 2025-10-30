@@ -164,31 +164,6 @@ void MaglevAssembler::Prologue(Graph* graph) {
   }
 
   // Tiering support.
-#ifndef V8_ENABLE_LEAPTIERING
-  if (v8_flags.turbofan) {
-    using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
-    Register flags = D::GetRegisterParameter(D::kFlags);
-    Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
-    DCHECK(!AreAliased(
-        flags, feedback_vector,
-        kJavaScriptCallArgCountRegister,  // flags - t4, feedback - a6,
-                                          // kJavaScriptCallArgCountRegister -
-                                          // a0
-        kJSFunctionRegister, kContextRegister,
-        kJavaScriptCallNewTargetRegister));
-    DCHECK(!temps.Available().has(flags));
-    DCHECK(!temps.Available().has(feedback_vector));
-    Move(feedback_vector,
-         compilation_info()->toplevel_compilation_unit()->feedback().object());
-    Label needs_processing, done;
-    LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        flags, feedback_vector, CodeKind::MAGLEV, &needs_processing);
-    Jump(&done);
-    bind(&needs_processing);
-    TailCallBuiltin(Builtin::kMaglevOptimizeCodeOrTailCallOptimizedCodeSlot);
-    bind(&done);
-  }
-#endif
 
   EnterFrame(StackFrame::MAGLEV);
   // Save arguments in frame.
