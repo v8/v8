@@ -1970,7 +1970,7 @@ class TurboshaftGraphBuildingInterface
       } else {
         inputs[i] = args[i].op;
       }
-      DCHECK(inputs[i].valid());
+      DCHECK(__ generating_unreachable_operations() || inputs[i].valid());
     }
 
     OpIndex options_object;
