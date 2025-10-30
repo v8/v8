@@ -277,7 +277,6 @@ class ExceptionHandlerInfo;
   V(TruncateCheckedNumberOrOddballToInt32)                            \
   V(TruncateUnsafeNumberOrOddballToInt32)                             \
   V(CheckedInt32ToUint32)                                             \
-  V(CheckedIntPtrToUint32)                                            \
   V(UnsafeInt32ToUint32)                                              \
   V(CheckedUint32ToInt32)                                             \
   V(CheckedIntPtrToInt32)                                             \
@@ -286,7 +285,6 @@ class ExceptionHandlerInfo;
   V(ChangeIntPtrToFloat64)                                            \
   V(CheckedHoleyFloat64ToInt32)                                       \
   V(UnsafeHoleyFloat64ToInt32)                                        \
-  V(CheckedHoleyFloat64ToUint32)                                      \
   V(TruncateHoleyFloat64ToInt32)                                      \
   V(TruncateUint32ToInt32)                                            \
   V(Int32ToUint8Clamped)                                              \
@@ -4586,26 +4584,6 @@ class CheckedInt32ToUint32
   void PrintParams(std::ostream&) const {}
 };
 
-class CheckedIntPtrToUint32
-    : public FixedInputValueNodeT<1, CheckedIntPtrToUint32> {
-  using Base = FixedInputValueNodeT<1, CheckedIntPtrToUint32>;
-
- public:
-  explicit CheckedIntPtrToUint32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Uint32() |
-                                              OpProperties::ConversionNode() |
-                                              OpProperties::EagerDeopt();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
 class UnsafeInt32ToUint32
     : public FixedInputValueNodeT<1, UnsafeInt32ToUint32> {
   using Base = FixedInputValueNodeT<1, UnsafeInt32ToUint32>;
@@ -4889,26 +4867,6 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
 
  private:
   Kind kind_;
-};
-
-class CheckedHoleyFloat64ToUint32
-    : public FixedInputValueNodeT<1, CheckedHoleyFloat64ToUint32> {
-  using Base = FixedInputValueNodeT<1, CheckedHoleyFloat64ToUint32>;
-
- public:
-  explicit CheckedHoleyFloat64ToUint32(uint64_t bitfield) : Base(bitfield) {}
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Uint32() |
-                                              OpProperties::ConversionNode();
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
 };
 
 #define DEFINE_TRUNCATE_NODE(name, from_repr, properties)        \

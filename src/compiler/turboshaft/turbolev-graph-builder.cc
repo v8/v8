@@ -4730,21 +4730,6 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::CheckedIntPtrToUint32* node,
-                                const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    // TODO(388844115): Rename the IntPtr in Maglev to make it clear it's
-    // non-negative.
-    __ DeoptimizeIfNot(
-        __ UintPtrLessThanOrEqual(Map(node->input()),
-                                  std::numeric_limits<uint32_t>::max()),
-        frame_state, DeoptimizeReason::kNotUint32,
-        node->eager_deopt_info()->feedback_to_update());
-    SetMap(node,
-           __ TypeHintUint32(__ TruncateWordPtrToWord32(Map(node->input()))));
-    return maglev::ProcessResult::kContinue;
-  }
-
   maglev::ProcessResult Process(maglev::CheckedUint32ToInt32* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -4826,15 +4811,6 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::UnsafeHoleyFloat64ToInt32* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ JSTruncateFloat64ToWord32(Map(node->input())));
-    return maglev::ProcessResult::kContinue;
-  }
-  maglev::ProcessResult Process(maglev::CheckedHoleyFloat64ToUint32* node,
-                                const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    SetMap(node, __ ChangeFloat64ToUint32OrDeopt(
-                     Map(node->input()), frame_state,
-                     CheckForMinusZeroMode::kCheckForMinusZero,
-                     node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(
