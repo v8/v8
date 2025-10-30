@@ -164,6 +164,44 @@ enum class JsonToken : uint8_t {
   EOS
 };
 
+template <JsonToken token, JsonToken... tokens>
+concept JsonTokenIsOneOf = ((token == tokens) || ...);
+
+template <JsonToken token>
+concept JsonTokenIsCharacter =
+    JsonTokenIsOneOf<token, JsonToken::STRING, JsonToken::LBRACE,
+                     JsonToken::RBRACE, JsonToken::LBRACK, JsonToken::RBRACK,
+                     JsonToken::TRUE_LITERAL, JsonToken::FALSE_LITERAL,
+                     JsonToken::NULL_LITERAL, JsonToken::COLON,
+                     JsonToken::COMMA>;
+
+constexpr uint8_t JsonTokenToCharacter(JsonToken token) {
+  switch (token) {
+    case JsonToken::STRING:
+      return '"';
+    case JsonToken::LBRACE:
+      return '{';
+    case JsonToken::RBRACE:
+      return '}';
+    case JsonToken::LBRACK:
+      return '[';
+    case JsonToken::RBRACK:
+      return ']';
+    case JsonToken::TRUE_LITERAL:
+      return 't';
+    case JsonToken::FALSE_LITERAL:
+      return 'f';
+    case JsonToken::NULL_LITERAL:
+      return 'n';
+    case JsonToken::COLON:
+      return ':';
+    case JsonToken::COMMA:
+      return ',';
+    default:
+      CONSTEXPR_UNREACHABLE();
+  }
+}
+
 // A simple json parser.
 template <typename Char>
 class JsonParser final {
@@ -244,8 +282,29 @@ class JsonParser final {
     advance();
   }
 
+  template <JsonToken token>
+  V8_INLINE bool IsNextToken();
+
+  template <JsonToken token>
+    requires JsonTokenIsCharacter<token>
+  V8_INLINE bool IsNextToken() {
+    constexpr Char expected_char = JsonTokenToCharacter(token);
+    if (V8_LIKELY(expected_char == CurrentCharacter())) {
+      return true;
+    }
+    return false;
+  }
+
+  template <>
+  V8_INLINE bool IsNextToken<JsonToken::EOS>() {
+    if (V8_LIKELY(is_at_end())) {
+      return true;
+    }
+    return false;
+  }
+
+  template <JsonToken token>
   V8_WARN_UNUSED_RESULT bool Expect(
-      JsonToken token,
       std::optional<MessageTemplate> errorMessage = std::nullopt) {
     if (V8_LIKELY(peek() == token)) {
       advance();
@@ -256,16 +315,22 @@ class JsonParser final {
     return false;
   }
 
-  template <bool skip_whitespace = true>
+  template <JsonToken token, bool skip_whitespace = true>
   V8_WARN_UNUSED_RESULT bool ExpectNext(
-      JsonToken token,
       std::optional<MessageTemplate> errorMessage = std::nullopt);
 
-  V8_WARN_UNUSED_RESULT bool Check(JsonToken token) {
+  template <JsonToken token>
+  V8_WARN_UNUSED_RESULT bool Check() {
+    if (V8_LIKELY(IsNextToken<token>())) {
+      advance();
+      return true;
+    }
     SkipWhitespace();
-    if (next_ != token) return false;
-    advance();
-    return true;
+    if (next_ == token) {
+      advance();
+      return true;
+    }
+    return false;
   }
 
   template <size_t N>

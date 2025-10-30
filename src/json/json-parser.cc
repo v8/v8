@@ -131,15 +131,15 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
 };
 
 #define EXPECT_RETURN_ON_ERROR(token, msg, ret) \
-  if (V8_UNLIKELY(!Expect(token, msg))) {       \
+  if (V8_UNLIKELY(!Expect<token>(msg))) {       \
     return ret;                                 \
   }
 #define EXPECT_NEXT_RETURN_ON_ERROR(token, msg, ret) \
-  if (V8_UNLIKELY(!ExpectNext(token, msg))) {        \
+  if (V8_UNLIKELY(!ExpectNext<token>(msg))) {        \
     return ret;                                      \
   }
 #define EXPECT_NEXT_NO_SPACE_RETURN_ON_ERROR(token, msg, ret) \
-  if (V8_UNLIKELY(!ExpectNext<false>(token, msg))) {          \
+  if (V8_UNLIKELY((!ExpectNext<token, false>(msg)))) {        \
     return ret;                                               \
   }
 
@@ -597,7 +597,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(bool should_track_json_source) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValueRecursive());
   }
 
-  if (!Check(JsonToken::EOS)) {
+  if (!Check<JsonToken::EOS>()) {
     ReportUnexpectedToken(
         peek(), MessageTemplate::kJsonParseUnexpectedNonWhiteSpaceCharacter);
     return MaybeHandle<Object>();
@@ -620,15 +620,19 @@ JsonToken GetTokenForCharacter(Char c) {
 }  // namespace
 
 template <typename Char>
-template <bool skip_whitespace>
+template <JsonToken token, bool skip_whitespace>
 V8_WARN_UNUSED_RESULT bool JsonParser<Char>::ExpectNext(
-    JsonToken token, std::optional<MessageTemplate> errorMessage) {
+    std::optional<MessageTemplate> errorMessage) {
+  if (V8_LIKELY(IsNextToken<token>())) {
+    advance();
+    return true;
+  }
   if constexpr (skip_whitespace) {
     SkipWhitespace();
   } else {
     DCHECK_NE(GetTokenForCharacter(CurrentCharacter()), JsonToken::WHITESPACE);
   }
-  return errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
+  return errorMessage ? Expect<token>(errorMessage.value()) : Expect<token>();
 }
 
 template <typename Char>
@@ -1614,7 +1618,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
           MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName;
       JsonString key = ScanJsonPropertyKey(cont);
       if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-    } while (Check(JsonToken::COMMA));
+    } while (Check<JsonToken::COMMA>());
   } else {
     DCHECK_GT(descriptors->number_of_descriptors(), 0);
     InternalIndex idx{0};
@@ -1647,7 +1651,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
             // Feedback doesn't match. Finish processing the current property
             // and continue in slow-path if we have more properties.
             if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-            if (Check(JsonToken::COMMA)) {
+            if (Check<JsonToken::COMMA>()) {
               return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
                   cont, first_token_msg, {});
             }
@@ -1710,7 +1714,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
         // If key is not fast iterable or doesn't match the feedback, we
         // continue on the slow-path.
         if (V8_UNLIKELY(is_slow || !key_match)) {
-          if (Check(JsonToken::COMMA)) {
+          if (Check<JsonToken::COMMA>()) {
             return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
                 cont, first_token_msg, {});
           }
@@ -1720,7 +1724,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
         ++idx;
       }
     } while (idx < InternalIndex(descriptors->number_of_descriptors()) &&
-             Check(JsonToken::COMMA));
+             Check<JsonToken::COMMA>());
     if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
       if (idx == InternalIndex(descriptors->number_of_descriptors())) {
         descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
@@ -1728,7 +1732,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
       }
     }
     // Additional, unknown properties. Scan them slow.
-    if (Check(JsonToken::COMMA)) {
+    if (Check<JsonToken::COMMA>()) {
       return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
           cont, first_token_msg, descriptors);
     }
@@ -1747,7 +1751,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonObject(Handle<Map> feedback) {
   }
 
   Consume(JsonToken::LBRACE);
-  if (Check(JsonToken::RBRACE)) {
+  if (Check<JsonToken::RBRACE>()) {
     return factory()->NewJSObject(object_constructor_);
   }
 
@@ -1804,7 +1808,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
   }
 
   Consume(JsonToken::LBRACK);
-  if (Check(JsonToken::RBRACK)) {
+  if (Check<JsonToken::RBRACK>()) {
     return factory()->NewJSArray(0, PACKED_SMI_ELEMENTS);
   }
 
@@ -1831,7 +1835,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
         smi_elements_.push_back(current_smi);
       }
     }
-    if (Check(JsonToken::COMMA)) {
+    if (Check<JsonToken::COMMA>()) {
       SkipWhitespace();
       continue;
     } else {
@@ -1889,7 +1893,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
   Handle<Object> value;
   if (V8_UNLIKELY(!ParseJsonValueRecursive().ToHandle(&value))) return {};
   element_stack_.emplace_back(value);
-  while (Check(JsonToken::COMMA)) {
+  while (Check<JsonToken::COMMA>()) {
     Handle<Map> feedback;
     if (IsJSObject(*value)) {
       Tagged<Map> maybe_feedback = Cast<JSObject>(*value)->map();
@@ -1999,7 +2003,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
 
         case JsonToken::LBRACE: {
           Consume(JsonToken::LBRACE);
-          if (Check(JsonToken::RBRACE)) {
+          if (Check<JsonToken::RBRACE>()) {
             // TODO(verwaest): Directly use the map instead.
             value = factory()->NewJSObject(object_constructor_);
             if constexpr (should_track_json_source) {
@@ -2033,7 +2037,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
 
         case JsonToken::LBRACK:
           Consume(JsonToken::LBRACK);
-          if (Check(JsonToken::RBRACK)) {
+          if (Check<JsonToken::RBRACK>()) {
             value = factory()->NewJSArray(0, PACKED_SMI_ELEMENTS);
             if constexpr (should_track_json_source) {
               val_node = factory()->NewFixedArray(0);
@@ -2119,7 +2123,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             property_val_node_stack.back() = val_node;
           }
 
-          if (V8_LIKELY(Check(JsonToken::COMMA))) {
+          if (V8_LIKELY(Check<JsonToken::COMMA>())) {
             // Parse the property key.
             EXPECT_NEXT_RETURN_ON_ERROR(
                 JsonToken::STRING,
@@ -2201,7 +2205,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             element_val_node_stack.emplace_back(val_node);
           }
           // Break to start producing the subsequent element value.
-          if (V8_LIKELY(Check(JsonToken::COMMA))) break;
+          if (V8_LIKELY(Check<JsonToken::COMMA>())) break;
 
           value = BuildJsonArray(cont.index);
           EXPECT_RETURN_ON_ERROR(
