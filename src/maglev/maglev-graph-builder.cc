@@ -9751,11 +9751,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadDataView(
     // TODO(victorgomes): Add checks whether the array has been detached.
     return {};
   }
-  // TODO(victorgomes): Add data view to known types.
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  RETURN_IF_ABORT(
-      AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
-                                    JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
+  if (!EnsureType(receiver, NodeType::kJSDataView)) {
+    RETURN_IF_ABORT(
+        AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
+                                      JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
+  }
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset;
   if (args[0]) {
@@ -9776,11 +9777,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
     // TODO(victorgomes): Add checks whether the array has been detached.
     return {};
   }
-  // TODO(victorgomes): Add data view to known types.
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  RETURN_IF_ABORT(
-      AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
-                                    JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
+  if (!EnsureType(receiver, NodeType::kJSDataView)) {
+    RETURN_IF_ABORT(
+        AddNewNode<CheckInstanceType>({receiver}, CheckType::kCheckHeapObject,
+                                      JS_DATA_VIEW_TYPE, JS_DATA_VIEW_TYPE));
+  }
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
   ValueNode* offset;
   if (args[0]) {

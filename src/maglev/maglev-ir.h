@@ -859,8 +859,9 @@ typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
   V(JSArray, (1 << 13))                             \
   V(JSFunction, (1 << 14))                          \
   V(OtherCallable, (1 << 15))                       \
-  V(OtherHeapObject, (1 << 16))                     \
-  V(OtherJSReceiver, (1 << 17))
+  V(JSDataView, (1 << 16))                          \
+  V(OtherHeapObject, (1 << 17))                     \
+  V(OtherJSReceiver, (1 << 18))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -1069,6 +1070,7 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
   if (map.is_callable()) {
     return NodeType::kCallable;
   }
+  if (map.IsJSDataViewMap()) return NodeType::kJSDataView;
   if (map.IsJSReceiverMap()) {
     // JSReceiver but not any of the above.
     return NodeType::kOtherJSReceiver;
@@ -1138,6 +1140,8 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return map.is_callable();
     case NodeType::kOtherCallable:
       return map.is_callable() && !map.IsJSFunctionMap();
+    case NodeType::kJSDataView:
+      return map.IsJSDataViewMap();
     case NodeType::kOtherJSReceiver:
       return map.IsJSReceiverMap() && !map.IsJSArrayMap() &&
              !map.is_callable() && !map.IsStringWrapperMap();
