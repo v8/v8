@@ -191,6 +191,7 @@ extern class WasmModuleObject extends JSObject {
 }
 
 extern class WasmDispatchTable extends ExposedTrustedObject;
+extern class WasmDispatchTableForImports extends TrustedObject;
 
 extern class WasmTableObject extends JSObject {
   // The entries array is at least as big as {current_length()}, but might be

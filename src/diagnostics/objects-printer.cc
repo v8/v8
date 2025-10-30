@@ -344,6 +344,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case WASM_DISPATCH_TABLE_TYPE:
       TrustedCast<WasmDispatchTable>(*this)->WasmDispatchTablePrint(os);
       break;
+    case WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE:
+      TrustedCast<WasmDispatchTableForImports>(*this)
+          ->WasmDispatchTableForImportsPrint(os);
+      break;
     case WASM_VALUE_OBJECT_TYPE:
       Cast<WasmValueObject>(*this)->WasmValueObjectPrint(os);
       break;
@@ -3050,6 +3054,22 @@ void WasmDispatchTable::WasmDispatchTablePrint(std::ostream& os) {
   os << "\n";
 }
 
+void WasmDispatchTableForImports::WasmDispatchTableForImportsPrint(
+    std::ostream& os) {
+  PrintHeader(os, "WasmDispatchTableForImports");
+  int len = length();
+  os << "\n - length: " << len;
+  // Only print up to 55 elements; otherwise print the first 50 and "[...]".
+  int printed = len > 55 ? 50 : len;
+  for (int i = 0; i < printed; ++i) {
+    os << "\n " << std::setw(8) << i
+       << ": target: " << AsHex::Address(target(i).value())
+       << "; implicit_arg: " << Brief(implicit_arg(i));
+  }
+  if (printed != len) os << "\n  [...]";
+  os << "\n";
+}
+
 // Never called directly, as WasmFunctionData is an "abstract" class.
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
@@ -4016,6 +4036,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     case WASM_DISPATCH_TABLE_TYPE:
       os << "<WasmDispatchTable["
          << TrustedCast<WasmDispatchTable>(*this)->length() << "]>";
+      break;
+    case WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE:
+      os << "<WasmDispatchTableForImports["
+         << TrustedCast<WasmDispatchTableForImports>(*this)->length() << "]>";
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
