@@ -712,6 +712,11 @@ v8_source_set("v8_unittests_sources") {
       "assembler/disasm-mips64-unittest.cc",
       "assembler/macro-assembler-mips64-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [
+        "compiler/mips64/turboshaft-instruction-selector-mips64-unittest.cc",
+      ]
+    }
   } else if (v8_current_cpu == "riscv64") {
     sources += [
       "assembler/disasm-riscv-unittest.cc",
@@ -769,6 +774,11 @@ v8_source_set("v8_unittests_sources") {
       "assembler/disasm-loong64-unittest.cc",
       "assembler/macro-assembler-loong64-unittest.cc",
     ]
+    if (v8_enable_turbofan) {
+      sources += [
+        "compiler/loong64/turboshaft-instruction-selector-loong64-unittest.cc",
+      ]
+    }
     if (v8_enable_webassembly && current_cpu == "loong64") {
       sources += [ "wasm/trap-handler-native-unittest.cc" ]
     }
