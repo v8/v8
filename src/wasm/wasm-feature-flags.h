@@ -59,7 +59,10 @@
   /* Compilation hints */                                                      \
   /* https://github.com/WebAssembly/compilation-hints */                       \
   /* V8 side owner: ecmziegler, manoskouk */                                   \
-  V(compilation_hints, "compilation hints", false)
+  V(compilation_hints, "compilation hints", false)                             \
+                                                                               \
+  /* V8 side owner: thibaudm */                                                \
+  V(growable_stacks, "growable stacks for jspi", false)
 
 // #############################################################################
 // Pre-staged features (disabled by default, but enabled via
@@ -97,9 +100,6 @@
   /* No upstream repo yet. */                                                  \
   /* V8 side owner: jkummerow */                                               \
   V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
-                                                                               \
-  /* V8 side owner: thibaudm */                                                \
-  V(growable_stacks, "growable stacks for jspi", false)                        \
                                                                                \
   /* Resizable buffer integration */                                           \
   /* https://github.com/WebAssembly/spec/issues/1292 */                        \
