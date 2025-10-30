@@ -849,20 +849,6 @@ void CallBuiltin::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallCPPBuiltin::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void CallCPPBuiltin::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
 void CallRuntime::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged);
@@ -6014,21 +6000,6 @@ void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   __ CompareInt32AndJumpIf(input_reg, 0, kLessThan, fail);
 }
 
-void UnsafeUint32ToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void UnsafeUint32ToInt32::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {
-#ifdef DEBUG
-  Register input_reg = ToRegister(input());
-  __ CompareInt32AndAssert(input_reg, 0, kGreaterThanEqual,
-                           AbortReason::kUint32IsNotAInt32);
-#endif
-  // No code emitted -- as far as the machine is concerned, int32 is uint32.
-  DCHECK_EQ(ToRegister(input()), ToRegister(result()));
-}
-
 void Int32ToUint8Clamped::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
@@ -6714,61 +6685,6 @@ void CallBuiltin::GenerateCode(MaglevAssembler* masm,
   }
   __ CallBuiltin(builtin());
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-int CallCPPBuiltin::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<kCEntry_Builtin>::type;
-  return D::GetStackParameterCount() + num_args();
-}
-
-void CallCPPBuiltin::SetValueLocationConstraints() {
-  using D = CallInterfaceDescriptorFor<kCEntry_Builtin>::type;
-  UseAny(target());
-  UseAny(new_target());
-  UseFixed(context(), kContextRegister);
-  for (int i = 0; i < num_args(); i++) {
-    UseAny(arg(i));
-  }
-  DefineAsFixed(this, kReturnRegister0);
-  set_temporaries_needed(1);
-  RequireSpecificTemporary(D::GetRegisterParameter(D::kArity));
-  RequireSpecificTemporary(D::GetRegisterParameter(D::kCFunction));
-}
-
-void CallCPPBuiltin::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<kCEntry_Builtin>::type;
-  constexpr Register kArityReg = D::GetRegisterParameter(D::kArity);
-  constexpr Register kCFunctionReg = D::GetRegisterParameter(D::kCFunction);
-
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ LoadRoot(scratch, RootIndex::kTheHoleValue);
-
-  // Push all arguments to the builtin (including the receiver).
-  static_assert(BuiltinArguments::kReceiverIndex == 4);
-  __ PushReverse(args());
-
-  static_assert(BuiltinArguments::kNumExtraArgs == 4);
-  static_assert(BuiltinArguments::kNewTargetIndex == 0);
-  static_assert(BuiltinArguments::kTargetIndex == 1);
-  static_assert(BuiltinArguments::kArgcIndex == 2);
-  static_assert(BuiltinArguments::kPaddingIndex == 3);
-  // Push stack arguments for CEntry.
-  Tagged<Smi> tagged_argc = Smi::FromInt(BuiltinArguments::kNumExtraArgs +
-                                         num_args());  // Includes receiver.
-  __ Push(scratch /* padding */, tagged_argc, target(), new_target());
-
-  // Move values to fixed registers after all arguments are pushed. Registers
-  // for arguments and CEntry registers might overlap.
-  __ Move(kArityReg, BuiltinArguments::kNumExtraArgs + num_args());
-  ExternalReference builtin_address =
-      ExternalReference::Create(Builtins::CppEntryOf(builtin()));
-  __ Move(kCFunctionReg, builtin_address);
-
-  DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(builtin()).GetReturnCount(),
-            1);
-  __ CallBuiltin(Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit);
 }
 
 int CallRuntime::MaxCallStackArgs() const { return num_args(); }
@@ -7792,19 +7708,6 @@ void TestUndetectable::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void BranchIfTypeOf::SetValueLocationConstraints() {
-  UseRegister(value_input());
-  // One temporary for TestTypeOf.
-  set_temporaries_needed(1);
-}
-void BranchIfTypeOf::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  Register value = ToRegister(value_input());
-  __ TestTypeOf(value, literal_, if_true()->label(), Label::kFar,
-                if_true() == state.next_block(), if_false()->label(),
-                Label::kFar, if_false() == state.next_block());
-}
-
 void BranchIfJSReceiver::SetValueLocationConstraints() {
   UseRegister(condition_input());
 }
@@ -8373,10 +8276,6 @@ void CallBuiltin::PrintParams(std::ostream& os) const {
   os << "(" << Builtins::name(builtin()) << ")";
 }
 
-void CallCPPBuiltin::PrintParams(std::ostream& os) const {
-  os << "(" << Builtins::name(builtin()) << ")";
-}
-
 void CallForwardVarargs::PrintParams(std::ostream& os) const {
   if (start_index_ == 0) return;
   os << "(" << start_index_ << ")";
@@ -8421,10 +8320,6 @@ void BranchIfInt32Compare::PrintParams(std::ostream& os) const {
 
 void BranchIfUint32Compare::PrintParams(std::ostream& os) const {
   os << "(" << operation_ << ")";
-}
-
-void BranchIfTypeOf::PrintParams(std::ostream& os) const {
-  os << "(" << interpreter::TestTypeOfFlags::ToString(literal_) << ")";
 }
 
 void ExtendPropertiesBackingStore::PrintParams(std::ostream& os) const {

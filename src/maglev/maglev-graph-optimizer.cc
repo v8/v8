@@ -2465,12 +2465,6 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
   X(GapMove)                 \
   X(VirtualObject)
 
-// Nodes unused by maglev but still existing.
-#define NON_EMITTED_NODES(X) \
-  X(CallCPPBuiltin)          \
-  X(UnsafeUint32ToInt32)     \
-  X(BranchIfTypeOf)
-
 #define UNREACHEABLE_VISITOR(Node)                                          \
   ProcessResult MaglevGraphOptimizer::Visit##Node(Node* node,               \
                                                   const ProcessingState&) { \
@@ -2478,7 +2472,6 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
   }
 
 UNREACHABLE_NODES(UNREACHEABLE_VISITOR)
-NON_EMITTED_NODES(UNREACHEABLE_VISITOR)
 
 }  // namespace maglev
 }  // namespace internal

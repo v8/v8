@@ -790,8 +790,6 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     if (from_repr == ValueRepresentation::kFloat64 ||
         from_repr == ValueRepresentation::kHoleyFloat64) {
       old_untagging->OverwriteWith<UnsafeHoleyFloat64ToInt32>();
-    } else if (from_repr == ValueRepresentation::kUint32) {
-      old_untagging->OverwriteWith<UnsafeUint32ToInt32>();
     } else {
       DCHECK_EQ(from_repr, ValueRepresentation::kInt32);
       old_untagging->OverwriteWith<Identity>();

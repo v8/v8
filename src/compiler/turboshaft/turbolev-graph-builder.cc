@@ -5248,20 +5248,6 @@ class GraphBuildingNodeProcessor {
     UNREACHABLE();
   }
 
-  // Nodes unused by maglev but still existing.
-  maglev::ProcessResult Process(maglev::CallCPPBuiltin*,
-                                const maglev::ProcessingState&) {
-    UNREACHABLE();
-  }
-  maglev::ProcessResult Process(maglev::UnsafeUint32ToInt32*,
-                                const maglev::ProcessingState&) {
-    UNREACHABLE();
-  }
-  maglev::ProcessResult Process(maglev::BranchIfTypeOf*,
-                                const maglev::ProcessingState&) {
-    UNREACHABLE();
-  }
-
   AssemblerT& Asm() { return assembler_; }
   Zone* temp_zone() { return temp_zone_; }
   Zone* graph_zone() { return Asm().output_graph().graph_zone(); }
