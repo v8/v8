@@ -641,17 +641,12 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   }
 
 #ifdef DEBUG
+  DirectHandle<WasmDispatchTable> dispatch_table =
+      CheckedCast<WasmDispatchTable>(origin);
   int table_slot = import_data->table_slot();
-  DirectHandle<WasmDispatchTable> dispatch_table;
-  DirectHandle<WasmDispatchTableForImports> dispatch_table_for_imports;
-  if (IsWasmDispatchTable(*origin)) {
-    dispatch_table = TrustedCast<WasmDispatchTable>(origin);
-    DCHECK_EQ(sig->index(), dispatch_table->sig(table_slot));
-  } else {
-    dispatch_table_for_imports =
-        CheckedCast<WasmDispatchTableForImports>(origin);
-  }
 #endif  // DEBUG
+  // Check consistency of the signature index stored in the dispatch table.
+  DCHECK_EQ(sig->index(), dispatch_table->sig(table_slot));
 
   // Compile a wrapper for the target callable.
   DirectHandle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
@@ -675,18 +670,10 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
       cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
 
-#ifdef DEBUG
   // Check consistency of the dispatch table's target code pointer. The code
   // pointer is owned by the import wrapper cache and was updated when compiling
   // the wrapper.
-  if (!dispatch_table.is_null()) {
-    DCHECK_EQ(dispatch_table->target(table_slot),
-              wrapper_handle->code_pointer());
-  } else {
-    DCHECK_EQ(dispatch_table_for_imports->target(table_slot),
-              wrapper_handle->code_pointer());
-  }
-#endif  // DEBUG
+  DCHECK_EQ(dispatch_table->target(table_slot), wrapper_handle->code_pointer());
 
   cache->PublishCounterUpdates(isolate);
 

@@ -1563,7 +1563,7 @@ void ImportedFunctionEntry::SetWasmToWrapper(
   }
 
   DisallowGarbageCollection no_gc;
-  Tagged<WasmDispatchTableForImports> dispatch_table =
+  Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
 
   dispatch_table->SetForWrapper(index_, *import_data, std::move(wrapper_handle),
@@ -1588,7 +1588,7 @@ void ImportedFunctionEntry::SetWasmToWasm(
             wasm::GetProcessWideWasmCodePointerTable()
                 ->GetEntrypointWithoutSignatureCheck(call_target));
   DisallowGarbageCollection no_gc;
-  Tagged<WasmDispatchTableForImports> dispatch_table =
+  Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
   dispatch_table->SetForNonWrapper(index_, target_instance_data, call_target,
                                    sig_id,
@@ -1704,9 +1704,9 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
       shared ? AllocationType::kSharedOld : AllocationType::kYoung;
 
   int num_imported_functions = module->num_imported_functions;
-  DirectHandle<WasmDispatchTableForImports> dispatch_table_for_imports =
-      isolate->factory()->NewWasmDispatchTableForImports(num_imported_functions,
-                                                         shared);
+  DirectHandle<WasmDispatchTable> dispatch_table_for_imports =
+      isolate->factory()->NewWasmDispatchTable(num_imported_functions,
+                                               wasm::kWasmFuncRef, shared);
   DirectHandle<FixedArray> well_known_imports =
       isolate->factory()->NewFixedArray(num_imported_functions, allocation);
 
@@ -2165,11 +2165,6 @@ void WasmImportData::SetIndexInTableAsCallOrigin(
   set_call_origin(table);
   set_table_slot(entry_index);
 }
-void WasmImportData::SetIndexInTableAsCallOrigin(
-    Tagged<WasmDispatchTableForImports> table, int entry_index) {
-  set_call_origin(table);
-  set_table_slot(entry_index);
-}
 
 void WasmImportData::SetFuncRefAsCallOrigin(Tagged<WasmInternalFunction> func) {
   set_call_origin(func);
@@ -2458,130 +2453,43 @@ void WasmDispatchTableData::Add(
 
 void WasmDispatchTableData::Remove(int index) { wrappers_.erase(index); }
 
-template <typename T>
-concept AnyWasmDispatchTable = std::same_as<WasmDispatchTable, T> ||
-                               std::same_as<WasmDispatchTableForImports, T>;
-
-template <AnyWasmDispatchTable DispatchTable>
-void SetForNonWrapper(Tagged<DispatchTable> dispatch_table, int index,
-                      Tagged<Union<Smi, WasmTrustedInstanceData>> implicit_arg,
-                      WasmCodePointer call_target,
-                      wasm::CanonicalTypeIndex sig_id,
-#if V8_ENABLE_DRUMBRAKE
-                      uint32_t function_index,
-#endif  // V8_ENABLE_DRUMBRAKE
-                      WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  if (implicit_arg == Smi::zero()) {
-    DCHECK(v8_flags.wasm_jitless ||
-           (wasm::kInvalidWasmCodePointer == call_target));
-    DispatchTableClear(dispatch_table, index, new_or_existing);
-    return;
-  }
-
-  SBXCHECK_BOUNDS(index, dispatch_table->length());
-  DCHECK(IsWasmTrustedInstanceData(implicit_arg));
-  DCHECK(sig_id.valid());
-  const int offset = dispatch_table->OffsetOf(index);
-  if (!v8_flags.wasm_jitless) {
-    // When overwriting an existing entry, we must decrement the refcount
-    // of any overwritten wrappers. When initializing an entry, we must not
-    // read uninitialized memory.
-    if (new_or_existing == WasmDispatchTable::kExistingEntry) {
-      dispatch_table->offheap_data()->Remove(index);
-    }
-    dispatch_table->template WriteField<uint32_t>(
-        offset + DispatchTable::kTargetBias, call_target.value());
-  } else {
-#if V8_ENABLE_DRUMBRAKE
-    // Ignore call_target, not used in jitless mode.
-    WriteField<int>(offset + kFunctionIndexBias, function_index);
-#endif  // V8_ENABLE_DRUMBRAKE
-  }
-  dispatch_table->WriteProtectedPointerField(
-      offset + DispatchTable::kImplicitArgBias,
-      TrustedCast<TrustedObject>(implicit_arg));
-  CONDITIONAL_WRITE_BARRIER(dispatch_table,
-                            offset + DispatchTable::kImplicitArgBias,
-                            implicit_arg, UPDATE_WRITE_BARRIER);
-  if constexpr (requires { DispatchTable::kSigBias; }) {
-    dispatch_table->template WriteField<uint32_t>(
-        offset + DispatchTable::kSigBias, sig_id.index);
-  }
-}
-
 void WasmDispatchTable::SetForNonWrapper(
     int index, Tagged<Union<Smi, WasmTrustedInstanceData>> implicit_arg,
     WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-    WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  return SetForNonWrapper<WasmDispatchTable>(*this, index, implicit_arg,
-                                             call_target, sig_id,
-#if V8_ENABLE_DRUMBRAKE
-                                             function_index,
-#endif
-                                             new_or_existing);
-}
+    NewOrExistingEntry new_or_existing) {
+  if (implicit_arg == Smi::zero()) {
+    DCHECK(v8_flags.wasm_jitless ||
+           (wasm::kInvalidWasmCodePointer == call_target));
+    Clear(index, new_or_existing);
+    return;
+  }
 
-void WasmDispatchTableForImports::SetForNonWrapper(
-    int index, Tagged<Union<Smi, WasmTrustedInstanceData>> implicit_arg,
-    WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
-#if V8_ENABLE_DRUMBRAKE
-    uint32_t function_index,
-#endif  // V8_ENABLE_DRUMBRAKE
-    WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  return SetForNonWrapper<WasmDispatchTableForImports>(
-      *this, index, implicit_arg, call_target, sig_id,
-#if V8_ENABLE_DRUMBRAKE
-      function_index,
-#endif
-      new_or_existing);
-}
-
-template <AnyWasmDispatchTable DispatchTable>
-void SetForWrapper(
-    Tagged<DispatchTable> dispatch_table, int index,
-    Tagged<WasmImportData> implicit_arg,
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
-    wasm::CanonicalTypeIndex sig_id,
-#if V8_ENABLE_DRUMBRAKE
-    uint32_t function_index,
-#endif  // V8_ENABLE_DRUMBRAKE
-    WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  DCHECK_NE(implicit_arg, Smi::zero());
-  SBXCHECK(v8_flags.wasm_jitless || !wrapper_handle->has_code() ||
-           !wrapper_handle->code()->is_dying());
-  SBXCHECK_BOUNDS(index, dispatch_table->length());
+  SBXCHECK_BOUNDS(index, length());
+  DCHECK(IsWasmTrustedInstanceData(implicit_arg));
   DCHECK(sig_id.valid());
-  const int offset = dispatch_table->OffsetOf(index);
-  dispatch_table->WriteProtectedPointerField(
-      offset + DispatchTable::kImplicitArgBias,
-      TrustedCast<TrustedObject>(implicit_arg));
-  CONDITIONAL_WRITE_BARRIER(dispatch_table,
-                            offset + DispatchTable::kImplicitArgBias,
-                            implicit_arg, UPDATE_WRITE_BARRIER);
+  const int offset = OffsetOf(index);
   if (!v8_flags.wasm_jitless) {
     // When overwriting an existing entry, we must decrement the refcount
     // of any overwritten wrappers. When initializing an entry, we must not
     // read uninitialized memory.
-    if (new_or_existing == WasmDispatchTable::kExistingEntry) {
-      dispatch_table->offheap_data()->Remove(index);
+    if (new_or_existing == kExistingEntry) {
+      offheap_data()->Remove(index);
     }
-    dispatch_table->template WriteField<uint32_t>(
-        offset + DispatchTable::kTargetBias,
-        wrapper_handle->code_pointer().value());
-    dispatch_table->offheap_data()->Add(index, std::move(wrapper_handle));
+    WriteField<uint32_t>(offset + kTargetBias, call_target.value());
   } else {
 #if V8_ENABLE_DRUMBRAKE
     // Ignore call_target, not used in jitless mode.
     WriteField<int>(offset + kFunctionIndexBias, function_index);
 #endif  // V8_ENABLE_DRUMBRAKE
   }
-  if constexpr (requires { DispatchTable::kSigBias; }) {
-    dispatch_table->template WriteField<uint32_t>(
-        offset + DispatchTable::kSigBias, sig_id.index);
-  }
+  WriteProtectedPointerField(offset + kImplicitArgBias,
+                             TrustedCast<TrustedObject>(implicit_arg));
+  CONDITIONAL_WRITE_BARRIER(*this, offset + kImplicitArgBias, implicit_arg,
+                            UPDATE_WRITE_BARRIER);
+  WriteField<uint32_t>(offset + kSigBias, sig_id.index);
 }
 
 void WasmDispatchTable::SetForWrapper(
@@ -2591,70 +2499,54 @@ void WasmDispatchTable::SetForWrapper(
 #if V8_ENABLE_DRUMBRAKE
     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-    WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  return SetForWrapper<WasmDispatchTable>(*this, index, implicit_arg,
-                                          wrapper_handle, sig_id,
+    NewOrExistingEntry new_or_existing) {
+  DCHECK_NE(implicit_arg, Smi::zero());
+  SBXCHECK(v8_flags.wasm_jitless || !wrapper_handle->has_code() ||
+           !wrapper_handle->code()->is_dying());
+  SBXCHECK_BOUNDS(index, length());
+  DCHECK(sig_id.valid());
+  const int offset = OffsetOf(index);
+  WriteProtectedPointerField(offset + kImplicitArgBias,
+                             TrustedCast<TrustedObject>(implicit_arg));
+  CONDITIONAL_WRITE_BARRIER(*this, offset + kImplicitArgBias, implicit_arg,
+                            UPDATE_WRITE_BARRIER);
+  if (!v8_flags.wasm_jitless) {
+    // When overwriting an existing entry, we must decrement the refcount
+    // of any overwritten wrappers. When initializing an entry, we must not
+    // read uninitialized memory.
+    if (new_or_existing == kExistingEntry) {
+      offheap_data()->Remove(index);
+    }
+    WriteField<uint32_t>(offset + kTargetBias,
+                         wrapper_handle->code_pointer().value());
+    offheap_data()->Add(index, std::move(wrapper_handle));
+  } else {
 #if V8_ENABLE_DRUMBRAKE
-                                          function_index,
+    // Ignore call_target, not used in jitless mode.
+    WriteField<int>(offset + kFunctionIndexBias, function_index);
 #endif  // V8_ENABLE_DRUMBRAKE
-                                          new_or_existing);
+  }
+
+  WriteField<uint32_t>(offset + kSigBias, sig_id.index);
 }
 
-void WasmDispatchTableForImports::SetForWrapper(
-    int index, Tagged<WasmImportData> implicit_arg,
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
-    wasm::CanonicalTypeIndex sig_id,
-#if V8_ENABLE_DRUMBRAKE
-    uint32_t function_index,
-#endif  // V8_ENABLE_DRUMBRAKE
-    WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  return SetForWrapper<WasmDispatchTableForImports>(*this, index, implicit_arg,
-                                                    wrapper_handle, sig_id,
-#if V8_ENABLE_DRUMBRAKE
-                                                    function_index,
-#endif  // V8_ENABLE_DRUMBRAKE
-                                                    new_or_existing);
-}
-
-template <AnyWasmDispatchTable DispatchTable>
-void DispatchTableClear(Tagged<DispatchTable> dispatch_table, int index,
-                        WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  SBXCHECK_BOUNDS(index, dispatch_table->length());
-  const int offset = dispatch_table->OffsetOf(index);
+void WasmDispatchTable::Clear(int index, NewOrExistingEntry new_or_existing) {
+  SBXCHECK_BOUNDS(index, length());
+  const int offset = OffsetOf(index);
   // When clearing an existing entry, we must update the refcount of any
   // wrappers. When clear-initializing new entries, we must not read
   // uninitialized memory.
-  if (new_or_existing == WasmDispatchTable::kExistingEntry) {
-    dispatch_table->offheap_data()->Remove(index);
+  if (new_or_existing == kExistingEntry) {
+    offheap_data()->Remove(index);
   }
-  dispatch_table->ClearProtectedPointerField(offset +
-                                             DispatchTable::kImplicitArgBias);
-  dispatch_table->template WriteField<uint32_t>(
-      offset + DispatchTable::kTargetBias,
-      wasm::kInvalidWasmCodePointer.value());
-  if constexpr (requires { DispatchTable::kSigBias; }) {
-    dispatch_table->template WriteField<int>(offset + DispatchTable::kSigBias,
-                                             -1);
-  }
-}
-
-void WasmDispatchTable::Clear(
-    int index, WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  DispatchTableClear<WasmDispatchTable>(*this, index, new_or_existing);
-}
-void WasmDispatchTableForImports::Clear(
-    int index, WasmDispatchTable::NewOrExistingEntry new_or_existing) {
-  DispatchTableClear<WasmDispatchTableForImports>(*this, index,
-                                                  new_or_existing);
+  ClearProtectedPointerField(offset + kImplicitArgBias);
+  WriteField<uint32_t>(offset + kTargetBias,
+                       wasm::kInvalidWasmCodePointer.value());
+  WriteField<int>(offset + kSigBias, -1);
 }
 
 std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
-WasmDispatchTable::MaybeGetWrapperHandle(int index) {
-  return offheap_data()->MaybeGetWrapperHandle(index);
-}
-
-std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
-WasmDispatchTableForImports::MaybeGetWrapperHandle(int index) {
+WasmDispatchTable::MaybeGetWrapperHandle(int index) const {
   return offheap_data()->MaybeGetWrapperHandle(index);
 }
 
@@ -2734,6 +2626,13 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
 }
 
 // static
+DirectHandle<WasmDispatchTable> WasmDispatchTable::New(
+    Isolate* isolate, int length, wasm::CanonicalValueType table_type,
+    bool shared) {
+  return isolate->factory()->NewWasmDispatchTable(length, table_type, shared);
+}
+
+// static
 DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
     Isolate* isolate, DirectHandle<WasmDispatchTable> old_table,
     uint32_t new_length) {
@@ -2770,9 +2669,8 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
   uint32_t new_capacity = old_capacity + grow;
   DCHECK_LE(new_capacity, limit);
   DirectHandle<WasmDispatchTable> new_table =
-      isolate->factory()->NewWasmDispatchTable(
-          new_capacity, old_table->table_type(),
-          HeapLayout::InAnySharedSpace(*old_table));
+      WasmDispatchTable::New(isolate, new_capacity, old_table->table_type(),
+                             HeapLayout::InAnySharedSpace(*old_table));
 
   DisallowGarbageCollection no_gc;
   // Writing non-atomically is fine here because this is a freshly allocated
@@ -2799,7 +2697,7 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
     }
 
     if (implicit_arg == Smi::zero()) {
-      DispatchTableClear(*new_table, i, kNewEntry);
+      new_table->Clear(i, kNewEntry);
       continue;
     }
 
@@ -2844,7 +2742,7 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
   for (uint32_t i = 0; i < old_length; ++i) {
     // Note: We pass `kNewEntry` here since the offheap data was already moved
     // to the new table and we do not want to update anything there.
-    DispatchTableClear(*old_table, i, WasmDispatchTable::kNewEntry);
+    old_table->Clear(i, WasmDispatchTable::kNewEntry);
   }
 
   return new_table;

@@ -2067,10 +2067,6 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return WasmDispatchTable::SizeFor(
         UncheckedCast<WasmDispatchTable>(*this)->capacity());
   }
-  if (instance_type == WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE) {
-    return WasmDispatchTableForImports::SizeFor(
-        UncheckedCast<WasmDispatchTableForImports>(*this)->length());
-  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (instance_type == DOUBLE_STRING_CACHE_TYPE) {
     return DoubleStringCache::SizeFor(

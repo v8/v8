@@ -747,8 +747,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmTrustedInstanceData> NewWasmTrustedInstanceData(bool shared);
   DirectHandle<WasmDispatchTable> NewWasmDispatchTable(
       int length, wasm::CanonicalValueType table_type, bool shared);
-  DirectHandle<WasmDispatchTableForImports> NewWasmDispatchTableForImports(
-      int length, bool shared);
   DirectHandle<WasmTypeInfo> NewWasmTypeInfo(
       wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
       DirectHandle<Map> opt_parent, int num_supertypes, bool shared);

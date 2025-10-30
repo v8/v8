@@ -9762,15 +9762,13 @@ class LiftoffCompiler {
                                           DispatchTableForImports, pinned);
         __ LoadProtectedPointer(
             implicit_arg, dispatch_table,
-            ObjectAccess::ToTagged(
-                WasmDispatchTableForImports::OffsetOf(imm.index) +
-                WasmDispatchTableForImports::kImplicitArgBias));
+            ObjectAccess::ToTagged(WasmDispatchTable::OffsetOf(imm.index) +
+                                   WasmDispatchTable::kImplicitArgBias));
 
         __ LoadCodePointer(
             target, dispatch_table,
-            ObjectAccess::ToTagged(
-                WasmDispatchTableForImports::OffsetOf(imm.index) +
-                WasmDispatchTableForImports::kTargetBias));
+            ObjectAccess::ToTagged(WasmDispatchTable::OffsetOf(imm.index) +
+                                   WasmDispatchTable::kTargetBias));
       }
 
       __ PrepareCall(&sig, call_descriptor, &target, implicit_arg);

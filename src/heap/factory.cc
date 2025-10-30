@@ -1736,37 +1736,6 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
   return direct_handle(result, isolate());
 }
 
-DirectHandle<WasmDispatchTableForImports>
-Factory::NewWasmDispatchTableForImports(int length, bool shared) {
-  CHECK_LE(length, WasmDispatchTableForImports::kMaxLength);
-
-  // Very rough estimate: half the imports need wrappers, each wrapper needs
-  // an entry in a std::unordered_map<int, std::shared_ptr<...>>, the map
-  // is probably about half full.
-  constexpr size_t kPerEntrySize =
-      sizeof(int) + sizeof(std::shared_ptr<wasm::WasmImportWrapperHandle>) +
-      2 * sizeof(void*);
-  size_t estimated_offheap_size = length * kPerEntrySize;
-  DirectHandle<TrustedManaged<WasmDispatchTableData>> offheap_data =
-      TrustedManaged<WasmDispatchTableData>::From(
-          isolate(), estimated_offheap_size,
-          std::make_shared<WasmDispatchTableData>(), shared);
-
-  int bytes = WasmDispatchTableForImports::SizeFor(length);
-  Tagged<WasmDispatchTableForImports> result =
-      UncheckedCast<WasmDispatchTableForImports>(AllocateRawWithImmortalMap(
-          bytes,
-          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
-          read_only_roots().wasm_dispatch_table_for_imports_map()));
-  DisallowGarbageCollection no_gc;
-  result->WriteField<int>(WasmDispatchTableForImports::kLengthOffset, length);
-  result->set_protected_offheap_data(*offheap_data);
-  for (int i = 0; i < length; ++i) {
-    result->Clear(i, WasmDispatchTable::kNewEntry);
-  }
-  return direct_handle(result, isolate());
-}
-
 DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
     DirectHandle<Map> opt_parent, int num_supertypes, bool shared) {
