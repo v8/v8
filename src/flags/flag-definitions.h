@@ -75,6 +75,8 @@
 
 #define DEFINE_REQUIREMENT(statement) CHECK(statement);
 
+// Enforce that a flag was not explicitly set via command line. Setting a value
+// via implications is still allowed.
 #define DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(whenflag, thenflag) \
   TriggerNotExplicitlySetImplication(v8_flags.whenflag, #whenflag, #thenflag);
 
@@ -3845,37 +3847,35 @@ DEFINE_WEAK_VALUE_IMPLICATION(is_standalone_d8_shell, redirect_code_traces_to,
 // mitigate spurious reports due invalid flag combinations/values. To prevent AI
 // agents and/or fuzzers from using a new unsafe flag, add an implication from
 // --disallow-unsafe-flags below.
+// TODO(crbug.com/452607988): Enable on fuzzers and merge the
+// --disallow-unsafe-flags with
+// --test-only-unsafe once the list of flags below is stable.
 DEFINE_BOOL(disallow_unsafe_flags, false,
             "Prevents the use of flags that are considered unsafe. Setting "
             "this flag will make V8 treat the unsafe flags below as flag "
             "contradiction and either crash or exit gracefully with a message "
             "(depending on the curreny AbortMode)")
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
+// --disallow-unsafe-flags is intended to only be used with --fuzzing.
+DEFINE_IMPLICATION(disallow_unsafe_flags, fuzzing)
 // Profiling flags.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, turbo_profiling_verbose)
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
-                                      turbo_profiling_output)
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
-                                      turbo_profiling_input)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_annotate_wasm)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_delete_file)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, perf_prof_unwinding_info)
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, perf_prof_path)
 // Experimental PGO flags.
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_pgo_to_file)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_pgo_from_file)
 #endif  // V8_ENABLE_WEBASSEMBLY
-// Known-broken features/configurations (some are experimental).
+// Known-broken features/configuration.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, feedback_normalization)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, harmony_struct)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, gc_verbose)
 DEFINE_IMPLICATION(disallow_unsafe_flags, script_context_cells)
-// Misc. "unsafe" flags.
+// Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, mock_arraybuffer_allocator)
-DEFINE_IMPLICATION(disallow_unsafe_flags, fuzzing)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_contradictory_flags)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_bad_builtin_profile_data)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, abort_on_uncaught_exception)
@@ -3884,17 +3884,17 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, correctness_fuzzer_suppressions)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, force_memory_protection_keys)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, expose_trigger_failure)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_code_traces)
-DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
-                                      redirect_code_traces_to)
 #if V8_ENABLE_WEBASSEMBLY
-DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
-DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
+#if V8_ENABLE_DRUMBRAKE_TRACING
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
                        experimental_wasm_skip_null_checks)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_ref_cast_nop)
-#ifdef V8_ENABLE_DRUMBRAKE_TRACING
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
-#endif  // V8_ENABLE_DRUMBRAKE_TRACING
+// Enabled-by-default flags that should not be disabled.
+DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
+DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
+// Flags that are unsafe if given unexpected invalid values.
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags, max_wasm_functions)
 DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(disallow_unsafe_flags,
                                       wasm_max_initial_code_space_reservation)
@@ -3908,15 +3908,9 @@ DEFINE_IMPLICATION(disallow_unsafe_flags, enable_avx)
 DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse3)
 DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_1)
 DEFINE_IMPLICATION(disallow_unsafe_flags, enable_sse4_2)
-// Experimental features.
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, maglev_non_eager_inlining)
+// Features we don't currently want to fuzz.
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, cppgc_young_generation)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, for_of_optimization)
-#if V8_ENABLE_WEBASSEMBLY
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_shared)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_wasmfx)
-DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_memory_control)
-#endif  // V8_ENABLE_WEBASSEMBLY
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, test_only_unsafe)
 
 #undef FLAG
 
