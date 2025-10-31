@@ -96,7 +96,7 @@ class RecomputePhiUseHintsProcessor {
       if (!input.node()) continue;
       if (Phi* phi = input.node()->TryCast<Phi>()) {
         UseRepresentation use_repr = UseRepresentation::kTagged;
-        if (node->properties().is_conversion()) {
+        if (node->is_conversion()) {
           use_repr = UseRepresentationFromValue(
               node->Cast<ValueNode>()->value_representation());
         } else if (node->Is<ReturnedValue>()) {
@@ -104,7 +104,7 @@ class RecomputePhiUseHintsProcessor {
           while (!unwrapped->Is<ReturnedValue>()) {
             unwrapped = unwrapped->input_node(0);
           }
-          DCHECK(!unwrapped->properties().is_conversion());
+          DCHECK(!unwrapped->is_conversion());
           DCHECK(!node->Is<TruncateCheckedNumberOrOddballToInt32>());
           DCHECK(!node->Is<TruncateUnsafeNumberOrOddballToInt32>());
           DCHECK(!node->Is<TruncateUint32ToInt32>());

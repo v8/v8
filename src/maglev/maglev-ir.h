@@ -186,6 +186,39 @@ class ExceptionHandlerInfo;
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) V(TransitionAndStoreArrayElement)
 
+#define CONVERSION_NODE_LIST(V)           \
+  V(ChangeInt32ToFloat64)                 \
+  V(ChangeIntPtrToFloat64)                \
+  V(ChangeUint32ToFloat64)                \
+  V(ChangeFloat64ToHoleyFloat64)          \
+  V(CheckedHoleyFloat64ToInt32)           \
+  V(CheckedHoleyFloat64ToFloat64)         \
+  V(CheckedInt32ToUint32)                 \
+  V(CheckedIntPtrToInt32)                 \
+  V(CheckedObjectToIndex)                 \
+  V(CheckedNumberToInt32)                 \
+  V(CheckedNumberToFloat64)               \
+  V(CheckedNumberOrOddballToHoleyFloat64) \
+  V(CheckedSmiSizedInt32)                 \
+  V(CheckedSmiTagFloat64)                 \
+  V(CheckedSmiTagInt32)                   \
+  V(CheckedSmiTagIntPtr)                  \
+  V(CheckedSmiTagUint32)                  \
+  V(CheckedSmiUntag)                      \
+  V(CheckedUint32ToInt32)                 \
+  V(Float64ToTagged)                      \
+  V(HoleyFloat64ToTagged)                 \
+  V(Int32ToNumber)                        \
+  V(IntPtrToNumber)                       \
+  V(Uint32ToNumber)                       \
+  V(UnsafeHoleyFloat64ToInt32)            \
+  V(UnsafeInt32ToUint32)                  \
+  V(UnsafeNumberToFloat64)                \
+  V(UnsafeSmiTagInt32)                    \
+  V(UnsafeSmiTagIntPtr)                   \
+  V(UnsafeSmiTagUint32)                   \
+  V(UnsafeSmiUntag)
+
 #define VALUE_NODE_LIST(V)                                            \
   V(Identity)                                                         \
   V(AllocationBlock)                                                  \
@@ -263,55 +296,24 @@ class ExceptionHandlerInfo;
   V(DefineKeyedOwnGeneric)                                            \
   V(Phi)                                                              \
   V(RegisterInput)                                                    \
-  V(CheckedSmiSizedInt32)                                             \
-  V(CheckedSmiTagInt32)                                               \
-  V(CheckedSmiTagUint32)                                              \
-  V(CheckedSmiTagIntPtr)                                              \
-  V(UnsafeSmiTagInt32)                                                \
-  V(UnsafeSmiTagUint32)                                               \
-  V(UnsafeSmiTagIntPtr)                                               \
-  V(CheckedSmiUntag)                                                  \
-  V(UnsafeSmiUntag)                                                   \
   V(CheckedInternalizedString)                                        \
-  V(CheckedObjectToIndex)                                             \
   V(TruncateCheckedNumberOrOddballToInt32)                            \
   V(TruncateUnsafeNumberOrOddballToInt32)                             \
-  V(CheckedInt32ToUint32)                                             \
-  V(UnsafeInt32ToUint32)                                              \
-  V(CheckedUint32ToInt32)                                             \
-  V(CheckedIntPtrToInt32)                                             \
-  V(ChangeInt32ToFloat64)                                             \
-  V(ChangeUint32ToFloat64)                                            \
-  V(ChangeIntPtrToFloat64)                                            \
-  V(CheckedHoleyFloat64ToInt32)                                       \
-  V(UnsafeHoleyFloat64ToInt32)                                        \
   V(TruncateHoleyFloat64ToInt32)                                      \
   V(TruncateUint32ToInt32)                                            \
   V(Int32ToUint8Clamped)                                              \
   V(Uint32ToUint8Clamped)                                             \
   V(Float64ToUint8Clamped)                                            \
   V(CheckedNumberToUint8Clamped)                                      \
-  V(Int32ToNumber)                                                    \
-  V(Uint32ToNumber)                                                   \
   V(Int32CountLeadingZeros)                                           \
   V(TaggedCountLeadingZeros)                                          \
   V(Float64CountLeadingZeros)                                         \
   V(IntPtrToBoolean)                                                  \
-  V(IntPtrToNumber)                                                   \
-  V(Float64ToTagged)                                                  \
   V(Float64ToHeapNumberForField)                                      \
-  V(HoleyFloat64ToTagged)                                             \
-  V(CheckedSmiTagFloat64)                                             \
-  V(CheckedNumberToInt32)                                             \
-  V(CheckedNumberToFloat64)                                           \
   V(CheckedNumberOrOddballToFloat64)                                  \
-  V(UncheckedNumberToFloat64)                                         \
-  V(UncheckedNumberOrOddballToFloat64)                                \
-  V(CheckedNumberOrOddballToHoleyFloat64)                             \
-  V(CheckedHoleyFloat64ToFloat64)                                     \
+  V(UnsafeNumberOrOddballToFloat64)                                   \
   V(UnsafeHoleyFloat64ToFloat64)                                      \
   V(HoleyFloat64ToMaybeNanFloat64)                                    \
-  V(Float64ToHoleyFloat64)                                            \
   IF_UD(V, ConvertHoleNanToUndefinedNan)                              \
   IF_UD(V, HoleyFloat64IsUndefinedOrHole)                             \
   IF_NOT_UD(V, HoleyFloat64IsHole)                                    \
@@ -344,6 +346,7 @@ class ExceptionHandlerInfo;
   V(GetContinuationPreservedEmbedderData)                             \
   V(ReturnedValue)                                                    \
   CONSTANT_VALUE_NODE_LIST(V)                                         \
+  CONVERSION_NODE_LIST(V)                                             \
   INT32_OPERATIONS_NODE_LIST(V)                                       \
   FLOAT64_OPERATIONS_NODE_LIST(V)                                     \
   SMI_OPERATIONS_NODE_LIST(V)                                         \
@@ -499,6 +502,11 @@ static constexpr Opcode kFirstGapMoveNodeOpcode =
 static constexpr Opcode kLastGapMoveNodeOpcode =
     std::max({GAP_MOVE_NODE_LIST(V) kFirstOpcode});
 
+static constexpr Opcode kFirstConversionNodeOpcode =
+    std::min({CONVERSION_NODE_LIST(V) kLastOpcode});
+static constexpr Opcode kLastConversionNodeOpcode =
+    std::max({CONVERSION_NODE_LIST(V) kFirstOpcode});
+
 static constexpr Opcode kFirstNodeOpcode = std::min({NODE_LIST(V) kLastOpcode});
 static constexpr Opcode kLastNodeOpcode = std::max({NODE_LIST(V) kFirstOpcode});
 
@@ -534,6 +542,10 @@ constexpr bool IsValueNode(Opcode opcode) {
 constexpr bool IsConstantNode(Opcode opcode) {
   return kFirstConstantNodeOpcode <= opcode &&
          opcode <= kLastConstantNodeOpcode;
+}
+constexpr bool IsConversionNode(Opcode opcode) {
+  return kFirstConversionNodeOpcode <= opcode &&
+         opcode <= kLastConversionNodeOpcode;
 }
 constexpr bool IsCommutativeNode(Opcode opcode) {
   switch (opcode) {
@@ -2413,6 +2425,11 @@ class NodeBase : public ZoneObject {
     bitfield_ = OpPropertiesField::update(bitfield_, properties);
   }
 
+  constexpr bool is_conversion() const {
+    DCHECK_EQ(properties().is_conversion(), IsConversionNode(opcode()));
+    return properties().is_conversion();
+  }
+
   template <class T>
   constexpr bool Is() const;
 
@@ -2914,7 +2931,6 @@ class ValueNode : public Node {
   constexpr bool use_double_register() const {
     return IsDoubleRepresentation(properties().value_representation());
   }
-
   constexpr bool is_tagged() const {
     return (properties().value_representation() ==
             ValueRepresentation::kTagged);
@@ -3089,7 +3105,7 @@ inline const ValueNode* ValueNode::UnwrapIdentities() const {
 
 inline ValueNode* ValueNode::Unwrap() {
   ValueNode* node = this;
-  while (node->Is<Identity>() || node->properties().is_conversion()) {
+  while (node->Is<Identity>() || node->is_conversion()) {
     node = node->input(0).node();
   }
   return node;
@@ -3986,213 +4002,6 @@ class CheckHoleyFloat64IsSmi
   void PrintParams(std::ostream&) const {}
 };
 
-class CheckedSmiTagInt32 : public FixedInputValueNodeT<1, CheckedSmiTagInt32> {
-  using Base = FixedInputValueNodeT<1, CheckedSmiTagInt32>;
-
- public:
-  explicit CheckedSmiTagInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kSmi; }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-// This is a check disguised as a conversion node so we can use it to override
-// untagging conversions.
-// TODO(olivf): Support overriding bigger with smaller instruction so we can use
-// CheckInt32IsSmi instead.
-class CheckedSmiSizedInt32
-    : public FixedInputValueNodeT<1, CheckedSmiSizedInt32> {
-  using Base = FixedInputValueNodeT<1, CheckedSmiSizedInt32>;
-
- public:
-  explicit CheckedSmiSizedInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Int32() |
-                                              OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class CheckedSmiTagUint32
-    : public FixedInputValueNodeT<1, CheckedSmiTagUint32> {
-  using Base = FixedInputValueNodeT<1, CheckedSmiTagUint32>;
-
- public:
-  explicit CheckedSmiTagUint32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kSmi; }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class CheckedSmiTagIntPtr
-    : public FixedInputValueNodeT<1, CheckedSmiTagIntPtr> {
-  using Base = FixedInputValueNodeT<1, CheckedSmiTagIntPtr>;
-
- public:
-  explicit CheckedSmiTagIntPtr(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kSmi; }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-// Input must guarantee to fit in a Smi.
-class UnsafeSmiTagInt32 : public FixedInputValueNodeT<1, UnsafeSmiTagInt32> {
-  using Base = FixedInputValueNodeT<1, UnsafeSmiTagInt32>;
-
- public:
-  explicit UnsafeSmiTagInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kSmi; }
-
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing() {
-    // No tagged inputs.
-  }
-#endif
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-// Input must guarantee to fit in a Smi.
-class UnsafeSmiTagUint32 : public FixedInputValueNodeT<1, UnsafeSmiTagUint32> {
-  using Base = FixedInputValueNodeT<1, UnsafeSmiTagUint32>;
-
- public:
-  explicit UnsafeSmiTagUint32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kSmi; }
-
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing() {
-    // No tagged inputs.
-  }
-#endif
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-// Input must guarantee to fit in a Smi.
-class UnsafeSmiTagIntPtr : public FixedInputValueNodeT<1, UnsafeSmiTagIntPtr> {
-  using Base = FixedInputValueNodeT<1, UnsafeSmiTagIntPtr>;
-
- public:
-  explicit UnsafeSmiTagIntPtr(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kSmi; }
-
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing() {
-    // No tagged inputs.
-  }
-#endif
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
-  using Base = FixedInputValueNodeT<1, CheckedSmiUntag>;
-
- public:
-  explicit CheckedSmiUntag(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Int32() |
-                                              OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input input() { return Node::input(0); }
-
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing() {
-    // Don't need to decompress to untag.
-  }
-#endif
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class UnsafeSmiUntag : public FixedInputValueNodeT<1, UnsafeSmiUntag> {
-  using Base = FixedInputValueNodeT<1, UnsafeSmiUntag>;
-
- public:
-  explicit UnsafeSmiUntag(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Int32() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input input() { return Node::input(0); }
-
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing() {
-    // Don't need to decompress to untag.
-  }
-#endif
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
 class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
   using Base = FixedInputValueNodeT<0, Int32Constant>;
 
@@ -4375,110 +4184,6 @@ class CheckedNumberToUint8Clamped
   void PrintParams(std::ostream&) const {}
 };
 
-class Int32ToNumber : public FixedInputValueNodeT<1, Int32ToNumber> {
-  using Base = FixedInputValueNodeT<1, Int32ToNumber>;
-
- public:
-  explicit Int32ToNumber(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kNumber; }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class Uint32ToNumber : public FixedInputValueNodeT<1, Uint32ToNumber> {
-  using Base = FixedInputValueNodeT<1, Uint32ToNumber>;
-
- public:
-  explicit Uint32ToNumber(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kNumber; }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class IntPtrToNumber : public FixedInputValueNodeT<1, IntPtrToNumber> {
-  using Base = FixedInputValueNodeT<1, IntPtrToNumber>;
-
- public:
-  explicit IntPtrToNumber(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kNumber; }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
-  using Base = FixedInputValueNodeT<1, Float64ToTagged>;
-
- public:
-  enum class ConversionMode { kCanonicalizeSmi, kForceHeapNumber };
-  explicit Float64ToTagged(uint64_t bitfield, ConversionMode mode)
-      : Base(ConversionModeBitField::update(bitfield, mode)) {}
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
-
-  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::ConversionNode();
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kNumber; }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-
-  void SetMode(ConversionMode mode) {
-    set_bitfield(ConversionModeBitField::update(bitfield(), mode));
-  }
-
-  auto options() const { return std::tuple{conversion_mode()}; }
-
-  ConversionMode conversion_mode() const {
-    return ConversionModeBitField::decode(bitfield());
-  }
-
- private:
-  bool canonicalize_smi() {
-    return ConversionModeBitField::decode(bitfield()) ==
-           ConversionMode::kCanonicalizeSmi;
-  }
-
-  using ConversionModeBitField = NextBitField<ConversionMode, 1>;
-};
-
 // Essentially the same as Float64ToTagged but the result cannot be shared as it
 // will be used as a mutable heap number by a store.
 class Float64ToHeapNumberForField
@@ -4497,243 +4202,6 @@ class Float64ToHeapNumberForField
   Input input() { return Node::input(0); }
 
   int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class HoleyFloat64ToTagged
-    : public FixedInputValueNodeT<1, HoleyFloat64ToTagged> {
-  using Base = FixedInputValueNodeT<1, HoleyFloat64ToTagged>;
-
- public:
-  enum class ConversionMode { kCanonicalizeSmi, kForceHeapNumber };
-  explicit HoleyFloat64ToTagged(uint64_t bitfield, ConversionMode mode)
-      : Base(ConversionModeBitField::update(bitfield, mode)) {}
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
-
-  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::ConversionNode();
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kNumberOrOddball; }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-
-  void SetMode(ConversionMode mode) {
-    set_bitfield(ConversionModeBitField::update(bitfield(), mode));
-  }
-
-  auto options() const { return std::tuple{conversion_mode()}; }
-
-  ConversionMode conversion_mode() const {
-    return ConversionModeBitField::decode(bitfield());
-  }
-
- private:
-  bool canonicalize_smi() {
-    return ConversionModeBitField::decode(bitfield()) ==
-           ConversionMode::kCanonicalizeSmi;
-  }
-  using ConversionModeBitField = NextBitField<ConversionMode, 1>;
-};
-
-class CheckedSmiTagFloat64
-    : public FixedInputValueNodeT<1, CheckedSmiTagFloat64> {
-  using Base = FixedInputValueNodeT<1, CheckedSmiTagFloat64>;
-
- public:
-  explicit CheckedSmiTagFloat64(uint64_t bitfield) : Base(bitfield) {}
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
-
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::ConversionNode();
-
-  Input input() { return Node::input(0); }
-  NodeType type() const { return NodeType::kSmi; }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class CheckedInt32ToUint32
-    : public FixedInputValueNodeT<1, CheckedInt32ToUint32> {
-  using Base = FixedInputValueNodeT<1, CheckedInt32ToUint32>;
-
- public:
-  explicit CheckedInt32ToUint32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Uint32() |
-                                              OpProperties::ConversionNode() |
-                                              OpProperties::EagerDeopt();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class UnsafeInt32ToUint32
-    : public FixedInputValueNodeT<1, UnsafeInt32ToUint32> {
-  using Base = FixedInputValueNodeT<1, UnsafeInt32ToUint32>;
-
- public:
-  explicit UnsafeInt32ToUint32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Uint32() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class CheckedUint32ToInt32
-    : public FixedInputValueNodeT<1, CheckedUint32ToInt32> {
-  using Base = FixedInputValueNodeT<1, CheckedUint32ToInt32>;
-
- public:
-  explicit CheckedUint32ToInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Int32() |
-                                              OpProperties::ConversionNode() |
-                                              OpProperties::EagerDeopt();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class CheckedIntPtrToInt32
-    : public FixedInputValueNodeT<1, CheckedIntPtrToInt32> {
-  using Base = FixedInputValueNodeT<1, CheckedIntPtrToInt32>;
-
- public:
-  explicit CheckedIntPtrToInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Int32() |
-                                              OpProperties::ConversionNode() |
-                                              OpProperties::EagerDeopt();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class ChangeInt32ToFloat64
-    : public FixedInputValueNodeT<1, ChangeInt32ToFloat64> {
-  using Base = FixedInputValueNodeT<1, ChangeInt32ToFloat64>;
-
- public:
-  explicit ChangeInt32ToFloat64(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Float64() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class ChangeUint32ToFloat64
-    : public FixedInputValueNodeT<1, ChangeUint32ToFloat64> {
-  using Base = FixedInputValueNodeT<1, ChangeUint32ToFloat64>;
-
- public:
-  explicit ChangeUint32ToFloat64(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Float64() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class ChangeIntPtrToFloat64
-    : public FixedInputValueNodeT<1, ChangeIntPtrToFloat64> {
-  using Base = FixedInputValueNodeT<1, ChangeIntPtrToFloat64>;
-
- public:
-  explicit ChangeIntPtrToFloat64(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Float64() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class CheckedHoleyFloat64ToInt32
-    : public FixedInputValueNodeT<1, CheckedHoleyFloat64ToInt32> {
-  using Base = FixedInputValueNodeT<1, CheckedHoleyFloat64ToInt32>;
-
- public:
-  explicit CheckedHoleyFloat64ToInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Int32() |
-                                              OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class UnsafeHoleyFloat64ToInt32
-    : public FixedInputValueNodeT<1, UnsafeHoleyFloat64ToInt32> {
-  using Base = FixedInputValueNodeT<1, UnsafeHoleyFloat64ToInt32>;
-
- public:
-  explicit UnsafeHoleyFloat64ToInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Int32() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
-
-  Input input() { return Node::input(0); }
-
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
@@ -4869,6 +4337,125 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
   Kind kind_;
 };
 
+#define DEFINE_CONVERSION(name, from_repr, properties, node_type) \
+  class name : public FixedInputValueNodeT<1, name> {             \
+    using Base = FixedInputValueNodeT<1, name>;                   \
+                                                                  \
+   public:                                                        \
+    explicit name(uint64_t bitfield) : Base(bitfield) {}          \
+                                                                  \
+    static constexpr OpProperties kProperties =                   \
+        properties | OpProperties::ConversionNode();              \
+    static constexpr typename Base::InputTypes kInputTypes{       \
+        ValueRepresentation::k##from_repr};                       \
+                                                                  \
+    Input input() { return Node::input(0); }                      \
+    NodeType type() { return NodeType::k##node_type; }            \
+                                                                  \
+    int MaxCallStackArgs() const { return 0; }                    \
+    void SetValueLocationConstraints();                           \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);  \
+    void PrintParams(std::ostream&) const {}                      \
+  };
+
+#define DEFINE_TO_TAGGED(name, from_repr, node_type)                   \
+  class name : public FixedInputValueNodeT<1, name> {                  \
+    using Base = FixedInputValueNodeT<1, name>;                        \
+                                                                       \
+   public:                                                             \
+    enum class ConversionMode { kCanonicalizeSmi, kForceHeapNumber };  \
+    explicit name(uint64_t bitfield, ConversionMode mode)              \
+        : Base(ConversionModeBitField::update(bitfield, mode)) {}      \
+    static constexpr typename Base::InputTypes kInputTypes{            \
+        ValueRepresentation::k##from_repr};                            \
+    static constexpr OpProperties kProperties =                        \
+        OpProperties::CanAllocate() | OpProperties::DeferredCall() |   \
+        OpProperties::ConversionNode();                                \
+                                                                       \
+    Input input() { return Node::input(0); }                           \
+    constexpr NodeType type() const { return NodeType::k##node_type; } \
+    void SetMode(ConversionMode mode) {                                \
+      set_bitfield(ConversionModeBitField::update(bitfield(), mode));  \
+    }                                                                  \
+    ConversionMode conversion_mode() const {                           \
+      return ConversionModeBitField::decode(bitfield());               \
+    }                                                                  \
+                                                                       \
+    int MaxCallStackArgs() const { return 0; }                         \
+    void SetValueLocationConstraints();                                \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
+    void PrintParams(std::ostream&) const {}                           \
+    auto options() const { return std::tuple{conversion_mode()}; }     \
+                                                                       \
+   private:                                                            \
+    bool canonicalize_smi() {                                          \
+      return ConversionModeBitField::decode(bitfield()) ==             \
+             ConversionMode::kCanonicalizeSmi;                         \
+    }                                                                  \
+    using ConversionModeBitField = NextBitField<ConversionMode, 1>;    \
+  };
+
+#define DEFINE_PURE_CONV(name, from_repr, to_repr, node_type) \
+  DEFINE_CONVERSION(name, from_repr, OpProperties ::to_repr(), node_type)
+
+#define DEFINE_CHECKED_CONV(name, from_repr, to_repr, node_type)           \
+  DEFINE_CONVERSION(name, from_repr,                                       \
+                    OpProperties ::to_repr() | OpProperties::EagerDeopt(), \
+                    node_type)
+
+#define DEFINE_TO_NUMBER(name, from_repr) \
+  DEFINE_CONVERSION(                      \
+      name, from_repr,                    \
+      OpProperties::CanAllocate() | OpProperties::DeferredCall(), Number)
+
+// (NodeName, FromRepr, ToRepr, NodeType)
+DEFINE_PURE_CONV(ChangeInt32ToFloat64, Int32, Float64, Number)
+DEFINE_PURE_CONV(ChangeIntPtrToFloat64, IntPtr, Float64, Number)
+DEFINE_PURE_CONV(ChangeUint32ToFloat64, Uint32, Float64, Number)
+DEFINE_PURE_CONV(ChangeFloat64ToHoleyFloat64, Float64, HoleyFloat64, Number)
+DEFINE_PURE_CONV(UnsafeHoleyFloat64ToInt32, HoleyFloat64, Int32, Number)
+DEFINE_PURE_CONV(UnsafeInt32ToUint32, Int32, Uint32, Number)
+DEFINE_PURE_CONV(UnsafeSmiTagInt32, Int32, TaggedValue, Smi)
+DEFINE_PURE_CONV(UnsafeSmiTagIntPtr, Int32, TaggedValue, Smi)
+DEFINE_PURE_CONV(UnsafeSmiTagUint32, Int32, TaggedValue, Smi)
+DEFINE_PURE_CONV(UnsafeSmiUntag, Tagged, Int32, Smi)
+DEFINE_PURE_CONV(UnsafeNumberToFloat64, Tagged, Float64, Number)
+
+DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToInt32, HoleyFloat64, Int32, Number)
+DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToFloat64, HoleyFloat64, Float64, Number)
+DEFINE_CHECKED_CONV(CheckedInt32ToUint32, Int32, Uint32, Number)
+DEFINE_CHECKED_CONV(CheckedIntPtrToInt32, IntPtr, Int32, Number)
+DEFINE_CHECKED_CONV(CheckedNumberToInt32, Tagged, Int32, Number)
+DEFINE_CHECKED_CONV(CheckedNumberToFloat64, Tagged, Float64, Number)
+DEFINE_CHECKED_CONV(CheckedSmiTagFloat64, HoleyFloat64, TaggedValue, Smi)
+DEFINE_CHECKED_CONV(CheckedSmiTagInt32, Int32, TaggedValue, Smi)
+DEFINE_CHECKED_CONV(CheckedSmiTagIntPtr, IntPtr, TaggedValue, Smi)
+DEFINE_CHECKED_CONV(CheckedSmiTagUint32, Uint32, TaggedValue, Smi)
+DEFINE_CHECKED_CONV(CheckedSmiUntag, Tagged, Int32, Smi)
+DEFINE_CHECKED_CONV(CheckedUint32ToInt32, Uint32, Int32, Number)
+
+// TODO(victorgomes): Shouldn't these actually be prefixed by Change?
+DEFINE_TO_NUMBER(Int32ToNumber, Int32)
+DEFINE_TO_NUMBER(IntPtrToNumber, IntPtr)
+DEFINE_TO_NUMBER(Uint32ToNumber, Uint32)
+
+// TODO(victorgomes): Shouldn't Float64ToTagged actually be called
+// Float64ToNumber?
+DEFINE_TO_TAGGED(Float64ToTagged, Float64, Number)
+DEFINE_TO_TAGGED(HoleyFloat64ToTagged, HoleyFloat64, NumberOrOddball)
+
+// CheckedSmiSizedInt32 is a check disguised as a conversion node so we can use
+// it to override untagging conversions.
+// TODO(olivf): Support overriding bigger with smaller instruction so we can use
+// CheckInt32IsSmi instead.
+DEFINE_CHECKED_CONV(CheckedSmiSizedInt32, Int32, Int32, Smi)
+
+#undef DEFINE_PURE_CONV
+#undef DEFINE_CHECKED_CONV
+#undef DEFINE_TO_NUMBER
+#undef DEFINE_TO_TAGGED
+#undef DEFINE_CONVERSION
+
 #define DEFINE_TRUNCATE_NODE(name, from_repr, properties)        \
   class name : public FixedInputValueNodeT<1, name> {            \
     using Base = FixedInputValueNodeT<1, name>;                  \
@@ -4892,35 +4479,30 @@ DEFINE_TRUNCATE_NODE(TruncateHoleyFloat64ToInt32, HoleyFloat64,
                      OpProperties::Int32())
 #undef DEFINE_TRUNCATE_NODE
 
-template <typename Derived, bool IsConversion>
-class CheckedNumberOrOddballToFloat64T
-    : public FixedInputValueNodeT<1, Derived> {
-  using Base = FixedInputValueNodeT<1, Derived>;
-  using Base::result;
+class CheckedNumberOrOddballToFloat64
+    : public FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64> {
+  using Base = FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64>;
 
  public:
-  explicit CheckedNumberOrOddballToFloat64T(
+  explicit CheckedNumberOrOddballToFloat64(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
       : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
                                                          conversion_type)) {
-    // Only Number->Float64 can be considered as a conversion, since
-    // Oddball->Float64 is not reversible.
-    DCHECK_EQ(conversion_type == TaggedToFloat64ConversionType::kOnlyNumber,
-              IsConversion);
+    // CheckedNumberToFloat64 should be used instead for kOnlyNumber.
+    DCHECK_NE(conversion_type, TaggedToFloat64ConversionType::kOnlyNumber);
   }
 
   static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::Float64() |
-      (IsConversion ? OpProperties::ConversionNode() : OpProperties(0));
+      OpProperties::EagerDeopt() | OpProperties::Float64();
+  // Not a conversion node since it is not reversible.
+  static_assert(!kProperties.is_conversion());
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   Input input() { return Node::input(0); }
-
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
   }
-
   DeoptimizeReason deoptimize_reason() const {
     return conversion_type() == TaggedToFloat64ConversionType::kNumberOrBoolean
                ? DeoptimizeReason::kNotANumberOrBoolean
@@ -4930,35 +4512,11 @@ class CheckedNumberOrOddballToFloat64T
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
-
   auto options() const { return std::tuple{conversion_type()}; }
 
  private:
   using TaggedToFloat64ConversionTypeOffset =
       Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
-};
-
-class CheckedNumberOrOddballToFloat64
-    : public CheckedNumberOrOddballToFloat64T<CheckedNumberOrOddballToFloat64,
-                                              false> {
-  using Base =
-      CheckedNumberOrOddballToFloat64T<CheckedNumberOrOddballToFloat64, false>;
-
- public:
-  explicit CheckedNumberOrOddballToFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(bitfield, conversion_type) {}
-};
-
-class CheckedNumberToFloat64
-    : public CheckedNumberOrOddballToFloat64T<CheckedNumberToFloat64, true> {
-  using Base = CheckedNumberOrOddballToFloat64T<CheckedNumberToFloat64, true>;
-
- public:
-  explicit CheckedNumberToFloat64(uint64_t bitfield)
-      : Base(bitfield, TaggedToFloat64ConversionType::kOnlyNumber) {}
-
-  auto options() const { return std::tuple{}; }
 };
 
 class CheckedNumberOrOddballToHoleyFloat64
@@ -5020,113 +4578,38 @@ class CheckedNumberOrOddballToHoleyFloat64
       TaggedToFloat64ConversionTypeOffset::Next<bool, 1>;
 };
 
-class CheckedNumberToInt32
-    : public FixedInputValueNodeT<1, CheckedNumberToInt32> {
-  using Base = FixedInputValueNodeT<1, CheckedNumberToInt32>;
+class UnsafeNumberOrOddballToFloat64
+    : public FixedInputValueNodeT<1, UnsafeNumberOrOddballToFloat64> {
+  using Base = FixedInputValueNodeT<1, UnsafeNumberOrOddballToFloat64>;
 
  public:
-  explicit CheckedNumberToInt32(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Int32() |
-                                              OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-template <typename Derived, bool IsConversion>
-class UncheckedNumberOrOddballToFloat64T
-    : public FixedInputValueNodeT<1, Derived> {
-  using Base = FixedInputValueNodeT<1, Derived>;
-  using Base::result;
-
- public:
-  explicit UncheckedNumberOrOddballToFloat64T(
+  explicit UnsafeNumberOrOddballToFloat64(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
       : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
                                                          conversion_type)) {
-    // Only Number->Float64 can be considered as a conversion, since
-    // Oddball->Float64 is not reversible.
-    DCHECK_EQ(conversion_type == TaggedToFloat64ConversionType::kOnlyNumber,
-              IsConversion);
+    // UnsafeNumberToFloat64 should be used instead for kOnlyNumber.
+    DCHECK_NE(conversion_type, TaggedToFloat64ConversionType::kOnlyNumber);
   }
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Float64() |
-      (IsConversion ? OpProperties::ConversionNode() : OpProperties(0));
+  static constexpr OpProperties kProperties = OpProperties::Float64();
+  // Not a conversion node since it is not reversible.
+  static_assert(!kProperties.is_conversion());
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   Input input() { return Node::input(0); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
-
   TaggedToFloat64ConversionType conversion_type() const {
     return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
   }
 
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
   auto options() const { return std::tuple{conversion_type()}; }
 
  private:
   using TaggedToFloat64ConversionTypeOffset =
       Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
-};
-
-class UncheckedNumberOrOddballToFloat64
-    : public UncheckedNumberOrOddballToFloat64T<
-          UncheckedNumberOrOddballToFloat64, false> {
-  using Base =
-      UncheckedNumberOrOddballToFloat64T<UncheckedNumberOrOddballToFloat64,
-                                         false>;
-
- public:
-  explicit UncheckedNumberOrOddballToFloat64(
-      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
-      : Base(bitfield, conversion_type) {
-    // UncheckedNumberToFloat64 should be used instead for kOnlyNumber.
-    DCHECK_NE(conversion_type, TaggedToFloat64ConversionType::kOnlyNumber);
-  }
-};
-class UncheckedNumberToFloat64
-    : public UncheckedNumberOrOddballToFloat64T<UncheckedNumberToFloat64,
-                                                true> {
-  using Base =
-      UncheckedNumberOrOddballToFloat64T<UncheckedNumberToFloat64, true>;
-
- public:
-  explicit UncheckedNumberToFloat64(uint64_t bitfield)
-      : Base(bitfield, TaggedToFloat64ConversionType::kOnlyNumber) {}
-
-  auto options() const { return std::tuple{}; }
-};
-
-class CheckedHoleyFloat64ToFloat64
-    : public FixedInputValueNodeT<1, CheckedHoleyFloat64ToFloat64> {
-  using Base = FixedInputValueNodeT<1, CheckedHoleyFloat64ToFloat64>;
-
- public:
-  explicit CheckedHoleyFloat64ToFloat64(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::Float64() |
-                                              OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
-
-  Input input() { return Node::input(0); }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
 };
 
 class UnsafeHoleyFloat64ToFloat64
@@ -5181,25 +4664,6 @@ class HoleyFloat64SilenceNumberNans
   Input input() { return Node::input(0); }
 
   int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-};
-
-class Float64ToHoleyFloat64
-    : public FixedInputValueNodeT<1, Float64ToHoleyFloat64> {
-  using Base = FixedInputValueNodeT<1, Float64ToHoleyFloat64>;
-
- public:
-  explicit Float64ToHoleyFloat64(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::HoleyFloat64() | OpProperties::ConversionNode();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
-
-  Input input() { return Node::input(0); }
-
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
@@ -6550,7 +6014,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     // DCHECK(!IsSnapshot());
     // Values set here can leak to the interpreter frame state. Conversions
     // should be stored in known_node_aspects/NodeInfo.
-    DCHECK(!value->properties().is_conversion());
+    DCHECK(!value->is_conversion());
     set_by_index(object_layout_->SlotAtOffset(offset), value);
   }
 
@@ -6719,7 +6183,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   void set_by_index(uint32_t i, ValueNode* value) {
     // Values set here can leak to the interpreter. Conversions should be stored
     // in known_node_aspects/NodeInfo.
-    DCHECK(!value->properties().is_conversion());
+    DCHECK(!value->is_conversion());
     // TODO(jgruber): Indices are commonly passed in from places that read
     // potentially attacker-corrupted heap objects. Either we catch all such
     // usages with CHECKs, or we add one here. Honestly I like neither option

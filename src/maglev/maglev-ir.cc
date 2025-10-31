@@ -65,8 +65,8 @@ BasicBlock* Phi::predecessor_at(int i) {
 
 namespace {
 
-// Prevent people from accidentally using kScratchRegister here and having their
-// code break in arm64.
+// Prevent people from accidentally using kScratchRegister here and having
+// their code break in arm64.
 [[maybe_unused]] struct Do_not_use_kScratchRegister_in_arch_independent_code {
 } kScratchRegister;
 [[maybe_unused]] struct
@@ -75,6 +75,10 @@ namespace {
 static_assert(!std::is_same_v<decltype(kScratchRegister), Register>);
 static_assert(
     !std::is_same_v<decltype(kScratchDoubleRegister), DoubleRegister>);
+
+#define ASSERT_IS_CONV(Node) static_assert(Node::kProperties.is_conversion());
+CONVERSION_NODE_LIST(ASSERT_IS_CONV)
+#undef ASSERT_IS_CONV
 
 }  // namespace
 
@@ -1840,19 +1844,30 @@ void TryUnboxNumberOrOddball(MaglevAssembler* masm, DoubleRegister dst,
 }
 
 }  // namespace
-template <typename Derived, bool IsConversion>
-void CheckedNumberOrOddballToFloat64T<
-    Derived, IsConversion>::SetValueLocationConstraints() {
+
+void CheckedNumberOrOddballToFloat64::SetValueLocationConstraints() {
   UseAndClobberRegister(input());
   DefineAsRegister(this);
 }
-template <typename Derived, bool IsConversion>
-void CheckedNumberOrOddballToFloat64T<Derived, IsConversion>::GenerateCode(
+void CheckedNumberOrOddballToFloat64::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(input());
   TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
                           conversion_type(),
                           __ GetDeoptLabel(this, deoptimize_reason()));
+}
+
+void CheckedNumberToFloat64::SetValueLocationConstraints() {
+  UseAndClobberRegister(input());
+  DefineAsRegister(this);
+}
+void CheckedNumberToFloat64::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  Register value = ToRegister(input());
+  TryUnboxNumberOrOddball(
+      masm, ToDoubleRegister(result()), value,
+      TaggedToFloat64ConversionType::kOnlyNumber,
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotANumber));
 }
 
 void CheckedNumberOrOddballToHoleyFloat64::SetValueLocationConstraints() {
@@ -1902,18 +1917,27 @@ void HoleyFloat64SilenceNumberNans::GenerateCode(MaglevAssembler* masm,
   __ Float64SilenceNan(value);
   __ bind(&done);
 }
-template <typename Derived, bool IsConversion>
-void UncheckedNumberOrOddballToFloat64T<
-    Derived, IsConversion>::SetValueLocationConstraints() {
+
+void UnsafeNumberOrOddballToFloat64::SetValueLocationConstraints() {
   UseAndClobberRegister(input());
   DefineAsRegister(this);
 }
-template <typename Derived, bool IsConversion>
-void UncheckedNumberOrOddballToFloat64T<Derived, IsConversion>::GenerateCode(
+void UnsafeNumberOrOddballToFloat64::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(input());
   TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
                           conversion_type(), nullptr);
+}
+
+void UnsafeNumberToFloat64::SetValueLocationConstraints() {
+  UseAndClobberRegister(input());
+  DefineAsRegister(this);
+}
+void UnsafeNumberToFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Register value = ToRegister(input());
+  TryUnboxNumberOrOddball(masm, ToDoubleRegister(result()), value,
+                          TaggedToFloat64ConversionType::kOnlyNumber, nullptr);
 }
 
 void CheckedNumberToInt32::SetValueLocationConstraints() {
@@ -7991,15 +8015,11 @@ void StoreFloat64ContextCell::PrintParams(std::ostream& os) const {
   os << "(" << context_cell_.object() << ")";
 }
 
-template <typename Derived, bool IsConversion>
-void CheckedNumberOrOddballToFloat64T<Derived, IsConversion>::PrintParams(
-    std::ostream& os) const {
+void CheckedNumberOrOddballToFloat64::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
-template <typename Derived, bool IsConversion>
-void UncheckedNumberOrOddballToFloat64T<Derived, IsConversion>::PrintParams(
-    std::ostream& os) const {
+void UnsafeNumberOrOddballToFloat64::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
@@ -8294,14 +8314,6 @@ void AllocateElementsArray::PrintParams(std::ostream& os) const {
   os << "(" << elements_kind_ << ", " << allocation_type_ << ")";
 }
 
-template class CheckedNumberOrOddballToFloat64T<CheckedNumberToFloat64, true>;
-template class CheckedNumberOrOddballToFloat64T<CheckedNumberOrOddballToFloat64,
-                                                false>;
-template class UncheckedNumberOrOddballToFloat64T<UncheckedNumberToFloat64,
-                                                  true>;
-template class UncheckedNumberOrOddballToFloat64T<
-    UncheckedNumberOrOddballToFloat64, false>;
-
 std::optional<int32_t> NodeBase::TryGetInt32ConstantInput(int index) {
   Node* node = input(index).node();
   if (auto smi = node->TryCast<SmiConstant>()) {
@@ -8320,7 +8332,7 @@ RangeType ValueNode::GetRange() const {
     if (!IsSafeInteger(value)) return {};
     return RangeType(value);
   }
-  if (properties().is_conversion()) {
+  if (is_conversion()) {
     return input(0).node()->GetRange();
   }
   switch (value_representation()) {

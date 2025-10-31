@@ -588,7 +588,7 @@ ValueNode* FromInt32ToTagged(const MaglevGraphBuilder* builder,
                              NodeType node_type, ValueNode* value,
                              BasicBlock* predecessor) {
   DCHECK(value->is_int32());
-  DCHECK(!value->properties().is_conversion());
+  DCHECK(!value->is_conversion());
 
   ValueNode* tagged;
   if (value->Is<Int32Constant>()) {
@@ -619,7 +619,7 @@ ValueNode* FromUint32ToTagged(const MaglevGraphBuilder* builder,
                               NodeType node_type, ValueNode* value,
                               BasicBlock* predecessor) {
   DCHECK(value->is_uint32());
-  DCHECK(!value->properties().is_conversion());
+  DCHECK(!value->is_conversion());
 
   ValueNode* tagged;
   if (NodeTypeIsSmi(node_type)) {
@@ -638,7 +638,7 @@ ValueNode* FromIntPtrToTagged(const MaglevGraphBuilder* builder,
                               BasicBlock* predecessor) {
   DCHECK_EQ(value->properties().value_representation(),
             ValueRepresentation::kIntPtr);
-  DCHECK(!value->properties().is_conversion());
+  DCHECK(!value->is_conversion());
 
   ValueNode* tagged = Node::New<IntPtrToNumber>(builder->zone(), {value});
 
@@ -651,7 +651,7 @@ ValueNode* FromFloat64ToTagged(const MaglevGraphBuilder* builder,
                                NodeType node_type, ValueNode* value,
                                BasicBlock* predecessor) {
   DCHECK(value->is_float64());
-  DCHECK(!value->properties().is_conversion());
+  DCHECK(!value->is_conversion());
 
   // Create a tagged version, and insert it at the end of the predecessor.
   ValueNode* tagged = Node::New<Float64ToTagged>(
@@ -667,7 +667,7 @@ ValueNode* FromHoleyFloat64ToTagged(const MaglevGraphBuilder* builder,
                                     NodeType node_type, ValueNode* value,
                                     BasicBlock* predecessor) {
   DCHECK(value->is_holey_float64());
-  DCHECK(!value->properties().is_conversion());
+  DCHECK(!value->is_conversion());
 
   // Create a tagged version, and insert it at the end of the predecessor.
   ValueNode* tagged = Node::New<HoleyFloat64ToTagged>(

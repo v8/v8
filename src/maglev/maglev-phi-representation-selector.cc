@@ -133,8 +133,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
         input_reprs.RemoveAll();
         break;
       }
-    } else if (input->properties().is_conversion() ||
-               input->Is<ReturnedValue>()) {
+    } else if (input->is_conversion() || input->Is<ReturnedValue>()) {
       DCHECK_EQ(input->input_count(), 1);
       // The graph builder tags all Phi inputs, so this conversion should
       // produce a tagged value.
@@ -435,7 +434,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
           // those NaN patterns that have a special interpretation in
           // HoleyFloat64 (e.g. undefined and hole) into the canonical NaN so
           // that they keep representing NaNs in the new representation.
-          return Opcode::kFloat64ToHoleyFloat64;
+          return Opcode::kChangeFloat64ToHoleyFloat64;
 
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kTagged:
@@ -527,8 +526,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         phi->change_input(input_index,
                           graph_->GetInt32Constant(static_cast<int>(value)));
       }
-    } else if (input->properties().is_conversion() ||
-               input->Is<ReturnedValue>()) {
+    } else if (input->is_conversion() || input->Is<ReturnedValue>()) {
       // Unwrapping the conversion.
       DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
       // Needs to insert a new conversion.
@@ -567,10 +565,9 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                     bypassed_input, phi, input_index);
             break;
           }
-          case Opcode::kFloat64ToHoleyFloat64: {
-            new_input =
-                GetReplacementForPhiInputConversion<Float64ToHoleyFloat64>(
-                    bypassed_input, phi, input_index);
+          case Opcode::kChangeFloat64ToHoleyFloat64: {
+            new_input = GetReplacementForPhiInputConversion<
+                ChangeFloat64ToHoleyFloat64>(bypassed_input, phi, input_index);
             break;
           }
           case Opcode::kIdentity:
@@ -705,7 +702,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
             DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
                               NodeType::kNumber));
             untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<UncheckedNumberToFloat64>(
+                AddNewNodeNoInputConversionAtBlockEnd<UnsafeNumberToFloat64>(
                     block, {input});
           } else {
             DCHECK(!phi->uses_require_31_bit_value());
@@ -997,7 +994,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 // for {node}.
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     NodeBase* node, Phi* phi, int input_index, const ProcessingState* state) {
-  if (node->properties().is_conversion() || node->Is<ReturnedValue>()) {
+  if (node->is_conversion() || node->Is<ReturnedValue>()) {
     // {node} can't be an Untagging if we reached this point (because
     // UpdateNodePhiInput is not called on untagging nodes).
     DCHECK(!IsUntagging(node->opcode()));

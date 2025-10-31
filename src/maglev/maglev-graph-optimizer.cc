@@ -1545,9 +1545,8 @@ UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64,
                node->conversion_type())
 UNTAGGING_CASE(CheckedNumberToFloat64, Float64,
                TaggedToFloat64ConversionType::kOnlyNumber)
-UNTAGGING_CASE(UncheckedNumberOrOddballToFloat64, Float64,
-               node->conversion_type())
-UNTAGGING_CASE(UncheckedNumberToFloat64, Float64,
+UNTAGGING_CASE(UnsafeNumberOrOddballToFloat64, Float64, node->conversion_type())
+UNTAGGING_CASE(UnsafeNumberToFloat64, Float64,
                TaggedToFloat64ConversionType::kOnlyNumber)
 #undef UNTAGGING_CASE
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
@@ -1589,8 +1588,8 @@ ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToMaybeNanFloat64(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToHoleyFloat64(
-    Float64ToHoleyFloat64* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitChangeFloat64ToHoleyFloat64(
+    ChangeFloat64ToHoleyFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

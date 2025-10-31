@@ -262,9 +262,8 @@ class RecomputeKnownNodeAspectsProcessor {
   // NumberOrOddball for CheckedNumberOrOddballToFloat64.
   PROCESS_SAFE_CONV(CheckedNumberOrOddballToFloat64, float64, NumberOrOddball)
   PROCESS_SAFE_CONV(CheckedNumberToFloat64, float64, Number)
-  PROCESS_UNSAFE_CONV(UncheckedNumberOrOddballToFloat64, float64,
-                      NumberOrOddball)
-  PROCESS_UNSAFE_CONV(UncheckedNumberToFloat64, float64, Number)
+  PROCESS_UNSAFE_CONV(UnsafeNumberOrOddballToFloat64, float64, NumberOrOddball)
+  PROCESS_UNSAFE_CONV(UnsafeNumberToFloat64, float64, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
   PROCESS_UNSAFE_CONV(HoleyFloat64ToMaybeNanFloat64, float64, Number)
   PROCESS_SAFE_CONV(ChangeInt32ToFloat64, float64, Number)

@@ -1221,11 +1221,11 @@ ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64(
       return AddNewNodeNoAbort<ChangeInt32ToFloat64>({untagged_smi});
     }
     if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
-      return AddNewNodeNoAbort<UncheckedNumberToFloat64>({node});
+      return AddNewNodeNoAbort<UnsafeNumberToFloat64>({node});
 
     } else {
-      return AddNewNodeNoAbort<UncheckedNumberOrOddballToFloat64>(
-          {node}, conversion_type);
+      return AddNewNodeNoAbort<UnsafeNumberOrOddballToFloat64>({node},
+                                                               conversion_type);
     }
   } else {
     if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
@@ -1331,7 +1331,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
 
     // Deopt if {left} is not an Int32.
     EnsureInt32(left);
-    if (left->properties().is_conversion()) {
+    if (left->is_conversion()) {
       return left->input(0).node();
     }
     return left;

@@ -2367,7 +2367,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // This can only happen for conversion nodes, as they can split and take
       // over the liveness of the node they are converting.
       // TODO(v8:7700): Overeager DCHECK.
-      // DCHECK(node->properties().is_conversion());
+      // DCHECK(node->is_conversion());
       if (v8_flags.trace_maglev_regalloc) {
         printing_visitor_->os()
             << "  " << reg << " - can't load " << PrintNodeLabel(node)
@@ -2416,7 +2416,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // TODO(v8:7700): This DCHECK is overeager, {incoming} can be a Phi node
       // containing conversion nodes.
       // DCHECK_IMPLIES(!IsInRegister(target_state, incoming),
-      //                incoming->properties().is_conversion());
+      //                incoming->is_conversion());
       if (v8_flags.trace_maglev_regalloc) {
         printing_visitor_->os()
             << "  " << reg << " - can't load incoming "

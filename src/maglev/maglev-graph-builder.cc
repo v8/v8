@@ -256,7 +256,7 @@ class CallArguments {
       args_.insert(args_.data(), receiver);
       receiver_mode_ = ConvertReceiverMode::kAny;
     } else {
-      DCHECK(!receiver->properties().is_conversion());
+      DCHECK(!receiver->is_conversion());
       args_[0] = receiver;
     }
   }
@@ -333,7 +333,7 @@ class CallArguments {
     // Arguments can leak to the interpreter frame if the call is inlined,
     // conversions should be stored in known_node_aspects/NodeInfo.
     for (ValueNode* arg : args_) {
-      DCHECK(!arg->properties().is_conversion());
+      DCHECK(!arg->is_conversion());
     }
 #endif  // DEBUG
   }
@@ -4457,7 +4457,7 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
   // a Smi when tagged.
   NodeInfo* node_info = GetOrCreateInfoFor(value);
   if (ValueNode* tagged_alt = node_info->alternative().tagged()) {
-    DCHECK(tagged_alt->properties().is_conversion());
+    DCHECK(tagged_alt->is_conversion());
     return CheckType(tagged_alt, NodeType::kSmi);
   }
   return false;
@@ -4713,7 +4713,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
   DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
-                 !value->properties().is_conversion());
+                 !value->is_conversion());
   // TODO(marja): Bail out if `value` has the empty type.
   if (store_mode != StoreTaggedMode::kInitializing) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
@@ -4746,7 +4746,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
   DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
-                 !value->properties().is_conversion());
+                 !value->is_conversion());
   DCHECK(CanElideWriteBarrier(object, value));
   if (store_mode != StoreTaggedMode::kInitializing) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
@@ -7085,7 +7085,7 @@ void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
                                              PropertyKey key, ValueNode* value,
                                              bool is_const,
                                              compiler::AccessMode access_mode) {
-  DCHECK(!value->properties().is_conversion());
+  DCHECK(!value->is_conversion());
   auto& props_for_key =
       known_node_aspects().GetLoadedPropertiesForKey(zone(), is_const, key);
   if (!is_const && IsAnyStore(access_mode)) {
@@ -10774,7 +10774,7 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
   // calling UncheckedNumberToFloat64 manually.
   ValueNode* float64_value;
   GET_VALUE_OR_ABORT(float64_value,
-                     AddNewNode<UncheckedNumberToFloat64>({conversion}));
+                     AddNewNode<UnsafeNumberToFloat64>({conversion}));
   return AddNewNode<Float64Round>({float64_value}, kind);
 }
 
@@ -10892,10 +10892,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
   GET_VALUE_OR_ABORT(conversion, AddNewNode<ToNumberOrNumeric>(
                                      {arg}, Object::Conversion::kToNumber));
   // TODO(victorgomes): rely on automatic input conversion here rather than
-  // calling UncheckedNumberToFloat64 manually.
+  // calling UnsafeNumberToFloat64 manually.
   ValueNode* float64_value;
   GET_VALUE_OR_ABORT(float64_value,
-                     AddNewNode<UncheckedNumberToFloat64>({conversion}));
+                     AddNewNode<UnsafeNumberToFloat64>({conversion}));
   return AddNewNode<Float64CountLeadingZeros>({float64_value});
 }
 
@@ -16686,7 +16686,7 @@ ReduceResult MaglevGraphBuilder::GetSilencedNaN(ValueNode* value) {
 
   // We only need to check for silenced NaN in non-conversion nodes or
   // conversion from tagged, since they can't be signalling NaNs.
-  if (value->properties().is_conversion()) {
+  if (value->is_conversion()) {
     // A conversion node should have at least one input.
     DCHECK_GE(value->input_count(), 1);
     // If the conversion node is tagged, we could be reading a fabricated sNaN
