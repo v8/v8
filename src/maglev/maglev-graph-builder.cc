@@ -9233,6 +9233,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeSlice(
     return {};
   }
 
+  if (!CheckType(receiver, NodeType::kJSReceiver)) {
+    return {};
+  }
+
   auto possible_maps = known_node_aspects().TryGetPossibleMaps(receiver);
   if (!possible_maps) {
     return {};
