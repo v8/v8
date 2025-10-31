@@ -3472,10 +3472,8 @@ void AsyncStreamingProcessor::OnFinishedStream(
   num_functions_histogram->AddSample(static_cast<int>(num_functions_));
 
   std::shared_ptr<NativeModule> final_native_module = job_->new_native_module_;
-  const bool needs_finish = job_->DecrementAndCheckFinisherCount();
   bool cache_hit = false;
   if (!final_native_module) {
-    DCHECK(needs_finish);
     // We are processing a WebAssembly module without code section. Create the
     // native module now (would otherwise happen in {PrepareNativeModule} or
     // {ProcessCodeSectionHeader}).
@@ -3486,6 +3484,9 @@ void AsyncStreamingProcessor::OnFinishedStream(
     final_native_module->SetWireBytes(std::move(job_->bytes_copy_));
   }
 
+  // Only decrement the finisher count *after* setting the wire bytes. The
+  // native module needs to be ready to use when the last finisher is done.
+  const bool needs_finish = job_->DecrementAndCheckFinisherCount();
   if (!cache_hit && needs_finish) {
     const bool failed = job_->new_native_module_->compilation_state()->failed();
     final_native_module = GetWasmEngine()->UpdateNativeModuleCache(
