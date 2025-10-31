@@ -1934,7 +1934,7 @@ class ModuleDecoderImpl : public Decoder {
             inner.consume_bytes(hint_length - 1);
           }
 
-          frequencies.emplace(std::pair{func_index, byte_offset}, frequency);
+          frequencies[func_index].emplace_back(byte_offset, frequency);
         }
       }
 
@@ -2038,8 +2038,8 @@ class ModuleDecoderImpl : public Decoder {
             break;
           }
 
-          call_targets.emplace(std::pair{func_index, byte_offset},
-                               call_targets_for_offset);
+          call_targets[func_index].emplace_back(byte_offset,
+                                                call_targets_for_offset);
         }
         if (inner.failed()) break;
       }
