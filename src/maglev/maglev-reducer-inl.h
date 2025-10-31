@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/base/bits.h"
+#include "src/base/container-utils.h"
 #include "src/base/division-by-constant.h"
 #include "src/common/scoped-modification.h"
 #include "src/maglev/maglev-ir-inl.h"
@@ -1100,34 +1101,89 @@ void MaglevReducer<BaseT>::FlushNodesToBlock() {
     new_nodes_at_.clear();
   }
 }
+template <typename BaseT>
+template <typename MapContainer>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckConstantMaps(
+    compiler::MapRef map, const MapContainer& maps) {
+  if (!base::contains(maps, map)) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+  }
+  if (map.IsHeapNumberMap()) return ReduceResult::Done();
+  if (map.is_stable()) {
+    broker()->dependencies()->DependOnStableMap(map);
+    return ReduceResult::Done();
+  }
+  return {};
+}
 
 template <typename BaseT>
 template <typename MapContainer>
-MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckConstantMaps(
     ValueNode* object, const MapContainer& maps) {
   // For constants with stable maps that match one of the desired maps, we
   // don't need to emit a map check, and can use the dependency -- we
   // can't do this for unstable maps because the constant could migrate
   // during compilation.
   if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
-    compiler::MapRef constant_map = constant->map(broker());
-    if (std::find(maps.begin(), maps.end(), constant_map) == maps.end()) {
-      return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
-    }
-    // TODO(verwaest): Reduce maps to the constant map.
-    if (constant_map.is_stable()) {
-      broker()->dependencies()->DependOnStableMap(constant_map);
-      return ReduceResult::Done();
-    }
-    return {};
+    return TryFoldCheckConstantMaps(constant->map(broker()), maps);
   }
 
   if (NodeTypeIs(GetType(object), NodeType::kNumber)) {
-    auto heap_number_map =
+    compiler::MapRef heap_number_map =
         MakeRef(broker(), local_isolate()->factory()->heap_number_map());
-    if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
-      return ReduceResult::Done();
+    return TryFoldCheckConstantMaps(heap_number_map, maps);
+  }
+
+  // TODO(verwaest): Support other objects with possible known stable maps as
+  // well.
+
+  return {};
+}
+
+template <typename BaseT>
+template <typename MapContainer>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
+    ValueNode* object, ValueNode* object_map, const MapContainer& maps,
+    KnownMapsMerger<MapContainer>& merger) {
+  RETURN_IF_DONE(TryFoldCheckConstantMaps(object, maps));
+  if (object_map) {
+    if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object_map)) {
+      CHECK(constant->IsMap());
+      RETURN_IF_DONE(TryFoldCheckConstantMaps(constant->AsMap(), maps));
     }
+  }
+
+  // Calculates if known maps are a subset of maps, their map intersection and
+  // whether we should emit check with migration.
+  merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
+
+  if (IsEmptyNodeType(IntersectType(merger.node_type(), GetType(object)))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+  }
+
+  // If the known maps are the subset of the maps to check, we are done.
+  if (merger.known_maps_are_subset_of_requested_maps()) {
+    // The node type of known_info can get out of sync with the possible maps.
+    // For instance after merging with an effectively dead branch (i.e., check
+    // contradicting all possible maps).
+    // TODO(olivf) Try to combine node_info and possible maps and ensure that
+    // narrowing the type also clears impossible possible_maps.
+    NodeInfo* known_info = GetOrCreateInfoFor(object);
+    if (!NodeTypeIs(known_info->type(), merger.node_type())) {
+      known_info->UnionType(merger.node_type());
+    }
+#ifdef DEBUG
+    // Double check that, for every possible map, it's one of the maps we'd
+    // want to check.
+    for (compiler::MapRef possible_map :
+         known_node_aspects().TryGetInfoFor(object)->possible_maps()) {
+      DCHECK_NE(std::find(maps.begin(), maps.end(), possible_map), maps.end());
+    }
+#endif
+    return ReduceResult::Done();
+  }
+
+  if (merger.intersect_set().is_empty()) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
 

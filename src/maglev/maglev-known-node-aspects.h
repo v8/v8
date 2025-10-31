@@ -745,10 +745,11 @@ class KnownNodeAspects {
   }
 };
 
+template <typename MapContainer>
 class KnownMapsMerger {
  public:
   explicit KnownMapsMerger(compiler::JSHeapBroker* broker, Zone* zone,
-                           base::Vector<const compiler::MapRef> requested_maps)
+                           const MapContainer& requested_maps)
       : broker_(broker), zone_(zone), requested_maps_(requested_maps) {}
 
   void IntersectWithKnownNodeAspects(
@@ -787,7 +788,7 @@ class KnownMapsMerger {
       // universal set, which means just insert all requested maps.
       known_maps_are_subset_of_requested_maps_ = false;
       existing_known_maps_found_ = false;
-      for (compiler::MapRef map : requested_maps_) {
+      for (const compiler::MapRef map : requested_maps_) {
         InsertMap(map);
       }
     }
@@ -841,7 +842,7 @@ class KnownMapsMerger {
  private:
   compiler::JSHeapBroker* broker_;
   Zone* zone_;
-  base::Vector<const compiler::MapRef> requested_maps_;
+  const MapContainer& requested_maps_;
   compiler::ZoneRefSet<Map> intersect_set_;
   bool known_maps_are_subset_of_requested_maps_ = true;
   bool existing_known_maps_found_ = true;

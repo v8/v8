@@ -303,8 +303,15 @@ class MaglevReducer {
       TaggedToFloat64ConversionType conversion_type);
 
   template <typename MapContainer>
-  MaybeReduceResult TryFoldCheckMaps(ValueNode* object,
-                                     const MapContainer& maps);
+  MaybeReduceResult TryFoldCheckConstantMaps(ValueNode* object,
+                                             const MapContainer& maps);
+  template <typename MapContainer>
+  MaybeReduceResult TryFoldCheckConstantMaps(compiler::MapRef map,
+                                             const MapContainer& maps);
+  template <typename MapContainer>
+  MaybeReduceResult TryFoldCheckMaps(ValueNode* object, ValueNode* object_map,
+                                     const MapContainer& maps,
+                                     KnownMapsMerger<MapContainer>& merger);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
 

@@ -409,37 +409,44 @@ ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayNotDetached(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
-    CheckMaps* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  MaybeReduceResult result =
-      reducer_.TryFoldCheckMaps(node->input_node(0), node->maps());
+template <typename NodeT>
+ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
+                                                     ValueNode* object_map) {
+  KnownMapsMerger<compiler::ZoneRefSet<Map>> merger(broker(), reducer_.zone(),
+                                                    node->maps());
+  MaybeReduceResult result = reducer_.TryFoldCheckMaps(
+      node->input_node(0), object_map, node->maps(), merger);
   if (result.IsDoneWithAbort()) {
     reducer_.graph()->set_may_have_unreachable_blocks(true);
     return ProcessResult::kTruncateBlock;
   }
   if (result.IsDone()) {
+    if (merger.emit_check_with_migration()) {
+      return ProcessResult::kContinue;
+    }
     return ProcessResult::kRemove;
   }
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
+    CheckMaps* node, const ProcessingState& state) {
+  return ProcessCheckMaps(node);
+}
+
 ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigrationAndDeopt(
     CheckMapsWithMigrationAndDeopt* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
+  return ProcessCheckMaps(node);
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigration(
     CheckMapsWithMigration* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
+  return ProcessCheckMaps(node);
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithAlreadyLoadedMap(
     CheckMapsWithAlreadyLoadedMap* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
+  return ProcessCheckMaps(node, node->map_input().node());
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckDetectableCallable(

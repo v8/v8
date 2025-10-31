@@ -369,6 +369,32 @@ class RecomputeKnownNodeAspectsProcessor {
     return ProcessResult::kContinue;
   }
 
+  void UpdateMaps(ValueNode* object, const compiler::ZoneRefSet<Map>& maps) {
+    KnownMapsMerger<compiler::ZoneRefSet<Map>> merger(broker(), zone(), maps);
+    merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
+    merger.UpdateKnownNodeAspects(object, known_node_aspects());
+  }
+
+  ProcessResult ProcessNode(CheckMaps* node) {
+    UpdateMaps(node->receiver_input().node(), node->maps());
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(CheckMapsWithMigration* node) {
+    UpdateMaps(node->receiver_input().node(), node->maps());
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(CheckMapsWithMigrationAndDeopt* node) {
+    UpdateMaps(node->receiver_input().node(), node->maps());
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(CheckMapsWithAlreadyLoadedMap* node) {
+    UpdateMaps(node->object_input().node(), node->maps());
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult ProcessNode(Node* node) { return ProcessResult::kContinue; }
 };
 

@@ -116,6 +116,8 @@ class MaglevGraphOptimizer {
 
   template <typename NodeT>
   ProcessResult ProcessLoadContextSlot(NodeT* node);
+  template <typename NodeT>
+  ProcessResult ProcessCheckMaps(NodeT* node, ValueNode* object_map = nullptr);
 };
 
 }  // namespace maglev
