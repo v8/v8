@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -812,7 +813,7 @@ std::optional<bool> HeapObjectData::TryGetBooleanValue(
   // Keep in sync with Object::BooleanValue.
   auto result = TryGetBooleanValueImpl(broker);
   DCHECK_IMPLIES(
-      broker->IsMainThread() && result.has_value(),
+      broker->IsMainThread() && result.has_value() && !IsAnyHole(*object()),
       result.value() == Object::BooleanValue(*object(), broker->isolate()));
   return result;
 }
