@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'a8bbea7ea2d6e41cd0a8687756e42c8b32a9b0c1',
+  'partition_alloc_version': 'abae057a0b75d5cb4738606734d4f3492ad4e2bc',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dd80c8744db13e5767cb309d95ac906792c5e2c7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5389bf354c8c4ccaae2395c64fae5d5331c21fbb',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c143f025f554adce6170d55f1ecdfdfaed5603b3',
   'buildtools/linux64': {
@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f0571c88c5a8d10767f42db8c6324f3659154287',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '3cb99bee629b383170785e2fe35c1d6ede1aea5e',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -562,7 +562,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'b656b217671172169a05c308db027d6f4707355a',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'a07576ec82e2d2296ef8fddacbb4216ba560a8de',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
