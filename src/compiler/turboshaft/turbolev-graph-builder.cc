@@ -810,7 +810,14 @@ class GraphBuildingNodeProcessor {
     if (!maglev_catch_handler->has_phi()) {
       // The very simple case: the catch handler didn't have any Phis, we don't
       // have to do anything complex.
-      if (!__ Bind(turboshaft_catch_handler)) return;
+
+      // If this BindReachable fails, then the catch handler isn't reachable,
+      // but hasn't been removed by Maglev. Ideally, we would then update Maglev
+      // to remove said catch handler. If, for any reason, this isn't fixable in
+      // Maglev, then we could simply replace this BindReachable by a regular
+      // Bind and early-return if it fails.
+      __ BindReachable(turboshaft_catch_handler);
+
       catch_block_begin_ = __ CatchBlockBegin();
       return;
     }
