@@ -335,6 +335,7 @@ uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters,
   return num_live_entries;
 }
 
+// LINT.IfChange(IsCompatibleCode)
 // static
 bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
                                        uint16_t parameter_count) {
@@ -367,27 +368,9 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
   }
   DCHECK(code->is_builtin());
   DCHECK_EQ(code->parameter_count(), kDontAdaptArgumentsSentinel);
-  switch (code->builtin_id()) {
-    case Builtin::kIllegal:
-    case Builtin::kCompileLazy:
-    case Builtin::kInterpreterEntryTrampoline:
-    case Builtin::kInstantiateAsmJs:
-    case Builtin::kDebugBreakTrampoline:
-#ifdef V8_ENABLE_WEBASSEMBLY
-    case Builtin::kJSToWasmWrapper:
-    case Builtin::kJSToJSWrapper:
-    case Builtin::kJSToJSWrapperInvalidSig:
-    case Builtin::kWasmPromising:
-#if V8_ENABLE_DRUMBRAKE
-    case Builtin::kGenericJSToWasmInterpreterWrapper:
-#endif
-    case Builtin::kWasmStressSwitch:
-#endif
-      return true;
-    default:
-      return false;
-  }
+  return Builtins::IsJSTrampoline(code->builtin_id());
 }
+// LINT.ThenChange(/src/builtins/builtins-inl.h:IsCompatibleJSBuiltin)
 
 }  // namespace internal
 }  // namespace v8

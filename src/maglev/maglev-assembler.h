@@ -626,6 +626,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                    int num_double_registers = 0);
 
   inline void CallSelf();
+  inline void CallJSBuiltin(Builtin builtin, uint16_t parameter_count);
   inline void CallBuiltin(Builtin builtin);
   template <Builtin kBuiltin, typename... Args>
   inline void CallBuiltin(Args&&... args);
@@ -856,6 +857,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
     return StandardFrameConstants::kExpressionsOffset -
            index * kSystemPointerSize;
   }
+
+  inline void CallBuiltinImpl(Builtin builtin);
 
   // Returns the condition code satisfied if tagging is successful. Only use
   // this when SmiValuesAre31Bits(); otherwise use SmiTag(dst, src).

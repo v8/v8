@@ -677,6 +677,11 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kInterpreterEntryTrampoline:
       return JSBuiltinStateFlag::kJSTrampoline;
 
+    // This is rather not a JS trampoline but a crash pad which is allowed
+    // to be installed into any JSFunction because it doesn't return.
+    case Builtin::kIllegal:
+      return JSBuiltinStateFlag::kJSTrampoline;
+
     // These are core JS builtins which are instantiated lazily.
     case Builtin::kConsoleAssert:
     case Builtin::kArrayFromAsyncIterableOnFulfilled:
