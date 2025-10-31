@@ -782,7 +782,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void Tst(const Register& rn, const Operand& operand);
   inline void Bic(const Register& rd, const Register& rn,
                   const Operand& operand);
-  inline void Blr(const Register& xn);
   inline void Cmp(const Register& rn, const Operand& operand);
   inline void CmpTagged(const Register& rn, const Operand& operand);
   inline void Subs(const Register& rd, const Register& rn,
@@ -1104,10 +1103,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(const ExternalReference& reference);
 
-  void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
   void Call(ExternalReference target);
+
+  inline void Call(Label* label);
+  inline void Call(const Register& xn);
 
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
@@ -1353,7 +1354,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     ins(vd, vd_index, rn);
   }
 
-  inline void Bl(Label* label);
   inline void Br(const Register& xn);
 
   inline void Uxtb(const Register& rd, const Register& rn);

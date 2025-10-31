@@ -4968,7 +4968,7 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // making the call GC safe. The irregexp backend relies on this.
 
   __ Poke<MacroAssembler::kSignLR>(lr, 0);  // Store the return address.
-  __ Blr(x10);                              // Call the C++ function.
+  __ Call(x10);                             // Call the C++ function.
   __ Peek<MacroAssembler::kAuthLR>(lr, 0);  // Return to calling code.
   __ AssertFPCRState();
   __ Ret();

@@ -1955,7 +1955,7 @@ void RegExpMacroAssemblerARM64::StoreRegister(int register_index,
 void RegExpMacroAssemblerARM64::CallIf(Label* to, Condition condition) {
   Label skip_call;
   if (condition != al) __ B(&skip_call, NegateCondition(condition));
-  __ Bl(to);
+  __ Call(to);
   __ Bind(&skip_call);
 }
 

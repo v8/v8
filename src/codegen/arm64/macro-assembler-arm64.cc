@@ -2266,13 +2266,7 @@ void MacroAssembler::Jump(const ExternalReference& reference) {
   Jump(scratch);
 }
 
-void MacroAssembler::Call(Register target) {
-  BlockPoolsScope scope(this);
-  Blr(target);
-}
-
 void MacroAssembler::Call(Address target, RelocInfo::Mode rmode) {
-  BlockPoolsScope scope(this);
   if (CanUseNearCallOrJump(rmode)) {
     int64_t offset = CalculateTargetOffset(target, rmode, pc_);
     DCHECK(IsNearCallOffset(offset));
@@ -2285,7 +2279,6 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode) {
 void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code));
-  BlockPoolsScope scope(this);
 
   Builtin builtin = Builtin::kNoBuiltinId;
   if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
@@ -2633,7 +2626,7 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
     Check(eq, AbortReason::kReturnAddressNotFoundInFrame);
   }
 
-  Blr(target);
+  Call(target);
   Bind(&return_location);
 }
 
@@ -2642,7 +2635,7 @@ void MacroAssembler::IndirectCall(Address target, RelocInfo::Mode rmode) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
   Mov(temp, Immediate(target, rmode));
-  Blr(temp);
+  Call(temp);
 }
 
 bool MacroAssembler::IsNearCallOffset(int64_t offset) {
@@ -2680,8 +2673,7 @@ void MacroAssembler::CallForDeoptimization(
     Builtin target, int deopt_id, Label* exit, DeoptimizeKind kind, Label* ret,
     Label* jump_deoptimization_entry_label) {
   ASM_CODE_COMMENT(this);
-  BlockPoolsScope scope(this);
-  bl(jump_deoptimization_entry_label);
+  Call(jump_deoptimization_entry_label);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy ||
              kind == DeoptimizeKind::kLazyAfterFastCall)
