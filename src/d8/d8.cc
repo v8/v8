@@ -3025,10 +3025,19 @@ void Shell::WasmDeserializeModule(
     ThrowError(isolate, "Second argument must be a TypedArray");
     return;
   }
+
+  i::wasm::WasmEnabledFeatures enabled_features =
+      i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
+  i::wasm::CompileTimeImports compile_time_imports =
+      i::WasmJs::CompileTimeImportsFromArgument(
+          Utils::OpenDirectHandle(*info[2]), i_isolate, enabled_features);
+
   i::DirectHandle<i::JSArrayBuffer> buffer =
       i::Cast<i::JSArrayBuffer>(Utils::OpenHandle(*info[0]));
   i::DirectHandle<i::JSTypedArray> wire_bytes =
       i::Cast<i::JSTypedArray>(Utils::OpenHandle(*info[1]));
+  // Note: These checks must be executed *after* evaluating compile time
+  // imports, as that calls back into JS and can detach buffers.
   if (buffer->was_detached()) {
     ThrowError(isolate, "First argument is detached");
     return;
@@ -3037,12 +3046,6 @@ void Shell::WasmDeserializeModule(
     ThrowError(isolate, "Second argument's buffer is detached");
     return;
   }
-
-  i::wasm::WasmEnabledFeatures enabled_features =
-      i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate);
-  i::wasm::CompileTimeImports compile_time_imports =
-      i::WasmJs::CompileTimeImportsFromArgument(
-          Utils::OpenDirectHandle(*info[2]), i_isolate, enabled_features);
 
   i::DirectHandle<i::JSArrayBuffer> wire_bytes_buffer =
       wire_bytes->GetBuffer(i_isolate);
