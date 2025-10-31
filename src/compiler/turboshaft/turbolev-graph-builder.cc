@@ -754,7 +754,11 @@ class GraphBuildingNodeProcessor {
   void StartSinglePredecessorExceptionBlock(
       maglev::BasicBlock* maglev_catch_handler,
       Block* turboshaft_catch_handler) {
-    if (!__ Bind(turboshaft_catch_handler)) return;
+    // Binding the catch handler should always succeed since
+    // StartExceptionBlock should have already bailed out if the current block
+    // isn't reachable (which is the only reason for which a Bind could fail).
+    __ BindReachable(turboshaft_catch_handler);
+
     catch_block_begin_ = __ CatchBlockBegin();
     if (!maglev_catch_handler->has_phi()) return;
     InsertTaggingForPhis(maglev_catch_handler);
@@ -811,11 +815,9 @@ class GraphBuildingNodeProcessor {
       // The very simple case: the catch handler didn't have any Phis, we don't
       // have to do anything complex.
 
-      // If this BindReachable fails, then the catch handler isn't reachable,
-      // but hasn't been removed by Maglev. Ideally, we would then update Maglev
-      // to remove said catch handler. If, for any reason, this isn't fixable in
-      // Maglev, then we could simply replace this BindReachable by a regular
-      // Bind and early-return if it fails.
+      // Binding the catch handler should always succeed since
+      // StartExceptionBlock should have already bailed out if the current block
+      // isn't reachable (which is the only reason for which a Bind could fail).
       __ BindReachable(turboshaft_catch_handler);
 
       catch_block_begin_ = __ CatchBlockBegin();
@@ -836,8 +838,9 @@ class GraphBuildingNodeProcessor {
                                     turboshaft_catch_handler);
     }
 
-    // Finally binding the catch handler.
-    __ Bind(turboshaft_catch_handler);
+    // Finally binding the catch handler (should always succeeds since
+    // StartExceptionBlock bails out if the catch handler isn't reachable).
+    __ BindReachable(turboshaft_catch_handler);
 
     // We now need to insert a Phi for the CatchBlockBegins of the
     // predecessors (usually, we would just call `__ CatchBlockbegin`, which
