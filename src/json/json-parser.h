@@ -202,7 +202,7 @@ constexpr uint8_t JsonTokenToCharacter(JsonToken token) {
   }
 }
 
-// A simple json parser.
+// A json parser.
 template <typename Char>
 class JsonParser final {
  public:
@@ -263,7 +263,7 @@ class JsonParser final {
 
   void advance() { ++cursor_; }
 
-  base::uc32 CurrentCharacter() {
+  base::uc32 CurrentCharacter() const {
     if (V8_UNLIKELY(is_at_end())) return kEndOfString;
     return *cursor_;
   }
@@ -275,7 +275,7 @@ class JsonParser final {
 
   void AdvanceToNonDecimal();
 
-  V8_INLINE JsonToken peek() const { return next_; }
+  V8_INLINE JsonToken peek() const;
 
   void Consume(JsonToken token) {
     DCHECK_EQ(peek(), token);
@@ -304,32 +304,37 @@ class JsonParser final {
   }
 
   template <JsonToken token>
+  V8_WARN_UNUSED_RESULT bool Check() {
+    if (V8_LIKELY(IsNextToken<token>())) {
+      advance();
+      return true;
+    }
+    GetNextNonWhitespaceToken();
+    if (peek() == token) {
+      advance();
+      return true;
+    }
+    return false;
+  }
+
+  template <JsonToken token>
   V8_WARN_UNUSED_RESULT bool Expect(
       std::optional<MessageTemplate> errorMessage = std::nullopt) {
     if (V8_LIKELY(peek() == token)) {
       advance();
       return true;
     }
-    errorMessage ? ReportUnexpectedToken(peek(), errorMessage.value())
-                 : ReportUnexpectedToken(peek());
+    ReportUnexpectedToken(peek(), errorMessage);
     return false;
   }
 
-  template <JsonToken token, bool skip_whitespace = true>
-  V8_WARN_UNUSED_RESULT bool ExpectNext(
-      std::optional<MessageTemplate> errorMessage = std::nullopt);
-
   template <JsonToken token>
-  V8_WARN_UNUSED_RESULT bool Check() {
-    if (V8_LIKELY(IsNextToken<token>())) {
-      advance();
+  V8_WARN_UNUSED_RESULT bool ExpectNext(
+      std::optional<MessageTemplate> errorMessage) {
+    if (Check<token>()) {
       return true;
     }
-    SkipWhitespace();
-    if (next_ == token) {
-      advance();
-      return true;
-    }
+    ReportUnexpectedToken(peek(), errorMessage);
     return false;
   }
 
@@ -363,7 +368,7 @@ class JsonParser final {
   // The JSON lexical grammar is specified in the ECMAScript 5 standard,
   // section 15.12.1.1. The only allowed whitespace characters between tokens
   // are tab, carriage-return, newline and space.
-  void SkipWhitespace();
+  void GetNextNonWhitespaceToken();
 
   // A JSON string (production JSONString) is subset of valid JavaScript string
   // literals. The string must only be double-quoted (not single-quoted), and

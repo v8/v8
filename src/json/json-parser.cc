@@ -138,10 +138,6 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
   if (V8_UNLIKELY(!ExpectNext<token>(msg))) {        \
     return ret;                                      \
   }
-#define EXPECT_NEXT_NO_SPACE_RETURN_ON_ERROR(token, msg, ret) \
-  if (V8_UNLIKELY((!ExpectNext<token, false>(msg)))) {        \
-    return ret;                                               \
-  }
 
 }  // namespace
 
@@ -597,11 +593,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(bool should_track_json_source) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValueRecursive());
   }
 
-  if (!Check<JsonToken::EOS>()) {
-    ReportUnexpectedToken(
-        peek(), MessageTemplate::kJsonParseUnexpectedNonWhiteSpaceCharacter);
-    return MaybeHandle<Object>();
-  }
+  EXPECT_NEXT_RETURN_ON_ERROR(
+      JsonToken::EOS,
+      MessageTemplate::kJsonParseUnexpectedNonWhiteSpaceCharacter, {});
   if (isolate_->has_exception()) {
     return MaybeHandle<Object>();
   }
@@ -620,23 +614,15 @@ JsonToken GetTokenForCharacter(Char c) {
 }  // namespace
 
 template <typename Char>
-template <JsonToken token, bool skip_whitespace>
-V8_WARN_UNUSED_RESULT bool JsonParser<Char>::ExpectNext(
-    std::optional<MessageTemplate> errorMessage) {
-  if (V8_LIKELY(IsNextToken<token>())) {
-    advance();
-    return true;
-  }
-  if constexpr (skip_whitespace) {
-    SkipWhitespace();
-  } else {
-    DCHECK_NE(GetTokenForCharacter(CurrentCharacter()), JsonToken::WHITESPACE);
-  }
-  return errorMessage ? Expect<token>(errorMessage.value()) : Expect<token>();
+JsonToken JsonParser<Char>::peek() const {
+  // Check that the next token was scanned before using peek().
+  DCHECK_IMPLIES(!is_at_end(),
+                 GetTokenForCharacter(CurrentCharacter()) == next_);
+  return next_;
 }
 
 template <typename Char>
-void JsonParser<Char>::SkipWhitespace() {
+void JsonParser<Char>::GetNextNonWhitespaceToken() {
   JsonToken local_next = JsonToken::EOS;
 
   cursor_ = std::find_if(cursor_, end_, [&](Char c) {
@@ -1466,7 +1452,7 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
 // Parse rawJSON value.
 template <typename Char>
 bool JsonParser<Char>::ParseRawJson() {
-  if (end_ == cursor_) {
+  if (is_at_end()) {
     isolate_->Throw(*isolate_->factory()->NewSyntaxError(
         MessageTemplate::kInvalidRawJsonValue));
     return false;
@@ -1510,7 +1496,7 @@ bool JsonParser<Char>::ParseRawJson() {
 template <typename Char>
 V8_INLINE MaybeHandle<Object> JsonParser<Char>::ParseJsonValueRecursive(
     Handle<Map> feedback) {
-  SkipWhitespace();
+  GetNextNonWhitespaceToken();
   switch (peek()) {
     case JsonToken::NUMBER:
       return ParseJsonNumber();
@@ -1820,8 +1806,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
   bool success = false;
   DCHECK_EQ(double_elements_.size(), 0);
   DCHECK_EQ(smi_elements_.size(), 0);
-  // SkipWhitespace and setting next_ was performed by Check(JsonToken::RBRACK).
-  DCHECK_NE(GetTokenForCharacter(CurrentCharacter()), JsonToken::WHITESPACE);
+  // GetNextNonWhitespaceToken was performed by Check(JsonToken::RBRACK).
   while (peek() == JsonToken::NUMBER) {
     double current_double;
     int current_smi;
@@ -1836,7 +1821,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
       }
     }
     if (Check<JsonToken::COMMA>()) {
-      SkipWhitespace();
+      GetNextNonWhitespaceToken();
       continue;
     } else {
       EXPECT_RETURN_ON_ERROR(JsonToken::RBRACK,
@@ -1974,7 +1959,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
     // objects and arrays will cause the loop to continue until a first member
     // is completed.
     while (true) {
-      SkipWhitespace();
+      GetNextNonWhitespaceToken();
       // The switch is immediately followed by 'break' so we can use 'break' to
       // break out of the loop, and 'continue' to continue the loop.
 
@@ -2018,8 +2003,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                                   property_stack_.size());
 
           // Parse the property key.
-          // SkipWhitespace was already performed by Check(JsonToken::RBRACE).
-          EXPECT_NEXT_NO_SPACE_RETURN_ON_ERROR(
+          // GetNextNonWhitespaceToken was already performed by
+          // Check(JsonToken::RBRACE).
+          EXPECT_RETURN_ON_ERROR(
               JsonToken::STRING,
               MessageTemplate::kJsonParseExpectedPropNameOrRBrace, {});
           property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
