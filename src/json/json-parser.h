@@ -283,24 +283,15 @@ class JsonParser final {
   }
 
   template <JsonToken token>
-  V8_INLINE bool IsNextToken();
-
-  template <JsonToken token>
-    requires JsonTokenIsCharacter<token>
   V8_INLINE bool IsNextToken() {
-    constexpr Char expected_char = JsonTokenToCharacter(token);
-    if (V8_LIKELY(expected_char == CurrentCharacter())) {
-      return true;
+    if constexpr (token == JsonToken::EOS) {
+      return is_at_end();
+    } else if constexpr (JsonTokenIsCharacter<token>) {
+      constexpr Char expected_char = JsonTokenToCharacter(token);
+      return V8_LIKELY(expected_char == CurrentCharacter());
+    } else {
+      return false;
     }
-    return false;
-  }
-
-  template <>
-  V8_INLINE bool IsNextToken<JsonToken::EOS>() {
-    if (V8_LIKELY(is_at_end())) {
-      return true;
-    }
-    return false;
   }
 
   template <JsonToken token>
