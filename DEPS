@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '18498377a4679e4c940738cf2b0997637be2bc86',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6458da10ec554359b441cd08ec41ef1309037f4e',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c143f025f554adce6170d55f1ecdfdfaed5603b3',
   'buildtools/linux64': {
@@ -510,7 +510,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '24494b071e019a2baea4355d9870ffc5fc0bbafe',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'b90c35ee700e5e18bfe9d2d54e114e26760e1bb9',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'b87d650a01ef2619b6f25bc2da882ce1fa05b95e',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
