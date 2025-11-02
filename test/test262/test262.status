@@ -1188,4 +1188,29 @@
 }],
 # end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Temporal/Duration/compare/relativeto-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/Duration/prototype/round/relativeto-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/Duration/prototype/toJSON/large-with-small-units': [SKIP],
+  'built-ins/Temporal/Duration/prototype/toString/large-with-small-units': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/relativeto-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/PlainDateTime/compare/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/PlainDateTime/from/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/PlainDateTime/prototype/equals/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/PlainDateTime/prototype/since/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/PlainDateTime/prototype/until/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/compare/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/from/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/equals/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/ThrowTypeError/distinct-cross-realm': [SKIP],
+  'built-ins/Uint8Array/prototype/setFromBase64/trailing-garbage': [SKIP],
+  'intl402/Intl/supportedValuesOf/calendars-required-by-intl-era-monthcode': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
