@@ -123,12 +123,12 @@ class SimplifiedOptimizationReducer : public Next {
 
     switch (kind) {
       case ObjectIsOp::Kind::kSmi:
-        switch (__ DecideObjectIsSmi(input)) {
-          case IsSmiDecision::kTrue:
+        switch (DecideObjectIsSmi(input)) {
+          case Decision::kTrue:
             return __ Word32Constant(1);
-          case IsSmiDecision::kFalse:
+          case Decision::kFalse:
             return __ Word32Constant(0);
-          case IsSmiDecision::kUnknown:
+          case Decision::kUnknown:
             goto no_change;
         }
       case ObjectIsOp::Kind::kArrayBufferView:
@@ -146,11 +146,11 @@ class SimplifiedOptimizationReducer : public Next {
       case ObjectIsOp::Kind::kSymbol:
       case ObjectIsOp::Kind::kUndetectable:
       case ObjectIsOp::Kind::kNonCallable:
-        switch (__ DecideObjectIsSmi(input)) {
-          case IsSmiDecision::kTrue:
+        switch (DecideObjectIsSmi(input)) {
+          case Decision::kTrue:
             return __ Word32Constant(0);
-          case IsSmiDecision::kFalse:
-          case IsSmiDecision::kUnknown:
+          case Decision::kFalse:
+          case Decision::kUnknown:
             goto no_change;
         }
 
@@ -158,11 +158,11 @@ class SimplifiedOptimizationReducer : public Next {
       case ObjectIsOp::Kind::kNumberOrUndefined:
       case ObjectIsOp::Kind::kNumberFitsInt32:
       case ObjectIsOp::Kind::kNumberOrBigInt:
-        switch (__ DecideObjectIsSmi(input)) {
-          case IsSmiDecision::kTrue:
+        switch (DecideObjectIsSmi(input)) {
+          case Decision::kTrue:
             return __ Word32Constant(1);
-          case IsSmiDecision::kFalse:
-          case IsSmiDecision::kUnknown:
+          case Decision::kFalse:
+          case Decision::kUnknown:
             goto no_change;
         }
 
@@ -234,6 +234,71 @@ class SimplifiedOptimizationReducer : public Next {
   }
 
  private:
+  enum class Decision : uint8_t { kUnknown, kTrue, kFalse };
+  Decision CombineDecisions(Decision left, Decision right) {
+    if (left == right) return left;
+    return Decision::kUnknown;
+  }
+  Decision DecideObjectIsSmi(V<Object> idx, int depth = 0) {
+    constexpr int kMaxDepth = 3;
+    DCHECK_LE(depth, kMaxDepth);
+
+    const Operation& op = __ Get(idx);
+    switch (op.opcode) {
+      case Opcode::kConstant: {
+        const ConstantOp& cst = op.Cast<ConstantOp>();
+        if (cst.kind == ConstantOp::Kind::kNumber) {
+          // For kNumber, we don't know yet whether this will turn into a Smi or
+          // a HeapNumber.
+          return Decision::kUnknown;
+        }
+        return (cst.IsIntegral() || cst.kind == ConstantOp::Kind::kSmi)
+                   ? Decision::kTrue
+                   : Decision::kFalse;
+      }
+      case Opcode::kAllocate:
+        return Decision::kFalse;
+      case Opcode::kConvertUntaggedToJSPrimitive: {
+        using Kind = ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind;
+        switch (op.Cast<ConvertUntaggedToJSPrimitiveOp>().kind) {
+          case Kind::kBigInt:
+          case Kind::kBoolean:
+          case Kind::kHeapNumber:
+          case Kind::kHeapNumberOrUndefined:
+          case Kind::kString:
+            return Decision::kFalse;
+          case Kind::kSmi:
+            return Decision::kTrue;
+          case Kind::kNumber:
+            return Decision::kUnknown;
+        }
+        UNREACHABLE();
+      }
+      case Opcode::kLoad: {
+        switch (op.Cast<LoadOp>().loaded_rep) {
+          case MemoryRepresentation::TaggedPointer():
+            return Decision::kFalse;
+          case MemoryRepresentation::TaggedSigned():
+            return Decision::kTrue;
+          default:
+            return Decision::kUnknown;
+        }
+      }
+      case Opcode::kPhi:
+        if (depth == kMaxDepth) return Decision::kUnknown;
+        return std::accumulate(op.inputs().begin() + 1, op.inputs().end(),
+                               DecideObjectIsSmi(op.input(0), depth + 1),
+                               [&](Decision acc, OpIndex input_idx) {
+                                 return CombineDecisions(
+                                     acc,
+                                     DecideObjectIsSmi(input_idx, depth + 1));
+                               });
+      default:
+        break;
+    }
+
+    return Decision::kUnknown;
+  }
   const OperationMatcher& matcher_ = __ matcher();
 };
 
