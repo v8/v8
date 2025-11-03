@@ -73,7 +73,7 @@
 #define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
   if (v8_flags.whenflag) statement;
 
-#define DEFINE_REQUIREMENT(statement) CHECK(statement);
+#define DEFINE_REQUIREMENT(statement) CHECK_NO_SECURITY_IMPACT(statement);
 
 // Enforce that a flag was not explicitly set via command line. Setting a value
 // via implications is still allowed.
