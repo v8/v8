@@ -1707,26 +1707,9 @@ std::optional<icu::UnicodeString> CallICUFormat(
   return result;
 }
 
-// ecma402/#sec-formatdatetime
-// FormatDateTime( dateTimeFormat, x )
-MaybeDirectHandle<String> FormatDateTime(
-    Isolate* isolate, const icu::SimpleDateFormat& date_format, double x) {
-  if (!DateCache::TryTimeClip(&x)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
-  }
-
-  icu::UnicodeString result;
-  date_format.format(x, result);
-
-  DCHECK_NE(v8_flags.icu_datetime_compat_lang, nullptr);
-  if (strcmp(v8_flags.icu_datetime_compat_lang, "*") == 0 ||
-      strcmp(v8_flags.icu_datetime_compat_lang,
-             date_format.getSmpFmtLocale().getLanguage()) == 0) {
-    // Revert ICU 72 change that introduced U+202F instead of U+0020
-    // to separate time from AM/PM. See https://crbug.com/1414292.
-    result = Replace202F(result);
-  }
-
+// Apply transformation requested by --icu-british-remove-full-weekday-comma
+void ApplyBritishRemoveFullWeekdayComma(
+    icu::UnicodeString& result, const icu::SimpleDateFormat& date_format) {
   if (v8_flags.icu_british_remove_full_weekday_comma) {
     // Revert ICU 76 adding a comma after a full weekday for en-AU/GB/IN.
     int32_t found = result.indexOf(',');
@@ -1748,6 +1731,28 @@ MaybeDirectHandle<String> FormatDateTime(
       }
     }
   }
+}
+
+// ecma402/#sec-formatdatetime
+// FormatDateTime( dateTimeFormat, x )
+MaybeDirectHandle<String> FormatDateTime(
+    Isolate* isolate, const icu::SimpleDateFormat& date_format, double x) {
+  if (!DateCache::TryTimeClip(&x)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+  }
+
+  icu::UnicodeString result;
+  date_format.format(x, result);
+
+  DCHECK_NE(v8_flags.icu_datetime_compat_lang, nullptr);
+  if (strcmp(v8_flags.icu_datetime_compat_lang, "*") == 0 ||
+      strcmp(v8_flags.icu_datetime_compat_lang,
+             date_format.getSmpFmtLocale().getLanguage()) == 0) {
+    // Revert ICU 72 change that introduced U+202F instead of U+0020
+    // to separate time from AM/PM. See https://crbug.com/1414292.
+    result = Replace202F(result);
+  }
+  ApplyBritishRemoveFullWeekdayComma(result, date_format);
 
   return Intl::ToString(isolate, result);
 }
@@ -1766,7 +1771,10 @@ MaybeDirectHandle<String> FormatMillisecondsByKindToString(
         isolate,
         NewTypeError(MessageTemplate::kInvalidArgumentForTemporal, value));
   }
-  return Intl::ToString(isolate, result.value());
+  icu::UnicodeString result_unwrapped = std::move(result).value();
+  auto simple = date_time_format->icu_simple_date_format()->raw();
+  ApplyBritishRemoveFullWeekdayComma(result_unwrapped, *simple);
+  return Intl::ToString(isolate, result_unwrapped);
 }
 
 MaybeDirectHandle<String> FormatDateTimeWithTemporalSupport(
@@ -3463,9 +3471,24 @@ MaybeDirectHandle<T> FormatRangeCommonWithTemporalSupport(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<Object> x_obj, DirectHandle<Object> y_obj,
     const char* method_name) {
+  bool x_is_temporal = IsTemporalObject(x_obj);
+  bool y_is_temporal = IsTemporalObject(y_obj);
+  // These steps come from formatRange/formatRangeToParts
+
+  // 4. Let x be ?ToDateTimeFormattable(startDate).
+  if (!x_is_temporal) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, x_obj,
+                               Object::ToNumber(isolate, x_obj));
+  }
+  // 4. Let y be ?ToDateTimeFormattable(startDate).
+  if (!y_is_temporal) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, y_obj,
+                               Object::ToNumber(isolate, y_obj));
+  }
+
   // 5. If either of ! IsTemporalObject(x) or ! IsTemporalObject(y) is true,
   // then
-  if (IsTemporalObject(x_obj) || IsTemporalObject(y_obj)) {
+  if (x_is_temporal || y_is_temporal) {
     // a. If ! SameTemporalType(x, y) is false, throw a TypeError exception.
     if (!SameTemporalType(x_obj, y_obj)) {
       THROW_NEW_ERROR(

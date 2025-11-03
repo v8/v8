@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --harmony-temporal
+
 Debug = debug.Debug
 
 var exception = null;
@@ -46,6 +48,8 @@ function listener(event, exec_state, event_data, data) {
         if (f.startsWith("set")) {
           fail(`date.${f}(5);`, true);
         } else if (f.startsWith("toLocale") && typeof Intl === "undefined") {
+          continue;
+        } else if (f === "toTemporalInstant") {
           continue;
         } else {
           success(undefined, `date.${f}();`);

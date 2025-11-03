@@ -831,8 +831,6 @@
   'built-ins/Iterator/concat/throws-typeerror-when-generator-is-running-return': [FAIL],
   'built-ins/Iterator/concat/throws-typeerror-when-iterator-not-an-object': [FAIL],
   'built-ins/Iterator/concat/zero-arguments': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatRange/to-datetime-formattable-with-different-arg-kinds': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/to-datetime-formattable-with-different-arg-kinds': [FAIL],
   'language/import/import-defer/deferred-namespace-object/to-string-tag': [FAIL],
 
   'staging/sm/class/superCallOrder': [FAIL],

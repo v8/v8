@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --harmony-temporal
+
 let descriptor = Object.getOwnPropertyDescriptor(
       Intl.DateTimeFormat.prototype, "formatRangeToParts");
 assertTrue(descriptor.writable);
