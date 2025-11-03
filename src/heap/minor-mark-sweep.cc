@@ -256,7 +256,7 @@ YoungGenerationRememberedSetsMarkingWorklist::
 
 YoungGenerationRememberedSetsMarkingWorklist::
     ~YoungGenerationRememberedSetsMarkingWorklist() {
-  for (MarkingItem item : remembered_sets_marking_items_) {
+  for (MarkingItem& item : remembered_sets_marking_items_) {
     if (v8_flags.sticky_mark_bits) {
       item.DeleteRememberedSets();
     } else {
