@@ -5110,16 +5110,12 @@ void Heap::IterateRootsForPrecisePinning(RootVisitor* visitor) {
 #if V8_OS_ANDROID
 // static
 bool Heap::IsHighEndAndroid(uint64_t physical_memory) {
-#if defined(V8_TARGET_ARCH_32_BIT)
-  return false;
-#else
   if (v8_flags.high_end_android) {
     return true;
   }
 
   return (physical_memory / GB) >=
          v8_flags.high_end_android_physical_memory_threshold;
-#endif  // defined(V8_TARGET_ARCH_32_BIT)
 }
 #endif  // V8_OS_ANDROID
 
