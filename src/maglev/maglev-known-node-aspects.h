@@ -51,34 +51,32 @@ class NodeInfo {
    public:
     AlternativeNodes() { store_.fill(nullptr); }
 
-#define ALTERNATIVES(V)                                       \
-  V(tagged, Tagged, Tagged)                                   \
-  V(int32, Int32, Int32)                                      \
-  V(truncated_int32_to_number, TruncatedInt32ToNumber, Int32) \
-  V(float64, Float64, Float64)                                \
-  V(checked_value, CheckedValue, Tagged)
+#define ALTERNATIVES(V)                                \
+  V(tagged, Tagged)                                    \
+  V(int32, Int32)                                      \
+  V(truncated_int32_to_number, TruncatedInt32ToNumber) \
+  V(float64, Float64)                                  \
+  V(checked_value, CheckedValue)
 
     enum Kind {
-#define KIND(name, Name, repr) k##Name,
+#define KIND(name, Name) k##Name,
       ALTERNATIVES(KIND)
 #undef KIND
           kNumberOfAlternatives
     };
 
-#define API(name, Name, repr)                                             \
-  ValueNode* name() const {                                               \
-    if (!store_[Kind::k##Name]) return nullptr;                           \
-    return store_[Kind::k##Name]->UnwrapIdentities();                     \
-  }                                                                       \
-  ValueNode* set_##name(ValueNode* val) {                                 \
-    DCHECK_EQ(val->value_representation(), ValueRepresentation::k##repr); \
-    DCHECK_NULL(name());                                                  \
-    return store_[Kind::k##Name] = val;                                   \
-  }                                                                       \
-  template <typename Function>                                            \
-  ValueNode* get_or_set_##name(Function create) {                         \
-    if (store_[Kind::k##Name]) return store_[Kind::k##Name];              \
-    return set_##name(create());                                          \
+#define API(name, Name)                                      \
+  ValueNode* name() const {                                  \
+    if (!store_[Kind::k##Name]) return nullptr;              \
+    return store_[Kind::k##Name]->UnwrapIdentities();        \
+  }                                                          \
+  ValueNode* set_##name(ValueNode* val) {                    \
+    return store_[Kind::k##Name] = val;                      \
+  }                                                          \
+  template <typename Function>                               \
+  ValueNode* get_or_set_##name(Function create) {            \
+    if (store_[Kind::k##Name]) return store_[Kind::k##Name]; \
+    return store_[Kind::k##Name] = create();                 \
   }
     ALTERNATIVES(API)
 #undef API
@@ -299,13 +297,22 @@ class KnownNodeAspects {
     virtual_objects_ = {};
   }
 
+  NodeInfos::iterator FindInfo(ValueNode* node) {
+    return node_infos_.find(node);
+  }
+  NodeInfos::const_iterator FindInfo(ValueNode* node) const {
+    return node_infos_.find(node);
+  }
+  bool IsValid(NodeInfos::iterator& it) { return it != node_infos_.end(); }
+  bool IsValid(NodeInfos::const_iterator& it) const {
+    return it != node_infos_.end();
+  }
+
   const NodeInfo* TryGetInfoFor(ValueNode* node) const {
-    node = node->Unwrap();
     return const_cast<KnownNodeAspects*>(this)->TryGetInfoFor(node);
   }
 
   NodeInfo* TryGetInfoFor(ValueNode* node) {
-    node = node->Unwrap();
     auto info_it = FindInfo(node);
     if (!IsValid(info_it)) return nullptr;
     return &info_it->second;
@@ -313,7 +320,6 @@ class KnownNodeAspects {
 
   NodeInfo* GetOrCreateInfoFor(compiler::JSHeapBroker* broker,
                                ValueNode* node) {
-    node = node->Unwrap();
     auto info_it = FindInfo(node);
     if (IsValid(info_it)) return &info_it->second;
     auto res = &node_infos_.emplace(node, NodeInfo()).first->second;
@@ -341,8 +347,10 @@ class KnownNodeAspects {
       // fall back to its static type.
       return node->GetStaticType(broker);
     }
-    NodeType actual_type =
-        IntersectType(info->type(), node->GetStaticType(broker));
+    NodeType actual_type = info->type();
+    if (auto phi = node->TryCast<Phi>()) {
+      actual_type = IntersectType(actual_type, phi->type());
+    }
     if (node->Is<ReturnedValue>()) {
       // The returned value might be more precise than the one stored in the
       // node info.
@@ -369,19 +377,20 @@ class KnownNodeAspects {
     if (current_type) *current_type = static_type;
     if (NodeTypeIs(static_type, type)) return true;
     if (IsEmptyNodeType(IntersectType(static_type, type))) return false;
-    const NodeInfo* node_info = TryGetInfoFor(node);
-    if (!node_info) return false;
-    if (current_type) *current_type = node_info->type();
-    return NodeTypeIs(node_info->type(), type);
+    auto it = FindInfo(node);
+    if (!IsValid(it)) return false;
+    if (current_type) *current_type = it->second.type();
+    return NodeTypeIs(it->second.type(), type);
   }
 
   NodeType CheckTypes(compiler::JSHeapBroker* broker, ValueNode* node,
                       std::initializer_list<NodeType> types) {
-    const NodeInfo* node_info = TryGetInfoFor(node);
+    auto it = FindInfo(node);
+    bool has_kna = IsValid(it);
     for (NodeType type : types) {
       if (node->StaticTypeIs(broker, type)) return type;
-      if (node_info) {
-        if (NodeTypeIs(node_info->type(), type)) return type;
+      if (has_kna) {
+        if (NodeTypeIs(it->second.type(), type)) return type;
       }
     }
     return NodeType::kUnknown;
@@ -390,9 +399,9 @@ class KnownNodeAspects {
   bool MayBeNullOrUndefined(compiler::JSHeapBroker* broker, ValueNode* node) {
     NodeType static_type = node->GetStaticType(broker);
     if (!NodeTypeMayBeNullOrUndefined(static_type)) return false;
-    const NodeInfo* node_info = TryGetInfoFor(node);
-    if (!node_info) return true;
-    return NodeTypeMayBeNullOrUndefined(node_info->type());
+    auto it = FindInfo(node);
+    if (!IsValid(it)) return true;
+    return NodeTypeMayBeNullOrUndefined(it->second.type());
   }
 
   bool EnsureType(compiler::JSHeapBroker* broker, ValueNode* node,
@@ -734,19 +743,6 @@ class KnownNodeAspects {
 
     return it->second->UnwrapIdentities();
   }
-
-  NodeInfos::iterator FindInfo(ValueNode* node) {
-    node = node->Unwrap();
-    return node_infos_.find(node);
-  }
-  NodeInfos::const_iterator FindInfo(ValueNode* node) const {
-    node = node->Unwrap();
-    return node_infos_.find(node);
-  }
-  bool IsValid(NodeInfos::iterator& it) { return it != node_infos_.end(); }
-  bool IsValid(NodeInfos::const_iterator& it) const {
-    return it != node_infos_.end();
-  }
 };
 
 template <typename MapContainer>
@@ -758,11 +754,14 @@ class KnownMapsMerger {
 
   void IntersectWithKnownNodeAspects(
       ValueNode* object, const KnownNodeAspects& known_node_aspects) {
-    const NodeInfo* node_info = known_node_aspects.TryGetInfoFor(object);
-    NodeType type = node_info ? node_info->type() : NodeType::kUnknown;
-    if (node_info && node_info->possible_maps_are_known()) {
+    auto node_info_it = known_node_aspects.FindInfo(object);
+    bool has_node_info = known_node_aspects.IsValid(node_info_it);
+    NodeType type =
+        has_node_info ? node_info_it->second.type() : NodeType::kUnknown;
+    if (has_node_info && node_info_it->second.possible_maps_are_known()) {
       // TODO(v8:7700): Make intersection non-quadratic.
-      for (compiler::MapRef possible_map : node_info->possible_maps()) {
+      for (compiler::MapRef possible_map :
+           node_info_it->second.possible_maps()) {
         if (std::find(requested_maps_.begin(), requested_maps_.end(),
                       possible_map) != requested_maps_.end()) {
           // No need to add dependencies, we already have them for all known
