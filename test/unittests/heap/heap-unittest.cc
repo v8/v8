@@ -167,9 +167,9 @@ TEST(Heap, OldGenerationSizeFromPhysicalMemory) {
       static_cast<uint64_t>(8) * GB, 1);
 }
 
-#if V8_COMPRESS_POINTERS
 namespace {
-size_t MaxOldGenerationSizeForIsolate(uint64_t physical_memory) {
+std::pair<size_t, size_t> HeapLimitsForPhysicalMemory(
+    uint64_t physical_memory) {
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
   v8::Isolate::CreateParams create_params;
@@ -178,44 +178,134 @@ size_t MaxOldGenerationSizeForIsolate(uint64_t physical_memory) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   size_t max_old_generation_size = i_isolate->heap()->MaxOldGenerationSize();
+  size_t young_generation_size = i_isolate->heap()->MaxSemiSpaceSize();
   isolate->Dispose();
-  return max_old_generation_size;
+  return std::make_pair(max_old_generation_size, young_generation_size);
 }
 }  // anonymous namespace
 
-TEST_F(HeapTest, ExpectedMaxOldGenerationSize) {
+TEST_F(HeapTest, ExpectedDefaultGenerationLimitsForPhysicalMemory) {
+  if (v8_flags.max_semi_space_size != 0) return;
+
+  struct OldLimit {
+    uint64_t physical_memory;
+    // Max old generation allocation limit for 32-bit.
+    uint64_t arch_32bit;
+    // Max old generation allocation limit for 64-bit (no pointer compression).
+    uint64_t arch_64bit;
+    // Max old generation allocation limit for 64-bit with pointer compression.
+    uint64_t arch_ptr_compr;
+  };
+
+  struct YoungLimit {
+    uint64_t physical_memory;
+    uint64_t scavenger;
+    uint64_t scavenger_android;
+    uint64_t minor_ms;
+  };
+
+  static constexpr uint64_t kKB = static_cast<uint64_t>(KB);
+  static constexpr uint64_t kMB = static_cast<uint64_t>(MB);
+  static constexpr uint64_t kGB = static_cast<uint64_t>(GB);
+
+  // Expected young generation limits.
+  std::vector<YoungLimit> young_limits = {
+      {512 * kMB, 512 * kKB, 512 * kKB, 1 * kMB},
+      {1 * kGB, 8 * kMB, 2 * kMB, 72 * kMB},
+      {1536 * kMB, 16 * kMB, 4 * kMB, 72 * kMB},
+      {2 * kGB, 16 * kMB, 4 * kMB, 72 * kMB},
+      {3 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
+      {4 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
+      {6 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
+      {8 * kGB - 1, 32 * kMB, 8 * kMB, 72 * kMB},
+      {8 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
+      {15 * kGB - 1, 32 * kMB, 32 * kMB, 72 * kMB},
+      {15 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
+      {16 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
+      {32 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
+  };
+
+  const size_t max_young_gen =
+      v8_flags.minor_ms ? (2 * 72 * MB) : (3 * 32 * MB);
+
+  // Expected old generation limits.
+  std::vector<OldLimit> old_limits = {
+      {512 * kMB, 128 * kMB, 256 * kMB, 256 * kMB},
+      {1 * kGB, 256 * kMB, 512 * kMB, 512 * kMB},
+      {1536 * kMB, 384 * kMB, 768 * kMB, 768 * kMB},
+      {2 * kGB, 512 * kMB, 1 * kGB, 1 * kGB},
+      {3 * kGB, 768 * kMB, 1536 * kMB, 1536 * kMB},
+      {4 * kGB, kGB, 2 * kGB, 2 * kGB},
+      {6 * kGB, kGB, 2 * kGB, 2 * kGB},
+      {8 * kGB - 1, kGB, 2 * kGB, 2 * kGB},
+      {8 * kGB, kGB, 2 * kGB, 2 * kGB},
+      {15 * kGB - 1, kGB, 2 * kGB, 2 * kGB},
+      {15 * kGB, kGB, 4 * kGB, 4 * kGB - max_young_gen},
+      {16 * kGB, kGB, 4 * kGB, 4 * kGB - max_young_gen},
+      {32 * kGB, kGB, 4 * kGB, 4 * kGB - max_young_gen},
+  };
+
+  EXPECT_EQ(young_limits.size(), old_limits.size());
+  size_t last = 0;
+
+  for (size_t i = 0; i < young_limits.size(); i++) {
+    // Make sure that list is sorted by physical memory size.
+    EXPECT_LT(last, young_limits[i].physical_memory);
+    last = young_limits[i].physical_memory;
+
+    // Make sure that same physical memory is tested for both old & young.
+    EXPECT_EQ(young_limits[i].physical_memory, old_limits[i].physical_memory);
+  }
+
+  // There are no devices with < 1GB of RAM. We only test 512MB so we can show
+  // that limits remain the same.
+  EXPECT_EQ(512 * kMB, young_limits[0].physical_memory);
+  EXPECT_EQ(1 * kGB, young_limits[1].physical_memory);
+
+  for (size_t i = 0; i < old_limits.size(); i++) {
+    const YoungLimit& young_limit = young_limits[i];
+    const OldLimit& old_limit = old_limits[i];
+    uint64_t physical_memory = old_limit.physical_memory;
+
 #if V8_OS_ANDROID
-  static constexpr bool is_android = true;
-  v8_flags.high_end_android_physical_memory_threshold = 8;
+    // On Android we currently use Desktop-like limits on devices with >= 8GB of
+    // RAM.
+    EXPECT_EQ(v8_flags.high_end_android_physical_memory_threshold, 8);
+    const uint64_t expected_old =
+        physical_memory >= 8 * kGB && kSystemPointerSize == 8
+            ? old_limit.arch_ptr_compr
+            : old_limit.arch_32bit;
+    // Android enforces 8MB limit on semi-space size unless high-end android
+    // mode is enabled.
+    const uint64_t expected_young = v8_flags.minor_ms
+                                        ? young_limit.minor_ms
+                                        : young_limit.scavenger_android;
+#elif defined(V8_TARGET_ARCH_32_BIT)
+    const uint64_t expected_old = old_limit.arch_32bit;
+    const uint64_t expected_young =
+        v8_flags.minor_ms ? young_limit.minor_ms : young_limit.scavenger;
+#elif V8_COMPRESS_POINTERS
+    const uint64_t expected_old = old_limit.arch_ptr_compr;
+    const uint64_t expected_young =
+        v8_flags.minor_ms ? young_limit.minor_ms : young_limit.scavenger;
 #else
-  static constexpr bool is_android = false;
-#endif  // V8_OS_ANDROID
+    const uint64_t expected_old = old_limit.arch_64bit;
+    const uint64_t expected_young =
+        v8_flags.minor_ms ? young_limit.minor_ms : young_limit.scavenger;
+#endif
 
-  ASSERT_EQ(is_android ? static_cast<uint64_t>(256) * MB
-                       : static_cast<uint64_t>(512) * MB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(1) * GB));
-  ASSERT_EQ(is_android ? static_cast<uint64_t>(512) * MB
-                       : static_cast<uint64_t>(1) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(2) * GB));
+    auto [actual_old, actual_young] =
+        HeapLimitsForPhysicalMemory(physical_memory);
 
-  ASSERT_EQ(is_android ? static_cast<uint64_t>(1) * GB
-                       : static_cast<uint64_t>(2) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(4) * GB));
-  ASSERT_EQ(is_android ? static_cast<uint64_t>(1) * GB
-                       : static_cast<uint64_t>(2) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(8) * GB - 1));
-  ASSERT_EQ(static_cast<uint64_t>(2) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(8) * GB));
-  ASSERT_EQ(static_cast<uint64_t>(2) * GB,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(15) * GB - 1));
+    if (actual_old != expected_old || actual_young != expected_young) {
+      printf("Error for physical memory size %dMB\n",
+             static_cast<int>(physical_memory / kMB));
+    }
 
-  size_t young_gen = v8_flags.minor_ms ? (2 * 72 * MB) : (3 * 32 * MB);
-  ASSERT_EQ(static_cast<uint64_t>(4) * GB - young_gen,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(15) * GB));
-  ASSERT_EQ(static_cast<uint64_t>(4) * GB - young_gen,
-            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(16) * GB));
+    EXPECT_EQ(actual_old, expected_old);
+    EXPECT_EQ(actual_young, expected_young);
+  }
 }
-#endif  // V8_COMPRESS_POINTERS
 
 TEST_F(HeapTest, ASLR) {
 #if V8_TARGET_ARCH_X64
