@@ -263,23 +263,31 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # Fixed upstream
-
   # Issue filed upstream
 
   # Float casting to integer (https://github.com/boa-dev/temporal/issues/189, https://github.com/boa-dev/temporal/issues/334)
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
 
+  # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
+  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
+  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
+
   # No issue filed
 
   # ICU4C and ICU4X disagree on canonical timezones
   'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal': [FAIL],
 
-  # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
+  # New tests for relativeTo around DSTs
+  'intl402/Temporal/Duration/prototype/round/relativeto-dst-back-transition': [FAIL],
+  'intl402/Temporal/Duration/prototype/total/relativeto-dst-back-transition': [FAIL],
+
+  # New tests for arithmetic around DSTs
+  'intl402/Temporal/PlainDateTime/prototype/since/wrapping-at-end-of-month-gregorian': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/until/wrapping-at-end-of-month-gregorian': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/since/same-date-reverse-wallclock': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/until/same-date-reverse-wallclock': [FAIL],
 
   # End Temporal test expectations
 
@@ -1123,16 +1131,6 @@
 [ALWAYS, {
   'intl402/String/prototype/toLocaleLowerCase/validates-all-locale-identifiers': [SKIP],
   'intl402/String/prototype/toLocaleUpperCase/validates-all-locale-identifiers': [SKIP],
-  'intl402/Temporal/Duration/prototype/round/relativeto-dst-back-transition': [SKIP],
-  'intl402/Temporal/Duration/prototype/total/relativeto-dst-back-transition': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/since/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/until/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/since/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/until/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/since/same-date-reverse-wallclock': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/since/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/until/same-date-reverse-wallclock': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/until/wrapping-at-end-of-month-gregorian': [SKIP],
   'staging/sm/DataView/get-set-index-range': [SKIP],
   'staging/sm/Math/acosh-exact': [SKIP],
   'staging/sm/Math/atanh-exact': [SKIP],
