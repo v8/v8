@@ -175,20 +175,6 @@ using AccessorNameSetterCallback =
              const PropertyCallbackInfo<void>& info);
 
 /**
- * Access control specifications.
- *
- * Some accessors should be accessible across contexts. These
- * accessors have an explicit access control parameter which specifies
- * the kind of cross-context access that should be allowed.
- *
- */
-enum V8_DEPRECATED(
-    "This enum is no longer used and will be removed in V8 14.3.")
-    AccessControl {
-      DEFAULT V8_ENUM_DEPRECATED("not used") = 0,
-    };
-
-/**
  * Property filter bits. They can be or'ed to build a composite filter.
  */
 enum PropertyFilter {
