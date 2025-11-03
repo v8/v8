@@ -3133,6 +3133,10 @@ TEST(TracingCpuProfiler) {
           const profile_header = json[0];
           if (typeof profile_header['startTime'] !== 'number')
             return false;
+          if (profile_header.source !== 'Internal')
+            return false;
+          if (!json.every(event => event.source === 'Internal'))
+            return false;
           return json.some(event => (event.lines || []).some(line => line)) &&
               json.filter(e => e.cpuProfile && e.cpuProfile.nodes)
               .some(e => e.cpuProfile.nodes
@@ -3149,6 +3153,34 @@ TEST(TracingCpuProfiler) {
       i::V8::GetCurrentPlatform()->GetTracingController())
       ->Initialize(nullptr);
 #endif  // !V8_USE_PERFETTO
+}
+
+TEST(CpuProfilingOptionsProfileSource) {
+  {
+    v8::CpuProfilingOptions options;
+    CHECK_EQ(v8::CpuProfileSource::kUnspecified, options.profile_source());
+  }
+
+  {
+    v8::CpuProfilingOptions options(
+        v8::kLeafNodeLineNumbers, v8::CpuProfilingOptions::kNoSampleLimit, 0,
+        v8::MaybeLocal<v8::Context>(), v8::CpuProfileSource::kInspector);
+    CHECK_EQ(v8::CpuProfileSource::kInspector, options.profile_source());
+  }
+
+  {
+    v8::CpuProfilingOptions options(
+        v8::kLeafNodeLineNumbers, v8::CpuProfilingOptions::kNoSampleLimit, 0,
+        v8::MaybeLocal<v8::Context>(), v8::CpuProfileSource::kSelfProfiling);
+    CHECK_EQ(v8::CpuProfileSource::kSelfProfiling, options.profile_source());
+  }
+
+  {
+    v8::CpuProfilingOptions options(
+        v8::kLeafNodeLineNumbers, v8::CpuProfilingOptions::kNoSampleLimit, 0,
+        v8::MaybeLocal<v8::Context>(), v8::CpuProfileSource::kInternal);
+    CHECK_EQ(v8::CpuProfileSource::kInternal, options.profile_source());
+  }
 }
 
 TEST(Issue763073) {
