@@ -1260,6 +1260,10 @@ ReduceResult MaglevReducer<BaseT>::BuildCheckedSmiSizedInt32(ValueNode* input) {
     }
     // TODO(victorgomes): Emit deopt.
   }
+  if (input->Is<CheckedSmiUntag>()) {
+    // Smi-ness is already checked!
+    return input;
+  }
   return AddNewNode<CheckedSmiSizedInt32>({input});
 }
 

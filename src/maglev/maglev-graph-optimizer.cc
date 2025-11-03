@@ -1543,12 +1543,11 @@ UNTAGGING_CASE(TruncateUnsafeNumberOrOddballToInt32, TruncatedInt32,
                node->conversion_type())
 UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64,
                node->conversion_type())
-UNTAGGING_CASE(CheckedNumberToFloat64, Float64,
-               TaggedToFloat64ConversionType::kOnlyNumber)
 UNTAGGING_CASE(UnsafeNumberOrOddballToFloat64, Float64, node->conversion_type())
 UNTAGGING_CASE(UnsafeNumberToFloat64, Float64,
                TaggedToFloat64ConversionType::kOnlyNumber)
 #undef UNTAGGING_CASE
+
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
     CheckedSmiUntag* node, const ProcessingState& state) {
   if (ValueNode* input = GetUntaggedValueWithRepresentation(
@@ -1566,6 +1565,23 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
       CHECK(result.IsDone());
     }
     return ReplaceWith(input);
+  }
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToFloat64(
+    CheckedNumberToFloat64* node, const ProcessingState& state) {
+  if (ValueNode* alt = GetUntaggedValueWithRepresentation(
+          node->input_node(0), UseRepresentation::kFloat64,
+          TaggedToFloat64ConversionType::kOnlyNumber)) {
+    if (alt->Is<CheckedNumberOrOddballToFloat64>() ||
+        alt->Is<UnsafeNumberOrOddballToFloat64>()) {
+      // The alternative check is weaker then the current node. We should not
+      // elide it.
+      // TODO(victorgomes): consider having a to_number alternative?
+      return ProcessResult::kContinue;
+    }
+    return ReplaceWith(alt);
   }
   return ProcessResult::kContinue;
 }
