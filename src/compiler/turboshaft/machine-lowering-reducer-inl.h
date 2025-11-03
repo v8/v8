@@ -1692,6 +1692,23 @@ class MachineLoweringReducer : public Next {
         }
 #endif
 
+#if V8_STATIC_ROOTS_BOOL
+        if (v8_flags.unmap_holes && !v8_flags.turbolev) {
+          // TruncateJSPrimitiveToUntagged(Object -> Bit) is pure in Turbofan,
+          // and can thus float above hole checks. This will lead to either
+          // segfaulting at runtime because we try to read the map of the hole
+          // (or straight up int3 if MachineOptimizationReducer tries to
+          // constant-fold the map load from the hole and inserts an
+          // Unreachable). We thus do a hole check here to avoid this kind of
+          // issues.
+          IF (SafeIsAnyHole(V<HeapObject>::Cast(object))) {
+            GOTO(done, 0);
+          }
+        }
+#else
+        DCHECK(!v8_flags.unmap_holes);
+#endif  // V8_STATIC_ROOTS_BOOL
+
         // Load the map of {object}.
         V<Map> map = __ LoadMapField(object);
 
@@ -4189,6 +4206,22 @@ class MachineLoweringReducer : public Next {
     }
     return *undetectable_objects_protector_;
   }
+
+#if V8_STATIC_ROOTS_BOOL
+  V<Word32> SafeIsAnyHole(V<HeapObject> object) {
+    Address cage_base = isolate_->cage_base();
+    V<WordPtr> ptr = __ BitcastHeapObjectToWordPtr(object);
+    ScopedVar<Word32> result(this, 0);
+    IF (__ Word32BitwiseAnd(
+            __ UintPtrLessThanOrEqual(
+                i::detail::kMinStaticHoleValue + cage_base, ptr),
+            __ UintPtrLessThanOrEqual(
+                ptr, i::detail::kMaxStaticHoleValue + cage_base))) {
+      result = 1;
+    }
+    return result;
+  }
+#endif
 
   Isolate* isolate_ = __ data() -> isolate();
   Factory* factory_ = isolate_ ? isolate_->factory() : nullptr;
