@@ -5294,9 +5294,9 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
         max_old_generation_size, constraints.physical_memory_size_in_bytes());
   }
 
-  CHECK_IMPLIES(
-      v8_flags.max_heap_size > 0,
-      v8_flags.max_semi_space_size == 0 || v8_flags.max_old_space_size == 0);
+  CHECK_NO_SECURITY_IMPACT(v8_flags.max_heap_size == 0 ||
+                           v8_flags.max_semi_space_size == 0 ||
+                           v8_flags.max_old_space_size == 0);
 
   // Initialize min_semispace_size_.
   {
