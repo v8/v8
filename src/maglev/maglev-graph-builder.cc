@@ -3170,6 +3170,7 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
   ValueNode*& cached_value = known_node_aspects().GetContextCachedValue(
       context, offset, slot_mutability);
   if (cached_value) {
+    cached_value = cached_value->UnwrapIdentities();
     TRACE("  * Reusing cached context slot "
           << PrintNodeLabel(context) << "[" << offset
           << "]: " << PrintNode(cached_value));
@@ -16354,6 +16355,13 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
       return ReduceResult::DoneWithAbort();
     } else {
       ProcessMergePoint(offset, preserve_known_node_aspects);
+    }
+
+    if (!merge_state->is_loop()) {
+      // If some phi inputs were loop phis that have since been shown to be
+      // Identities, then phis in this merge state could themselves turn out to
+      // be identities.
+      merge_state->ClearIdentityPhis();
     }
 
     if (is_loop_effect_tracking_enabled() && merge_state->is_loop()) {

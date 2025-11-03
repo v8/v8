@@ -6,12 +6,14 @@
 #define V8_MAGLEV_MAGLEV_PHI_REPRESENTATION_SELECTOR_H_
 
 #include <optional>
+#include <type_traits>
 
 #include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer.h"
 
 namespace v8 {
@@ -120,6 +122,7 @@ class MaglevPhiRepresentationSelector {
   template <IsUntaggingT UntaggingNodeT>
   ProcessResult UpdateNodeInputs(UntaggingNodeT* node,
                                  const ProcessingState* state) {
+    node->UnwrapIdentityInputs();
     if (node->NodeBase::input(0).node()->template Is<Phi>() &&
         node->NodeBase::input(0).node()->value_representation() !=
             ValueRepresentation::kTagged) {
@@ -147,12 +150,18 @@ class MaglevPhiRepresentationSelector {
     // function should never be called on untagging nodes.
     static_assert(!IsUntagging(NodeBase::opcode_of<NodeT>));
 
+    node->UnwrapIdentityInputs();
+
     for (int i = 0; i < node->input_count(); i++) {
       ValueNode* input = node->NodeBase::input(i).node();
-      if (input->Is<Identity>()) {
-        // Bypassing the identity
-        node->change_input(i, input->NodeBase::input(0).node());
-      } else if (Phi* phi = input->TryCast<Phi>()) {
+      if (Phi* phi = input->TryCast<Phi>()) {
+        if constexpr (requires { NodeT::kInputTypes; }) {
+          if (ValueRepresentationIs(phi->value_representation(),
+                                    NodeT::kInputTypes[i])) {
+            // No need to re-tag this input.
+            continue;
+          }
+        }
         // If the input is a Phi and it was used without any untagging, then
         // we need to retag it (with some additional checks/changes for some
         // nodes, cf the overload of UpdateNodePhiInput).
@@ -195,8 +204,8 @@ class MaglevPhiRepresentationSelector {
   // the 1st input, 1 for the 2nd, etc.), so that we can use the SnapshotTable
   // to find existing tagging for {phi} in the {predecessor_index}th predecessor
   // of the current block.
-  ValueNode* EnsurePhiTagged(
-      Phi* phi, BasicBlock* block, BasicBlockPosition pos,
+  ValueNode* EnsureNodeTagged(
+      ValueNode* node, BasicBlock* block, BasicBlockPosition pos,
       const ProcessingState* state,
       std::optional<int> predecessor_index = std::nullopt);
 

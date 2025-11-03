@@ -2479,6 +2479,8 @@ class NodeBase : public ZoneObject {
 
   std::optional<int32_t> TryGetInt32ConstantInput(int index);
 
+  void UnwrapIdentityInputs();
+
   // Input iterators, use like:
   //
   //  for (Input input : node->inputs()) { ... }
@@ -2972,7 +2974,7 @@ class ValueNode : public Node {
         input.node()->SetTaggedResultNeedsDecompress();
       }
     } else if (Is<Identity>()) {
-      DCHECK_EQ(input_count(), 0);
+      DCHECK_EQ(input_count(), 1);
       input(0).node()->SetTaggedResultNeedsDecompress();
     }
   }
@@ -6003,7 +6005,10 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   ValueNode* get(uint32_t offset) const {
     uint32_t slot_index = object_layout_->SlotAtOffset(offset);
     SBXCHECK_LT(slot_index, slot_count());
-    return slots_[slot_index];
+    // Note that we need to Unwrap() on get, since a non-conversion non-identity
+    // node could have been modified in-place to become an identity or a
+    // conversion.
+    return slots_[slot_index]->Unwrap();
   }
 
   void set(uint32_t offset, ValueNode* value) {
@@ -10469,6 +10474,7 @@ class Phi : public ValueNodeT<Phi> {
   }
 
   Input backedge_input() { return input(input_count() - 1); }
+  ConstInput backedge_input() const { return input(input_count() - 1); }
 
   interpreter::Register owner() const { return owner_; }
   const MergePointInterpreterFrameState* merge_state() const {
@@ -10512,6 +10518,11 @@ class Phi : public ValueNodeT<Phi> {
   UseRepresentationSet same_loop_use_repr_hints() {
     return same_loop_use_repr_hints_;
   }
+
+  // Returns true if all inputs are the same. If this is a loop phi, then
+  // returns true if all the forward-edge inputs are the same and the backedge
+  // is equal to the Phi itself.
+  bool IsIdentityPhi() const;
 
   void ClearUseHints() {
     use_repr_hints_ = {};
