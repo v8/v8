@@ -214,7 +214,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
 #define PROCESS_SAFE_CONV(Node, Alt, Type)                                     \
   ProcessResult ProcessNode(Node* node) {                                      \
-    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0)->Unwrap());        \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
     if (!info->alternative().Alt()) {                                          \
       /* TODO(victorgomes): What happens if we we have an alternative already? \
        * Should we remove this one as well? */                                 \
@@ -229,7 +229,7 @@ class RecomputeKnownNodeAspectsProcessor {
 // This happens for instance for LoadProperty.
 #define PROCESS_UNSAFE_CONV(Node, Alt, Type)                                   \
   ProcessResult ProcessNode(Node* node) {                                      \
-    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0)->Unwrap());        \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
     if (!info->alternative().Alt()) {                                          \
       /* TODO(victorgomes): What happens if we we have an alternative already? \
        * Should we remove this one as well? */                                 \
@@ -246,18 +246,17 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_UNSAFE_CONV(UnsafeSmiTagUint32, tagged, Smi)
   PROCESS_SAFE_CONV(CheckedSmiTagIntPtr, tagged, Smi)
   PROCESS_UNSAFE_CONV(UnsafeSmiTagIntPtr, tagged, Smi)
+  PROCESS_SAFE_CONV(CheckedSmiTagFloat64, tagged, Smi)
   PROCESS_SAFE_CONV(TruncateCheckedNumberOrOddballToInt32,
                     truncated_int32_to_number, NumberOrOddball)
   PROCESS_UNSAFE_CONV(TruncateUnsafeNumberOrOddballToInt32,
                       truncated_int32_to_number, NumberOrOddball)
   PROCESS_SAFE_CONV(CheckedUint32ToInt32, int32, Number)
-  PROCESS_UNSAFE_CONV(UnsafeInt32ToUint32, int32, Number)
   PROCESS_SAFE_CONV(CheckedIntPtrToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(UnsafeHoleyFloat64ToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedNumberToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
-  PROCESS_SAFE_CONV(CheckedSmiTagFloat64, float64, Smi)
   // TODO(victorgomes): pass node->conversion_type() rather than always
   // NumberOrOddball for CheckedNumberOrOddballToFloat64.
   PROCESS_SAFE_CONV(CheckedNumberOrOddballToFloat64, float64, NumberOrOddball)

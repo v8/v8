@@ -706,9 +706,7 @@ ValueNode* EnsureTagged(const MaglevGraphBuilder* builder,
     return value;
   }
 
-  auto info_it = known_node_aspects.FindInfo(value);
-  const NodeInfo* info =
-      known_node_aspects.IsValid(info_it) ? &info_it->second : nullptr;
+  const NodeInfo* info = known_node_aspects.TryGetInfoFor(value);
   if (info) {
     if (auto alt = info->alternative().tagged()) {
       return alt;
