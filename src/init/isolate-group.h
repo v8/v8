@@ -322,7 +322,11 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     // down in the mean time.
     base::MutexGuard group_guard(mutex_);
     Isolate* target_isolate = nullptr;
-    DCHECK_NOT_NULL(main_isolate_);
+    // main_isolate_ can be set nullptr when the IsolateGroup is being
+    // destructed.
+    if (!main_isolate_) {
+      return false;
+    }
 
     if (main_isolate_ != isolate) {
       target_isolate = main_isolate_;
