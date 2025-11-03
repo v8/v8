@@ -153,7 +153,7 @@ v8::Intercepted InterceptorGetter(
   for (i = 0; name_str[i] && prefix[i]; ++i) {
     if (name_str[i] != prefix[i]) return v8::Intercepted::kNo;
   }
-  Local<Object> self = info.This().As<Object>();
+  Local<Object> self = info.HolderV2().As<Object>();
   info.GetReturnValue().Set(
       self->GetPrivate(
               info.GetIsolate()->GetCurrentContext(),
@@ -179,13 +179,17 @@ v8::Intercepted InterceptorSetter(Local<Name> generic_name, Local<Value> value,
 
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   if (value->IsInt32() && value->Int32Value(context).FromJust() < 10000) {
-    Local<Object> self = info.This().As<Object>();
+    Local<Object> self = info.HolderV2().As<Object>();
     Local<v8::Private> symbol = v8::Private::ForApi(info.GetIsolate(), name);
     self->SetPrivate(context, symbol, value).FromJust();
     return v8::Intercepted::kYes;
   }
   return v8::Intercepted::kNo;
 }
+
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
 
 v8::Intercepted GenericInterceptorGetter(
     Local<Name> generic_name, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -209,6 +213,10 @@ v8::Intercepted GenericInterceptorGetter(
   return v8::Intercepted::kYes;
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
+
 v8::Intercepted GenericInterceptorSetter(
     Local<Name> generic_name, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
@@ -226,7 +234,7 @@ v8::Intercepted GenericInterceptorSetter(
     str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
-  Local<Object> self = info.This().As<Object>();
+  Local<Object> self = info.HolderV2().As<Object>();
   self->Set(info.GetIsolate()->GetCurrentContext(), str, value).FromJust();
   return v8::Intercepted::kYes;
 }
@@ -260,6 +268,10 @@ void AddInterceptor(Local<FunctionTemplate> templ,
 
 v8::Global<v8::Object> bottom_global;
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
+
 v8::Intercepted CheckThisIndexedPropertyHandler(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -268,6 +280,7 @@ v8::Intercepted CheckThisIndexedPropertyHandler(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -291,6 +304,7 @@ v8::Intercepted CheckThisIndexedPropertyDefiner(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -303,6 +317,7 @@ v8::Intercepted CheckThisNamedPropertyDefiner(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -315,6 +330,7 @@ v8::Intercepted CheckThisIndexedPropertySetter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -327,6 +343,7 @@ v8::Intercepted CheckThisNamedPropertySetter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -338,6 +355,7 @@ v8::Intercepted CheckThisIndexedPropertyDescriptor(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -349,6 +367,7 @@ v8::Intercepted CheckThisNamedPropertyDescriptor(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -360,6 +379,7 @@ v8::Intercepted CheckThisIndexedPropertyQuery(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -371,6 +391,7 @@ v8::Intercepted CheckThisNamedPropertyQuery(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -382,6 +403,7 @@ v8::Intercepted CheckThisIndexedPropertyDeleter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -393,6 +415,7 @@ v8::Intercepted CheckThisNamedPropertyDeleter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -404,6 +427,7 @@ void CheckThisIndexedPropertyEnumerator(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
 }
 
 
@@ -415,8 +439,12 @@ void CheckThisNamedPropertyEnumerator(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
 
 int echo_named_call_count;
 
@@ -1362,13 +1390,26 @@ THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
       42 * 10);
 }
 
-static void SetOnThis(Local<Name> name, Local<Value> value,
-                      const v8::PropertyCallbackInfo<void>& info) {
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
+
+namespace {
+
+// TODO(https://crbug.com/455600234): update test.
+void SetOnThis(Local<Name> name, Local<Value> value,
+               const v8::PropertyCallbackInfo<void>& info) {
   info.This()
       .As<Object>()
       ->CreateDataProperty(info.GetIsolate()->GetCurrentContext(), name, value)
       .FromJust();
 }
+
+}  // namespace
+
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -6669,6 +6710,10 @@ THREADED_TEST(NonMaskingInterceptorGlobalEvalRegression) {
       9);
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
+
 namespace {
 v8::Intercepted CheckReceiver(Local<Name> name,
                               const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -6677,6 +6722,8 @@ v8::Intercepted CheckReceiver(Local<Name> name,
 }
 }  // namespace
 
+// TODO(https://crbug.com/455600234): remove since this regression test is
+// no longer relevant (the callbacks will not have access to receiver).
 TEST(Regress609134Interceptor) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -6696,6 +6743,10 @@ TEST(Regress609134Interceptor) {
       "var a = 42;"
       "for (var i = 0; i<3; i++) { a.foo; }");
 }
+
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
 
 namespace {
 

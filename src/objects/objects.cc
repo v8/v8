@@ -1539,9 +1539,8 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     Handle<JSAny> reboxed_result(*result, isolate);
     if (info->replace_on_access() && IsJSReceiver(*receiver)) {
-      RETURN_ON_EXCEPTION(isolate,
-                          Accessors::ReplaceAccessorWithDataProperty(
-                              isolate, receiver, holder, name, result));
+      RETURN_ON_EXCEPTION(isolate, Accessors::ReplaceAccessorWithDataProperty(
+                                       isolate, holder, name, result));
     }
     return reboxed_result;
   }

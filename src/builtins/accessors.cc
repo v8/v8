@@ -86,11 +86,10 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, DirectHandle<Map> map,
 
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object>
 Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
-                                           DirectHandle<JSAny> receiver,
                                            DirectHandle<JSObject> holder,
                                            DirectHandle<Name> name,
                                            DirectHandle<Object> value) {
-  LookupIterator it(isolate, receiver, PropertyKey(isolate, name), holder,
+  LookupIterator it(isolate, holder, PropertyKey(isolate, name), holder,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
   // situation where the caller does not have access.
@@ -115,13 +114,12 @@ void Accessors::ReconfigureToDataProperty(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kReconfigureToDataProperty);
   HandleScope scope(isolate);
-  DirectHandle<JSReceiver> receiver = Utils::OpenDirectHandle(*info.This());
   DirectHandle<JSObject> holder =
       Cast<JSObject>(Utils::OpenDirectHandle(*info.HolderV2()));
   DirectHandle<Name> name = Utils::OpenDirectHandle(*key);
   DirectHandle<Object> value = Utils::OpenDirectHandle(*val);
-  MaybeDirectHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
-      isolate, receiver, holder, name, value);
+  MaybeDirectHandle<Object> result =
+      Accessors::ReplaceAccessorWithDataProperty(isolate, holder, name, value);
   if (!result.is_null()) {
     info.GetReturnValue().Set(true);
   }

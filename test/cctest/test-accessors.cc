@@ -188,12 +188,18 @@ THREADED_TEST(GlobalVariableAccess) {
   CHECK_EQ(7, foo);
 }
 
-static int x_register[2] = {0, 0};
-static v8::Global<v8::Object> x_receiver_global;
-static v8::Global<v8::Object> x_holder_global;
+namespace {
 
-template<class Info>
-static void XGetter(const Info& info, int offset) {
+int x_register[2] = {0, 0};
+v8::Global<v8::Object> x_receiver_global;
+v8::Global<v8::Object> x_holder_global;
+
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
+
+template <class Info>
+void XGetter(const Info& info, int offset) {
   ApiTestFuzzer::Fuzz();
   v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
@@ -203,8 +209,8 @@ static void XGetter(const Info& info, int offset) {
   info.GetReturnValue().Set(v8_num(x_register[offset]));
 }
 
-static void XGetter(Local<Name> name,
-                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+void XGetter(Local<Name> name,
+             const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(x_holder_global.Get(isolate)
             ->Equals(isolate->GetCurrentContext(), info.HolderV2())
@@ -212,7 +218,7 @@ static void XGetter(Local<Name> name,
   XGetter(info, 0);
 }
 
-static void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
+void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(x_receiver_global.Get(isolate)
             ->Equals(isolate->GetCurrentContext(), info.This())
@@ -235,10 +241,11 @@ Local<v8::Object> GetHolder<v8::FunctionCallbackInfo<v8::Value>>(
   return info.This();
 }
 
-template<class Info>
-static void XSetter(Local<Value> value, const Info& info, int offset) {
+template <class Info>
+void XSetter(Local<Value> value, const Info& info, int offset) {
   v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
+  CHECK_EQ(info.This(), GetHolder(info));
   CHECK(x_holder_global.Get(isolate)
             ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
@@ -249,17 +256,22 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
       value->Int32Value(isolate->GetCurrentContext()).FromJust();
 }
 
-static void XSetter(Local<Name> name, Local<Value> value,
-                    const v8::PropertyCallbackInfo<void>& info) {
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
+
+void XSetter(Local<Name> name, Local<Value> value,
+             const v8::PropertyCallbackInfo<void>& info) {
   XSetter(value, info, 0);
 }
 
-static void XSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
+void XSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK_EQ(1, info.Length());
   XSetter(info[0], info, 1);
   info.GetReturnValue().Set(v8_num(-1));
 }
 
+}  // namespace
 
 THREADED_TEST(AccessorIC) {
   LocalContext context;
@@ -348,6 +360,10 @@ THREADED_TEST(HandleScopePop) {
   CHECK_EQ(count_before, count_after);
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
+
 static void CheckAccessorArgsCorrect(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::ValidateCallbackInfo(info);
@@ -370,6 +386,10 @@ static void CheckAccessorArgsCorrect(
             .FromJust());
   info.GetReturnValue().Set(17);
 }
+
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(DirectCall) {
   LocalContext context;
@@ -829,11 +849,21 @@ TEST(PrototypeGetterAccessCheck) {
   }
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
+
 static void CheckReceiver(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(info.This()->IsObject());
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
+
+// TODO(https://crbug.com/455600234): remove the test since native data
+// property accessors will not have access to receiver.
 TEST(Regress609134) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();

@@ -12331,7 +12331,11 @@ template <typename T>
 bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
   auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(i_isolate, Isolate::Current());
+  // Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+  // TODO(https://crbug.com/455600234): remove.
+  START_ALLOW_USE_DEPRECATED()
   CHECK(info.This()->IsValue());
+  END_ALLOW_USE_DEPRECATED()
   CHECK(info.HolderV2()->IsObject());
   CHECK(!i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.HolderV2())));
   i::Tagged<i::Object> key = i::PropertyCallbackArguments::GetPropertyKey(info);

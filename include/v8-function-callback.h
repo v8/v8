@@ -239,6 +239,9 @@ class PropertyCallbackInfo {
    *  CompileRun("obj.a = 'obj'; var r = {a: 'r'}; Reflect.get(obj, 'x', r)");
    * \endcode
    */
+  V8_DEPRECATE_SOON(
+      "Access to receiver will be deprecated soon. Use HolderV2() instead. \n"
+      "See http://crbug.com/455600234. ")
   V8_INLINE Local<Object> This() const;
 
   /**
