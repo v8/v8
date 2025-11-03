@@ -496,7 +496,7 @@ struct TagRange {
     return (static_cast<size_t>(first) << 16) | last;
   }
 
-  // Internally we represent tag ranges as half-open ranges [first, last).
+  // Internally we represent tag ranges as closed ranges [first, last].
   const Tag first;
   const Tag last;
 };
