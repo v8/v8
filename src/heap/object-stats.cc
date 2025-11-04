@@ -407,6 +407,7 @@ int ObjectStats::HistogramIndexFromSize(size_t size) {
 void ObjectStats::RecordObject(Tagged<HeapObject> obj, int type, size_t size) {
 #ifdef V8_COMPRESS_POINTERS
   if (!v8_flags.trace_gc_object_stats_all_objects) return;
+  if (obj.is_null()) return;
 
   if (obj.IsInMainCageBase()) {
     objects_main_.emplace_back(ObjectData{
