@@ -5487,8 +5487,7 @@ class GraphBuildingNodeProcessor {
     // Parameters
     frame.frame_state()->ForEachParameter(
         frame.unit(), [&](maglev::ValueNode* value, interpreter::Register reg) {
-          AddDeoptInput(builder, virtual_objects, value, reg, result_location,
-                        result_size);
+          AddDeoptInput(builder, virtual_objects, value);
         });
 
     // Context
@@ -5509,8 +5508,7 @@ class GraphBuildingNodeProcessor {
             builder.AddUnusedRegister();
             local_index++;
           }
-          AddDeoptInput(builder, virtual_objects, value, reg, result_location,
-                        result_size);
+          AddDeoptInput(builder, virtual_objects, value);
           local_index++;
         });
     for (; local_index < frame.unit().register_count(); local_index++) {
@@ -5520,9 +5518,7 @@ class GraphBuildingNodeProcessor {
     // Accumulator
     if (frame.frame_state()->liveness()->AccumulatorIsLive()) {
       AddDeoptInput(builder, virtual_objects,
-                    frame.frame_state()->accumulator(frame.unit()),
-                    interpreter::Register::virtual_accumulator(),
-                    result_location, result_size);
+                    frame.frame_state()->accumulator(frame.unit()));
     } else {
       builder.AddUnusedRegister();
     }
@@ -5556,18 +5552,6 @@ class GraphBuildingNodeProcessor {
       }
     }
     builder.AddInput(MachineTypeFor(node->value_representation()), Map(node));
-  }
-
-  void AddDeoptInput(FrameStateData::Builder& builder,
-                     const maglev::VirtualObjectList& virtual_objects,
-                     const maglev::ValueNode* node, interpreter::Register reg,
-                     interpreter::Register result_location, int result_size) {
-    if (result_location.is_valid() && maglev::LazyDeoptInfo::InReturnValues(
-                                          reg, result_location, result_size)) {
-      builder.AddUnusedRegister();
-    } else {
-      AddDeoptInput(builder, virtual_objects, node);
-    }
   }
 
   void AddVirtualObjectInput(FrameStateData::Builder& builder,
