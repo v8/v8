@@ -12,12 +12,16 @@
 #include "src/base/platform/time.h"
 
 #ifdef V8_USE_PERFETTO
-#include "perfetto/ext/trace_processor/export_json.h"
-#include "perfetto/trace_processor/trace_processor.h"
+#ifdef V8_USE_PERFETTO_SDK
+#include "perfetto.h"  // NOLINT(build/include_directory)
+#else
 #include "perfetto/tracing/tracing.h"
 #include "protos/perfetto/config/data_source_config.gen.h"
 #include "protos/perfetto/config/trace_config.gen.h"
 #include "protos/perfetto/config/track_event/track_event_config.gen.h"
+#endif
+#include "perfetto/ext/trace_processor/export_json.h"
+#include "perfetto/trace_processor/trace_processor.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/libplatform/tracing/trace-event-listener.h"

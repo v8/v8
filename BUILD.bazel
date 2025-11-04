@@ -2583,6 +2583,7 @@ filegroup(
         "src/tasks/task-utils.cc",
         "src/tasks/task-utils.h",
         "src/torque/runtime-macro-shims.h",
+        "src/tracing/perfetto-sdk.h",
         "src/tracing/trace-event.cc",
         "src/tracing/trace-event.h",
         "src/tracing/trace-event-no-perfetto.h",

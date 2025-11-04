@@ -978,6 +978,7 @@ external_v8_defines = [
   "V8_DEPRECATION_WARNINGS",
   "V8_IMMINENT_DEPRECATION_WARNINGS",
   "V8_USE_PERFETTO",
+  "V8_USE_PERFETTO_SDK",
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
   "V8_ENABLE_DIRECT_HANDLE",
@@ -1025,6 +1026,9 @@ if (v8_imminent_deprecation_warnings) {
 }
 if (v8_use_perfetto) {
   enabled_external_v8_defines += [ "V8_USE_PERFETTO" ]
+}
+if (v8_use_perfetto_sdk) {
+  enabled_external_v8_defines += [ "V8_USE_PERFETTO_SDK" ]
 }
 if (v8_enable_map_packing) {
   enabled_external_v8_defines += [ "V8_MAP_PACKING" ]
@@ -4476,6 +4480,7 @@ v8_header_set("v8_internal_headers") {
       "src/tracing/code-data-source.h",
       "src/tracing/code-trace-context.h",
       "src/tracing/perfetto-logger.h",
+      "src/tracing/perfetto-sdk.h",
       "src/tracing/perfetto-utils.h",
     ]
   }
@@ -7431,6 +7436,7 @@ v8_source_set("cppgc_base") {
 
   if (v8_use_perfetto) {
     sources += [
+      "src/tracing/perfetto-sdk.h",
       "src/tracing/trace-categories.cc",
       "src/tracing/trace-categories.h",
     ]

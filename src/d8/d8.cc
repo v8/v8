@@ -72,6 +72,7 @@
 #include "src/profiler/profile-generator.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tasks/cancelable-task.h"
+#include "src/tracing/perfetto-sdk.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 
@@ -96,11 +97,6 @@
 #include "src/fuzzilli/cov.h"
 #include "src/fuzzilli/fuzzilli.h"
 #endif  // V8_FUZZILLI
-
-#ifdef V8_USE_PERFETTO
-#include "perfetto/tracing/track_event.h"
-#include "perfetto/tracing/track_event_legacy.h"
-#endif  // V8_USE_PERFETTO
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/locid.h"
