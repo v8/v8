@@ -1710,14 +1710,13 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
   auto& alternative = node_info->alternative();
 
   if (ValueNode* alt = alternative.tagged()) {
-    // HoleyFloat64ToTagged does not canonicalize Smis by default, since it can
-    // be expensive. If we are reading a Smi value, we should try to
-    // canonicalize now.
+#ifdef DEBUG
     if (HoleyFloat64ToTagged* conversion_node =
             alt->TryCast<HoleyFloat64ToTagged>()) {
-      conversion_node->SetMode(
-          HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
+      DCHECK_EQ(conversion_node->conversion_mode(),
+                HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
     }
+#endif  // DEBUG
     return BuildCheckSmi(alt, !value->Is<Phi>());
   }
 
@@ -3260,6 +3259,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
     case ContextCell::kSmi:
       // HoleyFloat64ToTagged does not canonicalize Smis by default, use
       // GetSmiValue to force canonicalization for the value if necessary.
+      // TODO(454485895): Consider removing this workaround since
+      // HoleyFloat64ToTagged now canonicalizes by default.
       RETURN_IF_ABORT(GetSmiValue(value));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return AddNewNode<StoreSmiContextCell>({value}, context_ref, slot_ref,
@@ -4477,6 +4478,8 @@ ValueNode* MaglevGraphBuilder::ConvertForField(ValueNode* value,
         // canonicalize smis by default in GetTaggedValue. We rely on
         // canonicalization though in TryReduceConstructArrayConstructor.
         // We should make this more robust.
+        // TODO(454485895): Consider removing this workaround since
+        // HoleyFloat64ToTagged now canonicalizes by default.
         MaybeReduceResult res = GetSmiValue(value);
         CHECK(res.IsDoneWithValue());
         return res.value();
@@ -13711,6 +13714,8 @@ ReduceResult MaglevGraphBuilder::CreateJSArray(compiler::MapRef map,
             GetRootConstant(RootIndex::kEmptyFixedArray));
   // Either the value is a Smi already, or we force a conversion to Smi and
   // cache the value in its alternative representation node.
+  // TODO(454485895): Consider removing this workaround since
+  // HoleyFloat64ToTagged now canonicalizes by default.
   RETURN_IF_ABORT(GetSmiValue(length));
   vobj->set(JSArray::kElementsOffset,
             GetRootConstant(RootIndex::kEmptyFixedArray));

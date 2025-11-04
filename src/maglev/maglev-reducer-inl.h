@@ -593,7 +593,7 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-              {value}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber));
+              {value}, HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi));
     }
 
     case ValueRepresentation::kIntPtr:

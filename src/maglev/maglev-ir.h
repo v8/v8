@@ -4365,6 +4365,8 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
     using Base = FixedInputValueNodeT<1, name>;                        \
                                                                        \
    public:                                                             \
+    /* TODO(454485895): Consider removing kForceHeapNumber since    */ \
+    /* it is now unused.                                            */ \
     enum class ConversionMode { kCanonicalizeSmi, kForceHeapNumber };  \
     explicit name(uint64_t bitfield, ConversionMode mode)              \
         : Base(ConversionModeBitField::update(bitfield, mode)) {}      \
