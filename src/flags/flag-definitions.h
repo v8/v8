@@ -2027,8 +2027,10 @@ DEFINE_DEBUG_BOOL(
     "enable optimization when compiling Wasm functions with Turbofan")
 DEFINE_BOOL(wasm_bounds_checks, true,
             "enable bounds checks (disable for performance testing only)")
+DEFINE_NEG_VALUE_IMPLICATION(wasm_bounds_checks, test_only_unsafe, true)
 DEFINE_BOOL(wasm_stack_checks, true,
             "enable stack checks (disable for performance testing only)")
+DEFINE_NEG_VALUE_IMPLICATION(wasm_stack_checks, test_only_unsafe, true)
 DEFINE_BOOL(
     wasm_enforce_bounds_checks, false,
     "enforce explicit bounds check even if the trap handler is available")
