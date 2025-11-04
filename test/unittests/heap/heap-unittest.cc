@@ -78,63 +78,69 @@ TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
 }
 
 TEST(Heap, GenerationSizesFromHeapSize) {
-  const uint64_t physical_memory = 0;
-  const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
+  if (v8_flags.minor_ms) return;
 
-  size_t old, young;
+  struct GenerationLimit {
+    uint64_t heap_size;
+    uint64_t expected_young_size;
+    uint64_t expected_old_size;
+  };
 
-  // Low memory
-  i::Heap::GenerationSizesFromHeapSize(physical_memory, 1 * KB, &young, &old);
-  ASSERT_EQ(0u, old);
-  ASSERT_EQ(0u, young);
+  static constexpr uint64_t kKB = static_cast<uint64_t>(KB);
+  static constexpr uint64_t kMB = static_cast<uint64_t>(MB);
+  static constexpr uint64_t kGB = static_cast<uint64_t>(GB);
 
-  // On tiny heap max semi space capacity is set to the default capacity which
-  // MinorMS does not double.
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory, 1 * KB + (v8_flags.minor_ms ? 2 : 3) * 512u * KB, &young,
-      &old);
-  ASSERT_EQ(1u * KB, old);
-  ASSERT_EQ((v8_flags.minor_ms ? 2 : 3) * 512u * KB, young);
+  // Here we just need to pick a large enough value.
+  static constexpr uint64_t kPhysicalMemory = 16 * kGB;
 
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory, 128 * hlm * MB + (v8_flags.minor_ms ? 4 : 3) * 512 * KB,
-      &young, &old);
-  ASSERT_EQ(128u * hlm * MB, old);
-  ASSERT_EQ((v8_flags.minor_ms ? 4 : 3) * 512u * KB, young);
+#if defined(V8_TARGET_ARCH_32_BIT)
+  std::vector<GenerationLimit> limits = {
+      {16 * kMB, 1 * kMB + 512 * kKB, 14 * kMB + 512 * kKB},
+      {32 * kMB, 1 * kMB + 512 * kKB, 30 * kMB + 512 * kKB},
+      {64 * kMB, 1 * kMB + 512 * kKB, 62 * kMB + 512 * kKB},
+      {128 * kMB, 1 * kMB + 512 * kKB, 126 * kMB + 512 * kKB},
+      {256 * kMB, 22 * kMB + 512 * kKB, 233 * kMB + 512 * kKB},
+      {512 * kMB, 44 * kMB + 256 * kKB, 467 * kMB + 768 * kKB},
+      {1 * kGB, 87 * kMB + 768 * kKB, 936 * kMB + 31},
+      {2 * kGB, 96 * kMB, 1952 * kMB},
+      {3 * kGB, 96 * kMB, 2976 * kMB},
+      {4 * kGB, 0, 0},
+      {8 * kGB, 0, 0},
+  };
+#else
+  std::vector<GenerationLimit> limits = {
+      {16 * kMB, 1 * kMB + 512 * kKB, 14 * kMB + 512 * kKB},
+      {32 * kMB, 1 * kMB + 512 * kKB, 30 * kMB + 512 * kKB},
+      {64 * kMB, 1 * kMB + 512 * kKB, 62 * kMB + 512 * kKB},
+      {128 * kMB, 1 * kMB + 512 * kKB, 126 * kMB + 512 * kKB},
+      {256 * kMB, 1 * kMB + 512 * kKB, 254 * kMB + 512 * kKB},
+      {512 * kMB, 23 * kMB + 256 * kKB, 488 * kMB + 768 * kKB},
+      {1 * kGB, 46 * kMB + 512 * kKB, 977 * kMB + 512 * kKB},
+      {2 * kGB, 92 * kMB + 256 * kKB, 1955 * kMB + 768 * kKB},
+      {3 * kGB, 96 * kMB, 2976 * kMB},
+      {4 * kGB, 96 * kMB, 4000 * kMB},
+      {8 * kGB, 96 * kMB, 8096 * kMB},
+  };
+#endif
 
-  // High memory
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory,
-      max_heap_size / 4 +
-          (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
-              (v8_flags.minor_ms ? (2 * 4) : 3),
-      &young, &old);
-  ASSERT_EQ(max_heap_size / 4, old);
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
-                (v8_flags.minor_ms ? (2 * 4) : 3),
-            young);
-
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory,
-      max_heap_size / 2 +
-          (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
-              (v8_flags.minor_ms ? (2 * 2) : 3),
-      &young, &old);
-  ASSERT_EQ(max_heap_size / 2, old);
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
-                (v8_flags.minor_ms ? (2 * 2) : 3),
-            young);
-
-  i::Heap::GenerationSizesFromHeapSize(
-      physical_memory,
-      max_heap_size + i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                          (v8_flags.minor_ms ? 2 : 3),
-      &young, &old);
-  ASSERT_EQ(max_heap_size, old);
-  ASSERT_EQ(i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                (v8_flags.minor_ms ? 2 : 3),
-            young);
+  for (const GenerationLimit& limit : limits) {
+    size_t actual_young, actual_old;
+    i::Heap::GenerationSizesFromHeapSize(kPhysicalMemory, limit.heap_size,
+                                         &actual_young, &actual_old);
+    if (limit.expected_old_size != actual_old ||
+        limit.expected_young_size != actual_young) {
+      printf(
+          "FAIL for %.1fMB: old (actual=%.1fMB expected %.1fMB); young "
+          "(actual=%.1fMB expected %.1fMB)",
+          static_cast<double>(limit.heap_size) / MB,
+          static_cast<double>(actual_old) / MB,
+          static_cast<double>(limit.expected_old_size) / MB,
+          static_cast<double>(actual_young) / MB,
+          static_cast<double>(limit.expected_young_size) / MB);
+    }
+    EXPECT_EQ(limit.expected_old_size, actual_old);
+    EXPECT_EQ(limit.expected_young_size, actual_young);
+  }
 }
 
 void AssertLowMemoryOldGenerationSizeFromPhysicalMemory(
