@@ -600,7 +600,9 @@ static void SplitArgument(const char* arg, char* buffer, int buffer_size,
   if (*arg == '=') {
     // Make a copy so we can NUL-terminate the flag name.
     size_t n = arg - *name;
-    CHECK(n < static_cast<size_t>(buffer_size));  // buffer is too small
+    if (n >= static_cast<size_t>(buffer_size)) {
+      FlagError{} << "Flag name is too long: " << FlagName(*name);
+    }
     MemCopy(buffer, *name, n);
     buffer[n] = '\0';
     *name = buffer;
