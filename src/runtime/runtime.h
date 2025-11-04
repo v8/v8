@@ -816,6 +816,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(LoadGlobalIC_Miss, 4, 1)                 \
   F(LoadGlobalIC_Slow, 3, 1)                 \
   F(LoadIC_Miss, 4, 1)                       \
+  F(LoadIC_Miss_FromBaseline, 4, 1)          \
+  F(PatchLoadICUninitializedBaseline, 4, 1)  \
   F(LoadNoFeedbackIC_Miss, 4, 1)             \
   F(LoadWithReceiverIC_Miss, 5, 1)           \
   F(LoadWithReceiverNoFeedbackIC_Miss, 3, 1) \

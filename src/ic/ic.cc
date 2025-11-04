@@ -47,6 +47,10 @@
 #include "src/wasm/struct-types.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#include "src/common/code-memory-access.h"
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+
 namespace v8 {
 namespace internal {
 
@@ -179,7 +183,7 @@ void IC::TraceIC(const char* type, DirectHandle<Object> name, State old_state,
 }
 
 IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
-       FeedbackSlotKind kind)
+       FeedbackSlotKind kind, CallerFrameType caller_frame_type)
     : isolate_(isolate),
       vector_set_(false),
       kind_(kind),
@@ -190,6 +194,7 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
   DCHECK_IMPLIES(!vector.is_null(), kind_ == nexus_.kind());
   state_ = (vector.is_null()) ? NO_FEEDBACK : nexus_.ic_state();
   old_state_ = state_;
+  caller_frame_type_ = caller_frame_type;
 }
 
 static void LookupForRead(LookupIterator* it, bool is_has_property) {
@@ -701,6 +706,65 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
   return true;
 }
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+namespace {
+
+Builtin CalculatePatchingTarget(Builtin current_builtin, Builtin handler) {
+  static_assert(Builtin::kFirstLoadICHandler ==
+                Builtin::kLoadICUninitializedBaseline);
+  static_assert(Builtin::kLastLoadICHandler == Builtin::kLoadICGenericBaseline);
+  // Currently we only have LoadIC handlers. {current_builtin} should not be the
+  // generic handler because we should be able to return early in that case.
+  DCHECK(current_builtin >= Builtin::kFirstLoadICHandler &&
+         current_builtin < Builtin::kLastLoadICHandler);
+  DCHECK(handler > Builtin::kFirstLoadICHandler &&
+         handler <= Builtin::kLastLoadICHandler);
+  // No need to patch when the current and target handlers are the same.
+  if (current_builtin == handler) return Builtin::kNoBuiltinId;
+  // Uninitialized handler can be patch to any other handlers.
+  if (current_builtin == Builtin::kLoadICUninitializedBaseline) {
+    return handler;
+  }
+  // Other handlers are only allowed to be patched to a more generic handler.
+  return Builtin::kLoadICGenericBaseline;
+}
+
+}  // namespace
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
+void IC::MaybePatchCode(Builtin handler) {
+  CHECK(v8_flags.sparkplug_plus);
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  if (handler == Builtin::kIllegal) return;
+  if (!isolate()->is_short_builtin_calls_enabled()) return;
+
+  // Patch baseline code if it is from baseline frame.
+  if (caller_frame_type() == CallerFrameType::kBaseline) {
+    const Address entry = Isolate::c_entry_fp(isolate_->thread_local_top());
+    Address* pc_address =
+        reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
+    Address pc =
+        StackFrame::ReadPC(pc_address) - Assembler::kCallTargetAddressOffset;
+
+    Address current = Assembler::target_address_at(pc, kNullAddress);
+    // TODO(chromium:429351411): Consider using a cache.
+    Builtin current_builtin =
+        OffHeapInstructionStream::TryLookupCode(isolate_, current);
+    DCHECK_EQ(current, Builtins::EntryOf(current_builtin, isolate_));
+    Builtin target_builtin = CalculatePatchingTarget(current_builtin, handler);
+    if (target_builtin == Builtin::kNoBuiltinId) return;
+
+    Address target = Builtins::EntryOf(target_builtin, isolate_);
+    WritableJitAllocation jit_allocation =
+        WritableJitAllocation::ForPatchableBaselineJIT(
+            pc, Assembler::kCallTargetAddressOffset);
+    Assembler::set_target_address_at(pc, kNullAddress, target, &jit_allocation,
+                                     FLUSH_ICACHE_IF_NEEDED);
+  }
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+}
+
 void IC::UpdateMonomorphicIC(const MaybeObjectDirectHandle& handler,
                              DirectHandle<Name> name) {
   DCHECK(IsHandler(*handler));
@@ -732,6 +796,20 @@ bool IC::IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
   return transitioned_map == target_map;
 }
 
+Builtin IC::GetHandlerPolymorphic() {
+  if (IsLoadIC()) {
+    return Builtin::kLoadICGenericBaseline;
+  }
+  return Builtin::kIllegal;
+}
+
+Builtin IC::GetHandlerMegamorphic() {
+  if (IsLoadIC()) {
+    return Builtin::kLoadICGenericBaseline;
+  }
+  return Builtin::kIllegal;
+}
+
 void IC::SetCache(DirectHandle<Name> name, Handle<Object> handler) {
   SetCache(name, MaybeObjectHandle(handler));
 }
@@ -743,9 +821,14 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
   switch (state()) {
     case NO_FEEDBACK:
       UNREACHABLE();
-    case UNINITIALIZED:
+    case UNINITIALIZED: {
       UpdateMonomorphicIC(handler, name);
+      if (v8_flags.sparkplug_plus) {
+        Builtin ic_handler = FeedbackNexus::ic_handler(*handler, kind());
+        MaybePatchCode(ic_handler);
+      }
       break;
+    }
     case RECOMPUTE_HANDLER:
     case MONOMORPHIC:
       if (IsGlobalIC()) {
@@ -755,7 +838,12 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
       if (UpdateOneMapManyNamesIC(name)) break;
       [[fallthrough]];
     case POLYMORPHIC:
-      if (UpdatePolymorphicIC(name, handler)) break;
+      if (UpdatePolymorphicIC(name, handler)) {
+        if (v8_flags.sparkplug_plus) {
+          MaybePatchCode(GetHandlerPolymorphic());
+        }
+        break;
+      }
       if (UpdateMegaDOMIC(handler, name)) break;
       if (!is_keyed() || state() == RECOMPUTE_HANDLER) {
         CopyICToMegamorphicCache(name);
@@ -766,6 +854,9 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
       [[fallthrough]];
     case MEGAMORPHIC:
       UpdateMegamorphicCache(lookup_start_object_map(), name, handler);
+      if (v8_flags.sparkplug_plus) {
+        MaybePatchCode(GetHandlerMegamorphic());
+      }
       // Indicate that we've handled this case.
       vector_set_ = true;
       break;
@@ -2816,6 +2907,72 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
   }
+}
+
+RUNTIME_FUNCTION(Runtime_LoadIC_Miss_FromBaseline) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<JSAny> receiver = args.at<JSAny>(0);
+  Handle<Name> key = args.at<Name>(1);
+  int slot = args.tagged_index_value_at(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
+
+  FeedbackSlotKind kind = vector->GetKind(vector_slot);
+  DCHECK(IsLoadICKind(kind));
+  LoadIC ic(isolate, vector, vector_slot, kind, CallerFrameType::kBaseline);
+  ic.UpdateState(receiver, key);
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
+}
+
+RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  DCHECK(v8_flags.sparkplug_plus);
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<JSAny> receiver = args.at<JSAny>(0);
+  Handle<Name> key = args.at<Name>(1);
+  int slot = args.tagged_index_value_at(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
+  FeedbackSlotKind kind = vector->GetKind(vector_slot);
+
+  // Get target builtin's address.
+  FeedbackNexus nexus(isolate, vector, vector_slot);
+  Builtin target_builtin = nexus.ic_handler();
+  DCHECK(target_builtin > Builtin::kFirstLoadICHandler &&
+         target_builtin <= Builtin::kLastLoadICHandler);
+  Address target = Builtins::EntryOf(target_builtin, isolate);
+
+  {
+    // Get Caller's pc.
+    const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
+    Address* pc_address =
+        reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
+    Address pc =
+        StackFrame::ReadPC(pc_address) - Assembler::kCallTargetAddressOffset;
+    DCHECK_EQ(
+        Assembler::target_address_at(pc, kNullAddress),
+        Builtins::EntryOf(Builtin::kLoadICUninitializedBaseline, isolate));
+    // Patch caller to the target address.
+    WritableJitAllocation jit_allocation =
+        WritableJitAllocation::ForPatchableBaselineJIT(
+            pc, Assembler::kCallTargetAddressOffset);
+    Assembler::set_target_address_at(pc, kNullAddress, target, &jit_allocation,
+                                     FLUSH_ICACHE_IF_NEEDED);
+  }
+
+  // TODO(chromium:429351411): LoadIC as NO_FEEDBACK. This will go down the slow
+  // path and might fail to update the feedback. However, in the future we would
+  // like to directly generate a call to the handler and then it will be less
+  // likely to go to this path.
+  LoadIC ic(isolate, Handle<FeedbackVector>(), vector_slot, kind);
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
 }
 
 RUNTIME_FUNCTION(Runtime_LoadNoFeedbackIC_Miss) {

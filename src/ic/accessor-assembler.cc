@@ -3347,6 +3347,122 @@ void AccessorAssembler::LoadSuperIC(const LoadICParameters* p) {
                                 p->name(), p->slot(), p->vector());
 }
 
+void AccessorAssembler::LoadIC_Field(const LazyLoadICParameters* p,
+                                     FieldLocation field_location,
+                                     FieldKind field_kind, int field_index) {
+  ExitPoint direct_exit(this);
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this), miss(this, Label::kDeferred);
+
+  TNode<Object> receiver = p->receiver();
+  GotoIf(TaggedIsSmi(receiver), &miss);
+  TNode<Map> map = LoadMap(UncheckedCast<HeapObject>(receiver));
+  TNode<HeapObjectReference> weak_map = MakeWeak(map);
+
+  TryMonomorphicCase(p->slot(), CAST(p->vector()), weak_map, &if_handler,
+                     &var_handler, &miss);
+
+  BIND(&if_handler);
+  {
+    TNode<IntPtrT> offset;
+    TNode<HeapObject> holder;
+    int target_handler =
+        LoadHandler::KindBits::encode(LoadHandler::Kind::kField);
+
+    if (field_index != kNotSpecifiedFieldIndex) {
+      // Specified field index.
+      DCHECK_GE(field_index, 0);
+      // Currently we only support handlers for loading non-double fields with
+      // specified location and index.
+      DCHECK_EQ(field_kind, FieldKind::kNonDouble);
+      DCHECK_NE(field_location, FieldLocation::kNotSpecified);
+      int field_offset;
+      if (field_location == FieldLocation::kInObject) {
+        field_offset = JSObject::kHeaderSize + field_index * kTaggedSize;
+        target_handler |=
+            LoadHandler::IsInobjectBits::encode(true) |
+            LoadHandler::FieldIndexBits::encode(field_offset / kTaggedSize);
+
+      } else {
+        DCHECK_EQ(field_location, FieldLocation::kOutOfObject);
+        field_offset =
+            OFFSET_OF_DATA_START(FixedArray) + field_index * kTaggedSize;
+        target_handler |=
+            LoadHandler::FieldIndexBits::encode(field_offset / kTaggedSize);
+      }
+
+      GotoIfNot(TaggedEqual(var_handler.value(), SmiConstant(target_handler)),
+                &miss);
+      offset = IntPtrConstant(field_offset);
+      holder = field_location == FieldLocation::kInObject
+                   ? CAST(receiver)
+                   : LoadFastProperties(CAST(receiver), true);
+    } else {
+      // Not specified field index.
+      GotoIfNot(TaggedIsSmi(var_handler.value()), &miss);
+      TNode<Smi> smi_handler = CAST(var_handler.value());
+      TNode<Int32T> handler_word = SmiToInt32(smi_handler);
+      int mask =
+          LoadHandler::KindBits::kMask | LoadHandler::IsDoubleBits::kMask;
+      // Only check field location if it is not kNotSpecified.
+      if (field_location != FieldLocation::kNotSpecified) {
+        // For non-double field, the field location must be specified since we
+        // have handlers to deal with these situations.
+        DCHECK_EQ(field_kind, FieldKind::kNonDouble);
+        mask |= LoadHandler::IsInobjectBits::kMask;
+      }
+      // Compute target_handler.
+      if (field_location == FieldLocation::kInObject) {
+        target_handler |= LoadHandler::IsInobjectBits::encode(true);
+      }
+      if (field_kind == FieldKind::kDouble) {
+        target_handler |= LoadHandler::IsDoubleBits::encode(true);
+      }
+
+      GotoIfNot(Word32Equal(Word32And(handler_word, Int32Constant(mask)),
+                            Int32Constant(target_handler)),
+                &miss);
+      TNode<IntPtrT> index = Signed(
+          DecodeWordFromWord32<LoadHandler::FieldIndexBits>(handler_word));
+      offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
+
+      if (field_location == FieldLocation::kInObject) {
+        holder = CAST(receiver);
+      } else if (field_location == FieldLocation::kOutOfObject) {
+        holder = LoadFastProperties(CAST(receiver), true);
+      } else {
+        TNode<BoolT> is_inobject =
+            IsSetWord32<LoadHandler::IsInobjectBits>(handler_word);
+        holder = Select<HeapObject>(
+            is_inobject, [&]() { return CAST(receiver); },
+            [&]() { return LoadFastProperties(CAST(receiver), true); });
+      }
+    }
+
+    // Load field by offset.
+    TNode<Object> value = LoadObjectField(holder, offset);
+    if (field_kind == FieldKind::kNonDouble) {
+      direct_exit.Return(value);
+    } else {
+      // This is not an "old" Smi value from before a Smi->Double transition.
+      // Rather, it's possible that since the last update of this IC, the Double
+      // field transitioned to a Tagged field, and was then assigned a Smi.
+      GotoIf(TaggedIsSmi(value), &miss);
+      GotoIfNot(IsHeapNumber(CAST(value)), &miss);
+      // Rebox double.
+      direct_exit.Return(
+          AllocateHeapNumberWithValue(LoadHeapNumberValue(CAST(value))));
+    }
+  }
+
+  BIND(&miss);
+  {
+    direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss_FromBaseline,
+                                  p->context(), p->receiver(), p->name(),
+                                  p->slot(), p->vector());
+  }
+}
+
 void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
                                           TNode<Map> lookup_start_object_map,
                                           TNode<HeapObject> feedback,
@@ -4470,7 +4586,44 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
   TailCallBuiltin(Builtin::kLoadIC, context, receiver, name, slot, vector);
 }
 
-void AccessorAssembler::GenerateLoadICBaseline() {
+void AccessorAssembler::GenerateLoadICUninitializedBaseline() {
+  using Descriptor = LoadBaselineDescriptor;
+
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  Label uninitialized(this);
+  // Load feedback slot.
+  int32_t header_size =
+      FeedbackVector::kRawFeedbackSlotsOffset - kHeapObjectTag;
+  // Adding |header_size| with a separate IntPtrAdd rather than passing it
+  // into ElementOffsetFromIndex() allows it to be folded into a single
+  // [base, index, offset] indirect memory access on x64.
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(slot, HOLEY_ELEMENTS);
+  TNode<HeapObjectReference> feedback = CAST(Load<MaybeObject>(
+      vector, IntPtrAdd(offset, IntPtrConstant(header_size))));
+
+  // We always patch LoadICUninitializedBaseline to another handler. If the
+  // feedback slot is set but the stub is still LoadICUninitializedBaseline,
+  // this means that either the feedback slot is set before the Baseline code is
+  // compiled, or there exists multiple LoadICUninitializedBaseline calls that
+  // share a same feedback slot. In either case, we will patch the stub
+  // according to the existing feedback.
+  GotoIf(TaggedEqual(feedback, UninitializedSymbolConstant()), &uninitialized);
+  TailCallRuntime(Runtime::kPatchLoadICUninitializedBaseline, context, receiver,
+                  name, slot, vector);
+
+  BIND(&uninitialized);
+  {
+    TailCallRuntime(Runtime::kLoadIC_Miss_FromBaseline, context, receiver, name,
+                    slot, vector);
+  }
+}
+
+void AccessorAssembler::GenerateLoadICGenericBaseline() {
   using Descriptor = LoadBaselineDescriptor;
 
   auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
@@ -4481,6 +4634,92 @@ void AccessorAssembler::GenerateLoadICBaseline() {
 
   LoadICParameters p(context, receiver, name, slot, vector);
   LoadIC(&p);
+}
+
+void AccessorAssembler::GenerateLoadICFieldBaseline(
+    FieldLocation field_location, FieldKind field_kind, int field_index) {
+  using Descriptor = LoadBaselineDescriptor;
+
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+
+  LazyLoadICParameters lazy_p(
+      // lazy_context
+      [&] { return LoadContextFromBaseline(); }, receiver,
+      // lazy_name
+      [&] { return name; },
+      // lazy_slot
+      [&] { return slot; }, vector);
+
+  LoadIC_Field(&lazy_p, field_location, field_kind, field_index);
+}
+
+void AccessorAssembler::GenerateLoadICConstantFromPrototypeBaseline() {
+  using Descriptor = LoadBaselineDescriptor;
+
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  ExitPoint direct_exit(this);
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this), miss(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(receiver), &miss);
+  TNode<Map> map = LoadMap(UncheckedCast<HeapObject>(receiver));
+  TNode<HeapObjectReference> weak_map = MakeWeak(map);
+
+  TryMonomorphicCase(slot, vector, weak_map, &if_handler, &var_handler, &miss);
+
+  BIND(&if_handler);
+  {
+    GotoIfNot(IsStrong(var_handler.value()), &miss);
+    GotoIf(IsCode(CAST(var_handler.value())), &miss);
+    TNode<DataHandler> handler = CAST(var_handler.value());
+
+    // Check prototype validity cell.
+    TNode<MaybeObject> validity_cell_value;
+    {
+      TNode<Object> maybe_validity_cell =
+          LoadObjectField(handler, offsetof(LoadHandler, validity_cell_));
+      validity_cell_value =
+          CheckPrototypeValidityCell(maybe_validity_cell, &miss);
+      // CheckPrototypeValidityCell guarantees that the returned value is not
+      // a cleared weak reference value.
+      CSA_DCHECK(this, IsNotCleared(validity_cell_value));
+    }
+
+    // Check handler's kind.
+    TNode<Smi> smi_handler =
+        CAST(LoadObjectField(handler, offsetof(LoadHandler, smi_handler_)));
+    GotoIfNot(
+        SmiEqual(smi_handler, SmiConstant(LoadHandler::KindBits::encode(
+                                  LoadHandler::Kind::kConstantFromPrototype))),
+        &miss);
+
+    // Load constant from the handler.
+    Label is_smi(this), is_not_smi(this);
+    TNode<MaybeObject> constant = LoadHandlerDataField(handler, 1);
+    Branch(TaggedIsSmi(constant), &is_smi, &is_not_smi);
+    BIND(&is_smi);
+    {
+      TNode<Object> result = CAST(constant);
+      direct_exit.Return(result);
+    }
+    BIND(&is_not_smi);
+    {
+      TNode<Object> result = GetHeapObjectAssumeWeak(constant);
+      direct_exit.Return(result);
+    }
+  }
+
+  BIND(&miss);
+  direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss_FromBaseline, context,
+                                receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {

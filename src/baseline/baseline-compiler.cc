@@ -974,9 +974,16 @@ void BaselineCompiler::VisitMov() {
 }
 
 void BaselineCompiler::VisitGetNamedProperty() {
-  CallBuiltin<Builtin::kLoadICBaseline>(RegisterOperand(0),  // object
-                                        Constant<Name>(1),   // name
-                                        IndexAsTagged(2));   // slot
+  if (v8_flags.sparkplug_plus) {
+    CallBuiltin<Builtin::kLoadICUninitializedBaseline>(
+        RegisterOperand(0),  // object
+        Constant<Name>(1),   // name
+        IndexAsTagged(2));   // slot
+  } else {
+    CallBuiltin<Builtin::kLoadICGenericBaseline>(RegisterOperand(0),  // object
+                                                 Constant<Name>(1),   // name
+                                                 IndexAsTagged(2));   // slot
+  }
 }
 
 void BaselineCompiler::VisitGetNamedPropertyFromSuper() {

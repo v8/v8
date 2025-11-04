@@ -2580,6 +2580,10 @@ enum class CachedTieringDecision : int32_t {
   kNormal,
 };
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#define V8_ENABLE_SPARKPLUG_PLUS
+#endif
+
 enum class SpeculationMode {
   kAllowSpeculation = 0,
   kDisallowBoundsCheckSpeculation = 1,

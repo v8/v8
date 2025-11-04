@@ -47,6 +47,11 @@ static constexpr T FirstFromVarArgs(T x, ...) noexcept {
 #define BUILTIN_CODE(isolate, name) \
   (isolate)->builtins()->code_handle(i::Builtin::k##name)
 
+#define ADD_ONE(Name, ...) +1
+static constexpr int kBuiltinLoadICHandlerCount =
+    0 BUILTIN_LOAD_IC_HANDLER_LIST(ADD_ONE);
+#undef ADD_ONE
+
 enum class Builtin : int32_t {
   kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
@@ -56,8 +61,11 @@ enum class Builtin : int32_t {
 #define EXTRACT_NAME(Name, ...) k##Name,
   // Define kFirstBytecodeHandler,
   kFirstBytecodeHandler = FirstFromVarArgs(
-      BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME, EXTRACT_NAME) 0)
+      BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME, EXTRACT_NAME) 0),
+  kFirstLoadICHandler =
+      FirstFromVarArgs(BUILTIN_LOAD_IC_HANDLER_LIST(EXTRACT_NAME) 0),
 #undef EXTRACT_NAME
+  kLastLoadICHandler = kFirstLoadICHandler + kBuiltinLoadICHandlerCount - 1
 };
 enum class TieringBuiltin : int32_t {
 #define DEF_ENUM(Name, ...) k##Name = static_cast<int32_t>(Builtin::k##Name),

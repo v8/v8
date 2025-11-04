@@ -85,6 +85,40 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* size unmodified to avoid unexpected performance implications. */       \
   /* It should be removed. */
 
+#define LOAD_IC_IN_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(V, GENERATE_MACRO) \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, 0)                         \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, 1)                         \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, 2)                         \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, 3)                         \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, 4)                         \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, 5)                         \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, 6)                         \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, 7)
+
+#define LOAD_IC_OUT_OF_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(V, GENERATE_MACRO) \
+  GENERATE_MACRO(V, OutOfObject, NonDouble, Field, 0)                          \
+  GENERATE_MACRO(V, OutOfObject, NonDouble, Field, 1)                          \
+  GENERATE_MACRO(V, OutOfObject, NonDouble, Field, 2)                          \
+  GENERATE_MACRO(V, OutOfObject, NonDouble, Field, 3)
+
+#define LOAD_IC_HANDLER_LIST(V, GENERATE_MACRO)                              \
+  GENERATE_MACRO(V, /*Location*/, /*Representation*/, Uninitialized,         \
+                 /*Index*/)                                                  \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, /*Index*/)                   \
+  LOAD_IC_IN_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(V, GENERATE_MACRO)         \
+  GENERATE_MACRO(V, OutOfObject, NonDouble, Field, /*Index*/)                \
+  LOAD_IC_OUT_OF_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(V, GENERATE_MACRO)     \
+  GENERATE_MACRO(V, /*Location*/, Double, Field, /*Index*/)                  \
+  GENERATE_MACRO(V, /*Location*/, /*Representation*/, ConstantFromPrototype, \
+                 /*Index*/)                                                  \
+  GENERATE_MACRO(V, /*Location*/, /*Representation*/, Generic, /*Index*/)
+
+#define GENERATE_BUILTIN_LOAD_IC_DEFINITION(V, Location, Representation, Kind, \
+                                            Index)                             \
+  V(LoadIC##Location##Representation##Kind##Index##Baseline, LoadBaseline)
+
+#define BUILTIN_LOAD_IC_HANDLER_LIST(V) \
+  LOAD_IC_HANDLER_LIST(V, GENERATE_BUILTIN_LOAD_IC_DEFINITION)
 
 /* Tiering related builtins
  *
@@ -115,7 +149,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(FunctionLogNextExecution, JSTrampoline)      \
   TFC(MarkReoptimizeLazyDeoptimized, JSTrampoline) \
   TFC(MarkLazyDeoptimized, JSTrampoline)
-
 
 #define BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH,     \
                                 ASM)                                           \
@@ -769,7 +802,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFH(LoadIC_Megamorphic, LoadWithVector)                                      \
   TFH(LoadIC_Noninlined, LoadWithVector)                                       \
   TFH(LoadICTrampoline, Load)                                                  \
-  TFH(LoadICBaseline, LoadBaseline)                                            \
+  BUILTIN_LOAD_IC_HANDLER_LIST(TFH)                                            \
   TFH(LoadICTrampoline_Megamorphic, Load)                                      \
   TFH(LoadSuperIC, LoadWithReceiverAndVector)                                  \
   TFH(LoadSuperICBaseline, LoadWithReceiverBaseline)                           \

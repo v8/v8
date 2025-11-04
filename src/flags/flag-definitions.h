@@ -2997,6 +2997,13 @@ DEFINE_INT(max_fast_properties, 128,
 DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
             "generate extra code for manipulating stats counters")
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+DEFINE_BOOL(sparkplug_plus, false, "enable dynamic patching on baseline code")
+#else
+DEFINE_BOOL_READONLY(sparkplug_plus, false,
+                     "enable dynamic patching on baseline code")
+#endif
+
 DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 
 DEFINE_BOOL(mega_dom_ic, false, "use MegaDOM IC state for API objects")
