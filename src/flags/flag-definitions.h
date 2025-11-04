@@ -73,6 +73,7 @@
 #define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
   if (v8_flags.whenflag) statement;
 
+// TODO(457654443): can we use FlagError for this, too?
 #define DEFINE_REQUIREMENT(statement) CHECK_NO_SECURITY_IMPACT(statement);
 
 // Enforce that a flag was not explicitly set via command line. Setting a value

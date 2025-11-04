@@ -126,15 +126,25 @@ bool Flag::ShouldCheckFlagContradictions() {
 
 namespace {
 
-struct FatalError : public std::ostringstream {
+struct FlagError : public std::ostringstream {
   static constexpr const char kHint[] =
       "If a test variant caused this, it might be necessary to specify "
       "additional contradictory flags in "
       "tools/testrunner/local/variants.py.";
   // MSVC complains about non-returning destructor; disable that.
   MSVC_SUPPRESS_WARNING(4722)
-  ~FatalError() {
-    base::FatalNoSecurityImpact("%s.\n%s", str().c_str(), kHint);
+  ~FlagError() {
+    base::OS::PrintError("Flag processing error: %s.\n", str().c_str());
+    base::OS::PrintError("%s\n", kHint);
+    // TODO(457654443): consider merging exit_on_contradictory_flags and
+    // abort_on_contradictory_flags into a single, more generic flag specifying
+    // how to handle flag processing errors.
+    if (v8_flags.exit_on_contradictory_flags) {
+      base::OS::ExitProcess(-1);
+    } else {
+      DCHECK(v8_flags.abort_on_contradictory_flags);
+      base::OS::Abort();
+    }
   }
 };
 
@@ -156,15 +166,13 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
       ShouldCheckDisallowUnsafeFlagContradictions(implied_by)) {
     // Readonly flags cannot change value.
     if (change_flag && IsReadOnly()) {
-      // Exit instead of abort for certain testing situations.
-      if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
       if (implied_by == nullptr) {
-        FatalError{} << "Contradictory value for readonly flag "
-                     << FlagName{name()};
+        FlagError{} << "Contradictory value for readonly flag "
+                    << FlagName{name()};
       } else {
         DCHECK(IsAnyImplication(new_set_by));
-        FatalError{} << "Contradictory value for readonly flag "
-                     << FlagName{name()} << " implied by " << implied_by;
+        FlagError{} << "Contradictory value for readonly flag "
+                    << FlagName{name()} << " implied by " << implied_by;
       }
     }
     // For bool flags, we only check for a conflict if the value actually
@@ -181,42 +189,38 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
         break;
       case SetBy::kWeakImplication:
         if (new_set_by == SetBy::kWeakImplication && check_implications) {
-          FatalError{} << "Contradictory weak flag implications from "
-                       << FlagName{implied_by_} << " and "
-                       << FlagName{implied_by} << " for flag "
-                       << FlagName{name()};
+          FlagError{} << "Contradictory weak flag implications from "
+                      << FlagName{implied_by_} << " and "
+                      << FlagName{implied_by} << " for flag "
+                      << FlagName{name()};
         }
         break;
       case SetBy::kImplication:
         if (new_set_by == SetBy::kImplication && check_implications) {
-          FatalError{} << "Contradictory flag implications from "
-                       << FlagName{implied_by_} << " and "
-                       << FlagName{implied_by} << " for flag "
-                       << FlagName{name()};
+          FlagError{} << "Contradictory flag implications from "
+                      << FlagName{implied_by_} << " and "
+                      << FlagName{implied_by} << " for flag "
+                      << FlagName{name()};
         }
         break;
       case SetBy::kCommandLine:
         if (new_set_by == SetBy::kImplication && check_implications) {
-          // Exit instead of abort for certain testing situations.
-          if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
           if (is_bool_flag) {
-            FatalError{} << "Flag " << FlagName{name()} << ": value implied by "
-                         << FlagName{implied_by}
-                         << " conflicts with explicit specification";
+            FlagError{} << "Flag " << FlagName{name()} << ": value implied by "
+                        << FlagName{implied_by}
+                        << " conflicts with explicit specification";
           } else {
-            FatalError{} << "Flag " << FlagName{name()} << " is implied by "
-                         << FlagName{implied_by}
-                         << " but also specified explicitly";
+            FlagError{} << "Flag " << FlagName{name()} << " is implied by "
+                        << FlagName{implied_by}
+                        << " but also specified explicitly";
           }
         } else if (new_set_by == SetBy::kCommandLine && check_implications) {
-          // Exit instead of abort for certain testing situations.
-          if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
           if (is_bool_flag) {
-            FatalError{} << "Command-line provided flag " << FlagName{name()}
-                         << " specified as both true and false";
+            FlagError{} << "Command-line provided flag " << FlagName{name()}
+                        << " specified as both true and false";
           } else {
-            FatalError{} << "Command-line provided flag " << FlagName{name()}
-                         << " specified multiple times";
+            FlagError{} << "Command-line provided flag " << FlagName{name()}
+                        << " specified multiple times";
           }
         }
         break;
@@ -1087,8 +1091,8 @@ class ImplicationProcessor {
     if (conclusion_flag->set_by_ != Flag::SetBy::kCommandLine) {
       return;
     }
-    FatalError{} << "Command-line provided flag " << FlagName{conclusion_name}
-                 << " is prohibited by " << FlagName{premise_name};
+    FlagError{} << "Command-line provided flag " << FlagName{conclusion_name}
+                << " is prohibited by " << FlagName{premise_name};
   }
 
   void CheckForCycle() {
