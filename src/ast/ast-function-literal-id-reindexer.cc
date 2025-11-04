@@ -87,10 +87,6 @@ void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
       }
       Visit(prop->value());
     }
-    if (prop->kind() == ClassLiteralProperty::Kind::AUTO_ACCESSOR) {
-      Visit(prop->auto_accessor_info()->generated_getter());
-      Visit(prop->auto_accessor_info()->generated_setter());
-    }
   }
 }
 
