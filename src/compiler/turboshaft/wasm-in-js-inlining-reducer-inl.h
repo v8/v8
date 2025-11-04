@@ -1320,6 +1320,13 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
         << JSInliner::WasmFunctionNameForTrace(native_module, func_idx)
         << " of module " << module << " for inlining");
 
+  // TODO(353475584): Support 32-bit platforms by using `Int64LoweringReducer`
+  // in the JS pipeline.
+  if (!Is64()) {
+    TRACE("- not inlining: 32-bit platforms are not supported");
+    return OpIndex::Invalid();
+  }
+
   if (wasm::is_asmjs_module(module)) {
     TRACE("- not inlining: asm.js-in-JS inlining is not supported");
     return OpIndex::Invalid();
