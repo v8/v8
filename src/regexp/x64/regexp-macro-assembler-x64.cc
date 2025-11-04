@@ -757,9 +757,9 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked(
     unsigned mask2, Label* on_match1, Label* on_match2, Label* on_failure) {
   Label scalar_repeat;
   const bool use_simd = SkipUntilOneOfMaskedUseSimd(advance_by);
-  const int character_count =
-      4 - base::bits::CountLeadingZeros32(both_mask) / CHAR_BIT;
-  DCHECK_EQ(character_count, 4);  // TODO(pthier): Support other variants.
+  // Number of characters loaded and width of mask/chars to check.
+  // TODO(pthier): Support/optimize other variants.
+  static constexpr int character_count = 4;
   DCHECK_EQ(mode_, LATIN1);       // TODO(pthier): Support 2-byte.
   if (use_simd) {
     // We load the 16 characters from the subject into 4 different vector
@@ -848,7 +848,7 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked(
     // match index within a block.
     XMMRegister result = xmm10;
     auto AndCheck4CharsSimd =
-        [this, input_vec1, input_vec2, input_vec3, input_vec4, character_count](
+        [this, input_vec1, input_vec2, input_vec3, input_vec4](
             XMMRegister res, XMMRegister characters, XMMRegister mask) {
           XMMRegister tmp = xmm11;
           if (CpuFeatures::IsSupported(AVX)) {
@@ -935,6 +935,7 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked(
   {
     Label found;
     Bind(&scalar_repeat);
+    DCHECK_GE(max_offset, cp_offset + character_count);
     CheckPosition(max_offset, on_failure);
     LoadCurrentCharacterUnchecked(cp_offset, character_count);
 
