@@ -21,6 +21,7 @@
 #include "include/v8-initialization.h"
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
+#include "src/base/bounded-page-allocator.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
@@ -1250,19 +1251,22 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
   stats.main_cage.size = next_value();
   stats.main_cage.free_size = next_value();
   stats.main_cage.largest_free_region = next_value();
-  stats.main_cage.last_allocation_status = next_value();
+  stats.main_cage.last_allocation_status =
+      base::BoundedPageAllocator::AllocationStatus::kSuccess;
 
   stats.trusted_cage.start = HexAddress(0x2000);
   stats.trusted_cage.size = next_value();
   stats.trusted_cage.free_size = next_value();
   stats.trusted_cage.largest_free_region = next_value();
-  stats.trusted_cage.last_allocation_status = next_value();
+  stats.trusted_cage.last_allocation_status =
+      base::BoundedPageAllocator::AllocationStatus::kFailedToCommit;
 
   stats.code_cage.start = HexAddress(0x3000);
   stats.code_cage.size = next_value();
   stats.code_cage.free_size = next_value();
   stats.code_cage.largest_free_region = next_value();
-  stats.code_cage.last_allocation_status = next_value();
+  stats.code_cage.last_allocation_status =
+      base::BoundedPageAllocator::AllocationStatus::kRanOutOfReservation;
 
   constexpr char kMessages[] = "Last GC: minor; reason: testing";
   std::strncpy(stats.last_few_messages, kMessages,
@@ -1310,20 +1314,14 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
       {"v8-oom-main-cage-free-size", stats.main_cage.free_size},
       {"v8-oom-main-cage-largest-free-region",
        stats.main_cage.largest_free_region},
-      {"v8-oom-main-cage-last-allocation-status",
-       stats.main_cage.last_allocation_status},
       {"v8-oom-trusted-cage-size", stats.trusted_cage.size},
       {"v8-oom-trusted-cage-free-size", stats.trusted_cage.free_size},
       {"v8-oom-trusted-cage-largest-free-region",
        stats.trusted_cage.largest_free_region},
-      {"v8-oom-trusted-cage-last-allocation-status",
-       stats.trusted_cage.last_allocation_status},
       {"v8-oom-code-cage-size", stats.code_cage.size},
       {"v8-oom-code-cage-free-size", stats.code_cage.free_size},
       {"v8-oom-code-cage-largest-free-region",
        stats.code_cage.largest_free_region},
-      {"v8-oom-code-cage-last-allocation-status",
-       stats.code_cage.last_allocation_status},
   };
 
   for (const auto& [key, value] : expected_cage_fields) {
@@ -1332,12 +1330,19 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
     remaining_keys.erase(key);
   }
 
-  const std::vector<std::pair<std::string, std::string>>
-      expected_string_fields = {{"v8-oom-main-cage-start", "0x1000"},
-                                {"v8-oom-trusted-cage-start", "0x2000"},
-                                {"v8-oom-code-cage-start", "0x3000"},
-                                {"v8-oom-is-main-isolate", "true"},
-                                {"v8-oom-last-few-messages", kMessages}};
+  std::vector<std::pair<std::string, std::string>> expected_string_fields = {
+      {"v8-oom-main-cage-start", "0x1000"},
+      {"v8-oom-trusted-cage-start", "0x2000"},
+      {"v8-oom-code-cage-start", "0x3000"},
+      {"v8-oom-is-main-isolate", "true"},
+      {"v8-oom-last-few-messages", kMessages},
+      {"v8-oom-main-cage-last-allocation-status",
+       base::ToString(stats.main_cage.last_allocation_status)},
+      {"v8-oom-trusted-cage-last-allocation-status",
+       base::ToString(stats.trusted_cage.last_allocation_status)},
+      {"v8-oom-code-cage-last-allocation-status",
+       base::ToString(stats.code_cage.last_allocation_status)},
+  };
 
   for (const auto& [key, expected] : expected_string_fields) {
     EXPECT_TRUE(crash_key_store.HasKey(key)) << key;

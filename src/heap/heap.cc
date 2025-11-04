@@ -5444,8 +5444,7 @@ void RecordStatsForCage(VirtualMemoryCage* cage, CodeCageStats* stats) {
       cage->page_allocator()->RecordStats();
   stats->free_size = allocator_stats.free_size;
   stats->largest_free_region = allocator_stats.largest_free_region;
-  stats->last_allocation_status =
-      static_cast<size_t>(allocator_stats.allocation_status);
+  stats->last_allocation_status = allocator_stats.allocation_status;
 }
 
 }  // anonymous namespace
@@ -5561,6 +5560,10 @@ void Heap::ReportStatsAsCrashKeys(const HeapStats& heap_stats) {
       [isolate](const char* name, bool value) {
         isolate->AddCrashKeyString(name, CrashKeySize::Size32,
                                    value ? "true" : "false");
+      },
+      [isolate](const char* name,
+                base::BoundedPageAllocator::AllocationStatus value) {
+        isolate->AddCrashKeyString(name, CrashKeySize::Size64, ToString(value));
       },
       []<typename T>(const char*, const T&) {
         static_assert(std::is_void_v<T>);

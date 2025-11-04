@@ -20,6 +20,7 @@
 #include "include/v8-internal.h"
 #include "include/v8-isolate.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/bounded-page-allocator.h"
 #include "src/base/enum-set.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
@@ -2642,7 +2643,7 @@ using HexAddress = base::StrongAlias<HexAddressTag, Address>;
   V(size_t, size)                \
   V(size_t, free_size)           \
   V(size_t, largest_free_region) \
-  V(size_t, last_allocation_status)
+  V(base::BoundedPageAllocator::AllocationStatus, last_allocation_status)
 
 // When changing any of these fields please also update cs/crash::ReadHeapStats.
 class CodeCageStats {
