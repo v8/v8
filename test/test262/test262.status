@@ -263,9 +263,7 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # Issue filed upstream
-
-  # Float casting to integer (https://github.com/boa-dev/temporal/issues/189, https://github.com/boa-dev/temporal/issues/334)
+  # Duration internal representation (https://github.com/boa-dev/temporal/issues/613/334)
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
 
@@ -274,20 +272,10 @@
   'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
   'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
 
-  # No issue filed
-
-  # ICU4C and ICU4X disagree on canonical timezones
+  # Intl.getSupportedValuesOf("timeZone") returns non-canonical timezones.
+  # This is a bug in Intl, not Temporal.
+  # https://g-issues.chromium.org/issues/457835186
   'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal': [FAIL],
-
-  # New tests for relativeTo around DSTs
-  'intl402/Temporal/Duration/prototype/round/relativeto-dst-back-transition': [FAIL],
-  'intl402/Temporal/Duration/prototype/total/relativeto-dst-back-transition': [FAIL],
-
-  # New tests for arithmetic around DSTs
-  'intl402/Temporal/PlainDateTime/prototype/since/wrapping-at-end-of-month-gregorian': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/until/wrapping-at-end-of-month-gregorian': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/since/same-date-reverse-wallclock': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/until/same-date-reverse-wallclock': [FAIL],
 
   # End Temporal test expectations
 
