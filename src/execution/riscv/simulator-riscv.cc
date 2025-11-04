@@ -2429,10 +2429,15 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate), builtins_(isolate) {
   vl_ = 0;
   vlenb_ = 0;
 #endif
+
+  global_monitor_ = GlobalMonitor::Get();
+  global_monitor_->PrependLinkedAddress(&global_monitor_thread_);
+  // Enabling deadlock detection while simulating is too slow.
+  SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
 }
 
 Simulator::~Simulator() {
-  GlobalMonitor::Get()->RemoveLinkedAddress(&global_monitor_thread_);
+  global_monitor_->RemoveLinkedAddress(&global_monitor_thread_);
   delete[] reinterpret_cast<uint8_t*>(stack_);
 }
 
@@ -4234,7 +4239,7 @@ void Simulator::DecodeRVRAType() {
       sreg_t addr = rs1();
       if (!ProbeMemory(addr, sizeof(int32_t))) return;
       {
-        base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+        GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
         if ((addr & 0x3) != 0) {
           DieOrDebug();
         }
@@ -4242,8 +4247,7 @@ void Simulator::DecodeRVRAType() {
         set_rd(sext32(val), false);
         TraceMemRd(addr, val, get_register(rd_reg()));
         local_monitor_.NotifyLoadLinked(addr, TransactionSize::Word);
-        GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
-                                                      &global_monitor_thread_);
+        global_monitor_->NotifyLoadLinked_Locked(addr, &global_monitor_thread_);
       }
       break;
     }
@@ -4253,12 +4257,12 @@ void Simulator::DecodeRVRAType() {
       if ((addr & 0x3) != 0) {
         DieOrDebug();
       }
-      base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+      GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
       if (local_monitor_.NotifyStoreConditional(addr, TransactionSize::Word) &&
-          GlobalMonitor::Get()->NotifyStoreConditional_Locked(
+          global_monitor_->NotifyStoreConditional_Locked(
               addr, &global_monitor_thread_)) {
         local_monitor_.NotifyStore();
-        GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
+        global_monitor_->NotifyStore_Locked(&global_monitor_thread_);
         WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
         set_rd(0, false);
       } else {
@@ -4352,25 +4356,24 @@ void Simulator::DecodeRVRAType() {
       int64_t addr = rs1();
       if (!ProbeMemory(addr, sizeof(int64_t))) return;
       {
-        base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+        GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
         auto val = ReadMem<int64_t>(addr, instr_.instr());
         set_rd(val, false);
         TraceMemRd(addr, val, get_register(rd_reg()));
         local_monitor_.NotifyLoadLinked(addr, TransactionSize::DoubleWord);
-        GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
-                                                      &global_monitor_thread_);
+        global_monitor_->NotifyLoadLinked_Locked(addr, &global_monitor_thread_);
         break;
       }
     }
     case RO_SC_D: {
       int64_t addr = rs1();
       if (!ProbeMemory(addr, sizeof(int64_t))) return;
-      base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+      GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
       if (local_monitor_.NotifyStoreConditional(addr,
                                                 TransactionSize::DoubleWord) &&
-          (GlobalMonitor::Get()->NotifyStoreConditional_Locked(
+          (global_monitor_->NotifyStoreConditional_Locked(
               addr, &global_monitor_thread_))) {
-        GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
+        global_monitor_->NotifyStore_Locked(&global_monitor_thread_);
         WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
         set_rd(0, false);
       } else {
@@ -8680,7 +8683,6 @@ bool Simulator::GlobalMonitor::LinkedAddress::NotifyStoreConditional_Locked(
 void Simulator::GlobalMonitor::NotifyLoadLinked_Locked(
     uintptr_t addr, LinkedAddress* linked_address) {
   linked_address->NotifyLoadLinked_Locked(addr);
-  PrependProcessor_Locked(linked_address);
 }
 
 void Simulator::GlobalMonitor::NotifyStore_Locked(
@@ -8693,7 +8695,6 @@ void Simulator::GlobalMonitor::NotifyStore_Locked(
 
 bool Simulator::GlobalMonitor::NotifyStoreConditional_Locked(
     uintptr_t addr, LinkedAddress* linked_address) {
-  DCHECK(IsProcessorInLinkedList_Locked(linked_address));
   if (linked_address->NotifyStoreConditional_Locked(addr, true)) {
     // Notify the other processors that this StoreConditional succeeded.
     for (LinkedAddress* iter = head_; iter; iter = iter->next_) {
@@ -8707,32 +8708,21 @@ bool Simulator::GlobalMonitor::NotifyStoreConditional_Locked(
   }
 }
 
-bool Simulator::GlobalMonitor::IsProcessorInLinkedList_Locked(
-    LinkedAddress* linked_address) const {
-  return head_ == linked_address || linked_address->next_ ||
-         linked_address->prev_;
-}
-
-void Simulator::GlobalMonitor::PrependProcessor_Locked(
+void Simulator::GlobalMonitor::PrependLinkedAddress(
     LinkedAddress* linked_address) {
-  if (IsProcessorInLinkedList_Locked(linked_address)) {
-    return;
-  }
-
+  base::MutexGuard lock_guard(&mutex_);
   if (head_) {
     head_->prev_ = linked_address;
   }
   linked_address->prev_ = nullptr;
   linked_address->next_ = head_;
   head_ = linked_address;
+  num_linked_address_++;
 }
 
 void Simulator::GlobalMonitor::RemoveLinkedAddress(
     LinkedAddress* linked_address) {
-  base::MutexGuard lock_guard(&mutex);
-  if (!IsProcessorInLinkedList_Locked(linked_address)) {
-    return;
-  }
+  base::MutexGuard lock_guard(&mutex_);
 
   if (linked_address->prev_) {
     linked_address->prev_->next_ = linked_address->next_;
@@ -8744,6 +8734,7 @@ void Simulator::GlobalMonitor::RemoveLinkedAddress(
   }
   linked_address->prev_ = nullptr;
   linked_address->next_ = nullptr;
+  num_linked_address_--;
 }
 
 #undef SScanF
