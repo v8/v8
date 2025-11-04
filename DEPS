@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'fd571058170087fff09fcac020c9e32c36032387',
+  'partition_alloc_version': 'f228d5a6170573dba10189f5a8d32623954c39c4',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'aaf2532e6d61f07f2537ca42ff8de95115eb2d90',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c7041cd93690257b1f1c3b5ec4922287fd396bd8',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '628cf12465dae2a157524a23608a58b525d30623',
   'buildtools/linux64': {
@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'cd6bedc76713f8b98451b5d275af8a16fd4b0acd',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '3f12fbda56274622d9a756dac158a8bd54b7bd5f',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'ddfdbbc1ab109b4fc6171f3d8c38faf4586701d2',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '9df28d1e6c6e831ad34a0cd354f667e3d54fc3a1',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'bb789ae647a626f62dd28806334314fd72071f6f',
   'third_party/libpfm4':
     Var('chromium_url') + '/chromium/src/third_party/libpfm4.git' + '@' + '25c29f04c9127e1ca09e6c1181f74850aa7f118b',
   'third_party/libpfm4/src':
