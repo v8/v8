@@ -38,7 +38,7 @@ class MaglevGraphOptimizer {
   ProcessResult Visit##NodeT(NodeT*, const ProcessingState&);         \
   ProcessResult Process(NodeT* node, const ProcessingState& state) {  \
     ScopedModification<NodeBase*> current_node(&current_node_, node); \
-    node->UnwrapIdentityInputs();                                     \
+    UnwrapInputs();                                                   \
     PreProcessNode(node, state);                                      \
     ProcessResult result = Visit##NodeT(node, state);                 \
     PostProcessNode(node);                                            \
@@ -76,6 +76,7 @@ class MaglevGraphOptimizer {
   // Iterates the deopt frames unwrapping its inputs, ie, removing Identity or
   // ReturnedValue nodes.
   void UnwrapDeoptFrames();
+  void UnwrapInputs();
 
   ValueNode* GetConstantWithRepresentation(
       ValueNode* node, UseRepresentation repr,

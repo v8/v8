@@ -53,7 +53,7 @@ class InterpreterFrameState {
     frame_[interpreter::Register::virtual_accumulator()] = value;
   }
   ValueNode* accumulator() const {
-    return frame_[interpreter::Register::virtual_accumulator()]->Unwrap();
+    return frame_[interpreter::Register::virtual_accumulator()];
   }
 
   void set(interpreter::Register reg, ValueNode* value) {
@@ -72,7 +72,7 @@ class InterpreterFrameState {
                        reg == interpreter::Register::function_closure() ||
                        reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
-    return frame_[reg]->Unwrap();
+    return frame_[reg];
   }
 
   const RegisterFrameArray<ValueNode*>& frame() const { return frame_; }
@@ -376,7 +376,6 @@ class MergePointInterpreterFrameState {
     MergeDead(compilation_unit);
     // This means that this is no longer a loop.
     clear_is_loop();
-    ClearIdentityPhis();
   }
 
   // Clears dead loop state, after all merges have already be done.
@@ -386,7 +385,6 @@ class MergePointInterpreterFrameState {
     predecessors_so_far_--;
     ReducePhiPredecessorCount(1);
     clear_is_loop();
-    ClearIdentityPhis();
   }
 
   void RemovePredecessorAt(int predecessor_id);
@@ -420,10 +418,6 @@ class MergePointInterpreterFrameState {
 
   bool has_phi() const { return !phis_.is_empty(); }
   Phi::List* phis() { return &phis_; }
-
-  // ClearIdentityPhis iterates {phis_} and removes the "identity phis", ie,
-  // phis whose inputs are all the same.
-  void ClearIdentityPhis();
 
   uint32_t predecessor_count() const { return predecessor_count_; }
 
@@ -471,9 +465,7 @@ class MergePointInterpreterFrameState {
            basic_block_type() == BasicBlockType::kUnusedExceptionHandlerStart;
   }
 
-  bool is_inline() const { return kIsInlineBit::decode(bitfield_); }
-
-  bool is_turbolev() const { return kIsTurbolevBit::decode(bitfield_); }
+  bool is_inline() const { return kIsInline::decode(bitfield_); }
 
   bool is_unmerged_loop() const {
     // If this is a loop and not all predecessors are set, then the loop isn't
@@ -528,8 +520,7 @@ class MergePointInterpreterFrameState {
   using kBasicBlockTypeBits = base::BitField<BasicBlockType, 0, 2>;
   using kIsResumableLoopBit = kBasicBlockTypeBits::Next<bool, 1>;
   using kIsLoopWithPeeledIterationBit = kIsResumableLoopBit::Next<bool, 1>;
-  using kIsInlineBit = kIsLoopWithPeeledIterationBit::Next<bool, 1>;
-  using kIsTurbolevBit = kIsInlineBit::Next<bool, 1>;
+  using kIsInline = kIsLoopWithPeeledIterationBit::Next<bool, 1>;
 
   // For each non-Phi value in the frame state, store its alternative
   // representations to avoid re-converting on Phi creation.
