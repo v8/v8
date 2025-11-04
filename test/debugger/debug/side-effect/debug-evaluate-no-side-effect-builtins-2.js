@@ -49,8 +49,6 @@ function listener(event, exec_state, event_data, data) {
           fail(`date.${f}(5);`, true);
         } else if (f.startsWith("toLocale") && typeof Intl === "undefined") {
           continue;
-        } else if (f === "toTemporalInstant") {
-          continue;
         } else {
           success(undefined, `date.${f}();`);
         }
