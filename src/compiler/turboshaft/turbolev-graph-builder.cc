@@ -298,8 +298,8 @@ class GeneratorAnalyzer {
   }
 
   const maglev::BasicBlock* GetLoopHeader(const maglev::BasicBlock* node) {
-    if (block_to_header_.contains(node)) {
-      return block_to_header_[node];
+    if (auto it = block_to_header_.find(node); it != block_to_header_.end()) {
+      return it->second;
     }
     return nullptr;
   }
@@ -326,15 +326,13 @@ class GeneratorAnalyzer {
       return;
     }
 
-    block_to_header_[backedge_block] = header;
+    block_to_header_.insert_or_assign(backedge_block, header);
 
     for (; *it != backedge_block; --it) {
       const maglev::BasicBlock* curr = *it;
-      if (block_to_header_.contains(curr)) {
-        // {curr} is part of an inner loop.
-        continue;
-      }
-      block_to_header_[curr] = header;
+      // Update header iff {curr} exists as a key. If it does,
+      // {curr} is part of an inner loop.
+      block_to_header_.try_emplace(curr, header);
     }
   }
 
@@ -510,8 +508,8 @@ class GraphBuildingNodeProcessor {
 
   void PreProcessGraph(maglev::Graph* graph) {
     for (maglev::BasicBlock* block : *graph) {
-      block_mapping_[block] =
-          block->is_loop() ? __ NewLoopHeader() : __ NewBlock();
+      block_mapping_.insert_or_assign(
+          block, block->is_loop() ? __ NewLoopHeader() : __ NewBlock());
     }
     // Constants are not in a block in Maglev but are in Turboshaft. We bind the
     // 1st block now, so that Constants can then be emitted.
@@ -6477,7 +6475,7 @@ class GraphBuildingNodeProcessor {
     if (__ generating_unreachable_operations()) return;
     DCHECK(idx.valid());
     DCHECK_EQ(__ output_graph().Get(idx).outputs_rep().size(), 1);
-    node_mapping_[node] = idx;
+    node_mapping_.insert_or_assign(node, idx);
   }
 
   void SetMapMaybeMultiReturn(maglev::NodeBase* node, V<Any> idx) {
@@ -6500,7 +6498,7 @@ class GraphBuildingNodeProcessor {
   void RecordRepresentation(OpIndex idx, maglev::ValueRepresentation repr) {
     DCHECK_IMPLIES(maglev_representations_.contains(idx),
                    maglev_representations_[idx] == repr);
-    maglev_representations_[idx] = repr;
+    maglev_representations_.insert_or_assign(idx, repr);
   }
 
   V<NativeContext> native_context() {
