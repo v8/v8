@@ -2497,45 +2497,26 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   ConstantPoolPointerForwarder forwarder(
       isolate, isolate->main_thread_local_heap(), old_script);
 
-  for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
-    Tagged<SharedFunctionInfo> sfi = *new_compiled_data.cached_sfi;
-    if (!sfi->is_compiled() && new_compiled_data.new_sfi->is_compiled()) {
-      // Updating existing DebugInfos is not supported, but we don't expect
-      // uncompiled SharedFunctionInfos to contain DebugInfos.
-      DCHECK(!new_compiled_data.cached_sfi->HasDebugInfo(isolate));
-      // The goal here is to copy every field except script from
-      // new_sfi to cached_sfi. The safest way to do so (including a DCHECK that
-      // no fields were skipped) is to first copy the script from
-      // cached_sfi to new_sfi, and then copy every field using CopyFrom.
-      new_compiled_data.new_sfi->set_script(sfi->script(kAcquireLoad),
-                                            kReleaseStore);
-      sfi->CopyFrom(*new_compiled_data.new_sfi, isolate);
-    }
-  }
-
+  // Find infos that didn't exist during the background work, but do now. This
+  // means a re-merge is necessary. Potential references to the new script's SFI
+  // need to be updated to point to the cached script's SFI instead. The cached
+  // script's SFI's outer scope infos need to be used by the new script's outer
+  // SFIs.
   for (int i = 0; i < old_script->infos()->length(); ++i) {
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
     if (maybe_new_info == maybe_old_info) continue;
     DisallowGarbageCollection no_gc;
     if (maybe_old_info.IsWeak()) {
-      // The old script's SFI didn't exist during the background work, but does
-      // now. This means a re-merge is necessary. Potential references to the
-      // new script's SFI need to be updated to point to the cached script's SFI
-      // instead. The cached script's SFI's outer scope infos need to be used by
-      // the new script's outer SFIs.
       if (Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())) {
         forwarder.set_has_shared_function_info_to_forward();
       }
       forwarder.RecordScopeInfos(maybe_old_info);
-    } else {
-      old_script->infos()->set(i, maybe_new_info);
     }
   }
 
-  // Most of the time, the background merge was sufficient. However, if there
-  // are any new pointers that need forwarding, a new traversal of the constant
-  // pools is required.
+  // If we found anything in the pass before, update the new data that we'll
+  // merge in before actually merging it in.
   if (forwarder.HasAnythingToForward()) {
     for (DirectHandle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
       forwarder.UpdateScopeInfo(*new_sfi);
@@ -2544,17 +2525,56 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
       }
     }
     for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
-      // It's possible that cached_sfi wasn't compiled, but an inner function
-      // existed that didn't exist when be background merged. In that case, pick
-      // up the relevant scope infos.
-      Tagged<SharedFunctionInfo> sfi = *new_compiled_data.cached_sfi;
+      // Unconditionally track the new_compiled_data for updating, even if we
+      // might not use it because old_sfi is already compiled. It's possible
+      // that the old_sfi bytecode is dropped before we decide whether to
+      // actually copy it.
+      Tagged<SharedFunctionInfo> sfi = *new_compiled_data.new_sfi;
       forwarder.InstallOwnScopeInfo(sfi);
-      if (new_compiled_data.cached_sfi->HasBytecodeArray(isolate)) {
+      if (new_compiled_data.new_sfi->HasBytecodeArray(isolate)) {
         forwarder.AddBytecodeArray(
-            new_compiled_data.cached_sfi->GetBytecodeArray(isolate));
+            new_compiled_data.new_sfi->GetBytecodeArray(isolate));
       }
     }
     forwarder.IterateAndForwardPointers();
+  }
+
+  auto compiled_data_it = new_compiled_data_for_cached_sfis_.rbegin();
+
+  // Release the compiled data backwards to make sure that subtrees are always
+  // consistent. Infos in the table are ordered by nesting, so this ensures that
+  // e.g. by the time we release bytecode, its scope infos and sfis are already
+  // in the table as well.
+  // This is important because other background merge tasks as well as
+  // concurrently running optimizing compile jobs might be looking at what we
+  // release here.
+  for (int i = old_script->infos()->length() - 1; i >= 0; --i) {
+    Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
+    Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
+    if (maybe_new_info == maybe_old_info) {
+      if (compiled_data_it != new_compiled_data_for_cached_sfis_.rend() &&
+          compiled_data_it->cached_sfi->function_literal_id(kRelaxedLoad) >=
+              i) {
+        CHECK_EQ(
+            compiled_data_it->cached_sfi->function_literal_id(kRelaxedLoad), i);
+        Tagged<SharedFunctionInfo> sfi = *compiled_data_it->cached_sfi;
+        if (!sfi->is_compiled() && compiled_data_it->new_sfi->is_compiled()) {
+          // Updating existing DebugInfos is not supported, but we don't expect
+          // uncompiled SharedFunctionInfos to contain DebugInfos.
+          DCHECK(!compiled_data_it->cached_sfi->HasDebugInfo(isolate));
+          // The goal here is to copy every field except script from
+          // new_sfi to cached_sfi. The safest way to do so (including a DCHECK
+          // that no fields were skipped) is to first copy the script from
+          // cached_sfi to new_sfi, and then copy every field using CopyFrom.
+          compiled_data_it->new_sfi->set_script(sfi->script(kAcquireLoad),
+                                                kReleaseStore);
+          sfi->CopyFrom(*compiled_data_it->new_sfi, isolate);
+        }
+        compiled_data_it++;
+      }
+    } else if (!maybe_old_info.IsWeak()) {
+      old_script->infos()->set(i, maybe_new_info);
+    }
   }
 
   Tagged<MaybeObject> maybe_toplevel_sfi =
