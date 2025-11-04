@@ -6155,6 +6155,7 @@ bool FlagWithArgMatches(const char (&flag)[N], char** flag_value, int argc,
 bool Shell::SetOptions(int argc, char* argv[]) {
   options.d8_path = argv[0];
   bool disallow_unsafe_flags = false;
+  bool exit_on_flag_contradictions = false;
   for (int i = 0; i < argc; i++) {
     char* flag_value = nullptr;
     if (FlagMatches("--", &argv[i])) {
@@ -6177,6 +6178,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (FlagMatches("--abort-on-contradictory-flags", &argv[i],
                            /*keep_flag=*/true)) {
       check_d8_flag_contradictions = true;
+    } else if (FlagMatches("--exit-on-contradictory-flags", &argv[i],
+                           /*keep_flag=*/true)) {
+      check_d8_flag_contradictions = true;
+      exit_on_flag_contradictions = true;
     } else if (FlagMatches("--disallow-unsafe-flags", &argv[i],
                            /*keep_flag=*/true)) {
       disallow_unsafe_flags = true;
@@ -6360,14 +6365,19 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   if (disallow_unsafe_flags) {
     const auto check_flag_is_not_specified =
-        []<typename T>(const ShellOptions::DisallowReassignment<T>& flag) {
+        [&]<typename T>(const ShellOptions::DisallowReassignment<T>& flag) {
           if (!flag.WasSpecified()) {
             return;
           }
-          base::FatalNoSecurityImpact(
+          base::OS::PrintError(
               "Command-line provided flag --%s is prohibited by "
-              "--disallow-unsafe-flags.",
+              "--disallow-unsafe-flags.\n",
               flag.name());
+          if (exit_on_flag_contradictions) {
+            base::OS::ExitProcess(-1);
+          } else {
+            base::OS::Abort();
+          }
         };
     // The --disallow-unsafe-flags is meant to block known unsafe configurations
     // and mitigate spurious reports due invalid flag combinations/values. To
