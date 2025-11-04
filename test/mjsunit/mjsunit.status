@@ -2882,6 +2882,13 @@
 }], # (variant in (turbolev, turbolev_future, stress_turbolev_future)) and (arch == arm64)
 
 ##############################################################################
+['variant == stress_maglev_tests_with_turbofan', {
+  # This test deopts in Turbofan because it doesn't realize than nan==nan,
+  # whereas Maglev has special handling for this.
+  'maglev/store-constant-field-nan': [SKIP],
+}], # variant == stress_maglev_tests_with_turbofan'
+
+##############################################################################
 ['clang_coverage and mode == debug', {
   # Too slow tests.
   'asm/poppler/poppler': [SKIP],
