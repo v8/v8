@@ -1317,7 +1317,7 @@ class FeedbackMaker {
 
   void AddCallRefCandidate(Tagged<WasmFuncRef> funcref, int count) {
     Tagged<WasmInternalFunction> internal_function =
-        Cast<WasmFuncRef>(funcref)->internal(isolate_);
+        funcref->internal(isolate_);
     // Discard cross-instance calls, as we can only inline same-instance code.
     if (internal_function->implicit_arg() != instance_data_) {
       has_non_inlineable_targets_ = true;
@@ -4224,10 +4224,14 @@ void CompilationStateImpl::OnCompilationStopped(
   if (new_detected_features.empty()) return;
 
   // New detected features can only happen during eager compilation or if lazy
-  // validation is enabled.
+  // validation is enabled. Compilation hints enables eager compilation if there
+  // are compilation-priority hints in the module, so it should be included
+  // here.
   // The exceptions are currently stringref and imported strings, which are only
   // detected on top-tier compilation.
   DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
+         (v8_flags.experimental_wasm_compilation_hints &&
+          !native_module_->module()->compilation_priorities.empty()) ||
          (new_detected_features -
           WasmDetectedFeatures{{WasmDetectedFeature::stringref,
                                 WasmDetectedFeature::imported_strings_utf8,

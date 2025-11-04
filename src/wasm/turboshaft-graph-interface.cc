@@ -320,7 +320,7 @@ class TurboshaftGraphBuildingInterface
       if (mode_ == kRegular) {
         if (v8_flags.liftoff) {
           inlining_decisions_ = InliningTree::CreateRoot(
-              decoder->zone_, decoder->module_, func_index_);
+              decoder->zone_, decoder->module_, wire_bytes_, func_index_);
         } else {
           set_no_liftoff_inlining_budget(
               InliningTree::NoLiftoffBudget(decoder->module_, func_index_));
@@ -336,7 +336,8 @@ class TurboshaftGraphBuildingInterface
           DCHECK(inlining_decisions_->is_inlined());
           DCHECK_EQ(inlining_decisions_->function_index(), func_index_);
           base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
-          if (inlining_decisions_->feedback_found()) {
+          if (inlining_decisions_->feedback_found() &&
+              inlining_decisions_->mode() == InliningTree::Mode::kVector) {
             DCHECK_NE(
                 decoder->module_->type_feedback.feedback_for_function.find(
                     func_index_),
@@ -393,7 +394,8 @@ class TurboshaftGraphBuildingInterface
 
   void FinishFunction(FullDecoder* decoder) {
     if (v8_flags.liftoff && inlining_decisions_ &&
-        inlining_decisions_->feedback_found()) {
+        inlining_decisions_->feedback_found() &&
+        inlining_decisions_->mode() == InliningTree::Mode::kVector) {
       DCHECK_EQ(
           feedback_slot_,
           static_cast<int>(inlining_decisions_->function_calls().size()) - 1);
@@ -2586,8 +2588,10 @@ class TurboshaftGraphBuildingInterface
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
         size_t return_count = imm.sig->return_count();
-        base::Vector<InliningTree*> feedback_cases =
-            inlining_decisions_->function_calls()[feedback_slot_];
+        // TODO(manoskouk): What if none of the cases can be inlined due to
+        // faulty hints (i.e. with the wrong signature)? Same for
+        // ReturnCallIndirect, CallRef, ReturnCallRef.
+        base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
         std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
         // The slow path is the non-inlined generic `call_indirect`,
         // or a deopt node if that is enabled.
@@ -2602,15 +2606,15 @@ class TurboshaftGraphBuildingInterface
         // Block for merging results after the inlined code.
         TSBlock* merge = __ NewBlock();
 
-        // Always create a frame state, but rely on DCE to remove it in case we
-        // end up not using deopts. This allows us to share the frame state
+        // Creating the frame state here allows us to share the frame state
         // between a deopt due to wrong instance and deopt due to wrong target.
-        V<FrameState> frame_state =
-            CreateFrameState(decoder, imm.sig, &index, args);
         bool use_deopt_slowpath = deopts_enabled();
+        V<FrameState> frame_state =
+            use_deopt_slowpath
+                ? CreateFrameState(decoder, imm.sig, &index, args)
+                : OpIndex::Invalid();
         DCHECK_IMPLIES(use_deopt_slowpath, frame_state.valid());
-        if (use_deopt_slowpath &&
-            inlining_decisions_->has_non_inlineable_targets()[feedback_slot_]) {
+        if (use_deopt_slowpath && GetHasNonInlinableTargets(decoder)) {
           if (v8_flags.trace_wasm_inlining) {
             PrintF(
                 "[function %d%s: Not emitting deopt slow-path for "
@@ -2769,8 +2773,7 @@ class TurboshaftGraphBuildingInterface
         auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
-        base::Vector<InliningTree*> feedback_cases =
-            inlining_decisions_->function_calls()[feedback_slot_];
+        base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
         constexpr int kSlowpathCase = 1;
         base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
             case_blocks;
@@ -2871,8 +2874,7 @@ class TurboshaftGraphBuildingInterface
           MemoryRepresentation::TaggedPointer());
 
       size_t return_count = sig->return_count();
-      base::Vector<InliningTree*> feedback_cases =
-          inlining_decisions_->function_calls()[feedback_slot_];
+      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
       std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
       // The slow path is the non-inlined generic `call_ref`,
       // or a deopt node if that is enabled.
@@ -2904,8 +2906,7 @@ class TurboshaftGraphBuildingInterface
 
         bool is_last_feedback_case = (i == feedback_cases.size() - 1);
         if (use_deopt_slowpath && is_last_feedback_case) {
-          if (inlining_decisions_
-                  ->has_non_inlineable_targets()[feedback_slot_]) {
+          if (GetHasNonInlinableTargets(decoder)) {
             if (v8_flags.trace_wasm_inlining) {
               PrintF(
                   "[function %d%s: Not emitting deopt slow-path for "
@@ -3002,8 +3003,7 @@ class TurboshaftGraphBuildingInterface
           trusted_instance_data(kNotShared), FuncRefs,
           MemoryRepresentation::TaggedPointer());
 
-      base::Vector<InliningTree*> feedback_cases =
-          inlining_decisions_->function_calls()[feedback_slot_];
+      base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
       constexpr int kSlowpathCase = 1;
       base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
           case_blocks;
@@ -8724,6 +8724,26 @@ class TurboshaftGraphBuildingInterface
     return stack_slot;
   }
 
+  base::Vector<InliningTree*> GetFeedbackCases(FullDecoder* decoder) {
+    if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
+      return inlining_decisions_->function_calls()[feedback_slot_];
+    }
+    DCHECK(inlining_decisions_->function_calls_map().contains(
+        decoder->pc_relative_offset()));
+    return inlining_decisions_
+        ->function_calls_map()[decoder->pc_relative_offset()];
+  }
+
+  bool GetHasNonInlinableTargets(FullDecoder* decoder) {
+    if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
+      return inlining_decisions_->has_non_inlineable_targets()[feedback_slot_];
+    }
+    DCHECK(inlining_decisions_->has_non_inlineable_targets_map().contains(
+        decoder->pc_relative_offset()));
+    return inlining_decisions_
+        ->has_non_inlineable_targets_map()[decoder->pc_relative_offset()];
+  }
+
   bool InlineTargetIsTypeCompatible(const WasmModule* module,
                                     const FunctionSig* sig,
                                     const FunctionSig* inlinee) {
@@ -8746,6 +8766,8 @@ class TurboshaftGraphBuildingInterface
     DCHECK_IMPLIES(is_tail_call, returns == nullptr);
     const WasmFunction& inlinee = decoder->module_->functions[func_index];
     // In a corrupted sandbox, we can't trust the collected feedback.
+    // TODO(manoskouk): In case of compilation hints, we might be given a
+    // compilation hint with the wrong signature. Silently do not inline then.
     SBXCHECK(InlineTargetIsTypeCompatible(decoder->module_, sig, inlinee.sig));
 
     SmallZoneVector<OpIndex, 16> inlinee_args(
@@ -8861,9 +8883,16 @@ class TurboshaftGraphBuildingInterface
     }
     if (v8_flags.liftoff) {
       if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
-        inlinee_decoder.interface().set_inlining_decisions(
-            inlining_decisions_
-                ->function_calls()[feedback_slot_][feedback_case]);
+        if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
+          inlinee_decoder.interface().set_inlining_decisions(
+              inlining_decisions_
+                  ->function_calls()[feedback_slot_][feedback_case]);
+        } else {
+          inlinee_decoder.interface().set_inlining_decisions(
+              inlining_decisions_
+                  ->function_calls_map()[decoder->pc_relative_offset()]
+                                        [feedback_case]);
+        }
       }
     } else {
       no_liftoff_inlining_budget_ -= inlinee.code.length();
@@ -8990,6 +9019,7 @@ class TurboshaftGraphBuildingInterface
     if (shared_) return false;
 
     // Configuration without Liftoff and feedback, e.g., for testing.
+    // TODO(manoskouk): What if compilation hints are present?
     if (!v8_flags.liftoff) {
       return size < no_liftoff_inlining_budget_ &&
              // In a production configuration, `InliningTree` decides what to
@@ -9003,14 +9033,31 @@ class TurboshaftGraphBuildingInterface
     // Default, production configuration: Liftoff collects feedback, which
     // decides whether we inline:
     if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
-      DCHECK_GT(inlining_decisions_->function_calls().size(), feedback_slot);
-      // We should inline if at least one case for this feedback slot needs
-      // to be inlined.
-      for (InliningTree* tree :
-           inlining_decisions_->function_calls()[feedback_slot]) {
-        if (tree && tree->is_inlined()) {
-          DCHECK(!decoder->module_->function_is_shared(tree->function_index()));
-          return true;
+      if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
+        DCHECK_GT(inlining_decisions_->function_calls().size(), feedback_slot);
+        // We should inline if at least one case for this feedback slot needs
+        // to be inlined.
+        for (InliningTree* tree :
+             inlining_decisions_->function_calls()[feedback_slot]) {
+          if (tree && tree->is_inlined()) {
+            DCHECK(
+                !decoder->module_->function_is_shared(tree->function_index()));
+            return true;
+          }
+        }
+      } else {
+        DCHECK_EQ(inlining_decisions_->mode(), InliningTree::Mode::kMap);
+        auto it = inlining_decisions_->function_calls_map().find(
+            decoder->pc_relative_offset());
+        if (it == inlining_decisions_->function_calls_map().end()) {
+          return false;
+        }
+        for (InliningTree* tree : it->second) {
+          if (tree && tree->is_inlined()) {
+            DCHECK(
+                !decoder->module_->function_is_shared(tree->function_index()));
+            return true;
+          }
         }
       }
       return false;
@@ -9038,6 +9085,17 @@ class TurboshaftGraphBuildingInterface
   void disable_deopts() { deopts_enabled_ = false; }
   bool deopts_enabled() {
     if (!deopts_enabled_.has_value()) {
+      if (inlining_decisions_ &&
+          inlining_decisions_->mode() == InliningTree::Mode::kMap) {
+        // We have to disable deopts in this case. Deopts need function feedback
+        // for GetLiftoffFrameSize.
+        // TODO(manoskouk): This will be inherited by inlinee decoders. This is
+        // probably fine because this will mostly happen with eager compilation
+        // and at this point they will not have feedback either, i.e. they will
+        // also have the kMap mode.
+        deopts_enabled_ = false;
+        return false;
+      }
       deopts_enabled_ = v8_flags.wasm_deopt;
       if (v8_flags.wasm_deopt) {
         const wasm::TypeFeedbackStorage& feedback = env_->module->type_feedback;

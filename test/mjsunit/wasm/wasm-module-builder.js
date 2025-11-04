@@ -1465,6 +1465,8 @@ class WasmModuleBuilder {
     this.explicit = [];
     this.rec_groups = [];
     this.compilation_priorities = new Map();
+    this.instruction_frequencies = new Map();
+    this.call_targets = new Map();
     this.start_index = undefined;
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
@@ -1871,6 +1873,23 @@ class WasmModuleBuilder {
     this.compilation_priorities.set(function_index, {
       compilation_priority, optimization_priority
     });
+  }
+
+  // `instruction_frequencies` must be an array of {offset, frequency} objects.
+  setInstructionFrequencies(function_index, instruction_frequencies) {
+    if (!Array.isArray(instruction_frequencies)) {
+      throw new Error("instruction_frequencies must be an array");
+    }
+    this.instruction_frequencies.set(function_index, instruction_frequencies);
+  }
+
+  // `call_targets` must be an array of {offset, targets} object, where
+  // `targets` is an array of {function_index, frequency_percent} objects.
+  setCallTargets(function_index, call_targets) {
+    if (!Array.isArray(call_targets)) {
+      throw new Error("call_targets must be an array");
+    }
+    this.call_targets.set(function_index, call_targets);
   }
 
   toBuffer(debug = false) {
@@ -2306,7 +2325,7 @@ class WasmModuleBuilder {
         section.emit_u32v(this.compilation_priorities.size);
         this.compilation_priorities.forEach((priority, index) => {
           section.emit_u32v(index);
-          section.emit_u8(0);  // Byte offset 0 for function level hint.
+          section.emit_u8(0);  // Byte offset 0 for function-level hint.
           let compilation_priority =
               wasmUnsignedLeb(priority.compilation_priority);
           let optimization_priority =
@@ -2317,6 +2336,54 @@ class WasmModuleBuilder {
                             optimization_priority.length);
           section.emit_bytes(compilation_priority);
           section.emit_bytes(optimization_priority);
+        })
+      })
+    }
+
+    // Add instruction frequencies.
+    if (this.instruction_frequencies.size > 0) {
+      binary.emit_section(kUnknownSectionCode, section => {
+        section.emit_string("metadata.code.instr_freq");
+        section.emit_u32v(this.instruction_frequencies.size);
+        this.instruction_frequencies.forEach((frequencies, index) => {
+          section.emit_u32v(index);
+          section.emit_u32v(frequencies.length);
+          frequencies.forEach(frequency => {
+            section.emit_u32v(frequency.offset);
+            section.emit_u32v(1);  // Hint length.
+            section.emit_u8(frequency.frequency);
+          })
+        })
+      })
+    }
+
+    // Add call targets.
+    if (this.call_targets.size > 0) {
+      binary.emit_section(kUnknownSectionCode, section => {
+        section.emit_string("metadata.code.call_targets");
+        section.emit_u32v(this.call_targets.size);
+        this.call_targets.forEach((targets, index) => {
+          section.emit_u32v(index);
+          section.emit_u32v(targets.length);
+          targets.forEach(targets_for_offset => {
+            section.emit_u32v(targets_for_offset.offset);
+            let hints = targets_for_offset.targets.map(target => {
+              return {
+                function_index: wasmUnsignedLeb(target.function_index),
+                frequency_percent: wasmUnsignedLeb(target.frequency_percent)
+              }
+            })
+            var hint_length = 0;
+            hints.forEach(hint => {
+              hint_length += hint.function_index.length;
+              hint_length += hint.frequency_percent.length;
+            });
+            section.emit_u32v(hint_length);
+            hints.forEach(hint => {
+              section.emit_u32v(hint.function_index);
+              section.emit_u32v(hint.frequency_percent);
+            })
+          })
         })
       })
     }

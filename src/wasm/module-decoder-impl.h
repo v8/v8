@@ -1929,6 +1929,11 @@ class ModuleDecoderImpl : public Decoder {
 
           uint8_t frequency = inner.consume_u8("frequency");
 
+          if (!(frequency <= 64 || frequency == 127)) {
+            inner.error("invalid frequency");
+            break;
+          }
+
           // Skip remaining hint bytes.
           if (hint_length > 1) {
             inner.consume_bytes(hint_length - 1);
