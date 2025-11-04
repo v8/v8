@@ -8429,7 +8429,7 @@ void Simulator::PushShadowStack(uintptr_t value) {
   }
   csr_ssp_ = csr_ssp_ - 1;
   shadow_stack_[csr_ssp_] = value;
-  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")", value, icount_);
+  SNPrintF(trace_buf_, "%016" PRIuPTR "    (%" PRId64 ")", value, icount_);
   return;
 }
 
@@ -8446,7 +8446,7 @@ uintptr_t Simulator::PopShadowStack(uintptr_t value) {
   } else {
     csr_ssp_ += 1;
   }
-  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")", value, icount_);
+  SNPrintF(trace_buf_, "%016" PRIuPTR "    (%" PRId64 ")", value, icount_);
   return temp;
 }
 
