@@ -7610,9 +7610,46 @@ ReduceResult MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
   return build_generic_access();
 }
 
+ReduceResult MaglevGraphBuilder::BuildSetKeyedProperty(
+    ValueNode* object, ValueNode* index, compiler::AccessMode access_mode,
+    const compiler::FeedbackSource& feedback_source,
+    const compiler::ProcessedFeedback& processed_feedback,
+    base::FunctionRef<ReduceResult()> generic_setter) {
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      return EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
+          index, processed_feedback.AsNamedAccess().original_name_maybe_thin(),
+          DeoptimizeReason::kKeyedAccessChanged));
+
+      RETURN_IF_DONE(TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          access_mode, generic_setter));
+      break;
+    }
+
+    case compiler::ProcessedFeedback::kElementAccess: {
+      RETURN_IF_DONE(TryBuildElementAccess(object, index,
+                                           processed_feedback.AsElementAccess(),
+                                           feedback_source, generic_setter));
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  // Create a generic store in the fallthrough.
+  return generic_setter();
+}
+
 ReduceResult MaglevGraphBuilder::VisitSetKeyedProperty() {
   // SetKeyedProperty <object> <key> <slot>
   ValueNode* object = LoadRegister(0);
+  ValueNode* key = LoadRegister(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
@@ -7620,40 +7657,22 @@ ReduceResult MaglevGraphBuilder::VisitSetKeyedProperty() {
       broker()->GetFeedbackForPropertyAccess(
           feedback_source, compiler::AccessMode::kStore, std::nullopt);
 
-  auto build_generic_access = [this, object, &feedback_source]() {
-    ValueNode* key = LoadRegister(1);
+  auto build_generic_access = [this, object, key, &feedback_source]() {
     ValueNode* context = GetContext();
     ValueNode* value = GetAccumulator();
     return AddNewNode<SetKeyedGeneric>({context, object, key, value},
                                        feedback_source);
   };
 
-  switch (processed_feedback.kind()) {
-    case compiler::ProcessedFeedback::kInsufficient:
-      return EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
-
-    case compiler::ProcessedFeedback::kElementAccess: {
-      // Get the key without conversion. TryBuildElementAccess will try to pick
-      // the best representation.
-      ValueNode* index =
-          current_interpreter_frame_.get(iterator_.GetRegisterOperand(1));
-      RETURN_IF_DONE(TryBuildElementAccess(
-          object, index, processed_feedback.AsElementAccess(), feedback_source,
-          build_generic_access));
-    } break;
-
-    default:
-      break;
-  }
-
-  // Create a generic store in the fallthrough.
-  return build_generic_access();
+  return BuildSetKeyedProperty(object, key, compiler::AccessMode::kStore,
+                               feedback_source, processed_feedback,
+                               build_generic_access);
 }
 
 ReduceResult MaglevGraphBuilder::VisitDefineKeyedOwnProperty() {
   // DefineKeyedOwnProperty <object> <key> <flags> <slot>
   ValueNode* object = LoadRegister(0);
+  ValueNode* key = LoadRegister(1);
   FeedbackSlot slot = GetSlotOperand(3);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
@@ -7661,51 +7680,17 @@ ReduceResult MaglevGraphBuilder::VisitDefineKeyedOwnProperty() {
       broker()->GetFeedbackForPropertyAccess(
           feedback_source, compiler::AccessMode::kDefine, std::nullopt);
 
-  auto build_generic_access = [this, object, &feedback_source]() {
+  auto build_generic_access = [this, object, key, &feedback_source]() {
     ValueNode* context = GetContext();
-    ValueNode* index = LoadRegister(1);
     ValueNode* value = GetAccumulator();
     ValueNode* flags = GetSmiConstant(GetFlag8Operand(2));
     return AddNewNode<DefineKeyedOwnGeneric>(
-        {context, object, index, value, flags}, feedback_source);
+        {context, object, key, value, flags}, feedback_source);
   };
 
-  switch (processed_feedback.kind()) {
-    case compiler::ProcessedFeedback::kInsufficient:
-      return EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
-
-    case compiler::ProcessedFeedback::kNamedAccess: {
-      ValueNode* index = LoadRegister(1);
-      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
-          index, processed_feedback.AsNamedAccess().original_name_maybe_thin(),
-          DeoptimizeReason::kKeyedAccessChanged));
-
-      compiler::NameRef name = processed_feedback.AsNamedAccess().name();
-      MaybeReduceResult result = TryReuseKnownPropertyLoad(object, name);
-      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
-
-      RETURN_IF_DONE(TryBuildNamedAccess(
-          object, object, processed_feedback.AsNamedAccess(), feedback_source,
-          compiler::AccessMode::kDefine, build_generic_access));
-      break;
-    }
-
-    case compiler::ProcessedFeedback::kElementAccess: {
-      // Get the key without conversion. TryBuildElementAccess will try to pick
-      // the best representation.
-      ValueNode* index = LoadRegister(1);
-      RETURN_IF_DONE(TryBuildElementAccess(
-          object, index, processed_feedback.AsElementAccess(), feedback_source,
-          build_generic_access));
-    } break;
-
-    default:
-      break;
-  }
-
-  // Create a generic store in the fallthrough.
-  return build_generic_access();
+  return BuildSetKeyedProperty(object, key, compiler::AccessMode::kDefine,
+                               feedback_source, processed_feedback,
+                               build_generic_access);
 }
 
 ReduceResult MaglevGraphBuilder::VisitStaInArrayLiteral() {
