@@ -2319,6 +2319,8 @@ size_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
         return ConsString::kMinLength;
       }
       break;
+    case Opcode::kNewConsString:
+      return ConsString::kMinLength;
     case Opcode::kStringConcat:
       if (max_depth == 0) return 0;
       return StringLengthStaticLowerBound(string->input(0).node(),
