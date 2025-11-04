@@ -2057,6 +2057,7 @@ DEFINE_BOOL(wasm_inlining_ignore_call_counts, false,
             "is supposed to be used for fuzzing")
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
+DEFINE_BOOL(trace_wasm_simd_shuffle, false, "trace wasm simd shuffle")
 DEFINE_BOOL(wasm_inlining_call_indirect, true,
             "enable speculative inlining of Wasm indirect calls")
 // call_indirect inlining requires the basic inlining machinery, e.g., for

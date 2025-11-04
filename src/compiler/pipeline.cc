@@ -3243,13 +3243,6 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
     CHECK(turboshaft_pipeline.Run<turboshaft::WasmOptimizePhase>());
   }
 
-#if V8_TARGET_ARCH_ARM64
-  if (v8_flags.experimental_wasm_simd_opt && v8_flags.wasm_opt &&
-      detected->has_simd()) {
-    CHECK(turboshaft_pipeline.Run<turboshaft::WasmSimdPhase>());
-  }
-#endif  // V8_TARGET_ARCH_ARM64
-
 #if DEBUG
   if (!v8_flags.wasm_opt) {
     // We still need to lower allocation operations even with optimizations
@@ -3263,6 +3256,13 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   }
 
   CHECK(turboshaft_pipeline.Run<turboshaft::WasmDeadCodeEliminationPhase>());
+
+#if V8_TARGET_ARCH_ARM64
+  if (v8_flags.experimental_wasm_simd_opt && v8_flags.wasm_opt &&
+      detected->has_simd()) {
+    CHECK(turboshaft_pipeline.Run<turboshaft::WasmSimdPhase>());
+  }
+#endif  // V8_TARGET_ARCH_ARM64
 
   if (V8_UNLIKELY(v8_flags.turboshaft_enable_debug_features)) {
     // This phase has to run very late to allow all previous phases to use
