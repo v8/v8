@@ -174,6 +174,77 @@ TEST(Heap, OldGenerationSizeFromPhysicalMemory) {
       static_cast<uint64_t>(8) * GB, 1);
 }
 
+TEST(Heap, LimitsComputationBoundariesClamp) {
+  using Boundaries = Heap::LimitBounds;
+  Boundaries boundaries;
+  boundaries.minimum_old_generation_allocation_limit = 100u;
+  boundaries.maximum_old_generation_allocation_limit = 200u;
+  boundaries.minimum_global_allocation_limit = 300u;
+  boundaries.maximum_global_allocation_limit = 600u;
+
+  EXPECT_EQ(100u, boundaries.bounded_old_generation_allocation_limit(50u));
+  EXPECT_EQ(150u, boundaries.bounded_old_generation_allocation_limit(150u));
+  EXPECT_EQ(200u, boundaries.bounded_old_generation_allocation_limit(250u));
+
+  EXPECT_EQ(300u, boundaries.bounded_global_allocation_limit(100u));
+  EXPECT_EQ(450u, boundaries.bounded_global_allocation_limit(450u));
+  EXPECT_EQ(600u, boundaries.bounded_global_allocation_limit(900u));
+}
+
+TEST(Heap, LimitsComputationBoundariesAtLeastAndAtMost) {
+  Heap::LimitBounds boundaries;
+  boundaries.maximum_old_generation_allocation_limit = 200u;
+  boundaries.maximum_global_allocation_limit = 400u;
+
+  boundaries.AtLeast(120u, 150u);
+  EXPECT_EQ(120u, boundaries.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(150u, boundaries.minimum_global_allocation_limit);
+
+  boundaries.AtLeast(0u, 0u);
+  EXPECT_EQ(120u, boundaries.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(150u, boundaries.minimum_global_allocation_limit);
+
+  const size_t kSizeMax = std::numeric_limits<size_t>::max();
+  boundaries.AtMost(kSizeMax, kSizeMax);
+  EXPECT_EQ(200u, boundaries.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(400u, boundaries.maximum_global_allocation_limit);
+
+  boundaries.AtMost(180u, 300u);
+  EXPECT_EQ(180u, boundaries.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(300u, boundaries.maximum_global_allocation_limit);
+
+  boundaries.AtMost(100u, 100u);
+  EXPECT_EQ(120u, boundaries.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(150u, boundaries.maximum_global_allocation_limit);
+}
+
+TEST_F(HeapTest, LimitsComputationBoundariesConstruction) {
+  Heap* heap = i_isolate()->heap();
+
+  const size_t kSizeMax = std::numeric_limits<size_t>::max();
+  Heap::LimitBounds no_boundaries;
+  EXPECT_EQ(0u, no_boundaries.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(0u, no_boundaries.minimum_global_allocation_limit);
+  EXPECT_EQ(kSizeMax, no_boundaries.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(kSizeMax, no_boundaries.maximum_global_allocation_limit);
+
+  Heap::LimitBounds at_least = Heap::LimitBounds::AtLeastCurrentLimits(heap);
+  EXPECT_EQ(heap->OldGenerationAllocationLimitForTesting(),
+            at_least.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(heap->GlobalAllocationLimitForTesting(),
+            at_least.minimum_global_allocation_limit);
+  EXPECT_EQ(kSizeMax, at_least.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(kSizeMax, at_least.maximum_global_allocation_limit);
+
+  Heap::LimitBounds at_most = Heap::LimitBounds::AtMostCurrentLimits(heap);
+  EXPECT_EQ(heap->OldGenerationAllocationLimitForTesting(),
+            at_most.maximum_old_generation_allocation_limit);
+  EXPECT_EQ(heap->GlobalAllocationLimitForTesting(),
+            at_most.maximum_global_allocation_limit);
+  EXPECT_EQ(0u, at_most.minimum_old_generation_allocation_limit);
+  EXPECT_EQ(0u, at_most.minimum_global_allocation_limit);
+}
+
 namespace {
 std::pair<size_t, size_t> HeapLimitsForPhysicalMemory(
     uint64_t physical_memory) {
@@ -415,7 +486,8 @@ void ShrinkNewSpace(NewSpace* new_space) {
   PagedNewSpace* paged_new_space = PagedNewSpace::From(new_space);
   Heap* heap = paged_new_space->heap();
   heap->EnsureSweepingCompleted(
-      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+      CompleteSweepingReason::kTesting);
   GCTracer* tracer = heap->tracer();
   tracer->StartObservablePause(base::TimeTicks::Now());
   tracer->StartCycle(GarbageCollector::MARK_COMPACTOR,
@@ -645,7 +717,8 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     InvokeMinorGC();
   }
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
 
   CHECK(heap->InOldSpace(*arr));
   CHECK(HeapLayout::InYoungGeneration(arr->get(0)));

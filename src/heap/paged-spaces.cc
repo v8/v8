@@ -47,7 +47,7 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
     : space_(space),
       page_range_(space->first_page(), nullptr),
       current_page_(page_range_.begin()) {
-  heap->MakeHeapIterable();
+  heap->MakeHeapIterable(CompleteSweepingReason::kHeapObjectIterator);
   USE(space_);
 }
 

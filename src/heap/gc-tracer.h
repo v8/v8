@@ -81,6 +81,14 @@ enum YoungGenerationSpeedMode {
                GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
                "epoch", tracer->CurrentEpoch(scope_id))
 
+#define TRACE_GC_EPOCH_ARG1(tracer, scope_id, thread_kind, arg_name,      \
+                            arg_value)                                    \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
+      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
+  TRACE_EVENT2(TRACE_GC_CATEGORIES,                                       \
+               GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
+               "epoch", tracer->CurrentEpoch(scope_id), arg_name, arg_value)
+
 #define TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id, thread_kind, bind_id,  \
                                  flow_flags)                              \
   GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \

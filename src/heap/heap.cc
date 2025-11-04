@@ -1947,11 +1947,11 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   }
 
   if (IsYoungGenerationCollector(collector)) {
-    CompleteSweepingYoung();
+    CompleteSweepingYoung(CompleteSweepingReason::kStartMarking);
   } else {
     // Sweeping needs to be completed such that markbits are all cleared before
     // starting marking again.
-    CompleteSweepingFull();
+    CompleteSweepingFull(CompleteSweepingReason::kStartMarking);
   }
 
   std::optional<SafepointScope> safepoint_scope;
@@ -2019,8 +2019,8 @@ void CompleteArrayBufferSweeping(Heap* heap) {
 }
 }  // namespace
 
-void Heap::CompleteSweepingFull() {
-  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap);
+void Heap::CompleteSweepingFull(CompleteSweepingReason reason) {
+  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap, reason);
 
   DCHECK(!sweeping_in_progress());
   DCHECK_IMPLIES(cpp_heap(),
@@ -2279,20 +2279,20 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
       DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, collector);
       // TODO(333906585): It's not necessary to complete full sweeping here.
       // Make sure that only the OLD_SPACE is swept.
-      CompleteSweepingFull();
+      CompleteSweepingFull(CompleteSweepingReason::kMinorGC);
     } else {
-      CompleteSweepingYoung();
+      CompleteSweepingYoung(CompleteSweepingReason::kMinorGC);
       if (v8_flags.verify_heap) {
         // If heap verification is enabled, we want to ensure that sweeping is
         // completed here, as it will be triggered from Heap::Verify anyway.
         // In this way, sweeping finalization is accounted to the corresponding
         // full GC cycle.
-        CompleteSweepingFull();
+        CompleteSweepingFull(CompleteSweepingReason::kTesting);
       }
     }
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
-    CompleteSweepingFull();
+    CompleteSweepingFull(CompleteSweepingReason::kMajorGC);
   }
 
   const base::TimeTicks atomic_pause_start_time = base::TimeTicks::Now();
@@ -2501,13 +2501,13 @@ bool Heap::TriggerAndWaitForGCFromBackgroundThread(LocalHeap* local_heap,
   }
 }
 
-void Heap::CompleteSweepingYoung() {
+void Heap::CompleteSweepingYoung(CompleteSweepingReason reason) {
   DCHECK(!v8_flags.sticky_mark_bits);
 
   // If sweeping is in progress and there are no sweeper tasks running, finish
   // the sweeping here, to avoid having to pause and resume during the young
   // generation GC.
-  FinishSweepingIfOutOfWork();
+  FinishSweepingIfOutOfWork(reason);
 
   EnsureYoungSweepingCompleted();
 
@@ -2543,7 +2543,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
 }
 
 Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
-    LimitsComputationBoundaries boundaries, const char* caller) {
+    LimitBounds boundaries, const char* caller) {
   DCHECK(!using_initial_limit());
   tracer()->RecordGCSizeCounters();
   const HeapGrowingMode mode = CurrentHeapGrowingMode();
@@ -2665,7 +2665,8 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
 
 void Heap::RecomputeLimits(GarbageCollector collector) {
   if (collector == GarbageCollector::MARK_COMPACTOR) {
-    const LimitsComputationResult new_limits = UpdateAllocationLimits({});
+    const LimitsComputationResult new_limits =
+        UpdateAllocationLimits({}, "RecomputeLimitsAfterMajorGC");
 
     if (v8_flags.memory_balancer) {
       // Now recompute the new allocation limit.
@@ -2676,8 +2677,8 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
   } else if (v8_flags.scavenger_updates_allocation_limit &&
              IsYoungGenerationCollector(collector) &&
              HasLowYoungGenerationAllocationRate() && !using_initial_limit()) {
-    UpdateAllocationLimits(
-        LimitsComputationBoundaries::AtMostCurrentLimits(this));
+    UpdateAllocationLimits(LimitBounds::AtMostCurrentLimits(this),
+                           "RecomputeLimitsAfterMinorGC");
   }
 }
 
@@ -2712,8 +2713,7 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   set_using_initial_limit(false);
 
-  UpdateAllocationLimits(
-      LimitsComputationBoundaries::AtLeastCurrentLimits(this));
+  UpdateAllocationLimits(LimitBounds::AtLeastCurrentLimits(this));
 }
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
@@ -3696,8 +3696,8 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
 RIGHT_TRIMMABLE_ARRAY_LIST(DEF_RIGHT_TRIM)
 #undef DEF_RIGHT_TRIM
 
-void Heap::MakeHeapIterable() {
-  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
+void Heap::MakeHeapIterable(CompleteSweepingReason reason) {
+  EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only, reason);
 
   MakeLinearAllocationAreasIterable();
 }
@@ -4495,7 +4495,7 @@ void Heap::CollectCodeStatistics() {
   TRACE_EVENT0("v8", "Heap::CollectCodeStatistics");
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
-  MakeHeapIterable();
+  MakeHeapIterable(CompleteSweepingReason::kCollectCodeStatistics);
   CodeStatistics::ResetCodeAndMetadataStatistics(isolate());
   // We do not look for code in new space, or map space.  If code
   // somehow ends up in those spaces, we would miss it here.
@@ -4716,7 +4716,7 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
 
 #ifdef DEBUG
 void Heap::VerifyCountersAfterSweeping() {
-  MakeHeapIterable();
+  MakeHeapIterable(CompleteSweepingReason::kTesting);
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
@@ -5678,6 +5678,14 @@ size_t Heap::GlobalConsumedBytesAtLastGC() const {
               : 0);
 }
 
+size_t Heap::OldGenerationAllocationLimitForTesting() const {
+  return old_generation_allocation_limit();
+}
+
+size_t Heap::GlobalAllocationLimitForTesting() const {
+  return global_allocation_limit();
+}
+
 uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() const {
   return external_memory_.AllocatedSinceMarkCompact();
 }
@@ -6563,7 +6571,7 @@ void Heap::StartTearDown() {
   }
 
   // the heap during teardown.
-  CompleteSweepingFull();
+  CompleteSweepingFull(CompleteSweepingReason::kTearDown);
 
   if (v8_flags.concurrent_marking) {
     concurrent_marking()->Pause();
@@ -7161,7 +7169,7 @@ HeapObjectIterator::HeapObjectIterator(
     : heap_(heap),
       safepoint_scope_(safepoint_scope_or_nullptr),
       space_iterator_(heap_) {
-  heap_->MakeHeapIterable();
+  heap_->MakeHeapIterable(CompleteSweepingReason::kHeapObjectIterator);
   switch (filtering) {
     case kFilterUnreachable:
       filter_ = std::make_unique<UnreachableObjectsFilter>(heap_);
@@ -7777,7 +7785,7 @@ void Heap::set_allocation_timeout(int allocation_timeout) {
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-void Heap::FinishSweepingIfOutOfWork() {
+void Heap::FinishSweepingIfOutOfWork(CompleteSweepingReason reason) {
   if (sweeper()->major_sweeping_in_progress() &&
       sweeper()->UsingMajorSweeperTasks() &&
       !sweeper()->AreMajorSweeperTasksRunning()) {
@@ -7786,7 +7794,7 @@ void Heap::FinishSweepingIfOutOfWork() {
     // to complete sweeping though.
     DCHECK_IMPLIES(!delay_sweeper_tasks_for_testing_,
                    !sweeper()->HasUnsweptPagesForMajorSweeping());
-    EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
+    EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only, reason);
   }
   if (cpp_heap()) {
     // Ensure that sweeping is also completed for the C++ managed heap, if one
@@ -7795,7 +7803,27 @@ void Heap::FinishSweepingIfOutOfWork() {
   }
 }
 
-void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
+void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
+                                   CompleteSweepingReason reason) {
+  std::string json_str;
+
+#if defined(V8_USE_PERFETTO)
+  if (v8_flags.trace_gc_verbose) [[unlikely]] {
+    ::heap::base::UnsafeJsonEmitter json;
+    json.object_start()
+        .p("sweeping_reason", ToString(reason))
+        .p("mode", ToString(mode))
+        .p("epoch", tracer()->CurrentEpoch(
+                        GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED))
+        .object_end();
+    json_str = json.ToString();
+  }
+#endif  // V8_USE_PERFETTO
+
+  TRACE_GC_EPOCH_ARG1(tracer(), GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED,
+                      ThreadKind::kMain, "value",
+                      TRACE_STR_COPY(json_str.c_str()));
+
   CompleteArrayBufferSweeping(this);
 
   EnsureQuarantinedPagesSweepingCompleted();
@@ -7806,11 +7834,6 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
     sweeper()->EnsureMajorCompleted();
 
     if (was_major_sweeping_in_progress) {
-      TRACE_GC_EPOCH_WITH_FLOW(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
-                               ThreadKind::kMain,
-                               sweeper_->GetTraceIdForFlowEvent(
-                                   GCTracer::Scope::MC_COMPLETE_SWEEPING),
-                               TRACE_EVENT_FLAG_FLOW_IN);
       old_space()->RefillFreeList();
       code_space()->RefillFreeList();
       if (shared_space()) {
@@ -7859,10 +7882,9 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       mode == SweepingForcedFinalizationMode::kUnifiedHeap || !cpp_heap(),
       !tracer()->IsSweepingInProgress());
 
-  if (v8_flags.external_memory_accounted_in_global_limit) {
-    if (!using_initial_limit()) {
-      UpdateAllocationLimits({});
-    }
+  if (v8_flags.external_memory_accounted_in_global_limit &&
+      !using_initial_limit()) {
+    UpdateAllocationLimits({});
   }
 }
 

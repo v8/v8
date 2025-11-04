@@ -3355,7 +3355,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   EmbedderStackStateScope stack_scope(
       heap_, EmbedderStackStateOrigin::kImplicitThroughTask, stack_state_);
   heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
-  heap_->CompleteSweepingFull();
+  heap_->CompleteSweepingFull(CompleteSweepingReason::kHeapSnapshot);
 
   // No allocation that could trigger GC from here onwards. We cannot use a
   // DisallowGarbageCollection scope as the HeapObjectIterator used during

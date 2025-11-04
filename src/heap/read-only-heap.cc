@@ -113,7 +113,8 @@ void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
   // concurrently-running sweeper tasks. Ensure that sweeping has been
   // completed, i.e. no sweeper tasks are currently running.
   isolate->heap()->EnsureSweepingCompleted(
-      Heap::SweepingForcedFinalizationMode::kV8Only);
+      Heap::SweepingForcedFinalizationMode::kV8Only,
+      CompleteSweepingReason::kReadOnly);
 
   InitFromIsolate(isolate);
 

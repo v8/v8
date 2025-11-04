@@ -2419,7 +2419,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       heap()->FinalizeIncrementalMarkingAtomicallyIfRunning(
           i::GarbageCollectionReason::kFrozen);
       heap()->EnsureSweepingCompleted(
-          Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+          Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+          CompleteSweepingReason::kFreeze);
     }
   }
 

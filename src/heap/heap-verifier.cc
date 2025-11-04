@@ -340,7 +340,7 @@ void HeapVerification::Verify() {
   SafepointScope safepoint_scope(isolate(), safepoint_kind);
   HandleScope scope(isolate());
 
-  heap()->MakeHeapIterable();
+  heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
   heap()->FreeLinearAllocationAreas();
 
   // TODO(v8:13257): Currently we don't iterate through the stack conservatively

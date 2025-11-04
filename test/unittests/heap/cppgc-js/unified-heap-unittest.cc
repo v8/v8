@@ -810,7 +810,8 @@ TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
                        GCCallbackFlags::kNoGCCallbackFlags);
   CHECK(heap->sweeping_in_progress());
   CHECK(cppheap->sweeper().IsSweepingInProgress());
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
   CHECK(!heap->sweeping_in_progress());
   CHECK(cppheap->sweeper().IsSweepingInProgress());
   heap->CollectGarbage(AllocationSpace::NEW_SPACE,
@@ -824,7 +825,8 @@ TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
   CHECK(heap->minor_sweeping_in_progress());
   CHECK(!cppheap->sweeper().IsSweepingInProgress());
   heap->EnsureSweepingCompleted(
-      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+      CompleteSweepingReason::kTesting);
   v8_flags.single_threaded_gc = single_threaded_gc_flag;
 }
 
