@@ -3487,8 +3487,9 @@ THREADED_TEST(EmbedderDataAlignedPointersViaDetachedGlobal) {
 
 static void CheckEmbedderData(LocalContext* env, int index,
                               v8::Local<Value> data) {
-  (*env)->SetEmbedderData(index, data);
-  CHECK((*env)->GetEmbedderData(index)->StrictEquals(data));
+  (*env)->SetEmbedderDataV2(index, data);
+  CHECK(v8::Local<v8::Value>::Cast((*env)->GetEmbedderDataV2(index))
+            ->StrictEquals(data));
 }
 
 THREADED_TEST(EmbedderData) {
@@ -18234,7 +18235,7 @@ TEST(Regress528) {
 
     context->Enter();
     Local<v8::String> obj = v8_str("");
-    context->SetEmbedderData(0, obj);
+    context->SetEmbedderDataV2(0, obj);
     CompileRun(source_simple);
     context->Exit();
   }
@@ -26963,11 +26964,11 @@ enum ContextId { EnteredContext, CurrentContext };
 
 void CheckContexts(v8::Isolate* isolate) {
   CHECK_EQ(CurrentContext, isolate->GetCurrentContext()
-                               ->GetEmbedderData(1)
+                               ->GetEmbedderDataV2(1)
                                .As<v8::Integer>()
                                ->Value());
   CHECK_EQ(EnteredContext, isolate->GetEnteredOrMicrotaskContext()
-                               ->GetEmbedderData(1)
+                               ->GetEmbedderDataV2(1)
                                .As<v8::Integer>()
                                ->Value());
 }
@@ -26995,10 +26996,10 @@ TEST(CorrectEnteredContext) {
   v8::HandleScope scope(CcTest::isolate());
 
   LocalContext currentContext;
-  currentContext->SetEmbedderData(
+  currentContext->SetEmbedderDataV2(
       1, v8::Integer::New(currentContext.isolate(), CurrentContext));
   LocalContext enteredContext;
-  enteredContext->SetEmbedderData(
+  enteredContext->SetEmbedderDataV2(
       1, v8::Integer::New(enteredContext.isolate(), EnteredContext));
 
   v8::Context::Scope contextScope(enteredContext.local());

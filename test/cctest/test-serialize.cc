@@ -3653,8 +3653,8 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
       v8::Context::Scope context_scope(context);
       v8::Local<v8::External> writable_external =
           v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
-      context->SetEmbedderData(my_context_embedder_field_index,
-                               writable_external);
+      context->SetEmbedderDataV2(my_context_embedder_field_index,
+                                 writable_external);
       v8::Local<v8::External> external =
           v8::External::New(isolate, &serialized_static_field, kIntPointerTag);
       v8::Local<v8::FunctionTemplate> callback =
@@ -3720,7 +3720,7 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
 
       // Ensure that writable v8::External was NOT promoted to RO space.
       v8::Local<v8::External> v8_external =
-          context->GetEmbedderData(my_context_embedder_field_index)
+          context->GetEmbedderDataV2(my_context_embedder_field_index)
               .As<v8::External>();
       auto external = Cast<i::HeapObject>(Utils::OpenHandle(*v8_external));
       CHECK(!HeapLayout::InReadOnlySpace(*external));

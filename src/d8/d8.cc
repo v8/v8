@@ -866,18 +866,18 @@ std::shared_ptr<ModuleEmbedderData> InitializeModuleEmbedderData(
           i_isolate, kModuleEmbedderDataEstimate,
           std::make_shared<ModuleEmbedderData>(
               reinterpret_cast<v8::Isolate*>(i_isolate)));
-  v8::Local<v8::Value> module_data = Utils::ToLocal(module_data_managed);
-  context->SetEmbedderData(kModuleEmbedderDataIndex, module_data);
+  v8::Local<v8::Data> module_data = Utils::ToLocal(module_data_managed);
+  context->SetEmbedderDataV2(kModuleEmbedderDataIndex, module_data);
   return module_data_managed->get();
 }
 
 std::shared_ptr<ModuleEmbedderData> GetModuleDataFromContext(
     Local<Context> context) {
-  v8::Local<v8::Value> module_data =
-      context->GetEmbedderData(kModuleEmbedderDataIndex);
+  v8::Local<v8::Data> module_data =
+      context->GetEmbedderDataV2(kModuleEmbedderDataIndex);
   i::DirectHandle<i::Managed<ModuleEmbedderData>> module_data_managed =
       i::Cast<i::Managed<ModuleEmbedderData>>(
-          Utils::OpenDirectHandle<Value, i::Object>(module_data));
+          Utils::OpenDirectHandle<Data, i::Object>(module_data));
   return module_data_managed->get();
 }
 

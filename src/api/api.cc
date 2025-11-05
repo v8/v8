@@ -963,6 +963,27 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
             *Utils::OpenDirectHandle(*GetEmbedderData(index)));
 }
 
+v8::Local<v8::Data> Context::SlowGetEmbedderDataV2(int index) {
+  const char* location = "v8::Context::GetEmbedderDataV2()";
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
+  if (data.is_null()) return {};
+  i::Isolate* i_isolate = i::Isolate::Current();
+  return Utils::ToLocal(i::direct_handle(
+      i::EmbedderDataSlot(*data, index).load_tagged(), i_isolate));
+}
+
+void Context::SetEmbedderDataV2(int index, v8::Local<Data> value) {
+  const char* location = "v8::Context::SetEmbedderDataV2()";
+  i::DirectHandle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, true, location);
+  if (data.is_null()) return;
+  auto val = Utils::OpenDirectHandle(*value);
+  i::EmbedderDataSlot::store_tagged(*data, index, *val);
+  DCHECK_EQ(*Utils::OpenDirectHandle(*value),
+            *Utils::OpenDirectHandle(*GetEmbedderDataV2(index)));
+}
+
 void* Context::SlowGetAlignedPointerFromEmbedderData(int index,
                                                      EmbedderDataTypeTag tag) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
@@ -3867,9 +3888,9 @@ void v8::Value::CheckCast(Data* that) {
   Utils::ApiCheck(that->IsValue(), "v8::Value::Cast", "Data is not a Value");
 }
 
-void External::CheckCast(v8::Value* that) {
-  Utils::ApiCheck(that->IsExternal(), "v8::External::Cast",
-                  "Value is not an External");
+void v8::External::CheckCast(v8::Data* that) {
+  Utils::ApiCheck(that->IsValue() && v8::Value::Cast(that)->IsExternal(),
+                  "v8::External::Cast", "Value is not an External");
 }
 
 void v8::Object::CheckCast(Value* that) {
