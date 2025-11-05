@@ -631,12 +631,15 @@ class CallStatsScopedTracer {
   struct PERFETTO_UID(ScopedEvent) {                                       \
     struct ScopedStats {                                                   \
       ScopedStats(v8::internal::Isolate* isolate_arg, int) {               \
+        isolate_ = isolate_arg;                                            \
+        internal::RuntimeCallStats* table =                                \
+            isolate_->counters()->runtime_call_stats();                    \
+        has_parent_scope_ = table->InUse();                                \
         TRACE_EVENT_BEGIN(category, name, [&](perfetto::EventContext) {    \
-          isolate_ = isolate_arg;                                          \
-          internal::RuntimeCallStats* table =                              \
-              isolate_->counters()->runtime_call_stats();                  \
-          has_parent_scope_ = table->InUse();                              \
-          if (!has_parent_scope_) table->Reset();                          \
+          if (!has_parent_scope_ && !did_reset_) {                         \
+            table->Reset();                                                \
+            did_reset_ = true;                                             \
+          }                                                                \
         });                                                                \
       }                                                                    \
       ~ScopedStats() {                                                     \
@@ -653,6 +656,7 @@ class CallStatsScopedTracer {
       }                                                                    \
       v8::internal::Isolate* isolate_ = nullptr;                           \
       bool has_parent_scope_ = false;                                      \
+      bool did_reset_ = false;                                             \
     } stats;                                                               \
   } PERFETTO_UID(scoped_event) {                                           \
     { isolate, 0 }                                                         \
