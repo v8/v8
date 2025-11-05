@@ -12,19 +12,19 @@
 //
 // PRESUBMIT_INTENTIONALLY_MISSING_INCLUDE_GUARD
 
-#define DEFINE_IMPLICATION(whenflag, thenflag) \
-  DEFINE_VALUE_IMPLICATION(whenflag, thenflag, true)
+#define DEFINE_IMPLICATION(cond, thenflag) \
+  DEFINE_VALUE_IMPLICATION(cond, thenflag, true)
 
 // A weak implication will be overwritten by a normal implication or by an
 // explicit flag.
-#define DEFINE_WEAK_IMPLICATION(whenflag, thenflag) \
-  DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, true)
+#define DEFINE_WEAK_IMPLICATION(cond, thenflag) \
+  DEFINE_WEAK_VALUE_IMPLICATION(cond, thenflag, true)
 
-#define DEFINE_WEAK_NEG_IMPLICATION(whenflag, thenflag) \
-  DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, false)
+#define DEFINE_WEAK_NEG_IMPLICATION(cond, thenflag) \
+  DEFINE_WEAK_VALUE_IMPLICATION(cond, thenflag, false)
 
-#define DEFINE_NEG_IMPLICATION(whenflag, thenflag) \
-  DEFINE_VALUE_IMPLICATION(whenflag, thenflag, false)
+#define DEFINE_NEG_IMPLICATION(cond, thenflag) \
+  DEFINE_VALUE_IMPLICATION(cond, thenflag, false)
 
 #define DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag) \
   DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, false)
@@ -60,29 +60,29 @@
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
-#define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)   \
-  changed |= TriggerImplication(v8_flags.whenflag, #whenflag, \
-                                &v8_flags.thenflag, #thenflag, value, false);
+#define DEFINE_VALUE_IMPLICATION(cond, thenflag, value)                     \
+  changed |= TriggerImplication(cond, #cond, &v8_flags.thenflag, #thenflag, \
+                                value, false);
 
 // A weak implication will be overwritten by a normal implication or by an
 // explicit flag.
-#define DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, value) \
-  changed |= TriggerImplication(v8_flags.whenflag, #whenflag,    \
-                                &v8_flags.thenflag, #thenflag, value, true);
+#define DEFINE_WEAK_VALUE_IMPLICATION(cond, thenflag, value)                \
+  changed |= TriggerImplication(cond, #cond, &v8_flags.thenflag, #thenflag, \
+                                value, true);
 
-#define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
-  if (v8_flags.whenflag) statement;
+#define DEFINE_GENERIC_IMPLICATION(cond, statement) \
+  if (cond) statement;
 
 // TODO(457654443): can we use FlagError for this, too?
 #define DEFINE_REQUIREMENT(statement) CHECK_NO_SECURITY_IMPACT(statement);
 
 // Enforce that a flag was not explicitly set via command line. Setting a value
 // via implications is still allowed.
-#define DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(whenflag, thenflag) \
-  TriggerNotExplicitlySetImplication(v8_flags.whenflag, #whenflag, #thenflag);
+#define DEFINE_NOT_EXPLICITLY_SET_IMPLICATION(cond, thenflag) \
+  TriggerNotExplicitlySetImplication(cond, #cond, #thenflag);
 
-#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)    \
-  changed |= TriggerImplication(!v8_flags.whenflag, "!" #whenflag, \
+#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
+  changed |= TriggerImplication(!(whenflag), "!" #whenflag,     \
                                 &v8_flags.thenflag, #thenflag, value, false);
 
 #define DEFINE_NEG_VALUE_VALUE_IMPLICATION(whenflag, whenvalue, thenflag, \
@@ -97,16 +97,22 @@
                          &v8_flags.flag, #flag, min_value, false);
 
 #define DEFINE_DISABLE_FLAG_IMPLICATION(whenflag, thenflag) \
-  if (v8_flags.whenflag && v8_flags.thenflag) {             \
+  if (whenflag && thenflag) {                               \
     PrintF(stderr, "Warning: disabling flag --" #thenflag   \
                    " due to conflicting flags\n");          \
   }                                                         \
   DEFINE_VALUE_IMPLICATION(whenflag, thenflag, false)
 
-// We apply a generic macro to the flags.
+// We apply a generic macro to the full flags.
 #elif defined(FLAG_MODE_APPLY)
 
 #define FLAG_FULL FLAG_MODE_APPLY
+
+// We apply a generic macro to the flag names.
+#elif defined(FLAG_MODE_APPLY_NAME)
+
+#define FLAG_FULL(ftype, ctype, nam, def, cmt) FLAG_MODE_APPLY_NAME(nam)
+#define FLAG_READONLY(ftype, ctype, nam, def, cmt) FLAG_MODE_APPLY_NAME(nam)
 
 #else
 #error No mode supplied when including flags.defs
@@ -139,10 +145,6 @@
 
 #ifndef DEFINE_NEG_VALUE_IMPLICATION
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)
-#endif
-#ifndef DEFINE_NEG_VALUE_VALUE_IMPLICATION
-#define DEFINE_NEG_VALUE_VALUE_IMPLICATION(whenflag, whenvalue, thenflag, \
-                                           thenvalue)
 #endif
 
 #ifndef DEFINE_MIN_VALUE_IMPLICATION
@@ -1530,8 +1532,8 @@ DEFINE_BOOL(maglev_osr, true, "use maglev as on-stack replacement target")
 
 // When using maglev as OSR target allow us to tier up further
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_osr, osr_from_maglev, true)
-DEFINE_NEG_VALUE_IMPLICATION(use_osr, maglev_osr, false)
-DEFINE_NEG_VALUE_IMPLICATION(turbofan, osr_from_maglev, false)
+DEFINE_VALUE_IMPLICATION(!use_osr, maglev_osr, false)
+DEFINE_VALUE_IMPLICATION(!turbofan, osr_from_maglev, false)
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 
 DEFINE_INT(maglev_allocation_folding, 2, "maglev allocation folding level")
@@ -3778,12 +3780,7 @@ DEFINE_NEG_IMPLICATION(predictable, maglev_deopt_data_on_background)
 DEFINE_NEG_IMPLICATION(predictable, maglev_build_code_on_background)
 #endif  // V8_ENABLE_MAGLEV
 // Avoid random seeds in predictable mode.
-DEFINE_BOOL(predictable_and_random_seed_is_0, true,
-            "predictable && (random_seed == 0)")
-DEFINE_NEG_NEG_IMPLICATION(predictable, predictable_and_random_seed_is_0)
-DEFINE_NEG_VALUE_VALUE_IMPLICATION(random_seed, 0,
-                                   predictable_and_random_seed_is_0, false)
-DEFINE_VALUE_IMPLICATION(predictable_and_random_seed_is_0, random_seed, 12347)
+DEFINE_VALUE_IMPLICATION(predictable && random_seed == 0, random_seed, 12347)
 
 DEFINE_BOOL(predictable_gc_schedule, false,
             "Predictable garbage collection schedule. Fixes heap growing, "

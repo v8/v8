@@ -487,7 +487,10 @@ uint32_t ComputeFlagListHash() {
   for (const Flag& flag : flags) {
     if (flag.IsDefault()) continue;
 #ifdef DEBUG
-    if (flag.ImpliedBy(&v8_flags.predictable)) {
+    if (flag.ImpliedBy(&v8_flags.predictable) &&
+        // Ignore --random-seed, which is implied by predictable but also just
+        // its own thing.
+        !flag.PointsTo(&v8_flags.random_seed)) {
       flags_implied_by_predictable.insert(flag.name());
     }
 #endif
@@ -529,8 +532,7 @@ uint32_t ComputeFlagListHash() {
         flag.PointsTo(&v8_flags.cppheap_concurrent_marking) ||
         flag.PointsTo(&v8_flags.cppheap_incremental_marking) ||
         flag.PointsTo(&v8_flags.single_threaded_gc) ||
-        flag.PointsTo(&v8_flags.fuzzing_and_concurrent_recompilation) ||
-        flag.PointsTo(&v8_flags.predictable_and_random_seed_is_0)) {
+        flag.PointsTo(&v8_flags.fuzzing_and_concurrent_recompilation)) {
 #ifdef DEBUG
       if (flag.ImpliedBy(&v8_flags.predictable)) {
         flags_ignored_because_of_predictable.insert(flag.name());
@@ -1028,6 +1030,15 @@ class ImplicationProcessor {
   // Returns {true} if any flag value was changed.
   bool EnforceImplications() {
     bool changed = false;
+
+    // For each flag, alias with a mutable reference so that implications don't
+    // need the v8_flags prefix.
+#define FLAG_MODE_APPLY_NAME(name) \
+  auto& name = v8_flags.name;      \
+  USE(name);
+#include "src/flags/flag-definitions.h"
+#undef FLAG_MODE_APPLY_NAME
+
 #define FLAG_MODE_DEFINE_IMPLICATIONS
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
