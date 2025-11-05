@@ -3262,3 +3262,32 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   arr.forEach(instance.exports.fn1);
 })();
+
+(function TestWebAssemblyPromisingWithInterpreter() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  let k_sig_r_r = builder.addType(kSig_r_r);
+
+  let imported_func = builder.addImport("mod", "func", kSig_r_v);
+
+  builder.addFunction("main", k_sig_r_r)
+    .addBody([kExprCallFunction, imported_func]).exportFunc();
+  let instance = builder.instantiate({ mod: { func: () => {} } });
+
+  // WebAssembly.promising is not available when running with the wasm-interpreter,
+  // so we need to handle the TypeError gracefully.
+  try {
+    let promise = WebAssembly.promising(instance.exports.main);
+    promise();
+
+  } catch (e) {
+
+    if (e instanceof TypeError &&
+        e.message.includes("WebAssembly.promising is not a function")) {
+    } else {
+      throw e;
+    }
+  }
+})();

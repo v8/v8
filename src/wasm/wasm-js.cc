@@ -3536,10 +3536,13 @@ void WasmJs::Install(Isolate* isolate) {
   }
 
   // Initialize and install JSPI feature.
-  CHECK(native_context->is_wasm_jspi_installed() == Smi::zero());
-  isolate->WasmInitJSPIFeature();
-  InstallJSPromiseIntegration(isolate, native_context, webassembly);
-  native_context->set_is_wasm_jspi_installed(Smi::FromInt(1));
+  // JSPI is not supported by Wasm interpreter.
+  if (!v8_flags.wasm_jitless) {
+    CHECK(native_context->is_wasm_jspi_installed() == Smi::zero());
+    isolate->WasmInitJSPIFeature();
+    InstallJSPromiseIntegration(isolate, native_context, webassembly);
+    native_context->set_is_wasm_jspi_installed(Smi::FromInt(1));
+  }
 
   if (enabled_features.has_rab_integration()) {
     InstallResizableBufferIntegration(isolate, native_context, webassembly);
