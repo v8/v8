@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --icu-british-remove-full-weekday-comma --harmony-temporal
+// Flags: --icu-british-remove-full-weekday-comma
 
 let date = new Date("2023-06-14T13:50Z");
 
