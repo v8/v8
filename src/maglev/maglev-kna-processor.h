@@ -55,16 +55,14 @@ class RecomputeKnownNodeAspectsProcessor {
     // just skipping it.
     if (V8_UNLIKELY(block->IsUnreachable())) {
       // Ensure successors can also be unreachable.
-      AbortBlock(block);
-      return BlockProcessResult::kSkip;
+      return AbortBlock(block);
     }
 
     if (block->is_exception_handler_block()) {
       if (!reachable_exception_handlers_.contains(block)) {
         // This is an unreachable exception handler block.
         // Ensure successors can also be unreachable.
-        AbortBlock(block);
-        return BlockProcessResult::kSkip;
+        return AbortBlock(block);
       }
     }
 
@@ -175,12 +173,15 @@ class RecomputeKnownNodeAspectsProcessor {
     return known_node_aspects().GetType(broker(), node);
   }
 
-  void AbortBlock(BasicBlock* block) {
+  BlockProcessResult AbortBlock(BasicBlock* block) {
     ControlNode* control = block->reset_control_node();
     block->RemovePredecessorFollowing(control);
     control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
     block->set_deferred(true);
     block->set_control_node(control);
+    block->mark_dead();
+    graph_->set_may_have_unreachable_blocks();
+    return BlockProcessResult::kSkip;
   }
 
   void Merge(BasicBlock* block) {
