@@ -797,6 +797,12 @@ class MaglevCodeGeneratingNodeProcessor {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
+#ifdef DEBUG
+    if constexpr (std::is_base_of_v<ValueNode, NodeT>) {
+      // Regalloc must clear its temp allocations.
+      DCHECK(!node->has_register());
+    }
+#endif
     if (v8_flags.code_comments) {
       std::stringstream ss;
       ss << "--   " << graph_labeller()->NodeId(node) << ": "
