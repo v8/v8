@@ -3806,46 +3806,40 @@ void StoreContextSlotWithWriteBarrier::GenerateCode(
 }
 
 void StoreSmiContextCell::SetValueLocationConstraints() {
+  UseRegister(cell_input());
   UseRegister(value_input());
-  set_temporaries_needed(1);
 }
 void StoreSmiContextCell::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register object = temps.Acquire();
+  Register cell = ToRegister(cell_input());
   Register value = ToRegister(value_input());
 
-  __ Move(object, context_cell_.object());
-  __ StoreTaggedFieldNoWriteBarrier(object, offset(), value);
-  __ AssertElidedWriteBarrier(object, value, register_snapshot());
+  __ StoreTaggedFieldNoWriteBarrier(cell, offset(), value);
+  __ AssertElidedWriteBarrier(cell, value, register_snapshot());
 }
 
 void StoreInt32ContextCell::SetValueLocationConstraints() {
+  UseRegister(cell_input());
   UseRegister(value_input());
-  set_temporaries_needed(1);
 }
 void StoreInt32ContextCell::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register object = temps.Acquire();
+  Register cell = ToRegister(cell_input());
   Register value = ToRegister(value_input());
 
-  __ Move(object, context_cell_.object());
-  __ StoreInt32(FieldMemOperand(object, offset()), value);
+  __ StoreInt32(FieldMemOperand(cell, offset()), value);
 }
 
 void StoreFloat64ContextCell::SetValueLocationConstraints() {
+  UseRegister(cell_input());
   UseRegister(value_input());
-  set_temporaries_needed(1);
 }
 void StoreFloat64ContextCell::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register object = temps.Acquire();
+  Register cell = ToRegister(cell_input());
   DoubleRegister value = ToDoubleRegister(value_input());
 
-  __ Move(object, context_cell_.object());
-  __ StoreFloat64(FieldMemOperand(object, offset()), value);
+  __ StoreFloat64(FieldMemOperand(cell, offset()), value);
 }
 
 void CheckString::SetValueLocationConstraints() {
@@ -8042,18 +8036,6 @@ void CheckInt32Condition::PrintParams(std::ostream& os) const {
 
 void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {
   os << "(" << index_ << ")";
-}
-
-void StoreSmiContextCell::PrintParams(std::ostream& os) const {
-  os << "(" << context_cell_.object() << ")";
-}
-
-void StoreInt32ContextCell::PrintParams(std::ostream& os) const {
-  os << "(" << context_cell_.object() << ")";
-}
-
-void StoreFloat64ContextCell::PrintParams(std::ostream& os) const {
-  os << "(" << context_cell_.object() << ")";
 }
 
 void CheckedNumberOrOddballToFloat64::PrintParams(std::ostream& os) const {

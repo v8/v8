@@ -3299,19 +3299,19 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
       // HoleyFloat64ToTagged now canonicalizes by default.
       RETURN_IF_ABORT(GetSmiValue(value));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return AddNewNode<StoreSmiContextCell>({value}, context_ref, slot_ref,
-                                             offset);
+      return AddNewNode<StoreSmiContextCell>({GetConstant(slot_ref), value},
+                                             context_ref, offset);
     case ContextCell::kInt32:
       EnsureInt32(value, true);
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return AddNewNode<StoreInt32ContextCell>({value}, context_ref, slot_ref,
-                                               offset);
+      return AddNewNode<StoreInt32ContextCell>({GetConstant(slot_ref), value},
+                                               context_ref, offset);
 
     case ContextCell::kFloat64:
       RETURN_IF_ABORT(BuildCheckNumber(value));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
-      return AddNewNode<StoreFloat64ContextCell>({value}, context_ref, slot_ref,
-                                                 offset);
+      return AddNewNode<StoreFloat64ContextCell>({GetConstant(slot_ref), value},
+                                                 context_ref, offset);
     case ContextCell::kDetached:
       return BuildStoreTaggedField(context, value, offset,
                                    StoreTaggedMode::kDefaultToContext);

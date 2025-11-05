@@ -9839,34 +9839,35 @@ class StoreTaggedFieldWithWriteBarrier
   const PropertyKey property_key_;
 };
 
-class StoreSmiContextCell : public FixedInputNodeT<1, StoreSmiContextCell> {
-  using Base = FixedInputNodeT<1, StoreSmiContextCell>;
+class StoreSmiContextCell : public FixedInputNodeT<2, StoreSmiContextCell> {
+  using Base = FixedInputNodeT<2, StoreSmiContextCell>;
 
  public:
   explicit StoreSmiContextCell(uint64_t bitfield, compiler::ContextRef context,
-                               compiler::ContextCellRef context_cell,
                                int slot_offset)
       : Base(bitfield),
         context_(context),
-        context_cell_(context_cell),
         slot_offset_(slot_offset) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanWrite() | OpProperties::DeferredCall();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   compiler::ContextRef context() const { return context_; }
-  compiler::ContextCellRef cell() const { return context_cell_; }
-  int offset() const { return offsetof(ContextCell, tagged_value_); }
   int slot_offset() const { return slot_offset_; }
 
-  static constexpr int kValueIndex = 0;
+  int offset() const { return offsetof(ContextCell, tagged_value_); }
+
+  static constexpr int kCellIndex = 0;
+  static constexpr int kValueIndex = 1;
+  Input cell_input() { return input(kCellIndex); }
   Input value_input() { return input(kValueIndex); }
 
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
-    value_input().node()->SetTaggedResultNeedsDecompress();
+    cell_input().node()->SetTaggedResultNeedsDecompress();
+    // Don't need to decompress values to store.
   }
 #endif
 
@@ -9876,82 +9877,79 @@ class StoreSmiContextCell : public FixedInputNodeT<1, StoreSmiContextCell> {
   }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::ContextRef context_;
-  const compiler::ContextCellRef context_cell_;
   const int slot_offset_;
 };
 
-class StoreInt32ContextCell : public FixedInputNodeT<1, StoreInt32ContextCell> {
-  using Base = FixedInputNodeT<1, StoreInt32ContextCell>;
+class StoreInt32ContextCell : public FixedInputNodeT<2, StoreInt32ContextCell> {
+  using Base = FixedInputNodeT<2, StoreInt32ContextCell>;
 
  public:
   explicit StoreInt32ContextCell(uint64_t bitfield,
                                  compiler::ContextRef context,
-                                 compiler::ContextCellRef context_cell,
                                  int slot_offset)
       : Base(bitfield),
         context_(context),
-        context_cell_(context_cell),
         slot_offset_(slot_offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
   compiler::ContextRef context() const { return context_; }
-  compiler::ContextCellRef cell() const { return context_cell_; }
-  int offset() const { return offsetof(ContextCell, double_value_); }
   int slot_offset() const { return slot_offset_; }
 
-  static constexpr int kValueIndex = 0;
+  int offset() const { return offsetof(ContextCell, double_value_); }
+
+  static constexpr int kCellIndex = 0;
+  static constexpr int kValueIndex = 1;
+  Input cell_input() { return input(kCellIndex); }
   Input value_input() { return input(kValueIndex); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::ContextRef context_;
-  const compiler::ContextCellRef context_cell_;
   const int slot_offset_;
 };
 
 class StoreFloat64ContextCell
-    : public FixedInputNodeT<1, StoreFloat64ContextCell> {
-  using Base = FixedInputNodeT<1, StoreFloat64ContextCell>;
+    : public FixedInputNodeT<2, StoreFloat64ContextCell> {
+  using Base = FixedInputNodeT<2, StoreFloat64ContextCell>;
 
  public:
   explicit StoreFloat64ContextCell(uint64_t bitfield,
                                    compiler::ContextRef context,
-                                   compiler::ContextCellRef context_cell,
                                    int slot_offset)
       : Base(bitfield),
         context_(context),
-        context_cell_(context_cell),
         slot_offset_(slot_offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kFloat64};
 
   compiler::ContextRef context() const { return context_; }
-  compiler::ContextCellRef cell() const { return context_cell_; }
-  int offset() const { return offsetof(ContextCell, double_value_); }
   int slot_offset() const { return slot_offset_; }
 
-  static constexpr int kValueIndex = 0;
+  int offset() const { return offsetof(ContextCell, double_value_); }
+
+  static constexpr int kCellIndex = 0;
+  static constexpr int kValueIndex = 1;
+  Input cell_input() { return input(kCellIndex); }
   Input value_input() { return input(kValueIndex); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
+  void PrintParams(std::ostream&) const {}
 
  private:
   const compiler::ContextRef context_;
-  const compiler::ContextCellRef context_cell_;
   const int slot_offset_;
 };
 
