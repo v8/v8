@@ -1745,6 +1745,13 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
     }
+    case ValueRepresentation::kShiftedInt53:
+      if (NodeTypeIsSmi(node_info->type())) {
+        return alternative.set_tagged(
+            AddNewNodeNoInputConversion<UnsafeSmiTagShiftedInt53>({value}));
+      }
+      return alternative.set_tagged(
+          AddNewNodeNoInputConversion<CheckedSmiTagShiftedInt53>({value}));
     case ValueRepresentation::kIntPtr:
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<CheckedSmiTagIntPtr>({value}));
@@ -1873,6 +1880,8 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
       return AddNewNodeNoInputConversion<ConvertHoleNanToUndefinedNan>({value});
     case ValueRepresentation::kIntPtr:
       return AddNewNodeNoInputConversion<ChangeIntPtrToFloat64>({value});
+    case ValueRepresentation::kShiftedInt53:
+      return AddNewNodeNoInputConversion<ChangeShiftedInt53ToFloat64>({value});
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1921,6 +1930,8 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
       return AddNewNodeNoInputConversion<Int32ToUint8Clamped>({value});
     case ValueRepresentation::kUint32:
       return AddNewNodeNoInputConversion<Uint32ToUint8Clamped>({value});
+    case ValueRepresentation::kShiftedInt53:
+      UNIMPLEMENTED();
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -2529,9 +2540,20 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
     case BinaryOperationHint::kNone:
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+    case BinaryOperationHint::kAdditiveSafeInteger:
+      if (is_turbolev() && Is64() &&
+          v8_flags.turbolev_additive_safe_int_feedback) {
+        DCHECK_EQ(kOperation, Operation::kAdd);
+        ValueNode* left = LoadRegister(0);
+        ValueNode* right = GetAccumulator();
+        PROCESS_AND_RETURN_IF_DONE(reducer_.TryFoldShiftedInt53Add(left, right),
+                                   SetAccumulator);
+        return SetAccumulator(AddNewNode<ShiftedInt53AddWithOverflow>(
+            {reducer_.GetShiftedInt53(left), reducer_.GetShiftedInt53(right)}));
+      }
+      [[fallthrough]];
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
-    case BinaryOperationHint::kAdditiveSafeInteger:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
       NodeType allowed_input_type =
@@ -2603,9 +2625,20 @@ ReduceResult MaglevGraphBuilder::VisitBinarySmiOperation() {
     case BinaryOperationHint::kNone:
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+    case BinaryOperationHint::kAdditiveSafeInteger:
+      if (is_turbolev() && Is64() &&
+          v8_flags.turbolev_additive_safe_int_feedback) {
+        DCHECK_EQ(kOperation, Operation::kAdd);
+        ValueNode* left = GetAccumulator();
+        ValueNode* right = GetInt32Constant(iterator_.GetImmediateOperand(0));
+        PROCESS_AND_RETURN_IF_DONE(reducer_.TryFoldShiftedInt53Add(left, right),
+                                   SetAccumulator);
+        return SetAccumulator(AddNewNode<ShiftedInt53AddWithOverflow>(
+            {reducer_.GetShiftedInt53(left), reducer_.GetShiftedInt53(right)}));
+      }
+      [[fallthrough]];
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
-    case BinaryOperationHint::kAdditiveSafeInteger:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
       NodeType allowed_input_type =
@@ -4126,7 +4159,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
     case ValueRepresentation::kIntPtr:
       AddNewNodeNoInputConversion<CheckIntPtrIsSmi>({object});
       break;
-    case maglev::ValueRepresentation::kNone:
+    case ValueRepresentation::kShiftedInt53:
+      UNIMPLEMENTED();
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   return object;
@@ -5608,6 +5643,7 @@ ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
+    case ValueRepresentation::kShiftedInt53:
       return GetInt32(object);
     case ValueRepresentation::kNone:
       UNREACHABLE();
@@ -5647,6 +5683,8 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kUint32:
       return object;
 
+    case ValueRepresentation::kShiftedInt53:
+      return AddNewNodeNoInputConversion<CheckedShiftedInt53ToUint32>({object});
     case ValueRepresentation::kFloat64:
       if (auto constant = TryGetFloat64Constant(
               UseRepresentation::kFloat64, object,
@@ -10710,6 +10748,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kInt32:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kShiftedInt53:
       return arg;
     case ValueRepresentation::kTagged:
       switch (CheckTypes(arg, {NodeType::kSmi})) {
@@ -10740,6 +10779,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
     case ValueRepresentation::kIntPtr:
       // TODO(388844115): Rename IntPtr to make it clear it's non-negative.
       return arg;
+    case ValueRepresentation::kShiftedInt53:
+      // TODO(victorgomes): Optimize the shifted case.
+      return {};
     case ValueRepresentation::kInt32:
       if (!CanSpeculateCall()) return {};
       return AddNewNode<Int32AbsWithOverflow>({arg});
@@ -10784,6 +10826,7 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
   auto arg_repr = arg->value_representation();
   if (arg_repr == ValueRepresentation::kInt32 ||
       arg_repr == ValueRepresentation::kUint32 ||
+      arg_repr == ValueRepresentation::kShiftedInt53 ||
       arg_repr == ValueRepresentation::kIntPtr) {
     return arg;
   }
@@ -13152,6 +13195,9 @@ ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
     case ValueRepresentation::kInt32:
       return AddNewNodeNoInputConversion<Int32ToBoolean>({value}, flip);
 
+    case ValueRepresentation::kShiftedInt53:
+      return AddNewNodeNoInputConversion<ShiftedInt53ToBoolean>({value}, flip);
+
     case ValueRepresentation::kIntPtr:
       return AddNewNodeNoInputConversion<IntPtrToBoolean>({value}, flip);
 
@@ -13289,6 +13335,7 @@ ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kShiftedInt53:
       return ReduceResult::Done();
 
     case ValueRepresentation::kHoleyFloat64: {
@@ -15205,6 +15252,9 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
     case ValueRepresentation::kIntPtr:
       return BuildBranchIfIntPtrToBooleanTrue(builder, node);
 
+    case ValueRepresentation::kShiftedInt53:
+      UNIMPLEMENTED();
+
     case ValueRepresentation::kTagged:
       break;
     case ValueRepresentation::kNone:
@@ -15641,6 +15691,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kShiftedInt53:
       // Can't be the hole.
       // Note that HoleyFloat64 when converted to Tagged becomes Undefined
       // rather than the_hole, hence the early return for HoleyFloat64.

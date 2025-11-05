@@ -139,6 +139,8 @@ class RecomputePhiUseHintsProcessor {
         return UseRepresentation::kInt32;
       case ValueRepresentation::kUint32:
         return UseRepresentation::kUint32;
+      case ValueRepresentation::kShiftedInt53:
+        return UseRepresentation::kShiftedInt53;
       case ValueRepresentation::kFloat64:
         return UseRepresentation::kFloat64;
       case ValueRepresentation::kHoleyFloat64:

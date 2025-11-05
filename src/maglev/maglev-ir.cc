@@ -146,6 +146,8 @@ std::ostream& operator<<(std::ostream& os, UseRepresentation repr) {
       return os << "TruncatedInt32";
     case UseRepresentation::kUint32:
       return os << "Uint32";
+    case UseRepresentation::kShiftedInt53:
+      return os << "ShiftedInt53";
     case UseRepresentation::kFloat64:
       return os << "Float64";
     case UseRepresentation::kHoleyFloat64:
@@ -270,6 +272,9 @@ void PrintResult(std::ostream& os, const ValueNode* node,
         os << ", can truncate to int32 " << node->GetRange();
       } else {
         os << ", cannot truncate to int32";
+        if (node->is_float64_or_holey_float64()) {
+          os << " " << node->GetRange();
+        }
       }
     }
   }
@@ -557,6 +562,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kShiftedInt53:
       return NodeType::kNumber;
     case ValueRepresentation::kHoleyFloat64:
       return NodeType::kNumberOrOddball;
@@ -668,6 +674,7 @@ void Phi::VerifyInputs() const {
     CASE_REPR(Tagged)
     CASE_REPR(Int32)
     CASE_REPR(Uint32)
+    CASE_REPR(ShiftedInt53)
     CASE_REPR(Float64)
     CASE_REPR(HoleyFloat64)
 #undef CASE_REPR
@@ -960,6 +967,11 @@ DirectHandle<Object> Uint32Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(value());
 }
 
+DirectHandle<Object> ShiftedInt53Constant::DoReify(
+    LocalIsolate* isolate) const {
+  UNREACHABLE();
+}
+
 DirectHandle<Object> IntPtrConstant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumberFromInt64<AllocationType::kOld>(value());
 }
@@ -1075,6 +1087,11 @@ void Uint32Constant::DoLoadToRegister(MaglevAssembler* masm,
   __ Move(reg, value());
 }
 
+void ShiftedInt53Constant::DoLoadToRegister(MaglevAssembler* masm,
+                                            Register reg) const {
+  UNREACHABLE();
+}
+
 void IntPtrConstant::DoLoadToRegister(MaglevAssembler* masm,
                                       Register reg) const {
   __ Move(reg, value());
@@ -1110,6 +1127,20 @@ void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm,
 
 TURBOLEV_VALUE_NODE_LIST(TURBOLEV_UNREACHABLE_NODE)
 TURBOLEV_NON_VALUE_NODE_LIST(TURBOLEV_UNREACHABLE_NODE)
+
+TURBOLEV_UNREACHABLE_NODE(CheckedShiftedInt53ToInt32)
+TURBOLEV_UNREACHABLE_NODE(CheckedShiftedInt53ToUint32)
+TURBOLEV_UNREACHABLE_NODE(CheckedIntPtrToShiftedInt53)
+TURBOLEV_UNREACHABLE_NODE(CheckedHoleyFloat64ToShiftedInt53)
+TURBOLEV_UNREACHABLE_NODE(UnsafeSmiTagShiftedInt53)
+TURBOLEV_UNREACHABLE_NODE(CheckedNumberToShiftedInt53)
+TURBOLEV_UNREACHABLE_NODE(CheckedSmiTagShiftedInt53)
+TURBOLEV_UNREACHABLE_NODE(ShiftedInt53ToNumber)
+TURBOLEV_UNREACHABLE_NODE(ChangeInt32ToShiftedInt53)
+TURBOLEV_UNREACHABLE_NODE(ChangeUint32ToShiftedInt53)
+TURBOLEV_UNREACHABLE_NODE(ChangeShiftedInt53ToFloat64)
+TURBOLEV_UNREACHABLE_NODE(ShiftedInt53ToBoolean)
+
 #undef TURBOLEV_UNREACHABLE_NODE
 
 void SmiConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
@@ -1129,6 +1160,12 @@ void Int32Constant::GenerateCode(MaglevAssembler* masm,
 void Uint32Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void Uint32Constant::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {}
+
+void ShiftedInt53Constant::SetValueLocationConstraints() { UNREACHABLE(); }
+void ShiftedInt53Constant::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  UNREACHABLE();
+}
 
 void IntPtrConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void IntPtrConstant::GenerateCode(MaglevAssembler* masm,
@@ -7791,6 +7828,10 @@ void Uint32Constant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
 
+void ShiftedInt53Constant::PrintParams(std::ostream& os) const {
+  os << "(" << value() << ")";
+}
+
 void IntPtrConstant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
@@ -8169,6 +8210,12 @@ void Int32Compare::PrintParams(std::ostream& os) const {
 }
 
 void Int32ToBoolean::PrintParams(std::ostream& os) const {
+  if (flip()) {
+    os << "(flipped)";
+  }
+}
+
+void ShiftedInt53ToBoolean::PrintParams(std::ostream& os) const {
   if (flip()) {
     os << "(flipped)";
   }

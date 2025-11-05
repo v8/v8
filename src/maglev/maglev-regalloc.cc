@@ -402,6 +402,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);
   }
+  DCHECK(graph_->shifted_int53().empty());
   for (const auto& [value, constant] : graph_->intptr()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);

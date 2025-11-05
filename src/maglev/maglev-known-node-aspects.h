@@ -103,6 +103,7 @@ class NodeInfo {
         case UseRepresentation::kFloat64:
         case UseRepresentation::kHoleyFloat64:
           return float64();
+        case UseRepresentation::kShiftedInt53:
         case UseRepresentation::kUint32:
           UNREACHABLE();
       }

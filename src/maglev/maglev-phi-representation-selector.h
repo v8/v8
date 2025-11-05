@@ -34,6 +34,7 @@ constexpr bool IsUntagging(Opcode op) {
     case Opcode::kUnsafeNumberOrOddballToFloat64:
     case Opcode::kUnsafeNumberToFloat64:
     case Opcode::kCheckedNumberOrOddballToHoleyFloat64:
+    case Opcode::kCheckedNumberToShiftedInt53:
       return true;
     default:
       return false;

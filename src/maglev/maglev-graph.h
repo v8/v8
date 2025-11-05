@@ -46,6 +46,7 @@ class Graph final : public ZoneObject {
         tagged_index_constants_(zone()),
         int32_constants_(zone()),
         uint32_constants_(zone()),
+        shifted_int53_constants_(zone()),
         intptr_constants_(zone()),
         float64_constants_(zone()),
         heap_number_constants_(zone()),
@@ -142,6 +143,9 @@ class Graph final : public ZoneObject {
     return tagged_index_constants_;
   }
   ZoneMap<int32_t, Int32Constant*>& int32() { return int32_constants_; }
+  ZoneMap<ShiftedInt53, ShiftedInt53Constant*>& shifted_int53() {
+    return shifted_int53_constants_;
+  }
   ZoneMap<uint32_t, Uint32Constant*>& uint32() { return uint32_constants_; }
   ZoneMap<intptr_t, IntPtrConstant*>& intptr() { return intptr_constants_; }
   ZoneMap<uint64_t, Float64Constant*>& float64() { return float64_constants_; }
@@ -251,6 +255,10 @@ class Graph final : public ZoneObject {
     return GetOrAddNewConstantNode(int32_constants_, constant);
   }
 
+  ShiftedInt53Constant* GetShiftedInt53Constant(ShiftedInt53 constant) {
+    return GetOrAddNewConstantNode(shifted_int53_constants_, constant);
+  }
+
   IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
     return GetOrAddNewConstantNode(intptr_constants_, constant);
   }
@@ -315,6 +323,7 @@ class Graph final : public ZoneObject {
   ZoneMap<int, TaggedIndexConstant*> tagged_index_constants_;
   ZoneMap<int32_t, Int32Constant*> int32_constants_;
   ZoneMap<uint32_t, Uint32Constant*> uint32_constants_;
+  ZoneMap<ShiftedInt53, ShiftedInt53Constant*> shifted_int53_constants_;
   ZoneMap<intptr_t, IntPtrConstant*> intptr_constants_;
   // Use the bits of the float as the key.
   ZoneMap<uint64_t, Float64Constant*> float64_constants_;

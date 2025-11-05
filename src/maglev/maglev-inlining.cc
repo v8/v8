@@ -36,7 +36,8 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
   if (call_site->generic_call_node->use_repr_hints().contains_any(
           UseRepresentationSet{UseRepresentation::kFloat64,
                                UseRepresentation::kHoleyFloat64,
-                               UseRepresentation::kTruncatedInt32})) {
+                               UseRepresentation::kTruncatedInt32,
+                               UseRepresentation::kShiftedInt53})) {
     // TruncatedInt32 uses do not necessarily mean that the input is a
     // HeapNumber, but when emitted operation that truncate their inputs to
     // Int32, Maglev doesn't distinguish between Smis and HeapNumbers.
@@ -431,6 +432,9 @@ ProcessResult ReturnedValueRepresentationSelector::Process(
       break;
     case ValueRepresentation::kIntPtr:
       node->OverwriteWith<IntPtrToNumber>();
+      break;
+    case ValueRepresentation::kShiftedInt53:
+      node->OverwriteWith<ShiftedInt53ToNumber>();
       break;
     case ValueRepresentation::kTagged:
     case ValueRepresentation::kNone:

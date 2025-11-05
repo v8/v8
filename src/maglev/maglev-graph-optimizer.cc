@@ -39,6 +39,8 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
       return ValueRepresentation::kInt32;
     case UseRepresentation::kUint32:
       return ValueRepresentation::kUint32;
+    case UseRepresentation::kShiftedInt53:
+      return ValueRepresentation::kShiftedInt53;
     case UseRepresentation::kFloat64:
       return ValueRepresentation::kFloat64;
     case UseRepresentation::kHoleyFloat64:
@@ -158,6 +160,13 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
       }
       return nullptr;
     }
+    case UseRepresentation::kShiftedInt53: {
+      auto cst = reducer_.TryGetShiftedInt53Constant(node);
+      if (cst.has_value()) {
+        return reducer_.GetShiftedInt53Constant(cst.value());
+      }
+      return nullptr;
+    }
     case UseRepresentation::kFloat64:
     case UseRepresentation::kHoleyFloat64: {
       DCHECK(conversion_type.has_value());
@@ -191,6 +200,8 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     return cst;
   }
   if (node->is_tagged()) {
+    // TODO(victorgomes): No alternatives for shift int53.
+    if (use_repr == UseRepresentation::kShiftedInt53) return nullptr;
     // Check if we already have a canonical conversion.
     NodeInfo* node_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), node);
@@ -212,6 +223,8 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
       DCHECK(conversion_type.has_value());
       return reducer_.GetTruncatedInt32ForToNumber(
           node, GetAllowedTypeFromConversionType(*conversion_type));
+    case UseRepresentation::kShiftedInt53:
+      return reducer_.GetShiftedInt53(node);
     case UseRepresentation::kFloat64:
       DCHECK(conversion_type.has_value());
       return reducer_.GetFloat64ForToNumber(
@@ -1541,6 +1554,7 @@ UNTAGGING_CASE(TruncateCheckedNumberOrOddballToInt32, TruncatedInt32,
                node->conversion_type())
 UNTAGGING_CASE(TruncateUnsafeNumberOrOddballToInt32, TruncatedInt32,
                node->conversion_type())
+UNTAGGING_CASE(CheckedNumberToShiftedInt53, ShiftedInt53, {})
 UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64,
                node->conversion_type())
 UNTAGGING_CASE(UnsafeNumberOrOddballToFloat64, Float64, node->conversion_type())
@@ -2010,6 +2024,17 @@ ProcessResult MaglevGraphOptimizer::VisitInt32ToBoolean(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitShiftedInt53AddWithOverflow(
+    ShiftedInt53AddWithOverflow* node, const ProcessingState& state) {
+  MaybeReduceResult fold_result =
+      reducer_.TryFoldShiftedInt53Add(node->input_node(0), node->input_node(1));
+  if (fold_result.IsDoneWithValue()) {
+    return ReplaceWith(fold_result.value());
+  }
+  // TODO(victorgomes): Add range optimization.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitFloat64Abs(
     Float64Abs* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -2449,6 +2474,24 @@ ProcessResult MaglevGraphOptimizer::VisitCheckpointedJump(
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
+
+#define UNIMPLEMENTED_NODE(name)                                            \
+  ProcessResult MaglevGraphOptimizer::Visit##name(name*,                    \
+                                                  const ProcessingState&) { \
+    return ProcessResult::kContinue;                                        \
+  }
+UNIMPLEMENTED_NODE(CheckedShiftedInt53ToInt32)
+UNIMPLEMENTED_NODE(CheckedShiftedInt53ToUint32)
+UNIMPLEMENTED_NODE(CheckedIntPtrToShiftedInt53)
+UNIMPLEMENTED_NODE(CheckedHoleyFloat64ToShiftedInt53)
+UNIMPLEMENTED_NODE(UnsafeSmiTagShiftedInt53)
+UNIMPLEMENTED_NODE(ShiftedInt53ToNumber)
+UNIMPLEMENTED_NODE(ChangeInt32ToShiftedInt53)
+UNIMPLEMENTED_NODE(ChangeUint32ToShiftedInt53)
+UNIMPLEMENTED_NODE(ChangeShiftedInt53ToFloat64)
+UNIMPLEMENTED_NODE(TruncateShiftedInt53ToInt32)
+UNIMPLEMENTED_NODE(CheckedSmiTagShiftedInt53)
+UNIMPLEMENTED_NODE(ShiftedInt53ToBoolean)
 
 ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
     JumpLoop* node, const ProcessingState& state) {

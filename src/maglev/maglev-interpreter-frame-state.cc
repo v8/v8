@@ -663,6 +663,20 @@ ValueNode* FromFloat64ToTagged(const MaglevGraphBuilder* builder,
   return tagged;
 }
 
+ValueNode* FromShiftedInt53ToTagged(const MaglevGraphBuilder* builder,
+                                    NodeType node_type, ValueNode* value,
+                                    BasicBlock* predecessor) {
+  DCHECK(value->is_shifted_int53());
+  DCHECK(!value->properties().is_conversion());
+
+  // Create a tagged version, and insert it at the end of the predecessor.
+  ValueNode* tagged = Node::New<ShiftedInt53ToNumber>(builder->zone(), {value});
+
+  predecessor->nodes().push_back(tagged);
+  builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
+  return tagged;
+}
+
 ValueNode* FromHoleyFloat64ToTagged(const MaglevGraphBuilder* builder,
                                     NodeType node_type, ValueNode* value,
                                     BasicBlock* predecessor) {
@@ -693,6 +707,8 @@ ValueNode* NonTaggedToTagged(const MaglevGraphBuilder* builder,
       return FromIntPtrToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kFloat64:
       return FromFloat64ToTagged(builder, node_type, value, predecessor);
+    case ValueRepresentation::kShiftedInt53:
+      return FromShiftedInt53ToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kHoleyFloat64:
       return FromHoleyFloat64ToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kNone:
