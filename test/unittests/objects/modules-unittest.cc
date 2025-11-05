@@ -1607,4 +1607,140 @@ TEST_F(ModuleTest, ModuleInstantiationByIndexWithSource) {
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+TEST_F(ModuleTest, SourceTextModuleGetResourceName) {
+  HandleScope scope(isolate());
+
+  Local<String> resource_name = NewString("test-module.js");
+  Local<String> source_text = NewString("export const x = 42;");
+  ScriptOrigin origin = ModuleOrigin(resource_name, isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+
+  // GetResourceName should work in all module states
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  CHECK(module
+            ->InstantiateModule(context(),
+                                ResolveModuleByIndexUnreachableCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  module->Evaluate(context()).ToLocalChecked();
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+}
+
+TEST_F(ModuleTest, SourceTextModuleGetResourceNameNonString) {
+  HandleScope scope(isolate());
+
+  Local<Value> resource_name = v8::Undefined(isolate());
+  Local<String> source_text = NewString("export const x = 42;");
+  ScriptOrigin origin = ModuleOrigin(resource_name, isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+
+  // GetResourceName should work in all module states
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  CHECK(module
+            ->InstantiateModule(context(),
+                                ResolveModuleByIndexUnreachableCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  module->Evaluate(context()).ToLocalChecked();
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+}
+
+TEST_F(ModuleTest, SourceTextModuleGetResourceNameInError) {
+  HandleScope scope(isolate());
+
+  Local<String> resource_name = NewString("test-module.js");
+  Local<String> source_text = NewString("throw new Error('module error');");
+  ScriptOrigin origin = ModuleOrigin(resource_name, isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  CHECK(module
+            ->InstantiateModule(context(),
+                                ResolveModuleByIndexUnreachableCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  module->Evaluate(context()).ToLocalChecked();
+  CHECK_EQ(Module::kErrored, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+}
+
+TEST_F(ModuleTest, SyntheticModuleGetResourceName) {
+  HandleScope scope(isolate());
+  Local<String> resource_name = NewString("synthetic-module");
+  Local<Module> module = Module::CreateSyntheticModule(
+      isolate(), resource_name, {},
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+        // Do nothing.
+        Local<v8::Promise::Resolver> resolver =
+            v8::Promise::Resolver::New(context).ToLocalChecked();
+        resolver->Resolve(context, v8::Undefined(Isolate::GetCurrent()))
+            .ToChecked();
+        return resolver->GetPromise();
+      });
+
+  // GetResourceName should work in all module states
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  CHECK(module
+            ->InstantiateModule(context(),
+                                ResolveModuleByIndexUnreachableCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  module->Evaluate(context()).ToLocalChecked();
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+}
+
+TEST_F(ModuleTest, SyntheticModuleGetResourceNameInError) {
+  HandleScope scope(isolate());
+  Local<String> resource_name = NewString("synthetic-module");
+  Local<Module> module = Module::CreateSyntheticModule(
+      isolate(), resource_name, {},
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+        // Throw an error.
+        Isolate* isolate = Isolate::GetCurrent();
+        isolate->ThrowException(
+            v8::String::NewFromUtf8Literal(isolate, "synthetic module error"));
+        return MaybeLocal<Value>();
+      });
+
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  CHECK(module
+            ->InstantiateModule(context(),
+                                ResolveModuleByIndexUnreachableCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+
+  v8::TryCatch try_catch(isolate());
+  CHECK(module->Evaluate(context()).IsEmpty());
+  CHECK_EQ(Module::kErrored, module->GetStatus());
+  CHECK(module->GetResourceName()->StrictEquals(resource_name));
+}
+
 }  // anonymous namespace
