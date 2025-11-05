@@ -91,9 +91,10 @@
       TriggerImplication(v8_flags.whenflag != whenvalue, #whenflag,       \
                          &v8_flags.thenflag, #thenflag, thenvalue, false);
 
-#define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)             \
-  changed |= TriggerImplication(v8_flags.flag < min_value, #flag, \
-                                &v8_flags.flag, #flag, min_value, false);
+#define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)                     \
+  changed |=                                                              \
+      TriggerImplication(v8_flags.flag < min_value, #flag "<" #min_value, \
+                         &v8_flags.flag, #flag, min_value, false);
 
 #define DEFINE_DISABLE_FLAG_IMPLICATION(whenflag, thenflag) \
   if (v8_flags.whenflag && v8_flags.thenflag) {             \
