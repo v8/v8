@@ -135,7 +135,7 @@ class WasmInJsInliningInterface {
   using FullDecoder =
       wasm::WasmFullDecoder<ValidationTag, WasmInJsInliningInterface>;
   struct Value : public wasm::ValueBase<ValidationTag> {
-    OpIndex op = OpIndex::Invalid();
+    V<Any> op = V<Any>::Invalid();
     template <typename... Args>
     explicit Value(Args&&... args) V8_NOEXCEPT
         : ValueBase(std::forward<Args>(args)...) {}
@@ -174,7 +174,7 @@ class WasmInJsInliningInterface {
     CHECK_EQ(index, arguments_.size());
     while (index < decoder->num_locals()) {
       ValueType type = decoder->local_type(index);
-      OpIndex op;
+      V<Any> op;
       if (!type.is_defaultable()) {
         DCHECK(type.is_reference());
         op = __ RootConstant(RootIndex::kOptimizedOut);
@@ -346,11 +346,11 @@ class WasmInJsInliningInterface {
     }
 
     Bailout(decoder);
-    return OpIndex::Invalid();
+    return V<Any>::Invalid();
   }
 
-  OpIndex BinOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex lhs,
-                    OpIndex rhs) {
+  V<Any> BinOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex lhs,
+                   OpIndex rhs) {
     switch (opcode) {
       case wasm::kExprI32Add:
         return __ Word32Add(lhs, rhs);
@@ -524,7 +524,7 @@ class WasmInJsInliningInterface {
     }
 
     Bailout(decoder);
-    return OpIndex::Invalid();
+    return V<Any>::Invalid();
   }
 
   void I32Const(FullDecoder* decoder, Value* result, int32_t value) {
@@ -1324,17 +1324,17 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   // in the JS pipeline.
   if (!Is64()) {
     TRACE("- not inlining: 32-bit platforms are not supported");
-    return OpIndex::Invalid();
+    return V<Any>::Invalid();
   }
 
   if (wasm::is_asmjs_module(module)) {
     TRACE("- not inlining: asm.js-in-JS inlining is not supported");
-    return OpIndex::Invalid();
+    return V<Any>::Invalid();
   }
 
   if (func_idx < module->num_imported_functions) {
     TRACE("- not inlining: call to an imported function");
-    return OpIndex::Invalid();
+    return V<Any>::Invalid();
   }
   DCHECK_LT(func_idx - module->num_imported_functions,
             module->num_declared_functions);
@@ -1344,7 +1344,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   bool is_shared = module->type(func.sig_index).is_shared;
   if (is_shared) {
     TRACE("- not inlining: shared everything is not supported");
-    return OpIndex::Invalid();
+    return V<Any>::Invalid();
   }
 
   base::Vector<const uint8_t> module_bytes = native_module->wire_bytes();
@@ -1356,6 +1356,18 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
 
   auto env = wasm::CompilationEnv::ForModule(native_module);
   wasm::WasmDetectedFeatures detected{};
+
+  // Before executing compilation, make sure that the function was validated.
+  if (V8_UNLIKELY(!env.module->function_was_validated(func_idx))) {
+    CHECK(v8_flags.wasm_lazy_validation);
+    if (ValidateFunctionBody(Asm().phase_zone(), env.enabled_features,
+                             env.module, &detected, func_body)
+            .failed()) {
+      TRACE("- not inlining: validation failed");
+      return V<Any>::Invalid();
+    }
+    env.module->set_function_validated(func_idx);
+  }
 
   // JS-to-Wasm wrapper inlining doesn't support multi-value at the moment,
   // so we should never reach here with more than 1 return value.
@@ -1374,19 +1386,6 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   Block* unreachable = __ NewBlock();
   __ Bind(unreachable);
 
-  // Before executing compilation, make sure that the function was validated.
-  if (V8_UNLIKELY(!env.module->function_was_validated(func_idx))) {
-    CHECK(v8_flags.wasm_lazy_validation);
-    if (ValidateFunctionBody(Asm().phase_zone(), env.enabled_features,
-                             env.module, &detected, func_body)
-            .failed()) {
-      TRACE("- not inlining: validation failed");
-      __ Bind(inlinee_body_and_rest);
-      return OpIndex::Invalid();
-    }
-    env.module->set_function_validated(func_idx);
-  }
-
   using Interface = WasmInJsInliningInterface<Assembler<ReducerList>>;
   using Decoder =
       wasm::WasmFullDecoder<typename Interface::ValidationTag, Interface>;
@@ -1400,7 +1399,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   if (!can_inline_decoder.ok()) {
     TRACE("- not inlining: " << can_inline_decoder.error().message());
     __ Bind(inlinee_body_and_rest);
-    return OpIndex::Invalid();
+    return V<Any>::Invalid();
   }
 
   // Second pass: Actually emit the inlinee instructions now.
