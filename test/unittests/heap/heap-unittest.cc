@@ -53,30 +53,6 @@ namespace internal {
 
 using HeapTest = TestWithHeapInternalsAndContext;
 
-TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
-  const uint64_t physical_memory = 0;
-  const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
-
-  // Low memory
-  ASSERT_EQ((v8_flags.minor_ms ? 4 : 3) * 512u * KB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(physical_memory,
-                                                              128u * hlm * MB));
-  // High memory
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
-                (v8_flags.minor_ms ? (2 * 4) : 3),
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(
-                physical_memory, max_heap_size / 4));
-  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
-                (v8_flags.minor_ms ? (2 * 2) : 3),
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(
-                physical_memory, max_heap_size / 2));
-  ASSERT_EQ(i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                (v8_flags.minor_ms ? 2 : 3),
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(physical_memory,
-                                                              max_heap_size));
-}
-
 TEST(Heap, GenerationSizesFromHeapSize) {
   if (v8_flags.minor_ms) return;
 
@@ -93,35 +69,24 @@ TEST(Heap, GenerationSizesFromHeapSize) {
   // Here we just need to pick a large enough value.
   static constexpr uint64_t kPhysicalMemory = 16 * kGB;
 
-#if defined(V8_TARGET_ARCH_32_BIT)
   std::vector<GenerationLimit> limits = {
-      {16 * kMB, 1 * kMB + 512 * kKB, 14 * kMB + 512 * kKB},
-      {32 * kMB, 1 * kMB + 512 * kKB, 30 * kMB + 512 * kKB},
-      {64 * kMB, 1 * kMB + 512 * kKB, 62 * kMB + 512 * kKB},
-      {128 * kMB, 1 * kMB + 512 * kKB, 126 * kMB + 512 * kKB},
+      {16 * kMB, 6 * kMB, 10 * kMB},
+      {32 * kMB, 6 * kMB, 26 * kMB},
+      {64 * kMB, 6 * kMB, 58 * kMB},
+      {128 * kMB, 11 * kMB + 256 * kKB, 116 * kMB + 768 * kKB},
       {256 * kMB, 22 * kMB + 512 * kKB, 233 * kMB + 512 * kKB},
       {512 * kMB, 44 * kMB + 256 * kKB, 467 * kMB + 768 * kKB},
       {1 * kGB, 87 * kMB + 768 * kKB, 936 * kMB + 31},
       {2 * kGB, 96 * kMB, 1952 * kMB},
       {3 * kGB, 96 * kMB, 2976 * kMB},
+#if defined(V8_TARGET_ARCH_32_BIT)
       {4 * kGB, 0, 0},
       {8 * kGB, 0, 0},
-  };
 #else
-  std::vector<GenerationLimit> limits = {
-      {16 * kMB, 1 * kMB + 512 * kKB, 14 * kMB + 512 * kKB},
-      {32 * kMB, 1 * kMB + 512 * kKB, 30 * kMB + 512 * kKB},
-      {64 * kMB, 1 * kMB + 512 * kKB, 62 * kMB + 512 * kKB},
-      {128 * kMB, 1 * kMB + 512 * kKB, 126 * kMB + 512 * kKB},
-      {256 * kMB, 1 * kMB + 512 * kKB, 254 * kMB + 512 * kKB},
-      {512 * kMB, 23 * kMB + 256 * kKB, 488 * kMB + 768 * kKB},
-      {1 * kGB, 46 * kMB + 512 * kKB, 977 * kMB + 512 * kKB},
-      {2 * kGB, 92 * kMB + 256 * kKB, 1955 * kMB + 768 * kKB},
-      {3 * kGB, 96 * kMB, 2976 * kMB},
       {4 * kGB, 96 * kMB, 4000 * kMB},
       {8 * kGB, 96 * kMB, 8096 * kMB},
-  };
 #endif
+  };
 
   for (const GenerationLimit& limit : limits) {
     size_t actual_young, actual_old;
@@ -282,14 +247,13 @@ TEST_F(HeapTest, ExpectedDefaultGenerationLimitsForPhysicalMemory) {
     uint64_t minor_ms;
   };
 
-  static constexpr uint64_t kKB = static_cast<uint64_t>(KB);
   static constexpr uint64_t kMB = static_cast<uint64_t>(MB);
   static constexpr uint64_t kGB = static_cast<uint64_t>(GB);
 
   // Expected young generation limits.
   std::vector<YoungLimit> young_limits = {
-      {512 * kMB, 512 * kKB, 512 * kKB, 1 * kMB},
-      {1 * kGB, 8 * kMB, 2 * kMB, 72 * kMB},
+      {512 * kMB, 4 * kMB, 2 * kMB, 32 * kMB},
+      {1 * kGB, 8 * kMB, 2 * kMB, 64 * kMB},
       {1536 * kMB, 16 * kMB, 4 * kMB, 72 * kMB},
       {2 * kGB, 16 * kMB, 4 * kMB, 72 * kMB},
       {3 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},

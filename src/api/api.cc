@@ -540,8 +540,8 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 
   size_t old_generation =
       i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory);
-  size_t young_generation = i::Heap::YoungGenerationSizeFromOldGenerationSize(
-      physical_memory, old_generation);
+  size_t young_generation =
+      i::Heap::YoungGenerationSizeFromPhysicalMemory(physical_memory);
   set_max_young_generation_size_in_bytes(young_generation);
   set_max_old_generation_size_in_bytes(old_generation);
 
