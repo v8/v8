@@ -1670,6 +1670,9 @@ TNode<CollectionType> CollectionsBuiltinsAssembler::AddToOrderedHashTable(
   Label no_hash(this), add_entry(this), store_new_entry(this);
   BIND(&not_found);
   {
+    // If the key is a Smi, we know the hash has been computed.
+    GotoIf(TaggedIsSmi(key->value()), &add_entry);
+
     // If we have a hash code, we can start adding the new entry.
     GotoIf(IntPtrGreaterThan(entry_start_position_or_hash.value(),
                              IntPtrConstant(0)),
