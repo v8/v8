@@ -205,11 +205,8 @@ static void CheckRegisterConstraints(int opcode, RiscvOperandConverter& i,
       DCHECK_EQ(i.InputSimd128Register(0).code() + 1,
                 i.InputSimd128Register(1).code());
       break;
-    case RiscvRegisterConstraint::kEvenRegisters01:
-      DCHECK_EQ(0, i.InputSimd128Register(0).code() & 1);
-      DCHECK_EQ(0, i.InputSimd128Register(1).code() & 1);
-      DCHECK_NE(i.InputSimd128Register(0).code(),
-                i.InputSimd128Register(1).code());
+    case RiscvRegisterConstraint::kNoInput2Overlap:
+      DCHECK_NE(i.OutputSimd128Register(), i.InputSimd128Register(2));
       break;
   }
 }
@@ -3729,12 +3726,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register temp2 = kSimd128ScratchReg4;
       __ VU.SetSimd128(E16);
       __ vwmul_vv(temp, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ VU.SetSimd128x2(E32);
+      __ VU.SetSimd128x2(E32, CpuFeatures::vlen() == 128 ? tu : ta);
       __ li(kScratchReg, FIRST_INDEX);
       __ vmv_sx(v0, kScratchReg);
-      // Note that the vcompress_vv instruction will not overwrite any bits
-      // in the register that follows temp{1|2}, as we have only 4 1-bits in the
-      // index constants.
+      // The vcompress_vv instruction will not overwrite any bits in the
+      // register that follows temp{1|2}, as we have only 4 1-bits in the
+      // index constants, and the tail is set to undisturbed (tu).
       __ vcompress_vv(temp1, temp, v0);
       __ li(kScratchReg, SECOND_INDEX);
       __ vmv_sx(v0, kScratchReg);
@@ -3761,12 +3758,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register temp2 = kSimd128ScratchReg4;
       __ VU.SetSimd128(E8);
       __ vwmul_vv(temp, i.InputSimd128Register(0), i.InputSimd128Register(1));
-      __ VU.SetSimd128x2(E16);
+      __ VU.SetSimd128x2(E16, CpuFeatures::vlen() == 128 ? tu : ta);
       __ li(kScratchReg, FIRST_INDEX);
       __ vmv_sx(v0, kScratchReg);
-      // Note that the vcompress_vv instruction will not overwrite any bits
-      // in the register that follows temp{1|2}, as we have only 8 1-bits in the
-      // index constants.
+      // The vcompress_vv instruction will not overwrite any bits in the
+      // register that follows temp{1|2}, as we have only 8 1-bits in the
+      // index constants, and the tail is set to undisturbed (tu).
       __ vcompress_vv(temp1, temp, v0);
       __ li(kScratchReg, SECOND_INDEX);
       __ vmv_sx(v0, kScratchReg);
@@ -3777,7 +3774,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI32x4DotI8x16I7x16AddS: {
       CheckRegisterConstraints(opcode, i,
-                               RiscvRegisterConstraint::kEvenRegisters01);
+                               RiscvRegisterConstraint::kNoInput2Overlap);
       constexpr int32_t FIRST_INDEX = 0b0001000100010001;
       constexpr int32_t SECOND_INDEX = 0b0010001000100010;
       constexpr int32_t THIRD_INDEX = 0b0100010001000100;
@@ -3795,47 +3792,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Extract the four different parts of the result vector.
       // Each of these registers must be a register group that doesn't
       // overlap with the intermediate register group.
-      // By construction (see the register constraint above), the
-      // inputs are at even register indices and can thus be used as groups.
-      // The scratch registers 3 and 4, are also guaranteed to be at even
-      // indices.
-      // Note that the vcompress_vv instruction will not overwrite any bits
-      // in the register that follows compressed_part{1|2|3|4}, as we have
-      // only 4 1-bits in the index constants.
+      // The scratch registers 3 and 4, are guaranteed to be at even indices.
       Simd128Register compressed_part1 = kSimd128ScratchReg3;
       Simd128Register compressed_part2 = kSimd128ScratchReg4;
-      Simd128Register compressed_part3 = i.InputSimd128Register(0);
-      Simd128Register compressed_part4 = i.InputSimd128Register(1);
+      Simd128Register temp = i.TempSimd128Register(0);
+      Simd128Register output = i.OutputSimd128Register();
 
-      __ VU.SetSimd128x2(E16);
+      // The vcompress_vv instructions below will not overwrite any bits in the
+      // register that follows compressed_part{1|2}, as we have only 8 1-bits
+      // in the index constants and the tail is set to undisturbed (tu).
+      __ VU.SetSimd128x2(E16, CpuFeatures::vlen() == 128 ? tu : ta);
       __ li(kScratchReg, FIRST_INDEX);
       __ vmv_sx(v0, kScratchReg);
-      __ vcompress_vv(compressed_part2, intermediate, v0);
+      __ vcompress_vv(compressed_part1, intermediate, v0);
       __ li(kScratchReg, SECOND_INDEX);
       __ vmv_sx(v0, kScratchReg);
-      __ vcompress_vv(compressed_part1, intermediate, v0);
-      __ li(kScratchReg, THIRD_INDEX);
-      __ vmv_sx(v0, kScratchReg);
-      __ vcompress_vv(compressed_part3, intermediate, v0);
-      __ li(kScratchReg, FOURTH_INDEX);
-      __ vmv_sx(v0, kScratchReg);
-      __ vcompress_vv(compressed_part4, intermediate, v0);
+      __ vcompress_vv(compressed_part2, intermediate, v0);
 
-      // The intermediate result is not needed anymore. We can start using
-      // the registers for combining the individual parts.
-      Simd128Register temp = kSimd128ScratchReg;
-      Simd128Register temp2 = kSimd128ScratchReg2;
-      // Only half of each compressed part is used. We can thus use the mf2
-      // element width to avoid changes to unrelated registers.
       __ VU.SetSimd128Half(E16);
       __ vwadd_vv(temp, compressed_part1, compressed_part2);
-      __ vwadd_vv(temp2, compressed_part3, compressed_part4);
+
+      __ VU.SetSimd128x2(E16, CpuFeatures::vlen() == 128 ? tu : ta);
+      __ li(kScratchReg, THIRD_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(compressed_part1, intermediate, v0);
+      __ li(kScratchReg, FOURTH_INDEX);
+      __ vmv_sx(v0, kScratchReg);
+      __ vcompress_vv(compressed_part2, intermediate, v0);
+
+      __ VU.SetSimd128Half(E16);
+      __ vwadd_vv(output, compressed_part1, compressed_part2);
 
       __ VU.SetSimd128(E32);
-      // We start by adding input register 2, as it might be the same
-      // as the output register.
-      __ vadd_vv(i.OutputSimd128Register(), temp, i.InputSimd128Register(2));
-      __ vadd_vv(i.OutputSimd128Register(), i.OutputSimd128Register(), temp2);
+      __ vadd_vv(output, output, temp);
+      __ vadd_vv(output, output, i.InputSimd128Register(2));
       break;
     }
     case kRiscvI64x2SConvertI32x4Low: {
