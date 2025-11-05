@@ -714,9 +714,23 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     if (Asm().CanAutoInlineBlocksWithSinglePredecessor() &&
         terminator.Is<GotoOp>()) {
       Block* destination = terminator.Cast<GotoOp>().destination;
-      if (destination->PredecessorCount() == 1) {
-        block_to_inline_now_ = destination;
-        return;
+      // Inlining the destination will require setting it in needs_variables_
+      // mode; we thus check that we can actually create enough variables to do
+      // this.
+      // TODO(dmercadier): in practice, the only reason we need variables for
+      // the destination is because we could be currently in a phase that cloned
+      // the current block, which could lead to {destination} being cloned as
+      // well. No all phases can do this, so we could check that we're not in
+      // such a phase, and if so, not use variables for the destination. One way
+      // to do this would be to have a DisallowCloningReducer which would
+      // static_assert that LoopUnrolling/LoopPeeling/BranchElimination aren't
+      // on the stack and would also prevent using CloneSubGraph,
+      // CloneAndInlineBlock and CloneBlockAndGoto.
+      if (Asm().CanCreateNVariables(destination->OpCountUpperBound())) {
+        if (destination->PredecessorCount() == 1) {
+          block_to_inline_now_ = destination;
+          return;
+        }
       }
     }
     // Just going through the regular VisitOp function.

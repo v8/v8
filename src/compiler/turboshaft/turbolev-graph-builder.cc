@@ -115,12 +115,7 @@ class BlockOriginTrackingReducer : public Next {
   }
   void Bind(Block* block) {
     Next::Bind(block);
-    // The 1st block we bind doesn't exist in Maglev and is meant to hold
-    // Constants (which in Maglev are not in any block), and thus
-    // {maglev_input_block_} should still be nullptr. In all other cases,
-    // {maglev_input_block_} should not be nullptr.
-    DCHECK_EQ(maglev_input_block_ == nullptr,
-              block == &__ output_graph().StartBlock());
+    DCHECK_NOT_NULL(maglev_input_block_);
     turboshaft_block_origins_[block->index()] = maglev_input_block_;
   }
 
@@ -516,9 +511,11 @@ class GraphBuildingNodeProcessor {
       block_mapping_[block] =
           block->is_loop() ? __ NewLoopHeader() : __ NewBlock();
     }
-    // Constants are not in a block in Maglev but are in Turboshaft. We bind a
-    // block now, so that Constants can then be emitted.
-    __ Bind(__ NewBlock());
+    // Constants are not in a block in Maglev but are in Turboshaft. We bind the
+    // 1st block now, so that Constants can then be emitted.
+    const maglev::BasicBlock* first_maglev_block = graph->blocks().front();
+    __ SetMaglevInputBlock(first_maglev_block);
+    __ Bind(block_mapping_[first_maglev_block]);
 
     // Initializing undefined constant so that we don't need to recreate it too
     // often.
@@ -604,9 +601,20 @@ class GraphBuildingNodeProcessor {
     Block* turboshaft_block = Map(maglev_block);
 
     if (__ current_block() != nullptr) {
-      // The first block for Constants doesn't end with a Jump, so we add one
-      // now.
-      __ Goto(turboshaft_block);
+      // We must be in the first block of the graph, inserted by Turboshaft in
+      // PreProcessGraph so that constants can be bound in a block. No need to
+      // do anything else: we don't emit a Goto so that the actual 1st block of
+      // the Maglev graph gets inlined into this first block of the Turboshaft
+      // graph, which, in addition to saving a Goto, saves the need to clone the
+      // destination into the current block later, and also ensures that
+      // Parameters are always in the 1st block.
+      DCHECK_EQ(__ output_graph().block_count(), 1);
+      DCHECK_EQ(maglev_block->id(), 0);
+      DCHECK_EQ(__ current_block(), block_mapping_[maglev_block]);
+      // maglev_input_block should have been set by calling SetMaglevInputBlock
+      // in PreProcessGraph.
+      DCHECK_EQ(__ maglev_input_block(), maglev_block);
+      return maglev::BlockProcessResult::kContinue;
     }
 
 #ifdef DEBUG

@@ -608,6 +608,7 @@ class Graph {
     operation_origins_.Reset();
     operation_types_.Reset();
     dominator_tree_depth_ = 0;
+    max_merge_pred_count_ = 0;
 #ifdef DEBUG
     block_type_refinement_.Reset();
     // Do not reset of graph_created_from_turbofan_ as it is propagated along
@@ -791,6 +792,8 @@ class Graph {
     bound_blocks_.push_back(block);
     uint32_t depth = block->ComputeDominator();
     dominator_tree_depth_ = std::max<uint32_t>(dominator_tree_depth_, depth);
+    max_merge_pred_count_ =
+        std::max<uint32_t>(max_merge_pred_count_, block->PredecessorCount());
 
 #ifdef DEBUG
     if (v8_flags.turboshaft_trace_emitted) {
@@ -1016,6 +1019,8 @@ class Graph {
 
   uint32_t DominatorTreeDepth() const { return dominator_tree_depth_; }
 
+  uint32_t max_merge_pred_count() const { return max_merge_pred_count_; }
+
   const GrowingOpIndexSidetable<Type>& operation_types() const {
     return operation_types_;
   }
@@ -1068,6 +1073,7 @@ class Graph {
     std::swap(next_block_, companion.next_block_);
     std::swap(block_permutation_, companion.block_permutation_);
     std::swap(graph_zone_, companion.graph_zone_);
+    std::swap(max_merge_pred_count_, companion.max_merge_pred_count_);
     op_to_block_.SwapData(companion.op_to_block_);
     source_positions_.SwapData(companion.source_positions_);
     operation_origins_.SwapData(companion.operation_origins_);
@@ -1206,6 +1212,9 @@ class Graph {
   GrowingOpIndexSidetable<SourcePosition> source_positions_;
   GrowingOpIndexSidetable<OpIndex> operation_origins_;
   uint32_t dominator_tree_depth_ = 0;
+  // {max_merge_pred_count_} stores the maximum number of predecessors that any
+  // Merge in the graph has.
+  uint32_t max_merge_pred_count_ = 0;
   GrowingOpIndexSidetable<Type> operation_types_;
 #ifdef DEBUG
   GrowingBlockSidetable<TypeRefinements> block_type_refinement_;

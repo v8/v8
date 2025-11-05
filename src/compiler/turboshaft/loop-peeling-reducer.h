@@ -57,8 +57,7 @@ class LoopPeelingReducer : public Next {
     const Block* dst = gto.destination;
     if (dst->IsLoop() && !gto.is_backedge && CanPeelLoop(dst)) {
       if (ShouldSkipOptimizationStep()) goto no_change;
-      PeelFirstIteration(dst);
-      return {};
+      if (PeelFirstIteration(dst)) return {};
     } else if (IsEmittingPeeledIteration() && dst == current_loop_header_) {
       // We skip the backedge of the loop: PeelFirstIeration will instead emit a
       // forward edge to the non-peeled header.
@@ -111,12 +110,20 @@ class LoopPeelingReducer : public Next {
     kEmittingUnpeeledBody
   };
 
-  void PeelFirstIteration(const Block* header) {
+  bool PeelFirstIteration(const Block* header) {
     TRACE("LoopPeeling: peeling loop at " << header->index());
     DCHECK_EQ(peeling_, PeelingStatus::kNotPeeling);
     ScopedModification<PeelingStatus> scope(&peeling_,
                                             PeelingStatus::kEmittingPeeledLoop);
     current_loop_header_ = header;
+
+    constexpr int kNumberOfLoopCopies = 2;  // peeled + unpeeled
+    size_t op_count_upper_bound =
+        loop_finder_.GetLoopInfo(header).op_count * kNumberOfLoopCopies;
+    if (!__ CanCreateNVariables(op_count_upper_bound)) {
+      TRACE("> Too many variables, skipping peeling");
+      return false;
+    }
 
     // Emitting the peeled iteration.
     auto loop_body = loop_finder_.GetLoopBody(header);
@@ -133,7 +140,7 @@ class LoopPeelingReducer : public Next {
       // While peeling, we realized that the 2nd iteration of the loop is not
       // reachable.
       TRACE("> Second iteration is not reachable, stopping now");
-      return;
+      return true;
     }
 
     // We now emit the regular unpeeled loop.
@@ -141,6 +148,7 @@ class LoopPeelingReducer : public Next {
     TRACE("> Emitting unpeeled loop body");
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ true,
                      /* is_loop_after_peeling */ true);
+    return true;
   }
 
   bool CanPeelLoop(const Block* header) {
