@@ -4337,25 +4337,29 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
   Kind kind_;
 };
 
-#define DEFINE_CONVERSION(name, from_repr, properties, node_type) \
-  class name : public FixedInputValueNodeT<1, name> {             \
-    using Base = FixedInputValueNodeT<1, name>;                   \
-                                                                  \
-   public:                                                        \
-    explicit name(uint64_t bitfield) : Base(bitfield) {}          \
-                                                                  \
-    static constexpr OpProperties kProperties =                   \
-        properties | OpProperties::ConversionNode();              \
-    static constexpr typename Base::InputTypes kInputTypes{       \
-        ValueRepresentation::k##from_repr};                       \
-                                                                  \
-    Input input() { return Node::input(0); }                      \
-    NodeType type() { return NodeType::k##node_type; }            \
-                                                                  \
-    int MaxCallStackArgs() const { return 0; }                    \
-    void SetValueLocationConstraints();                           \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);  \
-    void PrintParams(std::ostream&) const {}                      \
+#define DONT_DECOMPRESS_INPUTS \
+  void MarkTaggedInputsAsDecompressing() {}
+
+#define DEFINE_CONVERSION(name, from_repr, properties, node_type, ...) \
+  class name : public FixedInputValueNodeT<1, name> {                  \
+    using Base = FixedInputValueNodeT<1, name>;                        \
+                                                                       \
+   public:                                                             \
+    explicit name(uint64_t bitfield) : Base(bitfield) {}               \
+                                                                       \
+    static constexpr OpProperties kProperties =                        \
+        properties | OpProperties::ConversionNode();                   \
+    static constexpr typename Base::InputTypes kInputTypes{            \
+        ValueRepresentation::k##from_repr};                            \
+                                                                       \
+    Input input() { return Node::input(0); }                           \
+    NodeType type() { return NodeType::k##node_type; }                 \
+    __VA_ARGS__                                                        \
+                                                                       \
+    int MaxCallStackArgs() const { return 0; }                         \
+    void SetValueLocationConstraints();                                \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
+    void PrintParams(std::ostream&) const {}                           \
   };
 
 #define DEFINE_TO_TAGGED(name, from_repr, node_type)                   \
@@ -4397,13 +4401,14 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
     using ConversionModeBitField = NextBitField<ConversionMode, 1>;    \
   };
 
-#define DEFINE_PURE_CONV(name, from_repr, to_repr, node_type) \
-  DEFINE_CONVERSION(name, from_repr, OpProperties ::to_repr(), node_type)
+#define DEFINE_PURE_CONV(name, from_repr, to_repr, node_type, ...)        \
+  DEFINE_CONVERSION(name, from_repr, OpProperties ::to_repr(), node_type, \
+                    __VA_ARGS__)
 
-#define DEFINE_CHECKED_CONV(name, from_repr, to_repr, node_type)           \
+#define DEFINE_CHECKED_CONV(name, from_repr, to_repr, node_type, ...)      \
   DEFINE_CONVERSION(name, from_repr,                                       \
                     OpProperties ::to_repr() | OpProperties::EagerDeopt(), \
-                    node_type)
+                    node_type, __VA_ARGS__)
 
 #define DEFINE_TO_NUMBER(name, from_repr) \
   DEFINE_CONVERSION(                      \
@@ -4420,7 +4425,7 @@ DEFINE_PURE_CONV(UnsafeInt32ToUint32, Int32, Uint32, Number)
 DEFINE_PURE_CONV(UnsafeSmiTagInt32, Int32, TaggedValue, Smi)
 DEFINE_PURE_CONV(UnsafeSmiTagIntPtr, IntPtr, TaggedValue, Smi)
 DEFINE_PURE_CONV(UnsafeSmiTagUint32, Uint32, TaggedValue, Smi)
-DEFINE_PURE_CONV(UnsafeSmiUntag, Tagged, Int32, Smi)
+DEFINE_PURE_CONV(UnsafeSmiUntag, Tagged, Int32, Smi, DONT_DECOMPRESS_INPUTS)
 DEFINE_PURE_CONV(UnsafeNumberToFloat64, Tagged, Float64, Number)
 
 DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToInt32, HoleyFloat64, Int32, Number)
@@ -4433,7 +4438,7 @@ DEFINE_CHECKED_CONV(CheckedSmiTagFloat64, HoleyFloat64, TaggedValue, Smi)
 DEFINE_CHECKED_CONV(CheckedSmiTagInt32, Int32, TaggedValue, Smi)
 DEFINE_CHECKED_CONV(CheckedSmiTagIntPtr, IntPtr, TaggedValue, Smi)
 DEFINE_CHECKED_CONV(CheckedSmiTagUint32, Uint32, TaggedValue, Smi)
-DEFINE_CHECKED_CONV(CheckedSmiUntag, Tagged, Int32, Smi)
+DEFINE_CHECKED_CONV(CheckedSmiUntag, Tagged, Int32, Smi, DONT_DECOMPRESS_INPUTS)
 DEFINE_CHECKED_CONV(CheckedUint32ToInt32, Uint32, Int32, Number)
 
 // TODO(victorgomes): Shouldn't these actually be prefixed by Change?
@@ -4452,6 +4457,7 @@ DEFINE_TO_TAGGED(HoleyFloat64ToTagged, HoleyFloat64, NumberOrOddball)
 // CheckInt32IsSmi instead.
 DEFINE_CHECKED_CONV(CheckedSmiSizedInt32, Int32, Int32, Smi)
 
+#undef DONT_DECOMPRESS_INPUTS
 #undef DEFINE_PURE_CONV
 #undef DEFINE_CHECKED_CONV
 #undef DEFINE_TO_NUMBER
