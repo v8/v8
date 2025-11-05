@@ -2608,11 +2608,11 @@ class TurboshaftGraphBuildingInterface
 
         // Creating the frame state here allows us to share the frame state
         // between a deopt due to wrong instance and deopt due to wrong target.
-        bool use_deopt_slowpath = deopts_enabled();
         V<FrameState> frame_state =
-            use_deopt_slowpath
-                ? CreateFrameState(decoder, imm.sig, &index, args)
-                : OpIndex::Invalid();
+            deopts_enabled() ? CreateFrameState(decoder, imm.sig, &index, args)
+                             : OpIndex::Invalid();
+        // CreateFrameState may have disabled deopts.
+        bool use_deopt_slowpath = deopts_enabled();
         DCHECK_IMPLIES(use_deopt_slowpath, frame_state.valid());
         if (use_deopt_slowpath && GetHasNonInlinableTargets(decoder)) {
           if (v8_flags.trace_wasm_inlining) {
