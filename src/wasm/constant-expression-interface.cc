@@ -204,6 +204,8 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   DirectHandle<WasmStruct> obj;
   WriteBarrierMode mode = UPDATE_WRITE_BARRIER;
   if (type.is_descriptor()) {
+    // TODO(14616): Support shared custom descriptors.
+    if (type.is_shared) UNIMPLEMENTED();
     DirectHandle<Object> first_field =
         struct_type->first_field_can_be_prototype()
             ? args[0].runtime_value.to_ref()
@@ -211,7 +213,9 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
   } else {
-    obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
+    obj = isolate_->factory()->NewWasmStructUninitialized(
+        struct_type, rtt,
+        type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
     mode = SKIP_WRITE_BARRIER;  // Object is in new space.
   }
   DisallowGarbageCollection no_gc;  // Must initialize fields first.
@@ -305,11 +309,15 @@ void ConstantExpressionInterface::StructNewDefault(
 
   DirectHandle<WasmStruct> obj;
   if (type.is_descriptor()) {
+    // TODO(14616): Implement shared custom descriptors.
+    if (type.is_shared) UNIMPLEMENTED();
     DirectHandle<Object> first_field(Smi::zero(), isolate_);
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
                                                       rtt, first_field);
   } else {
-    obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
+    obj = isolate_->factory()->NewWasmStructUninitialized(
+        struct_type, rtt,
+        type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
   }
   DisallowGarbageCollection no_gc;  // Must initialize fields first.
 

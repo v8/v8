@@ -1179,10 +1179,13 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
     }
-    // TODO(14616): Pass the correct instance data.
+    DirectHandle<WasmTrustedInstanceData> shared_instance =
+        trusted_instance_data->has_shared_part()
+            ? handle(trusted_instance_data->shared_part(), isolate)
+            : trusted_instance_data;
     DirectHandle<Object> result =
         isolate->factory()->NewWasmArrayFromElementSegment(
-            trusted_instance_data, trusted_instance_data, segment_index, offset,
+            trusted_instance_data, shared_instance, segment_index, offset,
             length, rtt, element_type);
     if (IsSmi(*result)) {
       return ThrowWasmError(
@@ -1261,10 +1264,12 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     // now.
     AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    // TODO(14616): Fix the instance data.
-    std::optional<MessageTemplate> opt_error =
-        wasm::InitializeElementSegment(&zone, isolate, trusted_instance_data,
-                                       trusted_instance_data, segment_index);
+    DirectHandle<WasmTrustedInstanceData> shared_instance =
+        trusted_instance_data->has_shared_part()
+            ? handle(trusted_instance_data->shared_part(), isolate)
+            : trusted_instance_data;
+    std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
+        &zone, isolate, trusted_instance_data, shared_instance, segment_index);
     if (opt_error.has_value()) {
       return ThrowWasmError(isolate, opt_error.value());
     }
@@ -1684,8 +1689,7 @@ MaybeDirectHandle<FixedArray> GetElementSegment(
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
   DirectHandle<WasmTrustedInstanceData> shared_instance =
-      instance->has_shared_part() ? DirectHandle<WasmTrustedInstanceData>(
-                                        instance->shared_part(), isolate)
+      instance->has_shared_part() ? handle(instance->shared_part(), isolate)
                                   : instance;
   std::optional<MessageTemplate> opt_error =
       wasm::InitializeElementSegment(&zone, isolate, instance, shared_instance,
