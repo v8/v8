@@ -728,21 +728,23 @@ void InstructionSelector::VisitStore(OpIndex node) {
     size_t const temp_count = arraysize(temps);
 
     InstructionCode code;
-    if (write_barrier_kind == kSkippedWriteBarrier) {
+    if (rep == MachineRepresentation::kIndirectPointer) {
+      DCHECK(write_barrier_kind == kIndirectPointerWriteBarrier ||
+             write_barrier_kind == kSkippedWriteBarrier);
+      // In this case we need to add the IndirectPointerTag as additional input.
+      code = write_barrier_kind == kSkippedWriteBarrier
+                 ? kArchStoreIndirectSkippedWriteBarrier
+                 : kArchStoreIndirectWithWriteBarrier;
+      code |= RecordWriteModeField::encode(
+          RecordWriteMode::kValueIsIndirectPointer);
+      IndirectPointerTag tag = store_view.indirect_pointer_tag();
+      inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
+    } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchStoreSkippedWriteBarrier;
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-      if (rep == MachineRepresentation::kIndirectPointer) {
-        DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
-        // In this case we need to add the IndirectPointerTag as additional
-        // input.
-        code = kArchStoreIndirectWithWriteBarrier;
-        IndirectPointerTag tag = store_view.indirect_pointer_tag();
-        inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
-      } else {
-        code = kArchStoreWithWriteBarrier;
-      }
+      code = kArchStoreWithWriteBarrier;
       code |= RecordWriteModeField::encode(record_write_mode);
     }
     if (store_view.is_store_trap_on_null()) {
