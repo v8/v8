@@ -516,6 +516,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
     // The common and simple case: we expect exactly one tag.
     static_assert(kExternalPointerShiftedTagMask == 0x7f);
     And(scratch, destination, Operand(kExternalPointerTagMask));
+    SrlWord(scratch, scratch, Operand(kExternalPointerTagShift));
     SbxCheck(eq, AbortReason::kExternalPointerTagMismatch, scratch,
              Operand(tag_range.first));
     And(destination, destination, Operand(kExternalPointerPayloadMask));
