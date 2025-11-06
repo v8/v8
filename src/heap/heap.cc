@@ -293,7 +293,9 @@ Heap::Heap()
       tracing_track_(perfetto::NamedTrack::FromPointer(
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
                          .disable_sibling_merge()),
-      loading_track_("Loading", 0, tracing_track_) {
+      loading_track_("Loading", 0, tracing_track_),
+      gc_tracing_category_enabled_(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACE_DISABLED_BY_DEFAULT("v8.gc"))) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (PageMetadata::kPageSize - 1));
 
@@ -2616,7 +2618,7 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
 
   CHECK_GE(next_global_allocation_limit, next_old_generation_allocation_limit);
 
-  if (V8_UNLIKELY(v8_flags.trace_gc_verbose)) {
+  if (is_gc_tracing_category_enabled()) [[unlikely]] {
     ::heap::base::UnsafeJsonEmitter json;
 
     json.object_start()
@@ -2648,9 +2650,6 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
         .object_end();
 
     std::string json_str = json.ToString();
-
-    isolate()->PrintWithTimestamp("UpdateAllocationLimits: %s\n",
-                                  json_str.c_str());
 
     TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
                          TRACE_EVENT_SCOPE_THREAD, "value",
@@ -7805,10 +7804,7 @@ void Heap::FinishSweepingIfOutOfWork(CompleteSweepingReason reason) {
 
 void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
                                    CompleteSweepingReason reason) {
-  std::string json_str;
-
-#if defined(V8_USE_PERFETTO)
-  if (v8_flags.trace_gc_verbose) [[unlikely]] {
+  if (is_gc_tracing_category_enabled()) [[unlikely]] {
     ::heap::base::UnsafeJsonEmitter json;
     json.object_start()
         .p("sweeping_reason", ToString(reason))
@@ -7816,13 +7812,12 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
         .p("epoch", tracer()->CurrentEpoch(
                         GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED))
         .object_end();
-    json_str = json.ToString();
-  }
-#endif  // V8_USE_PERFETTO
+    std::string json_str = json.ToString();
 
-  TRACE_GC_EPOCH_ARG1(tracer(), GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED,
-                      ThreadKind::kMain, "value",
-                      TRACE_STR_COPY(json_str.c_str()));
+    TRACE_GC_EPOCH_ARG1(
+        tracer(), GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED,
+        ThreadKind::kMain, "value", TRACE_STR_COPY(json_str.c_str()));
+  }
 
   CompleteArrayBufferSweeping(this);
 

@@ -466,6 +466,10 @@ class Heap final {
 
   perfetto::NamedTrack tracing_track() const { return tracing_track_; }
 
+  bool is_gc_tracing_category_enabled() const {
+    return *gc_tracing_category_enabled_;
+  }
+
   enum class StackScanMode { kNone, kFull, kSelective };
   StackScanMode ConservativeStackScanningModeForMinorGC() const {
     if (v8_flags.scavenger_conservative_object_pinning) {
@@ -2608,6 +2612,8 @@ class Heap final {
 
   perfetto::NamedTrack tracing_track_;
   perfetto::NamedTrack loading_track_;
+
+  const uint8_t* gc_tracing_category_enabled_ = nullptr;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;
