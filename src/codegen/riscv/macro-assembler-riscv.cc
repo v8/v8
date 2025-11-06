@@ -5183,8 +5183,8 @@ void MacroAssembler::JumpIfMarking(Label* is_marking,
                                    Label::Distance condition_met_distance) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  LoadWord(scratch,
-           MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Lbu(scratch,
+      MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
   Branch(is_marking, ne, scratch, Operand(zero_reg));
 }
 
@@ -5192,8 +5192,8 @@ void MacroAssembler::JumpIfNotMarking(Label* not_marking,
                                       Label::Distance condition_met_distance) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  LoadWord(scratch,
-           MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Lbu(scratch,
+      MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
   Branch(not_marking, eq, scratch, Operand(zero_reg));
 }
 
