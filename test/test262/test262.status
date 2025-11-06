@@ -573,6 +573,14 @@
   'staging/Intl402/Temporal/old/non-iso-calendars-islamic': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-islamic-rgsa': [SKIP],
 
+  # Older ICU4C revision with different era codes
+  'staging/Intl402/Temporal/old/non-iso-calendars-hebrew': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-civil': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-tbla': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamicc': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-roc': [SKIP],
+
   # Somehow passes on Android (b/433933898):
   'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [SKIP],
