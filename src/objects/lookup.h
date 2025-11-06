@@ -358,6 +358,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   static inline Configuration ComputeConfiguration(Isolate* isolate,
                                                    Configuration configuration,
+                                                   size_t index,
                                                    DirectHandle<Name> name);
 
   Tagged<JSReceiver> GetRootForNonJSReceiver() const;

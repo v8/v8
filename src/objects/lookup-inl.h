@@ -71,7 +71,7 @@ LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                DirectHandle<Name> name, size_t index,
                                DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
-    : configuration_(ComputeConfiguration(isolate, configuration, name)),
+    : configuration_(ComputeConfiguration(isolate, configuration, index, name)),
       isolate_(isolate),
       name_(name),
       receiver_(receiver),
@@ -382,9 +382,10 @@ InternalIndex LookupIterator::dictionary_entry() const {
 
 // static
 LookupIterator::Configuration LookupIterator::ComputeConfiguration(
-    Isolate* isolate, Configuration configuration, DirectHandle<Name> name) {
-  return (!name.is_null() && name->IsPrivate()) ? OWN_SKIP_INTERCEPTOR
-                                                : configuration;
+    Isolate* isolate, Configuration configuration, size_t index,
+    DirectHandle<Name> name) {
+  if (index != kInvalidIndex) return configuration;
+  return name->IsPrivate() ? OWN_SKIP_INTERCEPTOR : configuration;
 }
 
 template <class T>
