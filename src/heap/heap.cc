@@ -7897,8 +7897,16 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
       !tracer()->IsSweepingInProgress());
 
   if (v8_flags.external_memory_accounted_in_global_limit &&
-      !using_initial_limit()) {
-    UpdateAllocationLimits({});
+      !using_initial_limit() &&
+      reason != CompleteSweepingReason::kStartMarking) {
+    // Make sure we don't increase heap limits here.
+    LimitBounds bounds = LimitBounds::AtMostCurrentLimits(this);
+    // But don't go below the soft limits for starting incremental marking.
+    const size_t new_space_capacity = NewSpaceCapacity();
+    bounds.AtLeast(
+        OldGenerationAllocationLimitConsumedBytes() + new_space_capacity,
+        GlobalConsumedBytes() + new_space_capacity);
+    UpdateAllocationLimits(bounds);
   }
 }
 
