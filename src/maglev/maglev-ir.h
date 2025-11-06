@@ -7269,11 +7269,9 @@ class CheckMapsWithAlreadyLoadedMap
 
  public:
   explicit CheckMapsWithAlreadyLoadedMap(uint64_t bitfield,
-                                         const compiler::ZoneRefSet<Map>& maps)
-      : Base(bitfield), maps_(maps) {}
-  explicit CheckMapsWithAlreadyLoadedMap(
-      uint64_t bitfield, base::Vector<const compiler::MapRef> maps, Zone* zone)
-      : Base(bitfield), maps_(maps.begin(), maps.end(), zone) {}
+                                         const compiler::ZoneRefSet<Map>& maps,
+                                         CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)), maps_(maps) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::CanRead();
@@ -7281,6 +7279,7 @@ class CheckMapsWithAlreadyLoadedMap
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   const compiler::ZoneRefSet<Map>& maps() const { return maps_; }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   Input object_input() { return input(0); }
   Input map_input() { return input(1); }
@@ -7289,9 +7288,10 @@ class CheckMapsWithAlreadyLoadedMap
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  auto options() const { return std::tuple{maps_}; }
+  auto options() const { return std::tuple{maps_, check_type()}; }
 
  private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
   const compiler::ZoneRefSet<Map> maps_;
 };
 
