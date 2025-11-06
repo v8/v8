@@ -6477,6 +6477,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccess(
     }
   }
 
+  // Do not optimize AccessMode::kDefine for typed arrays.
+  if (keyed_mode.access_mode() == compiler::AccessMode::kDefine) {
+    for (const compiler::ElementAccessInfo& access_info : access_infos) {
+      if (IsTypedArrayOrRabGsabTypedArrayElementsKind(
+              access_info.elements_kind())) {
+        return {};
+      }
+    }
+  }
+
   // Check for monomorphic case.
   if (access_infos.size() == 1) {
     compiler::ElementAccessInfo const& access_info = access_infos.front();
