@@ -702,6 +702,7 @@ void StraightForwardRegisterAllocator::AllocateEagerDeopt(
     UpdateUse(node, input);
     input++;
   });
+  CHECK_EQ(input, deopt_info.input_locations_end());
 }
 
 void StraightForwardRegisterAllocator::AllocateLazyDeopt(
@@ -716,6 +717,7 @@ void StraightForwardRegisterAllocator::AllocateLazyDeopt(
     UpdateUse(node, input);
     input++;
   });
+  CHECK_EQ(input, deopt_info.input_locations_end());
 }
 
 #ifdef DEBUG
@@ -1695,6 +1697,7 @@ void StraightForwardRegisterAllocator::SaveRegisterSnapshot(NodeBase* node) {
       }
       input++;
     });
+    CHECK_EQ(input, node->eager_deopt_info()->input_locations_end());
   }
   node->set_register_snapshot(snapshot);
 }
