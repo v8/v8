@@ -2097,6 +2097,10 @@ class DeoptInfo {
     DCHECK_NOT_NULL(input_locations_);
     return input_locations_;
   }
+  size_t input_location_count() const { return input_location_count_; }
+  const InputLocation* input_locations_end() const {
+    return input_locations_ + input_location_count_;
+  }
   void InitializeInputLocations(Zone* zone, size_t count);
 
   Label* deopt_entry_label() { return &deopt_entry_label_; }
@@ -2104,17 +2108,11 @@ class DeoptInfo {
   int translation_index() const { return translation_index_; }
   void set_translation_index(int index) { translation_index_ = index; }
 
-#ifdef DEBUG
-  size_t input_location_count() { return input_location_count_; }
-#endif  // DEBUG
-
  private:
   DeoptFrame* top_frame_;
   const compiler::FeedbackSource feedback_to_update_;
   InputLocation* input_locations_ = nullptr;
-#ifdef DEBUG
   size_t input_location_count_ = 0;
-#endif  // DEBUG
   Label deopt_entry_label_;
   int translation_index_ = -1;
 };
@@ -7253,11 +7251,48 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
 }
 
 template <typename Function>
-void VirtualObject::ForEachNestedRuntimeInput(VirtualObjectList virtual_objects,
-                                              Function&& f,
-                                              ForEachSlotIterationMode mode) {
-  static_cast<const VirtualObject*>(this)->ForEachNestedRuntimeInput(
-      virtual_objects, f, mode);
+inline void VirtualObject::ForEachNestedRuntimeInput(
+    VirtualObjectList virtual_objects, Function&& f,
+    ForEachSlotIterationMode mode) {
+  ForEachSlot(
+      [&](ValueNode*& value, const vobj::Field& desc) {
+        // Subtle: this modifies the location of the caller's `value` in-place.
+        // TODO(jgruber): Change the behavior of all related ForEach functions
+        // such that they don't do anything besides iteration.
+        value = value->UnwrapIdentities();
+        if (IsConstantNode(value->opcode())) {
+          // No location assigned to constants.
+          return;
+        }
+        // Special nodes.
+        switch (value->opcode()) {
+          case Opcode::kArgumentsElements:
+          case Opcode::kArgumentsLength:
+          case Opcode::kRestLength:
+            // No location assigned to these opcodes.
+            break;
+          case Opcode::kVirtualObject:
+            UNREACHABLE();
+          case Opcode::kInlinedAllocation: {
+            InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
+            VirtualObject* inner_vobject =
+                virtual_objects.FindAllocatedWith(alloc);
+            // Check if it has escaped.
+            if (inner_vobject &&
+                (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
+              inner_vobject->ForEachNestedRuntimeInput(virtual_objects, f,
+                                                       mode);
+            } else {
+              f(value);
+            }
+            break;
+          }
+          default:
+            f(value);
+            break;
+        }
+      },
+      mode);
 }
 
 class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {

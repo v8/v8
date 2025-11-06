@@ -355,9 +355,7 @@ void DeoptInfo::InitializeInputLocations(Zone* zone, size_t count) {
   for (size_t i = 0; i < count; ++i) {
     new (&input_locations_[i]) InputLocation();
   }
-#ifdef DEBUG
   input_location_count_ = count;
-#endif  // DEBUG
 }
 
 bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
