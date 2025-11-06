@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -1391,49 +1392,49 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
 
   HeapStats stats;
   auto next_value = [value = size_t{1}]() mutable { return value++; };
-  stats.ro_space_size = next_value();
-  stats.ro_space_capacity = next_value();
-  stats.new_space_size = next_value();
-  stats.new_space_capacity = next_value();
-  stats.old_space_size = next_value();
-  stats.old_space_capacity = next_value();
-  stats.code_space_size = next_value();
-  stats.code_space_capacity = next_value();
-  stats.map_space_size = next_value();
-  stats.map_space_capacity = next_value();
-  stats.lo_space_size = next_value();
-  stats.code_lo_space_size = next_value();
+  stats.ro_space_size = ByteSize(static_cast<size_t>(KB));
+  stats.ro_space_capacity = ByteSize(static_cast<size_t>(MB));
+  stats.new_space_size = ByteSize(static_cast<size_t>(GB));
+  stats.new_space_capacity = ByteSize(next_value());
+  stats.old_space_size = ByteSize(next_value());
+  stats.old_space_capacity = ByteSize(next_value());
+  stats.code_space_size = ByteSize(next_value());
+  stats.code_space_capacity = ByteSize(next_value());
+  stats.map_space_size = ByteSize(next_value());
+  stats.map_space_capacity = ByteSize(next_value());
+  stats.lo_space_size = ByteSize(next_value());
+  stats.code_lo_space_size = ByteSize(next_value());
   stats.global_handle_count = next_value();
   stats.weak_global_handle_count = next_value();
   stats.pending_global_handle_count = next_value();
   stats.near_death_global_handle_count = next_value();
   stats.free_global_handle_count = next_value();
-  stats.memory_allocator_size = next_value();
-  stats.memory_allocator_capacity = next_value();
-  stats.malloced_memory = next_value();
-  stats.malloced_peak_memory = next_value();
+  stats.memory_allocator_size = ByteSize(next_value());
+  stats.memory_allocator_capacity = ByteSize(next_value());
+  stats.malloced_memory = ByteSize(next_value());
+  stats.malloced_peak_memory = ByteSize(next_value());
   stats.isolate_count = next_value();
   stats.is_main_isolate = true;
   stats.last_os_error = next_value();
 
   stats.main_cage.start = HexAddress(0x1000);
-  stats.main_cage.size = next_value();
-  stats.main_cage.free_size = next_value();
-  stats.main_cage.largest_free_region = next_value();
+  stats.main_cage.size = ByteSize(next_value());
+  stats.main_cage.free_size = ByteSize(next_value());
+  stats.main_cage.largest_free_region = ByteSize(next_value());
   stats.main_cage.last_allocation_status =
       base::BoundedPageAllocator::AllocationStatus::kSuccess;
 
   stats.trusted_cage.start = HexAddress(0x2000);
-  stats.trusted_cage.size = next_value();
-  stats.trusted_cage.free_size = next_value();
-  stats.trusted_cage.largest_free_region = next_value();
+  stats.trusted_cage.size = ByteSize(next_value());
+  stats.trusted_cage.free_size = ByteSize(next_value());
+  stats.trusted_cage.largest_free_region = ByteSize(next_value());
   stats.trusted_cage.last_allocation_status =
       base::BoundedPageAllocator::AllocationStatus::kFailedToCommit;
 
   stats.code_cage.start = HexAddress(0x3000);
-  stats.code_cage.size = next_value();
-  stats.code_cage.free_size = next_value();
-  stats.code_cage.largest_free_region = next_value();
+  stats.code_cage.size = ByteSize(next_value());
+  stats.code_cage.free_size = ByteSize(next_value());
+  stats.code_cage.largest_free_region = ByteSize(next_value());
   stats.code_cage.last_allocation_status =
       base::BoundedPageAllocator::AllocationStatus::kRanOutOfReservation;
 
@@ -1445,29 +1446,55 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
   heap()->ReportStatsAsCrashKeys(stats);
   auto remaining_keys = crash_key_store.KeyNames();
 
+  auto formatted_size = [](ByteSize size) {
+    const size_t bytes = size.value();
+
+    if (bytes >= MB) {
+      return std::format("{:.2f}MB", static_cast<double>(bytes) / MB);
+    } else if (bytes >= KB) {
+      return std::format("{:.2f}KB", static_cast<double>(bytes) / KB);
+    } else {
+      return std::format("{}B", bytes);
+    }
+  };
+
+  const std::vector<std::pair<std::string, ByteSize>>
+      expected_byte_size_fields = {
+          {"v8-oom-ro-space-size", stats.ro_space_size},
+          {"v8-oom-ro-space-capacity", stats.ro_space_capacity},
+          {"v8-oom-new-space-size", stats.new_space_size},
+          {"v8-oom-new-space-capacity", stats.new_space_capacity},
+          {"v8-oom-old-space-size", stats.old_space_size},
+          {"v8-oom-old-space-capacity", stats.old_space_capacity},
+          {"v8-oom-code-space-size", stats.code_space_size},
+          {"v8-oom-code-space-capacity", stats.code_space_capacity},
+          {"v8-oom-map-space-size", stats.map_space_size},
+          {"v8-oom-map-space-capacity", stats.map_space_capacity},
+          {"v8-oom-lo-space-size", stats.lo_space_size},
+          {"v8-oom-code-lo-space-size", stats.code_lo_space_size},
+          {"v8-oom-memory-allocator-size", stats.memory_allocator_size},
+          {"v8-oom-memory-allocator-capacity", stats.memory_allocator_capacity},
+          {"v8-oom-malloced-memory", stats.malloced_memory},
+          {"v8-oom-malloced-peak-memory", stats.malloced_peak_memory},
+      };
+
+  for (const auto& [key, value] : expected_byte_size_fields) {
+    EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
+    EXPECT_EQ(formatted_size(value), crash_key_store.ValueForKey(key)) << key;
+    remaining_keys.erase(key);
+  }
+
+  EXPECT_EQ("1.00KB", crash_key_store.ValueForKey("v8-oom-ro-space-size"));
+  EXPECT_EQ("1.00MB", crash_key_store.ValueForKey("v8-oom-ro-space-capacity"));
+  EXPECT_EQ("1024.00MB", crash_key_store.ValueForKey("v8-oom-new-space-size"));
+
   const std::vector<std::pair<std::string, size_t>> expected_size_fields = {
-      {"v8-oom-ro-space-size", stats.ro_space_size},
-      {"v8-oom-ro-space-capacity", stats.ro_space_capacity},
-      {"v8-oom-new-space-size", stats.new_space_size},
-      {"v8-oom-new-space-capacity", stats.new_space_capacity},
-      {"v8-oom-old-space-size", stats.old_space_size},
-      {"v8-oom-old-space-capacity", stats.old_space_capacity},
-      {"v8-oom-code-space-size", stats.code_space_size},
-      {"v8-oom-code-space-capacity", stats.code_space_capacity},
-      {"v8-oom-map-space-size", stats.map_space_size},
-      {"v8-oom-map-space-capacity", stats.map_space_capacity},
-      {"v8-oom-lo-space-size", stats.lo_space_size},
-      {"v8-oom-code-lo-space-size", stats.code_lo_space_size},
       {"v8-oom-global-handle-count", stats.global_handle_count},
       {"v8-oom-weak-global-handle-count", stats.weak_global_handle_count},
       {"v8-oom-pending-global-handle-count", stats.pending_global_handle_count},
       {"v8-oom-near-death-global-handle-count",
        stats.near_death_global_handle_count},
       {"v8-oom-free-global-handle-count", stats.free_global_handle_count},
-      {"v8-oom-memory-allocator-size", stats.memory_allocator_size},
-      {"v8-oom-memory-allocator-capacity", stats.memory_allocator_capacity},
-      {"v8-oom-malloced-memory", stats.malloced_memory},
-      {"v8-oom-malloced-peak-memory", stats.malloced_peak_memory},
       {"v8-oom-isolate-count", stats.isolate_count},
       {"v8-oom-last-os-error", stats.last_os_error},
   };
@@ -1478,7 +1505,7 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
     remaining_keys.erase(key);
   }
 
-  const std::vector<std::pair<std::string, size_t>> expected_cage_fields = {
+  const std::vector<std::pair<std::string, ByteSize>> expected_cage_fields = {
       {"v8-oom-main-cage-size", stats.main_cage.size},
       {"v8-oom-main-cage-free-size", stats.main_cage.free_size},
       {"v8-oom-main-cage-largest-free-region",
@@ -1495,7 +1522,7 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
 
   for (const auto& [key, value] : expected_cage_fields) {
     EXPECT_TRUE(crash_key_store.HasKey(key)) << key;
-    EXPECT_EQ(std::to_string(value), crash_key_store.ValueForKey(key)) << key;
+    EXPECT_EQ(formatted_size(value), crash_key_store.ValueForKey(key)) << key;
     remaining_keys.erase(key);
   }
 

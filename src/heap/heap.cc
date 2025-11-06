@@ -5472,13 +5472,13 @@ void Heap::ConfigureHeapDefault() {
 
 namespace {
 
-void RecordStatsForCage(VirtualMemoryCage* cage, CodeCageStats* stats) {
+void RecordStatsForCage(VirtualMemoryCage* cage, CageStats* stats) {
   stats->start = HexAddress(cage->base());
-  stats->size = cage->size();
+  stats->size = ByteSize(cage->size());
   base::BoundedPageAllocator::Stats allocator_stats =
       cage->page_allocator()->RecordStats();
-  stats->free_size = allocator_stats.free_size;
-  stats->largest_free_region = allocator_stats.largest_free_region;
+  stats->free_size = ByteSize(allocator_stats.free_size);
+  stats->largest_free_region = ByteSize(allocator_stats.largest_free_region);
   stats->last_allocation_status = allocator_stats.allocation_status;
 }
 
@@ -5487,26 +5487,29 @@ void RecordStatsForCage(VirtualMemoryCage* cage, CodeCageStats* stats) {
 void Heap::RecordStats(HeapStats* stats) {
   stats->start_marker = HeapStats::kStartMarker;
   stats->end_marker = HeapStats::kEndMarker;
-  stats->ro_space_size = read_only_space_->Size();
-  stats->ro_space_capacity = read_only_space_->Capacity();
-  stats->new_space_size = NewSpaceSize();
-  stats->new_space_capacity = NewSpaceCapacity();
-  stats->old_space_size = old_space_->SizeOfObjects();
-  stats->old_space_capacity = old_space_->Capacity();
-  stats->code_space_size = code_space_->SizeOfObjects();
-  stats->code_space_capacity = code_space_->Capacity();
-  stats->map_space_size = 0;
-  stats->map_space_capacity = 0;
-  stats->lo_space_size = lo_space_->Size();
-  stats->code_lo_space_size = code_lo_space_->Size();
+  stats->ro_space_size = ByteSize(read_only_space_->Size());
+  stats->ro_space_capacity = ByteSize(read_only_space_->Capacity());
+  stats->new_space_size = ByteSize(NewSpaceSize());
+  stats->new_space_capacity = ByteSize(NewSpaceCapacity());
+  stats->old_space_size = ByteSize(old_space_->SizeOfObjects());
+  stats->old_space_capacity = ByteSize(old_space_->Capacity());
+  stats->code_space_size = ByteSize(code_space_->SizeOfObjects());
+  stats->code_space_capacity = ByteSize(code_space_->Capacity());
+  stats->map_space_size = ByteSize(0);
+  stats->map_space_capacity = ByteSize(0);
+  stats->lo_space_size = ByteSize(lo_space_->Size());
+  stats->code_lo_space_size = ByteSize(code_lo_space_->Size());
   isolate_->global_handles()->RecordStats(stats);
-  stats->memory_allocator_size = memory_allocator()->Size();
+  size_t memory_allocator_size = memory_allocator()->Size();
+  stats->memory_allocator_size = ByteSize(memory_allocator_size);
   stats->memory_allocator_capacity =
-      memory_allocator()->Size() + memory_allocator()->Available();
+      ByteSize(memory_allocator_size + memory_allocator()->Available());
   stats->isolate_count = isolate_->isolate_group()->GetIsolateCount();
   stats->last_os_error = base::OS::GetLastError();
-  stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage() +
-                           isolate_->string_table()->GetCurrentMemoryUsage();
+  const size_t allocator_memory =
+      isolate_->allocator()->GetCurrentMemoryUsage() +
+      isolate_->string_table()->GetCurrentMemoryUsage();
+  stats->malloced_memory = ByteSize(allocator_memory);
   stats->is_main_isolate =
       isolate_->isolate_group()->main_isolate() == isolate_;
 #if V8_COMPRESS_POINTERS
@@ -5520,10 +5523,12 @@ void Heap::RecordStats(HeapStats* stats) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  stats->malloced_memory +=
-      i::wasm::GetWasmEngine()->allocator()->GetCurrentMemoryUsage();
+  stats->malloced_memory =
+      ByteSize(stats->malloced_memory.value() +
+               i::wasm::GetWasmEngine()->allocator()->GetCurrentMemoryUsage());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  stats->malloced_peak_memory = isolate_->allocator()->GetMaxMemoryUsage();
+  stats->malloced_peak_memory =
+      ByteSize(isolate_->allocator()->GetMaxMemoryUsage());
   GetFromRingBuffer(stats->last_few_messages);
 }
 
@@ -5574,16 +5579,33 @@ void Heap::ReportStatsAsCrashKeys(const HeapStats& heap_stats) {
 
   Isolate* isolate = this->isolate();
   auto add_crash_key = absl::Overload(
+      [isolate](const char* name, const ByteSize& value) {
+        constexpr size_t kBufferSize = 32;
+        char buffer[kBufferSize];
+        const size_t bytes = value.value();
+        size_t len;
+        if (bytes >= MB) {
+          len = std::snprintf(buffer, kBufferSize, "%.2fMB",
+                              static_cast<double>(bytes) / MB);
+        } else if (bytes >= KB) {
+          len = std::snprintf(buffer, kBufferSize, "%.2fKB",
+                              static_cast<double>(bytes) / KB);
+        } else {
+          len = std::snprintf(buffer, kBufferSize, "%zuB", bytes);
+        }
+        isolate->AddCrashKeyString(name, CrashKeySize::Size32,
+                                   std::string_view(buffer, len));
+      },
       [isolate](const char* name, const size_t& value) {
         constexpr size_t kBufferSize = 32;
-        static char buffer[kBufferSize];
+        char buffer[kBufferSize];
         size_t len = std::snprintf(buffer, kBufferSize, "%zu", value);
         isolate->AddCrashKeyString(name, CrashKeySize::Size32,
                                    std::string_view(buffer, len));
       },
       [isolate](const char* name, const HexAddress& value) {
         constexpr size_t kBufferSize = 32;
-        static char buffer[kBufferSize];
+        char buffer[kBufferSize];
         size_t len = std::snprintf(buffer, kBufferSize, "0x%zx", *value);
         isolate->AddCrashKeyString(name, CrashKeySize::Size32,
                                    std::string_view(buffer, len));
@@ -5617,16 +5639,16 @@ void Heap::ReportStatsAsCrashKeys(const HeapStats& heap_stats) {
   HANDLE_PRIMITIVE_FIELD(name##_last_allocation_status,      \
                          value.last_allocation_status);
 
-#define HANDLE_GENERIC_FIELD(type, name)               \
-  do {                                                 \
-    auto visitor = absl::Overload(                     \
-        [&add_crash_key](const CodeCageStats& value) { \
-          HANDLE_CAGE_STATS_FIELD(name, value)         \
-        },                                             \
-        [&add_crash_key](const auto& value) {          \
-          HANDLE_PRIMITIVE_FIELD(name, value)          \
-        });                                            \
-    visitor(heap_stats.name);                          \
+#define HANDLE_GENERIC_FIELD(type, name)           \
+  do {                                             \
+    auto visitor = absl::Overload(                 \
+        [&add_crash_key](const CageStats& value) { \
+          HANDLE_CAGE_STATS_FIELD(name, value)     \
+        },                                         \
+        [&add_crash_key](const auto& value) {      \
+          HANDLE_PRIMITIVE_FIELD(name, value)      \
+        });                                        \
+    visitor(heap_stats.name);                      \
   } while (false);
   HEAP_STATS_FIELDS(HANDLE_GENERIC_FIELD);
 #undef HANDLE_GENERIC_FIELD

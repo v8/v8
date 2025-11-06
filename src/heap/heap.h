@@ -34,6 +34,7 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
+#include "src/heap/base/bytes.h"
 #include "src/heap/gc-callbacks.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/marking-state.h"
@@ -2706,15 +2707,17 @@ RIGHT_TRIMMABLE_ARRAY_LIST(DECL_RIGHT_TRIM)
 struct HexAddressTag;
 using HexAddress = base::StrongAlias<HexAddressTag, Address>;
 
-#define CAGE_STATS_FIELDS(V)     \
-  V(HexAddress, start)           \
-  V(size_t, size)                \
-  V(size_t, free_size)           \
-  V(size_t, largest_free_region) \
+using ByteSize = ::heap::base::ByteSize;
+
+#define CAGE_STATS_FIELDS(V)       \
+  V(HexAddress, start)             \
+  V(ByteSize, size)                \
+  V(ByteSize, free_size)           \
+  V(ByteSize, largest_free_region) \
   V(base::BoundedPageAllocator::AllocationStatus, last_allocation_status)
 
 // When changing any of these fields please also update cs/crash::ReadHeapStats.
-class CodeCageStats {
+class CageStats {
  public:
 #define DECL_FIELD(type, name) type name = {};
   CAGE_STATS_FIELDS(DECL_FIELD)
@@ -2724,33 +2727,33 @@ class CodeCageStats {
 using TraceRingBuffer = char[Heap::kTraceRingBufferSize + 1];
 
 #define HEAP_STATS_FIELDS(V)                \
-  V(size_t, ro_space_size)                  \
-  V(size_t, ro_space_capacity)              \
-  V(size_t, new_space_size)                 \
-  V(size_t, new_space_capacity)             \
-  V(size_t, old_space_size)                 \
-  V(size_t, old_space_capacity)             \
-  V(size_t, code_space_size)                \
-  V(size_t, code_space_capacity)            \
-  V(size_t, map_space_size)                 \
-  V(size_t, map_space_capacity)             \
-  V(size_t, lo_space_size)                  \
-  V(size_t, code_lo_space_size)             \
+  V(ByteSize, ro_space_size)                \
+  V(ByteSize, ro_space_capacity)            \
+  V(ByteSize, new_space_size)               \
+  V(ByteSize, new_space_capacity)           \
+  V(ByteSize, old_space_size)               \
+  V(ByteSize, old_space_capacity)           \
+  V(ByteSize, code_space_size)              \
+  V(ByteSize, code_space_capacity)          \
+  V(ByteSize, map_space_size)               \
+  V(ByteSize, map_space_capacity)           \
+  V(ByteSize, lo_space_size)                \
+  V(ByteSize, code_lo_space_size)           \
   V(size_t, global_handle_count)            \
   V(size_t, weak_global_handle_count)       \
   V(size_t, pending_global_handle_count)    \
   V(size_t, near_death_global_handle_count) \
   V(size_t, free_global_handle_count)       \
-  V(size_t, memory_allocator_size)          \
-  V(size_t, memory_allocator_capacity)      \
-  V(size_t, malloced_memory)                \
-  V(size_t, malloced_peak_memory)           \
+  V(ByteSize, memory_allocator_size)        \
+  V(ByteSize, memory_allocator_capacity)    \
+  V(ByteSize, malloced_memory)              \
+  V(ByteSize, malloced_peak_memory)         \
   V(size_t, isolate_count)                  \
   V(size_t, last_os_error)                  \
   V(bool, is_main_isolate)                  \
-  V(CodeCageStats, main_cage)               \
-  V(CodeCageStats, trusted_cage)            \
-  V(CodeCageStats, code_cage)               \
+  V(CageStats, main_cage)                   \
+  V(CageStats, trusted_cage)                \
+  V(CageStats, code_cage)                   \
   V(TraceRingBuffer, last_few_messages)
 
 // When changing any of these fields please also update cs/crash::ReadHeapStats.
