@@ -9832,7 +9832,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadDataView(
   GET_VALUE_OR_ABORT(byte_length, BuildLoadJSDataViewByteLength(receiver));
 
   RETURN_IF_ABORT(
-      AddNewNode<CheckJSDataViewBounds>({receiver, offset, byte_length}, type));
+      AddNewNode<CheckJSDataViewBounds>({offset, byte_length}, type));
   ValueNode* is_little_endian = args[1] ? args[1] : GetBooleanConstant(false);
   return AddNewNode<LoadNode>({receiver, offset, is_little_endian}, type);
 }
@@ -9862,8 +9862,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
   GET_VALUE_OR_ABORT(byte_length, BuildLoadJSDataViewByteLength(receiver));
 
   RETURN_IF_ABORT(AddNewNode<CheckJSDataViewBounds>(
-      {receiver, offset, byte_length},
-      ExternalArrayType::kExternalFloat64Array));
+      {offset, byte_length}, ExternalArrayType::kExternalFloat64Array));
   ValueNode* value = getValue(args[1]);
   ValueNode* is_little_endian = args[2] ? args[2] : GetBooleanConstant(false);
   RETURN_IF_ABORT(

@@ -92,21 +92,14 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
 }
 
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
   UseRegister(index_input());
   UseRegister(byte_length_input());
 }
 
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
   Register index = ToRegister(index_input());
   Register byte_length = ToRegister(byte_length_input());
-  if (v8_flags.debug_code) {
-    __ AssertNotSmi(object);
-    __ CmpObjectType(object, JS_DATA_VIEW_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
-  }
 
   int element_size = compiler::ExternalArrayElementSize(element_type_);
   if (element_size > 1) {

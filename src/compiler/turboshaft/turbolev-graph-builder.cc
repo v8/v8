@@ -3516,11 +3516,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::CheckJSDataViewBounds* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    // Normal DataView (backed by AB / SAB) or non-length tracking backed by
-    // GSAB.
-    V<WordPtr> byte_length =
-        __ LoadField<WordPtr>(Map<JSTypedArray>(node->receiver_input()),
-                              AccessBuilder::ForJSDataViewByteLength());
+    V<WordPtr> byte_length = Map<WordPtr>(node->byte_length_input());
 
     int element_size = ExternalArrayElementSize(node->element_type());
     if (element_size > 1) {
