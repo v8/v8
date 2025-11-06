@@ -1536,20 +1536,12 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
   MachineRepresentation repr = source().representation();
   if (source().IsRegister()) {
     Register source_reg = ToRegister(source());
-    if (target().IsAnyRegister()) {
-      DCHECK(target().IsRegister());
-      __ MoveRepr(repr, ToRegister(target()), source_reg);
-    } else {
-      __ MoveRepr(repr, masm->ToMemOperand(target()), source_reg);
-    }
+    CHECK(target().IsRegister());
+    __ MoveRepr(repr, ToRegister(target()), source_reg);
   } else if (source().IsDoubleRegister()) {
     DoubleRegister source_reg = ToDoubleRegister(source());
-    if (target().IsAnyRegister()) {
-      DCHECK(target().IsDoubleRegister());
-      __ Move(ToDoubleRegister(target()), source_reg);
-    } else {
-      __ StoreFloat64(masm->ToMemOperand(target()), source_reg);
-    }
+    CHECK(target().IsDoubleRegister());
+    __ Move(ToDoubleRegister(target()), source_reg);
   } else {
     DCHECK(source().IsAnyStackSlot());
     MemOperand source_op = masm->ToMemOperand(source());
