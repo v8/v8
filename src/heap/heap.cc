@@ -1948,12 +1948,44 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
     return;
   }
 
-  if (IsYoungGenerationCollector(collector)) {
-    CompleteSweepingYoung(CompleteSweepingReason::kStartMarking);
-  } else {
+  std::string json_str;
+
+  const bool is_major = collector == GarbageCollector::MARK_COMPACTOR;
+  const auto scope_id = is_major ? GCTracer::Scope::MC_INCREMENTAL_START
+                                 : GCTracer::Scope::MINOR_MS_INCREMENTAL_START;
+
+  if (is_gc_tracing_category_enabled()) {
+    ::heap::base::UnsafeJsonEmitter json;
+
+    json.object_start()
+        .p("epoch", tracer()->CurrentEpoch(scope_id))
+        .p("gc_reason", ToString(gc_reason))
+        .p("reason", reason)
+        .p("old_gen_allocation_limit", old_generation_allocation_limit())
+        .p("old_gen_consumed_bytes", OldGenerationConsumedBytes())
+        .p("old_gen_allocation_limit_consumed_bytes",
+           OldGenerationAllocationLimitConsumedBytes())
+        .p("old_gen_space_available", OldGenerationSpaceAvailable())
+        .p("global_allocation_limit", global_allocation_limit())
+        .p("global_consumed_bytes", GlobalConsumedBytes())
+        .p("global_memory_available", GlobalMemoryAvailable())
+        .object_end();
+
+    json_str = json.ToString();
+  }
+
+  TRACE_EVENT2("v8",
+               is_major ? "V8.GCIncrementalMarkingStart"
+                        : "V8.GCMinorIncrementalMarkingStart",
+               "epoch", tracer()->CurrentEpoch(scope_id), "value",
+               TRACE_STR_COPY(json_str.c_str()));
+
+  if (is_major) {
     // Sweeping needs to be completed such that markbits are all cleared before
     // starting marking again.
     CompleteSweepingFull(CompleteSweepingReason::kStartMarking);
+  } else {
+    CompleteSweepingYoung(CompleteSweepingReason::kStartMarking);
   }
 
   std::optional<SafepointScope> safepoint_scope;
@@ -2651,9 +2683,9 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
 
     std::string json_str = json.ToString();
 
-    TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
-                         TRACE_EVENT_SCOPE_THREAD, "value",
-                         TRACE_STR_COPY(json_str.c_str()));
+    TRACE_EVENT_INSTANT1(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCUpdateAllocationLimits",
+        TRACE_EVENT_SCOPE_THREAD, "value", TRACE_STR_COPY(json_str.c_str()));
   }
 
   SetOldGenerationAndGlobalAllocationLimit(next_old_generation_allocation_limit,
