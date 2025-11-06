@@ -3018,6 +3018,7 @@ DEFINE_BOOL(sparkplug_plus, false, "enable dynamic patching on baseline code")
 DEFINE_BOOL_READONLY(sparkplug_plus, false,
                      "enable dynamic patching on baseline code")
 #endif
+DEFINE_IMPLICATION(sparkplug_plus, short_builtin_calls)
 
 DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 
