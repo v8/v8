@@ -327,24 +327,23 @@ size_t Heap::MaxReserved() const {
 }
 
 // static
+size_t Heap::YoungGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
+  // `physical_memory / kPhysicalMemoryToOldGenerationRatio` is not the actual
+  // old generation size, but achieves desires scaling w.r.t. `physical_memory`.
+  return YoungGenerationSizeFromOldGenerationSize(
+      physical_memory, physical_memory / kPhysicalMemoryToOldGenerationRatio);
+}
+
+// static
 size_t Heap::YoungGenerationSizeFromOldGenerationSize(uint64_t physical_memory,
-                                                      size_t old_generation) {
+                                                      uint64_t old_generation) {
   // Compute the semi space size and cap it.
-  bool is_low_memory =
-      old_generation <= Heap::OldGenerationLowMemory(physical_memory);
-  size_t semi_space;
-  if (v8_flags.minor_ms && !is_low_memory) {
-    semi_space = DefaultMaxSemiSpaceSize(physical_memory);
-  } else {
-    size_t ratio = is_low_memory
-                       ? OldGenerationToSemiSpaceRatioLowMemory(physical_memory)
-                       : OldGenerationToSemiSpaceRatio(physical_memory);
-    semi_space = old_generation / ratio;
-    semi_space =
-        std::min({semi_space, DefaultMaxSemiSpaceSize(physical_memory)});
-    semi_space = std::max({semi_space, DefaultMinSemiSpaceSize()});
-    semi_space = RoundUp(semi_space, PageMetadata::kPageSize);
-  }
+  uint64_t semi_space =
+      old_generation / OldGenerationToSemiSpaceRatio(physical_memory);
+  semi_space =
+      RoundUp(std::clamp<size_t>(semi_space, 2 * MB,
+                                 DefaultMaxSemiSpaceSize(physical_memory)),
+              PageMetadata::kPageSize);
   return YoungGenerationSizeFromSemiSpaceSize(semi_space);
 }
 
@@ -5218,20 +5217,18 @@ size_t Heap::DefaultMaxHeapSize(uint64_t physical_memory) {
 
 // static
 size_t Heap::OldGenerationToSemiSpaceRatio(uint64_t physical_memory) {
-  DCHECK(!v8_flags.minor_ms);
-  // Compute a ration such that when old gen max capacity is set to the highest
-  // supported value, young gen max capacity would also be set to the max.
-  const size_t max_semi_space_size = DefaultMaxSemiSpaceSize(physical_memory);
-  DCHECK_GT(max_semi_space_size, 0);
-  return DefaultMaxHeapSize(physical_memory) / max_semi_space_size;
-}
-
-// static
-size_t Heap::OldGenerationToSemiSpaceRatioLowMemory(uint64_t physical_memory) {
-  static const size_t old_generation_to_semi_space_ratio_low_memory =
-      256 * HeapLimitMultiplier(physical_memory);
-  return old_generation_to_semi_space_ratio_low_memory /
-         (v8_flags.minor_ms ? 2 : 1);
+  // The ratio is determined so that we hit DefaultMaxSemiSpaceSize()
+  // at about `old_generation = 256MB`, which corresponds to
+  // `physical_memory = 1GB`.
+  if (v8_flags.minor_ms) {
+    return 4;  // DefaultMaxSemiSpaceSize() = 72MB would give a ratio of 3.55
+  }
+#if defined(ANDROID)
+  if (!IsHighEndAndroid(physical_memory)) {
+    return 128;  // DefaultMaxSemiSpaceSize() = 8MB
+  }
+#endif
+  return 32;  // DefaultMaxSemiSpaceSize() = 32MB
 }
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
