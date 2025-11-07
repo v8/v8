@@ -1358,7 +1358,7 @@ class PrototypesSetup : public wasm::Decoder {
     method_wrapper_->set_language_mode(LanguageMode::kStrict);
   }
 
-  Tagged<Object> SetupPrototypes(DirectHandle<JSObject> constructors) {
+  Tagged<Object> SetupPrototypes(DirectHandle<Object> constructors) {
     uint32_t num_prototypes = consume_u32v("number of prototypes");
     FOR_WITH_HANDLE_SCOPE(isolate(), uint32_t proto_index = 0, proto_index,
                           proto_index < num_prototypes && ok(), proto_index++) {
@@ -1547,7 +1547,11 @@ class PrototypesSetup : public wasm::Decoder {
   DirectHandle<JSFunction> InstallConstructor(
       DirectHandle<JSReceiver> prototype,
       DirectHandle<WasmExportedFunction> wasm_function,
-      DirectHandle<String> name, DirectHandle<JSObject> all_constructors) {
+      DirectHandle<String> name, DirectHandle<Object> all_constructors) {
+    if (!IsJSReceiver(*all_constructors)) {
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
+      return {};
+    }
     DirectHandle<Context> context = isolate_->factory()->NewBuiltinContext(
         isolate_->native_context(), wasm::kConstructorFunctionContextLength);
     context->SetNoCell(wasm::kConstructorFunctionContextSlot, *wasm_function);
@@ -1582,8 +1586,9 @@ class PrototypesSetup : public wasm::Decoder {
     prop.set_configurable(true);
     prop.set_writable(true);
     prop.set_value(constructor);
-    if (!JSReceiver::DefineOwnProperty(isolate_, all_constructors, name, &prop,
-                                       Just(ShouldThrow::kThrowOnError))
+    if (!JSReceiver::DefineOwnProperty(isolate_,
+                                       Cast<JSReceiver>(all_constructors), name,
+                                       &prop, Just(ShouldThrow::kThrowOnError))
              .FromMaybe(false)) {
       return {};
     }
@@ -1712,11 +1717,10 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
   if (!IsWasmArray(args[0])) return ThrowWasmError(isolate, illegal_cast);
   if (!IsWasmArray(args[1])) return ThrowWasmError(isolate, illegal_cast);
   if (!IsWasmArray(args[2])) return ThrowWasmError(isolate, illegal_cast);
-  if (!IsJSObject(args[3])) return ThrowWasmError(isolate, illegal_cast);
   DirectHandle<WasmArray> prototypes(Cast<WasmArray>(args[0]), isolate);
   DirectHandle<WasmArray> functions(Cast<WasmArray>(args[1]), isolate);
   DirectHandle<WasmArray> data(Cast<WasmArray>(args[2]), isolate);
-  DirectHandle<JSObject> constructors(Cast<JSObject>(args[3]), isolate);
+  DirectHandle<Object> constructors(args[3], isolate);
   {
     Tagged<Object> expected_prototypes_map =
         MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
@@ -1752,7 +1756,7 @@ RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypesOpt) {
   DCHECK_EQ(3, args.length());
 
   uint32_t* stack_buffer = reinterpret_cast<uint32_t*>(args[0].ptr());
-  DirectHandle<JSObject> constructors(Cast<JSObject>(args[1]), isolate);
+  DirectHandle<Object> constructors(args[1], isolate);
   DirectHandle<WasmTrustedInstanceData> instance(
       TrustedCast<WasmTrustedInstanceData>(args[2]), isolate);
 

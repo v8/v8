@@ -45,7 +45,6 @@ let $g_static = builder.addGlobal(kWasmI32, true, false);
 
 let $makeSuper = builder.addFunction(
     "MakeSuper", makeSig([kWasmI32], [kWasmAnyRef]))
-  .exportFunc()
   .addBody([
     kExprLocalGet, 0,
     kExprGlobalGet, $g_SuperDesc.index,
@@ -54,7 +53,6 @@ let $makeSuper = builder.addFunction(
 
 let $makeSub = builder.addFunction(
     "MakeSub", makeSig([kWasmI32, kWasmI32], [kWasmAnyRef]))
-  .exportFunc()
   .addBody([
     kExprLocalGet, 0,
     kExprLocalGet, 1,
@@ -171,6 +169,13 @@ for (let i = 0; i < 3; i++) Test();
 %OptimizeFunctionOnNextCall(Test);
 Test();
 
+// Passing {null} constructors when setting up constructors throws.
+let bad_imports = {...imports};
+bad_imports.c.constructors = null;
+assertThrows(
+    () => builder.instantiate(bad_imports, {builtins: ['js-prototypes']}),
+    WebAssembly.RuntimeError, "illegal cast");
+
 function Traps() {
   let sup = new Super(1);
   sup.traps();
@@ -195,11 +200,80 @@ for (let i = 0; i < 3; i++) {
     Traps();
     assertUnreachable();
   } catch (e) {
-    console.log("error stack: ", e.stack);
     testStackTrace(e, [
       /RuntimeError: illegal cast/,
-      /at subMethod \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[4\]:0x14f/,
+      /at subMethod \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[4\]:0x136/,
       /at Traps \(.*\)/,
     ]);
   }
 }
+
+(function NoConstructors() {
+  let builder = new WasmModuleBuilder();
+
+  builder.startRecGroup();
+  let $desc = builder.nextTypeIndex() + 1;
+  let $struct = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], descriptor: $desc});
+  /* $desc*/ builder.addStruct(
+      {fields: [makeField(kWasmExternRef, false)], describes: $struct});
+  builder.endRecGroup();
+
+  let proto_config = new WasmPrototypeSetupBuilder(builder);
+  let $g_proto = builder.addImportedGlobal("p", "p", kWasmExternRef);
+
+  let $g_desc = builder.addGlobal(
+    wasmRefType($desc).exact(), false, false, [
+      kExprGlobalGet, $g_proto,
+      kGCPrefix, kExprStructNew, $desc,
+    ]);
+
+  builder.addFunction("make", makeSig([kWasmI32], [kWasmAnyRef]))
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprGlobalGet, $g_desc.index,
+      kGCPrefix, kExprStructNew, $struct,
+    ]);
+
+  let $method = builder.addFunction("method", kSig_i_r).addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprAnyConvertExtern,
+    kGCPrefix, kExprRefCast, $struct,
+    kGCPrefix, kExprStructGet, $struct, 0,
+  ]);
+
+  proto_config.addConfig($g_proto).addMethod("method", kWasmMethod, $method);
+  proto_config.build();
+
+  let proto_segment = 0;
+  let func_segment = 1;
+  let data_segment = 0;
+  let data_segment_length = builder.data_segments[data_segment].data.length;
+  builder.addFunction("slowPath", kSig_v_v).exportFunc().addBody([
+    kExprI32Const, 0,
+    kExprI32Const, 1,  // Number of prototypes.
+    kGCPrefix, kExprArrayNewElem, proto_config.$array_externref, proto_segment,
+
+    kExprI32Const, 0,
+    kExprI32Const, 1,  // Number of functions.
+    kGCPrefix, kExprArrayNewElem, proto_config.$array_funcref, func_segment,
+
+    kExprI32Const, 0,
+    kExprI32Const, ...wasmSignedLeb(data_segment_length),
+    kGCPrefix, kExprArrayNewData, proto_config.$array_i8, data_segment,
+    // {ref.null} instead of {global.get} throws us off the fast path.
+    kExprRefNull, kExternRefCode,
+    kExprCallFunction, proto_config.$configureAll,
+  ]);
+
+  let imports = {
+    p: { p: {} },
+    c: { constructors: null },
+  }
+
+  let instance = builder.instantiate(imports, { builtins: ['js-prototypes'] });
+  let obj = instance.exports.make(42);
+  assertEquals(42, obj.method());
+  instance.exports.slowPath();  // Does not throw.
+})();
