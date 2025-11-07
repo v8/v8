@@ -658,7 +658,11 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
                                     isolate);
   wasm::Suspend suspend = import_data->suspend();
 
-  wasm::ResolvedWasmImport resolved({}, -1, callable, sig,
+  // We don't need to care about exactness of the import here, because that
+  // has already been validated (hence no kLinkError can happen here).
+  wasm::CanonicalValueType expected_type = wasm::CanonicalValueType::Ref(
+      sig->index(), wasm::kNotShared, wasm::RefTypeKind::kFunction);
+  wasm::ResolvedWasmImport resolved({}, -1, callable, expected_type, sig,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.

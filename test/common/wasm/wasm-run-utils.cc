@@ -95,7 +95,9 @@ TestingModuleBuilder::TestingModuleBuilder(
         GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
     const wasm::CanonicalSig* sig =
         GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
-    ResolvedWasmImport resolved({}, -1, maybe_import->js_function, sig,
+    const wasm::CanonicalValueType type = wasm::CanonicalValueType::Ref(
+        sig_index, wasm::kNotShared, wasm::RefTypeKind::kFunction);
+    ResolvedWasmImport resolved({}, -1, maybe_import->js_function, type, sig,
                                 WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
