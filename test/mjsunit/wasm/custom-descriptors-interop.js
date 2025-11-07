@@ -112,7 +112,7 @@ proto_config.build();
 let constructors = {};
 let imports = {
   p: {
-    pSuper: {},
+    pSuper: {__proto__: {rootProp: "root"}},
     pSub: {},
   },
   c: {constructors},
@@ -151,6 +151,20 @@ function Test() {
   assertEquals(Sub.prototype, Object.getPrototypeOf(sub));
   assertEquals(Sub, sub.constructor);
   assertEquals(Super.prototype, Object.getPrototypeOf(Sub.prototype));
+
+  // Mixed prototype chain.
+  let js_sub = {jsProp: "js"};
+  Object.setPrototypeOf(js_sub, sub);
+  assertEquals("function", typeof js_sub.superMethod);
+  let iteration = 0;
+  for (let p in js_sub) {
+    iteration++;
+    if (iteration == 1) assertEquals("jsProp", p);
+    // The methods on {sub} and {sup} don't show up here because they're not
+    // enumerable, but we do iterate over the entire prototype chain.
+    if (iteration == 2) assertEquals("rootProp", p);
+  }
+  assertEquals(2, iteration);
 }
 %PrepareFunctionForOptimization(Test);
 for (let i = 0; i < 3; i++) Test();
