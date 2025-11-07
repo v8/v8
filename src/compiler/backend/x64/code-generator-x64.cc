@@ -1501,7 +1501,7 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   __ Assert(equal, AbortReason::kWrongFunctionDispatchHandle);
 }
 
-void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(rbx); }
+void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(rbx); }
 
 bool ShouldClearOutputRegisterBeforeInstruction(CodeGenerator* g,
                                                 Instruction* instr) {

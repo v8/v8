@@ -1469,7 +1469,6 @@ config("features") {
   if (v8_enable_undefined_double) {
     defines += [ "V8_ENABLE_UNDEFINED_DOUBLE" ]
   }
-  defines += [ "V8_ENABLE_LEAPTIERING" ]
   if (v8_enable_partition_alloc) {
     defines += [ "V8_ENABLE_PARTITION_ALLOC" ]
   }

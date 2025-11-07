@@ -561,12 +561,13 @@ void MaglevAssembler::Prologue(Graph* graph) {
   AssertInSandboxedExecutionMode();
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
-  BailoutIfDeoptimized(rbx);
+  if (v8_flags.debug_code) {
+    AssertNotDeoptimized(rbx);
+  }
 
   if (graph->has_recursive_calls()) {
     BindJumpTarget(code_gen_state()->entry_label());
   }
-
 
   EnterFrame(StackFrame::MAGLEV);
   // Save arguments in frame.

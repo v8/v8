@@ -6314,34 +6314,21 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
 
   pop(ra);  // Restore ra
 }
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-//
-// Note: With leaptiering we simply assert the code is not deoptimized.
-void MacroAssembler::BailoutIfDeoptimized() {
+
+void MacroAssembler::AssertNotDeoptimized() {
   // UseScratchRegisterScope temps(this);
   // Register scratch = temps.Acquire();
-  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
-    int offset =
-        InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-    // LoadProtectedPointerField(
-    //   scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-    Ld(kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-    Lwu(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
-  }
-  if (v8_flags.debug_code) {
-    Label not_deoptimized;
-    And(kScratchReg, kScratchReg,
-        Operand(1 << Code::kMarkedForDeoptimizationBit));
-    Branch(&not_deoptimized, eq, kScratchReg, Operand(zero_reg));
-    Abort(AbortReason::kInvalidDeoptimizedCode);
-    bind(&not_deoptimized);
-  }
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
+  // LoadProtectedPointerField(
+  //   scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  Ld(kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  Lwu(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
+  Label not_deoptimized;
+  And(kScratchReg, kScratchReg,
+      Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Branch(&not_deoptimized, eq, kScratchReg, Operand(zero_reg));
+  Abort(AbortReason::kInvalidDeoptimizedCode);
+  bind(&not_deoptimized);
 }
 
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
@@ -6435,11 +6422,6 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 }
 
 #endif
-
-namespace {
-
-
-}  // namespace
 
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {

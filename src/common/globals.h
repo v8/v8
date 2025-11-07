@@ -149,8 +149,6 @@ namespace internal {
 #define V8_STATIC_ROOTS_GENERATION_BOOL false
 #endif
 
-#define V8_ENABLE_LEAPTIERING_BOOL true
-
 #ifdef V8_COMPRESS_POINTERS
 #define V8_STATIC_DISPATCH_HANDLES_BOOL true
 #else
@@ -159,7 +157,6 @@ namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
 #define V8_ENABLE_SANDBOX_BOOL true
-static_assert(V8_ENABLE_LEAPTIERING_BOOL);
 #define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE 1
 #define V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL true
 #else

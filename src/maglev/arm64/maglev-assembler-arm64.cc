@@ -155,7 +155,9 @@ void MaglevAssembler::Prologue(Graph* graph) {
   DCHECK(!graph->is_osr());
 
   CallTarget();
-  BailoutIfDeoptimized();
+  if (v8_flags.debug_code) {
+    AssertNotDeoptimized();
+  }
 
   if (graph->has_recursive_calls()) {
     BindCallTarget(code_gen_state()->entry_label());

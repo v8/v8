@@ -870,7 +870,7 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   __ Assert(eq, AbortReason::kWrongFunctionDispatchHandle);
 }
 
-void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
+void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 
 int32_t GetLaneMask(int32_t lane_count) { return lane_count * 2 - 1; }
 

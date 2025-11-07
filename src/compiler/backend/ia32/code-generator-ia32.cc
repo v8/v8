@@ -675,27 +675,14 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   CHECK(!V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-//
-// Note: With leaptiering we simply assert the code is not deoptimized.
-void CodeGenerator::BailoutIfDeoptimized() {
+void CodeGenerator::AssertNotDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
-    __ push(eax);  // Push eax so we can use it as a scratch register.
-    __ mov(eax, Operand(kJavaScriptCallCodeStartRegister, offset));
-    __ test(FieldOperand(eax, Code::kFlagsOffset),
-            Immediate(1 << Code::kMarkedForDeoptimizationBit));
-    __ pop(eax);  // Restore eax.
-  }
-  if (v8_flags.debug_code) {
-    __ Assert(zero, AbortReason::kInvalidDeoptimizedCode);
-  }
+  __ push(eax);  // Push eax so we can use it as a scratch register.
+  __ mov(eax, Operand(kJavaScriptCallCodeStartRegister, offset));
+  __ test(FieldOperand(eax, Code::kFlagsOffset),
+          Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  __ pop(eax);  // Restore eax.
+  __ Assert(zero, AbortReason::kInvalidDeoptimizedCode);
 }
 
 // Assembles an instruction after register allocation, producing machine code.

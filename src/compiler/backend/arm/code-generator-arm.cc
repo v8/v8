@@ -691,7 +691,7 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
 //       the flags in the referenced {Code} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
-void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
+void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(

@@ -259,7 +259,9 @@ void CodeGenerator::AssembleCode() {
   if (info->IsOptimizing()) {
     DCHECK(call_descriptor->IsJSFunctionCall());
     masm()->RecordComment("-- Prologue: check for deoptimization --");
-    BailoutIfDeoptimized();
+    if (v8_flags.debug_code) {
+      AssertNotDeoptimized();
+    }
   }
 
   // Define deoptimization literals for all inlined functions.

@@ -2031,11 +2031,6 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   bind(&done);
 }
 
-namespace {
-
-
-}  // namespace
-
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
   if (v8_flags.debug_code) {
@@ -2913,27 +2908,14 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   sub(dst, pc, Operand(pc_offset() + Instruction::kPcLoadDelta));
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-//
-// Note: With leaptiering we simply assert the code is not deoptimized.
-void MacroAssembler::BailoutIfDeoptimized() {
+void MacroAssembler::AssertNotDeoptimized() {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
-    ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-    ldr(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
-    tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
-  }
-  if (v8_flags.debug_code) {
-    Assert(kZero, AbortReason::kInvalidDeoptimizedCode);
-  }
+  ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  ldr(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
+  tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Assert(kZero, AbortReason::kInvalidDeoptimizedCode);
 }
 
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,

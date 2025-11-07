@@ -149,7 +149,9 @@ void MaglevAssembler::Prologue(Graph* graph) {
   Register scratch = temps.AcquireScratch();
   DCHECK(!graph->is_osr());
 
-  BailoutIfDeoptimized(scratch);
+  if (v8_flags.debug_code) {
+    AssertNotDeoptimized(scratch);
+  }
 
   if (graph->has_recursive_calls()) {
     bind(code_gen_state()->entry_label());

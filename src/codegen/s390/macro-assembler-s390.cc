@@ -2063,11 +2063,6 @@ void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
   beq(done);
 }
 
-namespace {
-
-
-}  // namespace
-
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
   if (v8_flags.debug_code) {
@@ -5179,25 +5174,12 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   bind(&return_label);
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-//
-// Note: With leaptiering we simply assert the code is not deoptimized.
-void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
+void MacroAssembler::AssertNotDeoptimized(Register scratch) {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
-    LoadTaggedField(scratch,
-                    MemOperand(kJavaScriptCallCodeStartRegister, offset));
-    TestCodeIsMarkedForDeoptimization(scratch, scratch);
-  }
-  if (v8_flags.debug_code) {
-    Assert(to_condition(kZero), AbortReason::kInvalidDeoptimizedCode);
-  }
+  LoadTaggedField(scratch,
+                  MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  TestCodeIsMarkedForDeoptimization(scratch, scratch);
+  Assert(to_condition(kZero), AbortReason::kInvalidDeoptimizedCode);
 }
 
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,

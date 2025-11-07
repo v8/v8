@@ -737,7 +737,7 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
             actual_parameter_count, Operand(parameter_count_));
 }
 
-void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
+void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(

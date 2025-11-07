@@ -753,9 +753,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void CallBuiltinByIndex(Register builtin_index, Register target);
 
-  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
-  // non-leaptiering is removed from the codebase.
-  void BailoutIfDeoptimized(Register scratch);
+  void AssertNotDeoptimized(Register scratch);
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);

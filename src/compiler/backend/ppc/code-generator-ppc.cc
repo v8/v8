@@ -827,8 +827,8 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   CHECK(!V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
 }
 
-void CodeGenerator::BailoutIfDeoptimized() {
-  __ BailoutIfDeoptimized(kScratchReg);
+void CodeGenerator::AssertNotDeoptimized() {
+  __ AssertNotDeoptimized(kScratchReg);
 }
 
 // Assembles an instruction after register allocation, producing machine code.

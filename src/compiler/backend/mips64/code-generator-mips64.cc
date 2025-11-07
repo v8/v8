@@ -580,7 +580,7 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
             actual_parameter_count, Operand(parameter_count_));
 }
 
-void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
+void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 // Assembles an instruction after register allocation, producing machine code.
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
@@ -1663,7 +1663,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Float64InsertHighWord32:
       __ FmoveHigh(i.OutputDoubleRegister(), i.InputRegister(1));
       break;
-    // ... more basic instructions ...
+      // ... more basic instructions ...
 
     case kMips64Seb:
       __ seb(i.OutputRegister(), i.InputRegister(0));

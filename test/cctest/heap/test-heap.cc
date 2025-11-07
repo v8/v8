@@ -4674,11 +4674,9 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
     code = handle(bar->code(isolate), isolate);
     CompileRun("%DeoptimizeFunction(bar);");
     CHECK(code->marked_for_deoptimization());
-    CHECK_IMPLIES(V8_ENABLE_LEAPTIERING_BOOL,
-                  !code->SafeEquals(bar->code(isolate)));
+    CHECK(!code->SafeEquals(bar->code(isolate)));
     code = scope.CloseAndEscape(code);
   }
-
 
   // Now make sure that a gc should get rid of the function
   for (int i = 0; i < 4; i++) {
