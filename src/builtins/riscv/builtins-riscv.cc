@@ -692,11 +692,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     //   a0: root register value
     //   a1: microtask_queue
 
-    // Save callee saved registers on the stack.
-    __ MultiPush(kCalleeSaved | ra);
-
     // Save callee-saved FPU registers.
     __ MultiPushFPU(kCalleeSavedFPU);
+    // Save callee saved registers on the stack.
+    __ MultiPush(kCalleeSaved);
+    __ Push(ra);
     // Set up the reserved register for 0.0.
     __ LoadFPRImmediate(kDoubleRegZero, 0.0);
     __ LoadFPRImmediate(kSingleRegZero, 0.0f);
@@ -719,14 +719,13 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // a5: argv
 
   // We build an EntryFrame.
-  __ li(s1, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   __ li(s2, Operand(StackFrame::TypeToMarker(type)));
   __ li(s3, Operand(StackFrame::TypeToMarker(type)));
   ExternalReference c_entry_fp = ExternalReference::Create(
       IsolateAddressId::kCEntryFPAddress, masm->isolate());
   __ li(s5, c_entry_fp);
   __ LoadWord(s4, MemOperand(s5));
-  __ Push(s1, s2, s3, s4);
+  __ Push(fp, s2, s3, s4);
   // Clear c_entry_fp, now we've pushed its previous value to the stack.
   // If the c_entry_fp is not already zero and we don't clear it, the
   // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
@@ -756,11 +755,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Stack:
   // fast api call pc
   // fast api call fp
-  // caller fp          |
+  // c_entry_fp         |
   // function slot      | entry frame
   // context slot       |
-  // bad fp (0xFF...F)  |
-  // callee saved registers + ra
+  // fp                 | <---fp
+  // ra                 |
+  // callee saved registers
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
@@ -820,16 +820,16 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //   a1: microtask_queue
   //
   // Stack:
+  //                    | handler frame
   // fast api call pc.
   // fast api call fp.
   // JS entry frame marker
-  // caller fp          |
+  // c_entry_fp         |
   // function slot      | entry frame
   // context slot       |
-  // bad fp (0xFF...F)  |
-  // handler frame
-  // entry frame
-  // callee saved registers + ra
+  // fp                 |
+  // ra                 |
+  // callee saved registers
   // [ O32: 4 args slots]
   // args
   //
@@ -866,11 +866,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Reset the stack to the callee saved registers.
   __ AddWord(sp, sp, -EntryFrameConstants::kNextExitFrameFPOffset);
 
+  __ Pop(ra);
+  // Restore callee saved registers from the stack.
+  __ MultiPop(kCalleeSaved);
   // Restore callee-saved fpu registers.
   __ MultiPopFPU(kCalleeSavedFPU);
-
-  // Restore callee saved registers from the stack.
-  __ MultiPop(kCalleeSaved | ra);
   // Return.
   __ Jump(ra);
 }
