@@ -34,7 +34,7 @@ class DumplingManager {
                Handle<Object> accumulator);
 
  private:
-  bool AnyDumplingFlagsSet() const { return v8_flags.interpreter_dumping; }
+  bool AnyDumplingFlagsSet() const;
 
   std::string GetDumpOutFilename() const;
 

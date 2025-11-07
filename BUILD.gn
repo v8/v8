@@ -491,7 +491,7 @@ declare_args() {
   v8_use_default_hasher_secret = true
 
   # add instrumentation for Dumpling differential fuzzing
-  v8_dumpling = true
+  v8_dumpling = false
 }
 
 # Derived defaults.

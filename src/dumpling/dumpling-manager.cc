@@ -79,4 +79,8 @@ DumplingManager::DumplingManager()
 
 DumplingManager::~DumplingManager() { dumpling_os_.close(); }
 
+bool DumplingManager::AnyDumplingFlagsSet() const {
+  return v8_flags.interpreter_dumping;
+}
+
 }  // namespace v8::internal
