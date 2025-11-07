@@ -1122,9 +1122,15 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
           UpdateUse(phi->input(predecessor_id));
         }
       }
+    } else if (target->is_edge_split_block()) {
+      // MaglevOptimizer can rewrite control flow when folding conditionals.
+      // This can make a spurious edge split block connected by unconditional
+      // jumps.
+      // TODO(victorgomes): consider eliminating those empty blocks before
+      // regalloc.
+      InitializeEmptyBlockRegisterValues(node, target);
     } else {
       // Fallthrough.
-      DCHECK(!target->is_edge_split_block());
       DCHECK_EQ(unconditional->id() + 1, target->first_id());
       DCHECK(AllUsedRegistersLiveAt(target));
     }
