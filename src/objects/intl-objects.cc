@@ -3098,7 +3098,11 @@ std::string Intl::DefaultTimeZone() {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString canonical;
   icu::TimeZone::getCanonicalID(id, canonical, status);
-  DCHECK(U_SUCCESS(status));
+  if (!U_SUCCESS(status)) {
+    // System timezone APIs can't be trusted to return real, canonicalizeable
+    // timezones, so we return UTC when we can't canonicalize it.
+    return "UTC";
+  }
   return Intl::TimeZoneIdToString(canonical);
 }
 
