@@ -3595,7 +3595,7 @@ THREADED_TEST(NamedInterceptorDictionaryIC) {
       "interceptor_obj.x = 42;"
       "interceptor_obj.y = 10;"
       "delete interceptor_obj.y;"
-      "get_x(interceptor_obj)");
+      "for (var i = 0; i < 10; i++) get_x(interceptor_obj);");
   CHECK(result->Equals(context.local(), v8_str("x")).FromJust());
 }
 
