@@ -750,6 +750,8 @@ DEFINE_BOOL(maglev_print_feedback, true,
             "print feedback vector for maglev compiled code")
 DEFINE_BOOL(maglev_print_inlined, true,
             "print bytecode / feedback vectors also for inlined code")
+DEFINE_BOOL(maglev_print_provenance, true,
+            "print Maglev node provenance, ie, file name, bytecode and offset")
 
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_WEAK_IMPLICATION(print_maglev_code, maglev_print_bytecode)

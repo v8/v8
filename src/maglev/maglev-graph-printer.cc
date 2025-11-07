@@ -707,6 +707,7 @@ void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
 void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
                           MaglevGraphLabeller::Provenance provenance,
                           MaglevGraphLabeller::Provenance existing_provenance) {
+  if (!v8_flags.maglev_print_provenance) return;
   DisallowGarbageCollection no_gc;
 
   // Print function every time the compilation unit changes.
