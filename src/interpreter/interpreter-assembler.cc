@@ -50,6 +50,11 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
 #ifdef V8_TRACE_UNOPTIMIZED
   TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
+
+#ifdef V8_DUMPLING
+  TraceBytecode(Runtime::kDumpExecutionFrame);
+#endif
+
   RegisterCallGenerationCallbacks([this] { CallPrologue(); },
                                   [this] { CallEpilogue(); });
 
@@ -1270,6 +1275,10 @@ void InterpreterAssembler::InlineShortStar(TNode<WordT> target_bytecode) {
 
 #ifdef V8_TRACE_UNOPTIMIZED
   TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
+#endif
+
+#ifdef V8_DUMPLING
+  TraceBytecode(Runtime::kDumpExecutionFrame);
 #endif
 
   StoreRegisterForShortStar(GetAccumulator(), target_bytecode);

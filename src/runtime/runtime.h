@@ -188,6 +188,12 @@ constexpr bool CanTriggerGC(T... properties) {
 #define FOR_EACH_INTRINSIC_TRACE_UNOPTIMIZED(F, I)
 #endif
 
+#ifdef V8_DUMPLING
+#define FOR_EACH_INTRINSIC_TRACE_DUMPLING(F, I) F(DumpExecutionFrame, 3, 1)
+#else
+#define FOR_EACH_INTRINSIC_TRACE_DUMPLING(F, I)
+#endif
+
 #ifdef V8_TRACE_FEEDBACK_UPDATES
 #define FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I) \
   F(TraceUpdateFeedback, 3, 1, RuntimeCallProperty::kCannotTriggerGC)
@@ -197,7 +203,8 @@ constexpr bool CanTriggerGC(T... properties) {
 
 #define FOR_EACH_INTRINSIC_TRACE(F, I)       \
   FOR_EACH_INTRINSIC_TRACE_UNOPTIMIZED(F, I) \
-  FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I)
+  FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I)    \
+  FOR_EACH_INTRINSIC_TRACE_DUMPLING(F, I)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F, I)  \
   F(Call, -1 /* >= 2 */, 1)                \

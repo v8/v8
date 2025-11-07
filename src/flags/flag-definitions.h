@@ -2880,6 +2880,17 @@ DEFINE_BOOL(external_reference_stats, false,
             "print statistics on external references used during serialization")
 #endif  // DEBUG
 
+#ifdef V8_DUMPLING
+// Dumpling flags start.
+DEFINE_BOOL(interpreter_dumping, false,
+            "enable frame dumping in the interpreter")
+// Needed for function id.
+DEFINE_NEG_IMPLICATION(interpreter_dumping, enable_lazy_source_positions)
+DEFINE_STRING(dump_out_filename, "/tmp/output_dump.txt",
+              "File to save the frame dumps to")
+// Dumpling flags end.
+#endif  // V8_DUMPLING
+
 // compilation-cache.cc
 DEFINE_BOOL(compilation_cache, true, "enable compilation cache")
 

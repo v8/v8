@@ -75,6 +75,10 @@ class SimulatorData;
 }  // namespace v8
 #endif
 
+#ifdef V8_DUMPLING
+#include "src/dumpling/dumpling-manager.h"
+#endif
+
 namespace v8_inspector {
 class V8Inspector;
 }  // namespace v8_inspector
@@ -1888,6 +1892,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return builtins_constants_table_builder_;
   }
 
+#ifdef V8_DUMPLING
+  DumplingManager* dumpling_manager() { return &dumpling_manager_; }
+#endif
+
   // Hashes bits of the Isolate that are relevant for embedded builtins. In
   // particular, the embedded blob requires builtin InstructionStream object
   // layout and the builtins constants table to remain unchanged from
@@ -2928,6 +2936,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.
   void* operator new(size_t, void* ptr) { return ptr; }
+
+#ifdef V8_DUMPLING
+  DumplingManager dumpling_manager_;
+#endif
 
 #if USE_SIMULATOR
   SimulatorData* simulator_data_ = nullptr;

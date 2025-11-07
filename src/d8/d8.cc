@@ -5891,6 +5891,13 @@ void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params = GetDefaultIsolateCreateParams();
   isolate_ = Isolate::New(create_params);
 
+  // TODO(mdanylo): can we omit dump disable here?
+#ifdef V8_DUMPLING
+  v8::internal::Isolate* internal_isolate =
+      reinterpret_cast<v8::internal::Isolate*>(isolate_);
+  internal_isolate->dumpling_manager()->SetIsolateDumpDisabled();
+#endif  // V8_DUMPLING
+
   // Make the Worker instance available to the whole thread.
   SetCurrentWorker(this);
 

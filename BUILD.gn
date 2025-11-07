@@ -489,6 +489,9 @@ declare_args() {
 
   # Use a hard-coded secret value when hashing.
   v8_use_default_hasher_secret = true
+
+  # add instrumentation for Dumpling differential fuzzing
+  v8_dumpling = true
 }
 
 # Derived defaults.
@@ -1329,6 +1332,9 @@ config("features") {
   }
   if (v8_fuzzilli) {
     defines += [ "V8_FUZZILLI" ]
+  }
+  if (v8_dumpling) {
+    defines += [ "V8_DUMPLING" ]
   }
   if (v8_enable_fuzztest) {
     defines += [ "V8_ENABLE_FUZZTEST" ]
@@ -6495,6 +6501,15 @@ v8_source_set("v8_base_without_compiler") {
       "src/fuzzilli/cov.h",
       "src/fuzzilli/fuzzilli.cc",
       "src/fuzzilli/fuzzilli.h",
+    ]
+  }
+
+  if (v8_dumpling) {
+    sources += [
+      "src/dumpling/dumpling-manager.cc",
+      "src/dumpling/dumpling-manager.h",
+      "src/dumpling/object-dumping.cc",
+      "src/dumpling/object-dumping.h",
     ]
   }
 
