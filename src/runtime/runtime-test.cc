@@ -2355,5 +2355,137 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferDetachForceWasm) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+// Parses one or two arguments from Smis into ArgType.
+// Returns false if the arguments were not Smis and true otherwise.
+template <typename ArgType>
+bool ParseArgumentsForTablePrinter(const RuntimeArguments& args,
+                                   Isolate* isolate, ArgType* arg1,
+                                   ArgType* arg2) {
+  if (args.length() > 2) {
+    return false;
+  }
+  if (args.length() == 1) {
+    Tagged<Smi> smi;
+    if (!TryCast(args[0], &smi)) {
+      return false;
+    }
+    *arg1 = static_cast<ArgType>(Smi::ToInt(smi));
+    *arg2 = static_cast<ArgType>(Smi::ToInt(smi) + 1);
+  } else if (args.length() == 2) {
+    Tagged<Smi> smi;
+    if (!TryCast(args[0], &smi)) {
+      return false;
+    }
+    *arg1 = static_cast<ArgType>(Smi::ToInt(smi));
+    if (!TryCast(args[1], &smi)) {
+      return false;
+    }
+    *arg2 = static_cast<ArgType>(Smi::ToInt(smi));
+  }
+  return true;
+}
+
+template <typename EntryFilter>
+void PrintCppHeapPointerTableImpl(Isolate* isolate,
+                                  CppHeapPointerHandle min_handle,
+                                  CppHeapPointerHandle max_handle,
+                                  EntryFilter entry_filter) {
+  PrintF("CppHeapPointerTable:\n");
+#ifdef OBJECT_PRINT
+#ifdef V8_COMPRESS_POINTERS
+  const auto& table = Isolate::Current()->cpp_heap_pointer_table();
+  table.Print(Isolate::Current()->heap()->cpp_heap_pointer_space(), "Old space",
+              min_handle, max_handle, entry_filter);
+#else   // !V8_COMPRESS_POINTERS
+  PrintF("Table not used in this configuration.\n");
+#endif  // !V8_COMPRESS_POINTERS
+#else   // !OBJECT_PRINT
+  PrintF("Object printing not enabled.\n");
+#endif  // !OBJECT_PRINT
+}
+
+template <typename EntryFilter>
+void PrintExternalPointerTableImpl(Isolate* isolate,
+                                   ExternalPointerHandle min_handle,
+                                   ExternalPointerHandle max_handle,
+                                   EntryFilter entry_filter) {
+  PrintF("ExternalPointerTable:\n");
+#ifdef OBJECT_PRINT
+#ifdef V8_COMPRESS_POINTERS
+  const auto& table = Isolate::Current()->external_pointer_table();
+  table.Print(Isolate::Current()->heap()->read_only_external_pointer_space(),
+              "Read-only space", min_handle, max_handle, entry_filter);
+  table.Print(Isolate::Current()->heap()->young_external_pointer_space(),
+              "Young space", min_handle, max_handle, entry_filter);
+  table.Print(Isolate::Current()->heap()->old_external_pointer_space(),
+              "Old space", min_handle, max_handle, entry_filter);
+#else   // !V8_COMPRESS_POINTERS
+  PrintF("Table not used in this configuration.\n");
+#endif  // !V8_COMPRESS_POINTERS
+#else   // !OBJECT_PRINT
+  PrintF("Object printing not enabled.\n");
+#endif  // !OBJECT_PRINT
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_DebugPrintCppHeapPointerTable) {
+  using HandleType = CppHeapPointerHandle;
+  HandleType min_handle = std::numeric_limits<HandleType>::min();
+  HandleType max_handle = std::numeric_limits<HandleType>::max();
+  if (!ParseArgumentsForTablePrinter(args, isolate, &min_handle, &max_handle)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  PrintCppHeapPointerTableImpl(isolate, min_handle, max_handle,
+                               [](CppHeapPointerTag) { return true; });
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintCppHeapPointerTableFilterTag) {
+  using HandleType = CppHeapPointerHandle;
+  const HandleType min_handle = std::numeric_limits<HandleType>::min();
+  const HandleType max_handle = std::numeric_limits<HandleType>::max();
+  CppHeapPointerTag min_tag = CppHeapPointerTag::kFirstTag;
+  CppHeapPointerTag max_tag = CppHeapPointerTag::kLastTag;
+  if (!ParseArgumentsForTablePrinter(args, isolate, &min_tag, &max_tag)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  PrintCppHeapPointerTableImpl(isolate, min_handle, max_handle,
+                               [min_tag, max_tag](CppHeapPointerTag tag) {
+                                 return tag >= min_tag && tag < max_tag;
+                               });
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintExternalPointerTable) {
+  using HandleType = ExternalPointerHandle;
+  HandleType min_handle = std::numeric_limits<HandleType>::min();
+  HandleType max_handle = std::numeric_limits<HandleType>::max();
+  if (!ParseArgumentsForTablePrinter(args, isolate, &min_handle, &max_handle)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  PrintExternalPointerTableImpl(isolate, min_handle, max_handle,
+                                [](ExternalPointerTag) { return true; });
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintExternalPointerTableFilterTag) {
+  using HandleType = ExternalPointerHandle;
+  const HandleType min_handle = std::numeric_limits<HandleType>::min();
+  const HandleType max_handle = std::numeric_limits<HandleType>::max();
+  ExternalPointerTag min_tag = ExternalPointerTag::kFirstExternalPointerTag;
+  ExternalPointerTag max_tag = ExternalPointerTag::kLastExternalPointerTag;
+  if (!ParseArgumentsForTablePrinter(args, isolate, &min_tag, &max_tag)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  PrintExternalPointerTableImpl(isolate, min_handle, max_handle,
+                                [min_tag, max_tag](ExternalPointerTag tag) {
+                                  return tag >= min_tag && tag < max_tag;
+                                });
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

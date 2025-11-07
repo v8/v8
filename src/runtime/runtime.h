@@ -556,6 +556,10 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ConstructThinString, 1, 1)                                           \
   F(CurrentFrameIsTurbofan, 0, 1)                                        \
   F(DebugPrint, -1, 1, RuntimeCallProperty::kCannotTriggerGC)            \
+  F(DebugPrintCppHeapPointerTable, -1, 1)                                \
+  F(DebugPrintCppHeapPointerTableFilterTag, -1, 1)                       \
+  F(DebugPrintExternalPointerTable, -1, 1)                               \
+  F(DebugPrintExternalPointerTableFilterTag, -1, 1)                      \
   F(DebugPrintGeneric, -1, 1)                                            \
   F(DebugPrintFloat, 5, 1)                                               \
   F(DebugPrintPtr, 1, 1)                                                 \
