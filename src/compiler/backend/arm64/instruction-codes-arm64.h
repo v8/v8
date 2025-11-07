@@ -102,6 +102,7 @@ namespace compiler {
   V(Arm64S128Not)                       \
   V(Arm64S128Select)                    \
   V(Arm64S128AndNot)                    \
+  V(Arm64S128OrNot)                     \
   V(Arm64S128Rev16)                     \
   V(Arm64S128Rev32)                     \
   V(Arm64S128Rev64)                     \

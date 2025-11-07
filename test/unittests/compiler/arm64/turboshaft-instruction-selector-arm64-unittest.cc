@@ -8302,6 +8302,77 @@ TEST_P(TurboshaftInstructionSelectorSIMDConstAndTest, ConstAnd) {
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorSIMDConstAndTest,
                          ::testing::ValuesIn(SIMDConstAndTests));
+
+TEST_F(TurboshaftInstructionSelectorTest, wasmSimdOrnTest) {
+  // NOT node on the left
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex not_op = m.Emit(TSUnop::kS128Not, l);
+    OpIndex or_op = m.Emit(TSBinop::kS128Or, not_op, r);
+    m.Return(or_op);
+    Stream s = m.Build();
+
+    // Test that the ((not L) or R) is correctly optimized to (R orn L)
+    EXPECT_EQ(kArm64S128OrNot, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->InputAt(0)));
+  }
+  // NOT node on the right
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex not_op = m.Emit(TSUnop::kS128Not, r);
+    OpIndex or_op = m.Emit(TSBinop::kS128Or, l, not_op);
+    m.Return(or_op);
+    Stream s = m.Build();
+
+    // Test that the (L or (not R)) is correctly optimized to (L orn R)
+    EXPECT_EQ(kArm64S128OrNot, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->InputAt(1)));
+  }
+  // NOT node used elsewhere too (should not optimise)
+  {
+    StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                    MachineType::Simd128());
+    V<Simd128> l = m.Parameter(0);
+    V<Simd128> r = m.Parameter(1);
+    OpIndex not_op = m.Emit(TSUnop::kS128Not, r);
+    OpIndex or_op1 = m.Emit(TSBinop::kS128Or, l, not_op);
+    // Use the not_op elsewhere, blocking CanCover()
+    OpIndex or_op2 = m.Emit(TSBinop::kS128Or, r, not_op);
+    // Combine ops together, to one parent.
+    OpIndex combining_op = m.Emit(TSBinop::kS128Or, or_op1, or_op2);
+    m.Return(combining_op);
+    Stream s = m.Build();
+
+    EXPECT_EQ(4U, s.size());
+    // Test that or_op1 has not been optimised.
+    EXPECT_EQ(kArm64S128Or, s[1]->arch_opcode());
+    EXPECT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(1U, s[1]->OutputCount());
+    EXPECT_EQ(s.ToVreg(l), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(not_op), s.ToVreg(s[1]->InputAt(1)));
+    // Test that or_op2 has not been optimised.
+    EXPECT_EQ(kArm64S128Or, s[2]->arch_opcode());
+    EXPECT_EQ(2U, s[2]->InputCount());
+    EXPECT_EQ(1U, s[2]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[2]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(not_op), s.ToVreg(s[2]->InputAt(1)));
+  }
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {

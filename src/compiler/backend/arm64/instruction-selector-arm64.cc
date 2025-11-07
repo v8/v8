@@ -4778,8 +4778,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)     \
   V(I16x8RelaxedQ15MulRS, kArm64I16x8Q15MulRSatS) \
   V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8) \
-  V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8) \
-  V(S128Or, kArm64S128Or)
+  V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8)
 
 #define SIMD_BINOP_LANE_SIZE_LIST(V)                   \
   V(F64x2Min, kArm64FMin, 64)                          \
@@ -4951,6 +4950,45 @@ void InstructionSelector::VisitS128And(OpIndex node) {
   // AndNot can be used if we negate the immediate input of And.
   if (!TryEmitS128AndNotImm(this, node, true)) {
     VisitRRR(this, kArm64S128And, node);
+  }
+}
+
+namespace {
+
+bool TryEmitS128OrNot(InstructionSelector* selector, OpIndex node) {
+  Arm64OperandGenerator g(selector);
+
+  const Simd128BinopOp& or_op = selector->Get(node).Cast<Simd128BinopOp>();
+
+  // If the RHS is unary, check if it's a NOT op.
+  if (const Simd128UnaryOp* rhs =
+          selector->TryCast<Opmask::kSimd128S128Not>(or_op.right())) {
+    if (selector->CanCover(node, or_op.right())) {  // (LHS OR (NOT RHS)) found.
+      selector->Emit(kArm64S128OrNot, g.DefineAsRegister(node),
+                     g.UseRegister(or_op.left()), g.UseRegister(rhs->input()));
+      return true;
+    }
+  }
+
+  // If the LHS is unary, check if it's a NOT op.
+  if (const Simd128UnaryOp* lhs =
+          selector->TryCast<Opmask::kSimd128S128Not>(or_op.left())) {
+    if (selector->CanCover(node, or_op.left())) {  // ((NOT LHS) OR RHS) found.
+      selector->Emit(kArm64S128OrNot, g.DefineAsRegister(node),
+                     g.UseRegister(or_op.right()), g.UseRegister(lhs->input()));
+      return true;
+    }
+  }
+
+  // Else: Emit regular OR instruction.
+  return false;
+}
+
+}  // namespace
+
+void InstructionSelector::VisitS128Or(OpIndex node) {
+  if (!TryEmitS128OrNot(this, node)) {
+    VisitRRR(this, kArm64S128Or, node);
   }
 }
 
