@@ -194,6 +194,33 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   current_trace_id_.emplace(reinterpret_cast<uint64_t>(this) ^
                             heap_->tracer()->CurrentEpoch(scope_id));
 
+  std::string json_str;
+
+  if (heap_->is_gc_tracing_category_enabled()) {
+    ::heap::base::UnsafeJsonEmitter json;
+
+    json.object_start()
+        .p("epoch", heap_->tracer()->CurrentEpoch(scope_id))
+        .p("gc_reason", ToString(gc_reason))
+        .p("reason", reason)
+        .p("old_gen_allocation_limit", heap_->old_generation_allocation_limit())
+        .p("old_gen_consumed_bytes", heap_->OldGenerationConsumedBytes())
+        .p("old_gen_allocation_limit_consumed_bytes",
+           heap_->OldGenerationAllocationLimitConsumedBytes())
+        .p("old_gen_space_available", heap_->OldGenerationSpaceAvailable())
+        .p("global_allocation_limit", heap_->global_allocation_limit())
+        .p("global_consumed_bytes", heap_->GlobalConsumedBytes())
+        .p("global_memory_available", heap_->GlobalMemoryAvailable())
+        .object_end();
+
+    json_str = json.ToString();
+  }
+
+  TRACE_EVENT2("v8",
+               is_major ? "V8.GCIncrementalMarkingStart"
+                        : "V8.GCMinorIncrementalMarkingStart",
+               "epoch", heap_->tracer()->CurrentEpoch(scope_id), "value",
+               TRACE_STR_COPY(json_str.c_str()));
   TRACE_GC_EPOCH_WITH_FLOW(heap()->tracer(), scope_id, ThreadKind::kMain,
                            current_trace_id_.value(),
                            TRACE_EVENT_FLAG_FLOW_OUT);
