@@ -328,11 +328,16 @@ class RecomputeKnownNodeAspectsProcessor {
 
   template <typename NodeT>
   void ProcessLoadContextSlot(NodeT* node) {
+    ValueNode* context = node->input_node(0);
     ValueNode*& cached_value = known_node_aspects().GetContextCachedValue(
-        node->input_node(0), node->offset(),
+        context, node->offset(),
         node->is_const() ? ContextSlotMutability::kImmutable
                          : ContextSlotMutability::kMutable);
     if (!cached_value) cached_value = node;
+    if (!node->is_const()) {
+      known_node_aspects().UpdateMayHaveAliasingContexts(
+          broker(), broker()->local_isolate(), context);
+    }
   }
 
   ProcessResult ProcessNode(LoadContextSlot* node) {
