@@ -137,6 +137,7 @@ class GraphProcessor {
         }
       }
     };
+    // LINT.IfChange(maglev_constant_nodes)
     process_constants(graph->constants());
     process_constants(graph->root());
     process_constants(graph->smi());
@@ -146,8 +147,10 @@ class GraphProcessor {
     process_constants(graph->shifted_int53());
     process_constants(graph->intptr());
     process_constants(graph->float64());
+    process_constants(graph->holey_float64());
     process_constants(graph->heap_number());
     process_constants(graph->trusted_constants());
+    // LINT.ThenChange()
 
     for (block_it_ = graph->begin(); block_it_ != graph->end(); ++block_it_) {
       bool process_control_block = true;

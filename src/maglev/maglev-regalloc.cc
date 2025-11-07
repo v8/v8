@@ -378,6 +378,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     printing_visitor_->PreProcessGraph(graph_);
   }
 
+  // LINT.IfChange(maglev_constant_nodes)
   for (const auto& [ref, constant] : graph_->constants()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(ref);
@@ -411,6 +412,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);
   }
+  for (const auto& [value, constant] : graph_->holey_float64()) {
+    constant->regalloc_info()->SetConstantLocation();
+    USE(value);
+  }
   for (const auto& [value, constant] : graph_->heap_number()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(value);
@@ -419,6 +424,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->regalloc_info()->SetConstantLocation();
     USE(ref);
   }
+  // LINT.ThenChange()
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
     BasicBlock* block = *block_it_;
