@@ -795,7 +795,7 @@ void Map::MapVerify(Isolate* isolate) {
     }
   }
 
-  if (!may_have_interesting_properties()) {
+  if (!may_have_interesting_properties() && !is_wasm_struct) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());
     CHECK(!is_access_check_needed());

@@ -1832,10 +1832,12 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Tagged<Map> map) {
                            Map::kTransitionsOrPrototypeInfoOffset);
     }
   }
-  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
-  TagObject(descriptors, "(map descriptors)");
-  SetInternalReference(entry, "descriptors", descriptors,
-                       Map::kInstanceDescriptorsOffset);
+  if (IsJSObjectMap(map)) {
+    Tagged<DescriptorArray> descriptors = map->instance_descriptors();
+    TagObject(descriptors, "(map descriptors)");
+    SetInternalReference(entry, "descriptors", descriptors,
+                         Map::kInstanceDescriptorsOffset);
+  }
   SetInternalReference(entry, "prototype", map->prototype(),
                        Map::kPrototypeOffset);
   if (IsContextMap(map) || IsMapMap(map)) {

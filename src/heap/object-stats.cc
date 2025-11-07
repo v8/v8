@@ -1030,9 +1030,13 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Tagged<Map> map) {
     // This will be logged as MAP_TYPE in Phase2.
   }
 
-  Tagged<DescriptorArray> array = map->instance_descriptors(cage_base());
-  if (map->owns_descriptors() &&
-      array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
+  if (Tagged<DescriptorArray> array;
+      map->owns_descriptors() &&
+#if V8_ENABLE_WEBASSEMBLY
+      !IsWasmObjectMap(map) &&
+#endif  // V8_ENABLE_WEBASSEMBLY
+      (array = map->instance_descriptors(cage_base())) !=
+          ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // Generally DescriptorArrays have their own instance type already
     // (DESCRIPTOR_ARRAY_TYPE), but we'd like to be able to tell which
     // of those are for (abandoned) prototypes, and which of those are

@@ -4088,6 +4088,11 @@ void Map::PrintMapDetails(std::ostream& os) {
 
 void Map::MapPrint(std::ostream& os) {
   bool is_meta_map = instance_type() == MAP_TYPE;
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm_map = IsWasmObjectMap(*this);
+#else
+  constexpr bool is_wasm_map = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef OBJECT_PRINT
   PrintHeader(os, is_meta_map ? "MetaMap" : "Map");
 #else
@@ -4124,8 +4129,9 @@ void Map::MapPrint(std::ostream& os) {
   if (is_dictionary_map()) os << "\n - dictionary_map";
   if (has_named_interceptor()) os << "\n - named_interceptor";
   if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
-  if (may_have_interesting_properties())
+  if (may_have_interesting_properties()) {
     os << "\n - may_have_interesting_properties";
+  }
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";
@@ -4140,14 +4146,22 @@ void Map::MapPrint(std::ostream& os) {
   } else if (is_prototype_map()) {
     os << "\n - prototype_map";
     os << "\n - prototype info: " << Brief(prototype_info());
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (is_wasm_map) {
+    os << "\n - wasm_type_info: " << Brief(wasm_type_info());
+    Tagged<Object> proto_info = prototype_info();
+    if (!IsSmi(proto_info)) os << "\n - prototype info: " << Brief(proto_info);
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else {
     os << "\n - back pointer: " << Brief(GetBackPointer());
   }
   os << "\n - prototype_validity_cell: "
      << Brief(prototype_validity_cell(kRelaxedLoad));
-  os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
-     << "#" << NumberOfOwnDescriptors() << ": "
-     << Brief(instance_descriptors());
+  if (!is_wasm_map) {
+    os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
+       << "#" << NumberOfOwnDescriptors() << ": "
+       << Brief(instance_descriptors());
+  }
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
