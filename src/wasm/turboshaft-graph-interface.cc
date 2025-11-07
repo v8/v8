@@ -2901,6 +2901,29 @@ class TurboshaftGraphBuildingInterface
         }
         uint32_t inlined_index = tree->function_index();
         DCHECK(!decoder->module_->function_is_shared(inlined_index));
+
+        if (InliningTargetsProvidedByCustomSection()) {
+          const WasmFunction& inlinee =
+              decoder->module_->functions[inlined_index];
+          if (!InlineTargetIsTypeCompatible(decoder->module_, sig,
+                                            inlinee.sig)) {
+            if (v8_flags.trace_wasm_inlining) {
+              PrintF(
+                  "[function %d%s: Ignoring inlining hint to function %d: "
+                  "wrong signature]\n",
+                  func_index_, mode_ == kRegular ? "" : " (inlined)",
+                  inlined_index);
+            }
+            // Fall through to the next case.
+            __ Goto(case_blocks[i + 1]);
+            // Do not use the deopt slowpath if we decided to not inline (at
+            // least) one call target. Otherwise, this could lead to a deopt
+            // loop. This however is ensured for kMap mode.
+            DCHECK(!use_deopt_slowpath);
+            continue;
+          }
+        }
+
         V<Object> inlined_func_ref =
             __ LoadFixedArrayElement(func_refs, inlined_index);
 
@@ -3023,6 +3046,25 @@ class TurboshaftGraphBuildingInterface
         }
         uint32_t inlined_index = tree->function_index();
         DCHECK(!decoder->module_->function_is_shared(inlined_index));
+
+        if (InliningTargetsProvidedByCustomSection()) {
+          const WasmFunction& inlinee =
+              decoder->module_->functions[inlined_index];
+          if (!InlineTargetIsTypeCompatible(decoder->module_, sig,
+                                            inlinee.sig)) {
+            if (v8_flags.trace_wasm_inlining) {
+              PrintF(
+                  "[function %d%s: Ignoring inlining hint to function %d: "
+                  "wrong signature]\n",
+                  func_index_, mode_ == kRegular ? "" : " (inlined)",
+                  inlined_index);
+            }
+            // Fall through to the next case.
+            __ Goto(case_blocks[i + 1]);
+            continue;
+          }
+        }
+
         V<Object> inlined_func_ref =
             __ LoadFixedArrayElement(func_refs, inlined_index);
 
@@ -8760,14 +8802,18 @@ class TurboshaftGraphBuildingInterface
     return true;
   }
 
+  bool InliningTargetsProvidedByCustomSection() {
+    // Currently this is a convenient way to distinguish section-provided hints
+    // from dynamically-collected feedback.
+    return inlining_decisions_->mode() == InliningTree::Mode::kMap;
+  }
+
   void InlineWasmCall(FullDecoder* decoder, uint32_t func_index,
                       const FunctionSig* sig, uint32_t feedback_case,
                       bool is_tail_call, const Value args[], Value returns[]) {
     DCHECK_IMPLIES(is_tail_call, returns == nullptr);
     const WasmFunction& inlinee = decoder->module_->functions[func_index];
     // In a corrupted sandbox, we can't trust the collected feedback.
-    // TODO(manoskouk): In case of compilation hints, we might be given a
-    // compilation hint with the wrong signature. Silently do not inline then.
     SBXCHECK(InlineTargetIsTypeCompatible(decoder->module_, sig, inlinee.sig));
 
     SmallZoneVector<OpIndex, 16> inlinee_args(
@@ -9085,8 +9131,7 @@ class TurboshaftGraphBuildingInterface
   void disable_deopts() { deopts_enabled_ = false; }
   bool deopts_enabled() {
     if (!deopts_enabled_.has_value()) {
-      if (inlining_decisions_ &&
-          inlining_decisions_->mode() == InliningTree::Mode::kMap) {
+      if (inlining_decisions_ && InliningTargetsProvidedByCustomSection()) {
         // We have to disable deopts in this case. Deopts need function feedback
         // for GetLiftoffFrameSize.
         // TODO(manoskouk): This will be inherited by inlinee decoders. This is

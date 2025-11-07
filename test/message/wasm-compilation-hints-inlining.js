@@ -212,7 +212,7 @@ d8.file.execute('test/mjsunit/mjsunit.js');
   assertEquals((10 + 1) * (10 + 1) - (10 + 1), wasm.caller(10));
 })();
 
-(function TestHintIndicesOutOfBounds () {
+(function TestHintIndicesOutOfBounds() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
@@ -239,4 +239,104 @@ d8.file.execute('test/mjsunit/mjsunit.js');
   while(%IsLiftoffFunction(wasm.caller)) {}
 
   assertEquals(11, wasm.caller(10));
+})();
+
+(function TestCallRefHintWithWrongSignature() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let inc = builder.addFunction("inc", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add])
+
+  let wrong_sig = builder.addFunction("wrong_sig", kSig_i_ii)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add]);
+
+  let caller = builder.addFunction("caller", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Mul,
+              kExprRefFunc, inc.index, kExprCallRef, inc.type_index])
+    .exportFunc();
+
+  builder.addDeclarativeElementSegment([inc.index]);
+
+  builder.setCompilationPriority(caller.index, 0, 0);
+
+  builder.setInstructionFrequencies(
+    caller.index, [{offset: 8, frequency: 32}]);
+
+  builder.setCallTargets(caller.index,
+    [{offset: 8,
+      targets: [{function_index: wrong_sig.index, frequency_percent: 100}]}]);
+
+  let wasm = builder.instantiate({}).exports;
+
+  while(%IsLiftoffFunction(wasm.caller)) {}
+
+  assertEquals(21, wasm.caller(10));
+})();
+
+(function TestReturnCallRefHintWithWrongSignature() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let inc = builder.addFunction("inc", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add])
+
+  let wrong_sig = builder.addFunction("wrong_sig", kSig_i_ii)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add]);
+
+  let caller = builder.addFunction("caller", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Mul,
+              kExprRefFunc, inc.index, kExprReturnCallRef, inc.type_index])
+    .exportFunc();
+
+  builder.addDeclarativeElementSegment([inc.index]);
+
+  builder.setCompilationPriority(caller.index, 0, 0);
+
+  builder.setInstructionFrequencies(
+    caller.index, [{offset: 8, frequency: 32}]);
+
+  builder.setCallTargets(caller.index,
+    [{offset: 8,
+      targets: [{function_index: wrong_sig.index, frequency_percent: 100}]}]);
+
+  let wasm = builder.instantiate({}).exports;
+
+  while(%IsLiftoffFunction(wasm.caller)) {}
+
+  assertEquals(21, wasm.caller(10));
+})();
+
+(function TestCallRefHintWithWrongAndRightSignatures() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let inc = builder.addFunction("inc", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add])
+
+  let wrong_sig = builder.addFunction("wrong_sig", kSig_i_ii)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add]);
+
+  let caller = builder.addFunction("caller", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Mul,
+              kExprRefFunc, inc.index, kExprCallRef, inc.type_index])
+    .exportFunc();
+
+  builder.addDeclarativeElementSegment([inc.index]);
+
+  builder.setCompilationPriority(caller.index, 0, 0);
+
+  builder.setInstructionFrequencies(
+    caller.index, [{offset: 8, frequency: 32}]);
+
+  builder.setCallTargets(caller.index,
+    [{offset: 8,
+      targets: [{function_index: wrong_sig.index, frequency_percent: 50},
+                {function_index: inc.index, frequency_percent: 50}]}]);
+
+  let wasm = builder.instantiate({}).exports;
+
+  while(%IsLiftoffFunction(wasm.caller)) {}
+
+  assertEquals(21, wasm.caller(10));
 })();

@@ -38,3 +38,20 @@ TestHintIndicesOutOfBounds
 [function 1: in function 1, considering call #0, case #0, to function 0 (relative_call_count=0.500000, size=0, score=0.000000)... imported function]
 [function 1: in function 1, considering call #0, case #1, to function 2 (relative_call_count=0.500000, size=0, score=0.000000)... (hinted) function index out of bounds]
 [function 1: emitted {NUMBER} nodes]
+TestCallRefHintWithWrongSignature
+[function 2: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 2: in function 2, considering call #0, case #0, to function 1 (relative_call_count=1.000000, size=7, score=0.142857)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 2: Ignoring inlining hint to function 1: wrong signature]
+[function 2: emitted {NUMBER} nodes]
+TestReturnCallRefHintWithWrongSignature
+[function 2: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 2: in function 2, considering call #0, case #0, to function 1 (relative_call_count=1.000000, size=7, score=0.142857)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 2: Ignoring inlining hint to function 1: wrong signature]
+[function 2: emitted {NUMBER} nodes]
+TestCallRefHintWithWrongAndRightSignatures
+[function 2: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 2: in function 2, considering call #0, case #1, to function 0 (relative_call_count=0.500000, size=7, score=0.071429)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 2: in function 2, considering call #0, case #0, to function 1 (relative_call_count=0.500000, size=7, score=0.071429)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 2: Ignoring inlining hint to function 1: wrong signature]
+[function 2: Speculatively inlining call_ref #0, case #1, to function 0]
+[function 2: emitted {NUMBER} nodes]
