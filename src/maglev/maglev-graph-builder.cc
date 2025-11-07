@@ -11446,6 +11446,13 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
       }
     }
 
+    if (TryGetFloat64OrHoleyFloat64Constant(
+            UseRepresentation::kFloat64, node,
+            TaggedToFloat64ConversionType::kOnlyNumber)) {
+      // This a non-smi float64 constant ==> deopting.
+      return EmitUnconditionalDeopt(reason);
+    }
+
     if (NodeTypeIs(GetType(node), NodeType::kAnyHeapObject)) {
       return EmitUnconditionalDeopt(reason);
     }
