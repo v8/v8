@@ -124,13 +124,9 @@ bool MaglevInliner::InlineCallSites() {
       graph_->RemoveUnreachableBlocks();
     }
 
-    // If --trace-maglev-inlining-verbose, we print the graph after each
-    // inlining step/call.
     if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
-      std::cout << "\nAfter inlining "
-                << call_site->generic_call_node->shared_function_info()
-                << std::endl;
-      PrintGraph(std::cout, graph_);
+      PrintMaglevGraph("After inlining",
+                       call_site->generic_call_node->shared_function_info());
     }
   }
   return true;
@@ -152,8 +148,7 @@ void MaglevInliner::RunOptimizer() {
   }
 
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
-    std::cout << "\nAfter optimization " << std::endl;
-    PrintGraph(std::cout, graph_);
+    PrintMaglevGraph("After optimization");
   }
 }
 
@@ -379,6 +374,28 @@ std::vector<BasicBlock*> MaglevInliner::TruncateGraphAt(BasicBlock* block) {
                                     graph_->blocks().end());
   graph_->blocks().resize(index);
   return saved_bb;
+}
+
+CodeTracer* MaglevInliner::GetCodeTracer() const {
+  return graph_->broker()->local_isolate()->AsIsolate()->GetCodeTracer();
+}
+
+void MaglevInliner::PrintMaglevGraph(
+    const char* msg, compiler::OptionalSharedFunctionInfoRef ref) {
+  if (graph_->compilation_info()->is_turbolev()) {
+    CodeTracer* code_tracer = GetCodeTracer();
+    CodeTracer::StreamScope tracing_scope(code_tracer);
+    tracing_scope.stream() << "\n----- " << msg << " ";
+    if (ref) tracing_scope.stream() << *ref;
+    tracing_scope.stream() << "-----" << std::endl;
+    PrintGraph(tracing_scope.stream(), graph_);
+  } else {
+    // TODO(victorgomes): port maglev printing to use the code tracer?
+    std::cout << "\n----- " << msg << " ";
+    if (ref) std::cout << *ref;
+    std::cout << "-----" << std::endl;
+    PrintGraph(std::cout, graph_);
+  }
 }
 
 // static

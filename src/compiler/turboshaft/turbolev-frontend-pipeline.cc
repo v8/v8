@@ -31,7 +31,7 @@ void PrintMaglevGraph(PipelineData& data, maglev::Graph* maglev_graph,
   maglev::PrintGraph(tracing_scope.stream(), maglev_graph);
 }
 
-void RunMaglevOptimizer(PipelineData* data, maglev::Graph* graph,
+void RunMaglevOptimizer(PipelineData& data, maglev::Graph* graph,
                         maglev::NodeRanges* ranges) {
   maglev::RecomputeKnownNodeAspectsProcessor kna_processor(graph);
   maglev::MaglevGraphOptimizer optimizer(graph, kna_processor, ranges);
@@ -46,8 +46,7 @@ void RunMaglevOptimizer(PipelineData* data, maglev::Graph* graph,
   }
 
   if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
-    std::cout << "\nAfter optimization " << std::endl;
-    PrintGraph(std::cout, graph);
+    PrintMaglevGraph(data, graph, "After optimization");
   }
 }
 
@@ -57,7 +56,7 @@ void RunMaglevOptimizer(PipelineData* data, maglev::Graph* graph,
 // SimplifiedLowering, but is much less powerful (doesn't take truncations into
 // account, doesn't do proper range analysis, doesn't run a fixpoint
 // analysis...).
-bool RunMaglevOptimizations(PipelineData* data,
+bool RunMaglevOptimizations(PipelineData& data,
                             maglev::MaglevCompilationInfo* compilation_info,
                             maglev::Graph* maglev_graph) {
   // Non-eager inlining.
@@ -78,7 +77,7 @@ bool RunMaglevOptimizations(PipelineData* data,
   }
 
   if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
-    PrintMaglevGraph(*data, maglev_graph, "After truncation");
+    PrintMaglevGraph(data, maglev_graph, "After truncation");
   }
 
   // Phi untagging.
@@ -89,7 +88,7 @@ bool RunMaglevOptimizations(PipelineData* data,
   }
 
   if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
-    PrintMaglevGraph(*data, maglev_graph, "After phi untagging");
+    PrintMaglevGraph(data, maglev_graph, "After phi untagging");
   }
 
   if (v8_flags.maglev_range_analysis) {
@@ -123,7 +122,7 @@ bool RunMaglevOptimizations(PipelineData* data,
   }
 
   if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
-    PrintMaglevGraph(*data, maglev_graph,
+    PrintMaglevGraph(data, maglev_graph,
                      "After escape analysis and dead node sweeping");
   }
 

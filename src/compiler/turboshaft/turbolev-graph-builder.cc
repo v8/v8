@@ -6737,7 +6737,7 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   SBXCHECK_EQ(compilation_info->toplevel_compilation_unit()->parameter_count(),
               linkage->GetIncomingDescriptor()->ParameterSlotCount());
 
-  if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph(*data))) {
     PrintBytecode(*data, compilation_info.get());
   }
 
@@ -6758,11 +6758,11 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
     return BailoutReason::kMaglevGraphBuildingFailed;
   }
 
-  if (V8_UNLIKELY(ShouldPrintMaglevGraph(data))) {
+  if (V8_UNLIKELY(ShouldPrintMaglevGraph(*data))) {
     PrintMaglevGraph(*data, maglev_graph, "After graph building");
   }
 
-  if (!RunMaglevOptimizations(data, compilation_info.get(), maglev_graph)) {
+  if (!RunMaglevOptimizations(*data, compilation_info.get(), maglev_graph)) {
     return BailoutReason::kMaglevGraphBuildingFailed;
   }
 
