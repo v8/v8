@@ -1317,8 +1317,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   static_assert(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
   __ LoadParameterCountFromJSDispatchTable(dispatch_table, dispatch_handle,
                                            scratch);
-  __ Lh(scratch,
-        FieldMemOperand(bytecode_array, BytecodeArray::kParameterSizeOffset));
+  __ Lhu(scratch,
+         FieldMemOperand(bytecode_array, BytecodeArray::kParameterSizeOffset));
   __ SbxCheck(eq, AbortReason::kJSSignatureMismatch, dispatch_table,
               Operand(scratch));
 #endif  // V8_ENABLE_SANDBOX
