@@ -1205,4 +1205,25 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Temporal/Duration/prototype/add/float64-representable-integer': [SKIP],
+  'built-ins/Temporal/Duration/prototype/round/float64-representable-integer': [SKIP],
+  'built-ins/Temporal/Duration/prototype/subtract/float64-representable-integer': [SKIP],
+  'built-ins/Temporal/Instant/prototype/since/float64-representable-integer': [SKIP],
+  'built-ins/Temporal/Instant/prototype/until/float64-representable-integer': [SKIP],
+  'built-ins/Temporal/PlainDateTime/prototype/since/float64-representable-integer': [SKIP],
+  'built-ins/Temporal/PlainDateTime/prototype/until/float64-representable-integer': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/float64-representable-integer': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/float64-representable-integer': [SKIP],
+  'intl402/DateTimeFormat/constructor-options-calendar-islamic-fallback': [SKIP],
+  'intl402/Locale/prototype/getWeekInfo/output-object-keys': [SKIP],
+  'language/statements/await-using/syntax/await-using-invalid-assignment-statement-body-for-of': [SKIP],
+  'language/statements/await-using/syntax/block-scope-syntax-await-using-declarations-mixed-with-without-initializer': [SKIP],
+  'language/statements/using/syntax/using-for-using-of-of': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
