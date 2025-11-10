@@ -2487,5 +2487,34 @@ RUNTIME_FUNCTION(Runtime_DebugPrintExternalPointerTableFilterTag) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_GetHoleNaNUpper) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 0);
+  return *isolate->factory()->NewNumberFromUint(kHoleNanUpper32);
+}
+
+RUNTIME_FUNCTION(Runtime_GetHoleNaNLower) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 0);
+  return *isolate->factory()->NewNumberFromUint(kHoleNanLower32);
+}
+
+RUNTIME_FUNCTION(Runtime_GetHoleNaN) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 0);
+  return *isolate->factory()->NewHeapNumberFromBits(kHoleNanInt64);
+}
+
+RUNTIME_FUNCTION(Runtime_GetUndefinedNaN) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 0);
+#if V8_ENABLE_UNDEFINED_DOUBLE
+  return *isolate->factory()->NewHeapNumberFromBits(kUndefinedNanInt64);
+#else
+  CHECK_UNLESS_FUZZING(false && "undefined NaNs are disabled via build flag");
+  return ReadOnlyRoots(isolate).undefined_value();
+#endif
+}
+
 }  // namespace internal
 }  // namespace v8

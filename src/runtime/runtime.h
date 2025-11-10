@@ -324,8 +324,6 @@ constexpr bool CanTriggerGC(T... properties) {
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F, I) \
   F(ArrayBufferMaxByteLength, 0, 1)      \
-  F(GetHoleNaNLower, 0, 1)               \
-  F(GetHoleNaNUpper, 0, 1)               \
   F(IsSmi, 1, 1)                         \
   F(MaxSmi, 0, 1)                        \
   F(NumberToStringSlow, 1, 1)            \
@@ -672,7 +670,11 @@ constexpr bool CanTriggerGC(T... properties) {
   F(TypedArraySpeciesProtector, 0, 1)                                    \
   F(WaitForBackgroundOptimization, 0, 1)                                 \
   I(DeoptimizeNow, 0, 1)                                                 \
-  F(LeakHole, 0, 1)
+  F(LeakHole, 0, 1)                                                      \
+  F(GetHoleNaNLower, 0, 1)                                               \
+  F(GetHoleNaNUpper, 0, 1)                                               \
+  F(GetHoleNaN, 0, 1)                                                    \
+  F(GetUndefinedNaN, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)    \
   F(ArrayBufferDetach, -1, 1)                  \
