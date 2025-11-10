@@ -12365,6 +12365,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
       maybe_allocation_site.has_value()
           ? maybe_allocation_site->GetElementsKind()
           : array_function.initial_map(broker()).elements_kind();
+
+  // TODO(457866804): Re-enable once this bug is fixed.
+  if (IsDoubleElementsKind(elements_kind)) return {};
+
   DCHECK(IsFastElementsKind(elements_kind));
   const int arity = static_cast<int>(args.count());
 
@@ -12502,6 +12506,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     // and speculation has already been disabled via feedback.
     return {};
   }
+
+  // TODO(457866804): Re-enable once this bug is fixed.
+  if (IsDoubleElementsKind(elements_kind)) return {};
 
   // Update the initial map based on our potentially changed elements_kind.
   {

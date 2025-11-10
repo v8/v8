@@ -273,6 +273,9 @@
 
   # BUG(https://crbug.com/420932895): Very slow in many configurations.
   'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
+
+  # TODO(457866804): Re-enable once this bug is fixed.
+  'compiler/array-constructor2': [SKIP],
 }],  # ALWAYS
 
 ################################################################################
