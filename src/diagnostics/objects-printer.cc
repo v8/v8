@@ -2480,6 +2480,11 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
 
 void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   if (HasSourceCode()) {
+#if V8_ENABLE_WEBASSEMBLY
+    // asm.js functions have HasSourceCode() == true, but their start/end
+    // positions refer to module wire bytes, so the code below won't work.
+    if (HasWasmExportedFunctionData(GetCurrentIsolateForSandbox())) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
     os << "\n - source code: ";
     Tagged<String> source = Cast<String>(Cast<Script>(script())->source());
     int start = StartPosition();
