@@ -434,10 +434,11 @@ ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayNotDetached(
 template <typename NodeT>
 ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
                                                      ValueNode* object_map) {
+  ValueNode* object = node->input_node(0);
   KnownMapsMerger<compiler::ZoneRefSet<Map>> merger(broker(), reducer_.zone(),
                                                     node->maps());
-  MaybeReduceResult result = reducer_.TryFoldCheckMaps(
-      node->input_node(0), object_map, node->maps(), merger);
+  MaybeReduceResult result =
+      reducer_.TryFoldCheckMaps(object, object_map, node->maps(), merger);
   if (result.IsDoneWithAbort()) {
     reducer_.graph()->set_may_have_unreachable_blocks(true);
     return ProcessResult::kTruncateBlock;
@@ -448,6 +449,7 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
     }
     return ProcessResult::kRemove;
   }
+  merger.UpdateKnownNodeAspects(object, known_node_aspects());
   return ProcessResult::kContinue;
 }
 
