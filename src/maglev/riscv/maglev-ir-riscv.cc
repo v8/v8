@@ -982,18 +982,6 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   __ bind(&ok);
 }
 
-void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
-  // A Float64 value could contain a NaN with the bit pattern that has a special
-  // interpretation in the HoleyFloat64 representation, so we need to canicalize
-  // those before changing representation.
-  __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
-}
-
 void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -1005,23 +993,17 @@ void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
   __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
-void Float64ToSilencedFloat64::SetValueLocationConstraints() {
+void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
   UseRegister(input());
-  DefineSameAsFirst(this);
+  DefineAsRegister(this);
 }
-void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {
-  // The hole value is a signalling NaN, so just silence it to get the
-  // float64 value.
+void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  // A Float64 value could contain a NaN with the bit pattern that has a special
+  // interpretation in the HoleyFloat64 representation, so we need to canicalize
+  // those before changing representation.
   __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
-
-void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {}
 
 namespace {
 
