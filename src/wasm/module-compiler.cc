@@ -3631,8 +3631,10 @@ void CompilationStateImpl::ApplyCompilationPriorityToInitialProgress(
           kOptimizationPriorityExecutedOnceSentinel ||
       priority.optimization_priority ==
           kOptimizationPriorityNotSpecifiedSentinel;
-  ExecutionTier new_baseline_tier = ExecutionTier::kLiftoff;
-  ExecutionTier new_top_tier = optimization_priority_not_finite
+  ExecutionTier new_baseline_tier =
+      v8_flags.liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
+  ExecutionTier new_top_tier = (optimization_priority_not_finite ||
+                                !v8_flags.liftoff || v8_flags.liftoff_only)
                                    ? ExecutionTier::kNone
                                    : ExecutionTier::kTurbofan;
 

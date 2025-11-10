@@ -318,10 +318,13 @@ class TurboshaftGraphBuildingInterface
 
     if (v8_flags.wasm_inlining) {
       if (mode_ == kRegular) {
-        if (v8_flags.liftoff) {
+        if (v8_flags.liftoff ||
+            (v8_flags.experimental_wasm_compilation_hints &&
+             !decoder->module_->instruction_frequencies.empty())) {
           inlining_decisions_ = InliningTree::CreateRoot(
               decoder->zone_, decoder->module_, wire_bytes_, func_index_);
-        } else {
+        }
+        if (!v8_flags.liftoff) {
           set_no_liftoff_inlining_budget(
               InliningTree::NoLiftoffBudget(decoder->module_, func_index_));
         }
@@ -2588,9 +2591,6 @@ class TurboshaftGraphBuildingInterface
             decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
 
         size_t return_count = imm.sig->return_count();
-        // TODO(manoskouk): What if none of the cases can be inlined due to
-        // faulty hints (i.e. with the wrong signature)? Same for
-        // ReturnCallIndirect, CallRef, ReturnCallRef.
         base::Vector<InliningTree*> feedback_cases = GetFeedbackCases(decoder);
         std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
         // The slow path is the non-inlined generic `call_indirect`,
@@ -8929,20 +8929,19 @@ class TurboshaftGraphBuildingInterface
     if (!deopts_enabled()) {
       inlinee_decoder.interface().disable_deopts();
     }
-    if (v8_flags.liftoff) {
-      if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
-        if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
-          inlinee_decoder.interface().set_inlining_decisions(
-              inlining_decisions_
-                  ->function_calls()[feedback_slot_][feedback_case]);
-        } else {
-          inlinee_decoder.interface().set_inlining_decisions(
-              inlining_decisions_
-                  ->function_calls_map()[decoder->pc_relative_offset()]
-                                        [feedback_case]);
-        }
+    if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
+      if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
+        inlinee_decoder.interface().set_inlining_decisions(
+            inlining_decisions_
+                ->function_calls()[feedback_slot_][feedback_case]);
+      } else {
+        inlinee_decoder.interface().set_inlining_decisions(
+            inlining_decisions_
+                ->function_calls_map()[decoder->pc_relative_offset()]
+                                      [feedback_case]);
       }
-    } else {
+    }
+    if (!v8_flags.liftoff) {
       no_liftoff_inlining_budget_ -= inlinee.code.length();
       inlinee_decoder.interface().set_no_liftoff_inlining_budget(
           no_liftoff_inlining_budget_);
@@ -9066,22 +9065,10 @@ class TurboshaftGraphBuildingInterface
     // is shared (which also implies the target cannot be shared either).
     if (shared_) return false;
 
-    // Configuration without Liftoff and feedback, e.g., for testing.
-    // TODO(manoskouk): What if compilation hints are present?
-    if (!v8_flags.liftoff) {
-      return size < no_liftoff_inlining_budget_ &&
-             // In a production configuration, `InliningTree` decides what to
-             // (not) inline, e.g., asm.js functions or to not exceed
-             // `kMaxInlinedCount`. But without Liftoff, we need to "manually"
-             // comply with these constraints here.
-             !is_asmjs_module(decoder->module_) &&
-             inlining_positions_->size() < InliningTree::kMaxInlinedCount;
-    }
-
-    // Default, production configuration: Liftoff collects feedback, which
-    // decides whether we inline:
     if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
       if (inlining_decisions_->mode() == InliningTree::Mode::kVector) {
+        // Default, production configuration (without compilation hints):
+        // Liftoff collects feedback, which decides whether we inline:
         DCHECK_GT(inlining_decisions_->function_calls().size(), feedback_slot);
         // We should inline if at least one case for this feedback slot needs
         // to be inlined.
@@ -9094,12 +9081,15 @@ class TurboshaftGraphBuildingInterface
           }
         }
       } else {
+        // We found compilation hints for this function.
         DCHECK_EQ(inlining_decisions_->mode(), InliningTree::Mode::kMap);
         auto it = inlining_decisions_->function_calls_map().find(
             decoder->pc_relative_offset());
         if (it == inlining_decisions_->function_calls_map().end()) {
           return false;
         }
+        // We should inline if at least one case for this offset needs to be
+        // inlined.
         for (InliningTree* tree : it->second) {
           if (tree && tree->is_inlined()) {
             DCHECK(
@@ -9109,6 +9099,15 @@ class TurboshaftGraphBuildingInterface
         }
       }
       return false;
+    } else if (!v8_flags.liftoff) {
+      // Configuration without Liftoff and feedback, e.g., for testing.
+      return size < no_liftoff_inlining_budget_ &&
+             // In a production configuration, `InliningTree` decides what to
+             // (not) inline, e.g., asm.js functions or to not exceed
+             // `kMaxInlinedCount`. But without Liftoff, we need to "manually"
+             // comply with these constraints here.
+             !is_asmjs_module(decoder->module_) &&
+             inlining_positions_->size() < InliningTree::kMaxInlinedCount;
     }
     return false;
   }
@@ -9136,10 +9135,8 @@ class TurboshaftGraphBuildingInterface
       if (inlining_decisions_ && InliningTargetsProvidedByCustomSection()) {
         // We have to disable deopts in this case. Deopts need function feedback
         // for GetLiftoffFrameSize.
-        // TODO(manoskouk): This will be inherited by inlinee decoders. This is
-        // probably fine because this will mostly happen with eager compilation
-        // and at this point they will not have feedback either, i.e. they will
-        // also have the kMap mode.
+        // TODO(manoskouk): Find a way to enable deopts in the presence of
+        // compilation hints.
         deopts_enabled_ = false;
         return false;
       }
