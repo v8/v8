@@ -21,6 +21,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/once.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
@@ -329,17 +330,19 @@ size_t Heap::MaxReserved() const {
 // static
 size_t Heap::YoungGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
   // `physical_memory / kPhysicalMemoryToOldGenerationRatio` is not the actual
-  // old generation size, but achieves desires scaling w.r.t. `physical_memory`.
-  return YoungGenerationSizeFromOldGenerationSize(
-      physical_memory, physical_memory / kPhysicalMemoryToOldGenerationRatio);
+  // heap size, but achieves desires scaling w.r.t. `physical_memory`.
+  const uint64_t target_heap_size =
+      physical_memory / kPhysicalMemoryToOldGenerationRatio;
+  const size_t capped_heap_size =
+      base::saturated_cast<size_t>(target_heap_size);
+  return YoungGenerationSizeFromHeapSize(physical_memory, capped_heap_size);
 }
 
 // static
-size_t Heap::YoungGenerationSizeFromOldGenerationSize(uint64_t physical_memory,
-                                                      uint64_t old_generation) {
+size_t Heap::YoungGenerationSizeFromHeapSize(uint64_t physical_memory,
+                                             size_t heap_size) {
   // Compute the semi space size and cap it.
-  uint64_t semi_space =
-      old_generation / OldGenerationToSemiSpaceRatio(physical_memory);
+  size_t semi_space = heap_size / HeapSizeToSemiSpaceRatio(physical_memory);
   semi_space =
       RoundUp(std::clamp<size_t>(semi_space, 2 * MB,
                                  DefaultMaxSemiSpaceSize(physical_memory)),
@@ -370,23 +373,13 @@ void Heap::GenerationSizesFromHeapSize(uint64_t physical_memory,
                                        size_t* young_generation_size,
                                        size_t* old_generation_size) {
   // Initialize values for the case when the given heap size is too small.
-  *young_generation_size = 0;
-  *old_generation_size = 0;
-  // Binary search for the largest old generation size that fits to the given
-  // heap limit considering the correspondingly sized young generation.
-  size_t lower = 0, upper = heap_size;
-  while (lower + 1 < upper) {
-    size_t old_generation = lower + (upper - lower) / 2;
-    size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
-        physical_memory, old_generation);
-    if (old_generation + young_generation <= heap_size) {
-      // This size configuration fits into the given heap limit.
-      *young_generation_size = young_generation;
-      *old_generation_size = old_generation;
-      lower = old_generation;
-    } else {
-      upper = old_generation;
-    }
+  *young_generation_size =
+      RoundUp(YoungGenerationSizeFromHeapSize(physical_memory, heap_size), MB);
+  if (*young_generation_size < heap_size) {
+    *old_generation_size = heap_size - *young_generation_size;
+  } else {
+    *young_generation_size = 0;
+    *old_generation_size = 0;
   }
 }
 
@@ -415,6 +408,7 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 // static
 size_t Heap::MaxOldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
   size_t max_size = DefaultMaxHeapSize(physical_memory);
+
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
   // memory at least 16GB. The threshold is set to 15GB to accommodate for some
   // memory being reserved by the hardware.
@@ -5184,9 +5178,9 @@ size_t Heap::DefaultMaxHeapSize(uint64_t physical_memory) {
 }
 
 // static
-size_t Heap::OldGenerationToSemiSpaceRatio(uint64_t physical_memory) {
+size_t Heap::HeapSizeToSemiSpaceRatio(uint64_t physical_memory) {
   // The ratio is determined so that we hit DefaultMaxSemiSpaceSize()
-  // at about `old_generation = 256MB`, which corresponds to
+  // at about `heap_size = 256MB`, which corresponds to
   // `physical_memory = 1GB`.
   if (v8_flags.minor_ms) {
     return 4;  // DefaultMaxSemiSpaceSize() = 72MB would give a ratio of 3.55

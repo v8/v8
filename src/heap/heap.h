@@ -422,8 +422,8 @@ class Heap final {
   static size_t DefaultMinSemiSpaceSize();
   V8_EXPORT_PRIVATE static size_t DefaultMaxSemiSpaceSize(
       uint64_t physical_memory);
-  // Young generation size is the same for compressed heaps and 32-bit heaps.
-  static size_t OldGenerationToSemiSpaceRatio(uint64_t physical_memory);
+
+  static size_t HeapSizeToSemiSpaceRatio(uint64_t physical_memory);
 
   V8_EXPORT_PRIVATE static size_t DefaultMinHeapSize(uint64_t physical_memory);
   V8_EXPORT_PRIVATE static size_t DefaultMaxHeapSize(uint64_t physical_memory);
@@ -1401,8 +1401,8 @@ class Heap final {
       size_t* old_generation_size);
   V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromPhysicalMemory(
       uint64_t physical_memory);
-  V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromOldGenerationSize(
-      uint64_t physical_memory, uint64_t old_generation_size);
+  V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromHeapSize(
+      uint64_t physical_memory, size_t heap_size);
   V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromSemiSpaceSize(
       size_t semi_space_size);
   V8_EXPORT_PRIVATE static size_t SemiSpaceSizeFromYoungGenerationSize(

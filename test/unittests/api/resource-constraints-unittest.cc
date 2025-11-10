@@ -29,7 +29,7 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
       Heap::DefaultMaxSemiSpaceSize(physical_memory) *
       (internal::v8_flags.minor_ms ? 2 : 3);
   constraints.ConfigureDefaultsFromHeapSize(
-      10u * MB, heap_max_size + expected_young_gen_max_size);
+      8u * MB, heap_max_size + expected_young_gen_max_size);
   // Check that for large heap sizes max semi space size is set to the maximum
   // supported capacity (i.e. 8MB with pointer compression and 16MB without;
   // MinorMS supports double capacity).
@@ -40,7 +40,7 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
   // the minimum supported capacity.
   ASSERT_EQ((internal::v8_flags.minor_ms ? 2 : 3) * 2u * MB,
             constraints.initial_young_generation_size_in_bytes());
-  ASSERT_EQ(10u * MB - (internal::v8_flags.minor_ms ? 2 : 3) * 2u * MB,
+  ASSERT_EQ(8u * MB - (internal::v8_flags.minor_ms ? 2 : 3) * 2u * MB,
             constraints.initial_old_generation_size_in_bytes());
 }
 

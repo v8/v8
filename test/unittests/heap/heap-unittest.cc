@@ -58,12 +58,11 @@ TEST(Heap, GenerationSizesFromHeapSize) {
   if (v8_flags.minor_ms) return;
 
   struct GenerationLimit {
-    uint64_t heap_size;
-    uint64_t expected_young_size;
-    uint64_t expected_old_size;
+    size_t heap_size;
+    size_t expected_young_size;
+    size_t expected_old_size;
   };
 
-  static constexpr uint64_t kKB = static_cast<uint64_t>(KB);
   static constexpr uint64_t kMB = static_cast<uint64_t>(MB);
   static constexpr uint64_t kGB = static_cast<uint64_t>(GB);
 
@@ -71,21 +70,13 @@ TEST(Heap, GenerationSizesFromHeapSize) {
   static constexpr uint64_t kPhysicalMemory = 16 * kGB;
 
   std::vector<GenerationLimit> limits = {
-      {16 * kMB, 6 * kMB, 10 * kMB},
-      {32 * kMB, 6 * kMB, 26 * kMB},
-      {64 * kMB, 6 * kMB, 58 * kMB},
-      {128 * kMB, 11 * kMB + 256 * kKB, 116 * kMB + 768 * kKB},
-      {256 * kMB, 22 * kMB + 512 * kKB, 233 * kMB + 512 * kKB},
-      {512 * kMB, 44 * kMB + 256 * kKB, 467 * kMB + 768 * kKB},
-      {1 * kGB, 87 * kMB + 768 * kKB, 936 * kMB + 31},
-      {2 * kGB, 96 * kMB, 1952 * kMB},
+      {16 * kMB, 6 * kMB, 10 * kMB},    {32 * kMB, 6 * kMB, 26 * kMB},
+      {64 * kMB, 6 * kMB, 58 * kMB},    {128 * kMB, 12 * kMB, 116 * kMB},
+      {256 * kMB, 24 * kMB, 232 * kMB}, {512 * kMB, 48 * kMB, 464 * kMB},
+      {1 * kGB, 96 * kMB, 928 * kMB},   {2 * kGB, 96 * kMB, 1952 * kMB},
       {3 * kGB, 96 * kMB, 2976 * kMB},
-#if defined(V8_TARGET_ARCH_32_BIT)
-      {4 * kGB, 0, 0},
-      {8 * kGB, 0, 0},
-#else
-      {4 * kGB, 96 * kMB, 4000 * kMB},
-      {8 * kGB, 96 * kMB, 8096 * kMB},
+#if !defined(V8_TARGET_ARCH_32_BIT)
+      {4 * kGB, 96 * kMB, 4000 * kMB},  {8 * kGB, 96 * kMB, 8096 * kMB},
 #endif
   };
 
