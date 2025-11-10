@@ -7173,7 +7173,8 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
 struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
   WasmTypeCheckConfig config;
 
-  static constexpr OpEffects effects = OpEffects().CanLeaveCurrentFunction();
+  static constexpr OpEffects effects =
+      OpEffects().CanLeaveCurrentFunction().CanDependOnChecks();
 
   WasmTypeCastOp(V<Object> object, OptionalV<Map> rtt,
                  WasmTypeCheckConfig config)
