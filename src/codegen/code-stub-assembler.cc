@@ -10128,6 +10128,44 @@ TNode<JSReceiver> CodeStubAssembler::ToObject_Inline(TNode<Context> context,
   return result.value();
 }
 
+TNode<JSReceiver> CodeStubAssembler::ConvertReceiver(TNode<Context> context,
+                                                     TNode<Object> input) {
+  TVARIABLE(JSReceiver, result);
+  Label if_isreceiver(this), if_null_or_undefined(this),
+      if_isnotreceiver(this, Label::kDeferred);
+  Label done(this);
+
+  BranchIfJSReceiver(input, &if_isreceiver, &if_isnotreceiver);
+
+  BIND(&if_isreceiver);
+  {
+    result = CAST(input);
+    Goto(&done);
+  }
+
+  BIND(&if_isnotreceiver);
+  {
+    GotoIf(IsUndefined(input), &if_null_or_undefined);
+    GotoIf(IsNull(input), &if_null_or_undefined);
+
+    result = ToObject(context, input);
+    Goto(&done);
+  }
+
+  BIND(&if_null_or_undefined);
+  {
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<JSGlobalProxy> global_proxy = CAST(
+        LoadContextElementNoCell(native_context, Context::GLOBAL_PROXY_INDEX));
+
+    result = global_proxy;
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return result.value();
+}
+
 TNode<Number> CodeStubAssembler::ToLength_Inline(TNode<Context> context,
                                                  TNode<Object> input) {
   TNode<Smi> smi_zero = SmiConstant(0);

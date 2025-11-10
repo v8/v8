@@ -946,9 +946,20 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   BIND(&interceptor);
   {
     Comment("load_interceptor");
+    TNode<InterceptorInfo> interceptor_info =
+        CAST(LoadHandlerDataField(CAST(handler), 2));
+
+    TNode<JSReceiver> receiver = ConvertReceiver(p->context(), p->receiver());
+
+    // Handlers for interceptors are always complex even when holder is a
+    // lookup start object because we are interested in caching interceptor
+    // info in the data handler.
+    TNode<Object> the_holder = SelectConstant<Object>(
+        IsNull(holder), p->lookup_start_object(), holder);
+
     exit_point->ReturnCallRuntime(Runtime::kLoadPropertyWithInterceptor,
-                                  p->context(), p->name(), p->receiver(),
-                                  holder, p->slot(), p->vector());
+                                  p->context(), p->name(), receiver, the_holder,
+                                  interceptor_info, p->slot(), p->vector());
   }
   BIND(&slow);
   {

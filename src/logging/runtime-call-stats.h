@@ -467,10 +467,10 @@ namespace v8::internal {
   V(LoadIC_LoadIntegerIndexedExoticDH)            \
   V(LoadIC_LoadInterceptorDH)                     \
   V(LoadIC_LoadInterceptorFromPrototypeDH)        \
+  V(LoadIC_LoadInterceptorNonMaskingDH)           \
   V(LoadIC_LoadNativeDataPropertyDH)              \
   V(LoadIC_LoadNativeDataPropertyFromPrototypeDH) \
   V(LoadIC_LoadNonexistentDH)                     \
-  V(LoadIC_LoadNonMaskingInterceptorDH)           \
   V(LoadIC_LoadNormalDH)                          \
   V(LoadIC_LoadNormalFromPrototypeDH)             \
   V(LoadIC_NonReceiver)                           \

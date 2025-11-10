@@ -3173,6 +3173,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSReceiver> ToObject_Inline(TNode<Context> context,
                                     TNode<Object> input);
 
+  // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
+  TNode<JSReceiver> ConvertReceiver(TNode<Context> context,
+                                    TNode<Object> input);
+
   // ES6 7.1.15 ToLength, but with inlined fast path.
   TNode<Number> ToLength_Inline(TNode<Context> context, TNode<Object> input);
 

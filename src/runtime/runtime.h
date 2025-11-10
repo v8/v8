@@ -834,7 +834,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(LoadNoFeedbackIC_Miss, 4, 1)             \
   F(LoadWithReceiverIC_Miss, 5, 1)           \
   F(LoadWithReceiverNoFeedbackIC_Miss, 3, 1) \
-  F(LoadPropertyWithInterceptor, 5, 1)       \
+  F(LoadPropertyWithInterceptor, 6, 1)       \
   F(StoreCallbackProperty, 5, 1)             \
   F(StoreGlobalIC_Miss, 4, 1)                \
   F(StoreGlobalICNoFeedback_Miss, 2, 1)      \

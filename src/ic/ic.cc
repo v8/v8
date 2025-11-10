@@ -969,27 +969,28 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
   switch (lookup->state()) {
     case LookupIterator::INTERCEPTOR: {
       DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
-      Handle<Smi> smi_handler = LoadHandler::LoadInterceptor(isolate());
-
-      if (holder->GetNamedInterceptor()->non_masking()) {
-        MaybeObjectDirectHandle holder_ref(isolate()->factory()->null_value());
-        if (!holder_is_lookup_start_object || IsLoadGlobalIC()) {
-          holder_ref = MaybeObjectDirectHandle::Weak(holder);
-        }
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonMaskingInterceptorDH);
-        return MaybeObjectHandle(LoadHandler::LoadFullChain(
-            isolate(), map, holder_ref, smi_handler));
-      }
+      DirectHandle<InterceptorInfo> interceptor_info(
+          holder->GetNamedInterceptor(), isolate());
 
       if (holder_is_lookup_start_object) {
-        DCHECK(map->has_named_interceptor());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorDH);
-        return MaybeObjectHandle(smi_handler);
+        if (interceptor_info->non_masking()) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorNonMaskingDH);
+        }
+
+        Handle<LoadHandler> handler =
+            LoadHandler::LoadInterceptorHolderIsLookupStartupObject(
+                isolate(), map, interceptor_info);
+        return MaybeObjectHandle(handler);
       }
 
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorFromPrototypeDH);
-      return MaybeObjectHandle(
-          LoadHandler::LoadFromPrototype(isolate(), map, holder, *smi_handler));
+      Tagged<Smi> smi_handler = LoadHandler::LoadInterceptor();
+      Handle<LoadHandler> handler = LoadHandler::LoadFromPrototype(
+          isolate(), map, holder, smi_handler,
+          {},  // no data1 (make it use holder instead).
+          MaybeObjectDirectHandle(interceptor_info));
+      return MaybeObjectHandle(handler);
     }
 
     case LookupIterator::ACCESSOR: {
@@ -4144,20 +4145,21 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
  */
 RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(6, args.length());
   DirectHandle<Name> name = args.at<Name>(0);
-  DirectHandle<Object> receiver_arg = args.at(1);
+  DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(1);
   Handle<JSObject> holder = args.at<JSObject>(2);
-
-  DirectHandle<JSReceiver> receiver;
-  if (!TryCast<JSReceiver>(receiver_arg, &receiver)) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, receiver, Object::ConvertReceiver(isolate, receiver_arg));
+  Handle<InterceptorInfo> interceptor = args.at<InterceptorInfo>(3);
+#ifdef DEBUG
+  if (IsJSGlobalProxy(*holder)) {
+    DCHECK_EQ(Cast<JSObject>(holder->map()->prototype())->GetNamedInterceptor(),
+              *interceptor);
+  } else {
+    DCHECK_EQ(holder->GetNamedInterceptor(), *interceptor);
   }
+#endif
 
   {
-    DirectHandle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(),
-                                              isolate);
     PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                         *holder, Just(kDontThrow));
 
@@ -4172,23 +4174,30 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
     // If the interceptor didn't handle the request, then there must be no
     // side effects.
   }
-
-  LookupIterator it(isolate, receiver, name, holder);
-  // Skip any lookup work until we hit the (possibly non-masking) interceptor.
-  while (it.state() != LookupIterator::INTERCEPTOR ||
-         !it.GetHolder<JSObject>().is_identical_to(holder)) {
-    DCHECK(it.state() != LookupIterator::ACCESS_CHECK || it.HasAccess());
+  // If the interceptor hasn't handled the store request then
+  //  - for non-masking interceptor the lookup is over,
+  //  - for masking interceptor the store lookup needs to be proceed past the
+  //    interceptor.
+  if (!interceptor->non_masking()) {
+    LookupIterator it(isolate, receiver, name, holder);
+    // Skip any lookup work until we hit the interceptor.
+    while (it.state() != LookupIterator::INTERCEPTOR) {
+      DCHECK_IMPLIES(it.state() == LookupIterator::ACCESS_CHECK,
+                     it.HasAccess());
+      CHECK(it.IsFound());
+      it.Next();
+    }
+    // Skip past the interceptor.
     it.Next();
+    DirectHandle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                       Object::GetProperty(&it));
+
+    if (it.IsFound()) return *result;
   }
-  // Skip past the interceptor.
-  it.Next();
-  DirectHandle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
 
-  if (it.IsFound()) return *result;
-
-  int slot = args.tagged_index_value_at(3);
-  DirectHandle<FeedbackVector> vector = args.at<FeedbackVector>(4);
+  int slot = args.tagged_index_value_at(4);
+  DirectHandle<FeedbackVector> vector = args.at<FeedbackVector>(5);
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
   FeedbackSlotKind slot_kind = vector->GetKind(vector_slot);
   // It could actually be any kind of load IC slot here but the predicate
@@ -4199,7 +4208,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   // Throw a reference error.
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError(MessageTemplate::kNotDefined, it.name()));
+      isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
 }
 
 RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
