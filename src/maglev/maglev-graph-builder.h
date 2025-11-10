@@ -675,7 +675,7 @@ class MaglevGraphBuilder {
       ValueNode* node, ValueNode** constant_node = nullptr);
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
-  std::optional<Float64> TryGetFloat64OrHoleyFloat64Constant(
+  std::optional<double> TryGetFloat64Constant(
       UseRepresentation use_repr, ValueNode* value,
       TaggedToFloat64ConversionType conversion_type);
   MaybeHandle<String> TryGetStringConstant(ValueNode* value);
@@ -700,7 +700,10 @@ class MaglevGraphBuilder {
   ValueNode* GetFloat64(ValueNode* value);
   ValueNode* GetFloat64(interpreter::Register reg);
 
-  ValueNode* GetHoleyFloat64(ValueNode* value);
+  ValueNode* GetHoleyFloat64(ValueNode* value,
+                             TaggedToFloat64ConversionType conversion_type,
+                             bool convert_hole_to_undefined,
+                             bool silence_number_nans);
 
   // Get a Float64 representation node whose value is the result of ToNumber on
   // the given node. Only trivial ToNumber is allowed -- values that are already
@@ -712,6 +715,14 @@ class MaglevGraphBuilder {
                                    NodeType allowed_input_type);
   ValueNode* GetFloat64ForToNumber(interpreter::Register reg,
                                    NodeType allowed_input_type);
+
+  ValueNode* GetHoleyFloat64ForToNumber(ValueNode* value,
+                                        NodeType allowed_input_type);
+  ValueNode* GetHoleyFloat64ForToNumber(interpreter::Register reg,
+                                        NodeType allowed_input_type) {
+    return GetHoleyFloat64ForToNumber(current_interpreter_frame_.get(reg),
+                                      allowed_input_type);
+  }
 
   ValueNode* GetAccumulator() {
     return current_interpreter_frame_.get(
@@ -736,9 +747,10 @@ class MaglevGraphBuilder {
         interpreter::Register::virtual_accumulator());
   }
 
-  ValueNode* GetAccumulatorFloat64ForToNumber(NodeType allowed_input_type) {
-    return GetFloat64ForToNumber(interpreter::Register::virtual_accumulator(),
-                                 allowed_input_type);
+  ValueNode* GetAccumulatorHoleyFloat64ForToNumber(
+      NodeType allowed_input_type) {
+    return GetHoleyFloat64ForToNumber(
+        interpreter::Register::virtual_accumulator(), allowed_input_type);
   }
 
   ReduceResult GetSilencedNaN(ValueNode* value);
@@ -754,10 +766,10 @@ class MaglevGraphBuilder {
         iterator_.GetRegisterOperand(operand_index));
   }
 
-  ValueNode* LoadRegisterFloat64ForToNumber(int operand_index,
-                                            NodeType allowed_input_type) {
-    return GetFloat64ForToNumber(iterator_.GetRegisterOperand(operand_index),
-                                 allowed_input_type);
+  ValueNode* LoadRegisterHoleyFloat64ForToNumber(int operand_index,
+                                                 NodeType allowed_input_type) {
+    return GetHoleyFloat64ForToNumber(
+        iterator_.GetRegisterOperand(operand_index), allowed_input_type);
   }
 
   template <typename NodeT>
@@ -1266,8 +1278,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
   ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements,
                                                 ValueNode* index);
-  ReduceResult BuildStoreFixedDoubleArrayElement(ElementsKind elements_kind,
-                                                 ValueNode* elements,
+  ReduceResult BuildStoreFixedDoubleArrayElement(ValueNode* elements,
                                                  ValueNode* index,
                                                  ValueNode* value);
 
@@ -1785,8 +1796,6 @@ class MaglevGraphBuilder {
                                                 ValueNode* node);
   BranchResult BuildBranchIfFloat64ToBooleanTrue(BranchBuilder& builder,
                                                  ValueNode* node);
-  BranchResult BuildBranchIfHoleyFloat64ToBooleanTrue(BranchBuilder& builder,
-                                                      ValueNode* node);
   BranchResult BuildBranchIfFloat64IsHole(BranchBuilder& builder,
                                           ValueNode* node);
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE

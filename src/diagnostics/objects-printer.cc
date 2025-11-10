@@ -557,6 +557,7 @@ bool IsTheHoleAt(Tagged<FixedDoubleArray> array, int index) {
   return array->is_the_hole(index);
 }
 
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
 template <class T>
 bool IsUndefinedAt(Tagged<T> array, int index) {
   return false;
@@ -564,12 +565,9 @@ bool IsUndefinedAt(Tagged<T> array, int index) {
 
 template <>
 bool IsUndefinedAt(Tagged<FixedDoubleArray> array, int index) {
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
   return array->is_undefined(index);
-#else
-  return false;
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 template <class T>
 double GetScalarElement(Tagged<T> array, int index) {
@@ -581,7 +579,7 @@ double GetScalarElement(Tagged<T> array, int index) {
 
 template <class T>
 void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
-  const bool print_nans = std::is_same_v<T, FixedDoubleArray>;
+  const bool print_the_hole = std::is_same_v<T, FixedDoubleArray>;
   Tagged<T> array = Cast<T>(object);
   if (length == 0) return;
   int previous_index = 0;
@@ -600,17 +598,14 @@ void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
       ss << '-' << (i - 1);
     }
     os << std::setw(12) << ss.str() << ": ";
-    if (print_nans && IsTheHoleAt(array, i - 1)) {
+    if (print_the_hole && IsTheHoleAt(array, i - 1)) {
       os << "<the_hole>";
-    } else if (print_nans && IsUndefinedAt(array, i - 1)) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    } else if (IsUndefinedAt(array, i - 1)) {
       os << "undefined";
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     } else {
-      auto value = GetScalarElement(array, i - 1);
-      os << value;
-      if constexpr (print_nans) {
-        os << " (0x" << std::hex << base::double_to_uint64(value) << std::dec
-           << ")";
-      }
+      os << GetScalarElement(array, i - 1);
     }
     previous_index = i;
     previous_representation = representation;
@@ -647,6 +642,7 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
     if (previous_index != i - 1) {
       ss << '-' << (i - 1);
     }
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     if constexpr (std::is_floating_point_v<ElementType>) {
       if (std::isnan(previous_value)) {
         os << std::setw(12) << ss.str() << ": " << +previous_value << " (0x"
@@ -662,6 +658,7 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
         continue;
       }
     }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     os << std::setw(12) << ss.str() << ": " << +previous_value;
     previous_index = i;
     previous_value = value;

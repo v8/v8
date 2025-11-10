@@ -56,7 +56,6 @@ class NodeInfo {
   V(int32, Int32, Int32)                                      \
   V(truncated_int32_to_number, TruncatedInt32ToNumber, Int32) \
   V(float64, Float64, Float64)                                \
-  V(holey_float64, HoleyFloat64, HoleyFloat64)                \
   V(checked_value, CheckedValue, Tagged)
 
     enum Kind {

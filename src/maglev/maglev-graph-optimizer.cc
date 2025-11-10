@@ -170,12 +170,9 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
     case UseRepresentation::kFloat64:
     case UseRepresentation::kHoleyFloat64: {
       DCHECK(conversion_type.has_value());
-      auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(use_repr, node,
-                                                              *conversion_type);
+      auto cst =
+          reducer_.TryGetFloat64Constant(use_repr, node, *conversion_type);
       if (cst.has_value()) {
-        if (use_repr == UseRepresentation::kHoleyFloat64) {
-          return reducer_.GetHoleyFloat64Constant(cst.value());
-        }
         return reducer_.GetFloat64Constant(cst.value());
       }
       return nullptr;
@@ -372,12 +369,6 @@ ProcessResult MaglevGraphOptimizer::VisitCheckUint32IsSmi(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckIntPtrIsSmi(
     CheckIntPtrIsSmi* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitCheckFloat64IsSmi(
-    CheckFloat64IsSmi* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -603,12 +594,6 @@ ProcessResult MaglevGraphOptimizer::VisitStoreFixedArrayElementWithWriteBarrier(
 
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedArrayElementNoWriteBarrier(
     StoreFixedArrayElementNoWriteBarrier* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitStoreFixedHoleyDoubleArrayElement(
-    StoreFixedHoleyDoubleArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1422,12 +1407,6 @@ ProcessResult MaglevGraphOptimizer::VisitChangeIntPtrToFloat64(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToInt32(
-    CheckedFloat64ToInt32* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToInt32(
     CheckedHoleyFloat64ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -1440,20 +1419,8 @@ ProcessResult MaglevGraphOptimizer::VisitTruncateUint32ToInt32(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitTruncateFloat64ToInt32(
-    TruncateFloat64ToInt32* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitTruncateHoleyFloat64ToInt32(
     TruncateHoleyFloat64ToInt32* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitUnsafeFloat64ToInt32(
-    UnsafeFloat64ToInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1558,18 +1525,18 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagFloat64(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagHoleyFloat64(
-    CheckedSmiTagHoleyFloat64* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitCheckedNumberOrOddballToHoleyFloat64(
     CheckedNumberOrOddballToHoleyFloat64* node, const ProcessingState& state) {
   if (ValueNode* input = GetUntaggedValueWithRepresentation(
           node->input_node(0), UseRepresentation::kHoleyFloat64,
           node->conversion_type())) {
-    return ReplaceWith(input);
+    if (node->silence_number_nans()) {
+      // We still need to keep the logic to silence number nans.
+      reducer_.BuildHoleyFloat64SilenceNumberNans(input);
+      return ProcessResult::kContinue;
+    } else {
+      return ReplaceWith(input);
+    }
   }
   return ProcessResult::kContinue;
 }
@@ -1595,8 +1562,6 @@ UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64,
 UNTAGGING_CASE(UnsafeNumberOrOddballToFloat64, Float64, node->conversion_type())
 UNTAGGING_CASE(UnsafeNumberToFloat64, Float64,
                TaggedToFloat64ConversionType::kOnlyNumber)
-UNTAGGING_CASE(UnsafeNumberOrOddballToHoleyFloat64, HoleyFloat64,
-               node->conversion_type())
 #undef UNTAGGING_CASE
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
@@ -1649,20 +1614,8 @@ ProcessResult MaglevGraphOptimizer::VisitUnsafeHoleyFloat64ToFloat64(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitUnsafeFloat64ToHoleyFloat64(
-    UnsafeFloat64ToHoleyFloat64* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToSilencedFloat64(
-    Float64ToSilencedFloat64* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToSilencedFloat64(
-    HoleyFloat64ToSilencedFloat64* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToMaybeNanFloat64(
+    HoleyFloat64ToMaybeNanFloat64* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1675,8 +1628,8 @@ ProcessResult MaglevGraphOptimizer::VisitChangeFloat64ToHoleyFloat64(
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 
-ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ConvertHoleToUndefined(
-    HoleyFloat64ConvertHoleToUndefined* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitConvertHoleNanToUndefinedNan(
+    ConvertHoleNanToUndefinedNan* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1704,6 +1657,12 @@ ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsHole(
 }
 
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
+
+ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64SilenceNumberNans(
+    HoleyFloat64SilenceNumberNans* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
 
 ProcessResult MaglevGraphOptimizer::VisitLogicalNot(
     LogicalNot* node, const ProcessingState& state) {
@@ -2440,12 +2399,6 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfIntPtrToBooleanTrue(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64ToBooleanTrue(
     BranchIfFloat64ToBooleanTrue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitBranchIfHoleyFloat64ToBooleanTrue(
-    BranchIfHoleyFloat64ToBooleanTrue* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

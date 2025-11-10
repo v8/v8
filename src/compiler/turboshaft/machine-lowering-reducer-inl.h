@@ -1308,6 +1308,7 @@ class MachineLoweringReducer : public Next {
           return result;
         }
       }
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kHoleyFloat64: {
         DCHECK_EQ(
             input_assumptions,
@@ -1319,12 +1320,9 @@ class MachineLoweringReducer : public Next {
                __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(object))));
         } ELSE {
           V<Map> map = __ LoadMapField(V<HeapObject>::Cast(object));
-
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
           GOTO_IF(
               __ TaggedEqual(map, __ HeapConstant(factory_->undefined_map())),
               done, UndefinedNan());
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
           IF (UNLIKELY(
                   __ TaggedEqual(map, __ HeapConstant(factory_->hole_map())))) {
             __ Unreachable();
@@ -1339,6 +1337,7 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
     }
     UNREACHABLE();
   }

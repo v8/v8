@@ -900,11 +900,11 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(ge, DeoptimizeReason::kOutOfBounds, this);
 }
 
-void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
+void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
 }
-void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
+void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   // The hole value is a signalling NaN, so just silence it to get the float64

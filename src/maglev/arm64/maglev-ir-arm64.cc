@@ -947,6 +947,17 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
 }
 
+void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  // The hole value is a signalling NaN, so just silence it to get the float64
+  // value.
+  __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
+}
+
 void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -959,45 +970,14 @@ void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
-void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
-  // The hole value is a signalling NaN, so just silence it to get the
-  // float64 value.
-  __ CanonicalizeNaN(ToDoubleRegister(this->result()),
-                     ToDoubleRegister(input()));
-}
-
-void Float64ToSilencedFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
-                                            const ProcessingState& state) {
-  // The hole value is a signalling NaN, so just silence it to get the
-  // float64 value.
-  __ CanonicalizeNaN(ToDoubleRegister(this->result()),
-                     ToDoubleRegister(input()));
-}
-
-void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {}
-
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
-void HoleyFloat64ConvertHoleToUndefined::SetValueLocationConstraints() {
+void ConvertHoleNanToUndefinedNan::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
   set_temporaries_needed(1);
 }
-void HoleyFloat64ConvertHoleToUndefined::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void ConvertHoleNanToUndefinedNan::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
   DoubleRegister value = ToDoubleRegister(input());
   Label done;
 

@@ -5068,7 +5068,9 @@ struct ConvertJSPrimitiveToUntaggedOp
     kUint32,
     kBit,
     kFloat64,
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
     kHoleyFloat64,
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   };
   enum class InputAssumptions : uint8_t {
     kBoolean,
@@ -5095,7 +5097,9 @@ struct ConvertJSPrimitiveToUntaggedOp
       case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
       case UntaggedKind::kHoleyFloat64:
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
         return RepVector<RegisterRepresentation::Float64()>();
     }
   }
