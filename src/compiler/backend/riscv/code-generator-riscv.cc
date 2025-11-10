@@ -5325,7 +5325,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(
                       ? Deoptimizer::kLazyDeoptExitSize
                       : Deoptimizer::kEagerDeoptExitSize;
   }
-  __ StartBlockPools(ConstantPoolEmission::kCheck, total_size);
+  __ StartBlockPools(total_size);
 
   // Check which deopt kinds exist in this InstructionStream object, to avoid
   // emitting jumps to unused entries.

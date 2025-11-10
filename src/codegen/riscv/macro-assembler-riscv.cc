@@ -4589,12 +4589,9 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
 
 void MacroAssembler::BranchShortHelper(int32_t offset, Label* L) {
   DCHECK(L == nullptr || offset == 0);
-  {
-    BlockPoolsScope block_pools(this);
-    offset = GetOffset(offset, L, OffsetSize::kOffset21);
-    j(offset);
-  }
-  EmitConstPoolWithoutJumpIfNeeded();
+  BlockPoolsScope block_pools(this);
+  offset = GetOffset(offset, L, OffsetSize::kOffset21);
+  j(offset);
 }
 
 void MacroAssembler::BranchShort(int32_t offset) {
@@ -4977,7 +4974,6 @@ void MacroAssembler::Jump(Register target, Condition cond, Register rs,
                   "don't use x5 as target for jumps to avoid RAS pollution");
   if (cond == cc_always) {
     jr(target);
-    EmitConstPoolWithoutJumpIfNeeded();
   } else {
     BlockPoolsScope block_pools(this);
     BRANCH_ARGS_CHECK(cond, rs, rt);
@@ -4996,8 +4992,6 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
     BlockPoolsScope block_pools(this);
     li(t6, Operand(target, rmode));
     Jump(t6, al, zero_reg, Operand(zero_reg));
-    // TODO(kasperl@rivosinc.com): This doesn't make much sense.
-    EmitConstPoolWithoutJumpIfNeeded();
     bind(&skip);
   }
 }
@@ -5425,17 +5419,14 @@ void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
 
 void MacroAssembler::BranchLong(Label* L) {
   // Generate position independent long branch.
-  {
-    BlockPoolsScope block_pools(this);
-    int32_t imm = branch_long_offset(L);
-    if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
-        (imm & 1) == 0) {
-      j(imm);
-    } else {
-      GenPCRelativeJump(t6, imm, block_pools);
-    }
+  BlockPoolsScope block_pools(this);
+  int32_t imm = branch_long_offset(L);
+  if (L->is_bound() && is_intn(imm, Assembler::kJumpOffsetBits) &&
+      (imm & 1) == 0) {
+    j(imm);
+  } else {
+    GenPCRelativeJump(t6, imm, block_pools);
   }
-  EmitConstPoolWithoutJumpIfNeeded();
 }
 
 void MacroAssembler::BranchAndLinkLong(Label* L) {

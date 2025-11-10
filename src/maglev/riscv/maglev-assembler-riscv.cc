@@ -227,7 +227,7 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
   // of the exits section.
   size_t total_size = eager_deopt_count * Deoptimizer::kEagerDeoptExitSize +
                       lazy_deopt_count * Deoptimizer::kLazyDeoptExitSize;
-  StartBlockPools(ConstantPoolEmission::kCheck, static_cast<int>(total_size));
+  StartBlockPools(static_cast<int>(total_size));
   if (eager_deopt_count > 0) {
     bind(eager_deopt_entry);
     TemporaryRegisterScope scope(this);
