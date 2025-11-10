@@ -1652,7 +1652,7 @@ class WasmBytecodeGenerator {
   inline void EmitMemoryOffset(uint64_t value) {
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_compact_bytecode) {
-      printf("EmitMemoryOffset %llu\n", value);
+      printf("EmitMemoryOffset %" PRIu64 "\n", value);
     }
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
