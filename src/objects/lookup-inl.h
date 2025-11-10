@@ -19,6 +19,7 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -34,23 +35,20 @@ LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
     : LookupIterator(isolate, receiver, name, kInvalidIndex,
-                     Cast<JSAny>(lookup_start_object), configuration) {}
+                     lookup_start_object, configuration) {}
 
 LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                size_t index, Configuration configuration)
-    : LookupIterator(isolate, receiver, DirectHandle<Name>(), index, receiver,
-                     configuration) {
-  DCHECK_NE(index, kInvalidIndex);
-}
+    : LookupIterator(isolate, receiver, DirectHandle<Name>(),
+                     AssumeValidIndex(index), receiver, configuration) {}
 
 LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                size_t index,
                                DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
-    : LookupIterator(isolate, receiver, DirectHandle<Name>(), index,
-                     Cast<JSAny>(lookup_start_object), configuration) {
-  DCHECK_NE(index, kInvalidIndex);
-}
+    : LookupIterator(isolate, receiver, DirectHandle<Name>(),
+                     AssumeValidIndex(index), lookup_start_object,
+                     configuration) {}
 
 LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                const PropertyKey& key,
@@ -63,7 +61,7 @@ LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
     : LookupIterator(isolate, receiver, key.name(), key.index(),
-                     Cast<JSAny>(lookup_start_object), configuration) {}
+                     lookup_start_object, configuration) {}
 
 // This private constructor is the central bottleneck that all the other
 // constructors use.

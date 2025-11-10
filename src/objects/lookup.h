@@ -282,8 +282,12 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
  private:
   friend PropertyKey;
-
   static const size_t kInvalidIndex = std::numeric_limits<size_t>::max();
+
+  constexpr size_t AssumeValidIndex(size_t index) {
+    V8_ASSUME(index != kInvalidIndex);
+    return index;
+  }
 
   bool LookupCachedProperty(DirectHandle<AccessorPair> accessor);
   inline LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
