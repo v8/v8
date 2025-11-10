@@ -7993,6 +7993,18 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   __ StoreReturnAddressAndCall(function_address);
   __ bind(&done_api_call);
 
+  // Reset the rounding mode to RNE if it was changed by the API function.
+  Label rounding_mode_done;
+  static_assert(RNE == 0);
+  // We just return from C code which could have changed a2. This register
+  // doesn't contain any return value from the API function, so we can use it
+  // as scratch.
+  auto rounding_scratch = a2;
+  __ frrm(rounding_scratch);
+  __ beqz(rounding_scratch, &rounding_mode_done);  // Equal to RNE.
+  __ fsrm(zero_reg);                               // Set rounding mode to RNE.
+  __ bind(&rounding_mode_done);
+
   Label propagate_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;

@@ -589,8 +589,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     // change it back to RNE before it finishes.
     void set(FPURoundingMode mode) {
       if (mode_ != mode) {
-        assm_->addi(kScratchReg, zero_reg, mode << kFcsrFrmShift);
-        assm_->fscsr(kScratchReg);
+        if (mode == 0) {
+          assm_->fsrm(zero_reg);
+        } else {
+          assm_->fsrm(mode);
+        }
         mode_ = mode;
       }
     }
