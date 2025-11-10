@@ -204,9 +204,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12209
   'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
 
-  # https://github.com/tc39/test262/pull/4417
-  'intl402/Locale/prototype/getWeekInfo/output-object-keys': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9875
   'language/expressions/coalesce/tco-pos-undefined': [FAIL],
   'language/expressions/coalesce/tco-pos-null': [FAIL],
@@ -263,9 +260,20 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # Duration internal representation (https://github.com/boa-dev/temporal/issues/613/334)
+  # Duration total calculation precision (https://github.com/boa-dev/temporal/issues/620)
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
+
+  # Duration internal representation (https://github.com/boa-dev/temporal/issues/613/334)
+  'built-ins/Temporal/Duration/prototype/add/float64-representable-integer': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/float64-representable-integer': [FAIL],
+  'built-ins/Temporal/Duration/prototype/subtract/float64-representable-integer': [FAIL],
+  'built-ins/Temporal/Instant/prototype/since/float64-representable-integer': [FAIL],
+  'built-ins/Temporal/Instant/prototype/until/float64-representable-integer': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/since/float64-representable-integer': [FAIL],
+  'built-ins/Temporal/PlainDateTime/prototype/until/float64-representable-integer': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/since/float64-representable-integer': [FAIL],
+  'built-ins/Temporal/ZonedDateTime/prototype/until/float64-representable-integer': [FAIL],
 
   # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
   'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
@@ -1209,17 +1217,7 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Temporal/Duration/prototype/add/float64-representable-integer': [SKIP],
-  'built-ins/Temporal/Duration/prototype/round/float64-representable-integer': [SKIP],
-  'built-ins/Temporal/Duration/prototype/subtract/float64-representable-integer': [SKIP],
-  'built-ins/Temporal/Instant/prototype/since/float64-representable-integer': [SKIP],
-  'built-ins/Temporal/Instant/prototype/until/float64-representable-integer': [SKIP],
-  'built-ins/Temporal/PlainDateTime/prototype/since/float64-representable-integer': [SKIP],
-  'built-ins/Temporal/PlainDateTime/prototype/until/float64-representable-integer': [SKIP],
-  'built-ins/Temporal/ZonedDateTime/prototype/since/float64-representable-integer': [SKIP],
-  'built-ins/Temporal/ZonedDateTime/prototype/until/float64-representable-integer': [SKIP],
   'intl402/DateTimeFormat/constructor-options-calendar-islamic-fallback': [SKIP],
-  'intl402/Locale/prototype/getWeekInfo/output-object-keys': [SKIP],
   'language/statements/await-using/syntax/await-using-invalid-assignment-statement-body-for-of': [SKIP],
   'language/statements/await-using/syntax/block-scope-syntax-await-using-declarations-mixed-with-without-initializer': [SKIP],
   'language/statements/using/syntax/using-for-using-of-of': [SKIP],
