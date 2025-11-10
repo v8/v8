@@ -376,12 +376,6 @@ class RootVisitor;
     SourceTextModuleExecuteAsyncModuleFulfilledSFI)                            \
   V(SharedFunctionInfo, source_text_module_execute_async_module_rejected_sfi,  \
     SourceTextModuleExecuteAsyncModuleRejectedSFI)                             \
-  V(SharedFunctionInfo, atomics_mutex_async_unlock_resolve_handler_sfi,        \
-    AtomicsMutexAsyncUnlockResolveHandlerSFI)                                  \
-  V(SharedFunctionInfo, atomics_mutex_async_unlock_reject_handler_sfi,         \
-    AtomicsMutexAsyncUnlockRejectHandlerSFI)                                   \
-  V(SharedFunctionInfo, atomics_condition_acquire_lock_sfi,                    \
-    AtomicsConditionAcquireLockSFI)                                            \
   V(SharedFunctionInfo, async_disposable_stack_on_fulfilled_shared_fun,        \
     AsyncDisposableStackOnFulfilledSharedFun)                                  \
   V(SharedFunctionInfo, async_disposable_stack_on_rejected_shared_fun,         \

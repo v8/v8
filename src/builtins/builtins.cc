@@ -830,17 +830,12 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kAtomicsMutexLockWithTimeout:
     case Builtin::kAtomicsMutexTryLock:
     case Builtin::kAtomicsMutexIsMutex:
-    case Builtin::kAtomicsMutexLockAsync:
     case Builtin::kAtomicsConditionConstructor:
     case Builtin::kAtomicsConditionWait:
     case Builtin::kAtomicsConditionNotify:
     case Builtin::kAtomicsConditionIsCondition:
-    case Builtin::kAtomicsConditionWaitAsync:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.harmony_struct);
     case Builtin::kSharedStructConstructor:
-    case Builtin::kAtomicsMutexAsyncUnlockResolveHandler:
-    case Builtin::kAtomicsMutexAsyncUnlockRejectHandler:
-    case Builtin::kAtomicsConditionAcquireLock:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);
 
     // --js-promise-try

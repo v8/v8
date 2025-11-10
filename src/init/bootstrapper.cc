@@ -5671,8 +5671,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsMutexTryLock, 2, kAdapt);
     SimpleInstallFunction(isolate(), mutex_fun, "isMutex",
                           Builtin::kAtomicsMutexIsMutex, 1, kAdapt);
-    SimpleInstallFunction(isolate(), mutex_fun, "lockAsync",
-                          Builtin::kAtomicsMutexLockAsync, 2, kAdapt);
   }
 
   {  // Atomics.Condition
@@ -5691,8 +5689,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsConditionNotify, 2, kDontAdapt);
     SimpleInstallFunction(isolate(), condition_fun, "isCondition",
                           Builtin::kAtomicsConditionIsCondition, 1, kAdapt);
-    SimpleInstallFunction(isolate(), condition_fun, "waitAsync",
-                          Builtin::kAtomicsConditionWaitAsync, 2, kDontAdapt);
   }
 }
 

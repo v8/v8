@@ -1460,17 +1460,12 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(AtomicsMutexConstructor, JSParameterCount(0))                            \
   CPP(AtomicsMutexIsMutex, JSParameterCount(1))                                \
   CPP(AtomicsMutexLock, JSParameterCount(2))                                   \
-  CPP(AtomicsMutexLockAsync, JSParameterCount(2))                              \
   CPP(AtomicsMutexLockWithTimeout, JSParameterCount(3))                        \
   CPP(AtomicsMutexTryLock, JSParameterCount(2))                                \
-  CPP(AtomicsMutexAsyncUnlockResolveHandler, JSParameterCount(1))              \
-  CPP(AtomicsMutexAsyncUnlockRejectHandler, JSParameterCount(1))               \
   CPP(AtomicsConditionConstructor, JSParameterCount(0))                        \
-  CPP(AtomicsConditionAcquireLock, JSParameterCount(0))                        \
   CPP(AtomicsConditionIsCondition, JSParameterCount(1))                        \
   CPP(AtomicsConditionWait, kDontAdaptArgumentsSentinel)                       \
   CPP(AtomicsConditionNotify, kDontAdaptArgumentsSentinel)                     \
-  CPP(AtomicsConditionWaitAsync, kDontAdaptArgumentsSentinel)                  \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \

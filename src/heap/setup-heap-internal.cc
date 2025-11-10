@@ -1762,23 +1762,6 @@ void Heap::CreateInitialMutableObjects() {
     set_array_from_async_array_like_on_rejected_shared_fun(*info);
   }
 
-  // Atomics.Mutex
-  {
-    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kAtomicsMutexAsyncUnlockResolveHandler, 1);
-    set_atomics_mutex_async_unlock_resolve_handler_sfi(*info);
-    info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kAtomicsMutexAsyncUnlockRejectHandler, 1);
-    set_atomics_mutex_async_unlock_reject_handler_sfi(*info);
-  }
-
-  // Atomics.Condition
-  {
-    DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
-        isolate_, Builtin::kAtomicsConditionAcquireLock, 0);
-    set_atomics_condition_acquire_lock_sfi(*info);
-  }
-
   // Async Disposable Stack
   {
     DirectHandle<SharedFunctionInfo> info = CreateSharedFunctionInfo(

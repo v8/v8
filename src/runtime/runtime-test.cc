@@ -2210,12 +2210,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
   return primitive->NumWaitersForTesting(isolate);
 }
 
-RUNTIME_FUNCTION(
-    Runtime_AtomicsSychronizationNumAsyncWaitersInIsolateForTesting) {
-  return Smi::FromInt(
-      static_cast<uint32_t>(isolate->async_waiter_queue_nodes().size()));
-}
-
 RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
