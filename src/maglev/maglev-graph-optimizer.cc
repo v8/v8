@@ -1081,7 +1081,7 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
     LoadTaggedField* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   if (node->offset() == HeapObject::kMapOffset) {
-    if (auto constant = reducer_.TryGetConstant(node)) {
+    if (auto constant = reducer_.TryGetConstant(node->input_node(0))) {
       compiler::MapRef map = constant->map(broker());
       if (map.is_stable()) {
         broker()->dependencies()->DependOnStableMap(map);
