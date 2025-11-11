@@ -326,6 +326,10 @@ void MaglevAssembler::IsObjectType(Register object, Register scratch1,
     std::optional<RootIndex> expected =
         InstanceTypeChecker::UniqueMapOfInstanceType(type);
     Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
+    TemporaryRegisterScope temps(this);
+    if (scratch1 == scratch2) {
+      scratch2 = temps.AcquireScratch();
+    }
     li(scratch2, expected_ptr);
     SignExtendWord(scratch2, scratch2);
     MacroAssembler::Branch(&ConditionMet, Condition::kEqual, scratch1,
