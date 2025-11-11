@@ -380,9 +380,9 @@ SpeculationMode MaglevGraphBuilder::GetSpeculationMode(
   if (!feedback_source.IsValid()) return SpeculationMode::kDisallowSpeculation;
   compiler::ProcessedFeedback const& processed_feedback =
       broker->GetFeedbackForCall(feedback_source);
-  if (processed_feedback.IsInsufficient())
-    return SpeculationMode::kDisallowSpeculation;
-  return processed_feedback.AsCall().speculation_mode();
+  return processed_feedback.IsInsufficient()
+             ? SpeculationMode::kDisallowSpeculation
+             : processed_feedback.AsCall().speculation_mode();
 }
 
 MaglevGraphBuilder::LazyDeoptResultLocationScope::LazyDeoptResultLocationScope(
@@ -10950,7 +10950,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMinMax(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayConstructor(
     compiler::JSFunctionRef target, CallArguments& args) {
-  return TryReduceConstructArrayConstructor(target, args);
+  return TryReduceConstructArrayConstructor(target, GetConstant(target), args);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
@@ -12411,15 +12411,19 @@ enum class InlineArrayCtorVariant {
 };
 
 compiler::OptionalMapRef GetArrayConstructorInitialMap(
-    compiler::JSHeapBroker* broker, compiler::JSFunctionRef array_function,
-    ElementsKind* elements_kind, InlineArrayCtorVariant variant) {
-  compiler::MapRef initial_map = array_function.initial_map(broker);
-  if (variant == InlineArrayCtorVariant::kOneArg_InterpretAsLength) {
-    // Constructing an Array via new Array(N) where N is an unsigned
-    // integer, always creates a holey backing store.
-    *elements_kind = GetHoleyElementsKind(*elements_kind);
+    compiler::JSHeapBroker* broker, compiler::JSFunctionRef target,
+    compiler::JSFunctionRef new_target) {
+  if (!new_target.map(broker).has_prototype_slot() ||
+      !new_target.has_initial_map(broker)) {
+    return {};
   }
-  return initial_map.AsElementsKind(broker, *elements_kind);
+  compiler::MapRef initial_map = new_target.initial_map(broker);
+  if (!initial_map.GetConstructor(broker).equals(target)) {
+    return {};
+  }
+  DCHECK(target.map(broker).is_constructor());
+  DCHECK(new_target.map(broker).is_constructor());
+  return initial_map;
 }
 
 }  // namespace
@@ -12459,16 +12463,10 @@ ValueNode* MaglevGraphBuilder::BuildElementsArray(
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
-    compiler::JSFunctionRef array_function, CallArguments& args,
+    compiler::JSFunctionRef target_function, ValueNode* new_target,
+    CallArguments& args,
     compiler::OptionalAllocationSiteRef maybe_allocation_site) {
-  ElementsKind elements_kind =
-      maybe_allocation_site.has_value()
-          ? maybe_allocation_site->GetElementsKind()
-          : array_function.initial_map(broker()).elements_kind();
-
-  DCHECK(IsFastElementsKind(elements_kind));
   const int arity = static_cast<int>(args.count());
-
   InlineArrayCtorVariant variant;
   if (arity == 0) {
     variant = InlineArrayCtorVariant::kZeroArgs;
@@ -12491,13 +12489,36 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
                     JSArray::kMaxFastArrayLength);
     }
   }
+
+  compiler::OptionalHeapObjectRef new_target_constant =
+      TryGetConstant(new_target);
+  if (!new_target_constant.has_value() ||
+      !new_target_constant->IsJSFunction()) {
+    return {};
+  }
+  compiler::JSFunctionRef new_target_function =
+      new_target_constant->AsJSFunction();
+
   compiler::OptionalMapRef maybe_initial_map = GetArrayConstructorInitialMap(
-      broker(), array_function, &elements_kind, variant);
+      broker(), target_function, new_target_function);
   if (!maybe_initial_map.has_value()) return {};
+  ElementsKind elements_kind = maybe_allocation_site.has_value()
+                                   ? maybe_allocation_site->GetElementsKind()
+                                   : maybe_initial_map->elements_kind();
+  DCHECK(IsFastElementsKind(elements_kind));
+  if (variant == InlineArrayCtorVariant::kOneArg_InterpretAsLength) {
+    // Constructing an Array via new Array(N) where N is an unsigned
+    // integer, always creates a holey backing store.
+    elements_kind = GetHoleyElementsKind(elements_kind);
+  }
+  maybe_initial_map =
+      maybe_initial_map->AsElementsKind(broker(), elements_kind);
+  if (!maybe_initial_map.has_value()) return {};
+
   compiler::MapRef initial_map = maybe_initial_map.value();
   compiler::SlackTrackingPrediction slack_tracking_prediction =
       broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
-          array_function);
+          new_target_function);
 
   // Tells whether we are protected by either the {site} or a call speculation
   // bit to do certain speculative optimizations. This mechanism protects
@@ -12638,36 +12659,39 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
-    compiler::JSFunctionRef builtin,
-    compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
-    CallArguments& args) {
-  // TODO(victorgomes): specialize more known constants builtin targets.
-  switch (shared_function_info.builtin_id()) {
+    compiler::JSFunctionRef target_function,
+    compiler::SharedFunctionInfoRef target_sfi, ValueNode* target,
+    ValueNode* new_target, CallArguments& args) {
+  DCHECK_EQ(target_function, TryGetConstant(target).value());
+  DCHECK_EQ(target_sfi, target_function.shared(broker()));
+
+  switch (target_sfi.builtin_id()) {
     case Builtin::kArrayConstructor: {
-      RETURN_IF_DONE(TryReduceConstructArrayConstructor(builtin, args));
+      RETURN_IF_DONE(TryReduceConstructArrayConstructor(target_function,
+                                                        new_target, args));
       break;
     }
     case Builtin::kObjectConstructor: {
+      // TODO(jgruber): Implement.
+      if (target != new_target) return {};
       // If no value is passed, we can immediately lower to a simple
       // constructor.
       if (args.count() == 0) {
-        RETURN_IF_ABORT(BuildCheckValueByReference(
-            target, builtin, DeoptimizeReason::kWrongConstructor));
-        ValueNode* result = BuildInlinedAllocation(CreateJSConstructor(builtin),
-                                                   AllocationType::kYoung);
+        ValueNode* result = BuildInlinedAllocation(
+            CreateJSConstructor(target_function), AllocationType::kYoung);
         return result;
       }
       break;
     }
     case Builtin::kStringConstructor: {
-      RETURN_IF_ABORT(BuildCheckValueByReference(
-          target, builtin, DeoptimizeReason::kWrongConstructor));
+      // TODO(jgruber): Implement.
+      if (target != new_target) return {};
       ValueNode* value;
       if (args.count() == 0) {
         value = GetRootConstant(RootIndex::kempty_string);
       } else {
         LazyDeoptFrameScope deopt_continuation(
-            this, Builtin::kStringCreateLazyDeoptContinuation, builtin,
+            this, Builtin::kStringCreateLazyDeoptContinuation, target_function,
             base::VectorOf<ValueNode*>(
                 {GetRootConstant(RootIndex::kTheHoleValue)}));
         GET_VALUE_OR_ABORT(value,
@@ -12676,6 +12700,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       return BuildInlinedAllocation(CreateJSStringWrapper(value),
                                     AllocationType::kYoung);
     }
+    case Builtin::kPromiseConstructor:
+    case Builtin::kTypedArrayConstructor:
+      // TODO(victorgomes): specialize more known constants builtin targets.
+      break;
     default:
       break;
   }
@@ -12683,12 +12711,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
-    compiler::JSFunctionRef function,
+    compiler::JSFunctionRef target_constant,
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
     ValueNode* new_target, CallArguments& args,
     compiler::FeedbackSource& feedback_source) {
-  RETURN_IF_ABORT(BuildCheckValueByReference(
-      target, function, DeoptimizeReason::kWrongConstructor));
+  DCHECK_EQ(target_constant, TryGetConstant(target).value());
+
+  // TODO(jgruber): Implement.
+  if (target != new_target) return {};
 
   int construct_arg_count = static_cast<int>(args.count());
   base::Vector<ValueNode*> construct_arguments_without_receiver =
@@ -12704,7 +12734,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
     {
       LazyDeoptFrameScope construct(this, implicit_receiver);
       MaybeReduceResult result = TryBuildCallKnownJSFunction(
-          function, new_target, args, feedback_source);
+          target_constant, new_target, args, feedback_source);
       RETURN_IF_ABORT(result);
       call_result = result.value();
     }
@@ -12724,11 +12754,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
   // We do not create a construct stub lazy deopt frame, since
   // FastNewObject cannot fail if target is a JSFunction.
   ValueNode* implicit_receiver = nullptr;
-  if (function.has_initial_map(broker())) {
-    compiler::MapRef map = function.initial_map(broker());
-    if (map.GetConstructor(broker()).equals(function)) {
-      implicit_receiver = BuildInlinedAllocation(CreateJSConstructor(function),
-                                                 AllocationType::kYoung);
+  if (target_constant.has_initial_map(broker())) {
+    compiler::MapRef map = target_constant.initial_map(broker());
+    if (map.GetConstructor(broker()).equals(target_constant)) {
+      implicit_receiver = BuildInlinedAllocation(
+          CreateJSConstructor(target_constant), AllocationType::kYoung);
     }
   }
   if (implicit_receiver == nullptr) {
@@ -12743,7 +12773,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
   {
     LazyDeoptFrameScope construct(this, implicit_receiver);
     MaybeReduceResult result = TryBuildCallKnownJSFunction(
-        function, new_target, args, feedback_source);
+        target_constant, new_target, args, feedback_source);
     RETURN_IF_ABORT(result);
     call_result = result.value();
   }
@@ -12761,50 +12791,53 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstruct(
-    compiler::HeapObjectRef feedback_target, ValueNode* target,
+    compiler::HeapObjectRef target_constant, ValueNode* target,
     ValueNode* new_target, CallArguments& args,
     compiler::FeedbackSource& feedback_source) {
-  DCHECK(!feedback_target.IsAllocationSite());
-  if (!feedback_target.map(broker()).is_constructor()) {
-    // TODO(victorgomes): Deal the case where target is not a constructor.
+  // If we have AllocationSite feedback, we take a different path that calls
+  // TryReduceConstructArrayConstructor directly.
+  DCHECK(!target_constant.IsAllocationSite());
+  DCHECK_EQ(target_constant, TryGetConstant(target).value());
+
+  if (!target_constant.map(broker()).is_constructor()) {
+    // Non-constructor targets throw, let the generic path handle this.
+    // See also Runtime::kThrowConstructedNonConstructable.
     return {};
   }
-
-  if (target != new_target) return {};
 
   // TODO(v8:7700): Add fast paths for other callables.
-  if (!feedback_target.IsJSFunction()) return {};
-  compiler::JSFunctionRef function = feedback_target.AsJSFunction();
+  if (!target_constant.IsJSFunction()) return {};
+  compiler::JSFunctionRef target_function = target_constant.AsJSFunction();
 
   // Do not inline constructors with break points.
-  compiler::SharedFunctionInfoRef shared_function_info =
-      function.shared(broker());
-  if (shared_function_info.HasBreakInfo(broker())) {
+  compiler::SharedFunctionInfoRef target_sfi = target_function.shared(broker());
+  if (target_sfi.HasBreakInfo(broker())) {
     return {};
   }
 
-  // Do not inline cross natives context.
-  if (function.native_context(broker()) != broker()->target_native_context()) {
+  // Do not inline cross-native-context.
+  if (target_function.native_context(broker()) !=
+      broker()->target_native_context()) {
     return {};
   }
 
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known
-    // function directly if arguments list is an array.
+    // target_function directly if arguments list is an array.
     return {};
   }
 
-  if (shared_function_info.HasBuiltinId()) {
-    RETURN_IF_DONE(TryReduceConstructBuiltin(function, shared_function_info,
-                                             target, args));
+  if (target_sfi.HasBuiltinId()) {
+    RETURN_IF_DONE(TryReduceConstructBuiltin(target_function, target_sfi,
+                                             target, new_target, args));
   }
 
-  if (shared_function_info.construct_as_builtin()) {
+  if (target_sfi.construct_as_builtin()) {
     // TODO(victorgomes): Inline JSBuiltinsConstructStub.
     return {};
   }
 
-  return TryReduceConstructGeneric(function, shared_function_info, target,
+  return TryReduceConstructGeneric(target_function, target_sfi, target,
                                    new_target, args, feedback_source);
 }
 
@@ -12818,10 +12851,16 @@ ReduceResult MaglevGraphBuilder::BuildConstruct(
         DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
   }
 
-  DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
-  compiler::OptionalHeapObjectRef feedback_target =
+  // Enable feedback-based speculation.
+  SaveCallSpeculationScope saved(this, feedback_source);
+
+  // Note that for Construct nodes, the `CallFeedback::target` actually refers
+  // to new_target.
+  compiler::OptionalHeapObjectRef new_target_feedback =
       processed_feedback.AsCall().target();
-  if (feedback_target.has_value() && feedback_target->IsAllocationSite()) {
+
+  if (new_target_feedback.has_value() &&
+      new_target_feedback->IsAllocationSite()) {
     // The feedback is an AllocationSite, which means we have called the
     // Array function and collected transition (and pretenuring) feedback
     // for the resulting arrays.
@@ -12830,27 +12869,40 @@ ReduceResult MaglevGraphBuilder::BuildConstruct(
     RETURN_IF_ABORT(BuildCheckValueByReference(
         target, array_function, DeoptimizeReason::kWrongConstructor));
     PROCESS_AND_RETURN_IF_DONE(
-        TryReduceConstructArrayConstructor(array_function, args,
-                                           feedback_target->AsAllocationSite()),
+        TryReduceConstructArrayConstructor(
+            array_function, GetConstant(array_function), args,
+            new_target_feedback->AsAllocationSite()),
         SetAccumulator);
-  } else {
-    if (feedback_target.has_value()) {
-      PROCESS_AND_RETURN_IF_DONE(
-          TryReduceConstruct(feedback_target.value(), target, new_target, args,
-                             feedback_source),
-          SetAccumulator);
-    }
-    if (compiler::OptionalHeapObjectRef maybe_constant =
-            TryGetConstant(target)) {
-      PROCESS_AND_RETURN_IF_DONE(
-          TryReduceConstruct(maybe_constant.value(), target, new_target, args,
-                             feedback_source),
-          SetAccumulator);
-    }
+    return SetAccumulator(BuildGenericConstruct(
+        target, new_target, GetContext(), args, feedback_source));
   }
-  ValueNode* context = GetContext();
-  return SetAccumulator(BuildGenericConstruct(target, new_target, context, args,
-                                              feedback_source));
+
+  // Specialize to new_target_feedback if possible.
+  compiler::OptionalHeapObjectRef new_target_constant =
+      TryGetConstant(new_target);
+  if (new_target_feedback.has_value() && !new_target_constant.has_value() &&
+      new_target_feedback->map(broker()).is_constructor()) {
+    RETURN_IF_ABORT(
+        BuildCheckValueByReference(new_target, new_target_feedback.value(),
+                                   DeoptimizeReason::kWrongCallTarget));
+    ValueNode* new_target_constant_node =
+        GetConstant(new_target_feedback.value());
+    if (target == new_target) {
+      target = new_target_constant_node;
+    }
+    new_target = new_target_constant_node;
+  }
+
+  if (compiler::OptionalHeapObjectRef target_constant =
+          TryGetConstant(target)) {
+    PROCESS_AND_RETURN_IF_DONE(
+        TryReduceConstruct(target_constant.value(), target, new_target, args,
+                           feedback_source),
+        SetAccumulator);
+  }
+
+  return SetAccumulator(BuildGenericConstruct(target, new_target, GetContext(),
+                                              args, feedback_source));
 }
 
 ReduceResult MaglevGraphBuilder::VisitConstruct() {

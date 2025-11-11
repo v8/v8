@@ -1143,19 +1143,20 @@ class MaglevGraphBuilder {
           compiler::FeedbackSource());
 
   MaybeReduceResult TryReduceConstructArrayConstructor(
-      compiler::JSFunctionRef array_function, CallArguments& args,
+      compiler::JSFunctionRef target_function, ValueNode* new_target,
+      CallArguments& args,
       compiler::OptionalAllocationSiteRef maybe_allocation_site = {});
   MaybeReduceResult TryReduceConstructBuiltin(
-      compiler::JSFunctionRef builtin,
-      compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
-      CallArguments& args);
+      compiler::JSFunctionRef target_function,
+      compiler::SharedFunctionInfoRef target_sfi, ValueNode* target,
+      ValueNode* new_target, CallArguments& args);
   MaybeReduceResult TryReduceConstructGeneric(
       compiler::JSFunctionRef function,
       compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
       ValueNode* new_target, CallArguments& args,
       compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryReduceConstruct(
-      compiler::HeapObjectRef feedback_target, ValueNode* target,
+      compiler::HeapObjectRef target_constant, ValueNode* target,
       ValueNode* new_target, CallArguments& args,
       compiler::FeedbackSource& feedback_source);
   ReduceResult BuildConstruct(ValueNode* target, ValueNode* new_target,
