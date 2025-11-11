@@ -189,7 +189,8 @@ own<ExternType> GetImportExportType(const i::wasm::WasmModule* module,
                                     const i::wasm::ImportExportKindCode kind,
                                     const uint32_t index) {
   switch (kind) {
-    case i::wasm::kExternalFunction: {
+    case i::wasm::kExternalFunction:
+    case i::wasm::kExternalExactFunction: {
       return FunctionSigToFuncType(module->functions[index].sig);
     }
     case i::wasm::kExternalTable: {

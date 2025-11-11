@@ -885,6 +885,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           buffer->write_size(ex.index);
           break;
         case kExternalTag:
+        case kExternalExactFunction:
           UNREACHABLE();
       }
     }

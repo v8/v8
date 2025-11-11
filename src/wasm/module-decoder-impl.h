@@ -57,6 +57,8 @@ inline const char* ExternalKindName(ImportExportKindCode kind) {
       return "global";
     case kExternalTag:
       return "tag";
+    case kExternalExactFunction:
+      return "exact function";
   }
   return "unknown";
 }
@@ -977,7 +979,8 @@ class ModuleDecoderImpl : public Decoder {
           .module_name = module_name, .field_name = field_name, .kind = kind});
       WasmImport* import = &module_->import_table.back();
       switch (kind) {
-        case kExternalFunction: {
+        case kExternalFunction:
+        case kExternalExactFunction: {
           // ===== Imported function ===========================================
           import->index = static_cast<uint32_t>(module_->functions.size());
           module_->num_imported_functions++;
@@ -986,6 +989,18 @@ class ModuleDecoderImpl : public Decoder {
               .imported = true,
           });
           WasmFunction* function = &module_->functions.back();
+          if (kind == kExternalExactFunction) {
+            if (!enabled_features_.has_custom_descriptors()) {
+              // We haven't decoded any bytes since {consume_u8("kind")}.
+              errorf(pc_ - 1,
+                     "Invalid import kind %d, enable with "
+                     "--experimental-wasm-custom-descriptors",
+                     kind);
+              break;
+            }
+            function->exact = true;
+            detected_features_->add_custom_descriptors();
+          }
           function->sig_index =
               consume_sig_index(module_.get(), &function->sig);
           break;
@@ -1353,6 +1368,7 @@ class ModuleDecoderImpl : public Decoder {
           exp->index = consume_tag_index(module_.get(), &tag);
           break;
         }
+        case kExternalExactFunction:
         default:
           errorf(kind_pos, "invalid export kind 0x%02x", exp->kind);
           break;
@@ -2591,7 +2607,8 @@ class ModuleDecoderImpl : public Decoder {
           ValueType type = ValueType::Ref(functype, functype_is_shared,
                                           RefTypeKind::kFunction);
           if (enabled_features_.has_custom_descriptors() &&
-              index >= module->num_imported_functions) {
+              (index >= module->num_imported_functions ||
+               module->functions[index].exact)) {
             type = type.AsExact();
           }
           TYPE_CHECK(type)

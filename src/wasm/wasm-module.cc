@@ -469,6 +469,7 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
     DirectHandle<JSObject> type_value;
     switch (import.kind) {
       case kExternalFunction:
+      case kExternalExactFunction:
         if (IsCompileTimeImport(well_known_imports.get(import.index))) {
           continue;
         }
@@ -476,6 +477,8 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
           auto& func = module->functions[import.index];
           type_value = GetTypeForFunction(isolate, func.sig);
         }
+        // Since {kExternalExactFunction} is still a function import, it
+        // uses the string "function" here.
         import_kind = function_string;
         break;
       case kExternalTable:
@@ -625,6 +628,7 @@ DirectHandle<JSArray> GetExports(Isolate* isolate,
       case kExternalTag:
         export_kind = tag_string;
         break;
+      case kExternalExactFunction:
       default:
         UNREACHABLE();
     }

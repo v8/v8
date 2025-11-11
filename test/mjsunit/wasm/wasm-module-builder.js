@@ -205,6 +205,7 @@ let kExternalTable = 1;
 let kExternalMemory = 2;
 let kExternalGlobal = 3;
 let kExternalTag = 4;
+let kExternalExactFunction = 32;
 
 let kTableZero = 0;
 let kMemoryZero = 0;
@@ -1641,27 +1642,24 @@ class WasmModuleBuilder {
     arg_names = arg_names || [];
     let type_index = (typeof type) == 'number' ? type : this.addType(type);
     let num_args = this.types[type_index].params.length;
-    if (num_args < arg_names.length)
+    if (num_args < arg_names.length) {
       throw new Error('too many arg names provided');
-    if (num_args > arg_names.length)
+    }
+    if (num_args > arg_names.length) {
       arg_names.push(num_args - arg_names.length);
+    }
     let func = new WasmFunctionBuilder(this, name, type_index, arg_names);
     func.index = this.functions.length + this.num_imported_funcs;
     this.functions.push(func);
     return func;
   }
 
-  addImport(module, name, type) {
+  addImport(module, name, type, kind = kExternalFunction) {
     if (this.functions.length != 0) {
       throw new Error('Imported functions must be declared before local ones');
     }
     let type_index = (typeof type) == 'number' ? type : this.addType(type);
-    this.imports.push({
-      module: module,
-      name: name,
-      kind: kExternalFunction,
-      type_index: type_index
-    });
+    this.imports.push({module, name, kind, type_index});
     return this.num_imported_funcs++;
   }
 
@@ -1669,14 +1667,8 @@ class WasmModuleBuilder {
     if (this.globals.length != 0) {
       throw new Error('Imported globals must be declared before local ones');
     }
-    let o = {
-      module: module,
-      name: name,
-      kind: kExternalGlobal,
-      type: type,
-      mutable: mutable,
-      shared: shared
-    };
+    let kind = kExternalGlobal;
+    let o = {module, name, kind, type, mutable, shared};
     this.imports.push(o);
     return this.num_imported_globals++;
   }
@@ -1688,15 +1680,10 @@ class WasmModuleBuilder {
           'up the indexes');
     }
     let mem_index = this.imports.filter(i => i.kind == kExternalMemory).length;
-    let o = {
-      module: module,
-      name: name,
-      kind: kExternalMemory,
-      initial: initial,
-      maximum: maximum,
-      shared: !!shared,
-      is_memory64: !!is_memory64
-    };
+    let kind = kExternalMemory;
+    shared = !!shared;
+    is_memory64 = !!is_memory64;
+    let o = {module, name, kind, initial, maximum, shared, is_memory64};
     this.imports.push(o);
     return mem_index;
   }
@@ -1708,12 +1695,12 @@ class WasmModuleBuilder {
       throw new Error('Imported tables must be declared before local ones');
     }
     let o = {
-      module: module,
-      name: name,
+      module,
+      name,
       kind: kExternalTable,
-      initial: initial,
-      maximum: maximum,
-      type: type,
+      initial,
+      maximum,
+      type,
       shared: !!shared,
       is_table64: !!is_table64,
     };
@@ -1726,12 +1713,8 @@ class WasmModuleBuilder {
       throw new Error('Imported tags must be declared before local ones');
     }
     let type_index = (typeof type) == 'number' ? type : this.addType(type);
-    let o = {
-      module: module,
-      name: name,
-      kind: kExternalTag,
-      type_index: type_index
-    };
+    let kind = kExternalTag;
+    let o = {module, name, kind, type_index};
     this.imports.push(o);
     return this.num_imported_tags++;
   }
@@ -1976,7 +1959,8 @@ class WasmModuleBuilder {
           section.emit_string(imp.module);
           section.emit_string(imp.name || '');
           section.emit_u8(imp.kind);
-          if (imp.kind == kExternalFunction) {
+          if (imp.kind == kExternalFunction ||
+              imp.kind == kExternalExactFunction) {
             section.emit_u32v(imp.type_index);
           } else if (imp.kind == kExternalGlobal) {
             section.emit_type(imp.type);

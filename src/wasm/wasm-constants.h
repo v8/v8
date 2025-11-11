@@ -75,12 +75,14 @@ constexpr uint8_t kWasmDescriptorCode = 0x4d;
 constexpr uint8_t kWasmDescribesCode = 0x4c;
 
 // Binary encoding of import/export kinds.
+constexpr uint8_t kExternalExactBit = 1 << 5;
 enum ImportExportKindCode : uint8_t {
   kExternalFunction = 0,
   kExternalTable = 1,
   kExternalMemory = 2,
   kExternalGlobal = 3,
-  kExternalTag = 4
+  kExternalTag = 4,
+  kExternalExactFunction = kExternalFunction | kExternalExactBit,
 };
 
 // The limits structure: valid for both memory and table limits.
