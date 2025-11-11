@@ -2352,14 +2352,15 @@ void CheckMapsWithAlreadyLoadedMap::SetValueLocationConstraints() {
 
 void CheckMapsWithAlreadyLoadedMap::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
-  Register object = ToRegister(map_input());
   Register map = ToRegister(map_input());
 
   // We emit an unconditional deopt if we intersect the map sets and the
   // intersection is empty.
   DCHECK(!maps().is_empty());
 
-  bool maps_include_heap_number = compiler::AnyMapIsHeapNumber(maps());
+  // CheckMapsWithAlreadyLoadedMap can only be used in contexts where SMIs /
+  // HeapNumbers don't make sense (e.g., if we're loading properties from them).
+  DCHECK(!compiler::AnyMapIsHeapNumber(maps()));
 
   // Experimentally figured out map limit (with slack) which allows us to use
   // near jumps in the code below. If --deopt-every-n-times is on, we generate
@@ -2371,17 +2372,6 @@ void CheckMapsWithAlreadyLoadedMap::GenerateCode(MaglevAssembler* masm,
                                       : Label::Distance::kFar;
 
   Label done;
-  if (check_type() == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    if (maps_include_heap_number) {
-      // Smis count as matching the HeapNumber map, so we're done.
-      __ JumpIfSmi(object, &done, jump_distance);
-    } else {
-      __ EmitEagerDeoptIfSmi(this, object, DeoptimizeReason::kWrongMap);
-    }
-  }
-
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count - 1; ++i) {
     Handle<Map> map_at_i = maps().at(i).object();

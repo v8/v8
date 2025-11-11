@@ -4325,8 +4325,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
         {object}, merger.intersect_set(), GetCheckType(known_info->type())));
   } else if (map) {
     RETURN_IF_ABORT(AddNewNode<CheckMapsWithAlreadyLoadedMap>(
-        {object, *map}, merger.intersect_set(),
-        GetCheckType(known_info->type())));
+        {object, *map}, merger.intersect_set()));
   } else {
     RETURN_IF_ABORT(AddNewNode<CheckMaps>({object}, merger.intersect_set(),
                                           GetCheckType(known_info->type())));
@@ -6787,7 +6786,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     const auto& maps = access_info.lookup_start_object_maps();
     if (i == access_info_count - 1) {
       map_check_result = BuildCheckMaps(
-          lookup_start_object, base::VectorOf(maps), lookup_start_object_map,
+          lookup_start_object, base::VectorOf(maps), {},
           has_deprecated_map_without_migration_target, needs_migration);
     } else {
       std::optional<int> future_bind_offset;
