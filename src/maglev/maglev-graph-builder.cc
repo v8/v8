@@ -12469,9 +12469,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
           ? maybe_allocation_site->GetElementsKind()
           : array_function.initial_map(broker()).elements_kind();
 
-  // TODO(457866804): Re-enable once this bug is fixed.
-  if (IsDoubleElementsKind(elements_kind)) return {};
-
   DCHECK(IsFastElementsKind(elements_kind));
   const int arity = static_cast<int>(args.count());
 
@@ -12610,9 +12607,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     return {};
   }
 
-  // TODO(457866804): Re-enable once this bug is fixed.
-  if (IsDoubleElementsKind(elements_kind)) return {};
-
   // Update the initial map based on our potentially changed elements_kind.
   {
     compiler::OptionalMapRef maybe_updated_map =
@@ -12631,9 +12625,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
       // see ConvertForField.
     }
   } else if (IsDoubleElementsKind(elements_kind)) {
-    for (ValueNode* v : args) {
-      if (NodeTypeIs(GetType(v), NodeType::kNumber)) continue;
-      RETURN_IF_ABORT(BuildCheckNumber(v));
+    for (ValueNode*& v : values) {
+      if (!NodeTypeIs(GetType(v), NodeType::kNumber)) {
+        RETURN_IF_ABORT(BuildCheckNumber(v));
+      }
+      DCHECK(NodeTypeIs(GetType(v), NodeType::kNumber));
+      GET_VALUE_OR_ABORT(v, GetSilencedNaN(GetFloat64(v)));
     }
   }
 
