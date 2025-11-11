@@ -1326,7 +1326,11 @@
   V(F64x4RelaxedMin)               \
   V(F64x4RelaxedMax)               \
   V(I32x8RelaxedTruncF32x8S)       \
-  V(I32x8RelaxedTruncF32x8U)
+  V(I32x8RelaxedTruncF32x8U)       \
+  V(F32x8Ceil)                     \
+  V(F32x8Floor)                    \
+  V(F32x8Trunc)                    \
+  V(F32x8NearestInt)
 
 #define VALUE_OP_LIST(V)              \
   COMMON_OP_LIST(V)                   \

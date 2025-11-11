@@ -2861,6 +2861,10 @@ void VisitFloatUnop(InstructionSelector* selector, OpIndex node, OpIndex input,
   V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))           \
   V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))         \
   V(F32x4NearestInt, kX64F32x4Round | MiscField::encode(kRoundToNearest)) \
+  V(F32x8Ceil, kX64F32x8Round | MiscField::encode(kRoundUp))              \
+  V(F32x8Floor, kX64F32x8Round | MiscField::encode(kRoundDown))           \
+  V(F32x8Trunc, kX64F32x8Round | MiscField::encode(kRoundToZero))         \
+  V(F32x8NearestInt, kX64F32x8Round | MiscField::encode(kRoundToNearest)) \
   V(F64x2Ceil, kX64F64x2Round | MiscField::encode(kRoundUp))              \
   V(F64x2Floor, kX64F64x2Round | MiscField::encode(kRoundDown))           \
   V(F64x2Trunc, kX64F64x2Round | MiscField::encode(kRoundToZero))         \

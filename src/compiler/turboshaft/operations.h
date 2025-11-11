@@ -9078,30 +9078,37 @@ struct Simd256LoadTransformOp
   V(I64x4SConvertI32x4)                                 \
   V(I64x4UConvertI32x4)
 
-#define FOREACH_SIMD_256_UNARY_OPCODE(V) \
-  V(S256Not)                             \
-  V(I8x32Abs)                            \
-  V(I8x32Neg)                            \
-  V(I16x16ExtAddPairwiseI8x32S)          \
-  V(I16x16ExtAddPairwiseI8x32U)          \
-  V(I32x8ExtAddPairwiseI16x16S)          \
-  V(I32x8ExtAddPairwiseI16x16U)          \
-  V(I16x16Abs)                           \
-  V(I16x16Neg)                           \
-  V(I32x8Abs)                            \
-  V(I32x8Neg)                            \
-  V(F32x8Abs)                            \
-  V(F32x8Neg)                            \
-  V(F32x8Sqrt)                           \
-  V(F64x4Abs)                            \
-  V(F64x4Neg)                            \
-  V(F64x4Sqrt)                           \
-  V(I32x8UConvertF32x8)                  \
-  V(I32x8SConvertF32x8)                  \
-  V(F32x8UConvertI32x8)                  \
-  V(F32x8SConvertI32x8)                  \
-  V(I32x8RelaxedTruncF32x8S)             \
-  V(I32x8RelaxedTruncF32x8U)             \
+#define FOREACH_SIMD_256_UNARY_OPTIONAL_OPCODE(V) \
+  V(F32x8Ceil)                                    \
+  V(F32x8Floor)                                   \
+  V(F32x8Trunc)                                   \
+  V(F32x8NearestInt)
+
+#define FOREACH_SIMD_256_UNARY_OPCODE(V)    \
+  V(S256Not)                                \
+  V(I8x32Abs)                               \
+  V(I8x32Neg)                               \
+  V(I16x16ExtAddPairwiseI8x32S)             \
+  V(I16x16ExtAddPairwiseI8x32U)             \
+  V(I32x8ExtAddPairwiseI16x16S)             \
+  V(I32x8ExtAddPairwiseI16x16U)             \
+  V(I16x16Abs)                              \
+  V(I16x16Neg)                              \
+  V(I32x8Abs)                               \
+  V(I32x8Neg)                               \
+  V(F32x8Abs)                               \
+  V(F32x8Neg)                               \
+  V(F32x8Sqrt)                              \
+  V(F64x4Abs)                               \
+  V(F64x4Neg)                               \
+  V(F64x4Sqrt)                              \
+  V(I32x8UConvertF32x8)                     \
+  V(I32x8SConvertF32x8)                     \
+  V(F32x8UConvertI32x8)                     \
+  V(F32x8SConvertI32x8)                     \
+  V(I32x8RelaxedTruncF32x8S)                \
+  V(I32x8RelaxedTruncF32x8U)                \
+  FOREACH_SIMD_256_UNARY_OPTIONAL_OPCODE(V) \
   FOREACH_SIMD_256_UNARY_SIGN_EXTENSION_OPCODE(V)
 
 struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {

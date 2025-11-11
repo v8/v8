@@ -4147,6 +4147,25 @@ TEST(RunWasmTurbofan_F32x8Sqrt) {
                         compiler::IrOpcode::kF32x8Sqrt);
 }
 
+TEST(RunWasmTurbofan_F32x8Ceil) {
+  RunF32x8UnOpRevecTest(kExprF32x4Ceil, ceilf, compiler::IrOpcode::kF32x8Ceil);
+}
+
+TEST(RunWasmTurbofan_F32x8Floor) {
+  RunF32x8UnOpRevecTest(kExprF32x4Floor, floorf,
+                        compiler::IrOpcode::kF32x8Floor);
+}
+
+TEST(RunWasmTurbofan_F32x8Trunc) {
+  RunF32x8UnOpRevecTest(kExprF32x4Trunc, truncf,
+                        compiler::IrOpcode::kF32x8Trunc);
+}
+
+TEST(RunWasmTurbofan_F32x8NearestInt) {
+  RunF32x8UnOpRevecTest(kExprF32x4NearestInt, nearbyintf,
+                        compiler::IrOpcode::kF32x8NearestInt);
+}
+
 TEST(RunWasmTurbofan_F32x8Add) {
   RunF32x8BinOpRevecTest(kExprF32x4Add, Add, compiler::IrOpcode::kF32x8Add);
 }
