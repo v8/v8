@@ -1208,7 +1208,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   'intl402/DateTimeFormat/constructor-options-calendar-islamic-fallback': [SKIP],
-  'language/statements/await-using/syntax/await-using-invalid-assignment-statement-body-for-of': [SKIP],
   'language/statements/await-using/syntax/block-scope-syntax-await-using-declarations-mixed-with-without-initializer': [SKIP],
   'language/statements/using/syntax/using-for-using-of-of': [SKIP],
 }],

@@ -4998,6 +4998,9 @@ void BytecodeGenerator::BuildVariableAssignment(
       } else if (variable->throw_on_const_assignment(language_mode()) &&
                  mode == VariableMode::kUsing) {
         builder()->CallRuntime(Runtime::kThrowUsingAssignError);
+      } else if (variable->throw_on_const_assignment(language_mode()) &&
+                 mode == VariableMode::kAwaitUsing) {
+        builder()->CallRuntime(Runtime::kThrowAwaitUsingAssignError);
       }
       break;
     }

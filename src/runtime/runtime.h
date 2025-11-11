@@ -464,7 +464,8 @@ constexpr bool CanTriggerGC(T... properties) {
 
 #define FOR_EACH_THROWING_INTRINSIC_SCOPES(F, I) \
   F(ThrowConstAssignError, 0, 1)                 \
-  F(ThrowUsingAssignError, 0, 1)
+  F(ThrowUsingAssignError, 0, 1)                 \
+  F(ThrowAwaitUsingAssignError, 0, 1)
 
 #define FOR_EACH_INTRINSIC_SCOPES(F, I)            \
   FOR_EACH_THROWING_INTRINSIC_SCOPES(F, I)         \

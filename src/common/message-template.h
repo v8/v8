@@ -364,6 +364,7 @@ namespace internal {
   T(ThrowMethodMissing, "The iterator does not provide a 'throw' method.")     \
   T(TopLevelAwaitStalled, "Top-level await promise never resolved")            \
   T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")     \
+  T(AwaitUsingAssign, "Assignment to await using variable.")                   \
   T(UsingAssign, "Assignment to using variable.")                              \
   T(ValueAndAccessor,                                                          \
     "Invalid property descriptor. Cannot both specify accessors and a value "  \
