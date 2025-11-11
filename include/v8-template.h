@@ -540,7 +540,7 @@ class V8_EXPORT FunctionTemplate : public Template {
    * API call, see the comment above the class declaration.
    */
   void SetCallHandler(
-      FunctionCallback callback, Local<Value> data = Local<Value>(),
+      FunctionCallback callback, Local<Data> data = {},
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
       const MemorySpan<const CFunction>& c_function_overloads = {});
 
