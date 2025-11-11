@@ -264,17 +264,6 @@
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
 
-  # Duration internal representation (https://github.com/boa-dev/temporal/issues/613/334)
-  'built-ins/Temporal/Duration/prototype/add/float64-representable-integer': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/float64-representable-integer': [FAIL],
-  'built-ins/Temporal/Duration/prototype/subtract/float64-representable-integer': [FAIL],
-  'built-ins/Temporal/Instant/prototype/since/float64-representable-integer': [FAIL],
-  'built-ins/Temporal/Instant/prototype/until/float64-representable-integer': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/since/float64-representable-integer': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/until/float64-representable-integer': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/since/float64-representable-integer': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/until/float64-representable-integer': [FAIL],
-
   # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
   'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
   'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
