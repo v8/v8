@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '3c92a87d2c9f9319118e951e64bd6f9c1e0306d2',
+  'partition_alloc_version': 'a9912a4b18c048484e96aa3ce106da21930ed8b6',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '841e61f470edb529fb6d63bdd850c87089300b8e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7103ab8cd74d656e87d28ab32637b0f14d4ef8ff',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '628cf12465dae2a157524a23608a58b525d30623',
   'buildtools/linux64': {
@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f41a2ead7b78dece6a620f391222879526433d2c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c7d4be8bd7482a4f654041779635a35066c3a28d',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ee1cf58691930daecb5bbe19893746b8916b185c',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '32a8dcc842451864527ae4fa16c87d40084a1611',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -314,7 +314,7 @@ deps = {
   'third_party/libpfm4/src':
     Var('chromium_url') + '/external/git.code.sf.net/p/perfmon2/libpfm4.git' + '@' + '964baf9d35d5f88d8422f96d8a82c672042e7064',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '9d33a5cf95372102799666d2c8dfd5a456fd0502',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd3f5542ab9b35639451416d0f19d82dfcf120b6d',
   'third_party/llvm-libc/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '364a79c95d07d7d73773c039b053ebf45e347f81',
   'third_party/llvm-build/Release+Asserts': {
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '2068ddde7c3c9c2065efa4feda1b753481083607',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'e6190a3896680566fa6fb4ff985abd15d82adc52',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
@@ -510,7 +510,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '24494b071e019a2baea4355d9870ffc5fc0bbafe',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '239b0bb99112fdb944bc61052ff18e405e490994',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'd1d5a280012721b25b47aa040d866d8fec639f3d',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
