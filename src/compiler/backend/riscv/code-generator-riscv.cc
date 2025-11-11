@@ -5658,8 +5658,8 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
           __ Move(dst, temp);
         } else {
           DCHECK(source->IsSimd128Register());
-          VRegister src = g.ToDoubleRegister(source).toV();
-          VRegister dst = g.ToDoubleRegister(destination).toV();
+          VRegister src = g.ToSimd128Register(source);
+          VRegister dst = g.ToSimd128Register(destination);
           VRegister temp = kSimd128ScratchReg;
           __ VU.SetSimd128(E8);
           __ vmv_vv(temp, src);
@@ -5692,7 +5692,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
           __ StoreDouble(temp, dst);
         } else {
           DCHECK(source->IsSimd128Register());
-          VRegister src = g.ToDoubleRegister(source).toV();
+          VRegister src = g.ToSimd128Register(source);
           VRegister temp = kSimd128ScratchReg;
           __ VU.SetSimd128(E8);
           __ vmv_vv(temp, src);
