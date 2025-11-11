@@ -27173,13 +27173,11 @@ HostImportModuleDynamicallyWithAttributesCallbackResolve(
        i < import_attributes->Length() / kAttributeEntrySizeForDynamicImport;
        ++i) {
     Local<String> attribute_key =
-        import_attributes
-            ->Get(context, (i * kAttributeEntrySizeForDynamicImport))
+        import_attributes->Get((i * kAttributeEntrySizeForDynamicImport))
             .As<Value>()
             .As<String>();
     Local<String> attribute_value =
-        import_attributes
-            ->Get(context, (i * kAttributeEntrySizeForDynamicImport) + 1)
+        import_attributes->Get((i * kAttributeEntrySizeForDynamicImport) + 1)
             .As<Value>()
             .As<String>();
     if (v8_str("a")->StrictEquals(attribute_key)) {

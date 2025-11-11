@@ -803,19 +803,19 @@ class ModuleEmbedderData {
   }
 
   static ModuleType ModuleTypeFromImportSpecifierAndAttributes(
-      Local<Context> context, const std::string& specifier,
-      Local<FixedArray> import_attributes, bool hasPositions) {
+      const std::string& specifier, Local<FixedArray> import_attributes,
+      bool hasPositions) {
     Isolate* isolate = Isolate::GetCurrent();
     const int kV8AssertionEntrySize = hasPositions ? 3 : 2;
     for (int i = 0; i < import_attributes->Length();
          i += kV8AssertionEntrySize) {
       Local<String> v8_assertion_key =
-          import_attributes->Get(context, i).As<v8::String>();
+          import_attributes->Get(i).As<v8::String>();
       std::string assertion_key = ToSTLString(isolate, v8_assertion_key);
 
       if (assertion_key == "type") {
         Local<String> v8_assertion_value =
-            import_attributes->Get(context, i + 1).As<String>();
+            import_attributes->Get(i + 1).As<String>();
         std::string assertion_value = ToSTLString(isolate, v8_assertion_value);
         if (assertion_value == "json") {
           return ModuleType::kJSON;
@@ -894,11 +894,11 @@ bool IsValidHostDefinedOptions(Local<Context> context, Local<Data> options,
   Local<FixedArray> array = options.As<FixedArray>();
   if (array->Length() != kHostDefinedOptionsLength) return false;
   uint32_t magic = 0;
-  if (!array->Get(context, 0).As<Value>()->Uint32Value(context).To(&magic)) {
+  if (!array->Get(0).As<Value>()->Uint32Value(context).To(&magic)) {
     return false;
   }
   if (magic != kHostDefinedOptionsMagicConstant) return false;
-  return array->Get(context, 1).As<String>()->StrictEquals(resource_name);
+  return array->Get(1).As<String>()->StrictEquals(resource_name);
 }
 
 class D8WasmAsyncResolvePromiseTask : public v8::Task {
@@ -1211,7 +1211,7 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
       NormalizeModuleSpecifier(stl_specifier, DirName(referrer_specifier));
   ModuleType module_type =
       ModuleEmbedderData::ModuleTypeFromImportSpecifierAndAttributes(
-          context, stl_specifier, import_attributes, true);
+          stl_specifier, import_attributes, true);
   return module_data->GetModule(std::make_pair(absolute_path, module_type));
 }
 
@@ -1228,7 +1228,7 @@ MaybeLocal<Object> ResolveModuleSourceCallback(
       NormalizeModuleSpecifier(stl_specifier, DirName(referrer_specifier));
   ModuleType module_type =
       ModuleEmbedderData::ModuleTypeFromImportSpecifierAndAttributes(
-          context, stl_specifier, import_attributes, true);
+          stl_specifier, import_attributes, true);
   return module_data->GetModuleSource(
       std::make_pair(absolute_path, module_type));
 }
@@ -1402,7 +1402,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   Local<FixedArray> module_requests = module->GetModuleRequests();
   for (int i = 0, length = module_requests->Length(); i < length; ++i) {
     Local<ModuleRequest> module_request =
-        module_requests->Get(context, i).As<ModuleRequest>();
+        module_requests->Get(i).As<ModuleRequest>();
     std::string specifier =
         ToSTLString(isolate, module_request->GetSpecifier());
     std::string normalized_specifier =
@@ -1410,7 +1410,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     Local<FixedArray> import_attributes = module_request->GetImportAttributes();
     ModuleType request_module_type =
         ModuleEmbedderData::ModuleTypeFromImportSpecifierAndAttributes(
-            context, normalized_specifier, import_attributes, true);
+            normalized_specifier, import_attributes, true);
 
     if (request_module_type == ModuleType::kInvalid) {
       ThrowError(isolate, "Invalid module type was asserted");
@@ -1717,7 +1717,7 @@ void Shell::DoHostImportModuleDynamically(void* data) {
 
     ModuleType module_type =
         ModuleEmbedderData::ModuleTypeFromImportSpecifierAndAttributes(
-            realm, specifier, import_attributes, false);
+            specifier, import_attributes, false);
 
     if (module_type == ModuleType::kInvalid) {
       ThrowError(isolate, "Invalid module type was asserted");
@@ -6381,7 +6381,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
           } else {
             base::OS::Abort();
           }
-        };
+        };  // NOLINT(readability/braces)
     // The --disallow-unsafe-flags is meant to block known unsafe configurations
     // and mitigate spurious reports due invalid flag combinations/values. To
     // prevent AI agents and/or fuzzers from using a new unsafe flag, add it to

@@ -6178,7 +6178,7 @@ v8::MaybeLocal<v8::Promise> TestHostDefinedOptionFromCachedScript(
   CHECK_EQ(arr->Length(), 1);
   v8::Local<v8::Symbol> expected =
       v8::Symbol::For(CcTest::isolate(), v8_str("hdo"));
-  CHECK_EQ(arr->Get(context, 0), expected);
+  CHECK_EQ(arr->Get(0), expected);
   CHECK(resource_name->Equals(context, v8_str("test_hdo")).FromJust());
   CHECK(specifier->Equals(context, v8_str("foo")).FromJust());
 

@@ -75,9 +75,9 @@ TEST_F(ModuleTest, ModuleInstantiationFailures1) {
     CHECK_EQ(Module::kUninstantiated, module->GetStatus());
     Local<FixedArray> module_requests = module->GetModuleRequests();
     CHECK_EQ(2, module_requests->Length());
-    CHECK(module_requests->Get(context(), 0)->IsModuleRequest());
+    CHECK(module_requests->Get(0)->IsModuleRequest());
     Local<ModuleRequest> module_request_0 =
-        module_requests->Get(context(), 0).As<ModuleRequest>();
+        module_requests->Get(0).As<ModuleRequest>();
     CHECK(
         NewString("./foo.js")->StrictEquals(module_request_0->GetSpecifier()));
     int offset = module_request_0->GetSourceOffset();
@@ -87,9 +87,9 @@ TEST_F(ModuleTest, ModuleInstantiationFailures1) {
     CHECK_EQ(7, loc.GetColumnNumber());
     CHECK_EQ(0, module_request_0->GetImportAttributes()->Length());
 
-    CHECK(module_requests->Get(context(), 1)->IsModuleRequest());
+    CHECK(module_requests->Get(1)->IsModuleRequest());
     Local<ModuleRequest> module_request_1 =
-        module_requests->Get(context(), 1).As<ModuleRequest>();
+        module_requests->Get(1).As<ModuleRequest>();
     CHECK(
         NewString("./bar.js")->StrictEquals(module_request_1->GetSpecifier()));
     offset = module_request_1->GetSourceOffset();
@@ -158,17 +158,16 @@ MaybeLocal<Module> ResolveCallbackWithImportAttributes(
                  String::NewFromUtf8(isolate, "./bar.js").ToLocalChecked())) {
     CHECK_EQ(3, import_attributes->Length());
     Local<String> attribute_key =
-        import_attributes->Get(context, 0).As<Value>().As<String>();
+        import_attributes->Get(0).As<Value>().As<String>();
     CHECK(String::NewFromUtf8(isolate, "a")
               .ToLocalChecked()
               ->StrictEquals(attribute_key));
     Local<String> attribute_value =
-        import_attributes->Get(context, 1).As<Value>().As<String>();
+        import_attributes->Get(1).As<Value>().As<String>();
     CHECK(String::NewFromUtf8(isolate, "b")
               .ToLocalChecked()
               ->StrictEquals(attribute_value));
-    Local<Data> attribute_source_offset_object =
-        import_attributes->Get(context, 2);
+    Local<Data> attribute_source_offset_object = import_attributes->Get(2);
     Local<Int32> attribute_source_offset_int32 =
         attribute_source_offset_object.As<Value>()
             ->ToInt32(context)
@@ -205,7 +204,7 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAttributes) {
     Local<FixedArray> module_requests = module->GetModuleRequests();
     CHECK_EQ(2, module_requests->Length());
     Local<ModuleRequest> module_request_0 =
-        module_requests->Get(context(), 0).As<ModuleRequest>();
+        module_requests->Get(0).As<ModuleRequest>();
     CHECK(
         NewString("./foo.js")->StrictEquals(module_request_0->GetSpecifier()));
     int offset = module_request_0->GetSourceOffset();
@@ -216,7 +215,7 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAttributes) {
     CHECK_EQ(0, module_request_0->GetImportAttributes()->Length());
 
     Local<ModuleRequest> module_request_1 =
-        module_requests->Get(context(), 1).As<ModuleRequest>();
+        module_requests->Get(1).As<ModuleRequest>();
     CHECK(
         NewString("./bar.js")->StrictEquals(module_request_1->GetSpecifier()));
     offset = module_request_1->GetSourceOffset();
@@ -228,14 +227,12 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAttributes) {
     Local<FixedArray> import_attributes_1 =
         module_request_1->GetImportAttributes();
     CHECK_EQ(3, import_attributes_1->Length());
-    Local<String> attribute_key =
-        import_attributes_1->Get(context(), 0).As<String>();
+    Local<String> attribute_key = import_attributes_1->Get(0).As<String>();
     CHECK(NewString("a")->StrictEquals(attribute_key));
-    Local<String> attribute_value =
-        import_attributes_1->Get(context(), 1).As<String>();
+    Local<String> attribute_value = import_attributes_1->Get(1).As<String>();
     CHECK(NewString("b")->StrictEquals(attribute_value));
     int32_t attribute_source_offset =
-        import_attributes_1->Get(context(), 2).As<Int32>()->Value();
+        import_attributes_1->Get(2).As<Int32>()->Value();
     CHECK_EQ(61, attribute_source_offset);
     loc = module->SourceOffsetToLocation(attribute_source_offset);
     CHECK_EQ(1, loc.GetLineNumber());
@@ -1355,12 +1352,12 @@ TEST_F(ModuleTest, ModuleInstantiationByIndex) {
 
     // Verify the requests are in expected order
     Local<ModuleRequest> module_request_0 =
-        module_requests->Get(context(), 0).As<ModuleRequest>();
+        module_requests->Get(0).As<ModuleRequest>();
     CHECK(
         NewString("./dep1.js")->StrictEquals(module_request_0->GetSpecifier()));
 
     Local<ModuleRequest> module_request_1 =
-        module_requests->Get(context(), 1).As<ModuleRequest>();
+        module_requests->Get(1).As<ModuleRequest>();
     CHECK(
         NewString("./dep2.js")->StrictEquals(module_request_1->GetSpecifier()));
   }
@@ -1565,7 +1562,7 @@ TEST_F(ModuleTest, ModuleInstantiationByIndexWithSource) {
     CHECK_EQ(1, module_requests->Length());
 
     Local<ModuleRequest> module_request_0 =
-        module_requests->Get(context(), 0).As<ModuleRequest>();
+        module_requests->Get(0).As<ModuleRequest>();
     CHECK(NewString("./foo.wasm")
               ->StrictEquals(module_request_0->GetSpecifier()));
     CHECK_EQ(v8::ModuleImportPhase::kSource, module_request_0->GetPhase());
