@@ -2054,7 +2054,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
         break;
       case IncrementalMarkingLimit::kSoftLimit:
         if (auto* job = incremental_marking()->incremental_marking_job()) {
-          job->ScheduleTask(TaskPriority::kUserVisible);
+          job->ScheduleTask();
         }
         break;
       case IncrementalMarkingLimit::kFallbackForEmbedderLimit:
@@ -7949,7 +7949,7 @@ void Heap::NotifyLoadingEnded() {
   if (auto* job = incremental_marking()->incremental_marking_job()) {
     // The task will start incremental marking (if needed not already started)
     // and advance marking if incremental marking is active.
-    job->ScheduleTask(TaskPriority::kUserVisible);
+    job->ScheduleTask();
   }
   TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
 }
