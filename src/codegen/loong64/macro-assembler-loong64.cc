@@ -347,6 +347,71 @@ void MacroAssembler::LoadTrustedPointerField(Register destination,
 #endif
 }
 
+void MacroAssembler::LoadTrustedUnknownPointerField(
+    Register destination, MemOperand field_operand, Register scratch,
+    const std::initializer_list<std::tuple<InstanceType, Label*>>& cases) {
+  DCHECK(!AreAliased(destination, scratch));
+  Label done;
+
+#ifdef V8_ENABLE_SANDBOX
+  {
+    Register handle = scratch;
+    Ld_wu(handle, field_operand);
+
+    bool handles_code_case = false;
+    constexpr int kCodePointerHandleMarkerBit = 0;
+    static_assert((1 << kCodePointerHandleMarkerBit) ==
+                  kCodePointerHandleMarker);
+    And(destination, handle, kCodePointerHandleMarker);
+    for (auto& [type, label] : cases) {
+      if (type == CODE_TYPE) {
+        handles_code_case = true;
+
+        Label not_code_handle;
+        Branch(&not_code_handle, eq, destination, Operand(zero_reg));
+
+        ResolveCodePointerHandle(destination, handle);
+        Branch(label);
+
+        bind(&not_code_handle);
+        break;
+      }
+    }
+    if (!handles_code_case) {
+      Branch(&done, ne, destination, Operand(zero_reg));
+    }
+
+    ResolveTrustedPointerHandle(destination, handle,
+                                kUnknownIndirectPointerTag);
+  }
+#else
+  LoadTaggedField(destination, field_operand);
+#endif  // V8_ENABLE_SANDBOX
+
+#if V8_STATIC_ROOTS_BOOL
+  LoadCompressedMap(scratch, destination);
+  for (auto& [type, label] : cases) {
+    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
+      continue;
+    }
+    BranchInstanceTypeWithUniqueCompressedMap(label, eq, scratch,
+                                              Register::no_reg(), type);
+  }
+#else
+  LoadMap(scratch, destination);
+  Ld_hu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  for (auto& [type, label] : cases) {
+    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
+      continue;
+    }
+    Branch(label, eq, scratch, Operand(type));
+  }
+#endif
+
+  bind(&done);
+  Move(destination, zero_reg);
+}
+
 void MacroAssembler::StoreTrustedPointerField(Register value,
                                               MemOperand dst_field_operand) {
 #ifdef V8_ENABLE_SANDBOX
@@ -389,21 +454,12 @@ void MacroAssembler::StoreIndirectPointerField(Register value,
 void MacroAssembler::ResolveIndirectPointerHandle(Register destination,
                                                   Register handle,
                                                   IndirectPointerTag tag) {
+  // This function must not be used to resolve kUnknownIndirectPointerTag. Use
+  // LoadTrustedUnknownPointerField for that instead.
+  CHECK_NE(tag, kUnknownIndirectPointerTag);
+
   // The tag implies which pointer table to use.
-  if (tag == kUnknownIndirectPointerTag) {
-    // In this case we have to rely on the handle marking to determine which
-    // pointer table to use.
-    Label is_trusted_pointer_handle, done;
-    DCHECK(!AreAliased(destination, handle));
-    And(destination, handle, kCodePointerHandleMarker);
-    Branch(&is_trusted_pointer_handle, eq, destination, Operand(zero_reg));
-    ResolveCodePointerHandle(destination, handle);
-    Branch(&done);
-    bind(&is_trusted_pointer_handle);
-    ResolveTrustedPointerHandle(destination, handle,
-                                kUnknownIndirectPointerTag);
-    bind(&done);
-  } else if (tag == kCodeIndirectPointerTag) {
+  if (tag == kCodeIndirectPointerTag) {
     ResolveCodePointerHandle(destination, handle);
   } else {
     ResolveTrustedPointerHandle(destination, handle, tag);
