@@ -934,7 +934,6 @@ void CheckJSDataViewBounds::SetValueLocationConstraints() {
 }
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register index = ToRegister(index_input());
   Register byte_length = ToRegister(byte_length_input());
 

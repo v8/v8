@@ -566,6 +566,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
       return NodeType::kNumberOrOddball;
     case ValueRepresentation::kTagged:
       break;
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -677,6 +678,7 @@ void Phi::VerifyInputs() const {
     CASE_REPR(HoleyFloat64)
 #undef CASE_REPR
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -3212,7 +3214,7 @@ void StoreTrustedPointerFieldWithWriteBarrier::GenerateCode(
 }
 
 void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
+  UseRegister(data_pointer_input());
   UseRegister(index_input());
   if (is_little_endian_constant() ||
       type_ == ExternalArrayType::kExternalInt8Array) {
@@ -3221,25 +3223,14 @@ void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
     UseRegister(is_little_endian_input());
   }
   DefineAsRegister(this);
-  set_temporaries_needed(1);
 }
 void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
-  Register object = ToRegister(object_input());
+  Register data_pointer = ToRegister(data_pointer_input());
   Register index = ToRegister(index_input());
   Register result_reg = ToRegister(result());
 
-  if (v8_flags.debug_code) {
-    __ AssertObjectTypeInRange(object,
-                               FIRST_JS_DATA_VIEW_OR_RAB_GSAB_DATA_VIEW_TYPE,
-                               LAST_JS_DATA_VIEW_OR_RAB_GSAB_DATA_VIEW_TYPE,
-                               AbortReason::kUnexpectedValue);
-  }
-
   int element_size = compiler::ExternalArrayElementSize(type_);
-
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register data_pointer = temps.Acquire();
 
   // We need to make sure we don't clobber is_little_endian_input by writing to
   // the result register.
@@ -3250,9 +3241,6 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
     reg_with_result = data_pointer;
   }
 
-  // Load data pointer.
-  __ LoadExternalPointerField(
-      data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
   MemOperand element_address = __ DataViewElementOperand(data_pointer, index);
   __ LoadSignedField(reg_with_result, element_address, element_size);
 
@@ -3283,7 +3271,7 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
 }
 
 void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
+  UseRegister(data_pointer_input());
   UseRegister(index_input());
   if (compiler::ExternalArrayElementSize(type_) > 1) {
     UseAndClobberRegister(value_input());
@@ -3296,20 +3284,12 @@ void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
   } else {
     UseRegister(is_little_endian_input());
   }
-  set_temporaries_needed(1);
 }
 void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
-  Register object = ToRegister(object_input());
+  Register data_pointer = ToRegister(data_pointer_input());
   Register index = ToRegister(index_input());
   Register value = ToRegister(value_input());
-
-  if (v8_flags.debug_code) {
-    __ AssertObjectTypeInRange(object,
-                               FIRST_JS_DATA_VIEW_OR_RAB_GSAB_DATA_VIEW_TYPE,
-                               LAST_JS_DATA_VIEW_OR_RAB_GSAB_DATA_VIEW_TYPE,
-                               AbortReason::kUnexpectedValue);
-  }
 
   int element_size = compiler::ExternalArrayElementSize(type_);
 
@@ -3333,43 +3313,25 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
     }
   }
 
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register data_pointer = temps.Acquire();
-  __ LoadExternalPointerField(
-      data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
   MemOperand element_address = __ DataViewElementOperand(data_pointer, index);
   __ StoreField(element_address, value, element_size);
 }
 
 void LoadDoubleDataViewElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
+  UseRegister(data_pointer_input());
   UseRegister(index_input());
   if (is_little_endian_constant()) {
     UseAny(is_little_endian_input());
   } else {
     UseRegister(is_little_endian_input());
   }
-  set_temporaries_needed(1);
   DefineAsRegister(this);
 }
 void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register object = ToRegister(object_input());
+  Register data_pointer = ToRegister(data_pointer_input());
   Register index = ToRegister(index_input());
   DoubleRegister result_reg = ToDoubleRegister(result());
-  Register data_pointer = temps.Acquire();
-
-  if (v8_flags.debug_code) {
-    __ AssertObjectTypeInRange(object,
-                               FIRST_JS_DATA_VIEW_OR_RAB_GSAB_DATA_VIEW_TYPE,
-                               LAST_JS_DATA_VIEW_OR_RAB_GSAB_DATA_VIEW_TYPE,
-                               AbortReason::kUnexpectedValue);
-  }
-
-  // Load data pointer.
-  __ LoadExternalPointerField(
-      data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
 
   if (is_little_endian_constant()) {
     if (FromConstantToBool(masm, is_little_endian_input().node()) !=
@@ -3400,7 +3362,7 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
 }
 
 void StoreDoubleDataViewElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
+  UseRegister(data_pointer_input());
   UseRegister(index_input());
   UseRegister(value_input());
   if (is_little_endian_constant()) {
@@ -3408,26 +3370,12 @@ void StoreDoubleDataViewElement::SetValueLocationConstraints() {
   } else {
     UseRegister(is_little_endian_input());
   }
-  set_temporaries_needed(1);
 }
 void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
-  Register object = ToRegister(object_input());
+  Register data_pointer = ToRegister(data_pointer_input());
   Register index = ToRegister(index_input());
   DoubleRegister value = ToDoubleRegister(value_input());
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register data_pointer = temps.Acquire();
-
-  if (v8_flags.debug_code) {
-    __ AssertObjectTypeInRange(object,
-                               FIRST_JS_DATA_VIEW_OR_RAB_GSAB_DATA_VIEW_TYPE,
-                               LAST_JS_DATA_VIEW_OR_RAB_GSAB_DATA_VIEW_TYPE,
-                               AbortReason::kUnexpectedValue);
-  }
-
-  // Load data pointer.
-  __ LoadExternalPointerField(
-      data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
 
   if (is_little_endian_constant()) {
     if (FromConstantToBool(masm, is_little_endian_input().node()) !=
@@ -3455,7 +3403,6 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     __ bind(&done);
   }
 }
-
 
 void LoadEnumCacheLength::SetValueLocationConstraints() {
   UseRegister(map_input());
@@ -7275,6 +7222,25 @@ void LoadDataViewByteLength::GenerateCode(MaglevAssembler* masm,
   // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
   __ LoadBoundedSizeFromObject(return_value, object,
                                JSDataView::kRawByteLengthOffset);
+}
+
+void LoadDataViewDataPointer::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  DefineAsRegister(this);
+}
+
+void LoadDataViewDataPointer::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Register return_value = ToRegister(result());
+
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(object);
+    __ AssertObjectType(object, InstanceType::JS_DATA_VIEW_TYPE,
+                        AbortReason::kUnexpectedValue);
+  }
+  __ LoadExternalPointerField(
+      return_value, FieldMemOperand(object, JSDataView::kDataPointerOffset));
 }
 
 // ---

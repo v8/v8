@@ -223,7 +223,6 @@ ReduceResult MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
                 "Instruction participating in CSE needs options() returning "
                 "a tuple matching the constructor arguments");
   static_assert(IsFixedInputNode<NodeT>());
-  static_assert(NodeT::kInputCount <= 3);
 
   std::array<ValueNode*, NodeT::kInputCount> inputs;
   // Nodes with zero input count don't have kInputTypes defined.
@@ -313,6 +312,7 @@ ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
       case ValueRepresentation::kShiftedInt53:
       case ValueRepresentation::kUint32:
       case ValueRepresentation::kIntPtr:
+      case ValueRepresentation::kRawPtr:
       case ValueRepresentation::kNone:
         // These conversion should be explicitly done beforehand.
         UNREACHABLE();
@@ -616,6 +616,7 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
           AddNewNodeNoInputConversion<IntPtrToNumber>({value}));
 
     case ValueRepresentation::kTagged:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -681,6 +682,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
           AddNewNodeNoInputConversion<CheckedShiftedInt53ToInt32>({value}));
 
     case ValueRepresentation::kInt32:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -720,6 +722,7 @@ ValueNode* MaglevReducer<BaseT>::GetShiftedInt53(ValueNode* value) {
       return AddNewNodeNoInputConversion<ChangeInt32ToShiftedInt53>({value});
 
     case ValueRepresentation::kShiftedInt53:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -966,6 +969,7 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     }
     case ValueRepresentation::kInt32:
     case ValueRepresentation::kUint32:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1071,6 +1075,7 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
       return alternative.set_float64(
           AddNewNodeNoInputConversion<ChangeIntPtrToFloat64>({value}));
     case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }

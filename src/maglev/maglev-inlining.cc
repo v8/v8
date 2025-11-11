@@ -454,6 +454,7 @@ ProcessResult ReturnedValueRepresentationSelector::Process(
       node->OverwriteWith<ShiftedInt53ToNumber>();
       break;
     case ValueRepresentation::kTagged:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }

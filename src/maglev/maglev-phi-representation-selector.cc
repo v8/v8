@@ -413,6 +413,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kInt32:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kRawPtr:
         case ValueRepresentation::kNone:
           UNREACHABLE();
       }
@@ -431,6 +432,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kUint32:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kRawPtr:
         case ValueRepresentation::kNone:
           UNREACHABLE();
       }
@@ -447,6 +449,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kUint32:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kRawPtr:
         case ValueRepresentation::kShiftedInt53:
         case ValueRepresentation::kNone:
           UNREACHABLE();
@@ -474,7 +477,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
-
+        case ValueRepresentation::kRawPtr:
         case ValueRepresentation::kNone:
           UNREACHABLE();
       }
@@ -499,12 +502,14 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kHoleyFloat64:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kRawPtr:
         case ValueRepresentation::kNone:
           UNREACHABLE();
       }
 
     case ValueRepresentation::kTagged:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -691,6 +696,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
           case ValueRepresentation::kTagged:
           case ValueRepresentation::kIntPtr:
           case ValueRepresentation::kUint32:
+          case ValueRepresentation::kRawPtr:
           case ValueRepresentation::kNone:
             UNREACHABLE();
         }
@@ -798,6 +804,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kUint32:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kRawPtr:
         case ValueRepresentation::kNone:
           UNREACHABLE();
       }
@@ -938,6 +945,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       UNIMPLEMENTED();
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -963,6 +971,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       UNIMPLEMENTED();
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1069,6 +1078,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       UNIMPLEMENTED();
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1149,6 +1159,7 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     case ValueRepresentation::kTagged:
       // Already handled at the begining of this function.
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }

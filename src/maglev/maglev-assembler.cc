@@ -383,6 +383,7 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       case ValueRepresentation::kShiftedInt53:
         UNIMPLEMENTED();
       case ValueRepresentation::kTagged:
+      case ValueRepresentation::kRawPtr:
       case ValueRepresentation::kNone:
         UNREACHABLE();
     }

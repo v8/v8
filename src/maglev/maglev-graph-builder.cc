@@ -1756,6 +1756,7 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<CheckedSmiTagIntPtr>({value}));
     case ValueRepresentation::kTagged:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1882,6 +1883,7 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(
       return AddNewNodeNoInputConversion<ChangeIntPtrToFloat64>({value});
     case ValueRepresentation::kShiftedInt53:
       return AddNewNodeNoInputConversion<ChangeShiftedInt53ToFloat64>({value});
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1932,6 +1934,7 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
       return AddNewNodeNoInputConversion<Uint32ToUint8Clamped>({value});
     case ValueRepresentation::kShiftedInt53:
       UNIMPLEMENTED();
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -4162,6 +4165,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
       break;
     case ValueRepresentation::kShiftedInt53:
       UNIMPLEMENTED();
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -5208,6 +5212,22 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSDataViewByteLength(
   return result;
 }
 
+ReduceResult MaglevGraphBuilder::BuildLoadJSDataViewDataPointer(
+    ValueNode* js_data_view) {
+  if (ValueNode* backing_store =
+          known_node_aspects().TryFindLoadedConstantProperty(
+              js_data_view, PropertyKey::ArrayBufferViewDataPointer())) {
+    return backing_store;
+  }
+
+  ValueNode* result;
+  GET_VALUE_OR_ABORT(result,
+                     AddNewNode<LoadDataViewDataPointer>({js_data_view}));
+  RecordKnownProperty(js_data_view, PropertyKey::ArrayBufferViewDataPointer(),
+                      result, true, compiler::AccessMode::kLoad);
+  return result;
+}
+
 ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
     ValueNode* closure) {
   DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
@@ -5663,6 +5683,7 @@ ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
     case ValueRepresentation::kHoleyFloat64:
     case ValueRepresentation::kShiftedInt53:
       return GetInt32(object);
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -5718,8 +5739,9 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       [[fallthrough]];
 
     case ValueRepresentation::kHoleyFloat64:
-    case ValueRepresentation::kNone:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
 }
@@ -9839,8 +9861,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadDataView(
 
   RETURN_IF_ABORT(
       AddNewNode<CheckJSDataViewBounds>({offset, byte_length}, type));
+
+  ValueNode* data_pointer;
+  GET_VALUE_OR_ABORT(data_pointer, BuildLoadJSDataViewDataPointer(receiver));
+
   ValueNode* is_little_endian = args[1] ? args[1] : GetBooleanConstant(false);
-  return AddNewNode<LoadNode>({receiver, offset, is_little_endian}, type);
+  return AddNewNode<LoadNode>({data_pointer, offset, is_little_endian}, type);
 }
 
 template <typename StoreNode, typename Function>
@@ -9869,10 +9895,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
 
   RETURN_IF_ABORT(AddNewNode<CheckJSDataViewBounds>(
       {offset, byte_length}, ExternalArrayType::kExternalFloat64Array));
+
+  ValueNode* data_pointer;
+  GET_VALUE_OR_ABORT(data_pointer, BuildLoadJSDataViewDataPointer(receiver));
+
   ValueNode* value = getValue(args[1]);
   ValueNode* is_little_endian = args[2] ? args[2] : GetBooleanConstant(false);
-  RETURN_IF_ABORT(
-      AddNewNode<StoreNode>({receiver, offset, value, is_little_endian}, type));
+  RETURN_IF_ABORT(AddNewNode<StoreNode>(
+      {data_pointer, offset, value, is_little_endian}, type));
   return GetRootConstant(RootIndex::kUndefinedValue);
 }
 
@@ -10784,6 +10814,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
       return {};
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -10823,6 +10854,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
       return AddNewNode<Float64Abs>({arg});
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -13287,6 +13319,7 @@ ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
 
     case ValueRepresentation::kTagged:
       break;
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -13429,6 +13462,7 @@ ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
     case ValueRepresentation::kTagged:
       // We'll insert the required checks depending on the feedback.
       break;
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -15341,6 +15375,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
 
     case ValueRepresentation::kTagged:
       break;
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }
@@ -15784,6 +15819,7 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
     case ValueRepresentation::kTagged:
       // Could be the hole.
       break;
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }

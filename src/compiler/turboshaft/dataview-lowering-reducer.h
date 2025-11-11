@@ -58,6 +58,19 @@ class DataViewLoweringReducer : public Next {
                                       V<WordPtr> index,
                                       V<Word32> is_little_endian,
                                       ExternalArrayType element_type) {
+    auto result = ReduceLoadDataViewElementFromDataPointer(
+        storage, index, is_little_endian, element_type);
+
+    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
+    // alive so that the GC will not release the JSArrayBuffer (if there's any)
+    // as long as we are still operating on it.
+    __ Retain(object);
+    return result;
+  }
+
+  OpIndex REDUCE(LoadDataViewElementFromDataPointer)(
+      V<WordPtr> storage, V<WordPtr> index, V<Word32> is_little_endian,
+      ExternalArrayType element_type) {
     const MachineType machine_type =
         AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
     const MemoryRepresentation memory_rep =
@@ -83,11 +96,6 @@ class DataViewLoweringReducer : public Next {
       Asm().SetVariable(result, value);
 #endif  // V8_TARGET_LITTLE_ENDIAN
     }
-
-    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
-    // alive so that the GC will not release the JSArrayBuffer (if there's any)
-    // as long as we are still operating on it.
-    __ Retain(object);
     return Asm().GetVariable(result);
   }
 
@@ -95,6 +103,19 @@ class DataViewLoweringReducer : public Next {
                                        V<WordPtr> index, OpIndex value,
                                        V<Word32> is_little_endian,
                                        ExternalArrayType element_type) {
+    ReduceStoreDataViewElementToDataPointer(storage, index, value,
+                                            is_little_endian, element_type);
+
+    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
+    // alive so that the GC will not release the JSArrayBuffer (if there's any)
+    // as long as we are still operating on it.
+    __ Retain(object);
+    return {};
+  }
+
+  OpIndex REDUCE(StoreDataViewElementToDataPointer)(
+      V<WordPtr> storage, V<WordPtr> index, OpIndex value,
+      V<Word32> is_little_endian, ExternalArrayType element_type) {
     const MachineType machine_type =
         AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
 
@@ -120,10 +141,6 @@ class DataViewLoweringReducer : public Next {
              StoreOp::Kind::MaybeUnaligned(memory_rep).NotLoadEliminable(),
              memory_rep, WriteBarrierKind::kNoWriteBarrier);
 
-    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
-    // alive so that the GC will not release the JSArrayBuffer (if there's any)
-    // as long as we are still operating on it.
-    __ Retain(object);
     return {};
   }
 };

@@ -1353,6 +1353,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildLoadJSArrayLength(ValueNode* js_array,
                                       LoadType length_type = LoadType::kSmi);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
+  ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
   ReduceResult BuildLoadElements(ValueNode* object);
 
   ReduceResult BuildLoadJSFunctionFeedbackCell(ValueNode* closure);

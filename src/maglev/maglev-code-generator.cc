@@ -636,6 +636,7 @@ class ExceptionHandlerTrampolineBuilder {
         case ValueRepresentation::kInt32:
         case ValueRepresentation::kUint32:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kRawPtr:
           materialising_moves->emplace_back(target, source);
           break;
         case ValueRepresentation::kFloat64:
@@ -1451,6 +1452,7 @@ class MaglevFrameTranslationBuilder {
             operand.GetDoubleRegister());
         break;
       case ValueRepresentation::kShiftedInt53:
+      case ValueRepresentation::kRawPtr:
       case ValueRepresentation::kNone:
         UNREACHABLE();
     }
@@ -1479,6 +1481,7 @@ class MaglevFrameTranslationBuilder {
         translation_array_builder_->StoreHoleyDoubleStackSlot(stack_slot);
         break;
       case ValueRepresentation::kShiftedInt53:
+      case ValueRepresentation::kRawPtr:
       case ValueRepresentation::kNone:
         UNREACHABLE();
     }

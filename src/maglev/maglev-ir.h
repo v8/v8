@@ -287,6 +287,7 @@ class ExceptionHandlerInfo;
   V(LoadDoubleDataViewElement)                                        \
   V(LoadTypedArrayLength)                                             \
   V(LoadDataViewByteLength)                                           \
+  V(LoadDataViewDataPointer)                                          \
   V(LoadSignedIntTypedArrayElement)                                   \
   V(LoadUnsignedIntTypedArrayElement)                                 \
   V(LoadDoubleTypedArrayElement)                                      \
@@ -777,6 +778,7 @@ enum class ValueRepresentation : uint8_t {
   kFloat64,
   kHoleyFloat64,
   kIntPtr,
+  kRawPtr,
   // Only enabled in 64 bit archs, this is an Int53 (AdditiveSafeInteger range)
   // shifted by 11 bits. The lower 11 bits are 0.
   kShiftedInt53,
@@ -1374,6 +1376,8 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "HoleyFloat64";
     case ValueRepresentation::kIntPtr:
       return os << "IntPtr";
+    case ValueRepresentation::kRawPtr:
+      return os << "RawPtr";
     case ValueRepresentation::kShiftedInt53:
       return os << "ShiftedInt53";
     case ValueRepresentation::kNone:
@@ -1686,6 +1690,10 @@ class OpProperties {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kIntPtr));
   }
+  static constexpr OpProperties RawPtr() {
+    return OpProperties(
+        kValueRepresentationBits::encode(ValueRepresentation::kRawPtr));
+  }
   static constexpr OpProperties TrustedPointer() {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kTagged));
@@ -1741,7 +1749,7 @@ class OpProperties {
   using kCanAllocateBit = kCanWriteBit::Next<bool, 1>;
   using kNotIdempotentBit = kCanAllocateBit::Next<bool, 1>;
   using kValueRepresentationBits =
-      kNotIdempotentBit::Next<ValueRepresentation, 3>;
+      kNotIdempotentBit::Next<ValueRepresentation, 4>;
   using kIsConversionBit = kValueRepresentationBits::Next<bool, 1>;
   using kNeedsRegisterSnapshotBit = kIsConversionBit::Next<bool, 1>;
 
@@ -3052,6 +3060,7 @@ class ValueNode : public Node {
       case ValueRepresentation::kShiftedInt53:
         return MachineRepresentation::kWord64;
       case ValueRepresentation::kIntPtr:
+      case ValueRepresentation::kRawPtr:
         return MachineType::PointerRepresentation();
       case ValueRepresentation::kFloat64:
         return MachineRepresentation::kFloat64;
@@ -7907,6 +7916,27 @@ class LoadDataViewByteLength
   auto options() const { return std::tuple{}; }
 };
 
+class LoadDataViewDataPointer
+    : public FixedInputValueNodeT<1, LoadDataViewDataPointer> {
+  using Base = FixedInputValueNodeT<1, LoadDataViewDataPointer>;
+
+ public:
+  explicit LoadDataViewDataPointer(uint64_t bitfield) : Base(bitfield) {}
+  static constexpr OpProperties kProperties =
+      OpProperties::RawPtr() | OpProperties::CanRead();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input receiver_input() { return input(kReceiverIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
+
+  auto options() const { return std::tuple{}; }
+};
+
 class CheckTypedArrayNotDetached
     : public FixedInputNodeT<1, CheckTypedArrayNotDetached> {
   using Base = FixedInputNodeT<1, CheckTypedArrayNotDetached>;
@@ -8704,6 +8734,7 @@ class PropertyKey {
     // kTypedArrayLength if needed.
     kStringLength,
     kArrayBufferViewByteLength,
+    kArrayBufferViewDataPointer,
     kNone,
   };
   static constexpr int kTypeMask = 0x7;
@@ -8722,6 +8753,9 @@ class PropertyKey {
   static PropertyKey StringLength() { return PropertyKey(kStringLength); }
   static PropertyKey ArrayBufferViewByteLength() {
     return PropertyKey(kArrayBufferViewByteLength);
+  }
+  static PropertyKey ArrayBufferViewDataPointer() {
+    return PropertyKey(kArrayBufferViewDataPointer);
   }
 
   static PropertyKey None() { return PropertyKey(kNone); }
@@ -8775,6 +8809,9 @@ inline std::ostream& operator<<(std::ostream& os, PropertyKey key) {
       break;
     case PropertyKey::kArrayBufferViewByteLength:
       os << "TypedArray/DataView byteLength";
+      break;
+    case PropertyKey::kArrayBufferViewDataPointer:
+      os << "TypedArray/DataView data pointer";
       break;
     case PropertyKey::kNone:
       os << "None";
@@ -9312,13 +9349,13 @@ class LoadSignedIntDataViewElement
   static constexpr OpProperties kProperties =
       OpProperties::CanRead() | OpProperties::Int32();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kRawPtr, ValueRepresentation::kInt32,
       ValueRepresentation::kTagged};
 
-  static constexpr int kObjectIndex = 0;
+  static constexpr int kDataPointerIndex = 0;
   static constexpr int kIndexIndex = 1;
   static constexpr int kIsLittleEndianIndex = 2;
-  Input object_input() { return input(kObjectIndex); }
+  Input data_pointer_input() { return input(kDataPointerIndex); }
   Input index_input() { return input(kIndexIndex); }
   Input is_little_endian_input() { return input(kIsLittleEndianIndex); }
 
@@ -9353,13 +9390,13 @@ class LoadDoubleDataViewElement
   static constexpr OpProperties kProperties =
       OpProperties::CanRead() | OpProperties::Float64();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kRawPtr, ValueRepresentation::kInt32,
       ValueRepresentation::kTagged};
 
-  static constexpr int kObjectIndex = 0;
+  static constexpr int kDataPointerIndex = 0;
   static constexpr int kIndexIndex = 1;
   static constexpr int kIsLittleEndianIndex = 2;
-  Input object_input() { return input(kObjectIndex); }
+  Input data_pointer_input() { return input(kDataPointerIndex); }
   Input index_input() { return input(kIndexIndex); }
   Input is_little_endian_input() { return input(kIsLittleEndianIndex); }
 
@@ -9573,14 +9610,14 @@ class StoreSignedIntDataViewElement
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kRawPtr, ValueRepresentation::kInt32,
       ValueRepresentation::kInt32, ValueRepresentation::kTagged};
 
-  static constexpr int kObjectIndex = 0;
+  static constexpr int kDataPointerIndex = 0;
   static constexpr int kIndexIndex = 1;
   static constexpr int kValueIndex = 2;
   static constexpr int kIsLittleEndianIndex = 3;
-  Input object_input() { return input(kObjectIndex); }
+  Input data_pointer_input() { return input(kDataPointerIndex); }
   Input index_input() { return input(kIndexIndex); }
   Input value_input() { return input(kValueIndex); }
   Input is_little_endian_input() { return input(kIsLittleEndianIndex); }
@@ -9611,14 +9648,14 @@ class StoreDoubleDataViewElement
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kRawPtr, ValueRepresentation::kInt32,
       ValueRepresentation::kHoleyFloat64, ValueRepresentation::kTagged};
 
-  static constexpr int kObjectIndex = 0;
+  static constexpr int kDataPointerIndex = 0;
   static constexpr int kIndexIndex = 1;
   static constexpr int kValueIndex = 2;
   static constexpr int kIsLittleEndianIndex = 3;
-  Input object_input() { return input(kObjectIndex); }
+  Input data_pointer_input() { return input(kDataPointerIndex); }
   Input index_input() { return input(kIndexIndex); }
   Input value_input() { return input(kValueIndex); }
   Input is_little_endian_input() { return input(kIsLittleEndianIndex); }

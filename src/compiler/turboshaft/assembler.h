@@ -4754,6 +4754,14 @@ class TurboshaftAssemblerOpInterface
                                                 is_little_endian, element_type);
   }
 
+  OpIndex LoadDataViewElementFromDataPointer(V<WordPtr> storage,
+                                             V<WordPtr> index,
+                                             V<Word32> is_little_endian,
+                                             ExternalArrayType element_type) {
+    return ReduceIfReachableLoadDataViewElementFromDataPointer(
+        storage, index, is_little_endian, element_type);
+  }
+
   V<Object> LoadStackArgument(V<Object> base, V<WordPtr> index) {
     return ReduceIfReachableLoadStackArgument(base, index);
   }
@@ -4771,6 +4779,14 @@ class TurboshaftAssemblerOpInterface
                             ExternalArrayType element_type) {
     ReduceIfReachableStoreDataViewElement(
         object, storage, index, value, resolve(is_little_endian), element_type);
+  }
+
+  void StoreDataViewElementToDataPointer(V<WordPtr> storage, V<WordPtr> index,
+                                         OpIndex value,
+                                         ConstOrV<Word32> is_little_endian,
+                                         ExternalArrayType element_type) {
+    ReduceIfReachableStoreDataViewElementToDataPointer(
+        storage, index, value, resolve(is_little_endian), element_type);
   }
 
   void TransitionAndStoreArrayElement(

@@ -90,6 +90,8 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
       return MachineType::Uint32();
     case maglev::ValueRepresentation::kIntPtr:
       return MachineType::IntPtr();
+    case maglev::ValueRepresentation::kRawPtr:
+      return MachineType::IntPtr();
     case maglev::ValueRepresentation::kFloat64:
       return MachineType::Float64();
     case maglev::ValueRepresentation::kShiftedInt53:
@@ -816,6 +818,7 @@ class GraphBuildingNodeProcessor {
           __ SetVariable(var,
                          __ ConvertIntPtrToNumber(V<WordPtr>::Cast(ts_idx)));
           break;
+        case maglev::ValueRepresentation::kRawPtr:
         case maglev::ValueRepresentation::kNone:
           UNREACHABLE();
       }
@@ -955,8 +958,9 @@ class GraphBuildingNodeProcessor {
               additional_input = dummy_word64_input_;
               break;
             case maglev::ValueRepresentation::kIntPtr:
+            case maglev::ValueRepresentation::kRawPtr:
             case maglev::ValueRepresentation::kNone:
-              // Maglev doesn't have IntPtr Phis.
+              // Maglev doesn't have IntPtr / RawPtr Phis.
               UNREACHABLE();
           }
           loop_phis_first_input_.push_back(
@@ -3398,6 +3402,18 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::LoadDataViewDataPointer* node,
+                                const maglev::ProcessingState& state) {
+    auto data_view = Map<JSDataView>(node->receiver_input());
+    SetMap(node, __ LoadField<WordPtr>(
+                     data_view, AccessBuilder::ForJSDataViewDataPointer()));
+    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
+    // alive so that the GC will not release the JSArrayBuffer (if there's any)
+    // as long as we are still operating on it.
+    __ Retain(data_view);
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CheckTypedArrayBounds* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -3540,60 +3556,50 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::LoadSignedIntDataViewElement* node,
                                 const maglev::ProcessingState& state) {
-    V<JSDataView> data_view = Map<JSDataView>(node->object_input());
-    V<WordPtr> storage = __ LoadField<WordPtr>(
-        data_view, AccessBuilder::ForJSDataViewDataPointer());
+    V<WordPtr> storage = Map<WordPtr>(node->data_pointer_input());
     V<Word32> is_little_endian =
         ToBit(node->is_little_endian_input(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    SetMap(node, __ LoadDataViewElement(
-                     data_view, storage,
+    SetMap(node, __ LoadDataViewElementFromDataPointer(
+                     storage,
                      __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
                      is_little_endian, node->external_array_type()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadDoubleDataViewElement* node,
                                 const maglev::ProcessingState& state) {
-    V<JSDataView> data_view = Map<JSDataView>(node->object_input());
-    V<WordPtr> storage = __ LoadField<WordPtr>(
-        data_view, AccessBuilder::ForJSDataViewDataPointer());
+    V<WordPtr> storage = Map<WordPtr>(node->data_pointer_input());
     V<Word32> is_little_endian =
         ToBit(node->is_little_endian_input(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    SetMap(node,
-           __ LoadDataViewElement(
-               data_view, storage,
-               __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
-               is_little_endian, ExternalArrayType::kExternalFloat64Array));
+    SetMap(
+        node,
+        __ LoadDataViewElementFromDataPointer(
+            storage, __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+            is_little_endian, ExternalArrayType::kExternalFloat64Array));
     return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::StoreSignedIntDataViewElement* node,
                                 const maglev::ProcessingState& state) {
-    V<JSDataView> data_view = Map<JSDataView>(node->object_input());
-    V<WordPtr> storage = __ LoadField<WordPtr>(
-        data_view, AccessBuilder::ForJSDataViewDataPointer());
+    V<WordPtr> storage = Map<WordPtr>(node->data_pointer_input());
     V<Word32> is_little_endian =
         ToBit(node->is_little_endian_input(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    __ StoreDataViewElement(
-        data_view, storage,
-        __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+    __ StoreDataViewElementToDataPointer(
+        storage, __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
         Map<Word32>(node->value_input()), is_little_endian,
         node->external_array_type());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreDoubleDataViewElement* node,
                                 const maglev::ProcessingState& state) {
-    V<JSDataView> data_view = Map<JSDataView>(node->object_input());
-    V<WordPtr> storage = __ LoadField<WordPtr>(
-        data_view, AccessBuilder::ForJSDataViewDataPointer());
+    V<WordPtr> storage = Map<WordPtr>(node->data_pointer_input());
     V<Word32> is_little_endian =
         ToBit(node->is_little_endian_input(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    __ StoreDataViewElement(
-        data_view, storage,
-        __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+    __ StoreDataViewElementToDataPointer(
+        storage, __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
         Map<Float64>(node->value_input()), is_little_endian,
         ExternalArrayType::kExternalFloat64Array);
     return maglev::ProcessResult::kContinue;
@@ -6209,6 +6215,7 @@ class GraphBuildingNodeProcessor {
       case maglev::ValueRepresentation::kHoleyFloat64:
         return RegisterRepresentation::Float64();
       case maglev::ValueRepresentation::kIntPtr:
+      case maglev::ValueRepresentation::kRawPtr:
         return RegisterRepresentation::WordPtr();
       case maglev::ValueRepresentation::kNone:
         UNREACHABLE();
