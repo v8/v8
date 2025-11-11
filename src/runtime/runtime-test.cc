@@ -166,10 +166,13 @@ RUNTIME_FUNCTION(Runtime_StringIsFlat) {
 
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {
   HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 2);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  CHECK_UNLESS_FUZZING(IsString(args[1]));
   DirectHandle<String> left = args.at<String>(0);
   DirectHandle<String> right = args.at<String>(1);
+  CHECK_UNLESS_FUZZING(left->length() + right->length() >=
+                       ConsString::kMinLength);
 
   const bool is_one_byte =
       left->IsOneByteRepresentation() && right->IsOneByteRepresentation();
@@ -179,25 +182,25 @@ RUNTIME_FUNCTION(Runtime_ConstructConsString) {
 
 RUNTIME_FUNCTION(Runtime_ConstructSlicedString) {
   HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 2);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  CHECK_UNLESS_FUZZING(IsSmi(args[1]));
   Handle<String> string = args.at<String>(0);
-  int index = args.smi_value_at(1);
+  uint32_t index = args.smi_value_at(1);
 
-  CHECK_LT(index, string->length());
+  CHECK_UNLESS_FUZZING(index < string->length());
 
   DirectHandle<String> sliced_string =
       isolate->factory()->NewSubString(string, index, string->length());
-  CHECK(IsSlicedString(*sliced_string));
+  CHECK_UNLESS_FUZZING(IsSlicedString(*sliced_string));
   return *sliced_string;
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
   HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 1);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
   Handle<String> string = args.at<String>(0);
-  CHECK(string->IsOneByteRepresentation());
   DirectHandle<String> internalized =
       isolate->factory()->InternalizeString(string);
   CHECK(IsInternalizedString(*string));
@@ -206,10 +209,11 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
 
 RUNTIME_FUNCTION(Runtime_ConstructThinString) {
   HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  DCHECK_EQ(args.length(), 1);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
   Handle<String> string = args.at<String>(0);
   if (!IsConsString(*string)) {
+    CHECK_UNLESS_FUZZING(string->length() >= ConsString::kMinLength);
     string = isolate->factory()->NewConsString(
         isolate->factory()->empty_string(), string, string->length(),
         string->IsOneByteRepresentation(),
