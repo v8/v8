@@ -244,6 +244,9 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kCheckException:
       case Opcode::kAtomicWord32Pair:
       case Opcode::kMemoryBarrier:
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+      case Opcode::kSwitchSandboxMode:
+#endif
       case Opcode::kParameter:
       case Opcode::kDebugBreak:
       case Opcode::kJSStackCheck:

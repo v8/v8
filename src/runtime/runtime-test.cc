@@ -2281,7 +2281,9 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
   DirectHandle<JSFunction> function = Cast<JSFunction>(function_object);
 
-  CHECK_UNLESS_FUZZING(function->has_feedback_vector());
+  bool has_feedback_vector = function->has_feedback_vector();
+  bool has_bytecode_array = function->shared()->HasBytecodeArray();
+  CHECK_UNLESS_FUZZING(has_feedback_vector || has_bytecode_array);
 
 #ifdef V8_JITLESS
   // No feedback is collected in jitless mode, so tests calling %GetFeedback
@@ -2289,45 +2291,94 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   return ReadOnlyRoots(isolate).undefined_value();
 #else
 #ifdef OBJECT_PRINT
-  DirectHandle<FeedbackVector> feedback_vector =
-      direct_handle(function->feedback_vector(), isolate);
 
-  CHECK_UNLESS_FUZZING(feedback_vector->has_metadata());
-  // Make sure the function stays compiled across the following allocations.
-  IsCompiledScope is_compiled_scope(
-      function->shared()->is_compiled_scope(isolate));
-  USE(is_compiled_scope);
+  struct FeedbackValue {
+    std::string slot_kind_;
+    std::string details_;
+  };
 
-  DirectHandle<FixedArray> result =
-      isolate->factory()->NewFixedArray(feedback_vector->length());
-  int result_ix = 0;
+  std::vector<FeedbackValue> extracted_feedbacks;
 
-  FeedbackMetadataIterator iter(handle(feedback_vector->metadata(), isolate));
-  while (iter.HasNext()) {
-    FeedbackSlot slot = iter.Next();
-    FeedbackSlotKind kind = iter.kind();
+  // 1. collect feedbacks from FeedbackVector
+  if (has_feedback_vector) {
+    DirectHandle<FeedbackVector> feedback_vector =
+        direct_handle(function->feedback_vector(), isolate);
+
+    CHECK_UNLESS_FUZZING(feedback_vector->has_metadata());
+    // Make sure the function stays compiled across the following allocations.
+    IsCompiledScope is_compiled_scope(
+        function->shared()->is_compiled_scope(isolate));
+    USE(is_compiled_scope);
+
+    FeedbackMetadataIterator iter(handle(feedback_vector->metadata(), isolate));
+    while (iter.HasNext()) {
+      FeedbackSlot slot = iter.Next();
+      FeedbackSlotKind kind = iter.kind();
+
+      FeedbackValue feedback_value;
+      {
+        std::ostringstream out;
+        out << kind;
+        feedback_value.slot_kind_ = out.str();
+      }
+
+      FeedbackNexus nexus(isolate, *feedback_vector, slot);
+      {
+        std::ostringstream out;
+        nexus.Print(out);
+        feedback_value.details_ = out.str();
+      }
+
+      extracted_feedbacks.push_back(feedback_value);
+    }
+  }
+
+  // 2. collect embedded feedback in the BytecodeArray
+  if (has_bytecode_array) {
+    Handle<BytecodeArray> bytecode_array =
+        handle(function->shared()->GetBytecodeArray(isolate), isolate);
+
+    interpreter::BytecodeArrayIterator it(bytecode_array);
+    for (; !it.done(); it.Advance()) {
+      auto bytecode = it.current_bytecode();
+      if (!interpreter::Bytecodes::IsEmbeddedFeedbackBytecode(bytecode)) {
+        continue;
+      }
+
+      FeedbackValue feedback_value;
+      std::ostringstream out;
+      if (interpreter::Bytecodes::IsCompareWithEmbeddedFeedback(bytecode)) {
+        out << "CompareOp";
+        feedback_value.slot_kind_ = out.str();
+        out << ":" << it.GetEmbeddedCompareOperationHint();
+        feedback_value.details_ = out.str();
+      } else {
+        UNREACHABLE();
+      }
+
+      extracted_feedbacks.push_back(feedback_value);
+    }
+  }
+
+  // 3. construct output JSArray
+  int result_size = static_cast<int>(extracted_feedbacks.size());
+  DirectHandle<FixedArray> result = isolate->factory()->NewFixedArray(
+      static_cast<int>(extracted_feedbacks.size()));
+  for (int idx = 0; idx < result_size; idx++) {
+    const auto& feedback_value = extracted_feedbacks[idx];
 
     DirectHandle<FixedArray> sub_result = isolate->factory()->NewFixedArray(2);
-    {
-      std::ostringstream out;
-      out << kind;
-      DirectHandle<String> kind_string =
-          isolate->factory()->NewStringFromAsciiChecked(out.str().c_str());
-      sub_result->set(0, *kind_string);
-    }
-
-    FeedbackNexus nexus(isolate, *feedback_vector, slot);
-    {
-      std::ostringstream out;
-      nexus.Print(out);
-      DirectHandle<String> nexus_string =
-          isolate->factory()->NewStringFromAsciiChecked(out.str().c_str());
-      sub_result->set(1, *nexus_string);
-    }
+    DirectHandle<String> kind_string =
+        isolate->factory()->NewStringFromAsciiChecked(
+            feedback_value.slot_kind_);
+    sub_result->set(0, *kind_string);
+    DirectHandle<String> details_string =
+        isolate->factory()->NewStringFromAsciiChecked(feedback_value.details_);
+    sub_result->set(1, *details_string);
 
     DirectHandle<JSArray> sub_result_array =
         isolate->factory()->NewJSArrayWithElements(sub_result);
-    result->set(result_ix++, *sub_result_array);
+    result->set(idx, *sub_result_array);
   }
 
   return *isolate->factory()->NewJSArrayWithElements(result);

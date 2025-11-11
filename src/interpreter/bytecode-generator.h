@@ -63,7 +63,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   }
 
 #ifdef DEBUG
-  int CheckBytecodeMatches(Tagged<BytecodeArray> bytecode);
+  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
 #endif
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);

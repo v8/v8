@@ -33,6 +33,10 @@
 #include "src/wasm/simd-shuffle.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#include "src/sandbox/code-sandboxing-mode.h"
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -1083,6 +1087,27 @@ void InstructionSelector::VisitAbortCSADcheck(OpIndex node) {
   DCHECK_EQ(check.input_count, 1);
   Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(check.message(), rdx));
 }
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void InstructionSelector::VisitSwitchSandboxMode(OpIndex node) {
+  CodeSandboxingMode sandbox_mode;
+  sandbox_mode = Cast<SwitchSandboxModeOp>(node).sandbox_mode;
+  X64OperandGenerator g(this);
+  if (sandbox_mode == CodeSandboxingMode::kUnsandboxed) {
+    Emit(kArchSwitchSandboxMode | MiscField::encode(static_cast<int>(
+                                      CodeSandboxingMode::kUnsandboxed)),
+         g.NoOutput());
+    return;
+  } else if (sandbox_mode == CodeSandboxingMode::kSandboxed) {
+    Emit(kArchSwitchSandboxMode | MiscField::encode(static_cast<int>(
+                                      CodeSandboxingMode::kSandboxed)),
+         g.NoOutput());
+    return;
+  } else {
+    UNREACHABLE();
+  }
+}
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 void InstructionSelector::VisitLoadLane(OpIndex node) {

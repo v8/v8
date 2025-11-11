@@ -3845,6 +3845,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            TNode<HeapObject> maybe_feedback_vector,
                            TNode<UintPtrT> slot_id);
 
+  void UpdateEmbeddedFeedback(TNode<Int32T> feedback,
+                              TNode<BytecodeArray> bytecode_array,
+                              TNode<IntPtrT> feedback_offset);
+
   // Report that there was a feedback update, performing any tasks that should
   // be done after a feedback update.
   void ReportFeedbackUpdate(TNode<FeedbackVector> feedback_vector,

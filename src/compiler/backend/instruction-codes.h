@@ -152,6 +152,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchPause)                                                             \
   V(ArchAbortCSADcheck)                                                    \
   V(ArchDebugBreak)                                                        \
+  IF_HARDWARE_SANDBOX(V, ArchSwitchSandboxMode)                            \
   V(ArchComment)                                                           \
   V(ArchDeoptimize)                                                        \
   V(ArchRet)                                                               \

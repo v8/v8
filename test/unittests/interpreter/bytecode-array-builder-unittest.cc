@@ -360,7 +360,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::kEq, reg, 1)
-      .CompareOperation(Token::kEqStrict, reg, 2)
+      .CompareOperation(Token::kEqStrict, reg, -1)
       .CompareOperation(Token::kLessThan, reg, 3)
       .CompareOperation(Token::kGreaterThan, reg, 4)
       .CompareOperation(Token::kLessThanEq, reg, 5)

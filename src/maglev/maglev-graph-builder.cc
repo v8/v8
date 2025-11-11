@@ -1971,6 +1971,15 @@ consteval bool BinaryOperationIsBitwiseInt32() {
       return false;
   }
 }
+
+static constexpr bool IsOperationWithEmbeddedFeedback(Operation op) {
+  switch (op) {
+    case Operation::kStrictEqual:
+      return true;
+    default:
+      return false;
+  }
+}
 }  // namespace
 
 namespace {
@@ -2014,9 +2023,16 @@ template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
   ValueNode* left = LoadRegister(0);
   ValueNode* right = GetAccumulator();
-  FeedbackSlot slot_index = GetSlotOperand(1);
-  return SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
-      {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
+  if constexpr (IsOperationWithEmbeddedFeedback(kOperation)) {
+    return SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
+        {left, right}, compiler::EmbeddedFeedbackSource{
+                           indirect_handle(iterator_.bytecode_array()),
+                           iterator_.GetEmbeddedFeedbackOffset(1)}));
+  } else {
+    FeedbackSlot slot_index = GetSlotOperand(1);
+    return SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
+        {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
+  }
 }
 
 template <Operation kOperation>
@@ -2884,8 +2900,15 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     }
   };
 
-  FeedbackNexus nexus = FeedbackNexusForOperand(1);
-  switch (nexus.GetCompareOperationFeedback()) {
+  CompareOperationHint hint;
+  if (kOperation == Operation::kStrictEqual) {
+    hint = iterator_.GetEmbeddedCompareOperationHint();
+  } else {
+    auto nexus = FeedbackNexusForOperand(1);
+    hint = nexus.GetCompareOperationFeedback();
+  }
+
+  switch (hint) {
     case CompareOperationHint::kNone:
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation);
@@ -2935,8 +2958,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       if (TryConstantFoldUint32ComparedToZero(left, right)) {
         return ReduceResult::Done();
       }
-      auto allowed_input_type =
-          GetConversionType(nexus.GetCompareOperationFeedback());
+      auto allowed_input_type = GetConversionType(hint);
       left = GetFloat64ForToNumber(left, allowed_input_type);
       right = GetFloat64ForToNumber(right, allowed_input_type);
       if (left->Is<Float64Constant>() && right->Is<Float64Constant>()) {

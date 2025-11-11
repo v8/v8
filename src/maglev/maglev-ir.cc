@@ -1432,11 +1432,21 @@ namespace {
 
 constexpr Builtin BuiltinFor(Operation operation) {
   switch (operation) {
-#define CASE(name)         \
-  case Operation::k##name: \
+#define BUILTIN_NAME_CASE(name) \
+  case Operation::k##name:      \
     return Builtin::k##name##_WithFeedback;
-    OPERATION_LIST(CASE)
-#undef CASE
+    ARITHMETIC_OPERATION_LIST(BUILTIN_NAME_CASE)
+    UNARY_OPERATION_LIST(BUILTIN_NAME_CASE)
+    BUILTIN_NAME_CASE(Equal)
+    BUILTIN_NAME_CASE(LessThan)
+    BUILTIN_NAME_CASE(LessThanOrEqual)
+    BUILTIN_NAME_CASE(GreaterThan)
+    BUILTIN_NAME_CASE(GreaterThanOrEqual)
+#undef BUILTIN_NAME_CASE
+    case Operation::kStrictEqual:
+      return Builtin::kStrictEqual_WithEmbeddedFeedback;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -1479,6 +1489,28 @@ void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
       right_input(),                    // right
       feedback().index(),               // feedback slot
       feedback().vector                 // feedback vector
+  );
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+template <class Derived, Operation kOperation>
+void BinaryWithEmbeddedFeedbackNode<Derived,
+                                    kOperation>::SetValueLocationConstraints() {
+  using D = BinaryOp_WithFeedbackDescriptor;
+  UseFixed(left_input(), D::GetRegisterParameter(D::kLeft));
+  UseFixed(right_input(), D::GetRegisterParameter(D::kRight));
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+template <class Derived, Operation kOperation>
+void BinaryWithEmbeddedFeedbackNode<Derived, kOperation>::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  __ CallBuiltin<BuiltinFor(kOperation)>(
+      masm->native_context().object(),  // context
+      left_input(),                     // left
+      right_input(),                    // right
+      feedback().offset_,               // feedback offset
+      feedback().bytecode_array_        // bytecode array
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }

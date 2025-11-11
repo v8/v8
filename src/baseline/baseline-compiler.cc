@@ -1658,8 +1658,13 @@ void BaselineCompiler::VisitTestEqual() {
 }
 
 void BaselineCompiler::VisitTestEqualStrict() {
-  CallBuiltin<Builtin::kStrictEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
+  auto feedback_value_offset = BytecodeArray::kHeaderSize - kHeapObjectTag +
+                               iterator().current_offset() +
+                               iterator().current_operand_offset(1);
+
+  CallBuiltin<Builtin::kStrictEqual_Baseline>(RegisterOperand(0),
+                                              kInterpreterAccumulatorRegister,
+                                              feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestLessThan() {
