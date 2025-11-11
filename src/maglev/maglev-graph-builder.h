@@ -529,7 +529,17 @@ class MaglevGraphBuilder {
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs);
 
   template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltinWithTaggedInputs(
+      std::initializer_list<ValueNode*> inputs);
+
+  template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(
+      std::initializer_list<ValueNode*> inputs,
+      compiler::FeedbackSource const& feedback,
+      CallBuiltin::FeedbackSlotType slot_type = CallBuiltin::kTaggedIndex);
+
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltinWithTaggedInputs(
       std::initializer_list<ValueNode*> inputs,
       compiler::FeedbackSource const& feedback,
       CallBuiltin::FeedbackSlotType slot_type = CallBuiltin::kTaggedIndex);
