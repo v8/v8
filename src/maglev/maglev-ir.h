@@ -6178,9 +6178,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     // TODO(victorgomes): Re-enable if this is needed again, otherwise remove
     // the DCHECK.
     // DCHECK(!IsSnapshot());
-    // Values set here can leak to the interpreter frame state. Conversions
-    // should be stored in known_node_aspects/NodeInfo.
-    DCHECK(!value->is_conversion());
     set_by_index(object_layout_->SlotAtOffset(offset), value);
   }
 
@@ -6347,9 +6344,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   void set_by_index(uint32_t i, ValueNode* value) {
-    // Values set here can leak to the interpreter. Conversions should be stored
-    // in known_node_aspects/NodeInfo.
-    DCHECK(!value->is_conversion());
     // TODO(jgruber): Indices are commonly passed in from places that read
     // potentially attacker-corrupted heap objects. Either we catch all such
     // usages with CHECKs, or we add one here. Honestly I like neither option
