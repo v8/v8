@@ -900,19 +900,6 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(ge, DeoptimizeReason::kOutOfBounds, this);
 }
 
-void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
-  // The hole value is a signalling NaN, so just silence it to get the float64
-  // value.
-  __ lzdr(kDoubleRegZero);
-  __ SubF64(value, value, kDoubleRegZero);
-}
-
 void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
@@ -926,6 +913,39 @@ void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
   __ lzdr(kDoubleRegZero);
   __ SubF64(value, value, kDoubleRegZero);
 }
+
+void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  // The hole value is a signalling NaN, so just silence it to get the
+  // float64 value.
+  __ lzdr(kDoubleRegZero);
+  __ SubF64(ToDoubleRegister(this->result()), ToDoubleRegister(input()),
+            kDoubleRegZero);
+}
+
+void Float64ToSilencedFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  // The hole value is a signalling NaN, so just silence it to get the
+  // float64 value.
+  __ lzdr(kDoubleRegZero);
+  __ SubF64(ToDoubleRegister(this->result()), ToDoubleRegister(input()),
+            kDoubleRegZero);
+}
+
+void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {}
 
 namespace {
 
