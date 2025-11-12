@@ -108,10 +108,12 @@ class RecomputePhiUseHintsProcessor {
           DCHECK(!node->Is<TruncateCheckedNumberOrOddballToInt32>());
           DCHECK(!node->Is<TruncateUnsafeNumberOrOddballToInt32>());
           DCHECK(!node->Is<TruncateUint32ToInt32>());
+          DCHECK(!node->Is<TruncateFloat64ToInt32>());
           DCHECK(!node->Is<TruncateHoleyFloat64ToInt32>());
           use_repr =
               UseRepresentationFromValue(unwrapped->value_representation());
         } else if (node->Is<TruncateUint32ToInt32>() ||
+                   node->Is<TruncateFloat64ToInt32>() ||
                    node->Is<TruncateHoleyFloat64ToInt32>() ||
                    node->Is<TruncateCheckedNumberOrOddballToInt32>() ||
                    node->Is<TruncateUnsafeNumberOrOddballToInt32>()) {

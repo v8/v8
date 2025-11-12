@@ -49,6 +49,7 @@ class Graph final : public ZoneObject {
         shifted_int53_constants_(zone()),
         intptr_constants_(zone()),
         float64_constants_(zone()),
+        holey_float64_constants_(zone()),
         heap_number_constants_(zone()),
         parameters_(zone()),
         eager_deopt_top_frames_(zone()),
@@ -149,6 +150,9 @@ class Graph final : public ZoneObject {
   ZoneMap<uint32_t, Uint32Constant*>& uint32() { return uint32_constants_; }
   ZoneMap<intptr_t, IntPtrConstant*>& intptr() { return intptr_constants_; }
   ZoneMap<uint64_t, Float64Constant*>& float64() { return float64_constants_; }
+  ZoneMap<uint64_t, HoleyFloat64Constant*>& holey_float64() {
+    return holey_float64_constants_;
+  }
   ZoneMap<uint64_t, Constant*>& heap_number() { return heap_number_constants_; }
   compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>&
   trusted_constants() {
@@ -276,6 +280,11 @@ class Graph final : public ZoneObject {
     return GetOrAddNewConstantNode(float64_constants_, constant.get_bits());
   }
 
+  HoleyFloat64Constant* GetHoleyFloat64Constant(Float64 constant) {
+    return GetOrAddNewConstantNode(holey_float64_constants_,
+                                   constant.get_bits());
+  }
+
   Constant* GetHeapNumberConstant(double constant);
 
   RootConstant* GetRootConstant(RootIndex index) {
@@ -327,6 +336,7 @@ class Graph final : public ZoneObject {
   ZoneMap<intptr_t, IntPtrConstant*> intptr_constants_;
   // Use the bits of the float as the key.
   ZoneMap<uint64_t, Float64Constant*> float64_constants_;
+  ZoneMap<uint64_t, HoleyFloat64Constant*> holey_float64_constants_;
   ZoneMap<uint64_t, Constant*> heap_number_constants_;
   ZoneVector<InitialValue*> parameters_;
   ZoneAbslFlatHashSet<DeoptFrame*> eager_deopt_top_frames_;

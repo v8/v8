@@ -406,8 +406,9 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kUint32:
           return Opcode::kCheckedInt32ToUint32;
         case ValueRepresentation::kFloat64:
-        case ValueRepresentation::kHoleyFloat64:
           return Opcode::kChangeInt32ToFloat64;
+        case ValueRepresentation::kHoleyFloat64:
+          return Opcode::kChangeInt32ToHoleyFloat64;
         case ValueRepresentation::kShiftedInt53:
           return Opcode::kChangeInt32ToShiftedInt53;
         case ValueRepresentation::kInt32:
@@ -423,8 +424,9 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
           return Opcode::kCheckedUint32ToInt32;
 
         case ValueRepresentation::kFloat64:
-        case ValueRepresentation::kHoleyFloat64:
           return Opcode::kChangeUint32ToFloat64;
+        case ValueRepresentation::kHoleyFloat64:
+          return Opcode::kChangeUint32ToHoleyFloat64;
 
         case ValueRepresentation::kShiftedInt53:
           UNIMPLEMENTED();
@@ -444,8 +446,9 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
           }
           return Opcode::kCheckedShiftedInt53ToInt32;
         case ValueRepresentation::kFloat64:
-        case ValueRepresentation::kHoleyFloat64:
           return Opcode::kChangeShiftedInt53ToFloat64;
+        case ValueRepresentation::kHoleyFloat64:
+          return Opcode::kChangeShiftedInt53ToHoleyFloat64;
         case ValueRepresentation::kUint32:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
@@ -458,9 +461,9 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
       switch (to) {
         case ValueRepresentation::kInt32:
           if (truncating) {
-            return Opcode::kTruncateHoleyFloat64ToInt32;
+            return Opcode::kTruncateFloat64ToInt32;
           }
-          return Opcode::kCheckedHoleyFloat64ToInt32;
+          return Opcode::kCheckedFloat64ToInt32;
         case ValueRepresentation::kUint32:
           // The graph builder never inserts Tagged->Uint32 conversions, so we
           // don't have to handle this case.
@@ -494,7 +497,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
           // don't have to handle this case.
           UNREACHABLE();
         case ValueRepresentation::kFloat64:
-          return Opcode::kHoleyFloat64ToMaybeNanFloat64;
+          return Opcode::kHoleyFloat64ToSilencedFloat64;
 
         case ValueRepresentation::kShiftedInt53:
           UNIMPLEMENTED();
@@ -548,12 +551,19 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                                 input->Cast<SmiConstant>()->value().value())));
           break;
         case ValueRepresentation::kFloat64:
-        case ValueRepresentation::kHoleyFloat64:
           TRACE_UNTAGGING(TRACE_INPUT_LABEL
                           << ": Making Float64 instead of Smi");
           phi->change_input(input_index,
                             graph_->GetFloat64Constant(
                                 input->Cast<SmiConstant>()->value().value()));
+          break;
+        case ValueRepresentation::kHoleyFloat64:
+          TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                          << ": Making HoleyFloat64 instead of Smi");
+          phi->change_input(
+              input_index,
+              graph_->GetHoleyFloat64Constant(Float64{static_cast<double>(
+                  input->Cast<SmiConstant>()->value().value())}));
           break;
         case ValueRepresentation::kUint32:
           UNIMPLEMENTED();
@@ -562,13 +572,18 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       }
     } else if (Constant* constant = input->TryCast<Constant>()) {
       DCHECK(constant->object().IsHeapNumber());
-      if (repr == ValueRepresentation::kFloat64 ||
-          repr == ValueRepresentation::kHoleyFloat64) {
+      if (repr == ValueRepresentation::kFloat64) {
         TRACE_UNTAGGING(TRACE_INPUT_LABEL
                         << ": Making Float64 instead of Constant");
         phi->change_input(input_index,
                           graph_->GetFloat64Constant(
                               constant->object().AsHeapNumber().value()));
+      } else if (repr == ValueRepresentation::kHoleyFloat64) {
+        TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                        << ": Making HoleyFloat64 instead of Constant");
+        phi->change_input(input_index,
+                          graph_->GetHoleyFloat64Constant(Float64{
+                              constant->object().AsHeapNumber().value()}));
       } else if (repr == ValueRepresentation::kShiftedInt53) {
         TRACE_UNTAGGING(TRACE_INPUT_LABEL
                         << ": Making ShiftedInt53 instead of Constant");
@@ -598,9 +613,9 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
           DCHECK_EQ(from_repr, ValueRepresentation::kHoleyFloat64);
           // HoleyFloat64ToTagged conversion does convert holes to undefined, so
           // we need to preserve this behavior even if we eliminate that node.
-          new_input =
-              GetReplacementForPhiInputConversion<ConvertHoleNanToUndefinedNan>(
-                  bypassed_input, phi, input_index);
+          new_input = GetReplacementForPhiInputConversion<
+              HoleyFloat64ConvertHoleToUndefined>(bypassed_input, phi,
+                                                  input_index);
         } else {
 #endif
           TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
@@ -690,7 +705,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                 AddNewNodeNoInputConversionAtBlockEnd<
                     CheckedNumberOrOddballToHoleyFloat64>(
                     phi->predecessor_at(input_index), {input_phi},
-                    TaggedToFloat64ConversionType::kNumberOrUndefined, false));
+                    TaggedToFloat64ConversionType::kNumberOrUndefined));
             break;
           }
           case ValueRepresentation::kTagged:
@@ -707,20 +722,35 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         // We allow widening of Int32 inputs to Float64, which can lead to the
         // current Phi having a Float64 representation but having some Int32
         // inputs, which will require an Int32ToFloat64 conversion.
-        DCHECK(repr == ValueRepresentation::kFloat64 ||
+        if (repr == ValueRepresentation::kFloat64) {
+          phi->change_input(
+              input_index,
+              AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToFloat64>(
+                  phi->predecessor_at(input_index), {input_phi}));
+          TRACE_UNTAGGING(
+              TRACE_INPUT_LABEL
+              << ": Converting phi input with a ChangeInt32ToFloat64");
+        } else {
+          DCHECK_EQ(repr, ValueRepresentation::kHoleyFloat64);
+          phi->change_input(
+              input_index,
+              AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToHoleyFloat64>(
+                  phi->predecessor_at(input_index), {input_phi}));
+          TRACE_UNTAGGING(
+              TRACE_INPUT_LABEL
+              << ": Converting phi input with a ChangeInt32ToHoleyFloat64");
+        }
+      } else if (from_repr != repr) {
+        DCHECK(from_repr == ValueRepresentation::kFloat64 &&
                repr == ValueRepresentation::kHoleyFloat64);
         phi->change_input(
             input_index,
-            AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToFloat64>(
+            AddNewNodeNoInputConversionAtBlockEnd<ChangeFloat64ToHoleyFloat64>(
                 phi->predecessor_at(input_index), {input_phi}));
         TRACE_UNTAGGING(
             TRACE_INPUT_LABEL
-            << ": Converting phi input with a ChangeInt32ToFloat64");
+            << ": Converting phi input with a ChangeFloat64ToHoleyFloat64");
       } else {
-        // We allow Float64 to silently be used as HoleyFloat64.
-        DCHECK_IMPLIES(from_repr != repr,
-                       from_repr == ValueRepresentation::kFloat64 &&
-                           repr == ValueRepresentation::kHoleyFloat64);
         TRACE_UNTAGGING(TRACE_INPUT_LABEL
                         << ": Keeping untagged Phi input as-is");
       }
@@ -765,8 +795,9 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
             untagged =
                 AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
                     block, {input});
-            untagged = AddNewNodeNoInputConversionAtBlockEnd<
-                CheckedHoleyFloat64ToInt32>(block, {untagged});
+            untagged =
+                AddNewNodeNoInputConversionAtBlockEnd<CheckedFloat64ToInt32>(
+                    block, {untagged});
           }
           break;
         case ValueRepresentation::kShiftedInt53:
@@ -795,10 +826,10 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
             untagged =
                 AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
                     block, {input});
-            if (repr != ValueRepresentation::kHoleyFloat64) {
-              untagged = AddNewNodeNoInputConversionAtBlockEnd<
-                  CheckedHoleyFloat64ToFloat64>(block, {untagged});
-            }
+          }
+          if (repr == ValueRepresentation::kHoleyFloat64) {
+            untagged = AddNewNodeNoInputConversionAtBlockEnd<
+                ChangeFloat64ToHoleyFloat64>(block, {untagged});
           }
           break;
         case ValueRepresentation::kTagged:
@@ -871,8 +902,9 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     // current phi has a Float64/Uint32 representation, then we can safely
     // truncate it to Int32, because we know that the Float64/Uint32 fits in a
     // Smi, and therefore in an Int32.
-    if (from_repr == ValueRepresentation::kFloat64 ||
-        from_repr == ValueRepresentation::kHoleyFloat64) {
+    if (from_repr == ValueRepresentation::kFloat64) {
+      old_untagging->OverwriteWith<UnsafeFloat64ToInt32>();
+    } else if (from_repr == ValueRepresentation::kHoleyFloat64) {
       old_untagging->OverwriteWith<UnsafeHoleyFloat64ToInt32>();
     } else {
       DCHECK_EQ(from_repr, ValueRepresentation::kInt32);
@@ -938,6 +970,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       }
 
     case ValueRepresentation::kFloat64:
+      node->OverwriteWith<CheckFloat64IsSmi>();
+      return ProcessResult::kContinue;
     case ValueRepresentation::kHoleyFloat64:
       node->OverwriteWith<CheckHoleyFloat64IsSmi>();
       return ProcessResult::kContinue;
@@ -1067,8 +1101,11 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kFloat64:
-    case ValueRepresentation::kHoleyFloat64:
       node->OverwriteWith<BranchIfFloat64ToBooleanTrue>();
+      return ProcessResult::kContinue;
+
+    case ValueRepresentation::kHoleyFloat64:
+      node->OverwriteWith<BranchIfHoleyFloat64ToBooleanTrue>();
       return ProcessResult::kContinue;
 
     case ValueRepresentation::kTagged:

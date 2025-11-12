@@ -299,7 +299,7 @@ class MaglevReducer {
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
   std::optional<ShiftedInt53> TryGetShiftedInt53Constant(ValueNode* value);
-  std::optional<double> TryGetFloat64Constant(
+  std::optional<Float64> TryGetFloat64OrHoleyFloat64Constant(
       UseRepresentation use_repr, ValueNode* value,
       TaggedToFloat64ConversionType conversion_type);
 
@@ -316,9 +316,8 @@ class MaglevReducer {
 
   ValueNode* BuildSmiUntag(ValueNode* node);
 
-  ValueNode* BuildNumberOrOddballToFloat64(ValueNode* node,
-                                           NodeType allowed_input_type);
-  ValueNode* BuildHoleyFloat64SilenceNumberNans(ValueNode* node);
+  ValueNode* BuildNumberOrOddballToFloat64OrHoleyFloat64(
+      ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
 
   // Get a tagged representation node whose value is equivalent to the given
   // node.
@@ -348,6 +347,10 @@ class MaglevReducer {
   //
   // Deopts if the ToNumber is non-trivial.
   ValueNode* GetTruncatedInt32ForToNumber(ValueNode* value,
+                                          NodeType allowed_input_type);
+
+  ValueNode* GetFloat64OrHoleyFloat64Impl(ValueNode* value,
+                                          UseRepresentation use_rep,
                                           NodeType allowed_input_type);
 
   // Get a Float64 representation node whose value is equivalent to the given
@@ -483,6 +486,9 @@ class MaglevReducer {
   }
   Float64Constant* GetFloat64Constant(Float64 constant) {
     return graph()->GetFloat64Constant(constant);
+  }
+  HoleyFloat64Constant* GetHoleyFloat64Constant(Float64 constant) {
+    return graph()->GetHoleyFloat64Constant(constant);
   }
   RootConstant* GetRootConstant(RootIndex index) {
     return graph()->GetRootConstant(index);

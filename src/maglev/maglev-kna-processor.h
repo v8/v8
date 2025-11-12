@@ -254,7 +254,9 @@ class RecomputeKnownNodeAspectsProcessor {
                       truncated_int32_to_number, NumberOrOddball)
   PROCESS_SAFE_CONV(CheckedUint32ToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedIntPtrToInt32, int32, Number)
+  PROCESS_SAFE_CONV(CheckedFloat64ToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToInt32, int32, Number)
+  PROCESS_UNSAFE_CONV(UnsafeFloat64ToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(UnsafeHoleyFloat64ToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedNumberToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
@@ -265,8 +267,9 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_UNSAFE_CONV(UnsafeNumberOrOddballToFloat64, float64, NumberOrOddball)
   PROCESS_UNSAFE_CONV(UnsafeNumberToFloat64, float64, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
-  PROCESS_UNSAFE_CONV(HoleyFloat64ToMaybeNanFloat64, float64, Number)
+  PROCESS_UNSAFE_CONV(HoleyFloat64ToSilencedFloat64, float64, Number)
   PROCESS_SAFE_CONV(ChangeInt32ToFloat64, float64, Number)
+  PROCESS_SAFE_CONV(ChangeInt32ToHoleyFloat64, float64, Number)
 #undef PROCESS_SAFE_CONV
 #undef PROCESS_UNSAFE_CONV
 
