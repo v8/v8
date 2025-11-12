@@ -167,6 +167,9 @@ class MaglevPhiRepresentationSelector {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult UpdateNodePhiInput(NumberToString* node, Phi* phi,
+                                   int input_index,
+                                   const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(CheckSmi* node, Phi* phi, int input_index,
                                    const ProcessingState* state);
   ProcessResult UpdateNodePhiInput(CheckNumber* node, Phi* phi, int input_index,

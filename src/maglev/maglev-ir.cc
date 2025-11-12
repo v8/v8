@@ -140,6 +140,8 @@ std::ostream& operator<<(std::ostream& os, UseRepresentation repr) {
   switch (repr) {
     case UseRepresentation::kTagged:
       return os << "Tagged";
+    case UseRepresentation::kTaggedForNumberToString:
+      return os << "TaggedForNumberToString";
     case UseRepresentation::kInt32:
       return os << "Int32";
     case UseRepresentation::kTruncatedInt32:

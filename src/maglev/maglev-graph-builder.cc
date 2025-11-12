@@ -13393,6 +13393,10 @@ ReduceResult MaglevGraphBuilder::BuildToString(ValueNode* value,
     if (ValueNode* float64_value = reducer_.TryGetFloat64(value)) {
       return AddNewNode<Float64ToString>({float64_value});
     }
+    // TODO(victorgomes): Maybe we should have a notion of weak tagged use,
+    // meaning, we usually emit a tagged version of the node, but we can at
+    // zero-cost change it to a non-tagged equivalent.
+    value->MaybeRecordUseReprHint(UseRepresentation::kTaggedForNumberToString);
     return AddNewNode<NumberToString>({value});
   }
   return AddNewNode<ToString>({GetContext(), value}, mode);

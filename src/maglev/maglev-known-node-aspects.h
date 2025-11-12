@@ -96,6 +96,7 @@ class NodeInfo {
     ValueNode* get(UseRepresentation repr) {
       switch (repr) {
         case UseRepresentation::kTagged:
+        case UseRepresentation::kTaggedForNumberToString:
           return tagged();
         case UseRepresentation::kInt32:
           return int32();

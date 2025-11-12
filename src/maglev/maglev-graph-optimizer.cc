@@ -33,6 +33,7 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
     UseRepresentation repr) {
   switch (repr) {
     case UseRepresentation::kTagged:
+    case UseRepresentation::kTaggedForNumberToString:
       return ValueRepresentation::kTagged;
     case UseRepresentation::kInt32:
     case UseRepresentation::kTruncatedInt32:

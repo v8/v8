@@ -880,6 +880,8 @@ inline bool ValueRepresentationIs(ValueRepresentation got,
 // cannot deopt). We thus use a UseRepresentation to record use hints for Phis.
 enum class UseRepresentation : uint8_t {
   kTagged,
+  kTaggedForNumberToString,  // This is a tagged use to NumberToString, we can
+                             // cheaply change the use to Int32 or Float64.
   kInt32,
   kTruncatedInt32,
   kUint32,

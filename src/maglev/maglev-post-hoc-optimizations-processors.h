@@ -118,6 +118,8 @@ class RecomputePhiUseHintsProcessor {
                    node->Is<TruncateCheckedNumberOrOddballToInt32>() ||
                    node->Is<TruncateUnsafeNumberOrOddballToInt32>()) {
           use_repr = UseRepresentation::kTruncatedInt32;
+        } else if (node->Is<NumberToString>()) {
+          use_repr = UseRepresentation::kTaggedForNumberToString;
         }
         phi->RecordUseReprHint(UseRepresentationSet{use_repr},
                                live_loop_phis_.contains(phi));

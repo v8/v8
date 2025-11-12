@@ -268,11 +268,12 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
             ValueRepresentationSet());
 
   DCHECK_EQ(
-      use_reprs - UseRepresentationSet({UseRepresentation::kInt32,
-                                        UseRepresentation::kTruncatedInt32,
-                                        UseRepresentation::kShiftedInt53,
-                                        UseRepresentation::kFloat64,
-                                        UseRepresentation::kHoleyFloat64}),
+      use_reprs -
+          UseRepresentationSet(
+              {UseRepresentation::kTaggedForNumberToString,
+               UseRepresentation::kInt32, UseRepresentation::kTruncatedInt32,
+               UseRepresentation::kShiftedInt53, UseRepresentation::kFloat64,
+               UseRepresentation::kHoleyFloat64}),
       UseRepresentationSet());
 
   // The rules for untagging are that we can only widen input representations,
@@ -311,7 +312,10 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   }
 
   ValueRepresentationSet allowed_inputs_for_uses;
-  if (use_reprs.contains(UseRepresentation::kInt32)) {
+  if (use_reprs.contains(UseRepresentation::kTaggedForNumberToString)) {
+    allowed_inputs_for_uses = {ValueRepresentation::kInt32,
+                               ValueRepresentation::kFloat64};
+  } else if (use_reprs.contains(UseRepresentation::kInt32)) {
     allowed_inputs_for_uses = {ValueRepresentation::kInt32};
   } else if (use_reprs.contains(UseRepresentation::kShiftedInt53)) {
     allowed_inputs_for_uses = {ValueRepresentation::kInt32,
@@ -347,6 +351,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   TRACE_UNTAGGING("  + intersection reprs: " << intersection);
   if (intersection.contains(ValueRepresentation::kInt32) &&
       use_reprs.contains_any(UseRepresentationSet{
+          UseRepresentation::kTaggedForNumberToString,
           UseRepresentation::kInt32, UseRepresentation::kTruncatedInt32})) {
     TRACE_UNTAGGING("  => Untagging to Int32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, hoist_untagging);
@@ -951,6 +956,23 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     old_untagging->OverwriteWith(needed_conversion);
   }
   return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevPhiRepresentationSelector ::UpdateNodePhiInput(
+    NumberToString* node, Phi* phi, int input_index,
+    const ProcessingState* state) {
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kTagged:
+      return ProcessResult::kContinue;
+    case ValueRepresentation::kInt32:
+      node->OverwriteWith<Int32ToString>();
+      return ProcessResult::kContinue;
+    case ValueRepresentation::kFloat64:
+      node->OverwriteWith<Float64ToString>();
+      return ProcessResult::kContinue;
+    default:
+      UNREACHABLE();
+  }
 }
 
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
