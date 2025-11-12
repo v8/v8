@@ -7088,8 +7088,14 @@ int Shell::Main(int argc, char* argv[]) {
     tracing = std::make_unique<platform::tracing::TracingController>();
 
     if (!options.enable_etw_stack_walking) {
-      const char* trace_path =
-          options.trace_path ? options.trace_path : "v8_trace.json";
+      const char* trace_path = options.trace_path ? options.trace_path :
+      // Default to protobuf format when Perfetto is used and without json
+      // export.
+#if defined(V8_USE_PERFETTO) && !defined(V8_USE_PERFETTO_JSON_EXPORT)
+                                                  "v8_trace.pb";
+#else
+                                                  "v8_trace.json";
+#endif  // defined(V8_USE_PERFETTO) && !defined(V8_USE_PERFETTO_JSON_EXPORT)
       trace_file.open(trace_path);
       if (!trace_file.good()) {
         printf("Cannot open trace file '%s' for writing: %s.\n", trace_path,

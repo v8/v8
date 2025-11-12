@@ -80,6 +80,9 @@ declare_args() {
   # Implement tracing using Perfetto (https://perfetto.dev).
   v8_use_perfetto = false
 
+  # Use Perfetto JSON Export.
+  v8_use_perfetto_json_export = ""
+
   # Use Perfetto SDK headers.
   v8_use_perfetto_sdk = false
 
@@ -282,6 +285,14 @@ if (v8_use_perfetto_sdk) {
 if (build_with_chromium) {
   v8_use_perfetto = true
 }
+
+# Enable JSON export by default when using perfetto but not the SDK.
+if (v8_use_perfetto_json_export == "") {
+  v8_use_perfetto_json_export = v8_use_perfetto && !v8_use_perfetto_sdk
+}
+assert(
+    !(v8_use_perfetto_sdk && v8_use_perfetto_json_export),
+    "Perfetto JSON Export is not available when building with the Perfetto SDK.")
 
 # Includes profiles to optimize builtins if
 #   * it is a Chromium build, and

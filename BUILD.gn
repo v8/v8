@@ -981,6 +981,7 @@ external_v8_defines = [
   "V8_DEPRECATION_WARNINGS",
   "V8_IMMINENT_DEPRECATION_WARNINGS",
   "V8_USE_PERFETTO",
+  "V8_USE_PERFETTO_JSON_EXPORT",
   "V8_USE_PERFETTO_SDK",
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
@@ -1029,6 +1030,9 @@ if (v8_imminent_deprecation_warnings) {
 }
 if (v8_use_perfetto) {
   enabled_external_v8_defines += [ "V8_USE_PERFETTO" ]
+}
+if (v8_use_perfetto_json_export) {
+  enabled_external_v8_defines += [ "V8_USE_PERFETTO_JSON_EXPORT" ]
 }
 if (v8_use_perfetto_sdk) {
   enabled_external_v8_defines += [ "V8_USE_PERFETTO_SDK" ]
