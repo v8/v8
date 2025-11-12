@@ -227,8 +227,7 @@ template <typename IsolateT>
 void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     IsolateT* isolate, Handle<Script> script,
     DirectHandle<BytecodeArray> bytecode) {
-  Handle<BytecodeArray> handle(*bytecode, isolate);
-  int first_mismatch = generator()->CheckBytecodeMatches(handle);
+  int first_mismatch = generator()->CheckBytecodeMatches(*bytecode);
   if (first_mismatch >= 0) {
     parse_info()->ast_value_factory()->Internalize(isolate);
     DeclarationScope::AllocateScopeInfos(parse_info(), script, isolate);

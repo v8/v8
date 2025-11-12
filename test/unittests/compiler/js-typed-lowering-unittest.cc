@@ -171,18 +171,25 @@ FeedbackSource FeedbackSourceWithOneBinarySlot(JSTypedLoweringTest* R) {
       FeedbackSlot{0}};
 }
 
+FeedbackSource FeedbackSourceWithOneCompareSlot(JSTypedLoweringTest* R) {
+  return FeedbackSource{
+      FeedbackVector::NewWithOneCompareSlotForTesting(R->zone(), R->isolate()),
+      FeedbackSlot{0}};
+}
+
 }  // namespace
 
 TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
   Node* const the_hole = HeapConstantHole(factory()->the_hole_value());
+  Node* const feedback = UndefinedConstant();
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FOREACH(Type, type, kJSTypes) {
     Node* const lhs = Parameter(type);
-    Reduction r = Reduce(
-        graph()->NewNode(javascript()->StrictEqual(CompareOperationHint::kNone),
-                         lhs, the_hole, context, effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->StrictEqual(FeedbackSourceWithOneCompareSlot(this)), lhs,
+        the_hole, feedback, context, effect, control));
     ASSERT_FALSE(r.Changed());
   }
 }
@@ -191,12 +198,13 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
 TEST_F(JSTypedLoweringTest, JSStrictEqualWithUnique) {
   Node* const lhs = Parameter(Type::Unique(), 0);
   Node* const rhs = Parameter(Type::Unique(), 1);
+  Node* const feedback = UndefinedConstant();
   Node* const context = Parameter(Type::Any(), 2);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r = Reduce(
-      graph()->NewNode(javascript()->StrictEqual(CompareOperationHint::kNone),
-                       lhs, rhs, context, effect, control));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->StrictEqual(FeedbackSourceWithOneCompareSlot(this)), lhs,
+      rhs, feedback, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsReferenceEqual(lhs, rhs));
 }

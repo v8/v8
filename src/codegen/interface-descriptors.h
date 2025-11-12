@@ -65,8 +65,6 @@ namespace internal {
   V(StringEqual)                                     \
   V(Compare_Baseline)                                \
   V(Compare_WithFeedback)                            \
-  V(Compare_WithEmbeddedFeedback)                    \
-  V(Compare_WithEmbeddedFeedbackOffset)              \
   V(Construct_Baseline)                              \
   V(ConstructForwardVarargs)                         \
   V(ConstructForwardAllArgs)                         \
@@ -2856,20 +2854,6 @@ class Compare_WithFeedbackDescriptor
   DECLARE_DESCRIPTOR(Compare_WithFeedbackDescriptor)
 };
 
-class Compare_WithEmbeddedFeedbackDescriptor
-    : public StaticCallInterfaceDescriptor<
-          Compare_WithEmbeddedFeedbackDescriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS(kLeft, kRight, kFeedbackOffset, kBytecodeArray)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
-                         MachineType::AnyTagged(),  // kRight
-                         MachineType::UintPtr(),    // kFeedbackOffset
-                         MachineType::AnyTagged())  // kBytecodeArray
-  DECLARE_DESCRIPTOR(Compare_WithEmbeddedFeedbackDescriptor)
-};
-
 class Compare_BaselineDescriptor
     : public StaticCallInterfaceDescriptor<Compare_BaselineDescriptor> {
  public:
@@ -2880,21 +2864,6 @@ class Compare_BaselineDescriptor
                          MachineType::AnyTagged(),  // kRight
                          MachineType::UintPtr())    // kSlot
   DECLARE_DESCRIPTOR(Compare_BaselineDescriptor)
-
-  static constexpr inline auto registers();
-};
-
-class Compare_WithEmbeddedFeedbackOffsetDescriptor
-    : public StaticCallInterfaceDescriptor<
-          Compare_WithEmbeddedFeedbackOffsetDescriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kFeedbackOffset)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
-                         MachineType::AnyTagged(),  // kRight
-                         MachineType::UintPtr())    // kFeedbackOffset
-  DECLARE_DESCRIPTOR(Compare_WithEmbeddedFeedbackOffsetDescriptor)
 
   static constexpr inline auto registers();
 };

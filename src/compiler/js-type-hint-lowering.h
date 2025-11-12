@@ -7,7 +7,6 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-operator.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 
 namespace v8 {
@@ -112,11 +111,6 @@ class JSTypeHintLowering {
                                        Node* right, Node* effect, Node* control,
                                        FeedbackSlot slot) const;
 
-  LoweringResult ReduceBinaryOperationWithEmbeddedHint(const Operator* op,
-                                                       Node* left, Node* right,
-                                                       Node* effect,
-                                                       Node* control) const;
-
   // Potential reduction to for..in operations
   LoweringResult ReduceForInNextOperation(Node* receiver, Node* cache_array,
                                           Node* cache_type, Node* index,
@@ -167,10 +161,7 @@ class JSTypeHintLowering {
   CompareOperationHint GetCompareOperationHint(FeedbackSlot slot) const;
   Node* BuildDeoptIfFeedbackIsInsufficient(FeedbackSlot slot, Node* effect,
                                            Node* control,
-                                           DeoptimizeReason reason) const;
-  Node* BuildDeoptIfFeedbackIsInsufficient(
-      const EmbeddedHintParameter& embedded_hint, Node* effect, Node* control,
-      DeoptimizeReason reason) const;
+                                           DeoptimizeReason reson) const;
 
   JSHeapBroker* broker() const { return broker_; }
   JSGraph* jsgraph() const { return jsgraph_; }

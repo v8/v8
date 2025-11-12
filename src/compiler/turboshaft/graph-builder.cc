@@ -2797,15 +2797,6 @@ OpIndex GraphBuilder::Process(
       return OpIndex::Invalid();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-    case IrOpcode::kSwitchSandboxMode: {
-      CodeSandboxingMode sandbox_mode =
-          OpParameter<CodeSandboxingMode>(node->op());
-      return __ SwitchSandboxMode(sandbox_mode);
-    }
-
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-
     default:
       std::cerr << "unsupported node type: " << *node->op() << "\n";
       node->Print(std::cerr);

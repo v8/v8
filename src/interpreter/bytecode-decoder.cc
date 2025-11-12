@@ -71,16 +71,6 @@ uint32_t BytecodeDecoder::DecodeUnsignedOperand(Address operand_start,
   return 0;
 }
 
-// static
-#ifdef V8_IS_TSAN
-V8_NOINLINE
-#endif
-uint32_t BytecodeDecoder::RacyDecodeEmbeddedFeedback(Address operand_start,
-                                                     OperandSize operand_size) {
-  DCHECK(operand_size == OperandSize::kShort);
-  return base::ReadUnalignedValue<uint16_t>(operand_start);
-}
-
 namespace {
 
 const char* NameForRuntimeId(Runtime::FunctionId idx) {

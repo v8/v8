@@ -364,30 +364,6 @@ void BytecodeArrayIterator::UpdatePointers() {
   }
 }
 
-uint32_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
-  DCHECK_GE(operand_index, 0);
-  DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
-  DCHECK_EQ(OperandType::kFlag16,
-            Bytecodes::GetOperandType(current_bytecode(), operand_index));
-  Address embedded_feedback_start = reinterpret_cast<Address>(cursor_) +
-                                    current_operand_offset(operand_index);
-  return BytecodeDecoder::RacyDecodeEmbeddedFeedback(embedded_feedback_start,
-                                                     OperandSize::kShort);
-}
-
-CompareOperationHint BytecodeArrayIterator::GetEmbeddedCompareOperationHint() {
-  DCHECK(Bytecodes::IsCompareWithEmbeddedFeedback(current_bytecode()));
-  uint32_t type_feedback = GetEmbeddedFeedback(1);
-  return v8::internal::CompareOperationHintFromFeedback(type_feedback);
-}
-
-int BytecodeArrayIterator::GetEmbeddedFeedbackOffset(int operand_index) {
-  DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
-            OperandType::kFlag16);
-  return BytecodeArray::kHeaderSize - kHeapObjectTag + current_offset() +
-         current_operand_offset(operand_index);
-}
-
 JumpTableTargetOffsets::JumpTableTargetOffsets(
     const BytecodeArrayIterator* iterator, int table_start, int table_size,
     int case_value_base)

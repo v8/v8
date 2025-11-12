@@ -339,8 +339,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Comment)                                 \
   V(Dead)                                    \
   V(AbortCSADcheck)                          \
-  V(Pause)                                   \
-  IF_HARDWARE_SANDBOX(V, SwitchSandboxMode)
+  V(Pause)
 
 #define TURBOSHAFT_JS_THROWING_OPERATION_LIST(V) \
   V(GenericBinop)                                \
@@ -3399,28 +3398,6 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            AtomicWord32PairOp::Kind kind);
-
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-struct SwitchSandboxModeOp : FixedArityOperationT<0, SwitchSandboxModeOp> {
-  CodeSandboxingMode sandbox_mode;
-
-  static constexpr OpEffects effects =
-      OpEffects().CanReadHeapMemory().CanWriteMemory();
-
-  explicit SwitchSandboxModeOp(CodeSandboxingMode sandbox_mode)
-      : Base(), sandbox_mode(sandbox_mode) {}
-
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return {};
-  }
-
-  auto options() const { return std::tuple{sandbox_mode}; }
-  void PrintOptions(std::ostream& os) const;
-};
-#endif
 
 struct MemoryBarrierOp : FixedArityOperationT<0, MemoryBarrierOp> {
   AtomicMemoryOrder memory_order;

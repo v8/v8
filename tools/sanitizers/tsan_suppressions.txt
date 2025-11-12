@@ -13,8 +13,3 @@ deadlock:GlobalSafepoint::EnterGlobalSafepointScope
 # that promise that this race is benign (compilation will fail if the race
 # happens).
 race:RacyReadHeapNumberBits
-
-# Allow racy reads of embedded feedback values, for concurrent compilers
-# that promise that this race is benign (as the worst-case outcome is a
-# safe deoptimization).
-race:BytecodeDecoder::RacyDecodeEmbeddedFeedback

@@ -36,12 +36,6 @@ class V8_EXPORT_PRIVATE BytecodeDecoder final {
                                         OperandType operand_type,
                                         OperandScale operand_scale);
 
-  // Separate function for racy embedded feedback value read, so that we can
-  // explicitly suppress it in TSAN (see
-  // tools/sanitizers/tsan_suppressions.txt).
-  static uint32_t RacyDecodeEmbeddedFeedback(Address operand_start,
-                                             OperandSize operand_size);
-
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
                               bool with_hex = true);
