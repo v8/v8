@@ -260,9 +260,8 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # Duration total calculation precision (https://github.com/boa-dev/temporal/issues/620)
-  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
+  # "Completely contained within geographic area" rules (https://github.com/boa-dev/temporal/issues/627)
+  'intl402/Temporal/ZonedDateTime/prototype/equals/canonicalize-timezone': [FAIL],
 
   # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
   'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
