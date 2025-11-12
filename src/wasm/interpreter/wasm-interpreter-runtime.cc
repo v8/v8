@@ -2377,10 +2377,14 @@ DirectHandle<Map> WasmInterpreterRuntime::RttCanon(uint32_t type_index) const {
 
 std::pair<DirectHandle<WasmStruct>, const StructType*>
 WasmInterpreterRuntime::StructNewUninitialized(uint32_t index) const {
+  const TypeDefinition& type = module_->types[index];
   const StructType* struct_type = module_->struct_type({index});
   DirectHandle<Map> rtt = RttCanon(index);
-  return {isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt),
-          struct_type};
+  return {
+      isolate_->factory()->NewWasmStructUninitialized(
+          struct_type, rtt,
+          type.is_shared ? AllocationType::kSharedOld : AllocationType::kYoung),
+      struct_type};
 }
 
 std::pair<DirectHandle<WasmArray>, const ArrayType*>
