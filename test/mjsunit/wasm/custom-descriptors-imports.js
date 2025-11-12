@@ -12,6 +12,8 @@ let $sig0 = builder.addType(kSig_v_v);
 
 let $imp_exact = builder.addImport("", "exact", $sig0, kExternalExactFunction);
 let $imp_inexact = builder.addImport("", "inexact", $sig0);
+// Compile-time imports may also be exact.
+builder.addImport("wasm:js-string", "test", kSig_i_r, kExternalExactFunction);
 
 let $glob0 = builder.addGlobal(wasmRefType($sig0).exact(), true, false,
                                [kExprRefFunc, $imp_exact]);
@@ -24,12 +26,14 @@ let imports = {"": {
   "exact": () => {},
   "inexact": () => {},
 }};
-builder.instantiate(imports);  // Works.
+let builtins = {builtins: ["js-string"]}
+builder.instantiate(imports, builtins);  // Works.
 
 builder.addGlobal(wasmRefType($sig0).exact(), true, false,
                   [kExprRefFunc, $imp_inexact]);
 
-assertThrows(() => builder.instantiate(imports), WebAssembly.CompileError);
+assertThrows(() => builder.instantiate(imports, builtins),
+             WebAssembly.CompileError);
 
 // Can't test a second reason to fail validation in the same builder.
 let builder2 = new WasmModuleBuilder();

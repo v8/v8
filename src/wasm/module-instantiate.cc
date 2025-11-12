@@ -1844,7 +1844,8 @@ void InstanceBuilder::SanitizeImports() {
       continue;
     }
 
-    if (import.kind == kExternalFunction) {
+    if (import.kind == kExternalFunction ||
+        import.kind == kExternalExactFunction) {
       WellKnownImport wki = well_known_imports.get(import.index);
       if (IsCompileTimeImport(wki)) {
         DirectHandle<JSFunction> fun =

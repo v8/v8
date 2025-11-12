@@ -1879,7 +1879,10 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
     }
 
     // Check compile-time imported functions.
-    if (import.kind != kExternalFunction) continue;
+    if (import.kind != kExternalFunction &&
+        import.kind != kExternalExactFunction) {
+      continue;
+    }
     base::Vector<const uint8_t> module_name = wire_bytes.SubVector(
         import.module_name.offset(), import.module_name.end_offset());
     constexpr size_t kMinInterestingLength = 10;
