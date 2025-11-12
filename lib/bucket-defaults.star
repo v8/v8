@@ -38,7 +38,7 @@ defaults_try = {
 defaults_crossbench_try = {
     "executable": "recipe:v8",
     "swarming_tags": ["vpython:native-python-wrapper"],
-    "dimensions": {"pool": "luci.flex.try"},
+    "dimensions": {"pool": "luci.v8.try"},
     "service_account": V8_TRY_ACCOUNT,
     "execution_timeout": 1800,
     "resultdb_bq_table_prefix": "try",

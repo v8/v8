@@ -193,7 +193,11 @@ def presubmit_builder(
         cq_branch_properties = cq_branch_properties,
         cq_chromium_branch_properties = cq_chromium_branch_properties,
         executable = "recipe:run_presubmit",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        dimensions = {
+            "os": "Ubuntu-22.04",
+            "cpu": "x86-64",
+            "host_class": "default",
+        },
         execution_timeout = timeout + 2 * 60,
         properties = {"runhooks": True, "timeout": timeout},
         priority = 25,
