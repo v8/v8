@@ -2707,7 +2707,7 @@ void MacroAssembler::SmiUntagUnsigned(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
-    AssertSignedBitOfSmiIsZero(reg);
+    AssertSignBitOfSmiIsZero(reg);
     shrl(reg, Immediate(kSmiShift));
   } else {
     shrq(reg, Immediate(kSmiShift));
@@ -2751,7 +2751,7 @@ void MacroAssembler::SmiUntagUnsigned(Register dst, Operand src) {
     DCHECK(SmiValuesAre31Bits());
     if (COMPRESS_POINTERS_BOOL) {
       movl(dst, src);
-      AssertSignedBitOfSmiIsZero(dst);
+      AssertSignBitOfSmiIsZero(dst);
       shrl(dst, Immediate(kSmiShift));
     } else {
       movq(dst, src);
@@ -4064,12 +4064,15 @@ void MacroAssembler::AssertZeroExtended(Register int32_register) {
   Check(below_equal, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
-void MacroAssembler::AssertSignedBitOfSmiIsZero(Register smi_register) {
+void MacroAssembler::AssertSignBitOfSmiIsZero(Register smi_register) {
   if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
   DCHECK(COMPRESS_POINTERS_BOOL);
-  testl(smi_register, Immediate(int32_t{0x10000000}));
-  Check(zero, AbortReason::kSignedBitOfSmiIsNotZero);
+  constexpr int kSmiShiftBits = kSmiTagSize + kSmiShiftSize;
+  constexpr Tagged_t kSmiSignBit = Tagged_t{1}
+                               << (kSmiShiftBits + kSmiValueSize - 1);
+  testl(smi_register, Immediate(static_cast<uint32_t>(kSmiSignBit)));
+  Check(zero, AbortReason::kSignBitOfSmiIsNotZero);
 }
 
 void MacroAssembler::AssertMap(Register object) {
