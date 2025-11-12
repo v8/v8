@@ -335,7 +335,7 @@ class GeneratorAnalyzer {
 
     for (; *it != backedge_block; --it) {
       const maglev::BasicBlock* curr = *it;
-      // Update header iff {curr} exists as a key. If it does,
+      // Update header iff {curr} doesn't exist as a key. If it does,
       // {curr} is part of an inner loop.
       block_to_header_.try_emplace(curr, header);
     }
