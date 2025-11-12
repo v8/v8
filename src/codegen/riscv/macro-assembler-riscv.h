@@ -657,14 +657,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #undef DEFINE_INSTRUCTION
 #undef DEFINE_INSTRUCTION2
 #undef DEFINE_INSTRUCTION3
-
-  void Amosub_w(bool aq, bool rl, Register rd, Register rs1, Register rs2) {
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.Acquire();
-    sub(temp, zero_reg, rs2);
-    amoadd_w(aq, rl, rd, rs1, temp);
-  }
-
   // Convert smi to word-size sign-extended value.
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
@@ -933,6 +925,33 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void UStoreDouble(FPURegister fd, const MemOperand& rs);
 
   using Trapper = std::function<void(int)>;
+
+#define ATOMIC_BINOP32(name)                                     \
+  void Amo##name##_w(                                            \
+      bool aq, bool rl, Register rd, Register rs1, Register rs2, \
+      Trapper&& trapper = [](int) {});
+
+#define ATOMIC_BINOP64(name)                                     \
+  void Amo##name##_d(                                            \
+      bool aq, bool rl, Register rd, Register rs1, Register rs2, \
+      Trapper&& trapper = [](int) {});
+
+  ATOMIC_BINOP32(Add)
+  ATOMIC_BINOP32(Sub)
+  ATOMIC_BINOP32(And)
+  ATOMIC_BINOP32(Or)
+  ATOMIC_BINOP32(Xor)
+  ATOMIC_BINOP32(Swap)
+#ifdef V8_TARGET_ARCH_RISCV64
+  ATOMIC_BINOP64(Add)
+  ATOMIC_BINOP64(Sub)
+  ATOMIC_BINOP64(And)
+  ATOMIC_BINOP64(Or)
+  ATOMIC_BINOP64(Xor)
+  ATOMIC_BINOP64(Swap)
+#endif
+#undef ATOMIC_BINOP32
+#undef ATOMIC_BINOP64
 
   void Lb(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Lbu(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});

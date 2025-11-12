@@ -2477,53 +2477,59 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvWord64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd);
       break;
-#define ATOMIC_BINOP_CASE(op, inst32, inst64)                          \
-  case kAtomic##op##Int8:                                              \
-    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32); \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst32, 32);            \
-    break;                                                             \
-  case kAtomic##op##Uint8:                                             \
-    switch (AtomicWidthField::decode(opcode)) {                        \
-      case AtomicWidth::kWord32:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst32, 32);       \
-        break;                                                         \
-      case AtomicWidth::kWord64:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst64, 64);     \
-        break;                                                         \
-    }                                                                  \
-    break;                                                             \
-  case kAtomic##op##Int16:                                             \
-    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32); \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst32, 32);           \
-    break;                                                             \
-  case kAtomic##op##Uint16:                                            \
-    switch (AtomicWidthField::decode(opcode)) {                        \
-      case AtomicWidth::kWord32:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst32, 32);      \
-        break;                                                         \
-      case AtomicWidth::kWord64:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst64, 64);    \
-        break;                                                         \
-    }                                                                  \
-    break;                                                             \
-  case kAtomic##op##Word32:                                            \
-    switch (AtomicWidthField::decode(opcode)) {                        \
-      case AtomicWidth::kWord32:                                       \
-        ASSEMBLE_ATOMIC_BINOP(Ll, Sc, inst32);                         \
-        break;                                                         \
-      case AtomicWidth::kWord64:                                       \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst64, 64);    \
-        break;                                                         \
-    }                                                                  \
-    break;                                                             \
-  case kRiscvWord64Atomic##op##Uint64:                                 \
-    ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst64);                           \
+#define ATOMIC_BINOP_CASE(op, inst32, inst64, amoinst32, amoinst64)            \
+  case kAtomic##op##Int8:                                                      \
+    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);         \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst32, 32);                    \
+    break;                                                                     \
+  case kAtomic##op##Uint8:                                                     \
+    switch (AtomicWidthField::decode(opcode)) {                                \
+      case AtomicWidth::kWord32:                                               \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst32, 32);               \
+        break;                                                                 \
+      case AtomicWidth::kWord64:                                               \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst64, 64);             \
+        break;                                                                 \
+    }                                                                          \
+    break;                                                                     \
+  case kAtomic##op##Int16:                                                     \
+    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);         \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst32, 32);                   \
+    break;                                                                     \
+  case kAtomic##op##Uint16:                                                    \
+    switch (AtomicWidthField::decode(opcode)) {                                \
+      case AtomicWidth::kWord32:                                               \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst32, 32);              \
+        break;                                                                 \
+      case AtomicWidth::kWord64:                                               \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst64, 64);            \
+        break;                                                                 \
+    }                                                                          \
+    break;                                                                     \
+  case kAtomic##op##Word32:                                                    \
+    switch (AtomicWidthField::decode(opcode)) {                                \
+      case AtomicWidth::kWord32:                                               \
+        /* addr = base + index */                                              \
+        __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+        __ amoinst32(true, true, i.OutputRegister(0), i.TempRegister(0),       \
+                     i.InputRegister(2), trapper);                             \
+        break;                                                                 \
+      case AtomicWidth::kWord64:                                               \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst64, 64);            \
+        break;                                                                 \
+    }                                                                          \
+    break;                                                                     \
+  case kRiscvWord64Atomic##op##Uint64:                                         \
+    /* addr = base + index */                                                  \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
+    __ amoinst64(true, true, i.OutputRegister(0), i.TempRegister(0),           \
+                 i.InputRegister(2), trapper);                                 \
     break;
-      ATOMIC_BINOP_CASE(Add, Add32, AddWord)
-      ATOMIC_BINOP_CASE(Sub, Sub32, Sub64)
-      ATOMIC_BINOP_CASE(And, And, And)
-      ATOMIC_BINOP_CASE(Or, Or, Or)
-      ATOMIC_BINOP_CASE(Xor, Xor, Xor)
+      ATOMIC_BINOP_CASE(Add, Add32, AddWord, AmoAdd_w, AmoAdd_d)
+      ATOMIC_BINOP_CASE(Sub, Sub32, Sub64, AmoSub_w, AmoSub_d)
+      ATOMIC_BINOP_CASE(And, And, And, AmoAnd_w, AmoAnd_d)
+      ATOMIC_BINOP_CASE(Or, Or, Or, AmoOr_w, AmoOr_d)
+      ATOMIC_BINOP_CASE(Xor, Xor, Xor, AmoXor_w, AmoXor_d)
 #undef ATOMIC_BINOP_CASE
 #elif V8_TARGET_ARCH_RISCV32
     case kAtomicCompareExchangeWithWriteBarrier: {
@@ -2559,13 +2565,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   case kAtomic##op##Word32:                                                \
     __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
     __ amoinst32(true, true, i.OutputRegister(0), i.TempRegister(0),       \
-                 i.InputRegister(2));                                      \
+                 i.InputRegister(2), trapper);                             \
     break;
-      ATOMIC_BINOP_CASE(Add, Add32, Add64, amoadd_w)  // todo: delete 64
-      ATOMIC_BINOP_CASE(Sub, Sub32, Sub64, Amosub_w)  // todo: delete 64
-      ATOMIC_BINOP_CASE(And, And, And, amoand_w)
-      ATOMIC_BINOP_CASE(Or, Or, Or, amoor_w)
-      ATOMIC_BINOP_CASE(Xor, Xor, Xor, amoxor_w)
+      ATOMIC_BINOP_CASE(Add, Add32, Add64, AmoAdd_w)  // todo: delete 64
+      ATOMIC_BINOP_CASE(Sub, Sub32, Sub64, AmoSub_w)  // todo: delete 64
+      ATOMIC_BINOP_CASE(And, And, And, AmoAnd_w)
+      ATOMIC_BINOP_CASE(Or, Or, Or, AmoOr_w)
+      ATOMIC_BINOP_CASE(Xor, Xor, Xor, AmoXor_w)
 #undef ATOMIC_BINOP_CASE
 #endif
     case kRiscvAssertEqual:

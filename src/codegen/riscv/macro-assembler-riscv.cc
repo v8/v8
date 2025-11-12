@@ -7664,7 +7664,85 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   LoadWord(destination, MemOperand(scratch, offset));
 }
 
+void MacroAssembler::AmoSub_w(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  neg(temp, rs2);
+  trapper(pc_offset());
+  amoadd_w(aq, rl, rd, rs1, temp);
+}
+
+void MacroAssembler::AmoSwap_w(bool aq, bool rl, Register rd, Register rs1,
+                               Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoswap_w(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoAdd_w(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoadd_w(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoAnd_w(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoand_w(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoOr_w(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoor_w(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoXor_w(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoxor_w(aq, rl, rd, rs1, rs2);
+}
+
 #ifdef V8_TARGET_ARCH_RISCV64
+void MacroAssembler::AmoSub_d(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  neg(temp, rs2);
+  trapper(pc_offset());
+  amoadd_d(aq, rl, rd, rs1, temp);
+}
+
+void MacroAssembler::AmoSwap_d(bool aq, bool rl, Register rd, Register rs1,
+                               Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoswap_d(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoAdd_d(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoadd_d(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoAnd_d(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoand_d(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoOr_d(bool aq, bool rl, Register rd, Register rs1,
+                             Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoor_d(aq, rl, rd, rs1, rs2);
+}
+
+void MacroAssembler::AmoXor_d(bool aq, bool rl, Register rd, Register rs1,
+                              Register rs2, Trapper&& trapper) {
+  trapper(pc_offset());
+  amoxor_d(aq, rl, rd, rs1, rs2);
+}
+
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
     Register destination, Register dispatch_handle, Register scratch) {
   DCHECK(!AreAliased(destination, scratch));
@@ -7692,9 +7770,7 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   Lhu(parameter_count, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
 }
-#endif  // V8_TARGET_ARCH_RISCV64
 
-#if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::LoadTaggedField(const Register& destination,
                                      const MemOperand& field_operand,
                                      Trapper&& trapper) {

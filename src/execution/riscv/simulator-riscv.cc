@@ -4229,6 +4229,39 @@ static inline bool is_invalid_fsqrt(T src1) {
   return (src1 < 0);
 }
 
+template <typename T, typename OP>
+void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
+                                   Instruction* instr) {
+  unsigned element_size = sizeof(T);
+  uintptr_t address = rs1;
+  DCHECK_EQ(address % element_size, 0);
+
+  // First, check whether the memory is accessible (for wasm trap handling).
+  if (!ProbeMemory(address, element_size)) return;
+
+  local_monitor_.NotifyLoad();
+
+  T data = ReadMem<T>(address, instr);
+
+  if (instr->AqValue()) {
+    // Approximate load-acquire by issuing a full barrier after the load.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
+
+  T result = f(data, value);
+
+  if (instr->RlValue()) {
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
+    local_monitor_.NotifyStore();
+    global_monitor_->NotifyStore_Locked(&global_monitor_thread_);
+    // Approximate store-release by issuing a full barrier before the store.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
+
+  WriteMem<T>(address, result, instr);
+  set_rd(T(data));
+}
+
 void Simulator::DecodeRVRAType() {
   // TODO(riscv): Add macro for RISCV A extension
   // Special handling for A extension instructions because it uses func5
@@ -4274,81 +4307,89 @@ void Simulator::DecodeRVRAType() {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return (uint32_t)rs2(); }, instr_.instr(),
-          WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return rhs; }, instr_.instr());
       break;
     }
     case RO_AMOADD_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return lhs + (uint32_t)rs2(); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)(rs2()),
+          [&](uint32_t lhs, uint32_t rhs) { return lhs + rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOXOR_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return lhs ^ (uint32_t)rs2(); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return lhs ^ rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOAND_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return lhs & (uint32_t)rs2(); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return lhs & rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOOR_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return lhs | (uint32_t)rs2(); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return lhs | rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOMIN_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<int32_t>(
-          rs1(), [&](int32_t lhs) { return std::min(lhs, (int32_t)rs2()); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<int32_t>(
+          rs1(), (int32_t)rs2(),
+          [&](int32_t lhs, int32_t rhs) { return std::min(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMAX_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<int32_t>(
-          rs1(), [&](int32_t lhs) { return std::max(lhs, (int32_t)rs2()); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<int32_t>(
+          rs1(), (int32_t)rs2(),
+          [&](int32_t lhs, int32_t rhs) { return std::max(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMINU_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return std::min(lhs, (uint32_t)rs2()); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return std::min(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMAXU_W: {
       if ((rs1() & 0x3) != 0) {
         DieOrDebug();
       }
-      set_rd(sext32(amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return std::max(lhs, (uint32_t)rs2()); },
-          instr_.instr(), WORD)));
+      AtomicMemoryHelper<uint32_t>(
+          rs1(), (uint32_t)rs2(),
+          [&](uint32_t lhs, uint32_t rhs) { return std::max(lhs, rhs); },
+          instr_.instr());
       break;
     }
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -4382,56 +4423,61 @@ void Simulator::DecodeRVRAType() {
       break;
     }
     case RO_AMOSWAP_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return rs2(); }, instr_.instr(), DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOADD_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs + rs2(); }, instr_.instr(),
-          DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return lhs + rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOXOR_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs ^ rs2(); }, instr_.instr(),
-          DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return lhs ^ rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOAND_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs & rs2(); }, instr_.instr(),
-          DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return lhs & rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOOR_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs | rs2(); }, instr_.instr(),
-          DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(), [&](int64_t lhs, int64_t rhs) { return lhs | rhs; },
+          instr_.instr());
       break;
     }
     case RO_AMOMIN_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return std::min(lhs, rs2()); },
-          instr_.instr(), DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(),
+          [&](int64_t lhs, int64_t rhs) { return std::min(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMAX_D: {
-      set_rd(amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return std::max(lhs, rs2()); },
-          instr_.instr(), DWORD));
+      AtomicMemoryHelper<int64_t>(
+          rs1(), rs2(),
+          [&](int64_t lhs, int64_t rhs) { return std::max(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMINU_D: {
-      set_rd(amo<uint64_t>(
-          rs1(), [&](uint64_t lhs) { return std::min(lhs, (uint64_t)rs2()); },
-          instr_.instr(), DWORD));
+      AtomicMemoryHelper<uint64_t>(
+          rs1(), rs2(),
+          [&](uint64_t lhs, uint64_t rhs) { return std::min(lhs, rhs); },
+          instr_.instr());
       break;
     }
     case RO_AMOMAXU_D: {
-      set_rd(amo<uint64_t>(
-          rs1(), [&](uint64_t lhs) { return std::max(lhs, (uint64_t)rs2()); },
-          instr_.instr(), DWORD));
+      AtomicMemoryHelper<uint64_t>(
+          rs1(), rs2(),
+          [&](uint64_t lhs, uint64_t rhs) { return std::max(lhs, rhs); },
+          instr_.instr());
       break;
     }
 #endif /*V8_TARGET_ARCH_RISCV64*/
