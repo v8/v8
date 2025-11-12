@@ -2640,8 +2640,8 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   bool ProcessCodeSectionHeader(int num_functions,
                                 uint32_t functions_mismatch_error_offset,
                                 std::shared_ptr<WireBytesStorage>,
-                                int code_section_start,
-                                int code_section_length) override;
+                                size_t code_section_start,
+                                size_t code_section_length) override;
 
   bool ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                            uint32_t offset) override;
@@ -3255,7 +3255,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
 bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     int num_functions, uint32_t functions_mismatch_error_offset,
     std::shared_ptr<WireBytesStorage> wire_bytes_storage,
-    int code_section_start, int code_section_length) {
+    size_t code_section_start, size_t code_section_length) {
   DCHECK_LE(0, code_section_length);
   before_code_section_ = false;
   TRACE_STREAMING("Start the code section with %d functions...\n",
@@ -3266,6 +3266,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     return false;
   }
 
+  DCHECK_LT(code_section_start, kMaxUInt32);
+  DCHECK_LT(code_section_length, kMaxUInt32);
   decoder_.StartCodeSection({static_cast<uint32_t>(code_section_start),
                              static_cast<uint32_t>(code_section_length)});
 
@@ -3314,7 +3316,7 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
   ++num_functions_;
   // In case of {prefix_cache_hit} we still need the function body to be
   // decoded. Otherwise a later cache miss cannot be handled.
-  decoder_.DecodeFunctionBody(func_index, static_cast<uint32_t>(bytes.length()),
+  decoder_.DecodeFunctionBody(func_index, static_cast<uint32_t>(bytes.size()),
                               offset);
 
   if (prefix_cache_hit_) {

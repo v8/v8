@@ -2015,7 +2015,7 @@ class LiftoffCompiler {
 
   void ResumeHandler(FullDecoder* decoder,
                      base::Vector<const HandlerCase> handlers,
-                     int handler_index, Value* cont) {
+                     size_t handler_index, Value* cont) {
     // "Resume" bails out before this can be reached.
     UNREACHABLE();
   }

@@ -163,8 +163,8 @@ i::wasm::ValueType WasmValKindToV8(ValKind kind) {
 
 Name GetNameFromWireBytes(const i::wasm::WireBytesRef& ref,
                           v8::base::Vector<const uint8_t> wire_bytes) {
-  DCHECK_LE(ref.offset(), wire_bytes.length());
-  DCHECK_LE(ref.end_offset(), wire_bytes.length());
+  DCHECK_LE(ref.offset(), wire_bytes.size());
+  DCHECK_LE(ref.end_offset(), wire_bytes.size());
   if (ref.length() == 0) return Name::make();
   Name name = Name::make_uninitialized(ref.length());
   std::memcpy(name.get(), wire_bytes.begin() + ref.offset(), ref.length());

@@ -119,7 +119,7 @@ class Reader {
   }
 
   base::OwnedVector<WasmCode::EffectHandler> ReadEffectHandlers() {
-    int count = Read<int>();
+    uint32_t count = Read<uint32_t>();
     if (count == 0) return {};
     size_t size = count * sizeof(WasmCode::EffectHandler);
     DCHECK_GE(current_size(), size);
@@ -475,13 +475,14 @@ void NativeModuleSerializer::WriteCode(
   writer->Write(code->stack_slots());
   writer->Write(code->ool_spills());
   writer->Write(code->raw_tagged_parameter_slots_for_serialization());
-  writer->Write(code->instructions().length());
-  writer->Write(code->reloc_info().length());
-  writer->Write(code->source_positions().length());
-  writer->Write(code->inlining_positions().length());
-  writer->Write(code->deopt_data().length());
-  writer->Write(code->protected_instructions_data().length());
-  writer->Write(static_cast<int>(code->effect_handlers().size()));
+  writer->Write(static_cast<uint32_t>(code->instructions().size()));
+  writer->Write(static_cast<uint32_t>(code->reloc_info().size()));
+  writer->Write(static_cast<uint32_t>(code->source_positions().size()));
+  writer->Write(static_cast<uint32_t>(code->inlining_positions().size()));
+  writer->Write(static_cast<uint32_t>(code->deopt_data().size()));
+  writer->Write(
+      static_cast<uint32_t>(code->protected_instructions_data().size()));
+  writer->Write(static_cast<uint32_t>(code->effect_handlers().size()));
   writer->WriteVector(code->effect_handlers());
   writer->Write(code->kind());
   writer->Write(code->tier());
@@ -938,14 +939,14 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   int stack_slot_count = reader->Read<int>();
   int ool_spill_count = reader->Read<int>();
   uint32_t tagged_parameter_slots = reader->Read<uint32_t>();
-  int code_size = reader->Read<int>();
-  int reloc_size = reader->Read<int>();
-  int source_position_size = reader->Read<int>();
-  int inlining_position_size = reader->Read<int>();
-  int deopt_data_size = reader->Read<int>();
+  uint32_t code_size = reader->Read<uint32_t>();
+  uint32_t reloc_size = reader->Read<uint32_t>();
+  uint32_t source_position_size = reader->Read<uint32_t>();
+  uint32_t inlining_position_size = reader->Read<uint32_t>();
+  uint32_t deopt_data_size = reader->Read<uint32_t>();
   // TODO(mliedtke): protected_instructions_data is the first part of the
   // meta_data_ array. Ideally the sizes would be in the same order...
-  int protected_instructions_size = reader->Read<int>();
+  uint32_t protected_instructions_size = reader->Read<uint32_t>();
   auto owned_effect_handlers = reader->ReadEffectHandlers();
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
   ExecutionTier tier = reader->Read<ExecutionTier>();

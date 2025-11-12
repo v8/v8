@@ -308,7 +308,7 @@ inline void DumpModule(const base::Vector<const uint8_t> module_bytes,
   path += buf.begin();
   size_t rv = 0;
   if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {
-    rv = fwrite(module_bytes.begin(), module_bytes.length(), 1, file);
+    rv = fwrite(module_bytes.begin(), module_bytes.size(), 1, file);
     base::Fclose(file);
   }
   if (rv != 1) {

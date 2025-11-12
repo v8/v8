@@ -114,7 +114,7 @@ class MjsunitNamesProvider {
     if (name_ref.offset() == ref.offset()) return true;
     WasmName name = wire_bytes_.GetNameOrNull(name_ref);
     WasmName question = wire_bytes_.GetNameOrNull(ref);
-    return memcmp(name.begin(), question.begin(), name.length()) == 0;
+    return memcmp(name.begin(), question.begin(), name.size()) == 0;
   }
 
   void PrintTypeVariableName(StringBuilder& out, ModuleTypeIndex index) {
@@ -470,18 +470,18 @@ class MjsunitNamesProvider {
     // This isn't perfect: any collision with a function (e.g. "makeSig")
     // or constant (e.g. "kFooRefCode") would also break the generated test,
     // but it doesn't seem feasible to accurately guard against all of those.
-    if (name.length() >= 8) {
+    if (name.size() >= 8) {
       if (memcmp(name.begin(), "$segment", 8) == 0) return false;
     }
-    if (name.length() >= 7) {
+    if (name.size() >= 7) {
       if (memcmp(name.begin(), "$global", 7) == 0) return false;
       if (memcmp(name.begin(), "$struct", 7) == 0) return false;
     }
-    if (name.length() >= 6) {
+    if (name.size() >= 6) {
       if (memcmp(name.begin(), "$array", 6) == 0) return false;
       if (memcmp(name.begin(), "$table", 6) == 0) return false;
     }
-    if (name.length() >= 5) {
+    if (name.size() >= 5) {
       if (memcmp(name.begin(), "$data", 5) == 0) return false;
       if (memcmp(name.begin(), "$func", 5) == 0) return false;
       if (memcmp(name.begin(), "kExpr", 5) == 0) return false;
@@ -489,7 +489,7 @@ class MjsunitNamesProvider {
       if (memcmp(name.begin(), "kWasm", 5) == 0) return false;
       if (memcmp(name.begin(), "throw", 5) == 0) return false;
     }
-    if (name.length() >= 4) {
+    if (name.size() >= 4) {
       if (memcmp(name.begin(), "$mem", 4) == 0) return false;
       if (memcmp(name.begin(), "$sig", 4) == 0) return false;
       if (memcmp(name.begin(), "$tag", 4) == 0) return false;

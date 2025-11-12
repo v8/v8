@@ -1469,7 +1469,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(Resume, const ContIndexImmediate& imm, base::Vector<HandlerCase> handlers, \
     const Value& cont_ref, const Value args[], const Value returns[])          \
   F(ResumeHandler, base::Vector<const HandlerCase> handlers,                   \
-    int handler_index, const Value* cont_ref)                                  \
+    size_t handler_index, const Value* cont_ref)                               \
   F(ResumeThrow, const ContIndexImmediate& cont_imm,                           \
     const TagIndexImmediate& exc_imm, base::Vector<HandlerCase> handlers,      \
     const Value args[], const Value returns[])                                 \
@@ -4735,7 +4735,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      for (int i = 0; i < handlers.length(); ++i) {
+      for (size_t i = 0; i < handlers.size(); ++i) {
         if (handlers[i].kind == kOnSuspend) {
           // TODO(thibaudm): Push tag params here.
           Value* suspend_cont =

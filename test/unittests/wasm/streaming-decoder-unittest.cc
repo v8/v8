@@ -65,8 +65,8 @@ class MockStreamingProcessor : public StreamingProcessor {
 
   bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
                                 std::shared_ptr<WireBytesStorage>,
-                                int code_section_start,
-                                int code_section_length) override {
+                                size_t code_section_start,
+                                size_t code_section_length) override {
     return true;
   }
 
@@ -101,12 +101,12 @@ class WasmStreamingDecoderTest : public ::testing::Test {
  public:
   void ExpectVerifies(base::Vector<const uint8_t> data,
                       size_t expected_sections, size_t expected_functions) {
-    for (int split = 0; split <= data.length(); ++split) {
+    for (size_t split = 0; split <= data.size(); ++split) {
       MockStreamingResult result;
       auto stream = StreamingDecoder::CreateAsyncStreamingDecoder(
           std::make_unique<MockStreamingProcessor>(&result));
       stream->OnBytesReceived(data.SubVector(0, split));
-      stream->OnBytesReceived(data.SubVector(split, data.length()));
+      stream->OnBytesReceived(data.SubVector(split, data.size()));
       stream->Finish({});
       EXPECT_TRUE(result.ok());
       EXPECT_EQ(expected_sections, result.num_sections);
@@ -116,12 +116,12 @@ class WasmStreamingDecoderTest : public ::testing::Test {
   }
 
   void ExpectFailure(base::Vector<const uint8_t> data) {
-    for (int split = 0; split <= data.length(); ++split) {
+    for (size_t split = 0; split <= data.size(); ++split) {
       MockStreamingResult result;
       auto stream = StreamingDecoder::CreateAsyncStreamingDecoder(
           std::make_unique<MockStreamingProcessor>(&result));
       stream->OnBytesReceived(data.SubVector(0, split));
-      stream->OnBytesReceived(data.SubVector(split, data.length()));
+      stream->OnBytesReceived(data.SubVector(split, data.size()));
       stream->Finish({});
       EXPECT_FALSE(result.ok());
       EXPECT_TRUE(result.error);

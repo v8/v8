@@ -1114,7 +1114,7 @@ class TruncatedUserString {
  public:
   template <typename T>
   explicit TruncatedUserString(base::Vector<T> name)
-      : TruncatedUserString(name.begin(), name.length()) {}
+      : TruncatedUserString(name.begin(), name.size()) {}
 
   TruncatedUserString(const uint8_t* start, size_t len)
       : TruncatedUserString(reinterpret_cast<const char*>(start), len) {}

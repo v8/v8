@@ -3837,8 +3837,8 @@ class TurboshaftGraphBuildingInterface
     base::Vector<compiler::turboshaft::EffectHandler> asm_handlers =
         __ output_graph().graph_zone()
             -> AllocateVector<compiler::turboshaft::EffectHandler>(
-                             handlers.length());
-    for (int i = 0; i < handlers.length(); ++i) {
+                             handlers.size());
+    for (size_t i = 0; i < handlers.size(); ++i) {
       if (handlers[i].kind != kOnSuspend) UNIMPLEMENTED();
       asm_handlers[i].tag_index = handlers[i].tag.index;
       asm_handlers[i].block = __ NewBlock();
@@ -3851,7 +3851,7 @@ class TurboshaftGraphBuildingInterface
 
   void ResumeHandler(FullDecoder* decoder,
                      base::Vector<const HandlerCase> handlers,
-                     int handler_index, Value* cont_val) {
+                     size_t handler_index, Value* cont_val) {
     if (handler_index == 0) {
       resume_return_block_ = __ NewBlock();
       __ Goto(resume_return_block_);
@@ -3865,7 +3865,7 @@ class TurboshaftGraphBuildingInterface
     cont_val->op = cont;
     DCHECK_EQ(kOnSuspend, handlers[handler_index].kind);
     BrOrRet(decoder, handlers[handler_index].maybe_depth.br.depth);
-    if (handler_index == handlers.length() - 1) {
+    if (handler_index == handlers.size() - 1) {
       asm_.clear_effect_handlers();
       __ Bind(resume_return_block_);
     }
