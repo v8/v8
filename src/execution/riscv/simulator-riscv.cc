@@ -5827,6 +5827,7 @@ void Simulator::DecodeCIType() {
       break;
     case RO_C_FLDSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_ldsp();
+      if (!ProbeMemory(addr, sizeof(uint64_t))) return;
       uint64_t val = ReadMem<uint64_t>(addr, instr_.instr());
       set_rvc_drd(Float64::FromBits(val), false);
       TraceMemRdDouble(addr, Float64::FromBits(val),
@@ -5889,6 +5890,7 @@ void Simulator::DecodeCSSType() {
   switch (instr_.RvcOpcode()) {
     case RO_C_FSDSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
+      if (!ProbeMemory(addr, sizeof(Float64))) return;
       WriteMem<Float64>(addr, get_fpu_register_Float64(rvc_rs2_reg()),
                         instr_.instr());
       break;
@@ -5896,6 +5898,7 @@ void Simulator::DecodeCSSType() {
 #if V8_TARGET_ARCH_RISCV32
     case RO_C_FSWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
+      if (!ProbeMemory(addr, sizeof(Float32))) return;
       WriteMem<Float32>(addr, get_fpu_register_Float32(rvc_rs2_reg(), false),
                         instr_.instr());
       break;
@@ -5903,12 +5906,14 @@ void Simulator::DecodeCSSType() {
 #endif
     case RO_C_SWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_swsp();
+      if (!ProbeMemory(addr, sizeof(int32_t))) return;
       WriteMem<int32_t>(addr, (int32_t)rvc_rs2(), instr_.instr());
       break;
     }
 #if V8_TARGET_ARCH_RISCV64
     case RO_C_SDSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
+      if (!ProbeMemory(addr, sizeof(int64_t))) return;
       WriteMem<int64_t>(addr, (int64_t)rvc_rs2(), instr_.instr());
       break;
     }
