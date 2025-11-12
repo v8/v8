@@ -947,6 +947,7 @@ extern macro StringFromSingleCharCode(char16): String;
 
 extern macro NumberToString(Number): String;
 extern macro SmiToString(Smi): String;
+extern macro Int32ToString(int32): String;
 extern macro Float64ToString(float64): String;
 extern macro StringToNumber(String): Number;
 extern transitioning macro NonNumberToNumber(

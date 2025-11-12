@@ -13437,8 +13437,18 @@ ReduceResult MaglevGraphBuilder::BuildToString(ValueNode* value,
                                                ToString::ConversionMode mode) {
   if (CheckType(value, NodeType::kString)) return value;
   // TODO(victorgomes): Add fast path for constant primitives.
+  if (CheckType(value, NodeType::kSmi)) {
+    ValueNode* smi_value;
+    GET_VALUE_OR_ABORT(smi_value, GetSmiValue(value));
+    return AddNewNode<SmiToString>({smi_value});
+  }
   if (CheckType(value, NodeType::kNumber)) {
-    // TODO(verwaest): Float64ToString if float.
+    if (ValueNode* int32_value = reducer_.TryGetInt32(value)) {
+      return AddNewNode<Int32ToString>({int32_value});
+    }
+    if (ValueNode* float64_value = reducer_.TryGetFloat64(value)) {
+      return AddNewNode<Float64ToString>({float64_value});
+    }
     return AddNewNode<NumberToString>({value});
   }
   return AddNewNode<ToString>({GetContext(), value}, mode);

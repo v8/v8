@@ -1806,6 +1806,24 @@ ProcessResult MaglevGraphOptimizer::VisitTransitionElementsKind(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitInt32ToString(
+    Int32ToString* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitFloat64ToString(
+    Float64ToString* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitSmiToString(
+    SmiToString* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitNumberToString(
     NumberToString* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

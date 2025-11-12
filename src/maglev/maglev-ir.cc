@@ -5770,14 +5770,30 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void NumberToString::SetValueLocationConstraints() {
-  using D = CallInterfaceDescriptorFor<Builtin::kNumberToString>::type;
-  UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
+#define DEFINE_NUMBER_TO_STRING(Name)                                       \
+  void Name##ToString::SetValueLocationConstraints() {                      \
+    using D = CallInterfaceDescriptorFor<Builtin::k##Name##ToString>::type; \
+    UseFixed(value_input(), D::GetRegisterParameter(D::kInput));            \
+    DefineAsFixed(this, kReturnRegister0);                                  \
+  }                                                                         \
+  void Name##ToString::GenerateCode(MaglevAssembler* masm,                  \
+                                    const ProcessingState& state) {         \
+    __ CallBuiltin<Builtin::k##Name##ToString>(value_input());              \
+    masm->DefineLazyDeoptPoint(this->lazy_deopt_info());                    \
+  }
+DEFINE_NUMBER_TO_STRING(Int32)
+DEFINE_NUMBER_TO_STRING(Smi)
+DEFINE_NUMBER_TO_STRING(Number)
+#undef DEFINE_NUMBER_TO_STRING
+
+void Float64ToString::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kFloat64ToString>::type;
+  UseFixed(value_input(), D::GetDoubleRegisterParameter(D::kInput));
   DefineAsFixed(this, kReturnRegister0);
 }
-void NumberToString::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  __ CallBuiltin<Builtin::kNumberToString>(value_input());
+void Float64ToString::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  __ CallBuiltin(Builtin::kFloat64ToString);
   masm->DefineLazyDeoptPoint(this->lazy_deopt_info());
 }
 

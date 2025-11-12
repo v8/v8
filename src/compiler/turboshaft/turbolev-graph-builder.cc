@@ -3051,14 +3051,20 @@ class GraphBuildingNodeProcessor {
     SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::NumberToString* node,
-                                const maglev::ProcessingState& state) {
-    NoThrowingScopeRequired no_throws(node);
 
-    SetMap(node, __ template CallBuiltin<builtin::NumberToString>(
-                     {.input = Map(node->value_input())}));
-    return maglev::ProcessResult::kContinue;
+#define DEFINE_NUMBER_TO_STRING(Name)                                   \
+  maglev::ProcessResult Process(maglev::Name##ToString* node,           \
+                                const maglev::ProcessingState& state) { \
+    NoThrowingScopeRequired no_throws(node);                            \
+    SetMap(node, __ template CallBuiltin<builtin::Name##ToString>(      \
+                     {.input = Map(node->value_input())}));             \
+    return maglev::ProcessResult::kContinue;                            \
   }
+  DEFINE_NUMBER_TO_STRING(Int32)
+  DEFINE_NUMBER_TO_STRING(Float64)
+  DEFINE_NUMBER_TO_STRING(Smi)
+  DEFINE_NUMBER_TO_STRING(Number)
+#undef DEFINE_NUMBER_TO_STRING
 
   maglev::ProcessResult Process(maglev::ArgumentsLength* node,
                                 const maglev::ProcessingState& state) {

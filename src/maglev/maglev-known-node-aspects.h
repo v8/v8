@@ -330,6 +330,13 @@ class KnownNodeAspects {
     return res;
   }
 
+  ValueNode* TryGetAlternativeFor(ValueNode* node, UseRepresentation repr) {
+    node = node->Unwrap();
+    auto info_it = FindInfo(node);
+    if (!IsValid(info_it)) return nullptr;
+    return info_it->second.alternative().get(repr);
+  }
+
   std::optional<PossibleMaps> TryGetPossibleMaps(ValueNode* node) {
     DCHECK_NOT_NULL(node);
     if (NodeInfo* info = TryGetInfoFor(node)) {

@@ -2630,6 +2630,17 @@ class RunMicrotasksDescriptor final
   static constexpr inline Register MicrotaskQueueRegister();
 };
 
+class Float64ToStringDescriptor final
+    : public StaticCallInterfaceDescriptor<Float64ToStringDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kInput)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::Float64())    // value
+  DECLARE_DESCRIPTOR(Float64ToStringDescriptor)
+};
+
 class WasmFloat32ToNumberDescriptor final
     : public StaticCallInterfaceDescriptor<WasmFloat32ToNumberDescriptor> {
  public:

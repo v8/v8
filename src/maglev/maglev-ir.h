@@ -355,6 +355,9 @@ class ExceptionHandlerInfo;
   V(ToObject)                                                         \
   V(ToString)                                                         \
   V(TransitionElementsKind)                                           \
+  V(Int32ToString)                                                    \
+  V(Float64ToString)                                                  \
+  V(SmiToString)                                                      \
   V(NumberToString)                                                   \
   V(UpdateJSArrayLength)                                              \
   V(VirtualObject)                                                    \
@@ -5548,27 +5551,36 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
   using ConversionModeBitField = NextBitField<ConversionMode, 1>;
 };
 
-class NumberToString : public FixedInputValueNodeT<1, NumberToString> {
-  using Base = FixedInputValueNodeT<1, NumberToString>;
-
- public:
-  explicit NumberToString(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Call() |
-                                              OpProperties::CanAllocate() |
-                                              OpProperties::LazyDeopt();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input value_input() { return Node::input(0); }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const {}
-
-  NodeType type() const { return NodeType::kString; }
-};
+// TODO(victorgomes): This should be CallBuiltin, but we know it cannot have
+// side effects, so maybe we should have speciall CallBuiltin nodes doesn't have
+// the OpProperties::CanCallUserCode().
+#define DECLARE_NUMBER_TO_STRING(Name, Type)                                  \
+  class Name##ToString : public FixedInputValueNodeT<1, Name##ToString> {     \
+    using Base = FixedInputValueNodeT<1, Name##ToString>;                     \
+                                                                              \
+   public:                                                                    \
+    explicit Name##ToString(uint64_t bitfield) : Base(bitfield) {}            \
+                                                                              \
+    static constexpr OpProperties kProperties = OpProperties::Call() |        \
+                                                OpProperties::CanAllocate() | \
+                                                OpProperties::LazyDeopt();    \
+    static constexpr                                                          \
+        typename Base::InputTypes kInputTypes{ValueRepresentation::k##Type};  \
+                                                                              \
+    Input value_input() { return Node::input(0); }                            \
+                                                                              \
+    int MaxCallStackArgs() const { return 0; }                                \
+    void SetValueLocationConstraints();                                       \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);              \
+    void PrintParams(std::ostream&) const {}                                  \
+                                                                              \
+    NodeType type() const { return NodeType::kString; }                       \
+  };
+DECLARE_NUMBER_TO_STRING(Int32, Int32)
+DECLARE_NUMBER_TO_STRING(Float64, Float64)
+DECLARE_NUMBER_TO_STRING(Smi, Tagged)
+DECLARE_NUMBER_TO_STRING(Number, Tagged)
+#undef DECLARE_NUMBER_TO_STRING
 
 class GeneratorRestoreRegister
     : public FixedInputValueNodeT<2, GeneratorRestoreRegister> {

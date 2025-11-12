@@ -628,14 +628,10 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
                                           bool can_be_heap_number) {
   value->MaybeRecordUseReprHint(UseRepresentation::kInt32);
 
-  ValueRepresentation representation =
-      value->properties().value_representation();
-  if (representation == ValueRepresentation::kInt32) return value;
-
-  // Process constants first to avoid allocating NodeInfo for them.
-  if (auto cst = TryGetInt32Constant(value)) {
-    return graph()->GetInt32Constant(cst.value());
+  if (ValueNode* int32_value = TryGetInt32(value)) {
+    return int32_value;
   }
+
   // We could emit unconditional eager deopts for other kinds of constant, but
   // it's not necessary, the appropriate checking conversion nodes will deopt.
 
@@ -643,11 +639,7 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       known_node_aspects().GetOrCreateInfoFor(broker(), value);
   auto& alternative = node_info->alternative();
 
-  if (ValueNode* alt = alternative.int32()) {
-    return alt;
-  }
-
-  switch (representation) {
+  switch (value->properties().value_representation()) {
     case ValueRepresentation::kTagged: {
       if (can_be_heap_number &&
           !known_node_aspects().CheckType(broker(), value, NodeType::kSmi)) {
@@ -687,6 +679,22 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       UNREACHABLE();
   }
   UNREACHABLE();
+}
+
+template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::TryGetInt32(ValueNode* value) {
+  if (value->is_int32()) return value;
+
+  if (auto cst = TryGetInt32Constant(value)) {
+    return graph()->GetInt32Constant(cst.value());
+  }
+
+  if (ValueNode* alt = known_node_aspects().TryGetAlternativeFor(
+          value, UseRepresentation::kInt32)) {
+    return alt;
+  }
+
+  return nullptr;
 }
 
 template <typename BaseT>
@@ -985,16 +993,11 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64(ValueNode* value) {
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
-  ValueRepresentation representation =
-      value->properties().value_representation();
-  if (representation == ValueRepresentation::kFloat64) return value;
-
-  // Process constants first to avoid allocating NodeInfo for them.
-  if (auto cst = TryGetFloat64Constant(
-          UseRepresentation::kFloat64, value,
-          GetTaggedToFloat64ConversionType(allowed_input_type))) {
-    return graph()->GetFloat64Constant(cst.value());
+  if (ValueNode* float64_value =
+          TryGetFloat64ForToNumber(value, allowed_input_type)) {
+    return float64_value;
   }
+
   // We could emit unconditional eager deopts for other kinds of constant, but
   // it's not necessary, the appropriate checking conversion nodes will deopt.
 
@@ -1002,16 +1005,12 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
       known_node_aspects().GetOrCreateInfoFor(broker(), value);
   auto& alternative = node_info->alternative();
 
-  if (ValueNode* alt = alternative.float64()) {
-    return alt;
-  }
-
   // This is called when converting inputs in AddNewNode. We might already have
   // an empty type for `value` here. Make sure we don't add unsafe conversion
   // nodes in that case by checking for the empty node type explicitly.
   // TODO(marja): The checks can be removed after we're able to bail out
   // earlier.
-  switch (representation) {
+  switch (value->properties().value_representation()) {
     case ValueRepresentation::kTagged: {
       auto combined_type = IntersectType(allowed_input_type, node_info->type());
       if (!IsEmptyNodeType(node_info->type()) &&
@@ -1080,6 +1079,30 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
       UNREACHABLE();
   }
   UNREACHABLE();
+}
+
+template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::TryGetFloat64ForToNumber(
+    ValueNode* value, NodeType allowed_input_type) {
+  if (value->is_float64()) return value;
+
+  if (auto cst = TryGetFloat64Constant(
+          UseRepresentation::kFloat64, value,
+          GetTaggedToFloat64ConversionType(allowed_input_type))) {
+    return graph()->GetFloat64Constant(cst.value());
+  }
+
+  if (ValueNode* alt = known_node_aspects().TryGetAlternativeFor(
+          value, UseRepresentation::kFloat64)) {
+    return alt;
+  }
+
+  return nullptr;
+}
+
+template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::TryGetFloat64(ValueNode* value) {
+  return TryGetFloat64ForToNumber(value, NodeType::kNumber);
 }
 
 template <typename BaseT>

@@ -332,6 +332,9 @@ class MaglevReducer {
   // Deopts if the value is not exactly representable as an Int32.
   ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
 
+  // This does not emit any conversion.
+  ValueNode* TryGetInt32(ValueNode* value);
+
   // Get a ShiftInt53 representation node whose value is equivalent to the given
   // node.
   //
@@ -353,8 +356,15 @@ class MaglevReducer {
   // Deopts if the value is not exactly representable as a Float64.
   ValueNode* GetFloat64(ValueNode* value);
 
+  // This does not emit any conversion.
+  ValueNode* TryGetFloat64(ValueNode* value);
+
   ValueNode* GetFloat64ForToNumber(ValueNode* value,
                                    NodeType allowed_input_type);
+
+  // This does not emit any conversion.
+  ValueNode* TryGetFloat64ForToNumber(ValueNode* value,
+                                      NodeType allowed_input_type);
 
   ValueNode* GetHoleyFloat64(ValueNode* value);
 
