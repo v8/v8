@@ -572,4 +572,16 @@ bool is_inbounds(float_t v) {
 #define END_PROHIBIT_SIGN_CONVERSION()
 #endif  // defined(__clang__)
 
+// Disable/enable -Wmissing-designated-field-initializers warnings in code.
+#if defined(__clang__)
+#define START_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS() \
+  _Pragma("clang diagnostic push") _Pragma(                 \
+      "clang diagnostic ignored \"-Wmissing-designated-field-initializers\"")
+#define END_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS() \
+  _Pragma("clang diagnostic pop")
+#else
+START_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS()
+END_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS()
+#endif  // defined(__clang__)
+
 #endif  // V8_BASE_MACROS_H_

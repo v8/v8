@@ -1944,6 +1944,11 @@ class TurboshaftAssemblerOpInterface
     return Equal(left, right, RegisterRepresentation::Tagged());
   }
 
+  V<Word32> SmiEqual(ConstOrV<Smi> a, ConstOrV<Smi> b) {
+    return __ WordPtrEqual(__ BitcastSmiToWordPtr(resolve(a)),
+                           __ BitcastSmiToWordPtr(resolve(b)));
+  }
+
   V<Word32> RootEqual(V<Object> input, RootIndex root, Isolate* isolate) {
     return __ TaggedEqual(
         input, __ HeapConstant(Cast<HeapObject>(isolate->root_handle(root))));
@@ -3914,7 +3919,6 @@ class TurboshaftAssemblerOpInterface
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return returns_t::Invalid();
     }
-    const size_t argc = runtime::GetArgumentCount<typename Desc::Arguments>();
     const int result_size =
         Runtime::FunctionForId(Desc::kFunction)->result_size;
     DCHECK(context.valid());
@@ -3923,17 +3927,20 @@ class TurboshaftAssemblerOpInterface
     DCHECK_IMPLIES(!compiling_builtins,
                    frame_state.valid() == Desc::kCanTriggerLazyDeopt);
     auto arguments = runtime::ArgumentsToVector(args);
-    DCHECK_EQ(argc, arguments.size());
+    const size_t actual_argument_count = arguments.size();
+    DCHECK_GE(runtime::GetArgumentCount<typename Desc::Arguments>(),
+              actual_argument_count);  // We may have some optional arguments.
     arguments.push_back(
         ExternalConstant(ExternalReference::Create(Desc::kFunction)));
-    arguments.push_back(Word32Constant(static_cast<int>(argc)));
+    arguments.push_back(
+        Word32Constant(static_cast<int>(actual_argument_count)));
     arguments.push_back(context);
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
 
     const TSCallDescriptor* desc =
-        Desc::Create(Asm().output_graph().graph_zone(), lazy_deopt_on_throw,
-                     !compiling_builtins);
+        Desc::Create(actual_argument_count, Asm().output_graph().graph_zone(),
+                     lazy_deopt_on_throw, !compiling_builtins);
     return returns_t::Cast(Call(CEntryStubConstant(isolate, result_size),
                                 frame_state, base::VectorOf(arguments), desc));
   }
@@ -5341,6 +5348,9 @@ class TurboshaftAssemblerOpInterface
   }
   V<Float64> resolve(const ConstOrV<Float64>& v) {
     return v.is_constant() ? Float64Constant(v.constant_value()) : v.value();
+  }
+  V<Smi> resolve(const ConstOrV<Smi>& v) {
+    return v.is_constant() ? SmiConstant(v.constant_value()) : v.value();
   }
 
   void CanonicalizeEmbeddedBuiltinsConstantIfNeeded(Handle<HeapObject> object) {

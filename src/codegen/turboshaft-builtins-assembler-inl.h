@@ -354,11 +354,6 @@ class FeedbackCollectorReducer : public Next {
         __ BitcastSmiToWordPtr(a), __ BitcastSmiToWordPtr(b)));
   }
 
-  V<Word32> SmiEqual(V<Smi> a, V<Smi> b) {
-    return __ WordPtrEqual(__ BitcastSmiToWordPtr(a),
-                           __ BitcastSmiToWordPtr(b));
-  }
-
   V<WordPtr> ChangePositiveInt32ToIntPtr(V<Word32> input) {
     TSA_DCHECK(this, __ Int32LessThanOrEqual(0, input));
     return __ ChangeUint32ToUintPtr(input);

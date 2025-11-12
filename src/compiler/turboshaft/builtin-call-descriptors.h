@@ -75,7 +75,8 @@ struct builtin : CallDescriptorBuilder {
       DCHECK_EQ(base::tmp::length_v<arguments_t>, arguments_count);
       DCHECK_EQ(desc->ParameterCount(),
                 arguments_count + (Derived::kNeedsContext ? 1 : 0));
-      base::tmp::call_foreach<arguments_t, VerifyArgument>(desc);
+      base::tmp::call_foreach<arguments_t, VerifyArgument>(desc,
+                                                           arguments_count);
 
       // Verify properties.
       DCHECK_EQ(desc->NeedsFrameState(),

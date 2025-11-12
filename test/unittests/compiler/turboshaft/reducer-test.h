@@ -64,8 +64,8 @@ class TestInstance {
   template <typename Builder>
   static TestInstance CreateFromGraph(PipelineData* data, int parameter_count,
                                       const Builder& builder, Isolate* isolate,
-                                      Zone* zone) {
-    TestInstance instance(data, isolate, zone);
+                                      Zone* zone, Handle<Context> context) {
+    TestInstance instance(data, isolate, zone, context);
     // Generate a function prolog
     Block* start_block = instance.Asm().NewBlock();
     instance.Asm().Bind(start_block);
@@ -84,8 +84,9 @@ class TestInstance {
   static TestInstance CreateFromGraph(
       PipelineData* data,
       base::Vector<const RegisterRepresentation> parameter_reps,
-      const Builder& builder, Isolate* isolate, Zone* zone) {
-    TestInstance instance(data, isolate, zone);
+      const Builder& builder, Isolate* isolate, Zone* zone,
+      Handle<Context> context) {
+    TestInstance instance(data, isolate, zone, context);
     // Generate a function prolog
     Block* start_block = instance.Asm().NewBlock();
     instance.Asm().Bind(start_block);
@@ -107,6 +108,7 @@ class TestInstance {
   Graph& graph() { return *graph_; }
   Factory& factory() { return *isolate_->factory(); }
   Zone* zone() { return zone_; }
+  V<Context> context() { return Asm().HeapConstantNoHole(context_); }
 
   Assembler& operator()() { return Asm(); }
 
@@ -235,13 +237,15 @@ class TestInstance {
   Handle<Code> CompileAsJSBuiltin();
 
  private:
-  TestInstance(PipelineData* data, Isolate* isolate, Zone* zone)
+  TestInstance(PipelineData* data, Isolate* isolate, Zone* zone,
+               Handle<Context> context)
       : data_(data),
         assembler_(std::make_unique<Assembler>(data, data_->graph(),
                                                data_->graph(), zone)),
         graph_(&data_->graph()),
         isolate_(isolate),
-        zone_(zone) {}
+        zone_(zone),
+        context_(context) {}
 
   PipelineData* data_;
   std::unique_ptr<Assembler> assembler_;
@@ -249,6 +253,7 @@ class TestInstance {
   std::unique_ptr<std::ofstream> stream_;
   Isolate* isolate_;
   Zone* zone_;
+  Handle<Context> context_;
   base::SmallMap<std::map<std::string, CapturedOperation>> captured_operations_;
   base::SmallVector<OpIndex, 4> parameters_;
 };
@@ -260,8 +265,9 @@ class ReducerTest : public TestWithNativeContextAndZone {
   template <typename Builder>
   TestInstance CreateFromGraph(int parameter_count, const Builder& builder) {
     Initialize();
+    Handle<Context> context = indirect_handle(native_context());
     return TestInstance::CreateFromGraph(pipeline_data_.get(), parameter_count,
-                                         builder, isolate(), zone());
+                                         builder, isolate(), zone(), context);
   }
 
   template <typename Builder>
@@ -269,8 +275,9 @@ class ReducerTest : public TestWithNativeContextAndZone {
       base::Vector<const RegisterRepresentation> parameter_reps,
       const Builder& builder) {
     Initialize();
+    Handle<Context> context = indirect_handle(native_context());
     return TestInstance::CreateFromGraph(pipeline_data_.get(), parameter_reps,
-                                         builder, isolate(), zone());
+                                         builder, isolate(), zone(), context);
   }
 
  private:
