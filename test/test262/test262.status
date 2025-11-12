@@ -575,6 +575,7 @@
   'staging/Intl402/Temporal/old/non-iso-calendars-islamic-civil': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-islamic-tbla': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-islamicc': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-roc': [SKIP],
 
