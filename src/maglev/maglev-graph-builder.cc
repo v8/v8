@@ -8403,7 +8403,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   CatchBlockDetails catch_details = GetTryCatchBlockForNonEagerInlining(
       generic_call->exception_handler_info());
   catch_details.deopt_frame_distance++;
-  float score = call_frequency / bytecode.length();
+  float score =
+      (call_frequency / bytecode.length()) * (IsInsideLoop() ? 1.5 : 1.0);
   MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           arguments, &generic_call->lazy_deopt_info()->top_frame(),
