@@ -80,6 +80,17 @@ const char* ToString(GCTracer::Event::State state) {
   }
 }
 
+const char* ToString(v8::Isolate::Priority priority) {
+  switch (priority) {
+    case v8::Isolate::Priority::kUserBlocking:
+      return "UserBlocking";
+    case v8::Isolate::Priority::kUserVisible:
+      return "UserVisible";
+    case v8::Isolate::Priority::kBestEffort:
+      return "BestEffort";
+  }
+}
+
 }  // namespace
 
 GCTracer::Event::Event(Type type, State state,
@@ -197,7 +208,8 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
       previous_mark_compact_end_time_(startup_time),
       parent_track_(heap->tracing_track()),
       phase_track_("GCPhase", 0, parent_track_),
-      state_track_("GCState", 0, parent_track_) {
+      state_track_("GCState", 0, parent_track_),
+      priority_track_("Priority", 0, parent_track_) {
   // All accesses to incremental_marking_scope assume that incremental marking
   // scopes come first.
   static_assert(0 == Scope::FIRST_INCREMENTAL_SCOPE);
@@ -208,6 +220,14 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
   // Setting the current end time here allows us to refer back to a previous
   // event's end time to compute time spent in mutator.
   current_.end_time = previous_mark_compact_end_time_;
+
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                    perfetto::StaticString(ToString(*current_.priority)),
+                    priority_track_);
+}
+
+GCTracer::~GCTracer() {
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), priority_track_);
 }
 
 void GCTracer::ResetForTesting() {
@@ -1912,6 +1932,11 @@ GarbageCollector GCTracer::GetCurrentCollector() const {
 }
 
 void GCTracer::UpdateCurrentEventPriority(GCTracer::Priority priority) {
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), priority_track_);
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                    perfetto::StaticString(ToString(priority)),
+                    priority_track_);
+
   // If the priority is changed, reset the priority field to denote a mixed
   // priority cycle.
   if (!current_.priority.has_value() || (current_.priority == priority)) {

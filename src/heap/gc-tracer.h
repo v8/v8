@@ -305,6 +305,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   GCTracer(Heap* heap, base::TimeTicks startup_time,
            GarbageCollectionReason initial_gc_reason =
                GarbageCollectionReason::kUnknown);
+  ~GCTracer();
 
   GCTracer(const GCTracer&) = delete;
   GCTracer& operator=(const GCTracer&) = delete;
@@ -627,6 +628,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   perfetto::NamedTrack parent_track_;
   perfetto::NamedTrack phase_track_;
   perfetto::NamedTrack state_track_;
+  perfetto::NamedTrack priority_track_;
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
