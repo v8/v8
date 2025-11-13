@@ -457,7 +457,8 @@ declare_args() {
   v8_enable_experimental_tsa_builtins = false
 
   # Use the encoding of undefined in double values.
-  v8_enable_undefined_double = false
+  # Only enabled for fuzzing in V8 Fuzzilli builds
+  v8_enable_undefined_double = v8_fuzzilli
 
   v8_dcheck_always_on = dcheck_always_on
 
