@@ -2736,8 +2736,7 @@ class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
   explicit ClearStringTableJobItem(Isolate* isolate)
       : isolate_(isolate),
         trace_id_(reinterpret_cast<uint64_t>(this) ^
-                  isolate->heap()->tracer()->CurrentEpoch(
-                      GCTracer::Scope::MC_CLEAR_STRING_TABLE)) {}
+                  isolate->heap()->tracer()->CurrentEpoch()) {}
 
   void Run(JobDelegate* delegate) final {
     // Set the current isolate such that trusted pointer tables etc are
@@ -2979,8 +2978,7 @@ class MarkCompactCollector::ClearTrivialWeakRefJobItem final
   explicit ClearTrivialWeakRefJobItem(MarkCompactCollector* collector)
       : collector_(collector),
         trace_id_(reinterpret_cast<uint64_t>(this) ^
-                  collector->heap()->tracer()->CurrentEpoch(
-                      GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL)) {}
+                  collector->heap()->tracer()->CurrentEpoch()) {}
 
   void Run(JobDelegate* delegate) final {
     Heap* heap = collector_->heap();
@@ -3010,11 +3008,8 @@ class MarkCompactCollector::FilterNonTrivialWeakRefJobItem final
  public:
   explicit FilterNonTrivialWeakRefJobItem(MarkCompactCollector* collector)
       : collector_(collector),
-        trace_id_(
-            reinterpret_cast<uint64_t>(this) ^
-            collector->heap()->tracer()->CurrentEpoch(
-                GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL)) {
-  }
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  collector->heap()->tracer()->CurrentEpoch()) {}
 
   void Run(JobDelegate* delegate) final {
     Heap* heap = collector_->heap();
@@ -4720,8 +4715,7 @@ class PageEvacuationJob : public v8::JobTask {
         remaining_evacuation_items_(evacuation_items_.size()),
         generator_(evacuation_items_.size()),
         tracer_(isolate->heap()->tracer()),
-        trace_id_(reinterpret_cast<uint64_t>(this) ^
-                  tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
+        trace_id_(reinterpret_cast<uint64_t>(this) ^ tracer_->CurrentEpoch()) {}
 
   void Run(JobDelegate* delegate) override {
     // Set the current isolate such that trusted pointer tables etc are
@@ -5163,8 +5157,7 @@ class PointersUpdatingJob : public v8::JobTask {
         remaining_updating_items_(updating_items_.size()),
         generator_(updating_items_.size()),
         tracer_(isolate->heap()->tracer()),
-        trace_id_(reinterpret_cast<uint64_t>(this) ^
-                  tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
+        trace_id_(reinterpret_cast<uint64_t>(this) ^ tracer_->CurrentEpoch()) {}
 
   void Run(JobDelegate* delegate) override {
     // Set the current isolate such that trusted pointer tables etc are

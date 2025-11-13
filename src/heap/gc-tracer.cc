@@ -345,11 +345,7 @@ void GCTracer::StartCycle(GarbageCollector collector,
     current_.external_memory_bytes = heap_->external_memory();
   }
 
-  if (Heap::IsYoungGenerationCollector(collector)) {
-    epoch_young_ = next_epoch();
-  } else {
-    epoch_full_ = next_epoch();
-  }
+  epoch_ = next_epoch();
 }
 
 void GCTracer::StartAtomicPause() {

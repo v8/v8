@@ -105,9 +105,7 @@ constexpr bool GCTracer::Event::IsYoungGenerationEvent(Type type) {
          type == Type::INCREMENTAL_MINOR_MARK_SWEEPER;
 }
 
-CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId id) const {
-  return Scope::NeedsYoungEpoch(id) ? epoch_young_ : epoch_full_;
-}
+CollectionEpoch GCTracer::CurrentEpoch() const { return epoch_; }
 
 double GCTracer::current_scope(Scope::ScopeId id) const {
   DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);

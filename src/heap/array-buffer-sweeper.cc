@@ -292,7 +292,7 @@ void ArrayBufferSweeper::RequestSweep(
                 ? GCTracer::Scope::MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS
                 : GCTracer::Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS
           : GCTracer::Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS;
-  auto trace_id = GetTraceIdForFlowEvent(scope_id);
+  auto trace_id = GetTraceIdForFlowEvent();
   TRACE_GC_WITH_FLOW(heap_->tracer(), scope_id, trace_id,
                      TRACE_EVENT_FLAG_FLOW_OUT);
   Prepare(type, treat_all_young_as_promoted, trace_id);
@@ -562,10 +562,8 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
   return !current;
 }
 
-uint64_t ArrayBufferSweeper::GetTraceIdForFlowEvent(
-    GCTracer::Scope::ScopeId scope_id) const {
-  return reinterpret_cast<uint64_t>(this) ^
-         heap_->tracer()->CurrentEpoch(scope_id);
+uint64_t ArrayBufferSweeper::GetTraceIdForFlowEvent() const {
+  return reinterpret_cast<uint64_t>(this) ^ heap_->tracer()->CurrentEpoch();
 }
 
 }  // namespace internal

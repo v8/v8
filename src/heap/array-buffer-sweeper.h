@@ -81,7 +81,7 @@ class ArrayBufferSweeper final {
 
   bool sweeping_in_progress() const { return state_.get(); }
 
-  uint64_t GetTraceIdForFlowEvent(GCTracer::Scope::ScopeId scope_id) const;
+  uint64_t GetTraceIdForFlowEvent() const;
 
  private:
   class SweepingState;

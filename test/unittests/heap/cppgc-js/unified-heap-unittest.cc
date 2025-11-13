@@ -850,18 +850,15 @@ TEST_F(UnifiedHeapTestWithRandomGCInterval, AllocationTimeout) {
   const int initial_allocation_timeout =
       allocator.get_allocation_timeout_for_testing();
   ASSERT_GT(initial_allocation_timeout, 0);
-  const auto current_epoch = isolate()->heap()->tracer()->CurrentEpoch(
-      GCTracer::Scope::MARK_COMPACTOR);
+  const auto current_epoch = isolate()->heap()->tracer()->CurrentEpoch();
   for (int i = 0; i < initial_allocation_timeout - 1; ++i) {
     MakeGarbageCollected<Wrappable>(allocation_handle());
   }
   // Expect no GC happened so far.
-  EXPECT_EQ(current_epoch, isolate()->heap()->tracer()->CurrentEpoch(
-                               GCTracer::Scope::MARK_COMPACTOR));
+  EXPECT_EQ(current_epoch, isolate()->heap()->tracer()->CurrentEpoch());
   // This allocation must cause a GC.
   MakeGarbageCollected<Wrappable>(allocation_handle());
-  EXPECT_EQ(current_epoch + 1, isolate()->heap()->tracer()->CurrentEpoch(
-                                   GCTracer::Scope::MARK_COMPACTOR));
+  EXPECT_EQ(current_epoch + 1, isolate()->heap()->tracer()->CurrentEpoch());
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 

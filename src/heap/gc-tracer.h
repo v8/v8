@@ -79,7 +79,7 @@ enum YoungGenerationSpeedMode {
       tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
   TRACE_EVENT1(TRACE_GC_CATEGORIES,                                       \
                GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
-               "epoch", tracer->CurrentEpoch(scope_id))
+               "epoch", tracer->CurrentEpoch())
 
 #define TRACE_GC_EPOCH_ARG1(tracer, scope_id, thread_kind, arg_name,      \
                             arg_value)                                    \
@@ -87,7 +87,7 @@ enum YoungGenerationSpeedMode {
       tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
   TRACE_EVENT2(TRACE_GC_CATEGORIES,                                       \
                GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
-               "epoch", tracer->CurrentEpoch(scope_id), arg_name, arg_value)
+               "epoch", tracer->CurrentEpoch(), arg_name, arg_value)
 
 #define TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id, thread_kind, bind_id,  \
                                  flow_flags)                              \
@@ -96,7 +96,7 @@ enum YoungGenerationSpeedMode {
   TRACE_EVENT_WITH_FLOW1(                                                 \
       TRACE_GC_CATEGORIES,                                                \
       GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
-      flow_flags, "epoch", tracer->CurrentEpoch(scope_id))
+      flow_flags, "epoch", tracer->CurrentEpoch())
 
 #define TRACE_GC_NOTE(note)                  \
   do {                                       \
@@ -316,7 +316,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   GCTracer(const GCTracer&) = delete;
   GCTracer& operator=(const GCTracer&) = delete;
 
-  V8_INLINE CollectionEpoch CurrentEpoch(Scope::ScopeId id) const;
+  V8_INLINE CollectionEpoch CurrentEpoch() const;
 
   // Start and stop an observable pause.
   void StartObservablePause(base::TimeTicks time);
@@ -548,9 +548,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // The starting time of the observable pause if set.
   std::optional<base::TimeTicks> start_of_observable_pause_;
 
-  // We need two epochs, since there can be scavenges during sweeping.
-  CollectionEpoch epoch_young_ = 0;
-  CollectionEpoch epoch_full_ = 0;
+  CollectionEpoch epoch_ = 0;
 
   // Incremental marking speed for major GCs. Marking for minor GCs is ignored.
   double recorded_major_incremental_marking_speed_ = 0.0;

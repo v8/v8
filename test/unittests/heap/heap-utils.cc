@@ -61,10 +61,7 @@ void FillPageInPagedSpace(PageMetadata* page,
 
   PauseAllocationObserversScope no_observers_scope(heap);
 
-  CollectionEpoch full_epoch =
-      heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::MARK_COMPACTOR);
-  CollectionEpoch young_epoch = heap->tracer()->CurrentEpoch(
-      GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER);
+  CollectionEpoch epoch = heap->tracer()->CurrentEpoch();
 
   for (PageMetadata* p : *paged_space) {
     if (p != page) paged_space->UnlinkFreeListCategories(p);
@@ -141,10 +138,7 @@ void FillPageInPagedSpace(PageMetadata* page,
   }
 
   // Allocations in this method should not require a GC.
-  CHECK_EQ(full_epoch, heap->tracer()->CurrentEpoch(
-                           GCTracer::Scope::ScopeId::MARK_COMPACTOR));
-  CHECK_EQ(young_epoch, heap->tracer()->CurrentEpoch(
-                            GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER));
+  CHECK_EQ(epoch, heap->tracer()->CurrentEpoch());
   heap->FreeLinearAllocationAreas();
 }
 

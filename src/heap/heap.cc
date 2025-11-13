@@ -2005,10 +2005,9 @@ void CompleteArrayBufferSweeping(Heap* heap) {
         scope_id = GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
     }
 
-    TRACE_GC_EPOCH_WITH_FLOW(
-        tracer, scope_id, ThreadKind::kMain,
-        array_buffer_sweeper->GetTraceIdForFlowEvent(scope_id),
-        TRACE_EVENT_FLAG_FLOW_IN);
+    TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id, ThreadKind::kMain,
+                             array_buffer_sweeper->GetTraceIdForFlowEvent(),
+                             TRACE_EVENT_FLAG_FLOW_IN);
     array_buffer_sweeper->EnsureFinished();
   }
 }
@@ -7822,8 +7821,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
     json.object_start()
         .p("sweeping_reason", ToString(reason))
         .p("mode", ToString(mode))
-        .p("epoch", tracer()->CurrentEpoch(
-                        GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED))
+        .p("epoch", tracer()->CurrentEpoch())
         .object_end();
     std::string json_str = json.ToString();
 

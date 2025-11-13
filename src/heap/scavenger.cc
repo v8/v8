@@ -749,7 +749,7 @@ ScavengerJobTask::ScavengerJobTask(
       copied_list_(copied_list),
       promoted_list_(promoted_list),
       trace_id_(reinterpret_cast<uint64_t>(this) ^
-                heap_->tracer()->CurrentEpoch(GCTracer::Scope::SCAVENGER)),
+                heap_->tracer()->CurrentEpoch()),
       estimate_concurrency_(estimate_concurrency) {}
 
 void ScavengerJobTask::Run(JobDelegate* delegate) {
@@ -1277,7 +1277,7 @@ ScavengerCollector::QuarantinedPageSweeper::JobTask::JobTask(
     Heap* heap, const PinnedObjects&& pinned_objects)
     : heap_(heap),
       trace_id_(reinterpret_cast<uint64_t>(this) ^
-                heap_->tracer()->CurrentEpoch(GCTracer::Scope::SCAVENGER)),
+                heap_->tracer()->CurrentEpoch()),
       should_zap_(heap::ShouldZapGarbage()),
       pinned_objects_(std::move(pinned_objects)) {
   DCHECK(!pinned_objects.empty());

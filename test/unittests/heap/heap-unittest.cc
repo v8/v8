@@ -732,10 +732,9 @@ TEST_F(HeapTest, SemiSpaceNewSpaceGrowsDuringFullGCIncrementalMarking) {
   HandleScope handle_scope(isolate());
   Heap* heap = isolate()->heap();
 
-  // 1. Record gc_count and last scavenger epoch.
+  // 1. Record gc_count and epoch.
   auto gc_count = heap->gc_count();
-  auto last_scavenger_epoch =
-      heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::SCAVENGER);
+  auto last_epoch = heap->tracer()->CurrentEpoch();
   // 2. Fill the new space with FixedArrays.
   std::vector<Handle<FixedArray>> arrays;
   SimulateFullSpace(heap->new_space(), &arrays);
@@ -760,8 +759,7 @@ TEST_F(HeapTest, SemiSpaceNewSpaceGrowsDuringFullGCIncrementalMarking) {
   EXPECT_FALSE(allocation.IsFailure());
   // 5. Allocation should succeed without triggering a GC.
   EXPECT_EQ(gc_count, heap->gc_count());
-  EXPECT_EQ(last_scavenger_epoch,
-            heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::SCAVENGER));
+  EXPECT_EQ(last_epoch + 1, heap->tracer()->CurrentEpoch());
 }
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
