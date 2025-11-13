@@ -453,6 +453,7 @@ class ExceptionHandlerInfo;
   V(HandleNoHeapWritesInterrupt)              \
   V(ReduceInterruptBudgetForLoop)             \
   V(ReduceInterruptBudgetForReturn)           \
+  V(DeoptIfHole)                              \
   V(ThrowReferenceErrorIfHole)                \
   V(ThrowSuperNotCalledIfHole)                \
   V(ThrowSuperAlreadyCalledIfNotHole)         \
@@ -11970,6 +11971,23 @@ class ReduceInterruptBudgetForReturn
 
  private:
   const int amount_;
+};
+
+class DeoptIfHole : public FixedInputNodeT<1, DeoptIfHole> {
+  using Base = FixedInputNodeT<1, DeoptIfHole>;
+
+ public:
+  explicit DeoptIfHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input value() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
 };
 
 class ThrowReferenceErrorIfHole
