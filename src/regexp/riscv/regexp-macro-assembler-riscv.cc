@@ -132,10 +132,6 @@ void RegExpMacroAssemblerRISCV::AbortedCodeGeneration() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerRISCV::stack_limit_slack_slot_count() {
-  return RegExpStack::kStackLimitSlackSlotCount;
-}
-
 void RegExpMacroAssemblerRISCV::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     __ AddWord(current_input_offset(), current_input_offset(),

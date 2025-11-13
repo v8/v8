@@ -139,10 +139,6 @@ RegExpMacroAssemblerPPC::~RegExpMacroAssemblerPPC() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerPPC::stack_limit_slack_slot_count() {
-  return RegExpStack::kStackLimitSlackSlotCount;
-}
-
 void RegExpMacroAssemblerPPC::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     if (is_int16(by * char_size())) {

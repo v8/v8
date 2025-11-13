@@ -128,10 +128,6 @@ void RegExpMacroAssemblerARM::AbortedCodeGeneration() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerARM::stack_limit_slack_slot_count() {
-  return RegExpStack::kStackLimitSlackSlotCount;
-}
-
 void RegExpMacroAssemblerARM::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     __ add(current_input_offset(),

@@ -115,10 +115,6 @@ RegExpMacroAssemblerIA32::~RegExpMacroAssemblerIA32() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerIA32::stack_limit_slack_slot_count() {
-  return RegExpStack::kStackLimitSlackSlotCount;
-}
-
 void RegExpMacroAssemblerIA32::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     __ add(edi, Immediate(by * char_size()));

@@ -125,10 +125,6 @@ RegExpMacroAssemblerLOONG64::~RegExpMacroAssemblerLOONG64() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerLOONG64::stack_limit_slack_slot_count() {
-  return RegExpStack::kStackLimitSlackSlotCount;
-}
-
 void RegExpMacroAssemblerLOONG64::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     __ Add_d(current_input_offset(), current_input_offset(),

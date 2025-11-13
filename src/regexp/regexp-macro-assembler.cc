@@ -31,6 +31,10 @@ bool RegExpMacroAssembler::has_backtrack_limit() const {
   return backtrack_limit_ != JSRegExp::kNoBacktrackLimit;
 }
 
+int RegExpMacroAssembler::stack_limit_slack_slot_count() const {
+  return RegExpStack::kStackLimitSlackSlotCount;
+}
+
 bool RegExpMacroAssembler::CanReadUnaligned() const {
   return kUnalignedReadSupported && v8_flags.enable_regexp_unaligned_accesses &&
          !slow_safe();

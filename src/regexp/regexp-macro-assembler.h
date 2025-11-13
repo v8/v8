@@ -58,7 +58,7 @@ class RegExpMacroAssembler {
   // The maximal number of pushes between stack checks. Users must supply
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
   // at least once for every stack_limit() pushes that are executed.
-  virtual int stack_limit_slack_slot_count() = 0;
+  int stack_limit_slack_slot_count() const;
   bool CanReadUnaligned() const;
 
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.

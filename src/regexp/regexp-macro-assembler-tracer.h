@@ -18,9 +18,6 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
       std::unique_ptr<RegExpMacroAssembler>&& assembler);
   ~RegExpMacroAssemblerTracer() override;
   void AbortedCodeGeneration() override;
-  int stack_limit_slack_slot_count() override {
-    return assembler_->stack_limit_slack_slot_count();
-  }
   void AdvanceCurrentPosition(int by) override;    // Signed cp change.
   void AdvanceRegister(int reg, int by) override;  // r[reg] += by.
   void Backtrack() override;
