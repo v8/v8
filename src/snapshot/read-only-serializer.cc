@@ -88,7 +88,7 @@ class ObjectPreProcessor final {
 
   void PreProcessAccessorInfo(Tagged<AccessorInfo> o) {
     EncodeExternalPointerSlot(
-        o->RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset,
+        o->RawExternalPointerField(AccessorInfo::kGetterOffset,
                                    kAccessorInfoGetterTag),
         o->getter(isolate_));  // Pass the non-redirected value.
     EncodeExternalPointerSlot(o->RawExternalPointerField(
@@ -123,9 +123,8 @@ class ObjectPreProcessor final {
   }
   void PreProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     EncodeExternalPointerSlot(
-        o->RawExternalPointerField(
-            FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
-            kFunctionTemplateInfoCallbackTag),
+        o->RawExternalPointerField(FunctionTemplateInfo::kCallbackOffset,
+                                   kFunctionTemplateInfoCallbackTag),
         o->callback(isolate_));  // Pass the non-redirected value.
   }
 #if V8_ENABLE_GEARBOX

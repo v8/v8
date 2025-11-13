@@ -77,7 +77,7 @@ void FunctionTemplateInfo::set_relaxed_flag(int32_t flags) {
 }
 
 REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
-    FunctionTemplateInfo, callback, Address, kMaybeRedirectedCallbackOffset,
+    FunctionTemplateInfo, callback, Address, kCallbackOffset,
     kFunctionTemplateInfoCallbackTag, ExternalReference::DIRECT_API_CALL)
 
 void FunctionTemplateInfo::RemoveCallbackRedirectionForSerialization(

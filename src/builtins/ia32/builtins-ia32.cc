@@ -4443,8 +4443,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   if (mode == CallApiCallbackMode::kGeneric) {
     __ mov(api_function_address,
-           FieldOperand(func_templ,
-                        FunctionTemplateInfo::kMaybeRedirectedCallbackOffset));
+           FieldOperand(func_templ, FunctionTemplateInfo::kCallbackOffset));
   }
 
   __ PushReturnAddressFrom(argc);
@@ -4569,7 +4568,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register api_function_address = ReassignRegister(isolate_reg);
   __ RecordComment("Load function_address");
   __ mov(api_function_address,
-         FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
+         FieldOperand(callback, AccessorInfo::kGetterOffset));
 
   __ EnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>() + kApiArgc,
                     StackFrame::API_ACCESSOR_EXIT, api_function_address);

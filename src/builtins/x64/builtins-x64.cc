@@ -4577,8 +4577,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   if (mode == CallApiCallbackMode::kGeneric) {
     __ LoadExternalPointerField(
         api_function_address,
-        FieldOperand(func_templ,
-                     FunctionTemplateInfo::kMaybeRedirectedCallbackOffset),
+        FieldOperand(func_templ, FunctionTemplateInfo::kCallbackOffset),
         kFunctionTemplateInfoCallbackTag, kScratchRegister);
   }
 
@@ -4693,8 +4692,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   __ RecordComment("Load api_function_address");
   __ LoadExternalPointerField(
-      api_function_address,
-      FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset),
+      api_function_address, FieldOperand(callback, AccessorInfo::kGetterOffset),
       kAccessorInfoGetterTag, kScratchRegister);
 
   __ PushReturnAddressFrom(scratch);

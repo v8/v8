@@ -310,9 +310,9 @@ class ObjectPostProcessor final {
     DecodeExternalPointerSlot(
         o, o->RawExternalPointerField(AccessorInfo::kSetterOffset,
                                       kAccessorInfoSetterTag));
-    DecodeExternalPointerSlot(o, o->RawExternalPointerField(
-                                     AccessorInfo::kMaybeRedirectedGetterOffset,
-                                     kAccessorInfoGetterTag));
+    DecodeExternalPointerSlot(
+        o, o->RawExternalPointerField(AccessorInfo::kGetterOffset,
+                                      kAccessorInfoGetterTag));
     if (USE_SIMULATOR_BOOL) {
       o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
     }
@@ -341,9 +341,8 @@ class ObjectPostProcessor final {
   }
   void PostProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     DecodeExternalPointerSlot(
-        o, o->RawExternalPointerField(
-               FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
-               kFunctionTemplateInfoCallbackTag));
+        o, o->RawExternalPointerField(FunctionTemplateInfo::kCallbackOffset,
+                                      kFunctionTemplateInfoCallbackTag));
     if (USE_SIMULATOR_BOOL) {
       o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
     }

@@ -1084,9 +1084,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadFunctionTemplateInfoJsCallbackPtr(
       TNode<FunctionTemplateInfo> object) {
-    return LoadExternalPointerFromObject(
-        object, FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
-        kFunctionTemplateInfoCallbackTag);
+    return LoadExternalPointerFromObject(object,
+                                         FunctionTemplateInfo::kCallbackOffset,
+                                         kFunctionTemplateInfoCallbackTag);
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {

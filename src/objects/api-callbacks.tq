@@ -47,7 +47,7 @@ extern class AccessorInfo extends HeapObject {
   // For simulator builds this field contains the address of the trampoline
   // callable from generated code and for native builds - the address of
   // the getter C function.
-  maybe_redirected_getter: ExternalPointer;
+  getter: ExternalPointer;
   setter: ExternalPointer;
   flags: AccessorInfoFlags;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;

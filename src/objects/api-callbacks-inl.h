@@ -29,8 +29,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
 
 REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
-    AccessorInfo, getter, Address, kMaybeRedirectedGetterOffset,
-    kAccessorInfoGetterTag, ExternalReference::DIRECT_GETTER_CALL)
+    AccessorInfo, getter, Address, kGetterOffset, kAccessorInfoGetterTag,
+    ExternalReference::DIRECT_GETTER_CALL)
 
 EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo, setter, Address,
                                                 kSetterOffset,
