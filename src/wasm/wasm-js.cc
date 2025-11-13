@@ -316,7 +316,7 @@ class InstantiateModuleResultResolver
     if (context_.IsEmpty()) return;
     auto callback = reinterpret_cast<i::Isolate*>(isolate_)
                         ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
+    CHECK_NOT_NULL(callback);
     callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
              Utils::ToLocal(i::Cast<i::Object>(instance)),
              WasmAsyncSuccess::kSuccess);
@@ -324,11 +324,19 @@ class InstantiateModuleResultResolver
 
   void OnInstantiationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     if (context_.IsEmpty()) return;
-    auto callback = reinterpret_cast<i::Isolate*>(isolate_)
+    FailInstantiation(isolate_, context_.Get(isolate_),
+                      promise_resolver_.Get(isolate_),
+                      Utils::ToLocal(error_reason));
+  }
+
+  static void FailInstantiation(Isolate* isolate, Local<Context> context,
+                                Local<Promise::Resolver> promise_resolver,
+                                Local<Value> error) {
+    auto callback = reinterpret_cast<i::Isolate*>(isolate)
                         ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
-    callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(error_reason), WasmAsyncSuccess::kFail);
+    CHECK_NOT_NULL(callback);
+    callback(isolate, context, promise_resolver, error,
+             WasmAsyncSuccess::kFail);
   }
 
  private:
@@ -1034,8 +1042,8 @@ void WebAssemblyInstantiateStreaming(
 
   if (!ffi->IsUndefined() && !ffi->IsObject()) {
     thrower.TypeError("Argument 1 must be an object");
-    InstantiateModuleResultResolver resolver(isolate, context, result_resolver);
-    resolver.OnInstantiationFailed(thrower.Reify());
+    InstantiateModuleResultResolver::FailInstantiation(
+        isolate, context, result_resolver, Utils::ToLocal(thrower.Reify()));
     return;
   }
 
@@ -1044,6 +1052,19 @@ void WebAssemblyInstantiateStreaming(
           isolate, context, result_resolver, ffi);
   StartAsyncCompilationWithResolver(js_api_scope, info[0], info[2],
                                     std::move(compilation_resolver));
+}
+
+template <typename... Args>
+Local<FixedArray> MakeInternalFixedArray(i::Isolate* i_isolate, Args... args) {
+  i::DirectHandle<i::FixedArray> fixed_array =
+      i_isolate->factory()->NewFixedArray(sizeof...(args));
+  int index = 0;
+  auto add = [&](Local<Data> obj) {
+    fixed_array->set(index++, *Utils::OpenHandle(*obj));
+  };
+  (add(args), ...);
+  DCHECK_EQ(fixed_array->length(), index);
+  return Utils::FixedArrayToLocal(fixed_array);
 }
 
 // WebAssembly.instantiate(module, imports) -> WebAssembly.Instance
@@ -1058,15 +1079,14 @@ void WebAssemblyInstantiateImpl(
 
   Local<Context> context = isolate->GetCurrentContext();
 
-  Local<Promise::Resolver> promise_resolver;
-  if (!Promise::Resolver::New(context).ToLocal(&promise_resolver)) {
+  Local<Promise::Resolver> instantiation_promise_resolver;
+  if (!Promise::Resolver::New(context).ToLocal(
+          &instantiation_promise_resolver)) {
     return js_api_scope.AssertException();
   }
-  Local<Promise> promise = promise_resolver->GetPromise();
-  info.GetReturnValue().Set(promise);
-
-  std::unique_ptr<i::wasm::InstantiationResultResolver> resolver(
-      new InstantiateModuleResultResolver(isolate, context, promise_resolver));
+  Local<Promise> instantiation_promise =
+      instantiation_promise_resolver->GetPromise();
+  info.GetReturnValue().Set(instantiation_promise);
 
   Local<Value> first_arg_value = info[0];
   i::DirectHandle<i::Object> first_arg =
@@ -1074,7 +1094,9 @@ void WebAssemblyInstantiateImpl(
   if (!IsJSObject(*first_arg)) {
     thrower.TypeError(
         "Argument 0 must be a buffer source or a WebAssembly.Module object");
-    resolver->OnInstantiationFailed(thrower.Reify());
+    InstantiateModuleResultResolver::FailInstantiation(
+        isolate, context, instantiation_promise_resolver,
+        Utils::ToLocal(thrower.Reify()));
     return;
   }
 
@@ -1083,7 +1105,9 @@ void WebAssemblyInstantiateImpl(
 
   if (!ffi->IsUndefined() && !ffi->IsObject()) {
     thrower.TypeError("Argument 1 must be an object");
-    resolver->OnInstantiationFailed(thrower.Reify());
+    InstantiateModuleResultResolver::FailInstantiation(
+        isolate, context, instantiation_promise_resolver,
+        Utils::ToLocal(thrower.Reify()));
     return;
   }
 
@@ -1091,6 +1115,9 @@ void WebAssemblyInstantiateImpl(
     i::DirectHandle<i::WasmModuleObject> module_obj =
         i::Cast<i::WasmModuleObject>(first_arg);
 
+    std::unique_ptr<i::wasm::InstantiationResultResolver> resolver(
+        new InstantiateModuleResultResolver(isolate, context,
+                                            instantiation_promise_resolver));
     i::wasm::GetWasmEngine()->AsyncInstantiate(i_isolate, std::move(resolver),
                                                module_obj,
                                                ImportsAsMaybeReceiver(ffi));
@@ -1100,17 +1127,78 @@ void WebAssemblyInstantiateImpl(
   base::OwnedVector<const uint8_t> bytes = GetAndCopyFirstArgumentAsBytes(
       info, i::wasm::max_module_size(), &thrower);
   if (bytes.empty()) {
-    resolver->OnInstantiationFailed(thrower.Reify());
+    InstantiateModuleResultResolver::FailInstantiation(
+        isolate, context, instantiation_promise_resolver,
+        Utils::ToLocal(thrower.Reify()));
     return;
   }
 
-  // We start compilation now, we have no use for the
-  // {InstantiationResultResolver}.
-  resolver.reset();
+  // The first parameter is a buffer source. We start a compilation, and then
+  // chain the instantiation to that.
+  Local<Promise::Resolver> compilation_promise_resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&compilation_promise_resolver)) {
+    return js_api_scope.AssertException();
+  }
+  Local<Promise> compilation_promise =
+      compilation_promise_resolver->GetPromise();
+
+  auto InstantiateThenCallback =
+      [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        DCHECK_EQ(info.Length(), 1);
+        Isolate* isolate2 = info.GetIsolate();
+        HandleScope scope(isolate2);
+        Local<FixedArray> data = info.Data().As<FixedArray>();
+        DCHECK_EQ(3, data->Length());
+        Local<Context> context = data->Get(0).As<Context>();
+        Local<Promise::Resolver> promise_resolver =
+            data->Get(1).As<Value>().As<Promise::Resolver>();
+        Local<Value> imports = data->Get(2).As<Value>();
+
+        i::DirectHandle<i::WasmModuleObject> module_obj =
+            i::Cast<i::WasmModuleObject>(Utils::OpenDirectHandle(*info[0]));
+
+        i::wasm::GetWasmEngine()->AsyncInstantiate(
+            reinterpret_cast<i::Isolate*>(isolate2),
+            std::make_unique<InstantiateBytesResultResolver>(
+                isolate2, context, promise_resolver, info[0]),
+            module_obj, ImportsAsMaybeReceiver(imports));
+      };
+
+  Local<FixedArray> then_data = MakeInternalFixedArray(
+      i_isolate, context, instantiation_promise_resolver, ffi);
+  Local<Function> then_callback;
+  if (!Function::New(context, InstantiateThenCallback, then_data, 1)
+           .ToLocal(&then_callback)) {
+    return js_api_scope.AssertException();
+  }
+
+  auto RejectInstantiation =
+      [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        DCHECK_EQ(1, info.Length());
+        HandleScope scope(info.GetIsolate());
+        Local<Promise::Resolver> instantiation_promise_resolver =
+            info.Data().As<Promise::Resolver>();
+
+        instantiation_promise_resolver
+            ->Reject(info.GetIsolate()->GetCurrentContext(), info[0])
+            .ToChecked();
+      };
+
+  Local<Function> reject_callback;
+  if (!Function::New(context, RejectInstantiation,
+                     instantiation_promise_resolver, 1)
+           .ToLocal(&reject_callback)) {
+    return js_api_scope.AssertException();
+  }
+
+  if (compilation_promise->Then(context, then_callback, reject_callback)
+          .IsEmpty()) {
+    return js_api_scope.AssertException();
+  }
 
   std::shared_ptr<i::wasm::CompilationResultResolver> compilation_resolver(
-      new AsyncInstantiateCompileResultResolver(isolate, context,
-                                                promise_resolver, ffi));
+      new AsyncCompilationResolver(isolate, context,
+                                   compilation_promise_resolver));
 
   // The first parameter is a buffer source, we have to check if we are allowed
   // to compile it.
