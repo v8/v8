@@ -269,7 +269,7 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
   PROCESS_UNSAFE_CONV(HoleyFloat64ToSilencedFloat64, float64, Number)
   PROCESS_SAFE_CONV(ChangeInt32ToFloat64, float64, Number)
-  PROCESS_SAFE_CONV(ChangeInt32ToHoleyFloat64, float64, Number)
+  PROCESS_SAFE_CONV(ChangeInt32ToHoleyFloat64, holey_float64, Number)
 #undef PROCESS_SAFE_CONV
 #undef PROCESS_UNSAFE_CONV
 

@@ -638,14 +638,32 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                     bypassed_input, phi, input_index);
             break;
           }
+          case Opcode::kChangeInt32ToHoleyFloat64: {
+            new_input =
+                GetReplacementForPhiInputConversion<ChangeInt32ToHoleyFloat64>(
+                    bypassed_input, phi, input_index);
+            break;
+          }
           case Opcode::kChangeShiftedInt53ToFloat64: {
             new_input = GetReplacementForPhiInputConversion<
                 ChangeShiftedInt53ToFloat64>(bypassed_input, phi, input_index);
             break;
           }
+          case Opcode::kChangeShiftedInt53ToHoleyFloat64: {
+            new_input = GetReplacementForPhiInputConversion<
+                ChangeShiftedInt53ToHoleyFloat64>(bypassed_input, phi,
+                                                  input_index);
+            break;
+          }
           case Opcode::kChangeUint32ToFloat64: {
             new_input =
                 GetReplacementForPhiInputConversion<ChangeUint32ToFloat64>(
+                    bypassed_input, phi, input_index);
+            break;
+          }
+          case Opcode::kChangeUint32ToHoleyFloat64: {
+            new_input =
+                GetReplacementForPhiInputConversion<ChangeUint32ToHoleyFloat64>(
                     bypassed_input, phi, input_index);
             break;
           }
