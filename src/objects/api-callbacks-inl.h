@@ -28,54 +28,16 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
 
-EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo,
-                                                maybe_redirected_getter,
-                                                Address,
-                                                kMaybeRedirectedGetterOffset,
-                                                kAccessorInfoGetterTag)
+REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
+    AccessorInfo, getter, Address, kMaybeRedirectedGetterOffset,
+    kAccessorInfoGetterTag, ExternalReference::DIRECT_GETTER_CALL)
+
 EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo, setter, Address,
                                                 kSetterOffset,
                                                 kAccessorInfoSetterTag)
 
-Address AccessorInfo::getter(i::IsolateForSandbox isolate) const {
-  Address result = maybe_redirected_getter(isolate);
-  if (!USE_SIMULATOR_BOOL) return result;
-  if (result == kNullAddress) return kNullAddress;
-  return ExternalReference::UnwrapRedirection(result);
-}
-
-void AccessorInfo::init_getter(i::IsolateForSandbox isolate,
-                               Address initial_value) {
-  init_maybe_redirected_getter(isolate, initial_value);
-  if (USE_SIMULATOR_BOOL) {
-    init_getter_redirection(isolate);
-  }
-}
-
-void AccessorInfo::set_getter(i::IsolateForSandbox isolate, Address value) {
-  set_maybe_redirected_getter(isolate, value);
-  if (USE_SIMULATOR_BOOL) {
-    init_getter_redirection(isolate);
-  }
-}
-
-void AccessorInfo::init_getter_redirection(i::IsolateForSandbox isolate) {
-  CHECK(USE_SIMULATOR_BOOL);
-  Address value = maybe_redirected_getter(isolate);
-  if (value == kNullAddress) return;
-  value =
-      ExternalReference::Redirect(value, ExternalReference::DIRECT_GETTER_CALL);
-  set_maybe_redirected_getter(isolate, value);
-}
-
-void AccessorInfo::remove_getter_redirection(i::IsolateForSandbox isolate) {
-  CHECK(USE_SIMULATOR_BOOL);
-  Address value = getter(isolate);
-  set_maybe_redirected_getter(isolate, value);
-}
-
 bool AccessorInfo::has_getter(Isolate* isolate) {
-  return maybe_redirected_getter(isolate) != kNullAddress;
+  return getter(isolate) != kNullAddress;
 }
 
 bool AccessorInfo::has_setter(Isolate* isolate) {
@@ -104,6 +66,17 @@ void AccessorInfo::set_setter_side_effect_type(SideEffectType value) {
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
                     AccessorInfo::InitialAttributesBits)
 
+void AccessorInfo::RemoveCallbackRedirectionForSerialization(
+    IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  remove_getter_redirection(isolate);
+}
+void AccessorInfo::RestoreCallbackRedirectionAfterDeserialization(
+    IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  init_getter_redirection(isolate);
+}
+
 void AccessorInfo::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
   memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
@@ -125,10 +98,10 @@ INTERCEPTOR_INFO_HAS_GETTER(enumerator)
 
 #undef INTERCEPTOR_INFO_HAS_GETTER
 
-LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     InterceptorInfo, named_getter, Address, kGetterOffset,
-    kApiNamedPropertyGetterCallbackTag, is_named(),
-    is_named() && (value != kNullAddress))
+    kApiNamedPropertyGetterCallbackTag, ExternalReference::DIRECT_GETTER_CALL,
+    is_named(), is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     InterceptorInfo, named_setter, Address, kSetterOffset,
     kApiNamedPropertySetterCallbackTag, is_named(),
@@ -192,6 +165,21 @@ BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
 // TODO(ishell): remove once all the Api changes are done.
 BOOL_ACCESSORS(InterceptorInfo, flags, has_new_callbacks_signature,
                HasNewCallbacksSignatureBit::kShift)
+
+void InterceptorInfo::RemoveCallbackRedirectionForSerialization(
+    IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  if (is_named()) {
+    remove_named_getter_redirection(isolate);
+  }
+}
+void InterceptorInfo::RestoreCallbackRedirectionAfterDeserialization(
+    IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  if (is_named()) {
+    init_named_getter_redirection(isolate);
+  }
+}
 
 void InterceptorInfo::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;

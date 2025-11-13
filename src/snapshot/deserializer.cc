@@ -329,6 +329,7 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
       new_allocation_sites_(isolate),
       new_code_objects_(isolate),
       accessor_infos_(isolate),
+      interceptor_infos_(isolate),
       function_template_infos_(isolate),
       new_scripts_(isolate),
       new_descriptor_arrays_(isolate->heap()),
@@ -678,14 +679,15 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
       // partially initialized at this point.
       new_maps_.push_back(Cast<Map>(obj));
     }
-  } else if (InstanceTypeChecker::IsAccessorInfo(instance_type)) {
-#ifdef USE_SIMULATOR
+  } else if (USE_SIMULATOR_BOOL &&
+             InstanceTypeChecker::IsAccessorInfo(instance_type)) {
     accessor_infos_.push_back(Cast<AccessorInfo>(obj));
-#endif
-  } else if (InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
-#ifdef USE_SIMULATOR
+  } else if (USE_SIMULATOR_BOOL &&
+             InstanceTypeChecker::IsInterceptorInfo(instance_type)) {
+    interceptor_infos_.push_back(Cast<InterceptorInfo>(obj));
+  } else if (USE_SIMULATOR_BOOL &&
+             InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
     function_template_infos_.push_back(Cast<FunctionTemplateInfo>(obj));
-#endif
   } else if (InstanceTypeChecker::IsExternalString(instance_type)) {
     PostProcessExternalString(Cast<ExternalString>(raw_obj),
                               main_thread_isolate());

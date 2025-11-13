@@ -313,7 +313,9 @@ class ObjectPostProcessor final {
     DecodeExternalPointerSlot(o, o->RawExternalPointerField(
                                      AccessorInfo::kMaybeRedirectedGetterOffset,
                                      kAccessorInfoGetterTag));
-    if (USE_SIMULATOR_BOOL) o->init_getter_redirection(isolate_);
+    if (USE_SIMULATOR_BOOL) {
+      o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
+    }
   }
   void PostProcessInterceptorInfo(Tagged<InterceptorInfo> o) {
     const bool is_named = o->is_named();
@@ -327,6 +329,9 @@ class ObjectPostProcessor final {
 
     INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
 #undef PROCESS_FIELD
+    if (USE_SIMULATOR_BOOL) {
+      o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
+    }
   }
   void PostProcessJSExternalObject(Tagged<JSExternalObject> o) {
     DecodeExternalPointerSlot(
@@ -339,7 +344,9 @@ class ObjectPostProcessor final {
         o, o->RawExternalPointerField(
                FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
                kFunctionTemplateInfoCallbackTag));
-    if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
+    if (USE_SIMULATOR_BOOL) {
+      o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
+    }
   }
 
 #if V8_ENABLE_GEARBOX
