@@ -286,10 +286,6 @@ Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
   return handle(bytecode_array()->constant_pool()->get(index), isolate);
 }
 
-bool BytecodeArrayIterator::IsConstantAtIndexSmi(int index) const {
-  return IsSmi(bytecode_array()->constant_pool()->get(index));
-}
-
 Tagged<Smi> BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
   return Cast<Smi>(bytecode_array()->constant_pool()->get(index));
 }
@@ -380,30 +376,20 @@ JumpTableTargetOffsets::iterator JumpTableTargetOffsets::end() const {
   return iterator(case_value_base_ + table_size_, table_start_ + table_size_,
                   table_start_ + table_size_, iterator_);
 }
-int JumpTableTargetOffsets::size() const {
-  int ret = 0;
-  // TODO(leszeks): Is there a more efficient way of doing this than iterating?
-  for (JumpTableTargetOffset entry : *this) {
-    USE(entry);
-    ret++;
-  }
-  return ret;
-}
+int JumpTableTargetOffsets::size() const { return table_size_; }
 
 JumpTableTargetOffsets::iterator::iterator(
     int case_value, int table_offset, int table_end,
     const BytecodeArrayIterator* iterator)
     : iterator_(iterator),
-      current_(Smi::zero()),
       index_(case_value),
       table_offset_(table_offset),
-      table_end_(table_end) {
-  UpdateAndAdvanceToValid();
-}
+      table_end_(table_end) {}
 
 JumpTableTargetOffset JumpTableTargetOffsets::iterator::operator*() {
   DCHECK_LT(table_offset_, table_end_);
-  return {index_, iterator_->GetAbsoluteOffset(Smi::ToInt(current_))};
+  return {index_, iterator_->GetAbsoluteOffset(Smi::ToInt(
+                      iterator_->GetConstantAtIndexAsSmi(table_offset_)))};
 }
 
 JumpTableTargetOffsets::iterator&
@@ -411,7 +397,6 @@ JumpTableTargetOffsets::iterator::operator++() {
   DCHECK_LT(table_offset_, table_end_);
   ++table_offset_;
   ++index_;
-  UpdateAndAdvanceToValid();
   return *this;
 }
 
@@ -421,20 +406,6 @@ bool JumpTableTargetOffsets::iterator::operator!=(
   DCHECK_EQ(table_end_, other.table_end_);
   DCHECK_EQ(index_ - other.index_, table_offset_ - other.table_offset_);
   return index_ != other.index_;
-}
-
-void JumpTableTargetOffsets::iterator::UpdateAndAdvanceToValid() {
-  while (table_offset_ < table_end_ &&
-         !iterator_->IsConstantAtIndexSmi(table_offset_)) {
-    ++table_offset_;
-    ++index_;
-  }
-
-  // Make sure we haven't reached the end of the table with a hole in current.
-  if (table_offset_ < table_end_) {
-    DCHECK(iterator_->IsConstantAtIndexSmi(table_offset_));
-    current_ = iterator_->GetConstantAtIndexAsSmi(table_offset_);
-  }
 }
 
 }  // namespace interpreter
