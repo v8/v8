@@ -9826,8 +9826,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
   ValueNode* byte_length;
   GET_VALUE_OR_ABORT(byte_length, BuildLoadJSDataViewByteLength(receiver));
 
-  RETURN_IF_ABORT(AddNewNode<CheckJSDataViewBounds>(
-      {offset, byte_length}, ExternalArrayType::kExternalFloat64Array));
+  RETURN_IF_ABORT(
+      AddNewNode<CheckJSDataViewBounds>({offset, byte_length}, type));
 
   ValueNode* data_pointer;
   GET_VALUE_OR_ABORT(data_pointer, BuildLoadJSDataViewDataPointer(receiver));
