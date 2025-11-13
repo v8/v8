@@ -511,7 +511,8 @@ const kWasmOpcodes = {
   'Suspend': 0xe2,
   'Resume': 0xe3,
   'ResumeThrow': 0xe4,
-  'Switch': 0xe5
+  'ResumeThrowRef': 0xe5,
+  'Switch': 0xe6
 };
 
 function defineWasmOpcode(name, value) {
