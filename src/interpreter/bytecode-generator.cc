@@ -1739,6 +1739,10 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
 
   // Check that we are not falling off the end.
   DCHECK(builder()->RemainderOfBlockIsDead());
+
+  if (info()->literal()->CanSuspend()) {
+    BuildGeneratorEpilogue();
+  }
 }
 
 void BytecodeGenerator::GenerateBytecodeBody() {
@@ -2079,6 +2083,11 @@ void BytecodeGenerator::BuildGeneratorPrologue() {
   // Otherwise, fall-through to the ordinary function prologue, after which we
   // will run into the generator object creation and other extra code inserted
   // by the parser.
+}
+
+void BytecodeGenerator::BuildGeneratorEpilogue() {
+  builder()->TrimJumpTable(generator_jump_table_, suspend_count_);
+  CHECK_EQ(suspend_count_, generator_jump_table_->size());
 }
 
 void BytecodeGenerator::VisitBlock(Block* stmt) {

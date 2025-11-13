@@ -518,6 +518,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Allocates a new jump table of given |size| and |case_value_base| in the
   // constant pool.
   BytecodeJumpTable* AllocateJumpTable(int size, int case_value_base);
+  void TrimJumpTable(BytecodeJumpTable* jump_table, int size);
 
   BytecodeRegisterOptimizer* GetRegisterOptimizer() {
     return register_optimizer_;

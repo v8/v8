@@ -53,6 +53,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   void BindTryRegionEnd(HandlerTableBuilder* handler_table_builder,
                         int handler_id);
 
+  void PatchJumpTableSize(BytecodeJumpTable* jump_table, int new_size);
+
   void SetFunctionEntrySourcePosition(int position);
 
   template <typename IsolateT>

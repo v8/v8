@@ -1692,6 +1692,13 @@ BytecodeJumpTable* BytecodeArrayBuilder::AllocateJumpTable(
                                         case_value_base, zone());
 }
 
+void BytecodeArrayBuilder::TrimJumpTable(BytecodeJumpTable* jump_table,
+                                         int size) {
+  if (size == jump_table->size()) return;
+
+  bytecode_array_writer_.PatchJumpTableSize(jump_table, size);
+}
+
 size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {
   return constant_array_builder()->InsertDeferred();
 }

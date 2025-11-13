@@ -51,6 +51,8 @@ class V8_EXPORT_PRIVATE BytecodeJumpTable final : public ZoneObject {
     return constant_pool_index_ + case_value - case_value_base_;
   }
 
+  void set_size(int size) { size_ = size; }
+
  private:
   static const size_t kInvalidIndex = static_cast<size_t>(-1);
   static const size_t kInvalidOffset = static_cast<size_t>(-1);
