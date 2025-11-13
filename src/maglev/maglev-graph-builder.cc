@@ -11489,7 +11489,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
   } else {
     DCHECK(ref.IsHeapNumber());
     Float64 ref_value = Float64::FromBits(ref.AsHeapNumber().value_as_bits());
-    DCHECK(!ref_value.is_hole_nan());
 
     if (std::optional<Float64> cst = TryGetFloat64OrHoleyFloat64Constant(
             UseRepresentation::kFloat64, node,
