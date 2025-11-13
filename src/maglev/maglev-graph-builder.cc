@@ -12385,9 +12385,10 @@ enum class InlineArrayCtorVariant {
   kMultipleArgs,
 };
 
-compiler::OptionalMapRef GetArrayConstructorInitialMap(
-    compiler::JSHeapBroker* broker, compiler::JSFunctionRef target,
-    compiler::JSFunctionRef new_target) {
+// See also: JSFunction::GetDerivedMap.
+compiler::OptionalMapRef TryGetDerivedMap(compiler::JSHeapBroker* broker,
+                                          compiler::JSFunctionRef target,
+                                          compiler::JSFunctionRef new_target) {
   if (!new_target.map(broker).has_prototype_slot() ||
       !new_target.has_initial_map(broker)) {
     return {};
@@ -12474,8 +12475,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
   compiler::JSFunctionRef new_target_function =
       new_target_constant->AsJSFunction();
 
-  compiler::OptionalMapRef maybe_initial_map = GetArrayConstructorInitialMap(
-      broker(), target_function, new_target_function);
+  compiler::OptionalMapRef maybe_initial_map =
+      TryGetDerivedMap(broker(), target_function, new_target_function);
   if (!maybe_initial_map.has_value()) return {};
   ElementsKind elements_kind = maybe_allocation_site.has_value()
                                    ? maybe_allocation_site->GetElementsKind()
@@ -12692,9 +12693,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
     compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(target_constant, TryGetConstant(target).value());
 
-  // TODO(jgruber): Implement.
-  if (target != new_target) return {};
-
   int construct_arg_count = static_cast<int>(args.count());
   base::Vector<ValueNode*> construct_arguments_without_receiver =
       zone()->AllocateVector<ValueNode*>(construct_arg_count);
@@ -12726,17 +12724,26 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
     return AddNewNode<CheckDerivedConstructResult>({call_result});
   }
 
+  compiler::OptionalHeapObjectRef new_target_constant =
+      TryGetConstant(new_target);
+
   // We do not create a construct stub lazy deopt frame, since
   // FastNewObject cannot fail if target is a JSFunction.
   ValueNode* implicit_receiver = nullptr;
-  if (target_constant.has_initial_map(broker())) {
-    compiler::MapRef map = target_constant.initial_map(broker());
-    if (map.GetConstructor(broker()).equals(target_constant)) {
+  if (new_target_constant.has_value() && new_target_constant->IsJSFunction()) {
+    compiler::JSFunctionRef new_target_function =
+        new_target_constant->AsJSFunction();
+    if (compiler::OptionalMapRef map =
+            TryGetDerivedMap(broker(), target_constant, new_target_function)) {
       implicit_receiver = BuildInlinedAllocation(
-          CreateJSConstructor(target_constant), AllocationType::kYoung);
+          CreateJSConstructor(new_target_function), AllocationType::kYoung);
     }
   }
   if (implicit_receiver == nullptr) {
+    // TODO(jgruber): Support ConstructStubCreate for deoptimizing during
+    // object construction; for these cases, we have to resume before the
+    // `target` call.
+    if (target != new_target) return {};
     implicit_receiver =
         BuildCallBuiltinWithTaggedInputs<Builtin::kFastNewObject>(
             {target, new_target});
