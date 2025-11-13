@@ -416,10 +416,31 @@ class Range {
   int64_t max_;
 };
 
+class LessEqualConstraint {
+ public:
+  LessEqualConstraint(ValueNode* lhs, ValueNode* rhs)
+      : lhs_(lhs), rhs_(rhs), next_(nullptr) {}
+
+  bool is(ValueNode* lhs, ValueNode* rhs) { return lhs_ == lhs && rhs_ == rhs; }
+
+  using List = base::ThreadedList<LessEqualConstraint>;
+
+ private:
+  ValueNode* lhs_;
+  ValueNode* rhs_;
+  LessEqualConstraint* next_;
+
+  LessEqualConstraint** next() { return &next_; }
+  friend List;
+  friend base::ThreadedListTraits<LessEqualConstraint>;
+};
+
 class NodeRanges {
  public:
   explicit NodeRanges(Graph* graph)
-      : graph_(graph), ranges_(graph->max_block_id(), graph->zone()) {}
+      : graph_(graph),
+        ranges_(graph->max_block_id(), graph->zone()),
+        less_equals_(graph->max_block_id(), graph->zone()) {}
 
   Range Get(BasicBlock* block, ValueNode* node) {
     auto*& map = ranges_[block->id()];
@@ -514,10 +535,28 @@ class NodeRanges {
     }
   }
 
+  void AddLessEqualConstraint(BasicBlock* block, ValueNode* lhs,
+                              ValueNode* rhs) {
+    less_equals_[block->id()].Add(zone()->New<LessEqualConstraint>(lhs, rhs));
+  }
+
+  bool IsLessEqualConstraint(BasicBlock* block, ValueNode* lhs,
+                             ValueNode* rhs) {
+    for (LessEqualConstraint* constraint : less_equals_[block->id()]) {
+      if (constraint->is(lhs, rhs)) return true;
+    }
+    return false;
+  }
+
  private:
   Graph* graph_;
   // TODO(victorgomes): Use SnapshotTable.
   ZoneVector<ZoneMap<ValueNode*, Range>*> ranges_;
+
+  // This is a very naive way to avoid CheckInt32Condition after a
+  // BranchIfInt32Compare(LessThan).
+  ZoneVector<LessEqualConstraint::List> less_equals_;
+
   Zone* zone() const { return graph_->zone(); }
 
   static bool SameRangeAsFirstInput(Opcode opcode) {
@@ -733,6 +772,9 @@ class RangeProcessor {
         break;
       default:
         UNREACHABLE();
+    }
+    if (node->operation() == Operation::kLessThan && node->if_true() == succ) {
+      ranges_.AddLessEqualConstraint(succ, lhs, rhs);
     }
   }
 

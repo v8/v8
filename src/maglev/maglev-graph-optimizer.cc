@@ -102,6 +102,11 @@ std::optional<Range> MaglevGraphOptimizer::GetRange(ValueNode* node) {
   return ranges_->Get(reducer_.current_block(), node);
 }
 
+bool MaglevGraphOptimizer::IsRangeLessEqual(ValueNode* lhs, ValueNode* rhs) {
+  if (!ranges_) return false;
+  return ranges_->IsLessEqualConstraint(reducer_.current_block(), lhs, rhs);
+}
+
 ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   // If current node is not a value node, we shouldn't try to replace it.
   CHECK(current_node()->Cast<ValueNode>());
@@ -399,10 +404,14 @@ ProcessResult MaglevGraphOptimizer::VisitCheckInt32Condition(
     CheckInt32Condition* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   if (node->condition() == AssertCondition::kUnsignedLessThan) {
-    auto r1 = GetRange(node->input_node(0));
-    auto r2 = GetRange(node->input_node(1));
-    if (r1 && r2 && r1->IsUint32() && *r1 < *r2) {
-      return ProcessResult::kRemove;
+    ValueNode* lhs = node->input_node(0);
+    ValueNode* rhs = node->input_node(1);
+    auto r1 = GetRange(lhs);
+    auto r2 = GetRange(rhs);
+    if (r1 && r2 && r1->IsUint32()) {
+      if (*r1 < *r2 || IsRangeLessEqual(lhs, rhs)) {
+        return ProcessResult::kRemove;
+      }
     }
   }
   return ProcessResult::kContinue;
