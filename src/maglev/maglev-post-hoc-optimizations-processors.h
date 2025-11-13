@@ -347,16 +347,9 @@ class AnyUseMarkingProcessor {
     return ProcessResult::kContinue;
   }
 
-#ifdef DEBUG
   ProcessResult Process(Dead* node, const ProcessingState& state) {
-    if (!v8_flags.maglev_untagged_phis) {
-      // These nodes are removed in the phi representation selector, if we are
-      // running without it. Just remove it here.
-      return ProcessResult::kRemove;
-    }
-    UNREACHABLE();
+    return ProcessResult::kRemove;
   }
-#endif  // DEBUG
 
   void PostProcessGraph(Graph* graph) {
     RunEscapeAnalysis(graph);
