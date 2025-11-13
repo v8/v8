@@ -154,9 +154,9 @@
 ##############################################################################
 # The output for Turbolev wrapper inlining tests can be different with these
 # variants.
-['variant in (stress_concurrent_inlining, stress_incremental_marking, stress_concurrent_allocation)', {
+['variant in (stress_concurrent_inlining, stress_incremental_marking, stress_concurrent_allocation, stress_js_bg_compile_wasm_code_gc)', {
   'js-wasm-wrapper-inlining-turbolev*': [SKIP],
-}],  # variant in (stress_concurrent_inlining, stress_incremental_marking, stress_concurrent_allocation)
+}],  # variant in (stress_concurrent_inlining, stress_incremental_marking, stress_concurrent_allocation, stress_js_bg_compile_wasm_code_gc)
 
 ##############################################################################
 # Tests that require optimizing compilers.
