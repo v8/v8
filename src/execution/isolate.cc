@@ -652,19 +652,17 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Iterate over pointers on native execution stack.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
 
+  // The vector contains at least the active Wasm/JS stack:
+  DCHECK_GE(wasm_stacks_.size(), 1);
   for (const std::unique_ptr<wasm::StackMemory>& stack : wasm_stacks_) {
-    if (stack->IsActive()) {
-      continue;
-    }
-    stack->Iterate(v, this);
+    stack->Iterate(v, this, thread);
   }
-  StackFrameIterator it(this, thread, StackFrameIterator::FirstStackOnly{});
 #else
   StackFrameIterator it(this, thread);
-#endif
   for (; !it.done(); it.Advance()) {
     it.frame()->Iterate(v);
   }
+#endif
 }
 
 void Isolate::Iterate(RootVisitor* v) {
@@ -5853,6 +5851,16 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->AddIsolate(this);
+  // Initialize the central stack for JSPI/WasmFX:
+  wasm::StackMemory* stack(wasm::StackMemory::GetCentralStackView(this));
+  stack->jmpbuf()->state = wasm::JumpBuffer::Active;
+  this->wasm_stacks().emplace_back(stack);
+  stack->set_index(0);
+  isolate_data_.set_active_stack(wasm_stacks()[0].get());
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Set up central stack object (limit: %p, base: %p)\n",
+           stack->jslimit(), reinterpret_cast<void*>(stack->base()));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
@@ -6624,24 +6632,16 @@ void Isolate::FireCallCompletedCallbackInternal(
 void Isolate::WasmInitJSPIFeature() {
   if (v8_flags.wasm_jitless) return;
 
-  if (isolate_data_.active_stack() == nullptr) {
-    // Add a sentinel active stack and active suspender object to represent the
-    // initial stack. This ensures that other stacks/suspenders created via
-    // WasmFX/JSPI always have a parent to suspend to.
-    wasm::StackMemory* stack(wasm::StackMemory::GetCentralStackView(this));
-    stack->jmpbuf()->state = wasm::JumpBuffer::Active;
-    this->wasm_stacks().emplace_back(stack);
-    stack->set_index(0);
-    if (v8_flags.trace_wasm_stack_switching) {
-      PrintF("Set up native stack object (limit: %p, base: %p)\n",
-             stack->jslimit(), reinterpret_cast<void*>(stack->base()));
-    }
+  if (isolate_data_.active_suspender().is_null()) {
+    DCHECK_EQ(wasm_stacks().size(), 1);
+    // Add a sentinel active suspender object to represent the
+    // initial stack. This ensures that other suspenders created via
+    // JSPI always have a parent to suspend to.
     HandleScope scope(this);
     DirectHandle<WasmSuspenderObject> suspender =
         factory()->NewWasmSuspenderObject();
-    suspender->set_stack(this, stack);
+    suspender->set_stack(this, wasm_stacks()[0].get());
     isolate_data_.set_active_suspender(*suspender);
-    isolate_data_.set_active_stack(stack);
   }
 }
 #endif

@@ -2488,6 +2488,7 @@
   'regress/wasm/regress-v8-14471': [SKIP],
   'regress/wasm/regress-346597059': [SKIP],
   'regress/wasm/regress-349640002': [SKIP],
+  'regress/wasm/regress-455832038': [SKIP],
   'compiler/regress-347724915': [SKIP],
   'regress/regress-crbug-418520151': [SKIP],
 
