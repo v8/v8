@@ -993,6 +993,12 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
     ValueNode* value, UseRepresentation use_rep, NodeType allowed_input_type) {
+#ifdef DEBUG
+  auto ReachingTypeAllows = [allowed_input_type](NodeType t) {
+    return NodeTypeIsNone(allowed_input_type) ||
+           NodeTypeIs(t, allowed_input_type);
+  };
+#endif
   DCHECK(use_rep == UseRepresentation::kFloat64 ||
          use_rep == UseRepresentation::kHoleyFloat64);
   ValueRepresentation representation =
@@ -1024,10 +1030,21 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
   auto& alternative = node_info->alternative();
 
   if (use_rep == UseRepresentation::kHoleyFloat64) {
-    DCHECK(allowed_input_type == NodeType::kNumberOrUndefined ||
-           allowed_input_type == NodeType::kNumberOrOddball);
+    // When we want to use the `holey_float64` alternative, we need to make sure
+    // that this doesn't contain any values that are not outside of
+    // `allowed_input_type`. We do only set this alternative (see below) when
+    // this is a (reversible) conversion, which means that it can only represent
+    // numbers and undefined. So for us to use this alternative here, the
+    // `allowed_input_type` must at least allow those, too. If we ever decide to
+    // allow more narrow types (e.g. kSmi) we need to explicitly check for that
+    // range, because the `holey_float64` alternative can contain values outside
+    // of smi range.
     if (ValueNode* alt_hf64 = alternative.holey_float64()) {
-      return alt_hf64;
+      if (NodeTypeIs(
+              IntersectType(NodeType::kNumberOrUndefined, node_info->type()),
+              allowed_input_type)) {
+        return alt_hf64;
+      }
     }
   } else {
     if (ValueNode* alt_f64 = alternative.float64()) {
@@ -1079,6 +1096,9 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       ValueNode* float64 =
           AddNewNodeNoInputConversion<ChangeInt32ToFloat64>({value});
       if (use_rep == UseRepresentation::kHoleyFloat64) {
+        // We only set the holey_float64 alternative if all feasible values are
+        // allowed according to `allowed_input_type`.
+        DCHECK(ReachingTypeAllows(NodeType::kNumber));
         return alternative.set_holey_float64(
             AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
                 {float64}));
@@ -1089,6 +1109,9 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       ValueNode* float64 =
           AddNewNodeNoInputConversion<ChangeUint32ToFloat64>({value});
       if (use_rep == UseRepresentation::kHoleyFloat64) {
+        // We only set the holey_float64 alternative if all feasible values are
+        // allowed according to `allowed_input_type`.
+        DCHECK(ReachingTypeAllows(NodeType::kNumber));
         return alternative.set_holey_float64(
             AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
                 {float64}));
@@ -1097,6 +1120,9 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
     }
     case ValueRepresentation::kFloat64:
       DCHECK_EQ(use_rep, UseRepresentation::kHoleyFloat64);
+      // We only set the holey_float64 alternative if all feasible values are
+      // allowed according to `allowed_input_type`.
+      DCHECK(ReachingTypeAllows(NodeType::kNumber));
       return alternative.set_holey_float64(
           AddNewNodeNoInputConversion<ChangeFloat64ToHoleyFloat64>({value}));
     case ValueRepresentation::kHoleyFloat64: {
@@ -1130,6 +1156,9 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       ValueNode* float64 =
           AddNewNodeNoInputConversion<ChangeIntPtrToFloat64>({value});
       if (use_rep == UseRepresentation::kHoleyFloat64) {
+        // We only set the holey_float64 alternative if all feasible values are
+        // allowed according to `allowed_input_type`.
+        DCHECK(ReachingTypeAllows(NodeType::kNumber));
         return alternative.set_holey_float64(
             AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
                 {float64}));
