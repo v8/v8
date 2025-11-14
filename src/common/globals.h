@@ -1660,7 +1660,6 @@ enum class CodeFlushMode {
 };
 
 enum class ExternalBackingStoreType {
-  kArrayBuffer,
   kExternalString,
   kNumValues
 };

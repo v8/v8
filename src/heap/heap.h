@@ -756,9 +756,6 @@ class Heap final {
   V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
   uint64_t UpdateExternalMemory(int64_t delta);
 
-  V8_EXPORT_PRIVATE size_t YoungArrayBufferBytes();
-  V8_EXPORT_PRIVATE size_t OldArrayBufferBytes();
-
   uint64_t backing_store_bytes() const {
     return backing_store_bytes_.load(std::memory_order_relaxed);
   }

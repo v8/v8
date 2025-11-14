@@ -614,17 +614,8 @@ void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
 
   ForAll<ExternalBackingStoreType>(
       [this, external_space_bytes](ExternalBackingStoreType type, int index) {
-        if (type == ExternalBackingStoreType::kArrayBuffer) {
-          return;
-        }
         CHECK_EQ(external_space_bytes[index], ExternalBackingStoreBytes(type));
       });
-
-  if (!v8_flags.concurrent_array_buffer_sweeping) {
-    size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
-    CHECK_EQ(bytes,
-             ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
-  }
 }
 #endif  // VERIFY_HEAP
 

@@ -36,8 +36,6 @@ size_t ArrayBufferList::Append(ArrayBufferExtension* extension) {
       return extension->SetYoung().accounting_length();
     }
   }();
-  DCHECK_GE(bytes_ + accounting_length, bytes_);
-  bytes_ += accounting_length;
   extension->set_next(nullptr);
   return accounting_length;
 }
@@ -57,7 +55,6 @@ void ArrayBufferList::Append(ArrayBufferList& list) {
     DCHECK_NULL(list.tail_);
   }
 
-  bytes_ += list.ApproximateBytes();
   list = ArrayBufferList(age_);
 }
 
@@ -76,13 +73,11 @@ size_t ArrayBufferList::BytesSlow() const {
     sum += current->accounting_length();
     current = current->next();
   }
-  DCHECK_GE(sum, ApproximateBytes());
   return sum;
 }
 
 bool ArrayBufferList::IsEmpty() const {
   DCHECK_IMPLIES(head_, tail_);
-  DCHECK_IMPLIES(!head_, bytes_ == 0);
   return head_ == nullptr;
 }
 
@@ -103,27 +98,8 @@ class ArrayBufferSweeper::SweepingState final {
   }
 
   void MergeTo(ArrayBufferSweeper* sweeper) {
-    // the worker may see a difference between `young/old_bytes_accounted_` and
-    // `initial_young/old_bytes_` due to concurrent main thread adjustments
-    // (resizing).
-    sweeper->young_bytes_adjustment_while_sweeping_ +=
-        initial_young_bytes_ - young_bytes_accounted_;
-    sweeper->old_bytes_adjustment_while_sweeping_ +=
-        initial_old_bytes_ - old_bytes_accounted_;
-    DCHECK_GE(new_young_.bytes_ +
-                  sweeper->young_bytes_adjustment_while_sweeping_ +
-                  sweeper->young_.bytes_,
-              0);
-    DCHECK_GE(new_old_.bytes_ + sweeper->old_bytes_adjustment_while_sweeping_ +
-                  sweeper->old_.bytes_,
-              0);
     sweeper->young_.Append(new_young_);
     sweeper->old_.Append(new_old_);
-    // Apply pending adjustments from resizing and detaching.
-    sweeper->young_.bytes_ +=
-        std::exchange(sweeper->young_bytes_adjustment_while_sweeping_, 0);
-    sweeper->old_.bytes_ +=
-        std::exchange(sweeper->old_bytes_adjustment_while_sweeping_, 0);
     sweeper->DecrementExternalMemoryCounters(freed_bytes_);
   }
 
@@ -140,8 +116,6 @@ class ArrayBufferSweeper::SweepingState final {
   ArrayBufferList new_young_{ArrayBufferList::Age::kYoung};
   ArrayBufferList new_old_{ArrayBufferList::Age::kOld};
   size_t freed_bytes_{0};
-  const uint64_t initial_young_bytes_{0};
-  const uint64_t initial_old_bytes_{0};
   // Track bytes accounted bytes during sweeping, including freed and promoted
   // bytes. This is used to compute adjustment when sweeping finishes.
   uint64_t young_bytes_accounted_{0};
@@ -240,9 +214,7 @@ ArrayBufferSweeper::SweepingState::SweepingState(
     ArrayBufferSweeper::SweepingType type,
     ArrayBufferSweeper::TreatAllYoungAsPromoted treat_all_young_as_promoted,
     uint64_t trace_id)
-    : initial_young_bytes_(young.bytes_),
-      initial_old_bytes_(old.bytes_),
-      job_handle_(V8::GetCurrentPlatform()->CreateJob(
+    : job_handle_(V8::GetCurrentPlatform()->CreateJob(
           TaskPriority::kUserVisible,
           std::make_unique<SweepingJob>(
               heap, *this, std::move(young), std::move(old), type,
@@ -372,9 +344,7 @@ void ArrayBufferSweeper::Resize(ArrayBufferExtension* extension,
                                 int64_t delta) {
   FinishIfDone();
 
-  const ArrayBufferExtension::AccountingState previous_value =
-      extension->UpdateAccountingLength(delta);
-  UpdateApproximateBytes(delta, previous_value.age());
+  extension->UpdateAccountingLength(delta);
   if (delta > 0) {
     IncrementExternalMemoryCounters(delta);
   } else {
@@ -393,44 +363,17 @@ void ArrayBufferSweeper::Detach(ArrayBufferExtension* extension) {
   // We cannot free the extension eagerly here, since extensions are tracked in
   // a singly linked list. The next GC will remove it automatically.
 
-  UpdateApproximateBytes(-previous_value.accounting_length(),
-                         previous_value.age());
   DecrementExternalMemoryCounters(previous_value.accounting_length());
-}
-
-void ArrayBufferSweeper::UpdateApproximateBytes(int64_t delta,
-                                                ArrayBufferExtension::Age age) {
-  switch (age) {
-    case ArrayBufferExtension::Age::kYoung:
-      if (!sweeping_in_progress()) {
-        DCHECK_GE(young_.bytes_, -delta);
-        young_.bytes_ += delta;
-      } else {
-        young_bytes_adjustment_while_sweeping_ += delta;
-      }
-      break;
-    case ArrayBufferExtension::Age::kOld:
-      if (!sweeping_in_progress()) {
-        DCHECK_GE(old_.bytes_, -delta);
-        old_.bytes_ += delta;
-      } else {
-        old_bytes_adjustment_while_sweeping_ += delta;
-      }
-  }
 }
 
 void ArrayBufferSweeper::IncrementExternalMemoryCounters(size_t bytes) {
   if (bytes == 0) return;
-  heap_->IncrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kArrayBuffer, bytes);
   external_memory_accounter_.Increase(
       reinterpret_cast<v8::Isolate*>(heap_->isolate()), bytes);
 }
 
 void ArrayBufferSweeper::DecrementExternalMemoryCounters(size_t bytes) {
   if (bytes == 0) return;
-  heap_->DecrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kArrayBuffer, bytes);
   external_memory_accounter_.Decrease(
       reinterpret_cast<v8::Isolate*>(heap_->isolate()), bytes);
 }
@@ -564,6 +507,10 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
 
 uint64_t ArrayBufferSweeper::GetTraceIdForFlowEvent() const {
   return reinterpret_cast<uint64_t>(this) ^ heap_->tracer()->CurrentEpoch();
+}
+
+size_t ArrayBufferSweeper::BytesForTesting() const {
+  return young().BytesSlow() + old().BytesSlow();
 }
 
 }  // namespace internal
