@@ -170,7 +170,7 @@ class V8_EXPORT WasmStreaming final {
    * If {can_use_compiled_module} is false, the compiled module bytes previously
    * set by {SetCompiledModuleBytes} should not be used.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use the new variant of Finish which takes the caching callback argument")
   void Finish(bool can_use_compiled_module = true) {
     ModuleCachingCallback callback;
@@ -211,7 +211,7 @@ class V8_EXPORT WasmStreaming final {
    * The compiled module bytes should not be used until {Finish(true)} is
    * called, because they can be invalidated later by {Finish(false)}.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use SetHasCompiledModule in combination with the new variant of Finish")
   bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
     SetHasCompiledModuleBytes();
