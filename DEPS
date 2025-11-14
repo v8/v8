@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f41a2ead7b78dece6a620f391222879526433d2c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c35dba03f06c808644393916f1b9e46fe535ffdd',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
