@@ -200,7 +200,12 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
   Handle<String> string = args.at<String>(0);
   DirectHandle<String> internalized =
       isolate->factory()->InternalizeString(string);
-  CHECK(IsInternalizedString(*string));
+  // The argument was either already an internalized string or it is now a thin
+  // string to an internalized string.
+  CHECK(IsInternalizedString(*string) ||
+        (IsThinString(*string) &&
+         IsInternalizedString(Cast<ThinString>(*string)->actual())));
+  CHECK(IsInternalizedString(*internalized));
   return *internalized;
 }
 
