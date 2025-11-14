@@ -236,8 +236,6 @@
       'V8 Linux - ppc64 - sim - builder': 'release_simulate_ppc64',
       'V8 Linux - s390x - sim - builder': 'release_simulate_s390x',
       # RISC-V
-      'V8 Linux - riscv32 - sim - debug builder': 'debug_simulate_riscv32',
-      'V8 Linux - riscv32 - sim - builder': 'release_simulate_riscv32',
       'V8 Linux - riscv64 - sim - debug builder': 'debug_simulate_riscv64',
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
       'V8 Linux - riscv64 - sim - pointer compression - builder': 'release_simulate_riscv64_pointer_compression',
@@ -314,8 +312,6 @@
       'v8_linux64_loong64_compile_rel': 'release_simulate_loong64',
       'v8_linux64_lower_limits_compile_rel': 'release_x64_lower_limits',
       'v8_linux64_msan_compile_rel': 'release_simulate_arm64_msan_minimal_symbols',
-      'v8_linux_riscv32_compile_dbg': 'debug_simulate_riscv32',
-      'v8_linux_riscv32_compile_rel': 'release_simulate_riscv32',
       'v8_linux64_riscv64_compile_dbg': 'debug_simulate_riscv64',
       'v8_linux64_riscv64_compile_rel': 'release_simulate_riscv64',
       'v8_linux64_riscv64_pointer_compression_compile_rel': 'release_simulate_riscv64_pointer_compression',
@@ -468,8 +464,6 @@
     'debug_simulate_arm64_asan_undefined_double': [
       'debug_bot', 'simulate_arm64', 'asan', 'lsan',
       'v8_enable_undefined_double'],
-    'debug_simulate_riscv32': [
-      'debug_bot', 'simulate_riscv32'],
     'debug_simulate_riscv64': [
       'debug_bot', 'simulate_riscv64'],
 
@@ -506,8 +500,6 @@
       'release_bot', 'simulate_mips64el'],
     'release_simulate_ppc64': [
       'release_bot', 'simulate_ppc64'],
-    'release_simulate_riscv32': [
-      'release_bot', 'simulate_riscv32'],
     'release_simulate_riscv64': [
       'release_bot', 'simulate_riscv64'],
     'release_simulate_riscv64_pointer_compression': [
@@ -1032,10 +1024,6 @@
 
     'simulate_ppc64': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="ppc64"',
-    },
-
-    'simulate_riscv32': {
-      'gn_args': 'target_cpu="x86" v8_target_cpu="riscv32"',
     },
 
     'simulate_riscv64': {
