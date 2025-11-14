@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '37d717b2583271f64d41d2e09e560bd7baae4c5e',
+  'partition_alloc_version': '1551e3ebf56ad234661c79a5e9d2dbe94988e744',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bc4f003a0fe2e0cd03879ec01a829b3de018d2b6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f49721d766632f74809159028b10f48464a8f7c8',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'af886cc8509201242e51417a3e5bb89aaae9138f',
   'buildtools/linux64': {
@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c35dba03f06c808644393916f1b9e46fe535ffdd',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fbc29ad44b7e733f628af27c74c79c3bfa3bc7dd',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '11b0e6b80543472bfc88eaeae478744f317a0d32',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ccd4d2f3454b899d21cd928b191ee7871063cc19',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'c0591eeb3c5c4aeac32377afcf272165cb090b76',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'c08c3a579700fee9f0ec487d868adaf20b8d7cd9',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
