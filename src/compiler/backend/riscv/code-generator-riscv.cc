@@ -505,7 +505,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
 #define ASSEMBLE_ATOMIC_BINOP(load_linked, store_conditional, bin_instr)       \
   do {                                                                         \
     Label binop;                                                               \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     __ sync();                                                                 \
     __ bind(&binop);                                                           \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
@@ -517,31 +517,31 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
     __ sync();                                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(bin_instr, external)  \
-  do {                                                      \
-    FrameScope scope(masm(), StackFrame::MANUAL);           \
-    __ AddWord(a0, i.InputRegister(0), i.InputRegister(1)); \
-    __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);    \
-    __ PrepareCallCFunction(3, 0, kScratchReg);             \
-    __ CallCFunction(ExternalReference::external(), 3, 0);  \
-    __ PopCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);     \
+#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(bin_instr, external) \
+  do {                                                     \
+    FrameScope scope(masm(), StackFrame::MANUAL);          \
+    __ AddWord(a0, i.InputRegister(0), i.InputOperand(1)); \
+    __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);   \
+    __ PrepareCallCFunction(3, 0, kScratchReg);            \
+    __ CallCFunction(ExternalReference::external(), 3, 0); \
+    __ PopCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);    \
   } while (0)
 
-#define ASSEMBLE_ATOMIC64_ARITH_BINOP(bin_instr, external)  \
-  do {                                                      \
-    FrameScope scope(masm(), StackFrame::MANUAL);           \
-    __ AddWord(a0, i.InputRegister(0), i.InputRegister(1)); \
-    __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);    \
-    __ PrepareCallCFunction(3, 0, kScratchReg);             \
-    __ CallCFunction(ExternalReference::external(), 3, 0);  \
-    __ PopCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);     \
+#define ASSEMBLE_ATOMIC64_ARITH_BINOP(bin_instr, external) \
+  do {                                                     \
+    FrameScope scope(masm(), StackFrame::MANUAL);          \
+    __ AddWord(a0, i.InputRegister(0), i.InputOperand(1)); \
+    __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);   \
+    __ PrepareCallCFunction(3, 0, kScratchReg);            \
+    __ CallCFunction(ExternalReference::external(), 3, 0); \
+    __ PopCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);    \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP_EXT(load_linked, store_conditional, sign_extend, \
                                   size, bin_instr, representation)             \
   do {                                                                         \
     Label binop;                                                               \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     if (representation == 32) {                                                \
       __ And(i.TempRegister(3), i.TempRegister(0), 0x3);                       \
     } else {                                                                   \
@@ -571,7 +571,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
     Label exchange;                                                            \
     __ sync();                                                                 \
     __ bind(&exchange);                                                        \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
                    trapper);                                                   \
     __ Move(i.TempRegister(1), i.InputRegister(2));                            \
@@ -584,7 +584,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
     load_linked, store_conditional, sign_extend, size, representation)         \
   do {                                                                         \
     Label exchange;                                                            \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     if (representation == 32) {                                                \
       __ And(i.TempRegister(1), i.TempRegister(0), 0x3);                       \
     } else {                                                                   \
@@ -612,7 +612,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     __ sync();                                                                 \
     __ bind(&compareExchange);                                                 \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
@@ -633,7 +633,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     if (representation == 32) {                                                \
       __ And(i.TempRegister(1), i.TempRegister(0), 0x3);                       \
     } else {                                                                   \
@@ -1085,11 +1085,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
       __ AddWord(kScratchReg, object, offset);
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), value, mode, DetermineStubCallMode());
+          this, object, offset, value, mode, DetermineStubCallMode());
       __ StoreTaggedField(value, MemOperand(kScratchReg, 0), trapper);
       if (mode > RecordWriteMode::kValueIsIndirectPointer) {
         __ JumpIfSmi(value, ool->exit());
@@ -1101,7 +1101,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchStoreSkippedWriteBarrier: {
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
 
       if (v8_flags.debug_code) {
@@ -1133,11 +1133,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), value, mode, DetermineStubCallMode());
+          this, object, offset, value, mode, DetermineStubCallMode());
       __ AddWord(kScratchReg, object, offset);
       __ AtomicStoreTaggedField(value, MemOperand(kScratchReg, 0), trapper);
       // Skip the write barrier if the value is a Smi. However, this is only
@@ -1158,7 +1158,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchAtomicStoreSkippedWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
 
       if (v8_flags.verify_write_barriers) {
@@ -1183,12 +1183,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       IndirectPointerTag tag = static_cast<IndirectPointerTag>(i.InputInt64(3));
       DCHECK(IsValidIndirectPointerTag(tag));
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
       __ AddWord(kScratchReg, object, offset);
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), value, mode, DetermineStubCallMode(),
-          tag);
+          this, object, offset, value, mode, DetermineStubCallMode(), tag);
       __ StoreIndirectPointerField(value, MemOperand(kScratchReg, 0), trapper);
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
@@ -1201,7 +1200,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStoreIndirectSkippedWriteBarrier: {
 #ifdef V8_TARGET_ARCH_RISCV64
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
 
 #if DEBUG
@@ -2236,11 +2235,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Ll, Sc);
       if (v8_flags.disable_write_barriers) break;
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
       RecordWriteMode mode = RecordWriteMode::kValueIsAny;
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), value, mode, DetermineStubCallMode());
+          this, object, offset, value, mode, DetermineStubCallMode());
       __ JumpIfSmi(value, ool->exit());
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
@@ -2365,11 +2364,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.disable_write_barriers) break;
       // Emit the write barrier.
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register value = i.InputRegister(2);
-      auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), value, RecordWriteMode::kValueIsAny,
-          DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, offset, value,
+                                                   RecordWriteMode::kValueIsAny,
+                                                   DetermineStubCallMode());
       __ JumpIfSmi(value, ool->exit());
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
@@ -2440,7 +2439,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // and i.OutputRegister(0).
         Label compareExchange;
         Label exit;
-        __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));
+        __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));
         __ sync();
         __ bind(&compareExchange);
         __ SignExtendWord(i.TempRegister(1), i.InputRegister(2));
@@ -2463,11 +2462,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.disable_write_barriers) break;
       // Emit the write barrier.
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register new_value = i.InputRegister(3);
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), new_value,
-          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+          this, object, offset, new_value, RecordWriteMode::kValueIsAny,
+          DetermineStubCallMode());
       __ JumpIfSmi(new_value, ool->exit());
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
@@ -2477,53 +2476,53 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvWord64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd);
       break;
-#define ATOMIC_BINOP_CASE(op, inst32, inst64, amoinst32, amoinst64)            \
-  case kAtomic##op##Int8:                                                      \
-    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);         \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst32, 32);                    \
-    break;                                                                     \
-  case kAtomic##op##Uint8:                                                     \
-    switch (AtomicWidthField::decode(opcode)) {                                \
-      case AtomicWidth::kWord32:                                               \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst32, 32);               \
-        break;                                                                 \
-      case AtomicWidth::kWord64:                                               \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst64, 64);             \
-        break;                                                                 \
-    }                                                                          \
-    break;                                                                     \
-  case kAtomic##op##Int16:                                                     \
-    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);         \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst32, 32);                   \
-    break;                                                                     \
-  case kAtomic##op##Uint16:                                                    \
-    switch (AtomicWidthField::decode(opcode)) {                                \
-      case AtomicWidth::kWord32:                                               \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst32, 32);              \
-        break;                                                                 \
-      case AtomicWidth::kWord64:                                               \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst64, 64);            \
-        break;                                                                 \
-    }                                                                          \
-    break;                                                                     \
-  case kAtomic##op##Word32:                                                    \
-    switch (AtomicWidthField::decode(opcode)) {                                \
-      case AtomicWidth::kWord32:                                               \
-        /* addr = base + index */                                              \
-        __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
-        __ amoinst32(true, true, i.OutputRegister(0), i.TempRegister(0),       \
-                     i.InputRegister(2), trapper);                             \
-        break;                                                                 \
-      case AtomicWidth::kWord64:                                               \
-        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst64, 64);            \
-        break;                                                                 \
-    }                                                                          \
-    break;                                                                     \
-  case kRiscvWord64Atomic##op##Uint64:                                         \
-    /* addr = base + index */                                                  \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));     \
-    __ amoinst64(true, true, i.OutputRegister(0), i.TempRegister(0),           \
-                 i.InputRegister(2), trapper);                                 \
+#define ATOMIC_BINOP_CASE(op, inst32, inst64, amoinst32, amoinst64)           \
+  case kAtomic##op##Int8:                                                     \
+    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);        \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst32, 32);                   \
+    break;                                                                    \
+  case kAtomic##op##Uint8:                                                    \
+    switch (AtomicWidthField::decode(opcode)) {                               \
+      case AtomicWidth::kWord32:                                              \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst32, 32);              \
+        break;                                                                \
+      case AtomicWidth::kWord64:                                              \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst64, 64);            \
+        break;                                                                \
+    }                                                                         \
+    break;                                                                    \
+  case kAtomic##op##Int16:                                                    \
+    DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);        \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst32, 32);                  \
+    break;                                                                    \
+  case kAtomic##op##Uint16:                                                   \
+    switch (AtomicWidthField::decode(opcode)) {                               \
+      case AtomicWidth::kWord32:                                              \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst32, 32);             \
+        break;                                                                \
+      case AtomicWidth::kWord64:                                              \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst64, 64);           \
+        break;                                                                \
+    }                                                                         \
+    break;                                                                    \
+  case kAtomic##op##Word32:                                                   \
+    switch (AtomicWidthField::decode(opcode)) {                               \
+      case AtomicWidth::kWord32:                                              \
+        /* addr = base + index */                                             \
+        __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1)); \
+        __ amoinst32(true, true, i.OutputRegister(0), i.TempRegister(0),      \
+                     i.InputRegister(2), trapper);                            \
+        break;                                                                \
+      case AtomicWidth::kWord64:                                              \
+        ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst64, 64);           \
+        break;                                                                \
+    }                                                                         \
+    break;                                                                    \
+  case kRiscvWord64Atomic##op##Uint64:                                        \
+    /* addr = base + index */                                                 \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));     \
+    __ amoinst64(true, true, i.OutputRegister(0), i.TempRegister(0),          \
+                 i.InputRegister(2), trapper);                                \
     break;
       ATOMIC_BINOP_CASE(Add, Add32, AddWord, AmoAdd_w, AmoAdd_d)
       ATOMIC_BINOP_CASE(Sub, Sub32, Sub64, AmoSub_w, AmoSub_d)
@@ -2537,35 +2536,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (v8_flags.disable_write_barriers) break;
       // Emit the write barrier.
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
+      Operand offset = i.InputOperand(1);
       Register new_value = i.InputRegister(3);
       RecordWriteMode mode = RecordWriteMode::kValueIsAny;
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), new_value, mode,
-          DetermineStubCallMode());
+          this, object, offset, new_value, mode, DetermineStubCallMode());
       __ JumpIfSmi(new_value, ool->exit());
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
       break;
     }
-#define ATOMIC_BINOP_CASE(op, inst32, inst64, amoinst32)                   \
-  case kAtomic##op##Int8:                                                  \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst32, 32);                \
-    break;                                                                 \
-  case kAtomic##op##Uint8:                                                 \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst32, 32);               \
-    break;                                                                 \
-  case kAtomic##op##Int16:                                                 \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst32, 32);               \
-    break;                                                                 \
-  case kAtomic##op##Uint16:                                                \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst32, 32);              \
-    break;                                                                 \
-  case kAtomic##op##Word32:                                                \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
-    __ amoinst32(true, true, i.OutputRegister(0), i.TempRegister(0),       \
-                 i.InputRegister(2), trapper);                             \
+#define ATOMIC_BINOP_CASE(op, inst32, inst64, amoinst32)                  \
+  case kAtomic##op##Int8:                                                 \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst32, 32);               \
+    break;                                                                \
+  case kAtomic##op##Uint8:                                                \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst32, 32);              \
+    break;                                                                \
+  case kAtomic##op##Int16:                                                \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst32, 32);              \
+    break;                                                                \
+  case kAtomic##op##Uint16:                                               \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst32, 32);             \
+    break;                                                                \
+  case kAtomic##op##Word32:                                               \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1)); \
+    __ amoinst32(true, true, i.OutputRegister(0), i.TempRegister(0),      \
+                 i.InputRegister(2), trapper);                            \
     break;
       ATOMIC_BINOP_CASE(Add, Add32, Add64, AmoAdd_w)  // todo: delete 64
       ATOMIC_BINOP_CASE(Sub, Sub32, Sub64, AmoSub_w)  // todo: delete 64
