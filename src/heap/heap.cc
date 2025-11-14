@@ -2630,43 +2630,37 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
 
   CHECK_GE(next_global_allocation_limit, next_old_generation_allocation_limit);
 
-  if (is_gc_tracing_category_enabled()) [[unlikely]] {
-    ::heap::base::UnsafeJsonEmitter json;
-
-    json.object_start()
-        .p("caller", caller)
-        .p("v8_gc_speed", v8_gc_speed.value_or(0))
-        .p("v8_mutator_speed", v8_mutator_speed)
-        .p("v8_growing_factor", v8_growing_factor)
-        .p("old_gen_allocation_limit", old_generation_allocation_limit())
-        .p("next_old_gen_allocation_limit",
-           next_old_generation_allocation_limit)
-        .p("preliminary_old_gen_allocation_limit",
-           preliminary_old_generation_allocation_limit)
-        .p("old_gen_consumed_bytes_at_last_gc",
-           old_gen_consumed_bytes_at_last_gc)
-        .p("old_gen_consumed_bytes", OldGenerationConsumedBytes())
-        .p("global_gc_speed", embedder_gc_speed.value_or(0))
-        .p("global_mutator_speed", embedder_speed)
-        .p("global_growing_factor", global_growing_factor)
-        .p("global_allocation_limit", global_allocation_limit())
-        .p("next_global_allocation_limit", next_global_allocation_limit)
-        .p("preliminary_global_allocation_limit",
-           preliminary_global_allocation_limit)
-        .p("global_consumed_bytes_at_last_gc", global_consumed_bytes_at_last_gc)
-        .p("global_consumed_bytes", GlobalConsumedBytes())
-        .p("embedder_size_at_last_gc", embedder_size_at_last_gc_)
-        .p("external_growing_factor", external_growing_factor)
-        .p("external_memory_low_since_mark_compact",
-           external_memory_.low_since_mark_compact())
-        .object_end();
-
-    std::string json_str = json.ToString();
-
-    TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
-                         TRACE_EVENT_SCOPE_THREAD, "value",
-                         TRACE_STR_COPY(json_str.c_str()));
-  }
+  TRACE_EVENT_INSTANT(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCUpdateAllocationLimits",
+      "value", [&](perfetto::TracedValue ctx) {
+        auto dict = std::move(ctx).WriteDictionary();
+        dict.Add("caller", caller);
+        dict.Add("v8_gc_speed", v8_gc_speed.value_or(0));
+        dict.Add("v8_mutator_speed", v8_mutator_speed);
+        dict.Add("v8_growing_factor", v8_growing_factor);
+        dict.Add("old_gen_allocation_limit", old_generation_allocation_limit());
+        dict.Add("next_old_gen_allocation_limit",
+                 next_old_generation_allocation_limit);
+        dict.Add("preliminary_old_gen_allocation_limit",
+                 preliminary_old_generation_allocation_limit);
+        dict.Add("old_gen_consumed_bytes_at_last_gc",
+                 old_gen_consumed_bytes_at_last_gc);
+        dict.Add("old_gen_consumed_bytes", OldGenerationConsumedBytes());
+        dict.Add("global_gc_speed", embedder_gc_speed.value_or(0));
+        dict.Add("global_mutator_speed", embedder_speed);
+        dict.Add("global_growing_factor", global_growing_factor);
+        dict.Add("global_allocation_limit", global_allocation_limit());
+        dict.Add("next_global_allocation_limit", next_global_allocation_limit);
+        dict.Add("preliminary_global_allocation_limit",
+                 preliminary_global_allocation_limit);
+        dict.Add("global_consumed_bytes_at_last_gc",
+                 global_consumed_bytes_at_last_gc);
+        dict.Add("global_consumed_bytes", GlobalConsumedBytes());
+        dict.Add("embedder_size_at_last_gc", embedder_size_at_last_gc_);
+        dict.Add("external_growing_factor", external_growing_factor);
+        dict.Add("external_memory_low_since_mark_compact",
+                 external_memory_.low_since_mark_compact());
+      });
 
   SetOldGenerationAndGlobalAllocationLimit(next_old_generation_allocation_limit,
                                            next_global_allocation_limit);
@@ -7843,19 +7837,13 @@ void Heap::FinishSweepingIfOutOfWork(CompleteSweepingReason reason) {
 
 void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
                                    CompleteSweepingReason reason) {
-  if (is_gc_tracing_category_enabled()) [[unlikely]] {
-    ::heap::base::UnsafeJsonEmitter json;
-    json.object_start()
-        .p("sweeping_reason", ToString(reason))
-        .p("mode", ToString(mode))
-        .p("epoch", tracer()->CurrentEpoch())
-        .object_end();
-    std::string json_str = json.ToString();
-
-    TRACE_GC_EPOCH_ARG1(
-        tracer(), GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED,
-        ThreadKind::kMain, "value", TRACE_STR_COPY(json_str.c_str()));
-  }
+  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::HEAP_ENSURE_SWEEPING_COMPLETED,
+                 ThreadKind::kMain, "value", [&](perfetto::TracedValue ctx) {
+                   auto dict = std::move(ctx).WriteDictionary();
+                   dict.Add("sweeping_reason", ToString(reason));
+                   dict.Add("mode", ToString(mode));
+                   dict.Add("epoch", tracer()->CurrentEpoch());
+                 });
 
   CompleteArrayBufferSweeping(this);
 
