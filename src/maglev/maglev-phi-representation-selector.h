@@ -96,6 +96,13 @@ class MaglevPhiRepresentationSelector {
     return eager_deopt_frame_;
   }
 
+  bool was_once_deoptimized() const {
+    return graph_->compilation_info()
+        ->toplevel_compilation_unit()
+        ->feedback()
+        .was_once_deoptimized();
+  }
+
  private:
   enum class HoistType : uint8_t {
     kNone,

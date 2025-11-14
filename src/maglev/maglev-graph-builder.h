@@ -177,6 +177,12 @@ class MaglevGraphBuilder {
     return nullptr;
   }
 
+  bool was_once_deoptimized() const {
+    return compilation_unit_->GetTopLevelCompilationUnit()
+        ->feedback()
+        .was_once_deoptimized();
+  }
+
   MaglevReducer<MaglevGraphBuilder>& reducer() { return reducer_; }
 
   // True when this graph builder is building the subgraph of an inlined
