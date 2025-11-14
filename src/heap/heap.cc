@@ -5791,7 +5791,10 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
   // Background thread requested GC, allocation should fail
   if (CollectionRequested()) return false;
 
-  if (ShouldOptimizeForMemoryUsage()) return false;
+  if (ShouldOptimizeForMemoryUsage() &&
+      !v8_flags.disable_eager_allocation_failures) {
+    return false;
+  }
 
   if (ShouldOptimizeForLoadTime()) return true;
 
@@ -5993,7 +5996,8 @@ Heap::IncrementalMarkingLimitReached() {
     return std::make_pair(IncrementalMarkingLimit::kNoLimit,
                           "enough space available");
   }
-  if (ShouldOptimizeForMemoryUsage()) {
+  if (ShouldOptimizeForMemoryUsage() &&
+      !v8_flags.disable_eager_allocation_failures) {
     return std::make_pair(IncrementalMarkingLimit::kHardLimit,
                           "optimize for memory");
   }
