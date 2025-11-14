@@ -352,6 +352,15 @@ size_t Heap::YoungGenerationSizeFromHeapSize(uint64_t physical_memory,
 
 size_t Heap::OldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
   // Compute the old generation size and cap it.
+  if (v8_flags.new_old_generation_heap_size) {
+    uint64_t old_generation = physical_memory /
+                              kPhysicalMemoryToOldGenerationRatio *
+                              kSystemPointerSize / 4;
+    old_generation = std::clamp<uint64_t>(
+        old_generation, DefaultMinHeapSize(physical_memory),
+        MaxOldGenerationSizeFromPhysicalMemory(physical_memory));
+    return RoundUp(old_generation, PageMetadata::kPageSize);
+  }
   uint64_t old_generation = physical_memory /
                             kPhysicalMemoryToOldGenerationRatio *
                             HeapLimitMultiplier(physical_memory);
@@ -396,6 +405,9 @@ size_t Heap::MinOldGenerationSize() {
 // static
 size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 #ifdef V8_COMPRESS_POINTERS
+  if (v8_flags.new_old_generation_heap_size) {
+    return kPtrComprCageReservationSize;
+  }
   // The young generation is also allocated on the heap.
   return kPtrComprCageReservationSize -
          YoungGenerationSizeFromSemiSpaceSize(
@@ -407,6 +419,14 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 
 // static
 size_t Heap::MaxOldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
+  if (v8_flags.new_old_generation_heap_size) {
+#ifdef V8_HOST_ARCH_64_BIT
+    return static_cast<uint64_t>(4u) * GB;
+#else
+    return static_cast<uint64_t>(1u) * GB;
+#endif
+  }
+
   size_t max_size = DefaultMaxHeapSize(physical_memory);
 
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
@@ -5168,6 +5188,9 @@ size_t Heap::DefaultMaxSemiSpaceSize(uint64_t physical_memory) {
 
 // static
 size_t Heap::DefaultMinHeapSize(uint64_t physical_memory) {
+  if (v8_flags.new_old_generation_heap_size) {
+    return 256u * MB;
+  }
   return 128u * HeapLimitMultiplier(physical_memory) * MB;
 }
 
