@@ -3196,8 +3196,9 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
   }
   SnapshotObjectId id = heap_object_map_->FindOrAddEntry(
       lookup_address, 0, accessed, is_native_object);
+  const char* name = EmbedderGraphNodeName(names_, node);
   auto* heap_entry = snapshot_->AddEntry(EmbedderGraphNodeType(node),
-                                         EmbedderGraphNodeName(names_, node),
+                                         names_->GetFormatted("%s (C++)", name),
                                          id, static_cast<int>(size), 0);
   heap_entry->set_detachedness(node->GetDetachedness());
   return heap_entry;
