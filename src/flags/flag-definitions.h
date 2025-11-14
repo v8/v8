@@ -3851,10 +3851,11 @@ DEFINE_BOOL_READONLY(shared_heap, false,
                      "Enables a shared heap between isolates.")
 #endif
 
-DEFINE_BOOL(proto_assign_seq_opt, true,
-            "Enable optimizing a sequence of `Class_X.prototype.[key] = ...`"
-            "by replacing it by a runtime code somewhat equivalent to "
-            "`Object.assign(Class_X.prototype, [boilerplate_obj])`")
+DEFINE_EXPERIMENTAL_FEATURE(
+    proto_assign_seq_opt,
+    "Enable optimizing a sequence of `Class_X.prototype.[key] = ...`"
+    "by replacing it by a runtime code somewhat equivalent to "
+    "`Object.assign(Class_X.prototype, [boilerplate_obj])`")
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
