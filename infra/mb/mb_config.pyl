@@ -185,6 +185,9 @@
       'V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder':
           'release_x64_asan_sandbox_testing_undefined_double',
     },
+    'client.v8.fuzzilli' : {
+      'V8 Linux64 - builder': 'release_x64',
+    },
     'client.v8.perf' : {
       # Arm
       'V8 Arm - builder - perf': 'official_arm',
