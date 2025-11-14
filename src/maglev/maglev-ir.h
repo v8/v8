@@ -40,6 +40,7 @@
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-range.h"
 #include "src/maglev/maglev-regalloc-node-info.h"
 #include "src/objects/arguments.h"
 #include "src/objects/heap-number.h"
@@ -702,7 +703,7 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   }
 }
 
-constexpr bool HasRangeType(Opcode opcode) {
+constexpr bool HasRangeField(Opcode opcode) {
   switch (opcode) {
     case Opcode::kFloat64Add:
     case Opcode::kFloat64Subtract:
@@ -809,26 +810,6 @@ enum class ValueRepresentation : uint8_t {
   kShiftedInt53,
   kNone,
 };
-
-inline constexpr bool IsInt64Representable(double value) {
-  constexpr double min = -9223372036854775808.0;  // -2^63.
-  // INT64_MAX (2^63 - 1) is not representable to double, but 2^63 is, so we
-  // check if it is strictly below it.
-  constexpr double max_bound = 9223372036854775808.0;  // 2^63.
-  return value >= min && value < max_bound;
-}
-
-inline constexpr bool IsSafeInteger(int64_t value) {
-  return value >= kMinSafeInteger && value <= kMaxSafeInteger;
-}
-
-inline constexpr bool IsSafeInteger(double value) {
-  if (!std::isfinite(value)) return false;
-  if (value != std::trunc(value)) return false;
-  double max = static_cast<double>(kMaxSafeInteger);
-  double min = static_cast<double>(kMinSafeInteger);
-  return value >= min && value <= max;
-}
 
 inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
   return repr == ValueRepresentation::kFloat64 ||
@@ -1288,62 +1269,6 @@ NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
 inline bool NodeTypeMayBeNullOrUndefined(NodeType type) {
   return (static_cast<int>(type) &
           static_cast<int>(NodeType::kNullOrUndefined)) != 0;
-}
-
-struct RangeType {
-  RangeType() = default;
-  RangeType(int64_t min, int64_t max) : is_valid_(true), min_(min), max_(max) {
-    DCHECK(min <= max);
-  }
-  explicit RangeType(int64_t value) : RangeType(value, value) {}
-
-  bool is_valid() const { return is_valid_; }
-
-  int64_t max() const {
-    DCHECK(is_valid_);
-    return max_;
-  }
-
-  int64_t min() const {
-    DCHECK(is_valid_);
-    return min_;
-  }
-
-  static RangeType Join(base::FunctionRef<double(double, double)> op,
-                        RangeType left, RangeType right) {
-    double results[4];
-    results[0] =
-        op(static_cast<double>(left.min()), static_cast<double>(right.min()));
-    results[1] =
-        op(static_cast<double>(left.min()), static_cast<double>(right.max()));
-    results[2] =
-        op(static_cast<double>(left.max()), static_cast<double>(right.min()));
-    results[3] =
-        op(static_cast<double>(left.max()), static_cast<double>(right.max()));
-    double min = *std::min_element(std::begin(results), std::end(results));
-    double max = *std::max_element(std::begin(results), std::end(results));
-    if (!IsInt64Representable(min) || !IsInt64Representable(max)) return {};
-    return RangeType(static_cast<int64_t>(min), static_cast<int64_t>(max));
-  }
-
-  bool IsSafeIntegerRange() {
-    if (!is_valid_) return false;
-    return min_ >= kMinSafeInteger && max_ <= kMaxSafeInteger;
-  }
-
- private:
-  bool is_valid_ = false;
-  int64_t min_ = 0;
-  int64_t max_ = 0;
-};
-
-inline std::ostream& operator<<(std::ostream& os, const RangeType& range) {
-  if (!range.is_valid()) {
-    os << "[-inf, +inf]";
-    return os;
-  }
-  os << "[" << range.min() << ", " << range.max() << "]";
-  return os;
 }
 
 enum class TaggedToFloat64ConversionType : uint8_t {
@@ -3099,12 +3024,11 @@ class ValueNode : public Node {
     }
   }
 
-  RangeType GetRange() const;
-
   compiler::OptionalHeapObjectRef TryGetConstant(
       compiler::JSHeapBroker* broker);
 
   NodeType GetStaticType(compiler::JSHeapBroker* broker);
+  Range GetStaticRange() const;
 
   bool StaticTypeIs(compiler::JSHeapBroker* broker, NodeType type) {
     return NodeTypeIs(GetStaticType(broker), type);
@@ -3777,8 +3701,8 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
   Input left_input() { return Node::input(kLeftIndex); }
   Input right_input() { return Node::input(kRightIndex); }
 
-  RangeType range() const { return range_; }
-  void set_range(RangeType r) { range_ = r; }
+  Range range() const { return range_; }
+  void set_range(Range r) { range_ = r; }
 
  protected:
   explicit Float64BinaryNode(uint64_t bitfield) : Base(bitfield) {}
@@ -3788,7 +3712,7 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
   // TODO(victorgomes): This could be in the KNA for more use-precision.
   // However, for truncation purposes, since it depends on all uses, it is
   // simpler to store this here.
-  RangeType range_ = {};
+  Range range_ = Range::All();
 };
 
 #define DEF_OPERATION_NODE_WITH_CALL(Name, Super, OpName)        \
@@ -4166,6 +4090,7 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
   static constexpr OpProperties kProperties = OpProperties::Int32();
 
   int32_t value() const { return value_; }
+  Range range() const { return Range(value_); }
 
   bool ToBoolean(LocalIsolate* local_isolate) const { return value_ != 0; }
 
@@ -4192,6 +4117,7 @@ class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
   static constexpr OpProperties kProperties = OpProperties::Uint32();
 
   uint32_t value() const { return value_; }
+  Range range() const { return Range(value_); }
 
   bool ToBoolean(LocalIsolate* local_isolate) const { return value_ != 0; }
 
@@ -4276,6 +4202,12 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   static constexpr OpProperties kProperties = OpProperties::Float64();
 
   Float64 value() const { return value_; }
+
+  Range range() const {
+    double scalar = value_.get_scalar();
+    if (!IsSafeInteger(scalar)) return Range::All();
+    return Range(scalar);
+  }
 
   bool ToBoolean(LocalIsolate* local_isolate) const {
     return value_.get_scalar() != 0.0 && !value_.is_nan();

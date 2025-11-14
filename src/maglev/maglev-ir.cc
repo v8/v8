@@ -271,11 +271,11 @@ void PrintResult(std::ostream& os, const ValueNode* node,
     if (node->value_representation() != ValueRepresentation::kTagged &&
         !node->Is<Float64Constant>() && !node->Is<ChangeInt32ToFloat64>()) {
       if (node->can_truncate_to_int32()) {
-        os << ", can truncate to int32 " << node->GetRange();
+        os << ", can truncate to int32 " << node->GetStaticRange();
       } else {
         os << ", cannot truncate to int32";
         if (node->is_float64_or_holey_float64()) {
-          os << " " << node->GetRange();
+          os << " " << node->GetStaticRange();
         }
       }
     }
@@ -544,6 +544,8 @@ concept ValueNodeWithTypeNeedsHeapBroker = requires(NodeT* node) {
 };
 template <typename NodeT>
 concept ValueNodeWithType = requires(NodeT* node) { node->type(); };
+template <typename NodeT>
+concept ValueNodeWithRange = requires(NodeT* node) { node->range(); };
 
 template <typename NodeT>
 NodeType GetStaticTypeFor(compiler::JSHeapBroker* broker, NodeT* node) {
@@ -553,6 +555,22 @@ NodeType GetStaticTypeFor(compiler::JSHeapBroker* broker, NodeT* node) {
     return node->type();
   }
   return NodeType::kUnknown;
+}
+
+template <typename NodeT>
+Range GetStaticRangeFor(const NodeT* node) {
+  if constexpr (ValueNodeWithRange<NodeT>) {
+    return node->range();
+  } else if constexpr (NodeT::kProperties.value_representation() ==
+                       ValueRepresentation::kInt32) {
+    // TODO(victorgomes): we could be more precise for Int32 operations.
+    return Range::Int32();
+  } else if constexpr (NodeT::kProperties.value_representation() ==
+                       ValueRepresentation::kUint32) {
+    return Range::Uint32();
+  } else {
+    return Range::All();
+  }
 }
 }  // namespace
 
@@ -582,6 +600,19 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
       UNREACHABLE();
   }
   UNREACHABLE();
+}
+
+Range ValueNode::GetStaticRange() const {
+  if (is_conversion()) return input_node(0)->GetStaticRange();
+  switch (opcode()) {
+#define CASE(Node)      \
+  case Opcode::k##Node: \
+    return GetStaticRangeFor<Node>(Cast<Node>());
+    VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
 }
 
 ExternalReference Float64Ieee754Unary::ieee_function_ref() const {
@@ -8500,38 +8531,6 @@ std::optional<int32_t> NodeBase::TryGetInt32ConstantInput(int index) {
     return i32->value();
   }
   return {};
-}
-
-RangeType ValueNode::GetRange() const {
-  // TODO(victorgomes): Support other constant nodes.
-  if (Is<Float64Constant>()) {
-    double value = Cast<Float64Constant>()->value().get_scalar();
-    if (!IsSafeInteger(value)) return {};
-    return RangeType(value);
-  }
-  if (is_conversion()) {
-    return input(0).node()->GetRange();
-  }
-  switch (value_representation()) {
-    case ValueRepresentation::kInt32:
-      // TODO(victorgomes): we could be more precise for Int32 operations.
-      return RangeType(INT32_MIN, INT32_MAX);
-    case ValueRepresentation::kFloat64:
-      switch (opcode()) {
-        case Opcode::kFloat64Add:
-          return Cast<Float64Add>()->range();
-        case Opcode::kFloat64Subtract:
-          return Cast<Float64Subtract>()->range();
-        case Opcode::kFloat64Multiply:
-          return Cast<Float64Multiply>()->range();
-        case Opcode::kFloat64Divide:
-          return Cast<Float64Divide>()->range();
-        default:
-          return {};
-      }
-    default:
-      return {};
-  }
 }
 
 VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,

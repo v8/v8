@@ -463,26 +463,24 @@ template <typename NodeT>
 void MaglevReducer<BaseT>::UpdateRange(NodeT* node) {
   static_assert(NodeT::kProperties.value_representation() ==
                 ValueRepresentation::kFloat64);
-  if constexpr (HasRangeType(Node::opcode_of<NodeT>)) {
-    RangeType r1 = node->input(0).node()->GetRange();
-    RangeType r2 = node->input(1).node()->GetRange();
-    if (!r1.is_valid() || !r2.is_valid()) return;
-    RangeType result;
+  if constexpr (HasRangeField(Node::opcode_of<NodeT>)) {
+    Range r1 = node->input_node(0)->GetStaticRange();
+    Range r2 = node->input_node(1)->GetStaticRange();
+    DCHECK(!r1.is_empty());
+    DCHECK(!r2.is_empty());
+    if (r1.is_all() || r2.is_all()) return;
+    Range result = Range::All();
     switch (Node::opcode_of<NodeT>) {
       case Opcode::kFloat64Add:
-        result =
-            RangeType::Join([](double x, double y) { return x + y; }, r1, r2);
+        result = Range::Add(r1, r2);
         break;
       case Opcode::kFloat64Subtract:
-        result =
-            RangeType::Join([](double x, double y) { return x - y; }, r1, r2);
+        result = Range::Sub(r1, r2);
         break;
       case Opcode::kFloat64Multiply:
-        result =
-            RangeType::Join([](double x, double y) { return x * y; }, r1, r2);
+        result = Range::Mul(r1, r2);
         break;
       case Opcode::kFloat64Divide:
-        result = {};
         break;
       default:
         UNREACHABLE();
@@ -491,7 +489,8 @@ void MaglevReducer<BaseT>::UpdateRange(NodeT* node) {
     // fixpoint.
     static_assert(!std::is_same_v<NodeT, Phi>);
     node->set_range(result);
-    if (node->range().IsSafeIntegerRange()) {
+    if (node->range().IsSafeInt()) {
+      // The node can be considered for truncation in the truncation pass.
       node->set_can_truncate_to_int32(true);
     }
   }
