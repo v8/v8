@@ -213,23 +213,6 @@ in_category(
 in_category(
     "RISC-V",
     multibranch_builder_pair(
-        name = "V8 Linux - riscv32 - sim",
-        tester_execution_timeout = 19800,
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.ports"},
-        barrier = BARRIER.NONE,
-        disable_resultdb_exports = True,
-    ),
-    multibranch_builder_pair(
-        name = "V8 Linux - riscv32 - sim - debug",
-        tester_execution_timeout = 19800,
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.ports"},
-        barrier = BARRIER.NONE,
-        disable_resultdb_exports = True,
-        first_branch_version = "14.2",
-    ),
-    multibranch_builder_pair(
         name = "V8 Linux - riscv64 - sim",
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
