@@ -1938,11 +1938,11 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  const v8::HeapGraphNode* native_group_aaa = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "aaa-group (C++)");
+  const v8::HeapGraphNode* native_group_aaa =
+      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "aaa-group");
   CHECK_NOT_NULL(native_group_aaa);
-  const v8::HeapGraphNode* native_group_ccc = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "ccc-group (C++)");
+  const v8::HeapGraphNode* native_group_ccc =
+      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "ccc-group");
   CHECK_NOT_NULL(native_group_ccc);
 
   const v8::HeapGraphNode* n_AAA =
@@ -1955,9 +1955,9 @@ TEST(HeapSnapshotRetainedObjectInfo) {
       GetNode(native_group_ccc, v8::HeapGraphNode::kString, "CCC");
   CHECK(n_CCC);
 
-  CHECK_EQ(native_group_aaa, GetChildByName(n_AAA, "aaa-group (C++)"));
-  CHECK_EQ(native_group_aaa, GetChildByName(n_BBB, "aaa-group (C++)"));
-  CHECK_EQ(native_group_ccc, GetChildByName(n_CCC, "ccc-group (C++)"));
+  CHECK_EQ(native_group_aaa, GetChildByName(n_AAA, "aaa-group"));
+  CHECK_EQ(native_group_aaa, GetChildByName(n_BBB, "aaa-group"));
+  CHECK_EQ(native_group_ccc, GetChildByName(n_CCC, "ccc-group"));
 }
 
 namespace {
@@ -3060,8 +3060,8 @@ TEST(ManyLocalsInSharedContext) {
   CHECK_EQ(i::Context::MIN_CONTEXT_EXTENDED_SLOTS + num_objects - 1,
            context_object->GetChildrenCount());
   // Check all the objects have got their names.
-  // ... well check just every 999th because otherwise it's too slow in debug.
-  for (int i = 0; i < num_objects - 1; i += 999) {
+  // ... well check just every 15th because otherwise it's too slow in debug.
+  for (int i = 0; i < num_objects - 1; i += 15) {
     v8::base::EmbeddedVector<char, 100> var_name;
     v8::base::SNPrintF(var_name, "f_%d", i);
     const v8::HeapGraphNode* f_object =
@@ -3685,16 +3685,16 @@ void CheckEmbedderGraphSnapshot(v8::Isolate* isolate,
                                 const v8::HeapSnapshot* snapshot) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* embedder_node_A =
-      GetChildByName(global, "EmbedderNodeA (C++)");
+      GetChildByName(global, "EmbedderNodeA");
   CHECK_EQ(10, GetSize(embedder_node_A));
   const v8::HeapGraphNode* embedder_node_B =
-      GetChildByName(embedder_node_A, "EmbedderNodeB (C++)");
+      GetChildByName(embedder_node_A, "EmbedderNodeB");
   CHECK_EQ(20, GetSize(embedder_node_B));
   const v8::HeapGraphNode* embedder_root =
-      GetRootChild(snapshot, "EmbedderRoot (C++)");
+      GetRootChild(snapshot, "EmbedderRoot");
   CHECK(embedder_root);
   const v8::HeapGraphNode* embedder_node_C =
-      GetChildByName(embedder_root, "EmbedderNodeC (C++)");
+      GetChildByName(embedder_root, "EmbedderNodeC");
   CHECK_EQ(30, GetSize(embedder_node_C));
   const v8::HeapGraphNode* global_reference =
       GetChildByName(embedder_node_C, "Object (global*)");
@@ -3736,32 +3736,32 @@ void CheckEmbedderGraphWithNamedEdges(v8::Isolate* isolate,
                                       const v8::HeapSnapshot* snapshot) {
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphEdge* global_to_a =
-      GetEdgeByChildName(global, "EmbedderNodeA (C++)");
+      GetEdgeByChildName(global, "EmbedderNodeA");
   CHECK(global_to_a);
   CHECK_EQ(v8::HeapGraphEdge::kInternal, global_to_a->GetType());
   CHECK(global_to_a->GetName()->IsString());
   CHECK_EQ(0, strcmp("global_to_a", GetName(global_to_a)));
   const v8::HeapGraphNode* embedder_node_A = global_to_a->GetToNode();
-  CHECK_EQ(0, strcmp("EmbedderNodeA (C++)", GetName(embedder_node_A)));
+  CHECK_EQ(0, strcmp("EmbedderNodeA", GetName(embedder_node_A)));
   CHECK_EQ(10, GetSize(embedder_node_A));
 
   const v8::HeapGraphEdge* a_to_b =
-      GetEdgeByChildName(embedder_node_A, "EmbedderNodeB (C++)");
+      GetEdgeByChildName(embedder_node_A, "EmbedderNodeB");
   CHECK(a_to_b);
   CHECK(a_to_b->GetName()->IsString());
   CHECK_EQ(0, strcmp("a_to_b", GetName(a_to_b)));
   CHECK_EQ(v8::HeapGraphEdge::kInternal, a_to_b->GetType());
   const v8::HeapGraphNode* embedder_node_B = a_to_b->GetToNode();
-  CHECK_EQ(0, strcmp("EmbedderNodeB (C++)", GetName(embedder_node_B)));
+  CHECK_EQ(0, strcmp("EmbedderNodeB", GetName(embedder_node_B)));
   CHECK_EQ(20, GetSize(embedder_node_B));
 
   const v8::HeapGraphEdge* b_to_c =
-      GetEdgeByChildName(embedder_node_B, "EmbedderNodeC (C++)");
+      GetEdgeByChildName(embedder_node_B, "EmbedderNodeC");
   CHECK(b_to_c);
   CHECK(b_to_c->GetName()->IsNumber());
   CHECK_EQ(v8::HeapGraphEdge::kElement, b_to_c->GetType());
   const v8::HeapGraphNode* embedder_node_C = b_to_c->GetToNode();
-  CHECK_EQ(0, strcmp("EmbedderNodeC (C++)", GetName(embedder_node_C)));
+  CHECK_EQ(0, strcmp("EmbedderNodeC", GetName(embedder_node_C)));
   CHECK_EQ(30, GetSize(embedder_node_C));
 }
 
@@ -3794,11 +3794,11 @@ void CheckEmbedderGraphSnapshotWithContext(
   CHECK_LE(context->counter, 2);
 
   const v8::HeapGraphNode* embedder_node_A =
-      GetChildByName(global, "EmbedderNodeA (C++)");
+      GetChildByName(global, "EmbedderNodeA");
   CHECK_EQ(10, GetSize(embedder_node_A));
 
   const v8::HeapGraphNode* embedder_node_B =
-      GetChildByName(global, "EmbedderNodeB (C++)");
+      GetChildByName(global, "EmbedderNodeB");
   if (context->counter == 2) {
     CHECK_NOT_NULL(embedder_node_B);
     CHECK_EQ(20, GetSize(embedder_node_B));
@@ -3924,16 +3924,17 @@ TEST(EmbedderGraphWithWrapperNode) {
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   const v8::HeapGraphNode* embedder_node =
-      GetChildByName(global, "EmbedderNode / TAG (C++)");
+      GetChildByName(global, "EmbedderNode / TAG");
   const v8::HeapGraphNode* other_node =
-      GetChildByName(embedder_node, "OtherNode (C++)");
+      GetChildByName(embedder_node, "OtherNode");
   CHECK(other_node);
   const v8::HeapGraphNode* wrapper_node =
       GetChildByName(embedder_node, "WrapperNode / TAG");
   CHECK(!wrapper_node);
+
   const v8::HeapGraphNode* embedder_node2 =
       GetChildByName(global, "EmbedderNode2");
-  other_node = GetChildByName(embedder_node2, "OtherNode (C++)");
+  other_node = GetChildByName(embedder_node2, "OtherNode");
   CHECK(other_node);
   const v8::HeapGraphNode* wrapper_node2 =
       GetChildByName(embedder_node, "WrapperNode2");
@@ -3979,7 +3980,7 @@ TEST(EmbedderGraphWithPrefix) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* node = GetChildByName(global, "Detached Node (C++)");
+  const v8::HeapGraphNode* node = GetChildByName(global, "Detached Node");
   CHECK(node);
 }
 
