@@ -1212,4 +1212,30 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/formatToParts/era': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/since/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/since/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/since/leap-months-hebrew': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/until/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/until/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/until/leap-months-hebrew': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-hebrew': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-hebrew': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-chinese': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-dangi': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-hebrew': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-chinese': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-dangi': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-hebrew': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
