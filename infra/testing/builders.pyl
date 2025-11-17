@@ -1561,6 +1561,17 @@
       },
     ],
   },
+  # Used for Fuzzilli imports.
+  'V8 Linux64 - builder': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'mjsunit'},
+      {'name': 'test262', 'shards': 2},
+    ],
+  },
   'V8 Linux64 - official': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
