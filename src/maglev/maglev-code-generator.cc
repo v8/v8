@@ -1880,7 +1880,9 @@ bool MaglevCodeGenerator::EmitDeopts() {
     if (masm_.compilation_info()->collect_source_positions() ||
         AlwaysPreserveDeoptReason(deopt_info->reason())) {
       __ RecordDeoptReason(deopt_info->reason(), 0,
-                           deopt_info->top_frame().GetSourcePosition(),
+                           masm_.compilation_info()->collect_source_positions()
+                               ? deopt_info->top_frame().GetSourcePosition()
+                               : SourcePosition::Unknown(),
                            deopt_index);
     }
 
