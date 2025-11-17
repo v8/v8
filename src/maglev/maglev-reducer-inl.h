@@ -2006,6 +2006,27 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Max(ValueNode* lhs,
   return GetFloat64Constant(rhs_scalar);
 }
 
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldLogicalNot(ValueNode* input) {
+  switch (input->opcode()) {
+#define CASE(Name)                                         \
+  case Opcode::k##Name: {                                  \
+    return GetBooleanConstant(                             \
+        !input->Cast<Name>()->ToBoolean(local_isolate())); \
+  }
+    CONSTANT_VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      break;
+  }
+
+  if (auto c = TryGetConstantAlternative(input)) {
+    return TryFoldLogicalNot(*c);
+  }
+
+  return {};
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

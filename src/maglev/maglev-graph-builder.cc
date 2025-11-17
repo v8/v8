@@ -7890,18 +7890,9 @@ ReduceResult MaglevGraphBuilder::VisitToBooleanLogicalNot() {
 }
 
 ReduceResult MaglevGraphBuilder::BuildLogicalNot(ValueNode* value) {
-  // TODO(victorgomes): Use NodeInfo to add more type optimizations here.
-  switch (value->opcode()) {
-#define CASE(Name)                                         \
-  case Opcode::k##Name: {                                  \
-    return GetBooleanConstant(                             \
-        !value->Cast<Name>()->ToBoolean(local_isolate())); \
-  }
-    CONSTANT_VALUE_NODE_LIST(CASE)
-#undef CASE
-    default:
-      return AddNewNode<LogicalNot>({value});
-  }
+  RETURN_IF_DONE(reducer_.TryFoldLogicalNot(value));
+
+  return AddNewNode<LogicalNot>({value});
 }
 
 ReduceResult MaglevGraphBuilder::VisitLogicalNot() {

@@ -16,6 +16,7 @@
 #include "src/maglev/maglev-known-node-aspects.h"
 #include "src/maglev/maglev-reducer-inl.h"
 #include "src/maglev/maglev-reducer.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1744,7 +1745,11 @@ ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsHole(
 
 ProcessResult MaglevGraphOptimizer::VisitLogicalNot(
     LogicalNot* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (MaybeReduceResult folded =
+          reducer_.TryFoldLogicalNot(node->input_node(0));
+      folded.HasValue()) {
+    return ReplaceWith(folded.value());
+  }
   return ProcessResult::kContinue;
 }
 
@@ -1798,7 +1803,12 @@ ProcessResult MaglevGraphOptimizer::VisitUnwrapStringWrapper(
 
 ProcessResult MaglevGraphOptimizer::VisitToBoolean(
     ToBoolean* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (IsConstantNode(node->input_node(0)->opcode())) {
+    return ReplaceWith(reducer_.GetBooleanConstant(
+        FromConstantToBool(reducer_.local_isolate(), node->input_node(0))));
+  }
+  // TODO(b/424157317): Optimize further (cf
+  // MaglevGraphBuilder::BuildToBoolean).
   return ProcessResult::kContinue;
 }
 
