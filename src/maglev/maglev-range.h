@@ -80,7 +80,7 @@ class Range {
   bool contains(int64_t value) const { return min_ <= value && value <= max_; }
 
   bool contains(Range other) const {
-    if (other.is_empty()) return true;
+    if (other.is_empty()) return false;
     if (is_empty()) return false;
     return min_ <= other.min_ && other.max_ <= max_;
   }
