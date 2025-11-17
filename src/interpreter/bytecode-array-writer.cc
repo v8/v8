@@ -10,6 +10,7 @@
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
+#include "src/interpreter/bytecode-operands.h"
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
@@ -466,23 +467,21 @@ void BytecodeArrayWriter::PatchJumpTableSize(BytecodeJumpTable* table,
   CHECK_LT(size, table->size());
 
   size_t switch_location = table->switch_bytecode_offset();
+  OperandScale operand_scale = table->switch_bytecode_operand_scale();
+
   Bytecode switch_bytecode =
       Bytecodes::FromByte(bytecodes()->at(switch_location));
-  int prefix_offset = 0;
-  OperandScale operand_scale = OperandScale::kSingle;
-  if (Bytecodes::IsPrefixScalingBytecode(switch_bytecode)) {
-    // If a prefix scaling bytecode is emitted the target offset is one
-    // less than the case of no prefix scaling bytecode.
-    prefix_offset = 1;
-    operand_scale = Bytecodes::PrefixBytecodeToOperandScale(switch_bytecode);
-    switch_bytecode =
-        Bytecodes::FromByte(bytecodes()->at(switch_location + prefix_offset));
-  }
 
   // Currently only SwitchOnGeneratorState is supported, since uses of
   // SwitchOnSmiNoFeedback can ensure that it is correctly sized.
   CHECK_EQ(switch_bytecode, Bytecode::kSwitchOnGeneratorState);
   DCHECK(Bytecodes::IsSwitch(switch_bytecode));
+  // Verify that there is a prefix bytecode if the operand scale would need one.
+  DCHECK_IMPLIES(
+      operand_scale > OperandScale::kSingle,
+      operand_scale ==
+          Bytecodes::PrefixBytecodeToOperandScale(
+              Bytecodes::FromByte(bytecodes()->at(switch_location - 1))));
 
   DCHECK_EQ(Bytecodes::GetOperandType(switch_bytecode, 0), OperandType::kReg);
   DCHECK_EQ(Bytecodes::GetOperandType(switch_bytecode, 1), OperandType::kIdx);
@@ -604,7 +603,7 @@ void BytecodeArrayWriter::EmitSwitch(BytecodeNode* node,
     // Adjust for scaling byte prefix.
     current_offset += 1;
   }
-  jump_table->set_switch_bytecode_offset(current_offset);
+  jump_table->set_switch_bytecode_offset(current_offset, node->operand_scale());
 
   EmitBytecode(node);
 }
