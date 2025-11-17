@@ -941,7 +941,10 @@ void AllocationBlock::TryPretenure() {
   allocation_type_ = AllocationType::kOld;
   for (auto alloc : allocation_list_) {
     alloc->object()->ForEachSlot(
-        [&](ValueNode* value, vobj::Field desc) { TryPretenure(value); });
+        [&](ValueNode* value, vobj::Field desc) -> bool {
+          TryPretenure(value);
+          return true;
+        });
   }
 }
 
@@ -8566,8 +8569,9 @@ VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
   // Initialize.
   // TODO(jgruber): We may want to initialize with some invalid value instead
   // (nullptr?) since callers should fully initialize objects.
-  ForEachSlot([&](ValueNode*& node, vobj::Field desc) {
+  ForEachSlot([&](ValueNode*& node, vobj::Field desc) -> bool {
     set_by_index(desc.slot_index, InitialFieldValue(builder, desc.type));
+    return true;
   });
 }
 

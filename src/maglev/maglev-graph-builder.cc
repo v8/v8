@@ -2344,10 +2344,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     GET_VALUE_OR_ABORT(new_map, BuildNewConsStringMap(left, right));
     VirtualObject* cons_string =
         CreateConsString(new_map, new_length, left, right);
-    ValueNode* allocation =
-        BuildInlinedAllocation(cons_string, allocation_type);
-
-    return allocation;
+    return BuildInlinedAllocation(cons_string, allocation_type);
   };
 
   return SelectReduction(
@@ -4432,9 +4429,8 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
   return false;
 }
 
-ValueNode* MaglevGraphBuilder::ConvertForField(ValueNode* value,
-                                               const vobj::Field& desc,
-                                               AllocationType allocation_type) {
+ReduceResult MaglevGraphBuilder::ConvertForField(
+    ValueNode* value, const vobj::Field& desc, AllocationType allocation_type) {
   switch (desc.type) {
     case vobj::FieldType::kTagged: {
       // Subtle: we don't use `NodeTypeIs(...)` since the predicate must NOT
@@ -4573,9 +4569,9 @@ bool VerifyIsNotEscaping(VirtualObjectList vos, InlinedAllocation* alloc) {
   for (VirtualObject* vo : vos) {
     if (vo->allocation() == alloc) continue;
     bool escaped = false;
-    vo->ForEachSlot([&](ValueNode* nested_value, vobj::Field desc) {
-      if (escaped) return;
-      if (!nested_value->Is<InlinedAllocation>()) return;
+    vo->ForEachSlot([&](ValueNode* nested_value, vobj::Field desc) -> bool {
+      if (escaped) return true;
+      if (!nested_value->Is<InlinedAllocation>()) return true;
       ValueNode* nested_alloc = nested_value->Cast<InlinedAllocation>();
       if (nested_alloc == alloc) {
         if (vo->allocation()->IsEscaping() ||
@@ -4583,6 +4579,7 @@ bool VerifyIsNotEscaping(VirtualObjectList vos, InlinedAllocation* alloc) {
           escaped = true;
         }
       }
+      return true;
     });
     if (escaped) return false;
   }
@@ -8033,9 +8030,11 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
         if (new_target_function && new_target_function->IsJSFunction() &&
             HasValidInitialMap(new_target_function->AsJSFunction(),
                                current_function)) {
-          object = BuildInlinedAllocation(
-              CreateJSConstructor(new_target_function->AsJSFunction()),
-              AllocationType::kYoung);
+          GET_VALUE(
+              object,
+              BuildInlinedAllocation(
+                  CreateJSConstructor(new_target_function->AsJSFunction()),
+                  AllocationType::kYoung));
         } else {
           // We've already stored "true" into result.first, so a deopt here just
           // has to store result.second.
@@ -8646,7 +8645,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
         array, CreateJSArray(holey_smi_map, holey_smi_map.instance_size(),
                              length_smi));
     array->set(JSArray::kElementsOffset, elements);
-    result_array = BuildInlinedAllocation(array, AllocationType::kYoung);
+    GET_VALUE_OR_ABORT(result_array,
+                       BuildInlinedAllocation(array, AllocationType::kYoung));
     return ReduceResult::Done();
   };
 
@@ -9129,9 +9129,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
       broker()->target_native_context().iterator_result_map(broker());
   VirtualObject* iter_result = CreateJSIteratorResult(
       map, subgraph.get(ret_value), subgraph.get(is_done));
-  ValueNode* allocation =
-      BuildInlinedAllocation(iter_result, AllocationType::kYoung);
-  return allocation;
+  return BuildInlinedAllocation(iter_result, AllocationType::kYoung);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
@@ -9684,9 +9682,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
   compiler::MapRef map =
       broker()->target_native_context().initial_string_iterator_map(broker());
   VirtualObject* string_iterator = CreateJSStringIterator(map, receiver);
-  ValueNode* allocation =
-      BuildInlinedAllocation(string_iterator, AllocationType::kYoung);
-  return allocation;
+  return BuildInlinedAllocation(string_iterator, AllocationType::kYoung);
 }
 
 #ifdef V8_INTL_SUPPORT
@@ -12144,10 +12140,8 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
   compiler::MapRef map =
       broker()->target_native_context().iterator_result_map(broker());
   VirtualObject* iter_result = CreateJSIteratorResult(map, value, done);
-  ValueNode* allocation =
-      BuildInlinedAllocation(iter_result, AllocationType::kYoung);
-  SetAccumulator(allocation);
-  return ReduceResult::Done();
+  return SetAccumulator(
+      BuildInlinedAllocation(iter_result, AllocationType::kYoung));
 }
 
 ReduceResult MaglevGraphBuilder::VisitIntrinsicCreateAsyncFromSyncIterator(
@@ -12295,8 +12289,7 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateKeyValueArray(
   GET_VALUE_OR_ABORT(
       array, CreateJSArray(map, map.instance_size(), GetInt32Constant(2)));
   array->set(JSArray::kElementsOffset, elements);
-  ValueNode* allocation = BuildInlinedAllocation(array, AllocationType::kYoung);
-  return allocation;
+  return BuildInlinedAllocation(array, AllocationType::kYoung);
 }
 
 ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArray(
@@ -12313,18 +12306,15 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArray(
     array->set(map.GetInObjectPropertyOffset(i),
                GetRootConstant(RootIndex::kUndefinedValue));
   }
-  ValueNode* allocation = BuildInlinedAllocation(array, allocation_type);
-  return allocation;
+  return BuildInlinedAllocation(array, allocation_type);
 }
 
-ValueNode* MaglevGraphBuilder::BuildAndAllocateJSArrayIterator(
+ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArrayIterator(
     ValueNode* array, IterationKind iteration_kind) {
   compiler::MapRef map =
       broker()->target_native_context().initial_array_iterator_map(broker());
   VirtualObject* iterator = CreateJSArrayIterator(map, array, iteration_kind);
-  ValueNode* allocation =
-      BuildInlinedAllocation(iterator, AllocationType::kYoung);
-  return allocation;
+  return BuildInlinedAllocation(iterator, AllocationType::kYoung);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
@@ -12363,9 +12353,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
     generator->set(initial_map.GetInObjectPropertyOffset(i), undefined);
   }
 
-  ValueNode* allocation =
-      BuildInlinedAllocation(generator, AllocationType::kYoung);
-  return allocation;
+  return BuildInlinedAllocation(generator, AllocationType::kYoung);
 }
 
 namespace {
@@ -12645,9 +12633,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       // If no value is passed, we can immediately lower to a simple
       // constructor.
       if (args.count() == 0) {
-        ValueNode* result = BuildInlinedAllocation(
-            CreateJSConstructor(target_function), AllocationType::kYoung);
-        return result;
+        return BuildInlinedAllocation(CreateJSConstructor(target_function),
+                                      AllocationType::kYoung);
       }
       break;
     }
@@ -12727,8 +12714,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
         new_target_constant->AsJSFunction();
     if (compiler::OptionalMapRef map =
             TryGetDerivedMap(broker(), target_constant, new_target_function)) {
-      implicit_receiver = BuildInlinedAllocation(
-          CreateJSConstructor(new_target_function), AllocationType::kYoung);
+      GET_VALUE_OR_ABORT(
+          implicit_receiver,
+          BuildInlinedAllocation(CreateJSConstructor(new_target_function),
+                                 AllocationType::kYoung));
     }
   }
   if (implicit_receiver == nullptr) {
@@ -13502,9 +13491,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateRegExpLiteral() {
         broker()->target_native_context();
     compiler::MapRef map =
         native_context.regexp_function(broker()).initial_map(broker());
-    SetAccumulator(BuildInlinedAllocation(
+    return SetAccumulator(BuildInlinedAllocation(
         CreateRegExpLiteralObject(map, literal), AllocationType::kYoung));
-    return ReduceResult::Done();
   }
   // Fallback.
   return SetAccumulator(
@@ -13572,8 +13560,7 @@ ReduceResult MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   VirtualObject* array;
   GET_VALUE_OR_ABORT(
       array, CreateJSArray(map, map.instance_size(), GetSmiConstant(0)));
-  SetAccumulator(BuildInlinedAllocation(array, AllocationType::kYoung));
-  return ReduceResult::Done();
+  return SetAccumulator(BuildInlinedAllocation(array, AllocationType::kYoung));
 }
 
 std::optional<VirtualObject*>
@@ -14180,7 +14167,7 @@ void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
 }
 
 void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
-  vobject->ForEachSlot([&](ValueNode* value, vobj::Field desc) {
+  vobject->ForEachSlot([&](ValueNode* value, vobj::Field desc) -> bool {
     if (InlinedAllocation* nested_allocation =
             value->TryCast<InlinedAllocation>()) {
       VirtualObject* nested_object =
@@ -14202,26 +14189,40 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
                value->opcode() != Opcode::kRestLength) {
       AddDeoptUse(value);
     }
+    return true;
   });
 }
 
-InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
+ReduceResult MaglevGraphBuilder::BuildInlinedAllocation(
     VirtualObject* vobject, AllocationType allocation_type) {
   current_interpreter_frame_.add_object(vobject);
   InlinedAllocation* allocation;
 
   using ValueAndDesc = std::pair<ValueNode*, vobj::Field>;
   SmallZoneVector<ValueAndDesc, 8> values(zone());
-  vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) {
-    if (node->Is<VirtualObject>()) {
-      VirtualObject* nested = node->Cast<VirtualObject>();
-      node = BuildInlinedAllocation(nested, allocation_type);
-      // Update the vobject's slot value.
-      vobject->set(desc.offset, node);
-    }
-    node = ConvertForField(node, desc, allocation_type);
-    values.push_back({node, desc});
-  });
+  bool result =
+      vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) -> bool {
+        if (node->Is<VirtualObject>()) {
+          VirtualObject* nested = node->Cast<VirtualObject>();
+          ReduceResult result = BuildInlinedAllocation(nested, allocation_type);
+          if (result.IsDoneWithAbort()) {
+            return false;
+          }
+          GET_VALUE(node, result);
+          // Update the vobject's slot value.
+          vobject->set(desc.offset, node);
+        }
+        ReduceResult result = ConvertForField(node, desc, allocation_type);
+        if (result.IsDoneWithAbort()) {
+          return false;
+        }
+        GET_VALUE(node, result);
+        values.push_back({node, desc});
+        return true;
+      });
+  if (!result) {
+    return ReduceResult::DoneWithAbort();
+  }
   allocation =
       ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
   AddNonEscapingUses(allocation, static_cast<int>(values.size()));
@@ -14404,8 +14405,9 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
 template <CreateArgumentsType type>
 ValueNode* MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
   auto arguments = BuildVirtualArgumentsObject<type>();
-  ValueNode* allocation =
-      BuildInlinedAllocation(arguments, AllocationType::kYoung);
+  ValueNode* allocation;
+  GET_VALUE(allocation,
+            BuildInlinedAllocation(arguments, AllocationType::kYoung));
   return allocation;
 }
 
@@ -14428,9 +14430,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastCreateObjectOrArrayLiteral(
   // TODO(leszeks): Add support for unwinding graph modifications, so that we
   // can get rid of this two pass approach.
   broker()->dependencies()->DependOnElementsKinds(site);
-  MaybeReduceResult result =
-      BuildInlinedAllocation(*maybe_value, allocation_type);
-  return result;
+  return BuildInlinedAllocation(*maybe_value, allocation_type);
 }
 
 ReduceResult MaglevGraphBuilder::VisitCreateObjectLiteral() {
@@ -14472,9 +14472,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() {
       native_context.object_function(broker()).initial_map(broker());
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
-  SetAccumulator(
+  return SetAccumulator(
       BuildInlinedAllocation(CreateJSObject(map), AllocationType::kYoung));
-  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::VisitCloneObject() {
@@ -14533,8 +14532,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedContext(
   if (context_length > kContextAllocationLimit) return {};
   DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
   auto context = CreateContext(map, context_length, scope, GetContext());
-  ValueNode* result = BuildInlinedAllocation(context, AllocationType::kYoung);
-  return result;
+  return BuildInlinedAllocation(context, AllocationType::kYoung);
 }
 
 ReduceResult MaglevGraphBuilder::VisitCreateBlockContext() {
@@ -14564,7 +14562,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateCatchContext() {
   auto context = CreateContext(
       broker()->target_native_context().catch_context_map(broker()),
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), exception);
-  SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung));
+  RETURN_IF_ABORT(
+      SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung)));
   graph()->record_scope_info(GetAccumulator(), scope_info);
   return ReduceResult::Done();
 }
@@ -14627,7 +14626,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateWithContext() {
   auto context = CreateContext(
       broker()->target_native_context().with_context_map(broker()),
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), object);
-  SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung));
+  RETURN_IF_ABORT(
+      SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung)));
   graph()->record_scope_info(GetAccumulator(), scope_info);
   return ReduceResult::Done();
 }

@@ -1585,8 +1585,9 @@ class MaglevFrameTranslationBuilder {
     } else {
       translation_array_builder_->BeginCapturedObject(object->slot_count());
     }
-    auto callback = [&](ValueNode* node, const vobj::Field& desc) {
+    auto callback = [&](ValueNode* node, const vobj::Field& desc) -> bool {
       BuildNestedValue(node, input_location, virtual_objects);
+      return true;
     };
     object->ForEachSlot(callback,
                         VirtualObject::ForEachSlotIterationMode::kForDeopt);

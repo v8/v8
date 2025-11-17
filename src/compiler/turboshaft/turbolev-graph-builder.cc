@@ -5723,7 +5723,7 @@ class GraphBuildingNodeProcessor {
 
     builder.AddDematerializedObject(dup_id.id, vobj->slot_count());
     vobj->ForEachSlot(
-        [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) {
+        [&](maglev::ValueNode* value_node, maglev::vobj::Field desc) -> bool {
           switch (desc.type) {
             case maglev::vobj::FieldType::kTagged:
             case maglev::vobj::FieldType::kTrustedPointer:
@@ -5734,6 +5734,7 @@ class GraphBuildingNodeProcessor {
             case maglev::vobj::FieldType::kNone:
               UNREACHABLE();
           }
+          return true;
         });
   }
 

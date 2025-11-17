@@ -6299,8 +6299,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     kForDeopt,
   };
 
+  // Returns true iff all callbacks succeeded.
   template <typename Function>
-  inline void ForEachSlot(Function&& callback,
+  inline bool ForEachSlot(Function&& callback,
                           ForEachSlotIterationMode mode =
                               ForEachSlotIterationMode::kDefault) const {
     if (mode == ForEachSlotIterationMode::kForDeopt) {
@@ -6308,27 +6309,31 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         // ConsString materialization uses a custom opcode that only cares about
         // these two fields.
         vobj::Field fst = FieldForOffset(ConsString::kFirstOffset);
-        callback(slots_[fst.slot_index], fst);
+        if (!callback(slots_[fst.slot_index], fst)) {
+          return false;
+        }
         vobj::Field snd = FieldForOffset(ConsString::kSecondOffset);
-        callback(slots_[snd.slot_index], snd);
-        return;
+        return callback(slots_[snd.slot_index], snd);
       }
       if (object_type() == vobj::ObjectType::kHeapNumber) {
         // HeapNumber materialization creates a literal object instead of
         // slot traversal.
-        return;
+        return true;
       }
     }
     for (int i = 0; i < slot_count(); i++) {
-      callback(slots_[i], FieldForSlot(i));
+      if (!callback(slots_[i], FieldForSlot(i))) {
+        return false;
+      }
     }
+    return true;
   }
 
   template <typename Function>
-  inline void ForEachSlot(
+  inline bool ForEachSlot(
       Function&& callback,
       ForEachSlotIterationMode mode = ForEachSlotIterationMode::kDefault) {
-    static_cast<const VirtualObject*>(this)->ForEachSlot(callback, mode);
+    return static_cast<const VirtualObject*>(this)->ForEachSlot(callback, mode);
   }
 
   // A runtime input is an input to the virtual object that has runtime
@@ -6864,11 +6869,11 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f,
     ForEachSlotIterationMode mode) const {
   ForEachSlot(
-      [&](ValueNode* value, const vobj::Field& desc) {
+      [&](ValueNode* value, const vobj::Field& desc) -> bool {
         value = value->UnwrapIdentities();
         if (IsConstantNode(value->opcode())) {
           // No location assigned to constants.
-          return;
+          return true;
         }
         // Special nodes.
         switch (value->opcode()) {
@@ -6897,6 +6902,7 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
             f(value);
             break;
         }
+        return true;
       },
       mode);
 }
@@ -6906,14 +6912,14 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f,
     ForEachSlotIterationMode mode) {
   ForEachSlot(
-      [&](ValueNode*& value, const vobj::Field& desc) {
+      [&](ValueNode*& value, const vobj::Field& desc) -> bool {
         // Subtle: this modifies the location of the caller's `value` in-place.
         // TODO(jgruber): Change the behavior of all related ForEach functions
         // such that they don't do anything besides iteration.
         value = value->UnwrapIdentities();
         if (IsConstantNode(value->opcode())) {
           // No location assigned to constants.
-          return;
+          return true;
         }
         // Special nodes.
         switch (value->opcode()) {
@@ -6942,6 +6948,7 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
             f(value);
             break;
         }
+        return true;
       },
       mode);
 }
