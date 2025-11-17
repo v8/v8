@@ -3436,7 +3436,6 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
   // When the sandbox is enabled, the generator state must be assumed to be
   // untrusted as it is located inside the sandbox, so validate it here.
   CSA_SBXCHECK(this, UintPtrLessThan(case_value, table_length));
-  USE(table_length);  // SBXCHECK is a DCHECK when the sandbox is disabled.
 
   TNode<WordT> entry = IntPtrAdd(table_start, case_value);
   TNode<Object> constant_entry = LoadConstantPoolEntry(entry);
