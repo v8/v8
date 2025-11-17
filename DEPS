@@ -79,7 +79,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:748c9571f3d18820a7989a880d5ddf220e54af1b',
+  'gn_version': 'git_revision:c5a0003bcc2ac3f8d128aaffd700def6068e9a76',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '915ac91bddcdd2175f93f4d67d5ccd4887b54f61',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '42e76627639b3515aa0de76ca17c12df858c1407',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'af886cc8509201242e51417a3e5bb89aaae9138f',
   'buildtools/linux64': {
@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fbc29ad44b7e733f628af27c74c79c3bfa3bc7dd',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c5f115ecb5416bc4ee6d021a9a6976bbaf784256',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c527a62fe0c3a0d2edc40a3177c8670c6f296001',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '926832f6db8aeb875aae84f3e9e7c0994a7674e5',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -262,7 +262,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'third_party/simdutf':
-    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + 'acd71a451c1bcb808b7c3a77e0242052909e381e',
+    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + '880a4923a95e0b525f7bf72da82661cfffe46fb3',
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
   # rely on the hook running |update_sdk.py| script below.
   'third_party/fuchsia-sdk/sdk': {
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '0603493636b0121ff72488a659081beb693eeedc',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'd5d71fe4f3d7a9003ba92074e0b9f558b28e619f',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
