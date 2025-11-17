@@ -1872,7 +1872,8 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
 
   // These SBXCHECKs are a defense-in-depth measure to ensure that we always
   // generate valid calls here (with matching signatures).
-  SBXCHECK(Builtins::IsCpp(builtin));
+  SBXCHECK(Builtins::IsCpp(builtin) &&
+           Builtins::IsEnabledAndNotJSTrampoline(builtin));
   SBXCHECK_GE(arity + kJSArgcReceiverSlots,
               Builtins::GetFormalParameterCount(builtin));
 

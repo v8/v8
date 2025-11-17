@@ -1120,21 +1120,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (Handle<JSFunction> function; TryCast(constant, &function)) {
           if (function->shared()->HasBuiltinId()) {
             Builtin builtin = function->shared()->builtin_id();
-            size_t expected = Builtins::GetFormalParameterCount(builtin);
-            if (num_arguments == expected) {
+            // Defer signature mismatch abort to run-time as optimized
+            // unreachable calls can have mismatched signatures.
+            if (Builtins::IsCompatibleJSBuiltin(builtin, num_arguments)) {
               __ CallBuiltin(builtin);
             } else {
-              __ AssertUnreachable(AbortReason::kJSSignatureMismatch);
+              __ Abort(AbortReason::kJSSignatureMismatch);
             }
           } else {
             JSDispatchHandle dispatch_handle = function->dispatch_handle();
             size_t expected =
                 IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
                     dispatch_handle);
+            // Defer signature mismatch abort to run-time as optimized
+            // unreachable calls can have mismatched signatures.
             if (num_arguments >= expected) {
               __ CallJSDispatchEntry(dispatch_handle, expected);
             } else {
-              __ AssertUnreachable(AbortReason::kJSSignatureMismatch);
+              __ Abort(AbortReason::kJSSignatureMismatch);
             }
           }
         } else {
