@@ -214,6 +214,9 @@ RUNTIME_FUNCTION(Runtime_ConstructThinString) {
   CHECK_UNLESS_FUZZING(args.length() == 1);
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   Handle<String> string = args.at<String>(0);
+  if (IsThinString(*string)) {
+    return *string;
+  }
   if (!IsConsString(*string)) {
     CHECK_UNLESS_FUZZING(string->length() >= ConsString::kMinLength);
     string = isolate->factory()->NewConsString(
