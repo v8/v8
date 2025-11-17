@@ -4639,9 +4639,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register holder = ApiGetterDescriptor::HolderRegister();
   Register callback = ApiGetterDescriptor::CallbackRegister();
   Register scratch = rax;
-  Register decompr_scratch1 = COMPRESS_POINTERS_BOOL ? r15 : no_reg;
 
-  DCHECK(!AreAliased(receiver, holder, callback, scratch, decompr_scratch1));
+  DCHECK(!AreAliased(receiver, holder, callback, scratch));
 
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
@@ -4655,7 +4654,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kIsolateIndex == 3);
   static_assert(PCA::kHolderV2Index == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
 
@@ -4671,13 +4670,12 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   rsp[4 * kSystemPointerSize]: kIsolateIndex
   //   rsp[5 * kSystemPointerSize]: kHolderV2Index
   //   rsp[6 * kSystemPointerSize]: kReturnValueIndex
-  //   rsp[7 * kSystemPointerSize]: kDataIndex
+  //   rsp[7 * kSystemPointerSize]: kCallbackInfoIndex
   //   rsp[8 * kSystemPointerSize]: kThisIndex / receiver
 
   __ PopReturnAddressTo(scratch);
   __ Push(receiver);
-  __ PushTaggedField(FieldOperand(callback, AccessorInfo::kDataOffset),
-                     decompr_scratch1);
+  __ Push(callback);
   __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
   __ Push(kScratchRegister);  // return value
   __ Push(Smi::zero());       // holderV2 value

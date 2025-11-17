@@ -288,7 +288,7 @@ class PropertyCallbackInfo {
   static constexpr int kIsolateIndex = 3;
   static constexpr int kHolderV2Index = 4;
   static constexpr int kReturnValueIndex = 5;
-  static constexpr int kDataIndex = 6;
+  static constexpr int kCallbackInfoIndex = 6;
   static constexpr int kThisIndex = 7;
   static constexpr int kArgsLength = 8;
 
@@ -656,7 +656,11 @@ Isolate* PropertyCallbackInfo<T>::GetIsolate() const {
 
 template <typename T>
 Local<Value> PropertyCallbackInfo<T>::Data() const {
-  return Local<Value>::FromSlot(&args_[kDataIndex]);
+  using I = internal::Internals;
+  internal::Address callback_info = args_[kCallbackInfoIndex];
+  internal::Address data =
+      I::ReadTaggedPointerField(callback_info, I::kCallbackInfoDataOffset);
+  return Local<Value>::New(GetIsolate(), data);
 }
 
 template <typename T>

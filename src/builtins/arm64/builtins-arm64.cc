@@ -4885,7 +4885,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kIsolateIndex == 3);
   static_assert(PCA::kHolderV2Index == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
 
@@ -4897,17 +4897,15 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[3 * kSystemPointerSize]: kIsolateIndex
   //   sp[4 * kSystemPointerSize]: kHolderV2Index
   //   sp[5 * kSystemPointerSize]: kReturnValueIndex
-  //   sp[6 * kSystemPointerSize]: kDataIndex
+  //   sp[6 * kSystemPointerSize]: kCallbackInfoIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
 
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
   __ Mov(scratch2, ER::isolate_address());
   Register holderV2 = xzr;
-  __ Push(receiver, scratch,  // kThisIndex, kDataIndex
-          undef, holderV2,    // kReturnValueIndex, kHolderV2Index
-          scratch2, holder);  // kIsolateIndex, kHolderIndex
+  __ Push(receiver, callback,  // kThisIndex, kCallbackInfoIndex
+          undef, holderV2,     // kReturnValueIndex, kHolderV2Index
+          scratch2, holder);   // kIsolateIndex, kHolderIndex
 
   // |name_arg| clashes with |holder|, so we need to push holder first.
   __ LoadTaggedField(name_arg,

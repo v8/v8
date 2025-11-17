@@ -10,8 +10,10 @@ namespace v8 {
 namespace internal {
 
 PropertyCallbackArguments::PropertyCallbackArguments(
-    Isolate* isolate, Tagged<Object> data, Tagged<Object> self,
-    Tagged<JSObject> holder, Maybe<ShouldThrow> should_throw)
+    Isolate* isolate,
+    Tagged<UnionOf<AccessorInfo, InterceptorInfo>> callback_info,
+    Tagged<Object> self, Tagged<JSObject> holder,
+    Maybe<ShouldThrow> should_throw)
     : Super(isolate)
 #ifdef DEBUG
       ,
@@ -27,7 +29,7 @@ PropertyCallbackArguments::PropertyCallbackArguments(
   }
   slot_at(T::kThisIndex).store(self);
   slot_at(T::kHolderIndex).store(holder);
-  slot_at(T::kDataIndex).store(data);
+  slot_at(T::kCallbackInfoIndex).store(callback_info);
   slot_at(T::kIsolateIndex)
       .store(Tagged<Object>(reinterpret_cast<Address>(isolate)));
   int value = Internals::kInferShouldThrowMode;

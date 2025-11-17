@@ -24,6 +24,12 @@ namespace internal {
 
 #include "torque-generated/src/objects/api-callbacks-tq-inl.inc"
 
+// Make sure that Api can read Data value from both AccessorInfo and
+// InterceptorInfo without checking the type.
+static_assert(Internals::kCallbackInfoDataOffset == AccessorInfo::kDataOffset);
+static_assert(Internals::kCallbackInfoDataOffset ==
+              InterceptorInfo::kDataOffset);
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)

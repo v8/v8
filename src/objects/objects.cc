@@ -1533,9 +1533,9 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
                                  Object::ConvertReceiver(isolate, receiver));
     }
 
-    PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
+    PropertyCallbackArguments args(isolate, *info, *receiver, *holder,
                                    Just(kDontThrow));
-    DirectHandle<JSAny> result = args.CallAccessorGetter(info, name);
+    DirectHandle<JSAny> result = args.CallAccessorGetter(name);
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     Handle<JSAny> reboxed_result(*result, isolate);
     if (info->replace_on_access() && IsJSReceiver(*receiver)) {
@@ -1602,9 +1602,9 @@ Maybe<bool> Object::SetPropertyWithAccessor(
                                  Object::ConvertReceiver(isolate, receiver));
     }
 
-    PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
+    PropertyCallbackArguments args(isolate, *info, *receiver, *holder,
                                    maybe_should_throw);
-    bool result = args.CallAccessorSetter(info, name, value);
+    bool result = args.CallAccessorSetter(name, value);
     RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
     // Ensure the setter callback respects the "should throw" value - it's
     // allowed to fail without throwing only in case of kDontThrow.

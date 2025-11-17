@@ -743,17 +743,17 @@ KeyAccumulator::FilterForEnumerableProperties(
 
     // args are invalid after args.Call(), create a new one in every iteration.
     // Query callbacks are not expected to have side effects.
-    PropertyCallbackArguments args(isolate_, interceptor->data(), *receiver,
-                                   *object, Just(kDontThrow));
+    PropertyCallbackArguments args(isolate_, *interceptor, *receiver, *object,
+                                   Just(kDontThrow));
     DirectHandle<Object> element = accessor->Get(isolate_, result, entry);
     DirectHandle<Object> attributes;
     if (type == kIndexed) {
       uint32_t number;
       CHECK(Object::ToUint32(*element, &number));
-      attributes = args.CallIndexedQuery(interceptor, number);
+      attributes = args.CallIndexedQuery(number);
     } else {
       CHECK(IsName(*element));
-      attributes = args.CallNamedQuery(interceptor, Cast<Name>(element));
+      attributes = args.CallNamedQuery(Cast<Name>(element));
     }
     // An exception was thrown in the interceptor. Propagate.
     RETURN_VALUE_IF_EXCEPTION(isolate_, ExceptionStatus::kException);
@@ -773,7 +773,7 @@ KeyAccumulator::FilterForEnumerableProperties(
 Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
     DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
     DirectHandle<InterceptorInfo> interceptor, IndexedOrNamed type) {
-  PropertyCallbackArguments enum_args(isolate_, interceptor->data(), *receiver,
+  PropertyCallbackArguments enum_args(isolate_, *interceptor, *receiver,
                                       *object, Just(kDontThrow));
 
   DCHECK_EQ(interceptor->is_named(), type == kNamed);
@@ -782,10 +782,10 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
   }
   DirectHandle<JSObjectOrUndefined> maybe_result;
   if (type == kIndexed) {
-    maybe_result = enum_args.CallIndexedEnumerator(interceptor);
+    maybe_result = enum_args.CallIndexedEnumerator();
   } else {
     DCHECK_EQ(type, kNamed);
-    maybe_result = enum_args.CallNamedEnumerator(interceptor);
+    maybe_result = enum_args.CallNamedEnumerator();
   }
   // An exception was thrown in the interceptor. Propagate.
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate_, enum_args, Nothing<bool>());

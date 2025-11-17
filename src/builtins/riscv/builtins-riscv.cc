@@ -4683,7 +4683,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kIsolateIndex == 3);
   static_assert(PCA::kHolderV2Index == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
   // Set up v8::PropertyCallbackInfo's (PCI) args_ on the stack as follows:
@@ -4694,13 +4694,12 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[3 * kSystemPointerSize]: kIsolateIndex
   //   sp[4 * kSystemPointerSize]: kHolderV2Index
   //   sp[5 * kSystemPointerSize]: kReturnValueIndex
-  //   sp[6 * kSystemPointerSize]: kDataIndex
+  //   sp[6 * kSystemPointerSize]: kCallbackInfoIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
   __ SubWord(sp, sp, (PCA::kArgsLength)*kSystemPointerSize);
   __ StoreWord(receiver, MemOperand(sp, (PCA::kThisIndex)*kSystemPointerSize));
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(callback, AccessorInfo::kDataOffset));
-  __ StoreWord(scratch, MemOperand(sp, (PCA::kDataIndex)*kSystemPointerSize));
+  __ StoreWord(callback,
+               MemOperand(sp, (PCA::kCallbackInfoIndex)*kSystemPointerSize));
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ StoreWord(scratch,
                MemOperand(sp, (PCA::kReturnValueIndex)*kSystemPointerSize));

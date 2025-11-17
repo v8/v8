@@ -1538,8 +1538,8 @@ DirectHandle<AccessorInfo> Factory::NewAccessorInfo() {
   Tagged<AccessorInfo> info =
       Cast<AccessorInfo>(New(accessor_info_map(), AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  info->set_name(*empty_string(), SKIP_WRITE_BARRIER);
   info->set_data(*undefined_value(), SKIP_WRITE_BARRIER);
+  info->set_name(*empty_string(), SKIP_WRITE_BARRIER);
   info->set_flags(0);  // Must clear the flags, it was initialized as undefined.
   info->set_is_sloppy(true);
   info->set_initial_property_attributes(NONE);

@@ -42,8 +42,8 @@ bitfield struct AccessorInfoFlags extends uint32 {
 }
 
 extern class AccessorInfo extends HeapObject {
-  name: Name;
   data: Object;
+  name: Name;
   // For simulator builds this field contains the address of the trampoline
   // callable from generated code and for native builds - the address of
   // the getter C function.

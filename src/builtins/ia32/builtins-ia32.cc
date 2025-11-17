@@ -4524,7 +4524,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kIsolateIndex == 3);
   static_assert(PCA::kHolderV2Index == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
 
@@ -4540,12 +4540,12 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   esp[4 * kSystemPointerSize]: kIsolateIndex
   //   esp[5 * kSystemPointerSize]: kHolderV2Index
   //   esp[6 * kSystemPointerSize]: kReturnValueIndex
-  //   esp[7 * kSystemPointerSize]: kDataIndex
+  //   esp[7 * kSystemPointerSize]: kCallbackInfoIndex
   //   esp[8 * kSystemPointerSize]: kThisIndex / receiver
 
   __ PopReturnAddressTo(scratch);
-  __ push(receiver);
-  __ push(FieldOperand(callback, AccessorInfo::kDataOffset));
+  __ push(receiver);                        // kThisIndex
+  __ push(callback);                        // kCallbackInfoIndex
   __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValue
   __ Push(Smi::zero());                     // kHolderV2
   Register isolate_reg = ReassignRegister(receiver);

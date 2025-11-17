@@ -3992,9 +3992,9 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   }
 #endif
 
-  PropertyCallbackArguments arguments(isolate, info->data(), *receiver, *holder,
+  PropertyCallbackArguments arguments(isolate, *info, *receiver, *holder,
                                       Nothing<ShouldThrow>());
-  std::ignore = arguments.CallAccessorSetter(info, name, value);
+  std::ignore = arguments.CallAccessorSetter(name, value);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
   return *value;
 }
@@ -4160,10 +4160,10 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 #endif
 
   {
-    PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+    PropertyCallbackArguments arguments(isolate, *interceptor, *receiver,
                                         *holder, Just(kDontThrow));
 
-    DirectHandle<Object> result = arguments.CallNamedGetter(interceptor, name);
+    DirectHandle<Object> result = arguments.CallNamedGetter(name);
     // An exception was thrown in the interceptor. Propagate.
     RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
@@ -4236,11 +4236,10 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
     DCHECK(!interceptor->non_masking());
     // TODO(ishell, 348688196): why is it known that it shouldn't throw?
     Maybe<ShouldThrow> should_throw = Just(kDontThrow);
-    PropertyCallbackArguments callback_args(isolate, interceptor->data(),
-                                            *receiver, *receiver, should_throw);
+    PropertyCallbackArguments callback_args(isolate, *interceptor, *receiver,
+                                            *receiver, should_throw);
 
-    v8::Intercepted intercepted =
-        callback_args.CallNamedSetter(interceptor, name, value);
+    v8::Intercepted intercepted = callback_args.CallNamedSetter(name, value);
     // Stores initiated by StoreICs don't care about the exact result of
     // the store operation returned by the callback as long as it doesn't
     // throw an exception.
@@ -4286,9 +4285,9 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
 
   DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                             isolate);
-  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+  PropertyCallbackArguments arguments(isolate, *interceptor, *receiver,
                                       *receiver, Just(kDontThrow));
-  DirectHandle<Object> result = arguments.CallIndexedGetter(interceptor, index);
+  DirectHandle<Object> result = arguments.CallIndexedGetter(index);
   // An exception was thrown in the interceptor. Propagate.
   RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
@@ -4332,12 +4331,11 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
   {
     DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                               isolate);
-    PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+    PropertyCallbackArguments arguments(isolate, *interceptor, *receiver,
                                         *receiver, Just(kDontThrow));
 
     if (interceptor->has_query()) {
-      DirectHandle<Object> result =
-          arguments.CallIndexedQuery(interceptor, index);
+      DirectHandle<Object> result = arguments.CallIndexedQuery(index);
       // An exception was thrown in the interceptor. Propagate.
       RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
       if (!result.is_null()) {
@@ -4350,8 +4348,7 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
         return ReadOnlyRoots(isolate).true_value();
       }
     } else if (interceptor->has_getter()) {
-      DirectHandle<Object> result =
-          arguments.CallIndexedGetter(interceptor, index);
+      DirectHandle<Object> result = arguments.CallIndexedGetter(index);
       // An exception was thrown in the interceptor. Propagate.
       RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
       if (!result.is_null()) {

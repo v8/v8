@@ -914,6 +914,9 @@ class Internals {
   static const int kExternalTwoByteRepresentationTag = 0x02;
   static const int kExternalOneByteRepresentationTag = 0x0a;
 
+  // AccessorInfo::data and InterceptorInfo::data field.
+  static const int kCallbackInfoDataOffset = 1 * kApiTaggedSize;
+
   static const uint32_t kNumIsolateDataSlots = 4;
   static const int kStackGuardSize = 8 * kApiSystemPointerSize;
   static const int kNumberOfBooleanFlags = 6;
