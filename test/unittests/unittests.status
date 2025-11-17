@@ -120,10 +120,6 @@
 
   # https://crbug.com/v8/8766
   'AllGolden/BytecodeGeneratorTest.CompilationMatchesExpectation/WideRegisters': [SKIP],
-
-  # Need to un-skip once GenerationSizesFromHeapSize has be refactored.
-  # http://crrev.com/c/7117498
-  'Heap.GenerationSizesFromHeapSize': [SKIP],
 }],  # arch == ppc64
 
 ##############################################################################
