@@ -529,7 +529,7 @@ class MaglevGraphBuilder {
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs);
 
   template <Builtin kBuiltin>
-  CallBuiltin* BuildCallBuiltinWithTaggedInputs(
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
       std::initializer_list<ValueNode*> inputs);
 
   template <Builtin kBuiltin>
@@ -539,7 +539,7 @@ class MaglevGraphBuilder {
       CallBuiltin::FeedbackSlotType slot_type = CallBuiltin::kTaggedIndex);
 
   template <Builtin kBuiltin>
-  CallBuiltin* BuildCallBuiltinWithTaggedInputs(
+  ReduceResult BuildCallBuiltinWithTaggedInputs(
       std::initializer_list<ValueNode*> inputs,
       compiler::FeedbackSource const& feedback,
       CallBuiltin::FeedbackSlotType slot_type = CallBuiltin::kTaggedIndex);
@@ -1167,7 +1167,7 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryBuildGlobalLoad(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
-  bool TryBuildFindNonDefaultConstructorOrConstruct(
+  MaybeReduceResult TryBuildFindNonDefaultConstructorOrConstruct(
       ValueNode* this_function, ValueNode* new_target,
       std::pair<interpreter::Register, interpreter::Register> result);
 

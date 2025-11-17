@@ -2910,14 +2910,13 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       RETURN_IF_ABORT(BuildCheckString(left));
       RETURN_IF_ABORT(BuildCheckString(right));
 
-      ValueNode* result;
+      ReduceResult result = ReduceResult::Done();
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
       switch (kOperation) {
         case Operation::kEqual:
         case Operation::kStrictEqual: {
-          GET_VALUE_OR_ABORT(
-              result, AddNewNode<StringEqual>(
-                          {left, right}, StringEqualInputMode::kOnlyStrings));
+          result = AddNewNode<StringEqual>({left, right},
+                                           StringEqualInputMode::kOnlyStrings);
           break;
         }
         case Operation::kLessThan:
@@ -2940,8 +2939,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
           break;
       }
 
-      SetAccumulator(result);
-      return ReduceResult::Done();
+      return SetAccumulator(result);
     }
     case CompareOperationHint::kStringOrOddball: {
       if (kOperation == Operation::kStrictEqual) {
@@ -7773,7 +7771,7 @@ ReduceResult MaglevGraphBuilder::VisitAdd_StringConstant_Internalize() {
         flags == static_cast<uint8_t>(ASVariant::kRhsIsStringConstant));
   const ASVariant as_variant = static_cast<ASVariant>(flags);
 
-  ValueNode* result;
+  ReduceResult result = ReduceResult::Done();
   if (is_inline()) {
     static constexpr auto kTargetL =
         Builtin::kAddLhsIsStringConstantInternalizeWithVector;
@@ -7795,8 +7793,7 @@ ReduceResult MaglevGraphBuilder::VisitAdd_StringConstant_Internalize() {
             ? BuildCallBuiltinWithTaggedInputs<kTargetL>({left, right, slot})
             : BuildCallBuiltinWithTaggedInputs<kTargetR>({left, right, slot});
   }
-  SetAccumulator(result);
-  return ReduceResult::Done();
+  return SetAccumulator(result);
 }
 ReduceResult MaglevGraphBuilder::VisitSub() {
   return VisitBinaryOperation<Operation::kSubtract>();
@@ -7925,8 +7922,8 @@ ReduceResult MaglevGraphBuilder::VisitTypeOf() {
       break;
   }
 
-  SetAccumulator(BuildCallBuiltinWithTaggedInputs<Builtin::kTypeof>({value}));
-  return ReduceResult::Done();
+  return SetAccumulator(
+      BuildCallBuiltinWithTaggedInputs<Builtin::kTypeof>({value}));
 }
 
 ReduceResult MaglevGraphBuilder::VisitDeletePropertyStrict() {
@@ -7975,7 +7972,8 @@ bool MaglevGraphBuilder::HasValidInitialMap(
   return initial_map.GetConstructor(broker()).equals(constructor);
 }
 
-bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
+MaybeReduceResult
+MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
     ValueNode* this_function, ValueNode* new_target,
     std::pair<interpreter::Register, interpreter::Register> result) {
   // See also:
@@ -7983,7 +7981,7 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
 
   compiler::OptionalHeapObjectRef maybe_constant =
       TryGetConstant(this_function);
-  if (!maybe_constant) return false;
+  if (!maybe_constant) return {};
 
   compiler::MapRef function_map = maybe_constant->map(broker());
   compiler::HeapObjectRef current = function_map.prototype(broker());
@@ -7995,20 +7993,20 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
   // Tools would always see the full stack trace.
 
   while (true) {
-    if (!current.IsJSFunction()) return false;
+    if (!current.IsJSFunction()) return {};
     compiler::JSFunctionRef current_function = current.AsJSFunction();
 
     // If there are class fields, bail out. TODO(v8:13091): Handle them here.
     if (current_function.shared(broker())
             .requires_instance_members_initializer()) {
-      return false;
+      return {};
     }
 
     // If there are private methods, bail out. TODO(v8:13091): Handle them here.
     if (current_function.context(broker())
             .scope_info(broker())
             .ClassScopeHasPrivateBrand()) {
-      return false;
+      return {};
     }
 
     FunctionKind kind = current_function.shared(broker()).kind();
@@ -8016,7 +8014,7 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
       // The hierarchy walk will end here; this is the last change to bail out
       // before creating new nodes.
       if (!broker()->dependencies()->DependOnArrayIteratorProtector()) {
-        return false;
+        return {};
       }
 
       compiler::OptionalHeapObjectRef new_target_function =
@@ -8039,8 +8037,9 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
           // We've already stored "true" into result.first, so a deopt here just
           // has to store result.second.
           LazyDeoptResultLocationScope new_location(this, result.second, 1);
-          object = BuildCallBuiltinWithTaggedInputs<Builtin::kFastNewObject>(
-              {GetConstant(current_function), new_target});
+          GET_VALUE_OR_ABORT(
+              object, BuildCallBuiltinWithTaggedInputs<Builtin::kFastNewObject>(
+                          {GetConstant(current_function), new_target}));
         }
         StoreRegister(result.second, object);
       } else {
@@ -8050,7 +8049,7 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
 
       broker()->dependencies()->DependOnStablePrototypeChain(
           function_map, WhereToStart::kStartAtReceiver, current_function);
-      return true;
+      return ReduceResult::Done();
     }
 
     // Keep walking up the class tree.
@@ -8064,14 +8063,14 @@ ReduceResult MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
 
   auto register_pair = iterator_.GetRegisterPairOperand(2);
 
-  if (TryBuildFindNonDefaultConstructorOrConstruct(this_function, new_target,
-                                                   register_pair)) {
-    return ReduceResult::Done();
-  }
+  RETURN_IF_DONE(TryBuildFindNonDefaultConstructorOrConstruct(
+      this_function, new_target, register_pair));
 
-  CallBuiltin* result = BuildCallBuiltinWithTaggedInputs<
-      Builtin::kFindNonDefaultConstructorOrConstruct>(
-      {this_function, new_target});
+  CallBuiltin* result;
+  GET_VALUE_OR_ABORT(result,
+                     BuildCallBuiltinWithTaggedInputs<
+                         Builtin::kFindNonDefaultConstructorOrConstruct>(
+                         {this_function, new_target}));
   StoreRegisterPair(register_pair, result);
   return ReduceResult::Done();
 }
@@ -12160,10 +12159,9 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicCreateJSGeneratorObject(
   ValueNode* receiver = current_interpreter_frame_.get(args[1]);
   PROCESS_AND_RETURN_IF_DONE(
       TryBuildAndAllocateJSGeneratorObject(closure, receiver), SetAccumulator);
-  SetAccumulator(
+  return SetAccumulator(
       BuildCallBuiltinWithTaggedInputs<Builtin::kCreateGeneratorObject>(
           {closure, receiver}));
-  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::VisitIntrinsicGeneratorGetResumeMode(
@@ -12725,9 +12723,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
     // object construction; for these cases, we have to resume before the
     // `target` call.
     if (target != new_target) return {};
-    implicit_receiver =
+    GET_VALUE_OR_ABORT(
+        implicit_receiver,
         BuildCallBuiltinWithTaggedInputs<Builtin::kFastNewObject>(
-            {target, new_target});
+            {target, new_target}));
   }
   EnsureType(implicit_receiver, NodeType::kJSReceiver);
 
@@ -12924,10 +12923,9 @@ ReduceResult MaglevGraphBuilder::VisitConstructForwardAllArgs() {
     return BuildConstruct(target, new_target, args, feedback_source);
   } else {
     // TODO(syg): Add ConstructForwardAllArgs reductions and support inlining.
-    SetAccumulator(BuildCallBuiltinWithTaggedInputs<
-                   Builtin::kConstructForwardAllArgs_WithFeedback>(
+    return SetAccumulator(BuildCallBuiltinWithTaggedInputs<
+                          Builtin::kConstructForwardAllArgs_WithFeedback>(
         {target, new_target}, feedback_source));
-    return ReduceResult::Done();
   }
 }
 
@@ -13351,9 +13349,8 @@ ReduceResult MaglevGraphBuilder::VisitTestIn() {
   // TODO(victorgomes): Create fast path using feedback.
   USE(feedback_source);
 
-  SetAccumulator(BuildCallBuiltinWithTaggedInputs<Builtin::kKeyedHasIC>(
+  return SetAccumulator(BuildCallBuiltinWithTaggedInputs<Builtin::kKeyedHasIC>(
       {object, name}, feedback_source));
-  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::VisitToName() {
@@ -13534,9 +13531,8 @@ ReduceResult MaglevGraphBuilder::VisitCreateArrayLiteral() {
 
 ReduceResult MaglevGraphBuilder::VisitCreateArrayFromIterable() {
   ValueNode* iterable = GetAccumulator();
-  SetAccumulator(BuildCallBuiltinWithTaggedInputs<
-                 Builtin::kIterableToListWithSymbolLookup>({iterable}));
-  return ReduceResult::Done();
+  return SetAccumulator(BuildCallBuiltinWithTaggedInputs<
+                        Builtin::kIterableToListWithSymbolLookup>({iterable}));
 }
 
 ReduceResult MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
@@ -14484,9 +14480,9 @@ ReduceResult MaglevGraphBuilder::VisitCloneObject() {
           GetFlag8Operand(1)));
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
-  SetAccumulator(BuildCallBuiltinWithTaggedInputs<Builtin::kCloneObjectIC>(
-      {source, flags}, feedback_source));
-  return ReduceResult::Done();
+  return SetAccumulator(
+      BuildCallBuiltinWithTaggedInputs<Builtin::kCloneObjectIC>(
+          {source, flags}, feedback_source));
 }
 
 ReduceResult MaglevGraphBuilder::VisitGetTemplateObject() {
@@ -15543,9 +15539,8 @@ ReduceResult MaglevGraphBuilder::VisitForInEnumerate() {
   ValueNode* receiver = LoadRegister(0);
   // Pass receiver to ForInPrepare.
   current_for_in_state.receiver = receiver;
-  SetAccumulator(
+  return SetAccumulator(
       BuildCallBuiltinWithTaggedInputs<Builtin::kForInEnumerate>({receiver}));
-  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
@@ -16734,7 +16729,7 @@ MaybeHandle<String> MaglevGraphBuilder::TryGetStringConstant(ValueNode* value) {
 }
 
 template <Builtin kBuiltin>
-CallBuiltin* MaglevGraphBuilder::BuildCallBuiltinWithTaggedInputs(
+ReduceResult MaglevGraphBuilder::BuildCallBuiltinWithTaggedInputs(
     std::initializer_list<ValueNode*> inputs) {
   using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
   if constexpr (Descriptor::HasContextParameter()) {
@@ -16820,12 +16815,13 @@ CallBuiltin* MaglevGraphBuilder::BuildCallBuiltin(
 }
 
 template <Builtin kBuiltin>
-CallBuiltin* MaglevGraphBuilder::BuildCallBuiltinWithTaggedInputs(
+ReduceResult MaglevGraphBuilder::BuildCallBuiltinWithTaggedInputs(
     std::initializer_list<ValueNode*> inputs,
     compiler::FeedbackSource const& feedback,
     CallBuiltin::FeedbackSlotType slot_type) {
-  CallBuiltin* call_builtin =
-      BuildCallBuiltinWithTaggedInputs<kBuiltin>(inputs);
+  CallBuiltin* call_builtin;
+  GET_VALUE_OR_ABORT(call_builtin,
+                     BuildCallBuiltinWithTaggedInputs<kBuiltin>(inputs));
   call_builtin->set_feedback(feedback, slot_type);
 #ifdef DEBUG
   // Check that the last parameters are kSlot and kVector.
