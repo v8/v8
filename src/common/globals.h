@@ -175,12 +175,14 @@ namespace internal {
 // allocating MacroAssembler takes 120K bytes.  See issue crbug.com/405338
 #define V8_DEFAULT_STACK_SIZE_KB 864
 #elif V8_TARGET_ARCH_IA32
-// In mid-2022, we're observing an increase in stack overflow crashes on
-// 32-bit Windows; the suspicion is that some third-party software suddenly
-// started to consume a lot more stack memory (before V8 is even initialized).
-// So we speculatively lower the ia32 limit to the ARM limit for the time
-// being. See crbug.com/1346791.
-#define V8_DEFAULT_STACK_SIZE_KB 864
+// As of crrev.com/c/2461589, Chrome creates some threads (at least worker
+// pools threads, maybe others) on 32-bit Windows with only 512 KB of stack
+// space. Since we cannot accurately tell when that's the case, and since
+// this platform isn't being used very much any more, we play it safe by
+// reducing stack size for all ia32 builds.
+// Rationale behind the specific value: leave the same 40 KB of slack as
+// the 984 KB limit we used on systems with 1 MB stack size.
+#define V8_DEFAULT_STACK_SIZE_KB 472
 #elif V8_USE_ADDRESS_SANITIZER
 // ASan makes C++ frames consume more stack, so V8 should leave more stack
 // space available in case a C++ call happens. ClusterFuzz found a case where
