@@ -511,7 +511,7 @@ std::optional<ValueNode*> MaglevReducer<BaseT>::TryGetConstantAlternative(
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
+ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
     value->MaybeRecordUseReprHint(UseRepresentation::kTagged);

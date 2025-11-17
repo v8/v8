@@ -321,9 +321,9 @@ class MaglevReducer {
 
   // Get a tagged representation node whose value is equivalent to the given
   // node.
-  ValueNode* GetTaggedValue(ValueNode* value,
-                            UseReprHintRecording record_use_repr_hint =
-                                UseReprHintRecording::kRecord);
+  ReduceResult GetTaggedValue(ValueNode* value,
+                              UseReprHintRecording record_use_repr_hint =
+                                  UseReprHintRecording::kRecord);
 
   // Get an Int32 representation node whose value is equivalent to the given
   // node.

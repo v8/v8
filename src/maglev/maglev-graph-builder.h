@@ -630,9 +630,9 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
   }
 
-  ValueNode* GetTaggedValue(ValueNode* value,
-                            UseReprHintRecording record_use_repr_hint =
-                                UseReprHintRecording::kRecord);
+  ReduceResult GetTaggedValue(ValueNode* value,
+                              UseReprHintRecording record_use_repr_hint =
+                                  UseReprHintRecording::kRecord);
 
   ReduceResult GetSmiValue(ValueNode* value,
                            UseReprHintRecording record_use_repr_hint =
@@ -648,9 +648,9 @@ class MaglevGraphBuilder {
     return GetSmiValue(value, record_use_repr_hint);
   }
 
-  ValueNode* GetTaggedValue(interpreter::Register reg,
-                            UseReprHintRecording record_use_repr_hint =
-                                UseReprHintRecording::kRecord);
+  ReduceResult GetTaggedValue(interpreter::Register reg,
+                              UseReprHintRecording record_use_repr_hint =
+                                  UseReprHintRecording::kRecord);
 
   ReduceResult GetInternalizedString(interpreter::Register reg);
 
