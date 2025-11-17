@@ -3343,8 +3343,7 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
     reg_with_result = data_pointer;
   }
 
-  MemOperand element_address = __ DataViewElementOperand(data_pointer, index);
-  __ LoadSignedField(reg_with_result, element_address, element_size);
+  __ LoadDataViewElement(reg_with_result, data_pointer, index, element_size);
 
   // We ignore little endian argument if type is a byte size.
   if (type_ != ExternalArrayType::kExternalInt8Array) {
@@ -3415,8 +3414,7 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
     }
   }
 
-  MemOperand element_address = __ DataViewElementOperand(data_pointer, index);
-  __ StoreField(element_address, value, element_size);
+  __ StoreDataViewElement(value, data_pointer, index, element_size);
 }
 
 void LoadDoubleDataViewElement::SetValueLocationConstraints() {

@@ -278,8 +278,11 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                          Register object);
   inline MemOperand TypedArrayElementOperand(Register data_pointer,
                                              Register index, int element_size);
-  inline MemOperand DataViewElementOperand(Register data_pointer,
-                                           Register index);
+
+  inline void StoreDataViewElement(Register value, Register data_pointer,
+                                   Register index, int element_size);
+  inline void LoadDataViewElement(Register result, Register data_pointer,
+                                  Register index, int element_size);
 
   enum class CharCodeMaskMode { kValueIsInRange, kMustApplyMask };
 
