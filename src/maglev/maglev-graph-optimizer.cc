@@ -29,6 +29,21 @@ namespace maglev {
   } while (false)
 
 namespace {
+bool IsDone(MaybeReduceResult result) { return result.IsDone(); }
+bool IsDone(ValueNode* node) { return node != nullptr; }
+ValueNode* Value(MaybeReduceResult result) { return result.value(); }
+ValueNode* Value(ValueNode* node) { return node; }
+}  // namespace
+
+#define REPLACE_AND_RETURN_IF_DONE(result) \
+  do {                                     \
+    auto res = (result);                   \
+    if (IsDone(res)) {                     \
+      return ReplaceWith(Value(res));      \
+    }                                      \
+  } while (false)
+
+namespace {
 constexpr ValueRepresentation ValueRepresentationFromUse(
     UseRepresentation repr) {
   switch (repr) {
@@ -343,12 +358,10 @@ ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
 
 template <typename NodeT>
 ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
-  if (ValueNode* cached_value = known_node_aspects().TryGetContextCachedValue(
-          node->input_node(0), node->offset(),
-          node->is_const() ? ContextSlotMutability::kImmutable
-                           : ContextSlotMutability::kMutable)) {
-    return ReplaceWith(cached_value);
-  }
+  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryGetContextCachedValue(
+      node->input_node(0), node->offset(),
+      node->is_const() ? ContextSlotMutability::kImmutable
+                       : ContextSlotMutability::kMutable));
   return ProcessResult::kContinue;
 }
 
@@ -1113,11 +1126,8 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
     }
   }
   if (!node->property_key().is_none()) {
-    if (ValueNode* cache = known_node_aspects().TryFindLoadedProperty(
-            node->object_input().node(), node->property_key(),
-            node->is_const())) {
-      return ReplaceWith(cache);
-    }
+    REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
+        node->object_input().node(), node->property_key(), node->is_const()));
   }
   return ProcessResult::kContinue;
 }
@@ -1196,21 +1206,16 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTypedArrayLength(
 
 ProcessResult MaglevGraphOptimizer::VisitLoadDataViewByteLength(
     LoadDataViewByteLength* node, const ProcessingState& state) {
-  if (ValueNode* cached = known_node_aspects().TryFindLoadedConstantProperty(
-          node->receiver_input().node(),
-          PropertyKey::ArrayBufferViewByteLength())) {
-    return ReplaceWith(cached);
-  }
+  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedConstantProperty(
+      node->receiver_input().node(), PropertyKey::ArrayBufferViewByteLength()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadDataViewDataPointer(
     LoadDataViewDataPointer* node, const ProcessingState& state) {
-  if (ValueNode* cached = known_node_aspects().TryFindLoadedConstantProperty(
-          node->receiver_input().node(),
-          PropertyKey::ArrayBufferViewDataPointer())) {
-    return ReplaceWith(cached);
-  }
+  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedConstantProperty(
+      node->receiver_input().node(),
+      PropertyKey::ArrayBufferViewDataPointer()));
   return ProcessResult::kContinue;
 }
 
@@ -1604,22 +1609,18 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiTagHoleyFloat64(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedNumberOrOddballToHoleyFloat64(
     CheckedNumberOrOddballToHoleyFloat64* node, const ProcessingState& state) {
-  if (ValueNode* input = GetUntaggedValueWithRepresentation(
-          node->input_node(0), UseRepresentation::kHoleyFloat64,
-          node->conversion_type())) {
-    return ReplaceWith(input);
-  }
+  REPLACE_AND_RETURN_IF_DONE(GetUntaggedValueWithRepresentation(
+      node->input_node(0), UseRepresentation::kHoleyFloat64,
+      node->conversion_type()));
   return ProcessResult::kContinue;
 }
 
-#define UNTAGGING_CASE(Node, Repr, ConvType)                              \
-  ProcessResult MaglevGraphOptimizer::Visit##Node(                        \
-      Node* node, const ProcessingState& state) {                         \
-    if (ValueNode* input = GetUntaggedValueWithRepresentation(            \
-            node->input_node(0), UseRepresentation::k##Repr, ConvType)) { \
-      return ReplaceWith(input);                                          \
-    }                                                                     \
-    return ProcessResult::kContinue;                                      \
+#define UNTAGGING_CASE(Node, Repr, ConvType)                         \
+  ProcessResult MaglevGraphOptimizer::Visit##Node(                   \
+      Node* node, const ProcessingState& state) {                    \
+    REPLACE_AND_RETURN_IF_DONE(GetUntaggedValueWithRepresentation(   \
+        node->input_node(0), UseRepresentation::k##Repr, ConvType)); \
+    return ProcessResult::kContinue;                                 \
   }
 UNTAGGING_CASE(UnsafeSmiUntag, Int32, {})
 UNTAGGING_CASE(CheckedNumberToInt32, Int32, {})
@@ -1745,11 +1746,7 @@ ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64IsHole(
 
 ProcessResult MaglevGraphOptimizer::VisitLogicalNot(
     LogicalNot* node, const ProcessingState& state) {
-  if (MaybeReduceResult folded =
-          reducer_.TryFoldLogicalNot(node->input_node(0));
-      folded.HasValue()) {
-    return ReplaceWith(folded.value());
-  }
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryFoldLogicalNot(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
@@ -2134,11 +2131,8 @@ ProcessResult MaglevGraphOptimizer::VisitInt32ToBoolean(
 
 ProcessResult MaglevGraphOptimizer::VisitShiftedInt53AddWithOverflow(
     ShiftedInt53AddWithOverflow* node, const ProcessingState& state) {
-  MaybeReduceResult fold_result =
-      reducer_.TryFoldShiftedInt53Add(node->input_node(0), node->input_node(1));
-  if (fold_result.IsDoneWithValue()) {
-    return ReplaceWith(fold_result.value());
-  }
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryFoldShiftedInt53Add(
+      node->input_node(0), node->input_node(1)));
   // TODO(victorgomes): Add range optimization.
   return ProcessResult::kContinue;
 }
@@ -2211,23 +2205,15 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64ToBoolean(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Min(
     Float64Min* node, const ProcessingState& state) {
-  MaybeReduceResult result = reducer_.TryFoldFloat64Min(
-      node->left_input().node(), node->right_input().node());
-  if (result.IsDoneWithValue()) {
-    return ReplaceWith(result.value());
-  }
-  DCHECK(!result.IsDone());
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryFoldFloat64Min(
+      node->left_input().node(), node->right_input().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Max(
     Float64Max* node, const ProcessingState& state) {
-  MaybeReduceResult result = reducer_.TryFoldFloat64Max(
-      node->left_input().node(), node->right_input().node());
-  if (result.IsDoneWithValue()) {
-    return ReplaceWith(result.value());
-  }
-  DCHECK(!result.IsDone());
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryFoldFloat64Max(
+      node->left_input().node(), node->right_input().node()));
   return ProcessResult::kContinue;
 }
 
