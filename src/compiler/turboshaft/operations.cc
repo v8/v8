@@ -1350,20 +1350,11 @@ std::ostream& operator<<(
 
 std::ostream& operator<<(
     std::ostream& os,
-    ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind) {
-  switch (kind) {
-    case ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi:
-      return os << "Smi";
-  }
-}
-
-std::ostream& operator<<(
-    std::ostream& os, ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
-                          input_interpretation) {
+    ConvertWordToSmiOrDeoptOp::InputInterpretation input_interpretation) {
   switch (input_interpretation) {
-    case ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kSigned:
+    case ConvertWordToSmiOrDeoptOp::InputInterpretation::kSigned:
       return os << "Signed";
-    case ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kUnsigned:
+    case ConvertWordToSmiOrDeoptOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
   }
 }

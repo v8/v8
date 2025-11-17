@@ -2353,16 +2353,32 @@ class TurboshaftAssemblerOpInterface
         CheckForMinusZeroMode::kCheckForMinusZero));
   }
 
-  V<JSPrimitive> ConvertUntaggedToJSPrimitiveOrDeopt(
-      V<Untagged> input, V<turboshaft::FrameState> frame_state,
-      ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind,
+  V<Smi> ConvertWordToSmiOrDeopt(
+      V<Word> input, V<turboshaft::FrameState> frame_state,
       RegisterRepresentation input_rep,
-      ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
-          input_interpretation,
+      ConvertWordToSmiOrDeoptOp::InputInterpretation input_interpretation,
       const FeedbackSource& feedback) {
-    return ReduceIfReachableConvertUntaggedToJSPrimitiveOrDeopt(
-        input, frame_state, kind, input_rep, input_interpretation, feedback);
+    return ReduceIfReachableConvertWordToSmiOrDeopt(
+        input, frame_state, input_rep, input_interpretation, feedback);
   }
+
+#define DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(From, repr, sign)                  \
+  V<Smi> Convert##From##ToSmiOrDeopt(V<repr> input,                         \
+                                     V<turboshaft::FrameState> frame_state, \
+                                     const FeedbackSource& feedback) {      \
+    return ConvertWordToSmiOrDeopt(                                         \
+        input, frame_state, RegisterRepresentation::repr(),                 \
+        ConvertWordToSmiOrDeoptOp::InputInterpretation::k##sign, feedback); \
+  }
+
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(Int32, Word32, Signed)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(Uint32, Word32, Unsigned)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(Int64, Word64, Signed)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(Uint64, Word64, Unsigned)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(IntPtr, WordPtr, Signed)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(UintPtr, WordPtr, Unsigned)
+
+#undef DEF_CONVERT_WORD_TO_SMI_OR_DEOPT
 
   V<Untagged> ConvertJSPrimitiveToUntagged(
       V<JSPrimitive> primitive,

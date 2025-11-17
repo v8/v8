@@ -4065,41 +4065,26 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::CheckedSmiTagInt32* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    SetMap(
-        node,
-        __ ConvertUntaggedToJSPrimitiveOrDeopt(
-            Map(node->input()), frame_state,
-            ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi,
-            RegisterRepresentation::Word32(),
-            ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kSigned,
-            node->eager_deopt_info()->feedback_to_update()));
+    SetMap(node, __ ConvertInt32ToSmiOrDeopt(
+                     Map(node->input()), frame_state,
+                     node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckedSmiTagUint32* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    SetMap(node,
-           __ ConvertUntaggedToJSPrimitiveOrDeopt(
-               Map(node->input()), frame_state,
-               ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi,
-               RegisterRepresentation::Word32(),
-               ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::
-                   kUnsigned,
-               node->eager_deopt_info()->feedback_to_update()));
+    SetMap(node, __ ConvertUint32ToSmiOrDeopt(
+                     Map(node->input()), frame_state,
+                     node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::CheckedSmiTagIntPtr* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    SetMap(
-        node,
-        __ ConvertUntaggedToJSPrimitiveOrDeopt(
-            Map(node->input()), frame_state,
-            ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi,
-            RegisterRepresentation::WordPtr(),
-            ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kSigned,
-            node->eager_deopt_info()->feedback_to_update()));
+    SetMap(node, __ ConvertIntPtrToSmiOrDeopt(
+                     Map(node->input()), frame_state,
+                     node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4111,14 +4096,9 @@ class GraphBuildingNodeProcessor {
         Map(node->input()), frame_state,
         CheckForMinusZeroMode::kCheckForMinusZero,
         node->eager_deopt_info()->feedback_to_update());
-    SetMap(
-        node,
-        __ ConvertUntaggedToJSPrimitiveOrDeopt(
-            as_int32, frame_state,
-            ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi,
-            RegisterRepresentation::Word32(),
-            ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kSigned,
-            node->eager_deopt_info()->feedback_to_update()));
+    SetMap(node, __ ConvertInt32ToSmiOrDeopt(
+                     as_int32, frame_state,
+                     node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4936,14 +4916,10 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::CheckedSmiTagShiftedInt53* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    SetMap(
-        node,
-        __ ConvertUntaggedToJSPrimitiveOrDeopt(
-            __ ChangeShiftedInt53ToInt64(Map(node->input())), frame_state,
-            ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi,
-            RegisterRepresentation::Word64(),
-            ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kSigned,
-            node->eager_deopt_info()->feedback_to_update()));
+    SetMap(node,
+           __ ConvertInt64ToSmiOrDeopt(
+               __ ChangeShiftedInt53ToInt64(Map(node->input())), frame_state,
+               node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::ShiftedInt53ToBoolean* node,
