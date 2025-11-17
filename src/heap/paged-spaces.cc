@@ -409,8 +409,24 @@ void PagedSpaceBase::Verify(Isolate* isolate,
   }
   ForAll<ExternalBackingStoreType>(
       [this, external_space_bytes](ExternalBackingStoreType type, int index) {
+        if (type == ExternalBackingStoreType::kArrayBuffer) {
+          return;
+        }
         CHECK_EQ(external_space_bytes[index], ExternalBackingStoreBytes(type));
       });
+
+  if (!v8_flags.concurrent_array_buffer_sweeping) {
+    if (identity() == OLD_SPACE) {
+      size_t bytes = heap()->array_buffer_sweeper()->old().BytesSlow();
+      CHECK_EQ(bytes, ExternalBackingStoreBytes(
+                          ExternalBackingStoreType::kArrayBuffer));
+    } else if (identity() == NEW_SPACE) {
+      CHECK(v8_flags.minor_ms);
+      size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
+      CHECK_EQ(bytes, ExternalBackingStoreBytes(
+                          ExternalBackingStoreType::kArrayBuffer));
+    }
+  }
 
 #ifdef DEBUG
   VerifyCountersAfterSweeping(isolate->heap());

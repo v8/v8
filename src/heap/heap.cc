@@ -7318,6 +7318,10 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
 }
 
+size_t Heap::YoungArrayBufferBytes() {
+  return array_buffer_sweeper()->YoungBytes();
+}
+
 uint64_t Heap::UpdateExternalMemory(int64_t delta) {
   uint64_t amount = external_memory_.UpdateAmount(delta);
   uint64_t low_since_mark_compact = external_memory_.low_since_mark_compact();
@@ -7325,6 +7329,10 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
     external_memory_.UpdateLowSinceMarkCompact(amount);
   }
   return amount;
+}
+
+size_t Heap::OldArrayBufferBytes() {
+  return array_buffer_sweeper()->OldBytes();
 }
 
 StrongRootsEntry* Heap::RegisterStrongRoots(const char* label,

@@ -11,7 +11,6 @@
 #include "include/v8config.h"
 #include "src/api/api.h"
 #include "src/base/logging.h"
-#include "src/base/macros.h"
 #include "src/heap/sweeper.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/tasks/cancelable-task.h"
@@ -30,6 +29,7 @@ struct ArrayBufferList final {
   explicit ArrayBufferList(Age age) : age_(age) {}
 
   bool IsEmpty() const;
+  size_t ApproximateBytes() const { return bytes_; }
   size_t BytesSlow() const;
 
   size_t Append(ArrayBufferExtension* extension);
@@ -40,6 +40,10 @@ struct ArrayBufferList final {
  private:
   ArrayBufferExtension* head_ = nullptr;
   ArrayBufferExtension* tail_ = nullptr;
+  // Bytes are approximate as they may be subtracted eagerly, while the
+  // `ArrayBufferExtension` is still in the list. The extension will only be
+  // dropped on next sweep.
+  size_t bytes_ = 0;
   ArrayBufferExtension::Age age_;
 
   friend class ArrayBufferSweeper;
@@ -70,7 +74,10 @@ class ArrayBufferSweeper final {
   const ArrayBufferList& young() const { return young_; }
   const ArrayBufferList& old() const { return old_; }
 
-  V8_EXPORT_PRIVATE size_t BytesForTesting() const;
+  // Bytes accounted in the young generation. Rebuilt during sweeping.
+  size_t YoungBytes() const { return young().ApproximateBytes(); }
+  // Bytes accounted in the old generation. Rebuilt during sweeping.
+  size_t OldBytes() const { return old().ApproximateBytes(); }
 
   bool sweeping_in_progress() const { return state_.get(); }
 
@@ -103,6 +110,11 @@ class ArrayBufferSweeper final {
   std::unique_ptr<SweepingState> state_;
   ArrayBufferList young_{ArrayBufferList::Age::kYoung};
   ArrayBufferList old_{ArrayBufferList::Age::kOld};
+  // Track accounting bytes adjustment during sweeping including freeing, and
+  // resizing. Adjustment are applied to the accounted bytes when sweeping
+  // finishes.
+  int64_t young_bytes_adjustment_while_sweeping_{0};
+  int64_t old_bytes_adjustment_while_sweeping_{0};
   V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 };
 
