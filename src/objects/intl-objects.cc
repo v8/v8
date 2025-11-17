@@ -756,10 +756,10 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
 Maybe<std::string> Intl::ValidateAndCanonicalizeUnicodeLocaleId(
     Isolate* isolate, std::string_view locale_in) {
   if (!IsStructurallyValidLanguageTag(locale_in)) {
-    THROW_NEW_ERROR(
-        isolate, NewRangeError(
-                     MessageTemplate::kInvalidLanguageTag,
-                     isolate->factory()->NewStringFromAsciiChecked(locale_in)));
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidLanguageTag,
+                                           isolate->factory()
+                                               ->NewStringFromUtf8(locale_in)
+                                               .ToHandleChecked()));
   }
 
   std::string locale(locale_in);
@@ -790,30 +790,33 @@ Maybe<std::string> Intl::ValidateAndCanonicalizeUnicodeLocaleId(
   // language tag is parsed all the way to the end, it indicates that the input
   // is structurally valid. Due to a couple of bugs, we can't use it
   // without Chromium patches or ICU 62 or earlier.
-  icu::Locale icu_locale = icu::Locale::forLanguageTag(locale.c_str(), error);
+  icu::Locale icu_locale = icu::Locale::forLanguageTag(locale, error);
 
   if (U_FAILURE(error) || icu_locale.isBogus()) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
-                                  isolate->factory()->NewStringFromAsciiChecked(
-                                      locale.c_str())));
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromUtf8(locale).ToHandleChecked()));
   }
 
   // Use LocaleBuilder to validate locale.
   icu_locale = icu::LocaleBuilder().setLocale(icu_locale).build(error);
   icu_locale.canonicalize(error);
   if (U_FAILURE(error) || icu_locale.isBogus()) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
-                                  isolate->factory()->NewStringFromAsciiChecked(
-                                      locale.c_str())));
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromUtf8(locale).ToHandleChecked()));
   }
   Maybe<std::string> maybe_to_language_tag = Intl::ToLanguageTag(icu_locale);
   if (maybe_to_language_tag.IsNothing()) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kInvalidLanguageTag,
-                                  isolate->factory()->NewStringFromAsciiChecked(
-                                      locale.c_str())));
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromUtf8(locale).ToHandleChecked()));
   }
 
   return maybe_to_language_tag;
