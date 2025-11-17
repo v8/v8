@@ -927,23 +927,34 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     if (InstanceTypeChecker::IsJSGlobalObject(instance_type)) {
       auto maybe_context = Cast<JSGlobalObject>(object)->GetCreationContext();
       CHECK(maybe_context.has_value());
-      auto it = native_context_tag_map_.find(maybe_context.value());
-      if (it != native_context_tag_map_.end()) {
-        name = names_->GetFormatted("%s (global*) / %s", name, it->second);
+      auto it =
+          native_context_tag_map_.find(Cast<HeapObject>(maybe_context.value()));
+      if (it != native_context_tag_map_.end() && it->second.tag) {
+        name = names_->GetFormatted("%s (global*) / %s", name, it->second.tag);
       } else {
         name = names_->GetFormatted("%s (global*)", name);
       }
     } else if (InstanceTypeChecker::IsJSGlobalProxy(instance_type)) {
       auto maybe_context = Cast<JSGlobalProxy>(object)->GetCreationContext();
       if (maybe_context.has_value()) {
-        auto it = native_context_tag_map_.find(maybe_context.value());
-        if (it != native_context_tag_map_.end()) {
-          name = names_->GetFormatted("%s (global) / %s", name, it->second);
+        auto it = native_context_tag_map_.find(
+            Cast<HeapObject>(maybe_context.value()));
+        if (it != native_context_tag_map_.end() && it->second.tag) {
+          name = names_->GetFormatted("%s (global) / %s", name, it->second.tag);
         } else {
           name = names_->GetFormatted("%s (global)", name);
         }
       } else {
         name = names_->GetFormatted("%s (global) / <detached>", name);
+      }
+    }
+    auto it = native_context_tag_map_.find(Cast<HeapObject>(object));
+    if (it != native_context_tag_map_.end()) {
+      if (it->second.tag) {
+        name = names_->GetFormatted("%s (%s) / %s", name, it->second.postfix,
+                                    it->second.tag);
+      } else {
+        name = names_->GetFormatted("%s (%s)", name, it->second.postfix);
       }
     }
     return AddEntry(object, HeapEntry::kObject, name);
@@ -982,9 +993,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
 
   } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
     const char* name = "system / NativeContext";
-    auto it = native_context_tag_map_.find(Cast<NativeContext>(object));
-    if (it != native_context_tag_map_.end()) {
-      name = names_->GetFormatted("%s / %s", name, it->second);
+    auto it = native_context_tag_map_.find(Cast<HeapObject>(object));
+    if (it != native_context_tag_map_.end() && it->second.tag) {
+      name = names_->GetFormatted("%s / %s", name, it->second.tag);
     }
     return AddEntry(object, HeapEntry::kHidden, name);
 
@@ -3048,7 +3059,12 @@ V8HeapExplorer::CollectTemporaryNativeContextTags() {
                                   Utils::ToLocal(native_context)),
               tag);
           native_context_tags.back().first.SetWeak();
+          return;
         }
+        native_context_tags.emplace_back(
+            Global<v8::Context>(reinterpret_cast<v8::Isolate*>(isolate),
+                                Utils::ToLocal(native_context)),
+            nullptr);
       });
   isolate->global_handles()->IterateAllRoots(&enumerator);
   isolate->traced_handles()->Iterate(&enumerator);
@@ -3061,8 +3077,35 @@ void V8HeapExplorer::MakeNativeContextTagMap(
   for (const auto& pair : native_context_tags) {
     if (!pair.first.IsEmpty()) {
       // Temporary local.
-      auto local = Utils::OpenPersistent(pair.first);
-      native_context_tag_map_.emplace(Cast<NativeContext>(*local), pair.second);
+      Handle<NativeContext> native_context =
+          Cast<NativeContext>(Utils::OpenPersistent(pair.first));
+      native_context_tag_map_.emplace(Cast<HeapObject>(*native_context),
+                                      NativeContextTagInfo{pair.second, ""});
+      Tagged<FixedArray> cache =
+          native_context->fast_template_instantiations_cache();
+      for (int i = 0; i < cache->length(); ++i) {
+        Tagged<Object> element = cache->get(i);
+        if (IsHeapObject(element)) {
+          Tagged<HeapObject> heap_object = Cast<HeapObject>(element);
+          native_context_tag_map_.emplace(
+              heap_object, NativeContextTagInfo{pair.second, "internal cache"});
+          native_context_tag_map_.emplace(
+              heap_object->map()->prototype(),
+              NativeContextTagInfo{pair.second, "prototype"});
+        }
+      }
+      cache = native_context->slow_template_instantiations_cache();
+      for (int i = 0; i < cache->length(); ++i) {
+        Tagged<Object> element = cache->get(i);
+        if (IsHeapObject(element)) {
+          Tagged<HeapObject> heap_object = Cast<HeapObject>(element);
+          native_context_tag_map_.emplace(
+              heap_object, NativeContextTagInfo{pair.second, "internal cache"});
+          native_context_tag_map_.emplace(
+              heap_object->map()->prototype(),
+              NativeContextTagInfo{pair.second, "prototype"});
+        }
+      }
     }
   }
 }
