@@ -28,6 +28,7 @@ let proto_config = new WasmPrototypeSetupBuilder(builder);
 
 let $g_SuperProto = builder.addImportedGlobal("p", "pSuper", kWasmExternRef);
 let $g_SubProto = builder.addImportedGlobal("p", "pSub", kWasmExternRef);
+let $g_OtherProto = builder.addImportedGlobal("p", "pOther", kWasmExternRef);
 
 let $g_SuperDesc = builder.addGlobal(
     wasmRefType($SuperDesc).exact(), false, false, [
@@ -59,6 +60,9 @@ let $makeSub = builder.addFunction(
     kExprGlobalGet, $g_SubDesc.index,
     kGCPrefix, kExprStructNew, $Sub,
   ]);
+
+let $makeOther = builder.addFunction("MakeOther", makeSig([], [kWasmAnyRef]))
+  .addBody([kExprRefNull, kAnyRefCode]);
 
 let $super_method = builder.addFunction("superMethod", kSig_i_r).addBody([
   kExprLocalGet, 0,
@@ -105,6 +109,9 @@ let $sub_config = proto_config.addConfig($g_SubProto, $super_config)
   .addStatic("property", kWasmGetter, $static_get)
   .addStatic("property", kWasmSetter, $static_set);
 
+let $other_config = proto_config.addConfig($g_OtherProto)
+  .addConstructor("Other", $makeOther);
+
 proto_config.build();
 
 let constructors = {};
@@ -112,14 +119,16 @@ let imports = {
   p: {
     pSuper: {__proto__: {rootProp: "root"}},
     pSub: {},
+    pOther: {},
   },
   c: {constructors},
-}
-
+};
 let instance = builder.instantiate(imports, { builtins: ['js-prototypes'] });
-
 let Super = constructors.Super;
 let Sub = constructors.Sub;
+
+let o = {};
+%DebugPrint(o);  // Before bug fix, this crashed.
 
 function Test() {
   // Static methods.
@@ -202,7 +211,7 @@ for (let i = 0; i < 3; i++) {
   } catch (e) {
     testStackTrace(e, [
       /RuntimeError: illegal cast/,
-      /at subMethod \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[4\]:0x136/,
+      /at subMethod \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[5\]:0x150/,
       /at Traps \(.*\)/,
     ]);
   }
