@@ -69,10 +69,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
 #ifdef DEBUG
   // Returns -1 if they match or the offset of the first mismatching byte.
-  int CheckBytecodeMatches(Tagged<BytecodeArray> bytecode);
+  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
 #endif
 
   bool RemainderOfBlockIsDead() const { return exit_seen_in_block_; }
+
+  size_t current_bytecode_size() const { return bytecodes_.size(); }
 
  private:
   // Maximum sized packed bytecode is comprised of a prefix bytecode,

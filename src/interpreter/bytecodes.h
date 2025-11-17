@@ -313,7 +313,7 @@ namespace interpreter {
   V(TestEqual, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,  \
     OperandType::kIdx)                                                         \
   V(TestEqualStrict, ImplicitRegisterUse::kReadWriteAccumulator,               \
-    OperandType::kReg, OperandType::kIdx)                                      \
+    OperandType::kReg, OperandType::kFlag16)                                   \
   V(TestLessThan, ImplicitRegisterUse::kReadWriteAccumulator,                  \
     OperandType::kReg, OperandType::kIdx)                                      \
   V(TestGreaterThan, ImplicitRegisterUse::kReadWriteAccumulator,               \
@@ -883,6 +883,15 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     return bytecode == Bytecode::kExtraWide || bytecode == Bytecode::kWide ||
            bytecode == Bytecode::kDebugBreakExtraWide ||
            bytecode == Bytecode::kDebugBreakWide;
+  }
+
+  static constexpr bool IsCompareWithEmbeddedFeedback(Bytecode bytecode) {
+    return bytecode == Bytecode::kTestEqualStrict;
+  }
+
+  // Returns true if the bytecode has a embedded feedback slot
+  static constexpr bool IsEmbeddedFeedbackBytecode(Bytecode bytecode) {
+    return IsCompareWithEmbeddedFeedback(bytecode);
   }
 
   // Returns true if the bytecode returns.

@@ -72,6 +72,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the 32-bit unsigned intrinsic id immediate for bytecode operand
   // |operand_index| in the current bytecode.
   TNode<Uint32T> BytecodeOperandIntrinsicId(int operand_index);
+  // Returns the word-size signed bytecode offset of the operand at
+  // |operand_index|.
+  TNode<IntPtrT> BytecodeOperandOffset(int operand_index);
   // Accumulator.
   TNode<Object> GetAccumulator();
   void SetAccumulator(TNode<Object> value);
@@ -332,10 +335,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Load the parameter count of the current function from its BytecodeArray.
   TNode<IntPtrT> LoadParameterCountWithoutReceiver();
 
- private:
   // Returns a pointer to the current function's BytecodeArray object.
   TNode<BytecodeArray> BytecodeArrayTaggedPointer();
 
+  // Update feedback value embedded in BytecodeArray
+  void UpdateEmbeddedFeedback(TNode<Smi> feedback, int feedback_operand_index);
+
+ private:
   // Returns a pointer to first entry in the interpreter dispatch table.
   TNode<ExternalReference> DispatchTablePointer();
 

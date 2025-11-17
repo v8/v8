@@ -84,26 +84,40 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate);
 
 #ifdef DEBUG
-int BytecodeArrayWriter::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
-  int mismatches = false;
+int BytecodeArrayWriter::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
   int bytecode_size = static_cast<int>(bytecodes()->size());
   const uint8_t* bytecode_ptr = &bytecodes()->front();
-  if (bytecode_size != bytecode->length()) mismatches = true;
+  // we only check up to the minimum length.
+  int min_length = std::min(bytecode_size, bytecode->length());
 
-  // If there's a mismatch only in the length of the bytecode (very unlikely)
-  // then the first mismatch will be the first extra bytecode.
-  int first_mismatch = std::min(bytecode_size, bytecode->length());
-  for (int i = 0; i < first_mismatch; ++i) {
-    if (bytecode_ptr[i] != bytecode->get(i)) {
-      mismatches = true;
-      first_mismatch = i;
-      break;
+  BytecodeArrayIterator it(bytecode);
+  while (it.current_offset() < min_length && !it.done()) {
+    int bytes_need_to_check = it.current_bytecode_size();
+    // skip embedded feedback value.
+    if (Bytecodes::IsEmbeddedFeedbackBytecode(it.current_bytecode())) {
+      bytes_need_to_check -= static_cast<int>(
+          Bytecodes::GetOperandSize(it.current_bytecode(), /*operand_idx=*/1,
+                                    it.current_operand_scale()));
     }
+
+    int start_idx = it.current_offset();
+    DCHECK_GE(start_idx, 0);
+    for (int i = start_idx; i < start_idx + bytes_need_to_check; ++i) {
+      // boundary check
+      if (i >= min_length) break;
+      if (bytecode_ptr[i] != bytecode->get(i)) {
+        return i;
+      }
+    }
+    it.Advance();
   }
 
-  if (mismatches) {
-    return first_mismatch;
+  // all common bytes are checked and no mismatches founded, then the first
+  // mismatch will be the first extra byte (if have).
+  if (bytecode_size != bytecode->length()) {
+    return min_length;
   }
+  // no mismatches founded.
   return -1;
 }
 #endif

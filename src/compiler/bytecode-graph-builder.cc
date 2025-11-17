@@ -250,6 +250,7 @@ class BytecodeGraphBuilder {
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
+  void BuildCompareOpWithEmbeddedFeedback(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);
   void BuildHoleCheckAndThrow(Node* condition, Runtime::FunctionId runtime_id,
@@ -262,6 +263,8 @@ class BytecodeGraphBuilder {
       const Operator* op, Node* operand, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedBinaryOp(
       const Operator* op, Node* left, Node* right, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedBinaryOp(
+      const Operator* op, Node* left, Node* right);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedForInNext(
       Node* receiver, Node* cache_array, Node* cache_type, Node* index,
       FeedbackSlot slot);
@@ -3458,6 +3461,29 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::BuildCompareOpWithEmbeddedFeedback(
+    const Operator* op) {
+  DCHECK(JSOperator::IsBinaryWithEmbeddedFeedback(op->opcode()));
+  PrepareEagerCheckpoint();
+  Node* left =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* right = environment()->LookupAccumulator();
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedBinaryOp(op, left, right);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+    node = NewNode(op, left, right);
+  }
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitTestEqual() {
   FeedbackSource feedback = CreateFeedbackSource(
       bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
@@ -3465,9 +3491,10 @@ void BytecodeGraphBuilder::VisitTestEqual() {
 }
 
 void BytecodeGraphBuilder::VisitTestEqualStrict() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
-  BuildCompareOp(javascript()->StrictEqual(feedback));
+  // read feedback from bytecode array directly
+  const CompareOperationHint type_hint =
+      bytecode_iterator().GetEmbeddedCompareOperationHint();
+  BuildCompareOpWithEmbeddedFeedback(javascript()->StrictEqual(type_hint));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThan() {
@@ -4319,6 +4346,18 @@ BytecodeGraphBuilder::TryBuildSimplifiedBinaryOp(const Operator* op, Node* left,
   JSTypeHintLowering::LoweringResult result =
       type_hint_lowering().ReduceBinaryOperation(op, left, right, effect,
                                                  control, slot);
+  ApplyEarlyReduction(result);
+  return result;
+}
+
+JSTypeHintLowering::LoweringResult
+BytecodeGraphBuilder::TryBuildSimplifiedBinaryOp(const Operator* op, Node* left,
+                                                 Node* right) {
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  JSTypeHintLowering::LoweringResult result =
+      type_hint_lowering().ReduceBinaryOperationWithEmbeddedHint(
+          op, left, right, effect, control);
   ApplyEarlyReduction(result);
   return result;
 }

@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/sanitizer/tsan.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects/contexts.h"
 #include "src/objects/objects-inl.h"
@@ -69,6 +70,20 @@ uint32_t BytecodeDecoder::DecodeUnsignedOperand(Address operand_start,
       UNREACHABLE();
   }
   return 0;
+}
+
+// static
+#ifdef V8_IS_TSAN
+V8_NOINLINE
+
+DISABLE_TSAN
+#endif
+uint32_t BytecodeDecoder::RacyDecodeEmbeddedFeedback(Address operand_start,
+                                                     OperandSize operand_size) {
+  DCHECK(operand_size == OperandSize::kShort);
+  uint16_t value;
+  memcpy(&value, reinterpret_cast<const void*>(operand_start), sizeof(value));
+  return value;
 }
 
 namespace {

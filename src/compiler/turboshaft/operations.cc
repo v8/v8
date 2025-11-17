@@ -693,6 +693,12 @@ void AtomicWord32PairOp::PrintOptions(std::ostream& os) const {
   os << "[opkind: " << kind << ']';
 }
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void SwitchSandboxModeOp::PrintOptions(std::ostream& os) const {
+  os << "[sandbox mode: " << static_cast<int>(sandbox_mode) << ']';
+}
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 void MemoryBarrierOp::PrintOptions(std::ostream& os) const {
   os << "[memory order: " << memory_order << ']';
 }
