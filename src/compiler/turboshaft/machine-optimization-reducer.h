@@ -2037,6 +2037,7 @@ class MachineOptimizationReducer : public Next {
             AllowHandleDereference allow_handle_dereference;
             // We don't expect holes to get here normally, but they might
             // via some un-eliminated dead code.
+#if V8_STATIC_ROOTS_BOOL
             if (IsAnyHole(*base.handle())) {
               // Note: we cannot emit a RuntimeAbort here, since RuntimeAbort is
               // a simplified operation which should thus be lowered in
@@ -2044,6 +2045,13 @@ class MachineOptimizationReducer : public Next {
               // runs after this phase.
               return __ Unreachable();
             }
+#else
+            // MachineLoweringReducer doesn't insert a bailout path for holes
+            // when lowering TruncateJSPrimitiveToUntagged in non-static-roots
+            // builds. We thus shouldn't replace hole maps reads by Unreachable,
+            // since those could be reachable because of hoisting.
+            DCHECK(!v8_flags.unmap_holes);
+#endif
             OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
             if (MapLoadCanBeConstantFolded(map)) {
               return __ HeapConstant(map->object());

@@ -1690,7 +1690,14 @@ class MachineLoweringReducer : public Next {
 #endif
 
 #if V8_STATIC_ROOTS_BOOL
-        if (v8_flags.unmap_holes && !v8_flags.turbolev) {
+        // On static roots builds, we replace loads of hole maps by Unreachable.
+        // Given that the current operation may still be reachable, we make sure
+        // to skip the map load if the input is a hole. This doesn't work on
+        // non-static roots builds, since there we would have to load the map to
+        // figure out if the object is the hole (and so we wouldn't want this
+        // specific load map to be replaced by unreachable).
+
+        if (!v8_flags.turbolev) {
           // TruncateJSPrimitiveToUntagged(Object -> Bit) is pure in Turbofan,
           // and can thus float above hole checks. This will lead to either
           // segfaulting at runtime because we try to read the map of the hole
@@ -1702,9 +1709,7 @@ class MachineLoweringReducer : public Next {
             GOTO(done, 0);
           }
         }
-#else
-        DCHECK(!v8_flags.unmap_holes);
-#endif  // V8_STATIC_ROOTS_BOOL
+#endif
 
         // Load the map of {object}.
         V<Map> map = __ LoadMapField(object);
