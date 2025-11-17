@@ -452,8 +452,6 @@ class V8_EXPORT_PRIVATE OldSpace : public PagedSpace {
   void AddPromotedPage(PageMetadata* page, FreeMode free_mode);
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer)
-      return heap()->OldArrayBufferBytes();
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
 
@@ -529,7 +527,6 @@ class SharedSpace final : public PagedSpace {
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
     DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
@@ -550,7 +547,6 @@ class TrustedSpace final : public PagedSpace {
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
     DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
@@ -565,7 +561,6 @@ class SharedTrustedSpace final : public PagedSpace {
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
     DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
     return external_backing_store_bytes_[static_cast<int>(type)];
   }

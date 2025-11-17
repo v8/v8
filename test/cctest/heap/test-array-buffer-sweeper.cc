@@ -348,18 +348,16 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
-  ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
-  const Space* space = v8_flags.incremental_marking
-                           ? static_cast<Space*>(heap->new_space())
-                           : static_cast<Space*>(heap->old_space());
-  const size_t backing_store_before = space->ExternalBackingStoreBytes(type);
+  const size_t backing_store_before =
+      heap->array_buffer_sweeper()->BytesForTesting();
   {
     const size_t kArraybufferSize = 117;
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
     USE(ab);
-    const size_t backing_store_after = space->ExternalBackingStoreBytes(type);
+    const size_t backing_store_after =
+        heap->array_buffer_sweeper()->BytesForTesting();
     CHECK_EQ(kArraybufferSize, backing_store_after - backing_store_before);
   }
 }
@@ -371,19 +369,19 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
-  ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
   const size_t backing_store_before =
-      heap->new_space()->ExternalBackingStoreBytes(type);
+      heap->array_buffer_sweeper()->BytesForTesting();
   {
     const size_t kArraybufferSize = 117;
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
     USE(ab);
   }
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   heap::InvokeAtomicMajorGC(heap);
   const size_t backing_store_after =
-      heap->new_space()->ExternalBackingStoreBytes(type);
+      heap->array_buffer_sweeper()->BytesForTesting();
   CHECK_EQ(0, backing_store_after - backing_store_before);
 }
 
@@ -398,13 +396,12 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
-  ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
   // We need to invoke GC without stack, otherwise some objects may survive.
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   const size_t backing_store_before =
-      heap->old_space()->ExternalBackingStoreBytes(type);
+      heap->array_buffer_sweeper()->BytesForTesting();
 
   const size_t kArraybufferSize = 117;
   {
@@ -422,13 +419,13 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
     heap::InvokeMajorGC(heap);
 
     const size_t backing_store_after =
-        heap->old_space()->ExternalBackingStoreBytes(type);
+        heap->array_buffer_sweeper()->BytesForTesting();
     CHECK_EQ(kArraybufferSize, backing_store_after - backing_store_before);
   }
 
   heap::InvokeAtomicMajorGC(heap);
   const size_t backing_store_after =
-      heap->old_space()->ExternalBackingStoreBytes(type);
+      heap->array_buffer_sweeper()->BytesForTesting();
   CHECK_EQ(0, backing_store_after - backing_store_before);
 }
 

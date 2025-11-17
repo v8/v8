@@ -3233,7 +3233,7 @@ void* Heap::AllocateExternalBackingStore(
   }
   if (!always_allocate() && new_space()) {
     size_t new_space_backing_store_bytes =
-        new_space()->ExternalBackingStoreOverallBytes();
+        YoungAllocatedExternalBackingStoreBytes();
     if ((!incremental_marking()->IsMajorMarking()) &&
         new_space_backing_store_bytes >=
             2 * DefaultMaxSemiSpaceSize(physical_memory()) &&
@@ -3250,6 +3250,15 @@ void* Heap::AllocateExternalBackingStore(
   }
   std::ignore = allocator()->RetryCustomAllocate(
       [&]() { return result = allocate(byte_length); }, AllocationType::kOld);
+  return result;
+}
+
+size_t Heap::YoungAllocatedExternalBackingStoreBytes() const {
+  size_t result = 0;
+  if (new_space()) {
+    result += new_space()->ExternalBackingStoreOverallBytes();
+  }
+  result += array_buffer_sweeper()->YoungBytes();
   return result;
 }
 
@@ -7318,10 +7327,6 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
 }
 
-size_t Heap::YoungArrayBufferBytes() {
-  return array_buffer_sweeper()->YoungBytes();
-}
-
 uint64_t Heap::UpdateExternalMemory(int64_t delta) {
   uint64_t amount = external_memory_.UpdateAmount(delta);
   uint64_t low_since_mark_compact = external_memory_.low_since_mark_compact();
@@ -7329,10 +7334,6 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
     external_memory_.UpdateLowSinceMarkCompact(amount);
   }
   return amount;
-}
-
-size_t Heap::OldArrayBufferBytes() {
-  return array_buffer_sweeper()->OldBytes();
 }
 
 StrongRootsEntry* Heap::RegisterStrongRoots(const char* label,

@@ -11,6 +11,7 @@
 #include "include/v8config.h"
 #include "src/api/api.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/heap/sweeper.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/tasks/cancelable-task.h"
@@ -74,10 +75,11 @@ class ArrayBufferSweeper final {
   const ArrayBufferList& young() const { return young_; }
   const ArrayBufferList& old() const { return old_; }
 
-  // Bytes accounted in the young generation. Rebuilt during sweeping.
+  // Bytes accounted in the young generation. Rebuilt during sweeping. Used for
+  // triggering Minor GCs.
   size_t YoungBytes() const { return young().ApproximateBytes(); }
-  // Bytes accounted in the old generation. Rebuilt during sweeping.
-  size_t OldBytes() const { return old().ApproximateBytes(); }
+
+  V8_EXPORT_PRIVATE size_t BytesForTesting() const;
 
   bool sweeping_in_progress() const { return state_.get(); }
 

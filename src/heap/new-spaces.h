@@ -322,8 +322,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   }
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer)
-      return heap()->YoungArrayBufferBytes();
     DCHECK_EQ(0, from_space_.ExternalBackingStoreBytes(type));
     return to_space_.ExternalBackingStoreBytes(type);
   }
@@ -547,8 +545,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void RemovePageFromSpace(PageMetadata* page) final;
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer)
-      return heap()->YoungArrayBufferBytes();
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
 

@@ -756,9 +756,6 @@ class Heap final {
   V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
   uint64_t UpdateExternalMemory(int64_t delta);
 
-  V8_EXPORT_PRIVATE size_t YoungArrayBufferBytes();
-  V8_EXPORT_PRIVATE size_t OldArrayBufferBytes();
-
   uint64_t backing_store_bytes() const {
     return backing_store_bytes_.load(std::memory_order_relaxed);
   }
@@ -953,7 +950,7 @@ class Heap final {
 
   Sweeper* sweeper() { return sweeper_.get(); }
 
-  ArrayBufferSweeper* array_buffer_sweeper() {
+  ArrayBufferSweeper* array_buffer_sweeper() const {
     return array_buffer_sweeper_.get();
   }
 
@@ -1795,6 +1792,8 @@ class Heap final {
 
   // Returns the amount of external memory registered since last global gc.
   V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact() const;
+
+  size_t YoungAllocatedExternalBackingStoreBytes() const;
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       TaskPriority priority = TaskPriority::kUserBlocking) const;
