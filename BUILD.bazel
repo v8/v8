@@ -522,6 +522,18 @@ v8_config(
             "V8_ENABLE_CHECKS",
         ],
         "//conditions:default": [],
+    }) + select({
+        "@v8//bazel/config:asan_enabled" : [ "V8_USE_ADDRESS_SANITIZER" ],
+        "//conditions:default": [],
+    }) + select({
+        "@v8//bazel/config:hwasan_enabled" : [ "V8_USE_HWADDRESS_SANITIZER" ],
+        "//conditions:default": [],
+    }) + select({
+        "@v8//bazel/config:msan_enabled" : [ "V8_USE_MEMORY_SANITIZER" ],
+        "//conditions:default": [],
+    }) + select({
+        "@v8//bazel/config:ubsan_enabled" : [ "V8_USE_UNDEFINED_BEHAVIOR_SANITIZER" ],
+        "//conditions:default": [],
     }) + select(
         {
             "@v8//bazel/config:v8_target_ia32": ["V8_TARGET_ARCH_IA32"],
