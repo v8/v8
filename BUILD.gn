@@ -1603,10 +1603,9 @@ config("toolchain") {
     }
   }
 
-  # Under simulator build, compiler will not provide __riscv_xlen. Define here
   if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
     if (v8_target_is_simulator) {
-      defines += [ "_RISCV_TARGET_SIMULATOR" ]
+      defines += [ "RISCV_TARGET_SIMULATOR" ]
     }
     if (riscv_use_rvv || v8_target_is_simulator) {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
@@ -1621,10 +1620,19 @@ config("toolchain") {
     if (riscv_use_zbs) {
       defines += [ "__riscv_zbs" ]
     }
+    defines += [ "RISCV_CODE_ALIGNMENT=${riscv_code_alignment}" ]
+    defines +=
+        [ "RISCV_CONSTANT_POOL_ALIGNMENT=${riscv_constant_pool_alignment}" ]
   }
+
   if (v8_current_cpu == "riscv64") {
     defines += [ "V8_TARGET_ARCH_RISCV64" ]
-    defines += [ "__riscv_xlen=64" ]
+
+    # When building the simulator, the compiler does not provide __riscv_xlen,
+    # so we explicitly define it here.
+    if (v8_target_is_simulator) {
+      defines += [ "__riscv_xlen=64" ]
+    }
     if (!is_clang) {
       cflags += [ "-ffp-contract=off" ]
     }
@@ -1635,7 +1643,12 @@ config("toolchain") {
 
   if (v8_current_cpu == "riscv32") {
     defines += [ "V8_TARGET_ARCH_RISCV32" ]
-    defines += [ "__riscv_xlen=32" ]
+
+    # When building the simulator, the compiler does not provide __riscv_xlen,
+    # so we explicitly define it here.
+    if (v8_target_is_simulator) {
+      defines += [ "__riscv_xlen=32" ]
+    }
   }
 
   if (v8_current_cpu == "x86") {

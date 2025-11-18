@@ -984,6 +984,11 @@ constexpr int kCodeAlignmentBits = 6;
 // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
 // don't cross 64-byte boundaries.
 constexpr int kCodeAlignmentBits = 6;
+#elif (defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)) && \
+    defined(RISCV_CODE_ALIGNMENT)
+static_assert(base::bits::IsPowerOfTwo(RISCV_CODE_ALIGNMENT));
+constexpr int kCodeAlignmentBits =
+    std::countr_zero(static_cast<unsigned>(RISCV_CODE_ALIGNMENT));
 #else
 constexpr int kCodeAlignmentBits = 5;
 #endif

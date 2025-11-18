@@ -78,7 +78,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
-#ifdef _RISCV_TARGET_SIMULATOR
+#ifdef RISCV_TARGET_SIMULATOR
 static unsigned SimulatorFeatures() {
   unsigned answer = 0;
   answer |= 1u << RISCV_SIMD;
@@ -97,10 +97,10 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(RISCV_SIMD); }
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
 
-#ifdef _RISCV_TARGET_SIMULATOR
+#ifdef RISCV_TARGET_SIMULATOR
   supported_ |= SimulatorFeatures();
   vlen_ = kSimulatorRvvVLEN;
-#endif  // _RISCV_TARGET_SIMULATOR
+#endif  // RISCV_TARGET_SIMULATOR
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
   // Probe for additional features at runtime.

@@ -116,8 +116,16 @@ void ConstantPool::EmitEntries() {
 void ConstantPool::Emit(const ConstantPoolKey& key) { assm_->dq(key.value()); }
 
 int ConstantPool::AlignmentIfEmittedAt(int pc_offset) const {
+  if (IsEmpty()) return 0;
   // For now, the alignment does not depend on the {pc_offset}.
-  return IsEmpty() ? 0 : kInt64Size;
+#ifdef RISCV_CONSTANT_POOL_ALIGNMENT
+  static_assert(base::bits::IsPowerOfTwo(RISCV_CONSTANT_POOL_ALIGNMENT));
+  static_assert(RISCV_CONSTANT_POOL_ALIGNMENT >= kInt64Size);
+  static_assert(RISCV_CONSTANT_POOL_ALIGNMENT <= RISCV_CODE_ALIGNMENT);
+  return RISCV_CONSTANT_POOL_ALIGNMENT;
+#else
+  return kInt64Size;
+#endif
 }
 
 int ConstantPool::PaddingIfEmittedAt(int pc_offset) const {
