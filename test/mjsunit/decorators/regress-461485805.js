@@ -4,9 +4,10 @@
 //
 // Flags: --js-decorators
 
-((arg = (function wrapper() {
-    class C {
-      accessor[Symbol.for('computed')] = function f() {};
-    }
-    return C;
-  })()) => {})();
+((C = class {
+   accessor p = function() {
+     return 42;
+   };
+ }) => {
+  new C();
+})();
