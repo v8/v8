@@ -103,8 +103,9 @@ class NodeInfo {
         case UseRepresentation::kTruncatedInt32:
           return truncated_int32_to_number();
         case UseRepresentation::kFloat64:
-        case UseRepresentation::kHoleyFloat64:
           return float64();
+        case UseRepresentation::kHoleyFloat64:
+          return holey_float64();
         case UseRepresentation::kShiftedInt53:
         case UseRepresentation::kUint32:
           UNREACHABLE();

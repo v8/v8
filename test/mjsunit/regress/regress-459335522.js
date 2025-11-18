@@ -4,45 +4,40 @@
 
 // Flags: --allow-natives-syntax
 
-function __wrapTC(f = true) {
-    return f();
+function prettyPrint(str) {
+  print(str);
 }
-(function () {
-    switch (typeof value) {
-    }
-  __prettyPrint = function (value = false) {
-    let str = value;
-    print(str);
-  };
-  __prettyPrintExtra = function (value) {
-    __prettyPrint(value);
-  };
-})();
-function __f_8(__v_0) {
+
+function foo(f) {
   try {
-    delete __v_0[__getRandomProperty()]();
+    __getRandomProperty(); // Throws
   } catch (e) {
-    __prettyPrintExtra();
+    prettyPrint();
   }
+
   try {
-    __v_0();
-    __v_0();
+    f();
+    f();
   } catch (e) {
   }
-    __prettyPrintExtra(__prettyPrintExtra());
+  prettyPrint(prettyPrint());
 }
-function __f_9() {
-/* FunctionCallMutator: Replaced __f_0 with __f_8 */__f_8();
+
+function bar() {
+  foo();
 }
-  __f_8(__f_9);
-print("v8-foozzie source: v8/test/mjsunit/maglev/store-oddball-to-double-elements.js");
-let __v_1 = __wrapTC(() => [0.5]);
-function __f_11(__v_2) {
-    __v_2 + 0.5;
-      __v_1[0] = __v_2;
-      __prettyPrintExtra(__v_1);
+
+foo(bar);
+
+let arr = [0.5];
+
+function test(undf) {
+  undf + 0.5;
+  arr[0] = undf;
+  prettyPrint(arr);
 }
-  %PrepareFunctionForOptimization(__f_11);
-  __f_11();
-  %OptimizeFunctionOnNextCall(__f_11);
-__f_11();
+
+%PrepareFunctionForOptimization(test);
+test();
+%OptimizeMaglevOnNextCall(test);
+test();
