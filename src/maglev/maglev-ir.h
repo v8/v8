@@ -923,32 +923,33 @@ typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
 #undef COUNT
 
-#define COMBINED_NODE_TYPE_LIST(V)                                        \
-  /* A value which has all the above bits set */                          \
-  V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
-  /* All bits cleared, useful as initial value when combining types. */   \
-  V(None, 0)                                                              \
-  V(Callable, kJSFunction | kOtherCallable)                               \
-  V(NullOrUndefined, kNull | kUndefined)                                  \
-  V(Oddball, kNullOrUndefined | kBoolean)                                 \
-  V(Number, kSmi | kHeapNumber)                                           \
-  V(NumberOrBoolean, kNumber | kBoolean)                                  \
-  V(NumberOrUndefined, kNumber | kUndefined)                              \
-  V(NumberOrOddball, kNumber | kOddball)                                  \
-  V(InternalizedString, kROSeqInternalizedOneByteString |                 \
-                            kOtherSeqInternalizedOneByteString |          \
-                            kOtherInternalizedString)                     \
-  V(SeqOneByteString, kROSeqInternalizedOneByteString |                   \
-                          kOtherSeqInternalizedOneByteString |            \
-                          kOtherSeqOneByteString)                         \
-  V(String, kInternalizedString | kSeqOneByteString | kOtherString)       \
-  V(StringOrStringWrapper, kString | kStringWrapper)                      \
-  V(StringOrOddball, kString | kOddball)                                  \
-  V(Name, kString | kSymbol)                                              \
-  /* TODO(jgruber): Add kBigInt and kSymbol once they exist. */           \
-  V(JSPrimitive, kNumber | kString | kBoolean | kNullOrUndefined)         \
-  V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
-  V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)          \
+#define COMBINED_NODE_TYPE_LIST(V)                                          \
+  /* A value which has all the above bits set */                            \
+  V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                           \
+  /* All bits cleared, useful as initial value when combining types. */     \
+  V(None, 0)                                                                \
+  V(Callable, kJSFunction | kOtherCallable)                                 \
+  V(NullOrUndefined, kNull | kUndefined)                                    \
+  V(Oddball, kNullOrUndefined | kBoolean)                                   \
+  V(Number, kSmi | kHeapNumber)                                             \
+  V(NumberOrBoolean, kNumber | kBoolean)                                    \
+  V(NumberOrUndefined, kNumber | kUndefined)                                \
+  V(NumberOrOddball, kNumber | kOddball)                                    \
+  V(InternalizedString, kROSeqInternalizedOneByteString |                   \
+                            kOtherSeqInternalizedOneByteString |            \
+                            kOtherInternalizedString)                       \
+  V(SeqOneByteString, kROSeqInternalizedOneByteString |                     \
+                          kOtherSeqInternalizedOneByteString |              \
+                          kOtherSeqOneByteString)                           \
+  V(String, kInternalizedString | kSeqOneByteString | kOtherString)         \
+  V(StringOrStringWrapper, kString | kStringWrapper)                        \
+  V(StringOrOddball, kString | kOddball)                                    \
+  V(Name, kString | kSymbol)                                                \
+  /* TODO(jgruber): Add kBigInt and kSymbol once they exist. */             \
+  V(JSPrimitive, kNumber | kString | kBoolean | kNullOrUndefined)           \
+  V(JSReceiver,                                                             \
+    kJSArray | kCallable | kStringWrapper | kJSDataView | kOtherJSReceiver) \
+  V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)            \
   V(AnyHeapObject, kUnknown - kSmi)
 
 #define NODE_TYPE_LIST(V) \
