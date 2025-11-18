@@ -910,6 +910,8 @@ void GCTracer::PrintNVP() const {
          current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF())
       .p("stack", heap_->IsGCWithStack())
       .p("reason", ToString(current_.gc_reason))
+      .p("collector_reason",
+         current_.collector_reason ? current_.collector_reason : "")
       .p("start_object_size", current_.start_object_size)
       .p("end_object_size", current_.end_object_size)
       .p("start_memory_size", current_.start_memory_size)
