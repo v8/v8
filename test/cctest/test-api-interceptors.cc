@@ -6224,9 +6224,9 @@ struct ShouldInterceptData {
   bool should_intercept;
 };
 
-v8::Intercepted ShouldNamedInterceptor(
+v8::Intercepted ShouldNamedGetterInterceptor(
     Local<Name> name, const v8::PropertyCallbackInfo<Value>& info) {
-  CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedInterceptor));
+  CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedGetterInterceptor));
   auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
   if (!data->should_intercept) return v8::Intercepted::kNo;
   // Side effects are allowed only when the property is present or throws.
@@ -6235,43 +6235,22 @@ v8::Intercepted ShouldNamedInterceptor(
   return v8::Intercepted::kYes;
 }
 
-}  // namespace
-
-THREADED_TEST(NonMaskingInterceptorOwnProperty) {
-  auto isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  LocalContext context;
-
-  ShouldInterceptData intercept_data;
-  intercept_data.value = 239;
-  intercept_data.should_intercept = true;
-
-  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
-  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
-  conf.flags = v8::PropertyHandlerFlags::kNonMasking;
-  conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
-  interceptor_templ->SetHandler(conf);
-
-  auto interceptor =
-      interceptor_templ->NewInstance(context.local()).ToLocalChecked();
-  context->Global()
-      ->Set(context.local(), v8_str("obj"), interceptor)
-      .FromJust();
-
-  ExpectInt32("obj.whatever", 239);
-
-  CompileRun("obj.whatever = 4;");
-
-  // obj.whatever exists, thus it is not affected by the non-masking
-  // interceptor.
-  ExpectInt32("obj.whatever", 4);
-
-  CompileRun("delete obj.whatever;");
-  ExpectInt32("obj.whatever", 239);
+v8::Intercepted ShouldNamedSetterInterceptor(
+    Local<Name> name, Local<Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedSetterInterceptor));
+  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
+  if (!data->should_intercept) return v8::Intercepted::kNo;
+  // Side effects are allowed only when the property is present or throws.
+  ApiTestFuzzer::Fuzz();
+  Local<Context> context = info.GetIsolate()->GetCurrentContext();
+  if (value->IsInt32()) {
+    USE(value->Int32Value(context).To(&data->value));
+  }
+  return v8::Intercepted::kYes;
 }
 
-
-THREADED_TEST(NonMaskingInterceptorPrototypeProperty) {
+void TestNonMaskingInterceptorOwnProperty(bool with_setter) {
   auto isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
@@ -6281,7 +6260,103 @@ THREADED_TEST(NonMaskingInterceptorPrototypeProperty) {
   intercept_data.should_intercept = true;
 
   auto interceptor_templ = v8::ObjectTemplate::New(isolate);
-  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
+  if (with_setter) conf.setter = ShouldNamedSetterInterceptor;
+  conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+  conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
+  interceptor_templ->SetHandler(conf);
+
+  auto interceptor =
+      interceptor_templ->NewInstance(context.local()).ToLocalChecked();
+  context->Global()
+      ->Set(context.local(), v8_str("obj"), interceptor)
+      .FromJust();
+  auto i_interceptor = v8::Utils::OpenHandle(*interceptor);
+
+  CompileRun(
+      "function get() { return obj.whatever; } "
+      "function set(v) { obj.whatever = v; } "
+      "function trainICs() { "
+      "  for (var i = 0; i < 20; i++) {"
+      "    var v = get();"
+      "    set(v);"
+      "  }"
+      "}"
+      "trainICs();");
+  CHECK_EQ(intercept_data.value, 239);
+
+  ExpectInt32("obj.whatever", 239);
+  ExpectInt32("get()", 239);
+
+  CompileRun("obj.whatever = 4;");
+  if (with_setter) {
+    CHECK_EQ(i_interceptor->map()->NumberOfOwnDescriptors(), 0);
+    CHECK_EQ(intercept_data.value, 4);
+    ExpectInt32("obj.whatever", 4);
+
+    // Store through IC should also trigger setter callback.
+    CompileRun("set(44);");
+    CHECK_EQ(intercept_data.value, 44);
+    ExpectInt32("obj.whatever", 44);
+
+  } else {
+    // No interceptor setter -> store adds property to the receiver.
+    CHECK_EQ(i_interceptor->map()->NumberOfOwnDescriptors(), 1);
+    CHECK_EQ(intercept_data.value, 239);
+
+    // obj.whatever exists, thus it is not affected by the non-masking
+    // interceptor.
+    ExpectInt32("obj.whatever", 4);
+
+    // Stores through ICs should also store to the object.
+    CompileRun("trainICs(); set(55);");
+    CHECK_EQ(intercept_data.value, 239);
+
+    ExpectInt32("obj.whatever", 55);
+  }
+  intercept_data.value = 1239;
+
+  CompileRun("delete obj.whatever;");
+  ExpectInt32("obj.whatever", 1239);
+  ExpectInt32("get()", 1239);
+
+  if (with_setter) {
+    // If the store is not intercepted then the property should be added to
+    // receiver.
+    intercept_data.should_intercept = false;
+    CHECK_EQ(i_interceptor->map()->NumberOfOwnDescriptors(), 0);
+    // CompileRun("obj.whatever = 257;");
+    CompileRun("set(257);");
+    CHECK_EQ(i_interceptor->map()->NumberOfOwnDescriptors(), 1);
+
+    intercept_data.should_intercept = true;
+    ExpectInt32("obj.whatever", 257);
+    CHECK_EQ(intercept_data.value, 1239);
+  }
+}
+
+}  // namespace
+
+THREADED_TEST(NonMaskingInterceptorWithSetterOwnProperty) {
+  TestNonMaskingInterceptorOwnProperty(true);
+}
+
+THREADED_TEST(NonMaskingInterceptorWithoutSetterOwnProperty) {
+  TestNonMaskingInterceptorOwnProperty(false);
+}
+
+void TestNonMaskingInterceptorPrototypeProperty(bool with_setter) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  ShouldInterceptData intercept_data;
+  intercept_data.value = 239;
+  intercept_data.should_intercept = true;
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
+  if (with_setter) conf.setter = ShouldNamedSetterInterceptor;
   conf.flags = v8::PropertyHandlerFlags::kNonMasking;
   conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
   interceptor_templ->SetHandler(conf);
@@ -6292,6 +6367,7 @@ THREADED_TEST(NonMaskingInterceptorPrototypeProperty) {
       ->Set(context.local(), v8_str("obj"), interceptor)
       .FromJust();
 
+  // [[Get]]
   ExpectInt32("obj.whatever", 239);
 
   CompileRun("obj.__proto__ = {'whatever': 4};");
@@ -6299,8 +6375,40 @@ THREADED_TEST(NonMaskingInterceptorPrototypeProperty) {
 
   CompileRun("delete obj.__proto__.whatever;");
   ExpectInt32("obj.whatever", 239);
+
+  // [[Set]]
+  CompileRun("obj.__proto__ = {'whatever': 77};");
+  CompileRun("obj.whatever = 5;");
+  CHECK_EQ(intercept_data.value, 239);
+
+  CompileRun("delete obj.__proto__.whatever;");
+  CompileRun("obj.whatever = 7;");
+  ExpectInt32("obj.whatever", 7);
+
+  // Regardless of the setter existence, the property was already added to
+  // the receiver.
+  CHECK_EQ(intercept_data.value, 239);
+
+  if (with_setter) {
+    // Delete property on receiver to make stores trigger the setter again.
+    CompileRun("delete obj.whatever;");
+    CompileRun("obj.whatever = 157;");
+
+    CHECK_EQ(intercept_data.value, 157);
+    ExpectInt32("obj.whatever", 157);
+
+    intercept_data.should_intercept = false;
+    CompileRun("obj.whatever = 257;");
+  }
 }
 
+THREADED_TEST(NonMaskingInterceptorWithSetterPrototypeProperty) {
+  TestNonMaskingInterceptorPrototypeProperty(true);
+}
+
+THREADED_TEST(NonMaskingInterceptorWithoutSetterPrototypeProperty) {
+  TestNonMaskingInterceptorPrototypeProperty(false);
+}
 
 THREADED_TEST(NonMaskingInterceptorPrototypePropertyIC) {
   auto isolate = CcTest::isolate();
@@ -6312,7 +6420,7 @@ THREADED_TEST(NonMaskingInterceptorPrototypePropertyIC) {
   intercept_data.should_intercept = true;
 
   auto interceptor_templ = v8::ObjectTemplate::New(isolate);
-  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
   conf.flags = v8::PropertyHandlerFlags::kNonMasking;
   conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
   interceptor_templ->SetHandler(conf);

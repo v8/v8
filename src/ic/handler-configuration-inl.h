@@ -159,9 +159,9 @@ Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> StoreHandler::StoreInterceptor(Isolate* isolate) {
+Tagged<Smi> StoreHandler::StoreInterceptor() {
   int config = KindBits::encode(Kind::kInterceptor);
-  return handle(Smi::FromInt(config), isolate);
+  return Smi::FromInt(config);
 }
 
 Handle<Code> StoreHandler::StoreSloppyArgumentsBuiltin(

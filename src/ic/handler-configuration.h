@@ -357,8 +357,15 @@ V8_OBJECT class StoreHandler final : public DataHandler {
   // Creates a Smi-handler for storing a property to a slow object.
   static inline Handle<Smi> StoreNormal(Isolate* isolate);
 
-  // Creates a Smi-handler for storing a property to an interceptor.
-  static inline Handle<Smi> StoreInterceptor(Isolate* isolate);
+  // Creates a Smi-handler for storing a property to an object with an
+  // interceptor. Works only as a part of full handler
+  // (StoreThroughPrototype(..) or StoreInterceptorHolderIsReceiver(..)).
+  static inline Tagged<Smi> StoreInterceptor();
+  // Creates handler for storing a property to receiver object with an
+  // interceptor.
+  static Handle<StoreHandler> StoreInterceptorHolderIsReceiver(
+      Isolate* isolate, DirectHandle<Map> holder_map,
+      DirectHandle<InterceptorInfo> interceptor_info);
 
   static inline Handle<Code> StoreSloppyArgumentsBuiltin(
       Isolate* isolate, KeyedAccessStoreMode mode);

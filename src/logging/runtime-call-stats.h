@@ -488,7 +488,10 @@ namespace v8::internal {
   V(StoreIC_StoreFieldDH)                         \
   V(StoreIC_StoreGlobalDH)                        \
   V(StoreIC_StoreGlobalTransitionDH)              \
-  V(StoreIC_StoreInterceptorStub)                 \
+  V(StoreIC_StoreInterceptorDH)                   \
+  V(StoreIC_StoreInterceptorNonMaskingDH)         \
+  V(StoreIC_StoreInterceptorSlowDH)               \
+  V(StoreIC_StoreInterceptorThroughPrototypeDH)   \
   V(StoreIC_StoreNativeDataPropertyDH)            \
   V(StoreIC_StoreNativeDataPropertyOnPrototypeDH) \
   V(StoreIC_StoreNormalDH)                        \

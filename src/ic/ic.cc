@@ -2129,28 +2129,48 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
     case LookupIterator::INTERCEPTOR: {
       DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
-      Tagged<InterceptorInfo> info = holder->GetNamedInterceptor();
+      DirectHandle<InterceptorInfo> info(holder->GetNamedInterceptor(),
+                                         isolate());
 
-      // If the interceptor is on the receiver...
-      if (lookup->HolderIsReceiverOrHiddenPrototype() && !info->non_masking()) {
-        // ...return a store interceptor Smi handler if there is a setter
-        // interceptor and it's not DefineNamedOwnIC or DefineKeyedOwnIC
-        // (which should call the definer)...
+      if (lookup->HolderIsReceiverOrHiddenPrototype()) {
         if (info->has_setter() && !IsAnyDefineOwn()) {
-          return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
+          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorDH);
+          if (info->non_masking()) {
+            TRACE_HANDLER_STATS(isolate(),
+                                StoreIC_StoreInterceptorNonMaskingDH);
+          }
+          // We use complex data handler in order to cache the holder and
+          // interceptor info while also being able to use validity cell
+          // guarding against prototype chain modifications necessary for
+          // non-masking interceptors.
+          Handle<StoreHandler> handler =
+              StoreHandler::StoreInterceptorHolderIsReceiver(
+                  isolate(), lookup_start_object_map(), info);
+          return MaybeObjectHandle(handler);
         }
-        // ...otherwise return a slow-case Smi handler, which invokes the
-        // definer for DefineNamedOwnIC.
-        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+        // If the interceptor does not have setter of if the IC is a
+        // DefineNamedOwnIC or DefineKeyedOwnIC we should call definer
+        // callback. This is not supported yet, so we use slow handler.
+        // TODO(ishell): support calling definer callbacks.
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorSlowDH);
+        Handle<Smi> smi_handler = StoreHandler::StoreSlow(isolate());
+        return MaybeObjectHandle(smi_handler);
       }
 
       // If the interceptor is a getter/query interceptor on the prototype
-      // chain, return an invalidatable slow handler so it can turn fast if the
-      // interceptor is masked by a regular property later.
+      // chain, return an invalidatable slow handler so it can turn fast
+      // if the interceptor is masked by a regular property later.
+      // Note, that in this case we don't need to call the setter callback
+      // at all, we just need to query the interceptor to ensure that the
+      // property does not exist or it's writable.
+      // TODO(ishell): consider creating an appropriate simple store handler
+      // instead of kSlow when possible.
       DCHECK(info->has_getter() || info->has_query());
+      TRACE_HANDLER_STATS(isolate(),
+                          StoreIC_StoreInterceptorThroughPrototypeDH);
+      Handle<Smi> smi_handler = StoreHandler::StoreSlow(isolate());
       Handle<Object> handler = StoreHandler::StoreThroughPrototype(
-          isolate(), lookup_start_object_map(), holder,
-          *StoreHandler::StoreSlow(isolate()));
+          isolate(), lookup_start_object_map(), holder, *smi_handler);
       return MaybeObjectHandle(handler);
     }
 
@@ -4148,8 +4168,8 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   DCHECK_EQ(6, args.length());
   DirectHandle<Name> name = args.at<Name>(0);
   DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(1);
-  Handle<JSObject> holder = args.at<JSObject>(2);
-  Handle<InterceptorInfo> interceptor = args.at<InterceptorInfo>(3);
+  DirectHandle<JSObject> holder = args.at<JSObject>(2);
+  DirectHandle<InterceptorInfo> interceptor = args.at<InterceptorInfo>(3);
 #ifdef DEBUG
   if (IsJSGlobalProxy(*holder)) {
     DCHECK_EQ(Cast<JSObject>(holder->map()->prototype())->GetNamedInterceptor(),
@@ -4213,31 +4233,23 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
 RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
   DirectHandle<Object> value = args.at(0);
   DirectHandle<JSObject> receiver = args.at<JSObject>(1);
   DirectHandle<Name> name = args.at<Name>(2);
+  DirectHandle<InterceptorInfo> interceptor = args.at<InterceptorInfo>(3);
 
-  // TODO(ishell): Cache interceptor_holder in the store handler like we do
-  // for LoadHandler::kInterceptor case.
-  DirectHandle<JSObject> interceptor_holder = receiver;
-  if (IsJSGlobalProxy(*receiver) &&
-      (!receiver->HasNamedInterceptor() ||
-       receiver->GetNamedInterceptor()->non_masking())) {
-    interceptor_holder =
+  DirectHandle<JSObject> holder = receiver;
+  if (IsJSGlobalProxy(*receiver)) {
+    holder =
         direct_handle(Cast<JSObject>(receiver->map()->prototype()), isolate);
   }
-  DCHECK(interceptor_holder->HasNamedInterceptor());
-  {
-    DirectHandle<InterceptorInfo> interceptor(
-        interceptor_holder->GetNamedInterceptor(), isolate);
+  DCHECK_EQ(holder->GetNamedInterceptor(), *interceptor);
 
-    DCHECK(!interceptor->non_masking());
-    // TODO(ishell, 348688196): why is it known that it shouldn't throw?
-    Maybe<ShouldThrow> should_throw = Just(kDontThrow);
+  {
     PropertyCallbackArguments callback_args(isolate, *interceptor, *receiver,
-                                            *receiver, should_throw);
+                                            *holder, Nothing<ShouldThrow>());
 
     v8::Intercepted intercepted = callback_args.CallNamedSetter(name, value);
     // Stores initiated by StoreICs don't care about the exact result of
@@ -4256,21 +4268,31 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
         return *value;
 
       case InterceptorResult::kNotIntercepted:
-        // Proceed storing past the interceptor.
         break;
     }
   }
 
-  LookupIterator it(isolate, receiver, name, receiver);
-  // Skip past any access check on the receiver.
+  bool non_masking = interceptor->non_masking();
+  // If the interceptor hasn't handled the store request then
+  //  - for non-masking interceptor the lookup is over and we should proceed
+  //    adding property to the receiver,
+  //  - for masking interceptor the store lookup needs to be proceed past the
+  //    interceptor.
+  LookupIterator::Configuration config =
+      non_masking ? LookupIterator::OWN_SKIP_INTERCEPTOR
+                  : LookupIterator::DEFAULT;
+  LookupIterator it(isolate, receiver, name, holder, config);
+  // Skip past any access check on the receiver - they were already done
+  // by the IC dispatcher.
   while (it.state() == LookupIterator::ACCESS_CHECK) {
     DCHECK(it.HasAccess());
     it.Next();
   }
-  // Skip past the interceptor on the receiver.
-  DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
-  it.Next();
-
+  if (!non_masking) {
+    // Skip past the interceptor on the interceptor_holder.
+    DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
+    it.Next();
+  }
   MAYBE_RETURN(Object::SetProperty(&it, value, StoreOrigin::kNamed),
                ReadOnlyRoots(isolate).exception());
   return *value;
