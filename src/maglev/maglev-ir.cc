@@ -3325,6 +3325,7 @@ void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
     UseRegister(is_little_endian_input());
   }
   DefineAsRegister(this);
+  set_temporaries_needed(1);
 }
 void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
@@ -3337,10 +3338,11 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
   // We need to make sure we don't clobber is_little_endian_input by writing to
   // the result register.
   Register reg_with_result = result_reg;
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   if (type_ != ExternalArrayType::kExternalInt8Array &&
       !is_little_endian_constant() &&
       result_reg == ToRegister(is_little_endian_input())) {
-    reg_with_result = data_pointer;
+    reg_with_result = temps.Acquire();
   }
 
   __ LoadDataViewElement(reg_with_result, data_pointer, index, element_size);
