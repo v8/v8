@@ -5750,6 +5750,38 @@ std::optional<InstructionCode> TryMapCanonicalShuffleToInstr(
   }
   return {};
 }
+using ShufflePair = std::pair<InstructionCode, InstructionCode>;
+std::optional<ShufflePair> TryMapCanonicalShuffleToShufflePair(
+    CanonicalShuffle shuffle) {
+  using CanonicalToInstr = std::pair<CanonicalShuffle, ShufflePair>;
+
+#define CANONICAL_TO_INSTRS(canonical, opcode1, size1, opcode2, size2) \
+  {                                                                    \
+    CanonicalShuffle::canonical, {                                     \
+      opcode1 | LaneSizeField::encode(size1),                          \
+          opcode2 | LaneSizeField::encode(size2)                       \
+    }                                                                  \
+  }
+
+  static constexpr std::array arch_shuffles = std::to_array<CanonicalToInstr>({
+      CANONICAL_TO_INSTRS(kS8x8DeinterleaveEvenEven, kArm64S128UnzipLeft, 8,
+                          kArm64S128UnzipLeft, 8),
+      CANONICAL_TO_INSTRS(kS8x8DeinterleaveOddEven, kArm64S128UnzipRight, 8,
+                          kArm64S128UnzipLeft, 8),
+      CANONICAL_TO_INSTRS(kS8x8DeinterleaveEvenOdd, kArm64S128UnzipLeft, 8,
+                          kArm64S128UnzipRight, 8),
+      CANONICAL_TO_INSTRS(kS8x8DeinterleaveOddOdd, kArm64S128UnzipRight, 8,
+                          kArm64S128UnzipRight, 8),
+  });
+#undef CANONICAL_TO_INSTRS
+
+  for (const auto& [canonical, instr_opcodes] : arch_shuffles) {
+    if (canonical == shuffle) {
+      return instr_opcodes;
+    }
+  }
+  return {};
+}
 }  // namespace
 
 void InstructionSelector::VisitI8x2Shuffle(OpIndex node) {
@@ -5853,6 +5885,14 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
           TryMapCanonicalShuffleToInstr(canonical)) {
     Emit(instr_opcode.value(), g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseRegister(input1));
+    return;
+  } else if (std::optional<ShufflePair> instr_opcodes =
+                 TryMapCanonicalShuffleToShufflePair(canonical)) {
+    const InstructionCode opcode1 = instr_opcodes.value().first;
+    const InstructionCode opcode2 = instr_opcodes.value().second;
+    InstructionOperand temp = g.TempSimd128Register();
+    Emit(opcode1, temp, g.UseRegister(input0), g.UseRegister(input1));
+    Emit(opcode2, g.DefineAsRegister(node), temp, temp);
     return;
   }
 
