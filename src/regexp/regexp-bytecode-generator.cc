@@ -16,8 +16,9 @@
 namespace v8 {
 namespace internal {
 
-RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone)
-    : RegExpMacroAssembler(isolate, zone),
+RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone,
+                                                 Mode mode)
+    : RegExpMacroAssembler(isolate, zone, mode),
       buffer_(kInitialBufferSize, zone),
       pc_(0),
       advance_current_end_(kInvalidPC),

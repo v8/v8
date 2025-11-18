@@ -45,7 +45,10 @@ class RegExpMacroAssembler {
 
   static constexpr int kUseCharactersValue = -1;
 
-  RegExpMacroAssembler(Isolate* isolate, Zone* zone);
+  // Type of input string to generate code for.
+  enum Mode { LATIN1 = 1, UC16 = 2 };
+
+  RegExpMacroAssembler(Isolate* isolate, Zone* zone, Mode mode);
   RegExpMacroAssembler(const RegExpMacroAssembler& other) V8_NOEXCEPT = default;
   virtual ~RegExpMacroAssembler() = default;
 
@@ -294,10 +297,19 @@ class RegExpMacroAssembler {
   Zone* zone() const { return zone_; }
 
  protected:
+  // Byte size of chars in the string to match (decided by the Mode argument).
+  inline int char_size() const {
+    static_assert(static_cast<int>(Mode::LATIN1) == sizeof(uint8_t));
+    static_assert(static_cast<int>(Mode::UC16) == sizeof(uint16_t));
+    return static_cast<int>(mode());
+  }
   bool has_backtrack_limit() const;
   uint32_t backtrack_limit() const { return backtrack_limit_; }
 
   bool can_fallback() const { return can_fallback_; }
+
+  // Which mode to generate code for (LATIN1 or UC16).
+  Mode mode() const { return mode_; }
 
  private:
   bool slow_safe_compiler_;
@@ -306,13 +318,11 @@ class RegExpMacroAssembler {
   GlobalMode global_mode_;
   Isolate* const isolate_;
   Zone* const zone_;
+  const Mode mode_;
 };
 
 class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
  public:
-  // Type of input string to generate code for.
-  enum Mode { LATIN1 = 1, UC16 = 2 };
-
   // Result of calling generated native RegExp code.
   // RETRY: Something significant changed during execution, and the matching
   //        should be retried from scratch.
@@ -333,8 +343,8 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
     SMALLEST_REGEXP_RESULT = RegExp::kInternalRegExpSmallestResult,
   };
 
-  NativeRegExpMacroAssembler(Isolate* isolate, Zone* zone)
-      : RegExpMacroAssembler(isolate, zone), range_array_cache_(zone) {}
+  NativeRegExpMacroAssembler(Isolate* isolate, Zone* zone, Mode mode)
+      : RegExpMacroAssembler(isolate, zone, mode), range_array_cache_(zone) {}
   ~NativeRegExpMacroAssembler() override = default;
 
   // Returns a {Result} sentinel, or the number of successful matches.

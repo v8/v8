@@ -191,9 +191,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
   // Register holding pointer to the current code object.
   static constexpr Register code_pointer() { return r26; }
 
-  // Byte size of chars in the string to match (decided by the Mode argument)
-  inline int char_size() const { return static_cast<int>(mode_); }
-
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to, CRegister cr = cr0);
@@ -221,9 +218,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
 
   const std::unique_ptr<MacroAssembler> masm_;
   const NoRootArrayScope no_root_array_scope_;
-
-  // Which mode to generate code for (Latin1 or UC16).
-  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

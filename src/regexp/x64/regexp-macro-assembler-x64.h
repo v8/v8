@@ -233,10 +233,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // object.
   static constexpr Register code_object_pointer() { return r8; }
 
-  // Byte size of chars in the string to match (decided by the Mode argument)
-  inline int char_size() { return static_cast<int>(mode_); }
   inline ScaleFactor CharSizeScaleFactor() {
-    switch (mode_) {
+    switch (mode()) {
       case LATIN1:
         return ScaleFactor::times_1;
       case UC16:
@@ -306,9 +304,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   const NoRootArrayScope no_root_array_scope_;
 
   ZoneChunkList<int> code_relative_fixup_positions_;
-
-  // Which mode to generate code for (LATIN1 or UC16).
-  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

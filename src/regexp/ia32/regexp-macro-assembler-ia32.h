@@ -182,9 +182,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   // name to the register.
   static constexpr Register backtrack_stackpointer() { return ecx; }
 
-  // Byte size of chars in the string to match (decided by the Mode argument)
-  inline int char_size() const { return static_cast<int>(mode_); }
-
   // Equivalent to an unconditional branch to the label, unless the label
   // is nullptr, in which case it is a Backtrack.
   void BranchOrBacktrack(Label* to);
@@ -220,9 +217,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
 
   const std::unique_ptr<MacroAssembler> masm_;
   const NoRootArrayScope no_root_array_scope_;
-
-  // Which mode to generate code for (LATIN1 or UC16).
-  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

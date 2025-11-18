@@ -88,12 +88,11 @@ namespace internal {
 RegExpMacroAssemblerLOONG64::RegExpMacroAssemblerLOONG64(Isolate* isolate,
                                                          Zone* zone, Mode mode,
                                                          int registers_to_save)
-    : NativeRegExpMacroAssembler(isolate, zone),
+    : NativeRegExpMacroAssembler(isolate, zone, mode),
       masm_(std::make_unique<MacroAssembler>(
           isolate, CodeObjectRequired::kYes,
           NewAssemblerBuffer(kInitialBufferSize))),
       no_root_array_scope_(masm_.get()),
-      mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
       entry_label_(),
@@ -231,7 +230,7 @@ void RegExpMacroAssemblerLOONG64::CheckNotBackReferenceIgnoreCase(
     BranchOrBacktrack(on_no_match, gt, t1, Operand(zero_reg));
   }
 
-  if (mode_ == LATIN1) {
+  if (mode() == LATIN1) {
     Label success;
     Label fail;
     Label loop_check;
@@ -289,7 +288,7 @@ void RegExpMacroAssemblerLOONG64::CheckNotBackReferenceIgnoreCase(
       __ Sub_d(current_input_offset(), current_input_offset(), Operand(a2));
     }
   } else {
-    DCHECK(mode_ == UC16);
+    DCHECK(mode() == UC16);
 
     int argument_count = 4;
     __ PrepareCallCFunction(argument_count, a2);
@@ -375,13 +374,13 @@ void RegExpMacroAssemblerLOONG64::CheckNotBackReference(int start_reg,
 
   Label loop;
   __ bind(&loop);
-  if (mode_ == LATIN1) {
+  if (mode() == LATIN1) {
     __ Ld_bu(a3, MemOperand(a0, 0));
     __ addi_d(a0, a0, char_size());
     __ Ld_bu(a4, MemOperand(a2, 0));
     __ addi_d(a2, a2, char_size());
   } else {
-    DCHECK(mode_ == UC16);
+    DCHECK(mode() == UC16);
     __ Ld_hu(a3, MemOperand(a0, 0));
     __ addi_d(a0, a0, char_size());
     __ Ld_hu(a4, MemOperand(a2, 0));
@@ -480,7 +479,7 @@ bool RegExpMacroAssemblerLOONG64::CheckCharacterNotInRangeArray(
 void RegExpMacroAssemblerLOONG64::CheckBitInTable(Handle<ByteArray> table,
                                                   Label* on_bit_set) {
   __ li(a0, Operand(table));
-  if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
+  if (mode() != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ And(a1, current_character(), Operand(kTableSize - 1));
     __ Add_d(a0, a0, a1);
   } else {
@@ -511,7 +510,7 @@ bool RegExpMacroAssemblerLOONG64::CheckSpecialClassRanges(
   switch (type) {
     case StandardCharacterSet::kWhitespace:
       // Match space-characters.
-      if (mode_ == LATIN1) {
+      if (mode() == LATIN1) {
         // One byte space characters are '\t'..'\r', ' ' and \u00a0.
         Label success;
         __ Branch(&success, eq, current_character(), Operand(' '));
@@ -543,7 +542,7 @@ bool RegExpMacroAssemblerLOONG64::CheckSpecialClassRanges(
       // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
       __ Sub_d(a0, a0, Operand(0x0B));
       BranchOrBacktrack(on_no_match, ls, a0, Operand(0x0C - 0x0B));
-      if (mode_ == UC16) {
+      if (mode() == UC16) {
         // Compare original value to 0x2028 and 0x2029, using the already
         // computed (current_char ^ 0x01 - 0x0B). I.e., check for
         // 0x201D (0x2028 - 0x0B) or 0x201E.
@@ -557,7 +556,7 @@ bool RegExpMacroAssemblerLOONG64::CheckSpecialClassRanges(
       __ Xor(a0, current_character(), Operand(0x01));
       // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
       __ Sub_d(a0, a0, Operand(0x0B));
-      if (mode_ == LATIN1) {
+      if (mode() == LATIN1) {
         BranchOrBacktrack(on_no_match, hi, a0, Operand(0x0C - 0x0B));
       } else {
         Label done;
@@ -572,7 +571,7 @@ bool RegExpMacroAssemblerLOONG64::CheckSpecialClassRanges(
       return true;
     }
     case StandardCharacterSet::kWord: {
-      if (mode_ != LATIN1) {
+      if (mode() != LATIN1) {
         // Table is 256 entries, so all Latin1 characters can be tested.
         BranchOrBacktrack(on_no_match, hi, current_character(), Operand('z'));
       }
@@ -585,7 +584,7 @@ bool RegExpMacroAssemblerLOONG64::CheckSpecialClassRanges(
     }
     case StandardCharacterSet::kNotWord: {
       Label done;
-      if (mode_ != LATIN1) {
+      if (mode() != LATIN1) {
         // Table is 256 entries, so all Latin1 characters can be tested.
         __ Branch(&done, hi, current_character(), Operand('z'));
       }
@@ -594,7 +593,7 @@ bool RegExpMacroAssemblerLOONG64::CheckSpecialClassRanges(
       __ Add_d(a0, a0, current_character());
       __ Ld_bu(a0, MemOperand(a0, 0));
       BranchOrBacktrack(on_no_match, ne, a0, Operand(zero_reg));
-      if (mode_ != LATIN1) {
+      if (mode() != LATIN1) {
         __ bind(&done);
       }
       return true;
@@ -763,7 +762,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(
     // (effectively string position -1).
     __ Ld_d(a1, MemOperand(frame_pointer(), kStartIndexOffset));
     __ Sub_d(a0, current_input_offset(), Operand(char_size()));
-    __ slli_d(t1, a1, (mode_ == UC16) ? 1 : 0);
+    __ slli_d(t1, a1, (mode() == UC16) ? 1 : 0);
     __ Sub_d(a0, a0, t1);
     // Store this value in a local variable, for use when clearing
     // position registers.
@@ -820,7 +819,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(
         __ Ld_d(a2, MemOperand(frame_pointer(), kStartIndexOffset));
         __ Sub_d(a1, end_of_input_address(), a1);
         // a1 is length of input in bytes.
-        if (mode_ == UC16) {
+        if (mode() == UC16) {
           __ srli_d(a1, a1, 1);
         }
         // a1 is length of input in characters.
@@ -838,7 +837,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(
             // Keep capture start in a4 for the zero-length check later.
             __ mov(t3, a2);
           }
-          if (mode_ == UC16) {
+          if (mode() == UC16) {
             __ srai_d(a2, a2, 1);
             __ Add_d(a2, a2, a1);
             __ srai_d(a3, a3, 1);
@@ -894,7 +893,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(
           Label advance;
           __ bind(&advance);
           __ Add_d(current_input_offset(), current_input_offset(),
-                   Operand((mode_ == UC16) ? 2 : 1));
+                   Operand((mode() == UC16) ? 2 : 1));
           if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
         }
 
@@ -1359,7 +1358,7 @@ void RegExpMacroAssemblerLOONG64::LoadCurrentCharacterUnchecked(
     offset = t3;
   }
 
-  if (mode_ == LATIN1) {
+  if (mode() == LATIN1) {
     if (characters == 4) {
       __ Ld_wu(current_character(), MemOperand(end_of_input_address(), offset));
     } else if (characters == 2) {
@@ -1369,7 +1368,7 @@ void RegExpMacroAssemblerLOONG64::LoadCurrentCharacterUnchecked(
       __ Ld_bu(current_character(), MemOperand(end_of_input_address(), offset));
     }
   } else {
-    DCHECK(mode_ == UC16);
+    DCHECK(mode() == UC16);
     if (characters == 2) {
       __ Ld_wu(current_character(), MemOperand(end_of_input_address(), offset));
     } else {
