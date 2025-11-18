@@ -3086,7 +3086,7 @@ void V8HeapExplorer::MakeNativeContextTagMap(
           native_context->fast_template_instantiations_cache();
       for (int i = 0; i < cache->length(); ++i) {
         Tagged<Object> element = cache->get(i);
-        if (IsHeapObject(element)) {
+        if (IsHeapObject(element) && !IsAnyHole(element)) {
           Tagged<HeapObject> heap_object = Cast<HeapObject>(element);
           native_context_tag_map_.emplace(
               heap_object, NativeContextTagInfo{pair.second, "internal cache"});
@@ -3098,7 +3098,7 @@ void V8HeapExplorer::MakeNativeContextTagMap(
       cache = native_context->slow_template_instantiations_cache();
       for (int i = 0; i < cache->length(); ++i) {
         Tagged<Object> element = cache->get(i);
-        if (IsHeapObject(element)) {
+        if (IsHeapObject(element) && !IsAnyHole(element)) {
           Tagged<HeapObject> heap_object = Cast<HeapObject>(element);
           native_context_tag_map_.emplace(
               heap_object, NativeContextTagInfo{pair.second, "internal cache"});
