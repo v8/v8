@@ -134,8 +134,8 @@ enum class TSUnop { UNOP_LIST(DECL) };
 
 class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
  public:
-  using BaseAssembler = TSAssembler<LoadStoreSimplificationReducer,
-                                    InstructionSelectionNormalizationReducer>;
+  using BaseAssembler = Assembler<LoadStoreSimplificationReducer,
+                                  InstructionSelectionNormalizationReducer>;
 
   TurboshaftInstructionSelectorTest();
   ~TurboshaftInstructionSelectorTest() override;

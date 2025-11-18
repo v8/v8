@@ -25,7 +25,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-using BaseAssembler = TSAssembler<LoadStoreSimplificationReducer>;
+using BaseAssembler = Assembler<LoadStoreSimplificationReducer>;
 
 class DataHolder {
  public:
@@ -185,7 +185,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
     // graph (because the register allocator doesn't like it when Parameters are
     // not in the 1st block). Subsequent calls to `m.Parameter()` will reuse the
     // Parameters created here, thanks to Turboshaft's parameter cache (see
-    // TurboshaftAssemblerOpInterface::Parameter).
+    // AssemblerOpInterface::Parameter).
     for (size_t i = 0; i < call_descriptor()->ParameterCount(); i++) {
       Parameter(static_cast<int>(i));
     }

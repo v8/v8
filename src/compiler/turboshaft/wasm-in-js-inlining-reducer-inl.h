@@ -1297,7 +1297,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
   V<turboshaft::FrameState> frame_state =
       CreateJSWasmCallBuiltinContinuationFrameState(js_context,
                                                     outer_frame_state, sig);
-  using GraphBuilder = wasm::WasmWrapperTSGraphBuilder<Assembler<ReducerList>>;
+  using GraphBuilder = wasm::WasmWrapperTSGraphBuilder<assembler_t>;
   std::optional<typename GraphBuilder::InlinedFunctionData>
       inlined_function_data;
   if (v8_flags.turboshaft_wasm_in_js_inlining) {
@@ -1394,7 +1394,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   Block* unreachable = __ NewBlock();
   __ Bind(unreachable);
 
-  using Interface = WasmInJsInliningInterface<Assembler<ReducerList>>;
+  using Interface = WasmInJsInliningInterface<assembler_t>;
   using Decoder =
       wasm::WasmFullDecoder<typename Interface::ValidationTag, Interface>;
   Decoder can_inline_decoder(Asm().phase_zone(), env.module,

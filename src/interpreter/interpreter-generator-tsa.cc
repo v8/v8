@@ -293,13 +293,13 @@ class BytecodeHandlerReducer : public Next {
 
 template <template <typename> typename Reducer>
 class TurboshaftBytecodeHandlerAssembler
-    : public compiler::turboshaft::TSAssembler<
+    : public compiler::turboshaft::Assembler<
           Reducer, BytecodeHandlerReducer, BuiltinsReducer,
           FeedbackCollectorReducer,
           compiler::turboshaft::MachineLoweringReducer,
           compiler::turboshaft::VariableReducer> {
  public:
-  using Base = compiler::turboshaft::TSAssembler<
+  using Base = compiler::turboshaft::Assembler<
       Reducer, BytecodeHandlerReducer, BuiltinsReducer,
       FeedbackCollectorReducer, compiler::turboshaft::MachineLoweringReducer,
       compiler::turboshaft::VariableReducer>;

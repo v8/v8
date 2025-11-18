@@ -615,6 +615,23 @@ class BuiltinsReducer : public Next {
     __ Unreachable();
   }
 
+  template <typename Desc>
+    requires(!Desc::kCanTriggerLazyDeopt)
+  auto CallRuntime(compiler::turboshaft::V<Context> context,
+                   const Desc::Arguments& args) {
+    return Next::template CallRuntime<Desc>(context, args);
+  }
+
+  template <typename Desc>
+    requires(Desc::kCanTriggerLazyDeopt)
+  auto CallRuntime(compiler::turboshaft::V<Context> context,
+                   const Desc::Arguments& args) {
+    return Next::template CallRuntime<Desc>(
+        compiler::turboshaft::OptionalV<
+            compiler::turboshaft::FrameState>::Nullopt(),
+        context, args, compiler::LazyDeoptOnThrow::kNo);
+  }
+
  private:
   compiler::turboshaft::OperationMatcher matcher_{__ data()->graph()};
   Isolate* isolate() { return __ data() -> isolate(); }
@@ -623,12 +640,12 @@ class BuiltinsReducer : public Next {
 template <template <typename> typename Reducer,
           template <typename> typename FeedbackReducer>
 class TurboshaftBuiltinsAssembler
-    : public compiler::turboshaft::TSAssembler<
+    : public compiler::turboshaft::Assembler<
           Reducer, BuiltinsReducer, FeedbackReducer,
           compiler::turboshaft::MachineLoweringReducer,
           compiler::turboshaft::VariableReducer> {
  public:
-  using Base = compiler::turboshaft::TSAssembler<
+  using Base = compiler::turboshaft::Assembler<
       Reducer, BuiltinsReducer, FeedbackReducer,
       compiler::turboshaft::MachineLoweringReducer,
       compiler::turboshaft::VariableReducer>;

@@ -24,7 +24,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-template <class Reducers>
+template <template <typename> typename... Reducers>
 class Assembler;
 
 class LoopUnrollingAnalyzer;
@@ -561,9 +561,9 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 #endif
 
   friend class Graph;
-  template <class Reducers>
+  template <template <typename> typename... Reducers>
   friend class Assembler;
-  template <class Assembler>
+  template <typename Next>
   friend class GraphVisitor;
 };
 

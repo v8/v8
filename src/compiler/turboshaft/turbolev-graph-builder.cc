@@ -490,10 +490,10 @@ constexpr bool TooManyArgumentsForCall(size_t arguments_count) {
 class GraphBuildingNodeProcessor {
  public:
   using AssemblerT =
-      TSAssembler<BlockOriginTrackingReducer, TurbolevEarlyLoweringReducer,
-                  SimplifiedOptimizationReducer, MachineOptimizationReducer,
-                  VariableReducer, RequiredOptimizationReducer,
-                  ValueNumberingReducer>;
+      Assembler<BlockOriginTrackingReducer, TurbolevEarlyLoweringReducer,
+                SimplifiedOptimizationReducer, MachineOptimizationReducer,
+                VariableReducer, RequiredOptimizationReducer,
+                ValueNumberingReducer>;
 
   GraphBuildingNodeProcessor(
       PipelineData* data, Graph& graph, Zone* temp_zone,

@@ -79,16 +79,14 @@ class OutputGraphAssembler : public Base {
 
  private:
   Derived* derived_this() { return static_cast<Derived*>(this); }
-  Assembler<typename Base::ReducerList>* assembler() {
-    return &derived_this()->Asm();
-  }
+  typename Base::assembler_t* assembler() { return &derived_this()->Asm(); }
 };
 
 template <class AfterNext>
 class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
                                                  VariableReducer<AfterNext>> {
   template <typename N>
-  friend class ReducerBaseForwarder;
+  friend class GraphEmitter;
   template <typename N>
   friend class WasmRevecReducer;
 
@@ -1086,14 +1084,11 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 };
 
 template <template <class> class... Reducers>
-class TSAssembler;
-
-template <template <class> class... Reducers>
 class CopyingPhaseImpl {
  public:
   static void Run(PipelineData* data, Graph& input_graph, Zone* phase_zone,
                   bool trace_reductions = false) {
-    TSAssembler<GraphVisitor, Reducers...> phase(
+    Assembler<GraphVisitor, Reducers...> phase(
         data, input_graph, input_graph.GetOrCreateCompanion(), phase_zone);
 #ifdef DEBUG
     if (trace_reductions) {

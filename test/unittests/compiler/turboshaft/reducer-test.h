@@ -18,7 +18,7 @@ namespace v8::internal::compiler::turboshaft {
 
 class TestInstance {
  public:
-  using Assembler = TSAssembler<VariableReducer>;
+  using assembler_t = Assembler<VariableReducer>;
 
   struct CapturedOperation {
     TestInstance* instance;
@@ -101,7 +101,7 @@ class TestInstance {
     return instance;
   }
 
-  Assembler& Asm() {
+  assembler_t& Asm() {
     DCHECK(assembler_);
     return *assembler_;
   }
@@ -110,13 +110,13 @@ class TestInstance {
   Zone* zone() { return zone_; }
   V<Context> context() { return Asm().HeapConstantNoHole(context_); }
 
-  Assembler& operator()() { return Asm(); }
+  assembler_t& operator()() { return Asm(); }
 
   void ClearAssembler() { assembler_.reset(); }
 
   template <template <typename> typename... Reducers>
   void Run(bool trace_reductions = v8_flags.turboshaft_trace_reduction) {
-    TSAssembler<GraphVisitor, Reducers...> phase(
+    Assembler<GraphVisitor, Reducers...> phase(
         data_, graph(), graph().GetOrCreateCompanion(), zone_);
 #ifdef DEBUG
     if (trace_reductions) {
@@ -240,15 +240,15 @@ class TestInstance {
   TestInstance(PipelineData* data, Isolate* isolate, Zone* zone,
                Handle<Context> context)
       : data_(data),
-        assembler_(std::make_unique<Assembler>(data, data_->graph(),
-                                               data_->graph(), zone)),
+        assembler_(std::make_unique<assembler_t>(data, data_->graph(),
+                                                 data_->graph(), zone)),
         graph_(&data_->graph()),
         isolate_(isolate),
         zone_(zone),
         context_(context) {}
 
   PipelineData* data_;
-  std::unique_ptr<Assembler> assembler_;
+  std::unique_ptr<assembler_t> assembler_;
   Graph* graph_;
   std::unique_ptr<std::ofstream> stream_;
   Isolate* isolate_;
@@ -260,7 +260,7 @@ class TestInstance {
 
 class ReducerTest : public TestWithNativeContextAndZone {
  public:
-  using Assembler = TestInstance::Assembler;
+  using assembler_t = TestInstance::assembler_t;
 
   template <typename Builder>
   TestInstance CreateFromGraph(int parameter_count, const Builder& builder) {

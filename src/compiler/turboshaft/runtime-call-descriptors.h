@@ -404,6 +404,17 @@ struct runtime : CallDescriptorBuilder {
     static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
+
+  struct ToString : public Descriptor<ToString> {
+    static constexpr auto kFunction = Runtime::kToString;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, input)
+    };
+    using returns_t = V<String>;
+
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
 };
 
 }  // namespace v8::internal::compiler::turboshaft

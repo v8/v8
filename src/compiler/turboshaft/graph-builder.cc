@@ -68,9 +68,8 @@ struct GraphBuilder {
   Isolate* isolate;
   JSHeapBroker* broker;
   Zone* graph_zone;
-  using AssemblerT =
-      TSAssembler<ExplicitTruncationReducer, SimplifiedOptimizationReducer,
-                  VariableReducer>;
+  using AssemblerT = Assembler<ExplicitTruncationReducer,
+                               SimplifiedOptimizationReducer, VariableReducer>;
   AssemblerT assembler;
   SourcePositionTable* source_positions;
   NodeOriginTable* origins;
