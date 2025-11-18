@@ -235,10 +235,6 @@ class V8_EXPORT_PRIVATE Pipeline {
     if (V8_UNLIKELY(data()->pipeline_kind() == TurboshaftPipelineKind::kCSA ||
                     data()->pipeline_kind() ==
                         TurboshaftPipelineKind::kTSABuiltin)) {
-      if (profile) {
-        RUN_MAYBE_ABORT(ProfileApplicationPhase, profile);
-      }
-
       if (v8_flags.reorder_builtins &&
           Builtins::IsBuiltinId(info()->builtin())) {
         UnparkedScopeIfNeeded unparked_scope(data()->broker());
@@ -273,6 +269,10 @@ class V8_EXPORT_PRIVATE Pipeline {
         ZoneWithName<kTempZoneName> temp_zone(data()->zone_stats(),
                                               kTempZoneName);
         CopyingPhase<>::Run(data(), temp_zone);
+
+        if (profile) {
+          RUN_MAYBE_ABORT(ProfileApplicationPhase, profile);
+        }
       }
     }
 
