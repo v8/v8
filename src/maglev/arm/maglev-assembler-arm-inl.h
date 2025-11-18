@@ -527,8 +527,6 @@ inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
   add(dst, location.rn(), Operand(location.offset()));
 }
 
-inline void MaglevAssembler::Call(Label* target) { bl(target); }
-
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
                                                 StackFrame::Type frame_type,
                                                 Register c_function,

@@ -434,8 +434,6 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void IncrementAddress(Register reg, int32_t delta);
   inline void LoadAddress(Register dst, MemOperand location);
 
-  inline void Call(Label* target);
-
   inline void EmitEnterExitFrame(int extra_slots, StackFrame::Type frame_type,
                                  Register c_function, Register scratch);
 
