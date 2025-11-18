@@ -392,11 +392,11 @@ void BaseCollectionsAssembler::GenerateConstructor(
   GotoIfNot(IsNullOrUndefined(iterable), &add_constructor_entries);
   TNode<HeapObject> table = AllocateTable(variant, IntPtrConstant(0));
   StoreObjectField(collection, GetTableOffset(variant), table);
-  Return(collection);
+  args.PopAndReturn(collection);
 
   BIND(&add_constructor_entries);
   AddConstructorEntries(variant, context, native_context, collection, iterable);
-  Return(collection);
+  args.PopAndReturn(collection);
 
   BIND(&if_undefined);
   ThrowTypeError(context, MessageTemplate::kConstructorNotFunction,
