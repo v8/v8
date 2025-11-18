@@ -534,7 +534,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                     const AstRawString* name);
   FeedbackSlot GetDummyCompareICSlot();
 
-  int GetCachedCreateClosureSlot(FunctionLiteral* literal);
   int GetNewClosureSlot(FunctionLiteral* literal);
   void AddToEagerLiteralsIfEager(FunctionLiteral* literal);
 

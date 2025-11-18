@@ -996,7 +996,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
           // will set stack overflow.
           if (sfi.is_null()) return Handle<FixedArray>();
           data->set(array_index++, *sfi);
-          int literal_index = generator->GetCachedCreateClosureSlot(f);
+          int literal_index = generator->GetNewClosureSlot(f);
           data->set(array_index++, Smi::FromInt(literal_index));
           DCHECK(var->IsExport());
           data->set(array_index++, Smi::FromInt(var->index()));
@@ -1025,7 +1025,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
           // will set stack overflow.
           if (sfi.is_null()) return Handle<FixedArray>();
           data->set(array_index++, *sfi);
-          int literal_index = generator->GetCachedCreateClosureSlot(f);
+          int literal_index = generator->GetNewClosureSlot(f);
           data->set(array_index++, Smi::FromInt(literal_index));
           DCHECK_EQ(start + kGlobalFunctionDeclarationSize, array_index);
         }
@@ -3491,7 +3491,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
-  builder()->CreateClosure(entry, GetCachedCreateClosureSlot(expr), flags);
+  builder()->CreateClosure(entry, GetNewClosureSlot(expr), flags);
   function_literals_.push_back(std::make_pair(expr, entry));
   AddToEagerLiteralsIfEager(expr);
 }
@@ -9000,19 +9000,6 @@ FeedbackSlot BytecodeGenerator::GetCachedStoreICSlot(const Expression* expr,
   return slot;
 }
 
-int BytecodeGenerator::GetCachedCreateClosureSlot(FunctionLiteral* literal) {
-  FeedbackSlotCache::SlotKind slot_kind =
-      FeedbackSlotCache::SlotKind::kClosureFeedbackCell;
-  int index = feedback_slot_cache()->Get(slot_kind, literal);
-  if (index != -1) {
-    return index;
-  }
-  index = feedback_spec()->AddCreateClosureParameterCount(
-      JSParameterCount(literal->parameter_count()));
-  feedback_slot_cache()->Put(slot_kind, literal, index);
-  return index;
-}
-
 int BytecodeGenerator::GetNewClosureSlot(FunctionLiteral* literal) {
   DCHECK_EQ(feedback_slot_cache()->Get(
                 FeedbackSlotCache::SlotKind::kClosureFeedbackCell, literal),
@@ -9020,8 +9007,10 @@ int BytecodeGenerator::GetNewClosureSlot(FunctionLiteral* literal) {
 
   int index = feedback_spec()->AddCreateClosureParameterCount(
       JSParameterCount(literal->parameter_count()));
+#ifdef DEBUG
   feedback_slot_cache()->Put(FeedbackSlotCache::SlotKind::kClosureFeedbackCell,
                              literal, index);
+#endif
   return index;
 }
 
