@@ -1394,6 +1394,16 @@ class GraphBuildingNodeProcessor {
     int actual_parameter_count = JSParameterCount(node->num_args());
 
     if (node->shared_function_info().HasBuiltinId()) {
+      Builtin builtin = node->shared_function_info().builtin_id();
+
+      // Non-JS builtins must be called via CallBuiltin().
+      DCHECK(Builtins::HasJSLinkage(builtin));
+
+      // This SBXCHECK is a defense-in-depth measure to ensure that we always
+      // generate valid calls here (with matching signatures).
+      SBXCHECK(Builtins::IsCompatibleJSBuiltin(
+          builtin, node->expected_parameter_count()));
+
       // Note that there is no need for a ThrowingScope here:
       // GenerateBuiltinCall takes care of creating one.
       base::SmallVector<OpIndex, 16> arguments;
@@ -1414,9 +1424,9 @@ class GraphBuildingNodeProcessor {
         arguments.push_back(undefined_value_);
       }
       arguments.push_back(Map(node->context()));
+
       GENERATE_AND_MAP_BUILTIN_CALL(
-          node, node->shared_function_info().builtin_id(), frame_state,
-          base::VectorOf(arguments),
+          node, builtin, frame_state, base::VectorOf(arguments),
           std::max<int>(actual_parameter_count,
                         node->expected_parameter_count()));
     } else {
