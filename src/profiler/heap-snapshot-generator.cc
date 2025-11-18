@@ -3065,6 +3065,7 @@ V8HeapExplorer::CollectTemporaryNativeContextTags() {
             Global<v8::Context>(reinterpret_cast<v8::Isolate*>(isolate),
                                 Utils::ToLocal(native_context)),
             nullptr);
+        native_context_tags.back().first.SetWeak();
       });
   isolate->global_handles()->IterateAllRoots(&enumerator);
   isolate->traced_handles()->Iterate(&enumerator);
