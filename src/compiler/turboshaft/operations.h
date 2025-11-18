@@ -9911,6 +9911,13 @@ struct ThrowingOpHasProperMembers<FastApiCallOp, void> : std::true_type {};
 TURBOSHAFT_THROWING_OPERATIONS_LIST(THROWING_OP_LOOKS_VALID)
 #undef THROWING_OP_LOOKS_VALID
 
+// DecideObjectIsSmi tries to figure out if an OpIndex can be a Smi or not. For
+// instance, a SmiConstant is always a Smi, and a HeapObject constant is never a
+// Smi.
+enum class IsSmiDecision : uint8_t { kUnknown, kTrue, kFalse };
+IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx,
+                                int depth = 0);
+
 }  // namespace v8::internal::compiler::turboshaft
 
 #endif  // V8_COMPILER_TURBOSHAFT_OPERATIONS_H_

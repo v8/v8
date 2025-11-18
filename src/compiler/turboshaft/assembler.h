@@ -5648,6 +5648,10 @@ class Assembler : public AssemblerData,
   int& intermediate_tracing_depth() { return intermediate_tracing_depth_; }
 #endif
 
+  IsSmiDecision DecideObjectIsSmi(V<Object> og_index) {
+    return turboshaft::DecideObjectIsSmi(__ output_graph(), og_index);
+  }
+
   // ReduceProjection eliminates projections to tuples and returns the
   // corresponding tuple input instead. We do this at the top of the stack to
   // avoid passing this Projection around needlessly. This is in particular
