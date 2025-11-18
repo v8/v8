@@ -5335,6 +5335,98 @@ void InstructionSelector::VisitS128Xor(OpIndex node) {
   return VisitRRR(this, kArm64S128Xor, node);
 }
 
+namespace {
+
+template <Simd128UnaryOp::Kind K>
+bool CanOptimizeUnaryWithKind(InstructionSelector* selector, const OpIndex node,
+                              OpIndex child) {
+  const Simd128UnaryOp* op = selector->Get(child).TryCast<Simd128UnaryOp>();
+  if (!op) return false;
+  return op->kind == K && selector->CanCover(node, child);
+}
+
+template <Simd128UnaryOp::Kind K>
+InstructionCode AddlOpcodeFromConvert() {
+  switch (K) {
+    case Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low:
+    case Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low:
+    case Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low:
+      return kArm64Uaddl;
+    case Simd128UnaryOp::Kind::kI64x2UConvertI32x4High:
+    case Simd128UnaryOp::Kind::kI32x4UConvertI16x8High:
+    case Simd128UnaryOp::Kind::kI16x8UConvertI8x16High:
+      return kArm64Uaddl2;
+    case Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low:
+    case Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low:
+    case Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low:
+      return kArm64Saddl;
+    case Simd128UnaryOp::Kind::kI64x2SConvertI32x4High:
+    case Simd128UnaryOp::Kind::kI32x4SConvertI16x8High:
+    case Simd128UnaryOp::Kind::kI16x8SConvertI8x16High:
+      return kArm64Saddl2;
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Simd128UnaryOp::Kind K>
+InstructionCode AddwOpcodeFromConvert() {
+  switch (K) {
+    case Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low:
+    case Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low:
+    case Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low:
+      return kArm64Uaddw;
+    case Simd128UnaryOp::Kind::kI64x2UConvertI32x4High:
+    case Simd128UnaryOp::Kind::kI32x4UConvertI16x8High:
+    case Simd128UnaryOp::Kind::kI16x8UConvertI8x16High:
+      return kArm64Uaddw2;
+    case Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low:
+    case Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low:
+    case Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low:
+      return kArm64Saddw;
+    case Simd128UnaryOp::Kind::kI64x2SConvertI32x4High:
+    case Simd128UnaryOp::Kind::kI32x4SConvertI16x8High:
+    case Simd128UnaryOp::Kind::kI16x8SConvertI8x16High:
+      return kArm64Saddw2;
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Simd128UnaryOp::Kind K>
+bool TryEmitAdd(InstructionSelector* selector, const OpIndex node,
+                int ta_size) {
+  Arm64OperandGenerator g(selector);
+  const Simd128BinopOp* add_op = selector->Get(node).TryCast<Simd128BinopOp>();
+  bool left = CanOptimizeUnaryWithKind<K>(selector, node, add_op->left());
+  bool right = CanOptimizeUnaryWithKind<K>(selector, node, add_op->right());
+  if (left && right) {  // ADDL
+    int opcode = AddlOpcodeFromConvert<K>();
+    OpIndex vn = selector->Get(add_op->left()).Cast<Simd128UnaryOp>().input();
+    OpIndex vm = selector->Get(add_op->right()).Cast<Simd128UnaryOp>().input();
+    selector->Emit(opcode | LaneSizeField::encode(ta_size),
+                   g.DefineAsRegister(node), g.UseRegister(vn),
+                   g.UseRegister(vm));
+    return true;
+  } else if (left) {  // ADDW, optimising left
+    int opcode = AddwOpcodeFromConvert<K>();
+    OpIndex vm = selector->Get(add_op->left()).Cast<Simd128UnaryOp>().input();
+    selector->Emit(opcode | LaneSizeField::encode(ta_size),
+                   g.DefineAsRegister(node), g.UseRegister(add_op->right()),
+                   g.UseRegister(vm));
+    return true;
+  } else if (right) {  // ADDW, optimising right
+    int opcode = AddwOpcodeFromConvert<K>();
+    OpIndex vm = selector->Get(add_op->right()).Cast<Simd128UnaryOp>().input();
+    selector->Emit(opcode | LaneSizeField::encode(ta_size),
+                   g.DefineAsRegister(node), g.UseRegister(add_op->left()),
+                   g.UseRegister(vm));
+    return true;
+  }
+  return false;
+}
+}  // namespace
+
 void InstructionSelector::VisitI64x2Add(OpIndex node) {
   if (ShraHelper<Opmask::kSimd128I64x2ShrS>(
           this, node, 64, kArm64Ssra, kArm64IAdd | LaneSizeField::encode(64)) ||
@@ -5342,7 +5434,21 @@ void InstructionSelector::VisitI64x2Add(OpIndex node) {
           this, node, 64, kArm64Usra, kArm64IAdd | LaneSizeField::encode(64))) {
     return;
   }
-  VisitRRR(this, kArm64IAdd | LaneSizeField::encode(64), node);
+  if (TryEmitAdd<Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low>(this, node,
+                                                               64)) {
+    return;
+  } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI64x2UConvertI32x4High>(
+                 this, node, 64)) {
+    return;
+  } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low>(
+                 this, node, 64)) {
+    return;
+  } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI64x2SConvertI32x4High>(
+                 this, node, 64)) {
+    return;
+  } else {
+    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(64), node);
+  }
 }
 
 void InstructionSelector::VisitI8x16Add(OpIndex node) {
@@ -5355,7 +5461,7 @@ void InstructionSelector::VisitI8x16Add(OpIndex node) {
 }
 
 #define VISIT_SIMD_ADD(Type, PairwiseType, LaneSize)                          \
-  void InstructionSelector::Visit##Type##Add(OpIndex node) {                  \
+  {                                                                           \
     /* Select Mla(z, x, y) for Add(x, Mul(y, z)). */                          \
     if (MlaHelper<Opmask::kSimd128##Type##Mul>(                               \
             this, node, kArm64Mla | LaneSizeField::encode(LaneSize))) {       \
@@ -5396,8 +5502,41 @@ void InstructionSelector::VisitI8x16Add(OpIndex node) {
     VisitRRR(this, kArm64IAdd | LaneSizeField::encode(LaneSize), node);       \
   }
 
-VISIT_SIMD_ADD(I32x4, I16x8, 32)
-VISIT_SIMD_ADD(I16x8, I8x16, 16)
+void InstructionSelector::VisitI32x4Add(OpIndex node) {
+  if (TryEmitAdd<Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low>(this, node,
+                                                               32)) {
+    return;
+  } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI32x4UConvertI16x8High>(
+                 this, node, 32)) {
+    return;
+  } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low>(
+                 this, node, 32)) {
+    return;
+  } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI32x4SConvertI16x8High>(
+                 this, node, 32)) {
+    return;
+  } else {
+    VISIT_SIMD_ADD(I32x4, I16x8, 32)
+  }
+}
+
+void InstructionSelector::VisitI16x8Add(OpIndex node) {
+  if (TryEmitAdd<Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low>(this, node,
+                                                               16)) {
+    return;
+  } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI16x8UConvertI8x16High>(
+                 this, node, 16)) {
+    return;
+  } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low>(
+                 this, node, 16)) {
+    return;
+  } else if (TryEmitAdd<Simd128UnaryOp::Kind::kI16x8SConvertI8x16High>(
+                 this, node, 16)) {
+    return;
+  } else {
+    VISIT_SIMD_ADD(I16x8, I8x16, 16)
+  }
+}
 #undef VISIT_SIMD_ADD
 
 #define VISIT_SIMD_SUB(Type, LaneSize)                                    \
