@@ -3240,9 +3240,18 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
   }
   SnapshotObjectId id = heap_object_map_->FindOrAddEntry(
       lookup_address, 0, accessed, is_native_object);
-  auto* heap_entry = snapshot_->AddEntry(EmbedderGraphNodeType(node),
-                                         EmbedderGraphNodeName(names_, node),
-                                         id, static_cast<int>(size), 0);
+  const char* name = EmbedderGraphNodeName(names_, node);
+  if (strcmp(name, "Window") == 0) {
+    // The name "Window" is confusing in the heap snapshot, as many JS objects
+    // also have this name. To clearly mark the oilpan object, we append "
+    // (cppgc)" to the name.
+    // Note that the string "Window" that arrives here originates from generated
+    // bindings code, so even though it is not nice to change the name here,
+    // changing the name somewhere else is more complex.
+    name = "Window (cppgc)";
+  }
+  auto* heap_entry = snapshot_->AddEntry(EmbedderGraphNodeType(node), name, id,
+                                         static_cast<int>(size), 0);
   heap_entry->set_detachedness(node->GetDetachedness());
   return heap_entry;
 }
