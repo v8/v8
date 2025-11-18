@@ -684,7 +684,7 @@ class WasmInJsInliningInterface {
 
   void ResumeHandler(FullDecoder* decoder,
                      base::Vector<const wasm::HandlerCase> handlers,
-                     size_t handler_index, Value* cont_val, Value* tag_params) {
+                     size_t handler_index, Value* cont_val) {
     Bailout(decoder);
   }
 

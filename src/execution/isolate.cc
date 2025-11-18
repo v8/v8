@@ -4706,10 +4706,6 @@ void Isolate::Deinit() {
 
   delete wasm_code_look_up_cache_;
   wasm_code_look_up_cache_ = nullptr;
-  if (isolate_data()->wasmfx_arg_buffer_size_ > 0) {
-    base::AlignedFree(isolate_data()->wasmfx_arg_buffer_);
-    isolate_data()->wasmfx_arg_buffer_size_ = 0;
-  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TearDownEmbeddedBlob();
@@ -6646,52 +6642,6 @@ void Isolate::WasmInitJSPIFeature() {
         factory()->NewWasmSuspenderObject();
     suspender->set_stack(this, wasm_stacks()[0].get());
     isolate_data_.set_active_suspender(*suspender);
-  }
-}
-
-void Isolate::MaybeResizeWasmFXArgBuffer(const wasm::WasmModule* module) {
-  int max_size = 0;
-  // Look at the continuation types and tag types used by a new module, and
-  // resize the global stack switching argument buffer if needed.
-  // We only need to check type vectors that are used to *store* values in the
-  // buffer, i.e. continuation parameters and tag parameters.
-  int max_param_size = 4;
-  for (const wasm::TypeDefinition& type : module->types) {
-    if (type.kind == wasm::TypeDefinition::kCont) {
-      const wasm::FunctionSig* sig =
-          module->signature(type.cont_type->contfun_typeindex());
-      int size = 0;
-      for (const wasm::ValueType param_type : sig->parameters()) {
-        int param_size = param_type.value_kind_full_size();
-        max_param_size = std::max(max_param_size, param_size);
-        size = RoundUp(size, param_size);
-        size += param_size;
-      }
-      max_size = std::max(max_size, size);
-    }
-  }
-  for (const wasm::WasmTag& tag : module->tags) {
-    int size = 0;
-    for (const wasm::ValueType param_type : tag.sig->parameters()) {
-      int param_size = param_type.value_kind_full_size();
-      max_param_size = std::max(max_param_size, param_size);
-      size = RoundUp(size, param_size);
-      size += param_size;
-    }
-    max_size = std::max(max_size, size);
-  }
-  max_size = RoundUp(max_size, max_param_size);
-  if (max_size > isolate_data_.wasmfx_arg_buffer_size_) {
-    isolate_data_.wasmfx_arg_buffer_size_ = max_size;
-    if (isolate_data_.wasmfx_arg_buffer_) {
-      base::AlignedFree(isolate_data_.wasmfx_arg_buffer_);
-    }
-    int alignment = std::max(kSystemPointerSize, max_param_size);
-    isolate_data_.wasmfx_arg_buffer_ = base::AlignedAlloc(max_size, alignment);
-    if (isolate_data_.wasmfx_arg_buffer_ == nullptr) {
-      V8::FatalProcessOutOfMemory(nullptr,
-                                  "Isolate::MaybeResizeWasmFXArgBuffer");
-    }
   }
 }
 #endif

@@ -3823,25 +3823,6 @@ class TurboshaftGraphBuildingInterface
     UNIMPLEMENTED();
   }
 
-  void WasmFXArgBufferDebugBoundsCheck(FullDecoder* decoder, int offset) {
-#ifdef V8_ENABLE_DEBUG_CODE
-    if (v8_flags.debug_code) {
-      __ CodeComment("check wasmfx arg buffer size");
-      OpIndex arg_buffer_size =
-          __ LoadOffHeap(__ IsolateField(IsolateFieldId::kWasmFXArgBufferSize),
-                         MemoryRepresentation::UintPtr());
-      IF (UNLIKELY(__ UintPtrLessThan(arg_buffer_size,
-                                      __ WordPtrConstant(offset)))) {
-        OpIndex message_id = __ TaggedIndexConstant(
-            static_cast<int32_t>(AbortReason::kOffsetOutOfRange));
-        __ WasmCallRuntime(decoder->zone(), Runtime::kAbort, {message_id},
-                           __ NoContextConstant());
-        __ Unreachable();
-      }
-    }
-#endif  // V8_ENABLE_DEBUG_CODE
-  }
-
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], Value returns[]) {
@@ -3862,22 +3843,6 @@ class TurboshaftGraphBuildingInterface
       asm_handlers[i].tag_index = handlers[i].tag.index;
       asm_handlers[i].block = __ NewBlock();
     }
-
-    // Store tag params.
-    OpIndex arg_buffer =
-        __ LoadOffHeap(__ IsolateField(IsolateFieldId::kWasmFXArgBuffer),
-                       MemoryRepresentation::UintPtr());
-    const FunctionSig* sig =
-        decoder->module_->signature(imm.cont_type->contfun_typeindex());
-    int offset = 0;
-    for (size_t i = 0; i < sig->parameter_count(); ++i) {
-      offset = RoundUp(offset, args[i].type.value_kind_size());
-      __ StoreOffHeap(arg_buffer, args[i].op,
-                      MemoryRepresentationFor(args[i].type), offset);
-      offset += args[i].type.value_kind_size();
-    }
-    WasmFXArgBufferDebugBoundsCheck(decoder, offset);
-
     asm_.set_effect_handlers_for_next_call(asm_handlers);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
                                 HandleEffects::kYes>(
@@ -3886,7 +3851,7 @@ class TurboshaftGraphBuildingInterface
 
   void ResumeHandler(FullDecoder* decoder,
                      base::Vector<const HandlerCase> handlers,
-                     size_t handler_index, Value* cont_val, Value* tag_params) {
+                     size_t handler_index, Value* cont_val) {
     if (handler_index == 0) {
       resume_return_block_ = __ NewBlock();
       __ Goto(resume_return_block_);
@@ -3896,20 +3861,6 @@ class TurboshaftGraphBuildingInterface
     // handler block. It works the same way but generates the continuation
     // object instead of the exception.
     OpIndex cont = __ CatchBlockBegin();
-
-    // Unpack tag params.
-    OpIndex arg_buffer =
-        __ LoadOffHeap(__ IsolateField(IsolateFieldId::kWasmFXArgBuffer),
-                       MemoryRepresentation::UintPtr());
-    const FunctionSig* sig = handlers[handler_index].tag.tag->sig;
-    int offset = 0;
-    for (size_t i = 0; i < sig->parameter_count(); ++i) {
-      offset = RoundUp(offset, sig->GetParam(i).value_kind_size());
-      tag_params[i].op = __ LoadOffHeap(
-          arg_buffer, offset, MemoryRepresentationFor(sig->GetParam(i)));
-      offset += sig->GetParam(i).value_kind_size();
-    }
-
     instance_cache_.ReloadCachedMemory();
     cont_val->op = cont;
     DCHECK_EQ(kOnSuspend, handlers[handler_index].kind);
@@ -3942,12 +3893,8 @@ class TurboshaftGraphBuildingInterface
     UNIMPLEMENTED();
   }
 
-  MemoryRepresentation MemoryRepresentationFor(ValueType type) {
-    return MemoryRepresentation::FromMachineType(type.machine_type());
-  }
-
   void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
-               const Value args[], Value returns[]) {
+               const Value args[], const Value returns[]) {
     V<WordPtr> root = __ LoadRootRegister();
     V<Word32> is_on_central_stack =
         __ Load(root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
@@ -3958,21 +3905,6 @@ class TurboshaftGraphBuildingInterface
                          native_context);
       __ Unreachable();
     }
-
-    // Store tag params.
-    OpIndex arg_buffer =
-        __ LoadOffHeap(__ IsolateField(IsolateFieldId::kWasmFXArgBuffer),
-                       MemoryRepresentation::UintPtr());
-    const FunctionSig* sig = imm.tag->sig;
-    int offset = 0;
-    for (size_t i = 0; i < sig->parameter_count(); ++i) {
-      offset = RoundUp(offset, args[i].type.value_kind_size());
-      __ StoreOffHeap(arg_buffer, args[i].op,
-                      MemoryRepresentationFor(args[i].type), offset);
-      offset += args[i].type.value_kind_size();
-    }
-    WasmFXArgBufferDebugBoundsCheck(decoder, offset);
-
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
@@ -3984,16 +3916,6 @@ class TurboshaftGraphBuildingInterface
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXSuspend>(
         decoder, native_context, {wanted_tag, cont},
         CheckForException::kCatchInThisFrame);
-
-    // Unpack tag returns.
-    offset = 0;
-    for (size_t i = 0; i < sig->parameter_count(); ++i) {
-      offset = RoundUp(offset, sig->GetParam(i).value_kind_size());
-      returns[i].op = __ LoadOffHeap(arg_buffer, offset,
-                                     MemoryRepresentationFor(sig->GetParam(i)));
-      offset += sig->GetParam(i).value_kind_size();
-    }
-    WasmFXArgBufferDebugBoundsCheck(decoder, offset);
   }
 
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,

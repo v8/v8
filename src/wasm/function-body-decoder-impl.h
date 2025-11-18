@@ -1469,7 +1469,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(Resume, const ContIndexImmediate& imm, base::Vector<HandlerCase> handlers, \
     const Value& cont_ref, const Value args[], const Value returns[])          \
   F(ResumeHandler, base::Vector<const HandlerCase> handlers,                   \
-    size_t handler_index, const Value* cont_ref, Value* tag_params)            \
+    size_t handler_index, const Value* cont_ref)                               \
   F(ResumeThrow, const ContIndexImmediate& cont_imm,                           \
     const TagIndexImmediate& exc_imm, base::Vector<HandlerCase> handlers,      \
     const Value& cont, const Value args[], const Value returns[])              \
@@ -4751,14 +4751,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       MarkMightThrow();
       for (size_t i = 0; i < handlers.size(); ++i) {
         if (handlers[i].kind == kOnSuspend) {
-          Value* tag_params =
-              PushValueTypes(handlers[i].tag.tag->sig->parameters());
+          // TODO(thibaudm): Push tag params here.
           Value* suspend_cont =
               Push(ValueType::Ref(imm.index, false, RefTypeKind::kCont));
           CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handlers, i,
-                                             suspend_cont, tag_params);
-          Drop(1 +
-               static_cast<int>(handlers[i].tag.tag->sig->parameter_count()));
+                                             suspend_cont);
+          Pop();
           Control* target = control_at(handlers[i].maybe_depth.br.depth);
           target->br_merge()->reached = true;
         }

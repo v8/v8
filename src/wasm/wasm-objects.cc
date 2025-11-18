@@ -114,7 +114,6 @@ DirectHandle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
     DirectHandle<Script> script) {
   DirectHandle<Managed<wasm::NativeModule>> managed_native_module;
-  isolate->MaybeResizeWasmFXArgBuffer(native_module->module());
   if (script->type() == Script::Type::kWasm) {
     managed_native_module = direct_handle(
         Cast<Managed<wasm::NativeModule>>(script->wasm_managed_native_module()),

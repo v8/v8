@@ -153,8 +153,6 @@ struct JSBuiltinDispatchHandleRoot {
   V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)  \
   IF_WASM(V, ActiveStack, kSystemPointerSize, active_stack)                    \
   IF_WASM(V, ActiveSuspender, kSystemPointerSize, active_suspender)            \
-  IF_WASM(V, WasmFXArgBufferSize, kSystemPointerSize, wasmfx_arg_buffer_size)  \
-  IF_WASM(V, WasmFXArgBuffer, kSystemPointerSize, wasmfx_arg_buffer)           \
   V(DateCacheStamp, kInt32Size, date_cache_stamp)                              \
   V(IsDateCacheUsed, kUInt8Size, is_date_cache_used)                           \
   /* This padding aligns next field to kDoubleSize bytes. */                   \
@@ -585,8 +583,6 @@ class IsolateData final {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::StackMemory* active_stack_ = nullptr;
   Tagged<WasmSuspenderObject> active_suspender_;
-  int wasmfx_arg_buffer_size_ = 0;
-  void* wasmfx_arg_buffer_ = nullptr;
 #endif
 
   // Stamp value which is increased on every
