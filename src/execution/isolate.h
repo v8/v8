@@ -805,6 +805,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #if V8_ENABLE_WEBASSEMBLY
   void WasmInitJSPIFeature();
+  void MaybeResizeWasmFXArgBuffer(const wasm::WasmModule* module);
 #endif
 
   bool IsSharedArrayBufferConstructorEnabled(
