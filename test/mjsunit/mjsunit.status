@@ -2503,6 +2503,7 @@
   'wasm/subtyping-invalid': [SKIP],
   'wasm/generate-random-module': [SKIP],
   'wasm/generate-random-module-no-staging': [SKIP],
+  'regress/regress-461464257': [SKIP],
   'regress/wasm/regress-369652650': [SKIP],
   'regress/wasm/regress-382816108': [SKIP],
   'regress/wasm/regress-388934347-a': [SKIP],
