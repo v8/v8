@@ -166,7 +166,7 @@ void PrintBeforeMerge(MaglevGraphBuilder* builder, ValueNode* current_value,
   if (V8_LIKELY(!builder->is_tracing_enabled())) return;
   std::cout << "  " << reg.ToString() << ": " << PrintNodeLabel(current_value)
             << "<";
-  if (kna) {
+  if (kna && current_value) {
     if (auto cur_info = kna->TryGetInfoFor(current_value)) {
       std::cout << cur_info->type();
       if (cur_info->possible_maps_are_known()) {
@@ -175,7 +175,7 @@ void PrintBeforeMerge(MaglevGraphBuilder* builder, ValueNode* current_value,
     }
   }
   std::cout << "> <- " << PrintNodeLabel(unmerged_value) << "<";
-  if (kna) {
+  if (kna && current_value) {
     if (auto in_info = kna->TryGetInfoFor(unmerged_value)) {
       std::cout << in_info->type();
       if (in_info->possible_maps_are_known()) {
