@@ -188,6 +188,18 @@ DirectHandle<JSObject> JSCollator::ResolvedOptions(
       locale = Intl::ToLanguageTag(icu_locale).FromJust();
     }
   } else {
+    // Find the default collator of the locale
+    status = U_ZERO_ERROR;
+    std::unique_ptr<icu::StringEnumeration> enumeration(
+        icu::Collator::getKeywordValuesForLocale("collation", icu_locale, true,
+                                                 status));
+    if (U_SUCCESS(status)) {
+      const char* item = enumeration->next(nullptr, status);
+      if (U_SUCCESS(status) && std::strcmp(item, "standard") != 0) {
+        collation_value = item;
+        collation = collation_value.c_str();
+      }
+    }
     locale = Intl::ToLanguageTag(icu_locale).FromJust();
   }
 
