@@ -2316,8 +2316,8 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 
 bool BytecodeGenerator::IsPrototypeAssignment(
     Statement* stmt, Variable** var, HoleCheckMode* hole_check_mode,
-    base::SmallVector<std::pair<const AstRawString*, Expression*>,
-                      kInitialPropertyCount>& properties,
+    SmallZoneVector<std::pair<const AstRawString*, Expression*>,
+                    kInitialPropertyCount>& properties,
     std::unordered_set<const AstRawString*>& duplicates) {
   // The expression Statement is an assignment
   // ========================================
@@ -2414,8 +2414,8 @@ bool BytecodeGenerator::IsPrototypeAssignment(
 }
 
 void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
-    const base::SmallVector<std::pair<const AstRawString*, Expression*>,
-                            kInitialPropertyCount>& properties,
+    const SmallZoneVector<std::pair<const AstRawString*, Expression*>,
+                          kInitialPropertyCount>& properties,
     Variable* var, HoleCheckMode hole_check_mode) {
   // Create a boiler plate object in the constant pool to be merged into the
   // proto
@@ -2454,9 +2454,9 @@ void BytecodeGenerator::VisitStatements(
       HoleCheckMode hole_check_mode;
 
       int proto_assign_idx = stmt_idx;
-      base::SmallVector<std::pair<const AstRawString*, Expression*>,
-                        kInitialPropertyCount>
-          properties;
+      SmallZoneVector<std::pair<const AstRawString*, Expression*>,
+                      kInitialPropertyCount>
+          properties(zone());
       std::unordered_set<const AstRawString*> duplicates;
       while (proto_assign_idx < statements->length() &&
              IsPrototypeAssignment(statements->at(proto_assign_idx), &var,
@@ -2467,10 +2467,10 @@ void BytecodeGenerator::VisitStatements(
       if (proto_assign_idx - stmt_idx > 1) {
         DCHECK_EQ((size_t)(proto_assign_idx - stmt_idx), properties.size());
         VisitConsecutivePrototypeAssignments(properties, var, hole_check_mode);
-        stmt_idx = proto_assign_idx;  // the outer loop should now ignore these
-                                      // statements
+        stmt_idx = proto_assign_idx - 1;  // the outer loop should now ignore
+                                          // these statements
         DCHECK(!builder()->RemainderOfBlockIsDead());
-        if (stmt_idx == statements->length()) break;
+        continue;
       }
     }
 
