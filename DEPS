@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:30.20251118.5.1',
+  'fuchsia_version': 'version:30.20251119.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0347b49096ca873f595c8e285c9bb3e256131f42',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8f29743a09f2126bf201d4e52eac627edbf024df',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5df641722f2e50623646d702e0046fb68c0f5ce1',
   'buildtools/linux64': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5ba2fb94f5ceb4383f528e70183d4c8286c1c171',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a40c63a40be0951d502252386b9b4c8e5fd55aad',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -258,7 +258,7 @@ deps = {
   'third_party/fast_float/src':
     Var('chromium_url') + '/external/github.com/fastfloat/fast_float.git' + '@' + 'cb1d42aaa1e14b09e1452cfdef373d051b8c02a4',
   'third_party/fuchsia-gn-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '99294ee55f28f8ae5a3552f4c435528e4c1686b6',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'eb5835429b16757f5288d77f502755c8eafd4b5f',
     'condition': 'checkout_fuchsia',
   },
   'third_party/simdutf':
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'aeb21f4c54d24106bb316d637679f312afcef726',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '13281e8344917065d7429e03ee85d3d9ec1d22e3',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
