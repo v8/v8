@@ -163,13 +163,41 @@ enum PropertyAttribute {
 };
 
 /**
- * Accessor[Getter|Setter] are used as callback functions when setting|getting
- * a particular data property. See Object::SetNativeDataProperty and
+ * This callback function is called when getting a particular data property
+ * (i.e. when performing [[Get]] operation).
+ *
+ * The callback returns the result by calling `info.GetReturnValue().Set(..)`.
+ *
+ * \param property The name of the property being requested.
+ * \param info Information about the intercepted request, such as
+ * isolate, object holding the property, return value. See
+ * `PropertyCallbackInfo`.
+ *
+ * See Object::SetNativeDataProperty and
  * ObjectTemplate::SetNativeDataProperty methods.
  */
 using AccessorNameGetterCallback =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
+/**
+ * This callback function is called when setting a particular data property
+ * (i.e. when performing [[Set]] operation).
+ *
+ * In case of operation failure the callback should
+ *  - call `info.GetReturnValue().Set(false)`,
+ *  - (optionally) upon operation failure and info.ShouldThrowOnError()
+ *    is true (indicating execution in `'use strict'` mode) the callback can
+ *    throw TypeError if the error message needs to include more details than
+ *    a TypeError thrown by V8 in this case.
+ *
+ * \param property The name of the property being requested.
+ * \param info Information about the intercepted request, such as
+ * isolate, object holding the property, return value, or whether running in
+ * `'use strict'` mode. See `PropertyCallbackInfo`.
+ *
+ * See Object::SetNativeDataProperty and
+ * ObjectTemplate::SetNativeDataProperty methods.
+ */
 using AccessorNameSetterCallback =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<void>& info);

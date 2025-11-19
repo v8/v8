@@ -4012,10 +4012,18 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   }
 #endif
 
+  Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>();
   PropertyCallbackArguments arguments(isolate, *info, *receiver, *holder,
-                                      Nothing<ShouldThrow>());
-  std::ignore = arguments.CallAccessorSetter(name, value);
+                                      should_throw);
+  bool result = arguments.CallAccessorSetter(name, value);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
+  if (!result && GetShouldThrow(isolate, should_throw) == kThrowOnError) {
+    // Throw TypeError if necessary in case the callback failed
+    // to set the property.
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kStrictCannotSetProperty, name,
+                              receiver));
+  }
   return *value;
 }
 

@@ -265,11 +265,18 @@ class PropertyCallbackInfo {
   V8_INLINE ReturnValue<T> GetReturnValue() const;
 
   /**
-   * \return True if the intercepted function should throw if an error occurs.
-   * Usually, `true` corresponds to `'use strict'`.
+   * For [[Set]], [[DefineOwnProperty]] and [[Delete]] operations (i.e.
+   * for setter/definer/deleter callbacks) indicates whether TypeError
+   * should be thrown upon operation failure. The callback should throw
+   * TypeError only if it's necessary to provide more details than a default
+   * error thrown by V8 contains in this case.
    *
-   * \note Always `false` when intercepting `Reflect.set()`
-   * independent of the language mode.
+   * \return True if the intercepted function should throw if an error occurs.
+   * Usually, `true` corresponds to `'use strict'` execution mode.
+   *
+   * \note Always `false` when the operation was initiated by respecive
+   * `Reflect` call (i.e. `Reflect.set()`, `Reflect.defineProperty()` and
+   * `Reflect.deleteProperty()`).
    */
   V8_INLINE bool ShouldThrowOnError() const;
 
@@ -365,8 +372,9 @@ void ReturnValue<T>::SetNonEmpty(const BasicTracedReference<S>& handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(const Local<S> handle) {
-  // "V8_DEPRECATE_SOON" this method if |T| is |void|.
-#ifdef V8_IMMINENT_DEPRECATION_WARNINGS
+  // "V8_DEPRECATED" this method if |T| is |void|.
+#if defined(V8_DEPRECATION_WARNINGS) || \
+    defined(V8_IMMINENT_DEPRECATION_WARNINGS)
   static constexpr bool is_allowed_void = false;
   static_assert(!std::is_void_v<T>,
                 "ReturnValue<void>::Set(const Local<S>) is deprecated. "
@@ -376,7 +384,8 @@ void ReturnValue<T>::Set(const Local<S> handle) {
                 "See http://crbug.com/348660658 for details.");
 #else
   static constexpr bool is_allowed_void = std::is_void_v<T>;
-#endif  // V8_IMMINENT_DEPRECATION_WARNINGS
+#endif  // defined(V8_DEPRECATION_WARNINGS) ||
+        // defined(V8_IMMINENT_DEPRECATION_WARNINGS)
   static_assert(is_allowed_void || std::is_base_of_v<T, S>, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
     SetDefaultValue();
@@ -392,8 +401,9 @@ void ReturnValue<T>::Set(const Local<S> handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
-  // "V8_DEPRECATE_SOON" this method if |T| is |void|.
-#ifdef V8_IMMINENT_DEPRECATION_WARNINGS
+  // "V8_DEPRECATED" this method if |T| is |void|.
+#if defined(V8_DEPRECATION_WARNINGS) || \
+    defined(V8_IMMINENT_DEPRECATION_WARNINGS)
   static constexpr bool is_allowed_void = false;
   static_assert(!std::is_void_v<T>,
                 "ReturnValue<void>::SetNonEmpty(const Local<S>) is deprecated. "
@@ -403,7 +413,9 @@ void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
                 "See http://crbug.com/348660658 for details.");
 #else
   static constexpr bool is_allowed_void = std::is_void_v<T>;
-#endif  // V8_IMMINENT_DEPRECATION_WARNINGS
+#endif  // defined(V8_DEPRECATION_WARNINGS) ||
+        // defined(V8_IMMINENT_DEPRECATION_WARNINGS)
+
   static_assert(is_allowed_void || std::is_base_of_v<T, S>, "type check");
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());

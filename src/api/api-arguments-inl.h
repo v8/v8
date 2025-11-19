@@ -140,15 +140,6 @@ Maybe<InterceptorResult> PropertyCallbackArguments::GetBooleanReturnValue(
   if (ignore_return_value) return Just(InterceptorResult::kTrue);
 
   bool result = IsTrue(*GetReturnValue<Boolean>(isolate), isolate);
-
-  // TODO(ishell, 348688196): ensure callbacks comply with this and
-  // enable the check.
-  if ((false) && DEBUG_BOOL && !result && ShouldThrowOnError()) {
-    FATAL(
-        "Check failed: %s interceptor callback hasn't thrown an "
-        "exception on failure as requested.",
-        callback_kind_for_error_message);
-  }
   return Just(result ? InterceptorResult::kTrue : InterceptorResult::kFalse);
 }
 

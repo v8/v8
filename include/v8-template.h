@@ -139,7 +139,7 @@ class V8_EXPORT Template : public Data {
 enum class Intercepted : uint8_t { kNo = 0, kYes = 1 };
 
 /**
- * Interceptor for get requests on an object.
+ * Interceptor for [[Get]] requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
  * looked up beyond the interceptor or in case an exception was thrown) it
@@ -153,8 +153,8 @@ enum class Intercepted : uint8_t { kNo = 0, kYes = 1 };
  * \param property The name of the property for which the request was
  * intercepted.
  * \param info Information about the intercepted request, such as
- * isolate, receiver, return value, or whether running in `'use strict'` mode.
- * See `PropertyCallbackInfo`.
+ * isolate, object holding the property, return value. See
+ * `PropertyCallbackInfo`.
  *
  * \code
  *  Intercepted GetterCallback(
@@ -185,11 +185,18 @@ using NamedPropertyGetterCallback = Intercepted (*)(
     Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
 /**
- * Interceptor for set requests on an object.
+ * Interceptor for [[Set]] requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
  * looked up beyond the interceptor or in case an exception was thrown) it
- * should return `Intercepted::kYes`.
+ * should
+ *  - use `info.GetReturnValue().Set(false)` to indicate that the operation
+ *    failed,
+ *  - (optionally) upon operation failure and info.ShouldThrowOnError()
+ *    is true (indicating execution in `'use strict'` mode) the callback can
+ *    throw TypeError if the error message needs to include more details than
+ *    a TypeError thrown by V8 in this case,
+ *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
  * `Intercepted::kNo` and it must not produce side effects.
  *
@@ -198,8 +205,8 @@ using NamedPropertyGetterCallback = Intercepted (*)(
  * \param value The value which the property will have if the request
  * is not intercepted.
  * \param info Information about the intercepted request, such as
- * isolate, receiver, return value, or whether running in `'use strict'` mode.
- * See `PropertyCallbackInfo`.
+ * isolate, object holding the property, return value, or whether running in
+ * `'use strict'` mode. See `PropertyCallbackInfo`.
  *
  * See also `ObjectTemplate::SetHandler.`
  */
@@ -208,9 +215,9 @@ using NamedPropertySetterCallback =
                     const PropertyCallbackInfo<void>& info);
 
 /**
- * Intercepts all requests that query the attributes of the
- * property, e.g., getOwnPropertyDescriptor(), propertyIsEnumerable(), and
- * defineProperty().
+ * Intercepts all requests that query the attributes of the property,
+ * e.g. [[GetOwnProperty]], [[DefineOwnProperty]], [[Set]] and derived ones
+ * like Object.prototype.propertyIsEnumerable() and similar.
  *
  * If the interceptor handles the request (i.e. the property should not be
  * looked up beyond the interceptor or in case an exception was thrown) it
@@ -237,13 +244,17 @@ using NamedPropertyQueryCallback = Intercepted (*)(
     Local<Name> property, const PropertyCallbackInfo<Integer>& info);
 
 /**
- * Interceptor for delete requests on an object.
+ * Interceptor for [[Delete]] requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
  * looked up beyond the interceptor or in case an exception was thrown) it
  * should
- *  - (optionally) use `info.GetReturnValue().Set()` to set to a Boolean value
- *    indicating whether the property deletion was successful or not,
+ *  - use `info.GetReturnValue().Set(false)` to indicate that the operation
+ *    failed,
+ *  - (optionally) upon operation failure and info.ShouldThrowOnError()
+ *    is true (indicating execution in `'use strict'` mode) the callback can
+ *    throw TypeError if the error message needs to include more details than
+ *    a TypeError thrown by V8 in this case,
  *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
  * `Intercepted::kNo` and it must not produce side effects.
@@ -251,12 +262,8 @@ using NamedPropertyQueryCallback = Intercepted (*)(
  * \param property The name of the property for which the request was
  * intercepted.
  * \param info Information about the intercepted request, such as
- * isolate, receiver, return value, or whether running in `'use strict'` mode.
- * See `PropertyCallbackInfo`.
- *
- * \note If you need to mimic the behavior of `delete`, i.e., throw in strict
- * mode instead of returning false, use `info.ShouldThrowOnError()` to determine
- * if you are in strict mode.
+ * isolate, object holding the property, return value, or whether running in
+ * `'use strict'` mode. See `PropertyCallbackInfo`.
  *
  * See also `ObjectTemplate::SetHandler.`
  */
@@ -273,11 +280,18 @@ using NamedPropertyEnumeratorCallback =
     void (*)(const PropertyCallbackInfo<Array>& info);
 
 /**
- * Interceptor for defineProperty requests on an object.
+ * Interceptor for [[DefineOwnProperty]] requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
  * looked up beyond the interceptor or in case an exception was thrown) it
- * should return `Intercepted::kYes`.
+ * should
+ *  - use `info.GetReturnValue().Set(false)` to indicate that the operation
+ *    failed,
+ *  - (optionally) upon operation failure and info.ShouldThrowOnError()
+ *    is true (indicating execution in `'use strict'` mode) the callback can
+ *    throw TypeError if the error message needs to include more details than
+ *    a TypeError thrown by V8 in this case,
+ *  - return `Intercepted::kYes`.
  * If the interceptor does not handle the request it must return
  * `Intercepted::kNo` and it must not produce side effects.
  *
@@ -286,8 +300,8 @@ using NamedPropertyEnumeratorCallback =
  * \param desc The property descriptor which is used to define the
  * property if the request is not intercepted.
  * \param info Information about the intercepted request, such as
- * isolate, receiver, return value, or whether running in `'use strict'` mode.
- * See `PropertyCallbackInfo`.
+ * isolate, object holding the property, return value, or whether running in
+ * `'use strict'` mode. See `PropertyCallbackInfo`.
  *
  * See also `ObjectTemplate::SetHandler`.
  */
@@ -296,7 +310,7 @@ using NamedPropertyDefinerCallback =
                     const PropertyCallbackInfo<void>& info);
 
 /**
- * Interceptor for getOwnPropertyDescriptor requests on an object.
+ * Interceptor for [[GetOwnProperty]] requests on an object.
  *
  * If the interceptor handles the request (i.e. the property should not be
  * looked up beyond the interceptor or in case an exception was thrown) it
@@ -313,9 +327,6 @@ using NamedPropertyDefinerCallback =
  * \info Information about the intercepted request, such as
  * isolate, receiver, return value, or whether running in `'use strict'` mode.
  * See `PropertyCallbackInfo`.
- *
- * \note If GetOwnPropertyDescriptor is intercepted, it will
- * always return true, i.e., indicate that the property was found.
  *
  * See also `ObjectTemplate::SetHandler`.
  */

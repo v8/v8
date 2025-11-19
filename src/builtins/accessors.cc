@@ -216,7 +216,7 @@ void Accessors::ArrayLengthSetter(
     if (info.ShouldThrowOnError()) {
       Factory* factory = isolate->factory();
       isolate->Throw(*factory->NewTypeError(
-          MessageTemplate::kStrictDeleteProperty,
+          MessageTemplate::kStrictCannotDeleteProperty,
           factory->NewNumberFromUint(actual_new_len - 1), array));
     } else {
       info.GetReturnValue().Set(false);

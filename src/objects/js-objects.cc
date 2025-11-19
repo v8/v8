@@ -982,6 +982,8 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
             Nothing<bool>());
         UNREACHABLE();
       case LookupIterator::INTERCEPTOR: {
+        // TODO(https://crbug.com/348660658): replace language mode
+        // parameter with Maybe<ShouldThrow> and use GetShouldThrow() here.
         ShouldThrow should_throw =
             is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
         InterceptorResult result;
@@ -991,8 +993,14 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
           return Nothing<bool>();
         }
         switch (result) {
-          case InterceptorResult::kFalse:
-            return Just(false);
+          case InterceptorResult::kFalse: {
+            // Throw TypeError if necessary in case the callback failed
+            // to delete the property.
+            RETURN_FAILURE(
+                isolate, should_throw,
+                NewTypeError(MessageTemplate::kStrictCannotDeleteProperty,
+                             it->GetName(), it->GetReceiver()));
+          }
           case InterceptorResult::kTrue:
             return Just(true);
           case InterceptorResult::kNotIntercepted:
@@ -1008,15 +1016,16 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
         DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
         if (!it->IsConfigurable() ||
             (IsJSTypedArray(*holder) && it->IsElement(*holder))) {
-          // Fail if the property is not configurable if the property is a
+          // TODO(https://crbug.com/348660658): replace language mode
+          // parameter with Maybe<ShouldThrow> and use GetShouldThrow() here.
+          ShouldThrow should_throw =
+              is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
+          // Fail if the property is not configurable or if the property is a
           // TypedArray element.
-          if (is_strict(language_mode)) {
-            isolate->Throw(*isolate->factory()->NewTypeError(
-                MessageTemplate::kStrictDeleteProperty, it->GetName(),
-                it->GetReceiver()));
-            return Nothing<bool>();
-          }
-          return Just(false);
+          RETURN_FAILURE(
+              isolate, should_throw,
+              NewTypeError(MessageTemplate::kStrictCannotDeleteProperty,
+                           it->GetName(), it->GetReceiver()));
         }
 
         it->Delete();
@@ -1463,8 +1472,12 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
         return Nothing<bool>();
       }
       switch (result) {
-        case InterceptorResult::kFalse:
-          return Just(false);
+        case InterceptorResult::kFalse: {
+          // Throw TypeError if necessary in case the callback failed
+          // to define the property.
+          return Object::CannotCreateProperty(isolate, it.GetReceiver(),
+                                              it.GetName(), should_throw);
+        }
         case InterceptorResult::kTrue:
           return Just(true);
 
@@ -1780,7 +1793,7 @@ Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
                                            Maybe<ShouldThrow> should_throw) {
   if (!IsJSReceiver(*object)) {
     return Object::CannotCreateProperty(isolate, object, key.GetName(isolate),
-                                        value, Nothing<ShouldThrow>());
+                                        should_throw);
   }
   return CreateDataProperty(isolate, Cast<JSReceiver>(object), key, value,
                             should_throw);
@@ -2757,7 +2770,9 @@ Maybe<bool> JSObject::SetPropertyWithFailedAccessCheck(
     }
     switch (result) {
       case InterceptorResult::kFalse:
-        return Just(false);
+        RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                       NewTypeError(MessageTemplate::kStrictCannotSetProperty,
+                                    it->GetName(), it->GetReceiver()));
       case InterceptorResult::kTrue:
         return Just(true);
       case InterceptorResult::kNotIntercepted:
@@ -3751,8 +3766,12 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
           }
         }
         switch (result) {
-          case InterceptorResult::kFalse:
-            return Just(false);
+          case InterceptorResult::kFalse: {
+            // Throw TypeError if necessary in case the callback failed
+            // to define the property.
+            return Object::CannotCreateProperty(
+                it->isolate(), it->GetReceiver(), it->GetName(), should_throw);
+          }
           case InterceptorResult::kTrue:
             return Just(true);
           case InterceptorResult::kNotIntercepted:

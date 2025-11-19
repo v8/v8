@@ -387,7 +387,7 @@ class Object : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> CannotCreateProperty(
       Isolate* isolate, DirectHandle<JSAny> receiver, DirectHandle<Object> name,
-      DirectHandle<Object> value, Maybe<ShouldThrow> should_throw);
+      Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> WriteToReadOnlyProperty(
       LookupIterator* it, DirectHandle<Object> value,
       Maybe<ShouldThrow> should_throw);

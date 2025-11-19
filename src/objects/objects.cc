@@ -1567,9 +1567,9 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
   return isolate->factory()->undefined_value();
 }
 
-Maybe<bool> Object::SetPropertyWithAccessor(
-    LookupIterator* it, DirectHandle<Object> value,
-    Maybe<ShouldThrow> maybe_should_throw) {
+Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
+                                            DirectHandle<Object> value,
+                                            Maybe<ShouldThrow> should_throw) {
   Isolate* isolate = it->isolate();
   DirectHandle<Object> structure = it->GetAccessors();
   DirectHandle<JSAny> receiver = it->GetReceiver();
@@ -1603,13 +1603,16 @@ Maybe<bool> Object::SetPropertyWithAccessor(
     }
 
     PropertyCallbackArguments args(isolate, *info, *receiver, *holder,
-                                   maybe_should_throw);
+                                   should_throw);
     bool result = args.CallAccessorSetter(name, value);
     RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
-    // Ensure the setter callback respects the "should throw" value - it's
-    // allowed to fail without throwing only in case of kDontThrow.
-    DCHECK_IMPLIES(!result,
-                   GetShouldThrow(isolate, maybe_should_throw) == kDontThrow);
+    if (!result) {
+      // Make sure TypeError is thrown if necessary in case the callback
+      // failed to set the property.
+      RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                     NewTypeError(MessageTemplate::kStrictCannotSetProperty,
+                                  it->GetName(), receiver));
+    }
     return Just(result);
   }
 
@@ -1629,10 +1632,10 @@ Maybe<bool> Object::SetPropertyWithAccessor(
   } else if (IsCallable(*setter)) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return SetPropertyWithDefinedSetter(receiver, Cast<JSReceiver>(setter),
-                                        value, maybe_should_throw);
+                                        value, should_throw);
   }
 
-  RETURN_FAILURE(isolate, GetShouldThrow(isolate, maybe_should_throw),
+  RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                  NewTypeError(MessageTemplate::kNoSetterInCallback,
                               it->GetName(), it->GetHolder<JSObject>()));
 }
@@ -2323,8 +2326,15 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
             return Nothing<bool>();
           }
           switch (result) {
-            case InterceptorResult::kFalse:
-              return Just(false);
+            case InterceptorResult::kFalse: {
+              // Throw TypeError if necessary in case the callback failed
+              // to set the property.
+              Isolate* isolate = it->isolate();
+              RETURN_FAILURE(
+                  isolate, GetShouldThrow(isolate, should_throw),
+                  NewTypeError(MessageTemplate::kStrictCannotSetProperty,
+                               it->GetName(), it->GetReceiver()));
+            }
             case InterceptorResult::kTrue:
               return Just(true);
             case InterceptorResult::kNotIntercepted:
@@ -2585,7 +2595,6 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it,
 Maybe<bool> Object::CannotCreateProperty(Isolate* isolate,
                                          DirectHandle<JSAny> receiver,
                                          DirectHandle<Object> name,
-                                         DirectHandle<Object> value,
                                          Maybe<ShouldThrow> should_throw) {
   RETURN_FAILURE(
       isolate, GetShouldThrow(isolate, should_throw),
@@ -2697,7 +2706,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
                                     EnforceDefineSemantics semantics) {
   if (!IsJSReceiver(*it->GetReceiver())) {
     return CannotCreateProperty(it->isolate(), it->GetReceiver(), it->GetName(),
-                                value, should_throw);
+                                should_throw);
   }
 
   // Private symbols should be installed on JSProxy using
@@ -3336,7 +3345,7 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, DirectHandle<JSArray> a,
   if (!result) {
     RETURN_FAILURE(
         isolate, GetShouldThrow(isolate, should_throw),
-        NewTypeError(MessageTemplate::kStrictDeleteProperty,
+        NewTypeError(MessageTemplate::kStrictCannotDeleteProperty,
                      isolate->factory()->NewNumberFromUint(actual_new_len - 1),
                      a));
   }
