@@ -8,6 +8,7 @@
 #include "src/strings/unicode.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "hwy/highway.h"
 #include "src/base/logging.h"
 #include "src/utils/utils.h"
 #include "third_party/simdutf/simdutf.h"
@@ -207,13 +208,41 @@ bool Utf8::IsValidCharacter(uchar c) {
 }
 
 template <>
-bool Utf8::IsAsciiOneByteString<uint8_t>(const uint8_t* buffer, size_t size) {
-  return simdutf::validate_ascii(reinterpret_cast<const char*>(buffer), size);
+size_t Utf8::WriteLeadingAscii<uint8_t>(const uint8_t* src, char* dest,
+                                        size_t length) {
+  namespace hw = hwy::HWY_NAMESPACE;
+  const hw::ScalableTag<int8_t> d;
+  const size_t N = hw::Lanes(d);
+  // Don't bother with simd if the string isn't long enough. We're using 2
+  // registers, so don't enter the loop unless we can iterate 2 times through.
+  if (length < 4 * N) {
+    return 0;
+  }
+  // We're checking ascii by checking the sign bit so make the strings signed.
+  const int8_t* src_s = reinterpret_cast<const int8_t*>(src);
+  int8_t* dst_s = reinterpret_cast<int8_t*>(dest);
+  size_t i = 0;
+  DCHECK_GE(length, 2 * N);
+  for (; i <= length - 2 * N; i += 2 * N) {
+    const auto v0 = hw::LoadU(d, src_s + i);
+    const auto v1 = hw::LoadU(d, src_s + i + N);
+    const auto combined = hw::Or(v0, v1);
+    bool is_ascii = hw::AllTrue(d, hw::Ge(combined, hw::Zero(d)));
+    if (is_ascii) {
+      hw::StoreU(v0, d, dst_s + i);
+      hw::StoreU(v1, d, dst_s + i + N);
+    } else {
+      break;
+    }
+  }
+  return i;
 }
 
 template <>
-bool Utf8::IsAsciiOneByteString<uint16_t>(const uint16_t* buffer, size_t size) {
-  return false;
+size_t Utf8::WriteLeadingAscii<uint16_t>(const uint16_t* src, char* dest,
+                                         size_t size) {
+  // TODO(dcarney): this could be implemented similarly to the one byte variant
+  return 0;
 }
 
 template <typename Char>
@@ -234,12 +263,10 @@ Utf8::EncodingResult Utf8::Encode(v8::base::Vector<const Char> string,
   size_t read_index = 0;
   if (kSourceIsOneByte) {
     size_t writeable = std::min(string.size(), content_capacity);
-    // Just memcpy when possible.
-    if (writeable > 0 && Utf8::IsAsciiOneByteString(characters, writeable)) {
-      memcpy(buffer, characters, writeable);
-      read_index = writeable;
-      write_index = writeable;
-    }
+    size_t ascii_length =
+        Utf8::WriteLeadingAscii(characters, buffer, writeable);
+    read_index = ascii_length;
+    write_index = ascii_length;
   }
   uint16_t last = Utf16::kNoPreviousCharacter;
   for (; read_index < string.size(); read_index++) {
