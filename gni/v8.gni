@@ -231,7 +231,7 @@ declare_args() {
   # When `v8_enable_pointer_compression_shared_cage` RO space is placed into a
   # contiguous area at the front of the cage. In case RO allocations fails this
   # size needs to be adjusted.
-  v8_contiguous_compressed_ro_space_size_mb = 8
+  v8_contiguous_compressed_ro_space_size_mb = 16
 
   # Change code emission and runtime features to be CET shadow-stack compliant
   # (incomplete and experimental).
