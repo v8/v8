@@ -772,6 +772,8 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
                                isolate);
       DirectHandle<Object> value(object_boilerplate_description->value(index),
                                  isolate);
+
+      CHECK(IsName(*key));
       PropertyKey lookup_key(isolate, key);
 
       LookupIterator it(isolate, js_proto, lookup_key,
