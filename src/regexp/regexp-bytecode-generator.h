@@ -46,7 +46,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void WriteStackPointerToRegister(int reg) override;
   void ReadStackPointerFromRegister(int reg) override;
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialClassRanges(StandardCharacterSet type,
+  void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
                                 bool check_bounds, int characters,

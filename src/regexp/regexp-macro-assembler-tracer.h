@@ -76,7 +76,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                             Label* on_match1, Label* on_match2,
                             Label* on_failure) override;
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialClassRanges(StandardCharacterSet type,
+  void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void Fail() override;
   DirectHandle<HeapObject> GetCode(DirectHandle<String> source,

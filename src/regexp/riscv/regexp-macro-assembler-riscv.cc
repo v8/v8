@@ -633,39 +633,38 @@ bool RegExpMacroAssemblerRISCV::SkipUntilBitInTableUseSimd(int advance_by) {
          CpuFeatures::IsSupported(RISCV_SIMD);
 }
 
-bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
+void RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
+  DCHECK(CanOptimizeSpecialClassRanges(type));
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check.
   switch (type) {
-    case StandardCharacterSet::kWhitespace:
+    case StandardCharacterSet::kWhitespace: {
       // Match space-characters.
-      if (mode() == LATIN1) {
-        // One byte space characters are '\t'..'\r', ' ' and \u00a0.
-        Label success;
-        __ BranchShort(&success, eq, current_character(), Operand(' '));
-        // Check range 0x09..0x0D.
-        __ SubWord(a0, current_character(), Operand('\t'));
-        __ BranchShort(&success, Uless_equal, a0, Operand('\r' - '\t'));
-        // \u00a0 (NBSP).
-        BranchOrBacktrack(on_no_match, ne, a0, Operand(0x00A0 - '\t'));
-        __ bind(&success);
-        return true;
-      }
-      return false;
+      DCHECK_EQ(mode(), LATIN1);
+      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
+      Label success;
+      __ BranchShort(&success, eq, current_character(), Operand(' '));
+      // Check range 0x09..0x0D.
+      __ SubWord(a0, current_character(), Operand('\t'));
+      __ BranchShort(&success, Uless_equal, a0, Operand('\r' - '\t'));
+      // \u00a0 (NBSP).
+      BranchOrBacktrack(on_no_match, ne, a0, Operand(0x00A0 - '\t'));
+      __ bind(&success);
+      break;
+    }
     case StandardCharacterSet::kNotWhitespace:
-      // The emitted code for generic character classes is good enough.
-      return false;
+      UNREACHABLE();
     case StandardCharacterSet::kDigit:
       // Match Latin1 digits ('0'..'9').
       __ SubWord(a0, current_character(), Operand('0'));
       BranchOrBacktrack(on_no_match, Ugreater, a0, Operand('9' - '0'));
-      return true;
+      break;
     case StandardCharacterSet::kNotDigit:
       // Match non Latin1-digits.
       __ SubWord(a0, current_character(), Operand('0'));
       BranchOrBacktrack(on_no_match, Uless_equal, a0, Operand('9' - '0'));
-      return true;
+      break;
     case StandardCharacterSet::kNotLineTerminator: {
       // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
       __ Xor(a0, current_character(), Operand(0x01));
@@ -679,7 +678,7 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
         __ SubWord(a0, a0, Operand(0x2028 - 0x0B));
         BranchOrBacktrack(on_no_match, Uless_equal, a0, Operand(1));
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kLineTerminator: {
       // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
@@ -698,7 +697,7 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
         BranchOrBacktrack(on_no_match, Ugreater, a0, Operand(1));
         __ bind(&done);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kWord: {
       if (mode() != LATIN1) {
@@ -711,7 +710,7 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
       __ AddWord(a0, a0, current_character());
       __ Lbu(a0, MemOperand(a0, 0));
       BranchOrBacktrack(on_no_match, eq, a0, Operand(zero_reg));
-      return true;
+      break;
     }
     case StandardCharacterSet::kNotWord: {
       Label done;
@@ -727,14 +726,14 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialClassRanges(
       if (mode() != LATIN1) {
         __ bind(&done);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kEverything:
       // Match any character.
-      return true;
+      break;
     // No custom implementation (yet): s(UC16), S(UC16).
     default:
-      return false;
+      UNREACHABLE();
   }
 }
 

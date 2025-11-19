@@ -358,6 +358,21 @@ void RegExpMacroAssembler::SkipUntilOneOfMasked(
   AdvanceCurrentPosition(advance_by);
   GoTo(&loop);
 }
+
+bool RegExpMacroAssembler::CanOptimizeSpecialClassRanges(
+    StandardCharacterSet character_set) const {
+  if (character_set == StandardCharacterSet::kNotWhitespace) {
+    // The emitted code for generic character classes is good enough.
+    return false;
+  }
+  if (character_set == StandardCharacterSet::kWhitespace &&
+      mode() != Mode::LATIN1) {
+    // TODO(pthier): Support \s for 2-byte inputs.
+    return false;
+  }
+  return true;
+}
+
 #ifndef COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 // This method may only be called after an interrupt.

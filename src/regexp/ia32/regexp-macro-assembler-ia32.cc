@@ -587,45 +587,44 @@ void RegExpMacroAssemblerIA32::SkipUntilBitInTable(
   GoTo(&again);
 }
 
-bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
+void RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
+  DCHECK(CanOptimizeSpecialClassRanges(type));
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
   // TODO(jgruber): No custom implementation (yet): s(UC16), S(UC16).
   switch (type) {
-    case StandardCharacterSet::kWhitespace:
+    case StandardCharacterSet::kWhitespace: {
       // Match space-characters.
-      if (mode() == LATIN1) {
-        // One byte space characters are '\t'..'\r', ' ' and \u00a0.
-        Label success;
-        __ cmp(current_character(), ' ');
-        __ j(equal, &success, Label::kNear);
-        // Check range 0x09..0x0D.
-        __ lea(eax, Operand(current_character(), -'\t'));
-        __ cmp(eax, '\r' - '\t');
-        __ j(below_equal, &success, Label::kNear);
-        // \u00a0 (NBSP).
-        __ cmp(eax, 0x00A0 - '\t');
-        BranchOrBacktrack(not_equal, on_no_match);
-        __ bind(&success);
-        return true;
-      }
-      return false;
+      DCHECK_EQ(mode(), LATIN1);
+      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
+      Label success;
+      __ cmp(current_character(), ' ');
+      __ j(equal, &success, Label::kNear);
+      // Check range 0x09..0x0D.
+      __ lea(eax, Operand(current_character(), -'\t'));
+      __ cmp(eax, '\r' - '\t');
+      __ j(below_equal, &success, Label::kNear);
+      // \u00a0 (NBSP).
+      __ cmp(eax, 0x00A0 - '\t');
+      BranchOrBacktrack(not_equal, on_no_match);
+      __ bind(&success);
+      break;
+    }
     case StandardCharacterSet::kNotWhitespace:
-      // The emitted code for generic character classes is good enough.
-      return false;
+      UNREACHABLE();
     case StandardCharacterSet::kDigit:
       // Match ASCII digits ('0'..'9').
       __ lea(eax, Operand(current_character(), -'0'));
       __ cmp(eax, '9' - '0');
       BranchOrBacktrack(above, on_no_match);
-      return true;
+      break;
     case StandardCharacterSet::kNotDigit:
       // Match non ASCII-digits.
       __ lea(eax, Operand(current_character(), -'0'));
       __ cmp(eax, '9' - '0');
       BranchOrBacktrack(below_equal, on_no_match);
-      return true;
+      break;
     case StandardCharacterSet::kLineTerminator:
       // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 or 0x2029).
       // The opposite of '.'.
@@ -648,7 +647,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
         BranchOrBacktrack(above, on_no_match);
         __ bind(&done);
       }
-      return true;
+      break;
     case StandardCharacterSet::kNotLineTerminator: {
       // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
       __ mov(eax, current_character());
@@ -665,7 +664,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
         __ cmp(eax, 0x2029 - 0x2028);
         BranchOrBacktrack(below_equal, on_no_match);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kWord: {
       if (mode() != LATIN1) {
@@ -680,7 +679,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
                 Operand(current_character(), times_1, word_map.address(),
                         RelocInfo::EXTERNAL_REFERENCE));
       BranchOrBacktrack(zero, on_no_match);
-      return true;
+      break;
     }
     case StandardCharacterSet::kNotWord: {
       Label done;
@@ -699,12 +698,12 @@ bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
       if (mode() != LATIN1) {
         __ bind(&done);
       }
-      return true;
+      break;
     }
   // Non-standard classes (with no syntactic shorthand) used internally.
   case StandardCharacterSet::kEverything:
     // Match any character.
-    return true;
+    break;
   }
 }
 

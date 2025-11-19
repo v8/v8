@@ -530,13 +530,10 @@ void RegExpMacroAssemblerTracer::CheckPosition(int cp_offset,
   assembler_->CheckPosition(cp_offset, on_outside_input);
 }
 
-bool RegExpMacroAssemblerTracer::CheckSpecialClassRanges(
+void RegExpMacroAssemblerTracer::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
-  bool supported = assembler_->CheckSpecialClassRanges(type, on_no_match);
-  PrintF(" CheckSpecialClassRanges(type='%c', label[%08x]): %s;\n",
-         static_cast<char>(type), LabelToInt(on_no_match),
-         supported ? "true" : "false");
-  return supported;
+  PrintF(" CheckSpecialClassRanges(type='%c', label[%08x])\n",
+         static_cast<char>(type), LabelToInt(on_no_match));
 }
 
 void RegExpMacroAssemblerTracer::IfRegisterLT(int register_index,

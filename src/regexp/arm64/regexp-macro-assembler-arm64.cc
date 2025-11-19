@@ -920,41 +920,40 @@ bool RegExpMacroAssemblerARM64::SkipUntilOneOfMaskedUseSimd(int advance_by) {
   return v8_flags.regexp_simd && advance_by * char_size() == 1;
 }
 
-bool RegExpMacroAssemblerARM64::CheckSpecialClassRanges(
+void RegExpMacroAssemblerARM64::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
+  DCHECK(CanOptimizeSpecialClassRanges(type));
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
   // TODO(jgruber): No custom implementation (yet): s(UC16), S(UC16).
   switch (type) {
-    case StandardCharacterSet::kWhitespace:
+    case StandardCharacterSet::kWhitespace: {
       // Match space-characters.
-      if (mode() == LATIN1) {
-        // One byte space characters are '\t'..'\r', ' ' and \u00a0.
-        Label success;
-        // Check for ' ' or 0x00A0.
-        __ Cmp(current_character(), ' ');
-        __ Ccmp(current_character(), 0x00A0, ZFlag, ne);
-        __ B(eq, &success);
-        // Check range 0x09..0x0D.
-        __ Sub(w10, current_character(), '\t');
-        CompareAndBranchOrBacktrack(w10, '\r' - '\t', hi, on_no_match);
-        __ Bind(&success);
-        return true;
-      }
-      return false;
+      DCHECK_EQ(mode(), LATIN1);
+      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
+      Label success;
+      // Check for ' ' or 0x00A0.
+      __ Cmp(current_character(), ' ');
+      __ Ccmp(current_character(), 0x00A0, ZFlag, ne);
+      __ B(eq, &success);
+      // Check range 0x09..0x0D.
+      __ Sub(w10, current_character(), '\t');
+      CompareAndBranchOrBacktrack(w10, '\r' - '\t', hi, on_no_match);
+      __ Bind(&success);
+      break;
+    }
     case StandardCharacterSet::kNotWhitespace:
-      // The emitted code for generic character classes is good enough.
-      return false;
+      UNREACHABLE();
     case StandardCharacterSet::kDigit:
       // Match ASCII digits ('0'..'9').
       __ Sub(w10, current_character(), '0');
       CompareAndBranchOrBacktrack(w10, '9' - '0', hi, on_no_match);
-      return true;
+      break;
     case StandardCharacterSet::kNotDigit:
       // Match ASCII non-digits.
       __ Sub(w10, current_character(), '0');
       CompareAndBranchOrBacktrack(w10, '9' - '0', ls, on_no_match);
-      return true;
+      break;
     case StandardCharacterSet::kNotLineTerminator: {
       // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
       // Here we emit the conditional branch only once at the end to make branch
@@ -971,7 +970,7 @@ bool RegExpMacroAssemblerARM64::CheckSpecialClassRanges(
       } else {
         BranchOrBacktrack(eq, on_no_match);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kLineTerminator: {
       // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
@@ -988,7 +987,7 @@ bool RegExpMacroAssemblerARM64::CheckSpecialClassRanges(
       } else {
         BranchOrBacktrack(ne, on_no_match);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kWord: {
       if (mode() != LATIN1) {
@@ -999,7 +998,7 @@ bool RegExpMacroAssemblerARM64::CheckSpecialClassRanges(
       __ Mov(x10, map);
       __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
       CompareAndBranchOrBacktrack(w10, 0, eq, on_no_match);
-      return true;
+      break;
     }
     case StandardCharacterSet::kNotWord: {
       Label done;
@@ -1013,11 +1012,11 @@ bool RegExpMacroAssemblerARM64::CheckSpecialClassRanges(
       __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
       CompareAndBranchOrBacktrack(w10, 0, ne, on_no_match);
       __ Bind(&done);
-      return true;
+      break;
     }
     case StandardCharacterSet::kEverything:
       // Match any character.
-      return true;
+      break;
   }
 }
 

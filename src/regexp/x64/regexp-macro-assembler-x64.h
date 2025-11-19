@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialClassRanges(StandardCharacterSet type,
+  void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
 
   void BindJumpTarget(Label* label) override;

@@ -967,47 +967,46 @@ bool RegExpMacroAssemblerX64::SkipUntilOneOfMaskedUseSimd(int advance_by) {
   return v8_flags.regexp_simd && advance_by * char_size() == 1;
 }
 
-bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
+void RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
                                                       Label* on_no_match) {
+  DCHECK(CanOptimizeSpecialClassRanges(type));
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check, using the sequence:
   //   leal(rax, Operand(current_character(), -min)) or sub(rax, Immediate(min))
   //   cmpl(rax, Immediate(max - min))
   // TODO(jgruber): No custom implementation (yet): s(UC16), S(UC16).
   switch (type) {
-    case StandardCharacterSet::kWhitespace:
+    case StandardCharacterSet::kWhitespace: {
       // Match space-characters.
-      if (mode() == LATIN1) {
-        // One byte space characters are '\t'..'\r', ' ' and \u00a0.
-        Label success;
-        __ cmpl(current_character(), Immediate(' '));
-        __ j(equal, &success, Label::kNear);
-        // Check range 0x09..0x0D.
-        __ leal(rax, Operand(current_character(), -'\t'));
-        __ cmpl(rax, Immediate('\r' - '\t'));
-        __ j(below_equal, &success, Label::kNear);
-        // \u00a0 (NBSP).
-        __ cmpl(rax, Immediate(0x00A0 - '\t'));
-        BranchOrBacktrack(not_equal, on_no_match);
-        __ bind(&success);
-        return true;
-      }
-      return false;
+      DCHECK_EQ(mode(), LATIN1);
+      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
+      Label success;
+      __ cmpl(current_character(), Immediate(' '));
+      __ j(equal, &success, Label::kNear);
+      // Check range 0x09..0x0D.
+      __ leal(rax, Operand(current_character(), -'\t'));
+      __ cmpl(rax, Immediate('\r' - '\t'));
+      __ j(below_equal, &success, Label::kNear);
+      // \u00a0 (NBSP).
+      __ cmpl(rax, Immediate(0x00A0 - '\t'));
+      BranchOrBacktrack(not_equal, on_no_match);
+      __ bind(&success);
+      break;
+    }
     case StandardCharacterSet::kNotWhitespace:
-      // The emitted code for generic character classes is good enough.
-      return false;
+      UNREACHABLE();
     case StandardCharacterSet::kDigit:
       // Match ASCII digits ('0'..'9').
       __ leal(rax, Operand(current_character(), -'0'));
       __ cmpl(rax, Immediate('9' - '0'));
       BranchOrBacktrack(above, on_no_match);
-      return true;
+      break;
     case StandardCharacterSet::kNotDigit:
       // Match non ASCII-digits.
       __ leal(rax, Operand(current_character(), -'0'));
       __ cmpl(rax, Immediate('9' - '0'));
       BranchOrBacktrack(below_equal, on_no_match);
-      return true;
+      break;
     case StandardCharacterSet::kNotLineTerminator: {
       // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
       __ movl(rax, current_character());
@@ -1024,7 +1023,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
         __ cmpl(rax, Immediate(0x2029 - 0x2028));
         BranchOrBacktrack(below_equal, on_no_match);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kLineTerminator: {
       // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
@@ -1046,7 +1045,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
         BranchOrBacktrack(above, on_no_match);
         __ bind(&done);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kWord: {
       if (mode() != LATIN1) {
@@ -1060,7 +1059,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
       __ testb(Operand(rbx, current_character(), times_1, 0),
                current_character());
       BranchOrBacktrack(zero, on_no_match);
-      return true;
+      break;
     }
     case StandardCharacterSet::kNotWord: {
       Label done;
@@ -1078,12 +1077,12 @@ bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
       if (mode() != LATIN1) {
         __ bind(&done);
       }
-      return true;
+      break;
     }
 
     case StandardCharacterSet::kEverything:
       // Match any character.
-      return true;
+      break;
   }
 }
 
