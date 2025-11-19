@@ -2426,7 +2426,7 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Context> NoContextConstant() {
-    return V<Context>::Cast(TagSmi(Context::kNoContext));
+    return V<Context>::Cast(SmiConstant(Smi::FromInt(Context::kNoContext)));
   }
 
   // TODO(nicohartmann@): Might want to get rid of the isolate when supporting
