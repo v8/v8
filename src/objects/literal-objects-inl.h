@@ -81,6 +81,11 @@ void ObjectBoilerplateDescription::set_key_value(int index, Tagged<Object> key,
   set(ValueIndex(index), value);
 }
 
+void ObjectBoilerplateDescription::set_value(int index, Tagged<Object> value) {
+  DCHECK_LT(static_cast<unsigned>(index), boilerplate_properties_count());
+  set(ValueIndex(index), value);
+}
+
 int ObjectBoilerplateDescription::boilerplate_properties_count() const {
   DCHECK_EQ(0, capacity() % kElementsPerEntry);
   return capacity() / kElementsPerEntry;

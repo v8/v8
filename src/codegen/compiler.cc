@@ -2193,7 +2193,13 @@ class ConstantPoolPointerForwarder {
       if (Tagged<SharedFunctionInfo> new_sfi;
           TryCast<SharedFunctionInfo>(maybe_sfi, &new_sfi)) {
         // The same SFI on the old script by function_literal_id
-        VisitSharedFunctionInfo(boilerplate, idx, new_sfi);
+        Tagged<MaybeObject> maybe_old_sfi = old_script_->infos()->get(
+            new_sfi->function_literal_id(kRelaxedLoad));
+        if (maybe_old_sfi.IsWeak()) {
+          boilerplate->set_value(idx,
+                                 Cast<SharedFunctionInfo>(
+                                     maybe_old_sfi.GetHeapObjectAssumeWeak()));
+        }
       }
     }
   }

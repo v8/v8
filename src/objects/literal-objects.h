@@ -67,6 +67,7 @@ class ObjectBoilerplateDescription
 
   inline void set_key_value(int index, Tagged<Object> key,
                             Tagged<Object> value);
+  inline void set_value(int index, Tagged<Object> value);
 
   DECL_VERIFIER(ObjectBoilerplateDescription)
   DECL_PRINTER(ObjectBoilerplateDescription)
@@ -74,6 +75,9 @@ class ObjectBoilerplateDescription
   class BodyDescriptor;
 
  private:
+  using TaggedArrayBase::get;
+  using TaggedArrayBase::set;
+
   static constexpr int kElementsPerEntry = 2;
   static constexpr int NameIndex(int i) { return i * kElementsPerEntry; }
   static constexpr int ValueIndex(int i) { return i * kElementsPerEntry + 1; }
