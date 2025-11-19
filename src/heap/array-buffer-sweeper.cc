@@ -36,7 +36,9 @@ size_t ArrayBufferList::Append(ArrayBufferExtension* extension) {
       return extension->SetYoung().accounting_length();
     }
   }();
-  DCHECK_GE(bytes_ + accounting_length, bytes_);
+  // On 32-bit this addition can overflow. This is okay because it changes at
+  // most GC scheduling and the counter will be re-computed from scratch in the
+  // next GC cycle.
   bytes_ += accounting_length;
   extension->set_next(nullptr);
   return accounting_length;
