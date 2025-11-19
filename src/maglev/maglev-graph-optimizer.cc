@@ -29,18 +29,31 @@ namespace maglev {
   } while (false)
 
 namespace {
-bool IsDone(MaybeReduceResult result) { return result.IsDone(); }
-bool IsDone(ValueNode* node) { return node != nullptr; }
+bool IsDoneWithValue(MaybeReduceResult result) {
+  return result.IsDoneWithValue();
+}
+bool IsDoneWithValue(ValueNode* node) { return node != nullptr; }
+bool IsDoneWithAbort(MaybeReduceResult result) {
+  return result.IsDoneWithAbort();
+}
+bool IsDoneWithAbort(ValueNode* node) { return false; }
+#ifdef DEBUG
+bool IsFail(MaybeReduceResult result) { return result.IsFail(); }
+bool IsFail(ValueNode* node) { return node == nullptr; }
+#endif
 ValueNode* Value(MaybeReduceResult result) { return result.value(); }
 ValueNode* Value(ValueNode* node) { return node; }
 }  // namespace
 
-#define REPLACE_AND_RETURN_IF_DONE(result) \
-  do {                                     \
-    auto res = (result);                   \
-    if (IsDone(res)) {                     \
-      return ReplaceWith(Value(res));      \
-    }                                      \
+#define REPLACE_AND_RETURN_IF_DONE(result)  \
+  do {                                      \
+    auto res = (result);                    \
+    if (IsDoneWithValue(res)) {             \
+      return ReplaceWith(Value(res));       \
+    } else if (IsDoneWithAbort(res)) {      \
+      return ProcessResult::kTruncateBlock; \
+    }                                       \
+    DCHECK(IsFail(result));                 \
   } while (false)
 
 namespace {
@@ -206,7 +219,7 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
   }
 }
 
-ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
+MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     ValueNode* node, UseRepresentation use_repr,
     std::optional<TaggedToFloat64ConversionType> conversion_type) {
   DCHECK_NE(use_repr, UseRepresentation::kTagged);
@@ -225,20 +238,20 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   }
   if (node->is_tagged()) {
     // TODO(victorgomes): No alternatives for shift int53.
-    if (use_repr == UseRepresentation::kShiftedInt53) return nullptr;
+    if (use_repr == UseRepresentation::kShiftedInt53) return {};
     // Check if we already have a canonical conversion.
     NodeInfo* node_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), node);
     auto& alternative = node_info->alternative();
     if (ValueNode* alt = alternative.get(use_repr)) return alt;
-    return nullptr;
+    return {};
   }
   // TODO(victorgomes): The GetXXX functions may emit a conversion node that
   // might eager deopt. We need to find a correct eager deopt frame for them if
   // current_node_ does not have a deopt info.
   if (!current_node_->properties().can_eager_deopt() &&
       !current_node_->properties().is_deopt_checkpoint()) {
-    return nullptr;
+    return {};
   }
   switch (use_repr) {
     case UseRepresentation::kInt32:
@@ -258,7 +271,7 @@ ValueNode* MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
       return reducer_.GetHoleyFloat64ForToNumber(
           node, GetAllowedTypeFromConversionType(*conversion_type));
     default:
-      return nullptr;
+      return {};
   }
   UNREACHABLE();
 }
@@ -1640,8 +1653,10 @@ UNTAGGING_CASE(UnsafeNumberOrOddballToHoleyFloat64, HoleyFloat64,
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
     CheckedSmiUntag* node, const ProcessingState& state) {
-  if (ValueNode* input = GetUntaggedValueWithRepresentation(
-          node->input_node(0), UseRepresentation::kInt32, {})) {
+  MaybeReduceResult maybe_input = GetUntaggedValueWithRepresentation(
+      node->input_node(0), UseRepresentation::kInt32, {});
+  if (maybe_input.IsDoneWithValue()) {
+    ValueNode* input = maybe_input.value();
     if (SmiValuesAre31Bits()) {
       // When the graph builder introduced the CheckedSmiUntag, it also recorded
       // in the alternatives that its input was a known Smi from this point on.
@@ -1655,15 +1670,20 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedSmiUntag(
       CHECK(result.IsDone());
     }
     return ReplaceWith(input);
+  } else if (maybe_input.IsDoneWithAbort()) {
+    return ProcessResult::kTruncateBlock;
   }
+  DCHECK(maybe_input.IsFail());
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToFloat64(
     CheckedNumberToFloat64* node, const ProcessingState& state) {
-  if (ValueNode* alt = GetUntaggedValueWithRepresentation(
-          node->input_node(0), UseRepresentation::kFloat64,
-          TaggedToFloat64ConversionType::kOnlyNumber)) {
+  MaybeReduceResult maybe_alt = GetUntaggedValueWithRepresentation(
+      node->input_node(0), UseRepresentation::kFloat64,
+      TaggedToFloat64ConversionType::kOnlyNumber);
+  if (maybe_alt.IsDoneWithValue()) {
+    ValueNode* alt = maybe_alt.value();
     if (alt->Is<CheckedNumberOrOddballToFloat64>() ||
         alt->Is<UnsafeNumberOrOddballToFloat64>()) {
       // The alternative check is weaker then the current node. We should not
@@ -1672,7 +1692,10 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToFloat64(
       return ProcessResult::kContinue;
     }
     return ReplaceWith(alt);
+  } else if (maybe_alt.IsDoneWithAbort()) {
+    return ProcessResult::kTruncateBlock;
   }
+  DCHECK(maybe_alt.IsFail());
   return ProcessResult::kContinue;
 }
 

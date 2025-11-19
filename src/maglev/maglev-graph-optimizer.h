@@ -85,7 +85,7 @@ class MaglevGraphOptimizer {
 
   // Returns a variant of the node with the value representation given. It
   // returns nullptr if we need to emit a tagged conversion.
-  ValueNode* GetUntaggedValueWithRepresentation(
+  MaybeReduceResult GetUntaggedValueWithRepresentation(
       ValueNode* node, UseRepresentation repr,
       std::optional<TaggedToFloat64ConversionType> conversion_type);
 
