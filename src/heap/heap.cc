@@ -2304,7 +2304,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
         CompleteSweepingFull(CompleteSweepingReason::kTesting);
       }
     }
-  } else {
+  } else if (!incremental_marking()->IsMajorMarking()) {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull(CompleteSweepingReason::kMajorGC);
   }
