@@ -3492,9 +3492,11 @@ class MachineLoweringReducer : public Next {
   }
 
   V<None> REDUCE(RuntimeAbort)(AbortReason reason) {
-    __ template CallRuntime<runtime::Abort>(
-        __ NoContextConstant(),
-        {.messageOrMessageId = __ SmiConstant(Smi::FromEnum(reason))});
+    if (!v8_flags.trap_on_abort) {
+      __ template CallRuntime<runtime::Abort>(
+          __ NoContextConstant(),
+          {.messageOrMessageId = __ SmiConstant(Smi::FromEnum(reason))});
+    }
     // RuntimeAbort exits the function and should thus be a block terminator,
     // but we currently don't allow Simplified operations to be block
     // terminators. We thus manually add an Unreachable after it.
