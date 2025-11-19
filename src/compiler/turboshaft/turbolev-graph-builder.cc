@@ -4675,7 +4675,9 @@ class GraphBuildingNodeProcessor {
         kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
         break;
       case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
-        UNREACHABLE();
+        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+            kNumberOrUndefined;
+        break;
       case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
         kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
             kNumberOrBoolean;
