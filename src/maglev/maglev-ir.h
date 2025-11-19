@@ -393,6 +393,8 @@ class ExceptionHandlerInfo;
 
 #define NON_VALUE_NODE_LIST(V)                \
   V(AssertInt32)                              \
+  V(AssertRangeInt32)                         \
+  V(AssertRangeFloat64)                       \
   V(CheckDynamicValue)                        \
   V(CheckInt32IsSmi)                          \
   V(CheckUint32IsSmi)                         \
@@ -7352,6 +7354,46 @@ class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
  private:
   AssertCondition condition_;
   AbortReason reason_;
+};
+
+class AssertRangeInt32 : public FixedInputNodeT<1, AssertRangeInt32> {
+  using Base = FixedInputNodeT<1, AssertRangeInt32>;
+
+ public:
+  AssertRangeInt32(uint64_t bitfield, Range range)
+      : Base(bitfield), range_(range) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  Range range() const { return range_; }
+
+ private:
+  Range range_;
+};
+
+class AssertRangeFloat64 : public FixedInputNodeT<1, AssertRangeFloat64> {
+  using Base = FixedInputNodeT<1, AssertRangeFloat64>;
+
+ public:
+  AssertRangeFloat64(uint64_t bitfield, Range range)
+      : Base(bitfield), range_(range) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  Range range() const { return range_; }
+
+ private:
+  Range range_;
 };
 
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {

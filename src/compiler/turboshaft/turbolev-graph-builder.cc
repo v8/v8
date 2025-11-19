@@ -5388,6 +5388,54 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::AssertRangeInt32* node,
+                                const maglev::ProcessingState&) {
+    CHECK(node->range().IsInt32());
+    CHECK(!node->range().is_all());
+    CHECK(!node->range().is_empty());
+    Label<> abort(this);
+    Label<> end(this);
+
+    V<Word32> value = Map(node->input(0));
+    GOTO_IF_NOT(__ Int32LessThanOrEqual(
+                    value, static_cast<int32_t>(*node->range().max())),
+                abort);
+    GOTO_IF_NOT(__ Int32LessThanOrEqual(
+                    static_cast<int32_t>(*node->range().min()), value),
+                abort);
+    GOTO(end);
+
+    BIND(abort);
+    __ RuntimeAbort(AbortReason::kUnexpectedValue);
+
+    BIND(end);
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::AssertRangeFloat64* node,
+                                const maglev::ProcessingState&) {
+    CHECK(!node->range().is_all());
+    CHECK(!node->range().is_empty());
+
+    Label<> abort(this);
+    Label<> end(this);
+    V<Float64> value = Map(node->input(0));
+
+    if (auto max = node->range().max()) {
+      GOTO_IF_NOT(__ Float64LessThanOrEqual(value, *max), abort);
+    }
+    if (auto min = node->range().min()) {
+      GOTO_IF_NOT(__ Float64LessThanOrEqual(*min, value), abort);
+    }
+    GOTO(end);
+
+    BIND(abort);
+    __ RuntimeAbort(AbortReason::kUnexpectedValue);
+
+    BIND(end);
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CallSelf*,
                                 const maglev::ProcessingState&) {
     // CallSelf nodes are only created when Maglev is the top-tier compiler

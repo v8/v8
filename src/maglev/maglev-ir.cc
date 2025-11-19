@@ -1192,6 +1192,9 @@ TURBOLEV_UNREACHABLE_NODE(ChangeShiftedInt53ToFloat64)
 TURBOLEV_UNREACHABLE_NODE(ChangeShiftedInt53ToHoleyFloat64)
 TURBOLEV_UNREACHABLE_NODE(ShiftedInt53ToBoolean)
 
+TURBOLEV_UNREACHABLE_NODE(AssertRangeInt32)
+TURBOLEV_UNREACHABLE_NODE(AssertRangeFloat64)
+
 #undef TURBOLEV_UNREACHABLE_NODE
 
 void SmiConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
@@ -8129,6 +8132,14 @@ void Abort::PrintParams(std::ostream& os) const {
 
 void AssertInt32::PrintParams(std::ostream& os) const {
   os << "(" << condition_ << ")";
+}
+
+void AssertRangeInt32::PrintParams(std::ostream& os) const {
+  os << "(" << range_ << ")";
+}
+
+void AssertRangeFloat64::PrintParams(std::ostream& os) const {
+  os << "(" << range_ << ")";
 }
 
 void BuiltinStringPrototypeCharCodeOrCodePointAt::PrintParams(

@@ -4547,6 +4547,9 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-pipeline-statistics.h",
       "src/maglev/maglev-post-hoc-optimizations-processors.h",
       "src/maglev/maglev-pre-regalloc-codegen-processors.h",
+      "src/maglev/maglev-range-analysis.h",
+      "src/maglev/maglev-range-verification.h",
+      "src/maglev/maglev-range.h",
       "src/maglev/maglev-reducer-inl.h",
       "src/maglev/maglev-reducer.h",
       "src/maglev/maglev-regalloc-data.h",
@@ -5323,6 +5326,7 @@ if (!v8_enable_maglev) {
     "src/maglev/maglev-ir.cc",
     "src/maglev/maglev-known-node-aspects.cc",
     "src/maglev/maglev-phi-representation-selector.cc",
+    "src/maglev/maglev-range-verification.cc",
     "src/maglev/maglev-truncation.cc",
   ]
 }
@@ -6067,6 +6071,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-known-node-aspects.cc",
       "src/maglev/maglev-phi-representation-selector.cc",
       "src/maglev/maglev-pipeline-statistics.cc",
+      "src/maglev/maglev-range-verification.cc",
       "src/maglev/maglev-regalloc.cc",
       "src/maglev/maglev-truncation.cc",
       "src/maglev/maglev.cc",

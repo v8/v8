@@ -2593,6 +2593,8 @@ UNIMPLEMENTED_NODE(ChangeShiftedInt53ToHoleyFloat64)
 UNIMPLEMENTED_NODE(TruncateShiftedInt53ToInt32)
 UNIMPLEMENTED_NODE(CheckedSmiTagShiftedInt53)
 UNIMPLEMENTED_NODE(ShiftedInt53ToBoolean)
+UNIMPLEMENTED_NODE(AssertRangeInt32)
+UNIMPLEMENTED_NODE(AssertRangeFloat64)
 
 ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
     JumpLoop* node, const ProcessingState& state) {

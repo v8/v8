@@ -18,6 +18,7 @@
 #include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-range-analysis.h"
+#include "src/maglev/maglev-range-verification.h"
 #include "src/maglev/maglev-truncation.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -97,6 +98,13 @@ bool RunMaglevOptimizations(PipelineData& data,
     if (V8_UNLIKELY(v8_flags.trace_maglev_range_analysis)) {
       ranges.Print();
     }
+
+    if (V8_UNLIKELY(v8_flags.maglev_range_verification)) {
+      maglev::GraphProcessor<maglev::MaglevRangeVerificationProcessor> verifier(
+          maglev_graph, &ranges);
+      verifier.ProcessGraph(maglev_graph);
+    }
+
     RunMaglevOptimizer(data, maglev_graph, &ranges);
   }
 
