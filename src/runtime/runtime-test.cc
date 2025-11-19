@@ -202,13 +202,19 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
       isolate->factory()->InternalizeString(string);
   // The argument was either already an internalized string or it is now a thin
   // string to an internalized string.
-  // Without a shared-string-table shared strings get copied on internalization
-  // but the shared-string does not become internalized itself.
-  CHECK(
-      IsInternalizedString(*string) ||
-      (IsThinString(*string) &&
-       IsInternalizedString(Cast<ThinString>(*string)->actual())) ||
-      (HeapLayout::InAnySharedSpace(*string) && !v8_flags.shared_string_table));
+  // For shared strings, one of the following happens:
+  // 1) With `--shared-string-table` the string is inserted into the
+  //    `StringForwardingTable` to reduce the overhead of repeated
+  //    internalization.
+  // 2) Without `--shared-string-table` the original string gets copied on each
+  //    internalization inte the unshared heap and from there it needs to be
+  //    internalized each time.
+  // In either case, the input shared string does not change its shape on
+  // internalization.
+  CHECK(IsInternalizedString(*string) ||
+        (IsThinString(*string) &&
+         IsInternalizedString(Cast<ThinString>(*string)->actual())) ||
+        HeapLayout::InAnySharedSpace(*string));
   CHECK(IsInternalizedString(*internalized));
   return *internalized;
 }
