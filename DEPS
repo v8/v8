@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:30.20251117.7.1',
+  'fuchsia_version': 'version:30.20251118.5.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '371ecb089d96d60e5208ec2d25c9b4f0860e556c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0347b49096ca873f595c8e285c9bb3e256131f42',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5df641722f2e50623646d702e0046fb68c0f5ce1',
   'buildtools/linux64': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '565cc4ee354f0c394d0d83301e6658b1fc979c99',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5ba2fb94f5ceb4383f528e70183d4c8286c1c171',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -316,7 +316,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '7ff36f1e358ffb63e25f27a1b5e8e0c52e15c49c',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '74b25173cba70124bff5da97cc339d90c516c5f6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'bb256f487c34423654a89c152cd4967ca10840d1',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '10ac9fc0b09895e39f29d6ef444d496c510856d1',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'aeb21f4c54d24106bb316d637679f312afcef726',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
@@ -562,7 +562,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'be34c9affbc9f6b8f3420f2e5998f580b984d39a',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'c54e50d9f14471146af9f1f357b3c525c2ff5bb7',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
