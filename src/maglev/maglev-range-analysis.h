@@ -278,7 +278,8 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32Increment* node, const ProcessingState&) {
-    UnionUpdateInt32(node, Range::Add(Get(node->input_node(0)), Range(1)));
+    UnionUpdateTruncatingInt32(node,
+                               Range::Add(Get(node->input_node(0)), Range(1)));
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32IncrementWithOverflow* node,
@@ -287,7 +288,7 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32Add* node, const ProcessingState&) {
-    UnionUpdateInt32(
+    UnionUpdateTruncatingInt32(
         node, Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
@@ -297,7 +298,8 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32Decrement* node, const ProcessingState&) {
-    UnionUpdateInt32(node, Range::Sub(Get(node->input_node(0)), Range(1)));
+    UnionUpdateTruncatingInt32(node,
+                               Range::Sub(Get(node->input_node(0)), Range(1)));
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32DecrementWithOverflow* node,
@@ -306,7 +308,7 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32Subtract* node, const ProcessingState&) {
-    UnionUpdateInt32(
+    UnionUpdateTruncatingInt32(
         node, Range::Sub(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
@@ -317,7 +319,7 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32Multiply* node, const ProcessingState&) {
-    UnionUpdateInt32(
+    UnionUpdateTruncatingInt32(
         node, Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
@@ -448,6 +450,15 @@ class RangeProcessor {
     DCHECK_NOT_NULL(current_block_);
     ranges_.UnionUpdate(current_block_, node,
                         Range::Intersect(Range::Int32(), range));
+  }
+
+  void UnionUpdateTruncatingInt32(ValueNode* node, Range range) {
+    // Nodes with Int32 value representation without overflow check will
+    // truncate their values back to Int32. If they overflow, their ranges are
+    // approximated to Range::Int32().
+    DCHECK_NOT_NULL(current_block_);
+    ranges_.UnionUpdate(current_block_, node,
+                        range.IsInt32() ? range : Range::Int32());
   }
 
   void ProcessPhis(BasicBlock* block, BasicBlock* pred) {
