@@ -1056,7 +1056,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
       }
       __ Move(rbx, ExternalReference::re_word_character_map());
       DCHECK_EQ(0,
-                word_character_map[0]);  // Character '\0' is not a word char.
+                word_character_map()[0]);  // Character '\0' is not a word char.
       __ testb(Operand(rbx, current_character(), times_1, 0),
                current_character());
       BranchOrBacktrack(zero, on_no_match);
@@ -1071,7 +1071,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
       }
       __ Move(rbx, ExternalReference::re_word_character_map());
       DCHECK_EQ(0,
-                word_character_map[0]);  // Character '\0' is not a word char.
+                word_character_map()[0]);  // Character '\0' is not a word char.
       __ testb(Operand(rbx, current_character(), times_1, 0),
                current_character());
       BranchOrBacktrack(not_zero, on_no_match);

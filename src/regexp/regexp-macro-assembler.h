@@ -293,6 +293,14 @@ class RegExpMacroAssembler {
   }
   inline bool global_unicode() const { return global_mode_ == GLOBAL_UNICODE; }
 
+  static Address word_character_map_address() {
+    return reinterpret_cast<Address>(&word_character_map_[0]);
+  }
+
+  static const base::Vector<const uint8_t> word_character_map() {
+    return base::ArrayVector(word_character_map_);
+  }
+
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
@@ -310,6 +318,12 @@ class RegExpMacroAssembler {
 
   // Which mode to generate code for (LATIN1 or UC16).
   Mode mode() const { return mode_; }
+
+  static constexpr size_t kWordCharacterMapSize = 256;
+  // Byte map of one byte characters with a 0xff if the character is a word
+  // character (digit, letter or underscore) and 0x00 otherwise.
+  // Used by generated RegExp code.
+  static const uint8_t word_character_map_[kWordCharacterMapSize];
 
  private:
   bool slow_safe_compiler_;
@@ -382,16 +396,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                                   Address* subject, const uint8_t** input_start,
                                   const uint8_t** input_end, uintptr_t gap);
 
-  static Address word_character_map_address() {
-    return reinterpret_cast<Address>(&word_character_map[0]);
-  }
-
  protected:
-  // Byte map of one byte characters with a 0xff if the character is a word
-  // character (digit, letter or underscore) and 0x00 otherwise.
-  // Used by generated RegExp code.
-  static const uint8_t word_character_map[256];
-
   Handle<ByteArray> GetOrAddRangeArray(const ZoneList<CharacterRange>* ranges);
 
  private:

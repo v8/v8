@@ -465,7 +465,7 @@ enum class IsolateFieldId : uint8_t;
   V(re_check_stack_guard_state,                                                \
     "RegExpMacroAssembler*::CheckStackGuardState()")                           \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
-  V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")   \
+  V(re_word_character_map, "RegExpMacroAssembler::word_character_map")         \
   V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \

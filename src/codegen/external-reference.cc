@@ -1130,8 +1130,7 @@ FUNCTION_REFERENCE(re_is_character_in_range_array,
                    RegExpMacroAssembler::IsCharacterInRangeArray)
 
 ExternalReference ExternalReference::re_word_character_map() {
-  return ExternalReference(
-      NativeRegExpMacroAssembler::word_character_map_address());
+  return ExternalReference(RegExpMacroAssembler::word_character_map_address());
 }
 
 ExternalReference
