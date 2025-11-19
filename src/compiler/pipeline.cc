@@ -774,7 +774,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
 
   turboshaft_data_.InitializeBrokerAndDependencies(data_.broker_ptr(),
                                                    data_.dependencies());
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_);
+  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_, linkage_);
   if (compilation_info_.was_cancelled()) {
     return AbortOptimization(BailoutReason::kCancelled);
   }
@@ -815,7 +815,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
   Handle<Code> code;
   DirectHandle<NativeContext> context;
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_);
+  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_,
+                                           turboshaft::kNoLinkage);
   MaybeHandle<Code> maybe_code = turboshaft_pipeline.FinalizeCode();
   if (!maybe_code.ToHandle(&code)) {
     if (compilation_info()->bailout_reason() == BailoutReason::kNoReason) {
@@ -1757,7 +1758,7 @@ CompilationJob::Status FinalizeWrapperCompilation(
     CallDescriptor* call_descriptor, Isolate* isolate,
     const char* method_name) {
   Handle<Code> code;
-  turboshaft::Pipeline pipeline(turboshaft_data);
+  turboshaft::Pipeline pipeline(turboshaft_data, turboshaft::kNoLinkage);
   if (!pipeline.FinalizeCode(call_descriptor).ToHandle(&code)) {
     V8::FatalProcessOutOfMemory(isolate, method_name);
   }
@@ -1800,10 +1801,10 @@ CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
   if (!pipeline_.Run<MemoryOptimizationPhase>()) return FAILED;
   if (!pipeline_.ComputeScheduledGraph()) return FAILED;
 
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_);
+  Linkage linkage(call_descriptor_);
+  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_, &linkage);
 
   // We convert the turbofan graph to turboshaft.
-  Linkage linkage(call_descriptor_);
   if (!turboshaft_pipeline.CreateGraphFromTurbofan(&data_, &linkage)) {
     return FAILED;
   }
@@ -1861,7 +1862,7 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   turboshaft::PrintTurboshaftGraph(&turboshaft_data_, &printing_zone,
                                    code_tracer, "Graph generation");
 
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_);
+  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_, &linkage);
   // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
   // wrappers.
   // TODO(14108): Do we need value numbering if wasm_opt is turned off?
@@ -2459,6 +2460,8 @@ TurboshaftAssemblerBuiltinCompilationJob::
 PipelineCompilationJob::Status
 TurboshaftAssemblerBuiltinCompilationJob::PrepareJobImpl(Isolate* isolate) {
   using namespace compiler::turboshaft;
+  CallDescriptor* call_descriptor = call_descriptor_builder_(zone_);
+  Linkage linkage(call_descriptor);
   {
     // Work around that the PersistentHandlesScope inside CompilationHandleScope
     // requires there to be at least one handle.
@@ -2467,7 +2470,6 @@ TurboshaftAssemblerBuiltinCompilationJob::PrepareJobImpl(Isolate* isolate) {
                                isolate);
     CompilationHandleScope compilation_scope(isolate, &compilation_info_);
 
-    const CallDescriptor* call_descriptor = call_descriptor_builder_(zone_);
     data_.InitializeBuiltinComponent(call_descriptor,
                                      std::move(bytecode_handler_data_));
     data_.InitializeGraphComponent(nullptr);
@@ -2484,7 +2486,7 @@ TurboshaftAssemblerBuiltinCompilationJob::PrepareJobImpl(Isolate* isolate) {
         &compilation_info_, isolate->GetTurboStatistics(), &zone_stats_));
   }
 
-  turboshaft::BuiltinPipeline turboshaft_pipeline(&data_);
+  turboshaft::BuiltinPipeline turboshaft_pipeline(&data_, &linkage);
   if (compilation_info_.trace_turbo_graph() ||
       compilation_info_.trace_turbo_json()) {
     CodeTracer::StreamScope tracing_scope(data_.GetCodeTracer());
@@ -2518,12 +2520,12 @@ TurboshaftAssemblerBuiltinCompilationJob::PrepareJobImpl(Isolate* isolate) {
 PipelineCompilationJob::Status
 TurboshaftAssemblerBuiltinCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
-  turboshaft::BuiltinPipeline pipeline(&data_);
 
   // TODO(nicohartmann): Get rid of const_cast<> once CallDescriptors apply
   // proper const-correctness.
   const CallDescriptor* call_descriptor = data_.builtin_call_descriptor();
   Linkage linkage(const_cast<CallDescriptor*>(call_descriptor));
+  turboshaft::BuiltinPipeline pipeline(&data_, &linkage);
 
   pipeline.OptimizeBuiltin();
 
@@ -2564,7 +2566,7 @@ bool TurboshaftAssemblerBuiltinCompilationJob::ShouldOptimizeJumps(
 Handle<Code> TurboshaftAssemblerBuiltinCompilationJob::FinalizeCode(
     Isolate* isolate) {
   PipelineJobScope scope(&data_, isolate->counters()->runtime_call_stats());
-  turboshaft::Pipeline turboshaft_pipeline(&data_);
+  turboshaft::Pipeline turboshaft_pipeline(&data_, turboshaft::kNoLinkage);
   turboshaft::Tracing::Scope tracing_scope(&compilation_info_);
   return turboshaft_pipeline.FinalizeCode().ToHandleChecked();
 }
@@ -2612,9 +2614,10 @@ CodeAssemblerTurboshaftCompilationJob::ExecuteJobImpl(
   DCHECK_NULL(pipeline_->data.frame());
   DCHECK_NOT_NULL(pipeline_->data.schedule());
 
-  turboshaft::BuiltinPipeline turboshaft_pipeline(&turboshaft_data_.value());
   CallDescriptor* call_descriptor = raw_assembler()->call_descriptor();
   Linkage linkage(call_descriptor);
+  turboshaft::BuiltinPipeline turboshaft_pipeline(&turboshaft_data_.value(),
+                                                  &linkage);
 
   CHECK(
       turboshaft_pipeline.CreateGraphFromTurbofan(&pipeline_->data, &linkage));
@@ -2633,7 +2636,8 @@ Handle<Code> CodeAssemblerTurboshaftCompilationJob::FinalizeCode(
     Isolate* isolate) {
   PipelineJobScope scope(&pipeline_->data,
                          isolate->counters()->runtime_call_stats());
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_.value());
+  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_.value(),
+                                           turboshaft::kNoLinkage);
   turboshaft::Tracing::Scope tracing_scope(pipeline_->data.info());
   return turboshaft_pipeline.FinalizeCode().ToHandleChecked();
 }
@@ -2737,6 +2741,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
     const ProfileDataFromFile* profile_data) {
   DCHECK_EQ(builtin, turboshaft_data->info()->builtin());
   Isolate* isolate = turboshaft_data->isolate();
+  Linkage linkage(call_descriptor);
 
 #if V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 // TODO(nicohartmann): Use during development and remove afterwards.
@@ -2763,7 +2768,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
       CreatePipelineStatistics(Handle<Script>::null(), turboshaft_data->info(),
                                isolate, turboshaft_data->zone_stats()));
 
-  turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data);
+  turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data, &linkage);
   OptimizedCompilationInfo* info = turboshaft_data->info();
   if (info->trace_turbo_graph() || info->trace_turbo_json()) {
     turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
@@ -2780,7 +2785,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
       ValidateProfileData(profile_data, initial_graph_hash, debug_name);
 
   turboshaft_pipeline.OptimizeBuiltin();
-  Linkage linkage(call_descriptor);
   CHECK(turboshaft_pipeline.GenerateCode(&linkage, {}, jump_optimization_info,
                                          profile_data, initial_graph_hash));
   return turboshaft_pipeline.FinalizeCode();
@@ -2790,6 +2794,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     turboshaft::PipelineData* turboshaft_data, CallDescriptor* call_descriptor,
     const char* debug_name) {
   Isolate* isolate = turboshaft_data->isolate();
+  Linkage linkage(call_descriptor);
 
   PipelineJobScope scope(turboshaft_data,
                          isolate->counters()->runtime_call_stats());
@@ -2799,7 +2804,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
       CreatePipelineStatistics(Handle<Script>::null(), turboshaft_data->info(),
                                isolate, turboshaft_data->zone_stats()));
 
-  turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data);
+  turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data, &linkage);
   OptimizedCompilationInfo* info = turboshaft_data->info();
   if (info->trace_turbo_graph() || info->trace_turbo_json()) {
     turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
@@ -2811,7 +2816,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
   turboshaft_pipeline.OptimizeBuiltin();
 
-  Linkage linkage(call_descriptor);
   CHECK(turboshaft_pipeline.GenerateCode(&linkage, {}, nullptr, nullptr, 0));
   return turboshaft_pipeline.FinalizeCode();
 }
@@ -2911,7 +2915,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   turboshaft::PipelineData turboshaft_data(
       &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, &info,
       options);
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data);
+  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data, &linkage);
 
   CHECK(turboshaft_pipeline.CreateGraphFromTurbofan(&data, &linkage));
   // We need to run simplification to normalize some patterns for instruction
@@ -2999,7 +3003,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
     // wrappers.
     // TODO(14108): Do we need value numbering if wasm_opt is turned off?
-    turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data);
+    turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data, &linkage);
     if (v8_flags.wasm_opt) {
       CHECK(turboshaft_pipeline.Run<turboshaft::WasmOptimizePhase>());
     }
@@ -3192,7 +3196,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
                                    code_tracer, "Graph generation");
 
   data.BeginPhaseKind("V8.WasmOptimization");
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data);
+  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data, &linkage);
 
 #if defined(V8_ENABLE_WASM_SIMD256_REVEC) && defined(V8_TARGET_ARCH_X64)
   if (v8_flags.experimental_wasm_revectorize) {
@@ -3380,15 +3384,14 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
                                &zone_stats));
 
   TFPipelineData data(&zone_stats, isolate, info, pipeline_statistics.get());
+  Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
   turboshaft::PipelineData turboshaft_data(
       &zone_stats, turboshaft::TurboshaftPipelineKind::kJS, isolate, info,
       AssemblerOptions::Default(isolate));
   turboshaft_data.set_pipeline_statistics(pipeline_statistics.get());
   PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
   PipelineImpl pipeline(&data);
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data);
-
-  Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
+  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data, &linkage);
 
   {
     CompilationHandleScope compilation_scope(isolate, info);
@@ -3447,6 +3450,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   }
 #endif
   // Construct a pipeline for scheduling and code generation.
+  Linkage linkage(call_descriptor);
   ZoneStats zone_stats(isolate->allocator());
   NodeOriginTable* node_positions = info->zone()->New<NodeOriginTable>(graph);
   TFPipelineData data(&zone_stats, info, isolate, isolate->allocator(), graph,
@@ -3464,7 +3468,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   }
 
   PipelineImpl pipeline(&data);
-  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data);
+  turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data, &linkage);
 
   if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
@@ -3478,8 +3482,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   if (data.schedule() == nullptr) {
     CHECK(pipeline.ComputeScheduledGraph());
   }
-
-  Linkage linkage(call_descriptor);
 
   // We convert the turbofan graph to turboshaft.
   if (!turboshaft_pipeline.CreateGraphFromTurbofan(&data, &linkage)) {
@@ -3518,7 +3520,8 @@ MaybeHandle<Code> Pipeline::GenerateTurboshaftCodeForTesting(
     pipeline_statistics->BeginPhaseKind("V8.TFTestCodegen");
   }
 
-  turboshaft::Pipeline pipeline(data);
+  Linkage linkage(call_descriptor);
+  turboshaft::Pipeline pipeline(data, &linkage);
 
   if (info->trace_turbo_json()) {
     {

@@ -1747,6 +1747,9 @@ DEFINE_BOOL(
 
 DEFINE_BOOL(turboshaft_verify_load_elimination, false,
             "insert runtime checks to verify Late Load Elimination")
+DEFINE_EXPERIMENTAL_FEATURE(turboshaft_load_store_verification,
+                            "insert runtime checks to verify the "
+                            "representation of loaded/stored values")
 DEFINE_IMPLICATION(turboshaft_verify_load_elimination,
                    deduplicate_heap_number_requests)
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
@@ -1791,6 +1794,9 @@ DEFINE_BOOL_READONLY(turboshaft_trace_load_elimination, false,
                      "trace Turboshaft's late load elimination")
 DEFINE_BOOL_READONLY(turboshaft_trace_if_else_to_switch, false,
                      "trace Turboshaft's if-else to switch reducer")
+DEFINE_BOOL_READONLY(turboshaft_load_store_verification, false,
+                     "insert runtime checks to verify the representation of "
+                     "loaded/stored values")
 #endif  // DEBUG
 
 DEFINE_BOOL(profile_guided_optimization, true, "profile guided optimization")

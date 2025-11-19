@@ -3837,8 +3837,13 @@ class MachineLoweringReducer : public Next {
         __ template Allocate<SeqTwoByteString>(
             SeqTwoByteString::SizeFor(length), type, kTaggedAligned);
     // Set padding to 0.
-    __ Initialize(string, __ IntPtrConstant(0),
-                  MemoryRepresentation::TaggedSigned(),
+    __ Initialize(string,
+#if V8_COMPRESS_POINTERS
+                  __ Word32Constant(0), MemoryRepresentation::Uint32(),
+#else
+                  __ WordPtrConstant(0), MemoryRepresentation::UintPtr(),
+
+#endif
                   WriteBarrierKind::kNoWriteBarrier,
                   SeqTwoByteString::SizeFor(length) - kObjectAlignment);
     // Initialize remaining fields.

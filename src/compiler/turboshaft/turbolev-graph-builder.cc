@@ -30,6 +30,7 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
@@ -5256,8 +5257,10 @@ class GraphBuildingNodeProcessor {
     V<FixedArray> array = Map(node->array_input());
     V<Object> result =
         __ LoadTaggedField(array, FixedArray::OffsetOfElementAt(node->index()));
-    __ Store(array, Map(node->stale_input()), StoreOp::Kind::TaggedBase(),
-             MemoryRepresentation::TaggedSigned(),
+    V<HeapObject> stale = Map(node->stale_input());
+    DCHECK(__ Get(stale).Is<Opmask::kHeapConstant>());
+    __ Store(array, stale, StoreOp::Kind::TaggedBase(),
+             MemoryRepresentation::TaggedPointer(),
              WriteBarrierKind::kNoWriteBarrier,
              FixedArray::OffsetOfElementAt(node->index()));
 

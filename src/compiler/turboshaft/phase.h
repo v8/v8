@@ -408,6 +408,9 @@ class V8_EXPORT_PRIVATE PipelineData {
     pipeline_statistics_ = pipeline_statistics;
   }
 
+  const Linkage* linkage() const { return linkage_; }
+  void set_linkage(const Linkage* linkage) { linkage_ = linkage; }
+
 #if V8_ENABLE_WEBASSEMBLY
   // Module-specific signature: type indices are only valid in the WasmModule*
   // they belong to.
@@ -524,6 +527,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   MaybeIndirectHandle<Code> code_;
   std::string source_position_output_;
   RuntimeCallStats* runtime_call_stats_ = nullptr;
+  const Linkage* linkage_ = nullptr;
   // Components
   std::optional<BuiltinComponent> builtin_component_;
   std::optional<GraphComponent> graph_component_;
