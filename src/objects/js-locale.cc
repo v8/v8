@@ -555,7 +555,7 @@ MaybeDirectHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
   icu::Locale result = icu::Locale::createFromName(source.getBaseName());
   UErrorCode status = U_ZERO_ERROR;
   result.minimizeSubtags(status);
-  if (strlen(source.getBaseName()) != strlen(result.getBaseName())) {
+  if (strcmp(source.getBaseName(), result.getBaseName()) != 0) {
     // Base name is changed
     if (strlen(source.getBaseName()) != strlen(source.getName())) {
       // the source has extensions, get the extensions from the source.

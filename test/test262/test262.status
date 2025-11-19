@@ -250,9 +250,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # intl402
-  'intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags': [FAIL],
-
   # Begin Temporal test expectations
   # Temporal work is tracked in b/42201538
 
