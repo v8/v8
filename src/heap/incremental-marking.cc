@@ -194,26 +194,6 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   current_trace_id_.emplace(reinterpret_cast<uint64_t>(this) ^
                             heap_->tracer()->CurrentEpoch());
 
-  TRACE_EVENT(
-      "v8",
-      perfetto::StaticString(is_major ? "V8.GCIncrementalMarkingStart"
-                                      : "V8.GCMinorIncrementalMarkingStart"),
-      "value", [&](perfetto::TracedValue ctx) {
-        auto dict = std::move(ctx).WriteDictionary();
-        dict.Add("epoch", heap_->tracer()->CurrentEpoch());
-        dict.Add("gc_reason", ToString(gc_reason));
-        dict.Add("reason", reason);
-        dict.Add("old_gen_allocation_limit",
-                 heap_->old_generation_allocation_limit());
-        dict.Add("old_gen_consumed_bytes", heap_->OldGenerationConsumedBytes());
-        dict.Add("old_gen_allocation_limit_consumed_bytes",
-                 heap_->OldGenerationAllocationLimitConsumedBytes());
-        dict.Add("old_gen_space_available",
-                 heap_->OldGenerationSpaceAvailable());
-        dict.Add("global_allocation_limit", heap_->global_allocation_limit());
-        dict.Add("global_consumed_bytes", heap_->GlobalConsumedBytes());
-        dict.Add("global_memory_available", heap_->GlobalMemoryAvailable());
-      });
   TRACE_GC_EPOCH_WITH_FLOW(heap()->tracer(), scope_id, ThreadKind::kMain,
                            current_trace_id_.value(),
                            TRACE_EVENT_FLAG_FLOW_OUT);

@@ -1961,6 +1961,28 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
     return;
   }
 
+  TRACE_EVENT(
+      "v8",
+      perfetto::StaticString(IsYoungGenerationCollector(collector)
+                                 ? "V8.GCMinorIncrementalMarkingStart"
+                                 : "V8.GCIncrementalMarkingStart"),
+      "value", [this, reason, gc_reason](perfetto::TracedValue ctx) {
+        auto dict = std::move(ctx).WriteDictionary();
+        // Do not emit an epoch on purpose here because finishing sweeping and
+        // starting the next marking cycle (which are both within this scope)
+        // have different epochs.
+        dict.Add("gc_reason", ToString(gc_reason));
+        dict.Add("reason", reason);
+        dict.Add("old_gen_allocation_limit", old_generation_allocation_limit());
+        dict.Add("old_gen_consumed_bytes", OldGenerationConsumedBytes());
+        dict.Add("old_gen_allocation_limit_consumed_bytes",
+                 OldGenerationAllocationLimitConsumedBytes());
+        dict.Add("old_gen_space_available", OldGenerationSpaceAvailable());
+        dict.Add("global_allocation_limit", global_allocation_limit());
+        dict.Add("global_consumed_bytes", GlobalConsumedBytes());
+        dict.Add("global_memory_available", GlobalMemoryAvailable());
+      });
+
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung(CompleteSweepingReason::kStartMarking);
   } else {
