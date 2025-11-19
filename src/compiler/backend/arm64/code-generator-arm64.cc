@@ -734,47 +734,6 @@ void EmitFpOrNeonUnop(MacroAssembler* masm, Fn fn, Instruction* instr,
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 0, 1); \
   } while (0)
 
-// If shift value is an immediate, we can call asm_imm, taking the shift value
-// modulo 2^width. Otherwise, emit code to perform the modulus operation, and
-// call asm_shl.
-#define ASSEMBLE_SIMD_SHIFT_LEFT(asm_imm, width, format, asm_shl, gp)       \
-  do {                                                                      \
-    if (instr->InputAt(1)->IsImmediate()) {                                 \
-      __ asm_imm(i.OutputSimd128Register().format(),                        \
-                 i.InputSimd128Register(0).format(), i.InputInt##width(1)); \
-    } else {                                                                \
-      UseScratchRegisterScope temps(masm());                                \
-      VRegister tmp = temps.AcquireQ();                                     \
-      Register shift = temps.Acquire##gp();                                 \
-      constexpr int mask = (1 << width) - 1;                                \
-      __ And(shift, i.InputRegister32(1), mask);                            \
-      __ Dup(tmp.format(), shift);                                          \
-      __ asm_shl(i.OutputSimd128Register().format(),                        \
-                 i.InputSimd128Register(0).format(), tmp.format());         \
-    }                                                                       \
-  } while (0)
-
-// If shift value is an immediate, we can call asm_imm, taking the shift value
-// modulo 2^width. Otherwise, emit code to perform the modulus operation, and
-// call asm_shl, passing in the negative shift value (treated as right shift).
-#define ASSEMBLE_SIMD_SHIFT_RIGHT(asm_imm, width, format, asm_shl, gp)      \
-  do {                                                                      \
-    if (instr->InputAt(1)->IsImmediate()) {                                 \
-      __ asm_imm(i.OutputSimd128Register().format(),                        \
-                 i.InputSimd128Register(0).format(), i.InputInt##width(1)); \
-    } else {                                                                \
-      UseScratchRegisterScope temps(masm());                                \
-      VRegister tmp = temps.AcquireQ();                                     \
-      Register shift = temps.Acquire##gp();                                 \
-      constexpr int mask = (1 << width) - 1;                                \
-      __ And(shift, i.InputRegister32(1), mask);                            \
-      __ Dup(tmp.format(), shift);                                          \
-      __ Neg(tmp.format(), tmp.format());                                   \
-      __ asm_shl(i.OutputSimd128Register().format(),                        \
-                 i.InputSimd128Register(0).format(), tmp.format());         \
-    }                                                                       \
-  } while (0)
-
 void CodeGenerator::AssembleDeconstructFrame() {
   __ Mov(sp, fp);
   __ Pop<MacroAssembler::kAuthLR>(fp, lr);
@@ -3200,12 +3159,77 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, i.InputInt8(1), src2);
       break;
     }
-    case kArm64I64x2Shl: {
-      ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 6, V2D, Sshl, X);
+    case kArm64IShl: {
+      // If shift value is an immediate, we can call Shl, taking the shift
+      // value modulo 2^width. Otherwise, emit code to perform the modulus
+      // operation, and call Sshl.
+      const int lane_size = LaneSizeField::decode(opcode);
+      VectorFormat format = VectorFormatFillQ(lane_size);
+      if (instr->InputAt(1)->IsImmediate()) {
+        __ Shl(i.OutputSimd128Register().Format(format),
+               i.InputSimd128Register(0).Format(format),
+               i.InputIntFromLaneSize(1, lane_size));
+      } else {
+        UseScratchRegisterScope temps(masm());
+        VRegister tmp = temps.AcquireQ();
+        Register shift =
+            (lane_size == 64) ? temps.AcquireX() : temps.AcquireW();
+        int mask = lane_size - 1;
+        __ And(shift, i.InputRegister32(1), mask);
+        __ Dup(tmp.Format(format), shift);
+        __ Sshl(i.OutputSimd128Register().Format(format),
+                i.InputSimd128Register(0).Format(format), tmp.Format(format));
+      }
       break;
     }
-    case kArm64I64x2ShrS: {
-      ASSEMBLE_SIMD_SHIFT_RIGHT(Sshr, 6, V2D, Sshl, X);
+    case kArm64IShrS: {
+      // If shift value is an immediate, we can call Sshr, taking the shift
+      // value modulo 2^width. Otherwise, emit code to perform the modulus
+      // operation, and call Sshl, passing in the negative shift value (treated
+      // as right shift).
+      const int lane_size = LaneSizeField::decode(opcode);
+      VectorFormat format = VectorFormatFillQ(lane_size);
+      if (instr->InputAt(1)->IsImmediate()) {
+        __ Sshr(i.OutputSimd128Register().Format(format),
+                i.InputSimd128Register(0).Format(format),
+                i.InputIntFromLaneSize(1, lane_size));
+      } else {
+        UseScratchRegisterScope temps(masm());
+        VRegister tmp = temps.AcquireQ();
+        Register shift =
+            (lane_size == 64) ? temps.AcquireX() : temps.AcquireW();
+        int mask = lane_size - 1;
+        __ And(shift, i.InputRegister32(1), mask);
+        __ Dup(tmp.Format(format), shift);
+        __ Neg(tmp.Format(format), tmp.Format(format));
+        __ Sshl(i.OutputSimd128Register().Format(format),
+                i.InputSimd128Register(0).Format(format), tmp.Format(format));
+      }
+      break;
+    }
+    case kArm64IShrU: {
+      // If shift value is an immediate, we can call Ushr, taking the shift
+      // value modulo 2^width. Otherwise, emit code to perform the modulus
+      // operation, and call Ushl, passing in the negative shift value (treated
+      // as right shift).
+      const int lane_size = LaneSizeField::decode(opcode);
+      VectorFormat format = VectorFormatFillQ(lane_size);
+      if (instr->InputAt(1)->IsImmediate()) {
+        __ Ushr(i.OutputSimd128Register().Format(format),
+                i.InputSimd128Register(0).Format(format),
+                i.InputIntFromLaneSize(1, lane_size));
+      } else {
+        UseScratchRegisterScope temps(masm());
+        VRegister tmp = temps.AcquireQ();
+        Register shift =
+            (lane_size == 64) ? temps.AcquireX() : temps.AcquireW();
+        int mask = lane_size - 1;
+        __ And(shift, i.InputRegister32(1), mask);
+        __ Dup(tmp.Format(format), shift);
+        __ Neg(tmp.Format(format), tmp.Format(format));
+        __ Ushl(i.OutputSimd128Register().Format(format),
+                i.InputSimd128Register(0).Format(format), tmp.Format(format));
+      }
       break;
     }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAdd, Add);
@@ -3286,29 +3310,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_CM_L_CASE(kArm64ILeS, le);
       SIMD_CM_G_CASE(kArm64IGtS, gt);
       SIMD_CM_G_CASE(kArm64IGeS, ge);
-    case kArm64I64x2ShrU: {
-      ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 6, V2D, Ushl, X);
-      break;
-    }
     case kArm64I64x2BitMask: {
       __ I64x2BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
       SIMD_UNOP_CASE(kArm64I32x4SConvertF32x4, Fcvtzs, 4S);
-    case kArm64I32x4Shl: {
-      ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 5, V4S, Sshl, W);
-      break;
-    }
-    case kArm64I32x4ShrS: {
-      ASSEMBLE_SIMD_SHIFT_RIGHT(Sshr, 5, V4S, Sshl, W);
-      break;
-    }
       SIMD_BINOP_CASE(kArm64I32x4Mul, Mul, 4S);
       SIMD_UNOP_CASE(kArm64I32x4UConvertF32x4, Fcvtzu, 4S);
-    case kArm64I32x4ShrU: {
-      ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 5, V4S, Ushl, W);
-      break;
-    }
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IGtU, Cmhi);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IGeU, Cmhs);
     case kArm64I32x4BitMask: {
@@ -3401,14 +3409,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt8(1));
       break;
     }
-    case kArm64I16x8Shl: {
-      ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 4, V8H, Sshl, W);
-      break;
-    }
-    case kArm64I16x8ShrS: {
-      ASSEMBLE_SIMD_SHIFT_RIGHT(Sshr, 4, V8H, Sshl, W);
-      break;
-    }
     case kArm64I16x8SConvertI32x4: {
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
@@ -3426,10 +3426,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IAddSatS, Sqadd);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISubSatS, Sqsub);
       SIMD_BINOP_CASE(kArm64I16x8Mul, Mul, 8H);
-    case kArm64I16x8ShrU: {
-      ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 4, V8H, Ushl, W);
-      break;
-    }
     case kArm64I16x8UConvertI32x4: {
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
@@ -3451,14 +3447,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I16x8BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
-    case kArm64I8x16Shl: {
-      ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 3, V16B, Sshl, W);
-      break;
-    }
-    case kArm64I8x16ShrS: {
-      ASSEMBLE_SIMD_SHIFT_RIGHT(Sshr, 3, V16B, Sshl, W);
-      break;
-    }
     case kArm64I8x16SConvertI16x8: {
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
@@ -3471,10 +3459,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       __ Sqxtn(dst.V8B(), src0.V8H());
       __ Sqxtn2(dst.V16B(), src1.V8H());
-      break;
-    }
-    case kArm64I8x16ShrU: {
-      ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 3, V16B, Ushl, W);
       break;
     }
     case kArm64I8x16UConvertI16x8: {
@@ -3849,8 +3833,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef SIMD_DESTRUCTIVE_BINOP_LANE_SIZE_CASE
 #undef SIMD_DESTRUCTIVE_RELAXED_FUSED_CASE
 #undef SIMD_REDUCE_OP_CASE
-#undef ASSEMBLE_SIMD_SHIFT_LEFT
-#undef ASSEMBLE_SIMD_SHIFT_RIGHT
 
 // Assemble branches after this instruction.
 void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {

@@ -219,7 +219,7 @@ void VisitRR(InstructionSelector* selector, InstructionCode opcode,
   selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
-void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
+void VisitSimdShiftRRR(InstructionSelector* selector, InstructionCode opcode,
                        OpIndex node, int width) {
   Arm64OperandGenerator g(selector);
   const Operation& op = selector->Get(node);
@@ -4755,18 +4755,18 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(I8x16Neg, kArm64INeg, 8)
 
 #define SIMD_SHIFT_OP_LIST(V) \
-  V(I64x2Shl, 64)             \
-  V(I64x2ShrS, 64)            \
-  V(I64x2ShrU, 64)            \
-  V(I32x4Shl, 32)             \
-  V(I32x4ShrS, 32)            \
-  V(I32x4ShrU, 32)            \
-  V(I16x8Shl, 16)             \
-  V(I16x8ShrS, 16)            \
-  V(I16x8ShrU, 16)            \
-  V(I8x16Shl, 8)              \
-  V(I8x16ShrS, 8)             \
-  V(I8x16ShrU, 8)
+  V(I64x2Shl, IShl, 64)       \
+  V(I32x4Shl, IShl, 32)       \
+  V(I16x8Shl, IShl, 16)       \
+  V(I8x16Shl, IShl, 8)        \
+  V(I64x2ShrS, IShrS, 64)     \
+  V(I32x4ShrS, IShrS, 32)     \
+  V(I16x8ShrS, IShrS, 16)     \
+  V(I8x16ShrS, IShrS, 8)      \
+  V(I64x2ShrU, IShrU, 64)     \
+  V(I32x4ShrU, IShrU, 32)     \
+  V(I16x8ShrU, IShrU, 16)     \
+  V(I8x16ShrU, IShrU, 8)
 
 #define SIMD_BINOP_LIST(V)                        \
   V(I32x4Mul, kArm64I32x4Mul)                     \
@@ -5062,9 +5062,11 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_SHIFT_OP(Name, width)                \
-  void InstructionSelector::Visit##Name(OpIndex node) { \
-    VisitSimdShiftRRR(this, kArm64##Name, node, width); \
+#define SIMD_VISIT_SHIFT_OP(Name, instruction, width)                     \
+  void InstructionSelector::Visit##Name(OpIndex node) {                   \
+    VisitSimdShiftRRR(this,                                               \
+                      kArm64##instruction | LaneSizeField::encode(width), \
+                      node, width);                                       \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
