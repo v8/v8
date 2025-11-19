@@ -570,13 +570,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   friend class VectorUnit;
   class VectorUnit {
    public:
-    inline int32_t sew() const { return 1 << (sew_ + 3); }
+    inline VSew sew() const { return sew_; }
+    inline int32_t sew_bits() const { return 1 << (sew_ + 3); }
 
     inline int32_t vlmax() const {
       if ((lmul_ & 0b100) != 0) {
-        return (CpuFeatures::vlen() / sew()) >> (lmul_ & 0b11);
+        return (CpuFeatures::vlen() / sew_bits()) >> (lmul_ & 0b11);
       } else {
-        return ((CpuFeatures::vlen() << lmul_) / sew());
+        return ((CpuFeatures::vlen() << lmul_) / sew_bits());
       }
     }
 
@@ -614,6 +615,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       avl_ = -1;
       sew_ = sew;
       lmul_ = lmul;
+    }
+
+    bool IsConfiguredForSimd128() const {
+      int32_t expected_avl = 128 / sew_bits();
+      return (avl_ == expected_avl);
     }
 
     void SetSimd128(VSew sew, TailAgnosticType tail = ta) {

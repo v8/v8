@@ -1006,7 +1006,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadDouble(
       FPURegister fd, const MemOperand& src, Trapper&& trapper = [](int){});
   void StoreDouble(
-      FPURegister fs, const MemOperand& dst, Trapper&& trapper = [](int){});
+      FPURegister fs, const MemOperand& dst, Trapper&& trapper = [](int) {});
 
   void Ll(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Sc(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
@@ -1547,6 +1547,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // It assumes that the arguments are located below the stack pointer.
   void LoadReceiver(Register dest) { LoadWord(dest, MemOperand(sp, 0)); }
   void StoreReceiver(Register rec) { StoreWord(rec, MemOperand(sp, 0)); }
+
+  // Requires the vector unit to be configured for 128-bit SIMD.
+  void StoreSimd128(
+      VRegister vs, MemOperand dst, Trapper&& trapper = [](int) {});
+  // Requires the vector unit to be configured for 128-bit SIMD.
+  void LoadSimd128(
+      VRegister vd, MemOperand src, Trapper&& trapper = [](int) {});
 
   bool IsNear(Label* L, Condition cond, int rs_reg);
 

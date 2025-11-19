@@ -3630,7 +3630,7 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   // they also satisfy (scratch2 - kFloatExponentBias >= kFloatMantissaBits),
   // and JS round semantics specify that rounding of NaN (Infinity) returns NaN
   // (Infinity), so NaN and Infinity are considered rounded value too.
-  int32_t sew = VU.sew();
+  int32_t sew = VU.sew_bits();
   DCHECK((sew == 32) || (sew == 64));
   const int kFloatMantissaBits =
       sew == 32 ? kFloat32MantissaBits : kFloat64MantissaBits;
@@ -6145,6 +6145,31 @@ void MacroAssembler::StoreLane(VSew sew, VRegister src, uint8_t laneidx,
     UNREACHABLE();
   }
 }
+
+void MacroAssembler::StoreSimd128(VRegister reg_src, MemOperand dst,
+                                  Trapper&& trapper) {
+  DCHECK(VU.IsConfiguredForSimd128());
+  trapper(pc_offset());
+  if (dst.offset() != 0) {
+    AddWord(kScratchReg, dst.rm(), Operand(dst.offset()));
+    vs(reg_src, kScratchReg, 0, VU.sew());
+  } else {
+    vs(reg_src, dst.rm(), 0, VU.sew());
+  }
+}
+
+void MacroAssembler::LoadSimd128(VRegister vd, MemOperand src,
+                                 Trapper&& trapper) {
+  DCHECK(VU.IsConfiguredForSimd128());
+  trapper(pc_offset());
+  if (src.offset() != 0) {
+    AddWord(kScratchReg, src.rm(), Operand(src.offset()));
+    vl(vd, kScratchReg, 0, VU.sew());
+  } else {
+    vl(vd, src.rm(), 0, VU.sew());
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Runtime calls.
 void MacroAssembler::AddOverflowWord(Register dst, Register left,
