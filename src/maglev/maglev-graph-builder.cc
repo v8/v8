@@ -216,7 +216,7 @@ class CallArguments {
     }
     DCHECK_IMPLIES(args_.size() == 0,
                    receiver_mode == ConvertReceiverMode::kNullOrUndefined);
-    DCHECK_IMPLIES(mode != kDefault,
+    DCHECK_IMPLIES(mode == kWithArrayLike,
                    receiver_mode == ConvertReceiverMode::kAny);
     DCHECK_IMPLIES(mode == kWithArrayLike, args_.size() == 2);
   }
@@ -12379,7 +12379,6 @@ ReduceResult MaglevGraphBuilder::BuildGenericConstruct(
     ValueNode* target, ValueNode* new_target, ValueNode* context,
     const CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
-  size_t input_count = args.count_with_receiver() + Construct::kFixedInputCount;
   DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kNullOrUndefined);
   ValueNode* tagged_target;
   GET_VALUE_OR_ABORT(tagged_target, GetTaggedValue(target));
@@ -12387,22 +12386,17 @@ ReduceResult MaglevGraphBuilder::BuildGenericConstruct(
   GET_VALUE(tagged_new_target, GetTaggedValue(new_target));
   ValueNode* tagged_context;
   GET_VALUE(tagged_context, GetTaggedValue(context));
-
-  return AddNewNode<Construct>(
-      input_count,
-      [&](Construct* construct) {
-        int arg_index = 0;
-        // Add undefined receiver.
-        construct->set_arg(arg_index++,
-                           GetRootConstant(RootIndex::kUndefinedValue));
-        for (size_t i = 0; i < args.count(); i++) {
-          ValueNode* tagged_arg;
-          GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(args[i]));
-          construct->set_arg(arg_index++, tagged_arg);
-        }
-        return ReduceResult::Done();
-      },
-      feedback_source, tagged_target, tagged_new_target, tagged_context);
+  switch (args.mode()) {
+    case CallArguments::kDefault:
+      return AddNewCallNode<Construct>(args, feedback_source, tagged_target,
+                                       tagged_new_target, tagged_context);
+    case CallArguments::kWithSpread:
+      return AddNewCallNode<ConstructWithSpread>(
+          args, feedback_source, tagged_target, tagged_new_target,
+          tagged_context);
+    case CallArguments::kWithArrayLike:
+      UNREACHABLE();
+  }
 }
 
 ReduceResult MaglevGraphBuilder::BuildAndAllocateKeyValueArray(
@@ -13007,37 +13001,13 @@ ReduceResult MaglevGraphBuilder::VisitConstruct() {
 
 ReduceResult MaglevGraphBuilder::VisitConstructWithSpread() {
   ValueNode* new_target = GetAccumulator();
-  ValueNode* constructor = LoadRegister(0);
-  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
-  ValueNode* context = GetContext();
+  ValueNode* target = LoadRegister(0);
+  interpreter::RegisterList reglist = iterator_.GetRegisterListOperand(1);
   FeedbackSlot slot = GetSlotOperand(3);
   compiler::FeedbackSource feedback_source(feedback(), slot);
-
-  int kReceiver = 1;
-  size_t input_count =
-      args.register_count() + kReceiver + ConstructWithSpread::kFixedInputCount;
-  ValueNode* tagged_constructor;
-  GET_VALUE_OR_ABORT(tagged_constructor, GetTaggedValue(constructor));
-  ValueNode* tagged_new_target;
-  GET_VALUE(tagged_new_target, GetTaggedValue(new_target));
-  ValueNode* tagged_context;
-  GET_VALUE(tagged_context, GetTaggedValue(context));
-
-  return SetAccumulator(AddNewNode<ConstructWithSpread>(
-      input_count,
-      [&](ConstructWithSpread* construct) {
-        int arg_index = 0;
-        // Add undefined receiver.
-        construct->set_arg(arg_index++,
-                           GetRootConstant(RootIndex::kUndefinedValue));
-        for (int i = 0; i < args.register_count(); i++) {
-          ValueNode* tagged_arg;
-          GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(args[i]));
-          construct->set_arg(arg_index++, tagged_arg);
-        }
-        return ReduceResult::Done();
-      },
-      feedback_source, tagged_constructor, tagged_new_target, tagged_context));
+  CallArguments args(ConvertReceiverMode::kNullOrUndefined, reglist,
+                     current_interpreter_frame_, CallArguments::kWithSpread);
+  return BuildConstruct(target, new_target, args, feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::VisitConstructForwardAllArgs() {
