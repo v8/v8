@@ -1821,7 +1821,7 @@ int32_t ClampToUint8(int32_t value) {
 }  // namespace
 
 ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
-  switch (value->properties().value_representation()) {
+  switch (value->value_representation()) {
     case ValueRepresentation::kIntPtr:
       // This is not an efficient implementation, but this only happens in
       // corner cases.
@@ -1842,8 +1842,10 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
     // NaN, so we'll simply truncate away the NaN-ness of the hole, and don't
     // need to do extra oddball checks (though we'll miss updating the
     // feedback).
-    case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
+      value = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({value});
+      [[fallthrough]];
+    case ValueRepresentation::kFloat64:
       // TODO(leszeks): Handle Float64Constant, which requires the correct
       // rounding for clamping.
       return AddNewNodeNoInputConversion<Float64ToUint8Clamped>({value});
@@ -10793,8 +10795,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
           break;
       }
       break;
-    case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
+      arg = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({arg});
+      [[fallthrough]];
+    case ValueRepresentation::kFloat64:
       return AddNewNode<Float64Abs>({arg});
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
@@ -10832,6 +10836,9 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
   }
   if (arg_repr == ValueRepresentation::kFloat64 ||
       arg_repr == ValueRepresentation::kHoleyFloat64) {
+    if (arg_repr == ValueRepresentation::kHoleyFloat64) {
+      arg = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({arg});
+    }
     return AddNewNode<Float64Round>({arg}, kind);
   }
   DCHECK_EQ(arg_repr, ValueRepresentation::kTagged);
@@ -13331,8 +13338,10 @@ ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
   }
 
   switch (value->value_representation()) {
-    case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
+      value = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({value});
+      [[fallthrough]];
+    case ValueRepresentation::kFloat64:
       // The ToBoolean of both the_hole and NaN is false, so we can use the
       // same operation for HoleyFloat64 and Float64.
       return AddNewNodeNoInputConversion<Float64ToBoolean>({value}, flip);
