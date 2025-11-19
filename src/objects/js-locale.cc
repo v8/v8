@@ -601,8 +601,12 @@ MaybeDirectHandle<JSArray> GetKeywordValuesFromLocale(
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  return Intl::ToJSArray(isolate, unicode_key, enumeration.get(), removes,
-                         sort);
+  return Intl::ToJSArray(
+      isolate,
+      [unicode_key](const char* value) {
+        return std::string(uloc_toUnicodeLocaleType(unicode_key, value));
+      },
+      enumeration.get(), removes, sort);
 }
 
 namespace {

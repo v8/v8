@@ -2185,8 +2185,12 @@ MaybeDirectHandle<JSArray> AvailableCollations(Isolate* isolate) {
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  return Intl::ToJSArray(isolate, "co", enumeration.get(),
-                         Intl::RemoveCollation, true);
+  return Intl::ToJSArray(
+      isolate,
+      [](const char* value) {
+        return std::string(uloc_toUnicodeLocaleType("co", value));
+      },
+      enumeration.get(), Intl::RemoveCollation, true);
 }
 
 MaybeDirectHandle<JSArray> VectorToJSArray(
@@ -2268,7 +2272,11 @@ MaybeDirectHandle<JSArray> AvailableNumberingSystems(Isolate* isolate) {
   }
   // Need to filter out isAlgorithmic
   return Intl::ToJSArray(
-      isolate, "nu", enumeration.get(),
+      isolate,
+      [](const char* value) {
+        return std::string(uloc_toUnicodeLocaleType("nu", value));
+      },
+      enumeration.get(),
       [](const char* value) {
         UErrorCode status = U_ZERO_ERROR;
         std::unique_ptr<icu::NumberingSystem> numbering_system(
@@ -2904,7 +2912,7 @@ MaybeDirectHandle<String> Intl::FormattedToString(
 }
 
 MaybeDirectHandle<JSArray> Intl::ToJSArray(
-    Isolate* isolate, const char* unicode_key,
+    Isolate* isolate, const std::function<std::string(const char*)>& transforms,
     icu::StringEnumeration* enumeration,
     const std::function<bool(const char*)>& removes, bool sort) {
   UErrorCode status = U_ZERO_ERROR;
@@ -2912,11 +2920,12 @@ MaybeDirectHandle<JSArray> Intl::ToJSArray(
   for (const char* item = enumeration->next(nullptr, status);
        U_SUCCESS(status) && item != nullptr;
        item = enumeration->next(nullptr, status)) {
-    if (unicode_key != nullptr) {
-      item = uloc_toUnicodeLocaleType(unicode_key, item);
+    std::string current(item);
+    if (transforms != nullptr) {
+      current = (transforms)(item);
     }
-    if (removes == nullptr || !(removes)(item)) {
-      array.push_back(item);
+    if (removes == nullptr || !(removes)(current.c_str())) {
+      array.push_back(current);
     }
   }
 
