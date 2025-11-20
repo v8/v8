@@ -95,34 +95,85 @@ int ObjectBoilerplateDescription::boilerplate_properties_count() const {
 // ClassBoilerplate
 //
 
-OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, Struct)
+int ClassBoilerplate::arguments_count() const {
+  return arguments_count_.load().value();
+}
+void ClassBoilerplate::set_arguments_count(int value) {
+  arguments_count_.store(this, Smi::FromInt(value));
+}
 
-SMI_ACCESSORS(ClassBoilerplate, arguments_count, kArgumentsCountOffset)
-ACCESSORS(ClassBoilerplate, static_properties_template, Tagged<Object>,
-          kStaticPropertiesTemplateOffset)
-ACCESSORS(ClassBoilerplate, static_elements_template, Tagged<Object>,
-          kStaticElementsTemplateOffset)
-ACCESSORS(ClassBoilerplate, static_computed_properties, Tagged<FixedArray>,
-          kStaticComputedPropertiesOffset)
-ACCESSORS(ClassBoilerplate, instance_properties_template, Tagged<Object>,
-          kInstancePropertiesTemplateOffset)
-ACCESSORS(ClassBoilerplate, instance_elements_template, Tagged<Object>,
-          kInstanceElementsTemplateOffset)
-ACCESSORS(ClassBoilerplate, instance_computed_properties, Tagged<FixedArray>,
-          kInstanceComputedPropertiesOffset)
+Tagged<Object> ClassBoilerplate::static_properties_template() const {
+  return static_properties_template_.load();
+}
+void ClassBoilerplate::set_static_properties_template(Tagged<Object> value,
+                                                      WriteBarrierMode mode) {
+  static_properties_template_.store(this, value, mode);
+}
+
+Tagged<Object> ClassBoilerplate::static_elements_template() const {
+  return static_elements_template_.load();
+}
+void ClassBoilerplate::set_static_elements_template(Tagged<Object> value,
+                                                    WriteBarrierMode mode) {
+  static_elements_template_.store(this, value, mode);
+}
+
+Tagged<FixedArray> ClassBoilerplate::static_computed_properties() const {
+  return static_computed_properties_.load();
+}
+void ClassBoilerplate::set_static_computed_properties(Tagged<FixedArray> value,
+                                                      WriteBarrierMode mode) {
+  static_computed_properties_.store(this, value, mode);
+}
+
+Tagged<Object> ClassBoilerplate::instance_properties_template() const {
+  return instance_properties_template_.load();
+}
+void ClassBoilerplate::set_instance_properties_template(Tagged<Object> value,
+                                                        WriteBarrierMode mode) {
+  instance_properties_template_.store(this, value, mode);
+}
+
+Tagged<Object> ClassBoilerplate::instance_elements_template() const {
+  return instance_elements_template_.load();
+}
+void ClassBoilerplate::set_instance_elements_template(Tagged<Object> value,
+                                                      WriteBarrierMode mode) {
+  instance_elements_template_.store(this, value, mode);
+}
+
+Tagged<FixedArray> ClassBoilerplate::instance_computed_properties() const {
+  return instance_computed_properties_.load();
+}
+void ClassBoilerplate::set_instance_computed_properties(
+    Tagged<FixedArray> value, WriteBarrierMode mode) {
+  instance_computed_properties_.store(this, value, mode);
+}
 
 //
 // ArrayBoilerplateDescription
 //
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription)
+Tagged<Smi> ArrayBoilerplateDescription::flags() const { return flags_.load(); }
+void ArrayBoilerplateDescription::set_flags(Tagged<Smi> value,
+                                            WriteBarrierMode mode) {
+  flags_.store(this, value, mode);
+}
+
+Tagged<FixedArrayBase> ArrayBoilerplateDescription::constant_elements() const {
+  return constant_elements_.load();
+}
+void ArrayBoilerplateDescription::set_constant_elements(
+    Tagged<FixedArrayBase> value, WriteBarrierMode mode) {
+  constant_elements_.store(this, value, mode);
+}
 
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
-  return static_cast<ElementsKind>(flags());
+  return static_cast<ElementsKind>(flags().value());
 }
 
 void ArrayBoilerplateDescription::set_elements_kind(ElementsKind kind) {
-  set_flags(kind);
+  set_flags(Smi::FromInt(kind));
 }
 
 bool ArrayBoilerplateDescription::is_empty() const {

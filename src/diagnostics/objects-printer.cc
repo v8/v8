@@ -1126,6 +1126,23 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 
 }  // namespace
 
+void PropertyDescriptorObject::PropertyDescriptorObjectPrint(std::ostream& os) {
+  PrintHeader(os, "PropertyDescriptorObject");
+  os << "\n - flags: " << flags();
+  os << "\n - value: " << Brief(value());
+  os << "\n - get: " << Brief(get());
+  os << "\n - set: " << Brief(set());
+  os << "\n";
+}
+
+void TemplateObjectDescription::TemplateObjectDescriptionPrint(
+    std::ostream& os) {
+  PrintHeader(os, "TemplateObjectDescription");
+  os << "\n - raw_strings: " << Brief(raw_strings());
+  os << "\n - cooked_strings: " << Brief(cooked_strings());
+  os << "\n";
+}
+
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
     std::ostream& os) {
   PrintHeader(os, "ObjectBoilerplateDescription");

@@ -83,9 +83,7 @@ class ObjectBoilerplateDescription
   static constexpr int ValueIndex(int i) { return i * kElementsPerEntry + 1; }
 };
 
-class ArrayBoilerplateDescription
-    : public TorqueGeneratedArrayBoilerplateDescription<
-          ArrayBoilerplateDescription, Struct> {
+V8_OBJECT class ArrayBoilerplateDescription : public StructLayout {
  public:
   inline ElementsKind elements_kind() const;
   inline void set_elements_kind(ElementsKind kind);
@@ -94,13 +92,28 @@ class ArrayBoilerplateDescription
 
   // Dispatched behavior.
   DECL_PRINTER(ArrayBoilerplateDescription)
+  DECL_VERIFIER(ArrayBoilerplateDescription)
   void BriefPrintDetails(std::ostream& os);
 
   using BodyDescriptor = StructBodyDescriptor;
 
+  inline Tagged<Smi> flags() const;
+  inline void set_flags(Tagged<Smi> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArrayBase> constant_elements() const;
+  inline void set_constant_elements(
+      Tagged<FixedArrayBase> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
  private:
-  TQ_OBJECT_CONSTRUCTORS(ArrayBoilerplateDescription)
-};
+  friend class Factory;
+  friend class TorqueGeneratedArrayBoilerplateDescriptionAsserts;
+  friend class V8HeapExplorer;
+
+  TaggedMember<Smi> flags_;
+  TaggedMember<FixedArrayBase> constant_elements_;
+} V8_OBJECT_END;
 
 class RegExpBoilerplateDescription : public Struct {
  public:
@@ -131,9 +144,7 @@ class RegExpBoilerplateDescription : public Struct {
   OBJECT_CONSTRUCTORS(RegExpBoilerplateDescription, Struct);
 };
 
-class ClassBoilerplate : public Struct {
-  OBJECT_CONSTRUCTORS(ClassBoilerplate, Struct);
-
+V8_OBJECT class ClassBoilerplate : public StructLayout {
  public:
   enum ValueKind { kData, kGetter, kSetter, kAutoAccessor };
 
@@ -162,13 +173,32 @@ class ClassBoilerplate : public Struct {
       IsolateT* isolate, ClassLiteral* expr,
       AllocationType allocation = AllocationType::kYoung);
 
-  DECL_INT_ACCESSORS(arguments_count)
-  DECL_ACCESSORS(static_properties_template, Tagged<Object>)
-  DECL_ACCESSORS(static_elements_template, Tagged<Object>)
-  DECL_ACCESSORS(static_computed_properties, Tagged<FixedArray>)
-  DECL_ACCESSORS(instance_properties_template, Tagged<Object>)
-  DECL_ACCESSORS(instance_elements_template, Tagged<Object>)
-  DECL_ACCESSORS(instance_computed_properties, Tagged<FixedArray>)
+  inline int arguments_count() const;
+  inline void set_arguments_count(int value);
+
+  inline Tagged<Object> static_properties_template() const;
+  inline void set_static_properties_template(
+      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> static_elements_template() const;
+  inline void set_static_elements_template(
+      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> static_computed_properties() const;
+  inline void set_static_computed_properties(
+      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> instance_properties_template() const;
+  inline void set_instance_properties_template(
+      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> instance_elements_template() const;
+  inline void set_instance_elements_template(
+      Tagged<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> instance_computed_properties() const;
+  inline void set_instance_computed_properties(
+      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   template <typename IsolateT, typename Dictionary>
   static void AddToPropertiesTemplate(IsolateT* isolate,
@@ -182,25 +212,23 @@ class ClassBoilerplate : public Struct {
                                     uint32_t key, int key_index,
                                     ValueKind value_kind, Tagged<Smi> value);
 
-#define FIELD_LIST(V)                                                   \
-  V(kArgumentsCountOffset, kTaggedSize)                                 \
-  V(kStaticPropertiesTemplateOffset, kTaggedSize)                       \
-  V(kStaticElementsTemplateOffset, kTaggedSize)                         \
-  V(kStaticComputedPropertiesOffset, kTaggedSize)                       \
-  V(kInstancePropertiesTemplateOffset, kTaggedSize)                     \
-  V(kInstanceElementsTemplateOffset, kTaggedSize)                       \
-  V(kInstanceComputedPropertiesOffset, kTaggedSize)                     \
-  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
-  V(kHeaderSize, 0)                                                     \
-  V(kSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
-
   DECL_PRINTER(ClassBoilerplate)
   DECL_VERIFIER(ClassBoilerplate)
 
   using BodyDescriptor = StructBodyDescriptor;
-};
+
+ private:
+  friend class Factory;
+  friend class TorqueGeneratedClassBoilerplateAsserts;
+
+  TaggedMember<Smi> arguments_count_;
+  TaggedMember<Object> static_properties_template_;
+  TaggedMember<Object> static_elements_template_;
+  TaggedMember<FixedArray> static_computed_properties_;
+  TaggedMember<Object> instance_properties_template_;
+  TaggedMember<Object> instance_elements_template_;
+  TaggedMember<FixedArray> instance_computed_properties_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

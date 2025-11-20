@@ -457,7 +457,7 @@ Handle<JSObject> CreateArrayLiteral(
       array_boilerplate_description->elements_kind();
 
   Handle<FixedArrayBase> constant_elements_values(
-      array_boilerplate_description->constant_elements(isolate), isolate);
+      array_boilerplate_description->constant_elements(), isolate);
 
   // Create the JSArray.
   Handle<FixedArrayBase> copied_elements_values;

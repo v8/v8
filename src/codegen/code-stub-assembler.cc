@@ -12496,13 +12496,13 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
     flags = SmiOr(flags.value(),
                   SmiConstant(PropertyDescriptorObject::HasGetBit::kMask |
                               PropertyDescriptorObject::HasSetBit::kMask));
-    StoreObjectField(descriptor, PropertyDescriptorObject::kFlagsOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, flags_),
                      flags.value());
-    StoreObjectField(descriptor, PropertyDescriptorObject::kValueOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, value_),
                      NullConstant());
-    StoreObjectField(descriptor, PropertyDescriptorObject::kGetOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, get_),
                      BailoutIfTemplateInfo(getter));
-    StoreObjectField(descriptor, PropertyDescriptorObject::kSetOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, set_),
                      BailoutIfTemplateInfo(setter));
     Goto(&done);
   }
@@ -12521,12 +12521,13 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
     Goto(&store_fields);
 
     BIND(&store_fields);
-    StoreObjectField(descriptor, PropertyDescriptorObject::kFlagsOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, flags_),
                      flags.value());
-    StoreObjectField(descriptor, PropertyDescriptorObject::kValueOffset, value);
-    StoreObjectField(descriptor, PropertyDescriptorObject::kGetOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, value_),
+                     value);
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, get_),
                      NullConstant());
-    StoreObjectField(descriptor, PropertyDescriptorObject::kSetOffset,
+    StoreObjectField(descriptor, offsetof(PropertyDescriptorObject, set_),
                      NullConstant());
     Goto(&done);
   }
@@ -12536,19 +12537,19 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
 
 TNode<PropertyDescriptorObject>
 CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
-  TNode<HeapObject> result = Allocate(PropertyDescriptorObject::kSize);
+  TNode<HeapObject> result = Allocate(sizeof(PropertyDescriptorObject));
   TNode<Map> map = GetInstanceTypeMap(PROPERTY_DESCRIPTOR_OBJECT_TYPE);
   StoreMapNoWriteBarrier(result, map);
   TNode<Smi> zero = SmiConstant(0);
-  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kFlagsOffset,
-                                 zero);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(PropertyDescriptorObject, flags_), zero);
   TNode<TheHole> the_hole = TheHoleConstant();
-  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kValueOffset,
-                                 the_hole);
-  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kGetOffset,
-                                 the_hole);
-  StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kSetOffset,
-                                 the_hole);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(PropertyDescriptorObject, value_), the_hole);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(PropertyDescriptorObject, get_), the_hole);
+  StoreObjectFieldNoWriteBarrier(
+      result, offsetof(PropertyDescriptorObject, set_), the_hole);
   return CAST(result);
 }
 

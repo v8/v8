@@ -2095,8 +2095,9 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(
 void V8HeapExplorer::ExtractArrayBoilerplateDescriptionReferences(
     HeapEntry* entry, Tagged<ArrayBoilerplateDescription> value) {
   Tagged<FixedArrayBase> constant_elements = value->constant_elements();
-  SetInternalReference(entry, "constant_elements", constant_elements,
-                       ArrayBoilerplateDescription::kConstantElementsOffset);
+  SetInternalReference(
+      entry, "constant_elements", constant_elements,
+      offsetof(ArrayBoilerplateDescription, constant_elements_));
   TagObject(constant_elements, "(constant elements)", HeapEntry::kCode);
 }
 

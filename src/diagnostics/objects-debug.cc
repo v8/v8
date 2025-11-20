@@ -2498,16 +2498,39 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   }
 }
 
+void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionVerify(
+    Isolate* isolate) {
+  CHECK(IsSmi(flags_.load()));
+  CHECK(IsFixedArrayBase(constant_elements_.load()));
+  Object::VerifyPointer(isolate, constant_elements_.load());
+}
+
 void ClassBoilerplate::ClassBoilerplateVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kArgumentsCountOffset)));
-  Object::VerifyPointer(isolate, static_properties_template());
-  Object::VerifyPointer(isolate, static_elements_template());
-  Object::VerifyPointer(isolate, static_computed_properties());
-  CHECK(IsFixedArray(static_computed_properties()));
-  Object::VerifyPointer(isolate, instance_properties_template());
-  Object::VerifyPointer(isolate, instance_elements_template());
-  Object::VerifyPointer(isolate, instance_computed_properties());
-  CHECK(IsFixedArray(instance_computed_properties()));
+  CHECK(IsSmi(arguments_count_.load()));
+  Object::VerifyPointer(isolate, static_properties_template_.load());
+  Object::VerifyPointer(isolate, static_elements_template_.load());
+  Object::VerifyPointer(isolate, static_computed_properties_.load());
+  CHECK(IsFixedArray(static_computed_properties_.load()));
+  Object::VerifyPointer(isolate, instance_properties_template_.load());
+  Object::VerifyPointer(isolate, instance_elements_template_.load());
+  Object::VerifyPointer(isolate, instance_computed_properties_.load());
+  CHECK(IsFixedArray(instance_computed_properties_.load()));
+}
+
+void PropertyDescriptorObject::PropertyDescriptorObjectVerify(
+    Isolate* isolate) {
+  CHECK(IsSmi(flags_.load()));
+  Object::VerifyPointer(isolate, value_.load());
+  Object::VerifyPointer(isolate, get_.load());
+  Object::VerifyPointer(isolate, set_.load());
+}
+
+void TemplateObjectDescription::TemplateObjectDescriptionVerify(
+    Isolate* isolate) {
+  Object::VerifyPointer(isolate, raw_strings_.load());
+  CHECK(IsFixedArray(raw_strings_.load()));
+  Object::VerifyPointer(isolate, cooked_strings_.load());
+  CHECK(IsFixedArray(cooked_strings_.load()));
 }
 
 void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionVerify(

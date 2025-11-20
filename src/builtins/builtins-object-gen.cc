@@ -1577,7 +1577,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
   TVARIABLE(JSObject, js_descriptor);
 
   TNode<Int32T> flags = LoadAndUntagToWord32ObjectField(
-      desc, PropertyDescriptorObject::kFlagsOffset);
+      desc, offsetof(PropertyDescriptorObject, flags_));
 
   TNode<Int32T> has_flags =
       Word32And(flags, Int32Constant(PropertyDescriptorObject::kHasMask));
@@ -1598,8 +1598,9 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
   BIND(&if_accessor_desc);
   {
     js_descriptor = ConstructAccessorDescriptor(
-        context, LoadObjectField(desc, PropertyDescriptorObject::kGetOffset),
-        LoadObjectField(desc, PropertyDescriptorObject::kSetOffset),
+        context,
+        LoadObjectField(desc, offsetof(PropertyDescriptorObject, get_)),
+        LoadObjectField(desc, offsetof(PropertyDescriptorObject, set_)),
         IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags),
         IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags));
     Goto(&return_desc);
@@ -1608,7 +1609,8 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
   BIND(&if_data_desc);
   {
     js_descriptor = ConstructDataDescriptor(
-        context, LoadObjectField(desc, PropertyDescriptorObject::kValueOffset),
+        context,
+        LoadObjectField(desc, offsetof(PropertyDescriptorObject, value_)),
         IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags),
         IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags),
         IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags));
@@ -1629,7 +1631,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
 
     Factory* factory = isolate()->factory();
     TNode<Object> value =
-        LoadObjectField(desc, PropertyDescriptorObject::kValueOffset);
+        LoadObjectField(desc, offsetof(PropertyDescriptorObject, value_));
     AddToDictionaryIf(IsNotTheHole(value), context, js_desc, properties,
                       factory->value_string(), value, &bailout);
     AddToDictionaryIf(
@@ -1640,11 +1642,11 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
         &bailout);
 
     TNode<Object> get =
-        LoadObjectField(desc, PropertyDescriptorObject::kGetOffset);
+        LoadObjectField(desc, offsetof(PropertyDescriptorObject, get_));
     AddToDictionaryIf(IsNotTheHole(get), context, js_desc, properties,
                       factory->get_string(), get, &bailout);
     TNode<Object> set =
-        LoadObjectField(desc, PropertyDescriptorObject::kSetOffset);
+        LoadObjectField(desc, offsetof(PropertyDescriptorObject, set_));
     AddToDictionaryIf(IsNotTheHole(set), context, js_desc, properties,
                       factory->set_string(), set, &bailout);
 
