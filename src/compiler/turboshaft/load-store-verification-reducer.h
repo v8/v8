@@ -32,7 +32,7 @@ class StoreLoadVerificationReducer : public Next {
     V<Any> loaded = Next::ReduceLoad(base, index, kind, loaded_rep, result_rep,
                                      offset, element_size_log2);
 
-    if (v8_flags.turboshaft_load_store_verification) {
+    if (v8_flags.turboshaft_verify_load_store_taggedness) {
       AbortIfWrongRepresentation(loaded, loaded_rep, "load");
     }
 
@@ -45,7 +45,7 @@ class StoreLoadVerificationReducer : public Next {
                         uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
-    if (v8_flags.turboshaft_load_store_verification) {
+    if (v8_flags.turboshaft_verify_load_store_taggedness) {
       AbortIfWrongRepresentation(value, stored_rep, "store");
     }
 

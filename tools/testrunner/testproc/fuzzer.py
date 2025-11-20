@@ -66,6 +66,7 @@ EXTRA_FLAGS = [
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.2, '--turboshaft-verify-load-elimination'),
+    (0.2, '--turboshaft-verify-load-store-taggedness'),
     (0.1, '--stress-wasm-memory-moving'),
     (0.1, '--stress-scavenger-conservative-object-pinning-random'),
     (0.1, '--conservative-stack-scanning'),
