@@ -196,10 +196,10 @@ static void EmitInstrToFold(InstructionSelector* selector,
 // TODO(zhijin): Refactoring is needed to make the function's implementation
 // match its name. The bailout path in case 2 does not use the shxadd
 // instruction.
-static bool TryUseShxaddToFoldImpl(InstructionSelector* selector, OpIndex node,
-                                   InstructionCode opcode, OpIndex base,
-                                   OpIndex index, InstructionOperand output,
-                                   OpIndex value, bool read) {
+static bool TryFoldLoadStoreImpl(InstructionSelector* selector, OpIndex node,
+                                 InstructionCode opcode, OpIndex base,
+                                 OpIndex index, InstructionOperand output,
+                                 OpIndex value, bool read) {
   RiscvOperandGenerator g(selector);
 
   const Operation& base_op = selector->Get(base);
@@ -409,7 +409,7 @@ static bool TryFoldLoad(InstructionSelector* selector, OpIndex node,
                         InstructionCode opcode, OpIndex base, OpIndex index,
                         OpIndex output) {
   RiscvOperandGenerator g(selector);
-  return TryUseShxaddToFoldImpl(
+  return TryFoldLoadStoreImpl(
       selector, node, opcode, base, index,
       g.DefineAsRegister(output.valid() ? output : node), OpIndex(), true);
 }
@@ -417,8 +417,8 @@ static bool TryFoldLoad(InstructionSelector* selector, OpIndex node,
 static bool TryFoldStore(InstructionSelector* selector, OpIndex node,
                          InstructionCode opcode, OpIndex base, OpIndex index,
                          InstructionOperand output, OpIndex value) {
-  return TryUseShxaddToFoldImpl(selector, node, opcode, base, index, output,
-                                value, false);
+  return TryFoldLoadStoreImpl(selector, node, opcode, base, index, output,
+                              value, false);
 }
 
 void EmitLoad(InstructionSelector* selector, OpIndex node,
@@ -979,7 +979,39 @@ void InstructionSelector::VisitInt32Add(OpIndex node) {
   Emit(kRiscvAdd32, g.DefineAsRegister(node), inputs[0], inputs[1]);
 }
 
+// Try to match Add(z, a, slli(x, y)) and emit shxadd(z, x, a) for it.
+bool TryEmitShxadd(InstructionSelector* selector, OpIndex add, OpIndex lhs,
+                   OpIndex rhs) {
+  if (CpuFeatures::IsSupported(ZBA)) return false;
+  const Operation& left_op = selector->Get(lhs);
+  if ((left_op.Is<Opmask::kWord64ShiftLeft>() &&
+       selector->CanCover(add, lhs))) {
+    const ShiftOp& shift_op = left_op.Cast<ShiftOp>();
+    const Operation& shift_rhs = selector->Get(shift_op.right());
+    if (shift_rhs.Is<Opmask::kWord32Constant>()) {
+      int64_t shift_by = shift_rhs.Cast<ConstantOp>().signed_integral();
+      if (base::IsInRange(shift_by, 1, 3)) {
+        RiscvOperandGenerator g(selector);
+        selector->Emit(
+            GetShxaddCode(shift_by) | AddressingModeField::encode(kMode_None),
+            g.UseRegister(add), g.UseRegister(shift_op.left()),
+            g.UseRegister(rhs));
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void InstructionSelector::VisitInt64Add(OpIndex node) {
+  const WordBinopOp& add = this->Get(node).Cast<WordBinopOp>();
+  DCHECK(add.Is<Opmask::kWord64Add>());
+  OpIndex right = add.right();
+  OpIndex left = add.left();
+  if (TryEmitShxadd(this, node, left, right) ||
+      TryEmitShxadd(this, node, right, left)) {
+    return;
+  }
   VisitBinop<Int64BinopMatcher>(this, node, kRiscvAdd64, true, kRiscvAdd64);
 }
 
