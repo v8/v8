@@ -36,10 +36,6 @@
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-#include "src/sandbox/code-sandboxing-mode.h"
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-
 namespace v8::internal::compiler {
 
 #define __ masm()->
@@ -1848,23 +1844,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ int3();
       unwinding_info_writer_.MarkBlockWillExit();
       break;
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-    case kArchSwitchSandboxMode: {
-      CodeSandboxingMode const sandbox_mode =
-          static_cast<CodeSandboxingMode>(MiscField::decode(opcode));
-      switch (sandbox_mode) {
-        case CodeSandboxingMode::kUnsandboxed:
-          __ ExitSandbox();
-          break;
-        case CodeSandboxingMode::kSandboxed:
-          __ EnterSandbox();
-          break;
-        default:
-          UNREACHABLE();
-      }
-      break;
-    }
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
     case kArchDebugBreak:
       __ DebugBreak();
       break;

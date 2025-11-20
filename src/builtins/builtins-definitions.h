@@ -965,14 +965,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
                                                                                \
   /* Compare ops with feedback collection */                                   \
   TFC(Equal_Baseline, Compare_Baseline)                                        \
-  TFC(StrictEqual_Baseline, Compare_WithEmbeddedFeedbackOffset)                \
+  TFC(StrictEqual_Baseline, Compare_Baseline)                                  \
   TFC(LessThan_Baseline, Compare_Baseline)                                     \
   TFC(GreaterThan_Baseline, Compare_Baseline)                                  \
   TFC(LessThanOrEqual_Baseline, Compare_Baseline)                              \
   TFC(GreaterThanOrEqual_Baseline, Compare_Baseline)                           \
                                                                                \
   TFC(Equal_WithFeedback, Compare_WithFeedback)                                \
-  TFC(StrictEqual_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)          \
+  TFC(StrictEqual_WithFeedback, Compare_WithFeedback)                          \
   TFC(LessThan_WithFeedback, Compare_WithFeedback)                             \
   TFC(GreaterThan_WithFeedback, Compare_WithFeedback)                          \
   TFC(LessThanOrEqual_WithFeedback, Compare_WithFeedback)                      \

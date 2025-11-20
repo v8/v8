@@ -869,10 +869,6 @@ enum class CallApiCallbackMode {
   kOptimized,
 };
 
-// This constant is used to indicate that feedback is embedded in the bytecode
-// itself.
-constexpr int kFeedbackIsEmbedded = -1;
-
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
 

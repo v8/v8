@@ -14,7 +14,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
-#include "src/objects/type-hints.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -114,10 +113,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   int current_offset() const {
     return static_cast<int>(cursor_ - start_ - prefix_size_);
   }
-  int current_operand_offset(int operand_index) const {
-    return Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
-                                       current_operand_scale());
-  }
   uint8_t* current_address() const { return cursor_ - prefix_size_; }
   int next_offset() const { return current_offset() + current_bytecode_size(); }
   Bytecode next_bytecode() const {
@@ -180,9 +175,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
 
   void UpdatePointers();
 
-  CompareOperationHint GetEmbeddedCompareOperationHint();
-  int GetEmbeddedFeedbackOffset(int operand_index);
-
   inline bool done() const { return cursor_ >= end_; }
 
   bool operator==(const BytecodeArrayIterator& other) const {
@@ -199,7 +191,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   uint32_t GetUnsignedOperand(int operand_index,
                               OperandType operand_type) const;
   int32_t GetSignedOperand(int operand_index, OperandType operand_type) const;
-  uint32_t GetEmbeddedFeedback(int operand_index) const;
 
   inline void UpdateOperandScale() {
     if (done()) return;

@@ -55,7 +55,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   DirectHandle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
 
 #ifdef DEBUG
-  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
+  int CheckBytecodeMatches(Tagged<BytecodeArray> bytecode);
 #endif
 
   // Get the number of parameters expected by function.
@@ -601,10 +601,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   void OutputMovRaw(Register src, Register dest);
 
   void EmitFunctionStartSourcePosition(int position);
-
-  size_t current_bytecode_size() const {
-    return bytecode_array_writer_.current_bytecode_size();
-  }
 
   // Accessors
   BytecodeRegisterAllocator* register_allocator() {

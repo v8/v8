@@ -115,7 +115,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate);
 
 #ifdef DEBUG
-int BytecodeArrayBuilder::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+int BytecodeArrayBuilder::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
   DisallowGarbageCollection no_gc;
   return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
 }
@@ -570,9 +570,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
       OutputTestEqual(reg, feedback_slot);
       break;
     case Token::kEqStrict:
-      // feedback is embedded into bytecode array for strict equal
-      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
-      OutputTestEqualStrict(reg, /*feedback_value=*/0);
+      OutputTestEqualStrict(reg, feedback_slot);
       break;
     case Token::kLessThan:
       OutputTestLessThan(reg, feedback_slot);

@@ -174,7 +174,6 @@ class Typer::Visitor : public Reducer {
       MACHINE_ATOMIC_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       DECLARE_IMPOSSIBLE_CASE(AbortCSADcheck)
       DECLARE_IMPOSSIBLE_CASE(DebugBreak)
-      IF_HARDWARE_SANDBOX(DECLARE_IMPOSSIBLE_CASE, SwitchSandboxMode)
       DECLARE_IMPOSSIBLE_CASE(Comment)
       DECLARE_IMPOSSIBLE_CASE(LoadImmutable)
       DECLARE_IMPOSSIBLE_CASE(StorePair)
@@ -1112,21 +1111,21 @@ bool Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint(
     // Apply ordinary typing to the "increment" operation.
     // clang-format off
     switch (arith->opcode()) {
-#define OPCODE_CASE(x)                        \
+#define CASE(x)                             \
       case IrOpcode::k##x:                    \
         type = Type##x(type, increment_type); \
         break;
-      OPCODE_CASE(JSAdd)
-      OPCODE_CASE(JSSubtract)
-      OPCODE_CASE(NumberAdd)
-      OPCODE_CASE(NumberSubtract)
-      OPCODE_CASE(SpeculativeNumberAdd)
-      OPCODE_CASE(SpeculativeNumberSubtract)
-      OPCODE_CASE(SpeculativeAdditiveSafeIntegerAdd)
-      OPCODE_CASE(SpeculativeAdditiveSafeIntegerSubtract)
-      OPCODE_CASE(SpeculativeSmallIntegerAdd)
-      OPCODE_CASE(SpeculativeSmallIntegerSubtract)
-#undef OPCODE_CASE
+      CASE(JSAdd)
+      CASE(JSSubtract)
+      CASE(NumberAdd)
+      CASE(NumberSubtract)
+      CASE(SpeculativeNumberAdd)
+      CASE(SpeculativeNumberSubtract)
+      CASE(SpeculativeAdditiveSafeIntegerAdd)
+      CASE(SpeculativeAdditiveSafeIntegerSubtract)
+      CASE(SpeculativeSmallIntegerAdd)
+      CASE(SpeculativeSmallIntegerSubtract)
+#undef CASE
       default:
         UNREACHABLE();
     }
