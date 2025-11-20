@@ -770,10 +770,28 @@ class HandlersBase {
     // Break the chain of calls.
   }
 
+  template <typename ValueT, typename RegisterT>
+  static inline ValueT ReadRegister(RegisterT reg) {
+    if constexpr (std::is_same_v<ValueT, RegisterT>) {
+      return reg;
+    } else {
+      return *reinterpret_cast<ValueT*>(&reg);
+    }
+  }
+
+  template <typename ValueT, typename RegisterT>
+  static inline void WriteRegister(RegisterT& reg, ValueT val) {
+    if constexpr (std::is_same_v<ValueT, RegisterT>) {
+      reg = val;
+    } else {
+      *reinterpret_cast<ValueT*>(&reg) = val;
+    }
+  }
+
   INSTRUCTION_HANDLER_FUNC Trap(const uint8_t* code, uint32_t* sp,
                                 WasmInterpreterRuntime* wasm_runtime,
                                 int64_t r0, double fp0) {
-    TrapReason trap_reason = static_cast<TrapReason>(r0);
+    TrapReason trap_reason = ReadRegister<TrapReason>(r0);
     wasm_runtime->SetTrap(trap_reason, code);
     MUSTTAIL return s_unwind_func_addr(code, sp, wasm_runtime, trap_reason, .0);
   }
@@ -916,7 +934,8 @@ class Handlers : public HandlersBase {
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
     uint8_t* src_addr = wasm_runtime->GetGlobalAddress(index);
-    r0 = base::ReadUnalignedValue<IntT>(reinterpret_cast<Address>(src_addr));
+    WriteRegister(r0, base::ReadUnalignedValue<IntT>(
+                          reinterpret_cast<Address>(src_addr)));
 
     NextOp();
   }
@@ -929,7 +948,8 @@ class Handlers : public HandlersBase {
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
     uint8_t* src_addr = wasm_runtime->GetGlobalAddress(index);
-    fp0 = base::ReadUnalignedValue<FloatT>(reinterpret_cast<Address>(src_addr));
+    WriteRegister(fp0, base::ReadUnalignedValue<FloatT>(
+                           reinterpret_cast<Address>(src_addr)));
 
     NextOp();
   }
@@ -972,7 +992,7 @@ class Handlers : public HandlersBase {
     uint32_t index = ReadGlobalIndex(code);
     uint8_t* dst_addr = wasm_runtime->GetGlobalAddress(index);
     base::WriteUnalignedValue<IntT>(reinterpret_cast<Address>(dst_addr),
-                                    static_cast<IntT>(r0));  // r0: value
+                                    ReadRegister<IntT>(r0));  // r0: value
     NextOp();
   }
   static auto constexpr r2s_I32GlobalSet = r2s_GlobalSetI<int32_t>;
@@ -985,7 +1005,7 @@ class Handlers : public HandlersBase {
     uint32_t index = ReadGlobalIndex(code);
     uint8_t* dst_addr = wasm_runtime->GetGlobalAddress(index);
     base::WriteUnalignedValue<FloatT>(reinterpret_cast<Address>(dst_addr),
-                                      static_cast<FloatT>(fp0));  // fp0: value
+                                      ReadRegister<FloatT>(fp0));  // fp0: value
     NextOp();
   }
   static auto constexpr r2s_F32GlobalSet = r2s_GlobalSetF<float>;
@@ -1068,7 +1088,7 @@ class Handlers : public HandlersBase {
                                         int64_t r0, double fp0) {
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     uint64_t offset = Read<MemOffsetT>(code);
-    MemIdx index = static_cast<MemIdx>(r0);
+    MemIdx index = ReadRegister<MemIdx>(r0);
     uint64_t effective_index = offset + index;
 
     if (V8_UNLIKELY(
@@ -1082,7 +1102,7 @@ class Handlers : public HandlersBase {
 
     IntU value =
         base::ReadUnalignedValue<IntU>(reinterpret_cast<Address>(address));
-    r0 = static_cast<IntT>(value);
+    WriteRegister(r0, static_cast<IntT>(value));
 
     NextOp();
   }
@@ -1118,7 +1138,7 @@ class Handlers : public HandlersBase {
                                         int64_t r0, double fp0) {
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
-    MemIdx index = static_cast<MemIdx>(r0);
+    MemIdx index = ReadRegister<MemIdx>(r0);
     uint64_t effective_index = offset + index;
 
     if (V8_UNLIKELY(
@@ -1130,7 +1150,8 @@ class Handlers : public HandlersBase {
 
     uint8_t* address = memory_start + effective_index;
 
-    fp0 = base::ReadUnalignedValue<FloatT>(reinterpret_cast<Address>(address));
+    WriteRegister(fp0, base::ReadUnalignedValue<FloatT>(
+                           reinterpret_cast<Address>(address)));
 
     NextOp();
   }
@@ -1146,7 +1167,7 @@ class Handlers : public HandlersBase {
                                        int64_t r0, double fp0) {
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
-    MemIdx index = static_cast<MemIdx>(r0);
+    MemIdx index = ReadRegister<MemIdx>(r0);
     uint64_t effective_index = offset + index;
 
     if (V8_UNLIKELY(
@@ -1212,8 +1233,8 @@ class Handlers : public HandlersBase {
 
     uint8_t* address = memory_start + effective_index;
 
-    r0 = static_cast<IntT>(
-        base::ReadUnalignedValue<IntU>(reinterpret_cast<Address>(address)));
+    WriteRegister(r0, static_cast<IntT>(base::ReadUnalignedValue<IntU>(
+                          reinterpret_cast<Address>(address))));
 
     NextOp();
   }
@@ -1261,8 +1282,8 @@ class Handlers : public HandlersBase {
 
     uint8_t* address = memory_start + effective_index;
 
-    fp0 = static_cast<FloatT>(
-        base::ReadUnalignedValue<FloatT>(reinterpret_cast<Address>(address)));
+    WriteRegister(fp0, static_cast<FloatT>(base::ReadUnalignedValue<FloatT>(
+                           reinterpret_cast<Address>(address))));
 
     NextOp();
   }
@@ -1388,7 +1409,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_StoreMemI(const uint8_t* code, uint32_t* sp,
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
-    IntT value = static_cast<IntT>(r0);
+    IntT value = ReadRegister<IntT>(r0);
 
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
@@ -1430,7 +1451,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_StoreMemF(const uint8_t* code, uint32_t* sp,
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
-    FloatT value = static_cast<FloatT>(fp0);
+    FloatT value = ReadRegister<FloatT>(fp0);
 
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
@@ -1512,7 +1533,7 @@ class Handlers : public HandlersBase {
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
 
     MemOffsetT load_offset = Read<MemOffsetT>(code);
-    uint64_t load_index = r0;
+    MemIdx load_index = ReadRegister<MemIdx>(r0);
     uint64_t effective_load_index = load_offset + load_index;
 
     MemOffsetT store_offset = Read<MemOffsetT>(code);
@@ -1662,7 +1683,7 @@ class Handlers : public HandlersBase {
       int64_t r0, double fp0) {
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     memory_offset32_t offset = Read<memory_offset32_t>(code);
-    uint64_t index = static_cast<uint32_t>(r0);
+    uint64_t index = ReadRegister<uint32_t>(r0);
     uint64_t effective_index = offset + index;
 
     if (V8_UNLIKELY(
@@ -1885,7 +1906,7 @@ class Handlers : public HandlersBase {
     IntT val2 = pop<IntT>(sp, code, wasm_runtime);
     IntT val1 = pop<IntT>(sp, code, wasm_runtime);
 
-    r0 = cond ? val1 : val2;
+    WriteRegister(r0, cond ? val1 : val2);
 
     NextOp();
   }
@@ -1900,7 +1921,7 @@ class Handlers : public HandlersBase {
     FloatT val2 = pop<FloatT>(sp, code, wasm_runtime);
     FloatT val1 = pop<FloatT>(sp, code, wasm_runtime);
 
-    fp0 = cond ? val1 : val2;
+    WriteRegister(fp0, cond ? val1 : val2);
 
     NextOp();
   }
@@ -1965,16 +1986,16 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
-    reg = static_cast<ctype>(lval op rval);                                 \
+    WriteRegister(reg, static_cast<ctype>(lval op rval));                   \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     push<ctype>(sp, code, wasm_runtime, lval op rval);                      \
     NextOp();                                                               \
@@ -1985,7 +2006,7 @@ class Handlers : public HandlersBase {
                                       int64_t r0, double fp0) {             \
     ctype rval = pop<ctype>(sp, code, wasm_runtime);                        \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
-    reg = static_cast<ctype>(lval op rval);                                 \
+    WriteRegister(reg, static_cast<ctype>(lval op rval));                   \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
@@ -2026,14 +2047,14 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     if (rval == 0) {                                                        \
       TRAP(TrapReason::kTrapDivByZero)                                      \
     } else if (rval == -1 && lval == std::numeric_limits<ctype>::min()) {   \
       TRAP(TrapReason::kTrapDivUnrepresentable)                             \
     } else {                                                                \
-      reg = static_cast<ctype>(lval op rval);                               \
+      WriteRegister(reg, static_cast<ctype>(lval op rval));                 \
     }                                                                       \
     NextOp();                                                               \
   }                                                                         \
@@ -2041,7 +2062,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     if (rval == 0) {                                                        \
       TRAP(TrapReason::kTrapDivByZero)                                      \
@@ -2063,7 +2084,7 @@ class Handlers : public HandlersBase {
     } else if (rval == -1 && lval == std::numeric_limits<ctype>::min()) {   \
       TRAP(TrapReason::kTrapDivUnrepresentable)                             \
     } else {                                                                \
-      reg = static_cast<ctype>(lval op rval);                               \
+      WriteRegister(reg, static_cast<ctype>(lval op rval));                 \
     }                                                                       \
     NextOp();                                                               \
   }                                                                         \
@@ -2089,12 +2110,12 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     if (rval == 0) {                                                        \
       TRAP(TrapReason::kTrapDivByZero)                                      \
     } else {                                                                \
-      reg = static_cast<ctype>(lval op rval);                               \
+      WriteRegister(reg, static_cast<ctype>(lval op rval));                 \
     }                                                                       \
     NextOp();                                                               \
   }                                                                         \
@@ -2102,7 +2123,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     if (rval == 0) {                                                        \
       TRAP(TrapReason::kTrapDivByZero)                                      \
@@ -2120,7 +2141,7 @@ class Handlers : public HandlersBase {
     if (rval == 0) {                                                        \
       TRAP(TrapReason::kTrapDivByZero)                                      \
     } else {                                                                \
-      reg = static_cast<ctype>(lval op rval);                               \
+      WriteRegister(reg, static_cast<ctype>(lval op rval));                 \
     }                                                                       \
     NextOp();                                                               \
   }                                                                         \
@@ -2144,12 +2165,12 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     if (rval == 0) {                                                        \
       TRAP(TrapReason::kTrapRemByZero)                                      \
     } else {                                                                \
-      reg = static_cast<ctype>(op(lval, rval));                             \
+      WriteRegister(reg, static_cast<ctype>(op(lval, rval)));               \
     }                                                                       \
     NextOp();                                                               \
   }                                                                         \
@@ -2157,7 +2178,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     if (rval == 0) {                                                        \
       TRAP(TrapReason::kTrapRemByZero)                                      \
@@ -2175,7 +2196,7 @@ class Handlers : public HandlersBase {
     if (rval == 0) {                                                        \
       TRAP(TrapReason::kTrapRemByZero);                                     \
     } else {                                                                \
-      reg = static_cast<ctype>(op(lval, rval));                             \
+      WriteRegister(reg, static_cast<ctype>(op(lval, rval)));               \
     }                                                                       \
     NextOp();                                                               \
   }                                                                         \
@@ -2236,16 +2257,16 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
-    r0 = (lval op rval) ? 1 : 0;                                            \
+    WriteRegister<int32_t>(r0, (lval op rval) ? 1 : 0);                     \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     push<int32_t>(sp, code, wasm_runtime, lval op rval ? 1 : 0);            \
     NextOp();                                                               \
@@ -2256,7 +2277,7 @@ class Handlers : public HandlersBase {
                                       int64_t r0, double fp0) {             \
     ctype rval = pop<ctype>(sp, code, wasm_runtime);                        \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
-    r0 = (lval op rval) ? 1 : 0;                                            \
+    WriteRegister<int32_t>(r0, (lval op rval) ? 1 : 0);                     \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
@@ -2312,16 +2333,16 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
-    reg = static_cast<ctype>(op);                                           \
+    WriteRegister(reg, static_cast<ctype>(op));                             \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype rval = static_cast<ctype>(reg);                                   \
+    ctype rval = ReadRegister<ctype>(reg);                                  \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
     push<ctype>(sp, code, wasm_runtime, op);                                \
     NextOp();                                                               \
@@ -2332,7 +2353,7 @@ class Handlers : public HandlersBase {
                                       int64_t r0, double fp0) {             \
     ctype rval = pop<ctype>(sp, code, wasm_runtime);                        \
     ctype lval = pop<ctype>(sp, code, wasm_runtime);                        \
-    reg = static_cast<ctype>(op);                                           \
+    WriteRegister(reg, static_cast<ctype>(op));                             \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
@@ -2370,15 +2391,15 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype val = static_cast<ctype>(reg);                                    \
-    reg = static_cast<ctype>(op);                                           \
+    ctype val = ReadRegister<ctype>(reg);                                   \
+    WriteRegister(reg, static_cast<ctype>(op));                             \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    ctype val = static_cast<ctype>(reg);                                    \
+    ctype val = ReadRegister<ctype>(reg);                                   \
     push<ctype>(sp, code, wasm_runtime, op);                                \
     NextOp();                                                               \
   }                                                                         \
@@ -2387,7 +2408,7 @@ class Handlers : public HandlersBase {
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
     ctype val = pop<ctype>(sp, code, wasm_runtime);                         \
-    reg = static_cast<ctype>(op);                                           \
+    WriteRegister(reg, static_cast<ctype>(op));                             \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
@@ -2410,19 +2431,20 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_I32ConvertI64(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
-    r0 &= 0xffffffff;
+    WriteRegister(r0, ReadRegister<int32_t>(r0) & 0xffffffff);
     NextOp();
   }
   INSTRUCTION_HANDLER_FUNC r2s_I32ConvertI64(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
-    push<int32_t>(sp, code, wasm_runtime, r0 & 0xffffffff);
+    push<int32_t>(sp, code, wasm_runtime,
+                  ReadRegister<int32_t>(r0) & 0xffffffff);
     NextOp();
   }
   INSTRUCTION_HANDLER_FUNC s2r_I32ConvertI64(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
-    r0 = 0xffffffff & pop<int64_t>(sp, code, wasm_runtime);
+    WriteRegister(r0, 0xffffffff & pop<int64_t>(sp, code, wasm_runtime));
     NextOp();
   }
   INSTRUCTION_HANDLER_FUNC s2s_I32ConvertI64(
@@ -2472,7 +2494,8 @@ class Handlers : public HandlersBase {
     if (!base::IsValueInRangeForNumericType<to_ctype>(from_reg)) {            \
       TRAP(TrapReason::kTrapFloatUnrepresentable)                             \
     } else {                                                                  \
-      to_reg = static_cast<to_ctype>(static_cast<from_ctype>(from_reg));      \
+      WriteRegister(                                                          \
+          to_reg, static_cast<to_ctype>(ReadRegister<from_ctype>(from_reg))); \
     }                                                                         \
     NextOp();                                                                 \
   }                                                                           \
@@ -2483,7 +2506,7 @@ class Handlers : public HandlersBase {
     if (!base::IsValueInRangeForNumericType<to_ctype>(from_reg)) {            \
       TRAP(TrapReason::kTrapFloatUnrepresentable)                             \
     } else {                                                                  \
-      to_ctype val = static_cast<from_ctype>(from_reg);                       \
+      to_ctype val = ReadRegister<from_ctype>(from_reg);                      \
       push<to_ctype>(sp, code, wasm_runtime, val);                            \
     }                                                                         \
     NextOp();                                                                 \
@@ -2496,7 +2519,7 @@ class Handlers : public HandlersBase {
     if (!base::IsValueInRangeForNumericType<to_ctype>(from_val)) {            \
       TRAP(TrapReason::kTrapFloatUnrepresentable)                             \
     } else {                                                                  \
-      to_reg = static_cast<to_ctype>(from_val);                               \
+      WriteRegister(to_reg, static_cast<to_ctype>(from_val));                 \
     }                                                                         \
     NextOp();                                                                 \
   }                                                                           \
@@ -2524,7 +2547,8 @@ class Handlers : public HandlersBase {
     if (!is_inbounds<to_ctype>(from_reg)) {                                   \
       TRAP(TrapReason::kTrapFloatUnrepresentable)                             \
     } else {                                                                  \
-      to_reg = static_cast<to_ctype>(static_cast<from_ctype>(from_reg));      \
+      WriteRegister(                                                          \
+          to_reg, static_cast<to_ctype>(ReadRegister<from_ctype>(from_reg))); \
     }                                                                         \
     NextOp();                                                                 \
   }                                                                           \
@@ -2535,7 +2559,7 @@ class Handlers : public HandlersBase {
     if (!is_inbounds<to_ctype>(from_reg)) {                                   \
       TRAP(TrapReason::kTrapFloatUnrepresentable)                             \
     } else {                                                                  \
-      to_ctype val = static_cast<from_ctype>(from_reg);                       \
+      to_ctype val = ReadRegister<from_ctype>(from_reg);                      \
       push<to_ctype>(sp, code, wasm_runtime, val);                            \
     }                                                                         \
     NextOp();                                                                 \
@@ -2548,7 +2572,7 @@ class Handlers : public HandlersBase {
     if (!is_inbounds<to_ctype>(from_val)) {                                   \
       TRAP(TrapReason::kTrapFloatUnrepresentable)                             \
     } else {                                                                  \
-      to_reg = static_cast<to_ctype>(from_val);                               \
+      WriteRegister(to_reg, static_cast<to_ctype>(from_val));                 \
     }                                                                         \
     NextOp();                                                                 \
   }                                                                           \
@@ -2573,14 +2597,15 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,      \
                                       WasmInterpreterRuntime* wasm_runtime,   \
                                       int64_t r0, double fp0) {               \
-    to_reg = static_cast<to_ctype>(static_cast<from_ctype>(from_reg));        \
+    WriteRegister(to_reg,                                                     \
+                  static_cast<to_ctype>(ReadRegister<from_ctype>(from_reg))); \
     NextOp();                                                                 \
   }                                                                           \
                                                                               \
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,      \
                                       WasmInterpreterRuntime* wasm_runtime,   \
                                       int64_t r0, double fp0) {               \
-    to_ctype val = static_cast<from_ctype>(from_reg);                         \
+    to_ctype val = ReadRegister<from_ctype>(from_reg);                        \
     push<to_ctype>(sp, code, wasm_runtime, val);                              \
     NextOp();                                                                 \
   }                                                                           \
@@ -2588,7 +2613,8 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC s2r_##name(const uint8_t* code, uint32_t* sp,      \
                                       WasmInterpreterRuntime* wasm_runtime,   \
                                       int64_t r0, double fp0) {               \
-    to_reg = static_cast<to_ctype>(pop<from_ctype>(sp, code, wasm_runtime));  \
+    WriteRegister(to_reg, static_cast<to_ctype>(                              \
+                              pop<from_ctype>(sp, code, wasm_runtime)));      \
     NextOp();                                                                 \
   }                                                                           \
                                                                               \
@@ -2611,44 +2637,45 @@ class Handlers : public HandlersBase {
   V(I32ReinterpretF32, float, F32, fp0, int32_t, I32, r0)  \
   V(I64ReinterpretF64, double, F64, fp0, int64_t, I64, r0)
 
-#define DEFINE_UNOP(name, from_ctype, from_type, from_reg, to_ctype, to_type,  \
-                    to_reg)                                                    \
-  INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,       \
-                                      WasmInterpreterRuntime* wasm_runtime,    \
-                                      int64_t r0, double fp0) {                \
-    from_ctype value = static_cast<from_ctype>(from_reg);                      \
-    to_reg =                                                                   \
-        base::ReadUnalignedValue<to_ctype>(reinterpret_cast<Address>(&value)); \
-    NextOp();                                                                  \
-  }                                                                            \
-                                                                               \
-  INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,       \
-                                      WasmInterpreterRuntime* wasm_runtime,    \
-                                      int64_t r0, double fp0) {                \
-    from_ctype val = static_cast<from_ctype>(from_reg);                        \
-    push<to_ctype>(                                                            \
-        sp, code, wasm_runtime,                                                \
-        base::ReadUnalignedValue<to_ctype>(reinterpret_cast<Address>(&val)));  \
-    NextOp();                                                                  \
-  }                                                                            \
-                                                                               \
-  INSTRUCTION_HANDLER_FUNC s2r_##name(const uint8_t* code, uint32_t* sp,       \
-                                      WasmInterpreterRuntime* wasm_runtime,    \
-                                      int64_t r0, double fp0) {                \
-    from_ctype val = pop<from_ctype>(sp, code, wasm_runtime);                  \
-    to_reg =                                                                   \
-        base::ReadUnalignedValue<to_ctype>(reinterpret_cast<Address>(&val));   \
-    NextOp();                                                                  \
-  }                                                                            \
-                                                                               \
-  INSTRUCTION_HANDLER_FUNC s2s_##name(const uint8_t* code, uint32_t* sp,       \
-                                      WasmInterpreterRuntime* wasm_runtime,    \
-                                      int64_t r0, double fp0) {                \
-    from_ctype val = pop<from_ctype>(sp, code, wasm_runtime);                  \
-    push<to_ctype>(                                                            \
-        sp, code, wasm_runtime,                                                \
-        base::ReadUnalignedValue<to_ctype>(reinterpret_cast<Address>(&val)));  \
-    NextOp();                                                                  \
+#define DEFINE_UNOP(name, from_ctype, from_type, from_reg, to_ctype, to_type, \
+                    to_reg)                                                   \
+  INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,      \
+                                      WasmInterpreterRuntime* wasm_runtime,   \
+                                      int64_t r0, double fp0) {               \
+    from_ctype value = ReadRegister<from_ctype>(from_reg);                    \
+    WriteRegister(to_reg, base::ReadUnalignedValue<to_ctype>(                 \
+                              reinterpret_cast<Address>(&value)));            \
+                                                                              \
+    NextOp();                                                                 \
+  }                                                                           \
+                                                                              \
+  INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,      \
+                                      WasmInterpreterRuntime* wasm_runtime,   \
+                                      int64_t r0, double fp0) {               \
+    from_ctype val = ReadRegister<from_ctype>(from_reg);                      \
+    push<to_ctype>(                                                           \
+        sp, code, wasm_runtime,                                               \
+        base::ReadUnalignedValue<to_ctype>(reinterpret_cast<Address>(&val))); \
+    NextOp();                                                                 \
+  }                                                                           \
+                                                                              \
+  INSTRUCTION_HANDLER_FUNC s2r_##name(const uint8_t* code, uint32_t* sp,      \
+                                      WasmInterpreterRuntime* wasm_runtime,   \
+                                      int64_t r0, double fp0) {               \
+    from_ctype val = pop<from_ctype>(sp, code, wasm_runtime);                 \
+    WriteRegister(to_reg, base::ReadUnalignedValue<to_ctype>(                 \
+                              reinterpret_cast<Address>(&val)));              \
+    NextOp();                                                                 \
+  }                                                                           \
+                                                                              \
+  INSTRUCTION_HANDLER_FUNC s2s_##name(const uint8_t* code, uint32_t* sp,      \
+                                      WasmInterpreterRuntime* wasm_runtime,   \
+                                      int64_t r0, double fp0) {               \
+    from_ctype val = pop<from_ctype>(sp, code, wasm_runtime);                 \
+    push<to_ctype>(                                                           \
+        sp, code, wasm_runtime,                                               \
+        base::ReadUnalignedValue<to_ctype>(reinterpret_cast<Address>(&val))); \
+    NextOp();                                                                 \
   }
   FOREACH_REINTERPRET_UNOP(DEFINE_UNOP)
 #undef DEFINE_UNOP
@@ -2670,15 +2697,15 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,     \
                                       WasmInterpreterRuntime* wasm_runtime,  \
                                       int64_t r0, double fp0) {              \
-    from_ctype val = static_cast<from_ctype>(r0);                            \
-    r0 = static_cast<to_ctype>(op);                                          \
+    from_ctype val = ReadRegister<from_ctype>(r0);                           \
+    WriteRegister<to_ctype>(r0, static_cast<to_ctype>(op));                  \
     NextOp();                                                                \
   }                                                                          \
                                                                              \
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,     \
                                       WasmInterpreterRuntime* wasm_runtime,  \
                                       int64_t r0, double fp0) {              \
-    from_ctype val = static_cast<from_ctype>(r0);                            \
+    from_ctype val = ReadRegister<from_ctype>(r0);                           \
     push<to_ctype>(sp, code, wasm_runtime, op);                              \
     NextOp();                                                                \
   }                                                                          \
@@ -2687,7 +2714,7 @@ class Handlers : public HandlersBase {
                                       WasmInterpreterRuntime* wasm_runtime,  \
                                       int64_t r0, double fp0) {              \
     from_ctype val = pop<from_ctype>(sp, code, wasm_runtime);                \
-    r0 = op;                                                                 \
+    WriteRegister<to_ctype>(r0, op);                                         \
     NextOp();                                                                \
   }                                                                          \
                                                                              \
@@ -2715,15 +2742,15 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    from_ctype val = static_cast<from_ctype>(static_cast<to_ctype>(r0));    \
-    r0 = static_cast<to_ctype>(val);                                        \
+    from_ctype val = static_cast<from_ctype>(ReadRegister<to_ctype>(r0));   \
+    WriteRegister(r0, static_cast<to_ctype>(val));                          \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
   INSTRUCTION_HANDLER_FUNC r2s_##name(const uint8_t* code, uint32_t* sp,    \
                                       WasmInterpreterRuntime* wasm_runtime, \
                                       int64_t r0, double fp0) {             \
-    from_ctype val = static_cast<from_ctype>(static_cast<to_ctype>(r0));    \
+    from_ctype val = static_cast<from_ctype>(ReadRegister<to_ctype>(r0));   \
     push<to_ctype>(sp, code, wasm_runtime, val);                            \
     NextOp();                                                               \
   }                                                                         \
@@ -2733,7 +2760,7 @@ class Handlers : public HandlersBase {
                                       int64_t r0, double fp0) {             \
     from_ctype val =                                                        \
         static_cast<from_ctype>(pop<to_ctype>(sp, code, wasm_runtime));     \
-    r0 = static_cast<to_ctype>(val);                                        \
+    WriteRegister(r0, static_cast<to_ctype>(val));                          \
     NextOp();                                                               \
   }                                                                         \
                                                                             \
@@ -2766,8 +2793,8 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2r_##name(const uint8_t* code, uint32_t* sp,      \
                                       WasmInterpreterRuntime* wasm_runtime,   \
                                       int64_t r0, double fp0) {               \
-    to_reg =                                                                  \
-        base::saturated_cast<to_ctype>(static_cast<from_ctype>(from_reg));    \
+    WriteRegister(to_reg, base::saturated_cast<to_ctype>(                     \
+                              ReadRegister<from_ctype>(from_reg)));           \
     NextOp();                                                                 \
   }                                                                           \
                                                                               \
@@ -2775,7 +2802,7 @@ class Handlers : public HandlersBase {
                                       WasmInterpreterRuntime* wasm_runtime,   \
                                       int64_t r0, double fp0) {               \
     to_ctype val =                                                            \
-        base::saturated_cast<to_ctype>(static_cast<from_ctype>(from_reg));    \
+        base::saturated_cast<to_ctype>(ReadRegister<from_ctype>(from_reg));   \
     push<to_ctype>(sp, code, wasm_runtime, val);                              \
     NextOp();                                                                 \
   }                                                                           \
@@ -2783,8 +2810,8 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC s2r_##name(const uint8_t* code, uint32_t* sp,      \
                                       WasmInterpreterRuntime* wasm_runtime,   \
                                       int64_t r0, double fp0) {               \
-    to_reg = base::saturated_cast<to_ctype>(                                  \
-        pop<from_ctype>(sp, code, wasm_runtime));                             \
+    WriteRegister(to_reg, base::saturated_cast<to_ctype>(                     \
+                              pop<from_ctype>(sp, code, wasm_runtime)));      \
     NextOp();                                                                 \
   }                                                                           \
                                                                               \
@@ -2866,7 +2893,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_BranchIf(const uint8_t* code, uint32_t* sp,
                                         WasmInterpreterRuntime* wasm_runtime,
                                         int64_t r0, double fp0) {
-    int64_t cond = r0;
+    int32_t cond = ReadRegister<int32_t>(r0);
 
     int32_t if_true_offset = Read<int32_t>(code);
     if (cond) {
@@ -2894,7 +2921,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_BranchIfWithParams(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
-    int64_t cond = r0;
+    int32_t cond = ReadRegister<int32_t>(r0);
 
     int32_t if_false_offset = Read<int32_t>(code);
     if (!cond) {
@@ -2922,7 +2949,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_If(const uint8_t* code, uint32_t* sp,
                                   WasmInterpreterRuntime* wasm_runtime,
                                   int64_t r0, double fp0) {
-    int64_t cond = r0;
+    int32_t cond = ReadRegister<int32_t>(r0);
 
     int32_t target_offset = Read<int32_t>(code);
     if (!cond) {
@@ -3183,7 +3210,7 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC r2s_BrTable(const uint8_t* code, uint32_t* sp,
                                        WasmInterpreterRuntime* wasm_runtime,
                                        int64_t r0, double fp0) {
-    uint32_t cond = static_cast<int32_t>(r0);
+    uint32_t cond = ReadRegister<int32_t>(r0);
 
     uint32_t table_length = Read<int32_t>(code);
     uint32_t index = cond < table_length ? cond : table_length;
@@ -3661,7 +3688,7 @@ class Handlers : public HandlersBase {
       int64_t r0, double fp0) {
     slot_offset_t to = Read<slot_offset_t>(code);
     base::WriteUnalignedValue<int32_t>(reinterpret_cast<Address>(sp + to),
-                                       static_cast<int32_t>(r0));
+                                       ReadRegister<int32_t>(r0));
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_execution &&
@@ -3679,7 +3706,8 @@ class Handlers : public HandlersBase {
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     slot_offset_t to = Read<slot_offset_t>(code);
-    base::WriteUnalignedValue<int64_t>(reinterpret_cast<Address>(sp + to), r0);
+    base::WriteUnalignedValue<int64_t>(reinterpret_cast<Address>(sp + to),
+                                       ReadRegister<int64_t>(r0));
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_execution &&
@@ -3698,7 +3726,7 @@ class Handlers : public HandlersBase {
       int64_t r0, double fp0) {
     slot_offset_t to = Read<slot_offset_t>(code);
     base::WriteUnalignedValue<float>(reinterpret_cast<Address>(sp + to),
-                                     static_cast<float>(fp0));
+                                     ReadRegister<float>(fp0));
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_execution &&
@@ -3716,7 +3744,8 @@ class Handlers : public HandlersBase {
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     slot_offset_t to = Read<slot_offset_t>(code);
-    base::WriteUnalignedValue<double>(reinterpret_cast<Address>(sp + to), fp0);
+    base::WriteUnalignedValue<double>(reinterpret_cast<Address>(sp + to),
+                                      ReadRegister<double>(fp0));
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_execution &&
@@ -3739,7 +3768,7 @@ class Handlers : public HandlersBase {
         reinterpret_cast<Address>(sp + preserve),
         base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(sp + to)));
     base::WriteUnalignedValue<int32_t>(reinterpret_cast<Address>(sp + to),
-                                       static_cast<int32_t>(r0));
+                                       ReadRegister<int32_t>(r0));
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_execution &&
@@ -3761,7 +3790,8 @@ class Handlers : public HandlersBase {
     base::WriteUnalignedValue<int64_t>(
         reinterpret_cast<Address>(sp + preserve),
         base::ReadUnalignedValue<int64_t>(reinterpret_cast<Address>(sp + to)));
-    base::WriteUnalignedValue<int64_t>(reinterpret_cast<Address>(sp + to), r0);
+    base::WriteUnalignedValue<int64_t>(reinterpret_cast<Address>(sp + to),
+                                       ReadRegister<int64_t>(r0));
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_execution &&
@@ -3785,7 +3815,7 @@ class Handlers : public HandlersBase {
         reinterpret_cast<Address>(sp + preserve),
         base::ReadUnalignedValue<float>(reinterpret_cast<Address>(sp + to)));
     base::WriteUnalignedValue<float>(reinterpret_cast<Address>(sp + to),
-                                     static_cast<float>(fp0));
+                                     ReadRegister<float>(fp0));
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_execution &&
@@ -3807,7 +3837,8 @@ class Handlers : public HandlersBase {
     base::WriteUnalignedValue<double>(
         reinterpret_cast<Address>(sp + preserve),
         base::ReadUnalignedValue<double>(reinterpret_cast<Address>(sp + to)));
-    base::WriteUnalignedValue<double>(reinterpret_cast<Address>(sp + to), fp0);
+    base::WriteUnalignedValue<double>(reinterpret_cast<Address>(sp + to),
+                                      ReadRegister<double>(fp0));
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
     if (v8_flags.trace_drumbrake_execution &&
@@ -7058,10 +7089,9 @@ void ShadowStack::Print(WasmInterpreterRuntime* wasm_runtime,
                                reinterpret_cast<const uint8_t*>(&r0));
       break;
     case RegMode::kF32Reg: {
-      float f = static_cast<float>(fp0);
       ShadowStack::Slot::Print(wasm_runtime, kWasmF32,
                                start_params + stack_.size(), 'R',
-                               reinterpret_cast<const uint8_t*>(&f));
+                               reinterpret_cast<const uint8_t*>(&fp0));
     } break;
     case RegMode::kF64Reg:
       ShadowStack::Slot::Print(wasm_runtime, kWasmF64,
@@ -7091,9 +7121,9 @@ void ShadowStack::Slot::Print(WasmInterpreterRuntime* wasm_runtime,
           base::ReadUnalignedValue<int64_t>(reinterpret_cast<Address>(addr)));
       break;
     case kF32: {
-      float f =
-          base::ReadUnalignedValue<float>(reinterpret_cast<Address>(addr));
-      wasm_runtime->Trace("%c%zu:f32:%f ", kind, index, static_cast<double>(f));
+      wasm_runtime->Trace(
+          "%c%zu:f32:%f ", kind, index,
+          base::ReadUnalignedValue<float>(reinterpret_cast<Address>(addr)));
     } break;
     case kF64:
       wasm_runtime->Trace(
