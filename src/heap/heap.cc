@@ -1787,9 +1787,12 @@ void Heap::CollectGarbage(
          (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage))) {
       isolate()->CountUsage(v8::Isolate::kForcedGC);
     }
-    if (v8_flags.heap_snapshot_on_gc > 0 &&
-        static_cast<size_t>(v8_flags.heap_snapshot_on_gc) == ms_count_) {
-      heap_profiler()->WriteSnapshotToDiskAfterGC();
+    if (v8_flags.heap_snapshot_on_gc >= 0) [[unlikely]] {
+      const size_t gc_counter_filter =
+          static_cast<size_t>(v8_flags.heap_snapshot_on_gc);
+      if (gc_counter_filter == 0 || gc_counter_filter == ms_count_) {
+        heap_profiler()->WriteSnapshotToDiskAfterGC();
+      }
     }
   } else {
     // Start incremental marking for the next cycle. We do this only for

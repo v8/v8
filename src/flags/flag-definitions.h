@@ -2987,7 +2987,8 @@ DEFINE_STRING(heap_snapshot_path, nullptr,
 DEFINE_VALUE_IMPLICATION(fuzzing, heap_snapshot_path,
                          static_cast<const char*>(nullptr))
 DEFINE_INT(heap_snapshot_on_gc, -1,
-           "Write a heap snapshot to disk on a certain GC invocation")
+           "Write a heap snapshot to disk on a certain GC invocation. 0 "
+           "results in taking a snapshot on every invocation.")
 DEFINE_UINT(heap_snapshot_string_limit, 1024,
             "truncate strings to this length in the heap snapshot")
 DEFINE_BOOL(heap_profiler_show_hidden_objects, false,
