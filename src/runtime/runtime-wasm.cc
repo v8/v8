@@ -760,7 +760,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
       trusted_instance_data->memory_object(memory_index)->array_buffer(),
       isolate};
   // Should have trapped if address was OOB.
-  DCHECK_LT(offset, array_buffer->byte_length());
+  DCHECK_LT(offset, array_buffer->GetByteLength());
 
   // Trap if memory is not shared, or wait is not allowed on the isolate
   if (!array_buffer->is_shared() || !isolate->allow_atomics_wait()) {
@@ -787,7 +787,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
       trusted_instance_data->memory_object(memory_index)->array_buffer(),
       isolate};
   // Should have trapped if address was OOB.
-  DCHECK_LT(offset, array_buffer->byte_length());
+  DCHECK_LT(offset, array_buffer->GetByteLength());
 
   // Trap if memory is not shared, or if wait is not allowed on the isolate
   if (!array_buffer->is_shared() || !isolate->allow_atomics_wait()) {
