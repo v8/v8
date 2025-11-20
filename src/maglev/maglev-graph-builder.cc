@@ -15925,6 +15925,12 @@ ReduceResult MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() {
   // ThrowIfNotSuperConstructor <constructor>
   ValueNode* constructor = LoadRegister(0);
   ValueNode* function = GetClosure();
+  if (auto const_constructor = TryGetConstant(constructor)) {
+    if (const_constructor->IsHeapObject() &&
+        const_constructor->AsHeapObject().map(broker()).is_constructor()) {
+      return ReduceResult::Done();
+    }
+  }
   return AddNewNode<ThrowIfNotSuperConstructor>({constructor, function});
 }
 
