@@ -288,8 +288,20 @@ class MaglevReducer {
 
   ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
 
-  compiler::OptionalHeapObjectRef TryGetConstant(
-      ValueNode* node, ValueNode** constant_node = nullptr);
+  template <class T>
+  compiler::OptionalRef<typename compiler::ref_traits<T>::ref_type>
+  TryGetConstant(ValueNode* node, ValueNode** constant_node = nullptr) {
+    compiler::OptionalHeapObjectRef ref =
+        TryGetHeapObjectConstant(node, constant_node);
+    if constexpr (std::is_same_v<T, HeapObject>) {
+      return ref;
+    }
+    if (!ref.has_value() || !ref->Is<T>()) return {};
+    return ref->As<T>();
+  }
+  compiler::OptionalHeapObjectRef TryGetHeapObjectConstant(
+      ValueNode* node, ValueNode** constant_node);
+
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
   std::optional<ShiftedInt53> TryGetShiftedInt53Constant(ValueNode* value);

@@ -1159,6 +1159,14 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(IndirectHandle<Object> object,
   Name##Ref ObjectRef::As##Name() const {                         \
     DCHECK(Is##Name());                                           \
     return Name##Ref(data());                                     \
+  }                                                               \
+  template <>                                                     \
+  bool ObjectRef::Is<Name>() const {                              \
+    return Is##Name();                                            \
+  }                                                               \
+  template <>                                                     \
+  ref_traits<Name>::ref_type ObjectRef::As<Name>() const {        \
+    return As##Name();                                            \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS

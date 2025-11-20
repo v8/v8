@@ -681,8 +681,12 @@ class MaglevGraphBuilder {
     return GetUint8ClampedForToNumber(current_interpreter_frame_.get(reg));
   }
 
-  compiler::OptionalHeapObjectRef TryGetConstant(
-      ValueNode* node, ValueNode** constant_node = nullptr);
+  template <class T>
+  compiler::OptionalRef<typename compiler::ref_traits<T>::ref_type>
+  TryGetConstant(ValueNode* node, ValueNode** constant_node = nullptr) {
+    return reducer_.TryGetConstant<T>(node, constant_node);
+  }
+
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
   std::optional<Float64> TryGetFloat64OrHoleyFloat64Constant(

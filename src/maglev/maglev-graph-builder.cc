@@ -2170,7 +2170,7 @@ ReduceResult MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
   // If both are non-two byte maps, then the result is the
   // kConsOneByteStringMap.
   auto GetIsTwoByteAndMap = [&](ValueNode* input) -> Result {
-    if (auto maybe_constant = input->TryGetConstant(broker())) {
+    if (auto maybe_constant = TryGetConstant<HeapObject>(input)) {
       bool two_byte = maybe_constant->map(broker()).IsTwoByteStringMap();
       return {true, two_byte,
               GetRootConstant(two_byte ? RootIndex::kConsTwoByteStringMap
@@ -2183,8 +2183,8 @@ ReduceResult MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
         VirtualObject* cons = input->Cast<InlinedAllocation>()->object();
         if (cons->object_type() != vobj::ObjectType::kConsString) break;
         ValueNode* map = cons->get(HeapObject::kMapOffset);
-        if (auto cons_map = map->TryGetConstant(broker())) {
-          return {true, cons_map->AsMap().IsTwoByteStringMap(), map};
+        if (auto cons_map = TryGetConstant<Map>(map)) {
+          return {true, cons_map->IsTwoByteStringMap(), map};
         }
         return {false, false, map};
       }
@@ -2244,7 +2244,7 @@ ReduceResult MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
 
 size_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
                                                         int max_depth) {
-  if (auto maybe_constant = string->TryGetConstant(broker())) {
+  if (auto maybe_constant = TryGetConstant<String>(string)) {
     if (maybe_constant->IsString()) {
       return maybe_constant->AsString().length();
     }
@@ -2624,9 +2624,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   ValueNode* right = GetAccumulator();
 
   ValueNode* other = right;
-  compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(left);
+  compiler::OptionalHeapObjectRef maybe_constant =
+      TryGetConstant<HeapObject>(left);
   if (!maybe_constant) {
-    maybe_constant = TryGetConstant(right);
+    maybe_constant = TryGetConstant<HeapObject>(right);
     other = left;
   }
   if (!maybe_constant) return {};
@@ -2640,7 +2641,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
 
   if (CheckType(other, NodeType::kBoolean)) {
     auto CompareOtherWith = [&](bool constant) {
-      compiler::OptionalHeapObjectRef const_other = TryGetConstant(other);
+      compiler::OptionalHeapObjectRef const_other =
+          TryGetConstant<HeapObject>(other);
       if (const_other) {
         auto bool_other = const_other->TryGetBooleanValue(broker());
         if (bool_other.has_value()) {
@@ -3037,13 +3039,11 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
 
   if (slot_mutability == kMutable) return false;
 
-  auto constant = TryGetConstant(context);
-  if (!constant) return false;
-
-  compiler::ContextRef context_ref = constant.value().AsContext();
+  auto context_ref = TryGetConstant<Context>(context);
+  if (!context_ref) return false;
 
   compiler::OptionalObjectRef maybe_slot_value =
-      context_ref.get(broker(), slot_index);
+      context_ref->get(broker(), slot_index);
   if (!maybe_slot_value.has_value()) return false;
 
   compiler::ObjectRef slot_value = maybe_slot_value.value();
@@ -3480,7 +3480,7 @@ ValueNode* MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
     return GetBooleanConstant(false);
   }
 
-  if (auto maybe_constant = TryGetConstant(value)) {
+  if (auto maybe_constant = TryGetConstant<HeapObject>(value)) {
     auto map = maybe_constant.value().map(broker());
     return GetBooleanConstant(map.is_undetectable());
   }
@@ -3900,11 +3900,11 @@ bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
       // Only support known contexts so that we can check that there's no
       // extension at compile time. Otherwise we could end up in a deopt loop
       // once we do get an extension.
-      compiler::OptionalHeapObjectRef maybe_ref = TryGetConstant(context);
-      if (!maybe_ref) return false;
-      compiler::ContextRef context_ref = maybe_ref.value().AsContext();
+      compiler::OptionalContextRef context_ref =
+          TryGetConstant<Context>(context);
+      if (!context_ref) return false;
       compiler::OptionalObjectRef extension_ref =
-          context_ref.get(broker(), Context::EXTENSION_INDEX);
+          context_ref->get(broker(), Context::EXTENSION_INDEX);
       // The extension may be concurrently installed while we're checking the
       // context, in which case it may still be uninitialized. This still
       // means an extension is about to appear, so we should block this
@@ -4506,8 +4506,8 @@ void MaglevGraphBuilder::BuildInitializeStore_Tagged(
 
   // Intercept stores of constant map objects here.
   if (desc.offset == HeapObject::kMapOffset) {
-    if (auto map = value->TryGetConstant(broker())) {
-      ReduceResult result = BuildStoreMap(object, map->AsMap(),
+    if (auto map = TryGetConstant<Map>(value)) {
+      ReduceResult result = BuildStoreMap(object, map.value(),
                                           StoreMap::Kind::kInlinedAllocation);
       CHECK(!result.IsDoneWithAbort());
       return;
@@ -4737,14 +4737,12 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
   // We won't try to reason about the type of the elements array and thus also
   // cannot end up with an empty type for it.
   DCHECK(!IsEmptyNodeType(GetType(elements)));
-  compiler::OptionalHeapObjectRef maybe_constant;
-  if ((maybe_constant = TryGetConstant(elements)) &&
-      maybe_constant.value().IsFixedArray()) {
-    compiler::FixedArrayRef fixed_array_ref =
-        maybe_constant.value().AsFixedArray();
-    if (index >= 0 && static_cast<uint32_t>(index) < fixed_array_ref.length()) {
+  if (compiler::OptionalFixedArrayRef fixed_array_ref =
+          TryGetConstant<FixedArray>(elements)) {
+    if (index >= 0 &&
+        static_cast<uint32_t>(index) < fixed_array_ref->length()) {
       compiler::OptionalObjectRef maybe_value =
-          fixed_array_ref.TryGet(broker(), index);
+          fixed_array_ref->TryGet(broker(), index);
       if (maybe_value) return GetConstant(*maybe_value);
     } else {
       return BuildAbort(AbortReason::kUnreachable);
@@ -4918,10 +4916,9 @@ compiler::OptionalJSObjectRef MaglevGraphBuilder::TryGetConstantDataFieldHolder(
   if (access_info.holder().has_value()) {
     return access_info.holder();
   }
-  if (compiler::OptionalHeapObjectRef c = TryGetConstant(lookup_start_object)) {
-    if (c.value().IsJSObject()) {
-      return c.value().AsJSObject();
-    }
+  if (compiler::OptionalJSObjectRef c =
+          TryGetConstant<JSObject>(lookup_start_object)) {
+    return c.value();
   }
   return {};
 }
@@ -5156,10 +5153,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSDataViewDataPointer(
 ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
     ValueNode* closure) {
   DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
-  if (auto constant = closure->TryGetConstant(broker())) {
-    if (constant->IsJSFunction()) {
-      return GetConstant(constant->AsJSFunction().raw_feedback_cell(broker()));
-    }
+  if (auto constant = TryGetConstant<JSFunction>(closure)) {
+    return GetConstant(constant->raw_feedback_cell(broker()));
   }
   if (auto fast_closure = closure->TryCast<FastCreateClosure>()) {
     return GetConstant(fast_closure->feedback_cell());
@@ -5170,10 +5165,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
 ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
     ValueNode* closure) {
   DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
-  if (auto constant = closure->TryGetConstant(broker())) {
-    if (constant->IsJSFunction()) {
-      return GetConstant(constant->AsJSFunction().context(broker()));
-    }
+  if (auto constant = TryGetConstant<JSFunction>(closure)) {
+    return GetConstant(constant->context(broker()));
   }
   return BuildLoadTaggedField(closure, JSFunction::kContextOffset,
                               LoadType::kContext);
@@ -5456,7 +5449,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   compiler::ZoneRefSet<Map> inferred_maps;
 
   bool has_deprecated_map_without_migration_target = false;
-  if (compiler::OptionalHeapObjectRef c = TryGetConstant(lookup_start_object)) {
+  if (compiler::OptionalHeapObjectRef c =
+          TryGetConstant<HeapObject>(lookup_start_object)) {
     if (c.value().IsTheHole()) return {};
     compiler::MapRef constant_map = c.value().map(broker());
     if (c.value().IsJSFunction() &&
@@ -5836,18 +5830,15 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
   bool is_variable_length = IsRabGsabTypedArrayElementsKind(elements_kind);
 
   if (!is_variable_length) {
-    if (auto const_object = object->TryGetConstant(broker())) {
-      // TODO(marja): Add TryGetConstant<JSTypedArray>().
-      if (const_object->IsJSTypedArray()) {
-        auto const_typed_array = const_object->AsJSTypedArray();
-        if (!const_typed_array.is_on_heap() &&
-            !IsRabGsabTypedArrayElementsKind(
-                const_typed_array.elements_kind(broker()))) {
-          size_t length = const_typed_array.length(broker());
-          static_assert(ArrayBuffer::kMaxByteLength <=
-                        std::numeric_limits<intptr_t>::max());
-          return GetIntPtrConstant(static_cast<intptr_t>(length));
-        }
+    if (auto const_object = TryGetConstant<JSTypedArray>(object)) {
+      auto const_typed_array = const_object.value();
+      if (!const_typed_array.is_on_heap() &&
+          !IsRabGsabTypedArrayElementsKind(
+              const_typed_array.elements_kind(broker()))) {
+        size_t length = const_typed_array.length(broker());
+        static_assert(ArrayBuffer::kMaxByteLength <=
+                      std::numeric_limits<intptr_t>::max());
+        return GetIntPtrConstant(static_cast<intptr_t>(length));
       }
     }
 
@@ -7174,10 +7165,8 @@ ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
       return vobj->get(offsetof(String, length_));
     }
   }
-  if (auto const_string = string->TryGetConstant(broker())) {
-    if (const_string->IsString()) {
-      return GetInt32Constant(const_string->AsString().length());
-    }
+  if (auto const_string = TryGetConstant<String>(string)) {
+    return GetInt32Constant(const_string->length());
   }
   if (ValueNode* const_length =
           known_node_aspects().TryFindLoadedConstantProperty(
@@ -7394,9 +7383,8 @@ ReduceResult MaglevGraphBuilder::VisitGetKeyedProperty() {
   if (processed_feedback->kind() ==
           compiler::ProcessedFeedback::kElementAccess &&
       processed_feedback->AsElementAccess().transition_groups().empty()) {
-    if (auto constant = TryGetConstant(GetAccumulator());
-        constant.has_value() && constant->IsName()) {
-      compiler::NameRef name = constant->AsName();
+    if (auto constant = TryGetConstant<Name>(GetAccumulator())) {
+      compiler::NameRef name = constant.value();
       // IsArrayIndex requires IsUniqueName, i.e. thin strings must be
       // unpacked. Subtle: Refine() still takes the original `name`.
       compiler::NameRef unpacked_name = name.UnpackIfThin(broker());
@@ -7948,7 +7936,7 @@ ReduceResult MaglevGraphBuilder::VisitGetSuperConstructor() {
   // TODO(victorgomes): Maybe BuildLoadTaggedField should support constants
   // instead.
   if (compiler::OptionalHeapObjectRef constant =
-          TryGetConstant(active_function)) {
+          TryGetConstant<HeapObject>(active_function)) {
     compiler::MapRef map = constant->map(broker());
     if (map.is_stable()) {
       broker()->dependencies()->DependOnStableMap(map);
@@ -7981,7 +7969,7 @@ MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
   // JSNativeContextSpecialization::ReduceJSFindNonDefaultConstructorOrConstruct
 
   compiler::OptionalHeapObjectRef maybe_constant =
-      TryGetConstant(this_function);
+      TryGetConstant<HeapObject>(this_function);
   if (!maybe_constant) return {};
 
   compiler::MapRef function_map = maybe_constant->map(broker());
@@ -8018,22 +8006,20 @@ MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
         return {};
       }
 
-      compiler::OptionalHeapObjectRef new_target_function =
-          TryGetConstant(new_target);
       if (kind == FunctionKind::kDefaultBaseConstructor) {
         // Store the result register first, so that a lazy deopt in
         // `FastNewObject` writes `true` to this register.
         StoreRegister(result.first, GetBooleanConstant(true));
 
         ValueNode* object;
-        if (new_target_function && new_target_function->IsJSFunction() &&
-            HasValidInitialMap(new_target_function->AsJSFunction(),
-                               current_function)) {
-          GET_VALUE(
-              object,
-              BuildInlinedAllocation(
-                  CreateJSConstructor(new_target_function->AsJSFunction()),
-                  AllocationType::kYoung));
+        compiler::OptionalJSFunctionRef new_target_function =
+            TryGetConstant<JSFunction>(new_target);
+        if (new_target_function &&
+            HasValidInitialMap(new_target_function.value(), current_function)) {
+          GET_VALUE(object,
+                    BuildInlinedAllocation(
+                        CreateJSConstructor(new_target_function.value()),
+                        AllocationType::kYoung));
         } else {
           // We've already stored "true" into result.first, so a deopt here just
           // has to store result.second.
@@ -8345,10 +8331,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   }
 
   if (max_inline_depth() == 1) {
-    compiler::OptionalHeapObjectRef target_function = TryGetConstant(function);
-    if (target_function && target_function->IsJSFunction()) {
-      if (compiler::OptionalCodeRef code =
-              target_function->AsJSFunction().code(broker())) {
+    if (compiler::OptionalJSFunctionRef target_function =
+            TryGetConstant<JSFunction>(function)) {
+      if (compiler::OptionalCodeRef code = target_function->code(broker())) {
         if (code->GetInlinedBytecodeSize()) {
           return {};
         }
@@ -9316,7 +9301,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstantStringAt(
     ValueNode* receiver, ValueNode* index, StringAtOOBMode oob_mode) {
-  auto constant_receiver = TryGetConstant(receiver);
+  auto constant_receiver = TryGetConstant<HeapObject>(receiver);
   if (!constant_receiver) return {};
   if (!constant_receiver->IsString()) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotAString);
@@ -9438,12 +9423,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   // Any other argument is ignored.
 
   // Try to constant-fold if receiver and index are constant
-  if (auto cst = TryGetConstant(receiver)) {
-    if (cst->IsString() && index->Is<Int32Constant>()) {
-      compiler::StringRef str = cst->AsString();
+  if (auto cst = TryGetConstant<String>(receiver)) {
+    if (index->Is<Int32Constant>()) {
       int idx = index->Cast<Int32Constant>()->value();
-      if (idx >= 0 && static_cast<uint32_t>(idx) < str.length()) {
-        if (std::optional<uint16_t> value = str.GetChar(broker(), idx)) {
+      if (idx >= 0 && static_cast<uint32_t>(idx) < cst->length()) {
+        if (std::optional<uint16_t> value = cst->GetChar(broker(), idx)) {
           return GetSmiConstant(*value);
         }
       }
@@ -9697,7 +9681,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompareIntl(
   DirectHandle<Object> locales_handle;
   ValueNode* locales_node = nullptr;
   if (args.count() > 1) {
-    compiler::OptionalHeapObjectRef maybe_locales = TryGetConstant(args[1]);
+    compiler::OptionalHeapObjectRef maybe_locales =
+        TryGetConstant<HeapObject>(args[1]);
     if (!maybe_locales) return {};
     compiler::HeapObjectRef locales = maybe_locales.value();
     if (locales.equals(undefined_ref)) {
@@ -9718,7 +9703,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompareIntl(
   }
 
   if (args.count() > 2) {
-    compiler::OptionalHeapObjectRef maybe_options = TryGetConstant(args[2]);
+    compiler::OptionalHeapObjectRef maybe_options =
+        TryGetConstant<HeapObject>(args[2]);
     if (!maybe_options) return {};
     if (!maybe_options.value().equals(undefined_ref)) return {};
   }
@@ -10535,17 +10521,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeHasInstance(
   if (args.count() != 1) {
     return {};
   }
-  compiler::OptionalHeapObjectRef maybe_receiver_constant =
-      TryGetConstant(args.receiver());
+  compiler::OptionalJSObjectRef maybe_receiver_constant =
+      TryGetConstant<JSObject>(args.receiver());
   if (!maybe_receiver_constant) {
     return {};
   }
-  compiler::HeapObjectRef receiver_object = maybe_receiver_constant.value();
-  if (!receiver_object.IsJSObject() ||
-      !receiver_object.map(broker()).is_callable()) {
+  if (!maybe_receiver_constant->map(broker()).is_callable()) {
     return {};
   }
-  return BuildOrdinaryHasInstance(args[0], receiver_object.AsJSObject(),
+  return BuildOrdinaryHasInstance(args[0], maybe_receiver_constant.value(),
                                   nullptr);
 }
 
@@ -10599,7 +10583,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
   // comparisons.
 
   compiler::OptionalMapRef maybe_receiver_map;
-  compiler::OptionalHeapObjectRef receiver_ref = TryGetConstant(receiver);
+  compiler::OptionalHeapObjectRef receiver_ref =
+      TryGetConstant<HeapObject>(receiver);
   if (receiver_ref.has_value()) {
     compiler::HeapObjectRef receiver_object = receiver_ref.value();
     compiler::MapRef receiver_map = receiver_object.map(broker());
@@ -11068,7 +11053,7 @@ ReduceResult MaglevGraphBuilder::GetConvertReceiver(
   ValueNode* receiver = args.receiver();
   if (CheckType(receiver, NodeType::kJSReceiver)) return receiver;
   if (compiler::OptionalHeapObjectRef maybe_constant =
-          TryGetConstant(receiver)) {
+          TryGetConstant<HeapObject>(receiver)) {
     compiler::HeapObjectRef constant = maybe_constant.value();
     if (constant.IsNullOrUndefined()) {
       return GetConstant(
@@ -11349,7 +11334,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
 
 bool MaglevGraphBuilder::IsTheHoleConstant(ValueNode* node) {
   if (node != nullptr) {
-    if (compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node)) {
+    if (compiler::OptionalHeapObjectRef maybe_constant =
+            TryGetConstant<HeapObject>(node)) {
       return maybe_constant->IsTheHole();
     }
   }
@@ -11486,7 +11472,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckValueByReference(
   if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
     return EmitUnconditionalDeopt(reason);
   }
-  if (compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node)) {
+  if (compiler::OptionalHeapObjectRef maybe_constant =
+          TryGetConstant<HeapObject>(node)) {
     if (maybe_constant.value().equals(ref)) {
       return ReduceResult::Done();
     }
@@ -11508,7 +11495,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValueOrByReference(
 
 ReduceResult MaglevGraphBuilder::BuildCheckInternalizedStringValueOrByReference(
     ValueNode* node, compiler::HeapObjectRef ref, DeoptimizeReason reason) {
-  if (!TryGetConstant(node) && ref.IsInternalizedString()) {
+  if (!TryGetConstant<HeapObject>(node) && ref.IsInternalizedString()) {
     if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
       return EmitUnconditionalDeopt(reason);
     }
@@ -11579,7 +11566,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
 
 ReduceResult MaglevGraphBuilder::BuildConvertHoleToUndefined(ValueNode* node) {
   if (!node->is_tagged()) return node;
-  compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node);
+  compiler::OptionalHeapObjectRef maybe_constant =
+      TryGetConstant<HeapObject>(node);
   if (maybe_constant) {
     return maybe_constant.value().IsTheHole()
                ? GetRootConstant(RootIndex::kUndefinedValue)
@@ -11590,7 +11578,8 @@ ReduceResult MaglevGraphBuilder::BuildConvertHoleToUndefined(ValueNode* node) {
 
 ReduceResult MaglevGraphBuilder::BuildCheckNotHole(ValueNode* node) {
   if (!node->is_tagged()) return ReduceResult::Done();
-  compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node);
+  compiler::OptionalHeapObjectRef maybe_constant =
+      TryGetConstant<HeapObject>(node);
   if (maybe_constant) {
     if (maybe_constant.value().IsTheHole()) {
       return EmitUnconditionalDeopt(DeoptimizeReason::kHole);
@@ -11850,14 +11839,11 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
   if (elements_value->Is<ArgumentsElements>()) {
     Call::TargetType target_type = Call::TargetType::kAny;
     // TODO(victorgomes): Add JSFunction node type in KNA and use the info here.
-    if (compiler::OptionalHeapObjectRef maybe_constant =
-            TryGetConstant(target_node)) {
-      if (maybe_constant->IsJSFunction()) {
-        compiler::SharedFunctionInfoRef shared =
-            maybe_constant->AsJSFunction().shared(broker());
-        if (!IsClassConstructor(shared.kind())) {
-          target_type = Call::TargetType::kJSFunction;
-        }
+    if (compiler::OptionalJSFunctionRef maybe_constant =
+            TryGetConstant<JSFunction>(target_node)) {
+      compiler::SharedFunctionInfoRef shared = maybe_constant->shared(broker());
+      if (!IsClassConstructor(shared.kind())) {
+        target_type = Call::TargetType::kJSFunction;
       }
     }
     int start_index = 0;
@@ -11981,13 +11967,11 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLike(
 ReduceResult MaglevGraphBuilder::ReduceCall(
     ValueNode* target_node, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
-  if (compiler::OptionalHeapObjectRef maybe_constant =
-          TryGetConstant(target_node)) {
-    if (maybe_constant->IsJSFunction()) {
-      MaybeReduceResult result = TryReduceCallForTarget(
-          target_node, maybe_constant->AsJSFunction(), args, feedback_source);
-      RETURN_IF_DONE(result);
-    }
+  if (compiler::OptionalJSFunctionRef maybe_constant =
+          TryGetConstant<JSFunction>(target_node)) {
+    MaybeReduceResult result = TryReduceCallForTarget(
+        target_node, maybe_constant.value(), args, feedback_source);
+    RETURN_IF_DONE(result);
   }
 
   // If the implementation here becomes more complex, we could probably
@@ -12445,10 +12429,10 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArrayIterator(
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
     ValueNode* closure, ValueNode* receiver) {
-  compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(closure);
+  compiler::OptionalJSFunctionRef maybe_constant =
+      TryGetConstant<JSFunction>(closure);
   if (!maybe_constant.has_value()) return {};
-  if (!maybe_constant->IsJSFunction()) return {};
-  compiler::JSFunctionRef function = maybe_constant->AsJSFunction();
+  compiler::JSFunctionRef function = maybe_constant.value();
   if (!function.has_initial_map(broker())) return {};
 
   // Create the register file.
@@ -12572,14 +12556,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     }
   }
 
-  compiler::OptionalHeapObjectRef new_target_constant =
-      TryGetConstant(new_target);
-  if (!new_target_constant.has_value() ||
-      !new_target_constant->IsJSFunction()) {
+  compiler::OptionalJSFunctionRef new_target_constant =
+      TryGetConstant<JSFunction>(new_target);
+  if (!new_target_constant.has_value()) {
     return {};
   }
-  compiler::JSFunctionRef new_target_function =
-      new_target_constant->AsJSFunction();
+  compiler::JSFunctionRef new_target_function = new_target_constant.value();
 
   compiler::OptionalMapRef maybe_initial_map =
       TryGetDerivedMap(broker(), target_function, new_target_function);
@@ -12744,7 +12726,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
     compiler::JSFunctionRef target_function,
     compiler::SharedFunctionInfoRef target_sfi, ValueNode* target,
     ValueNode* new_target, CallArguments& args) {
-  DCHECK_EQ(target_function, TryGetConstant(target).value());
+  DCHECK_EQ(target_function, TryGetConstant<HeapObject>(target).value());
   DCHECK_EQ(target_sfi, target_function.shared(broker()));
 
   switch (target_sfi.builtin_id()) {
@@ -12754,18 +12736,18 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       break;
     }
     case Builtin::kObjectConstructor: {
-      // TODO(jgruber): Implement.
-      if (target != new_target) return {};
       // If no value is passed, we can immediately lower to a simple
       // constructor.
-      if (args.count() == 0) {
-        return BuildInlinedAllocation(CreateJSConstructor(target_function),
-                                      AllocationType::kYoung);
+      compiler::OptionalJSFunctionRef new_target_function =
+          TryGetConstant<JSFunction>(new_target);
+      if (args.count() == 0 && new_target_function.has_value()) {
+        return BuildInlinedAllocation(
+            CreateJSConstructor(new_target_function.value()),
+            AllocationType::kYoung);
       }
       break;
     }
     case Builtin::kStringConstructor: {
-      // TODO(jgruber): Implement.
       if (target != new_target) return {};
       ValueNode* value;
       if (args.count() == 0) {
@@ -12796,7 +12778,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
     ValueNode* new_target, CallArguments& args,
     compiler::FeedbackSource& feedback_source) {
-  DCHECK_EQ(target_constant, TryGetConstant(target).value());
+  DCHECK_EQ(target_constant, TryGetConstant<HeapObject>(target).value());
 
   // Emit an inlined version of the construct stub. This can be either
   // JSConstructStubGeneric, or JSBuiltinsConstructStub if construct_as_builtin
@@ -12824,10 +12806,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
     }
     if (CheckType(call_result, NodeType::kJSReceiver)) return call_result;
     ValueNode* constant_node;
-    if (compiler::OptionalHeapObjectRef maybe_constant =
-            TryGetConstant(call_result, &constant_node)) {
-      compiler::HeapObjectRef constant = maybe_constant.value();
-      if (constant.IsJSReceiver()) return constant_node;
+    if (compiler::OptionalJSReceiverRef maybe_constant =
+            TryGetConstant<JSReceiver>(call_result, &constant_node)) {
+      return constant_node;
     }
     if (!call_result->properties().is_tagged()) {
       return BuildThrow(Throw::kThrowConstructorReturnedNonObject);
@@ -12835,24 +12816,20 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
     return AddNewNode<CheckDerivedConstructResult>({call_result});
   }
 
-  compiler::OptionalHeapObjectRef new_target_constant =
-      TryGetConstant(new_target);
   ValueNode* implicit_receiver = nullptr;
   if (construct_as_builtin) {
     implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
   } else {
     // We do not create a construct stub lazy deopt frame, since
     // FastNewObject cannot fail if target is a JSFunction.
-    if (new_target_constant.has_value() &&
-        new_target_constant->IsJSFunction()) {
-      compiler::JSFunctionRef new_target_function =
-          new_target_constant->AsJSFunction();
+    if (compiler::OptionalJSFunctionRef new_target_function =
+            TryGetConstant<JSFunction>(new_target)) {
       if (compiler::OptionalMapRef map = TryGetDerivedMap(
-              broker(), target_constant, new_target_function)) {
-        GET_VALUE_OR_ABORT(
-            implicit_receiver,
-            BuildInlinedAllocation(CreateJSConstructor(new_target_function),
-                                   AllocationType::kYoung));
+              broker(), target_constant, new_target_function.value())) {
+        GET_VALUE_OR_ABORT(implicit_receiver,
+                           BuildInlinedAllocation(
+                               CreateJSConstructor(new_target_function.value()),
+                               AllocationType::kYoung));
       }
     }
     if (implicit_receiver == nullptr) {
@@ -12887,7 +12864,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
   if (!call_result->properties().is_tagged()) return implicit_receiver;
   ValueNode* constant_node;
   if (compiler::OptionalHeapObjectRef maybe_constant =
-          TryGetConstant(call_result, &constant_node)) {
+          TryGetConstant<HeapObject>(call_result, &constant_node)) {
     compiler::HeapObjectRef constant = maybe_constant.value();
     DCHECK(CheckType(implicit_receiver, NodeType::kJSReceiver));
     if (constant.IsJSReceiver()) return constant_node;
@@ -12903,7 +12880,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstruct(
   // If we have AllocationSite feedback, we take a different path that calls
   // TryReduceConstructArrayConstructor directly.
   DCHECK(!target_constant.IsAllocationSite());
-  DCHECK_EQ(target_constant, TryGetConstant(target).value());
+  DCHECK_EQ(target_constant, TryGetConstant<HeapObject>(target).value());
 
   if (!target_constant.map(broker()).is_constructor()) {
     // Non-constructor targets throw, let the generic path handle this.
@@ -12980,7 +12957,7 @@ ReduceResult MaglevGraphBuilder::BuildConstruct(
 
   // Specialize to new_target_feedback if possible.
   compiler::OptionalHeapObjectRef new_target_constant =
-      TryGetConstant(new_target);
+      TryGetConstant<HeapObject>(new_target);
   if (new_target_feedback.has_value() && !new_target_constant.has_value() &&
       new_target_feedback->map(broker()).is_constructor()) {
     RETURN_IF_ABORT(
@@ -12995,7 +12972,7 @@ ReduceResult MaglevGraphBuilder::BuildConstruct(
   }
 
   if (compiler::OptionalHeapObjectRef target_constant =
-          TryGetConstant(target)) {
+          TryGetConstant<HeapObject>(target)) {
     PROCESS_AND_RETURN_IF_DONE(
         TryReduceConstruct(target_constant.value(), target, new_target, args,
                            feedback_source),
@@ -13432,11 +13409,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
 
   // Check if the right hand side is a known receiver, or
   // we have feedback from the InstanceOfIC.
-  compiler::OptionalHeapObjectRef maybe_constant;
-  if ((maybe_constant = TryGetConstant(callable)) &&
-      maybe_constant.value().IsJSObject()) {
-    compiler::JSObjectRef callable_ref = maybe_constant.value().AsJSObject();
-    return TryBuildFastInstanceOf(object, callable_ref, nullptr);
+  if (compiler::OptionalJSObjectRef maybe_constant =
+          TryGetConstant<JSObject>(callable)) {
+    return TryBuildFastInstanceOf(object, maybe_constant.value(), nullptr);
   }
   if (feedback_source.IsValid()) {
     compiler::OptionalJSObjectRef callable_from_feedback =
@@ -15363,7 +15338,8 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfUndefined(
 MaglevGraphBuilder::BranchResult
 MaglevGraphBuilder::BuildBranchIfUndefinedOrNull(BranchBuilder& builder,
                                                  ValueNode* node) {
-  compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node);
+  compiler::OptionalHeapObjectRef maybe_constant =
+      TryGetConstant<HeapObject>(node);
   if (maybe_constant.has_value()) {
     return builder.FromBool(maybe_constant->IsNullOrUndefined());
   }
@@ -15959,9 +15935,8 @@ ReduceResult MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() {
   // ThrowIfNotSuperConstructor <constructor>
   ValueNode* constructor = LoadRegister(0);
   ValueNode* function = GetClosure();
-  if (auto const_constructor = TryGetConstant(constructor)) {
-    if (const_constructor->IsHeapObject() &&
-        const_constructor->AsHeapObject().map(broker()).is_constructor()) {
+  if (auto const_constructor = TryGetConstant<HeapObject>(constructor)) {
+    if (const_constructor->map(broker()).is_constructor()) {
       return ReduceResult::Done();
     }
   }
@@ -16840,10 +16815,6 @@ ValueNode* MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value) {
   return reducer_.GetHoleyFloat64(value);
 }
 
-compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
-    ValueNode* node, ValueNode** constant_node) {
-  return reducer_.TryGetConstant(node, constant_node);
-}
 std::optional<int32_t> MaglevGraphBuilder::TryGetInt32Constant(
     ValueNode* value) {
   return reducer_.TryGetInt32Constant(value);

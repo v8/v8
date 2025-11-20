@@ -724,14 +724,14 @@ ReduceResult MaglevReducer<BaseT>::EmitUnconditionalDeopt(
 }
 
 template <typename BaseT>
-compiler::OptionalHeapObjectRef MaglevReducer<BaseT>::TryGetConstant(
+compiler::OptionalHeapObjectRef MaglevReducer<BaseT>::TryGetHeapObjectConstant(
     ValueNode* node, ValueNode** constant_node) {
   if (auto result = node->TryGetConstant(broker())) {
     if (constant_node) *constant_node = node;
     return result;
   }
   if (auto c = TryGetConstantAlternative(node)) {
-    return TryGetConstant(*c, constant_node);
+    return TryGetHeapObjectConstant(*c, constant_node);
   }
   return {};
 }
@@ -1370,7 +1370,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckConstantMaps(
   // don't need to emit a map check, and can use the dependency -- we
   // can't do this for unstable maps because the constant could migrate
   // during compilation.
-  if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object)) {
+  if (compiler::OptionalHeapObjectRef constant =
+          TryGetConstant<HeapObject>(object)) {
     return TryFoldCheckConstantMaps(constant->map(broker()), maps);
   }
 
@@ -1393,7 +1394,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
     KnownMapsMerger<MapContainer>& merger) {
   RETURN_IF_DONE(TryFoldCheckConstantMaps(object, maps));
   if (object_map) {
-    if (compiler::OptionalHeapObjectRef constant = TryGetConstant(object_map)) {
+    if (compiler::OptionalHeapObjectRef constant =
+            TryGetConstant<HeapObject>(object_map)) {
       CHECK(constant->IsMap());
       RETURN_IF_DONE(TryFoldCheckConstantMaps(constant->AsMap(), maps));
     }
