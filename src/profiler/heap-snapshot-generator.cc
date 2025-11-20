@@ -1109,8 +1109,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object,
 
 HeapEntry* V8HeapExplorer::AddEntry(Address address, HeapEntry::Type type,
                                     const char* name, size_t size) {
-  if (v8_flags.heap_profiler_show_hidden_objects &&
-      type == HeapEntry::kHidden) {
+  if (type == HeapEntry::kHidden &&
+      (snapshot_->expose_internals() ||
+       v8_flags.heap_profiler_show_hidden_objects)) {
     type = HeapEntry::kNative;
   }
   SnapshotObjectId object_id = heap_object_map_->FindOrAddEntry(
