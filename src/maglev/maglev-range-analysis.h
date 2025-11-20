@@ -488,6 +488,11 @@ class RangeProcessor {
       Range range = ranges_.Get(block, phi);
       Range backedge = ranges_.Get(backedge_pred, phi->input_node(backedge_id));
       Range widened = Range::Widen(range, backedge);
+      if (phi->is_int32()) {
+        // Since phi representation selector promoted this phi to Int32,
+        // take its range into consideration when widening.
+        widened = Range::Intersect(Range::Int32(), widened);
+      }
       TRACE_RANGE("[ranges]: Processing " << PrintNodeLabel(phi) << ": "
                                           << PrintNode(phi) << ":");
       TRACE_RANGE("  before = " << range);
