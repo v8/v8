@@ -49,7 +49,7 @@ let $makeSuper = builder.addFunction(
   .addBody([
     kExprLocalGet, 0,
     kExprGlobalGet, $g_SuperDesc.index,
-    kGCPrefix, kExprStructNew, $Super,
+    kGCPrefix, kExprStructNewDesc, $Super,
   ]);
 
 let $makeSub = builder.addFunction(
@@ -58,7 +58,7 @@ let $makeSub = builder.addFunction(
     kExprLocalGet, 0,
     kExprLocalGet, 1,
     kExprGlobalGet, $g_SubDesc.index,
-    kGCPrefix, kExprStructNew, $Sub,
+    kGCPrefix, kExprStructNewDesc, $Sub,
   ]);
 
 let $makeOther = builder.addFunction("MakeOther", makeSig([], [kWasmAnyRef]))
@@ -242,7 +242,7 @@ for (let i = 0; i < 3; i++) {
     .addBody([
       kExprLocalGet, 0,
       kExprGlobalGet, $g_desc.index,
-      kGCPrefix, kExprStructNew, $struct,
+      kGCPrefix, kExprStructNewDesc, $struct,
     ]);
 
   let $method = builder.addFunction("method", kSig_i_r).addBody([

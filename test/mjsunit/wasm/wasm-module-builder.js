@@ -585,6 +585,8 @@ let kExprI31GetS = 0x1d;
 let kExprI31GetU = 0x1e;
 let kExprRefI31Shared = 0x1f;
 // Custom Descriptors proposal:
+let kExprStructNewDesc = 0x20;
+let kExprStructNewDefaultDesc = 0x21;
 let kExprRefGetDesc = 0x22;
 let kExprRefCastDesc = 0x23;
 let kExprRefCastDescNull = 0x24;

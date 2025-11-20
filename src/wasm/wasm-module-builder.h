@@ -455,6 +455,13 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     return types_[index].supertype;
   }
 
+  bool HasDescriptor(ModuleTypeIndex index) {
+    return types_[index.index].has_descriptor();
+  }
+  ModuleTypeIndex GetDescriptor(ModuleTypeIndex index) {
+    return types_[index.index].descriptor;
+  }
+
   WasmFunctionBuilder* GetFunction(uint32_t index) { return functions_[index]; }
   int NumTags() { return base::checked_cast<int>(tags_.size()); }
 
