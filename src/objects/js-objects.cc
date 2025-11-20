@@ -1249,13 +1249,12 @@ MaybeHandle<JSAny> GetPropertyWithInterceptorInternal(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
                                Object::ConvertReceiver(isolate, receiver));
   }
-  PropertyCallbackArguments args(isolate, *interceptor, *receiver, *holder,
-                                 Just(kDontThrow));
+  PropertyCallbackArguments args(isolate, *receiver, *holder, Just(kDontThrow));
 
   if (it->IsElement(*holder)) {
-    result = args.CallIndexedGetter(it->array_index());
+    result = args.CallIndexedGetter(interceptor, it->array_index());
   } else {
-    result = args.CallNamedGetter(it->name());
+    result = args.CallNamedGetter(interceptor, it->name());
   }
   // An exception was thrown in the interceptor. Propagate.
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, kNullMaybeHandle);
@@ -1282,14 +1281,13 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
                                Object::ConvertReceiver(isolate, receiver));
   }
-  PropertyCallbackArguments args(isolate, *interceptor, *receiver, *holder,
-                                 Just(kDontThrow));
+  PropertyCallbackArguments args(isolate, *receiver, *holder, Just(kDontThrow));
   if (interceptor->has_query()) {
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
-      result = args.CallIndexedQuery(it->array_index());
+      result = args.CallIndexedQuery(interceptor, it->array_index());
     } else {
-      result = args.CallNamedQuery(it->name());
+      result = args.CallNamedQuery(interceptor, it->name());
     }
     // An exception was thrown in the interceptor. Propagate.
     RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
@@ -1312,9 +1310,9 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     // TODO(verwaest): Use GetPropertyWithInterceptor?
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
-      result = args.CallIndexedGetter(it->array_index());
+      result = args.CallIndexedGetter(interceptor, it->array_index());
     } else {
-      result = args.CallNamedGetter(it->name());
+      result = args.CallNamedGetter(interceptor, it->name());
     }
     // An exception was thrown in the interceptor. Propagate.
     RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
@@ -1346,12 +1344,12 @@ Maybe<InterceptorResult> SetPropertyWithInterceptorInternal(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
                                Object::ConvertReceiver(isolate, receiver));
   }
-  PropertyCallbackArguments args(isolate, *interceptor, *receiver, *holder,
-                                 should_throw);
+  PropertyCallbackArguments args(isolate, *receiver, *holder, should_throw);
 
   v8::Intercepted intercepted =
-      it->IsElement(*holder) ? args.CallIndexedSetter(it->array_index(), value)
-                             : args.CallNamedSetter(it->name(), value);
+      it->IsElement(*holder)
+          ? args.CallIndexedSetter(interceptor, it->array_index(), value)
+          : args.CallNamedSetter(interceptor, it->name(), value);
 
   return args.GetBooleanReturnValue(intercepted, "Setter");
 }
@@ -1412,13 +1410,12 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
     descriptor->set_configurable(desc->configurable());
   }
 
-  PropertyCallbackArguments args(isolate, *interceptor, *receiver, *holder,
-                                 should_throw);
+  PropertyCallbackArguments args(isolate, *receiver, *holder, should_throw);
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
-          ? args.CallIndexedDefiner(it->array_index(), *descriptor)
-          : args.CallNamedDefiner(it->name(), *descriptor);
+          ? args.CallIndexedDefiner(interceptor, it->array_index(), *descriptor)
+          : args.CallNamedDefiner(interceptor, it->name(), *descriptor);
 
   return args.GetBooleanReturnValue(intercepted, "Definer");
 }
@@ -1915,12 +1912,11 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
                                Object::ConvertReceiver(isolate, receiver));
   }
 
-  PropertyCallbackArguments args(isolate, *interceptor, *receiver, *holder,
-                                 Just(kDontThrow));
+  PropertyCallbackArguments args(isolate, *receiver, *holder, Just(kDontThrow));
   if (it->IsElement(*holder)) {
-    result = args.CallIndexedDescriptor(it->array_index());
+    result = args.CallIndexedDescriptor(interceptor, it->array_index());
   } else {
-    result = args.CallNamedDescriptor(it->name());
+    result = args.CallNamedDescriptor(interceptor, it->name());
   }
   // An exception was thrown in the interceptor. Propagate.
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
@@ -4192,12 +4188,13 @@ Maybe<InterceptorResult> JSObject::DeletePropertyWithInterceptor(
                                Object::ConvertReceiver(isolate, receiver));
   }
 
-  PropertyCallbackArguments args(isolate, *interceptor, *receiver, *holder,
+  PropertyCallbackArguments args(isolate, *receiver, *holder,
                                  Just(should_throw));
 
-  v8::Intercepted intercepted = it->IsElement(*holder)
-                                    ? args.CallIndexedDeleter(it->array_index())
-                                    : args.CallNamedDeleter(it->name());
+  v8::Intercepted intercepted =
+      it->IsElement(*holder)
+          ? args.CallIndexedDeleter(interceptor, it->array_index())
+          : args.CallNamedDeleter(interceptor, it->name());
 
   return args.GetBooleanReturnValue(intercepted, "Deleter");
 }

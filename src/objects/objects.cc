@@ -1533,9 +1533,9 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
                                  Object::ConvertReceiver(isolate, receiver));
     }
 
-    PropertyCallbackArguments args(isolate, *info, *receiver, *holder,
+    PropertyCallbackArguments args(isolate, *receiver, *holder,
                                    Just(kDontThrow));
-    DirectHandle<JSAny> result = args.CallAccessorGetter(name);
+    DirectHandle<JSAny> result = args.CallAccessorGetter(info, name);
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     Handle<JSAny> reboxed_result(*result, isolate);
     if (info->replace_on_access() && IsJSReceiver(*receiver)) {
@@ -1602,9 +1602,8 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
                                  Object::ConvertReceiver(isolate, receiver));
     }
 
-    PropertyCallbackArguments args(isolate, *info, *receiver, *holder,
-                                   should_throw);
-    bool result = args.CallAccessorSetter(name, value);
+    PropertyCallbackArguments args(isolate, *receiver, *holder, should_throw);
+    bool result = args.CallAccessorSetter(info, name, value);
     RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
     if (!result) {
       // Make sure TypeError is thrown if necessary in case the callback

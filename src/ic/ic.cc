@@ -4013,9 +4013,9 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
 #endif
 
   Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>();
-  PropertyCallbackArguments arguments(isolate, *info, *receiver, *holder,
+  PropertyCallbackArguments arguments(isolate, *receiver, *holder,
                                       should_throw);
-  bool result = arguments.CallAccessorSetter(name, value);
+  bool result = arguments.CallAccessorSetter(info, name, value);
   RETURN_FAILURE_IF_EXCEPTION(isolate);
   if (!result && GetShouldThrow(isolate, should_throw) == kThrowOnError) {
     // Throw TypeError if necessary in case the callback failed
@@ -4188,10 +4188,10 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 #endif
 
   {
-    PropertyCallbackArguments arguments(isolate, *interceptor, *receiver,
-                                        *holder, Just(kDontThrow));
+    PropertyCallbackArguments arguments(isolate, *receiver, *holder,
+                                        Just(kDontThrow));
 
-    DirectHandle<Object> result = arguments.CallNamedGetter(name);
+    DirectHandle<Object> result = arguments.CallNamedGetter(interceptor, name);
     // An exception was thrown in the interceptor. Propagate.
     RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
@@ -4256,10 +4256,11 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   DCHECK_EQ(holder->GetNamedInterceptor(), *interceptor);
 
   {
-    PropertyCallbackArguments callback_args(isolate, *interceptor, *receiver,
-                                            *holder, Nothing<ShouldThrow>());
+    PropertyCallbackArguments callback_args(isolate, *receiver, *holder,
+                                            Nothing<ShouldThrow>());
 
-    v8::Intercepted intercepted = callback_args.CallNamedSetter(name, value);
+    v8::Intercepted intercepted =
+        callback_args.CallNamedSetter(interceptor, name, value);
     // Stores initiated by StoreICs don't care about the exact result of
     // the store operation returned by the callback as long as it doesn't
     // throw an exception.
@@ -4315,9 +4316,9 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
 
   DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                             isolate);
-  PropertyCallbackArguments arguments(isolate, *interceptor, *receiver,
-                                      *receiver, Just(kDontThrow));
-  DirectHandle<Object> result = arguments.CallIndexedGetter(index);
+  PropertyCallbackArguments arguments(isolate, *receiver, *receiver,
+                                      Just(kDontThrow));
+  DirectHandle<Object> result = arguments.CallIndexedGetter(interceptor, index);
   // An exception was thrown in the interceptor. Propagate.
   RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
@@ -4361,11 +4362,12 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
   {
     DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                               isolate);
-    PropertyCallbackArguments arguments(isolate, *interceptor, *receiver,
-                                        *receiver, Just(kDontThrow));
+    PropertyCallbackArguments arguments(isolate, *receiver, *receiver,
+                                        Just(kDontThrow));
 
     if (interceptor->has_query()) {
-      DirectHandle<Object> result = arguments.CallIndexedQuery(index);
+      DirectHandle<Object> result =
+          arguments.CallIndexedQuery(interceptor, index);
       // An exception was thrown in the interceptor. Propagate.
       RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
       if (!result.is_null()) {
@@ -4378,7 +4380,8 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
         return ReadOnlyRoots(isolate).true_value();
       }
     } else if (interceptor->has_getter()) {
-      DirectHandle<Object> result = arguments.CallIndexedGetter(index);
+      DirectHandle<Object> result =
+          arguments.CallIndexedGetter(interceptor, index);
       // An exception was thrown in the interceptor. Propagate.
       RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
       if (!result.is_null()) {
