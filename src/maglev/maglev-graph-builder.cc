@@ -11053,6 +11053,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceBuiltin(
 
 ReduceResult MaglevGraphBuilder::GetConvertReceiver(
     compiler::SharedFunctionInfoRef shared, const CallArguments& args) {
+  DCHECK(!IsTheHoleConstant(args.receiver()));
   if (shared.native() || shared.language_mode() == LanguageMode::kStrict) {
     if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
       return GetRootConstant(RootIndex::kUndefinedValue);
@@ -11084,11 +11085,15 @@ MaglevGraphBuilder::GetArgumentsAsArrayOfValueNodes(
   // TODO(victorgomes): Investigate if we can avoid this copy.
   int arg_count = static_cast<int>(args.count());
   auto arguments = zone()->AllocateVector<ValueNode*>(arg_count + 1);
-  ReduceResult result = GetConvertReceiver(shared, args);
-  if (result.IsDoneWithAbort()) {
-    return std::make_pair(ReduceResult::DoneWithAbort(), arguments);
+  if (IsTheHoleConstant(args.receiver())) {
+    arguments[0] = args.receiver();
+  } else {
+    ReduceResult result = GetConvertReceiver(shared, args);
+    if (result.IsDoneWithAbort()) {
+      return std::make_pair(ReduceResult::DoneWithAbort(), arguments);
+    }
+    GET_VALUE(arguments[0], result.value());
   }
-  GET_VALUE(arguments[0], result.value());
   for (int i = 0; i < arg_count; i++) {
     arguments[i + 1] = args[i];
   }
@@ -11191,6 +11196,12 @@ bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
 MaybeReduceResult MaglevGraphBuilder::TryReduceCallForApiFunction(
     compiler::FunctionTemplateInfoRef api_callback,
     compiler::OptionalSharedFunctionInfoRef maybe_shared, CallArguments& args) {
+  if (IsTheHoleConstant(args.receiver())) {
+    // The receiver may be the_hole when inlining derived constructors and
+    // construct_as_builtin constructors.
+    // TODO(jgruber): Support this case.
+    return {};
+  }
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
@@ -11336,6 +11347,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
       builtin_name, tagged_context);
 }
 
+bool MaglevGraphBuilder::IsTheHoleConstant(ValueNode* node) {
+  if (node != nullptr) {
+    if (compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node)) {
+      return maybe_constant->IsTheHole();
+    }
+  }
+  return false;
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     compiler::JSFunctionRef function, ValueNode* new_target,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {
@@ -11353,24 +11373,28 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function) &&
       !graph_->is_osr()) {
     DCHECK(!shared.HasBuiltinId());
+    DCHECK(!IsTheHoleConstant(args.receiver()));
     res = BuildCallSelf(context_node, closure, new_target, shared, args);
   } else {
     res = TryBuildCallKnownJSFunction(
-        context_node, closure, new_target,
-        function.dispatch_handle(),
-        shared, function.raw_feedback_cell(broker()), args, feedback_source);
+        context_node, closure, new_target, function.dispatch_handle(), shared,
+        function.raw_feedback_cell(broker()), args, feedback_source);
   }
   return res;
 }
 
 ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
-    JSDispatchHandle dispatch_handle,
-    compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
-  ValueNode* receiver;
-  GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
+  ValueNode* receiver = args.receiver();
+  if (!IsTheHoleConstant(args.receiver())) {
+    // The receiver may be the_hole when inlining derived constructors and
+    // construct_as_builtin constructors. Only insert conversions when that is
+    // not the case.
+    GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
+  }
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
   ValueNode* tagged_function;
   GET_VALUE_OR_ABORT(tagged_function, GetTaggedValue(function));
@@ -11430,8 +11454,7 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
-    JSDispatchHandle dispatch_handle,
-    compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   // Truncate args when they are unreachable.
@@ -11451,8 +11474,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
                                       feedback_source));
   }
   return BuildCallKnownJSFunction(context, function, new_target,
-                                  dispatch_handle,
-                                  shared, feedback_cell, args, feedback_source);
+                                  dispatch_handle, shared, feedback_cell, args,
+                                  feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckValueByReference(
@@ -12768,19 +12791,19 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
   return {};
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
+MaybeReduceResult MaglevGraphBuilder::TryReduceJSConstructStub(
     compiler::JSFunctionRef target_constant,
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
     ValueNode* new_target, CallArguments& args,
     compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(target_constant, TryGetConstant(target).value());
 
-  int construct_arg_count = static_cast<int>(args.count());
-  base::Vector<ValueNode*> construct_arguments_without_receiver =
-      zone()->AllocateVector<ValueNode*>(construct_arg_count);
-  for (int i = 0; i < construct_arg_count; i++) {
-    construct_arguments_without_receiver[i] = args[i];
-  }
+  // Emit an inlined version of the construct stub. This can be either
+  // JSConstructStubGeneric, or JSBuiltinsConstructStub if construct_as_builtin
+  // is set. The latter is a simplified version of the former: the receiver
+  // is always the_hole, and the returned value is unchecked.
+
+  const bool construct_as_builtin = shared_function_info.construct_as_builtin();
 
   if (IsDerivedConstructor(shared_function_info.kind())) {
     ValueNode* implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
@@ -12791,6 +12814,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
       MaybeReduceResult result = TryBuildCallKnownJSFunction(
           target_constant, new_target, args, feedback_source);
       RETURN_IF_ABORT(result);
+      if (construct_as_builtin) {
+        // The invariant of such builtin targets is that the return value is a
+        // JSReceiver. Set the type accordingly here.
+        EnsureType(result.value(), NodeType::kJSReceiver);
+        return result;
+      }
       call_result = result.value();
     }
     if (CheckType(call_result, NodeType::kJSReceiver)) return call_result;
@@ -12808,32 +12837,36 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
 
   compiler::OptionalHeapObjectRef new_target_constant =
       TryGetConstant(new_target);
-
-  // We do not create a construct stub lazy deopt frame, since
-  // FastNewObject cannot fail if target is a JSFunction.
   ValueNode* implicit_receiver = nullptr;
-  if (new_target_constant.has_value() && new_target_constant->IsJSFunction()) {
-    compiler::JSFunctionRef new_target_function =
-        new_target_constant->AsJSFunction();
-    if (compiler::OptionalMapRef map =
-            TryGetDerivedMap(broker(), target_constant, new_target_function)) {
+  if (construct_as_builtin) {
+    implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
+  } else {
+    // We do not create a construct stub lazy deopt frame, since
+    // FastNewObject cannot fail if target is a JSFunction.
+    if (new_target_constant.has_value() &&
+        new_target_constant->IsJSFunction()) {
+      compiler::JSFunctionRef new_target_function =
+          new_target_constant->AsJSFunction();
+      if (compiler::OptionalMapRef map = TryGetDerivedMap(
+              broker(), target_constant, new_target_function)) {
+        GET_VALUE_OR_ABORT(
+            implicit_receiver,
+            BuildInlinedAllocation(CreateJSConstructor(new_target_function),
+                                   AllocationType::kYoung));
+      }
+    }
+    if (implicit_receiver == nullptr) {
+      // TODO(jgruber): Support ConstructStubCreate for deoptimizing during
+      // object construction; for these cases, we have to resume before the
+      // `target` call.
+      if (target != new_target) return {};
       GET_VALUE_OR_ABORT(
           implicit_receiver,
-          BuildInlinedAllocation(CreateJSConstructor(new_target_function),
-                                 AllocationType::kYoung));
+          BuildCallBuiltinWithTaggedInputs<Builtin::kFastNewObject>(
+              {target, new_target}));
     }
+    EnsureType(implicit_receiver, NodeType::kJSReceiver);
   }
-  if (implicit_receiver == nullptr) {
-    // TODO(jgruber): Support ConstructStubCreate for deoptimizing during
-    // object construction; for these cases, we have to resume before the
-    // `target` call.
-    if (target != new_target) return {};
-    GET_VALUE_OR_ABORT(
-        implicit_receiver,
-        BuildCallBuiltinWithTaggedInputs<Builtin::kFastNewObject>(
-            {target, new_target}));
-  }
-  EnsureType(implicit_receiver, NodeType::kJSReceiver);
 
   args.set_receiver(implicit_receiver);
   ValueNode* call_result;
@@ -12842,6 +12875,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
     MaybeReduceResult result = TryBuildCallKnownJSFunction(
         target_constant, new_target, args, feedback_source);
     RETURN_IF_ABORT(result);
+    if (construct_as_builtin) {
+      // The invariant of such builtin targets is that the return value is a
+      // JSReceiver. Set the type accordingly here.
+      EnsureType(result.value(), NodeType::kJSReceiver);
+      return result;
+    }
     call_result = result.value();
   }
   if (CheckType(call_result, NodeType::kJSReceiver)) return call_result;
@@ -12899,13 +12938,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstruct(
                                              target, new_target, args));
   }
 
-  if (target_sfi.construct_as_builtin()) {
-    // TODO(victorgomes): Inline JSBuiltinsConstructStub.
-    return {};
-  }
-
-  return TryReduceConstructGeneric(target_function, target_sfi, target,
-                                   new_target, args, feedback_source);
+  return TryReduceJSConstructStub(target_function, target_sfi, target,
+                                  new_target, args, feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::BuildConstruct(

@@ -1028,10 +1028,10 @@ class MaglevGraphBuilder {
       compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
+  bool IsTheHoleConstant(ValueNode* node);
   ReduceResult BuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
-      JSDispatchHandle dispatch_handle,
-      compiler::SharedFunctionInfoRef shared,
+      JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   ReduceResult BuildCallKnownJSFunction(ValueNode* context, ValueNode* function,
@@ -1044,8 +1044,7 @@ class MaglevGraphBuilder {
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryBuildCallKnownJSFunction(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
-      JSDispatchHandle dispatch_handle,
-      compiler::SharedFunctionInfoRef shared,
+      JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
       compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
@@ -1138,7 +1137,7 @@ class MaglevGraphBuilder {
       compiler::JSFunctionRef target_function,
       compiler::SharedFunctionInfoRef target_sfi, ValueNode* target,
       ValueNode* new_target, CallArguments& args);
-  MaybeReduceResult TryReduceConstructGeneric(
+  MaybeReduceResult TryReduceJSConstructStub(
       compiler::JSFunctionRef function,
       compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
       ValueNode* new_target, CallArguments& args,
