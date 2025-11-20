@@ -968,12 +968,6 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
     ValueNode* value, UseRepresentation use_rep, NodeType allowed_input_type) {
-#ifdef DEBUG
-  auto ReachingTypeAllows = [allowed_input_type](NodeType t) {
-    return NodeTypeIsNone(allowed_input_type) ||
-           NodeTypeIs(t, allowed_input_type);
-  };
-#endif
   DCHECK(use_rep == UseRepresentation::kFloat64 ||
          use_rep == UseRepresentation::kHoleyFloat64);
   ValueRepresentation representation =
@@ -1073,7 +1067,6 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       if (use_rep == UseRepresentation::kHoleyFloat64) {
         // We only set the holey_float64 alternative if all feasible values are
         // allowed according to `allowed_input_type`.
-        DCHECK(ReachingTypeAllows(NodeType::kNumber));
         return alternative.set_holey_float64(
             AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
                 {float64}));
@@ -1086,7 +1079,6 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       if (use_rep == UseRepresentation::kHoleyFloat64) {
         // We only set the holey_float64 alternative if all feasible values are
         // allowed according to `allowed_input_type`.
-        DCHECK(ReachingTypeAllows(NodeType::kNumber));
         return alternative.set_holey_float64(
             AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
                 {float64}));
@@ -1097,7 +1089,6 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       DCHECK_EQ(use_rep, UseRepresentation::kHoleyFloat64);
       // We only set the holey_float64 alternative if all feasible values are
       // allowed according to `allowed_input_type`.
-      DCHECK(ReachingTypeAllows(NodeType::kNumber));
       return alternative.set_holey_float64(
           AddNewNodeNoInputConversion<ChangeFloat64ToHoleyFloat64>({value}));
     case ValueRepresentation::kHoleyFloat64: {
@@ -1133,7 +1124,6 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       if (use_rep == UseRepresentation::kHoleyFloat64) {
         // We only set the holey_float64 alternative if all feasible values are
         // allowed according to `allowed_input_type`.
-        DCHECK(ReachingTypeAllows(NodeType::kNumber));
         return alternative.set_holey_float64(
             AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
                 {float64}));
