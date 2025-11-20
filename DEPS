@@ -134,9 +134,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8f29743a09f2126bf201d4e52eac627edbf024df',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ec4972c8c286d0aa001795f3d2b6be3a38d97dcb',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5df641722f2e50623646d702e0046fb68c0f5ce1',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd33e4e3371ae9f4f671c94959d10d643b2d1a507',
   'buildtools/linux64': {
     'packages': [
       {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a40c63a40be0951d502252386b9b4c8e5fd55aad',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '375fb27dca07105e30c1c8fb495925741ad55100',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -306,7 +306,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '454a561737fb62e75ba82bfae9fb07ee64acdd68',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'be279eb793ebc878dd4a00eaa1f351f7d165d41e',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'de02e5d57052b3b6d5fcd76dccde9380bca39360',
   'third_party/libpfm4':
@@ -316,7 +316,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '7ff36f1e358ffb63e25f27a1b5e8e0c52e15c49c',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'bb256f487c34423654a89c152cd4967ca10840d1',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '8aabeb515924fc3f7605c78bf049066b6cc4c3d4',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '13281e8344917065d7429e03ee85d3d9ec1d22e3',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'f331a746b1e24517977664389f835b3eab1ed155',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
@@ -506,11 +506,11 @@ deps = {
       'condition': 'checkout_android',
   },
   'tools/rust':
-    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '59ea51c9c56c2f1b9554d3d0dc5666ee50333fbd',
+    Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '4e8a11963f191d6605fe6ac6ff17c6048ec843d3',
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '24494b071e019a2baea4355d9870ffc5fc0bbafe',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'e151a288f16336813b25aeacc46100c543543fff',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '24b2624d6fcc716c01b5d73e2c62cddb037fe650',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -562,7 +562,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'c54e50d9f14471146af9f1f357b3c525c2ff5bb7',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '564023aa53767b5f60b3a556f0a025b7b7e8241e',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
