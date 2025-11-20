@@ -177,25 +177,19 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   page_allocator_ = reservation_.page_allocator();
   pointer_compression_cage_ = &reservation_;
 
-#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-  CHECK_IMPLIES(CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL,
-                v8_flags.reserve_contiguous_compressed_read_only_space);
-  if (v8_flags.reserve_contiguous_compressed_read_only_space) {
-    void* cage_base = reinterpret_cast<void*>(reservation_.base());
-    const void* read_only_reservation_start = page_allocator_->AllocatePages(
-        cage_base, kContiguousReadOnlyReservationSize,
-        MemoryChunk::GetAlignmentForAllocation(),
-        PageAllocator::Permission::kNoAccess);
-    CHECK_EQ(read_only_reservation_start, cage_base);
-    read_only_page_allocator_ =
-        std::make_unique<v8::base::BoundedPageAllocator>(
-            page_allocator_,
-            reinterpret_cast<Address>(read_only_reservation_start),
-            kContiguousReadOnlyReservationSize, kRegularPageSize,
-            base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
-            base::PageFreeingMode::kMakeInaccessible);
-  }
-#endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  void* cage_base = reinterpret_cast<void*>(reservation_.base());
+  const void* read_only_reservation_start = page_allocator_->AllocatePages(
+      cage_base, kContiguousReadOnlyReservationSize,
+      MemoryChunk::GetAlignmentForAllocation(),
+      PageAllocator::Permission::kNoAccess);
+  CHECK_EQ(read_only_reservation_start, cage_base);
+  read_only_page_allocator_ = std::make_unique<v8::base::BoundedPageAllocator>(
+      page_allocator_, reinterpret_cast<Address>(read_only_reservation_start),
+      kContiguousReadOnlyReservationSize, kRegularPageSize,
+      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
+      base::PageFreeingMode::kMakeInaccessible);
+#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
   if (!trusted_range_.InitReservation(kMaximalTrustedRangeSize)) {
     V8::FatalProcessOutOfMemory(
@@ -227,25 +221,19 @@ void IsolateGroup::Initialize(bool process_wide) {
   }
   page_allocator_ = reservation_.page_allocator();
 
-#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-  CHECK_IMPLIES(CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL,
-                v8_flags.reserve_contiguous_compressed_read_only_space);
-  if (v8_flags.reserve_contiguous_compressed_read_only_space) {
-    void* cage_base = reinterpret_cast<void*>(reservation_.base());
-    const void* read_only_reservation_start = page_allocator_->AllocatePages(
-        cage_base, kContiguousReadOnlyReservationSize,
-        MemoryChunk::GetAlignmentForAllocation(),
-        PageAllocator::Permission::kNoAccess);
-    CHECK_EQ(read_only_reservation_start, cage_base);
-    read_only_page_allocator_ =
-        std::make_unique<v8::base::BoundedPageAllocator>(
-            page_allocator_,
-            reinterpret_cast<Address>(read_only_reservation_start),
-            kContiguousReadOnlyReservationSize, kRegularPageSize,
-            base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
-            base::PageFreeingMode::kMakeInaccessible);
-  }
-#endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  void* cage_base = reinterpret_cast<void*>(reservation_.base());
+  const void* read_only_reservation_start = page_allocator_->AllocatePages(
+      cage_base, kContiguousReadOnlyReservationSize,
+      MemoryChunk::GetAlignmentForAllocation(),
+      PageAllocator::Permission::kNoAccess);
+  CHECK_EQ(read_only_reservation_start, cage_base);
+  read_only_page_allocator_ = std::make_unique<v8::base::BoundedPageAllocator>(
+      page_allocator_, reinterpret_cast<Address>(read_only_reservation_start),
+      kContiguousReadOnlyReservationSize, kRegularPageSize,
+      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
+      base::PageFreeingMode::kMakeInaccessible);
+#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
   pointer_compression_cage_ = &reservation_;
   trusted_pointer_compression_cage_ = &reservation_;

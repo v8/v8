@@ -2663,12 +2663,6 @@ DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
 DEFINE_BOOL(late_heap_limit_check, true,
             "skips heap limit check for early GCs on allocation failure.")
 
-#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-DEFINE_BOOL(reserve_contiguous_compressed_read_only_space, true,
-            "reserves a contiguous compressed read-only space in all pointer "
-            "compression cages")
-#endif
-
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
