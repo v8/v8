@@ -22,11 +22,18 @@
 
 namespace v8::internal::wasm {
 
-class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
+class V8_EXPORT_PRIVATE AsyncStreamingDecoder final : public StreamingDecoder {
  public:
   explicit AsyncStreamingDecoder(std::unique_ptr<StreamingProcessor> processor);
   AsyncStreamingDecoder(const AsyncStreamingDecoder&) = delete;
   AsyncStreamingDecoder& operator=(const AsyncStreamingDecoder&) = delete;
+
+  void InitializeIsolateSpecificInfo(Isolate* isolate) override {
+    const bool failed = !ok();
+    StreamingProcessor* processor =
+        failed ? failed_processor_.get() : processor_.get();
+    processor->InitializeIsolateSpecificInfo(isolate);
+  }
 
   void OnBytesReceived(base::Vector<const uint8_t> bytes) override;
 

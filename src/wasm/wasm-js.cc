@@ -63,12 +63,12 @@ class WasmStreaming::WasmStreamingImpl {
       CompileTimeImports compile_imports,
       std::shared_ptr<internal::wasm::CompilationResultResolver> resolver)
       : i_isolate_(isolate),
-        enabled_features_(WasmEnabledFeatures::FromIsolate(i_isolate_)),
         streaming_decoder_(i::wasm::GetWasmEngine()->StartStreamingCompilation(
-            i_isolate_, enabled_features_, std::move(compile_imports),
-            direct_handle(i_isolate_->context(), i_isolate_), api_method_name,
-            resolver)),
-        resolver_(std::move(resolver)) {}
+            WasmEnabledFeatures::FromIsolate(i_isolate_),
+            std::move(compile_imports), api_method_name, resolver)),
+        resolver_(std::move(resolver)) {
+    streaming_decoder_->InitializeIsolateSpecificInfo(isolate);
+  }
 
   void OnBytesReceived(const uint8_t* bytes, size_t size) {
     streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
@@ -107,9 +107,8 @@ class WasmStreaming::WasmStreamingImpl {
 
  private:
   i::Isolate* const i_isolate_;
-  const WasmEnabledFeatures enabled_features_;
-  const std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
-  const std::shared_ptr<internal::wasm::CompilationResultResolver> resolver_;
+  const std::shared_ptr<i::wasm::StreamingDecoder> streaming_decoder_;
+  const std::shared_ptr<i::wasm::CompilationResultResolver> resolver_;
 };
 
 WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)

@@ -15,6 +15,7 @@
 #include "include/v8-metrics.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
+#include "src/handles/maybe-handles.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
@@ -108,15 +109,15 @@ void PublishDetectedFeatures(WasmDetectedFeatures, Isolate*,
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
 class AsyncCompileJob {
  public:
-  AsyncCompileJob(Isolate* isolate, WasmEnabledFeatures enabled_features,
+  AsyncCompileJob(WasmEnabledFeatures enabled_features,
                   CompileTimeImports compile_imports,
                   base::OwnedVector<const uint8_t> bytes,
-                  DirectHandle<Context> context,
-                  DirectHandle<NativeContext> incumbent_context,
                   const char* api_method_name,
                   std::shared_ptr<CompilationResultResolver> resolver,
                   int compilation_id);
   ~AsyncCompileJob();
+
+  void InitializeIsolateSpecificInfo(Isolate*);
 
   // Start asynchronous decoding; this triggers the full asynchronous
   // (non-streaming) compilation.
@@ -127,10 +128,19 @@ class AsyncCompileJob {
   void Abort();
   void CancelPendingForegroundTask();
 
-  Isolate* isolate() const { return isolate_; }
+  // Return the isolate that this AsyncCompileJob belongs to, or `nullptr` if
+  // this is not associated to any isolate (yet).
+  Isolate* isolate() const {
+    if (!has_isolate_specific_info_.load(std::memory_order_acquire)) return {};
+    return isolate_specific_info_.isolate_;
+  }
 
-  DirectHandle<NativeContext> context() const { return native_context_; }
-  v8::metrics::Recorder::ContextId context_id() const { return context_id_; }
+  // Return the context that this AsyncCompileJob belongs to, or an empty handle
+  // if this is not associated to any isolate and context (yet).
+  MaybeDirectHandle<NativeContext> context() const {
+    if (!has_isolate_specific_info_.load(std::memory_order_acquire)) return {};
+    return isolate_specific_info_.native_context_;
+  }
 
  private:
   class CompileTask;
@@ -180,12 +190,11 @@ class AsyncCompileJob {
   // {FinishCompile} and {Failed} invalidate the {AsyncCompileJob}, so we only
   // allow to call them on r-value references to make this clear at call sites.
   void FinishCompile(std::shared_ptr<NativeModule> final_native_module,
+                     DirectHandle<WasmModuleObject> deserialized_module_object,
                      bool cache_hit) &&;
   void Failed() &&;
 
   void AsyncCompileSucceeded(DirectHandle<WasmModuleObject> result);
-
-  void FinishSuccessfully();
 
   void StartForegroundTask();
   void StartBackgroundTask();
@@ -213,7 +222,27 @@ class AsyncCompileJob {
   template <typename Step, typename... Args>
   void NextStep(Args&&... args);
 
-  Isolate* const isolate_;
+  // Some information is only provided late (after assigning an isolate). Store
+  // that in a separate late-initialized field to avoid accidentally using a
+  // field too early.
+  struct IsolateSpecificInfo {
+    Isolate* isolate_;
+    IndirectHandle<NativeContext> native_context_;
+    // TODO(clemensb): Move this out into the resolver.
+    IndirectHandle<NativeContext> incumbent_context_;
+    v8::metrics::Recorder::ContextId context_id_;
+
+    std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  };
+
+  // `isolate_specific_info_` is initialized lazily, potentially after
+  // registering the `AsyncCompileJob` with the `WasmEngine`. In order to avoid
+  // data races, any thread which has not read or written the field before
+  // should read the `has_isolate_specific_info_` field first (with acquire
+  // semantics).
+  std::atomic<bool> has_isolate_specific_info_{false};
+  IsolateSpecificInfo isolate_specific_info_;
+
   const char* const api_method_name_;
   const WasmEnabledFeatures enabled_features_;
   WasmDetectedFeatures detected_features_;
@@ -226,22 +255,21 @@ class AsyncCompileJob {
   // Reference to the wire bytes (held in {bytes_copy_} or as part of
   // {new_native_module_}).
   ModuleWireBytes wire_bytes_;
-  IndirectHandle<NativeContext> native_context_;
-  IndirectHandle<NativeContext> incumbent_context_;
-  v8::metrics::Recorder::ContextId context_id_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
-  IndirectHandle<WasmModuleObject> module_object_;
   // The {NativeModule} which was created for this async compilation.
   // This is only set once, and stays alive as long as this job stays alive.
   // Note that the finally used module can be different, if we find a module in
   // the cache.
   std::shared_ptr<NativeModule> new_native_module_;
 
+  // Outstanding counter updates / metrics events, to be published when
+  // finishing (in a foreground task).
+  DelayedCounterUpdates delayed_counters_;
+  std::optional<v8::metrics::WasmModuleDecoded> decoding_metrics_event_;
+
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
-
-  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 
   // For async compilation the AsyncCompileJob is the only finisher. For
   // streaming compilation also the AsyncStreamingProcessor has to finish before

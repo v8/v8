@@ -8,23 +8,24 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-serialization.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
-class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
+class V8_EXPORT_PRIVATE SyncStreamingDecoder final : public StreamingDecoder {
  public:
-  SyncStreamingDecoder(Isolate* isolate, WasmEnabledFeatures enabled,
+  SyncStreamingDecoder(WasmEnabledFeatures enabled,
                        CompileTimeImports compile_imports,
-                       DirectHandle<Context> context,
                        const char* api_method_name_for_errors,
                        std::shared_ptr<CompilationResultResolver> resolver)
-      : isolate_(isolate),
-        enabled_(enabled),
+      : enabled_(enabled),
         compile_imports_(std::move(compile_imports)),
-        context_(indirect_handle(context)),
         api_method_name_for_errors_(api_method_name_for_errors),
         resolver_(resolver) {}
+
+  void InitializeIsolateSpecificInfo(Isolate* isolate) override {
+    isolate_ = isolate;
+    context_ =
+        indirect_handle(direct_handle(isolate->raw_native_context(), isolate));
+  }
 
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(base::Vector<const uint8_t> bytes) override {
@@ -146,14 +147,12 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
 };
 
 std::unique_ptr<StreamingDecoder> StreamingDecoder::CreateSyncStreamingDecoder(
-    Isolate* isolate, WasmEnabledFeatures enabled,
-    CompileTimeImports compile_imports, DirectHandle<Context> context,
+    WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
     const char* api_method_name_for_errors,
     std::shared_ptr<CompilationResultResolver> resolver) {
   return std::make_unique<SyncStreamingDecoder>(
-      isolate, enabled, std::move(compile_imports), context,
-      api_method_name_for_errors, std::move(resolver));
+      enabled, std::move(compile_imports), api_method_name_for_errors,
+      std::move(resolver));
 }
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+
+}  // namespace v8::internal::wasm

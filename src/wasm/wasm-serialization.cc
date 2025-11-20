@@ -1136,10 +1136,8 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
 
   WasmDetectedFeatures detected_features;
   ModuleResult decode_result = DecodeWasmModule(
-      enabled_features, owned_wire_bytes.as_vector(), false,
-      i::wasm::kWasmOrigin, isolate->counters(), isolate->metrics_recorder(),
-      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kDeserialize, &detected_features);
+      isolate, enabled_features, owned_wire_bytes.as_vector(), false,
+      i::wasm::kWasmOrigin, DecodingMethod::kDeserialize, &detected_features);
   if (decode_result.failed()) return {};
   std::shared_ptr<WasmModule> module = std::move(decode_result).value();
   CHECK_NOT_NULL(module);

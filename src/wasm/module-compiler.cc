@@ -2405,8 +2405,10 @@ class AsyncCompileJob::CompileStep {
 
   void Run(AsyncCompileJob* job, bool on_foreground) {
     if (on_foreground) {
-      HandleScope scope(job->isolate_);
-      SaveAndSwitchContext saved_context(job->isolate_, *job->native_context_);
+      HandleScope scope(job->isolate_specific_info_.isolate_);
+      SaveAndSwitchContext saved_context(
+          job->isolate_specific_info_.isolate_,
+          *job->isolate_specific_info_.native_context_);
       RunInForeground(job);
     } else {
       RunInBackground(job);
@@ -2424,7 +2426,8 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
       // the {AsyncCompileJob}. Foreground tasks are managed by the system's
       // {CancelableTaskManager}. Background tasks cannot spawn tasks managed by
       // their own task manager.
-      : CancelableTask(on_foreground ? job->isolate_->cancelable_task_manager()
+      : CancelableTask(on_foreground ? job->isolate_specific_info_.isolate_
+                                           ->cancelable_task_manager()
                                      : &job->background_task_manager_),
         job_(job),
         on_foreground_(on_foreground) {}
@@ -2459,13 +2462,10 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
 };
 
 AsyncCompileJob::AsyncCompileJob(
-    Isolate* isolate, WasmEnabledFeatures enabled_features,
-    CompileTimeImports compile_imports, base::OwnedVector<const uint8_t> bytes,
-    DirectHandle<Context> context,
-    DirectHandle<NativeContext> incumbent_context, const char* api_method_name,
+    WasmEnabledFeatures enabled_features, CompileTimeImports compile_imports,
+    base::OwnedVector<const uint8_t> bytes, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id)
-    : isolate_(isolate),
-      api_method_name_(api_method_name),
+    : api_method_name_(api_method_name),
       enabled_features_(enabled_features),
       compile_imports_(std::move(compile_imports)),
       start_time_(base::TimeTicks::IsHighResolution() ? base::TimeTicks::Now()
@@ -2478,19 +2478,24 @@ AsyncCompileJob::AsyncCompileJob(
                "wasm.AsyncCompileJob");
   CHECK(v8_flags.wasm_async_compilation);
   CHECK(!v8_flags.jitless || v8_flags.wasm_jitless);
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Platform* platform = V8::GetCurrentPlatform();
-  foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
-  native_context_ =
-      isolate->global_handles()->Create(context->native_context());
-  incumbent_context_ = isolate->global_handles()->Create(*incumbent_context);
-  DCHECK(IsNativeContext(*native_context_));
-  context_id_ = isolate->GetOrRegisterRecorderContextId(native_context_);
 }
 
-void AsyncCompileJob::StartAsyncDecoding() {
-  DoAsync<DecodeModule>(isolate_->counters(), isolate_->metrics_recorder());
+void AsyncCompileJob::InitializeIsolateSpecificInfo(Isolate* isolate) {
+  DCHECK(!has_isolate_specific_info_.load(std::memory_order_acquire));
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::Platform* platform = V8::GetCurrentPlatform();
+  DirectHandle<NativeContext> native_context = isolate->native_context();
+  isolate_specific_info_ = IsolateSpecificInfo{
+      .isolate_ = isolate,
+      .native_context_ = isolate->global_handles()->Create(*native_context),
+      .incumbent_context_ =
+          isolate->global_handles()->Create(*isolate->GetIncumbentContext()),
+      .context_id_ = isolate->GetOrRegisterRecorderContextId(native_context),
+      .foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate)};
+  CHECK(!has_isolate_specific_info_.exchange(true, std::memory_order_release));
 }
+
+void AsyncCompileJob::StartAsyncDecoding() { DoAsync<DecodeModule>(); }
 
 void AsyncCompileJob::Abort() {
   // Removing this job will trigger the destructor, which will cancel all
@@ -2634,6 +2639,10 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
  public:
   explicit AsyncStreamingProcessor(AsyncCompileJob* job);
 
+  void InitializeIsolateSpecificInfo(Isolate* isolate) override {
+    job_->InitializeIsolateSpecificInfo(isolate);
+  }
+
   bool ProcessModuleHeader(base::Vector<const uint8_t> bytes) override;
 
   bool ProcessSection(SectionCode section_code,
@@ -2696,10 +2705,12 @@ AsyncCompileJob::~AsyncCompileJob() {
   // anymore.
   if (stream_) stream_->NotifyCompilationDiscarded();
   CancelPendingForegroundTask();
-  isolate_->global_handles()->Destroy(native_context_.location());
-  isolate_->global_handles()->Destroy(incumbent_context_.location());
-  if (!module_object_.is_null()) {
-    isolate_->global_handles()->Destroy(module_object_.location());
+  if (isolate_specific_info_.isolate_) {
+    DCHECK_EQ(isolate_specific_info_.isolate_, Isolate::TryGetCurrent());
+    isolate_specific_info_.isolate_->global_handles()->Destroy(
+        isolate_specific_info_.native_context_.location());
+    isolate_specific_info_.isolate_->global_handles()->Destroy(
+        isolate_specific_info_.incumbent_context_.location());
   }
 }
 
@@ -2741,11 +2752,14 @@ AsyncCompileJob::GetOrCreateNativeModule(
 
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
-void AsyncCompileJob::FinishCompile(std::shared_ptr<NativeModule> native_module,
-                                    bool cache_hit) && {
+void AsyncCompileJob::FinishCompile(
+    std::shared_ptr<NativeModule> native_module,
+    DirectHandle<WasmModuleObject> deserialized_module_object,
+    bool cache_hit) && {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.FinishAsyncCompile");
-  GetWasmEngine()->UseNativeModuleInIsolate(native_module.get(), isolate_);
+  Isolate* isolate = isolate_specific_info_.isolate_;
+  GetWasmEngine()->UseNativeModuleInIsolate(native_module.get(), isolate);
   if (stream_) {
     stream_->NotifyNativeModuleCreated(native_module);
   }
@@ -2767,18 +2781,15 @@ void AsyncCompileJob::FinishCompile(std::shared_ptr<NativeModule> native_module,
     }
   }
 
-  bool is_after_deserialization = !module_object_.is_null();
+  DirectHandle<WasmModuleObject> module_object = deserialized_module_object;
+  bool is_after_deserialization = !deserialized_module_object.is_null();
   if (!is_after_deserialization) {
     // Prepare runtime objects.
-    DCHECK(module_object_.is_null());
     auto source_url =
         stream_ ? base::VectorOf(stream_->url()) : base::Vector<const char>();
     auto script =
-        GetWasmEngine()->GetOrCreateScript(isolate_, native_module, source_url);
-    DirectHandle<WasmModuleObject> module_object =
-        WasmModuleObject::New(isolate_, native_module, script);
-
-    module_object_ = isolate_->global_handles()->Create(*module_object);
+        GetWasmEngine()->GetOrCreateScript(isolate, native_module, source_url);
+    module_object = WasmModuleObject::New(isolate, native_module, script);
   }
 
   // We should only get here if compilation succeeded.
@@ -2794,7 +2805,7 @@ void AsyncCompileJob::FinishCompile(std::shared_ptr<NativeModule> native_module,
       .liftoff_bailout_count = native_module->liftoff_bailout_count()};
 
   if (!start_time_.IsNull()) {
-    Counters* counters = isolate_->counters();
+    Counters* counters = isolate->counters();
     // We will only have a compilation time if we did not get the module from
     // cache and if there was a code section.
     if (!compilation_finished_time_.IsNull()) {
@@ -2817,13 +2828,21 @@ void AsyncCompileJob::FinishCompile(std::shared_ptr<NativeModule> native_module,
     // The UKM event reports the full time until the module is ready.
     compile_event.wall_clock_duration_in_us = finish_time.InMicroseconds();
   }
+  delayed_counters_.Publish(isolate);
 
-  isolate_->metrics_recorder()->DelayMainThreadEvent(compile_event,
-                                                     context_id_);
+  DCHECK(!isolate->context().is_null());
+  auto context_id =
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context());
+  isolate->metrics_recorder()->AddMainThreadEvent(compile_event, context_id);
+  // If we have a decoding metrics event (from non-streaming compilation),
+  // publish it now.
+  if (decoding_metrics_event_.has_value()) {
+    isolate->metrics_recorder()->AddMainThreadEvent(
+        decoding_metrics_event_.value(), context_id);
+  }
 
-  DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
-  DirectHandle<Script> script(module_object_->script(), isolate_);
+  DirectHandle<Script> script(module_object->script(), isolate);
   auto sourcemap_symbol =
       module->debug_symbols[WasmDebugSymbols::Type::SourceMap];
   if (script->type() == Script::Type::kWasm &&
@@ -2831,7 +2850,7 @@ void AsyncCompileJob::FinishCompile(std::shared_ptr<NativeModule> native_module,
       !sourcemap_symbol.external_url.is_empty()) {
     ModuleWireBytes wire_bytes(native_module->wire_bytes());
     MaybeDirectHandle<String> src_map_str =
-        isolate_->factory()->NewStringFromUtf8(
+        isolate->factory()->NewStringFromUtf8(
             wire_bytes.GetNameOrNull(sourcemap_symbol.external_url),
             AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
@@ -2839,16 +2858,16 @@ void AsyncCompileJob::FinishCompile(std::shared_ptr<NativeModule> native_module,
   {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                  "wasm.Debug.OnAfterCompile");
-    isolate_->debug()->OnAfterCompile(script);
+    isolate->debug()->OnAfterCompile(script);
   }
 
   // Publish the detected features in this isolate, once initial compilation
   // is done. Validate should have detected all features, unless lazy validation
   // is enabled.
-  PublishDetectedFeatures(compilation_state->detected_features(), isolate_,
+  PublishDetectedFeatures(compilation_state->detected_features(), isolate,
                           true);
   // Also publish any delayed counter updates in the isolate.
-  native_module->counter_updates()->Publish(isolate_);
+  native_module->counter_updates()->Publish(isolate);
 
   // We might need debug code for the module, if the debugger was enabled while
   // streaming compilation was running. Since handling this while compiling via
@@ -2862,9 +2881,19 @@ void AsyncCompileJob::FinishCompile(std::shared_ptr<NativeModule> native_module,
 
   // Finally, log all generated code (it does not matter if this happens
   // repeatedly in case the script is shared).
-  native_module->LogWasmCodes(isolate_, module_object_->script());
+  native_module->LogWasmCodes(isolate, *script);
 
-  FinishSuccessfully();
+  {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                 "wasm.OnCompilationSucceeded");
+    // We have to make sure that an "incumbent context" is available in case the
+    // module's start function calls out to Blink.
+    Local<v8::Context> backup_incumbent_context =
+        Utils::ToLocal(isolate_specific_info_.incumbent_context_);
+    v8::Context::BackupIncumbentScope incumbent(backup_incumbent_context);
+    resolver_->OnCompilationSucceeded(module_object);
+  }
+  GetWasmEngine()->RemoveCompileJob(this);
 }
 
 void AsyncCompileJob::Failed() && {
@@ -2872,10 +2901,13 @@ void AsyncCompileJob::Failed() && {
   std::unique_ptr<AsyncCompileJob> job =
       GetWasmEngine()->RemoveCompileJob(this);
 
+  Isolate* isolate = isolate_specific_info_.isolate_;
+  DCHECK_EQ(isolate, Isolate::Current());
+
   if (new_native_module_) {
     // Publish any delayed counter updates for the "unfinished" native module in
     // the isolate.
-    new_native_module_->counter_updates()->Publish(isolate_);
+    new_native_module_->counter_updates()->Publish(isolate);
   }
 
   // Revalidate the whole module to produce a deterministic error message.
@@ -2884,7 +2916,7 @@ void AsyncCompileJob::Failed() && {
   ModuleResult result =
       DecodeWasmModule(enabled_features_, wire_bytes_.module_bytes(), kValidate,
                        kWasmOrigin, &unused_detected_features);
-  ErrorThrower thrower(isolate_, api_method_name_);
+  ErrorThrower thrower(isolate, api_method_name_);
   if (result.failed()) {
     thrower.CompileFailed(std::move(result).error());
   } else {
@@ -2911,8 +2943,17 @@ void AsyncCompileJob::Failed() && {
     base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
     compile_event.wall_clock_duration_in_us = duration.InMicroseconds();
   }
-  isolate_->metrics_recorder()->DelayMainThreadEvent(compile_event,
-                                                     context_id_);
+  auto context_id =
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context());
+  isolate->metrics_recorder()->AddMainThreadEvent(compile_event, context_id);
+  // If we have a decoding metrics event (from non-streaming compilation),
+  // publish it now.
+  if (decoding_metrics_event_.has_value()) {
+    isolate->metrics_recorder()->AddMainThreadEvent(
+        decoding_metrics_event_.value(), context_id);
+  }
+
+  job->delayed_counters_.Publish(isolate);
 
   resolver_->OnCompilationFailed(thrower.Reify());
 }
@@ -2923,7 +2964,6 @@ class AsyncCompileJob::CompilationStateCallback
   explicit CompilationStateCallback(AsyncCompileJob* job) : job_(job) {}
 
   void call(CompilationEvent event) override {
-    // This callback is only being called from a foreground task.
     switch (event) {
       case CompilationEvent::kFinishedBaselineCompilation:
         DCHECK(!last_event_.has_value());
@@ -2934,7 +2974,8 @@ class AsyncCompileJob::CompilationStateCallback
           // Install the native module in the cache, or reuse a conflicting one.
           std::shared_ptr<NativeModule> final_native_module =
               GetWasmEngine()->UpdateNativeModuleCache(
-                  false, job_->new_native_module_, job_->isolate_);
+                  false, job_->new_native_module_,
+                  job_->isolate_specific_info_.isolate_);
           job_->DoSync<FinishCompilation>(std::move(final_native_module));
         }
         break;
@@ -2946,7 +2987,8 @@ class AsyncCompileJob::CompilationStateCallback
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
           GetWasmEngine()->UpdateNativeModuleCache(
-              true, job_->new_native_module_, job_->isolate_);
+              true, job_->new_native_module_,
+              job_->isolate_specific_info_.isolate_);
           job_->DoSync<Fail>();
         }
         break;
@@ -2970,7 +3012,7 @@ void AsyncCompileJob::StartForegroundTask() {
 
   auto new_task = std::make_unique<CompileTask>(this, true);
   pending_foreground_task_ = new_task.get();
-  foreground_task_runner_->PostTask(std::move(new_task));
+  isolate_specific_info_.foreground_task_runner_->PostTask(std::move(new_task));
 }
 
 void AsyncCompileJob::CancelPendingForegroundTask() {
@@ -2988,7 +3030,7 @@ void AsyncCompileJob::StartBackgroundTask() {
     V8::GetCurrentPlatform()->PostTaskOnWorkerThread(
         TaskPriority::kUserBlocking, std::move(task));
   } else {
-    foreground_task_runner_->PostTask(std::move(task));
+    isolate_specific_info_.foreground_task_runner_->PostTask(std::move(task));
   }
 }
 
@@ -3017,41 +3059,34 @@ void AsyncCompileJob::NextStep(Args&&... args) {
 //==========================================================================
 class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
  public:
-  explicit DecodeModule(Counters* counters,
-                        std::shared_ptr<metrics::Recorder> metrics_recorder)
-      : counters_(counters), metrics_recorder_(std::move(metrics_recorder)) {}
-
   void RunInBackground(AsyncCompileJob* job) override {
-    ModuleResult result;
-    {
-      DisallowHandleAllocation no_handle;
-      DisallowGarbageCollection no_gc;
-      // Decode the module bytes.
-      TRACE_COMPILE("(1) Decoding module...\n");
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-                   "wasm.DecodeModule");
-      auto enabled_features = job->enabled_features_;
-      result = DecodeWasmModule(
-          enabled_features, job->wire_bytes_.module_bytes(), false, kWasmOrigin,
-          counters_, metrics_recorder_, job->context_id(),
-          DecodingMethod::kAsync, &job->detected_features_);
+    DisallowHandleAllocation no_handle;
+    DisallowHeapAllocation no_allocation;
+    // Decode the module bytes.
+    TRACE_COMPILE("(1) Decoding module...\n");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                 "wasm.DecodeModule");
+    auto enabled_features = job->enabled_features_;
+    ModuleResult result = DecodeWasmModule(
+        enabled_features, job->wire_bytes_.module_bytes(), false, kWasmOrigin,
+        &job->delayed_counters_, &job->decoding_metrics_event_,
+        DecodingMethod::kAsync, &job->detected_features_);
 
-      // Validate lazy functions here if requested.
-      if (result.ok() && !v8_flags.wasm_lazy_validation) {
-        const WasmModule* module = result.value().get();
-        if (WasmError validation_error = ValidateFunctions(
-                module, job->wire_bytes_.module_bytes(), job->enabled_features_,
-                kOnlyLazyFunctions, &job->detected_features_)) {
-          result = ModuleResult{std::move(validation_error)};
-        }
+    // Validate lazy functions here if requested.
+    if (result.ok() && !v8_flags.wasm_lazy_validation) {
+      const WasmModule* module = result.value().get();
+      if (WasmError validation_error = ValidateFunctions(
+              module, job->wire_bytes_.module_bytes(), job->enabled_features_,
+              kOnlyLazyFunctions, &job->detected_features_)) {
+        result = ModuleResult{std::move(validation_error)};
       }
-      if (result.ok()) {
-        const WasmModule* module = result.value().get();
-        if (WasmError error = ValidateAndSetBuiltinImports(
-                module, job->wire_bytes_.module_bytes(), job->compile_imports_,
-                &job->detected_features_)) {
-          result = ModuleResult{std::move(error)};
-        }
+    }
+    if (result.ok()) {
+      const WasmModule* module = result.value().get();
+      if (WasmError error = ValidateAndSetBuiltinImports(
+              module, job->wire_bytes_.module_bytes(), job->compile_imports_,
+              &job->detected_features_)) {
+        result = ModuleResult{std::move(error)};
       }
     }
     if (result.failed()) {
@@ -3067,10 +3102,6 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
           true /* lazy_functions_are_validated */, code_size_estimate);
     }
   }
-
- private:
-  Counters* const counters_;
-  std::shared_ptr<metrics::Recorder> metrics_recorder_;
 };
 
 //==========================================================================
@@ -3171,10 +3202,12 @@ class AsyncCompileJob::FinishCompilation : public CompileStep {
  private:
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(3) Compilation finished\n");
+    DCHECK_EQ(job->isolate_specific_info_.isolate_, Isolate::Current());
     // Then finalize and publish the generated module.
     // This invalidates the {AsyncCompileJob}.
     bool cache_hit = final_native_module_ != job->new_native_module_;
-    std::move(*job).FinishCompile(std::move(final_native_module_), cache_hit);
+    std::move(*job).FinishCompile(std::move(final_native_module_), {},
+                                  cache_hit);
   }
 
   std::shared_ptr<NativeModule> final_native_module_;
@@ -3191,21 +3224,6 @@ class AsyncCompileJob::Fail : public CompileStep {
     std::move(*job).Failed();
   }
 };
-
-void AsyncCompileJob::FinishSuccessfully() {
-  TRACE_COMPILE("(4) Finish module...\n");
-  {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-                 "wasm.OnCompilationSucceeded");
-    // We have to make sure that an "incumbent context" is available in case
-    // the module's start function calls out to Blink.
-    Local<v8::Context> backup_incumbent_context =
-        Utils::ToLocal(incumbent_context_);
-    v8::Context::BackupIncumbentScope incumbent(backup_incumbent_context);
-    resolver_->OnCompilationSucceeded(module_object_);
-  }
-  GetWasmEngine()->RemoveCompileJob(this);
-}
 
 AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
     : decoder_(job->enabled_features_, &job->detected_features_),
@@ -3414,8 +3432,9 @@ void AsyncStreamingProcessor::OnFinishedStream(
     base::TimeDelta duration = base::TimeTicks::Now() - job_->start_time_;
     decode_event.wall_clock_duration_in_us = duration.InMicroseconds();
   }
-  job_->isolate_->metrics_recorder()->DelayMainThreadEvent(decode_event,
-                                                           job_->context_id_);
+  Isolate* isolate = job_->isolate_specific_info_.isolate_;
+  isolate->metrics_recorder()->AddMainThreadEvent(
+      decode_event, job_->isolate_specific_info_.context_id_);
 
   if (after_error) {
     if (job_->new_native_module_ &&
@@ -3463,17 +3482,18 @@ void AsyncStreamingProcessor::OnFinishedStream(
   // We have to open a HandleScope and prepare the Context for
   // CreateNativeModule, PrepareRuntimeObjects and FinishCompile as this is a
   // callback from the embedder.
-  HandleScope scope(job_->isolate_);
-  SaveAndSwitchContext saved_context(job_->isolate_, *job_->native_context_);
+  HandleScope scope(isolate);
+  SaveAndSwitchContext saved_context(
+      isolate, *job_->isolate_specific_info_.native_context_);
 
   // Record the size of the wire bytes and the number of functions. In
   // synchronous and asynchronous (non-streaming) compilation, this happens in
   // {DecodeWasmModule}.
   auto* module_size_histogram =
-      job_->isolate_->counters()->wasm_wasm_module_size_bytes();
+      isolate->counters()->wasm_wasm_module_size_bytes();
   module_size_histogram->AddSample(job_->wire_bytes_.module_bytes().length());
   auto* num_functions_histogram =
-      job_->isolate_->counters()->wasm_functions_per_wasm_module();
+      isolate->counters()->wasm_functions_per_wasm_module();
   num_functions_histogram->AddSample(static_cast<int>(num_functions_));
 
   std::shared_ptr<NativeModule> final_native_module = job_->new_native_module_;
@@ -3495,7 +3515,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
   if (!cache_hit && needs_finish) {
     const bool failed = job_->new_native_module_->compilation_state()->failed();
     final_native_module = GetWasmEngine()->UpdateNativeModuleCache(
-        failed, job_->new_native_module_, job_->isolate_);
+        failed, job_->new_native_module_, isolate);
     cache_hit = final_native_module != job_->new_native_module_;
     // We finally call {Failed} or {FinishCompile}, which will invalidate the
     // {AsyncCompileJob} and delete {this}.
@@ -3506,7 +3526,8 @@ void AsyncStreamingProcessor::OnFinishedStream(
   }
 
   if (needs_finish) {
-    std::move(*job_).FinishCompile(std::move(final_native_module), cache_hit);
+    std::move(*job_).FinishCompile(std::move(final_native_module), {},
+                                   cache_hit);
   }
 }
 
@@ -3530,30 +3551,35 @@ bool AsyncStreamingProcessor::Deserialize(
     base::Vector<const uint8_t> module_bytes,
     base::Vector<const uint8_t> wire_bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
+  Isolate* isolate = job_->isolate_specific_info_.isolate_;
   std::optional<TimedHistogramScope> time_scope;
   if (base::TimeTicks::IsHighResolution()) {
-    time_scope.emplace(job_->isolate()->counters()->wasm_deserialization_time(),
-                       job_->isolate());
+    time_scope.emplace(isolate->counters()->wasm_deserialization_time(),
+                       isolate);
   }
   // DeserializeNativeModule and FinishCompile assume that they are executed in
   // a HandleScope, and that a context is set on the isolate.
-  HandleScope scope(job_->isolate_);
-  SaveAndSwitchContext saved_context(job_->isolate_, *job_->native_context_);
+  HandleScope scope(isolate);
+  SaveAndSwitchContext saved_context(
+      isolate, *job_->isolate_specific_info_.native_context_);
 
-  MaybeDirectHandle<WasmModuleObject> result = DeserializeNativeModule(
-      job_->isolate_, job_->enabled_features_, module_bytes, wire_bytes,
-      job_->compile_imports_, base::VectorOf(job_->stream_->url()));
+  // TODO(clemensb): `DeserializeNativeModule` should actually return a
+  // `shared_ptr<NativeModule>`.
+  DirectHandle<WasmModuleObject> module_object;
+  if (!DeserializeNativeModule(isolate, job_->enabled_features_, module_bytes,
+                               wire_bytes, job_->compile_imports_,
+                               base::VectorOf(job_->stream_->url()))
+           .ToHandle(&module_object)) {
+    return false;
+  }
 
-  if (result.is_null()) return false;
-
-  job_->module_object_ =
-      job_->isolate_->global_handles()->Create(*result.ToHandleChecked());
   DCHECK_NULL(job_->new_native_module_);
   std::shared_ptr<NativeModule> deserialized_native_module =
-      job_->module_object_->shared_native_module();
+      module_object->shared_native_module();
   job_->wire_bytes_ = ModuleWireBytes(deserialized_native_module->wire_bytes());
   // Calling {FinishCompile} deletes the {AsyncCompileJob} and {this}.
-  std::move(*job_).FinishCompile(deserialized_native_module, false);
+  std::move(*job_).FinishCompile(deserialized_native_module, module_object,
+                                 false);
   return true;
 }
 
