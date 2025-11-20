@@ -196,6 +196,11 @@ VISIT(CheckPosition) {
   __ CheckPosition(cp_offset, on_failure);
 }
 
+VISIT(CheckSpecialClassRanges) {
+  INIT(CheckSpecialClassRanges, character_set, on_no_match);
+  __ CheckSpecialClassRanges(character_set, on_no_match);
+}
+
 VISIT(CheckCharacter) {
   INIT(CheckCharacter, character, on_equal);
   __ CheckCharacter(character, on_equal);

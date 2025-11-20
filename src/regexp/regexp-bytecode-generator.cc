@@ -193,6 +193,20 @@ void RegExpBytecodeGenerator::CheckPosition(int cp_offset,
   EmitOrLink(on_outside_input);
 }
 
+bool RegExpBytecodeGenerator::CheckSpecialClassRanges(StandardCharacterSet type,
+                                                      Label* on_no_match) {
+  if (type == StandardCharacterSet::kNotWhitespace) {
+    // The emitted code for generic character classes is good enough.
+    return false;
+  }
+  if (type == StandardCharacterSet::kWhitespace && mode() != Mode::LATIN1) {
+    return false;
+  }
+  Emit(BC_CHECK_SPECIAL_CLASS_RANGES, static_cast<char>(type));
+  EmitOrLink(on_no_match);
+  return true;
+}
+
 void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
                                                        Label* on_failure,
                                                        bool check_bounds,

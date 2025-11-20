@@ -397,6 +397,90 @@ bool IndexIsInBounds(int index, int length) {
 #define BYTECODE(name) BC_LABEL(name)
 #endif  // DEBUG
 
+namespace {
+
+template <typename Char>
+bool CheckSpecialClassRanges(uint32_t current_char,
+                             StandardCharacterSet character_set) {
+  constexpr bool is_one_byte = sizeof(Char) == 1;
+  switch (character_set) {
+    case StandardCharacterSet::kWhitespace:
+      DCHECK(is_one_byte);
+      if (current_char == ' ' || base::IsInRange(current_char, '\t', '\r') ||
+          current_char == 0xA0) {
+        return true;
+      }
+      return false;
+    case StandardCharacterSet::kNotWhitespace:
+      UNREACHABLE();
+    case StandardCharacterSet::kWord: {
+      if constexpr (!is_one_byte) {
+        if (current_char > 'z') {
+          return false;
+        }
+      }
+      base::Vector<const uint8_t> word_character_map =
+          RegExpMacroAssembler::word_character_map();
+      DCHECK_EQ(0,
+                word_character_map[0]);  // Character '\0' is not a word char.
+      return word_character_map[current_char] != 0;
+      return true;
+    }
+    case StandardCharacterSet::kNotWord: {
+      if constexpr (!is_one_byte) {
+        if (current_char > 'z') {
+          return true;
+        }
+      }
+      base::Vector<const uint8_t> word_character_map =
+          RegExpMacroAssembler::word_character_map();
+      DCHECK_EQ(0,
+                word_character_map[0]);  // Character '\0' is not a word char.
+      return word_character_map[current_char] == 0;
+    }
+    case StandardCharacterSet::kDigit:
+      if (base::IsInRange(current_char, '0', '9')) {
+        return true;
+      }
+      return false;
+    case StandardCharacterSet::kNotDigit:
+      if (base::IsInRange(current_char, '0', '9')) {
+        return false;
+      }
+      return true;
+    case StandardCharacterSet::kLineTerminator: {
+      if (current_char == '\n' || current_char == '\r') {
+        return true;
+      }
+      if constexpr (!is_one_byte) {
+        if (current_char == 0x2028 || current_char == 0x2029) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case StandardCharacterSet::kNotLineTerminator: {
+      const bool is_one_byte_match =
+          current_char != '\n' && current_char != '\r';
+      if constexpr (is_one_byte) {
+        if (is_one_byte_match) {
+          return true;
+        }
+      } else {
+        if (is_one_byte_match && current_char != 0x2028 &&
+            current_char != 0x2029) {
+          return true;
+        }
+      }
+      return false;
+    }
+    case StandardCharacterSet::kEverything:
+      return true;
+  }
+}
+
+}  // namespace
+
 template <typename Char>
 IrregexpInterpreter::Result RawMatch(
     Isolate* isolate, Tagged<TrustedByteArray>* code_array,
@@ -422,11 +506,10 @@ IrregexpInterpreter::Result RawMatch(
 // Fill dispatch table from last defined bytecode up to the next power of two
 // with BREAK (invalid operation).
 // TODO(pthier): Find a way to fill up automatically (at compile time)
-// 61 real bytecodes -> 3 fillers
+// 62 real bytecodes -> 2 fillers
 #define BYTECODE_FILLER_ITERATOR(V) \
   V(BREAK) /* 1 */                  \
-  V(BREAK) /* 2 */                  \
-  V(BREAK) /* 3 */
+  V(BREAK) /* 2 */
 
 #define COUNT(...) +1
   static constexpr int kRegExpBytecodeFillerCount =
@@ -940,6 +1023,19 @@ IrregexpInterpreter::Result RawMatch(
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
       } else {
         ADVANCE(CHECK_CURRENT_POSITION);
+      }
+      DISPATCH();
+    }
+    BYTECODE(CHECK_SPECIAL_CLASS_RANGES) {
+      StandardCharacterSet character_set =
+          static_cast<StandardCharacterSet>(LoadPacked24Unsigned(insn));
+      const bool match =
+          CheckSpecialClassRanges<Char>(current_char, character_set);
+      if (match) {
+        ADVANCE(CHECK_SPECIAL_CLASS_RANGES);
+      } else {
+        const int on_no_match = Load32Aligned(pc + 4);
+        SET_PC_FROM_OFFSET(on_no_match);
       }
       DISPATCH();
     }
