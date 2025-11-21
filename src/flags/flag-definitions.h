@@ -3866,6 +3866,10 @@ DEFINE_BOOL(proto_assign_seq_opt, false,
             "`Object.assign(Class_X.prototype, [boilerplate_obj])`")
 DEFINE_WEAK_IMPLICATION(future, proto_assign_seq_opt)
 
+DEFINE_UINT(proto_assign_seq_opt_count, 2,
+            "The minimum number of consecutive property assignments on the "
+            "prototype object for replacing it with a single byte code")
+
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
 #endif

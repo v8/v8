@@ -2463,8 +2463,10 @@ void BytecodeGenerator::VisitStatements(
         ++proto_assign_idx;
       }
 
-      if (proto_assign_idx - stmt_idx > 1) {
-        DCHECK_EQ(static_cast<size_t>(proto_assign_idx - stmt_idx),
+      const int num_assignments = proto_assign_idx - stmt_idx;
+      if (num_assignments >=
+          static_cast<int>(v8_flags.proto_assign_seq_opt_count)) {
+        DCHECK_EQ(static_cast<size_t>(num_assignments),
                   assignments->properties.size());
         VisitConsecutivePrototypeAssignments(std::move(assignments));
         stmt_idx = proto_assign_idx - 1;  // The outer loop should now ignore

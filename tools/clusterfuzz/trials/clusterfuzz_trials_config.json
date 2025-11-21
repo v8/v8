@@ -72,5 +72,6 @@
     {"app_args": "--experimental-wasm-revectorize", "app_name": "d8", "probability": 0.25},
     {"app_args": "--no-memory-pool", "app_name": "d8", "probability": 0.1},
     {"app_args": "--proto-assign-seq-opt", "app_name": "d8", "probability": 0.5},
+    {"app_args": "--proto-assign-seq-opt --proto-assign-seq-opt-count=1", "app_name": "d8", "probability": 0.1},
     {"app_args": "--scavenger-chaos-mode", "app_name": "d8", "probability": 0.1}
 ]
