@@ -15329,23 +15329,23 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
   switch (node->opcode()) {
     case Opcode::kTaggedEqual:
       return BuildBranchIfReferenceEqual(
-          builder, node->Cast<TaggedEqual>()->lhs().node(),
-          node->Cast<TaggedEqual>()->rhs().node());
+          builder, node->Cast<TaggedEqual>()->LeftInput().node(),
+          node->Cast<TaggedEqual>()->RightInput().node());
     case Opcode::kTaggedNotEqual:
       // Swapped true and false targets.
       builder.SwapTargets();
       return BuildBranchIfReferenceEqual(
-          builder, node->Cast<TaggedNotEqual>()->lhs().node(),
-          node->Cast<TaggedNotEqual>()->rhs().node());
+          builder, node->Cast<TaggedNotEqual>()->LeftInput().node(),
+          node->Cast<TaggedNotEqual>()->RightInput().node());
     case Opcode::kInt32Compare:
       return builder.Build<BranchIfInt32Compare>(
-          {node->Cast<Int32Compare>()->left_input().node(),
-           node->Cast<Int32Compare>()->right_input().node()},
+          {node->Cast<Int32Compare>()->LeftInput().node(),
+           node->Cast<Int32Compare>()->RightInput().node()},
           node->Cast<Int32Compare>()->operation());
     case Opcode::kFloat64Compare:
       return builder.Build<BranchIfFloat64Compare>(
-          {node->Cast<Float64Compare>()->left_input().node(),
-           node->Cast<Float64Compare>()->right_input().node()},
+          {node->Cast<Float64Compare>()->LeftInput().node(),
+           node->Cast<Float64Compare>()->RightInput().node()},
           node->Cast<Float64Compare>()->operation());
     case Opcode::kInt32ToBoolean:
       if (node->Cast<Int32ToBoolean>()->flip()) {

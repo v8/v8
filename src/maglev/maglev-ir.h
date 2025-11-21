@@ -3234,6 +3234,38 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
   }
 };
 
+#define DEFINE_INPUT_FUNC(name, idx)                          \
+  static_assert(idx <= Base::kInputCount);                    \
+  static constexpr int k##name##Index = idx;                  \
+  Input name##Input() { return Base::input(idx); }            \
+  bool Is##name##InputConstant() const {                      \
+    return IsConstantNode(Base::input(idx).node()->opcode()); \
+  }
+
+#define MACRO_APPLY_1(F, a) F(a, 0)
+#define MACRO_APPLY_2(F, a, b) F(a, 0) F(b, 1)
+#define MACRO_APPLY_3(F, a, b, c) F(a, 0) F(b, 1) F(c, 2)
+#define MACRO_APPLY_4(F, a, b, c) F(a, 0) F(b, 1) F(c, 2) F(d, 3)
+#define MACRO_APPLY_5(F, a, b, c, d, e) F(a, 0) F(b, 1) F(c, 2) F(d, 3) F(e, 4)
+
+#define GET_MACRO(_1, _2, _3, _4, _5, NAME, ...) NAME
+#define SELECT_MACRO(...)                                             \
+  GET_MACRO(__VA_ARGS__, MACRO_APPLY_5, MACRO_APPLY_4, MACRO_APPLY_3, \
+            MACRO_APPLY_2, MACRO_APPLY_1)
+
+#define DECLARE_INPUTS(...) \
+  SELECT_MACRO(__VA_ARGS__)(DEFINE_INPUT_FUNC, __VA_ARGS__)
+
+#define VALUE_REPRESENTATION(x, idx) ValueRepresentation::k##x,
+
+#define DECLARE_INPUT_TYPES(...)                          \
+  static constexpr typename Base::InputTypes kInputTypes{ \
+      SELECT_MACRO(__VA_ARGS__)(VALUE_REPRESENTATION, __VA_ARGS__)};
+
+#define DECLARE_BINOP(LeftType, RightType) \
+  DECLARE_INPUTS(Left, Right)              \
+  DECLARE_INPUT_TYPES(LeftType, RightType)
+
 template <class T, class = void>
 struct IsFixedInputNode : public std::false_type {};
 template <class T>
@@ -3283,11 +3315,9 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
  public:
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Tagged)
 
-  static constexpr int kOperandIndex = 0;
-  Input operand_input() { return Node::input(kOperandIndex); }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
  protected:
@@ -3308,13 +3338,8 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
  public:
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+  DECLARE_BINOP(Tagged, Tagged)
 
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
  protected:
@@ -3356,15 +3381,10 @@ class Int32BinaryWithOverflowNode : public FixedInputValueNodeT<2, Derived> {
   using Base = FixedInputValueNodeT<2, Derived>;
 
  public:
+  DECLARE_BINOP(Int32, Int32)
+
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
 
  protected:
   explicit Int32BinaryWithOverflowNode(uint64_t bitfield) : Base(bitfield) {}
@@ -3395,14 +3415,8 @@ class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
   using Base = FixedInputValueNodeT<2, Derived>;
 
  public:
+  DECLARE_BINOP(Int32, Int32)
   static constexpr OpProperties kProperties = OpProperties::Int32();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
 
  protected:
   explicit Int32BinaryNode(uint64_t bitfield) : Base(bitfield) {}
@@ -3427,13 +3441,7 @@ class Int32MultiplyOverflownBits
   explicit Int32MultiplyOverflownBits(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Int32();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
+  DECLARE_BINOP(Int32, Int32)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -3444,11 +3452,8 @@ class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
   explicit Int32BitwiseNot(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  static constexpr int kValueIndex = 0;
-  Input value_input() { return Node::input(kValueIndex); }
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Int32)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -3461,13 +3466,7 @@ class ShiftedInt53AddWithOverflow
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::ShiftedInt53();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kShiftedInt53, ValueRepresentation::kShiftedInt53};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
+  DECLARE_BINOP(ShiftedInt53, ShiftedInt53)
 
   void SetValueLocationConstraints() { UNREACHABLE(); }
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
@@ -3479,11 +3478,8 @@ class Int32UnaryWithOverflowNode : public FixedInputValueNodeT<1, Derived> {
  public:
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  static constexpr int kValueIndex = 0;
-  Input value_input() { return Node::input(kValueIndex); }
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Int32)
 
  protected:
   explicit Int32UnaryWithOverflowNode(uint64_t bitfield) : Base(bitfield) {}
@@ -3504,11 +3500,8 @@ class Int32Unary : public FixedInputValueNodeT<1, Derived> {
 
  public:
   static constexpr OpProperties kProperties = OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
-
-  static constexpr int kValueIndex = 0;
-  Input value_input() { return Node::input(kValueIndex); }
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Int32)
 
  protected:
   explicit Int32Unary(uint64_t bitfield) : Base(bitfield) {}
@@ -3526,13 +3519,7 @@ class Int32ShiftRightLogical
 
   // Unlike the other Int32 nodes, logical right shift returns a Uint32.
   static constexpr OpProperties kProperties = OpProperties::Uint32();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
+  DECLARE_BINOP(Int32, Int32)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -3543,13 +3530,7 @@ class Int32Compare : public FixedInputValueNodeT<2, Int32Compare> {
   explicit Int32Compare(uint64_t bitfield, Operation operation)
       : Base(OperationBitField::update(bitfield, operation)) {}
 
-  static constexpr Base::InputTypes kInputTypes{ValueRepresentation::kInt32,
-                                                ValueRepresentation::kInt32};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
+  DECLARE_BINOP(Int32, Int32)
 
   constexpr Operation operation() const {
     return OperationBitField::decode(bitfield());
@@ -3669,13 +3650,7 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
 
  public:
   static constexpr OpProperties kProperties = OpProperties::Float64();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kFloat64, ValueRepresentation::kFloat64};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
+  DECLARE_BINOP(Float64, Float64)
 
   Range range() const { return range_; }
   void set_range(Range r) { range_ = r; }
@@ -3707,13 +3682,7 @@ class Float64BinaryNodeWithCall : public FixedInputValueNodeT<2, Derived> {
  public:
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::Call();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kFloat64, ValueRepresentation::kFloat64};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
+  DECLARE_BINOP(Float64, Float64)
 
  protected:
   explicit Float64BinaryNodeWithCall(uint64_t bitfield) : Base(bitfield) {}
@@ -3747,13 +3716,7 @@ class Float64Compare : public FixedInputValueNodeT<2, Float64Compare> {
   explicit Float64Compare(uint64_t bitfield, Operation operation)
       : Base(OperationBitField::update(bitfield, operation)) {}
 
-  static constexpr Base::InputTypes kInputTypes{ValueRepresentation::kFloat64,
-                                                ValueRepresentation::kFloat64};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
+  DECLARE_BINOP(Float64, Float64)
 
   constexpr Operation operation() const {
     return OperationBitField::decode(bitfield());
@@ -3796,10 +3759,8 @@ class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
   explicit Float64Negate(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Float64();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
-
-  Input input() { return Node::input(0); }
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Float64)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -3810,13 +3771,7 @@ class Float64Min : public FixedInputValueNodeT<2, Float64Min> {
   explicit Float64Min(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Float64();
-  static constexpr Base::InputTypes kInputTypes{ValueRepresentation::kFloat64,
-                                                ValueRepresentation::kFloat64};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
+  DECLARE_BINOP(Float64, Float64)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -3827,13 +3782,7 @@ class Float64Max : public FixedInputValueNodeT<2, Float64Max> {
   explicit Float64Max(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Float64();
-  static constexpr Base::InputTypes kInputTypes{ValueRepresentation::kFloat64,
-                                                ValueRepresentation::kFloat64};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return Node::input(kLeftIndex); }
-  Input right_input() { return Node::input(kRightIndex); }
+  DECLARE_BINOP(Float64, Float64)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -3872,10 +3821,8 @@ class Float64Ieee754Unary
 
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::Call();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
-
-  Input input() { return Node::input(0); }
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Float64)
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -3909,11 +3856,7 @@ class Float64Ieee754Binary
 
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::Call();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kFloat64, ValueRepresentation::kFloat64};
-
-  Input input_lhs() { return Node::input(0); }
-  Input input_rhs() { return Node::input(1); }
+  DECLARE_BINOP(Float64, Float64)
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -4958,12 +4901,7 @@ class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
   static constexpr OpProperties kProperties = OpProperties::Call() |
                                               OpProperties::LazyDeopt() |
                                               OpProperties::CanAllocate();
-
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
-
-  Input lhs() { return Node::input(0); }
-  Input rhs() { return Node::input(1); }
+  DECLARE_BINOP(Tagged, Tagged)
 
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
@@ -4981,11 +4919,7 @@ class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
  public:
   explicit TaggedEqual(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
-
-  Input lhs() { return Node::input(0); }
-  Input rhs() { return Node::input(1); }
+  DECLARE_BINOP(Tagged, Tagged)
   NodeType type() const { return NodeType::kBoolean; }
 
 #ifdef V8_COMPRESS_POINTERS
@@ -5002,11 +4936,7 @@ class TaggedNotEqual : public FixedInputValueNodeT<2, TaggedNotEqual> {
  public:
   explicit TaggedNotEqual(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
-
-  Input lhs() { return Node::input(0); }
-  Input rhs() { return Node::input(1); }
+  DECLARE_BINOP(Tagged, Tagged)
   NodeType type() const { return NodeType::kBoolean; }
 
 #ifdef V8_COMPRESS_POINTERS
@@ -6991,11 +6921,7 @@ class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
                        AbortReason reason)
       : Base(bitfield), condition_(condition), reason_(reason) {}
 
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
-
-  Input left_input() { return input(0); }
-  Input right_input() { return input(1); }
+  DECLARE_BINOP(Int32, Int32)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -7735,13 +7661,7 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
              ReasonField::encode(reason)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return input(kLeftIndex); }
-  Input right_input() { return input(kRightIndex); }
+  DECLARE_BINOP(Int32, Int32)
 
   AssertCondition condition() const {
     return ConditionField::decode(bitfield());
@@ -8821,16 +8741,8 @@ class StoreFixedArrayElementWithWriteBarrier
 
   static constexpr OpProperties kProperties =
       OpProperties::CanWrite() | OpProperties::DeferredCall();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
-      ValueRepresentation::kTagged};
-
-  static constexpr int kElementsIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  static constexpr int kValueIndex = 2;
-  Input elements_input() { return input(kElementsIndex); }
-  Input index_input() { return input(kIndexIndex); }
-  Input value_input() { return input(kValueIndex); }
+  DECLARE_INPUTS(Elements, Index, Value)
+  DECLARE_INPUT_TYPES(Tagged, Int32, Tagged)
 
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
@@ -9300,25 +9212,8 @@ class StoreDoubleDataViewElement
   }
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kRawPtr,
-      ValueRepresentation::kInt32, ValueRepresentation::kHoleyFloat64,
-      ValueRepresentation::kTagged};
-
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kDataPointerIndex = 1;
-  static constexpr int kIndexIndex = 2;
-  static constexpr int kValueIndex = 3;
-  static constexpr int kIsLittleEndianIndex = 4;
-  Input object_input() { return input(kObjectIndex); }
-  Input data_pointer_input() { return input(kDataPointerIndex); }
-  Input index_input() { return input(kIndexIndex); }
-  Input value_input() { return input(kValueIndex); }
-  Input is_little_endian_input() { return input(kIsLittleEndianIndex); }
-
-  bool is_little_endian_constant() {
-    return IsConstantNode(is_little_endian_input().node()->opcode());
-  }
+  DECLARE_INPUTS(Object, DataPointer, Index, Value, IsLittlerEndian)
+  DECLARE_INPUT_TYPES(Tagged, RawPtr, Int32, HoleyFloat64, Tagged)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -9995,11 +9890,7 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::CanAllocate() |
       OpProperties::LazyDeopt() | OpProperties::CanThrow();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
-
-  Input lhs() { return Node::input(0); }
-  Input rhs() { return Node::input(1); }
+  DECLARE_BINOP(Tagged, Tagged)
 
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
@@ -10022,13 +9913,7 @@ class ConsStringMap : public FixedInputValueNodeT<2, ConsStringMap> {
  public:
   explicit ConsStringMap(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::TaggedValue();
-
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
-
-  Input lhs() { return Node::input(0); }
-  Input rhs() { return Node::input(1); }
+  DECLARE_BINOP(Tagged, Tagged)
 
 #ifdef V8_STATIC_ROOTS
   void MarkTaggedInputsAsDecompressing() const {
@@ -11800,10 +11685,8 @@ class Return : public TerminalControlNodeT<1, Return> {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Return>);
   }
 
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input value_input() { return input(0); }
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Tagged)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -12111,18 +11994,12 @@ class BranchIfFloat64IsHole
 class BranchIfInt32Compare
     : public BranchControlNodeT<2, BranchIfInt32Compare> {
  public:
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return NodeBase::input(kLeftIndex); }
-  Input right_input() { return NodeBase::input(kRightIndex); }
-
-  explicit BranchIfInt32Compare(uint64_t bitfield, Operation operation,
-                                BasicBlockRef* if_true_refs,
-                                BasicBlockRef* if_false_refs)
+  BranchIfInt32Compare(uint64_t bitfield, Operation operation,
+                       BasicBlockRef* if_true_refs,
+                       BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
+  DECLARE_BINOP(Int32, Int32)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -12137,18 +12014,12 @@ class BranchIfInt32Compare
 class BranchIfUint32Compare
     : public BranchControlNodeT<2, BranchIfUint32Compare> {
  public:
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return NodeBase::input(kLeftIndex); }
-  Input right_input() { return NodeBase::input(kRightIndex); }
-
-  explicit BranchIfUint32Compare(uint64_t bitfield, Operation operation,
-                                 BasicBlockRef* if_true_refs,
-                                 BasicBlockRef* if_false_refs)
+  BranchIfUint32Compare(uint64_t bitfield, Operation operation,
+                        BasicBlockRef* if_true_refs,
+                        BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kUint32, ValueRepresentation::kUint32};
+  DECLARE_BINOP(Uint32, Uint32)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -12163,18 +12034,12 @@ class BranchIfUint32Compare
 class BranchIfFloat64Compare
     : public BranchControlNodeT<2, BranchIfFloat64Compare> {
  public:
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return NodeBase::input(kLeftIndex); }
-  Input right_input() { return NodeBase::input(kRightIndex); }
-
-  explicit BranchIfFloat64Compare(uint64_t bitfield, Operation operation,
-                                  BasicBlockRef* if_true_refs,
-                                  BasicBlockRef* if_false_refs)
+  BranchIfFloat64Compare(uint64_t bitfield, Operation operation,
+                         BasicBlockRef* if_true_refs,
+                         BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kFloat64, ValueRepresentation::kFloat64};
+  DECLARE_BINOP(Float64, Float64)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -12189,18 +12054,12 @@ class BranchIfFloat64Compare
 class BranchIfReferenceEqual
     : public BranchControlNodeT<2, BranchIfReferenceEqual> {
  public:
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input left_input() { return NodeBase::input(kLeftIndex); }
-  Input right_input() { return NodeBase::input(kRightIndex); }
-
   explicit BranchIfReferenceEqual(uint64_t bitfield,
                                   BasicBlockRef* if_true_refs,
                                   BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs) {}
 
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+  DECLARE_BINOP(Tagged, Tagged)
 
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {

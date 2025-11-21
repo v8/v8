@@ -2783,7 +2783,7 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     bool negate_result = false;
-    V<Word32> cmp = ConvertInt32Compare(node->left_input(), node->right_input(),
+    V<Word32> cmp = ConvertInt32Compare(node->LeftInput(), node->RightInput(),
                                         node->condition(), &negate_result);
     if (negate_result) {
       __ DeoptimizeIf(cmp, frame_state, node->deoptimize_reason(),
@@ -2971,8 +2971,8 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StringConcat* node,
                                 const maglev::ProcessingState& state) {
-    V<String> left = Map(node->lhs());
-    V<String> right = Map(node->rhs());
+    V<String> left = Map(node->LeftInput());
+    V<String> right = Map(node->RightInput());
     return StringConcatHelper(node, left, right);
   }
   maglev::ProcessResult Process(maglev::UnwrapStringWrapper* node,
@@ -3001,10 +3001,11 @@ class GraphBuildingNodeProcessor {
       // TODO(marja): Can we get rid of the StringOrOddballStrictEqual operator,
       // by handling the oddballs somewhere and delegating strings to
       // StringEqual?
-      SetMap(node,
-             __ StringOrOddballStrictEqual(Map(node->lhs()), Map(node->rhs())));
+      SetMap(node, __ StringOrOddballStrictEqual(Map(node->LeftInput()),
+                                                 Map(node->RightInput())));
     } else {
-      SetMap(node, __ StringEqual(Map(node->lhs()), Map(node->rhs())));
+      SetMap(node,
+             __ StringEqual(Map(node->LeftInput()), Map(node->RightInput())));
     }
     return maglev::ProcessResult::kContinue;
   }
@@ -3374,9 +3375,9 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(
       maglev::StoreFixedArrayElementWithWriteBarrier* node,
       const maglev::ProcessingState& state) {
-    __ StoreFixedArrayElement(Map(node->elements_input()),
-                              __ ChangeInt32ToIntPtr(Map(node->index_input())),
-                              Map(node->value_input()),
+    __ StoreFixedArrayElement(Map(node->ElementsInput()),
+                              __ ChangeInt32ToIntPtr(Map(node->IndexInput())),
+                              Map(node->ValueInput()),
                               WriteBarrierKind::kFullWriteBarrier);
     return maglev::ProcessResult::kContinue;
   }
@@ -3664,14 +3665,14 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StoreDoubleDataViewElement* node,
                                 const maglev::ProcessingState& state) {
-    V<WordPtr> storage = Map<WordPtr>(node->data_pointer_input());
+    V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
     V<Word32> is_little_endian =
-        ToBit(node->is_little_endian_input(),
+        ToBit(node->IsLittlerEndianInput(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
     __ StoreDataViewElement(
-        Map(node->object_input()), storage,
-        __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
-        Map<Float64>(node->value_input()), is_little_endian,
+        Map(node->ObjectInput()), storage,
+        __ ChangeUint32ToUintPtr(Map<Word32>(node->IndexInput())),
+        Map<Float64>(node->ValueInput()), is_little_endian,
         ExternalArrayType::kExternalFloat64Array);
     return maglev::ProcessResult::kContinue;
   }
@@ -3729,7 +3730,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::Int32Compare* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> bool_res =
-        ConvertCompare<Word32>(node->left_input(), node->right_input(),
+        ConvertCompare<Word32>(node->LeftInput(), node->RightInput(),
                                node->operation(), Sign::kSigned);
     SetMap(node, ConvertWord32ToJSBool(bool_res));
     return maglev::ProcessResult::kContinue;
@@ -3737,22 +3738,22 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::Float64Compare* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> bool_res =
-        ConvertCompare<Float64>(node->left_input(), node->right_input(),
+        ConvertCompare<Float64>(node->LeftInput(), node->RightInput(),
                                 node->operation(), Sign::kSigned);
     SetMap(node, ConvertWord32ToJSBool(bool_res));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::TaggedEqual* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, ConvertWord32ToJSBool(
-                     __ TaggedEqual(Map(node->lhs()), Map(node->rhs()))));
+    SetMap(node, ConvertWord32ToJSBool(__ TaggedEqual(
+                     Map(node->LeftInput()), Map(node->RightInput()))));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::TaggedNotEqual* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, ConvertWord32ToJSBool(
-                     __ TaggedEqual(Map(node->lhs()), Map(node->rhs())),
-                     /*flip*/ true));
+    SetMap(node, ConvertWord32ToJSBool(__ TaggedEqual(Map(node->LeftInput()),
+                                                      Map(node->RightInput())),
+                                       /*flip*/ true));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::TestUndetectable* node,
@@ -3896,7 +3897,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::BranchIfInt32Compare* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition =
-        ConvertCompare<Word32>(node->left_input(), node->right_input(),
+        ConvertCompare<Word32>(node->LeftInput(), node->RightInput(),
                                node->operation(), Sign::kSigned);
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
@@ -3904,7 +3905,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::BranchIfUint32Compare* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition =
-        ConvertCompare<Word32>(node->left_input(), node->right_input(),
+        ConvertCompare<Word32>(node->LeftInput(), node->RightInput(),
                                node->operation(), Sign::kUnsigned);
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
@@ -3912,7 +3913,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::BranchIfFloat64Compare* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition =
-        ConvertCompare<Float64>(node->left_input(), node->right_input(),
+        ConvertCompare<Float64>(node->LeftInput(), node->RightInput(),
                                 node->operation(), Sign::kSigned);
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
@@ -3962,7 +3963,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::BranchIfReferenceEqual* node,
                                 const maglev::ProcessingState& state) {
     V<Word32> condition =
-        __ TaggedEqual(Map(node->left_input()), Map(node->right_input()));
+        __ TaggedEqual(Map(node->LeftInput()), Map(node->RightInput()));
     __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
     return maglev::ProcessResult::kContinue;
   }
@@ -4168,28 +4169,25 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::Int32Add* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node,
-           __ Word32Add(Map(node->left_input()), Map(node->right_input())));
+    SetMap(node, __ Word32Add(Map(node->LeftInput()), Map(node->RightInput())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32Subtract* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node,
-           __ Word32Sub(Map(node->left_input()), Map(node->right_input())));
+    SetMap(node, __ Word32Sub(Map(node->LeftInput()), Map(node->RightInput())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32Multiply* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node,
-           __ Word32Mul(Map(node->left_input()), Map(node->right_input())));
+    SetMap(node, __ Word32Mul(Map(node->LeftInput()), Map(node->RightInput())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32Divide* node,
                                 const maglev::ProcessingState& state) {
     // TODO(victorgomes): Since ARM and X64 treat this differently, maybe
     // Turbolev should lowered this div much later.
-    V<Word32> lhs = Map(node->left_input());
-    V<Word32> rhs = Map(node->right_input());
+    V<Word32> lhs = Map(node->LeftInput());
+    V<Word32> rhs = Map(node->RightInput());
     ScopedVar<Word32, AssemblerT> result(this);
     IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
       // Truncated value of anything divided by 0 is 0.
@@ -4209,8 +4207,8 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::Int32MultiplyOverflownBits* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Int32MulOverflownBits(Map(node->left_input()),
-                                          Map(node->right_input())));
+    SetMap(node, __ Int32MulOverflownBits(Map(node->LeftInput()),
+                                          Map(node->RightInput())));
     return maglev::ProcessResult::kContinue;
   }
 #define PROCESS_BINOP_WITH_OVERFLOW(MaglevName, TurboshaftName,                \
@@ -4220,7 +4218,7 @@ class GraphBuildingNodeProcessor {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());        \
     SetMap(node,                                                               \
            __ Word32##TurboshaftName##DeoptOnOverflow(                         \
-               Map(node->left_input()), Map(node->right_input()), frame_state, \
+               Map(node->LeftInput()), Map(node->RightInput()), frame_state,   \
                node->eager_deopt_info()->feedback_to_update(),                 \
                CheckForMinusZeroMode::k##minus_zero_mode));                    \
     return maglev::ProcessResult::kContinue;                                   \
@@ -4236,7 +4234,7 @@ class GraphBuildingNodeProcessor {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     SetMap(node,
            __ Word64SignedAddDeoptOnOverflow(
-               Map(node->left_input()), Map(node->right_input()), frame_state,
+               Map(node->LeftInput()), Map(node->RightInput()), frame_state,
                node->eager_deopt_info()->feedback_to_update(),
                CheckForMinusZeroMode::kDontCheckForMinusZero));
     return maglev::ProcessResult::kContinue;
@@ -4245,14 +4243,14 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     // Turboshaft doesn't have a dedicated Increment operation; we use a regular
     // addition instead.
-    SetMap(node, __ Word32Add(Map(node->value_input()), 1));
+    SetMap(node, __ Word32Add(Map(node->ValueInput()), 1));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32Decrement* node,
                                 const maglev::ProcessingState& state) {
     // Turboshaft doesn't have a dedicated Decrement operation; we use a regular
     // addition instead.
-    SetMap(node, __ Word32Sub(Map(node->value_input()), 1));
+    SetMap(node, __ Word32Sub(Map(node->ValueInput()), 1));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32IncrementWithOverflow* node,
@@ -4261,7 +4259,7 @@ class GraphBuildingNodeProcessor {
     // Turboshaft doesn't have a dedicated Increment operation; we use a regular
     // addition instead.
     SetMap(node, __ Word32SignedAddDeoptOnOverflow(
-                     Map(node->value_input()), 1, frame_state,
+                     Map(node->ValueInput()), 1, frame_state,
                      node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
@@ -4271,7 +4269,7 @@ class GraphBuildingNodeProcessor {
     // Turboshaft doesn't have a dedicated Decrement operation; we use a regular
     // addition instead.
     SetMap(node, __ Word32SignedSubDeoptOnOverflow(
-                     Map(node->value_input()), 1, frame_state,
+                     Map(node->ValueInput()), 1, frame_state,
                      node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
@@ -4282,7 +4280,7 @@ class GraphBuildingNodeProcessor {
     // Turbofan emits multiplications by -1 for this, so using this as well
     // here.
     SetMap(node, __ Word32SignedMulDeoptOnOverflow(
-                     Map(node->value_input()), -1, frame_state,
+                     Map(node->ValueInput()), -1, frame_state,
                      node->eager_deopt_info()->feedback_to_update(),
                      CheckForMinusZeroMode::kCheckForMinusZero));
     return maglev::ProcessResult::kContinue;
@@ -4331,8 +4329,8 @@ class GraphBuildingNodeProcessor {
 #define PROCESS_FLOAT64_BINOP(MaglevName, TurboshaftName)               \
   maglev::ProcessResult Process(maglev::Float64##MaglevName* node,      \
                                 const maglev::ProcessingState& state) { \
-    SetMap(node, __ Float64##TurboshaftName(Map(node->left_input()),    \
-                                            Map(node->right_input()))); \
+    SetMap(node, __ Float64##TurboshaftName(Map(node->LeftInput()),     \
+                                            Map(node->RightInput())));  \
     return maglev::ProcessResult::kContinue;                            \
   }
   PROCESS_FLOAT64_BINOP(Add, Add)
@@ -4346,22 +4344,22 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::Float64Min* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node,
-           __ Float64Min(Map(node->left_input()), Map(node->right_input())));
+           __ Float64Min(Map(node->LeftInput()), Map(node->RightInput())));
     return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::Float64Max* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node,
-           __ Float64Max(Map(node->left_input()), Map(node->right_input())));
+           __ Float64Max(Map(node->LeftInput()), Map(node->RightInput())));
     return maglev::ProcessResult::kContinue;
   }
 
 #define PROCESS_INT32_BITWISE_BINOP(Name)                               \
   maglev::ProcessResult Process(maglev::Int32Bitwise##Name* node,       \
                                 const maglev::ProcessingState& state) { \
-    SetMap(node, __ Word32Bitwise##Name(Map(node->left_input()),        \
-                                        Map(node->right_input())));     \
+    SetMap(node, __ Word32Bitwise##Name(Map(node->LeftInput()),         \
+                                        Map(node->RightInput())));      \
     return maglev::ProcessResult::kContinue;                            \
   }
   PROCESS_INT32_BITWISE_BINOP(And)
@@ -4372,7 +4370,7 @@ class GraphBuildingNodeProcessor {
 #define PROCESS_INT32_SHIFT(MaglevName, TurboshaftName)                        \
   maglev::ProcessResult Process(maglev::Int32##MaglevName* node,               \
                                 const maglev::ProcessingState& state) {        \
-    V<Word32> right = Map(node->right_input());                                \
+    V<Word32> right = Map(node->RightInput());                                 \
     if (!SupportedOperations::word32_shift_is_safe()) {                        \
       /* JavaScript spec says that the right-hand side of a shift should be    \
        * taken modulo 32. Some architectures do this automatically, some       \
@@ -4380,7 +4378,7 @@ class GraphBuildingNodeProcessor {
        */                                                                      \
       right = __ Word32BitwiseAnd(right, 0x1f);                                \
     }                                                                          \
-    SetMap(node, __ Word32##TurboshaftName(Map(node->left_input()), right));   \
+    SetMap(node, __ Word32##TurboshaftName(Map(node->LeftInput()), right));    \
     return maglev::ProcessResult::kContinue;                                   \
   }
   PROCESS_INT32_SHIFT(ShiftLeft, ShiftLeft)
@@ -4389,15 +4387,14 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::Int32ShiftRightLogical* node,
                                 const maglev::ProcessingState& state) {
-    V<Word32> right = Map(node->right_input());
+    V<Word32> right = Map(node->RightInput());
     if (!SupportedOperations::word32_shift_is_safe()) {
       // JavaScript spec says that the right-hand side of a shift should be
       // taken modulo 32. Some architectures do this automatically, some
       // don't. For those that don't, which do this modulo 32 with a `& 0x1f`.
       right = __ Word32BitwiseAnd(right, 0x1f);
     }
-    V<Word32> ts_op =
-        __ Word32ShiftRightLogical(Map(node->left_input()), right);
+    V<Word32> ts_op = __ Word32ShiftRightLogical(Map(node->LeftInput()), right);
     SetMap(node, __ TypeHintUint32(ts_op));
     return maglev::ProcessResult::kContinue;
   }
@@ -4405,8 +4402,8 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::Int32BitwiseNot* node,
                                 const maglev::ProcessingState& state) {
     // Turboshaft doesn't have a bitwise Not operator; we instead use "^ -1".
-    SetMap(node, __ Word32BitwiseXor(Map(node->value_input()),
-                                     __ Word32Constant(-1)));
+    SetMap(node,
+           __ Word32BitwiseXor(Map(node->ValueInput()), __ Word32Constant(-1)));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32AbsWithOverflow* node,
@@ -4430,7 +4427,7 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::Float64Negate* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Float64Negate(Map(node->input())));
+    SetMap(node, __ Float64Negate(Map(node->ValueInput())));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Float64Abs* node,
@@ -4471,7 +4468,7 @@ class GraphBuildingNodeProcessor {
       IEEE_754_UNARY_LIST(IEEE_UNARY_CASE)
 #undef IEEE_UNARY_CASE
     }
-    SetMap(node, __ Float64Unary(Map(node->input()), kind));
+    SetMap(node, __ Float64Unary(Map(node->ValueInput()), kind));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4486,8 +4483,8 @@ class GraphBuildingNodeProcessor {
       IEEE_754_BINARY_LIST(IEEE_BINARY_CASE)
 #undef IEEE_BINARY_CASE
     }
-    SetMap(node, __ Float64Binary(Map(node->input_lhs()),
-                                  Map(node->input_rhs()), kind));
+    SetMap(node, __ Float64Binary(Map(node->LeftInput()),
+                                  Map(node->RightInput()), kind));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4542,16 +4539,16 @@ class GraphBuildingNodeProcessor {
 // we stop collecting feedback, since we've tried multiple times to keep
 // collecting feedback in Turbofan, but it never seemed worth it. The latest
 // occurence of this was ended by this CL: https://crrev.com/c/4110858.
-#define PROCESS_GENERIC_BINOP(Name)                                            \
-  maglev::ProcessResult Process(maglev::Generic##Name* node,                   \
-                                const maglev::ProcessingState& state) {        \
-    ThrowingScope throwing_scope(this, node);                                  \
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());         \
-    SetMap(node,                                                               \
-           __ Generic##Name(Map(node->left_input()), Map(node->right_input()), \
-                            frame_state, native_context(),                     \
-                            ShouldLazyDeoptOnThrow(node)));                    \
-    return maglev::ProcessResult::kContinue;                                   \
+#define PROCESS_GENERIC_BINOP(Name)                                          \
+  maglev::ProcessResult Process(maglev::Generic##Name* node,                 \
+                                const maglev::ProcessingState& state) {      \
+    ThrowingScope throwing_scope(this, node);                                \
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());       \
+    SetMap(node,                                                             \
+           __ Generic##Name(Map(node->LeftInput()), Map(node->RightInput()), \
+                            frame_state, native_context(),                   \
+                            ShouldLazyDeoptOnThrow(node)));                  \
+    return maglev::ProcessResult::kContinue;                                 \
   }
   GENERIC_BINOP_LIST(PROCESS_GENERIC_BINOP)
 #undef PROCESS_GENERIC_BINOP
@@ -4562,7 +4559,7 @@ class GraphBuildingNodeProcessor {
     ThrowingScope throwing_scope(this, node);                                 \
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());        \
     SetMap(node,                                                              \
-           __ Generic##Name(Map(node->operand_input()), frame_state,          \
+           __ Generic##Name(Map(node->ValueInput()), frame_state,             \
                             native_context(), ShouldLazyDeoptOnThrow(node))); \
     return maglev::ProcessResult::kContinue;                                  \
   }
@@ -5251,7 +5248,7 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::Return* node,
                                 const maglev::ProcessingState& state) {
-    __ Return(Map(node->value_input()));
+    __ Return(Map(node->ValueInput()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -5407,7 +5404,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::AssertInt32* node,
                                 const maglev::ProcessingState&) {
     bool negate_result = false;
-    V<Word32> cmp = ConvertInt32Compare(node->left_input(), node->right_input(),
+    V<Word32> cmp = ConvertInt32Compare(node->LeftInput(), node->RightInput(),
                                         node->condition(), &negate_result);
     Label<> abort(this);
     Label<> end(this);
@@ -6079,7 +6076,7 @@ class GraphBuildingNodeProcessor {
 
   enum class Sign { kSigned, kUnsigned };
   template <typename rep>
-  V<Word32> ConvertCompare(maglev::Input left_input, maglev::Input right_input,
+  V<Word32> ConvertCompare(maglev::Input LeftInput, maglev::Input RightInput,
                            ::Operation operation, Sign sign) {
     DCHECK_IMPLIES(
         (std::is_same_v<rep, Float64> || std::is_same_v<rep, Float32>),
@@ -6114,14 +6111,14 @@ class GraphBuildingNodeProcessor {
       default:
         UNREACHABLE();
     }
-    V<rep> left = Map(left_input);
-    V<rep> right = Map(right_input);
+    V<rep> left = Map(LeftInput);
+    V<rep> right = Map(RightInput);
     if (swap_inputs) std::swap(left, right);
     return __ Comparison(left, right, kind, V<rep>::rep);
   }
 
-  V<Word32> ConvertInt32Compare(maglev::Input left_input,
-                                maglev::Input right_input,
+  V<Word32> ConvertInt32Compare(maglev::Input LeftInput,
+                                maglev::Input RightInput,
                                 maglev::AssertCondition condition,
                                 bool* negate_result) {
     ComparisonOp::Kind kind;
@@ -6163,8 +6160,8 @@ class GraphBuildingNodeProcessor {
         swap_inputs = true;
         break;
     }
-    V<Word32> left = Map(left_input);
-    V<Word32> right = Map(right_input);
+    V<Word32> left = Map(LeftInput);
+    V<Word32> right = Map(RightInput);
     if (swap_inputs) std::swap(left, right);
     return __ Comparison(left, right, kind, WordRepresentation::Word32());
   }

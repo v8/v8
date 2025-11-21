@@ -2236,14 +2236,14 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64ToBoolean(
 ProcessResult MaglevGraphOptimizer::VisitFloat64Min(
     Float64Min* node, const ProcessingState& state) {
   REPLACE_AND_RETURN_IF_DONE(reducer_.TryFoldFloat64Min(
-      node->left_input().node(), node->right_input().node()));
+      node->LeftInput().node(), node->RightInput().node()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Max(
     Float64Max* node, const ProcessingState& state) {
   REPLACE_AND_RETURN_IF_DONE(reducer_.TryFoldFloat64Max(
-      node->left_input().node(), node->right_input().node()));
+      node->LeftInput().node(), node->RightInput().node()));
   return ProcessResult::kContinue;
 }
 

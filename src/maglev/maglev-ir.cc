@@ -1521,7 +1521,7 @@ constexpr Builtin BuiltinFor(Operation operation) {
 template <class Derived, Operation kOperation>
 void UnaryWithFeedbackNode<Derived, kOperation>::SetValueLocationConstraints() {
   using D = UnaryOp_WithFeedbackDescriptor;
-  UseFixed(operand_input(), D::GetRegisterParameter(D::kValue));
+  UseFixed(ValueInput(), D::GetRegisterParameter(D::kValue));
   DefineAsFixed(this, kReturnRegister0);
 }
 
@@ -1530,7 +1530,7 @@ void UnaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   __ CallBuiltin<BuiltinFor(kOperation)>(
       masm->native_context().object(),  // context
-      operand_input(),                  // value
+      ValueInput(),                     // value
       feedback().index(),               // feedback slot
       feedback().vector                 // feedback vector
   );
@@ -1541,8 +1541,8 @@ template <class Derived, Operation kOperation>
 void BinaryWithFeedbackNode<Derived,
                             kOperation>::SetValueLocationConstraints() {
   using D = BinaryOp_WithFeedbackDescriptor;
-  UseFixed(left_input(), D::GetRegisterParameter(D::kLeft));
-  UseFixed(right_input(), D::GetRegisterParameter(D::kRight));
+  UseFixed(LeftInput(), D::GetRegisterParameter(D::kLeft));
+  UseFixed(RightInput(), D::GetRegisterParameter(D::kRight));
   DefineAsFixed(this, kReturnRegister0);
 }
 
@@ -1551,8 +1551,8 @@ void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   __ CallBuiltin<BuiltinFor(kOperation)>(
       masm->native_context().object(),  // context
-      left_input(),                     // left
-      right_input(),                    // right
+      LeftInput(),                      // left
+      RightInput(),                     // right
       feedback().index(),               // feedback slot
       feedback().vector                 // feedback vector
   );
@@ -1633,12 +1633,12 @@ void GapMove::GenerateCode(MaglevAssembler* masm,
 }
 
 void AssertInt32::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
 }
 void AssertInt32::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
-  __ CompareInt32AndAssert(ToRegister(left_input()), ToRegister(right_input()),
+  __ CompareInt32AndAssert(ToRegister(LeftInput()), ToRegister(RightInput()),
                            ToCondition(condition_), reason_);
 }
 
@@ -2637,11 +2637,11 @@ void GetIterator::GenerateCode(MaglevAssembler* masm,
 }
 
 void Int32Compare::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  if (right_input().node()->Is<Int32Constant>()) {
-    UseAny(right_input());
+  UseRegister(LeftInput());
+  if (RightInput().node()->Is<Int32Constant>()) {
+    UseAny(RightInput());
   } else {
-    UseRegister(right_input());
+    UseRegister(RightInput());
   }
   DefineAsRegister(this);
 }
@@ -2650,16 +2650,15 @@ void Int32Compare::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   Register result = ToRegister(this->result());
   Label is_true, end;
-  if (Int32Constant* constant =
-          right_input().node()->TryCast<Int32Constant>()) {
+  if (Int32Constant* constant = RightInput().node()->TryCast<Int32Constant>()) {
     int32_t right_value = constant->value();
-    __ CompareInt32AndJumpIf(ToRegister(left_input()), right_value,
+    __ CompareInt32AndJumpIf(ToRegister(LeftInput()), right_value,
                              ConditionFor(operation()), &is_true,
                              Label::Distance::kNear);
   } else {
-    __ CompareInt32AndJumpIf(
-        ToRegister(left_input()), ToRegister(right_input()),
-        ConditionFor(operation()), &is_true, Label::Distance::kNear);
+    __ CompareInt32AndJumpIf(ToRegister(LeftInput()), ToRegister(RightInput()),
+                             ConditionFor(operation()), &is_true,
+                             Label::Distance::kNear);
   }
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
@@ -2719,15 +2718,15 @@ void IntPtrToBoolean::GenerateCode(MaglevAssembler* masm,
 }
 
 void Float64Compare::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
   DefineAsRegister(this);
 }
 
 void Float64Compare::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
-  DoubleRegister left = ToDoubleRegister(left_input());
-  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister left = ToDoubleRegister(LeftInput());
+  DoubleRegister right = ToDoubleRegister(RightInput());
   Register result = ToRegister(this->result());
   Label is_false, end;
   __ CompareFloat64AndJumpIf(left, right,
@@ -3503,25 +3502,25 @@ void StoreDoubleDataViewElement::SetValueLocationConstraints() {
   // {data_pointer_input} already contains the pointer to the data, but we're
   // still doing a `UseRegister(object_input())` in order to keep the DataView
   // alive.
-  UseRegister(object_input());
+  UseRegister(ObjectInput());
 
-  UseRegister(data_pointer_input());
-  UseRegister(index_input());
-  UseRegister(value_input());
-  if (is_little_endian_constant()) {
-    UseAny(is_little_endian_input());
+  UseRegister(DataPointerInput());
+  UseRegister(IndexInput());
+  UseRegister(ValueInput());
+  if (IsIsLittlerEndianInputConstant()) {
+    UseAny(IsLittlerEndianInput());
   } else {
-    UseRegister(is_little_endian_input());
+    UseRegister(IsLittlerEndianInput());
   }
 }
 void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
-  Register data_pointer = ToRegister(data_pointer_input());
-  Register index = ToRegister(index_input());
-  DoubleRegister value = ToDoubleRegister(value_input());
+  Register data_pointer = ToRegister(DataPointerInput());
+  Register index = ToRegister(IndexInput());
+  DoubleRegister value = ToDoubleRegister(ValueInput());
 
-  if (is_little_endian_constant()) {
-    if (FromConstantToBool(masm, is_little_endian_input().node()) !=
+  if (IsIsLittlerEndianInputConstant()) {
+    if (FromConstantToBool(masm, IsLittlerEndianInput().node()) !=
         V8_TARGET_BIG_ENDIAN_BOOL) {
       __ StoreUnalignedFloat64(data_pointer, index, value);
     } else {
@@ -3534,7 +3533,7 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     // maybe that's a case we should fast-path here and reuse that boolean
     // value?
     __ ToBoolean(
-        ToRegister(is_little_endian_input()), CheckType::kCheckHeapObject,
+        ToRegister(IsLittlerEndianInput()), CheckType::kCheckHeapObject,
         V8_TARGET_BIG_ENDIAN_BOOL ? reverse_byte_order : keep_byte_order,
         V8_TARGET_BIG_ENDIAN_BOOL ? keep_byte_order : reverse_byte_order, true);
     __ bind(*keep_byte_order);
@@ -3804,13 +3803,13 @@ void CheckTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
 }
 
 void CheckInt32Condition::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
 }
 void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
-  __ CompareInt32AndJumpIf(ToRegister(left_input()), ToRegister(right_input()),
+  __ CompareInt32AndJumpIf(ToRegister(LeftInput()), ToRegister(RightInput()),
                            NegateCondition(ToCondition(condition())), fail);
 }
 
@@ -5513,40 +5512,40 @@ void StringLength::GenerateCode(MaglevAssembler* masm,
 
 void StringConcat::SetValueLocationConstraints() {
   using D = StringAdd_CheckNoneDescriptor;
-  UseFixed(lhs(), D::GetRegisterParameter(D::kLeft));
-  UseFixed(rhs(), D::GetRegisterParameter(D::kRight));
+  UseFixed(LeftInput(), D::GetRegisterParameter(D::kLeft));
+  UseFixed(RightInput(), D::GetRegisterParameter(D::kRight));
   DefineAsFixed(this, kReturnRegister0);
 }
 void StringConcat::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   __ CallBuiltin<Builtin::kStringAdd_CheckNone>(
       masm->native_context().object(),  // context
-      lhs(),                            // left
-      rhs()                             // right
+      LeftInput(),                      // left
+      RightInput()                      // right
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
   DCHECK_EQ(kReturnRegister0, ToRegister(result()));
 }
 
 void ConsStringMap::SetValueLocationConstraints() {
-  UseRegister(lhs());
-  UseRegister(rhs());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
   DefineSameAsFirst(this);
 }
 void ConsStringMap::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
   Label two_byte, ok;
   Register res = ToRegister(result());
-  Register left = ToRegister(lhs());
-  Register right = ToRegister(rhs());
+  Register left = ToRegister(LeftInput());
+  Register right = ToRegister(RightInput());
 
   // Fast case for when the lhs() (which is identical to the result) happens to
   // contain the result for one byte string map inputs. In this case we only
   // need to check the rhs() and if it is one byte too, already have the result
   // in the correct register.
   bool left_contains_one_byte_res_map =
-      lhs().node()->Is<RootConstant>() &&
-      lhs().node()->Cast<RootConstant>()->index() ==
+      LeftInput().node()->Is<RootConstant>() &&
+      LeftInput().node()->Cast<RootConstant>()->index() ==
           RootIndex::kConsOneByteStringMap;
 
 #ifdef V8_STATIC_ROOTS
@@ -5622,8 +5621,8 @@ void UnwrapStringWrapper::GenerateCode(MaglevAssembler* masm,
 
 void StringEqual::SetValueLocationConstraints() {
   using D = StringEqualDescriptor;
-  UseFixed(lhs(), D::GetRegisterParameter(D::kLeft));
-  UseFixed(rhs(), D::GetRegisterParameter(D::kRight));
+  UseFixed(LeftInput(), D::GetRegisterParameter(D::kLeft));
+  UseFixed(RightInput(), D::GetRegisterParameter(D::kRight));
   set_temporaries_needed(1);
   RequireSpecificTemporary(D::GetRegisterParameter(D::kLength));
   DefineAsFixed(this, kReturnRegister0);
@@ -5632,8 +5631,8 @@ void StringEqual::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   using D = StringEqualDescriptor;
   Label done, if_equal, if_not_equal;
-  Register left = ToRegister(lhs());
-  Register right = ToRegister(rhs());
+  Register left = ToRegister(LeftInput());
+  Register right = ToRegister(RightInput());
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register left_length = temps.Acquire();
   Register right_length = D::GetRegisterParameter(D::kLength);
@@ -5662,7 +5661,7 @@ void StringEqual::GenerateCode(MaglevAssembler* masm,
   // right string (which matches the length of the left string when we get
   // here).
   DCHECK_EQ(right_length, D::GetRegisterParameter(D::kLength));
-  __ CallBuiltin<Builtin::kStringEqual>(lhs(), rhs(),
+  __ CallBuiltin<Builtin::kStringEqual>(LeftInput(), RightInput(),
                                         D::GetRegisterParameter(D::kLength));
   masm->DefineLazyDeoptPoint(this->lazy_deopt_info());
   __ Jump(&done, Label::Distance::kNear);
@@ -5678,14 +5677,14 @@ void StringEqual::GenerateCode(MaglevAssembler* masm,
 }
 
 void TaggedEqual::SetValueLocationConstraints() {
-  UseRegister(lhs());
-  UseRegister(rhs());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
   DefineAsRegister(this);
 }
 void TaggedEqual::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
   Label done, if_equal;
-  __ CmpTagged(ToRegister(lhs()), ToRegister(rhs()));
+  __ CmpTagged(ToRegister(LeftInput()), ToRegister(RightInput()));
   __ JumpIf(kEqual, &if_equal, Label::Distance::kNear);
   __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
   __ Jump(&done);
@@ -5695,14 +5694,14 @@ void TaggedEqual::GenerateCode(MaglevAssembler* masm,
 }
 
 void TaggedNotEqual::SetValueLocationConstraints() {
-  UseRegister(lhs());
-  UseRegister(rhs());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
   DefineAsRegister(this);
 }
 void TaggedNotEqual::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   Label done, if_equal;
-  __ CmpTagged(ToRegister(lhs()), ToRegister(rhs()));
+  __ CmpTagged(ToRegister(LeftInput()), ToRegister(RightInput()));
   __ JumpIf(kEqual, &if_equal, Label::Distance::kNear);
   __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
   __ Jump(&done);
@@ -6374,17 +6373,17 @@ void CheckedNumberToUint8Clamped::GenerateCode(MaglevAssembler* masm,
 }
 
 void StoreFixedArrayElementWithWriteBarrier::SetValueLocationConstraints() {
-  UseRegister(elements_input());
-  UseRegister(index_input());
-  UseRegister(value_input());
+  UseRegister(ElementsInput());
+  UseRegister(IndexInput());
+  UseRegister(ValueInput());
   RequireSpecificTemporary(WriteBarrierDescriptor::ObjectRegister());
   RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
 }
 void StoreFixedArrayElementWithWriteBarrier::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  Register elements = ToRegister(elements_input());
-  Register index = ToRegister(index_input());
-  Register value = ToRegister(value_input());
+  Register elements = ToRegister(ElementsInput());
+  Register index = ToRegister(IndexInput());
+  Register value = ToRegister(ValueInput());
   __ StoreFixedArrayElementWithWriteBarrier(elements, index, value,
                                             register_snapshot());
 }
@@ -7851,50 +7850,50 @@ void HoleyFloat64IsHole::GenerateCode(MaglevAssembler* masm,
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 void BranchIfFloat64Compare::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
 }
 void BranchIfFloat64Compare::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
-  DoubleRegister left = ToDoubleRegister(left_input());
-  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister left = ToDoubleRegister(LeftInput());
+  DoubleRegister right = ToDoubleRegister(RightInput());
   __ CompareFloat64AndBranch(left, right, ConditionForFloat64(operation_),
                              if_true(), if_false(), state.next_block(),
                              if_false());
 }
 
 void BranchIfReferenceEqual::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
 }
 void BranchIfReferenceEqual::GenerateCode(MaglevAssembler* masm,
                                           const ProcessingState& state) {
-  Register left = ToRegister(left_input());
-  Register right = ToRegister(right_input());
+  Register left = ToRegister(LeftInput());
+  Register right = ToRegister(RightInput());
   __ CmpTagged(left, right);
   __ Branch(kEqual, if_true(), if_false(), state.next_block());
 }
 
 void BranchIfInt32Compare::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
 }
 void BranchIfInt32Compare::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  Register left = ToRegister(left_input());
-  Register right = ToRegister(right_input());
+  Register left = ToRegister(LeftInput());
+  Register right = ToRegister(RightInput());
   __ CompareInt32AndBranch(left, right, ConditionFor(operation_), if_true(),
                            if_false(), state.next_block());
 }
 
 void BranchIfUint32Compare::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseRegister(LeftInput());
+  UseRegister(RightInput());
 }
 void BranchIfUint32Compare::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  Register left = ToRegister(left_input());
-  Register right = ToRegister(right_input());
+  Register left = ToRegister(LeftInput());
+  Register right = ToRegister(RightInput());
   __ CompareInt32AndBranch(left, right, UnsignedConditionFor(operation_),
                            if_true(), if_false(), state.next_block());
 }
