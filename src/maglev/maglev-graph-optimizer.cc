@@ -923,6 +923,12 @@ ProcessResult MaglevGraphOptimizer::VisitCallForwardVarargs(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitConstructForwardVarargs(
+    ConstructForwardVarargs* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitCallRuntime(
     CallRuntime* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

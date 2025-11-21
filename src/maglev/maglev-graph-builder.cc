@@ -267,6 +267,12 @@ class CallArguments {
     return args_[args_.size() - 1];
   }
 
+  ValueNode* spread() {
+    DCHECK_EQ(mode_, kWithSpread);
+    DCHECK_GT(count(), 0);
+    return args_[args_.size() - 1];
+  }
+
   size_t count() const {
     DCHECK_LE(index_offset(), args_.size());
     return args_.size() - index_offset();
@@ -294,6 +300,12 @@ class CallArguments {
 
   void PopArrayLikeArgument() {
     DCHECK_EQ(mode_, kWithArrayLike);
+    DCHECK_GT(count(), 0);
+    args_.pop_back();
+  }
+
+  void PopSpread() {
+    DCHECK_EQ(mode_, kWithSpread);
     DCHECK_GT(count(), 0);
     args_.pop_back();
   }
@@ -11838,6 +11850,32 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
   UNREACHABLE();
 }
 
+template <typename CallNode, typename... Args>
+ReduceResult MaglevGraphBuilder::BuildCallForwardArgumentsElements(
+    ValueNode* target_node, CallArguments& args, ArgumentsElements* elements,
+    Args&&... extra_arg) {
+  Call::TargetType target_type = Call::TargetType::kAny;
+  if (compiler::OptionalJSFunctionRef maybe_constant =
+          TryGetConstant<JSFunction>(target_node)) {
+    compiler::SharedFunctionInfoRef shared = maybe_constant->shared(broker());
+    if (!IsClassConstructor(shared.kind())) {
+      target_type = Call::TargetType::kJSFunction;
+    }
+  }
+  int start_index = 0;
+  if (elements->create_arguments_type() ==
+      CreateArgumentsType::kRestParameter) {
+    start_index = elements->formal_parameter_count();
+  }
+  ValueNode* tagged_target;
+  GET_VALUE_OR_ABORT(tagged_target, GetTaggedValue(target_node));
+  ValueNode* tagged_context;
+  GET_VALUE(tagged_context, GetTaggedValue(GetContext()));
+  return AddNewCallNode<CallNode>(args, tagged_target,
+                                  std::forward<Args>(extra_arg)...,
+                                  tagged_context, start_index, target_type);
+}
+
 ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     ValueNode* target_node, CallArguments& args,
     VirtualObject* arguments_object,
@@ -11848,28 +11886,10 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
   args.PopArrayLikeArgument();
   ValueNode* elements_value =
       arguments_object->get(JSArgumentsObject::kElementsOffset);
-  if (elements_value->Is<ArgumentsElements>()) {
-    Call::TargetType target_type = Call::TargetType::kAny;
-    // TODO(victorgomes): Add JSFunction node type in KNA and use the info here.
-    if (compiler::OptionalJSFunctionRef maybe_constant =
-            TryGetConstant<JSFunction>(target_node)) {
-      compiler::SharedFunctionInfoRef shared = maybe_constant->shared(broker());
-      if (!IsClassConstructor(shared.kind())) {
-        target_type = Call::TargetType::kJSFunction;
-      }
-    }
-    int start_index = 0;
-    if (elements_value->Cast<ArgumentsElements>()->create_arguments_type() ==
-        CreateArgumentsType::kRestParameter) {
-      start_index =
-          elements_value->Cast<ArgumentsElements>()->formal_parameter_count();
-    }
-    ValueNode* tagged_target;
-    GET_VALUE_OR_ABORT(tagged_target, GetTaggedValue(target_node));
-    ValueNode* tagged_context;
-    GET_VALUE(tagged_context, GetTaggedValue(GetContext()));
-    return AddNewCallNode<CallForwardVarargs>(
-        args, tagged_target, tagged_context, start_index, target_type);
+  if (ArgumentsElements* arguments_elements =
+          elements_value->TryCast<ArgumentsElements>()) {
+    return BuildCallForwardArgumentsElements<CallForwardVarargs>(
+        target_node, args, arguments_elements);
   }
 
   if (elements_value->Is<RootConstant>()) {
@@ -11915,6 +11935,36 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
   }
   CallArguments new_args(ConvertReceiverMode::kAny, std::move(arg_list));
   return ReduceCall(target_node, new_args, feedback_source);
+}
+
+MaybeReduceResult
+MaglevGraphBuilder::TryReduceConstructWithSpreadForArgumentsObject(
+    ValueNode* target, ValueNode* new_target, CallArguments& args,
+    VirtualObject* arguments_object,
+    const compiler::FeedbackSource& feedback_source) {
+  DCHECK_EQ(args.mode(), CallArguments::kWithSpread);
+  DCHECK(arguments_object->map().IsJSArgumentsObjectMap() ||
+         arguments_object->map().IsJSArrayMap());
+
+  ValueNode* elements_value =
+      arguments_object->get(JSArgumentsObject::kElementsOffset);
+  if (ArgumentsElements* arguments_elements =
+          elements_value->TryCast<ArgumentsElements>()) {
+    // For call/construct with spread, we need to also install a code
+    // dependency on the array iterator lookup protector cell to ensure
+    // that no one messed with the %ArrayIteratorPrototype%.next method.
+    if (!broker()->dependencies()->DependOnArrayIteratorProtector()) return {};
+
+    // Remove spread.
+    args.PopSpread();
+
+    ValueNode* tagged_new_target;
+    GET_VALUE_OR_ABORT(tagged_new_target, GetTaggedValue(new_target));
+    return BuildCallForwardArgumentsElements<ConstructForwardVarargs>(
+        target, args, arguments_elements, tagged_new_target);
+  }
+
+  return {};
 }
 
 namespace {
@@ -12943,6 +12993,19 @@ ReduceResult MaglevGraphBuilder::BuildConstruct(
 
   // Enable feedback-based speculation.
   SaveCallSpeculationScope saved(this, feedback_source);
+
+  // TODO(victorgomes): Add the case for Rest parameter.
+  if (args.mode() == CallArguments::kWithSpread) {
+    if (std::optional<VirtualObject*> arguments_object =
+            TryGetNonEscapingArgumentsObject(args.spread())) {
+      PROCESS_AND_RETURN_IF_DONE(
+          TryReduceConstructWithSpreadForArgumentsObject(
+              target, new_target, args, *arguments_object, feedback_source),
+          SetAccumulator);
+    }
+    return SetAccumulator(BuildGenericConstruct(
+        target, new_target, GetContext(), args, feedback_source));
+  }
 
   // Note that for Construct nodes, the `CallFeedback::target` actually refers
   // to new_target.

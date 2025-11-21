@@ -843,6 +843,20 @@ void ConstructWithSpread::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
+void ConstructForwardVarargs::VerifyInputs() const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
+  }
+}
+
+#ifdef V8_COMPRESS_POINTERS
+void ConstructForwardVarargs::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
+  }
+}
+#endif
+
 void CallBuiltin::VerifyInputs() const {
   auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
   int count = input_count();
@@ -6460,14 +6474,14 @@ void CallForwardVarargs::SetValueLocationConstraints() {
 void CallForwardVarargs::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
   __ PushReverse(args());
-  switch (target_type_) {
+  switch (target_type()) {
     case Call::TargetType::kJSFunction:
       __ CallBuiltin<Builtin::kCallFunctionForwardVarargs>(
-          context(), function(), num_args(), start_index_);
+          context(), function(), num_args(), start_index());
       break;
     case Call::TargetType::kAny:
       __ CallBuiltin<Builtin::kCallForwardVarargs>(context(), function(),
-                                                   num_args(), start_index_);
+                                                   num_args(), start_index());
       break;
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -7029,6 +7043,35 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
       feedback().vector,                            // feedback vector
       args_no_spread()                              // args
   );
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+int ConstructForwardVarargs::MaxCallStackArgs() const { return num_args(); }
+void ConstructForwardVarargs::SetValueLocationConstraints() {
+  using D = ConstructForwardVarargsDescriptor;
+  UseFixed(target(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
+  UseAny(arg(0));
+  for (int i = 1; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  UseFixed(context(), kContextRegister);
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+void ConstructForwardVarargs::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  __ PushReverse(args());
+  switch (target_type()) {
+    case Call::TargetType::kJSFunction:
+      __ CallBuiltin<Builtin::kConstructFunctionForwardVarargs>(
+          context(), target(), new_target(), num_args(), start_index());
+      break;
+    case Call::TargetType::kAny:
+      __ CallBuiltin<Builtin::kConstructForwardVarargs>(
+          context(), target(), new_target(), num_args(), start_index());
+      break;
+  }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -8503,8 +8546,13 @@ void CallBuiltin::PrintParams(std::ostream& os) const {
 }
 
 void CallForwardVarargs::PrintParams(std::ostream& os) const {
-  if (start_index_ == 0) return;
-  os << "(" << start_index_ << ")";
+  if (start_index() == 0) return;
+  os << "(" << start_index() << ")";
+}
+
+void ConstructForwardVarargs::PrintParams(std::ostream& os) const {
+  if (start_index() == 0) return;
+  os << "(" << start_index() << ")";
 }
 
 void CallRuntime::PrintParams(std::ostream& os) const {

@@ -3877,6 +3877,26 @@ class AssemblerOpInterface : public Next {
         isolate, graph_zone, builtin, frame_state, num_args,
         base::VectorOf(arguments), lazy_deopt_on_throw);
   }
+  V<Object> CallBuiltin_ConstructForwardVarargs(
+      Isolate* isolate, Zone* graph_zone, Builtin builtin,
+      V<turboshaft::FrameState> frame_state, V<Context> context,
+      V<JSFunction> target, V<JSFunction> new_target, int num_args,
+      int start_index, base::Vector<V<Object>> args,
+      LazyDeoptOnThrow lazy_deopt_on_throw) {
+    DCHECK(builtin == Builtin::kConstructFunctionForwardVarargs ||
+           builtin == Builtin::kConstructForwardVarargs);
+    base::SmallVector<OpIndex, 16> arguments;
+    arguments.push_back(target);
+    arguments.push_back(new_target);
+    arguments.push_back(__ Word32Constant(num_args));
+    arguments.push_back(__ Word32Constant(start_index));
+    arguments.insert(arguments.end(), args.begin(), args.end());
+    arguments.push_back(context);
+
+    return CallBuiltinWithVarStackArgs(
+        isolate, graph_zone, builtin, frame_state, num_args,
+        base::VectorOf(arguments), lazy_deopt_on_throw);
+  }
 
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(14108): Annotate runtime functions as not having side effects

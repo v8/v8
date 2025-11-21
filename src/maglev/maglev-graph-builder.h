@@ -1096,6 +1096,12 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceFunctionPrototypeApplyCallWithReceiver(
       compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
+
+  template <typename CallNode, typename... Args>
+  ReduceResult BuildCallForwardArgumentsElements(ValueNode* target_node,
+                                                 CallArguments& args,
+                                                 ArgumentsElements* elements,
+                                                 Args&&... extra_arg);
   ReduceResult ReduceCallWithArrayLikeForArgumentsObject(
       ValueNode* target_node, CallArguments& args,
       VirtualObject* arguments_object,
@@ -1150,6 +1156,10 @@ class MaglevGraphBuilder {
       compiler::HeapObjectRef target_constant, ValueNode* target,
       ValueNode* new_target, CallArguments& args,
       compiler::FeedbackSource& feedback_source);
+  MaybeReduceResult TryReduceConstructWithSpreadForArgumentsObject(
+      ValueNode* target, ValueNode* new_target, CallArguments& args,
+      VirtualObject* arguments_object,
+      const compiler::FeedbackSource& feedback_source);
   ReduceResult BuildConstruct(ValueNode* target, ValueNode* new_target,
                               CallArguments& args,
                               compiler::FeedbackSource& feedback_source);

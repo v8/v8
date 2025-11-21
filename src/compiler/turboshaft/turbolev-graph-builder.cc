@@ -1999,6 +1999,38 @@ class GraphBuildingNodeProcessor {
                                   node->num_args_no_spread());
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::ConstructForwardVarargs* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
+    V<JSFunction> target = Map(node->target());
+    V<JSFunction> new_target = Map(node->new_target());
+    V<Context> context = Map(node->context());
+
+    base::SmallVector<V<Object>, 16> arguments;
+    for (auto arg : node->args()) {
+      arguments.push_back(Map(arg));
+    }
+    DCHECK_EQ(node->num_args(), arguments.size());
+
+    Builtin builtin;
+    switch (node->target_type()) {
+      case maglev::Call::TargetType::kJSFunction:
+        builtin = Builtin::kConstructFunctionForwardVarargs;
+        break;
+      case maglev::Call::TargetType::kAny:
+        builtin = Builtin::kConstructForwardVarargs;
+        break;
+    }
+    V<Object> call = __ CallBuiltin_ConstructForwardVarargs(
+        isolate_, graph_zone(), builtin, frame_state, context, target,
+        new_target, node->num_args(), node->start_index(),
+        base::VectorOf(arguments), ShouldLazyDeoptOnThrow(node));
+
+    SetMap(node, call);
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckConstructResult* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ CheckConstructResult(Map(node->construct_result_input()),

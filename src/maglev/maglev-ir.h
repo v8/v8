@@ -257,6 +257,7 @@ class ExceptionHandlerInfo;
   V(CallKnownJSFunction)                                              \
   V(CallSelf)                                                         \
   V(Construct)                                                        \
+  V(ConstructForwardVarargs)                                          \
   V(CheckConstructResult)                                             \
   V(CheckDerivedConstructResult)                                      \
   V(ConstructWithSpread)                                              \
@@ -11240,6 +11241,65 @@ class CallForwardVarargs : public ValueNodeT<CallForwardVarargs> {
 
   Input function() { return input(kFunctionIndex); }
   ConstInput function() const { return input(kFunctionIndex); }
+  Input context() { return input(kContextIndex); }
+  ConstInput context() const { return input(kContextIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+  auto args() {
+    return std::views::transform(std::views::iota(0, num_args()),
+                                 [&](int i) { return arg(i); });
+  }
+
+  void VerifyInputs() const;
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing();
+#endif
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  int start_index() const { return start_index_; }
+  Call::TargetType target_type() const { return target_type_; }
+
+ private:
+  int start_index_;
+  Call::TargetType target_type_;
+};
+
+class ConstructForwardVarargs : public ValueNodeT<ConstructForwardVarargs> {
+  using Base = ValueNodeT<ConstructForwardVarargs>;
+
+ public:
+  static constexpr int kTargetIndex = 0;
+  static constexpr int kNewTargetIndex = 1;
+  static constexpr int kContextIndex = 2;
+  static constexpr int kFixedInputCount = 3;
+
+  // We need enough inputs to have these fixed inputs plus the maximum arguments
+  // to a function call.
+  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  ConstructForwardVarargs(uint64_t bitfield, ValueNode* target,
+                          ValueNode* new_target, ValueNode* context,
+                          int start_index, Call::TargetType target_type)
+      : Base(bitfield), start_index_(start_index), target_type_(target_type) {
+    set_input(kTargetIndex, target);
+    set_input(kNewTargetIndex, new_target);
+    set_input(kContextIndex, context);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input target() { return input(kTargetIndex); }
+  ConstInput target() const { return input(kTargetIndex); }
+  Input new_target() { return input(kNewTargetIndex); }
+  ConstInput new_target() const { return input(kNewTargetIndex); }
   Input context() { return input(kContextIndex); }
   ConstInput context() const { return input(kContextIndex); }
   int num_args() const { return input_count() - kFixedInputCount; }
