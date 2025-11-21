@@ -2315,10 +2315,7 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 // The subsequent ones must be about the same <var> to return true.
 
 bool BytecodeGenerator::IsPrototypeAssignment(
-    Statement* stmt, Variable** var, HoleCheckMode* hole_check_mode,
-    SmallZoneVector<std::pair<const AstRawString*, Expression*>,
-                    kInitialPropertyCount>& properties,
-    std::unordered_set<const AstRawString*>& duplicates) {
+    Statement* stmt, std::unique_ptr<PrototypeAssignments>* assignments) {
   // The expression Statement is an assignment
   // ========================================
   ExpressionStatement* expr_stmt = stmt->AsExpressionStatement();
@@ -2390,41 +2387,46 @@ bool BytecodeGenerator::IsPrototypeAssignment(
     return false;
   }
 
-  if (!duplicates.insert(prop_str).second) {
-    return false;
+  if (!*assignments) {
+    // This is the first prototype assignment in the sequence.
+    *assignments = std::make_unique<PrototypeAssignments>(
+        tmp_var, proto_prop->obj()->AsVariableProxy()->hole_check_mode(),
+        ZoneVector<PrototypeAssignment>(zone()));
+    (*assignments)->properties.reserve(8);
+    (*assignments)->duplicates.insert(prop_str);
+  } else {
+    if (!(*assignments)->duplicates.insert(prop_str).second) return false;
+    if ((*assignments)->var != tmp_var) {
+      // This prototype assignment is about another var.
+      return false;
+    }
+    DCHECK_EQ((*assignments)->hole_check_mode,
+              proto_prop->obj()->AsVariableProxy()->hole_check_mode());
   }
 
-  if (*var == nullptr) {
-    // This is the first proto assignment in the sequence
-    *var = tmp_var;
-    *hole_check_mode = proto_prop->obj()->AsVariableProxy()->hole_check_mode();
-  } else if (*var != tmp_var) {
-    // This prototype assignment is about another var
-    return false;
-  }
+  // Success!
+  (*assignments)
+      ->properties.push_back(std::make_pair(
+          prop_str,
+          value));  // This will be reused as part of an ObjectLiteral.
 
-  // Success
-  properties.push_back(std::make_pair(
-      prop_str,
-      value));  // This will be reused as part of an ObjectLiteral
-
-  DCHECK_EQ(*hole_check_mode,
-            proto_prop->obj()->AsVariableProxy()->hole_check_mode());
   return true;
 }
 
 void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
-    const SmallZoneVector<std::pair<const AstRawString*, Expression*>,
-                          kInitialPropertyCount>& properties,
-    Variable* var, HoleCheckMode hole_check_mode) {
+    std::unique_ptr<PrototypeAssignments> assignments) {
   // Create a boiler plate object in the constant pool to be merged into the
-  // proto
+  // proto.
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
-  proto_assign_seq_.push_back(std::make_pair(
-      zone()->New<ProtoAssignmentSeqBuilder>(properties), entry));
+  proto_assign_seq_.push_back(
+      std::make_pair(zone()->New<ProtoAssignmentSeqBuilder>(
+                         std::move(assignments->properties)),
+                     entry));
+  const ZoneVector<PrototypeAssignment>* props =
+      proto_assign_seq_.back().first->properties();
 
   int first_idx = -1;
-  for (auto& p : properties) {
+  for (auto& p : *props) {
     auto func = p.second->AsFunctionLiteral();
     if (func) {
       int idx = GetNewClosureSlot(func);
@@ -2436,13 +2438,13 @@ void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
     }
   }
 
-  // We need it to be valid, even if unused
+  // We need {first_idx} to be valid, even if it's unused.
   if (first_idx == -1) {
     first_idx = 0;
   }
-  // Load the variable whose prototype is to be set into the Accumulator
-  BuildVariableLoad(var, hole_check_mode);
-  // Merge in-place proto-def boilerplate object into Accumulator
+  // Load the variable whose prototype is to be set into the Accumulator.
+  BuildVariableLoad(assignments->var, assignments->hole_check_mode);
+  // Merge in-place proto-def boilerplate object into the Accumulator.
   builder()->SetPrototypeProperties(entry, first_idx);
 }
 
@@ -2450,25 +2452,23 @@ void BytecodeGenerator::VisitStatements(
     const ZonePtrList<Statement>* statements, int start) {
   for (int stmt_idx = start; stmt_idx < statements->length(); stmt_idx++) {
     if (v8_flags.proto_assign_seq_opt) {
-      Variable* var = nullptr;
-      HoleCheckMode hole_check_mode;
-
       int proto_assign_idx = stmt_idx;
-      SmallZoneVector<std::pair<const AstRawString*, Expression*>,
-                      kInitialPropertyCount>
-          properties(zone());
-      std::unordered_set<const AstRawString*> duplicates;
+      // {VisitStatements} can be used for deep recursions, so this is a
+      // stack-friendly design: statically we only need one {unique_ptr}, and
+      // the actual storage is heap-allocated when it is needed.
+      std::unique_ptr<PrototypeAssignments> assignments;
       while (proto_assign_idx < statements->length() &&
-             IsPrototypeAssignment(statements->at(proto_assign_idx), &var,
-                                   &hole_check_mode, properties, duplicates)) {
+             IsPrototypeAssignment(statements->at(proto_assign_idx),
+                                   &assignments)) {
         ++proto_assign_idx;
       }
 
       if (proto_assign_idx - stmt_idx > 1) {
-        DCHECK_EQ((size_t)(proto_assign_idx - stmt_idx), properties.size());
-        VisitConsecutivePrototypeAssignments(properties, var, hole_check_mode);
-        stmt_idx = proto_assign_idx - 1;  // the outer loop should now ignore
-                                          // these statements
+        DCHECK_EQ(static_cast<size_t>(proto_assign_idx - stmt_idx),
+                  assignments->properties.size());
+        VisitConsecutivePrototypeAssignments(std::move(assignments));
+        stmt_idx = proto_assign_idx - 1;  // The outer loop should now ignore
+                                          // these statements.
         DCHECK(!builder()->RemainderOfBlockIsDead());
         continue;
       }

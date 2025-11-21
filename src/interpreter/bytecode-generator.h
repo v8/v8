@@ -30,6 +30,13 @@ class LoopBuilder;
 class BlockCoverageBuilder;
 class BytecodeJumpTable;
 
+struct PrototypeAssignments {
+  Variable* var;
+  HoleCheckMode hole_check_mode;
+  ZoneVector<PrototypeAssignment> properties;
+  std::unordered_set<const AstRawString*> duplicates;
+};
+
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
   enum TypeHint : uint8_t {
@@ -69,18 +76,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 #define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-  static constexpr int kInitialPropertyCount = 64;
 
   bool IsPrototypeAssignment(
-      Statement* stmt, Variable** var, HoleCheckMode* hole_check_mode,
-      SmallZoneVector<std::pair<const AstRawString*, Expression*>,
-                      kInitialPropertyCount>& properties,
-      std::unordered_set<const AstRawString*>& duplicate);
+      Statement* stmt, std::unique_ptr<PrototypeAssignments>* assignments);
+  V8_NOINLINE void VisitConsecutivePrototypeAssignments(
+      std::unique_ptr<PrototypeAssignments> assignments);
 
-  void VisitConsecutivePrototypeAssignments(
-      const SmallZoneVector<std::pair<const AstRawString*, Expression*>,
-                            kInitialPropertyCount>& properties,
-      Variable* var, HoleCheckMode hole_check_mode);
   // Visiting function for declarations list and statements are overridden.
   void VisitModuleDeclarations(Declaration::List* declarations);
   void VisitGlobalDeclarations(Declaration::List* declarations);
