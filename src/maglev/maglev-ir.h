@@ -9475,8 +9475,8 @@ class StoreFixedHoleyDoubleArrayElement
 };
 
 class LoadSignedIntDataViewElement
-    : public FixedInputValueNodeT<3, LoadSignedIntDataViewElement> {
-  using Base = FixedInputValueNodeT<3, LoadSignedIntDataViewElement>;
+    : public FixedInputValueNodeT<4, LoadSignedIntDataViewElement> {
+  using Base = FixedInputValueNodeT<4, LoadSignedIntDataViewElement>;
 
  public:
   explicit LoadSignedIntDataViewElement(uint64_t bitfield,
@@ -9490,12 +9490,14 @@ class LoadSignedIntDataViewElement
   static constexpr OpProperties kProperties =
       OpProperties::CanRead() | OpProperties::Int32();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kRawPtr, ValueRepresentation::kInt32,
-      ValueRepresentation::kTagged};
+      ValueRepresentation::kTagged, ValueRepresentation::kRawPtr,
+      ValueRepresentation::kInt32, ValueRepresentation::kTagged};
 
-  static constexpr int kDataPointerIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  static constexpr int kIsLittleEndianIndex = 2;
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kDataPointerIndex = 1;
+  static constexpr int kIndexIndex = 2;
+  static constexpr int kIsLittleEndianIndex = 3;
+  Input object_input() { return input(kObjectIndex); }
   Input data_pointer_input() { return input(kDataPointerIndex); }
   Input index_input() { return input(kIndexIndex); }
   Input is_little_endian_input() { return input(kIsLittleEndianIndex); }
@@ -9517,8 +9519,8 @@ class LoadSignedIntDataViewElement
 };
 
 class LoadDoubleDataViewElement
-    : public FixedInputValueNodeT<3, LoadDoubleDataViewElement> {
-  using Base = FixedInputValueNodeT<3, LoadDoubleDataViewElement>;
+    : public FixedInputValueNodeT<4, LoadDoubleDataViewElement> {
+  using Base = FixedInputValueNodeT<4, LoadDoubleDataViewElement>;
   static constexpr ExternalArrayType type_ =
       ExternalArrayType::kExternalFloat64Array;
 
@@ -9531,12 +9533,14 @@ class LoadDoubleDataViewElement
   static constexpr OpProperties kProperties =
       OpProperties::CanRead() | OpProperties::Float64();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kRawPtr, ValueRepresentation::kInt32,
-      ValueRepresentation::kTagged};
+      ValueRepresentation::kTagged, ValueRepresentation::kRawPtr,
+      ValueRepresentation::kInt32, ValueRepresentation::kTagged};
 
-  static constexpr int kDataPointerIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  static constexpr int kIsLittleEndianIndex = 2;
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kDataPointerIndex = 1;
+  static constexpr int kIndexIndex = 2;
+  static constexpr int kIsLittleEndianIndex = 3;
+  Input object_input() { return input(kObjectIndex); }
   Input data_pointer_input() { return input(kDataPointerIndex); }
   Input index_input() { return input(kIndexIndex); }
   Input is_little_endian_input() { return input(kIsLittleEndianIndex); }
@@ -9737,8 +9741,8 @@ STORE_CONSTANT_TYPED_ARRAY(StoreDoubleConstantTypedArrayElement,
 #undef STORE_CONSTANT_TYPED_ARRAY
 
 class StoreSignedIntDataViewElement
-    : public FixedInputNodeT<4, StoreSignedIntDataViewElement> {
-  using Base = FixedInputNodeT<4, StoreSignedIntDataViewElement>;
+    : public FixedInputNodeT<5, StoreSignedIntDataViewElement> {
+  using Base = FixedInputNodeT<5, StoreSignedIntDataViewElement>;
 
  public:
   explicit StoreSignedIntDataViewElement(uint64_t bitfield,
@@ -9751,13 +9755,16 @@ class StoreSignedIntDataViewElement
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kRawPtr, ValueRepresentation::kInt32,
-      ValueRepresentation::kInt32, ValueRepresentation::kTagged};
+      ValueRepresentation::kTagged, ValueRepresentation::kRawPtr,
+      ValueRepresentation::kInt32, ValueRepresentation::kInt32,
+      ValueRepresentation::kTagged};
 
-  static constexpr int kDataPointerIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  static constexpr int kValueIndex = 2;
-  static constexpr int kIsLittleEndianIndex = 3;
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kDataPointerIndex = 1;
+  static constexpr int kIndexIndex = 2;
+  static constexpr int kValueIndex = 3;
+  static constexpr int kIsLittleEndianIndex = 4;
+  Input object_input() { return input(kObjectIndex); }
   Input data_pointer_input() { return input(kDataPointerIndex); }
   Input index_input() { return input(kIndexIndex); }
   Input value_input() { return input(kValueIndex); }
@@ -9778,8 +9785,8 @@ class StoreSignedIntDataViewElement
 };
 
 class StoreDoubleDataViewElement
-    : public FixedInputNodeT<4, StoreDoubleDataViewElement> {
-  using Base = FixedInputNodeT<4, StoreDoubleDataViewElement>;
+    : public FixedInputNodeT<5, StoreDoubleDataViewElement> {
+  using Base = FixedInputNodeT<5, StoreDoubleDataViewElement>;
 
  public:
   explicit StoreDoubleDataViewElement(uint64_t bitfield, ExternalArrayType type)
@@ -9789,13 +9796,16 @@ class StoreDoubleDataViewElement
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kRawPtr, ValueRepresentation::kInt32,
-      ValueRepresentation::kHoleyFloat64, ValueRepresentation::kTagged};
+      ValueRepresentation::kTagged, ValueRepresentation::kRawPtr,
+      ValueRepresentation::kInt32, ValueRepresentation::kHoleyFloat64,
+      ValueRepresentation::kTagged};
 
-  static constexpr int kDataPointerIndex = 0;
-  static constexpr int kIndexIndex = 1;
-  static constexpr int kValueIndex = 2;
-  static constexpr int kIsLittleEndianIndex = 3;
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kDataPointerIndex = 1;
+  static constexpr int kIndexIndex = 2;
+  static constexpr int kValueIndex = 3;
+  static constexpr int kIsLittleEndianIndex = 4;
+  Input object_input() { return input(kObjectIndex); }
   Input data_pointer_input() { return input(kDataPointerIndex); }
   Input index_input() { return input(kIndexIndex); }
   Input value_input() { return input(kValueIndex); }

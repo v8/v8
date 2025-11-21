@@ -3319,6 +3319,12 @@ void StoreTrustedPointerFieldWithWriteBarrier::GenerateCode(
 }
 
 void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
+  // Note: we're not actually using the object input (the DataView itself) since
+  // {data_pointer_input} already contains the pointer to the data, but we're
+  // still doing a `UseRegister(object_input())` in order to keep the DataView
+  // alive.
+  UseRegister(object_input());
+
   UseRegister(data_pointer_input());
   UseRegister(index_input());
   if (is_little_endian_constant() ||
@@ -3377,6 +3383,12 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
 }
 
 void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
+  // Note: we're not actually using the object input (the DataView itself) since
+  // {data_pointer_input} already contains the pointer to the data, but we're
+  // still doing a `UseRegister(object_input())` in order to keep the DataView
+  // alive.
+  UseRegister(object_input());
+
   UseRegister(data_pointer_input());
   UseRegister(index_input());
   if (compiler::ExternalArrayElementSize(type_) > 1) {
@@ -3423,6 +3435,12 @@ void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
 }
 
 void LoadDoubleDataViewElement::SetValueLocationConstraints() {
+  // Note: we're not actually using the object input (the DataView itself) since
+  // {data_pointer_input} already contains the pointer to the data, but we're
+  // still doing a `UseRegister(object_input())` in order to keep the DataView
+  // alive.
+  UseRegister(object_input());
+
   UseRegister(data_pointer_input());
   UseRegister(index_input());
   if (is_little_endian_constant()) {
@@ -3467,6 +3485,12 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
 }
 
 void StoreDoubleDataViewElement::SetValueLocationConstraints() {
+  // Note: we're not actually using the object input (the DataView itself) since
+  // {data_pointer_input} already contains the pointer to the data, but we're
+  // still doing a `UseRegister(object_input())` in order to keep the DataView
+  // alive.
+  UseRegister(object_input());
+
   UseRegister(data_pointer_input());
   UseRegister(index_input());
   UseRegister(value_input());

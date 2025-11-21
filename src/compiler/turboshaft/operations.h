@@ -261,13 +261,11 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(FastApiCall)                                \
   V(FindOrderedHashEntry)                       \
   V(LoadDataViewElement)                        \
-  V(LoadDataViewElementFromDataPointer)         \
   V(LoadFieldByIndex)                           \
   V(LoadMessage)                                \
   V(LoadStackArgument)                          \
   V(LoadTypedElement)                           \
   V(StoreDataViewElement)                       \
-  V(StoreDataViewElementToDataPointer)          \
   V(StoreMessage)                               \
   V(StoreTypedElement)                          \
   V(MaybeGrowFastElements)                      \
@@ -6115,38 +6113,6 @@ struct LoadDataViewElementOp : FixedArityOperationT<4, LoadDataViewElementOp> {
   auto options() const { return std::tuple{element_type}; }
 };
 
-struct LoadDataViewElementFromDataPointerOp
-    : FixedArityOperationT<3, LoadDataViewElementFromDataPointerOp> {
-  ExternalArrayType element_type;
-
-  static constexpr OpEffects effects = OpEffects()
-                                           // We read mutable memory.
-                                           .CanReadMemory()
-                                           // We rely on the input type.
-                                           .CanDependOnChecks();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return VectorForRep(RegisterRepresentationForArrayType(element_type));
-  }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
-                          MaybeRegisterRepresentation::WordPtr(),
-                          MaybeRegisterRepresentation::Word32()>();
-  }
-
-  OpIndex storage() const { return Base::input(0); }
-  OpIndex index() const { return Base::input(1); }
-  OpIndex is_little_endian() const { return Base::input(2); }
-
-  LoadDataViewElementFromDataPointerOp(OpIndex storage, OpIndex index,
-                                       OpIndex is_little_endian,
-                                       ExternalArrayType element_type)
-      : Base(storage, index, is_little_endian), element_type(element_type) {}
-
-  auto options() const { return std::tuple{element_type}; }
-};
-
 struct LoadStackArgumentOp : FixedArityOperationT<2, LoadStackArgumentOp> {
   // Stack arguments are immutable, so reading them is pure.
   static constexpr OpEffects effects =
@@ -6243,42 +6209,6 @@ struct StoreDataViewElementOp
       : Base(object, storage, index, value, is_little_endian),
         element_type(element_type) {}
 
-
-  auto options() const { return std::tuple{element_type}; }
-};
-
-struct StoreDataViewElementToDataPointerOp
-    : FixedArityOperationT<4, StoreDataViewElementToDataPointerOp> {
-  ExternalArrayType element_type;
-
-  static constexpr OpEffects effects =
-      OpEffects()
-          // We are reading the backing store pointer and writing into it.
-          .CanReadMemory()
-          .CanWriteMemory()
-          // We rely on the input type and a valid index.
-          .CanDependOnChecks();
-  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return InitVectorOf(
-        storage,
-        {RegisterRepresentation::WordPtr(), RegisterRepresentation::WordPtr(),
-         RegisterRepresentationForArrayType(element_type),
-         RegisterRepresentation::Word32()});
-  }
-
-  OpIndex storage() const { return Base::input(0); }
-  OpIndex index() const { return Base::input(1); }
-  OpIndex value() const { return Base::input(2); }
-  OpIndex is_little_endian() const { return Base::input(3); }
-
-  StoreDataViewElementToDataPointerOp(OpIndex storage, OpIndex index,
-                                      OpIndex value, OpIndex is_little_endian,
-                                      ExternalArrayType element_type)
-      : Base(storage, index, value, is_little_endian),
-        element_type(element_type) {}
 
   auto options() const { return std::tuple{element_type}; }
 };

@@ -9773,7 +9773,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildLoadDataView(
   GET_VALUE_OR_ABORT(data_pointer, BuildLoadJSDataViewDataPointer(receiver));
 
   ValueNode* is_little_endian = args[1] ? args[1] : GetBooleanConstant(false);
-  return AddNewNode<LoadNode>({data_pointer, offset, is_little_endian}, type);
+  return AddNewNode<LoadNode>(
+      {receiver, data_pointer, offset, is_little_endian}, type);
 }
 
 template <typename StoreNode, typename Function>
@@ -9809,7 +9810,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
   ValueNode* value = getValue(args[1]);
   ValueNode* is_little_endian = args[2] ? args[2] : GetBooleanConstant(false);
   RETURN_IF_ABORT(AddNewNode<StoreNode>(
-      {data_pointer, offset, value, is_little_endian}, type));
+      {receiver, data_pointer, offset, value, is_little_endian}, type));
   return GetRootConstant(RootIndex::kUndefinedValue);
 }
 

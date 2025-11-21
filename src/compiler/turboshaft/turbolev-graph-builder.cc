@@ -3597,8 +3597,8 @@ class GraphBuildingNodeProcessor {
     V<Word32> is_little_endian =
         ToBit(node->is_little_endian_input(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    SetMap(node, __ LoadDataViewElementFromDataPointer(
-                     storage,
+    SetMap(node, __ LoadDataViewElement(
+                     Map(node->object_input()), storage,
                      __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
                      is_little_endian, node->external_array_type()));
     return maglev::ProcessResult::kContinue;
@@ -3609,11 +3609,11 @@ class GraphBuildingNodeProcessor {
     V<Word32> is_little_endian =
         ToBit(node->is_little_endian_input(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    SetMap(
-        node,
-        __ LoadDataViewElementFromDataPointer(
-            storage, __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
-            is_little_endian, ExternalArrayType::kExternalFloat64Array));
+    SetMap(node,
+           __ LoadDataViewElement(
+               Map(node->object_input()), storage,
+               __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+               is_little_endian, ExternalArrayType::kExternalFloat64Array));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -3623,8 +3623,9 @@ class GraphBuildingNodeProcessor {
     V<Word32> is_little_endian =
         ToBit(node->is_little_endian_input(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    __ StoreDataViewElementToDataPointer(
-        storage, __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+    __ StoreDataViewElement(
+        Map(node->object_input()), storage,
+        __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
         Map<Word32>(node->value_input()), is_little_endian,
         node->external_array_type());
     return maglev::ProcessResult::kContinue;
@@ -3635,8 +3636,9 @@ class GraphBuildingNodeProcessor {
     V<Word32> is_little_endian =
         ToBit(node->is_little_endian_input(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
-    __ StoreDataViewElementToDataPointer(
-        storage, __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
+    __ StoreDataViewElement(
+        Map(node->object_input()), storage,
+        __ ChangeUint32ToUintPtr(Map<Word32>(node->index_input())),
         Map<Float64>(node->value_input()), is_little_endian,
         ExternalArrayType::kExternalFloat64Array);
     return maglev::ProcessResult::kContinue;
