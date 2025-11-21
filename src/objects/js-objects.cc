@@ -1253,9 +1253,9 @@ MaybeHandle<JSAny> GetPropertyWithInterceptorInternal(
 
   DirectHandle<JSAny> result;
   if (it->IsElement(*holder)) {
-    result = args.CallIndexedGetter(interceptor, it->array_index());
+    result = args.CallIndexedGetter(isolate, interceptor, it->array_index());
   } else {
-    result = args.CallNamedGetter(interceptor, it->name());
+    result = args.CallNamedGetter(isolate, interceptor, it->name());
   }
   // An exception was thrown in the interceptor. Propagate.
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, kNullMaybeHandle);
@@ -1287,9 +1287,9 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
   if (interceptor->has_query()) {
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
-      result = args.CallIndexedQuery(interceptor, it->array_index());
+      result = args.CallIndexedQuery(isolate, interceptor, it->array_index());
     } else {
-      result = args.CallNamedQuery(interceptor, it->name());
+      result = args.CallNamedQuery(isolate, interceptor, it->name());
     }
     // An exception was thrown in the interceptor. Propagate.
     RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
@@ -1312,9 +1312,9 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     // TODO(verwaest): Use GetPropertyWithInterceptor?
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
-      result = args.CallIndexedGetter(interceptor, it->array_index());
+      result = args.CallIndexedGetter(isolate, interceptor, it->array_index());
     } else {
-      result = args.CallNamedGetter(interceptor, it->name());
+      result = args.CallNamedGetter(isolate, interceptor, it->name());
     }
     // An exception was thrown in the interceptor. Propagate.
     RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args,
@@ -1351,10 +1351,11 @@ Maybe<InterceptorResult> SetPropertyWithInterceptorInternal(
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
-          ? args.CallIndexedSetter(interceptor, it->array_index(), value)
-          : args.CallNamedSetter(interceptor, it->name(), value);
+          ? args.CallIndexedSetter(isolate, interceptor, it->array_index(),
+                                   value)
+          : args.CallNamedSetter(isolate, interceptor, it->name(), value);
 
-  return args.GetBooleanReturnValue(intercepted, "Setter");
+  return args.GetBooleanReturnValue(isolate, intercepted, "Setter");
 }
 
 Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
@@ -1418,10 +1419,12 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
-          ? args.CallIndexedDefiner(interceptor, it->array_index(), *descriptor)
-          : args.CallNamedDefiner(interceptor, it->name(), *descriptor);
+          ? args.CallIndexedDefiner(isolate, interceptor, it->array_index(),
+                                    *descriptor)
+          : args.CallNamedDefiner(isolate, interceptor, it->name(),
+                                  *descriptor);
 
-  return args.GetBooleanReturnValue(intercepted, "Definer");
+  return args.GetBooleanReturnValue(isolate, intercepted, "Definer");
 }
 
 }  // namespace
@@ -1919,9 +1922,10 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
   PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
                                  Just(kDontThrow));
   if (it->IsElement(*holder)) {
-    result = args.CallIndexedDescriptor(interceptor, it->array_index());
+    result =
+        args.CallIndexedDescriptor(isolate, interceptor, it->array_index());
   } else {
-    result = args.CallNamedDescriptor(interceptor, it->name());
+    result = args.CallNamedDescriptor(isolate, interceptor, it->name());
   }
   // An exception was thrown in the interceptor. Propagate.
   RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, args, Nothing<bool>());
@@ -4198,10 +4202,10 @@ Maybe<InterceptorResult> JSObject::DeletePropertyWithInterceptor(
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
-          ? args.CallIndexedDeleter(interceptor, it->array_index())
-          : args.CallNamedDeleter(interceptor, it->name());
+          ? args.CallIndexedDeleter(isolate, interceptor, it->array_index())
+          : args.CallNamedDeleter(isolate, interceptor, it->name());
 
-  return args.GetBooleanReturnValue(intercepted, "Deleter");
+  return args.GetBooleanReturnValue(isolate, intercepted, "Deleter");
 }
 
 Maybe<bool> JSObject::CreateDataProperty(Isolate* isolate,

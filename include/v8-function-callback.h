@@ -103,7 +103,7 @@ class ReturnValue {
   V8_INLINE explicit ReturnValue(internal::Address* slot);
 
   // See FunctionCallbackInfo.
-  static constexpr int kIsolateValueIndex = -2;
+  static constexpr int kIsolateAndFlagsIndex = -2;
 
   internal::Address* value_;
 };
@@ -147,7 +147,7 @@ class FunctionCallbackInfo {
   // call, don't pass kNewTarget and kUnused. Add IsConstructCall flag to
   // kIsolate field.
   static constexpr int kUnusedIndex = 0;
-  static constexpr int kIsolateIndex = 1;
+  static constexpr int kIsolateAndFlagsIndex = 1;
   static constexpr int kContextIndex = 2;
   static constexpr int kReturnValueIndex = 3;
   static constexpr int kTargetIndex = 4;
@@ -165,8 +165,8 @@ class FunctionCallbackInfo {
       kValuesOffset + internal::kApiSystemPointerSize;
 
   static constexpr int kThisValuesIndex = -1;
-  static_assert(ReturnValue<Value>::kIsolateValueIndex ==
-                kIsolateIndex - kReturnValueIndex);
+  static_assert(ReturnValue<Value>::kIsolateAndFlagsIndex ==
+                kIsolateAndFlagsIndex - kReturnValueIndex);
 
   V8_INLINE FunctionCallbackInfo(internal::Address* implicit_args,
                                  internal::Address* values, int length);
@@ -291,7 +291,7 @@ class PropertyCallbackInfo {
   static constexpr int kPropertyKeyIndex = 0;
   static constexpr int kShouldThrowOnErrorIndex = 1;
   static constexpr int kHolderIndex = 2;
-  static constexpr int kIsolateIndex = 3;
+  static constexpr int kIsolateAndFlagsIndex = 3;
   // TODO(http://crbug.com/333672197): drop this parameter.
   static constexpr int kUnusedIndex = 4;
   static constexpr int kReturnValueIndex = 5;
@@ -596,7 +596,10 @@ void ReturnValue<T>::SetEmptyString() {
 
 template <typename T>
 Isolate* ReturnValue<T>::GetIsolate() const {
-  return *reinterpret_cast<Isolate**>(&value_[kIsolateValueIndex]);
+  using I = internal::Internals;
+  internal::Address isolate_and_flags = value_[kIsolateAndFlagsIndex];
+  return reinterpret_cast<Isolate*>(isolate_and_flags &
+                                    ~I::kCallbackInfoIsolateFlagsMask);
 }
 
 template <typename T>
@@ -643,7 +646,10 @@ Local<Value> FunctionCallbackInfo<T>::Data() const {
 
 template <typename T>
 Isolate* FunctionCallbackInfo<T>::GetIsolate() const {
-  return *reinterpret_cast<Isolate**>(&implicit_args_[kIsolateIndex]);
+  using I = internal::Internals;
+  internal::Address isolate_and_flags = implicit_args_[kIsolateAndFlagsIndex];
+  return reinterpret_cast<Isolate*>(isolate_and_flags &
+                                    ~I::kCallbackInfoIsolateFlagsMask);
 }
 
 template <typename T>
@@ -663,7 +669,10 @@ int FunctionCallbackInfo<T>::Length() const {
 
 template <typename T>
 Isolate* PropertyCallbackInfo<T>::GetIsolate() const {
-  return *reinterpret_cast<Isolate**>(&args_[kIsolateIndex]);
+  using I = internal::Internals;
+  internal::Address isolate_and_flags = args_[kIsolateAndFlagsIndex];
+  return reinterpret_cast<Isolate*>(isolate_and_flags &
+                                    ~I::kCallbackInfoIsolateFlagsMask);
 }
 
 template <typename T>

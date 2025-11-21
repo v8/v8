@@ -4213,8 +4213,8 @@ Isolate* Isolate::New(IsolateGroup* group) { return Allocate(group); }
 Isolate* Isolate::Allocate(IsolateGroup* group) {
   // v8::V8::Initialize() must be called before creating any isolates.
   DCHECK_NOT_NULL(V8::GetCurrentPlatform());
-  // Allocate Isolate itself on C++ heap, ensuring page alignment.
-  void* isolate_ptr = base::AlignedAlloc(sizeof(Isolate), kMinimumOSPageSize);
+  // Allocate Isolate itself on C++ heap, ensuring required alignment.
+  void* isolate_ptr = base::AlignedAlloc(sizeof(Isolate), kIsolateAlignment);
   // IsolateAllocator manages the virtual memory resources for the Isolate.
   Isolate* isolate = new (isolate_ptr) Isolate(group);
 

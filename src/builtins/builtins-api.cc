@@ -99,23 +99,15 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
   }
 
   if (fun_data->has_callback(isolate)) {
-    FunctionCallbackArguments custom(isolate, *fun_data, *new_target, argv,
-                                     argc);
-    DirectHandle<Object> result =
-        custom.CallOrConstruct(*fun_data, is_construct);
+    FunctionCallbackArguments args(isolate, argv, argc);
+    DirectHandle<JSAny> result =
+        args.CallOrConstruct(isolate, *fun_data, *new_target, is_construct);
 
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
-    if (result.is_null()) {
-      if (is_construct) return js_receiver;
-      return isolate->factory()->undefined_value();
-    }
-    // Rebox the result.
-    {
-      DisallowGarbageCollection no_gc;
-      Tagged<Object> raw_result = *result;
-      DCHECK(Is<JSAny>(raw_result));
-      if (!is_construct || IsJSReceiver(raw_result))
-        return handle(raw_result, isolate);
+    if (!is_construct || IsJSReceiver(*result)) {
+      // Rebox the result handle since it's currently allocated in the args
+      // object.
+      return handle(*result, isolate);
     }
   }
 
@@ -234,23 +226,14 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
   DCHECK(templ->has_callback(isolate));
 
   // Get the data for the call and perform the callback.
-  Tagged<Object> result;
-  {
-    HandleScope scope(isolate);
-    FunctionCallbackArguments custom(isolate, templ, new_target,
-                                     args.address_of_first_argument(),
-                                     args.length() - 1);
-    DirectHandle<Object> result_handle =
-        custom.CallOrConstruct(templ, is_construct_call);
-    if (result_handle.is_null()) {
-      result = ReadOnlyRoots(isolate).undefined_value();
-    } else {
-      result = *result_handle;
-    }
-    // Check for exceptions and return result.
-    RETURN_FAILURE_IF_EXCEPTION(isolate);
-  }
-  return result;
+  HandleScope scope(isolate);
+  FunctionCallbackArguments custom(isolate, args.address_of_first_argument(),
+                                   args.length() - 1);
+  DirectHandle<Object> result =
+      custom.CallOrConstruct(isolate, templ, new_target, is_construct_call);
+  // Check for exceptions and return result.
+  RETURN_FAILURE_IF_EXCEPTION(isolate);
+  return *result;
 }
 
 // Handle calls to non-function objects created through the API. This delegate
