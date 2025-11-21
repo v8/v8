@@ -3028,30 +3028,35 @@ void Shell::WasmDeserializeModule(
       i::WasmJs::CompileTimeImportsFromArgument(
           Utils::OpenDirectHandle(*info[2]), i_isolate, enabled_features);
 
-  i::DirectHandle<i::JSArrayBuffer> buffer =
-      i::Cast<i::JSArrayBuffer>(Utils::OpenHandle(*info[0]));
-  i::DirectHandle<i::JSTypedArray> wire_bytes =
-      i::Cast<i::JSTypedArray>(Utils::OpenHandle(*info[1]));
+  Local<ArrayBuffer> serialized_bytes_buffer = info[0].As<ArrayBuffer>();
+  Local<ArrayBufferView> wire_bytes_view = info[1].As<ArrayBufferView>();
+
   // Note: These checks must be executed *after* evaluating compile time
   // imports, as that calls back into JS and can detach buffers.
-  if (buffer->was_detached()) {
+  if (serialized_bytes_buffer->WasDetached()) {
     ThrowError(isolate, "First argument is detached");
     return;
   }
-  if (wire_bytes->WasDetached()) {
+  if (wire_bytes_view->Buffer()->WasDetached()) {
     ThrowError(isolate, "Second argument's buffer is detached");
     return;
   }
 
-  i::DirectHandle<i::JSArrayBuffer> wire_bytes_buffer =
-      wire_bytes->GetBuffer(i_isolate);
-  base::Vector<const uint8_t> wire_bytes_vec{
-      reinterpret_cast<const uint8_t*>(wire_bytes_buffer->backing_store()) +
-          wire_bytes->byte_offset(),
-      wire_bytes->byte_length()};
-  base::Vector<uint8_t> buffer_vec{
-      reinterpret_cast<uint8_t*>(buffer->backing_store()),
-      buffer->byte_length()};
+  // Make copies of the provided buffers, to avoid manipulation during
+  // deserialization.
+  // For the wire bytes, we need a new copy anyway for storing in the new
+  // NativeModule (if it does not come from the cache).
+  // TODO(clemensb): `DeserializeNativeModule` already does a copy; avoid one of
+  // them (same in the streaming decoder).
+  base::OwnedVector<const uint8_t> wire_bytes_vec = ([&] {
+    size_t length = wire_bytes_view->ByteLength();
+    auto vec = base::OwnedVector<uint8_t>::NewForOverwrite(length);
+    CHECK_EQ(length, wire_bytes_view->CopyContents(vec.data(), length));
+    return vec;  // `OwnedVector<uint8_t>` to `OwnedVector<const uint8_t>`.
+  })();
+  base::OwnedVector<uint8_t> serialized_bytes_vec = base::OwnedCopyOf(
+      reinterpret_cast<uint8_t*>(serialized_bytes_buffer->Data()),
+      serialized_bytes_buffer->ByteLength());
 
   // Check that we only try to deserialize bytes that we previously produced via
   // serialization.
@@ -3059,8 +3064,10 @@ void Shell::WasmDeserializeModule(
   // fuzzers from passing manipulated bytes (or bytes that do not match the wire
   // bytes) in regular fuzzing.
   {
-    size_t hash =
-        base::Hasher{}.AddRange(wire_bytes_vec).AddRange(buffer_vec).hash();
+    size_t hash = base::Hasher{}
+                      .AddRange(wire_bytes_vec.as_vector())
+                      .AddRange(serialized_bytes_vec.as_vector())
+                      .hash();
     base::MutexGuard mutex_guard(Shell::wasm_serialized_bytes_mutex_.Pointer());
     if (!Shell::wasm_serialized_bytes_hashes_.count(hash)) {
       ThrowError(isolate, "Trying to deserialize manipulated bytes");
@@ -3074,20 +3081,20 @@ void Shell::WasmDeserializeModule(
   // empty buffer. We thus have to accept this empty buffer again here, and
   // produce a valid module.
   if (i::v8_flags.correctness_fuzzer_suppressions) {
-    CHECK(buffer_vec.empty());
+    CHECK(serialized_bytes_vec.empty());
     i::wasm::ErrorThrower thrower{i_isolate, "d8.wasm.deserializeModule"};
     module_object =
         i::wasm::GetWasmEngine()
             ->SyncCompile(i_isolate, enabled_features, compile_time_imports,
-                          &thrower, base::OwnedCopyOf(wire_bytes_vec))
+                          &thrower, std::move(wire_bytes_vec))
             .ToHandleChecked();
     DCHECK(!thrower.error());
   } else {
     // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
     // JSArrayBuffer backing store doesn't get relocated.
-    if (!i::wasm::DeserializeNativeModule(i_isolate, enabled_features,
-                                          buffer_vec, wire_bytes_vec,
-                                          compile_time_imports, {})
+    if (!i::wasm::DeserializeNativeModule(
+             i_isolate, enabled_features, serialized_bytes_vec.as_vector(),
+             wire_bytes_vec.as_vector(), compile_time_imports, {})
              .ToHandle(&module_object)) {
       // Deserialization failed, probably because of mismatched compile time
       // imports. Invalid wire bytes are unlikely because of the hash check

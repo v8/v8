@@ -9081,16 +9081,24 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   if (bytes_to_copy) {
     i::DisallowGarbageCollection no_gc;
     const char* source;
+    bool is_shared;
     if (i::IsJSTypedArray(*self)) {
       i::Tagged<i::JSTypedArray> array = i::Cast<i::JSTypedArray>(*self);
+      is_shared = array->buffer()->is_shared();
       source = reinterpret_cast<char*>(array->DataPtr());
     } else {
       DCHECK(i::IsJSDataView(*self) || i::IsJSRabGsabDataView(*self));
       i::Tagged<i::JSDataViewOrRabGsabDataView> data_view =
           i::Cast<i::JSDataViewOrRabGsabDataView>(*self);
+      is_shared = data_view->buffer()->is_shared();
       source = reinterpret_cast<char*>(data_view->data_pointer());
     }
-    memcpy(dest, source, bytes_to_copy);
+    if (is_shared) {
+      base::Relaxed_Memcpy(reinterpret_cast<char*>(dest), source,
+                           bytes_to_copy);
+    } else {
+      memcpy(dest, source, bytes_to_copy);
+    }
   }
   return bytes_to_copy;
 }
