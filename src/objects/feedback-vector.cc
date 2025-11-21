@@ -874,8 +874,8 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
       Tagged<UnionOf<Smi, Code>> smi_handler = handler->smi_handler();
       if (IsSmi(smi_handler)) {
         int value = smi_handler.ToSmi().value();
-        LoadHandler::Kind handler_kind = LoadHandler::KindBits::decode(value);
-        if (handler_kind == LoadHandler::Kind::kConstantFromPrototype) {
+        if (value == LoadHandler::KindBits::encode(
+                         LoadHandler::Kind::kConstantFromPrototype)) {
           return Builtin::kLoadICConstantFromPrototypeBaseline;
         }
       }
