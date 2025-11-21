@@ -99,13 +99,7 @@
   /* Imported Strings TextEncoder/TextDecoder post-MVP extension. */           \
   /* No upstream repo yet. */                                                  \
   /* V8 side owner: jkummerow */                                               \
-  V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
-                                                                               \
-  /* Resizable buffer integration */                                           \
-  /* https://github.com/WebAssembly/spec/issues/1292 */                        \
-  /* V8 side owner: gdeepti */                                                 \
-  /* Staged in v14.3 */                                                        \
-  V(rab_integration, "resizable buffers integration", false)
+  V(imported_strings_utf8, "imported strings (utf8 features)", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
@@ -129,7 +123,13 @@
   /* This flag enables the new exception handling proposal */                  \
   /* V8 side owner: thibaudm */                                                \
   /* Shipped in v13.7 */                                                       \
-  V(exnref, "exnref", true)
+  V(exnref, "exnref", true)                                                    \
+                                                                               \
+  /* Resizable buffer integration */                                           \
+  /* https://github.com/WebAssembly/spec/issues/1292 */                        \
+  /* V8 side owner: gdeepti */                                                 \
+  /* Staged in v14.4 */                                                        \
+  V(rab_integration, "resizable buffers integration", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
