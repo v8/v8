@@ -1771,15 +1771,9 @@ void ScavengerCollector::CollectGarbage() {
                                    std::move(surviving_new_large_objects));
   }
 
-  {
-    // Update references into new space
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_UPDATE_REFS);
-    heap_->UpdateYoungReferencesInExternalStringTable(
-        &Heap::UpdateYoungReferenceInExternalStringTableEntry);
-
-    if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-      isolate->string_forwarding_table()->UpdateAfterYoungEvacuation();
-    }
+  // Update references into new space
+  if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
+    isolate->string_forwarding_table()->UpdateAfterYoungEvacuation();
   }
 
   ScavengerEphemeronProcessor::Process(heap_, &ephemeron_table_list);

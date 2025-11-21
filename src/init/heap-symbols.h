@@ -1049,7 +1049,6 @@
   F(SCAVENGER_SCAVENGE_PIN_OBJECTS)                     \
   F(SCAVENGER_SCAVENGE_ROOTS)                           \
   F(SCAVENGER_SCAVENGE_STACK_ROOTS)                     \
-  F(SCAVENGER_SCAVENGE_UPDATE_REFS)                     \
   F(SCAVENGER_SCAVENGE_WEAK)                            \
   F(SCAVENGER_SCAVENGE_FINALIZE)                        \
   F(SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED)   \

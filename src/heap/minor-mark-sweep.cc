@@ -515,19 +515,6 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
     forwarding_table_cleaner.ProcessYoungObjects();
   }
 
-  Heap::ExternalStringTable& external_string_table =
-      heap_->external_string_table_;
-  if (external_string_table.HasYoung()) {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_CLEAR_STRING_TABLE);
-    // Internalized strings are always stored in old space, so there is no
-    // need to clean them here.
-    ExternalStringTableCleanerVisitor<
-        ExternalStringTableCleaningMode::kYoungOnly>
-        external_visitor(heap_);
-    external_string_table.IterateYoung(&external_visitor);
-    external_string_table.CleanUpYoung();
-  }
-
   Isolate* isolate = heap_->isolate();
   if (isolate->global_handles()->HasYoung() ||
       isolate->traced_handles()->HasYoung()) {
@@ -1075,26 +1062,13 @@ void MinorMarkSweepCollector::Sweep() {
       sweeper_->GetTraceIdForFlowEvent(GCTracer::Scope::MINOR_MS_SWEEP),
       TRACE_EVENT_FLAG_FLOW_OUT);
 
-  bool has_promoted_pages = false;
   if (v8_flags.sticky_mark_bits) {
     StartSweepNewSpaceWithStickyBits();
   } else {
-    has_promoted_pages = StartSweepNewSpace();
+    StartSweepNewSpace();
   }
-  if (SweepNewLargeSpace()) has_promoted_pages = true;
 
-  if (v8_flags.verify_heap && has_promoted_pages) {
-    // Update the external string table in preparation for heap verification.
-    // Otherwise, updating the table will happen during the next full GC.
-    TRACE_GC(heap_->tracer(),
-             GCTracer::Scope::MINOR_MS_SWEEP_UPDATE_STRING_TABLE);
-    heap_->UpdateYoungReferencesInExternalStringTable([](Heap* heap,
-                                                         FullObjectSlot p) {
-      DCHECK(
-          !Cast<HeapObject>(*p)->map_word(kRelaxedLoad).IsForwardingAddress());
-      return Cast<String>(*p);
-    });
-  }
+  SweepNewLargeSpace();
 
   sweeper_->StartMinorSweeping();
 

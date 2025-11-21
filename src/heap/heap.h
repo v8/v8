@@ -1295,9 +1295,6 @@ class Heap final {
   // data and clearing the resource pointer.
   inline void FinalizeExternalString(Tagged<String> string);
 
-  static Tagged<String> UpdateYoungReferenceInExternalStringTableEntry(
-      Heap* heap, FullObjectSlot pointer);
-
   // ===========================================================================
   // Methods checking/returning the space of a given object/address. ===========
   // ===========================================================================
@@ -1837,34 +1834,23 @@ class Heap final {
     inline void AddString(Tagged<String> string);
     bool Contains(Tagged<String> string);
 
-    void IterateAll(RootVisitor* v);
-    void IterateYoung(RootVisitor* v);
-    void PromoteYoung();
+    void Iterate(RootVisitor* v);
 
     // Restores internal invariant and gets rid of collected strings. Must be
     // called after each Iterate*() that modified the strings.
-    void CleanUpAll();
-    void CleanUpYoung();
+    void CleanUp();
 
     // Finalize all registered external strings and clear tables.
     void TearDown();
 
-    void UpdateYoungReferences(
-        Heap::ExternalStringTableUpdaterCallback updater_func);
     void UpdateReferences(
         Heap::ExternalStringTableUpdaterCallback updater_func);
 
-    bool HasYoung() const { return !young_strings_.empty(); }
-
    private:
     void Verify();
-    void VerifyYoung();
 
     Heap* const heap_;
 
-    // To speed up scavenge collections young string are kept separate from old
-    // strings.
-    std::vector<TaggedBase> young_strings_;
     std::vector<TaggedBase> old_strings_;
     // Used to protect access with --shared-string-table.
     base::Mutex mutex_;
@@ -2035,9 +2021,6 @@ class Heap final {
 
   // Performs a minor collection in new generation.
   void Scavenge();
-
-  void UpdateYoungReferencesInExternalStringTable(
-      ExternalStringTableUpdaterCallback updater_func);
 
   void UpdateReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);

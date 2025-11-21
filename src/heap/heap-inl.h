@@ -358,12 +358,9 @@ void Heap::ExternalStringTable::AddString(Tagged<String> string) {
 
   DCHECK(IsExternalString(string));
   DCHECK(!Contains(string));
+  DCHECK(!HeapLayout::InYoungGeneration(string));
 
-  if (HeapLayout::InYoungGeneration(string)) {
-    young_strings_.push_back(string);
-  } else {
-    old_strings_.push_back(string);
-  }
+  old_strings_.push_back(string);
 }
 
 Tagged<Boolean> Heap::ToBoolean(bool condition) {

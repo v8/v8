@@ -2853,9 +2853,6 @@ void Heap::Scavenge() {
 }
 
 bool Heap::ExternalStringTable::Contains(Tagged<String> string) {
-  for (size_t i = 0; i < young_strings_.size(); ++i) {
-    if (young_strings_[i] == string) return true;
-  }
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     if (old_strings_[i] == string) return true;
   }
@@ -2877,83 +2874,12 @@ void Heap::UpdateExternalString(Tagged<String> string, size_t old_payload,
   }
 }
 
-Tagged<String> Heap::UpdateYoungReferenceInExternalStringTableEntry(
-    Heap* heap, FullObjectSlot p) {
-  // This is only used for Scavenger.
-  DCHECK(!v8_flags.minor_ms);
-
-  PtrComprCageBase cage_base(heap->isolate());
-  Tagged<HeapObject> obj = Cast<HeapObject>(*p);
-  MapWord first_word = obj->map_word(cage_base, kRelaxedLoad);
-
-  Tagged<String> new_string;
-
-  if (InFromPage(obj)) {
-    if (!first_word.IsForwardingAddress()) {
-      // Unreachable external string can be finalized.
-      Tagged<String> string = Cast<String>(obj);
-      if (!IsExternalString(string, cage_base)) {
-        // Original external string has been internalized.
-        DCHECK(IsThinString(string, cage_base));
-        return Tagged<String>();
-      }
-      heap->FinalizeExternalString(string);
-      return Tagged<String>();
-    }
-    new_string = Cast<String>(first_word.ToForwardingAddress(obj));
-  } else {
-    new_string = Cast<String>(obj);
-  }
-
-  // String is still reachable.
-  if (IsThinString(new_string, cage_base)) {
-    // Filtering Thin strings out of the external string table.
-    return Tagged<String>();
-  } else if (IsExternalString(new_string, cage_base)) {
-    MutablePageMetadata::MoveExternalBackingStoreBytes(
-        ExternalBackingStoreType::kExternalString,
-        PageMetadata::FromAddress((*p).ptr()),
-        PageMetadata::FromHeapObject(new_string),
-        Cast<ExternalString>(new_string)->ExternalPayloadSize());
-    return new_string;
-  }
-
-  // Internalization can replace external strings with non-external strings.
-  return IsExternalString(new_string, cage_base) ? new_string
-                                                 : Tagged<String>();
-}
-
-void Heap::ExternalStringTable::VerifyYoung() {
-#ifdef DEBUG
-  std::set<Tagged<String>> visited_map;
-  std::map<MutablePageMetadata*, size_t> size_map;
-  ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
-  for (size_t i = 0; i < young_strings_.size(); ++i) {
-    Tagged<String> obj = Cast<String>(Tagged<Object>(young_strings_[i]));
-    MutablePageMetadata* mc =
-        MutablePageMetadata::FromHeapObject(heap_->isolate(), obj);
-    DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
-                   mc->Chunk()->InYoungGeneration());
-    DCHECK(HeapLayout::InYoungGeneration(obj));
-    DCHECK(!IsTheHole(obj, heap_->isolate()));
-    DCHECK(IsExternalString(obj));
-    // Note: we can have repeated elements in the table.
-    DCHECK_EQ(0, visited_map.count(obj));
-    visited_map.insert(obj);
-    size_map[mc] += Cast<ExternalString>(obj)->ExternalPayloadSize();
-  }
-  for (std::map<MutablePageMetadata*, size_t>::iterator it = size_map.begin();
-       it != size_map.end(); it++)
-    DCHECK_EQ(it->first->ExternalBackingStoreBytes(type), it->second);
-#endif
-}
-
 void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
   std::set<Tagged<String>> visited_map;
   std::map<MutablePageMetadata*, size_t> size_map;
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
-  VerifyYoung();
+
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<String> obj = Cast<String>(Tagged<Object>(old_strings_[i]));
     MutablePageMetadata* mc =
@@ -2974,67 +2900,13 @@ void Heap::ExternalStringTable::Verify() {
 #endif
 }
 
-void Heap::ExternalStringTable::UpdateYoungReferences(
-    Heap::ExternalStringTableUpdaterCallback updater_func) {
-  if (young_strings_.empty()) return;
-
-  FullObjectSlot start(young_strings_.data());
-  FullObjectSlot end(young_strings_.data() + young_strings_.size());
-  FullObjectSlot last = start;
-
-  for (FullObjectSlot p = start; p < end; ++p) {
-    Tagged<String> target = updater_func(heap_, p);
-
-    if (target.is_null()) continue;
-
-    DCHECK(IsExternalString(target));
-
-    if (HeapLayout::InYoungGeneration(target)) {
-      // String is still in new space. Update the table entry.
-      last.store(target);
-      ++last;
-    } else {
-      // String got promoted. Move it to the old string list.
-      old_strings_.push_back(target);
-    }
-  }
-
-  DCHECK(last <= end);
-  young_strings_.resize(last - start);
-  if (v8_flags.verify_heap) {
-    VerifyYoung();
-  }
-}
-
-void Heap::ExternalStringTable::PromoteYoung() {
-  old_strings_.reserve(old_strings_.size() + young_strings_.size());
-  std::move(std::begin(young_strings_), std::end(young_strings_),
-            std::back_inserter(old_strings_));
-  young_strings_.clear();
-}
-
-void Heap::ExternalStringTable::IterateYoung(RootVisitor* v) {
-  if (!young_strings_.empty()) {
-    v->VisitRootPointers(
-        Root::kExternalStringsTable, nullptr,
-        FullObjectSlot(young_strings_.data()),
-        FullObjectSlot(young_strings_.data() + young_strings_.size()));
-  }
-}
-
-void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
-  IterateYoung(v);
+void Heap::ExternalStringTable::Iterate(RootVisitor* v) {
   if (!old_strings_.empty()) {
     v->VisitRootPointers(
         Root::kExternalStringsTable, nullptr,
         FullObjectSlot(old_strings_.data()),
         FullObjectSlot(old_strings_.data() + old_strings_.size()));
   }
-}
-
-void Heap::UpdateYoungReferencesInExternalStringTable(
-    ExternalStringTableUpdaterCallback updater_func) {
-  external_string_table_.UpdateYoungReferences(updater_func);
 }
 
 void Heap::ExternalStringTable::UpdateReferences(
@@ -3045,8 +2917,6 @@ void Heap::ExternalStringTable::UpdateReferences(
     for (FullObjectSlot p = start; p < end; ++p)
       p.store(updater_func(heap_, p));
   }
-
-  UpdateYoungReferences(updater_func);
 }
 
 void Heap::UpdateReferencesInExternalStringTable(
@@ -4820,7 +4690,7 @@ void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     // Scavenge collections have special processing for this.
     // Do not visit for serialization, since the external string table will
     // be populated from scratch upon deserialization.
-    external_string_table_.IterateAll(v);
+    external_string_table_.Iterate(v);
   }
   v->Synchronize(VisitorSynchronization::kExternalStringsTable);
   if (!options.contains(SkipRoot::kOldGeneration) &&
@@ -7280,29 +7150,7 @@ void Heap::UpdateTotalGCTime(base::TimeDelta duration) {
   total_gc_time_ms_ += duration;
 }
 
-void Heap::ExternalStringTable::CleanUpYoung() {
-  int last = 0;
-  Isolate* isolate = heap_->isolate();
-  for (size_t i = 0; i < young_strings_.size(); ++i) {
-    Tagged<Object> o = young_strings_[i];
-    if (IsTheHole(o, isolate)) {
-      continue;
-    }
-    // The real external string is already in one of these vectors and was or
-    // will be processed. Re-processing it will add a duplicate to the vector.
-    if (IsThinString(o)) continue;
-    DCHECK(IsExternalString(o));
-    if (HeapLayout::InYoungGeneration(o)) {
-      young_strings_[last++] = o;
-    } else {
-      old_strings_.push_back(o);
-    }
-  }
-  young_strings_.resize(last);
-}
-
-void Heap::ExternalStringTable::CleanUpAll() {
-  CleanUpYoung();
+void Heap::ExternalStringTable::CleanUp() {
   int last = 0;
   Isolate* isolate = heap_->isolate();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
@@ -7324,13 +7172,6 @@ void Heap::ExternalStringTable::CleanUpAll() {
 }
 
 void Heap::ExternalStringTable::TearDown() {
-  for (size_t i = 0; i < young_strings_.size(); ++i) {
-    Tagged<Object> o = young_strings_[i];
-    // Dont finalize thin strings.
-    if (IsThinString(o)) continue;
-    heap_->FinalizeExternalString(Cast<ExternalString>(o));
-  }
-  young_strings_.clear();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<Object> o = old_strings_[i];
     // Dont finalize thin strings.

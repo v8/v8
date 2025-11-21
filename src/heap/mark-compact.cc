@@ -2169,7 +2169,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
       client->shared_external_pointer_space();
   MarkExternalPointerFromExternalStringTable external_string_visitor(
       &shared_table, shared_space);
-  client_heap->external_string_table_.IterateAll(&external_string_visitor);
+  client_heap->external_string_table_.Iterate(&external_string_visitor);
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -3092,8 +3092,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_EXTERNAL_STRING_TABLE);
     ExternalStringTableCleanerVisitor<ExternalStringTableCleaningMode::kAll>
         external_visitor(heap_);
-    heap_->external_string_table_.IterateAll(&external_visitor);
-    heap_->external_string_table_.CleanUpAll();
+    heap_->external_string_table_.Iterate(&external_visitor);
+    heap_->external_string_table_.CleanUp();
   }
 
   {
