@@ -1046,11 +1046,11 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kEmptyFeedbackMetadata = 0x6089;
   static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x6095;
   static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x60b5;
-  static constexpr Tagged_t kNativeScopeInfo = 0x60d9;
-  static constexpr Tagged_t kShadowRealmScopeInfo = 0x60f1;
-  static constexpr Tagged_t kManyClosuresCell = 0x6109;
-  static constexpr Tagged_t kPreallocatedNumberStringTable = 0x6119;
-  static constexpr Tagged_t kWasmNullPadding = 0x6851;
+  static constexpr Tagged_t kNativeScopeInfo = 0x60dd;
+  static constexpr Tagged_t kShadowRealmScopeInfo = 0x60f5;
+  static constexpr Tagged_t kManyClosuresCell = 0x610d;
+  static constexpr Tagged_t kPreallocatedNumberStringTable = 0x611d;
+  static constexpr Tagged_t kWasmNullPadding = 0x6855;
   static constexpr Tagged_t kWasmNull = 0xfffd;
   static constexpr Tagged_t kTheHoleValue = 0x20001;
   static constexpr Tagged_t kPropertyCellHoleValue = 0x20005;

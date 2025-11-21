@@ -389,6 +389,7 @@ class SharedFunctionInfo
   inline uint16_t internal_formal_parameter_count_with_receiver() const;
   inline uint16_t internal_formal_parameter_count_without_receiver() const;
 
+  inline uint32_t unused_parameter_bits() const;
   inline bool CanOnlyAccessFixedFormalParameters() const;
   inline bool IsSloppyNormalJSFunction() const;
 
