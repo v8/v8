@@ -535,15 +535,15 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     return alt;
   }
 
-  // Check for the empty type first, so that we don't emit unsafe conversion
-  // nodes below.
-  if (IsEmptyNodeType(node_info->type())) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
-  }
-
+  // This is called when converting inputs in AddNewNode. We might already have
+  // an empty type for `value` here. Make sure we don't add unsafe conversion
+  // nodes in that case by checking for the empty node type explicitly.
+  // TODO(marja): The checks can be removed after we're able to bail out
+  // earlier.
   switch (representation) {
     case ValueRepresentation::kInt32: {
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(
             AddNewNodeNoInputConversion<UnsafeSmiTagInt32>({value}));
       }
@@ -551,7 +551,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
           AddNewNodeNoInputConversion<Int32ToNumber>({value}));
     }
     case ValueRepresentation::kUint32: {
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(
             AddNewNodeNoInputConversion<UnsafeSmiTagUint32>({value}));
       }
@@ -559,7 +560,7 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
           AddNewNodeNoInputConversion<Uint32ToNumber>({value}));
     }
     case ValueRepresentation::kFloat64: {
-      if (node_info->is_smi()) {
+      if (!IsEmptyNodeType(node_info->type()) && node_info->is_smi()) {
         return alternative.set_tagged(
             AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
       }
@@ -568,7 +569,7 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
               {value}, Float64ToTagged::ConversionMode::kCanonicalizeSmi));
     }
     case ValueRepresentation::kHoleyFloat64: {
-      if (node_info->is_smi()) {
+      if (!IsEmptyNodeType(node_info->type()) && node_info->is_smi()) {
         return alternative.set_tagged(
             AddNewNodeNoInputConversion<CheckedSmiTagFloat64>({value}));
       }
@@ -578,7 +579,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
     }
 
     case ValueRepresentation::kShiftedInt53:
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(
             AddNewNodeNoInputConversion<UnsafeSmiTagShiftedInt53>({value}));
       }
@@ -586,7 +588,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
           AddNewNodeNoInputConversion<ShiftedInt53ToNumber>({value}));
 
     case ValueRepresentation::kIntPtr:
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(
             AddNewNodeNoInputConversion<UnsafeSmiTagIntPtr>({value}));
       }
