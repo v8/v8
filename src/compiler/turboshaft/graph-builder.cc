@@ -1922,9 +1922,11 @@ OpIndex GraphBuilder::Process(
 
 #ifdef V8_INTL_SUPPORT
     case IrOpcode::kStringToLowerCaseIntl:
-      return __ StringToLowerCaseIntl(Map(node->InputAt(0)));
+      return __ StringToLowerCaseIntl(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
     case IrOpcode::kStringToUpperCaseIntl:
-      return __ StringToUpperCaseIntl(Map(node->InputAt(0)));
+      return __ StringToUpperCaseIntl(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), Map(node->InputAt(2)));
 #else
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:

@@ -187,9 +187,9 @@ struct runtime : CallDescriptorBuilder {
     };
     using returns_t = V<String>;
 
-    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoThrow;
+        Operator::kFoldable | Operator::kIdempotent;
   };
 #endif  // V8_INTL_SUPPORT
 

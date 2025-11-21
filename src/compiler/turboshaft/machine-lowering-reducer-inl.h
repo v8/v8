@@ -2658,14 +2658,17 @@ class MachineLoweringReducer : public Next {
 
 #ifdef V8_INTL_SUPPORT
   V<String> REDUCE(StringToCaseIntl)(V<String> string,
-                                     StringToCaseIntlOp::Kind kind) {
+                                     V<FrameState> frame_state,
+                                     V<Context> context,
+                                     StringToCaseIntlOp::Kind kind,
+                                     LazyDeoptOnThrow lazy_deopt_on_throw) {
     if (kind == StringToCaseIntlOp::Kind::kLower) {
       return __ template CallBuiltin<builtin::StringToLowerCaseIntl>(
-          __ NoContextConstant(), {.string = string});
+          frame_state, context, {.string = string}, lazy_deopt_on_throw);
     } else {
       DCHECK_EQ(kind, StringToCaseIntlOp::Kind::kUpper);
       return __ template CallRuntime<runtime::StringToUpperCaseIntl>(
-          __ NoContextConstant(), {.string = string});
+          frame_state, context, {.string = string}, lazy_deopt_on_throw);
     }
   }
 #endif  // V8_INTL_SUPPORT

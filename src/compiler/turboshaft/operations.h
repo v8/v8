@@ -113,12 +113,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // - If Foo is not lowered before reaching the instruction selector, handle
 //   Opcode::kFoo in the Turboshaft VisitNode of instruction-selector.cc.
 
-#ifdef V8_INTL_SUPPORT
-#define TURBOSHAFT_INTL_OPERATION_LIST(V) V(StringToCaseIntl)
-#else
-#define TURBOSHAFT_INTL_OPERATION_LIST(V)
-#endif  // V8_INTL_SUPPORT
-
 #ifdef V8_ENABLE_WEBASSEMBLY
 // These operations should be lowered to Machine operations during
 // WasmLoweringPhase.
@@ -231,7 +225,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // These operations should be lowered to Machine operations during
 // MachineLoweringPhase.
 #define TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(V) \
-  TURBOSHAFT_INTL_OPERATION_LIST(V)             \
   TURBOSHAFT_CPED_OPERATION_LIST(V)             \
   V(ArgumentsLength)                            \
   V(BigIntBinop)                                \
@@ -341,9 +334,13 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(AbortCSADcheck)                          \
   V(Pause)
 
+// TODO(dmercadier): StringToCaseIntl is not a JS but rather a Simplified
+// operation. Consider creating a SIMPLIFIED_THROWING_OP_LIST for it, or
+// lowering it already during graph building.
 #define TURBOSHAFT_JS_THROWING_OPERATION_LIST(V) \
   V(GenericBinop)                                \
   V(GenericUnop)                                 \
+  IF_INTL(V, StringToCaseIntl)                   \
   V(ToNumberOrNumeric)
 
 #define TURBOSHAFT_JS_OPERATION_LIST(V)        \
@@ -5683,7 +5680,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            StringAtOp::Kind kind);
 
 #ifdef V8_INTL_SUPPORT
-struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
+struct StringToCaseIntlOp : FixedArityOperationT<3, StringToCaseIntlOp> {
   enum class Kind : uint8_t {
     kLower,
     kUpper,
@@ -5692,14 +5689,15 @@ struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
 
   static constexpr OpEffects effects =
       OpEffects()
+          // Can thrown an exception.
+          .CanThrowOrTrap()
           // String content is immutable, the allocated result does not have
           // identity.
           .CanAllocateWithoutIdentity()
           // We rely on the input being a string.
           .CanDependOnChecks();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
+
+  THROWING_OP_BOILERPLATE(RegisterRepresentation::Tagged())
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
@@ -5707,11 +5705,17 @@ struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
   }
 
   V<String> string() const { return Base::input<String>(0); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
+  V<Context> context() const { return Base::input<Context>(2); }
 
-  StringToCaseIntlOp(V<String> string, Kind kind) : Base(string), kind(kind) {}
+  StringToCaseIntlOp(V<String> string, V<FrameState> frame_state,
+                     V<Context> context, Kind kind,
+                     LazyDeoptOnThrow lazy_deopt_on_throw)
+      : Base(string, frame_state, context),
+        kind(kind),
+        lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
-
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            StringToCaseIntlOp::Kind kind);

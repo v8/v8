@@ -4528,14 +4528,24 @@ class AssemblerOpInterface : public Next {
   }
 
 #ifdef V8_INTL_SUPPORT
-  V<String> StringToCaseIntl(V<String> string, StringToCaseIntlOp::Kind kind) {
-    return ReduceIfReachableStringToCaseIntl(string, kind);
+  V<String> StringToCaseIntl(V<String> string,
+                             V<turboshaft::FrameState> frame_state,
+                             V<Context> context,
+                             StringToCaseIntlOp::Kind kind) {
+    return ReduceIfReachableStringToCaseIntl(string, frame_state, context, kind,
+                                             LazyDeoptOnThrow::kNo);
   }
-  V<String> StringToLowerCaseIntl(V<String> string) {
-    return StringToCaseIntl(string, StringToCaseIntlOp::Kind::kLower);
+  V<String> StringToLowerCaseIntl(V<String> string,
+                                  V<turboshaft::FrameState> frame_state,
+                                  V<Context> context) {
+    return StringToCaseIntl(string, frame_state, context,
+                            StringToCaseIntlOp::Kind::kLower);
   }
-  V<String> StringToUpperCaseIntl(V<String> string) {
-    return StringToCaseIntl(string, StringToCaseIntlOp::Kind::kUpper);
+  V<String> StringToUpperCaseIntl(V<String> string,
+                                  V<turboshaft::FrameState> frame_state,
+                                  V<Context> context) {
+    return StringToCaseIntl(string, frame_state, context,
+                            StringToCaseIntlOp::Kind::kUpper);
   }
 #endif  // V8_INTL_SUPPORT
 

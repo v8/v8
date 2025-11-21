@@ -7153,17 +7153,15 @@ Reduction JSCallReducer::ReduceStringPrototypeToLowerCaseIntl(Node* node) {
   }
   Effect effect = n.effect();
   Control control = n.control();
+  FrameState frame_state = n.frame_state();
 
   Node* receiver = effect = graph()->NewNode(
       simplified()->CheckString(p.feedback()), n.receiver(), effect, control);
-
-  NodeProperties::ReplaceEffectInput(node, effect);
-  RelaxEffectsAndControls(node);
-  node->ReplaceInput(0, receiver);
-  node->TrimInputCount(1);
-  NodeProperties::ChangeOp(node, simplified()->StringToLowerCaseIntl());
-  NodeProperties::SetType(node, Type::String());
-  return Changed(node);
+  Node* value = effect = control =
+      graph()->NewNode(simplified()->StringToLowerCaseIntl(), receiver,
+                       frame_state, n.context(), effect, control);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Reduction JSCallReducer::ReduceStringPrototypeToUpperCaseIntl(Node* node) {
@@ -7174,17 +7172,15 @@ Reduction JSCallReducer::ReduceStringPrototypeToUpperCaseIntl(Node* node) {
   }
   Effect effect = n.effect();
   Control control = n.control();
+  FrameState frame_state = n.frame_state();
 
   Node* receiver = effect = graph()->NewNode(
       simplified()->CheckString(p.feedback()), n.receiver(), effect, control);
-
-  NodeProperties::ReplaceEffectInput(node, effect);
-  RelaxEffectsAndControls(node);
-  node->ReplaceInput(0, receiver);
-  node->TrimInputCount(1);
-  NodeProperties::ChangeOp(node, simplified()->StringToUpperCaseIntl());
-  NodeProperties::SetType(node, Type::String());
-  return Changed(node);
+  Node* value = effect = control =
+      graph()->NewNode(simplified()->StringToUpperCaseIntl(), receiver,
+                       frame_state, n.context(), effect, control);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 #endif  // V8_INTL_SUPPORT

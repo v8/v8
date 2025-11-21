@@ -532,12 +532,14 @@ struct builtin : CallDescriptorBuilder {
     };
     using returns_t = std::tuple<V<String>>;
 
-    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoThrow;
-    static constexpr OpEffects kEffects =
-        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+        Operator::kFoldable | Operator::kIdempotent;
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap()
+                                              .CanReadMemory()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanDependOnChecks();
   };
 #endif  // V8_INTL_SUPPORT
 
