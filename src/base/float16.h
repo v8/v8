@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_FLOAT16_H_
-#define V8_WASM_FLOAT16_H_
+#ifndef V8_BASE_FLOAT16_H_
+#define V8_BASE_FLOAT16_H_
 
 #include "src/base/memory.h"
-#include "third_party/fp16/src/include/fp16.h"
+#include "third_party/fp16/src/include/fp16.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
@@ -40,4 +40,4 @@ static_assert(sizeof(Float16) == sizeof(uint16_t));
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_FLOAT16_H_
+#endif  // V8_BASE_FLOAT16_H_
