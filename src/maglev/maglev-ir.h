@@ -3130,9 +3130,12 @@ inline ValueNode* ValueNode::Unwrap() {
 
 // Mixin for a node with known class (and therefore known opcode and static
 // properties), but possibly unknown numbers of inputs.
-template <typename Base, typename Derived>
-class NodeTMixin : public Base {
+template <typename BaseNode, typename Derived>
+class NodeTMixin : public BaseNode {
  public:
+  // Enable concise base access in derived nodes.
+  using Base = NodeTMixin;
+
   // Shadowing for static knowledge.
   constexpr Opcode opcode() const { return NodeBase::opcode_of<Derived>; }
   constexpr const OpProperties& properties() const {
@@ -3154,7 +3157,7 @@ class NodeTMixin : public Base {
  protected:
   template <typename... Args>
   explicit NodeTMixin(uint64_t bitfield, Args&&... args)
-      : Base(bitfield, std::forward<Args>(args)...) {
+      : BaseNode(bitfield, std::forward<Args>(args)...) {
     DCHECK_EQ(this->NodeBase::opcode(), NodeBase::opcode_of<Derived>);
     DCHECK_EQ(this->NodeBase::properties(), Derived::kProperties);
   }
@@ -3177,9 +3180,12 @@ struct YouNeedToDefineAnInputTypesArrayInYourDerivedClass {};
 
 // Mixin for a node with known class (and therefore known opcode and static
 // properties), and known numbers of inputs.
-template <size_t InputCount, typename Base, typename Derived>
-class FixedInputNodeTMixin : public NodeTMixin<Base, Derived> {
+template <size_t InputCount, typename BaseT, typename Derived>
+class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
  public:
+  // Enable concise base access in derived nodes.
+  using Base = FixedInputNodeTMixin;
+
   static constexpr size_t kInputCount = InputCount;
 
   // Shadowing for static knowledge.
@@ -3223,7 +3229,7 @@ class FixedInputNodeTMixin : public NodeTMixin<Base, Derived> {
 
   template <typename... Args>
   explicit FixedInputNodeTMixin(uint64_t bitfield, Args&&... args)
-      : NodeTMixin<Base, Derived>(bitfield, std::forward<Args>(args)...) {
+      : NodeTMixin<BaseT, Derived>(bitfield, std::forward<Args>(args)...) {
     DCHECK_EQ(this->NodeBase::input_count(), kInputCount);
   }
 };
@@ -3249,8 +3255,6 @@ using FixedInputValueNodeT =
     FixedInputNodeTMixin<InputCount, ValueNodeT<Derived>, Derived>;
 
 class Identity : public FixedInputValueNodeT<1, Identity> {
-  using Base = FixedInputValueNodeT<1, Identity>;
-
  public:
   static constexpr OpProperties kProperties =
       OpProperties::Pure() |
@@ -3419,8 +3423,6 @@ DEF_INT32_BINARY_NODE(ShiftRight)
 
 class Int32MultiplyOverflownBits
     : public FixedInputValueNodeT<2, Int32MultiplyOverflownBits> {
-  using Base = FixedInputValueNodeT<2, Int32MultiplyOverflownBits>;
-
  public:
   explicit Int32MultiplyOverflownBits(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3438,8 +3440,6 @@ class Int32MultiplyOverflownBits
 };
 
 class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
-  using Base = FixedInputValueNodeT<1, Int32BitwiseNot>;
-
  public:
   explicit Int32BitwiseNot(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3456,8 +3456,6 @@ class Int32BitwiseNot : public FixedInputValueNodeT<1, Int32BitwiseNot> {
 
 class ShiftedInt53AddWithOverflow
     : public FixedInputValueNodeT<2, ShiftedInt53AddWithOverflow> {
-  using Base = FixedInputValueNodeT<2, ShiftedInt53AddWithOverflow>;
-
  public:
   explicit ShiftedInt53AddWithOverflow(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3478,7 +3476,6 @@ class ShiftedInt53AddWithOverflow
 template <class Derived, Operation kOperation>
 class Int32UnaryWithOverflowNode : public FixedInputValueNodeT<1, Derived> {
   using Base = FixedInputValueNodeT<1, Derived>;
-
  public:
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
@@ -3524,8 +3521,6 @@ DEF_INT32_NODE(Decrement)
 
 class Int32ShiftRightLogical
     : public FixedInputValueNodeT<2, Int32ShiftRightLogical> {
-  using Base = FixedInputValueNodeT<2, Int32ShiftRightLogical>;
-
  public:
   explicit Int32ShiftRightLogical(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3544,8 +3539,6 @@ class Int32ShiftRightLogical
 };
 
 class Int32Compare : public FixedInputValueNodeT<2, Int32Compare> {
-  using Base = FixedInputValueNodeT<2, Int32Compare>;
-
  public:
   explicit Int32Compare(uint64_t bitfield, Operation operation)
       : Base(OperationBitField::update(bitfield, operation)) {}
@@ -3574,8 +3567,6 @@ class Int32Compare : public FixedInputValueNodeT<2, Int32Compare> {
 };
 
 class Int32ToBoolean : public FixedInputValueNodeT<1, Int32ToBoolean> {
-  using Base = FixedInputValueNodeT<1, Int32ToBoolean>;
-
  public:
   explicit Int32ToBoolean(uint64_t bitfield, bool flip)
       : Base(FlipBitField::update(bitfield, flip)) {}
@@ -3598,8 +3589,6 @@ class Int32ToBoolean : public FixedInputValueNodeT<1, Int32ToBoolean> {
 
 class ShiftedInt53ToBoolean
     : public FixedInputValueNodeT<1, ShiftedInt53ToBoolean> {
-  using Base = FixedInputValueNodeT<1, ShiftedInt53ToBoolean>;
-
  public:
   explicit ShiftedInt53ToBoolean(uint64_t bitfield, bool flip)
       : Base(FlipBitField::update(bitfield, flip)) {}
@@ -3622,8 +3611,6 @@ class ShiftedInt53ToBoolean
 };
 
 class IntPtrToBoolean : public FixedInputValueNodeT<1, IntPtrToBoolean> {
-  using Base = FixedInputValueNodeT<1, IntPtrToBoolean>;
-
  public:
   explicit IntPtrToBoolean(uint64_t bitfield, bool flip)
       : Base(FlipBitField::update(bitfield, flip)) {}
@@ -3646,8 +3633,6 @@ class IntPtrToBoolean : public FixedInputValueNodeT<1, IntPtrToBoolean> {
 
 class CheckedSmiIncrement
     : public FixedInputValueNodeT<1, CheckedSmiIncrement> {
-  using Base = FixedInputValueNodeT<1, CheckedSmiIncrement>;
-
  public:
   explicit CheckedSmiIncrement(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3664,8 +3649,6 @@ class CheckedSmiIncrement
 
 class CheckedSmiDecrement
     : public FixedInputValueNodeT<1, CheckedSmiDecrement> {
-  using Base = FixedInputValueNodeT<1, CheckedSmiDecrement>;
-
  public:
   explicit CheckedSmiDecrement(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3760,8 +3743,6 @@ DEF_FLOAT64_BINARY_NODE_WITH_CALL(Exponentiate)
 #undef DEF_OPERATION_NODE_WITH_CALL
 
 class Float64Compare : public FixedInputValueNodeT<2, Float64Compare> {
-  using Base = FixedInputValueNodeT<2, Float64Compare>;
-
  public:
   explicit Float64Compare(uint64_t bitfield, Operation operation)
       : Base(OperationBitField::update(bitfield, operation)) {}
@@ -3790,8 +3771,6 @@ class Float64Compare : public FixedInputValueNodeT<2, Float64Compare> {
 };
 
 class Float64ToBoolean : public FixedInputValueNodeT<1, Float64ToBoolean> {
-  using Base = FixedInputValueNodeT<1, Float64ToBoolean>;
-
  public:
   explicit Float64ToBoolean(uint64_t bitfield, bool flip)
       : Base(FlipBitField::update(bitfield, flip)) {}
@@ -3813,8 +3792,6 @@ class Float64ToBoolean : public FixedInputValueNodeT<1, Float64ToBoolean> {
 };
 
 class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
-  using Base = FixedInputValueNodeT<1, Float64Negate>;
-
  public:
   explicit Float64Negate(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3829,8 +3806,6 @@ class Float64Negate : public FixedInputValueNodeT<1, Float64Negate> {
 };
 
 class Float64Min : public FixedInputValueNodeT<2, Float64Min> {
-  using Base = FixedInputValueNodeT<2, Float64Min>;
-
  public:
   explicit Float64Min(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3848,8 +3823,6 @@ class Float64Min : public FixedInputValueNodeT<2, Float64Min> {
 };
 
 class Float64Max : public FixedInputValueNodeT<2, Float64Max> {
-  using Base = FixedInputValueNodeT<2, Float64Max>;
-
  public:
   explicit Float64Max(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3888,8 +3861,6 @@ class Float64Max : public FixedInputValueNodeT<2, Float64Max> {
   V(MathTanh, tanh, Tanh)
 class Float64Ieee754Unary
     : public FixedInputValueNodeT<1, Float64Ieee754Unary> {
-  using Base = FixedInputValueNodeT<1, Float64Ieee754Unary>;
-
  public:
   enum class Ieee754Function : uint8_t {
 #define DECL_ENUM(MathName, ExtName, EnumName) k##EnumName,
@@ -3926,8 +3897,6 @@ class Float64Ieee754Unary
 
 class Float64Ieee754Binary
     : public FixedInputValueNodeT<2, Float64Ieee754Binary> {
-  using Base = FixedInputValueNodeT<2, Float64Ieee754Binary>;
-
  public:
   enum class Ieee754Function : uint8_t {
 #define DECL_ENUM(MathName, ExtName, EnumName) k##EnumName,
@@ -3961,8 +3930,6 @@ class Float64Ieee754Binary
 };
 
 class Float64Sqrt : public FixedInputValueNodeT<1, Float64Sqrt> {
-  using Base = FixedInputValueNodeT<1, Float64Sqrt>;
-
  public:
   explicit Float64Sqrt(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3978,8 +3945,6 @@ class Float64Sqrt : public FixedInputValueNodeT<1, Float64Sqrt> {
 };
 
 class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {
-  using Base = FixedInputNodeT<1, CheckInt32IsSmi>;
-
  public:
   explicit CheckInt32IsSmi(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3994,8 +3959,6 @@ class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {
 };
 
 class CheckUint32IsSmi : public FixedInputNodeT<1, CheckUint32IsSmi> {
-  using Base = FixedInputNodeT<1, CheckUint32IsSmi>;
-
  public:
   explicit CheckUint32IsSmi(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4010,8 +3973,6 @@ class CheckUint32IsSmi : public FixedInputNodeT<1, CheckUint32IsSmi> {
 };
 
 class CheckIntPtrIsSmi : public FixedInputNodeT<1, CheckIntPtrIsSmi> {
-  using Base = FixedInputNodeT<1, CheckIntPtrIsSmi>;
-
  public:
   explicit CheckIntPtrIsSmi(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4026,8 +3987,6 @@ class CheckIntPtrIsSmi : public FixedInputNodeT<1, CheckIntPtrIsSmi> {
 };
 
 class CheckFloat64IsSmi : public FixedInputNodeT<1, CheckFloat64IsSmi> {
-  using Base = FixedInputNodeT<1, CheckFloat64IsSmi>;
-
  public:
   explicit CheckFloat64IsSmi(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4043,8 +4002,6 @@ class CheckFloat64IsSmi : public FixedInputNodeT<1, CheckFloat64IsSmi> {
 
 class CheckHoleyFloat64IsSmi
     : public FixedInputNodeT<1, CheckHoleyFloat64IsSmi> {
-  using Base = FixedInputNodeT<1, CheckHoleyFloat64IsSmi>;
-
  public:
   explicit CheckHoleyFloat64IsSmi(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4059,8 +4016,6 @@ class CheckHoleyFloat64IsSmi
 };
 
 class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
-  using Base = FixedInputValueNodeT<0, Int32Constant>;
-
  public:
   using OutputRegister = Register;
 
@@ -4086,8 +4041,6 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
 };
 
 class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
-  using Base = FixedInputValueNodeT<0, Uint32Constant>;
-
  public:
   using OutputRegister = Register;
 
@@ -4114,8 +4067,6 @@ class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
 
 class ShiftedInt53Constant
     : public FixedInputValueNodeT<0, ShiftedInt53Constant> {
-  using Base = FixedInputValueNodeT<0, ShiftedInt53Constant>;
-
  public:
   using OutputRegister = Register;
 
@@ -4142,8 +4093,6 @@ class ShiftedInt53Constant
 };
 
 class IntPtrConstant : public FixedInputValueNodeT<0, IntPtrConstant> {
-  using Base = FixedInputValueNodeT<0, IntPtrConstant>;
-
  public:
   using OutputRegister = Register;
 
@@ -4168,8 +4117,6 @@ class IntPtrConstant : public FixedInputValueNodeT<0, IntPtrConstant> {
 };
 
 class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
-  using Base = FixedInputValueNodeT<0, Float64Constant>;
-
  public:
   using OutputRegister = DoubleRegister;
 
@@ -4206,8 +4153,6 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
 
 class HoleyFloat64Constant
     : public FixedInputValueNodeT<0, HoleyFloat64Constant> {
-  using Base = FixedInputValueNodeT<0, HoleyFloat64Constant>;
-
  public:
   using OutputRegister = DoubleRegister;
 
@@ -4238,8 +4183,6 @@ class HoleyFloat64Constant
 
 class Int32ToUint8Clamped
     : public FixedInputValueNodeT<1, Int32ToUint8Clamped> {
-  using Base = FixedInputValueNodeT<1, Int32ToUint8Clamped>;
-
  public:
   explicit Int32ToUint8Clamped(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4255,8 +4198,6 @@ class Int32ToUint8Clamped
 
 class Uint32ToUint8Clamped
     : public FixedInputValueNodeT<1, Uint32ToUint8Clamped> {
-  using Base = FixedInputValueNodeT<1, Uint32ToUint8Clamped>;
-
  public:
   explicit Uint32ToUint8Clamped(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4272,8 +4213,6 @@ class Uint32ToUint8Clamped
 
 class Float64ToUint8Clamped
     : public FixedInputValueNodeT<1, Float64ToUint8Clamped> {
-  using Base = FixedInputValueNodeT<1, Float64ToUint8Clamped>;
-
  public:
   explicit Float64ToUint8Clamped(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4289,8 +4228,6 @@ class Float64ToUint8Clamped
 
 class CheckedNumberToUint8Clamped
     : public FixedInputValueNodeT<1, CheckedNumberToUint8Clamped> {
-  using Base = FixedInputValueNodeT<1, CheckedNumberToUint8Clamped>;
-
  public:
   explicit CheckedNumberToUint8Clamped(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4309,8 +4246,6 @@ class CheckedNumberToUint8Clamped
 // will be used as a mutable heap number by a store.
 class Float64ToHeapNumberForField
     : public FixedInputValueNodeT<1, Float64ToHeapNumberForField> {
-  using Base = FixedInputValueNodeT<1, Float64ToHeapNumberForField>;
-
  public:
   explicit Float64ToHeapNumberForField(uint64_t bitfield) : Base(bitfield) {}
   static constexpr
@@ -4329,8 +4264,6 @@ class Float64ToHeapNumberForField
 
 class Int32AbsWithOverflow
     : public FixedInputValueNodeT<1, Int32AbsWithOverflow> {
-  using Base = FixedInputValueNodeT<1, Int32AbsWithOverflow>;
-
  public:
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
@@ -4347,8 +4280,6 @@ class Int32AbsWithOverflow
 };
 
 class Float64Abs : public FixedInputValueNodeT<1, Float64Abs> {
-  using Base = FixedInputValueNodeT<1, Float64Abs>;
-
  public:
   explicit Float64Abs(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4364,8 +4295,6 @@ class Float64Abs : public FixedInputValueNodeT<1, Float64Abs> {
 
 class Int32CountLeadingZeros
     : public FixedInputValueNodeT<1, Int32CountLeadingZeros> {
-  using Base = FixedInputValueNodeT<1, Int32CountLeadingZeros>;
-
  public:
   explicit Int32CountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4381,8 +4310,6 @@ class Int32CountLeadingZeros
 
 class TaggedCountLeadingZeros
     : public FixedInputValueNodeT<1, TaggedCountLeadingZeros> {
-  using Base = FixedInputValueNodeT<1, TaggedCountLeadingZeros>;
-
  public:
   explicit TaggedCountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4399,8 +4326,6 @@ class TaggedCountLeadingZeros
 
 class Float64CountLeadingZeros
     : public FixedInputValueNodeT<1, Float64CountLeadingZeros> {
-  using Base = FixedInputValueNodeT<1, Float64CountLeadingZeros>;
-
  public:
   static Builtin continuation() { return Builtin::kMathClz32Continuation; }
 
@@ -4417,8 +4342,6 @@ class Float64CountLeadingZeros
 };
 
 class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
-  using Base = FixedInputValueNodeT<1, Float64Round>;
-
  public:
   enum class Kind { kFloor, kCeil, kNearest };
 
@@ -4457,8 +4380,6 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
 
 #define DEFINE_CONVERSION(name, from_repr, properties, node_type, ...) \
   class name : public FixedInputValueNodeT<1, name> {                  \
-    using Base = FixedInputValueNodeT<1, name>;                        \
-                                                                       \
    public:                                                             \
     explicit name(uint64_t bitfield) : Base(bitfield) {}               \
                                                                        \
@@ -4478,8 +4399,6 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
 
 #define DEFINE_TO_TAGGED(name, from_repr, node_type)                   \
   class name : public FixedInputValueNodeT<1, name> {                  \
-    using Base = FixedInputValueNodeT<1, name>;                        \
-                                                                       \
    public:                                                             \
     /* TODO(454485895): Consider removing kForceHeapNumber since    */ \
     /* it is now unused.                                            */ \
@@ -4598,8 +4517,6 @@ DEFINE_CHECKED_CONV(CheckedSmiSizedInt32, Int32, Int32, Smi)
 
 #define DEFINE_TRUNCATE_NODE(name, from_repr, properties)        \
   class name : public FixedInputValueNodeT<1, name> {            \
-    using Base = FixedInputValueNodeT<1, name>;                  \
-                                                                 \
    public:                                                       \
     explicit name(uint64_t bitfield) : Base(bitfield) {}         \
                                                                  \
@@ -4621,8 +4538,6 @@ DEFINE_TRUNCATE_NODE(TruncateHoleyFloat64ToInt32, HoleyFloat64,
 
 class TruncateShiftedInt53ToInt32
     : public FixedInputValueNodeT<1, TruncateShiftedInt53ToInt32> {
-  using Base = FixedInputValueNodeT<1, TruncateShiftedInt53ToInt32>;
-
  public:
   explicit TruncateShiftedInt53ToInt32(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4638,8 +4553,6 @@ class TruncateShiftedInt53ToInt32
 
 class CheckedNumberOrOddballToFloat64
     : public FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64> {
-  using Base = FixedInputValueNodeT<1, CheckedNumberOrOddballToFloat64>;
-
  public:
   explicit CheckedNumberOrOddballToFloat64(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
@@ -4678,8 +4591,6 @@ class CheckedNumberOrOddballToFloat64
 
 class CheckedNumberOrOddballToHoleyFloat64
     : public FixedInputValueNodeT<1, CheckedNumberOrOddballToHoleyFloat64> {
-  using Base = FixedInputValueNodeT<1, CheckedNumberOrOddballToHoleyFloat64>;
-
  public:
   explicit CheckedNumberOrOddballToHoleyFloat64(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
@@ -4726,8 +4637,6 @@ class CheckedNumberOrOddballToHoleyFloat64
 
 class UnsafeNumberOrOddballToFloat64
     : public FixedInputValueNodeT<1, UnsafeNumberOrOddballToFloat64> {
-  using Base = FixedInputValueNodeT<1, UnsafeNumberOrOddballToFloat64>;
-
  public:
   explicit UnsafeNumberOrOddballToFloat64(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
@@ -4760,9 +4669,6 @@ class UnsafeNumberOrOddballToFloat64
 
 class UnsafeNumberOrOddballToHoleyFloat64
     : public FixedInputValueNodeT<1, UnsafeNumberOrOddballToHoleyFloat64> {
-  using Base = FixedInputValueNodeT<1, UnsafeNumberOrOddballToHoleyFloat64>;
-  using Base::result;
-
  public:
   explicit UnsafeNumberOrOddballToHoleyFloat64(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
@@ -4792,8 +4698,6 @@ class UnsafeNumberOrOddballToHoleyFloat64
 
 class UnsafeHoleyFloat64ToFloat64
     : public FixedInputValueNodeT<1, UnsafeHoleyFloat64ToFloat64> {
-  using Base = FixedInputValueNodeT<1, UnsafeHoleyFloat64ToFloat64>;
-
  public:
   explicit UnsafeHoleyFloat64ToFloat64(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4810,8 +4714,6 @@ class UnsafeHoleyFloat64ToFloat64
 
 class HoleyFloat64ToSilencedFloat64
     : public FixedInputValueNodeT<1, HoleyFloat64ToSilencedFloat64> {
-  using Base = FixedInputValueNodeT<1, HoleyFloat64ToSilencedFloat64>;
-
  public:
   explicit HoleyFloat64ToSilencedFloat64(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4830,8 +4732,6 @@ class HoleyFloat64ToSilencedFloat64
 
 class Float64ToSilencedFloat64
     : public FixedInputValueNodeT<1, Float64ToSilencedFloat64> {
-  using Base = FixedInputValueNodeT<1, Float64ToSilencedFloat64>;
-
  public:
   explicit Float64ToSilencedFloat64(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4850,8 +4750,6 @@ class Float64ToSilencedFloat64
 
 class UnsafeFloat64ToHoleyFloat64
     : public FixedInputValueNodeT<1, UnsafeFloat64ToHoleyFloat64> {
-  using Base = FixedInputValueNodeT<1, UnsafeFloat64ToHoleyFloat64>;
-
  public:
   explicit UnsafeFloat64ToHoleyFloat64(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4871,8 +4769,6 @@ class UnsafeFloat64ToHoleyFloat64
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 class HoleyFloat64ConvertHoleToUndefined
     : public FixedInputValueNodeT<1, HoleyFloat64ConvertHoleToUndefined> {
-  using Base = FixedInputValueNodeT<1, HoleyFloat64ConvertHoleToUndefined>;
-
  public:
   explicit HoleyFloat64ConvertHoleToUndefined(uint64_t bitfield)
       : Base(bitfield) {}
@@ -4890,8 +4786,6 @@ class HoleyFloat64ConvertHoleToUndefined
 
 class HoleyFloat64IsUndefinedOrHole
     : public FixedInputValueNodeT<1, HoleyFloat64IsUndefinedOrHole> {
-  using Base = FixedInputValueNodeT<1, HoleyFloat64IsUndefinedOrHole>;
-
  public:
   explicit HoleyFloat64IsUndefinedOrHole(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4907,8 +4801,6 @@ class HoleyFloat64IsUndefinedOrHole
 #else
 
 class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
-  using Base = FixedInputValueNodeT<1, HoleyFloat64IsHole>;
-
  public:
   explicit HoleyFloat64IsHole(uint64_t bitfield) : Base(bitfield) {}
 
@@ -4925,8 +4817,6 @@ class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
 
 class TruncateUnsafeNumberOrOddballToInt32
     : public FixedInputValueNodeT<1, TruncateUnsafeNumberOrOddballToInt32> {
-  using Base = FixedInputValueNodeT<1, TruncateUnsafeNumberOrOddballToInt32>;
-
  public:
   explicit TruncateUnsafeNumberOrOddballToInt32(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
@@ -4956,8 +4846,6 @@ class TruncateUnsafeNumberOrOddballToInt32
 
 class TruncateCheckedNumberOrOddballToInt32
     : public FixedInputValueNodeT<1, TruncateCheckedNumberOrOddballToInt32> {
-  using Base = FixedInputValueNodeT<1, TruncateCheckedNumberOrOddballToInt32>;
-
  public:
   explicit TruncateCheckedNumberOrOddballToInt32(
       uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
@@ -4987,8 +4875,6 @@ class TruncateCheckedNumberOrOddballToInt32
 };
 
 class LogicalNot : public FixedInputValueNodeT<1, LogicalNot> {
-  using Base = FixedInputValueNodeT<1, LogicalNot>;
-
  public:
   explicit LogicalNot(uint64_t bitfield) : Base(bitfield) {}
 
@@ -5003,8 +4889,6 @@ class LogicalNot : public FixedInputValueNodeT<1, LogicalNot> {
 };
 
 class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
-  using Base = FixedInputValueNodeT<1, SetPendingMessage>;
-
  public:
   explicit SetPendingMessage(uint64_t bitfield) : Base(bitfield) {}
 
@@ -5021,8 +4905,6 @@ class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
 
 enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };
 class ToBoolean : public FixedInputValueNodeT<1, ToBoolean> {
-  using Base = FixedInputValueNodeT<1, ToBoolean>;
-
  public:
   explicit ToBoolean(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -5045,8 +4927,6 @@ class ToBoolean : public FixedInputValueNodeT<1, ToBoolean> {
 
 class ToBooleanLogicalNot
     : public FixedInputValueNodeT<1, ToBooleanLogicalNot> {
-  using Base = FixedInputValueNodeT<1, ToBooleanLogicalNot>;
-
  public:
   explicit ToBooleanLogicalNot(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -5072,8 +4952,6 @@ class ToBooleanLogicalNot
 // equal to a String and they're equal to each other if the pointers are equal).
 enum class StringEqualInputMode { kOnlyStrings, kStringsOrOddballs };
 class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
-  using Base = FixedInputValueNodeT<2, StringEqual>;
-
  public:
   explicit StringEqual(uint64_t bitfield, StringEqualInputMode input_mode)
       : Base(bitfield), input_mode_(input_mode) {}
@@ -5100,8 +4978,6 @@ class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
 };
 
 class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
-  using Base = FixedInputValueNodeT<2, TaggedEqual>;
-
  public:
   explicit TaggedEqual(uint64_t bitfield) : Base(bitfield) {}
 
@@ -5123,8 +4999,6 @@ class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
 };
 
 class TaggedNotEqual : public FixedInputValueNodeT<2, TaggedNotEqual> {
-  using Base = FixedInputValueNodeT<2, TaggedNotEqual>;
-
  public:
   explicit TaggedNotEqual(uint64_t bitfield) : Base(bitfield) {}
 
@@ -5146,8 +5020,6 @@ class TaggedNotEqual : public FixedInputValueNodeT<2, TaggedNotEqual> {
 };
 
 class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
-  using Base = FixedInputValueNodeT<3, TestInstanceOf>;
-
  public:
   explicit TestInstanceOf(uint64_t bitfield,
                           const compiler::FeedbackSource& feedback)
@@ -5174,8 +5046,6 @@ class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
 };
 
 class TestUndetectable : public FixedInputValueNodeT<1, TestUndetectable> {
-  using Base = FixedInputValueNodeT<1, TestUndetectable>;
-
  public:
   explicit TestUndetectable(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -5197,8 +5067,6 @@ class TestUndetectable : public FixedInputValueNodeT<1, TestUndetectable> {
 };
 
 class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
-  using Base = FixedInputValueNodeT<1, TestTypeOf>;
-
  public:
   explicit TestTypeOf(uint64_t bitfield,
                       interpreter::TestTypeOfFlags::LiteralFlag literal)
@@ -5223,8 +5091,6 @@ class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
 };
 
 class ToName : public FixedInputValueNodeT<2, ToName> {
-  using Base = FixedInputValueNodeT<2, ToName>;
-
  public:
   explicit ToName(uint64_t bitfield) : Base(bitfield) {}
 
@@ -5244,8 +5110,6 @@ class ToName : public FixedInputValueNodeT<2, ToName> {
 };
 
 class ToNumberOrNumeric : public FixedInputValueNodeT<1, ToNumberOrNumeric> {
-  using Base = FixedInputValueNodeT<1, ToNumberOrNumeric>;
-
  public:
   explicit ToNumberOrNumeric(uint64_t bitfield, Object::Conversion mode)
       : Base(bitfield), mode_(mode) {}
@@ -5275,8 +5139,6 @@ class ToNumberOrNumeric : public FixedInputValueNodeT<1, ToNumberOrNumeric> {
 };
 
 class DeleteProperty : public FixedInputValueNodeT<3, DeleteProperty> {
-  using Base = FixedInputValueNodeT<3, DeleteProperty>;
-
  public:
   explicit DeleteProperty(uint64_t bitfield, LanguageMode mode)
       : Base(bitfield), mode_(mode) {}
@@ -5303,8 +5165,6 @@ class DeleteProperty : public FixedInputValueNodeT<3, DeleteProperty> {
 };
 
 class GeneratorStore : public NodeT<GeneratorStore> {
-  using Base = NodeT<GeneratorStore>;
-
  public:
   // We assume the context as fixed input.
   static constexpr int kContextIndex = 0;
@@ -5358,8 +5218,6 @@ class GeneratorStore : public NodeT<GeneratorStore> {
 };
 
 class TryOnStackReplacement : public FixedInputNodeT<1, TryOnStackReplacement> {
-  using Base = FixedInputNodeT<1, TryOnStackReplacement>;
-
  public:
   explicit TryOnStackReplacement(uint64_t bitfield, int32_t loop_depth,
                                  FeedbackSlot feedback_slot,
@@ -5394,8 +5252,6 @@ class TryOnStackReplacement : public FixedInputNodeT<1, TryOnStackReplacement> {
 };
 
 class ForInPrepare : public FixedInputValueNodeT<2, ForInPrepare> {
-  using Base = FixedInputValueNodeT<2, ForInPrepare>;
-
  public:
   explicit ForInPrepare(uint64_t bitfield, compiler::FeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
@@ -5421,8 +5277,6 @@ class ForInPrepare : public FixedInputValueNodeT<2, ForInPrepare> {
 };
 
 class ForInNext : public FixedInputValueNodeT<5, ForInNext> {
-  using Base = FixedInputValueNodeT<5, ForInNext>;
-
  public:
   explicit ForInNext(uint64_t bitfield, compiler::FeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
@@ -5450,8 +5304,6 @@ class ForInNext : public FixedInputValueNodeT<5, ForInNext> {
 };
 
 class GetIterator : public FixedInputValueNodeT<2, GetIterator> {
-  using Base = FixedInputValueNodeT<2, GetIterator>;
-
  public:
   explicit GetIterator(uint64_t bitfield, int load_slot, int call_slot,
                        compiler::FeedbackVectorRef feedback)
@@ -5483,8 +5335,6 @@ class GetIterator : public FixedInputValueNodeT<2, GetIterator> {
 
 class GetSecondReturnedValue
     : public FixedInputValueNodeT<0, GetSecondReturnedValue> {
-  using Base = FixedInputValueNodeT<0, GetSecondReturnedValue>;
-
  public:
   // TODO(olivf): This is needed because this instruction accesses the raw
   // register content. We should have tuple values instead such that we can
@@ -5497,8 +5347,6 @@ class GetSecondReturnedValue
 };
 
 class ToObject : public FixedInputValueNodeT<2, ToObject> {
-  using Base = FixedInputValueNodeT<2, ToObject>;
-
  public:
   explicit ToObject(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -5523,8 +5371,6 @@ class ToObject : public FixedInputValueNodeT<2, ToObject> {
 };
 
 class ToString : public FixedInputValueNodeT<2, ToString> {
-  using Base = FixedInputValueNodeT<2, ToString>;
-
  public:
   enum ConversionMode { kConvertSymbol, kThrowOnSymbol };
   explicit ToString(uint64_t bitfield, ConversionMode mode)
@@ -5556,8 +5402,6 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
 // the OpProperties::CanCallUserCode().
 #define DECLARE_NUMBER_TO_STRING(Name, Type)                                  \
   class Name##ToString : public FixedInputValueNodeT<1, Name##ToString> {     \
-    using Base = FixedInputValueNodeT<1, Name##ToString>;                     \
-                                                                              \
    public:                                                                    \
     explicit Name##ToString(uint64_t bitfield) : Base(bitfield) {}            \
                                                                               \
@@ -5583,8 +5427,6 @@ DECLARE_NUMBER_TO_STRING(Number, Tagged)
 
 class GeneratorRestoreRegister
     : public FixedInputValueNodeT<2, GeneratorRestoreRegister> {
-  using Base = FixedInputValueNodeT<2, GeneratorRestoreRegister>;
-
  public:
   explicit GeneratorRestoreRegister(uint64_t bitfield, int index)
       : Base(bitfield), index_(index) {}
@@ -5605,8 +5447,6 @@ class GeneratorRestoreRegister
 };
 
 class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
-  using Base = FixedInputValueNodeT<0, InitialValue>;
-
  public:
   explicit InitialValue(uint64_t bitfield, interpreter::Register source);
 
@@ -5629,8 +5469,6 @@ class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
 };
 
 class RegisterInput : public FixedInputValueNodeT<0, RegisterInput> {
-  using Base = FixedInputValueNodeT<0, RegisterInput>;
-
  public:
   explicit RegisterInput(uint64_t bitfield, Register input)
       : Base(bitfield), input_(input) {}
@@ -5648,8 +5486,6 @@ class RegisterInput : public FixedInputValueNodeT<0, RegisterInput> {
 };
 
 class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
-  using Base = FixedInputValueNodeT<0, SmiConstant>;
-
  public:
   using OutputRegister = Register;
 
@@ -5678,8 +5514,6 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
 
 class TaggedIndexConstant
     : public FixedInputValueNodeT<0, TaggedIndexConstant> {
-  using Base = FixedInputValueNodeT<0, TaggedIndexConstant>;
-
  public:
   using OutputRegister = Register;
 
@@ -5704,8 +5538,6 @@ class TaggedIndexConstant
 };
 
 class Constant : public FixedInputValueNodeT<0, Constant> {
-  using Base = FixedInputValueNodeT<0, Constant>;
-
  public:
   using OutputRegister = Register;
 
@@ -5741,8 +5573,6 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
 };
 
 class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
-  using Base = FixedInputValueNodeT<0, RootConstant>;
-
  public:
   using OutputRegister = Register;
 
@@ -5779,8 +5609,6 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
 };
 
 class TrustedConstant : public FixedInputValueNodeT<0, TrustedConstant> {
-  using Base = FixedInputValueNodeT<0, TrustedConstant>;
-
  public:
   using OutputRegister = Register;
 
@@ -5808,8 +5636,6 @@ class TrustedConstant : public FixedInputValueNodeT<0, TrustedConstant> {
 };
 
 class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
-  using Base = FixedInputValueNodeT<0, CreateArrayLiteral>;
-
  public:
   explicit CreateArrayLiteral(uint64_t bitfield,
                               compiler::HeapObjectRef constant_elements,
@@ -5844,8 +5670,6 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
 
 class CreateShallowArrayLiteral
     : public FixedInputValueNodeT<0, CreateShallowArrayLiteral> {
-  using Base = FixedInputValueNodeT<0, CreateShallowArrayLiteral>;
-
  public:
   explicit CreateShallowArrayLiteral(uint64_t bitfield,
                                      compiler::HeapObjectRef constant_elements,
@@ -5878,8 +5702,6 @@ class CreateShallowArrayLiteral
 
 class CreateObjectLiteral
     : public FixedInputValueNodeT<0, CreateObjectLiteral> {
-  using Base = FixedInputValueNodeT<0, CreateObjectLiteral>;
-
  public:
   explicit CreateObjectLiteral(
       uint64_t bitfield,
@@ -5916,8 +5738,6 @@ class CreateObjectLiteral
 
 class CreateShallowObjectLiteral
     : public FixedInputValueNodeT<0, CreateShallowObjectLiteral> {
-  using Base = FixedInputValueNodeT<0, CreateShallowObjectLiteral>;
-
  public:
   explicit CreateShallowObjectLiteral(
       uint64_t bitfield,
@@ -6134,7 +5954,6 @@ struct VirtualHeapObjectShapeBase {
 }  // namespace vobj
 
 struct VirtualHeapObjectShape {
-  using Base = vobj::VirtualHeapObjectShapeBase;
   // Default values, override in subclasses if needed.
   // Body slots are any non-header slots, e.g.:
   // * FixedArray elements.
@@ -6143,15 +5962,13 @@ struct VirtualHeapObjectShape {
   static constexpr vobj::ObjectType kObjectType = vobj::ObjectType::kDefault;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kNone;
 #define FIELD_LIST(V) V(map, HeapObject::kMapOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(vobj::VirtualHeapObjectShapeBase, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 // VirtualObject is a ValueNode only for convenience, it should never be added
 // to the Maglev graph.
 class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
-  using Base = FixedInputValueNodeT<0, VirtualObject>;
-
  public:
   explicit VirtualObject(uint64_t bitfield, uint32_t id,
                          MaglevGraphBuilder* builder,
@@ -6391,73 +6208,65 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 };
 
 struct VirtualJSReceiverShape : VirtualHeapObjectShape {
-  using Base = VirtualHeapObjectShape;
 #define FIELD_LIST(V)                                        \
   V(properties_or_hash, JSReceiver::kPropertiesOrHashOffset, \
     vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualHeapObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualJSObjectShape : VirtualJSReceiverShape {
-  using Base = VirtualJSReceiverShape;
   static constexpr bool kInstancesHaveStaticSize = false;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kTagged;
 #define FIELD_LIST(V) \
   V(elements, JSObject::kElementsOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualJSReceiverShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualJSArrayShape : VirtualJSObjectShape {
-  using Base = VirtualJSObjectShape;
 #define FIELD_LIST(V) \
   V(length, JSArray::kLengthOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualJSArrayIteratorShape : VirtualJSObjectShape {
-  using Base = VirtualJSObjectShape;
   using T = JSArrayIterator;
 #define FIELD_LIST(V)                                                    \
   V(iterated_object, T::kIteratedObjectOffset, vobj::FieldType::kTagged) \
   V(next_index, T::kNextIndexOffset, vobj::FieldType::kTagged)           \
   V(kind, T::kKindOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualJSStringIteratorShape : VirtualJSObjectShape {
-  using Base = VirtualJSObjectShape;
   using T = JSStringIterator;
 #define FIELD_LIST(V)                                   \
   V(string, T::kStringOffset, vobj::FieldType::kTagged) \
   V(index, T::kIndexOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualJSIteratorResultShape : VirtualJSObjectShape {
-  using Base = VirtualJSObjectShape;
   using T = JSIteratorResult;
 #define FIELD_LIST(V)                                 \
   V(value, T::kValueOffset, vobj::FieldType::kTagged) \
   V(index, T::kDoneOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualJSPrimitiveWrapperShape : VirtualJSObjectShape {
-  using Base = VirtualJSObjectShape;
   using T = JSPrimitiveWrapper;
 #define FIELD_LIST(V) V(value, T::kValueOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualJSRegExpShape : VirtualJSObjectShape {
-  using Base = VirtualJSObjectShape;
   using T = JSRegExp;
 #define FIELD_LIST(V)                                         \
   V(data, T::kDataOffset,                                     \
@@ -6465,12 +6274,11 @@ struct VirtualJSRegExpShape : VirtualJSObjectShape {
                            : vobj::FieldType::kTagged)        \
   V(source, T::kSourceOffset, vobj::FieldType::kTagged)       \
   V(flags, T::kFlagsOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualJSGeneratorObjectShape : VirtualJSObjectShape {
-  using Base = VirtualJSObjectShape;
   using T = JSGeneratorObject;
 #define FIELD_LIST(V)                                                        \
   V(function, T::kFunctionOffset, vobj::FieldType::kTagged)                  \
@@ -6481,24 +6289,21 @@ struct VirtualJSGeneratorObjectShape : VirtualJSObjectShape {
   V(continuation, T::kContinuationOffset, vobj::FieldType::kTagged)          \
   V(parameters_and_registers, T::kParametersAndRegistersOffset,              \
     vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualJSAsyncGeneratorObjectShape : VirtualJSGeneratorObjectShape {
-  using Base = VirtualJSGeneratorObjectShape;
   using T = JSAsyncGeneratorObject;
 #define FIELD_LIST(V)                                 \
   V(queue, T::kQueueOffset, vobj::FieldType::kTagged) \
   V(is_awaiting, T::kIsAwaitingOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualJSGeneratorObjectShape, FIELD_LIST);
 #undef FIELD_LIST
   static_assert(kHeaderSize == T::kHeaderSize);
 };
 
 struct VirtualFixedArrayShape : VirtualHeapObjectShape {
-  using Base = VirtualHeapObjectShape;
-
   // The instance size is determined by array length, and array elements are
   // tagged.
   static constexpr bool kInstancesHaveStaticSize = false;
@@ -6507,54 +6312,49 @@ struct VirtualFixedArrayShape : VirtualHeapObjectShape {
 #define FIELD_LIST(V) \
   V(length, FixedArrayBase::kLengthOffset, vobj::FieldType::kTagged)
 
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualHeapObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualSloppyArgumentsElementsShape : VirtualFixedArrayShape {
-  using Base = VirtualFixedArrayShape;
   using T = SloppyArgumentsElements;
   static constexpr bool kInstancesHaveStaticSize = false;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kTagged;
 #define FIELD_LIST(V)                                         \
   V(context, offsetof(T, context_), vobj::FieldType::kTagged) \
   V(arguments, offsetof(T, arguments_), vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualFixedArrayShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualPrimitiveHeapObjectShape : VirtualHeapObjectShape {};
 
 struct VirtualHeapNumberShape : VirtualPrimitiveHeapObjectShape {
-  using Base = VirtualPrimitiveHeapObjectShape;
   using T = HeapNumber;
   // Special handling needed; deopt materialization uses a special path.
   // TODO(jgruber): .. but could it take the standard path instead?
   static constexpr vobj::ObjectType kObjectType = vobj::ObjectType::kHeapNumber;
 #define FIELD_LIST(V) V(value, T::kValueOffset, vobj::FieldType::kFloat64)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualPrimitiveHeapObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualNameShape : VirtualPrimitiveHeapObjectShape {
-  using Base = VirtualPrimitiveHeapObjectShape;
   using T = Name;
 #define FIELD_LIST(V) \
   V(raw_hash_field, offsetof(T, raw_hash_field_), vobj::FieldType::kInt32)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualPrimitiveHeapObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualStringShape : VirtualNameShape {
-  using Base = VirtualNameShape;
   using T = String;
 #define FIELD_LIST(V) V(length, offsetof(T, length_), vobj::FieldType::kInt32)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualNameShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualConsStringShape : VirtualNameShape {
-  using Base = VirtualStringShape;
   using T = ConsString;
   // Special handling needed; the map may be non-constant, and deopt
   // materialization uses a special path.
@@ -6562,17 +6362,16 @@ struct VirtualConsStringShape : VirtualNameShape {
 #define FIELD_LIST(V)                                 \
   V(first, T::kFirstOffset, vobj::FieldType::kTagged) \
   V(second, T::kSecondOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualStringShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
 struct VirtualFixedDoubleArrayShape : VirtualHeapObjectShape {
-  using Base = VirtualHeapObjectShape;
   static constexpr bool kInstancesHaveStaticSize = false;
   static constexpr vobj::FieldType kBodyFieldType = vobj::FieldType::kFloat64;
 #define FIELD_LIST(V) \
   V(length, FixedArrayBase::kLengthOffset, vobj::FieldType::kTagged)
-  DEF_SHAPE(Base, FIELD_LIST);
+  DEF_SHAPE(VirtualHeapObjectShape, FIELD_LIST);
 #undef FIELD_LIST
 };
 
@@ -6685,8 +6484,6 @@ enum class EscapeAnalysisResult {
 };
 
 class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
-  using Base = FixedInputValueNodeT<1, InlinedAllocation>;
-
  public:
   using List = base::ThreadedList<InlinedAllocation>;
 
@@ -6887,8 +6684,6 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
 }
 
 class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
-  using Base = FixedInputValueNodeT<0, AllocationBlock>;
-
  public:
   explicit AllocationBlock(uint64_t bitfield, AllocationType allocation_type)
       : Base(bitfield), allocation_type_(allocation_type) {}
@@ -6931,8 +6726,6 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
 };
 
 class ArgumentsLength : public FixedInputValueNodeT<0, ArgumentsLength> {
-  using Base = FixedInputValueNodeT<0, ArgumentsLength>;
-
  public:
   explicit ArgumentsLength(uint64_t bitfield) : Base(bitfield) {}
 
@@ -6943,8 +6736,6 @@ class ArgumentsLength : public FixedInputValueNodeT<0, ArgumentsLength> {
 };
 
 class RestLength : public FixedInputValueNodeT<0, RestLength> {
-  using Base = FixedInputValueNodeT<0, RestLength>;
-
  public:
   explicit RestLength(uint64_t bitfield, int formal_parameter_count)
       : Base(bitfield), formal_parameter_count_(formal_parameter_count) {}
@@ -6961,8 +6752,6 @@ class RestLength : public FixedInputValueNodeT<0, RestLength> {
 };
 
 class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
-  using Base = FixedInputValueNodeT<1, ArgumentsElements>;
-
  public:
   explicit ArgumentsElements(uint64_t bitfield, CreateArgumentsType type,
                              int formal_parameter_count)
@@ -6995,8 +6784,6 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
 // analysis.
 class AllocateElementsArray
     : public FixedInputValueNodeT<1, AllocateElementsArray> {
-  using Base = FixedInputValueNodeT<1, AllocateElementsArray>;
-
  public:
   explicit AllocateElementsArray(uint64_t bitfield, ElementsKind elements_kind,
                                  AllocationType allocation_type)
@@ -7028,8 +6815,6 @@ class AllocateElementsArray
 
 class CreateFunctionContext
     : public FixedInputValueNodeT<1, CreateFunctionContext> {
-  using Base = FixedInputValueNodeT<1, CreateFunctionContext>;
-
  public:
   explicit CreateFunctionContext(uint64_t bitfield,
                                  compiler::ScopeInfoRef scope_info,
@@ -7066,8 +6851,6 @@ class CreateFunctionContext
 };
 
 class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
-  using Base = FixedInputValueNodeT<1, FastCreateClosure>;
-
  public:
   explicit FastCreateClosure(
       uint64_t bitfield, compiler::SharedFunctionInfoRef shared_function_info,
@@ -7104,8 +6887,6 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
 
 class CreateRegExpLiteral
     : public FixedInputValueNodeT<0, CreateRegExpLiteral> {
-  using Base = FixedInputValueNodeT<0, CreateRegExpLiteral>;
-
  public:
   explicit CreateRegExpLiteral(uint64_t bitfield, compiler::StringRef pattern,
                                const compiler::FeedbackSource& feedback,
@@ -7132,8 +6913,6 @@ class CreateRegExpLiteral
 };
 
 class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
-  using Base = FixedInputValueNodeT<1, CreateClosure>;
-
  public:
   explicit CreateClosure(uint64_t bitfield,
                          compiler::SharedFunctionInfoRef shared_function_info,
@@ -7207,8 +6986,6 @@ inline std::ostream& operator<<(std::ostream& os, const AssertCondition cond) {
 }
 
 class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
-  using Base = FixedInputNodeT<2, AssertInt32>;
-
  public:
   explicit AssertInt32(uint64_t bitfield, AssertCondition condition,
                        AbortReason reason)
@@ -7235,8 +7012,6 @@ class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
 };
 
 class AssertRangeInt32 : public FixedInputNodeT<1, AssertRangeInt32> {
-  using Base = FixedInputNodeT<1, AssertRangeInt32>;
-
  public:
   AssertRangeInt32(uint64_t bitfield, Range range)
       : Base(bitfield), range_(range) {}
@@ -7255,8 +7030,6 @@ class AssertRangeInt32 : public FixedInputNodeT<1, AssertRangeInt32> {
 };
 
 class AssertRangeFloat64 : public FixedInputNodeT<1, AssertRangeFloat64> {
-  using Base = FixedInputNodeT<1, AssertRangeFloat64>;
-
  public:
   AssertRangeFloat64(uint64_t bitfield, Range range)
       : Base(bitfield), range_(range) {}
@@ -7275,8 +7048,6 @@ class AssertRangeFloat64 : public FixedInputNodeT<1, AssertRangeFloat64> {
 };
 
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
-  using Base = FixedInputNodeT<1, CheckMaps>;
-
  public:
   explicit CheckMaps(uint64_t bitfield, const compiler::ZoneRefSet<Map>& maps,
                      CheckType check_type)
@@ -7311,8 +7082,6 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
 
 class CheckMapsWithMigrationAndDeopt
     : public FixedInputNodeT<1, CheckMapsWithMigrationAndDeopt> {
-  using Base = FixedInputNodeT<1, CheckMapsWithMigrationAndDeopt>;
-
  public:
   explicit CheckMapsWithMigrationAndDeopt(uint64_t bitfield,
                                           const compiler::ZoneRefSet<Map>& maps,
@@ -7352,8 +7121,6 @@ class CheckMapsWithMigrationAndDeopt
 
 class CheckMapsWithAlreadyLoadedMap
     : public FixedInputNodeT<2, CheckMapsWithAlreadyLoadedMap> {
-  using Base = FixedInputNodeT<2, CheckMapsWithAlreadyLoadedMap>;
-
  public:
   explicit CheckMapsWithAlreadyLoadedMap(uint64_t bitfield,
                                          const compiler::ZoneRefSet<Map>& maps)
@@ -7383,8 +7150,6 @@ class CheckMapsWithAlreadyLoadedMap
 };
 
 class CheckValue : public FixedInputNodeT<1, CheckValue> {
-  using Base = FixedInputNodeT<1, CheckValue>;
-
  public:
   explicit CheckValue(uint64_t bitfield, const compiler::HeapObjectRef value,
                       DeoptimizeReason reason)
@@ -7418,8 +7183,6 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
 };
 
 class CheckValueEqualsInt32 : public FixedInputNodeT<1, CheckValueEqualsInt32> {
-  using Base = FixedInputNodeT<1, CheckValueEqualsInt32>;
-
  public:
   explicit CheckValueEqualsInt32(uint64_t bitfield, int32_t value,
                                  DeoptimizeReason reason)
@@ -7447,8 +7210,6 @@ class CheckValueEqualsInt32 : public FixedInputNodeT<1, CheckValueEqualsInt32> {
 };
 
 class CheckFloat64SameValue : public FixedInputNodeT<1, CheckFloat64SameValue> {
-  using Base = FixedInputNodeT<1, CheckFloat64SameValue>;
-
  public:
   explicit CheckFloat64SameValue(uint64_t bitfield, Float64 value,
                                  DeoptimizeReason reason)
@@ -7477,8 +7238,6 @@ class CheckFloat64SameValue : public FixedInputNodeT<1, CheckFloat64SameValue> {
 
 class CheckValueEqualsString
     : public FixedInputNodeT<1, CheckValueEqualsString> {
-  using Base = FixedInputNodeT<1, CheckValueEqualsString>;
-
  public:
   explicit CheckValueEqualsString(uint64_t bitfield,
                                   compiler::InternalizedStringRef value,
@@ -7511,8 +7270,6 @@ class CheckValueEqualsString
 };
 
 class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {
-  using Base = FixedInputNodeT<2, CheckDynamicValue>;
-
  public:
   explicit CheckDynamicValue(uint64_t bitfield, DeoptimizeReason reason)
       : Base(bitfield | ReasonField::encode(reason)) {}
@@ -7542,8 +7299,6 @@ class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {
 };
 
 class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
-  using Base = FixedInputNodeT<1, CheckSmi>;
-
  public:
   explicit CheckSmi(uint64_t bitfield) : Base(bitfield) {}
 
@@ -7567,8 +7322,6 @@ class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
 };
 
 class CheckNumber : public FixedInputNodeT<1, CheckNumber> {
-  using Base = FixedInputNodeT<1, CheckNumber>;
-
  public:
   explicit CheckNumber(uint64_t bitfield, Object::Conversion mode)
       : Base(bitfield), mode_(mode) {}
@@ -7591,8 +7344,6 @@ class CheckNumber : public FixedInputNodeT<1, CheckNumber> {
 };
 
 class CheckHeapObject : public FixedInputNodeT<1, CheckHeapObject> {
-  using Base = FixedInputNodeT<1, CheckHeapObject>;
-
  public:
   explicit CheckHeapObject(uint64_t bitfield) : Base(bitfield) {}
 
@@ -7614,8 +7365,6 @@ class CheckHeapObject : public FixedInputNodeT<1, CheckHeapObject> {
 };
 
 class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
-  using Base = FixedInputNodeT<1, CheckSymbol>;
-
  public:
   explicit CheckSymbol(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -7638,8 +7387,6 @@ class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
 };
 
 class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
-  using Base = FixedInputNodeT<1, CheckInstanceType>;
-
  public:
   explicit CheckInstanceType(uint64_t bitfield, CheckType check_type,
                              const InstanceType first_instance_type,
@@ -7677,8 +7424,6 @@ class CheckInstanceType : public FixedInputNodeT<1, CheckInstanceType> {
 };
 
 class CheckString : public FixedInputNodeT<1, CheckString> {
-  using Base = FixedInputNodeT<1, CheckString>;
-
  public:
   explicit CheckString(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -7701,8 +7446,6 @@ class CheckString : public FixedInputNodeT<1, CheckString> {
 };
 
 class CheckSeqOneByteString : public FixedInputNodeT<1, CheckSeqOneByteString> {
-  using Base = FixedInputNodeT<1, CheckSeqOneByteString>;
-
  public:
   explicit CheckSeqOneByteString(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -7726,8 +7469,6 @@ class CheckSeqOneByteString : public FixedInputNodeT<1, CheckSeqOneByteString> {
 
 class CheckStringOrStringWrapper
     : public FixedInputNodeT<1, CheckStringOrStringWrapper> {
-  using Base = FixedInputNodeT<1, CheckStringOrStringWrapper>;
-
  public:
   explicit CheckStringOrStringWrapper(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -7750,8 +7491,6 @@ class CheckStringOrStringWrapper
 };
 
 class CheckStringOrOddball : public FixedInputNodeT<1, CheckStringOrOddball> {
-  using Base = FixedInputNodeT<1, CheckStringOrOddball>;
-
  public:
   explicit CheckStringOrOddball(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -7775,8 +7514,6 @@ class CheckStringOrOddball : public FixedInputNodeT<1, CheckStringOrOddball> {
 
 class CheckDetectableCallable
     : public FixedInputNodeT<1, CheckDetectableCallable> {
-  using Base = FixedInputNodeT<1, CheckDetectableCallable>;
-
  public:
   explicit CheckDetectableCallable(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -7801,8 +7538,6 @@ class CheckDetectableCallable
 
 class CheckMapsWithMigration
     : public FixedInputNodeT<1, CheckMapsWithMigration> {
-  using Base = FixedInputNodeT<1, CheckMapsWithMigration>;
-
  public:
   explicit CheckMapsWithMigration(uint64_t bitfield,
                                   const compiler::ZoneRefSet<Map>& maps,
@@ -7833,8 +7568,6 @@ class CheckMapsWithMigration
 };
 
 class MigrateMapIfNeeded : public FixedInputValueNodeT<2, MigrateMapIfNeeded> {
-  using Base = FixedInputValueNodeT<2, MigrateMapIfNeeded>;
-
  public:
   explicit MigrateMapIfNeeded(uint64_t bitfield) : Base(bitfield) {}
 
@@ -7859,8 +7592,6 @@ class MigrateMapIfNeeded : public FixedInputValueNodeT<2, MigrateMapIfNeeded> {
 
 class CheckCacheIndicesNotCleared
     : public FixedInputNodeT<2, CheckCacheIndicesNotCleared> {
-  using Base = FixedInputNodeT<2, CheckCacheIndicesNotCleared>;
-
  public:
   explicit CheckCacheIndicesNotCleared(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties =
@@ -7878,8 +7609,6 @@ class CheckCacheIndicesNotCleared
 };
 
 class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
-  using Base = FixedInputNodeT<2, CheckJSDataViewBounds>;
-
  public:
   explicit CheckJSDataViewBounds(uint64_t bitfield,
                                  ExternalArrayType element_type)
@@ -7908,8 +7637,6 @@ class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
 
 class LoadTypedArrayLength
     : public FixedInputValueNodeT<1, LoadTypedArrayLength> {
-  using Base = FixedInputValueNodeT<1, LoadTypedArrayLength>;
-
  public:
   explicit LoadTypedArrayLength(uint64_t bitfield, ElementsKind elements_kind)
       : Base(bitfield), elements_kind_(elements_kind) {}
@@ -7934,8 +7661,6 @@ class LoadTypedArrayLength
 
 class LoadDataViewByteLength
     : public FixedInputValueNodeT<1, LoadDataViewByteLength> {
-  using Base = FixedInputValueNodeT<1, LoadDataViewByteLength>;
-
  public:
   explicit LoadDataViewByteLength(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties =
@@ -7954,8 +7679,6 @@ class LoadDataViewByteLength
 
 class LoadDataViewDataPointer
     : public FixedInputValueNodeT<1, LoadDataViewDataPointer> {
-  using Base = FixedInputValueNodeT<1, LoadDataViewDataPointer>;
-
  public:
   explicit LoadDataViewDataPointer(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties =
@@ -7974,8 +7697,6 @@ class LoadDataViewDataPointer
 
 class CheckTypedArrayNotDetached
     : public FixedInputNodeT<1, CheckTypedArrayNotDetached> {
-  using Base = FixedInputNodeT<1, CheckTypedArrayNotDetached>;
-
  public:
   explicit CheckTypedArrayNotDetached(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties =
@@ -7991,8 +7712,6 @@ class CheckTypedArrayNotDetached
 };
 
 class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
-  using Base = FixedInputNodeT<2, CheckTypedArrayBounds>;
-
  public:
   explicit CheckTypedArrayBounds(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
@@ -8009,8 +7728,6 @@ class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
 };
 
 class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
-  using Base = FixedInputNodeT<2, CheckInt32Condition>;
-
  public:
   explicit CheckInt32Condition(uint64_t bitfield, AssertCondition condition,
                                DeoptimizeReason reason)
@@ -8046,8 +7763,6 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
 };
 
 class Throw : public FixedInputNodeT<1, Throw> {
-  using Base = FixedInputNodeT<1, Throw>;
-
  public:
   // Throw does not do a deferred call, but we mark as such because we often
   // overwrite ThrowXXXIfYYY to Throw.
@@ -8125,8 +7840,6 @@ class Throw : public FixedInputNodeT<1, Throw> {
 };
 
 class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
-  using Base = FixedInputNodeT<0, DebugBreak>;
-
  public:
   explicit DebugBreak(uint64_t bitfield) : Base(bitfield) {}
 
@@ -8137,8 +7850,6 @@ class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
 };
 
 class Dead : public NodeT<Dead> {
-  using Base = NodeT<Dead>;
-
  public:
   static constexpr OpProperties kProperties =
       OpProperties::ForValueRepresentation(ValueRepresentation::kNone);
@@ -8154,8 +7865,6 @@ class Dead : public NodeT<Dead> {
 
 class FunctionEntryStackCheck
     : public FixedInputNodeT<0, FunctionEntryStackCheck> {
-  using Base = FixedInputNodeT<0, FunctionEntryStackCheck>;
-
  public:
   explicit FunctionEntryStackCheck(uint64_t bitfield) : Base(bitfield) {}
 
@@ -8174,8 +7883,6 @@ class FunctionEntryStackCheck
 
 class CheckedInternalizedString
     : public FixedInputValueNodeT<1, CheckedInternalizedString> {
-  using Base = FixedInputValueNodeT<1, CheckedInternalizedString>;
-
  public:
   explicit CheckedInternalizedString(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {
@@ -8204,8 +7911,6 @@ class CheckedInternalizedString
 
 class CheckedObjectToIndex
     : public FixedInputValueNodeT<1, CheckedObjectToIndex> {
-  using Base = FixedInputValueNodeT<1, CheckedObjectToIndex>;
-
  public:
   explicit CheckedObjectToIndex(uint64_t bitfield, CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)) {}
@@ -8231,8 +7936,6 @@ class CheckedObjectToIndex
 };
 
 class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
-  using Base = FixedInputValueNodeT<1, GetTemplateObject>;
-
  public:
   explicit GetTemplateObject(
       uint64_t bitfield, compiler::SharedFunctionInfoRef shared_function_info,
@@ -8265,8 +7968,6 @@ class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
 
 class HasInPrototypeChain
     : public FixedInputValueNodeT<1, HasInPrototypeChain> {
-  using Base = FixedInputValueNodeT<1, HasInPrototypeChain>;
-
  public:
   explicit HasInPrototypeChain(uint64_t bitfield,
                                compiler::HeapObjectRef prototype)
@@ -8294,8 +7995,6 @@ class HasInPrototypeChain
 
 class BuiltinStringFromCharCode
     : public FixedInputValueNodeT<1, BuiltinStringFromCharCode> {
-  using Base = FixedInputValueNodeT<1, BuiltinStringFromCharCode>;
-
  public:
   explicit BuiltinStringFromCharCode(uint64_t bitfield) : Base(bitfield) {}
 
@@ -8316,9 +8015,6 @@ class BuiltinStringFromCharCode
 class BuiltinStringPrototypeCharCodeOrCodePointAt
     : public FixedInputValueNodeT<2,
                                   BuiltinStringPrototypeCharCodeOrCodePointAt> {
-  using Base =
-      FixedInputValueNodeT<2, BuiltinStringPrototypeCharCodeOrCodePointAt>;
-
  public:
   enum Mode {
     kCharCodeAt,
@@ -8357,8 +8053,6 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
 
 class BuiltinSeqOneByteStringCharCodeAt
     : public FixedInputValueNodeT<2, BuiltinSeqOneByteStringCharCodeAt> {
-  using Base = FixedInputValueNodeT<2, BuiltinSeqOneByteStringCharCodeAt>;
-
  public:
   explicit BuiltinSeqOneByteStringCharCodeAt(uint64_t bitfield)
       : Base(bitfield) {}
@@ -8380,8 +8074,6 @@ class BuiltinSeqOneByteStringCharCodeAt
 };
 
 class MapPrototypeGet : public FixedInputValueNodeT<2, MapPrototypeGet> {
-  using Base = FixedInputValueNodeT<2, MapPrototypeGet>;
-
  public:
   explicit MapPrototypeGet(uint64_t bitfield) : Base(bitfield) {}
 
@@ -8405,8 +8097,6 @@ class MapPrototypeGet : public FixedInputValueNodeT<2, MapPrototypeGet> {
 
 class MapPrototypeGetInt32Key
     : public FixedInputValueNodeT<2, MapPrototypeGetInt32Key> {
-  using Base = FixedInputValueNodeT<2, MapPrototypeGetInt32Key>;
-
  public:
   explicit MapPrototypeGetInt32Key(uint64_t bitfield) : Base(bitfield) {}
 
@@ -8424,8 +8114,6 @@ class MapPrototypeGetInt32Key
 };
 
 class SetPrototypeHas : public FixedInputValueNodeT<2, SetPrototypeHas> {
-  using Base = FixedInputValueNodeT<2, SetPrototypeHas>;
-
  public:
   explicit SetPrototypeHas(uint64_t bitfield) : Base(bitfield) {}
 
@@ -8453,8 +8141,6 @@ class SetPrototypeHas : public FixedInputValueNodeT<2, SetPrototypeHas> {
 
 class CreateFastArrayElements
     : public FixedInputValueNodeT<1, CreateFastArrayElements> {
-  using Base = FixedInputValueNodeT<1, CreateFastArrayElements>;
-
  public:
   explicit CreateFastArrayElements(uint64_t bitfield,
                                    AllocationType allocation_type)
@@ -8478,8 +8164,6 @@ class CreateFastArrayElements
 };
 
 class NewConsString : public FixedInputValueNodeT<3, NewConsString> {
-  using Base = FixedInputValueNodeT<3, NewConsString>;
-
  public:
   explicit NewConsString(uint64_t bitfield) : Base(bitfield) {}
 
@@ -8501,8 +8185,6 @@ class NewConsString : public FixedInputValueNodeT<3, NewConsString> {
 
 class TransitionAndStoreArrayElement
     : public FixedInputValueNodeT<3, TransitionAndStoreArrayElement> {
-  using Base = FixedInputValueNodeT<3, TransitionAndStoreArrayElement>;
-
  public:
   explicit TransitionAndStoreArrayElement(uint64_t bitfield,
                                           const compiler::MapRef& fast_map,
@@ -8839,8 +8521,6 @@ inline std::ostream& operator<<(std::ostream& os, PropertyKey key) {
 }
 
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
-  using Base = FixedInputValueNodeT<1, LoadTaggedField>;
-
  public:
   explicit LoadTaggedField(uint64_t bitfield, const int offset, LoadType type,
                            bool is_const, PropertyKey property_key)
@@ -8860,7 +8540,6 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
 
   NodeType type() const { return NodeTypeFromLoadType(load_type()); }
 
-  using Base::input;
   static constexpr int kObjectIndex = 0;
   Input object_input() { return input(kObjectIndex); }
 
@@ -8872,8 +8551,6 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
     return std::tuple{offset(), load_type(), is_const(), property_key()};
   }
 
-  using Base::decompresses_tagged_result;
-
  private:
   const int offset_;
   PropertyKey property_key_;
@@ -8883,8 +8560,6 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
 
 class LoadContextSlotNoCells
     : public FixedInputValueNodeT<1, LoadContextSlotNoCells> {
-  using Base = FixedInputValueNodeT<1, LoadContextSlotNoCells>;
-
  public:
   explicit LoadContextSlotNoCells(uint64_t bitfield, const int offset,
                                   bool is_const)
@@ -8898,7 +8573,6 @@ class LoadContextSlotNoCells
   int offset() const { return offset_; }
   bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
 
-  using Base::input;
   static constexpr int kObjectIndex = 0;
   Input object_input() { return input(kObjectIndex); }
 
@@ -8908,16 +8582,12 @@ class LoadContextSlotNoCells
 
   auto options() const { return std::tuple{offset(), is_const()}; }
 
-  using Base::decompresses_tagged_result;
-
  private:
   const int offset_;
   using IsConstantLoadField = NextBitField<bool, 1>;
 };
 
 class LoadContextSlot : public FixedInputValueNodeT<1, LoadContextSlot> {
-  using Base = FixedInputValueNodeT<1, LoadContextSlot>;
-
  public:
   explicit LoadContextSlot(uint64_t bitfield, const int offset, bool is_const)
       : Base(bitfield | IsConstantLoadField::encode(is_const)),
@@ -8932,7 +8602,6 @@ class LoadContextSlot : public FixedInputValueNodeT<1, LoadContextSlot> {
   int offset() const { return offset_; }
   bool is_const() const { return IsConstantLoadField::decode(bitfield()); }
 
-  using Base::input;
   static constexpr int kContextIndex = 0;
   Input context() { return input(kContextIndex); }
 
@@ -8943,16 +8612,12 @@ class LoadContextSlot : public FixedInputValueNodeT<1, LoadContextSlot> {
 
   auto options() const { return std::tuple{offset(), is_const()}; }
 
-  using Base::decompresses_tagged_result;
-
  private:
   const int offset_;
   using IsConstantLoadField = NextBitField<bool, 1>;
 };
 
 class LoadFloat64 : public FixedInputValueNodeT<1, LoadFloat64> {
-  using Base = FixedInputValueNodeT<1, LoadFloat64>;
-
  public:
   explicit LoadFloat64(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
@@ -8978,8 +8643,6 @@ class LoadFloat64 : public FixedInputValueNodeT<1, LoadFloat64> {
 };
 
 class LoadInt32 : public FixedInputValueNodeT<1, LoadInt32> {
-  using Base = FixedInputValueNodeT<1, LoadInt32>;
-
  public:
   explicit LoadInt32(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
@@ -9006,8 +8669,6 @@ class LoadInt32 : public FixedInputValueNodeT<1, LoadInt32> {
 
 class LoadTaggedFieldByFieldIndex
     : public FixedInputValueNodeT<2, LoadTaggedFieldByFieldIndex> {
-  using Base = FixedInputValueNodeT<2, LoadTaggedFieldByFieldIndex>;
-
  public:
   explicit LoadTaggedFieldByFieldIndex(uint64_t bitfield) : Base(bitfield) {}
 
@@ -9036,8 +8697,6 @@ class LoadTaggedFieldByFieldIndex
 
 class LoadFixedArrayElement
     : public FixedInputValueNodeT<2, LoadFixedArrayElement> {
-  using Base = FixedInputValueNodeT<2, LoadFixedArrayElement>;
-
  public:
   explicit LoadFixedArrayElement(uint64_t bitfield,
                                  LoadType type = LoadType::kUnknown)
@@ -9067,8 +8726,6 @@ class LoadFixedArrayElement
 
 class EnsureWritableFastElements
     : public FixedInputValueNodeT<2, EnsureWritableFastElements> {
-  using Base = FixedInputValueNodeT<2, EnsureWritableFastElements>;
-
  public:
   explicit EnsureWritableFastElements(uint64_t bitfield) : Base(bitfield) {}
 
@@ -9090,8 +8747,6 @@ class EnsureWritableFastElements
 
 class ExtendPropertiesBackingStore
     : public FixedInputValueNodeT<2, ExtendPropertiesBackingStore> {
-  using Base = FixedInputValueNodeT<2, ExtendPropertiesBackingStore>;
-
  public:
   explicit ExtendPropertiesBackingStore(uint64_t bitfield,
                                         const compiler::MapRef& old_map,
@@ -9126,8 +8781,6 @@ class ExtendPropertiesBackingStore
 
 class MaybeGrowFastElements
     : public FixedInputValueNodeT<4, MaybeGrowFastElements> {
-  using Base = FixedInputValueNodeT<4, MaybeGrowFastElements>;
-
  public:
   explicit MaybeGrowFastElements(uint64_t bitfield, ElementsKind elements_kind)
       : Base(bitfield), elements_kind_(elements_kind) {}
@@ -9162,8 +8815,6 @@ class MaybeGrowFastElements
 
 class StoreFixedArrayElementWithWriteBarrier
     : public FixedInputNodeT<3, StoreFixedArrayElementWithWriteBarrier> {
-  using Base = FixedInputNodeT<3, StoreFixedArrayElementWithWriteBarrier>;
-
  public:
   explicit StoreFixedArrayElementWithWriteBarrier(uint64_t bitfield)
       : Base(bitfield) {}
@@ -9194,8 +8845,6 @@ class StoreFixedArrayElementWithWriteBarrier
 // enough space for the register snapshot.
 class StoreFixedArrayElementNoWriteBarrier
     : public FixedInputNodeT<3, StoreFixedArrayElementNoWriteBarrier> {
-  using Base = FixedInputNodeT<3, StoreFixedArrayElementNoWriteBarrier>;
-
  public:
   explicit StoreFixedArrayElementNoWriteBarrier(uint64_t bitfield)
       : Base(bitfield) {}
@@ -9223,8 +8872,6 @@ class StoreFixedArrayElementNoWriteBarrier
 
 class LoadFixedDoubleArrayElement
     : public FixedInputValueNodeT<2, LoadFixedDoubleArrayElement> {
-  using Base = FixedInputValueNodeT<2, LoadFixedDoubleArrayElement>;
-
  public:
   explicit LoadFixedDoubleArrayElement(uint64_t bitfield) : Base(bitfield) {}
 
@@ -9244,8 +8891,6 @@ class LoadFixedDoubleArrayElement
 
 class LoadHoleyFixedDoubleArrayElement
     : public FixedInputValueNodeT<2, LoadHoleyFixedDoubleArrayElement> {
-  using Base = FixedInputValueNodeT<2, LoadHoleyFixedDoubleArrayElement>;
-
  public:
   explicit LoadHoleyFixedDoubleArrayElement(uint64_t bitfield)
       : Base(bitfield) {}
@@ -9267,9 +8912,6 @@ class LoadHoleyFixedDoubleArrayElement
 class LoadHoleyFixedDoubleArrayElementCheckedNotHole
     : public FixedInputValueNodeT<
           2, LoadHoleyFixedDoubleArrayElementCheckedNotHole> {
-  using Base =
-      FixedInputValueNodeT<2, LoadHoleyFixedDoubleArrayElementCheckedNotHole>;
-
  public:
   explicit LoadHoleyFixedDoubleArrayElementCheckedNotHole(uint64_t bitfield)
       : Base(bitfield) {}
@@ -9293,9 +8935,6 @@ class LoadHoleyFixedDoubleArrayElementCheckedNotHole
 class LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole
     : public FixedInputValueNodeT<
           2, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole> {
-  using Base = FixedInputValueNodeT<
-      2, LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole>;
-
  public:
   explicit LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole(
       uint64_t bitfield)
@@ -9319,10 +8958,12 @@ class LoadHoleyFixedDoubleArrayElementCheckedNotUndefinedOrHole
 
 template <typename Derived, ValueRepresentation value_input_rep>
 class StoreFixedDoubleArrayElementT : public FixedInputNodeT<3, Derived> {
-  using Base = FixedInputNodeT<3, Derived>;
-
  public:
-  explicit StoreFixedDoubleArrayElementT(uint64_t bitfield) : Base(bitfield) {}
+  // Enable concise base access in derived nodes.
+  using Base = StoreFixedDoubleArrayElementT;
+
+  explicit StoreFixedDoubleArrayElementT(uint64_t bitfield)
+      : FixedInputNodeT<3, Derived>(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
@@ -9344,25 +8985,19 @@ class StoreFixedDoubleArrayElement
     : public StoreFixedDoubleArrayElementT<StoreFixedDoubleArrayElement,
                                            ValueRepresentation::kFloat64> {
  public:
-  using Base = StoreFixedDoubleArrayElementT<StoreFixedDoubleArrayElement,
-                                             ValueRepresentation::kFloat64>;
-  using Base::Base;
+  explicit StoreFixedDoubleArrayElement(uint64_t bitfield) : Base(bitfield) {}
 };
 
 class StoreFixedHoleyDoubleArrayElement
     : public StoreFixedDoubleArrayElementT<StoreFixedHoleyDoubleArrayElement,
                                            ValueRepresentation::kHoleyFloat64> {
  public:
-  using Base =
-      StoreFixedDoubleArrayElementT<StoreFixedHoleyDoubleArrayElement,
-                                    ValueRepresentation::kHoleyFloat64>;
-  using Base::Base;
+  explicit StoreFixedHoleyDoubleArrayElement(uint64_t bitfield)
+      : Base(bitfield) {}
 };
 
 class LoadSignedIntDataViewElement
     : public FixedInputValueNodeT<4, LoadSignedIntDataViewElement> {
-  using Base = FixedInputValueNodeT<4, LoadSignedIntDataViewElement>;
-
  public:
   explicit LoadSignedIntDataViewElement(uint64_t bitfield,
                                         ExternalArrayType type)
@@ -9404,10 +9039,6 @@ class LoadSignedIntDataViewElement
 
 class LoadDoubleDataViewElement
     : public FixedInputValueNodeT<4, LoadDoubleDataViewElement> {
-  using Base = FixedInputValueNodeT<4, LoadDoubleDataViewElement>;
-  static constexpr ExternalArrayType type_ =
-      ExternalArrayType::kExternalFloat64Array;
-
  public:
   explicit LoadDoubleDataViewElement(uint64_t bitfield, ExternalArrayType type)
       : Base(bitfield) {
@@ -9437,12 +9068,14 @@ class LoadDoubleDataViewElement
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 
   auto options() const { return std::tuple{type_}; }
+
+ private:
+  static constexpr ExternalArrayType type_ =
+      ExternalArrayType::kExternalFloat64Array;
 };
 
 #define LOAD_TYPED_ARRAY(name, properties, ...)                        \
   class name : public FixedInputValueNodeT<2, name> {                  \
-    using Base = FixedInputValueNodeT<2, name>;                        \
-                                                                       \
    public:                                                             \
     explicit name(uint64_t bitfield, ElementsKind elements_kind)       \
         : Base(bitfield), elements_kind_(elements_kind) {              \
@@ -9486,8 +9119,6 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
 
 #define LOAD_CONSTANT_TYPED_ARRAY(name, properties, ...)                      \
   class name : public FixedInputValueNodeT<1, name> {                         \
-    using Base = FixedInputValueNodeT<1, name>;                               \
-                                                                              \
    public:                                                                    \
     explicit name(uint64_t bitfield, compiler::JSTypedArrayRef typed_array,   \
                   ElementsKind elements_kind)                                 \
@@ -9537,8 +9168,6 @@ LOAD_CONSTANT_TYPED_ARRAY(LoadDoubleConstantTypedArrayElement,
 
 #define STORE_TYPED_ARRAY(name, properties, type, ...)                    \
   class name : public FixedInputNodeT<3, name> {                          \
-    using Base = FixedInputNodeT<3, name>;                                \
-                                                                          \
    public:                                                                \
     explicit name(uint64_t bitfield, ElementsKind elements_kind)          \
         : Base(bitfield), elements_kind_(elements_kind) {                 \
@@ -9578,8 +9207,6 @@ STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, OpProperties::CanWrite(),
 
 #define STORE_CONSTANT_TYPED_ARRAY(name, properties, type, ...)             \
   class name : public FixedInputNodeT<2, name> {                            \
-    using Base = FixedInputNodeT<2, name>;                                  \
-                                                                            \
    public:                                                                  \
     explicit name(uint64_t bitfield, compiler::JSTypedArrayRef typed_array, \
                   ElementsKind elements_kind)                               \
@@ -9625,8 +9252,6 @@ STORE_CONSTANT_TYPED_ARRAY(StoreDoubleConstantTypedArrayElement,
 
 class StoreSignedIntDataViewElement
     : public FixedInputNodeT<5, StoreSignedIntDataViewElement> {
-  using Base = FixedInputNodeT<5, StoreSignedIntDataViewElement>;
-
  public:
   explicit StoreSignedIntDataViewElement(uint64_t bitfield,
                                          ExternalArrayType type)
@@ -9668,8 +9293,6 @@ class StoreSignedIntDataViewElement
 
 class StoreDoubleDataViewElement
     : public FixedInputNodeT<5, StoreDoubleDataViewElement> {
-  using Base = FixedInputNodeT<5, StoreDoubleDataViewElement>;
-
  public:
   explicit StoreDoubleDataViewElement(uint64_t bitfield, ExternalArrayType type)
       : Base(bitfield) {
@@ -9702,8 +9325,6 @@ class StoreDoubleDataViewElement
 };
 
 class StoreInt32 : public FixedInputNodeT<2, StoreInt32> {
-  using Base = FixedInputNodeT<2, StoreInt32>;
-
  public:
   explicit StoreInt32(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
@@ -9728,8 +9349,6 @@ class StoreInt32 : public FixedInputNodeT<2, StoreInt32> {
 };
 
 class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
-  using Base = FixedInputNodeT<2, StoreFloat64>;
-
  public:
   explicit StoreFloat64(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
@@ -9769,8 +9388,6 @@ inline bool IsDefaultStoreToContext(StoreTaggedMode mode) {
 
 class StoreTaggedFieldNoWriteBarrier
     : public FixedInputNodeT<2, StoreTaggedFieldNoWriteBarrier> {
-  using Base = FixedInputNodeT<2, StoreTaggedFieldNoWriteBarrier>;
-
  public:
   explicit StoreTaggedFieldNoWriteBarrier(
       uint64_t bitfield, int offset, StoreTaggedMode store_mode,
@@ -9835,8 +9452,6 @@ class StoreTaggedFieldNoWriteBarrier
 };
 
 class StoreMap : public FixedInputNodeT<1, StoreMap> {
-  using Base = FixedInputNodeT<1, StoreMap>;
-
  public:
   enum class Kind {
     kInitializing,
@@ -9870,8 +9485,6 @@ std::ostream& operator<<(std::ostream& os, StoreMap::Kind);
 
 class StoreTaggedFieldWithWriteBarrier
     : public FixedInputNodeT<2, StoreTaggedFieldWithWriteBarrier> {
-  using Base = FixedInputNodeT<2, StoreTaggedFieldWithWriteBarrier>;
-
  public:
   explicit StoreTaggedFieldWithWriteBarrier(uint64_t bitfield, int offset,
                                             StoreTaggedMode store_mode,
@@ -9935,8 +9548,6 @@ class StoreTaggedFieldWithWriteBarrier
 };
 
 class StoreSmiContextCell : public FixedInputNodeT<2, StoreSmiContextCell> {
-  using Base = FixedInputNodeT<2, StoreSmiContextCell>;
-
  public:
   explicit StoreSmiContextCell(uint64_t bitfield, compiler::ContextRef context,
                                int slot_offset)
@@ -9979,8 +9590,6 @@ class StoreSmiContextCell : public FixedInputNodeT<2, StoreSmiContextCell> {
 };
 
 class StoreInt32ContextCell : public FixedInputNodeT<2, StoreInt32ContextCell> {
-  using Base = FixedInputNodeT<2, StoreInt32ContextCell>;
-
  public:
   explicit StoreInt32ContextCell(uint64_t bitfield,
                                  compiler::ContextRef context,
@@ -10013,8 +9622,6 @@ class StoreInt32ContextCell : public FixedInputNodeT<2, StoreInt32ContextCell> {
 
 class StoreFloat64ContextCell
     : public FixedInputNodeT<2, StoreFloat64ContextCell> {
-  using Base = FixedInputNodeT<2, StoreFloat64ContextCell>;
-
  public:
   explicit StoreFloat64ContextCell(uint64_t bitfield,
                                    compiler::ContextRef context,
@@ -10047,8 +9654,6 @@ class StoreFloat64ContextCell
 
 class StoreContextSlotWithWriteBarrier
     : public FixedInputNodeT<2, StoreContextSlotWithWriteBarrier> {
-  using Base = FixedInputNodeT<2, StoreContextSlotWithWriteBarrier>;
-
  public:
   explicit StoreContextSlotWithWriteBarrier(uint64_t bitfield, int index)
       : Base(bitfield), index_(index) {}
@@ -10085,8 +9690,6 @@ class StoreContextSlotWithWriteBarrier
 
 class StoreTrustedPointerFieldWithWriteBarrier
     : public FixedInputNodeT<2, StoreTrustedPointerFieldWithWriteBarrier> {
-  using Base = FixedInputNodeT<2, StoreTrustedPointerFieldWithWriteBarrier>;
-
  public:
   explicit StoreTrustedPointerFieldWithWriteBarrier(uint64_t bitfield,
                                                     int offset,
@@ -10133,8 +9736,6 @@ class StoreTrustedPointerFieldWithWriteBarrier
 };
 
 class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
-  using Base = FixedInputValueNodeT<1, LoadGlobal>;
-
  public:
   explicit LoadGlobal(uint64_t bitfield, compiler::NameRef name,
                       const compiler::FeedbackSource& feedback,
@@ -10167,8 +9768,6 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
 };
 
 class StoreGlobal : public FixedInputValueNodeT<2, StoreGlobal> {
-  using Base = FixedInputValueNodeT<2, StoreGlobal>;
-
  public:
   explicit StoreGlobal(uint64_t bitfield, compiler::NameRef name,
                        const compiler::FeedbackSource& feedback)
@@ -10197,8 +9796,6 @@ class StoreGlobal : public FixedInputValueNodeT<2, StoreGlobal> {
 
 class UpdateJSArrayLength
     : public FixedInputValueNodeT<3, UpdateJSArrayLength> {
-  using Base = FixedInputValueNodeT<3, UpdateJSArrayLength>;
-
  public:
   explicit UpdateJSArrayLength(uint64_t bitfield) : Base(bitfield) {}
 
@@ -10223,8 +9820,6 @@ class UpdateJSArrayLength
 };
 
 class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
-  using Base = FixedInputValueNodeT<2, LoadNamedGeneric>;
-
  public:
   explicit LoadNamedGeneric(uint64_t bitfield, compiler::NameRef name,
                             const compiler::FeedbackSource& feedback)
@@ -10255,8 +9850,6 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
 
 class LoadNamedFromSuperGeneric
     : public FixedInputValueNodeT<3, LoadNamedFromSuperGeneric> {
-  using Base = FixedInputValueNodeT<3, LoadNamedFromSuperGeneric>;
-
  public:
   explicit LoadNamedFromSuperGeneric(uint64_t bitfield, compiler::NameRef name,
                                      const compiler::FeedbackSource& feedback)
@@ -10289,8 +9882,6 @@ class LoadNamedFromSuperGeneric
 };
 
 class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
-  using Base = FixedInputValueNodeT<3, SetNamedGeneric>;
-
  public:
   explicit SetNamedGeneric(uint64_t bitfield, compiler::NameRef name,
                            const compiler::FeedbackSource& feedback)
@@ -10324,8 +9915,6 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
 
 class LoadEnumCacheLength
     : public FixedInputValueNodeT<1, LoadEnumCacheLength> {
-  using Base = FixedInputValueNodeT<1, LoadEnumCacheLength>;
-
  public:
   explicit LoadEnumCacheLength(uint64_t bitfield) : Base(bitfield) {}
 
@@ -10342,8 +9931,6 @@ class LoadEnumCacheLength
 };
 
 class StringAt : public FixedInputValueNodeT<2, StringAt> {
-  using Base = FixedInputValueNodeT<2, StringAt>;
-
  public:
   explicit StringAt(uint64_t bitfield) : Base(bitfield) {}
 
@@ -10366,8 +9953,6 @@ class StringAt : public FixedInputValueNodeT<2, StringAt> {
 };
 
 class SeqOneByteStringAt : public FixedInputValueNodeT<2, SeqOneByteStringAt> {
-  using Base = FixedInputValueNodeT<2, SeqOneByteStringAt>;
-
  public:
   explicit SeqOneByteStringAt(uint64_t bitfield) : Base(bitfield) {}
 
@@ -10387,8 +9972,6 @@ class SeqOneByteStringAt : public FixedInputValueNodeT<2, SeqOneByteStringAt> {
 };
 
 class StringLength : public FixedInputValueNodeT<1, StringLength> {
-  using Base = FixedInputValueNodeT<1, StringLength>;
-
  public:
   explicit StringLength(uint64_t bitfield) : Base(bitfield) {}
 
@@ -10406,8 +9989,6 @@ class StringLength : public FixedInputValueNodeT<1, StringLength> {
 };
 
 class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
-  using Base = FixedInputValueNodeT<2, StringConcat>;
-
  public:
   explicit StringConcat(uint64_t bitfield) : Base(bitfield) {}
 
@@ -10438,8 +10019,6 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
  *
  */
 class ConsStringMap : public FixedInputValueNodeT<2, ConsStringMap> {
-  using Base = FixedInputValueNodeT<2, ConsStringMap>;
-
  public:
   explicit ConsStringMap(uint64_t bitfield) : Base(bitfield) {}
 
@@ -10464,8 +10043,6 @@ class ConsStringMap : public FixedInputValueNodeT<2, ConsStringMap> {
 
 class UnwrapStringWrapper
     : public FixedInputValueNodeT<1, UnwrapStringWrapper> {
-  using Base = FixedInputValueNodeT<1, UnwrapStringWrapper>;
-
  public:
   explicit UnwrapStringWrapper(uint64_t bitfield) : Base(bitfield) {}
 
@@ -10485,8 +10062,6 @@ class UnwrapStringWrapper
 
 class DefineNamedOwnGeneric
     : public FixedInputValueNodeT<3, DefineNamedOwnGeneric> {
-  using Base = FixedInputValueNodeT<3, DefineNamedOwnGeneric>;
-
  public:
   explicit DefineNamedOwnGeneric(uint64_t bitfield, compiler::NameRef name,
                                  const compiler::FeedbackSource& feedback)
@@ -10520,8 +10095,6 @@ class DefineNamedOwnGeneric
 
 class StoreInArrayLiteralGeneric
     : public FixedInputValueNodeT<4, StoreInArrayLiteralGeneric> {
-  using Base = FixedInputValueNodeT<4, StoreInArrayLiteralGeneric>;
-
  public:
   explicit StoreInArrayLiteralGeneric(uint64_t bitfield,
                                       const compiler::FeedbackSource& feedback)
@@ -10553,8 +10126,6 @@ class StoreInArrayLiteralGeneric
 };
 
 class GetKeyedGeneric : public FixedInputValueNodeT<3, GetKeyedGeneric> {
-  using Base = FixedInputValueNodeT<3, GetKeyedGeneric>;
-
  public:
   explicit GetKeyedGeneric(uint64_t bitfield,
                            const compiler::FeedbackSource& feedback)
@@ -10584,8 +10155,6 @@ class GetKeyedGeneric : public FixedInputValueNodeT<3, GetKeyedGeneric> {
 };
 
 class SetKeyedGeneric : public FixedInputValueNodeT<4, SetKeyedGeneric> {
-  using Base = FixedInputValueNodeT<4, SetKeyedGeneric>;
-
  public:
   explicit SetKeyedGeneric(uint64_t bitfield,
                            const compiler::FeedbackSource& feedback)
@@ -10618,8 +10187,6 @@ class SetKeyedGeneric : public FixedInputValueNodeT<4, SetKeyedGeneric> {
 
 class DefineKeyedOwnGeneric
     : public FixedInputValueNodeT<5, DefineKeyedOwnGeneric> {
-  using Base = FixedInputValueNodeT<5, DefineKeyedOwnGeneric>;
-
  public:
   explicit DefineKeyedOwnGeneric(uint64_t bitfield,
                                  const compiler::FeedbackSource& feedback)
@@ -10654,8 +10221,6 @@ class DefineKeyedOwnGeneric
 };
 
 class GapMove : public FixedInputNodeT<0, GapMove> {
-  using Base = FixedInputNodeT<0, GapMove>;
-
  public:
   GapMove(uint64_t bitfield, compiler::AllocatedOperand source,
           compiler::AllocatedOperand target)
@@ -10674,8 +10239,6 @@ class GapMove : public FixedInputNodeT<0, GapMove> {
 };
 
 class ConstantGapMove : public FixedInputNodeT<0, ConstantGapMove> {
-  using Base = FixedInputNodeT<0, ConstantGapMove>;
-
  public:
   ConstantGapMove(uint64_t bitfield, ValueNode* node,
                   compiler::AllocatedOperand target)
@@ -10701,8 +10264,6 @@ class MergePointInterpreterFrameState;
 // we set up the interpreter frame state for code generation. At that point we
 // can generate correctly-sized phis.
 class Phi : public ValueNodeT<Phi> {
-  using Base = ValueNodeT<Phi>;
-
  public:
   using List = base::ThreadedList<Phi>;
 
@@ -10861,8 +10422,6 @@ class Phi : public ValueNodeT<Phi> {
 };
 
 class Call : public ValueNodeT<Call> {
-  using Base = ValueNodeT<Call>;
-
  public:
   enum class TargetType { kJSFunction, kAny };
   // We assume function and context as fixed inputs.
@@ -10917,8 +10476,6 @@ class Call : public ValueNodeT<Call> {
 };
 
 class Construct : public ValueNodeT<Construct> {
-  using Base = ValueNodeT<Construct>;
-
  public:
   // We assume function and context as fixed inputs.
   static constexpr int kFunctionIndex = 0;
@@ -10973,8 +10530,6 @@ class Construct : public ValueNodeT<Construct> {
 };
 
 class CallBuiltin : public ValueNodeT<CallBuiltin> {
-  using Base = ValueNodeT<CallBuiltin>;
-
  public:
   enum FeedbackSlotType { kTaggedIndex, kSmi };
 
@@ -11081,8 +10636,6 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
 };
 
 class CallForwardVarargs : public ValueNodeT<CallForwardVarargs> {
-  using Base = ValueNodeT<CallForwardVarargs>;
-
  public:
   static constexpr int kFunctionIndex = 0;
   static constexpr int kContextIndex = 1;
@@ -11194,8 +10747,6 @@ class ConstructForwardVarargs : public ValueNodeT<ConstructForwardVarargs> {
 };
 
 class CallRuntime : public ValueNodeT<CallRuntime> {
-  using Base = ValueNodeT<CallRuntime>;
-
  public:
   // We assume the context as fixed input.
   static constexpr int kContextIndex = 0;
@@ -11255,8 +10806,6 @@ class CallRuntime : public ValueNodeT<CallRuntime> {
 };
 
 class CallWithSpread : public ValueNodeT<CallWithSpread> {
-  using Base = ValueNodeT<CallWithSpread>;
-
  public:
   // We assume function and context as fixed inputs.
   static constexpr int kFunctionIndex = 0;
@@ -11307,8 +10856,6 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
 };
 
 class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
-  using Base = FixedInputValueNodeT<4, CallWithArrayLike>;
-
  public:
   // We assume function and context as fixed inputs.
   static constexpr int kFunctionIndex = 0;
@@ -11340,8 +10887,6 @@ class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
 };
 
 class CallSelf : public ValueNodeT<CallSelf> {
-  using Base = ValueNodeT<CallSelf>;
-
  public:
   static constexpr int kClosureIndex = 0;
   static constexpr int kContextIndex = 1;
@@ -11398,8 +10943,6 @@ class CallSelf : public ValueNodeT<CallSelf> {
 };
 
 class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
-  using Base = ValueNodeT<CallKnownJSFunction>;
-
  public:
   static constexpr int kClosureIndex = 0;
   static constexpr int kContextIndex = 1;
@@ -11483,8 +11026,6 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
 // FixedInputValueNode, since it accepts any input type and it
 // cannot declare a kInputTypes.
 class ReturnedValue : public ValueNodeT<ReturnedValue> {
-  using Base = ValueNodeT<ReturnedValue>;
-
  public:
   static_assert(CallKnownJSFunction::kFixedInputCount > 1);
   explicit ReturnedValue(uint64_t bitfield) : Base(bitfield) {}
@@ -11509,8 +11050,6 @@ class ReturnedValue : public ValueNodeT<ReturnedValue> {
 static_assert(sizeof(ReturnedValue) <= sizeof(CallKnownJSFunction));
 
 class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
-  using Base = ValueNodeT<CallKnownApiFunction>;
-
  public:
   enum Mode {
     // Use Builtin::kCallApiCallbackOptimizedNoProfiling.
@@ -11596,8 +11135,6 @@ void ValueNode::MaybeRecordUseReprHint(UseRepresentationSet repr_mask) {
 }
 
 class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
-  using Base = ValueNodeT<ConstructWithSpread>;
-
  public:
   // We assume function and context as fixed inputs.
   static constexpr int kFunctionIndex = 0;
@@ -11656,8 +11193,6 @@ class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
 };
 
 class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
-  using Base = FixedInputValueNodeT<1, ConvertReceiver>;
-
  public:
   explicit ConvertReceiver(uint64_t bitfield,
                            compiler::NativeContextRef native_context,
@@ -11689,8 +11224,6 @@ class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
 
 class CheckConstructResult
     : public FixedInputValueNodeT<2, CheckConstructResult> {
-  using Base = FixedInputValueNodeT<2, CheckConstructResult>;
-
  public:
   explicit CheckConstructResult(uint64_t bitfield) : Base(bitfield) {}
 
@@ -11707,8 +11240,6 @@ class CheckConstructResult
 
 class CheckDerivedConstructResult
     : public FixedInputValueNodeT<1, CheckDerivedConstructResult> {
-  using Base = FixedInputValueNodeT<1, CheckDerivedConstructResult>;
-
  public:
   explicit CheckDerivedConstructResult(uint64_t bitfield) : Base(bitfield) {}
 
@@ -11729,8 +11260,6 @@ class CheckDerivedConstructResult
 
 class CheckJSReceiverOrNullOrUndefined
     : public FixedInputNodeT<1, CheckJSReceiverOrNullOrUndefined> {
-  using Base = FixedInputNodeT<1, CheckJSReceiverOrNullOrUndefined>;
-
  public:
   explicit CheckJSReceiverOrNullOrUndefined(uint64_t bitfield,
                                             CheckType check_type)
@@ -11753,8 +11282,6 @@ class CheckJSReceiverOrNullOrUndefined
 };
 
 class CheckNotHole : public FixedInputNodeT<1, CheckNotHole> {
-  using Base = FixedInputNodeT<1, CheckNotHole>;
-
  public:
   explicit CheckNotHole(uint64_t bitfield) : Base(bitfield) {}
 
@@ -11770,8 +11297,6 @@ class CheckNotHole : public FixedInputNodeT<1, CheckNotHole> {
 
 class CheckHoleyFloat64NotHoleOrUndefined
     : public FixedInputNodeT<1, CheckHoleyFloat64NotHoleOrUndefined> {
-  using Base = FixedInputNodeT<1, CheckHoleyFloat64NotHoleOrUndefined>;
-
  public:
   explicit CheckHoleyFloat64NotHoleOrUndefined(uint64_t bitfield)
       : Base(bitfield) {}
@@ -11788,8 +11313,6 @@ class CheckHoleyFloat64NotHoleOrUndefined
 
 class ConvertHoleToUndefined
     : public FixedInputValueNodeT<1, ConvertHoleToUndefined> {
-  using Base = FixedInputValueNodeT<1, ConvertHoleToUndefined>;
-
  public:
   explicit ConvertHoleToUndefined(uint64_t bitfield) : Base(bitfield) {}
 
@@ -11804,8 +11327,6 @@ class ConvertHoleToUndefined
 
 class HandleNoHeapWritesInterrupt
     : public FixedInputNodeT<0, HandleNoHeapWritesInterrupt> {
-  using Base = FixedInputNodeT<0, HandleNoHeapWritesInterrupt>;
-
  public:
   explicit HandleNoHeapWritesInterrupt(uint64_t bitfield) : Base(bitfield) {}
 
@@ -11820,8 +11341,6 @@ class HandleNoHeapWritesInterrupt
 
 class ReduceInterruptBudgetForLoop
     : public FixedInputNodeT<1, ReduceInterruptBudgetForLoop> {
-  using Base = FixedInputNodeT<1, ReduceInterruptBudgetForLoop>;
-
  public:
   explicit ReduceInterruptBudgetForLoop(uint64_t bitfield, int amount)
       : Base(bitfield), amount_(amount) {
@@ -11850,8 +11369,6 @@ class ReduceInterruptBudgetForLoop
 
 class ReduceInterruptBudgetForReturn
     : public FixedInputNodeT<1, ReduceInterruptBudgetForReturn> {
-  using Base = FixedInputNodeT<1, ReduceInterruptBudgetForReturn>;
-
  public:
   explicit ReduceInterruptBudgetForReturn(uint64_t bitfield, int amount)
       : Base(bitfield), amount_(amount) {
@@ -11878,8 +11395,6 @@ class ReduceInterruptBudgetForReturn
 };
 
 class DeoptIfHole : public FixedInputNodeT<1, DeoptIfHole> {
-  using Base = FixedInputNodeT<1, DeoptIfHole>;
-
  public:
   explicit DeoptIfHole(uint64_t bitfield) : Base(bitfield) {}
 
@@ -11895,8 +11410,6 @@ class DeoptIfHole : public FixedInputNodeT<1, DeoptIfHole> {
 
 class ThrowReferenceErrorIfHole
     : public FixedInputNodeT<1, ThrowReferenceErrorIfHole> {
-  using Base = FixedInputNodeT<1, ThrowReferenceErrorIfHole>;
-
  public:
   explicit ThrowReferenceErrorIfHole(uint64_t bitfield,
                                      const compiler::NameRef name)
@@ -11923,8 +11436,6 @@ class ThrowReferenceErrorIfHole
 
 class ThrowSuperNotCalledIfHole
     : public FixedInputNodeT<1, ThrowSuperNotCalledIfHole> {
-  using Base = FixedInputNodeT<1, ThrowSuperNotCalledIfHole>;
-
  public:
   explicit ThrowSuperNotCalledIfHole(uint64_t bitfield) : Base(bitfield) {}
 
@@ -11942,8 +11453,6 @@ class ThrowSuperNotCalledIfHole
 
 class ThrowSuperAlreadyCalledIfNotHole
     : public FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotHole> {
-  using Base = FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotHole>;
-
  public:
   explicit ThrowSuperAlreadyCalledIfNotHole(uint64_t bitfield)
       : Base(bitfield) {}
@@ -11961,8 +11470,6 @@ class ThrowSuperAlreadyCalledIfNotHole
 };
 
 class ThrowIfNotCallable : public FixedInputNodeT<1, ThrowIfNotCallable> {
-  using Base = FixedInputNodeT<1, ThrowIfNotCallable>;
-
  public:
   explicit ThrowIfNotCallable(uint64_t bitfield) : Base(bitfield) {}
 
@@ -11980,8 +11487,6 @@ class ThrowIfNotCallable : public FixedInputNodeT<1, ThrowIfNotCallable> {
 
 class ThrowIfNotSuperConstructor
     : public FixedInputNodeT<2, ThrowIfNotSuperConstructor> {
-  using Base = FixedInputNodeT<2, ThrowIfNotSuperConstructor>;
-
  public:
   explicit ThrowIfNotSuperConstructor(uint64_t bitfield) : Base(bitfield) {}
 
@@ -12000,8 +11505,6 @@ class ThrowIfNotSuperConstructor
 
 class TransitionElementsKind
     : public FixedInputValueNodeT<2, TransitionElementsKind> {
-  using Base = FixedInputValueNodeT<2, TransitionElementsKind>;
-
  public:
   explicit TransitionElementsKind(
       uint64_t bitfield, const ZoneVector<compiler::MapRef>& transition_sources,
@@ -12037,8 +11540,6 @@ class TransitionElementsKind
 
 class TransitionElementsKindOrCheckMap
     : public FixedInputNodeT<2, TransitionElementsKindOrCheckMap> {
-  using Base = FixedInputNodeT<2, TransitionElementsKindOrCheckMap>;
-
  public:
   explicit TransitionElementsKindOrCheckMap(
       uint64_t bitfield, const ZoneVector<compiler::MapRef>& transition_sources,
@@ -12076,8 +11577,6 @@ class TransitionElementsKindOrCheckMap
 
 class GetContinuationPreservedEmbedderData
     : public FixedInputValueNodeT<0, GetContinuationPreservedEmbedderData> {
-  using Base = FixedInputValueNodeT<0, GetContinuationPreservedEmbedderData>;
-
  public:
   explicit GetContinuationPreservedEmbedderData(uint64_t bitfield)
       : Base(bitfield) {}
@@ -12091,8 +11590,6 @@ class GetContinuationPreservedEmbedderData
 
 class SetContinuationPreservedEmbedderData
     : public FixedInputNodeT<1, SetContinuationPreservedEmbedderData> {
-  using Base = FixedInputNodeT<1, SetContinuationPreservedEmbedderData>;
-
  public:
   explicit SetContinuationPreservedEmbedderData(uint64_t bitfield)
       : Base(bitfield) {}
@@ -12157,8 +11654,9 @@ template <class Derived>
 class UnconditionalControlNodeT
     : public FixedInputNodeTMixin<0, UnconditionalControlNode, Derived> {
   static_assert(IsUnconditionalControlNode(NodeBase::opcode_of<Derived>));
-
  protected:
+  using Base = UnconditionalControlNodeT;
+
   explicit UnconditionalControlNodeT(uint64_t bitfield,
                                      BasicBlockRef* target_refs)
       : FixedInputNodeTMixin<0, UnconditionalControlNode, Derived>(
@@ -12203,6 +11701,8 @@ class TerminalControlNodeT
   static_assert(IsTerminalControlNode(NodeBase::opcode_of<Derived>));
 
  protected:
+  using Base = TerminalControlNodeT;
+
   explicit TerminalControlNodeT(uint64_t bitfield)
       : FixedInputNodeTMixin<InputCount, TerminalControlNode, Derived>(
             bitfield) {}
@@ -12214,6 +11714,8 @@ class BranchControlNodeT
   static_assert(IsBranchControlNode(NodeBase::opcode_of<Derived>));
 
  protected:
+  using Base = BranchControlNodeT;
+
   explicit BranchControlNodeT(uint64_t bitfield, BasicBlockRef* if_true_refs,
                               BasicBlockRef* if_false_refs)
       : FixedInputNodeTMixin<InputCount, BranchControlNode, Derived>(
@@ -12221,8 +11723,6 @@ class BranchControlNodeT
 };
 
 class Jump : public UnconditionalControlNodeT<Jump> {
-  using Base = UnconditionalControlNodeT<Jump>;
-
  public:
   Jump(uint64_t bitfield, BasicBlockRef* target_refs)
       : Base(bitfield, target_refs) {}
@@ -12233,8 +11733,6 @@ class Jump : public UnconditionalControlNodeT<Jump> {
 
 // TODO(olivf): Unify implementation with Jump.
 class CheckpointedJump : public UnconditionalControlNodeT<CheckpointedJump> {
-  using Base = UnconditionalControlNodeT<CheckpointedJump>;
-
  public:
   CheckpointedJump(uint64_t bitfield, BasicBlockRef* target_refs)
       : Base(bitfield, target_refs) {}
@@ -12247,8 +11745,6 @@ class CheckpointedJump : public UnconditionalControlNodeT<CheckpointedJump> {
 };
 
 class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
-  using Base = UnconditionalControlNodeT<JumpLoop>;
-
  public:
   explicit JumpLoop(uint64_t bitfield, BasicBlock* target)
       : Base(bitfield, target) {}
@@ -12272,8 +11768,6 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
 };
 
 class Abort : public TerminalControlNodeT<0, Abort> {
-  using Base = TerminalControlNodeT<0, Abort>;
-
  public:
   explicit Abort(uint64_t bitfield, AbortReason reason)
       : Base(bitfield | AbortReasonField::encode(reason)) {
@@ -12301,8 +11795,6 @@ class Abort : public TerminalControlNodeT<0, Abort> {
 };
 
 class Return : public TerminalControlNodeT<1, Return> {
-  using Base = TerminalControlNodeT<1, Return>;
-
  public:
   explicit Return(uint64_t bitfield) : Base(bitfield) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Return>);
@@ -12318,8 +11810,6 @@ class Return : public TerminalControlNodeT<1, Return> {
 };
 
 class Deopt : public TerminalControlNodeT<0, Deopt> {
-  using Base = TerminalControlNodeT<0, Deopt>;
-
  public:
   explicit Deopt(uint64_t bitfield, DeoptimizeReason reason)
       : Base(bitfield | ReasonField::encode(reason)) {
@@ -12336,8 +11826,6 @@ class Deopt : public TerminalControlNodeT<0, Deopt> {
 };
 
 class Switch : public FixedInputNodeTMixin<1, ConditionalControlNode, Switch> {
-  using Base = FixedInputNodeTMixin<1, ConditionalControlNode, Switch>;
-
  public:
   explicit Switch(uint64_t bitfield, int value_base, BasicBlockRef* targets,
                   int size)
@@ -12386,8 +11874,6 @@ class Switch : public FixedInputNodeTMixin<1, ConditionalControlNode, Switch> {
 };
 
 class BranchIfSmi : public BranchControlNodeT<1, BranchIfSmi> {
-  using Base = BranchControlNodeT<1, BranchIfSmi>;
-
  public:
   explicit BranchIfSmi(uint64_t bitfield, BasicBlockRef* if_true_refs,
                        BasicBlockRef* if_false_refs)
@@ -12410,8 +11896,6 @@ class BranchIfSmi : public BranchControlNodeT<1, BranchIfSmi> {
 
 class BranchIfRootConstant
     : public BranchControlNodeT<1, BranchIfRootConstant> {
-  using Base = BranchControlNodeT<1, BranchIfRootConstant>;
-
  public:
   explicit BranchIfRootConstant(uint64_t bitfield, RootIndex root_index,
                                 BasicBlockRef* if_true_refs,
@@ -12440,8 +11924,6 @@ class BranchIfRootConstant
 
 class BranchIfUndefinedOrNull
     : public BranchControlNodeT<1, BranchIfUndefinedOrNull> {
-  using Base = BranchControlNodeT<1, BranchIfUndefinedOrNull>;
-
  public:
   explicit BranchIfUndefinedOrNull(uint64_t bitfield,
                                    BasicBlockRef* if_true_refs,
@@ -12465,8 +11947,6 @@ class BranchIfUndefinedOrNull
 
 class BranchIfUndetectable
     : public BranchControlNodeT<1, BranchIfUndetectable> {
-  using Base = BranchControlNodeT<1, BranchIfUndetectable>;
-
  public:
   explicit BranchIfUndetectable(uint64_t bitfield, CheckType check_type,
                                 BasicBlockRef* if_true_refs,
@@ -12488,8 +11968,6 @@ class BranchIfUndetectable
 };
 
 class BranchIfJSReceiver : public BranchControlNodeT<1, BranchIfJSReceiver> {
-  using Base = BranchControlNodeT<1, BranchIfJSReceiver>;
-
  public:
   explicit BranchIfJSReceiver(uint64_t bitfield, BasicBlockRef* if_true_refs,
                               BasicBlockRef* if_false_refs)
@@ -12506,8 +11984,6 @@ class BranchIfJSReceiver : public BranchControlNodeT<1, BranchIfJSReceiver> {
 
 class BranchIfToBooleanTrue
     : public BranchControlNodeT<1, BranchIfToBooleanTrue> {
-  using Base = BranchControlNodeT<1, BranchIfToBooleanTrue>;
-
  public:
   explicit BranchIfToBooleanTrue(uint64_t bitfield, CheckType check_type,
                                  BasicBlockRef* if_true_refs,
@@ -12530,8 +12006,6 @@ class BranchIfToBooleanTrue
 
 class BranchIfInt32ToBooleanTrue
     : public BranchControlNodeT<1, BranchIfInt32ToBooleanTrue> {
-  using Base = BranchControlNodeT<1, BranchIfInt32ToBooleanTrue>;
-
  public:
   explicit BranchIfInt32ToBooleanTrue(uint64_t bitfield,
                                       BasicBlockRef* if_true_refs,
@@ -12549,8 +12023,6 @@ class BranchIfInt32ToBooleanTrue
 
 class BranchIfIntPtrToBooleanTrue
     : public BranchControlNodeT<1, BranchIfIntPtrToBooleanTrue> {
-  using Base = BranchControlNodeT<1, BranchIfIntPtrToBooleanTrue>;
-
  public:
   explicit BranchIfIntPtrToBooleanTrue(uint64_t bitfield,
                                        BasicBlockRef* if_true_refs,
@@ -12569,8 +12041,6 @@ class BranchIfIntPtrToBooleanTrue
 
 class BranchIfFloat64ToBooleanTrue
     : public BranchControlNodeT<1, BranchIfFloat64ToBooleanTrue> {
-  using Base = BranchControlNodeT<1, BranchIfFloat64ToBooleanTrue>;
-
  public:
   explicit BranchIfFloat64ToBooleanTrue(uint64_t bitfield,
                                         BasicBlockRef* if_true_refs,
@@ -12588,8 +12058,6 @@ class BranchIfFloat64ToBooleanTrue
 
 class BranchIfHoleyFloat64ToBooleanTrue
     : public BranchControlNodeT<1, BranchIfHoleyFloat64ToBooleanTrue> {
-  using Base = BranchControlNodeT<1, BranchIfHoleyFloat64ToBooleanTrue>;
-
  public:
   explicit BranchIfHoleyFloat64ToBooleanTrue(uint64_t bitfield,
                                              BasicBlockRef* if_true_refs,
@@ -12608,8 +12076,6 @@ class BranchIfHoleyFloat64ToBooleanTrue
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 class BranchIfFloat64IsUndefinedOrHole
     : public BranchControlNodeT<1, BranchIfFloat64IsUndefinedOrHole> {
-  using Base = BranchControlNodeT<1, BranchIfFloat64IsUndefinedOrHole>;
-
  public:
   explicit BranchIfFloat64IsUndefinedOrHole(uint64_t bitfield,
                                             BasicBlockRef* if_true_refs,
@@ -12628,8 +12094,6 @@ class BranchIfFloat64IsUndefinedOrHole
 
 class BranchIfFloat64IsHole
     : public BranchControlNodeT<1, BranchIfFloat64IsHole> {
-  using Base = BranchControlNodeT<1, BranchIfFloat64IsHole>;
-
  public:
   explicit BranchIfFloat64IsHole(uint64_t bitfield, BasicBlockRef* if_true_refs,
                                  BasicBlockRef* if_false_refs)
@@ -12646,8 +12110,6 @@ class BranchIfFloat64IsHole
 
 class BranchIfInt32Compare
     : public BranchControlNodeT<2, BranchIfInt32Compare> {
-  using Base = BranchControlNodeT<2, BranchIfInt32Compare>;
-
  public:
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
@@ -12674,8 +12136,6 @@ class BranchIfInt32Compare
 
 class BranchIfUint32Compare
     : public BranchControlNodeT<2, BranchIfUint32Compare> {
-  using Base = BranchControlNodeT<2, BranchIfUint32Compare>;
-
  public:
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
@@ -12702,8 +12162,6 @@ class BranchIfUint32Compare
 
 class BranchIfFloat64Compare
     : public BranchControlNodeT<2, BranchIfFloat64Compare> {
-  using Base = BranchControlNodeT<2, BranchIfFloat64Compare>;
-
  public:
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
@@ -12730,8 +12188,6 @@ class BranchIfFloat64Compare
 
 class BranchIfReferenceEqual
     : public BranchControlNodeT<2, BranchIfReferenceEqual> {
-  using Base = BranchControlNodeT<2, BranchIfReferenceEqual>;
-
  public:
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
