@@ -328,6 +328,17 @@
 }],  # novfp3
 
 ################################################################################
+['memory_corruption_api', {
+  # Slow tests.
+  'apply': [PASS, SLOW],
+  'regress/regress-41433527': [PASS, SLOW],
+  'regress/regress-425583995': [PASS, SLOW],
+  'regress/regress-437956096': [PASS, SLOW],
+  'regress/regress-524': [PASS, SLOW],
+  'sandbox/regress-430960844': [PASS, SLOW],
+}],
+
+################################################################################
 ['not memory_corruption_api', {
   # Sandbox tests require the memory corruption API.
   'sandbox/*': [SKIP],
