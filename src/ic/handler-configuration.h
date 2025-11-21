@@ -376,6 +376,8 @@ V8_OBJECT class StoreHandler final : public DataHandler {
 
   // Creates a Smi-handler for storing a property.
   // "Slow" calls the runtime, "Generic" uses the generic KeyedStore builtin.
+  static inline Tagged<Smi> StoreSlow(
+      KeyedAccessStoreMode store_mode = KeyedAccessStoreMode::kInBounds);
   static inline Handle<Smi> StoreSlow(
       Isolate* isolate,
       KeyedAccessStoreMode store_mode = KeyedAccessStoreMode::kInBounds);

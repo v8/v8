@@ -985,9 +985,11 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       }
 
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorFromPrototypeDH);
+      DirectHandle<JSObject> holder_for_api(lookup->GetHolderForApi(),
+                                            isolate());
       Tagged<Smi> smi_handler = LoadHandler::LoadInterceptor();
       Handle<LoadHandler> handler = LoadHandler::LoadFromPrototype(
-          isolate(), map, holder, smi_handler,
+          isolate(), map, holder_for_api, smi_handler,
           {},  // no data1 (make it use holder instead).
           MaybeObjectDirectHandle(interceptor_info));
       return MaybeObjectHandle(handler);
@@ -2168,9 +2170,11 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       DCHECK(info->has_getter() || info->has_query());
       TRACE_HANDLER_STATS(isolate(),
                           StoreIC_StoreInterceptorThroughPrototypeDH);
-      Handle<Smi> smi_handler = StoreHandler::StoreSlow(isolate());
+      DirectHandle<JSObject> holder_for_api(lookup->GetHolderForApi(),
+                                            isolate());
+      Tagged<Smi> smi_handler = StoreHandler::StoreSlow();
       Handle<Object> handler = StoreHandler::StoreThroughPrototype(
-          isolate(), lookup_start_object_map(), holder, *smi_handler);
+          isolate(), lookup_start_object_map(), holder_for_api, smi_handler);
       return MaybeObjectHandle(handler);
     }
 
@@ -2190,9 +2194,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       if (!holder->HasFastProperties()) {
         set_slow_stub_reason("accessor on slow map");
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
-        MaybeObjectHandle handler =
-            MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
-        return handler;
+        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
       DirectHandle<Object> accessors = lookup->GetAccessors();
       if (IsAccessorInfo(*accessors)) {
@@ -4249,18 +4251,21 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   DirectHandle<InterceptorInfo> interceptor = args.at<InterceptorInfo>(3);
 
   DirectHandle<JSObject> holder = receiver;
-  if (IsJSGlobalProxy(*receiver)) {
-    holder =
-        direct_handle(Cast<JSObject>(receiver->map()->prototype()), isolate);
+#ifdef DEBUG
+  if (IsJSGlobalProxy(*holder)) {
+    DCHECK_EQ(Cast<JSObject>(holder->map()->prototype())->GetNamedInterceptor(),
+              *interceptor);
+  } else {
+    DCHECK_EQ(holder->GetNamedInterceptor(), *interceptor);
   }
-  DCHECK_EQ(holder->GetNamedInterceptor(), *interceptor);
+#endif
 
   {
-    PropertyCallbackArguments callback_args(isolate, *receiver, *holder,
-                                            Nothing<ShouldThrow>());
+    PropertyCallbackArguments arguments(isolate, *receiver, *holder,
+                                        Nothing<ShouldThrow>());
 
     v8::Intercepted intercepted =
-        callback_args.CallNamedSetter(interceptor, name, value);
+        arguments.CallNamedSetter(interceptor, name, value);
     // Stores initiated by StoreICs don't care about the exact result of
     // the store operation returned by the callback as long as it doesn't
     // throw an exception.
@@ -4268,8 +4273,8 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
     InterceptorResult result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
-        callback_args.GetBooleanReturnValue(intercepted, "Setter",
-                                            ignore_return_value));
+        arguments.GetBooleanReturnValue(intercepted, "Setter",
+                                        ignore_return_value));
 
     switch (result) {
       case InterceptorResult::kFalse:

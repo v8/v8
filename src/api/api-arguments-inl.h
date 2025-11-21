@@ -36,6 +36,10 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) const {
   return Cast<V>(Handle<Object>(slot.location()));
 }
 
+inline DirectHandle<JSObject> PropertyCallbackArguments::holder() const {
+  return DirectHandle<JSObject>::FromSlot(slot_at(T::kHolderIndex).location());
+}
+
 inline DirectHandle<Object> PropertyCallbackArguments::receiver() const {
   return DirectHandle<Object>::FromSlot(slot_at(T::kThisIndex).location());
 }
@@ -123,6 +127,7 @@ PropertyCallbackArguments::PropertyCallbackArguments(
   }
   slot_at(T::kThisIndex).store(self);
   slot_at(T::kHolderIndex).store(holder);
+  DCHECK(!IsJSGlobalObject(*holder));
   slot_at(T::kIsolateIndex)
       .store(Tagged<Object>(reinterpret_cast<Address>(isolate)));
   int value = Internals::kInferShouldThrowMode;
@@ -130,8 +135,7 @@ PropertyCallbackArguments::PropertyCallbackArguments(
     value = should_throw.FromJust();
   }
   slot_at(T::kShouldThrowOnErrorIndex).store(Smi::FromInt(value));
-  slot_at(T::kHolderV2Index).store(Smi::zero());
-  DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
+  slot_at(T::kUnusedIndex).store(Smi::zero());
   DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
 }
 
@@ -519,6 +523,13 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // failure.
   DirectHandle<Boolean> result = GetReturnValue<Boolean>(isolate);
   return IsTrue(*result, isolate);
+}
+
+Tagged<JSObject> GetHolderForApi(Tagged<JSObject> holder) {
+  if (IsJSGlobalObject(holder)) {
+    return Cast<JSGlobalObject>(holder)->global_proxy();
+  }
+  return holder;
 }
 
 #undef PREPARE_CALLBACK_INFO_ACCESSOR

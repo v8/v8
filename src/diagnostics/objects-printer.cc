@@ -127,7 +127,6 @@ void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
      << "\n - return_value: " << AS_OBJ(args[PCA::kReturnValueIndex])
      << "\n - should_throw: " << AS_OBJ(args[PCA::kShouldThrowOnErrorIndex])
      << "\n - holder: " << AS_OBJ(args[PCA::kHolderIndex])
-     << "\n - holderV2: " << AS_OBJ(args[PCA::kHolderV2Index])
      << "\n - callback_info: " << AS_OBJ(args[PCA::kCallbackInfoIndex])
      << "\n - property_key: " << AS_OBJ(args[PCA::kPropertyKeyIndex])
      << "\n - receiver: " << AS_OBJ(args[PCA::kThisIndex]);

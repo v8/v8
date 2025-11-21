@@ -1519,7 +1519,6 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
   DCHECK(!IsForeign(*structure));
 
   // API style callbacks.
-  DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
   if (IsAccessorInfo(*structure)) {
     DirectHandle<Name> name = it->GetName();
     auto info = Cast<AccessorInfo>(structure);
@@ -1533,14 +1532,14 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
                                  Object::ConvertReceiver(isolate, receiver));
     }
 
-    PropertyCallbackArguments args(isolate, *receiver, *holder,
+    PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
                                    Just(kDontThrow));
     DirectHandle<JSAny> result = args.CallAccessorGetter(info, name);
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     Handle<JSAny> reboxed_result(*result, isolate);
     if (info->replace_on_access() && IsJSReceiver(*receiver)) {
       RETURN_ON_EXCEPTION(isolate, Accessors::ReplaceAccessorWithDataProperty(
-                                       isolate, holder, name, result));
+                                       isolate, args.holder(), name, result));
     }
     return reboxed_result;
   }
@@ -1554,6 +1553,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
   // Regular accessor.
   DirectHandle<Object> getter(accessor_pair->getter(), isolate);
   if (IsFunctionTemplateInfo(*getter)) {
+    DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
     SaveAndSwitchContext save(isolate, holder->GetCreationContext().value());
     return Cast<JSAny>(Builtins::InvokeApiFunction(
         isolate, false, Cast<FunctionTemplateInfo>(getter), receiver, {},
@@ -1585,7 +1585,6 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
   DCHECK(!IsForeign(*structure));
 
   // API style callbacks.
-  DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
   if (IsAccessorInfo(*structure)) {
     DirectHandle<Name> name = it->GetName();
     auto info = Cast<AccessorInfo>(structure);
@@ -1602,7 +1601,8 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
                                  Object::ConvertReceiver(isolate, receiver));
     }
 
-    PropertyCallbackArguments args(isolate, *receiver, *holder, should_throw);
+    PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
+                                   should_throw);
     bool result = args.CallAccessorSetter(info, name, value);
     RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
     if (!result) {
@@ -1619,6 +1619,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
   DirectHandle<Object> setter(Cast<AccessorPair>(*structure)->setter(),
                               isolate);
   if (IsFunctionTemplateInfo(*setter)) {
+    DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
     SaveAndSwitchContext save(isolate, holder->GetCreationContext().value());
     DirectHandle<Object> args[] = {value};
     RETURN_ON_EXCEPTION_VALUE(

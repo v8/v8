@@ -1317,7 +1317,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
 
   Tagged<MaybeObject> maybe_object(*args.address_of_arg_at(0));
   DebugPrintImpl(maybe_object, *output_stream);
-  return args[0];
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugPrintGeneric) {

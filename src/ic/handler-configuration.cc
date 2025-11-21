@@ -261,7 +261,7 @@ Handle<LoadHandler> LoadHandler::LoadInterceptorHolderIsLookupStartupObject(
   handler->set_smi_handler(smi_handler);
   handler->set_validity_cell(
       validity_cell.is_null() ? Map::kNoValidityCellSentinel : *validity_cell);
-  handler->set_data1(ReadOnlyRoots(isolate).null_value());
+  handler->set_data1(MakeWeak(ReadOnlyRoots(isolate).null_value()));
   handler->set_data2(*interceptor_info);
   return handler;
 }

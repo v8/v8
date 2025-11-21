@@ -3881,18 +3881,6 @@ i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
   return i::Isolate::Current();
 }
 
-namespace api_internal {
-i::Address ConvertToJSGlobalProxyIfNecessary(i::Address holder_ptr) {
-  i::Tagged<i::HeapObject> holder =
-      i::Cast<i::HeapObject>(i::Tagged<i::Object>(holder_ptr));
-
-  if (i::IsJSGlobalObject(holder)) {
-    return i::Cast<i::JSGlobalObject>(holder)->global_proxy().ptr();
-  }
-  return holder_ptr;
-}
-}  // namespace api_internal
-
 bool i::ShouldThrowOnError(i::Isolate* i_isolate) {
   return i::GetShouldThrow(i_isolate, Nothing<i::ShouldThrow>()) ==
          i::ShouldThrow::kThrowOnError;

@@ -4681,7 +4681,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 1);
   static_assert(PCA::kHolderIndex == 2);
   static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kUnusedIndex == 4);
   static_assert(PCA::kReturnValueIndex == 5);
   static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
@@ -4692,7 +4692,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[1 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   sp[2 * kSystemPointerSize]: kHolderIndex
   //   sp[3 * kSystemPointerSize]: kIsolateIndex
-  //   sp[4 * kSystemPointerSize]: kHolderV2Index
+  //   sp[4 * kSystemPointerSize]: kUnusedIndex
   //   sp[5 * kSystemPointerSize]: kReturnValueIndex
   //   sp[6 * kSystemPointerSize]: kCallbackInfoIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
@@ -4704,7 +4704,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ StoreWord(scratch,
                MemOperand(sp, (PCA::kReturnValueIndex)*kSystemPointerSize));
   __ StoreWord(zero_reg,
-               MemOperand(sp, (PCA::kHolderV2Index)*kSystemPointerSize));
+               MemOperand(sp, (PCA::kUnusedIndex)*kSystemPointerSize));
   __ li(scratch, ER::isolate_address());
   __ StoreWord(scratch,
                MemOperand(sp, (PCA::kIsolateIndex)*kSystemPointerSize));

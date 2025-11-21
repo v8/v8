@@ -290,10 +290,10 @@ class PropertyCallbackInfo {
 
   static constexpr int kPropertyKeyIndex = 0;
   static constexpr int kShouldThrowOnErrorIndex = 1;
-  // TODO(http://crbug.com/333672197): drop this in favor of HolderV2.
   static constexpr int kHolderIndex = 2;
   static constexpr int kIsolateIndex = 3;
-  static constexpr int kHolderV2Index = 4;
+  // TODO(http://crbug.com/333672197): drop this parameter.
+  static constexpr int kUnusedIndex = 4;
   static constexpr int kReturnValueIndex = 5;
   static constexpr int kCallbackInfoIndex = 6;
   static constexpr int kThisIndex = 7;
@@ -680,21 +680,9 @@ Local<Object> PropertyCallbackInfo<T>::This() const {
   return Local<Object>::FromSlot(&args_[kThisIndex]);
 }
 
-namespace api_internal {
-// Returns JSGlobalProxy if holder is JSGlobalObject or unmodified holder
-// otherwise.
-V8_EXPORT internal::Address ConvertToJSGlobalProxyIfNecessary(
-    internal::Address holder);
-}  // namespace api_internal
-
 template <typename T>
 Local<Object> PropertyCallbackInfo<T>::HolderV2() const {
-  using I = internal::Internals;
-  if (!I::HasHeapObjectTag(args_[kHolderV2Index])) {
-    args_[kHolderV2Index] =
-        api_internal::ConvertToJSGlobalProxyIfNecessary(args_[kHolderIndex]);
-  }
-  return Local<Object>::FromSlot(&args_[kHolderV2Index]);
+  return Local<Object>::FromSlot(&args_[kHolderIndex]);
 }
 
 template <typename T>

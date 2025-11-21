@@ -73,7 +73,7 @@ class PropertyCallbackArguments final
   static constexpr int kArgsLength = T::kArgsLength;
   static constexpr int kThisIndex = T::kThisIndex;
   static constexpr int kCallbackInfoIndex = T::kCallbackInfoIndex;
-  static constexpr int kHolderV2Index = T::kHolderV2Index;
+  static constexpr int kUnusedIndex = T::kUnusedIndex;
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
@@ -229,6 +229,8 @@ class PropertyCallbackArguments final
     return pca->index_;
   }
 
+  inline DirectHandle<JSObject> holder() const;
+
  private:
   // Returns JSArray-like object with property names or undefined.
   inline DirectHandle<JSObjectOrUndefined> CallPropertyEnumerator(
@@ -302,6 +304,10 @@ class FunctionCallbackArguments
   Address* argv_;
   int const argc_;
 };
+
+// Returns holder object suitable for Api callbacks - in case the holder is
+// JSGlobalObject returns respective JSGlobalProxy.
+inline Tagged<JSObject> GetHolderForApi(Tagged<JSObject> holder);
 
 static_assert(BuiltinArguments::kNumExtraArgs ==
               BuiltinExitFrameConstants::kNumExtraArgs);

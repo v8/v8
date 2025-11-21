@@ -221,11 +221,15 @@ DirectHandle<Code> StoreHandler::ElementsTransitionAndStoreBuiltin(
   }
 }
 
-Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate,
-                                    KeyedAccessStoreMode store_mode) {
+Tagged<Smi> StoreHandler::StoreSlow(KeyedAccessStoreMode store_mode) {
   int config = KindBits::encode(Kind::kSlow) |
                KeyedAccessStoreModeBits::encode(store_mode);
-  return handle(Smi::FromInt(config), isolate);
+  return Smi::FromInt(config);
+}
+
+Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate,
+                                    KeyedAccessStoreMode store_mode) {
+  return handle(StoreSlow(store_mode), isolate);
 }
 
 Handle<Smi> StoreHandler::StoreGeneric(Isolate* isolate) {

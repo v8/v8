@@ -1243,14 +1243,15 @@ MaybeHandle<JSAny> GetPropertyWithInterceptorInternal(
   }
 
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
-  DirectHandle<JSAny> result;
   DirectHandle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
                                Object::ConvertReceiver(isolate, receiver));
   }
-  PropertyCallbackArguments args(isolate, *receiver, *holder, Just(kDontThrow));
+  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
+                                 Just(kDontThrow));
 
+  DirectHandle<JSAny> result;
   if (it->IsElement(*holder)) {
     result = args.CallIndexedGetter(interceptor, it->array_index());
   } else {
@@ -1281,7 +1282,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
                                Object::ConvertReceiver(isolate, receiver));
   }
-  PropertyCallbackArguments args(isolate, *receiver, *holder, Just(kDontThrow));
+  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
+                                 Just(kDontThrow));
   if (interceptor->has_query()) {
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
@@ -1344,7 +1346,8 @@ Maybe<InterceptorResult> SetPropertyWithInterceptorInternal(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
                                Object::ConvertReceiver(isolate, receiver));
   }
-  PropertyCallbackArguments args(isolate, *receiver, *holder, should_throw);
+  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
+                                 should_throw);
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
@@ -1410,7 +1413,8 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
     descriptor->set_configurable(desc->configurable());
   }
 
-  PropertyCallbackArguments args(isolate, *receiver, *holder, should_throw);
+  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
+                                 should_throw);
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
@@ -1912,7 +1916,8 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
                                Object::ConvertReceiver(isolate, receiver));
   }
 
-  PropertyCallbackArguments args(isolate, *receiver, *holder, Just(kDontThrow));
+  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
+                                 Just(kDontThrow));
   if (it->IsElement(*holder)) {
     result = args.CallIndexedDescriptor(interceptor, it->array_index());
   } else {
@@ -4188,7 +4193,7 @@ Maybe<InterceptorResult> JSObject::DeletePropertyWithInterceptor(
                                Object::ConvertReceiver(isolate, receiver));
   }
 
-  PropertyCallbackArguments args(isolate, *receiver, *holder,
+  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
                                  Just(should_throw));
 
   v8::Intercepted intercepted =

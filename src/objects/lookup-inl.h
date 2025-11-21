@@ -286,6 +286,14 @@ DirectHandle<T> LookupIterator::GetHolder() const {
   return Cast<T>(holder_);
 }
 
+Tagged<JSObject> LookupIterator::GetHolderForApi() const {
+  DCHECK(state_ == INTERCEPTOR || state_ == ACCESSOR || state_ == ACCESS_CHECK);
+  if (IsJSGlobalObject(*holder_)) {
+    return Cast<JSGlobalObject>(holder_)->global_proxy();
+  }
+  return Cast<JSObject>(*holder_);
+}
+
 bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
   DisallowGarbageCollection no_gc;

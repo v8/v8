@@ -4652,7 +4652,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 1);
   static_assert(PCA::kHolderIndex == 2);
   static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kUnusedIndex == 4);
   static_assert(PCA::kReturnValueIndex == 5);
   static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
@@ -4668,7 +4668,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   rsp[2 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   rsp[3 * kSystemPointerSize]: kHolderIndex
   //   rsp[4 * kSystemPointerSize]: kIsolateIndex
-  //   rsp[5 * kSystemPointerSize]: kHolderV2Index
+  //   rsp[5 * kSystemPointerSize]: kUnusedIndex
   //   rsp[6 * kSystemPointerSize]: kReturnValueIndex
   //   rsp[7 * kSystemPointerSize]: kCallbackInfoIndex
   //   rsp[8 * kSystemPointerSize]: kThisIndex / receiver

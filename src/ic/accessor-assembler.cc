@@ -954,8 +954,20 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     // Handlers for interceptors are always complex even when holder is a
     // lookup start object because we are interested in caching interceptor
     // info in the data handler.
-    TNode<Object> the_holder = SelectConstant<Object>(
-        IsNull(holder), p->lookup_start_object(), holder);
+    TNode<Object> the_holder = Select<Object>(
+        IsNull(holder),
+        [&]() -> TNode<Object> {
+          if (ic_mode == ICMode::kGlobalIC) {
+            // In case of LoadGlobalIC the lookup start object is JSGlobalObject
+            // and receiver is JSGlobalProxy, so instead of loading the global
+            // proxy from the former we just use the latter.
+            CSA_DCHECK(this, IsJSGlobalProxy(CAST(p->receiver())));
+            return p->receiver();
+          } else {
+            return p->lookup_start_object();
+          }
+        },
+        [&] { return holder; });
 
     exit_point->ReturnCallRuntime(Runtime::kLoadPropertyWithInterceptor,
                                   p->context(), p->name(), receiver, the_holder,
@@ -2064,6 +2076,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     {
       Comment("store_interceptor");
       TNode<JSObject> receiver = CAST(p->receiver());
+      if (ic_mode == ICMode::kGlobalIC) {
+        CSA_DCHECK(this, IsJSGlobalProxy(receiver));
+      }
 
       // Handlers for interceptors are always complex even when holder is a
       // lookup start object because we are interested in caching interceptor
