@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --turbolev
-// Flags: --gc-interval=1 --no-inline-new --clear-free-memory
+// Flags: --allow-natives-syntax --turbolev --no-inline-new --clear-free-memory
 
 // This test checks that repeated loads from the same DataView work correctly:
 // the DataView should not be freed by GCs in between the loads.
@@ -20,7 +19,7 @@ function foo(x) {
   // that can be reused for subsequent loads.
   let v1 = dv.getInt32(0);
 
-  // Allocating to trigger a GC (thanks to --gc-interval=1 --no-inline-new).
+  // Allocating to potentially trigger a GC.
   let arr = [1, 2, x];
 
   // If we don''t have anything retaining {dv} and we GVNed the computation of
@@ -30,16 +29,24 @@ function foo(x) {
   let v2 = dv.getInt32(0);
 
   // Storring v1 and v2 so that they don't get DCEed.
-  arr.x = v1;
-  arr.y = v2;
+  arr[0] = v1;
+  arr[1] = v2;
 
   // Returning arr so that it doesn't get escaped-analyzed away.
   return arr;
 }
 
 %PrepareFunctionForOptimization(foo);
-assertEquals(42, foo().y);
-assertEquals(42, foo().y);
+assertEquals(42, foo()[1]);
+assertEquals(42, foo()[1]);
 
 %OptimizeFunctionOnNextCall(foo);
-assertEquals(42, foo().y);
+foo();
+
+// Now calling {foo} while making sure that the allocation of {arr} will trigger
+// a GC.
+%SetAllocationTimeout(1, 4);
+let val = foo()[1];
+%SetAllocationTimeout(-1, -1);
+
+assertEquals(42, val);
