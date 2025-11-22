@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e3b2ae832a00a22bcc05361e0f8854d30b22e6d4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'be09d50c38a902bf3ec39da64ff3773034b746fc',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1267724b67c1e44a778f610ae9dac191f06e2ff4',
   'buildtools/linux64': {
@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '8109924dc01e0f82125cdccdb5ae9feb2737b4a1',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '66e962d6e39b756e4f7ee493e1d29a4de33ace41',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3ec220caca2f209f2802bf5fc1fcef7e5b069475',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3d401c263f5b4ee534eacf967ac7234f7c4ee029',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
