@@ -405,7 +405,7 @@ bool WasmInterpreterRuntime::TableGet(const uint8_t*& current_code,
       isolate_);
   uint32_t table_size = table->current_length();
   if (entry_index >= table_size) {
-    SetTrap(TrapReason::kTrapTableOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapTableOutOfBounds, current_code);
     return false;
   }
 
@@ -425,7 +425,7 @@ void WasmInterpreterRuntime::TableSet(const uint8_t*& current_code,
       isolate_);
   uint32_t table_size = table->current_length();
   if (entry_index >= table_size) {
-    SetTrap(TrapReason::kTrapTableOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapTableOutOfBounds, current_code);
   } else {
     WasmTableObject::Set(isolate_, table, entry_index, ref);
   }
@@ -453,10 +453,10 @@ void WasmInterpreterRuntime::TableInit(const uint8_t*& current_code,
           element_segment_index, dst, src, size);
   // See WasmInstanceObject::InitTableEntries.
   if (msg_template == MessageTemplate::kWasmTrapTableOutOfBounds) {
-    SetTrap(TrapReason::kTrapTableOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapTableOutOfBounds, current_code);
   } else if (msg_template ==
              MessageTemplate::kWasmTrapElementSegmentOutOfBounds) {
-    SetTrap(TrapReason::kTrapElementSegmentOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapElementSegmentOutOfBounds, current_code);
   }
 }
 
@@ -479,7 +479,7 @@ void WasmInterpreterRuntime::TableCopy(const uint8_t*& current_code,
   if (!WasmTrustedInstanceData::CopyTableEntries(
           isolate_, trusted_data, dst_table_index, src_table_index, dst, src,
           size)) {
-    SetTrap(TrapReason::kTrapTableOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapTableOutOfBounds, current_code);
   }
 }
 
@@ -516,7 +516,7 @@ void WasmInterpreterRuntime::TableFill(const uint8_t*& current_code,
   uint32_t table_size = table->current_length();
   if (start + count < start ||  // Check for overflow.
       start + count > table_size) {
-    SetTrap(TrapReason::kTrapTableOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapTableOutOfBounds, current_code);
     return;
   }
 
@@ -538,7 +538,7 @@ bool WasmInterpreterRuntime::MemoryInit(const uint8_t*& current_code,
       trusted_data->data_segment_sizes()->get(data_segment_index);
   if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
       !base::IsInBounds(src, size, src_max)) {
-    SetTrap(TrapReason::kTrapMemOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapMemOutOfBounds, current_code);
     return false;
   }
 
@@ -556,7 +556,7 @@ bool WasmInterpreterRuntime::MemoryCopy(const uint8_t*& current_code,
   Address src_addr;
   if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
       !BoundsCheckMemRange(src, &size, &src_addr)) {
-    SetTrap(TrapReason::kTrapMemOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapMemOutOfBounds, current_code);
     return false;
   }
 
@@ -570,7 +570,7 @@ bool WasmInterpreterRuntime::MemoryFill(const uint8_t*& current_code,
                                         uint64_t size) {
   Address dst_addr;
   if (!BoundsCheckMemRange(dst, &size, &dst_addr)) {
-    SetTrap(TrapReason::kTrapMemOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapMemOutOfBounds, current_code);
     return false;
   }
 
@@ -957,7 +957,7 @@ void WasmInterpreterRuntime::BeginExecution(
       SealHandleScope shs(isolate_);
       isolate_->StackOverflow();
       const pc_t trap_pc = 0;
-      SetTrap(TrapReason::kTrapUnreachable, trap_pc);
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, trap_pc);
       thread->FinishActivation();
       return;
     }
@@ -1189,8 +1189,7 @@ void WasmInterpreterRuntime::ContinueExecution(WasmInterpreterThread* thread,
     start_function_index_ = start_function_index;
     current_frame_ = current_frame;
   } else if (state() == WasmInterpreterThread::State::TRAPPED) {
-    MessageTemplate message_id =
-        WasmOpcodes::TrapReasonToMessageId(thread->GetTrapReason());
+    MessageTemplate message_id = thread->GetMessageTemplate();
     thread->RaiseException(isolate_, message_id);
   } else if (state() == WasmInterpreterThread::State::EH_UNWINDING) {
     // Uncaught exception.
@@ -1485,7 +1484,7 @@ void WasmInterpreterRuntime::PrepareTailCall(const uint8_t*& code,
             (stack_limit = current_frame_.thread_->StackLimitAddress()) -
                 current_frame_.current_sp_)) {
       SealHandleScope shs(isolate_);
-      SetTrap(TrapReason::kTrapUnreachable, code);
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
       isolate_->StackOverflow();
       return;
     }
@@ -1594,7 +1593,7 @@ void WasmInterpreterRuntime::ExecuteFunction(const uint8_t*& code,
             (stack_limit = current_frame_.thread_->StackLimitAddress()) -
                 current_frame_.current_sp_)) {
       SealHandleScope shs(isolate_);
-      SetTrap(TrapReason::kTrapUnreachable, code);
+      SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
       isolate_->StackOverflow();
       return;
     }
@@ -1798,7 +1797,7 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
           wasm_trusted_instance_data()->dispatch_tables()->get(table_index))
           ->length());
   if (entry_index >= table.size()) {
-    SetTrap(TrapReason::kTrapTableOutOfBounds, current_code);
+    SetTrap(MessageTemplate::kWasmTrapTableOutOfBounds, current_code);
     return;
   }
 
@@ -1832,7 +1831,7 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
   }
 
   if (!CheckIndirectCallSignature(table_index, entry_index, sig_index)) {
-    SetTrap(TrapReason::kTrapFuncSigMismatch, current_code);
+    SetTrap(MessageTemplate::kWasmTrapFuncSigMismatch, current_code);
     return;
   }
 
@@ -2715,7 +2714,8 @@ bool WasmInterpreterRuntime::RefIsString(const WasmRef obj,
   return AbstractTypeCast<&StringCheck>(isolate_, obj, obj_type, null_succeeds);
 }
 
-void WasmInterpreterRuntime::SetTrap(TrapReason trap_reason, pc_t trap_pc) {
+void WasmInterpreterRuntime::SetTrap(MessageTemplate message_template,
+                                     pc_t trap_pc) {
   trap_function_index_ =
       current_frame_.current_function_
           ? current_frame_.current_function_->GetFunctionIndex()
@@ -2724,13 +2724,13 @@ void WasmInterpreterRuntime::SetTrap(TrapReason trap_reason, pc_t trap_pc) {
   DCHECK_LT(trap_function_index_, module_->functions.size());
 
   trap_pc_ = trap_pc;
-  thread()->Trap(trap_reason, trap_function_index_, static_cast<int>(trap_pc_),
-                 current_frame_);
+  thread()->Trap(message_template, trap_function_index_,
+                 static_cast<int>(trap_pc_), current_frame_);
 }
 
-void WasmInterpreterRuntime::SetTrap(TrapReason trap_reason,
+void WasmInterpreterRuntime::SetTrap(MessageTemplate message_template,
                                      const uint8_t*& code) {
-  SetTrap(trap_reason,
+  SetTrap(message_template,
           current_frame_.current_function_
               ? current_frame_.current_function_->GetPcFromTrapCode(code)
               : 0);

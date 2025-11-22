@@ -359,7 +359,7 @@ std::vector<WasmValue> FastMakeDefaultInterpreterArguments(
           canonical_type = CanonicalValueType{type};
         }
 
-        if (type.heap_representation() == HeapType::kExtern) {
+        if (type.AsNullable() == wasm::kWasmExternRef) {
           arguments[i] = WasmValue(
               Cast<Object>(isolate->factory()->NewHeapNumber(rand_num + 0.125)),
               canonical_type);

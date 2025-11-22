@@ -745,18 +745,13 @@
   'regress/wasm/regress-334687959': [SKIP],
   'regress/wasm/regress-366350766': [SKIP],
 
-  # Wasm imported strings
-  'wasm/imported-strings*': [SKIP],
-  'regress/wasm/regress-324747822': [SKIP],
-  'regress/wasm/regress-326091470': [SKIP],
-  'regress/wasm/regress-326260438': [SKIP],
+  # Wasm imported strings (just text-decoder or text-encoder)
+  'wasm/imported-strings-utf8': [SKIP],
+  'wasm/imported-strings-invalid': [SKIP],
   'regress/wasm/regress-326156493': [SKIP],
-  'regress/wasm/regress-326273468': [SKIP],
+  'regress/wasm/regress-326260438': [SKIP],
   'regress/wasm/regress-326894018': [SKIP],
-  'regress/wasm/regress-327517308': [SKIP],
   'regress/wasm/regress-327643791': [SKIP],
-  'regress/wasm/regress-329464129': [SKIP],
-  'regress/wasm/regress-40258436': [SKIP],
 
   # --experimental-wasm-shared
   'wasm/shared-everything/*': [SKIP],
@@ -853,6 +848,7 @@
   'regress/wasm/regress-1403398': [SKIP],
   'regress/wasm/regress-1511849': [SKIP],
   'regress/wasm/regress-325372946': [SKIP],
+  'regress/wasm/regress-326091470': [SKIP],
   'regress/wasm/regress-326904344': [SKIP],
   'regress/wasm/regress-353582136': [SKIP],
   'regress/wasm/regress-353913485': [SKIP],

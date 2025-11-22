@@ -159,8 +159,8 @@ class WasmInterpreterRuntime {
 
   void PrintStack(uint32_t* sp, RegMode reg_mode, int64_t r0, double fp0);
 
-  void SetTrap(TrapReason trap_reason, pc_t trap_pc);
-  void SetTrap(TrapReason trap_reason, const uint8_t*& current_code);
+  void SetTrap(MessageTemplate message_template, pc_t trap_pc);
+  void SetTrap(MessageTemplate message_template, const uint8_t*& current_code);
 
   // GC helpers.
   DirectHandle<Map> RttCanon(uint32_t type_index) const;
