@@ -1063,6 +1063,11 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
   if (name == ast_value_factory->arguments_string()) {
     has_arguments_parameter_ = true;
   }
+  // Params are automatically marked as used to make sure that the debugger and
+  // function.arguments sees them.
+  // TODO(verwaest): Reevaluate whether we always need to do this, since
+  // strict-mode function.arguments does not make the arguments available.
+  var->set_is_used();
   return var;
 }
 
@@ -1874,11 +1879,6 @@ void PrintVar(int indent, Variable* var) {
     PrintF("never assigned");
     comma = true;
   }
-  if (!var->is_used()) {
-    if (comma) PrintF(", ");
-    PrintF("never used");
-    comma = true;
-  }
   if (var->initialization_flag() == kNeedsInitialization &&
       !var->binding_needs_init()) {
     if (comma) PrintF(", ");
@@ -2402,8 +2402,6 @@ bool Scope::MustAllocate(Variable* var) {
   // Give var a read/write use if there is a chance it might be accessed
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
-  // TODO(dcarney): hoist this check out of MustAllocate since it's mutating
-  // state and confusing.
   if (!var->raw_name()->IsEmpty() &&
       (inner_scope_calls_eval_ || is_catch_scope() || is_script_scope())) {
     var->set_is_used();
@@ -2466,14 +2464,6 @@ void DeclarationScope::AllocateParameterLocals() {
       arguments_ = nullptr;
     }
   }
-  // TODO(dcarney): move check from MustAllocate here for parameters.
-  // Mark all remaining parameters as used if they are reachable through
-  // arguments.
-  if (arguments_ != nullptr) {
-    for (int i = 0; i < num_parameters(); i++) {
-      parameter(i)->set_is_used();
-    }
-  }
 
   // The same parameter may occur multiple times in the parameters_ list.
   // If it does, and if it is not copied into the context object, it must
@@ -2499,8 +2489,7 @@ void DeclarationScope::AllocateParameterLocals() {
 }
 
 void DeclarationScope::AllocateParameter(Variable* var, int index) {
-  // TODO(dcarney): eliminate this check.
-  USE(MustAllocate(var));
+  if (!MustAllocate(var)) return;
   if (has_forced_context_allocation_for_parameters() ||
       MustAllocateInContext(var)) {
     DCHECK(var->IsUnallocated() || var->IsContextSlot());

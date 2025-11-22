@@ -411,8 +411,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       VariableMode mode, int pos);
   void DeclareAndBindVariable(VariableProxy* proxy, VariableKind kind,
                               VariableMode mode, Scope* declaration_scope,
-                              bool* was_added, int initializer_position,
-                              VariableProxy::BindingMode binding_mode);
+                              bool* was_added, int initializer_position);
   V8_WARN_UNUSED_RESULT
   Variable* DeclareVariable(const AstRawString* name, VariableKind kind,
                             VariableMode mode, InitializationFlag init,

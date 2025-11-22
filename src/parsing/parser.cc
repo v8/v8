@@ -1996,13 +1996,12 @@ VariableProxy* Parser::DeclareBoundVariable(const AstRawString* name,
 
 void Parser::DeclareAndBindVariable(VariableProxy* proxy, VariableKind kind,
                                     VariableMode mode, Scope* scope,
-                                    bool* was_added, int initializer_position,
-                                    VariableProxy::BindingMode binding_mode) {
+                                    bool* was_added, int initializer_position) {
   Variable* var = DeclareVariable(
       proxy->raw_name(), kind, mode, Variable::DefaultInitializationFlag(mode),
       scope, was_added, proxy->position(), kNoSourcePosition);
   var->set_initializer_position(initializer_position);
-  proxy->BindTo(var, binding_mode);
+  proxy->BindTo(var);
 }
 
 Variable* Parser::DeclareVariable(const AstRawString* name, VariableKind kind,

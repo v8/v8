@@ -322,7 +322,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int ModuleVariableCountIndex() const;
   int ModuleVariablesIndex() const;
   int DependentCodeIndex() const;
-  int UnusedParameterBitsIndex() const;
 
   // Raw access by slot index. These functions rely on the fact that everything
   // in ScopeInfo is tagged. Each slot is tagged-pointer sized. Slot 0 is

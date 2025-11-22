@@ -85,14 +85,7 @@ class ExpressionScope {
         }
       }
       DCHECK_NOT_NULL(var);
-      // When declaring a parameter, there is no use yet. While there are other
-      // cases that this is not true, we need the use marked to ensure variable
-      // allocation, whereas parameters are always allocated.
-      // TODO(dcarney): expand the scope of the marking.
-      auto binding_mode = type_ == ExpressionScope::kParameterDeclaration
-                              ? VariableProxy::BindingMode::kNoMarkUse
-                              : VariableProxy::BindingMode::kMarkUse;
-      result->BindTo(var, binding_mode);
+      result->BindTo(var);
     }
     return result;
   }
@@ -803,13 +796,8 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
       // clear the is_assigned bit as they are not actually assignments.
       proxy->clear_is_assigned();
       bool was_added;
-      // Simple parameters will not have a use on bind.
-      auto binding_mode = has_simple_parameter_list_
-                              ? VariableProxy::BindingMode::kNoMarkUse
-                              : VariableProxy::BindingMode::kMarkUse;
       this->parser()->DeclareAndBindVariable(proxy, kind, mode, result,
-                                             &was_added, initializer_position,
-                                             binding_mode);
+                                             &was_added, initializer_position);
       if (!was_added) {
         ExpressionScope<Types>::Report(proxy->location(),
                                        MessageTemplate::kParamDupe);

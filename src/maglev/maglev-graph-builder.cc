@@ -11456,25 +11456,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
+  // Truncate args when they are unreachable.
   if (args.mode() == CallArguments::kDefault &&
       shared.object()->CanOnlyAccessFixedFormalParameters()) {
     auto parameter_count =
         IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
             dispatch_handle);
-    // Truncate args when they are unreachable.
-    size_t arg_count = args.count();
-    if (arg_count > parameter_count - kJSArgcReceiverSlots) {
+    if (args.count() > parameter_count - kJSArgcReceiverSlots) {
       args.ResizeDefaultArguments(parameter_count - kJSArgcReceiverSlots);
-      arg_count = parameter_count;
-    }
-    // Now replace remaining unused parameters.
-    uint32_t unused_parameters = shared.object()->unused_parameter_bits();
-    size_t to_check = std::min(arg_count, sizeof(unused_parameters));
-    for (size_t i = 0; unused_parameters != 0 && i < to_check; ++i) {
-      if (unused_parameters & size_t{0x1}) {
-        args.begin()[i] = GetRootConstant(RootIndex::kOptimizedOut);
-      }
-      unused_parameters >>= 1;
     }
   }
   if (v8_flags.maglev_inlining) {
