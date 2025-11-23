@@ -255,8 +255,6 @@
   'staging/sm/Temporal/*': [SKIP],
 
   # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
   'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
 
   # Newly added arithmetic tests
@@ -588,8 +586,6 @@
   'staging/Intl402/Temporal/old/non-iso-calendars-roc': [SKIP],
 
   # Somehow passes on Android (b/433933898):
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [SKIP],
 }], # 'system == android'
 
 ['arch == arm or arch == arm64 or arch == mips64 or arch == mips64el', {
@@ -1226,6 +1222,59 @@
 # Roll-watcher patch
 [ALWAYS, {
   'intl402/DateTimeFormat/prototype/formatToParts/era': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Temporal/Duration/prototype/round/rounding-window': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/rounding-window': [SKIP],
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-format-with-era': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-format-with-era': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-format-with-era': [SKIP],
+  'intl402/Temporal/Instant/prototype/toLocaleString/era': [SKIP],
+  'intl402/Temporal/PlainDate/from/dangi-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/add/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/add/leap-year-gregory': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/add/leap-year-japanese': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/add/leap-year-roc': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-gregory': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-japanese': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-roc': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/toLocaleString/era': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-gregory': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-japanese': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-roc': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-gregory': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-japanese': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-roc': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/era': [SKIP],
+  'intl402/Temporal/PlainMonthDay/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/era': [SKIP],
+  'intl402/Temporal/PlainTime/prototype/toLocaleString/era': [SKIP],
+  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/dangi-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/era': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-gregory': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-japanese': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-roc': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-gregory': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-japanese': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-roc': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/era': [SKIP],
 }],
 # End roll-watcher patch
 ####
