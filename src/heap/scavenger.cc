@@ -2505,7 +2505,7 @@ void Scavenger::Process(JobDelegate* delegate) {
       copied_object_visitor.Visit(entry.map, entry.heap_object, entry.size);
       done = false;
       if (delegate && ((++objects % kInterruptThreshold) == 0)) {
-        if (!local_copied_list_.IsLocalEmpty()) {
+        if (!local_copied_list_.IsGlobalEmpty()) {
           delegate->NotifyConcurrencyIncrease();
         }
       }
