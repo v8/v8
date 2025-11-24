@@ -159,6 +159,8 @@
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
 
+#include "src/strings/string-hasher-inl.h"
+
 #if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 #include <signal.h>
 #include <unistd.h>
@@ -5607,28 +5609,6 @@ bool String::IsOneByte() const {
   return Utils::OpenDirectHandle(this)->IsOneByteRepresentation();
 }
 
-// Helpers for ContainsOnlyOneByteHelper
-template <size_t size>
-struct OneByteMask;
-template <>
-struct OneByteMask<4> {
-  static const uint32_t value = 0xFF00FF00;
-};
-template <>
-struct OneByteMask<8> {
-  static const uint64_t value = 0xFF00'FF00'FF00'FF00;
-};
-static const uintptr_t kOneByteMask = OneByteMask<sizeof(uintptr_t)>::value;
-static const uintptr_t kAlignmentMask = sizeof(uintptr_t) - 1;
-static inline bool Unaligned(const uint16_t* chars) {
-  return reinterpret_cast<const uintptr_t>(chars) & kAlignmentMask;
-}
-
-static inline const uint16_t* Align(const uint16_t* chars) {
-  return reinterpret_cast<uint16_t*>(reinterpret_cast<uintptr_t>(chars) &
-                                     ~kAlignmentMask);
-}
-
 class ContainsOnlyOneByteHelper {
  public:
   ContainsOnlyOneByteHelper() : is_one_byte_(true) {}
@@ -5645,35 +5625,7 @@ class ContainsOnlyOneByteHelper {
     // Nothing to do.
   }
   void VisitTwoByteString(const uint16_t* chars, int length) {
-    // Accumulated bits.
-    uintptr_t acc = 0;
-    // Align to uintptr_t.
-    const uint16_t* end = chars + length;
-    while (Unaligned(chars) && chars != end) {
-      acc |= *chars++;
-    }
-    // Read word aligned in blocks,
-    // checking the return value at the end of each block.
-    const uint16_t* aligned_end = Align(end);
-    const int increment = sizeof(uintptr_t) / sizeof(uint16_t);
-    const int inner_loops = 16;
-    while (chars + inner_loops * increment < aligned_end) {
-      for (int i = 0; i < inner_loops; i++) {
-        acc |= *reinterpret_cast<const uintptr_t*>(chars);
-        chars += increment;
-      }
-      // Check for early return.
-      if ((acc & kOneByteMask) != 0) {
-        is_one_byte_ = false;
-        return;
-      }
-    }
-    // Read the rest.
-    while (chars != end) {
-      acc |= *chars++;
-    }
-    // Check result.
-    if ((acc & kOneByteMask) != 0) is_one_byte_ = false;
+    is_one_byte_ = internal::detail::IsOnly8Bit(chars, length);
   }
 
  private:
