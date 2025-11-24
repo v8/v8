@@ -508,7 +508,9 @@ macro HandleF32Params(
   }
 }
 
-const kCppQuietNaN: constexpr float64
+const kCppQuietNaN32: constexpr float32
+    generates 'std::numeric_limits<float>::quiet_NaN()';
+const kCppQuietNaN64: constexpr float64
     generates 'std::numeric_limits<double>::quiet_NaN()';
 
 macro JSToWasmWrapperHelper(
@@ -709,6 +711,19 @@ macro JSToWasmWrapperHelper(
         HandleF32Params(context, locationAllocator, toRef, param);
       } else {
         *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(param)));
+        // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every
+        // single bit can be observable when the float64 is reinterpret casted
+        // to an integral type. Hence, differences in NaN bit patterns are
+        // detected by differential fuzzing, in particular the difference
+        // between the shipped NaN pattern produced from undefined and the new
+        // pattern used for the undefined double experiment. In order to silence
+        // these false positives, we temporarily fall back to the old pattern.
+        // This should be removed when the feature is shipped.
+        @if(V8_ENABLE_UNDEFINED_DOUBLE) {
+          if (param == Undefined) {
+            *RefCast<float32>(toRef) = kCppQuietNaN32;
+          }
+        }
       }
     } else if (paramType == kWasmF64Type) {
       let toRef = locationAllocator.GetFP64Slot();
@@ -723,7 +738,7 @@ macro JSToWasmWrapperHelper(
       // when the feature is shipped.
       @if(V8_ENABLE_UNDEFINED_DOUBLE) {
         if (param == Undefined) {
-          *RefCast<float64>(toRef) = kCppQuietNaN;
+          *RefCast<float64>(toRef) = kCppQuietNaN64;
         }
       }
     } else if (paramType == kWasmI64Type) {
