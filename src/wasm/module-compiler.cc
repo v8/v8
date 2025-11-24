@@ -2481,6 +2481,7 @@ AsyncCompileJob::AsyncCompileJob(
 }
 
 void AsyncCompileJob::InitializeIsolateSpecificInfo(Isolate* isolate) {
+  DCHECK_EQ(isolate->thread_id(), ThreadId::Current());
   DCHECK(!has_isolate_specific_info_.load(std::memory_order_acquire));
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
@@ -2706,7 +2707,8 @@ AsyncCompileJob::~AsyncCompileJob() {
   if (stream_) stream_->NotifyCompilationDiscarded();
   CancelPendingForegroundTask();
   if (isolate_specific_info_.isolate_) {
-    DCHECK_EQ(isolate_specific_info_.isolate_, Isolate::TryGetCurrent());
+    DCHECK_EQ(isolate_specific_info_.isolate_->thread_id(),
+              ThreadId::Current());
     isolate_specific_info_.isolate_->global_handles()->Destroy(
         isolate_specific_info_.native_context_.location());
     isolate_specific_info_.isolate_->global_handles()->Destroy(
@@ -2759,6 +2761,7 @@ void AsyncCompileJob::FinishCompile(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.FinishAsyncCompile");
   Isolate* isolate = isolate_specific_info_.isolate_;
+  DCHECK_EQ(isolate->thread_id(), ThreadId::Current());
   GetWasmEngine()->UseNativeModuleInIsolate(native_module.get(), isolate);
   if (stream_) {
     stream_->NotifyNativeModuleCreated(native_module);

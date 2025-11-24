@@ -95,7 +95,7 @@ class WasmStreaming::WasmStreamingImpl {
         [callback = std::move(callback),
          url = streaming_decoder_->shared_url()](
             const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          callback(CompiledWasmModule{native_module, url->data(), url->size()});
+          callback(CompiledWasmModule{native_module, *url});
         });
   }
 
@@ -164,6 +164,114 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
   auto managed =
       i::Cast<i::Managed<WasmStreaming>>(Utils::OpenDirectHandle(*value));
   return managed->get();
+}
+
+class WasmModuleCompilation::Impl {
+ public:
+  Impl(WasmEnabledFeatures enabled_features, CompileTimeImports compile_imports)
+      : streaming_decoder_(i::wasm::GetWasmEngine()->StartStreamingCompilation(
+            enabled_features, std::move(compile_imports),
+            "WasmModuleCompilation", resolver_)) {}
+
+  void OnBytesReceived(const uint8_t* bytes, size_t size) {
+    streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
+  }
+
+  void Finish(
+      Isolate* isolate, const ModuleCachingCallback& caching_callback,
+      const std::function<void(
+          std::variant<Local<WasmModuleObject>, Local<Value>> module_or_error)>&
+          resolution_callback) {
+    DCHECK_NULL(resolver_->callback_);
+    resolver_->callback_ = resolution_callback;
+
+    streaming_decoder_->InitializeIsolateSpecificInfo(
+        reinterpret_cast<i::Isolate*>(isolate));
+    streaming_decoder_->Finish(caching_callback);
+  }
+
+  void Abort() { streaming_decoder_->Abort(); }
+
+  void SetMoreFunctionsCanBeSerializedCallback(
+      std::function<void(CompiledWasmModule)> callback) {
+    streaming_decoder_->SetMoreFunctionsCanBeSerializedCallback(
+        [callback = std::move(callback),
+         url = streaming_decoder_->shared_url()](
+            const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+          callback(CompiledWasmModule{native_module, *url});
+        });
+  }
+
+  void SetHasCompiledModuleBytes() {
+    streaming_decoder_->SetHasCompiledModuleBytes();
+  }
+
+  void SetUrl(base::Vector<const char> url) { streaming_decoder_->SetUrl(url); }
+
+ private:
+  class Resolver final : public i::wasm::CompilationResultResolver {
+   public:
+    void OnCompilationSucceeded(
+        i::DirectHandle<i::WasmModuleObject> result) override {
+      DCHECK_NOT_NULL(callback_);
+      callback_(Utils::ToLocal(result));
+    }
+    void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
+      DCHECK_NOT_NULL(callback_);
+      callback_(Utils::ToLocal(error_reason));
+    }
+
+   private:
+    friend class WasmModuleCompilation::Impl;
+    std::function<void(
+        std::variant<Local<WasmModuleObject>, Local<Value>> module_or_error)>
+        callback_;
+  };
+
+  const std::shared_ptr<Resolver> resolver_ = std::make_shared<Resolver>();
+  const std::shared_ptr<i::wasm::StreamingDecoder> streaming_decoder_;
+};
+
+// TODO(clemensb): Pass enabled features and compile time imports.
+WasmModuleCompilation::WasmModuleCompilation()
+    : impl_(std::make_unique<Impl>(WasmEnabledFeatures::FromFlags(),
+                                   CompileTimeImports{})) {
+  TRACE_EVENT0("v8.wasm", "wasm.ModuleCompilation");
+}
+
+WasmModuleCompilation::~WasmModuleCompilation() = default;
+
+void WasmModuleCompilation::OnBytesReceived(const uint8_t* bytes, size_t size) {
+  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "bytes", size);
+  impl_->OnBytesReceived(bytes, size);
+}
+
+void WasmModuleCompilation::Finish(
+    Isolate* isolate, const ModuleCachingCallback& caching_callback,
+    const std::function<void(std::variant<Local<WasmModuleObject>, Local<Value>>
+                                 module_or_error)>& resolution_callback) {
+  TRACE_EVENT0("v8.wasm", "wasm.FinishModuleCompilation");
+  impl_->Finish(isolate, caching_callback, resolution_callback);
+}
+
+void WasmModuleCompilation::Abort() {
+  TRACE_EVENT0("v8.wasm", "wasm.AbortModuleCompilation");
+  impl_->Abort();
+}
+
+void WasmModuleCompilation::SetHasCompiledModuleBytes() {
+  impl_->SetHasCompiledModuleBytes();
+}
+
+void WasmModuleCompilation::SetMoreFunctionsCanBeSerializedCallback(
+    std::function<void(CompiledWasmModule)> callback) {
+  impl_->SetMoreFunctionsCanBeSerializedCallback(std::move(callback));
+}
+
+void WasmModuleCompilation::SetUrl(const char* url, size_t length) {
+  DCHECK_EQ('\0', url[length]);  // {url} is null-terminated.
+  TRACE_EVENT1("v8.wasm", "wasm.SetUrl", "url", url);
+  impl_->SetUrl(base::VectorOf(url, length));
 }
 
 namespace {
@@ -836,9 +944,9 @@ bool TransferPrototype(i::Isolate* isolate,
       i::JSObject::GetPrototype(isolate, source);
   i::DirectHandle<i::HeapObject> prototype;
   if (maybe_prototype.ToHandle(&prototype)) {
-    Maybe<bool> result = i::JSObject::SetPrototype(
-        isolate, destination, prototype,
-        /*from_javascript=*/false, internal::kThrowOnError);
+    Maybe<bool> result =
+        i::JSObject::SetPrototype(isolate, destination, prototype,
+                                  /*from_javascript=*/false, i::kThrowOnError);
     if (!result.FromJust()) {
       DCHECK(isolate->has_exception());
       return false;
@@ -2214,7 +2322,7 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
   i::wasm::ModuleTypeIndex sig_index = module->functions[func_index].sig_index;
   const i::wasm::CanonicalSig* sig = data->internal()->sig();
   i::DirectHandle<i::Code> wrapper;
-  if (!internal::wasm::IsJSCompatibleSignature(sig)) {
+  if (!i::wasm::IsJSCompatibleSignature(sig)) {
     // If the signature is incompatible with JS, the original export will have
     // compiled an incompatible signature wrapper, so just reuse that.
     wrapper =
@@ -3149,8 +3257,7 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 }  // namespace
 
-namespace internal {
-namespace wasm {
+namespace internal::wasm {
 
 // Define the callbacks in v8::internal::wasm namespace. The implementation is
 // in v8::internal directly.
@@ -3161,8 +3268,7 @@ namespace wasm {
 WASM_JS_EXTERNAL_REFERENCE_LIST(DEF_WASM_JS_EXTERNAL_REFERENCE)
 #undef DEF_WASM_JS_EXTERNAL_REFERENCE
 
-}  // namespace wasm
-}  // namespace internal
+}  // namespace internal::wasm
 
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.
