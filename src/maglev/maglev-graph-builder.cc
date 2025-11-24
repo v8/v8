@@ -11256,6 +11256,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
     return {};
   }
 
+  if (IsTheHoleConstant(args.receiver())) {
+    // Not supported by CallFunctionTemplate.
+    return {};
+  }
+
   // See if we can optimize this API call.
   compiler::FunctionTemplateInfoRef function_template_info =
       maybe_function_template_info.value();
@@ -11388,7 +11393,7 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   ValueNode* receiver = args.receiver();
-  if (!IsTheHoleConstant(args.receiver())) {
+  if (!IsTheHoleConstant(receiver)) {
     // The receiver may be the_hole when inlining derived constructors and
     // construct_as_builtin constructors. Only insert conversions when that is
     // not the case.
