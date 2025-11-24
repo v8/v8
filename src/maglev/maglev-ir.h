@@ -986,6 +986,13 @@ inline constexpr bool NodeTypeIsNeverStandalone(NodeType type) {
 
 inline constexpr NodeType EmptyNodeType() { return static_cast<NodeType>(0); }
 
+enum class NodeTypeIsVariant {
+  kDefault,
+  // Allows the lhs of `NodeTypeIs` to be kNone, in which case the result is
+  // always true. Usually this is unexpected and caused by dead code.
+  kAllowNone,
+};
+
 inline constexpr NodeType IntersectType(NodeType left, NodeType right) {
   DCHECK(!NodeTypeIsNeverStandalone(left));
   DCHECK(!NodeTypeIsNeverStandalone(right));
@@ -998,9 +1005,14 @@ inline constexpr NodeType UnionType(NodeType left, NodeType right) {
   return static_cast<NodeType>(static_cast<NodeTypeInt>(left) |
                                static_cast<NodeTypeInt>(right));
 }
-inline constexpr bool NodeTypeIs(NodeType type, NodeType to_check) {
+inline constexpr bool NodeTypeIs(
+    NodeType type, NodeType to_check,
+    NodeTypeIsVariant variant = NodeTypeIsVariant::kDefault) {
   DCHECK(!NodeTypeIsNeverStandalone(type));
   DCHECK(!NodeTypeIsNeverStandalone(to_check));
+  if (variant != NodeTypeIsVariant::kAllowNone) {
+    DCHECK_NE(type, NodeType::kNone);
+  }
   NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
   return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
 }
@@ -1264,9 +1276,11 @@ inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
   return out;
 }
 
-#define DEFINE_NODE_TYPE_CHECK(Type, _)         \
-  inline bool NodeTypeIs##Type(NodeType type) { \
-    return NodeTypeIs(type, NodeType::k##Type); \
+#define DEFINE_NODE_TYPE_CHECK(Type, _)                          \
+  inline bool NodeTypeIs##Type(                                  \
+      NodeType type,                                             \
+      NodeTypeIsVariant variant = NodeTypeIsVariant::kDefault) { \
+    return NodeTypeIs(type, NodeType::k##Type, variant);         \
   }
 NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
 #undef DEFINE_NODE_TYPE_CHECK
@@ -9607,7 +9621,8 @@ class Phi : public ValueNodeT<Phi> {
   void promote_post_loop_type() {
     DCHECK(!has_key());
     DCHECK(is_unmerged_loop_phi());
-    DCHECK(NodeTypeIs(post_loop_type_, type_));
+    // TODO(428667907): Ideally we should bail out early for the kNone type.
+    DCHECK(NodeTypeIs(post_loop_type_, type_, NodeTypeIsVariant::kAllowNone));
     type_ = post_loop_type_;
   }
 

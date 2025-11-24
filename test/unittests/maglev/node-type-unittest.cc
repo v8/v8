@@ -34,7 +34,7 @@ TEST_F(MaglevTest, NodeTypeSmokeTests) {
 TEST_F(MaglevTest, EmptyTypeIsAnything) {
   for (NodeType a : kAllNodeTypes) {
     if (NodeTypeIsNeverStandalone(a)) continue;
-    CHECK(NodeTypeIs(EmptyNodeType(), a));
+    CHECK(NodeTypeIs(EmptyNodeType(), a, NodeTypeIsVariant::kAllowNone));
   }
 }
 

@@ -2398,13 +2398,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStringConcat(ValueNode* left,
                                                            ValueNode* right) {
   NodeType left_type = GetType(left);
   NodeType right_type = GetType(right);
-  bool left_is_string = NodeTypeIs(left_type, NodeType::kString);
-  bool right_is_string = NodeTypeIs(right_type, NodeType::kString);
-
   if (IsEmptyNodeType(left_type) || IsEmptyNodeType(right_type)) {
     // We must be in unreachable code.
     return BuildAbort(AbortReason::kUnreachable);
   }
+
+  bool left_is_string = NodeTypeIs(left_type, NodeType::kString);
+  bool right_is_string = NodeTypeIs(right_type, NodeType::kString);
 
   if (!left_is_string && !right_is_string) {
     return MaybeReduceResult::Fail();

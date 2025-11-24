@@ -470,7 +470,8 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     if (old_type != NodeType::kUnknown) {
       NodeType new_type = loop_end_state.known_node_aspects()->GetType(
           builder->broker(), loop_end_state.get(reg));
-      if (!NodeTypeIs(new_type, old_type)) {
+      // TODO(428667907): Ideally we should bail out early for the kNone type.
+      if (!NodeTypeIs(new_type, old_type, NodeTypeIsVariant::kAllowNone)) {
         if (v8_flags.trace_maglev_loop_speeling) {
           std::cout << "Cannot merge " << new_type << " into " << old_type
                     << " for r" << reg.index() << "\n";

@@ -939,7 +939,8 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     case ValueRepresentation::kTagged: {
       NodeType old_type;
       EnsureType(value, allowed_input_type, &old_type);
-      if (NodeTypeIsSmi(old_type)) {
+      // TODO(428667907): Ideally we should bail out early for the kNone type.
+      if (NodeTypeIsSmi(old_type, NodeTypeIsVariant::kAllowNone)) {
         // Smi untagging can be cached as an int32 alternative, not just a
         // truncated alternative.
         return alternative.set_int32(BuildSmiUntag(value));
@@ -948,7 +949,9 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
         return alternative.set_int32(
             AddNewNodeNoInputConversion<CheckedSmiUntag>({value}));
       }
-      if (NodeTypeIs(old_type, allowed_input_type)) {
+      // TODO(428667907): Ideally we should bail out early for the kNone type.
+      if (NodeTypeIs(old_type, allowed_input_type,
+                     NodeTypeIsVariant::kAllowNone)) {
         return alternative.set_truncated_int32_to_number(
             AddNewNodeNoInputConversion<TruncateUnsafeNumberOrOddballToInt32>(
                 {value}, GetTaggedToFloat64ConversionType(allowed_input_type)));
@@ -1053,13 +1056,13 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kTagged: {
       auto combined_type = IntersectType(allowed_input_type, node_info->type());
-      if (!IsEmptyNodeType(node_info->type()) &&
+      if (!IsEmptyNodeType(combined_type) &&
           NodeTypeIs(combined_type, NodeType::kSmi)) {
         // Get the float64 value of a Smi value its int32 representation.
         return GetFloat64OrHoleyFloat64Impl(GetInt32(value), use_rep,
                                             combined_type);
       }
-      if (!IsEmptyNodeType(node_info->type()) &&
+      if (!IsEmptyNodeType(combined_type) &&
           NodeTypeIs(combined_type, NodeType::kNumber)) {
         ValueNode* float64_value = BuildNumberOrOddballToFloat64OrHoleyFloat64(
             value, use_rep, NodeType::kNumber);
@@ -1070,7 +1073,7 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
         }
         return float64_value;
       }
-      if (!IsEmptyNodeType(node_info->type()) &&
+      if (!IsEmptyNodeType(combined_type) &&
           NodeTypeIs(combined_type, NodeType::kNumberOrOddball)) {
         // NumberOrOddball->Float64 conversions are not exact alternatives,
         // since they lose the information that this is an oddball, so they

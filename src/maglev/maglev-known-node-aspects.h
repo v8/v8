@@ -370,7 +370,8 @@ class KnownNodeAspects {
     }
 #ifdef DEBUG
     NodeType static_type = node->GetStaticType(broker);
-    if (!NodeTypeIs(actual_type, static_type)) {
+    // TODO(428667907): Ideally we should bail out early for the kNone type.
+    if (!NodeTypeIs(actual_type, static_type, NodeTypeIsVariant::kAllowNone)) {
       // In case we needed a numerical alternative of a smi value, the type
       // must generalize. In all other cases the node info type should reflect
       // the actual type.
@@ -418,10 +419,16 @@ class KnownNodeAspects {
                   NodeType type, NodeType* old_type = nullptr) {
     NodeType static_type = node->GetStaticType(broker);
     if (old_type) *old_type = static_type;
-    if (NodeTypeIs(static_type, type)) return true;
+    // TODO(428667907): Ideally we should bail out early for the kNone type.
+    if (NodeTypeIs(static_type, type, NodeTypeIsVariant::kAllowNone)) {
+      return true;
+    }
     NodeInfo* known_info = GetOrCreateInfoFor(broker, node);
     if (old_type) *old_type = known_info->type();
-    if (NodeTypeIs(known_info->type(), type)) return true;
+    // TODO(428667907): Ideally we should bail out early for the kNone type.
+    if (NodeTypeIs(known_info->type(), type, NodeTypeIsVariant::kAllowNone)) {
+      return true;
+    }
     known_info->IntersectType(type);
     if (auto phi = node->TryCast<Phi>()) {
       known_info->IntersectType(phi->type());
