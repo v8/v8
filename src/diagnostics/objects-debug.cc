@@ -2809,7 +2809,16 @@ void UncompiledDataWithPreparseDataAndJob::
 }
 
 void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::CallSiteInfoVerify(*this, isolate);
+  CHECK(IsSmi(flags_.load()));
+  CHECK(IsSmi(code_offset_or_source_position_.load()));
+  Object::VerifyPointer(isolate, receiver_or_instance_.load());
+  Object::VerifyPointer(isolate, function_.load());
+  Object::VerifyPointer(isolate, parameters_.load());
+  CHECK(IsFixedArray(parameters_.load()));
+
+  Tagged<Object> code = code_object_.load_maybe_empty(isolate, kAcquireLoad);
+  CHECK(IsCode(code) || IsBytecodeArray(code) || code == Smi::zero());
+
 #if V8_ENABLE_WEBASSEMBLY
   CHECK_IMPLIES(IsAsmJsWasm(), IsWasm());
   CHECK_IMPLIES(IsWasm(), IsWasmInstanceObject(receiver_or_instance()));
