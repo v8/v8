@@ -283,9 +283,9 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
     OpIndex ig_index = Asm().input_graph().Index(op);
     if (Asm().current_block()->IsLoop()) {
-      DCHECK_EQ(op.input_count, 2);
-      OpIndex og_index = map(op.input(0), -1);
-      if (ig_index == op.input(PhiOp::kLoopPhiBackEdgeIndex)) {
+      DCHECK_EQ(op.input_count, PhiOp::kLoopPhiInputCount);
+      OpIndex og_index = map(op.forward_edge(), -1);
+      if (ig_index == op.back_edge()) {
         // Avoid emitting a Loop Phi which points to itself, instead
         // emit it's 0'th input.
         return og_index;

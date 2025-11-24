@@ -2595,10 +2595,17 @@ struct PhiOp : OperationT<PhiOp> {
     return base::VectorOf(storage);
   }
 
-  static constexpr size_t kLoopPhiBackEdgeIndex = 1;
-
   explicit PhiOp(base::Vector<const OpIndex> inputs, RegisterRepresentation rep)
       : Base(inputs), rep(rep) {}
+
+  // Helpers to access loop phis forward/backedge. These should only be used for
+  // loop phis (which isn't trivial to DCHECK since PhiOp doesn't know if it's a
+  // loop phi or not).
+  static constexpr size_t kLoopPhiForwardEdgeIndex = 0;
+  static constexpr size_t kLoopPhiBackEdgeIndex = 1;
+  static constexpr size_t kLoopPhiInputCount = 2;
+  V<Any> forward_edge() const { return input<Any>(kLoopPhiForwardEdgeIndex); }
+  V<Any> back_edge() const { return input<Any>(kLoopPhiBackEdgeIndex); }
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {

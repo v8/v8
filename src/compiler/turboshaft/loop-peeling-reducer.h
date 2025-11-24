@@ -98,8 +98,7 @@ class LoopPeelingReducer : public Next {
     // The 1st input of the loop phis of the unpeeled loop header should be the
     // 2nd input of the original loop phis, since with the peeling, they
     // actually come from the backedge of the peeled iteration.
-    return __ PendingLoopPhi(
-        __ MapToNewGraph(phi.input(PhiOp::kLoopPhiBackEdgeIndex)), phi.rep);
+    return __ PendingLoopPhi(__ MapToNewGraph(phi.back_edge()), phi.rep);
   }
 
  private:

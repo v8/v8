@@ -1232,13 +1232,13 @@ class ReducerBase : public Next {
     // computed with the VariableReducer Snapshot right before the loop was
     // emitted).
     DCHECK_IMPLIES(
-        pending_phi.first() != Asm().MapToNewGraph(input_phi.input(0)),
+        pending_phi.first() != Asm().MapToNewGraph(input_phi.forward_edge()),
         output_graph_loop->has_peeled_iteration());
 #endif
     Asm().output_graph().template Replace<PhiOp>(
         output_index,
         base::VectorOf<OpIndex>(
-            {pending_phi.first(), Asm().MapToNewGraph(input_phi.input(1))}),
+            {pending_phi.first(), Asm().MapToNewGraph(input_phi.back_edge())}),
         input_phi.rep);
   }
 
