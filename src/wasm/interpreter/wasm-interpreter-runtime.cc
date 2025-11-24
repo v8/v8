@@ -2132,6 +2132,28 @@ int WasmInterpreterRuntime::instruction_table_offset() {
   return OFFSET_OF(WasmInterpreterRuntime, instruction_table_);
 }
 
+#ifndef V8_DRUMBRAKE_BOUNDS_CHECKS
+// static
+int WasmInterpreterRuntime::trace_pop_func_offset() {
+  return OFFSET_OF(WasmInterpreterRuntime, trace_pop_func_);
+}
+
+// static
+int WasmInterpreterRuntime::trace_pop2_func_offset() {
+  return OFFSET_OF(WasmInterpreterRuntime, trace_pop2_func_);
+}
+
+// static
+int WasmInterpreterRuntime::trace_push_func_offset() {
+  return OFFSET_OF(WasmInterpreterRuntime, trace_push_func_);
+}
+
+// static
+int WasmInterpreterRuntime::trace_replace_func_offset() {
+  return OFFSET_OF(WasmInterpreterRuntime, trace_replace_func_);
+}
+#endif  // V8_DRUMBRAKE_BOUNDS_CHECKS
+
 struct StackHandlerMarker {
   Address next;
   Address padding;

@@ -7122,7 +7122,7 @@ void ShadowStack::Slot::Print(WasmInterpreterRuntime* wasm_runtime,
       break;
     case kI64:
       wasm_runtime->Trace(
-          "%c%zu:i64:%" PRId64, kind, index,
+          "%c%zu:i64:%" PRId64 " ", kind, index,
           base::ReadUnalignedValue<int64_t>(reinterpret_cast<Address>(addr)));
       break;
     case kF32: {
@@ -7158,7 +7158,7 @@ void ShadowStack::Slot::Print(WasmInterpreterRuntime* wasm_runtime,
       // TODO(paolosev@microsoft.com): Extract actual ref value from the
       // thread's reference_stack_.
       wasm_runtime->Trace(
-          "%c%zu:ref:%" PRIx64, kind, index,
+          "%c%zu:ref:%" PRIx64 " ", kind, index,
           base::ReadUnalignedValue<uint64_t>(reinterpret_cast<Address>(addr)));
       break;
     default:

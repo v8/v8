@@ -1714,6 +1714,57 @@ enum IntValueType { kValueInt32, kValueInt64 };
 
 enum FloatType { kFloat32, kFloat64 };
 
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+
+using TracePopType = wasm::WasmInterpreterRuntime::TracePopType;
+using TracePushType = wasm::WasmInterpreterRuntime::TracePushType;
+
+template <TracePopType type>
+void EmitTracePop(MacroAssembler* masm, Register wasm_runtime) {
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ PushCallerSaved(SaveFPRegsMode::kSave, kReturnRegister0);
+
+  Register trace_pop = kReturnRegister0;
+  int offset = type == TracePopType::kDuplicate
+                   ? wasm::WasmInterpreterRuntime::trace_pop2_func_offset()
+                   : wasm::WasmInterpreterRuntime::trace_pop_func_offset();
+  __ movq(trace_pop, MemOperand(wasm_runtime, offset));
+
+  DCHECK_NE(wasm_runtime, kReturnRegister0);
+  __ Move(kCArgRegs[0], wasm_runtime);
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(trace_pop, 1, SetIsolateDataSlots::kNo);
+
+  __ PopCallerSaved(SaveFPRegsMode::kSave, kReturnRegister0);
+}
+
+template <TracePushType type>
+void EmitTracePush(MacroAssembler* masm, Register wasm_runtime,
+                   wasm::ValueKind kind, Register slot_offset) {
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ PushCallerSaved(SaveFPRegsMode::kSave, kReturnRegister0);
+
+  Register trace_push = kReturnRegister0;
+  int offset = type == TracePushType::kReplace
+                   ? wasm::WasmInterpreterRuntime::trace_replace_func_offset()
+                   : wasm::WasmInterpreterRuntime::trace_push_func_offset();
+  __ movq(trace_push, MemOperand(wasm_runtime, offset));
+
+  DCHECK_NE(wasm_runtime, kReturnRegister0);
+  __ Move(kCArgRegs[0], wasm_runtime);
+  __ Move(kCArgRegs[1], Immediate(kind));
+  DCHECK_NE(slot_offset, kReturnRegister0);
+  DCHECK_NE(slot_offset, kCArgRegs[0]);
+  DCHECK_NE(slot_offset, kCArgRegs[1]);
+  __ Move(kCArgRegs[2], slot_offset);
+  __ shlq(kCArgRegs[2], Immediate(log2(wasm::kSlotSize)));
+  __ PrepareCallCFunction(3);
+  __ CallCFunction(trace_push, 3, SetIsolateDataSlots::kNo);
+
+  __ PopCallerSaved(SaveFPRegsMode::kSave, kReturnRegister0);
+}
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
+
 void EmitLoadInstruction(MacroAssembler* masm, Register result,
                          Register memory_start, Register memory_index,
                          IntValueType value_type, IntMemoryType memory_type) {
@@ -2038,11 +2089,18 @@ class WasmInterpreterHandlerBuiltins {
     EmitLoadInstruction(masm, value, memory_start_plus_index, memory_offset,
                         value_type, memory_type);
 
-    Register slot_offset = rax;
+    Register slot_offset = r11;
     emitter::EmitLoadSlotOffset(masm, slot_offset,
                                 MemOperand(code, kSlotOffset));
 
     WriteToSlot(masm, sp, slot_offset, value, value_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePush<TracePushType::kNormal>(masm, wasm_runtime,
+                                          value_type == kValueInt64
+                                              ? wasm::ValueKind::kI64
+                                              : wasm::ValueKind::kI32,
+                                          slot_offset);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2090,6 +2148,12 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitLoadInstruction(masm, memory_start_plus_index, memory_offset, sp,
                         slot_offset, float_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePush<TracePushType::kNormal>(
+        masm, wasm_runtime,
+        float_type == kFloat64 ? wasm::ValueKind::kF64 : wasm::ValueKind::kF32,
+        slot_offset);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2141,6 +2205,9 @@ class WasmInterpreterHandlerBuiltins {
     Register value = r9;
     EmitLoadInstruction(masm, value, memory_start_plus_offset, memory_index,
                         value_type, memory_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kNormal>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2190,6 +2257,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitLoadInstruction(masm, memory_start_plus_offset, memory_index, xmm4,
                         float_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kNormal>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2247,6 +2317,14 @@ class WasmInterpreterHandlerBuiltins {
 
     WriteToSlot(masm, sp, result_slot_offset, value, value_type);
 
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePush<TracePushType::kReplace>(masm, wasm_runtime,
+                                           value_type == kValueInt64
+                                               ? wasm::ValueKind::kI64
+                                               : wasm::ValueKind::kI32,
+                                           result_slot_offset);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
+
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
     __ addq(code, Immediate(kInstructionCodeLength));
@@ -2298,6 +2376,12 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitLoadInstruction(masm, memory_start_plus_offset, memory_index, sp,
                         result_slot_offset, float_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePush<TracePushType::kReplace>(
+        masm, wasm_runtime,
+        float_type == kFloat64 ? wasm::ValueKind::kF64 : wasm::ValueKind::kF32,
+        result_slot_offset);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2354,6 +2438,9 @@ class WasmInterpreterHandlerBuiltins {
                         value_type, memory_type);
 
     WriteToSlot(masm, sp, set_slot_offset, value, value_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kNormal>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2406,6 +2493,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitLoadInstruction(masm, memory_start_plus_offset, memory_index, sp,
                         set_slot_offset, float_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kNormal>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2457,6 +2547,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitStoreInstruction(masm, value, memory_start_plus_offset, memory_index,
                          memory_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kNormal>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2508,6 +2601,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitStoreInstruction(masm, value, memory_start_plus_offset, memory_index,
                          float_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kNormal>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2581,6 +2677,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitStoreInstruction(masm, value, memory_start_plus_offset, memory_index,
                          memory_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kDuplicate>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = rax;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2647,6 +2746,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitStoreInstruction(masm, value, memory_start_plus_offset, memory_index,
                          float_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kDuplicate>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = r10;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2713,6 +2815,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, memory_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kNormal>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = rax;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2784,6 +2889,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, memory_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kDuplicate>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = rax;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2859,6 +2967,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, float_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kNormal>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = rax;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
@@ -2938,6 +3049,9 @@ class WasmInterpreterHandlerBuiltins {
 
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, float_type);
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    EmitTracePop<TracePopType::kDuplicate>(masm, wasm_runtime);
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = rax;
     EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
