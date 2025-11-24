@@ -164,7 +164,7 @@
       'V8 Clusterfuzz Linux ASAN no inline - release builder':
           'release_x86_asan_symbolized_verify_heap_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan_undefined_double',
-      'V8 Clusterfuzz Linux64 ASAN - undefined double - debug builder': 'debug_x64_asan_undefined_double',
+      'V8 Clusterfuzz Linux64 ASAN - undefined double - debug builder': 'debug_x64_asan',
       'V8 Clusterfuzz Linux ASAN - debug builder': 'debug_x86_asan_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN arm64 - debug builder':
           'debug_simulate_arm64_asan_undefined_double',
@@ -684,6 +684,8 @@
     # Debug configs for x64.
     'debug_x64': [
       'debug_bot', 'x64'],
+    'debug_x64_asan': [
+      'debug_bot', 'x64', 'asan', 'lsan'],
     'debug_x64_asan_undefined_double': [
       'debug_bot', 'x64', 'asan', 'lsan', 'v8_enable_undefined_double'],
     'debug_x64_asan_centipede': [
