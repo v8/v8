@@ -115,13 +115,13 @@ int CheckedObjectToIndex::MaxCallStackArgs() const {
 }
 
 void CheckedIntPtrToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 
 void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  Register input_reg = ToRegister(input());
+  Register input_reg = ToRegister(ValueInput());
 
   // Copy input(32 bit) to scratch. Is input equal(64 bit) to scratch?
   __ movl(kScratchRegister, input_reg);
@@ -858,7 +858,7 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
 
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-  DoubleRegister in = ToDoubleRegister(input());
+  DoubleRegister in = ToDoubleRegister(ValueInput());
   DoubleRegister out = ToDoubleRegister(result());
 
   if (kind_ == Kind::kNearest) {
@@ -1001,23 +1001,23 @@ void Float64Ieee754Binary::GenerateCode(MaglevAssembler* masm,
 }
 
 void Float64Sqrt::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void Float64Sqrt::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister value = ToDoubleRegister(ValueInput());
   DoubleRegister result_register = ToDoubleRegister(result());
   __ Sqrtsd(result_register, value);
 }
 
 void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister value = ToDoubleRegister(ValueInput());
   // A Float64 value could contain a NaN with the bit pattern that has a special
   // interpretation in the HoleyFloat64 representation, so we need to canicalize
   // those before changing representation.
@@ -1026,12 +1026,12 @@ void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
 }
 
 void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister value = ToDoubleRegister(ValueInput());
   // The hole value is a signalling NaN, so just silence it to get the
   // float64 value.
   __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
@@ -1039,12 +1039,12 @@ void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
 }
 
 void Float64ToSilencedFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister value = ToDoubleRegister(ValueInput());
   // The hole value is a signalling NaN, so just silence it to get the
   // float64 value.
   __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
@@ -1052,7 +1052,7 @@ void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
 }
 
 void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
@@ -1060,12 +1060,12 @@ void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void HoleyFloat64ConvertHoleToUndefined::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void HoleyFloat64ConvertHoleToUndefined::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister value = ToDoubleRegister(ValueInput());
   Label done;
   __ JumpIfNotHoleNan(value, kScratchRegister, &done);
   __ Move(value, UndefinedNan());

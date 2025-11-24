@@ -3539,15 +3539,15 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfUndetectable(
     case Opcode::kHoleyFloat64IsUndefinedOrHole:
       return BuildBranchIfFloat64IsUndefinedOrHole(
           builder,
-          result->Cast<HoleyFloat64IsUndefinedOrHole>()->input().node());
+          result->Cast<HoleyFloat64IsUndefinedOrHole>()->ValueInput().node());
 #else
     case Opcode::kHoleyFloat64IsHole:
       return BuildBranchIfFloat64IsHole(
-          builder, result->Cast<HoleyFloat64IsHole>()->input().node());
+          builder, result->Cast<HoleyFloat64IsHole>()->ValueInput().node());
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
     case Opcode::kTestUndetectable:
       return builder.Build<BranchIfUndetectable>(
-          {result->Cast<TestUndetectable>()->value().node()},
+          {result->Cast<TestUndetectable>()->ValueInput().node()},
           result->Cast<TestUndetectable>()->check_type());
     default:
       UNREACHABLE();
@@ -15352,31 +15352,31 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
         builder.SwapTargets();
       }
       return builder.Build<BranchIfInt32ToBooleanTrue>(
-          {node->Cast<Int32ToBoolean>()->value().node()});
+          {node->Cast<Int32ToBoolean>()->ValueInput().node()});
     case Opcode::kIntPtrToBoolean:
       if (node->Cast<IntPtrToBoolean>()->flip()) {
         builder.SwapTargets();
       }
       return builder.Build<BranchIfIntPtrToBooleanTrue>(
-          {node->Cast<IntPtrToBoolean>()->value().node()});
+          {node->Cast<IntPtrToBoolean>()->ValueInput().node()});
     case Opcode::kFloat64ToBoolean:
       if (node->Cast<Float64ToBoolean>()->flip()) {
         builder.SwapTargets();
       }
       return builder.Build<BranchIfFloat64ToBooleanTrue>(
-          {node->Cast<Float64ToBoolean>()->value().node()});
+          {node->Cast<Float64ToBoolean>()->ValueInput().node()});
     case Opcode::kTestUndetectable:
       return builder.Build<BranchIfUndetectable>(
-          {node->Cast<TestUndetectable>()->value().node()},
+          {node->Cast<TestUndetectable>()->ValueInput().node()},
           node->Cast<TestUndetectable>()->check_type());
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
     case Opcode::kHoleyFloat64IsUndefinedOrHole:
       return builder.Build<BranchIfFloat64IsUndefinedOrHole>(
-          {node->Cast<HoleyFloat64IsUndefinedOrHole>()->input().node()});
+          {node->Cast<HoleyFloat64IsUndefinedOrHole>()->ValueInput().node()});
 #else
     case Opcode::kHoleyFloat64IsHole:
       return builder.Build<BranchIfFloat64IsHole>(
-          {node->Cast<HoleyFloat64IsHole>()->input().node()});
+          {node->Cast<HoleyFloat64IsHole>()->ValueInput().node()});
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
     default:
       return builder.Build<BranchIfRootConstant>({node}, RootIndex::kTrueValue);
@@ -15835,7 +15835,7 @@ ReduceResult MaglevGraphBuilder::VisitForInNext() {
       current_for_in_state.receiver = receiver;
       if (ToObject* to_object =
               current_for_in_state.receiver->TryCast<ToObject>()) {
-        current_for_in_state.receiver = to_object->value_input().node();
+        current_for_in_state.receiver = to_object->ValueInput().node();
       }
       current_for_in_state.receiver_needs_map_check = false;
       current_for_in_state.cache_type = cache_type;

@@ -300,9 +300,8 @@ class RecomputeKnownNodeAspectsProcessor {
   void ProcessStoreTaggedField(NodeT* node) {
     // If a store to a context, we use the specialized context slot cache.
     if (node->is_store_to_context()) {
-      return ProcessStoreContextSlot(node->object_input().node(),
-                                     node->value_input().node(),
-                                     node->offset());
+      return ProcessStoreContextSlot(node->ObjectInput().node(),
+                                     node->ValueInput().node(), node->offset());
     }
     // ... otherwise we try the properties cache.
     if (node->property_key().is_none()) return;
@@ -315,7 +314,7 @@ class RecomputeKnownNodeAspectsProcessor {
     // TODO(leszeks): Do some light aliasing analysis here, e.g. checking
     // whether there's an intersection of known maps.
     props_for_key.clear();
-    props_for_key[node->object_input().node()] = node->value_input().node();
+    props_for_key[node->ObjectInput().node()] = node->ValueInput().node();
   }
 
   ProcessResult ProcessNode(StoreTaggedFieldNoWriteBarrier* node) {
@@ -360,19 +359,19 @@ class RecomputeKnownNodeAspectsProcessor {
 
   ProcessResult ProcessNode(StoreSmiContextCell* node) {
     ProcessStoreContextSlot(graph_->GetConstant(node->context()),
-                            node->value_input().node(), node->slot_offset());
+                            node->ValueInput().node(), node->slot_offset());
     return ProcessResult::kContinue;
   }
 
   ProcessResult ProcessNode(StoreInt32ContextCell* node) {
     ProcessStoreContextSlot(graph_->GetConstant(node->context()),
-                            node->value_input().node(), node->slot_offset());
+                            node->ValueInput().node(), node->slot_offset());
     return ProcessResult::kContinue;
   }
 
   ProcessResult ProcessNode(StoreFloat64ContextCell* node) {
     ProcessStoreContextSlot(graph_->GetConstant(node->context()),
-                            node->value_input().node(), node->slot_offset());
+                            node->ValueInput().node(), node->slot_offset());
     return ProcessResult::kContinue;
   }
 

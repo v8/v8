@@ -198,13 +198,13 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 
 void CheckedIntPtrToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 
 void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  Register input_reg = ToRegister(input());
+  Register input_reg = ToRegister(ValueInput());
   Label* deopt = __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32);
 
   __ CmpS64(input_reg, Operand(std::numeric_limits<int32_t>::max()));
@@ -743,14 +743,14 @@ void Float64Negate::GenerateCode(MaglevAssembler* masm,
 
 void Float64Abs::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
-  DoubleRegister in = ToDoubleRegister(input());
+  DoubleRegister in = ToDoubleRegister(ValueInput());
   DoubleRegister out = ToDoubleRegister(result());
   __ lpdbr(out, in);
 }
 
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-  DoubleRegister in = ToDoubleRegister(input());
+  DoubleRegister in = ToDoubleRegister(ValueInput());
   DoubleRegister out = ToDoubleRegister(result());
   if (kind_ == Kind::kNearest) {
     MaglevAssembler::TemporaryRegisterScope temps(masm);
@@ -846,12 +846,12 @@ void Float64Ieee754Binary::GenerateCode(MaglevAssembler* masm,
 }
 
 void Float64Sqrt::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void Float64Sqrt::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister value = ToDoubleRegister(ValueInput());
   DoubleRegister result_register = ToDoubleRegister(result());
   __ sqdbr(result_register, value);
 }
@@ -901,12 +901,12 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
 }
 
 void ChangeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
                                                const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister value = ToDoubleRegister(ValueInput());
   // A Float64 value could contain a NaN with the bit pattern that has a special
   // interpretation in the HoleyFloat64 representation, so we need to canicalize
   // those before changing representation.
@@ -915,7 +915,7 @@ void ChangeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
 }
 
 void HoleyFloat64ToSilencedFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
@@ -923,12 +923,12 @@ void HoleyFloat64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
   // The hole value is a signalling NaN, so just silence it to get the
   // float64 value.
   __ lzdr(kDoubleRegZero);
-  __ SubF64(ToDoubleRegister(this->result()), ToDoubleRegister(input()),
+  __ SubF64(ToDoubleRegister(this->result()), ToDoubleRegister(ValueInput()),
             kDoubleRegZero);
 }
 
 void Float64ToSilencedFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
@@ -936,12 +936,12 @@ void Float64ToSilencedFloat64::GenerateCode(MaglevAssembler* masm,
   // The hole value is a signalling NaN, so just silence it to get the
   // float64 value.
   __ lzdr(kDoubleRegZero);
-  __ SubF64(ToDoubleRegister(this->result()), ToDoubleRegister(input()),
+  __ SubF64(ToDoubleRegister(this->result()), ToDoubleRegister(ValueInput()),
             kDoubleRegZero);
 }
 
 void UnsafeFloat64ToHoleyFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseRegister(ValueInput());
   DefineSameAsFirst(this);
 }
 void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
