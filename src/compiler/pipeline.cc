@@ -1848,7 +1848,8 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   turboshaft_data_.SetIsWasmWrapper(sig_);
 
   AccountingAllocator allocator;
-  turboshaft_data_.InitializeGraphComponent(nullptr);
+  turboshaft_data_.InitializeGraphComponent(
+      nullptr, turboshaft::Graph::Origin::kPureTurboshaft);
   BuildWasmWrapper(&turboshaft_data_, &allocator, turboshaft_data_.graph(),
                    sig_, wrapper_info_);
   CodeTracer* code_tracer = nullptr;
@@ -2472,7 +2473,8 @@ TurboshaftAssemblerBuiltinCompilationJob::PrepareJobImpl(Isolate* isolate) {
 
     data_.InitializeBuiltinComponent(call_descriptor,
                                      std::move(bytecode_handler_data_));
-    data_.InitializeGraphComponent(nullptr);
+    data_.InitializeGraphComponent(nullptr,
+                                   turboshaft::Graph::Origin::kPureTurboshaft);
 
     ZoneWithName<turboshaft::kTempZoneName> temp_zone(&zone_stats_,
                                                       kTempZoneName);
@@ -2986,7 +2988,8 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         options);
     turboshaft_data.SetIsWasmWrapper(sig);
     AccountingAllocator allocator;
-    turboshaft_data.InitializeGraphComponent(nullptr);
+    turboshaft_data.InitializeGraphComponent(
+        nullptr, turboshaft::Graph::Origin::kPureTurboshaft);
     BuildWasmWrapper(&turboshaft_data, &allocator, turboshaft_data.graph(), sig,
                      wrapper_info);
     CodeTracer* code_tracer = nullptr;
@@ -3176,7 +3179,8 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   // actually allocated inside the graph zone of TFPipelineData. We should
   // properly allocate source positions inside Turboshaft's graph zone right
   // from the beginning.
-  turboshaft_data.InitializeGraphComponent(data.source_positions());
+  turboshaft_data.InitializeGraphComponent(
+      data.source_positions(), turboshaft::Graph::Origin::kPureTurboshaft);
 
   AccountingAllocator allocator;
   wasm::BuildTSGraph(&turboshaft_data, &allocator, env, detected,

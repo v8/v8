@@ -577,10 +577,19 @@ inline PredecessorIterator& PredecessorIterator::operator++() {
 
 class Graph {
  public:
+  enum class Origin {
+    kInvalid,
+    kCreatedFromTurbofan,
+    kCreatedFromMaglev,
+    kPureTurboshaft
+  };
+
   // A big initial capacity prevents many growing steps. It also makes sense
   // because the graph and its memory is recycled for following phases.
-  explicit Graph(Zone* graph_zone, size_t initial_capacity = 2048)
-      : operations_(graph_zone, initial_capacity),
+  explicit Graph(Zone* graph_zone, Origin origin,
+                 size_t initial_capacity = 2048)
+      : origin_(origin),
+        operations_(graph_zone, initial_capacity),
         bound_blocks_(graph_zone),
         all_blocks_(),
         op_to_block_(graph_zone, this),
@@ -611,7 +620,7 @@ class Graph {
     max_merge_pred_count_ = 0;
 #ifdef DEBUG
     block_type_refinement_.Reset();
-    // Do not reset of graph_created_from_turbofan_ as it is propagated along
+    // Do not reset of graph_kind_ as it is propagated along
     // the phases.
 #endif
   }
@@ -1053,10 +1062,10 @@ class Graph {
 
   Graph& GetOrCreateCompanion() {
     if (!companion_) {
-      companion_ = graph_zone_->New<Graph>(graph_zone_, operations_.size());
+      companion_ =
+          graph_zone_->New<Graph>(graph_zone_, origin_, operations_.size());
 #ifdef DEBUG
       companion_->generation_ = generation_ + 1;
-      if (IsCreatedFromTurbofan()) companion_->SetCreatedFromTurbofan();
       companion_->broker_ = broker_;
 #endif  // DEBUG
     }
@@ -1097,8 +1106,10 @@ class Graph {
     return idx.generation_mod2() == generation_mod2();
   }
 
-  void SetCreatedFromTurbofan() { graph_created_from_turbofan_ = true; }
-  bool IsCreatedFromTurbofan() const { return graph_created_from_turbofan_; }
+  bool IsCreatedFromTurbofan() const {
+    return origin_ == Origin::kCreatedFromTurbofan;
+  }
+  bool IsTurbolev() const { return origin_ == Origin::kCreatedFromMaglev; }
 #endif  // DEBUG
 
   void set_loop_unrolling_analyzer(
@@ -1194,6 +1205,7 @@ class Graph {
     bound_blocks_.reserve(all_blocks_.size());
   }
 
+  Origin origin_ = Origin::kInvalid;
   OperationBuffer operations_;
   ZoneVector<Block*> bound_blocks_;
   // The next two fields essentially form a `ZoneVector` but with pointer
@@ -1218,7 +1230,6 @@ class Graph {
   GrowingOpIndexSidetable<Type> operation_types_;
 #ifdef DEBUG
   GrowingBlockSidetable<TypeRefinements> block_type_refinement_;
-  bool graph_created_from_turbofan_ = false;
   JSHeapBroker* broker_ = nullptr;
 #endif
 

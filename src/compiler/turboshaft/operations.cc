@@ -112,8 +112,17 @@ void ValidateOpInputRep(
           OpcodeName(input_op.opcode));
   }
   for (RegisterRepresentation expected_rep : expected_reps) {
+    if (input_op.Is<Opmask::kTaggedIndexConstant>()) {
+      // TODO(dmercadier): TaggedIndex is sometimes treated as a WordPtr and
+      // sometimes as Tagged. We should clean this up and have a single
+      // consistent representation for TaggedIndex.
+      if (expected_rep == any_of(RegisterRepresentation::Tagged(),
+                                 RegisterRepresentation::WordPtr())) {
+        return;
+      }
+    }
     if (input_rep.AllowImplicitRepresentationChangeTo(
-            expected_rep, graph.IsCreatedFromTurbofan())) {
+            expected_rep, graph.IsCreatedFromTurbofan(), graph.IsTurbolev())) {
       return;
     }
   }

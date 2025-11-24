@@ -6888,7 +6888,7 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   }
 
   // TODO(nicohartmann): Should we have source positions here?
-  data->InitializeGraphComponent(nullptr);
+  data->InitializeGraphComponent(nullptr, Graph::Origin::kCreatedFromMaglev);
 
   std::optional<BailoutReason> bailout;
   maglev::GraphProcessor<NodeProcessorBase> builder(

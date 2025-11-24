@@ -82,11 +82,11 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   V<Smi> BuildChangeInt32ToSmi(V<Word32> value) {
     // With pointer compression, only the lower 32 bits are used.
-    return V<Smi>::Cast(COMPRESS_POINTERS_BOOL
-                            ? __ BitcastWord32ToWord64(__ Word32ShiftLeft(
-                                  value, BuildSmiShiftBitsConstant32()))
-                            : __ Word64ShiftLeft(__ ChangeInt32ToInt64(value),
-                                                 BuildSmiShiftBitsConstant()));
+    return COMPRESS_POINTERS_BOOL ? __ BitcastWord32ToSmi(__ Word32ShiftLeft(
+                                        value, BuildSmiShiftBitsConstant32()))
+                                  : __ BitcastWordPtrToSmi(__ WordPtrShiftLeft(
+                                        __ ChangeInt32ToIntPtr(value),
+                                        BuildSmiShiftBitsConstant()));
   }
 
   V<WordPtr> GetTargetForBuiltinCall(Builtin builtin) {

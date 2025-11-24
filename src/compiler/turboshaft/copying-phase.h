@@ -696,7 +696,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
           for (size_t i = 0; i < new_op.outputs_rep().size(); ++i) {
             DCHECK(new_op.outputs_rep()[i].AllowImplicitRepresentationChangeTo(
                 op.outputs_rep()[i],
-                Asm().output_graph().IsCreatedFromTurbofan()));
+                Asm().output_graph().IsCreatedFromTurbofan(),
+                Asm().output_graph().IsTurbolev()));
           }
         }
         Asm().Verify(index, new_index);

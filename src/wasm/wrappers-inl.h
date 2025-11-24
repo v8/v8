@@ -35,7 +35,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildChangeInt32ToNumber(
     compiler::turboshaft::V<Word32> value) -> V<Number> {
   // We expect most integers at runtime to be Smis, so it is important for
   // wrapper performance that Smi conversion be inlined.
-  if (SmiValuesAre32Bits()) {
+  if constexpr (SmiValuesAre32Bits()) {
     return BuildChangeInt32ToSmi(value);
   }
   DCHECK(SmiValuesAre31Bits());

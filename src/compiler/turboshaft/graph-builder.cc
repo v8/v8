@@ -2814,8 +2814,8 @@ std::optional<BailoutReason> BuildGraph(
     JsWasmCallsSidetable* js_wasm_calls_sidetable) {
   GraphBuilder builder{data, phase_zone, *schedule, linkage,
                        js_wasm_calls_sidetable};
+  DCHECK(data->graph().IsCreatedFromTurbofan());
 #if DEBUG
-  data->graph().SetCreatedFromTurbofan();
   data->graph().set_broker(data->broker());
 #endif
   return builder.Run();

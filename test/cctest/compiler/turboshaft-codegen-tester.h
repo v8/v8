@@ -42,7 +42,8 @@ class DataHolder {
         descriptor_(Linkage::GetSimplifiedCDescriptor(
             zone, CSignature::New(zone, return_type, p...),
             CallDescriptor::kInitializeRootRegister)) {
-    ts_pipeline_data_.InitializeGraphComponent(nullptr);
+    ts_pipeline_data_.InitializeGraphComponent(nullptr,
+                                               Graph::Origin::kPureTurboshaft);
   }
 
   PipelineData& ts_pipeline_data() { return ts_pipeline_data_; }

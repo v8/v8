@@ -294,7 +294,8 @@ class ReducerTest : public TestWithNativeContextAndZone {
     pipeline_data_.reset(new turboshaft::PipelineData(
         &zone_stats_, TurboshaftPipelineKind::kJS, this->isolate(), info_.get(),
         AssemblerOptions::Default(this->isolate())));
-    pipeline_data_->InitializeGraphComponent(nullptr);
+    pipeline_data_->InitializeGraphComponent(nullptr,
+                                             Graph::Origin::kPureTurboshaft);
   }
 
   void TearDown() override {
