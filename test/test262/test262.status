@@ -254,31 +254,88 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # Test errors for out-of-ground-truth-range calendars (expected, test is broken: https://github.com/tc39/test262/issues/4614)
-  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
+  # Spec issue: https://github.com/tc39/proposal-intl-era-monthcode/issues/96
+  # We follow the spec, the tests follow an older consensus on the spec.
+  # We need to wait for upstream to make a decision here.
+  'intl402/Temporal/PlainDate/prototype/since/leap-months-chinese': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/since/leap-months-dangi': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/since/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/until/leap-months-chinese': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/until/leap-months-dangi': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/until/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-chinese': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-dangi': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-chinese': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-dangi': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-chinese': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-dangi': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-chinese': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-dangi': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-hebrew': [FAIL],
 
-  # Newly added arithmetic tests
-  # Keeping these as SKIP since manishearth@ intends to fix them shortly
-  # and it will simplify the syncs if they don't automatically "unexpected pass" on the
-  # next sync.
-  'intl402/Temporal/PlainDate/prototype/since/leap-months-chinese': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/since/leap-months-dangi': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/since/leap-months-hebrew': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/until/leap-months-chinese': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/until/leap-months-dangi': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/until/leap-months-hebrew': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-chinese': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-dangi': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-hebrew': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-chinese': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-dangi': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-hebrew': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-chinese': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-dangi': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-hebrew': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-chinese': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-dangi': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-hebrew': [SKIP],
+  # Rounding window
+  # SKIP for now: manishearth@ intends to investigate and patch in a fix,
+  # and SKIP prevents rolls from being broken by unexpected passes
+  'built-ins/Temporal/Duration/prototype/round/rounding-window': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/rounding-window': [SKIP],
+
+  # Leap year arithmetic
+  # Spec bug: https://github.com/tc39/proposal-intl-era-monthcode/pull/98
+  # Fix: https://github.com/unicode-org/icu4x/pull/7257
+  # Uplift: https://crrev.com/c/7201147
+  # SKIP for now: manishearth@ intends to investigate and patch in a fix,
+  # and SKIP prevents rolls from being broken by unexpected passes
+  'intl402/Temporal/PlainDate/prototype/add/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/add/leap-year-gregory': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/add/leap-year-japanese': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/add/leap-year-roc': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-gregory': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-japanese': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-roc': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-gregory': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-japanese': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-roc': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-gregory': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-japanese': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-roc': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-gregory': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-japanese': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-roc': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-buddhist': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-gregory': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-japanese': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-roc': [SKIP],
+
+  # toLocaleString with just an era setting should format as default
+  # b/463427743
+  'intl402/Temporal/Instant/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainTime/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/era': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-format-with-era': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-format-with-era': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-format-with-era': [FAIL],
+
+  # Incorrect tests https://github.com/tc39/test262/issues/4704
+  'intl402/Temporal/PlainDate/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainMonthDay/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/monthCode/chinese-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/dangi-calendar-dates': [SKIP],
+  'intl402/Temporal/PlainDate/from/dangi-calendar-dates': [SKIP],
 
   # End Temporal test expectations
 
@@ -1222,59 +1279,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   'intl402/DateTimeFormat/prototype/formatToParts/era': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/Temporal/Duration/prototype/round/rounding-window': [SKIP],
-  'built-ins/Temporal/Duration/prototype/total/rounding-window': [SKIP],
-  'intl402/DateTimeFormat/prototype/format/temporal-objects-format-with-era': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-format-with-era': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-format-with-era': [SKIP],
-  'intl402/Temporal/Instant/prototype/toLocaleString/era': [SKIP],
-  'intl402/Temporal/PlainDate/from/dangi-calendar-dates': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/add/leap-year-buddhist': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/add/leap-year-gregory': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/add/leap-year-japanese': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/add/leap-year-roc': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/monthCode/chinese-calendar-dates': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-buddhist': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-gregory': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-japanese': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/subtract/leap-year-roc': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/toLocaleString/era': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-buddhist': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-gregory': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-japanese': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/add/leap-year-roc': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/monthCode/chinese-calendar-dates': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-buddhist': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-gregory': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-japanese': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/subtract/leap-year-roc': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/era': [SKIP],
-  'intl402/Temporal/PlainMonthDay/prototype/monthCode/chinese-calendar-dates': [SKIP],
-  'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/era': [SKIP],
-  'intl402/Temporal/PlainTime/prototype/toLocaleString/era': [SKIP],
-  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/monthCode/chinese-calendar-dates': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/since/chinese-calendar-dates': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/since/dangi-calendar-dates': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/era': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-buddhist': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-gregory': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-japanese': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/add/leap-year-roc': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/monthCode/chinese-calendar-dates': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-buddhist': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-gregory': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-japanese': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/subtract/leap-year-roc': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/era': [SKIP],
 }],
 # End roll-watcher patch
 ####
