@@ -399,60 +399,12 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // ExposedTrustedObject as (only) these objects can be referenced through the
   // trusted pointer table.
   template <IndirectPointerTag tag>
-  inline auto CastExposedTrustedObjectByTag(Tagged<Object> object) const {
-    if constexpr (tag == kCodeIndirectPointerTag) {
-      return TrustedCast<Code>(object);
-    }
-    if constexpr (tag == kBytecodeArrayIndirectPointerTag) {
-      return TrustedCast<BytecodeArray>(object);
-    }
-    if constexpr (tag == kInterpreterDataIndirectPointerTag) {
-      return TrustedCast<InterpreterData>(object);
-    }
-    if constexpr (tag == kUncompiledDataIndirectPointerTag) {
-      return TrustedCast<UncompiledData>(object);
-    }
-    if constexpr (tag == kRegExpDataIndirectPointerTag) {
-      return TrustedCast<RegExpData>(object);
-    }
-#if V8_ENABLE_WEBASSEMBLY
-    if constexpr (tag == kWasmDispatchTableIndirectPointerTag ||
-                  tag == kSharedWasmDispatchTableIndirectPointerTag) {
-      return TrustedCast<WasmDispatchTable>(object);
-    }
-    if constexpr (tag == kWasmTrustedInstanceDataIndirectPointerTag ||
-                  tag == kSharedWasmTrustedInstanceDataIndirectPointerTag) {
-      return TrustedCast<WasmTrustedInstanceData>(object);
-    }
-    if constexpr (tag == kWasmInternalFunctionIndirectPointerTag) {
-      return TrustedCast<WasmInternalFunction>(object);
-    }
-    if constexpr (tag == kWasmSuspenderIndirectPointerTag) {
-      return TrustedCast<WasmSuspenderObject>(object);
-    }
-    if constexpr (tag == kWasmFunctionDataIndirectPointerTag) {
-      return TrustedCast<WasmFunctionData>(object);
-    }
-#endif  // V8_ENABLE_WEBASSEMBLY
-    UNREACHABLE();
-  }
-
-  template <IndirectPointerTag tag>
   inline auto ReadTrustedPointerField(size_t offset,
-                                      IsolateForSandbox isolate) const {
-    // Currently, trusted pointer loads always use acquire semantics as the
-    // under-the-hood indirect pointer loads use acquire loads anyway.
-    return ReadTrustedPointerField<tag>(offset, isolate, kAcquireLoad);
-  }
+                                      IsolateForSandbox isolate) const;
 
   template <IndirectPointerTag tag>
   inline auto ReadTrustedPointerField(size_t offset, IsolateForSandbox isolate,
-                                      AcquireLoadTag acquire_load) const {
-    Tagged<Object> object =
-        ReadMaybeEmptyTrustedPointerField<tag>(offset, isolate, acquire_load);
-
-    return CastExposedTrustedObjectByTag<tag>(object);
-  }
+                                      AcquireLoadTag acquire_load) const;
 
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().

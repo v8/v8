@@ -17,6 +17,7 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instruction-stream-inl.h"
 #include "src/objects/trusted-object-inl.h"
+#include "src/objects/trusted-pointer-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 
 // Has to be the last include (doesn't have include guards):

@@ -719,24 +719,29 @@
   }                                                                            \
   Tagged<type> holder::name(IsolateForSandbox isolate, AcquireLoadTag) const { \
     DCHECK(has_##name());                                                      \
-    return ReadTrustedPointerField<tag>(offset, isolate);                      \
+    return i::TrustedPointerField::ReadTrustedPointerField<tag>(*this, offset, \
+                                                                isolate);      \
   }                                                                            \
   void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {         \
     set_##name(value, kReleaseStore, mode);                                    \
   }                                                                            \
   void holder::set_##name(Tagged<type> value, ReleaseStoreTag,                 \
                           WriteBarrierMode mode) {                             \
-    WriteTrustedPointerField<tag>(offset, value);                              \
+    i::TrustedPointerField::WriteTrustedPointerField<tag>(*this, offset,       \
+                                                          value);              \
     CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(*this, offset, tag, value,       \
                                               mode);                           \
   }                                                                            \
   bool holder::has_##name() const {                                            \
-    return !IsTrustedPointerFieldEmpty(offset);                                \
+    return !i::TrustedPointerField::IsTrustedPointerFieldEmpty(*this, offset); \
   }                                                                            \
   bool holder::has_##name##_unpublished(IsolateForSandbox isolate) const {     \
-    return IsTrustedPointerFieldUnpublished(offset, tag, isolate);             \
+    return i::TrustedPointerField::IsTrustedPointerFieldUnpublished(           \
+        *this, offset, tag, isolate);                                          \
   }                                                                            \
-  void holder::clear_##name() { ClearTrustedPointerField(offset); }
+  void holder::clear_##name() {                                                \
+    i::TrustedPointerField::ClearTrustedPointerField(*this, offset);           \
+  }
 
 #define DECL_CODE_POINTER_ACCESSORS(name) \
   DECL_TRUSTED_POINTER_ACCESSORS(name, Code)
@@ -931,7 +936,8 @@
   do {                                                                         \
     DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
     WriteBarrier::ForIndirectPointer(                                          \
-        object, (object).RawIndirectPointerField(offset, tag), value, mode);   \
+        object, Tagged(object)->RawIndirectPointerField(offset, tag), value,   \
+        mode);                                                                 \
   } while (false)
 #endif
 

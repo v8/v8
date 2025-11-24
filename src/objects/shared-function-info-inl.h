@@ -199,9 +199,8 @@ Tagged<Object> SharedFunctionInfo::GetTrustedData(
 template <typename T, IndirectPointerTag tag>
 Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
   static_assert(tag != kUnknownIndirectPointerTag);
-  return HeapObject::CastExposedTrustedObjectByTag<tag>(
-      ReadMaybeEmptyTrustedPointerField<tag>(kTrustedFunctionDataOffset,
-                                             isolate, kAcquireLoad));
+  return HeapObject::ReadTrustedPointerField<tag>(kTrustedFunctionDataOffset,
+                                                  isolate, kAcquireLoad);
 }
 
 Tagged<Object> SharedFunctionInfo::GetUntrustedData() const {

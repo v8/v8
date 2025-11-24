@@ -8,8 +8,10 @@
 #include "src/objects/trusted-object.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/sandbox.h"
 
 // Has to be the last include (doesn't have include guards):

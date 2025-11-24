@@ -2214,6 +2214,8 @@ filegroup(
         "src/objects/hole.h",
         "src/objects/trusted-object.h",
         "src/objects/trusted-object-inl.h",
+        "src/objects/trusted-pointer.h",
+        "src/objects/trusted-pointer-inl.h",
         "src/objects/option-utils.cc",
         "src/objects/option-utils.h",
         "src/objects/ordered-hash-table.cc",
