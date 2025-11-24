@@ -1277,6 +1277,7 @@ enum Inherit { kAll, kRelevant };
 enum EraOp { kCopyEra, kIgnoreEra };
 enum HourCycleOp { kCopyHourCycle, kIgnoreHourCycle };
 icu::UnicodeString GetDateTimeFormat(const icu::UnicodeString& options,
+                                     int32_t explicit_components_in_options,
                                      const std::set<char16_t>& required_options,
                                      const std::set<char16_t>& defaults_options,
                                      Inherit inherit, EraOp era_op,
@@ -1312,10 +1313,19 @@ icu::UnicodeString GetDateTimeFormat(const icu::UnicodeString& options,
   }
   // 13. Let anyPresent be false.
   // 14. For each property name prop of « "weekday", "year", "month", "day",
-  // "era", "dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" »,
+  // dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" »,
   // do
   //  a. If options.[[<prop>]] is not undefined, set anyPresent to true.
-  bool any_present = options.length() > 0;
+  bool any_present =
+      Weekday::decode(explicit_components_in_options) ||
+      Year::decode(explicit_components_in_options) ||
+      Month::decode(explicit_components_in_options) ||
+      Day::decode(explicit_components_in_options) ||
+      DayPeriod::decode(explicit_components_in_options) ||
+      Hour::decode(explicit_components_in_options) ||
+      Minute::decode(explicit_components_in_options) ||
+      Second::decode(explicit_components_in_options) ||
+      FractionalSecondDigits::decode(explicit_components_in_options);
 
   icu::UnicodeString result;
   // 15. Let needDefaults be true.
@@ -1417,8 +1427,9 @@ std::set<char16_t> ExplicitComponentsSet(int32_t components) {
 
 const icu::UnicodeString OrigionalOptions(
     const icu::UnicodeString& best_format,
-    int32_t explit_components_in_options) {
-  std::set<char16_t> keep = ExplicitComponentsSet(explit_components_in_options);
+    int32_t explicit_components_in_options) {
+  std::set<char16_t> keep =
+      ExplicitComponentsSet(explicit_components_in_options);
   icu::UnicodeString result;
   for (int32_t i = 0; i < best_format.length(); i++) {
     char16_t ch = best_format.charAt(i);
@@ -1436,8 +1447,9 @@ const icu::UnicodeString OrigionalOptions(
 // and step 45 and 46 of
 // https://tc39.es/proposal-temporal/#sec-createdatetimeformat
 icu::UnicodeString GetSkeletonForPatternKind(
-    const icu::UnicodeString& best_format, int32_t explit_components_in_options,
-    PatternKind kind, JSDateTimeFormat::DateTimeStyle date_style,
+    const icu::UnicodeString& best_format,
+    int32_t explicit_components_in_options, PatternKind kind,
+    JSDateTimeFormat::DateTimeStyle date_style,
     JSDateTimeFormat::DateTimeStyle time_style,
     bool has_to_locale_string_time_zone) {
   // [[weekday]] skeleton could be one or more 'E' or 'c'.
@@ -1528,7 +1540,7 @@ icu::UnicodeString GetSkeletonForPatternKind(
     }
   } else {
     const icu::UnicodeString& options =
-        OrigionalOptions(best_format, explit_components_in_options);
+        OrigionalOptions(best_format, explicit_components_in_options);
     // 5. Else,
     //    a. Assert: required is any.
     //    b. Let requiredOptions be « "weekday", "year", "month", "day",
@@ -1557,7 +1569,8 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // j. Set dateTimeFormat.[[TemporalPlainDateFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, date, date,
         // relevant).
-        return GetDateTimeFormat(options, kRequiredDate, kDefaultsDate,
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredDate, kDefaultsDate,
                                  Inherit::kRelevant, EraOp::kCopyEra,
                                  HourCycleOp::kIgnoreHourCycle);
       }
@@ -1573,9 +1586,10 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // k. Set dateTimeFormat.[[TemporalPlainYearMonthFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, year-month,
         // year-month, relevant).
-        return GetDateTimeFormat(
-            options, kRequiredYearMonth, kDefaultsYearMonth, Inherit::kRelevant,
-            EraOp::kCopyEra, HourCycleOp::kIgnoreHourCycle);
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredYearMonth, kDefaultsYearMonth,
+                                 Inherit::kRelevant, EraOp::kCopyEra,
+                                 HourCycleOp::kIgnoreHourCycle);
       }
       case PatternKind::kPlainMonthDay: {
         // 4. Else if required is month-day, then
@@ -1589,7 +1603,8 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // l. Set dateTimeFormat.[[TemporalPlainMonthDayFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, month-day,
         // month-day, relevant).
-        return GetDateTimeFormat(options, kRequiredMonthDay, kDefaultsMonthDay,
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredMonthDay, kDefaultsMonthDay,
                                  Inherit::kRelevant, EraOp::kIgnoreEra,
                                  HourCycleOp::kIgnoreHourCycle);
       }
@@ -1606,7 +1621,8 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // m. Set dateTimeFormat.[[TemporalPlainTimeFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, time, time,
         // relevant).
-        return GetDateTimeFormat(options, kRequiredTime, kDefaultsTime,
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredTime, kDefaultsTime,
                                  Inherit::kRelevant, EraOp::kIgnoreEra,
                                  HourCycleOp::kCopyHourCycle);
       }
@@ -1614,9 +1630,9 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // n. Set dateTimeFormat.[[TemporalPlainDateTimeFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, any, all,
         // relevant).
-        return GetDateTimeFormat(options, kRequiredAny, kDefaultsAll,
-                                 Inherit::kRelevant, EraOp::kCopyEra,
-                                 HourCycleOp::kCopyHourCycle);
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredAny, kDefaultsAll, Inherit::kRelevant,
+                                 EraOp::kCopyEra, HourCycleOp::kCopyHourCycle);
 
       case PatternKind::kInstant:
         //  o. If toLocaleStringTimeZone is present, then
@@ -1624,15 +1640,17 @@ icu::UnicodeString GetSkeletonForPatternKind(
           // i. Set dateTimeFormat.[[TemporalInstantFormat]] to
           // GetDateTimeFormat(formats, formatMatcher, formatOptions, any,
           // zoned-date-time, all).
-          return GetDateTimeFormat(options, kRequiredAny, kDefaultsAll,
-                                   Inherit::kAll, EraOp::kCopyEra,
-                                   HourCycleOp::kCopyHourCycle, true);
+          return GetDateTimeFormat(options, explicit_components_in_options,
+                                   kRequiredAny, kDefaultsAll, Inherit::kAll,
+                                   EraOp::kCopyEra, HourCycleOp::kCopyHourCycle,
+                                   true);
         } else {
           // i. Set dateTimeFormat.[[TemporalInstantFormat]] to
           // GetDateTimeFormat(formats, formatMatcher, formatOptions, any, all,
           // all).
-          return GetDateTimeFormat(options, kRequiredAny, kDefaultsAll,
-                                   Inherit::kAll, EraOp::kCopyEra,
+          return GetDateTimeFormat(options, explicit_components_in_options,
+                                   kRequiredAny, kDefaultsAll, Inherit::kAll,
+                                   EraOp::kCopyEra,
                                    HourCycleOp::kCopyHourCycle);
         }
 

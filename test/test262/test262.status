@@ -317,8 +317,6 @@
   # b/463427743
   'intl402/Temporal/Instant/prototype/toLocaleString/era': [FAIL],
   'intl402/Temporal/PlainDate/prototype/toLocaleString/era': [FAIL],
-  'intl402/Temporal/PlainTime/prototype/toLocaleString/era': [FAIL],
-  'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/era': [FAIL],
   'intl402/Temporal/PlainDateTime/prototype/toLocaleString/era': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/era': [FAIL],
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/era': [FAIL],
