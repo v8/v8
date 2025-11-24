@@ -558,7 +558,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '63d7e16739d83e3a16c673692a348e52db1a3a11',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '0fcf3dc138ca35cca2a7ce60adf57be383a8167e',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '768d15952d4ac4789455b947375c2ebd7e78d143',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
