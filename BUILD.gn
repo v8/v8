@@ -493,6 +493,9 @@ declare_args() {
 
   # add instrumentation for Dumpling differential fuzzing
   v8_dumpling = false
+
+  # Enable compilation of riscv32.
+  v8_riscv_enable_deprecated_riscv32 = false
 }
 
 # Derived defaults.
@@ -1339,6 +1342,9 @@ config("features") {
   }
   if (v8_dumpling) {
     defines += [ "V8_DUMPLING" ]
+  }
+  if (v8_riscv_enable_deprecated_riscv32) {
+    defines += [ "V8_RISCV_ENABLE_DEPRECATED_RISCV32" ]
   }
   if (v8_enable_fuzztest) {
     defines += [ "V8_ENABLE_FUZZTEST" ]
