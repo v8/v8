@@ -42,6 +42,12 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder final : public StreamingDecoder {
   void Abort() override;
 
   void NotifyCompilationDiscarded() override {
+    // Discard is safe to happen in pretty much any state.
+    // Update `kReceivingBytes` to `kDiscarded`, but keep `kAborted` or
+    // `kFinished`.
+    if (stream_state_ == StreamState::kReceivingBytes) {
+      stream_state_ = StreamState::kDiscarded;
+    }
     auto& active_processor = processor_ ? processor_ : failed_processor_;
     active_processor.reset();
     DCHECK_NULL(processor_);
@@ -215,8 +221,9 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder final : public StreamingDecoder {
   }
 
   void Fail() {
-    // {Fail} cannot be called after {Finish}, {Abort}, or
-    // {NotifyCompilationDiscarded}.
+    // {Fail} is called as part of {Finish} and {Abort}, so we can be in any
+    // state. But we must still have a processor, i.e.  {Abort} or {Finish} have
+    // not completed yet.
     DCHECK_EQ(processor_ == nullptr, failed_processor_ != nullptr);
     if (processor_ != nullptr) failed_processor_ = std::move(processor_);
     DCHECK_NULL(processor_);
@@ -229,6 +236,13 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder final : public StreamingDecoder {
   }
 
   uint32_t module_offset() const { return module_offset_; }
+
+  // Track the state of streaming decoding, as per the public API.
+  // This is used in `CHECK`s to ensure that the API methods are called in the
+  // correct order. In particular, `Finish` should not be called after `Abort`
+  // or `Finish`.
+  enum StreamState { kReceivingBytes, kAborted, kFinished, kDiscarded };
+  StreamState stream_state_{kReceivingBytes};
 
   // As long as we did not detect an invalid module, {processor_} will be set.
   // On failure, the pointer is transferred to {failed_processor_} and will only
@@ -252,6 +266,10 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder final : public StreamingDecoder {
 
 void AsyncStreamingDecoder::OnBytesReceived(base::Vector<const uint8_t> bytes) {
   TRACE_STREAMING("OnBytesReceived(%zu bytes)\n", bytes.size());
+
+  // {OnBytesReceived} should not be called after {Finish}, {Abort}, or
+  // {NotifyCompilationDiscarded}.
+  CHECK_EQ(StreamState::kReceivingBytes, stream_state_);
 
   // Note: The bytes are passed by the embedder, and they might point into the
   // sandbox. Hence we copy them once and then process those copied bytes, to
@@ -323,8 +341,20 @@ size_t AsyncStreamingDecoder::DecodingState::ReadBytes(
 void AsyncStreamingDecoder::Finish(
     const WasmStreaming::ModuleCachingCallback& caching_callback) {
   TRACE_STREAMING("Finish\n");
-  // {Finish} cannot be called after {Finish}, {Abort}, or
-  // {NotifyCompilationDiscarded}.
+  // {Finish} should not be called after {Finish} or {Abort}.
+  // We check for those explicitly to understand failures like
+  // https://crbug.com/462888125 better.
+  CHECK_NE(StreamState::kFinished, stream_state_);
+  CHECK_NE(StreamState::kAborted, stream_state_);
+
+  // If {Finish} is called after {NotifyCompilationDiscarded}, this is probably
+  // just unfortunate timing (the user navigating away while the stream
+  // finishes).
+  if (stream_state_ == StreamState::kDiscarded) return;
+
+  // Do not update the stream state yet (to `kFinished`), as we will feed back
+  // the wire bytes into `OnBytesReceived` if deserialization fails below.
+  CHECK_EQ(StreamState::kReceivingBytes, stream_state_);
   CHECK_EQ(processor_ == nullptr, failed_processor_ != nullptr);
 
   // Create a final copy of the overall wire bytes; this will finally be
@@ -400,6 +430,11 @@ void AsyncStreamingDecoder::Finish(
     // The decoder has received all wire bytes; fall through and finish.
   }
 
+  // Update the stream state now to disallow further calls to {Finish} or
+  // {Abort}.
+  CHECK_EQ(StreamState::kReceivingBytes, stream_state_);
+  stream_state_ = StreamState::kFinished;
+
   if (ok() && !state_->is_finishing_allowed()) {
     // The byte stream ended too early, we report an error.
     Fail();
@@ -416,7 +451,8 @@ void AsyncStreamingDecoder::Finish(
 
 void AsyncStreamingDecoder::Abort() {
   TRACE_STREAMING("Abort\n");
-  // Ignore {Abort} after {Finish}.
+  // {Abort} is safe to happen in pretty much any state.
+  stream_state_ = StreamState::kAborted;
   if (!processor_ && !failed_processor_) return;
   Fail();
   failed_processor_->OnAbort();
