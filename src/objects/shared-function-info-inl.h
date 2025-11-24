@@ -238,6 +238,11 @@ bool SharedFunctionInfo::IsSloppyNormalJSFunction() const {
   return kind() == FunctionKind::kNormalFunction && is_sloppy(language_mode());
 }
 
+uint32_t SharedFunctionInfo::unused_parameter_bits() const {
+  DCHECK_EQ(scope_info(kAcquireLoad)->scope_type(), ScopeType::FUNCTION_SCOPE);
+  return scope_info(kAcquireLoad)->unused_parameter_bits();
+}
+
 bool SharedFunctionInfo::CanOnlyAccessFixedFormalParameters() const {
   return scope_info(kAcquireLoad)->CanOnlyAccessFixedFormalParameters();
 }
