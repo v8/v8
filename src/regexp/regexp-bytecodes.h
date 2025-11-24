@@ -293,6 +293,27 @@ using ReBcOpType = RegExpBytecodeOperandType;
      ReBcOpType::kUint32, ReBcOpType::kOffset, ReBcOpType::kUint32,            \
      ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kUint32,            \
      ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget,                         \
+     ReBcOpType::kJumpTarget))                                                 \
+  /* Combination of:                                                        */ \
+  /* SkipUntilBitInTable, CheckPosition, LoadCurrentCharacter,              */ \
+  /* CheckCharacterAfterAnd, AdvanceCurrentPosition, LoadCurrentCharacter,  */ \
+  /* CheckCharacterAfterAnd, CheckCharacterAfterAnd,                        */ \
+  /* CheckNotCharacterAfterAnd.                                             */ \
+  /* This pattern is common for finding a match from an alternative, e.g.:  */ \
+  /* /<script|<style|<link/i.                                               */ \
+  V(SkipUntilOneOfMasked3, SKIP_UNTIL_ONE_OF_MASKED3,                          \
+    (bc0_cp_offset, bc0_advance_by, bc0_advance_by_padding, bc0_table,         \
+     bc1_cp_offset, bc1_cp_offset_padding, bc1_on_failure, bc2_cp_offset,      \
+     bc2_cp_offset_padding, bc3_characters, bc3_mask, bc4_by, bc5_cp_offset,   \
+     bc6_characters, bc6_mask, bc6_on_equal, bc7_characters, bc7_mask,         \
+     bc7_on_equal, bc8_characters, bc8_mask, fallthrough_jump_target),         \
+    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kPadding2,          \
+     ReBcOpType::kBitTable, ReBcOpType::kOffset, ReBcOpType::kPadding2,        \
+     ReBcOpType::kJumpTarget, ReBcOpType::kOffset, ReBcOpType::kPadding2,      \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kOffset,            \
+     ReBcOpType::kOffset, ReBcOpType::kUint32, ReBcOpType::kUint32,            \
+     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
+     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
      ReBcOpType::kJumpTarget))
 
 #define REGEXP_BYTECODE_LIST(V) \
@@ -495,11 +516,19 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* AND_CHECK_NOT_4_CHARS                                                  */ \
   /* This pattern is common for finding a match from an alternative with    */ \
   /* few different characters. E.g. /[ab]bbbc|[de]eeef/.                    */ \
-  V(SKIP_UNTIL_ONE_OF_MASKED, 61, 48)
+  V(SKIP_UNTIL_ONE_OF_MASKED, 61, 48)                                          \
+  V(SKIP_UNTIL_ONE_OF_MASKED3, 62, 84)
 
 #define COUNT(...) +1
 static constexpr int kRegExpBytecodeCount = BYTECODE_ITERATOR(COUNT);
 #undef COUNT
+
+// Just making sure we assigned values above properly. They should be
+// contiguous, strictly increasing, and start at 0.
+// TODO(jgruber): Do not explicitly assign values, instead generate them
+// implicitly from the list order.
+static_assert(kRegExpBytecodeCount == 63);
+static_assert(kRegExpBytecodeCount <= kRegExpPaddedBytecodeCount);
 
 enum class RegExpBytecode : uint8_t {
 #define DECLARE_BYTECODE(CamelName, ...) k##CamelName,
@@ -539,12 +568,6 @@ class RegExpBytecodes final : public AllStatic {
   static constexpr uint8_t Size(RegExpBytecode bytecode);
   static constexpr uint8_t Size(uint8_t bytecode);
 };
-
-// Just making sure we assigned values above properly. They should be
-// contiguous, strictly increasing, and start at 0.
-// TODO(jgruber): Do not explicitly assign values, instead generate them
-// implicitly from the list order.
-static_assert(kRegExpBytecodeCount == 62);
 
 #define DECLARE_BYTECODES(name, code, length) \
   static constexpr int BC_##name = code;

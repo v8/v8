@@ -373,6 +373,48 @@ bool RegExpMacroAssembler::CanOptimizeSpecialClassRanges(
   return true;
 }
 
+void RegExpMacroAssembler::SkipUntilOneOfMasked3(
+    const SkipUntilOneOfMasked3Args& args) {
+  // The base implementation for architectures that don't implement simd
+  // optimizations.
+  //
+  // See the definition of the BC_SKIP_UNTIL_ONE_OF_MASKED3 peephole bytecode
+  // for more context. The initial bytecode sequence is:
+  //
+  // sequence offset name
+  // bc0   0  SKIP_UNTIL_BIT_IN_TABLE
+  // bc1  20  CHECK_CURRENT_POSITION
+  // bc2  28  LOAD_4_CURRENT_CHARS_UNCHECKED
+  // bc3  2c  AND_CHECK_4_CHARS
+  // bc4  3c  ADVANCE_CP_AND_GOTO
+  // bc5  48  LOAD_4_CURRENT_CHARS
+  // bc6  4c  AND_CHECK_4_CHARS
+  // bc7  5c  AND_CHECK_4_CHARS
+  // bc8  6c  AND_CHECK_NOT_4_CHARS
+
+  Label bc0_skip_until_bit_in_table, bc1_check_current_position,
+      bc4_advance_cp_and_goto, bc5_load_4_current_chars;
+  Bind(&bc0_skip_until_bit_in_table);
+  SkipUntilBitInTable(args.bc0_cp_offset, args.bc0_table, args.bc0_nibble_table,
+                      args.bc0_advance_by, &bc1_check_current_position,
+                      &bc1_check_current_position);
+  Bind(&bc1_check_current_position);
+  CheckPosition(args.bc1_cp_offset, args.bc1_on_failure);
+  LoadCurrentCharacter(args.bc2_cp_offset, nullptr, false, 4);
+  CheckCharacterAfterAnd(args.bc3_characters, args.bc3_mask,
+                         &bc5_load_4_current_chars);
+  Bind(&bc4_advance_cp_and_goto);
+  AdvanceCurrentPosition(args.bc4_by);
+  GoTo(&bc0_skip_until_bit_in_table);
+  Bind(&bc5_load_4_current_chars);
+  LoadCurrentCharacter(args.bc5_cp_offset, &bc4_advance_cp_and_goto, true, 4);
+  CheckCharacterAfterAnd(args.bc6_characters, args.bc6_mask, args.bc6_on_equal);
+  CheckCharacterAfterAnd(args.bc7_characters, args.bc7_mask, args.bc7_on_equal);
+  CheckNotCharacterAfterAnd(args.bc8_characters, args.bc8_mask,
+                            &bc4_advance_cp_and_goto);
+  GoTo(args.fallthrough_jump_target);
+}
+
 #ifndef COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 // This method may only be called after an interrupt.

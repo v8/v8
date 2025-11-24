@@ -145,6 +145,29 @@ class RegExpMacroAssembler {
                                     unsigned mask1, unsigned chars2,
                                     unsigned mask2, Label* on_match1,
                                     Label* on_match2, Label* on_failure);
+  struct SkipUntilOneOfMasked3Args {
+    int bc0_cp_offset;
+    int bc0_advance_by;
+    Handle<ByteArray> bc0_table;
+    Handle<ByteArray> bc0_nibble_table;
+    int bc1_cp_offset;
+    Label* bc1_on_failure;
+    int bc2_cp_offset;
+    unsigned bc3_characters;
+    unsigned bc3_mask;
+    int bc4_by;
+    int bc5_cp_offset;
+    unsigned bc6_characters;
+    unsigned bc6_mask;
+    Label* bc6_on_equal;
+    unsigned bc7_characters;
+    unsigned bc7_mask;
+    Label* bc7_on_equal;
+    unsigned bc8_characters;
+    unsigned bc8_mask;
+    Label* fallthrough_jump_target;
+  };
+  virtual void SkipUntilOneOfMasked3(const SkipUntilOneOfMasked3Args& args);
 
   // Checks whether the given offset from the current position is is in-bounds.
   // May overwrite the current character.
