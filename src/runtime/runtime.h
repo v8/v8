@@ -571,6 +571,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(EnsureFeedbackVectorForFunction, 1, 1)                               \
   F(FinalizeOptimization, 0, 1)                                          \
   F(ForceFlush, 1, 1)                                                    \
+  F(MajorGCForCompilerTesting, 0, 1)                                     \
   F(GetAbstractModuleSource, 0, 1)                                       \
   F(GetCallable, 1, 1)                                                   \
   F(GetFeedback, 1, 1)                                                   \

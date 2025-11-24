@@ -12224,6 +12224,11 @@ ReduceResult MaglevGraphBuilder::VisitCallWithSpread() {
 ReduceResult MaglevGraphBuilder::VisitCallRuntime() {
   Runtime::FunctionId function_id = iterator_.GetRuntimeIdOperand(0);
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+
+  if (function_id == Runtime::kMajorGCForCompilerTesting) {
+    return AddNewNode<MajorGCForCompilerTesting>({});
+  }
+
   ValueNode* context = GetContext();
   size_t input_count = args.register_count() + CallRuntime::kFixedInputCount;
   CallRuntime* call_runtime;

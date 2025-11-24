@@ -430,6 +430,7 @@ class ExceptionHandlerInfo;
   V(CheckInstanceType)                        \
   V(Dead)                                     \
   V(DebugBreak)                               \
+  V(MajorGCForCompilerTesting)                \
   V(Throw)                                    \
   V(FunctionEntryStackCheck)                  \
   V(GeneratorStore)                           \
@@ -7475,6 +7476,21 @@ class Throw : public FixedInputNodeT<1, Throw> {
   using FunctionBitField = NextBitField<Function, kNumberOfBitsForFunction>;
 
   using HasInputBitField = FunctionBitField::Next<bool, 1>;
+};
+
+class MajorGCForCompilerTesting
+    : public FixedInputNodeT<0, MajorGCForCompilerTesting> {
+ public:
+  explicit MajorGCForCompilerTesting(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::NotIdempotent() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::Call();
+  static constexpr typename Base::InputTypes kInputTypes{};
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
 class DebugBreak : public FixedInputNodeT<0, DebugBreak> {

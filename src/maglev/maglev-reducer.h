@@ -172,6 +172,8 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     variable = res.value()->Cast<T>();                                 \
   } while (false)
 
+// TODO(dmercadier): .Cast the result to the type of variable to avoid requiring
+// callers to use a generic `Node*` type for {variable}.
 #define GET_NODE_OR_ABORT(variable, result) \
   do {                                      \
     MaybeReduceResult res = (result);       \

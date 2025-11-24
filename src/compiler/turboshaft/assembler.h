@@ -4011,6 +4011,10 @@ class AssemblerOpInterface : public Next {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  void MajorGCForCompilerTesting() {
+    ReduceIfReachableMajorGCForCompilerTesting();
+  }
+
   void StaticAssert(V<Word32> condition, const char* source) {
     ReduceIfReachableStaticAssert(condition, source);
   }

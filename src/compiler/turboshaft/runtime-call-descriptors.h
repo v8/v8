@@ -415,6 +415,18 @@ struct runtime : CallDescriptorBuilder {
     static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
+
+  struct MajorGCForCompilerTesting
+      : public Descriptor<MajorGCForCompilerTesting> {
+    static constexpr auto kFunction = Runtime::kMajorGCForCompilerTesting;
+    using Arguments = NoArguments;
+    using returns_t = V<Object>;
+
+    // A GC never triggers a lazy deoptimization for the topmost optimized
+    // frame.
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr Operator::Properties kProperties = Operator::kFoldable;
+  };
 };
 
 }  // namespace v8::internal::compiler::turboshaft

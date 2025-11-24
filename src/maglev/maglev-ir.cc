@@ -4521,6 +4521,17 @@ void HasInPrototypeChain::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
+int MajorGCForCompilerTesting::MaxCallStackArgs() const {
+  DCHECK_EQ(Runtime::FunctionForId(Runtime::kMajorGCForCompilerTesting)->nargs,
+            0);
+  return 0;
+}
+void MajorGCForCompilerTesting::SetValueLocationConstraints() {}
+void MajorGCForCompilerTesting::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  __ CallRuntime(Runtime::kMajorGCForCompilerTesting, 0);
+}
+
 void DebugBreak::SetValueLocationConstraints() {}
 void DebugBreak::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {

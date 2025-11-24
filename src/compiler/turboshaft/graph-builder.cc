@@ -1578,6 +1578,10 @@ OpIndex GraphBuilder::Process(
       return __ Projection(Map(input), index, rep);
     }
 
+    case IrOpcode::kMajorGCForCompilerTesting:
+      __ MajorGCForCompilerTesting();
+      return OpIndex::Invalid();
+
     case IrOpcode::kStaticAssert:
       __ StaticAssert(Map(node->InputAt(0)), StaticAssertSourceOf(node->op()));
       return OpIndex::Invalid();

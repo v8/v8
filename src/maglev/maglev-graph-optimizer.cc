@@ -606,6 +606,11 @@ ProcessResult MaglevGraphOptimizer::VisitDead(Dead* node,
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitMajorGCForCompilerTesting(
+    MajorGCForCompilerTesting*, const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitDebugBreak(
     DebugBreak* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

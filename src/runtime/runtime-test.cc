@@ -16,6 +16,7 @@
 #include "src/base/numbers/double.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
+#include "src/common/globals.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
@@ -2007,6 +2008,25 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
 
   DirectHandle<JSObject> object = args.at<JSObject>(0);
   MapUpdater::CompleteInobjectSlackTracking(isolate, object->map());
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// Called from the %MajorGCForCompilerTesting intrinsic, this function triggers
+// a full (major) GC. Maglev and Turbofan/Turboshaft will recognize that it
+// doesn't have any side effects beyond triggering a GC, and it thus shouldn't
+// interfere too much with most optimizations (except a few like allocation
+// folding). If you need finer control over the GC, use the `gc()` function in
+// combination for --expose-gc, but optimizing compilers will treat that as a
+// generic runtime call with arbitrary side effects, which may impact various
+// optimizations.
+RUNTIME_FUNCTION(Runtime_MajorGCForCompilerTesting) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
+  CHECK_UNLESS_FUZZING(args.length() == 0);
+
+  isolate->heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

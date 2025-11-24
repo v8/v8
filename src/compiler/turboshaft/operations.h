@@ -351,6 +351,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // MachineLoweringPhase.
 #define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
   V(Allocate)                              \
+  V(MajorGCForCompilerTesting)             \
   V(DecodeExternalPointer)                 \
   V(JSStackCheck)
 
@@ -4055,6 +4056,23 @@ struct MemoryFillOp : FixedArityOperationT<3, MemoryFillOp> {
   V<WordPtr> num_bytes() const { return input<WordPtr>(2); }
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+struct MajorGCForCompilerTestingOp
+    : FixedArityOperationT<0, MajorGCForCompilerTestingOp> {
+  static constexpr OpEffects effects =
+      OpEffects().CanDependOnChecks().RequiredWhenUnused().CanAllocate();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<>();
+  }
+
+  explicit MajorGCForCompilerTestingOp() : Base() {}
+
+  auto options() const { return std::tuple{}; }
+};
 
 struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
   const char* source;

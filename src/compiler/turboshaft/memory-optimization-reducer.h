@@ -502,6 +502,12 @@ class MemoryOptimizationReducer : public Next {
 #endif  // V8_ENABLE_SANDBOX
   }
 
+  V<None> REDUCE(MajorGCForCompilerTesting)() {
+    __ template CallRuntime<runtime::MajorGCForCompilerTesting>(
+        __ NoContextConstant(), {});
+    return V<None>::Invalid();
+  }
+
  private:
   std::optional<MemoryAnalyzer> analyzer_;
   Isolate* isolate_ = __ data() -> isolate();

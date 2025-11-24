@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --turbolev --no-inline-new --clear-free-memory
+// Flags: --allow-natives-syntax --turbolev --clear-free-memory
 
 // This test checks that repeated loads from the same DataView work correctly:
 // the DataView should not be freed by GCs in between the loads.
@@ -13,40 +13,28 @@ function foo(x) {
   // We need to be reading a value that's not 0 because --clear-free-memory sets
   // freed memory to 0 and thus we won't be able to tell if we're reading stale
   // memory or not.
-  dv.setInt32(0, 42);
+  dv.setInt32(0, 19);
+  dv.setInt32(4, 23);
 
   // Loading a first value from the DataView. This will compute the data pointer
   // that can be reused for subsequent loads.
-  let v1 = dv.getInt32(0);
+  let v1 = dv.getInt32(4);
 
-  // Allocating to potentially trigger a GC.
-  let arr = [1, 2, x];
+  // Triggering a GC.
+  %MajorGCForCompilerTesting();
 
-  // If we don''t have anything retaining {dv} and we GVNed the computation of
-  // the data pointer, then it will have been freed by the allocation of {arr}
-  // above if it triggered a GC. In that case, we're about to access a stale
-  // pointer.
+  // If we don't have anything retaining {dv} and we GVNed the computation of
+  // the data pointer, then it will have been freed by the above. In that case,
+  // we're about to access a stale pointer.
   let v2 = dv.getInt32(0);
 
-  // Storring v1 and v2 so that they don't get DCEed.
-  arr[0] = v1;
-  arr[1] = v2;
-
-  // Returning arr so that it doesn't get escaped-analyzed away.
-  return arr;
+  // Returning v1+v2 so that they don't get DCEed.
+  return v1 + v2;
 }
 
 %PrepareFunctionForOptimization(foo);
-assertEquals(42, foo()[1]);
-assertEquals(42, foo()[1]);
+assertEquals(42, foo());
+assertEquals(42, foo());
 
 %OptimizeFunctionOnNextCall(foo);
-foo();
-
-// Now calling {foo} while making sure that the allocation of {arr} will trigger
-// a GC.
-%SetAllocationTimeout(1, 4);
-let val = foo()[1];
-%SetAllocationTimeout(-1, -1);
-
-assertEquals(42, val);
+assertEquals(42, foo());

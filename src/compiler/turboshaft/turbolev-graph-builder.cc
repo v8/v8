@@ -3627,6 +3627,10 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::LoadSignedIntDataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
+    // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
+    // -> Bit) in SimplifiedOptimizationReducer, since the
+    // is_little_endian_input will often be a constant True/False boolean in
+    // practice.
     V<Word32> is_little_endian =
         ToBit(node->IsLittleEndianInput(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
@@ -3639,6 +3643,10 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::LoadDoubleDataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
+    // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
+    // -> Bit) in SimplifiedOptimizationReducer, since the
+    // is_little_endian_input will often be a constant True/False boolean in
+    // practice.
     V<Word32> is_little_endian =
         ToBit(node->IsLittleEndianInput(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
@@ -3653,6 +3661,10 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::StoreSignedIntDataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
+    // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
+    // -> Bit) in SimplifiedOptimizationReducer, since the
+    // is_little_endian_input will often be a constant True/False boolean in
+    // practice.
     V<Word32> is_little_endian =
         ToBit(node->IsLittleEndianInput(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
@@ -3666,6 +3678,10 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::StoreDoubleDataViewElement* node,
                                 const maglev::ProcessingState& state) {
     V<WordPtr> storage = Map<WordPtr>(node->DataPointerInput());
+    // TODO(dmercadier): Peephole optimize TruncateJSPrimitiveToUntagged(Boolean
+    // -> Bit) in SimplifiedOptimizationReducer, since the
+    // is_little_endian_input will often be a constant True/False boolean in
+    // practice.
     V<Word32> is_little_endian =
         ToBit(node->IsLittleEndianInput(),
               TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
@@ -5309,6 +5325,12 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::Identity* node,
                                 const maglev::ProcessingState&) {
     SetMap(node, Map(node->input(0)));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::MajorGCForCompilerTesting* node,
+                                const maglev::ProcessingState&) {
+    __ MajorGCForCompilerTesting();
     return maglev::ProcessResult::kContinue;
   }
 
