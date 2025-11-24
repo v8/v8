@@ -144,7 +144,6 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(ValueNode* node) {
   ReduceResult result = reducer_.ConvertInputTo(
       node, current_value->properties().value_representation());
   if (result.IsDoneWithAbort()) {
-    reducer_.graph()->set_may_have_unreachable_blocks(true);
     return ProcessResult::kTruncateBlock;
   }
   current_value->OverwriteWithIdentityTo(result.value());
@@ -476,7 +475,6 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
   MaybeReduceResult result =
       reducer_.TryFoldCheckMaps(object, object_map, node->maps(), merger);
   if (result.IsDoneWithAbort()) {
-    reducer_.graph()->set_may_have_unreachable_blocks(true);
     return ProcessResult::kTruncateBlock;
   }
   if (result.IsDone()) {

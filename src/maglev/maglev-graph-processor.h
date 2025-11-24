@@ -216,6 +216,7 @@ class GraphProcessor {
           case ProcessResult::kTruncateBlock:
             block->nodes().resize(node_it_ - block->nodes().begin());
             node_it_ = block->nodes().end();
+            graph_->set_may_have_unreachable_blocks(true);
             break;
           case ProcessResult::kHoist: {
             DCHECK(block->predecessor_count() == 1 ||
