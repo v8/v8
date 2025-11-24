@@ -737,6 +737,13 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
                                             feedback_cell_array, current_slot));
   }
 
+  if (!JSObject::IsExtensible(isolate, js_proto)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, SetPrototypePropertiesSlow(isolate, context, obj,
+                                            object_boilerplate_description,
+                                            feedback_cell_array, current_slot));
+  }
+
   bool is_default_func_prototype =
       IsDefaultFunctionPrototype(js_proto, isolate);
 
