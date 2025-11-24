@@ -314,8 +314,16 @@ std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldFloat64Operation(
         node->input_node(1));
   }
   if (!result.IsDone()) return {};
+  if (result.IsDoneWithAbort()) {
+    return ProcessResult::kTruncateBlock;
+  }
   DCHECK(result.IsDoneWithValue());
-  return ReplaceWith(reducer_.GetFloat64(result.value()));
+  ReduceResult float64_result = reducer_.GetFloat64(result.value());
+  if (float64_result.IsDoneWithAbort()) {
+    return ProcessResult::kTruncateBlock;
+  }
+  DCHECK(float64_result.IsDoneWithValue());
+  return ReplaceWith(float64_result.value());
 }
 
 Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,

@@ -2064,7 +2064,9 @@ ReduceResult MaglevGraphBuilder::BuildFloat64BinarySmiOperationNodeForToNumber(
     NodeType allowed_input_type) {
   // TODO(v8:7700): Do constant identity folding. Make sure to normalize
   // HoleyFloat64 nodes if folded.
-  ValueNode* left = GetAccumulatorFloat64ForToNumber(allowed_input_type);
+  ValueNode* left;
+  GET_VALUE_OR_ABORT(left,
+                     GetAccumulatorFloat64ForToNumber(allowed_input_type));
   double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64BinaryOperationForToNumber<kOperation>(
@@ -2079,7 +2081,9 @@ ReduceResult MaglevGraphBuilder::BuildFloat64UnaryOperationNodeForToNumber(
     NodeType allowed_input_type) {
   // TODO(v8:7700): Do constant identity folding. Make sure to normalize
   // HoleyFloat64 nodes if folded.
-  ValueNode* value = GetAccumulatorFloat64ForToNumber(allowed_input_type);
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(value,
+                     GetAccumulatorFloat64ForToNumber(allowed_input_type));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64UnaryOperationForToNumber<kOperation>(
           GetTaggedToFloat64ConversionType(allowed_input_type), value),
@@ -2103,8 +2107,12 @@ ReduceResult MaglevGraphBuilder::BuildFloat64BinaryOperationNodeForToNumber(
     NodeType allowed_input_type) {
   // TODO(v8:7700): Do constant identity folding. Make sure to normalize
   // HoleyFloat64 nodes if folded.
-  ValueNode* left = LoadRegisterFloat64ForToNumber(0, allowed_input_type);
-  ValueNode* right = GetAccumulatorFloat64ForToNumber(allowed_input_type);
+  ValueNode* left;
+  GET_VALUE_OR_ABORT(left,
+                     LoadRegisterFloat64ForToNumber(0, allowed_input_type));
+  ValueNode* right;
+  GET_VALUE_OR_ABORT(right,
+                     GetAccumulatorFloat64ForToNumber(allowed_input_type));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldFloat64BinaryOperationForToNumber<kOperation>(
           GetTaggedToFloat64ConversionType(allowed_input_type), left, right),
@@ -2875,8 +2883,9 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       }
       auto allowed_input_type =
           GetConversionType(nexus.GetCompareOperationFeedback());
-      left = GetFloat64ForToNumber(left, allowed_input_type);
-      right = GetFloat64ForToNumber(right, allowed_input_type);
+      GET_VALUE_OR_ABORT(left, GetFloat64ForToNumber(left, allowed_input_type));
+      GET_VALUE_OR_ABORT(right,
+                         GetFloat64ForToNumber(right, allowed_input_type));
       if (left->Is<Float64Constant>() && right->Is<Float64Constant>()) {
         double left_value = left->Cast<Float64Constant>()->value().get_scalar();
         double right_value =
@@ -5948,10 +5957,13 @@ ReduceResult MaglevGraphBuilder::BuildStoreTypedArrayElement(
                                        NodeType::kNumberOrOddball))
       break;
     case FLOAT32_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-      BUILD_STORE_TYPED_ARRAY(
-          Double, GetAccumulatorFloat64ForToNumber(NodeType::kNumberOrOddball))
+    case FLOAT64_ELEMENTS: {
+      ValueNode* value;
+      GET_VALUE_OR_ABORT(
+          value, GetAccumulatorFloat64ForToNumber(NodeType::kNumberOrOddball));
+      BUILD_STORE_TYPED_ARRAY(Double, value)
       break;
+    }
     default:
       UNREACHABLE();
   }
@@ -5986,10 +5998,13 @@ ReduceResult MaglevGraphBuilder::BuildStoreConstantTypedArrayElement(
           GetAccumulatorTruncatedInt32ForToNumber(NodeType::kNumberOrOddball))
       break;
     case FLOAT32_ELEMENTS:
-    case FLOAT64_ELEMENTS:
-      BUILD_STORE_CONSTANT_TYPED_ARRAY(
-          Double, GetAccumulatorFloat64ForToNumber(NodeType::kNumberOrOddball))
+    case FLOAT64_ELEMENTS: {
+      ValueNode* value;
+      GET_VALUE_OR_ABORT(
+          value, GetAccumulatorFloat64ForToNumber(NodeType::kNumberOrOddball));
+      BUILD_STORE_CONSTANT_TYPED_ARRAY(Double, value)
       break;
+    }
     default:
       UNREACHABLE();
   }
@@ -6148,7 +6163,8 @@ ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
     if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
       value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
-      ValueNode* value_hf64 = GetHoleyFloat64(value);
+      ValueNode* value_hf64;
+      GET_VALUE_OR_ABORT(value_hf64, GetHoleyFloat64(value));
       // We still have to convert hole nans to undefined nans for storing.
       GET_VALUE_OR_ABORT(
           value, AddNewNode<HoleyFloat64ConvertHoleToUndefined>({value_hf64}));
@@ -6158,7 +6174,9 @@ ReduceResult MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
     // Make sure we do not store signalling NaNs into double arrays.
     // TODO(leszeks): Consider making this a bit on StoreFixedDoubleArrayElement
     // rather than a separate node.
-    return GetSilencedNaN(GetFloat64(value));
+    ValueNode* float64_value;
+    GET_VALUE_OR_ABORT(float64_value, GetFloat64(value));
+    return GetSilencedNaN(float64_value);
   }
   if (IsSmiElementsKind(kind)) return GetSmiValue(value);
   return value;
@@ -9819,7 +9837,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
   ValueNode* data_pointer;
   GET_VALUE_OR_ABORT(data_pointer, BuildLoadJSDataViewDataPointer(receiver));
 
-  ValueNode* value = getValue(args[1]);
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(value, getValue(args[1]));
   ValueNode* is_little_endian = args[2] ? args[2] : GetBooleanConstant(false);
   RETURN_IF_ABORT(AddNewNode<StoreNode>(
       {receiver, data_pointer, offset, value, is_little_endian}, type));
@@ -10810,9 +10829,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
         case NodeType::kSmi:
           if (!CanSpeculateCall()) return {};
           return AddNewNode<Int32AbsWithOverflow>({arg});
-        case NodeType::kNumberOrOddball:
-          return AddNewNode<Float64Abs>(
-              {GetFloat64ForToNumber(arg, NodeType::kNumberOrOddball)});
+        case NodeType::kNumberOrOddball: {
+          ValueNode* float64_value;
+          GET_VALUE_OR_ABORT(
+              float64_value,
+              GetFloat64ForToNumber(arg, NodeType::kNumberOrOddball));
+          return AddNewNode<Float64Abs>({float64_value});
+        }
         // TODO(verwaest): Add support for ToNumberOrNumeric and deopt.
         default:
           break;
@@ -10866,8 +10889,10 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
   }
   DCHECK_EQ(arg_repr, ValueRepresentation::kTagged);
   if (CheckType(arg, NodeType::kNumberOrOddball)) {
-    return AddNewNode<Float64Round>(
-        {GetFloat64ForToNumber(arg, NodeType::kNumberOrOddball)}, kind);
+    ValueNode* float64_value;
+    GET_VALUE_OR_ABORT(float64_value,
+                       GetFloat64ForToNumber(arg, NodeType::kNumberOrOddball));
+    return AddNewNode<Float64Round>({float64_value}, kind);
   }
   if (!CanSpeculateCall()) return {};
   LazyDeoptFrameScope continuation_scope(this,
@@ -10894,10 +10919,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMin(
         return BuildInt32Min(v1, v2);
       },
       [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
-        ValueNode* v1_float =
-            reducer_.GetFloat64ForToNumber(v1, NodeType::kNumberOrOddball);
-        ValueNode* v2_float =
-            reducer_.GetFloat64ForToNumber(v2, NodeType::kNumberOrOddball);
+        ValueNode* v1_float;
+        GET_VALUE_OR_ABORT(v1_float, reducer_.GetFloat64ForToNumber(
+                                         v1, NodeType::kNumberOrOddball));
+        ValueNode* v2_float;
+        GET_VALUE_OR_ABORT(v2_float, reducer_.GetFloat64ForToNumber(
+                                         v2, NodeType::kNumberOrOddball));
         RETURN_IF_DONE(reducer_.TryFoldFloat64Min(v1_float, v2_float));
         return AddNewNode<Float64Min>({v1_float, v2_float});
       });
@@ -10914,10 +10941,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
         return BuildInt32Max(v1, v2);
       },
       [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
-        ValueNode* v1_float =
-            reducer_.GetFloat64ForToNumber(v1, NodeType::kNumberOrOddball);
-        ValueNode* v2_float =
-            reducer_.GetFloat64ForToNumber(v2, NodeType::kNumberOrOddball);
+        ValueNode* v1_float;
+        GET_VALUE_OR_ABORT(v1_float, reducer_.GetFloat64ForToNumber(
+                                         v1, NodeType::kNumberOrOddball));
+        ValueNode* v2_float;
+        GET_VALUE_OR_ABORT(v2_float, reducer_.GetFloat64ForToNumber(
+                                         v2, NodeType::kNumberOrOddball));
         RETURN_IF_DONE(reducer_.TryFoldFloat64Max(v1_float, v2_float));
         return AddNewNode<Float64Max>({v1_float, v2_float});
       });
@@ -10944,11 +10973,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMinMax(
 
   // float64_case will convert the parameters to Float64. Only the first one
   // has to be converted explicitly.
+  ValueNode* first_result;
+  GET_VALUE_OR_ABORT(first_result, reducer_.GetFloat64ForToNumber(
+                                       args[0], NodeType::kNumberOrOddball));
   return std::reduce(
-      args.begin() + 1, args.end(),
-      ReduceResult(
-          reducer_.GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball)
-              ->Unwrap()),
+      args.begin() + 1, args.end(), ReduceResult(first_result->Unwrap()),
       [&](ReduceResult lhs_result, ReduceResult rhs_result) -> ReduceResult {
         ValueNode* lhs;
         GET_VALUE_OR_ABORT(lhs, lhs_result);
@@ -10984,7 +11013,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
       arg_repr == ValueRepresentation::kHoleyFloat64) {
     if (IsSupported(CpuOperation::kFloat64Round)) {
       if (arg_repr == ValueRepresentation::kHoleyFloat64) {
-        arg = GetFloat64ForToNumber(arg, NodeType::kNumberOrOddball);
+        GET_VALUE_OR_ABORT(
+            arg, GetFloat64ForToNumber(arg, NodeType::kNumberOrOddball));
       }
       return AddNewNode<Float64CountLeadingZeros>({arg});
     }
@@ -11022,18 +11052,20 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
   return BuildToString(args[0], ToString::kConvertSymbol);
 }
 
-#define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)      \
-  MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(              \
-      compiler::JSFunctionRef target, CallArguments& args) {              \
-    if (args.count() < 1) {                                               \
-      return GetRootConstant(RootIndex::kNanValue);                       \
-    }                                                                     \
-    if (!CanSpeculateCall() && !CheckType(args[0], NodeType::kNumber)) {  \
-      return {};                                                          \
-    }                                                                     \
-    ValueNode* value = GetFloat64ForToNumber(args[0], NodeType::kNumber); \
-    return AddNewNode<Float64Ieee754Unary>(                               \
-        {value}, Float64Ieee754Unary::Ieee754Function::k##EnumName);      \
+#define MATH_UNARY_IEEE_BUILTIN_REDUCER(MathName, ExtName, EnumName)       \
+  MaybeReduceResult MaglevGraphBuilder::TryReduce##MathName(               \
+      compiler::JSFunctionRef target, CallArguments& args) {               \
+    if (args.count() < 1) {                                                \
+      return GetRootConstant(RootIndex::kNanValue);                        \
+    }                                                                      \
+    if (!CanSpeculateCall() && !CheckType(args[0], NodeType::kNumber)) {   \
+      return {};                                                           \
+    }                                                                      \
+    ValueNode* value;                                                      \
+    GET_VALUE_OR_ABORT(value,                                              \
+                       GetFloat64ForToNumber(args[0], NodeType::kNumber)); \
+    return AddNewNode<Float64Ieee754Unary>(                                \
+        {value}, Float64Ieee754Unary::Ieee754Function::k##EnumName);       \
   }
 
 IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
@@ -11052,8 +11084,12 @@ IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
                                 !CheckType(args[1], NodeType::kNumber))) { \
       return {};                                                           \
     }                                                                      \
-    ValueNode* lhs = GetFloat64ForToNumber(args[0], NodeType::kNumber);    \
-    ValueNode* rhs = GetFloat64ForToNumber(args[1], NodeType::kNumber);    \
+    ValueNode* lhs;                                                        \
+    GET_VALUE_OR_ABORT(lhs,                                                \
+                       GetFloat64ForToNumber(args[0], NodeType::kNumber)); \
+    ValueNode* rhs;                                                        \
+    GET_VALUE_OR_ABORT(rhs,                                                \
+                       GetFloat64ForToNumber(args[1], NodeType::kNumber)); \
     return AddNewNode<Float64Ieee754Binary>(                               \
         {lhs, rhs}, Float64Ieee754Binary::Ieee754Function::k##EnumName);   \
   }
@@ -11070,7 +11106,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathSqrt(
     return {};
   }
 
-  ValueNode* value = GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball);
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(
+      value, GetFloat64ForToNumber(args[0], NodeType::kNumberOrOddball));
   return AddNewNode<Float64Sqrt>({value});
 }
 
@@ -12816,7 +12854,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
         RETURN_IF_ABORT(BuildCheckNumber(v));
       }
       DCHECK(NodeTypeIs(GetType(v), NodeType::kNumber));
-      GET_VALUE_OR_ABORT(v, GetSilencedNaN(GetFloat64(v)));
+      ValueNode* float64_value;
+      GET_VALUE_OR_ABORT(float64_value, GetFloat64(v));
+      GET_VALUE_OR_ABORT(v, GetSilencedNaN(float64_value));
     }
   }
 
@@ -16909,26 +16949,26 @@ void MaglevGraphBuilder::EnsureInt32(interpreter::Register reg) {
   EnsureInt32(current_interpreter_frame_.get(reg));
 }
 
-ValueNode* MaglevGraphBuilder::GetFloat64(ValueNode* value) {
+ReduceResult MaglevGraphBuilder::GetFloat64(ValueNode* value) {
   return reducer_.GetFloat64(value);
 }
 
-ValueNode* MaglevGraphBuilder::GetFloat64(interpreter::Register reg) {
+ReduceResult MaglevGraphBuilder::GetFloat64(interpreter::Register reg) {
   return GetFloat64(current_interpreter_frame_.get(reg));
 }
 
-ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
+ReduceResult MaglevGraphBuilder::GetFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   return reducer_.GetFloat64ForToNumber(value, allowed_input_type);
 }
 
-ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
+ReduceResult MaglevGraphBuilder::GetFloat64ForToNumber(
     interpreter::Register reg, NodeType allowed_input_type) {
   return GetFloat64ForToNumber(current_interpreter_frame_.get(reg),
                                allowed_input_type);
 }
 
-ValueNode* MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value) {
+ReduceResult MaglevGraphBuilder::GetHoleyFloat64(ValueNode* value) {
   return reducer_.GetHoleyFloat64(value);
 }
 

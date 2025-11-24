@@ -990,7 +990,7 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
+ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
     ValueNode* value, UseRepresentation use_rep, NodeType allowed_input_type) {
   DCHECK(use_rep == UseRepresentation::kFloat64 ||
          use_rep == UseRepresentation::kHoleyFloat64);
@@ -1189,13 +1189,13 @@ ValueNode* MaglevReducer<BaseT>::TryGetFloat64(ValueNode* value) {
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetFloat64(ValueNode* value) {
+ReduceResult MaglevReducer<BaseT>::GetFloat64(ValueNode* value) {
   value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
   return GetFloat64ForToNumber(value, NodeType::kNumber);
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
+ReduceResult MaglevReducer<BaseT>::GetFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
   return GetFloat64OrHoleyFloat64Impl(value, UseRepresentation::kFloat64,
@@ -1203,14 +1203,14 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetHoleyFloat64(ValueNode* value) {
+ReduceResult MaglevReducer<BaseT>::GetHoleyFloat64(ValueNode* value) {
   value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
   return GetFloat64OrHoleyFloat64Impl(value, UseRepresentation::kHoleyFloat64,
                                       NodeType::kNumberOrUndefined);
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
+ReduceResult MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
   return GetFloat64OrHoleyFloat64Impl(value, UseRepresentation::kHoleyFloat64,
@@ -1885,7 +1885,7 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
         // However we can treat Undefineds (Holes) as NaNs.
         left = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({left});
       } else {
-        left = GetFloat64(left);
+        GET_VALUE_OR_ABORT(left, GetFloat64(left));
       }
       return left->Unwrap();
     }

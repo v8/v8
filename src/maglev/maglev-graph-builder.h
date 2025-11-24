@@ -711,10 +711,10 @@ class MaglevGraphBuilder {
   // node.
   //
   // Deopts if the value is not exactly representable as a Float64.
-  ValueNode* GetFloat64(ValueNode* value);
-  ValueNode* GetFloat64(interpreter::Register reg);
+  ReduceResult GetFloat64(ValueNode* value);
+  ReduceResult GetFloat64(interpreter::Register reg);
 
-  ValueNode* GetHoleyFloat64(ValueNode* value);
+  ReduceResult GetHoleyFloat64(ValueNode* value);
 
   // Get a Float64 representation node whose value is the result of ToNumber on
   // the given node. Only trivial ToNumber is allowed -- values that are already
@@ -722,10 +722,10 @@ class MaglevGraphBuilder {
   //
   // Deopts if the ToNumber value is not exactly representable as a Float64, or
   // the ToNumber is non-trivial.
-  ValueNode* GetFloat64ForToNumber(ValueNode* value,
-                                   NodeType allowed_input_type);
-  ValueNode* GetFloat64ForToNumber(interpreter::Register reg,
-                                   NodeType allowed_input_type);
+  ReduceResult GetFloat64ForToNumber(ValueNode* value,
+                                     NodeType allowed_input_type);
+  ReduceResult GetFloat64ForToNumber(interpreter::Register reg,
+                                     NodeType allowed_input_type);
 
   ValueNode* GetAccumulator() {
     return current_interpreter_frame_.get(
@@ -750,7 +750,7 @@ class MaglevGraphBuilder {
         interpreter::Register::virtual_accumulator());
   }
 
-  ValueNode* GetAccumulatorFloat64ForToNumber(NodeType allowed_input_type) {
+  ReduceResult GetAccumulatorFloat64ForToNumber(NodeType allowed_input_type) {
     return GetFloat64ForToNumber(interpreter::Register::virtual_accumulator(),
                                  allowed_input_type);
   }
@@ -768,8 +768,8 @@ class MaglevGraphBuilder {
         iterator_.GetRegisterOperand(operand_index));
   }
 
-  ValueNode* LoadRegisterFloat64ForToNumber(int operand_index,
-                                            NodeType allowed_input_type) {
+  ReduceResult LoadRegisterFloat64ForToNumber(int operand_index,
+                                              NodeType allowed_input_type) {
     return GetFloat64ForToNumber(iterator_.GetRegisterOperand(operand_index),
                                  allowed_input_type);
   }
