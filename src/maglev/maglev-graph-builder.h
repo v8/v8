@@ -1008,7 +1008,8 @@ class MaglevGraphBuilder {
       MaglevSubGraphBuilder& sub_graph,
       std::optional<MaglevSubGraphBuilder::Label>& do_return,
       int unique_kind_count, IndexToElementsKindFunc&& index_to_elements_kind,
-      BuildKindSpecificFunc&& build_kind_specific);
+      BuildKindSpecificFunc&& build_kind_specific,
+      bool make_smi_fallthrough_to_object = false);
 
   MaybeReduceResult DoTryReduceMathRound(CallArguments& args,
                                          Float64Round::Kind kind);

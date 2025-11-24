@@ -10097,7 +10097,8 @@ MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
     MaglevSubGraphBuilder& sub_graph,
     std::optional<MaglevSubGraphBuilder::Label>& do_return,
     int unique_kind_count, IndexToElementsKindFunc&& index_to_elements_kind,
-    BuildKindSpecificFunc&& build_kind_specific) {
+    BuildKindSpecificFunc&& build_kind_specific,
+    bool make_smi_fallthrough_to_object) {
   // TODO(pthier): Support map packing.
   DCHECK(!V8_MAP_PACKING_BOOL);
   ValueNode* receiver_map;
@@ -10105,6 +10106,11 @@ MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
                      BuildLoadTaggedField(receiver, HeapObject::kMapOffset));
   int emitted_kind_checks = 0;
   bool any_successful = false;
+
+  std::optional<MaglevSubGraphBuilder::Label> object_case;
+  if (make_smi_fallthrough_to_object) {
+    object_case.emplace(&sub_graph, 2);
+  }
   for (size_t kind_index = 0; kind_index < map_kinds.size(); kind_index++) {
     const auto& maps = map_kinds[kind_index];
     // Skip kinds we haven't observed.
@@ -10115,30 +10121,47 @@ MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
     // been checked when the property (builtin name) was loaded.
     if (++emitted_kind_checks < unique_kind_count) {
       MaglevSubGraphBuilder::Label check_next_map(&sub_graph, 1);
-      std::optional<MaglevSubGraphBuilder::Label> do_push;
+      std::optional<MaglevSubGraphBuilder::Label> do_kind_specific_action;
       if (maps.size() > 1) {
-        do_push.emplace(&sub_graph, static_cast<int>(maps.size()));
+        do_kind_specific_action.emplace(&sub_graph,
+                                        static_cast<int>(maps.size()));
         for (size_t map_index = 1; map_index < maps.size(); map_index++) {
           sub_graph.GotoIfTrue<BranchIfReferenceEqual>(
-              &*do_push, {receiver_map, GetConstant(maps[map_index])});
+              &*do_kind_specific_action,
+              {receiver_map, GetConstant(maps[map_index])});
         }
       }
       sub_graph.GotoIfFalse<BranchIfReferenceEqual>(
           &check_next_map, {receiver_map, GetConstant(maps[0])});
-      if (do_push.has_value()) {
-        sub_graph.Goto(&*do_push);
-        sub_graph.Bind(&*do_push);
+      if (do_kind_specific_action.has_value()) {
+        sub_graph.Goto(&*do_kind_specific_action);
+        sub_graph.Bind(&*do_kind_specific_action);
       }
-      if (!build_kind_specific(kind).IsDoneWithAbort()) {
-        any_successful = true;
+      if (IsObjectElementsKind(kind) && make_smi_fallthrough_to_object) {
+        DCHECK(object_case.has_value());
+        sub_graph.GotoOrTrim(&*object_case);
+        sub_graph.Bind(&*object_case);
       }
-      DCHECK(do_return.has_value());
-      sub_graph.GotoOrTrim(&*do_return);
+      any_successful |= (!build_kind_specific(kind).IsDoneWithAbort());
+      if (IsSmiElementsKind(kind) && make_smi_fallthrough_to_object) {
+        // After building the SMI specific parts (see build_kind_specific call
+        // above), jump to the beginning of the case for the object elements
+        // kind.
+        DCHECK(object_case.has_value());
+        sub_graph.GotoOrTrim(&*object_case);
+      } else {
+        DCHECK(do_return.has_value());
+        sub_graph.GotoOrTrim(&*do_return);
+      }
       sub_graph.Bind(&check_next_map);
     } else {
-      if (!build_kind_specific(kind).IsDoneWithAbort()) {
-        any_successful = true;
+      DCHECK_IMPLIES(make_smi_fallthrough_to_object, !IsSmiElementsKind(kind));
+      if (IsObjectElementsKind(kind) && make_smi_fallthrough_to_object) {
+        DCHECK(object_case.has_value());
+        sub_graph.GotoOrTrim(&*object_case);
+        sub_graph.Bind(&*object_case);
       }
+      any_successful |= (!build_kind_specific(kind).IsDoneWithAbort());
       if (do_return.has_value()) {
         sub_graph.GotoOrTrim(&*do_return);
       }
@@ -10310,11 +10333,23 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     FAIL(" to reduce Array.prototype.push - Map doesn't support fast resizing");
   }
 
+  // If we have maps for both PACKED_SMI_ELEMENTS / HOLEY_SMI_ELEMENTS and
+  // PACKED_ELEMENTS / HOLEY_ELEMENTS, we can make the smi case fallthrough to
+  // the object case.
+  int smi_index = elements_kind_to_index(PACKED_SMI_ELEMENTS);
+  DCHECK_EQ(smi_index, elements_kind_to_index(HOLEY_SMI_ELEMENTS));
+  int object_index = elements_kind_to_index(PACKED_ELEMENTS);
+  DCHECK_EQ(object_index, elements_kind_to_index(HOLEY_ELEMENTS));
+  bool make_smi_fallthrough_to_object =
+      !map_kinds[smi_index].empty() && !map_kinds[object_index].empty();
+
   MaglevSubGraphBuilder sub_graph(this, 0);
 
   std::optional<MaglevSubGraphBuilder::Label> do_return;
-  if (unique_kind_count > 1) {
-    do_return.emplace(&sub_graph, unique_kind_count);
+  if ((!make_smi_fallthrough_to_object && unique_kind_count > 1) ||
+      unique_kind_count > 2) {
+    do_return.emplace(&sub_graph, unique_kind_count -
+                                      (make_smi_fallthrough_to_object ? 1 : 0));
   }
 
   ValueNode* old_array_length_smi;
@@ -10334,6 +10369,18 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   auto build_array_push = [&](ElementsKind kind) {
     ValueNode* value;
     GET_VALUE_OR_ABORT(value, ConvertForStoring(args[0], kind));
+
+    if (IsObjectElementsKind(kind)) {
+      // Storing to object kinds don't add conversions; no extra code will be
+      // added to the smi case if it falls through the object case.
+      DCHECK_EQ(value, args[0]);
+    }
+
+    if (make_smi_fallthrough_to_object && IsSmiElementsKind(kind)) {
+      // The object case will execute the steps below, so we don't do them
+      // for the SMI case.
+      return ReduceResult::Done();
+    }
 
     ValueNode* writable_elements_array;
     GET_VALUE_OR_ABORT(
@@ -10359,7 +10406,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
 
   RETURN_IF_ABORT(BuildJSArrayBuiltinMapSwitchOnElementsKind(
       receiver, map_kinds, sub_graph, do_return, unique_kind_count,
-      index_to_elements_kind, build_array_push));
+      index_to_elements_kind, build_array_push,
+      make_smi_fallthrough_to_object));
 
   if (do_return.has_value()) {
     sub_graph.Bind(&*do_return);
