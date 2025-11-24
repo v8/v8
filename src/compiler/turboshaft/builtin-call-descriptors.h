@@ -1680,7 +1680,8 @@ struct BuiltinCallDescriptor {
 
   struct WasmFXResume : public Descriptor<WasmFXResume> {
     static constexpr auto kFunction = Builtin::kWasmFXResume;
-    using arguments_t = std::tuple<V<WordPtr>>;  // StackMemory to be resumed.
+    // Target stack and arg buffer.
+    using arguments_t = std::tuple<V<WordPtr>, V<WordPtr>>;
     using results_t = std::tuple<>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -1692,8 +1693,9 @@ struct BuiltinCallDescriptor {
   struct WasmFXSuspend : public Descriptor<WasmFXSuspend> {
     static constexpr auto kFunction = Builtin::kWasmFXSuspend;
     using arguments_t =
-        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>>;
-    using results_t = std::tuple<>;
+        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>, V<WordPtr>>;
+    // Arg buffer.
+    using results_t = std::tuple<V<WordPtr>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = true;

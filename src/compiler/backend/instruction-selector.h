@@ -1378,6 +1378,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
   IF_WASM(DECLARE_GENERATOR_T, LoadStackPointer)
   IF_WASM(DECLARE_GENERATOR_T, SetStackPointer)
+  IF_WASM(DECLARE_GENERATOR_T, WasmFXArgBuffer)
 #undef DECLARE_GENERATOR_T
 
   // Visit the load node with a value and opcode to replace with.

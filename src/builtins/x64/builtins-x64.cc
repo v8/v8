@@ -3944,9 +3944,10 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
 void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
   Label suspend;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack});
+               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
   LoadJumpBuffer(masm, target_stack, true);
   __ Trap();
   __ bind(&suspend);
@@ -3959,7 +3960,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
+  __ Push(arg_buffer);
   __ Push(cont);
   __ Push(kContextRegister);
   {
@@ -3984,6 +3987,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Pop(kContextRegister);
   cont = kReturnRegister0;
   __ Pop(cont);
+  __ Pop(arg_buffer);
 
   Label ok;
   __ JumpIf(not_equal, target_stack, 0, &ok);
@@ -3995,6 +3999,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Trap();
   __ bind(&resume);
   __ endbr64();
+  __ movq(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ ret(0);
 }

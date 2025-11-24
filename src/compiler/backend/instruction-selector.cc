@@ -9,6 +9,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/iterator.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
@@ -1631,6 +1632,13 @@ void InstructionSelector::VisitLoadFramePointer(OpIndex node) {
 void InstructionSelector::VisitLoadStackPointer(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));
+}
+
+void InstructionSelector::VisitWasmFXArgBuffer(OpIndex node) {
+  OperandGenerator g(this);
+  LinkageLocation arg_buffer = LinkageLocation::ForRegister(
+      WasmFXSuspendDescriptor::GetRegisterParameter(2).code());
+  Emit(kArchNop, g.DefineAsLocation(node, arg_buffer));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -3472,6 +3480,8 @@ void InstructionSelector::VisitNode(OpIndex node) {
 #if V8_ENABLE_WEBASSEMBLY
     case Opcode::kTrapIf:
       return VisitTrapIf(node);
+    case Opcode::kWasmFXArgBuffer:
+      return VisitWasmFXArgBuffer(node);
 #endif  // V8_ENABLE_WEBASSEMBLY
     case Opcode::kCatchBlockBegin:
       MarkAsTagged(node);

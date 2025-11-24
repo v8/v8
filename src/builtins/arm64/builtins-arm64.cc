@@ -3831,9 +3831,10 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
 void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
   Label suspend;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack});
+               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
   // When we resume the stack for the first time, we enter the wrapper. However
   // the wrapper starts with bti c, not bti j, so we cannot jump to it with an
   // arbitrary register. We have to use ip0 or ip1 as the target register here
@@ -3842,6 +3843,7 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   // Alternatively we would have to change {CodeGenerator::AssembleCode} to
   // exceptionally emit bti j instead of bti c at the start of the code for code
   // kind WASM_STACK_ENTRY.
+  DCHECK(!AreAliased(ip1, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, ip1);
   __ Trap();
   __ Bind(&suspend, BranchTargetIdentifier::kBtiJump);
@@ -3853,7 +3855,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
+  __ Push(arg_buffer, padreg);
   __ Push(cont, kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
@@ -3870,6 +3874,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Move(target_stack, kReturnRegister0);
   cont = kReturnRegister0;
   __ Pop(kContextRegister, cont);
+  __ Pop(padreg, arg_buffer);
 
   Label ok;
   __ cmp(target_stack, Operand(0));
@@ -3879,9 +3884,11 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
-  LoadJumpBuffer(masm, target_stack, true, x3);
+  DCHECK(!AreAliased(x4, arg_buffer, target_stack));
+  LoadJumpBuffer(masm, target_stack, true, x4);
   __ Trap();
   __ Bind(&resume, BranchTargetIdentifier::kBtiJump);
+  __ Mov(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Ret();
 }

@@ -317,6 +317,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   IF_WASM(V, SetStackPointer)                \
   IF_WASM(V, MemoryCopy)                     \
   IF_WASM(V, MemoryFill)                     \
+  IF_WASM(V, WasmFXArgBuffer)                \
   V(Phi)                                     \
   V(FrameState)                              \
   V(Call)                                    \
@@ -4054,6 +4055,28 @@ struct MemoryFillOp : FixedArityOperationT<3, MemoryFillOp> {
   V<WordPtr> dst_base() const { return input<WordPtr>(0); }
   V<Word32> value() const { return input<Word32>(1); }
   V<WordPtr> num_bytes() const { return input<WordPtr>(2); }
+};
+
+// Materialize the arg buffer passed from the suspend instruction to the
+// target effect handler, similar to how we materialize the exception or
+// continuation object in CatchBlockBeginOp.
+struct WasmFXArgBufferOp : FixedArityOperationT<0, WasmFXArgBufferOp> {
+  // This op should always appear at the start of a wasm effect handler block,
+  // when the fixed register has not been clobbered yet.
+  // Conservatively assume arbitrary side effects to prevent reordering.
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::WordPtr()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  WasmFXArgBufferOp() : Base() {}
+  auto options() const { return std::tuple{}; }
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
