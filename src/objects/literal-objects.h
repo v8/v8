@@ -9,6 +9,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
+#include "src/objects/trusted-pointer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -115,33 +116,45 @@ V8_OBJECT class ArrayBoilerplateDescription : public StructLayout {
   TaggedMember<FixedArrayBase> constant_elements_;
 } V8_OBJECT_END;
 
-class RegExpBoilerplateDescription : public Struct {
+V8_OBJECT class RegExpBoilerplateDescription : public StructLayout {
  public:
   // Dispatched behavior.
   void BriefPrintDetails(std::ostream& os);
 
-  DECL_TRUSTED_POINTER_ACCESSORS(data, RegExpData)
-  DECL_ACCESSORS(source, Tagged<String>)
-  DECL_INT_ACCESSORS(flags)
+  inline Tagged<RegExpData> data(IsolateForSandbox isolate) const;
+  inline void set_data(Tagged<RegExpData> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> source() const;
+  inline void set_source(Tagged<String> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   DECL_PRINTER(RegExpBoilerplateDescription)
   DECL_VERIFIER(RegExpBoilerplateDescription)
 
-#define FIELD_LIST(V)                 \
-  V(kDataOffset, kTrustedPointerSize) \
-  V(kSourceOffset, kTaggedSize)       \
-  V(kFlagsOffset, kTaggedSize)        \
-  V(kHeaderSize, 0)                   \
-  V(kSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
-
-  using BodyDescriptor = StackedBodyDescriptor<
-      StructBodyDescriptor,
-      WithStrongTrustedPointer<kDataOffset, kRegExpDataIndirectPointerTag>>;
-
  private:
-  OBJECT_CONSTRUCTORS(RegExpBoilerplateDescription, Struct);
+  friend class Factory;
+  friend class TorqueGeneratedRegExpBoilerplateDescriptionAsserts;
+  friend class CodeStubAssembler;
+  friend class ConstructorBuiltinsAssembler;
+  friend struct ObjectTraits<RegExpBoilerplateDescription>;
+
+  TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
+  TaggedMember<String> source_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<RegExpBoilerplateDescription> {
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptor<offsetof(RegExpBoilerplateDescription, source_),
+                          sizeof(RegExpBoilerplateDescription),
+                          sizeof(RegExpBoilerplateDescription)>,
+      WithStrongTrustedPointer<offsetof(RegExpBoilerplateDescription, data_),
+                               kRegExpDataIndirectPointerTag>>;
 };
 
 V8_OBJECT class ClassBoilerplate : public StructLayout {

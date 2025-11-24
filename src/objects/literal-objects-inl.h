@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "src/objects/objects-inl.h"
+#include "src/objects/trusted-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -184,11 +185,30 @@ bool ArrayBoilerplateDescription::is_empty() const {
 // RegExpBoilerplateDescription
 //
 
-OBJECT_CONSTRUCTORS_IMPL(RegExpBoilerplateDescription, Struct)
-TRUSTED_POINTER_ACCESSORS(RegExpBoilerplateDescription, data, RegExpData,
-                          kDataOffset, kRegExpDataIndirectPointerTag)
-ACCESSORS(RegExpBoilerplateDescription, source, Tagged<String>, kSourceOffset)
-SMI_ACCESSORS(RegExpBoilerplateDescription, flags, kFlagsOffset)
+Tagged<RegExpData> RegExpBoilerplateDescription::data(
+    IsolateForSandbox isolate) const {
+  return data_.load(isolate);
+}
+
+void RegExpBoilerplateDescription::set_data(Tagged<RegExpData> value,
+                                            WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+
+Tagged<String> RegExpBoilerplateDescription::source() const {
+  return source_.load();
+}
+void RegExpBoilerplateDescription::set_source(Tagged<String> value,
+                                              WriteBarrierMode mode) {
+  source_.store(this, value, mode);
+}
+
+int RegExpBoilerplateDescription::flags() const {
+  return flags_.load().value();
+}
+void RegExpBoilerplateDescription::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 
 }  // namespace v8::internal
 

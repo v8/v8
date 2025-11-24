@@ -2545,7 +2545,7 @@ void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionVerify(
     Object::VerifyPointer(isolate, o);
     CHECK(IsString(o));
   }
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kFlagsOffset)));
+  CHECK(IsSmi(flags_.load()));
 }
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -508,16 +508,16 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     StoreTrustedPointerField(
         new_object, JSRegExp::kDataOffset, kRegExpDataIndirectPointerTag,
         CAST(LoadTrustedPointerFromObject(
-            boilerplate, RegExpBoilerplateDescription::kDataOffset,
+            boilerplate, offsetof(RegExpBoilerplateDescription, data_),
             kRegExpDataIndirectPointerTag)));
     StoreObjectFieldNoWriteBarrier(
         new_object, JSRegExp::kSourceOffset,
         LoadObjectField(boilerplate,
-                        RegExpBoilerplateDescription::kSourceOffset));
+                        offsetof(RegExpBoilerplateDescription, source_)));
     StoreObjectFieldNoWriteBarrier(
         new_object, JSRegExp::kFlagsOffset,
         LoadObjectField(boilerplate,
-                        RegExpBoilerplateDescription::kFlagsOffset));
+                        offsetof(RegExpBoilerplateDescription, flags_)));
     StoreObjectFieldNoWriteBarrier(
         new_object, JSRegExp::kLastIndexOffset,
         SmiConstant(JSRegExp::kInitialLastIndexValue));
