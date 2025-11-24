@@ -126,6 +126,27 @@ ReduceResult MaglevReducer<BaseT>::AddNewNode(
 
 template <typename BaseT>
 template <typename NodeT, typename... Args>
+NodeT* MaglevReducer<BaseT>::AddNewNodeNoAbort(
+    std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  static_assert(IsFixedInputNode<NodeT>());
+  if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
+                ReducerBaseWithKNA<BaseT>) {
+    if (v8_flags.maglev_cse) {
+      ReduceResult result = AddNewNodeOrGetEquivalent<NodeT>(
+          true, inputs, std::forward<Args>(args)...);
+      CHECK(result.IsDoneWithPayload());
+      return result.node()->Cast<NodeT>();
+    }
+  }
+  NodeT* node =
+      NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
+  ReduceResult result = SetNodeInputs(node, inputs);
+  CHECK(result.IsDoneWithoutPayload());
+  return AttachExtraInfoAndAddToGraph(node);
+}
+
+template <typename BaseT>
+template <typename NodeT, typename... Args>
 NodeT* MaglevReducer<BaseT>::AddNewNodeNoInputConversion(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
   static_assert(IsFixedInputNode<NodeT>());
@@ -1454,9 +1475,9 @@ ValueNode* MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
         phi->SetUseRequires31BitValue();
       }
     }
-    return AddNewNodeNoInputConversion<UnsafeSmiUntag>({node});
+    return AddNewNodeNoAbort<UnsafeSmiUntag>({node});
   } else {
-    return AddNewNodeNoInputConversion<CheckedSmiUntag>({node});
+    return AddNewNodeNoAbort<CheckedSmiUntag>({node});
   }
 }
 
@@ -1472,37 +1493,33 @@ ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64OrHoleyFloat64(
     if (old_type == NodeType::kSmi) {
       ValueNode* untagged_smi = BuildSmiUntag(node);
       ValueNode* float64 =
-          AddNewNodeNoInputConversion<ChangeInt32ToFloat64>({untagged_smi});
+          AddNewNodeNoAbort<ChangeInt32ToFloat64>({untagged_smi});
       if (use_rep == UseRepresentation::kFloat64) return float64;
-      return AddNewNodeNoInputConversion<UnsafeFloat64ToHoleyFloat64>(
-          {float64});
+      return AddNewNodeNoAbort<UnsafeFloat64ToHoleyFloat64>({float64});
     }
     if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
-      ValueNode* float64 =
-          AddNewNodeNoInputConversion<UnsafeNumberToFloat64>({node});
+      ValueNode* float64 = AddNewNodeNoAbort<UnsafeNumberToFloat64>({node});
       if (use_rep == UseRepresentation::kFloat64) return float64;
-      return AddNewNodeNoInputConversion<ChangeFloat64ToHoleyFloat64>(
-          {float64});
+      return AddNewNodeNoAbort<ChangeFloat64ToHoleyFloat64>({float64});
     } else {
       if (use_rep == UseRepresentation::kHoleyFloat64) {
-        return AddNewNodeNoInputConversion<UnsafeNumberOrOddballToHoleyFloat64>(
+        return AddNewNodeNoAbort<UnsafeNumberOrOddballToHoleyFloat64>(
             {node}, conversion_type);
       }
-      return AddNewNodeNoInputConversion<UnsafeNumberOrOddballToFloat64>(
-          {node}, conversion_type);
+      return AddNewNodeNoAbort<UnsafeNumberOrOddballToFloat64>({node},
+                                                               conversion_type);
     }
   } else {
     if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
-      ValueNode* float64 =
-          AddNewNodeNoInputConversion<CheckedNumberToFloat64>({node});
+      ValueNode* float64 = AddNewNodeNoAbort<CheckedNumberToFloat64>({node});
       if (use_rep == UseRepresentation::kFloat64) return float64;
-      return AddNewNodeNoInputConversion<ChangeFloat64ToHoleyFloat64>({node});
+      return AddNewNodeNoAbort<ChangeFloat64ToHoleyFloat64>({node});
     } else {
       if (use_rep == UseRepresentation::kHoleyFloat64) {
-        return AddNewNodeNoInputConversion<
-            CheckedNumberOrOddballToHoleyFloat64>({node}, conversion_type);
+        return AddNewNodeNoAbort<CheckedNumberOrOddballToHoleyFloat64>(
+            {node}, conversion_type);
       }
-      return AddNewNodeNoInputConversion<CheckedNumberOrOddballToFloat64>(
+      return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>(
           {node}, conversion_type);
     }
   }

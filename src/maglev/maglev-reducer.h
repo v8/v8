@@ -267,6 +267,12 @@ class MaglevReducer {
   template <typename NodeT, typename... Args>
   ReduceResult AddNewNode(std::initializer_list<ValueNode*> inputs,
                           Args&&... args);
+  // Temporary version while we transition to the AddNewNode returning a
+  // ReduceResult.
+  // TODO(marja): Remove this.
+  template <typename NodeT, typename... Args>
+  NodeT* AddNewNodeNoAbort(std::initializer_list<ValueNode*> inputs,
+                           Args&&... args);
   template <typename NodeT, typename... Args>
   NodeT* AddUnbufferedNewNodeNoInputConversion(
       BasicBlock* block, std::initializer_list<ValueNode*> inputs,
