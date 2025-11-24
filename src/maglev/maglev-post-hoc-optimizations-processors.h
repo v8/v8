@@ -217,7 +217,7 @@ class LoopOptimizationProcessor {
   ProcessResult Process(LoadContextSlotNoCells* ltf,
                         const ProcessingState& state) {
     DCHECK(loop_effects);
-    ValueNode* object = ltf->object_input().node();
+    ValueNode* object = ltf->ValueInput().node();
     if (IsLoopPhi(object)) {
       return ProcessResult::kContinue;
     }
@@ -234,18 +234,17 @@ class LoopOptimizationProcessor {
     if (ltf->property_key().type() != PropertyKey::kName) {
       return ProcessResult::kContinue;
     }
-    return ProcessNamedLoad(ltf, ltf->object_input().node(),
-                            ltf->property_key());
+    return ProcessNamedLoad(ltf, ltf->ValueInput().node(), ltf->property_key());
   }
 
   ProcessResult Process(StringLength* len, const ProcessingState& state) {
-    return ProcessNamedLoad(len, len->object_input().node(),
+    return ProcessNamedLoad(len, len->StringInput().node(),
                             PropertyKey::StringLength());
   }
 
   ProcessResult Process(LoadTypedArrayLength* len,
                         const ProcessingState& state) {
-    return ProcessNamedLoad(len, len->receiver_input().node(),
+    return ProcessNamedLoad(len, len->ValueInput().node(),
                             PropertyKey::TypedArrayLength());
   }
 
@@ -273,7 +272,7 @@ class LoopOptimizationProcessor {
     // hoisting of this check fails we need to abort (and not continue) to
     // ensure we are not hoisting other instructions over it.
     if (was_deoptimized) return ProcessResult::kSkipBlock;
-    ValueNode* object = maps->receiver_input().node();
+    ValueNode* object = maps->ReceiverInput().node();
     if (IsLoopPhi(object)) {
       return ProcessResult::kSkipBlock;
     }

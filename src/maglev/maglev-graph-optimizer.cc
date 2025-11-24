@@ -504,7 +504,7 @@ ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigration(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithAlreadyLoadedMap(
     CheckMapsWithAlreadyLoadedMap* node, const ProcessingState& state) {
-  return ProcessCheckMaps(node, node->map_input().node());
+  return ProcessCheckMaps(node, node->MapInput().node());
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckDetectableCallable(
@@ -772,7 +772,7 @@ ProcessResult MaglevGraphOptimizer::VisitDeoptIfHole(DeoptIfHole* node,
 ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
     ThrowReferenceErrorIfHole* node, const ProcessingState& state) {
   // Avoid the check if we know it is not the hole.
-  ValueNode* value = node->value().node();
+  ValueNode* value = node->ValueInput().node();
   if (IsConstantNode(value->opcode())) {
     if (value->IsTheHoleValue()) {
       ValueNode* input = reducer_.GetConstant(node->name());
@@ -798,7 +798,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
     ThrowSuperNotCalledIfHole* node, const ProcessingState& state) {
   // Avoid the check if we know it is not the hole.
-  ValueNode* value = node->value().node();
+  ValueNode* value = node->ValueInput().node();
   if (IsConstantNode(value->opcode())) {
     if (value->IsTheHoleValue()) {
       node->OverwriteWith<Throw>();
@@ -821,7 +821,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
     ThrowSuperAlreadyCalledIfNotHole* node, const ProcessingState& state) {
   // Avoid the check if we know it is not the hole.
-  ValueNode* value = node->value().node();
+  ValueNode* value = node->ValueInput().node();
   if (IsConstantNode(value->opcode())) {
     if (!value->IsTheHoleValue()) {
       node->OverwriteWith<Throw>();
@@ -1145,7 +1145,7 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
   }
   if (!node->property_key().is_none()) {
     REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
-        node->object_input().node(), node->property_key(), node->is_const()));
+        node->ValueInput().node(), node->property_key(), node->is_const()));
   }
   return ProcessResult::kContinue;
 }
@@ -1225,15 +1225,14 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTypedArrayLength(
 ProcessResult MaglevGraphOptimizer::VisitLoadDataViewByteLength(
     LoadDataViewByteLength* node, const ProcessingState& state) {
   REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedConstantProperty(
-      node->receiver_input().node(), PropertyKey::ArrayBufferViewByteLength()));
+      node->ValueInput().node(), PropertyKey::ArrayBufferViewByteLength()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadDataViewDataPointer(
     LoadDataViewDataPointer* node, const ProcessingState& state) {
   REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedConstantProperty(
-      node->receiver_input().node(),
-      PropertyKey::ArrayBufferViewDataPointer()));
+      node->ValueInput().node(), PropertyKey::ArrayBufferViewDataPointer()));
   return ProcessResult::kContinue;
 }
 

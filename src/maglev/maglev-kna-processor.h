@@ -277,7 +277,7 @@ class RecomputeKnownNodeAspectsProcessor {
     if (!node->property_key().is_none()) {
       auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
           zone(), node->is_const(), node->property_key());
-      props_for_key[node->object_input().node()] = node;
+      props_for_key[node->ValueInput().node()] = node;
     }
     return ProcessResult::kContinue;
   }
@@ -285,7 +285,7 @@ class RecomputeKnownNodeAspectsProcessor {
   ProcessResult ProcessNode(LoadDataViewByteLength* node) {
     auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
         zone(), true, PropertyKey::ArrayBufferViewByteLength());
-    props_for_key[node->receiver_input().node()] = node;
+    props_for_key[node->ValueInput().node()] = node;
     return ProcessResult::kContinue;
   }
 
@@ -352,8 +352,8 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult ProcessNode(StoreContextSlotWithWriteBarrier* node) {
-    ProcessStoreContextSlot(node->context_input().node(),
-                            node->new_value_input().node(), node->offset());
+    ProcessStoreContextSlot(node->ContextInput().node(),
+                            node->NewValueInput().node(), node->offset());
     return ProcessResult::kContinue;
   }
 

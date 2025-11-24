@@ -114,10 +114,10 @@ int BuiltinStringFromCharCode::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
 }
 void BuiltinStringFromCharCode::SetValueLocationConstraints() {
-  if (code_input().node()->Is<Int32Constant>()) {
-    UseAny(code_input());
+  if (CharCodeInput().node()->Is<Int32Constant>()) {
+    UseAny(CharCodeInput());
   } else {
-    UseAndClobberRegister(code_input());
+    UseAndClobberRegister(CharCodeInput());
   }
   set_temporaries_needed(1);
   DefineAsRegister(this);
@@ -127,7 +127,8 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.AcquireScratch();
   Register result_string = ToRegister(result());
-  if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
+  if (Int32Constant* constant =
+          CharCodeInput().node()->TryCast<Int32Constant>()) {
     int32_t char_code = constant->value() & 0xFFFF;
     if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
       __ LoadSingleCharacterString(result_string, char_code);
@@ -150,13 +151,13 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
     }
   } else {
     __ StringFromCharCode(register_snapshot(), nullptr, result_string,
-                          ToRegister(code_input()), scratch,
+                          ToRegister(CharCodeInput()), scratch,
                           MaglevAssembler::CharCodeMaskMode::kMustApplyMask);
   }
 }
 
 void InlinedAllocation::SetValueLocationConstraints() {
-  UseRegister(allocation_block_input());
+  UseRegister(AllocationBlockInput());
   if (offset() == 0) {
     DefineSameAsFirst(this);
   } else {
@@ -168,7 +169,7 @@ void InlinedAllocation::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
   if (offset() != 0) {
     __ lay(ToRegister(result()),
-           MemOperand(ToRegister(allocation_block_input()), offset()));
+           MemOperand(ToRegister(AllocationBlockInput()), offset()));
   }
 }
 
@@ -214,7 +215,7 @@ void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
 }
 
 void CheckFloat64SameValue::SetValueLocationConstraints() {
-  UseRegister(target_input());
+  UseRegister(ValueInput());
   set_temporaries_needed((value().get_scalar() == 0) ? 1 : 0);
   set_double_temporaries_needed(value().is_nan() ? 0 : 1);
 }
@@ -223,7 +224,7 @@ void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
   Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   DoubleRegister double_scratch = temps.AcquireScratchDouble();
-  DoubleRegister target = ToDoubleRegister(target_input());
+  DoubleRegister target = ToDoubleRegister(ValueInput());
   if (value().is_nan()) {
     __ JumpIfNotNan(target, fail);
   } else {
@@ -857,13 +858,13 @@ void Float64Sqrt::GenerateCode(MaglevAssembler* masm,
 }
 
 void LoadTypedArrayLength::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
+  UseRegister(ValueInput());
   DefineAsRegister(this);
 }
 
 void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  Register object = ToRegister(receiver_input());
+  Register object = ToRegister(ValueInput());
   Register result_register = ToRegister(result());
   if (v8_flags.debug_code) {
     __ AssertObjectType(object, JS_TYPED_ARRAY_TYPE,
@@ -882,14 +883,14 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
 
 int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
-  UseRegister(index_input());
-  UseRegister(byte_length_input());
+  UseRegister(IndexInput());
+  UseRegister(ByteLengthInput());
 }
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   USE(element_type_);
-  Register index = ToRegister(index_input());
-  Register byte_length = ToRegister(byte_length_input());
+  Register index = ToRegister(IndexInput());
+  Register byte_length = ToRegister(ByteLengthInput());
 
   int element_size = compiler::ExternalArrayElementSize(element_type_);
   if (element_size > 1) {
@@ -1029,22 +1030,22 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
 
 int ReduceInterruptBudgetForLoop::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudgetForLoop::SetValueLocationConstraints() {
-  UseRegister(feedback_cell());
+  UseRegister(FeedbackCellInput());
 }
 void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
-  GenerateReduceInterruptBudget(masm, this, ToRegister(feedback_cell()),
+  GenerateReduceInterruptBudget(masm, this, ToRegister(FeedbackCellInput()),
                                 ReduceInterruptBudgetType::kLoop, amount());
 }
 
 int ReduceInterruptBudgetForReturn::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudgetForReturn::SetValueLocationConstraints() {
-  UseRegister(feedback_cell());
+  UseRegister(FeedbackCellInput());
   set_temporaries_needed(1);
 }
 void ReduceInterruptBudgetForReturn::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  GenerateReduceInterruptBudget(masm, this, ToRegister(feedback_cell()),
+  GenerateReduceInterruptBudget(masm, this, ToRegister(FeedbackCellInput()),
                                 ReduceInterruptBudgetType::kReturn, amount());
 }
 

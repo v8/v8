@@ -156,7 +156,7 @@ class FunctionContextSpecialization final : public AllStatic {
 
 ValueNode* MaglevGraphBuilder::TryGetParentContext(ValueNode* node) {
   if (CreateFunctionContext* n = node->TryCast<CreateFunctionContext>()) {
-    return n->context().node();
+    return n->ContextInput().node();
   }
 
   if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
@@ -12084,7 +12084,7 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
   if (FastCreateClosure* fast_create_closure =
           target_node->TryCast<FastCreateClosure>()) {
     MaybeReduceResult result = TryReduceCallForNewClosure(
-        fast_create_closure, fast_create_closure->context().node(),
+        fast_create_closure, fast_create_closure->ContextInput().node(),
         fast_create_closure->feedback_cell().dispatch_handle(),
         fast_create_closure->shared_function_info(),
         fast_create_closure->feedback_cell(), args, feedback_source);
@@ -12092,7 +12092,7 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
   } else if (CreateClosure* create_closure =
                  target_node->TryCast<CreateClosure>()) {
     MaybeReduceResult result = TryReduceCallForNewClosure(
-        create_closure, create_closure->context().node(),
+        create_closure, create_closure->ContextInput().node(),
         create_closure->feedback_cell().dispatch_handle(),
         create_closure->shared_function_info(), create_closure->feedback_cell(),
         args, feedback_source);
@@ -15358,7 +15358,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
   while (LogicalNot* logical_not = node->TryCast<LogicalNot>()) {
     // Bypassing logical not(s) on the input and swapping true/false
     // destinations.
-    node = logical_not->value().node();
+    node = logical_not->ValueInput().node();
     builder.SwapTargets();
   }
 

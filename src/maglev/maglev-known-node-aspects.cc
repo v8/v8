@@ -260,7 +260,7 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
     case StoreMap::Kind::kInlinedAllocation:
       return;
     case StoreMap::Kind::kTransitioning: {
-      if (NodeInfo* node_info = TryGetInfoFor(node->object_input().node())) {
+      if (NodeInfo* node_info = TryGetInfoFor(node->ValueInput().node())) {
         if (node_info->possible_maps_are_known() &&
             node_info->possible_maps().size() == 1) {
           compiler::MapRef old_map = node_info->possible_maps().at(0);
