@@ -232,19 +232,17 @@ class MemoryOptimizationReducer : public Next {
     // than in a REDUCE method, since this allows DecideObjectIsSmi to see
     // Allocates from the input_graph (which don't exist in the output graph
     // since the current reducer lowers them).
-    // TODO(dmercadier): re-enable.
-    // if (store.write_barrier == WriteBarrierKind::kFullWriteBarrier &&
-    //     turboshaft::DecideObjectIsSmi(__ input_graph(), store.value()) ==
-    //         IsSmiDecision::kFalse) {
-    //   __ Store(__ MapToNewGraph(store.base()), __
-    //   MapToNewGraph(store.index()),
-    //            __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
-    //            WriteBarrierKind::kPointerWriteBarrier, store.offset,
-    //            store.element_size_log2,
-    //            store.maybe_initializing_or_transitioning,
-    //            store.indirect_pointer_tag());
-    //   return V<None>::Invalid();
-    // }
+    if (store.write_barrier == WriteBarrierKind::kFullWriteBarrier &&
+        turboshaft::DecideObjectIsSmi(__ input_graph(), store.value()) ==
+            IsSmiDecision::kFalse) {
+      __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
+               __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
+               WriteBarrierKind::kPointerWriteBarrier, store.offset,
+               store.element_size_log2,
+               store.maybe_initializing_or_transitioning,
+               store.indirect_pointer_tag());
+      return V<None>::Invalid();
+    }
 
     return Next::ReduceInputGraphStore(ig_index, store);
   }
