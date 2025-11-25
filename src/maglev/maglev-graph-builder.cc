@@ -169,7 +169,7 @@ ValueNode* MaglevGraphBuilder::TryGetParentContext(ValueNode* node) {
       case Runtime::kPushBlockContext:
       case Runtime::kPushCatchContext:
       case Runtime::kNewFunctionContext:
-        return n->context().node();
+        return n->ContextInput().node();
       default:
         break;
     }

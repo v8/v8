@@ -99,7 +99,7 @@ CallKnownJSFunction::CallKnownJSFunction(
               dispatch_handle)
               ),
       feedback_source_(feedback_source) {
-  set_input(kClosureIndex, closure);
+  set_input(kTargetIndex, closure);
   set_input(kContextIndex, context);
   set_input(kReceiverIndex, receiver);
   set_input(kNewTargetIndex, new_target);

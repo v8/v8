@@ -656,52 +656,51 @@ ValueRepresentation ToValueRepresentation(MachineType type) {
   }
 }
 
-void CheckValueInputIs(const NodeBase* node, int i,
-                       ValueRepresentation expected) {
-  const ValueNode* input = node->input(i).node();
-  DCHECK(!input->Is<Identity>());
-  ValueRepresentation got = input->properties().value_representation();
+void NodeBase::CheckInputIs(int i, ValueRepresentation expected) const {
+  const ValueNode* inp = input(i).node();
+  DCHECK(!inp->Is<Identity>());
+  ValueRepresentation got = inp->properties().value_representation();
   bool valid = ValueRepresentationIs(got, expected);
   if (!valid) {
     std::ostringstream str;
     str << "Type representation error: node ";
     if (GetCurrentGraphLabeller()) {
-      str << "#" << GetCurrentGraphLabeller()->NodeId(node) << " : ";
+      str << "#" << GetCurrentGraphLabeller()->NodeId(this) << " : ";
     }
-    str << node->opcode() << " (input @" << i << " = " << input->opcode()
-        << ") type " << got << " is not " << expected;
+    str << opcode() << " (input @" << i << " = " << inp->opcode() << ") type "
+        << got << " is not " << expected;
     FATAL("%s", str.str().c_str());
   }
 }
 
-void CheckValueInputIs(const NodeBase* node, int i, Opcode expected) {
-  const ValueNode* input = node->input(i).node();
-  Opcode got = input->opcode();
+void NodeBase::CheckInputIs(int i, Opcode expected) const {
+  const ValueNode* inp = input(i).node();
+  Opcode got = inp->opcode();
   if (got != expected) {
     std::ostringstream str;
     str << "Opcode error: node ";
     if (GetCurrentGraphLabeller()) {
-      str << "#" << GetCurrentGraphLabeller()->NodeId(node) << " : ";
+      str << "#" << GetCurrentGraphLabeller()->NodeId(this) << " : ";
     }
-    str << node->opcode() << " (input @" << i << " = " << input->opcode()
-        << ") opcode " << got << " is not " << expected;
+    str << opcode() << " (input @" << i << " = " << inp->opcode() << ") opcode "
+        << got << " is not " << expected;
     FATAL("%s", str.str().c_str());
   }
 }
 
 void GeneratorStore::VerifyInputs() const {
   for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
+    CheckInputIs(i, ValueRepresentation::kTagged);
   }
 }
 
 void Phi::VerifyInputs() const {
   switch (value_representation()) {
-#define CASE_REPR(repr)                                         \
-  case ValueRepresentation::k##repr:                            \
-    for (int i = 0; i < input_count(); i++) {                   \
-      CheckValueInputIs(this, i, ValueRepresentation::k##repr); \
-    }                                                           \
+#define CASE_REPR(repr)                              \
+  case ValueRepresentation::k##repr:                 \
+    for (int i = 0; i < input_count(); i++) {        \
+      CheckInputIs(i, ValueRepresentation::k##repr); \
+    }                                                \
     break;
 
     CASE_REPR(Tagged)
@@ -718,134 +717,8 @@ void Phi::VerifyInputs() const {
   }
 }
 
-void Call::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void Call::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
-void CallForwardVarargs::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void CallForwardVarargs::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
 #ifdef V8_COMPRESS_POINTERS
 void CallWithArrayLike::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
-void CallWithSpread::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void CallWithSpread::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
-void CallSelf::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void CallSelf::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
-void CallKnownJSFunction::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void CallKnownJSFunction::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
-void CallKnownApiFunction::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void CallKnownApiFunction::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
-void Construct::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void Construct::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
-void ConstructWithSpread::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void ConstructWithSpread::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
-void ConstructForwardVarargs::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void ConstructForwardVarargs::MarkTaggedInputsAsDecompressing() {
   for (int i = 0; i < input_count(); i++) {
     input(i).node()->SetTaggedResultNeedsDecompress();
   }
@@ -857,7 +730,7 @@ void CallBuiltin::VerifyInputs() const {
   int count = input_count();
   // Verify context.
   if (descriptor.HasContextParameter()) {
-    CheckValueInputIs(this, count - 1, ValueRepresentation::kTagged);
+    CheckInputIs(count - 1, ValueRepresentation::kTagged);
     count--;
   }
 
@@ -876,7 +749,7 @@ void CallBuiltin::VerifyInputs() const {
     MachineType type = i < descriptor.GetParameterCount()
                            ? descriptor.GetParameterType(i)
                            : MachineType::AnyTagged();
-    CheckValueInputIs(this, i, ToValueRepresentation(type));
+    CheckInputIs(i, ToValueRepresentation(type));
   }
 }
 
@@ -902,20 +775,6 @@ void CallBuiltin::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
-void CallRuntime::VerifyInputs() const {
-  for (int i = 0; i < input_count(); i++) {
-    CheckValueInputIs(this, i, ValueRepresentation::kTagged);
-  }
-}
-
-#ifdef V8_COMPRESS_POINTERS
-void CallRuntime::MarkTaggedInputsAsDecompressing() {
-  for (int i = 0; i < input_count(); i++) {
-    input(i).node()->SetTaggedResultNeedsDecompress();
-  }
-}
-#endif
-
 void StoreTaggedFieldNoWriteBarrier::VerifyInputs() const {
   Base::VerifyInputs();
   if (auto host_alloc =
@@ -929,7 +788,7 @@ void StoreTaggedFieldNoWriteBarrier::VerifyInputs() const {
 
 void InlinedAllocation::VerifyInputs() const {
   Base::VerifyInputs();
-  CheckValueInputIs(this, 0, Opcode::kAllocationBlock);
+  CheckInputIs(0, Opcode::kAllocationBlock);
 }
 
 AllocationBlock* InlinedAllocation::allocation_block() {
@@ -5006,8 +4865,8 @@ int GeneratorStore::MaxCallStackArgs() const {
   return WriteBarrierDescriptor::GetStackParameterCount();
 }
 void GeneratorStore::SetValueLocationConstraints() {
-  UseAny(context_input());
-  UseRegister(generator_input());
+  UseAny(ContextInput());
+  UseRegister(GeneratorInput());
   for (int i = 0; i < num_parameters_and_registers(); i++) {
     UseAny(parameters_and_registers(i));
   }
@@ -5016,7 +4875,7 @@ void GeneratorStore::SetValueLocationConstraints() {
 }
 void GeneratorStore::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
-  Register generator = ToRegister(generator_input());
+  Register generator = ToRegister(GeneratorInput());
   Register array = WriteBarrierDescriptor::ObjectRegister();
   __ LoadTaggedField(array, generator,
                      JSGeneratorObject::kParametersAndRegistersOffset);
@@ -5060,11 +4919,11 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
   // register, see comment above. At this point we no longer need to preserve
   // the array or generator registers, so use the original register snapshot.
   Register context = __ FromAnyToRegister(
-      context_input(), WriteBarrierDescriptor::SlotAddressRegister());
+      ContextInput(), WriteBarrierDescriptor::SlotAddressRegister());
   __ StoreTaggedFieldWithWriteBarrier(
       generator, JSGeneratorObject::kContextOffset, context,
       register_snapshot(),
-      context_input().node()->decompresses_tagged_result()
+      GeneratorInput().node()->decompresses_tagged_result()
           ? MaglevAssembler::kValueIsDecompressed
           : MaglevAssembler::kValueIsCompressed,
       MaglevAssembler::kValueCannotBeSmi);
@@ -6421,12 +6280,12 @@ void StoreFixedArrayElementNoWriteBarrier::GenerateCode(
 int Call::MaxCallStackArgs() const { return num_args(); }
 void Call::SetValueLocationConstraints() {
   using D = CallTrampolineDescriptor;
-  UseFixed(function(), D::GetRegisterParameter(D::kFunction));
+  UseFixed(TargetInput(), D::GetRegisterParameter(D::kFunction));
   UseAny(arg(0));
   for (int i = 1; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  UseFixed(context(), kContextRegister);
+  UseFixed(ContextInput(), kContextRegister);
   DefineAsFixed(this, kReturnRegister0);
 }
 
@@ -6438,15 +6297,15 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
     switch (receiver_mode_) {
       case ConvertReceiverMode::kNullOrUndefined:
         __ CallBuiltin<Builtin::kCall_ReceiverIsNullOrUndefined>(
-            context(), function(), arg_count);
+            ContextInput(), TargetInput(), arg_count);
         break;
       case ConvertReceiverMode::kNotNullOrUndefined:
         __ CallBuiltin<Builtin::kCall_ReceiverIsNotNullOrUndefined>(
-            context(), function(), arg_count);
+            ContextInput(), TargetInput(), arg_count);
         break;
       case ConvertReceiverMode::kAny:
-        __ CallBuiltin<Builtin::kCall_ReceiverIsAny>(context(), function(),
-                                                     arg_count);
+        __ CallBuiltin<Builtin::kCall_ReceiverIsAny>(ContextInput(),
+                                                     TargetInput(), arg_count);
         break;
     }
   } else {
@@ -6454,15 +6313,15 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
     switch (receiver_mode_) {
       case ConvertReceiverMode::kNullOrUndefined:
         __ CallBuiltin<Builtin::kCallFunction_ReceiverIsNullOrUndefined>(
-            context(), function(), arg_count);
+            ContextInput(), TargetInput(), arg_count);
         break;
       case ConvertReceiverMode::kNotNullOrUndefined:
         __ CallBuiltin<Builtin::kCallFunction_ReceiverIsNotNullOrUndefined>(
-            context(), function(), arg_count);
+            ContextInput(), TargetInput(), arg_count);
         break;
       case ConvertReceiverMode::kAny:
         __ CallBuiltin<Builtin::kCallFunction_ReceiverIsAny>(
-            context(), function(), arg_count);
+            ContextInput(), TargetInput(), arg_count);
         break;
     }
   }
@@ -6473,12 +6332,12 @@ void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
 int CallForwardVarargs::MaxCallStackArgs() const { return num_args(); }
 void CallForwardVarargs::SetValueLocationConstraints() {
   using D = CallTrampolineDescriptor;
-  UseFixed(function(), D::GetRegisterParameter(D::kFunction));
+  UseFixed(TargetInput(), D::GetRegisterParameter(D::kFunction));
   UseAny(arg(0));
   for (int i = 1; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  UseFixed(context(), kContextRegister);
+  UseFixed(ContextInput(), kContextRegister);
   DefineAsFixed(this, kReturnRegister0);
 }
 
@@ -6488,11 +6347,11 @@ void CallForwardVarargs::GenerateCode(MaglevAssembler* masm,
   switch (target_type()) {
     case Call::TargetType::kJSFunction:
       __ CallBuiltin<Builtin::kCallFunctionForwardVarargs>(
-          context(), function(), num_args(), start_index());
+          ContextInput(), TargetInput(), num_args(), start_index());
       break;
     case Call::TargetType::kAny:
-      __ CallBuiltin<Builtin::kCallForwardVarargs>(context(), function(),
-                                                   num_args(), start_index());
+      __ CallBuiltin<Builtin::kCallForwardVarargs>(
+          ContextInput(), TargetInput(), num_args(), start_index());
       break;
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -6503,13 +6362,13 @@ int CallSelf::MaxCallStackArgs() const {
   return std::max(expected_parameter_count_, actual_parameter_count);
 }
 void CallSelf::SetValueLocationConstraints() {
-  UseAny(receiver());
+  UseAny(ReceiverInput());
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  UseFixed(closure(), kJavaScriptCallTargetRegister);
-  UseFixed(new_target(), kJavaScriptCallNewTargetRegister);
-  UseFixed(context(), kContextRegister);
+  UseFixed(TargetInput(), kJavaScriptCallTargetRegister);
+  UseFixed(NewTargetInput(), kJavaScriptCallNewTargetRegister);
+  UseFixed(ContextInput(), kContextRegister);
   DefineAsFixed(this, kReturnRegister0);
   set_temporaries_needed(1);
 }
@@ -6523,13 +6382,13 @@ void CallSelf::GenerateCode(MaglevAssembler* masm,
     int number_of_undefineds =
         expected_parameter_count_ - actual_parameter_count;
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-    __ PushReverse(receiver(), args(),
+    __ PushReverse(ReceiverInput(), args(),
                    RepeatValue(scratch, number_of_undefineds));
   } else {
-    __ PushReverse(receiver(), args());
+    __ PushReverse(ReceiverInput(), args());
   }
-  DCHECK_EQ(kContextRegister, ToRegister(context()));
-  DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
+  DCHECK_EQ(kContextRegister, ToRegister(ContextInput()));
+  DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(TargetInput()));
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
   __ CallSelf();
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -6540,13 +6399,13 @@ int CallKnownJSFunction::MaxCallStackArgs() const {
   return std::max(expected_parameter_count_, actual_parameter_count);
 }
 void CallKnownJSFunction::SetValueLocationConstraints() {
-  UseAny(receiver());
+  UseAny(ReceiverInput());
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  UseFixed(closure(), kJavaScriptCallTargetRegister);
-  UseFixed(new_target(), kJavaScriptCallNewTargetRegister);
-  UseFixed(context(), kContextRegister);
+  UseFixed(TargetInput(), kJavaScriptCallTargetRegister);
+  UseFixed(NewTargetInput(), kJavaScriptCallNewTargetRegister);
+  UseFixed(ContextInput(), kContextRegister);
   DefineAsFixed(this, kReturnRegister0);
   set_temporaries_needed(1);
 }
@@ -6560,10 +6419,10 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
     int number_of_undefineds =
         expected_parameter_count_ - actual_parameter_count;
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-    __ PushReverse(receiver(), args(),
+    __ PushReverse(ReceiverInput(), args(),
                    RepeatValue(scratch, number_of_undefineds));
   } else {
-    __ PushReverse(receiver(), args());
+    __ PushReverse(ReceiverInput(), args());
   }
   // From here on, we're going to do a call, so all registers are valid temps,
   // except for the ones we're going to write. This is needed in case one of the
@@ -6575,8 +6434,8 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
                              kJavaScriptCallTargetRegister,
                              kJavaScriptCallNewTargetRegister,
                              kJavaScriptCallArgCountRegister});
-  DCHECK_EQ(kContextRegister, ToRegister(context()));
-  DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(closure()));
+  DCHECK_EQ(kContextRegister, ToRegister(ContextInput()));
+  DCHECK_EQ(kJavaScriptCallTargetRegister, ToRegister(TargetInput()));
   __ Move(kJavaScriptCallArgCountRegister, actual_parameter_count);
   if (shared_function_info().HasBuiltinId()) {
     Builtin builtin = shared_function_info().builtin_id();
@@ -6594,7 +6453,7 @@ int CallKnownApiFunction::MaxCallStackArgs() const {
 }
 
 void CallKnownApiFunction::SetValueLocationConstraints() {
-  UseAny(receiver());
+  UseAny(ReceiverInput());
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
@@ -6608,7 +6467,7 @@ void CallKnownApiFunction::SetValueLocationConstraints() {
 
 void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  __ PushReverse(receiver(), args());
+  __ PushReverse(ReceiverInput(), args());
 
   if (inline_builtin()) {
     GenerateCallApiCallbackOptimizedInline(masm, state);
@@ -6888,7 +6747,7 @@ void CallBuiltin::GenerateCode(MaglevAssembler* masm,
 
 int CallRuntime::MaxCallStackArgs() const { return num_args(); }
 void CallRuntime::SetValueLocationConstraints() {
-  UseFixed(context(), kContextRegister);
+  UseFixed(ContextInput(), kContextRegister);
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
@@ -6896,7 +6755,7 @@ void CallRuntime::SetValueLocationConstraints() {
 }
 void CallRuntime::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(ContextInput()), kContextRegister);
   __ Push(args());
   __ CallRuntime(function_id(), num_args());
   // TODO(victorgomes): Not sure if this is needed for all runtime calls.
@@ -6942,9 +6801,9 @@ int CallWithSpread::MaxCallStackArgs() const {
 }
 void CallWithSpread::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
-  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(TargetInput(), D::GetRegisterParameter(D::kTarget));
   UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
-  UseFixed(context(), kContextRegister);
+  UseFixed(ContextInput(), kContextRegister);
   for (int i = 0; i < num_args() - 1; i++) {
     UseAny(arg(i));
   }
@@ -6953,8 +6812,8 @@ void CallWithSpread::SetValueLocationConstraints() {
 void CallWithSpread::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   __ CallBuiltin<Builtin::kCallWithSpread>(
-      context(),             // context
-      function(),            // target
+      ContextInput(),        // context
+      TargetInput(),         // target
       num_args_no_spread(),  // arguments count
       spread(),              // spread
       args_no_spread()       // pushed args
@@ -6969,7 +6828,7 @@ int CallWithArrayLike::MaxCallStackArgs() const {
 }
 void CallWithArrayLike::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kCallWithArrayLike>::type;
-  UseFixed(FunctionInput(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(TargetInput(), D::GetRegisterParameter(D::kTarget));
   UseAny(ReceiverInput());
   UseFixed(ArgumentsListInput(), D::GetRegisterParameter(D::kArgumentsList));
   UseFixed(ContextInput(), kContextRegister);
@@ -6986,7 +6845,7 @@ void CallWithArrayLike::GenerateCode(MaglevAssembler* masm,
   __ Push(ReceiverInput());
   __ CallBuiltin<Builtin::kCallWithArrayLike>(
       ContextInput(),       // context
-      FunctionInput(),      // target
+      TargetInput(),        // target
       ArgumentsListInput()  // arguments list
   );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -7002,9 +6861,9 @@ int Construct::MaxCallStackArgs() const {
 }
 void Construct::SetValueLocationConstraints() {
   using D = Construct_WithFeedbackDescriptor;
-  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
-  UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
-  UseFixed(context(), kContextRegister);
+  UseFixed(TargetInput(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(NewTargetInput(), D::GetRegisterParameter(D::kNewTarget));
+  UseFixed(ContextInput(), kContextRegister);
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
@@ -7013,9 +6872,9 @@ void Construct::SetValueLocationConstraints() {
 void Construct::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
   __ CallBuiltin<Builtin::kConstruct_WithFeedback>(
-      context(),           // context
-      function(),          // target
-      new_target(),        // new target
+      ContextInput(),      // context
+      TargetInput(),       // target
+      NewTargetInput(),    // new target
       num_args(),          // actual arguments count
       feedback().index(),  // feedback slot
       feedback().vector,   // feedback vector
@@ -7033,9 +6892,9 @@ int ConstructWithSpread::MaxCallStackArgs() const {
 void ConstructWithSpread::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<
       Builtin::kConstructWithSpread_WithFeedback>::type;
-  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
-  UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
-  UseFixed(context(), kContextRegister);
+  UseFixed(TargetInput(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(NewTargetInput(), D::GetRegisterParameter(D::kNewTarget));
+  UseFixed(ContextInput(), kContextRegister);
   for (int i = 0; i < num_args() - 1; i++) {
     UseAny(arg(i));
   }
@@ -7045,9 +6904,9 @@ void ConstructWithSpread::SetValueLocationConstraints() {
 void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   __ CallBuiltin<Builtin::kConstructWithSpread_WithFeedback>(
-      context(),                                    // context
-      function(),                                   // target
-      new_target(),                                 // new target
+      ContextInput(),                               // context
+      TargetInput(),                                // target
+      NewTargetInput(),                             // new target
       num_args_no_spread(),                         // actual arguments count
       spread(),                                     // spread
       TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
@@ -7060,13 +6919,13 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
 int ConstructForwardVarargs::MaxCallStackArgs() const { return num_args(); }
 void ConstructForwardVarargs::SetValueLocationConstraints() {
   using D = ConstructForwardVarargsDescriptor;
-  UseFixed(target(), D::GetRegisterParameter(D::kTarget));
-  UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
+  UseFixed(TargetInput(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(NewTargetInput(), D::GetRegisterParameter(D::kNewTarget));
   UseAny(arg(0));
   for (int i = 1; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  UseFixed(context(), kContextRegister);
+  UseFixed(ContextInput(), kContextRegister);
   DefineAsFixed(this, kReturnRegister0);
 }
 
@@ -7076,11 +6935,13 @@ void ConstructForwardVarargs::GenerateCode(MaglevAssembler* masm,
   switch (target_type()) {
     case Call::TargetType::kJSFunction:
       __ CallBuiltin<Builtin::kConstructFunctionForwardVarargs>(
-          context(), target(), new_target(), num_args(), start_index());
+          ContextInput(), TargetInput(), NewTargetInput(), num_args(),
+          start_index());
       break;
     case Call::TargetType::kAny:
       __ CallBuiltin<Builtin::kConstructForwardVarargs>(
-          context(), target(), new_target(), num_args(), start_index());
+          ContextInput(), TargetInput(), NewTargetInput(), num_args(),
+          start_index());
       break;
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);

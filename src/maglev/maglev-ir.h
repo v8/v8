@@ -2632,6 +2632,9 @@ class NodeBase : public ZoneObject {
   inline void OverwriteWithIdentityTo(ValueNode* node);
   inline void OverwriteWithReturnValue(ValueNode* node);
 
+  void CheckInputIs(int idx, ValueRepresentation expected) const;
+  void CheckInputIs(int idx, Opcode opcode) const;
+
   auto options() const { return std::tuple{}; }
 
   void set_owner(BasicBlock* block) {
@@ -2874,9 +2877,6 @@ template <>
 constexpr bool NodeBase::Is<TerminalControlNode>() const {
   return IsTerminalControlNode(opcode());
 }
-
-void CheckValueInputIs(const NodeBase* node, int i,
-                       ValueRepresentation expected);
 
 // The Node class hierarchy contains all non-control nodes.
 class alignas(8) Node : public NodeBase {
@@ -3202,6 +3202,7 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
   using Base = FixedInputNodeTMixin;
 
   static constexpr size_t kInputCount = InputCount;
+  static constexpr size_t kFixedInputCount = kInputCount;
 
   // Shadowing for static knowledge.
   constexpr bool has_inputs() const { return input_count() > 0; }
@@ -3216,7 +3217,7 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
           std::is_same_v<const InputTypes, decltype(Derived::kInputTypes)>);
       static_assert(kInputCount == Derived::kInputTypes.size());
       for (int i = 0; i < static_cast<int>(kInputCount); ++i) {
-        CheckValueInputIs(this, i, Derived::kInputTypes[i]);
+        Base::CheckInputIs(i, Derived::kInputTypes[i]);
       }
     }
   }
@@ -3249,8 +3250,60 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
   }
 };
 
+template <size_t FixedInputCount, class BaseT, class Derived>
+class VarargsNodeTMixin : public NodeTMixin<BaseT, Derived> {
+ public:
+  // Enable concise base access in derived nodes.
+  using Base = VarargsNodeTMixin;
+
+  static constexpr size_t kFixedInputCount = FixedInputCount;
+
+  // We need enough inputs to have these fixed inputs plus the maximum arguments
+  // to a function call.
+  static_assert(Base::kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
+
+  int num_args() const { return Base::input_count() - kFixedInputCount; }
+
+  Input arg(int i) { return Base::input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    Base::set_input(i + kFixedInputCount, node);
+  }
+
+  auto args_from_to(int start, int end) {
+    DCHECK_GE(start, 0);
+    DCHECK_LE(end, num_args());
+    return std::views::transform(std::views::iota(start, end),
+                                 [&](int i) { return arg(i); });
+  }
+
+  auto args() { return args_from_to(0, num_args()); }
+
+  // It assumes all inputs are Tagged, if that's not the case, the Derived class
+  // needs to override this method.
+  void VerifyInputs() const {
+    for (int i = 0; i < Base::input_count(); i++) {
+      Base::CheckInputIs(i, ValueRepresentation::kTagged);
+    }
+  }
+
+#ifdef V8_COMPRESS_POINTERS
+  // It assumes all tagged inputs need decompressing, if that's not the case,
+  // the Derived class needs to override this method.
+  void MarkTaggedInputsAsDecompressing() {
+    for (int i = 0; i < Base::input_count(); i++) {
+      Base::input(i).node()->SetTaggedResultNeedsDecompress();
+    }
+  }
+#endif
+
+ protected:
+  template <typename... Args>
+  explicit VarargsNodeTMixin(uint64_t bitfield, Args&&... args)
+      : NodeTMixin<BaseT, Derived>(bitfield, std::forward<Args>(args)...) {}
+};
+
 #define DEFINE_INPUT_FUNC(name, idx)                          \
-  static_assert(idx <= Base::kInputCount);                    \
+  static_assert(idx <= Base::kFixedInputCount);               \
   static constexpr int k##name##Index = idx;                  \
   Input name##Input() { return Base::input(idx); }            \
   ConstInput name##Input() const { return Base::input(idx); } \
@@ -3305,6 +3358,14 @@ using FixedInputNodeT =
 template <size_t InputCount, class Derived>
 using FixedInputValueNodeT =
     FixedInputNodeTMixin<InputCount, ValueNodeT<Derived>, Derived>;
+
+template <size_t FixedInputCount, class Derived>
+using VarargsNodeT =
+    VarargsNodeTMixin<FixedInputCount, NodeT<Derived>, Derived>;
+
+template <size_t FixedInputCount, class Derived>
+using VarargsValueNodeT =
+    VarargsNodeTMixin<FixedInputCount, ValueNodeT<Derived>, Derived>;
 
 class Identity : public FixedInputValueNodeT<1, Identity> {
  public:
@@ -4964,13 +5025,8 @@ class DeleteProperty : public FixedInputValueNodeT<3, DeleteProperty> {
   const LanguageMode mode_;
 };
 
-class GeneratorStore : public NodeT<GeneratorStore> {
+class GeneratorStore : public VarargsNodeT<2, GeneratorStore> {
  public:
-  // We assume the context as fixed input.
-  static constexpr int kContextIndex = 0;
-  static constexpr int kGeneratorIndex = 1;
-  static constexpr int kFixedInputCount = 2;
-
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   GeneratorStore(uint64_t bitfield, ValueNode* context, ValueNode* generator,
@@ -4985,19 +5041,15 @@ class GeneratorStore : public NodeT<GeneratorStore> {
   static constexpr OpProperties kProperties = OpProperties::DeferredCall() |
                                               OpProperties::CanRead() |
                                               OpProperties::CanWrite();
+  DECLARE_INPUTS(Context, Generator)
 
   int suspend_id() const { return suspend_id_; }
   int bytecode_offset() const { return bytecode_offset_; }
 
-  Input context_input() { return input(kContextIndex); }
-  Input generator_input() { return input(kGeneratorIndex); }
-
-  int num_parameters_and_registers() const {
-    return input_count() - kFixedInputCount;
-  }
-  Input parameters_and_registers(int i) { return input(i + kFixedInputCount); }
+  int num_parameters_and_registers() const { return num_args(); }
+  Input parameters_and_registers(int i) { return arg(i); }
   void set_parameters_and_registers(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
+    set_arg(i, node);
   }
 
   int MaxCallStackArgs() const;
@@ -9705,47 +9757,22 @@ class Phi : public ValueNodeT<Phi> {
   friend base::ThreadedListTraits<Phi>;
 };
 
-class Call : public ValueNodeT<Call> {
+class Call : public VarargsValueNodeT<2, Call> {
  public:
   enum class TargetType { kJSFunction, kAny };
-  // We assume function and context as fixed inputs.
-  static constexpr int kFunctionIndex = 0;
-  static constexpr int kContextIndex = 1;
-  static constexpr int kFixedInputCount = 2;
-
-  // We need enough inputs to have these fixed inputs plus the maximum arguments
-  // to a function call.
-  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   Call(uint64_t bitfield, ConvertReceiverMode mode, TargetType target_type,
        ValueNode* function, ValueNode* context)
       : Base(bitfield), receiver_mode_(mode), target_type_(target_type) {
-    set_input(kFunctionIndex, function);
+    set_input(kTargetIndex, function);
     set_input(kContextIndex, context);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
+  DECLARE_INPUTS(Target, Context)
 
-  Input function() { return input(kFunctionIndex); }
-  ConstInput function() const { return input(kFunctionIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
-  }
-  auto args() {
-    return std::views::transform(std::views::iota(0, num_args()),
-                                 [&](int i) { return arg(i); });
-  }
-
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -9759,52 +9786,23 @@ class Call : public ValueNodeT<Call> {
   TargetType target_type_;
 };
 
-class Construct : public ValueNodeT<Construct> {
+class Construct : public VarargsValueNodeT<3, Construct> {
  public:
-  // We assume function and context as fixed inputs.
-  static constexpr int kFunctionIndex = 0;
-  static constexpr int kNewTargetIndex = 1;
-  static constexpr int kContextIndex = 2;
-  static constexpr int kFixedInputCount = 3;
-
-  // We need enough inputs to have these fixed inputs plus the maximum arguments
-  // to a function call.
-  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
-
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   Construct(uint64_t bitfield, const compiler::FeedbackSource& feedback,
             ValueNode* function, ValueNode* new_target, ValueNode* context)
       : Base(bitfield), feedback_(feedback) {
-    set_input(kFunctionIndex, function);
+    set_input(kTargetIndex, function);
     set_input(kNewTargetIndex, new_target);
     set_input(kContextIndex, context);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
-
-  Input function() { return input(kFunctionIndex); }
-  ConstInput function() const { return input(kFunctionIndex); }
-  Input new_target() { return input(kNewTargetIndex); }
-  ConstInput new_target() const { return input(kNewTargetIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
-  }
-  auto args() {
-    return std::views::transform(std::views::iota(0, num_args()),
-                                 [&](int i) { return arg(i); });
-  }
+  DECLARE_INPUTS(Target, NewTarget, Context)
 
   compiler::FeedbackSource feedback() const { return feedback_; }
 
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -9813,7 +9811,7 @@ class Construct : public ValueNodeT<Construct> {
   const compiler::FeedbackSource feedback_;
 };
 
-class CallBuiltin : public ValueNodeT<CallBuiltin> {
+class CallBuiltin : public VarargsValueNodeT<0, CallBuiltin> {
  public:
   enum FeedbackSlotType { kTaggedIndex, kSmi };
 
@@ -9893,8 +9891,6 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
         [&](int i) { return input(i); });
   }
 
-  void set_arg(int i, ValueNode* node) { set_input(i, node); }
-
   int ReturnCount() const {
     return Builtins::CallInterfaceDescriptorFor(builtin_).GetReturnCount();
   }
@@ -9919,45 +9915,20 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   FeedbackSlotType slot_type_ = kTaggedIndex;
 };
 
-class CallForwardVarargs : public ValueNodeT<CallForwardVarargs> {
+class CallForwardVarargs : public VarargsValueNodeT<2, CallForwardVarargs> {
  public:
-  static constexpr int kFunctionIndex = 0;
-  static constexpr int kContextIndex = 1;
-  static constexpr int kFixedInputCount = 2;
-
-  // We need enough inputs to have these fixed inputs plus the maximum arguments
-  // to a function call.
-  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
-
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   CallForwardVarargs(uint64_t bitfield, ValueNode* function, ValueNode* context,
                      int start_index, Call::TargetType target_type)
       : Base(bitfield), start_index_(start_index), target_type_(target_type) {
-    set_input(kFunctionIndex, function);
+    set_input(kTargetIndex, function);
     set_input(kContextIndex, context);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
+  DECLARE_INPUTS(Target, Context)
 
-  Input function() { return input(kFunctionIndex); }
-  ConstInput function() const { return input(kFunctionIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
-  }
-  auto args() {
-    return std::views::transform(std::views::iota(0, num_args()),
-                                 [&](int i) { return arg(i); });
-  }
-
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -9971,19 +9942,9 @@ class CallForwardVarargs : public ValueNodeT<CallForwardVarargs> {
   Call::TargetType target_type_;
 };
 
-class ConstructForwardVarargs : public ValueNodeT<ConstructForwardVarargs> {
-  using Base = ValueNodeT<ConstructForwardVarargs>;
-
+class ConstructForwardVarargs
+    : public VarargsValueNodeT<3, ConstructForwardVarargs> {
  public:
-  static constexpr int kTargetIndex = 0;
-  static constexpr int kNewTargetIndex = 1;
-  static constexpr int kContextIndex = 2;
-  static constexpr int kFixedInputCount = 3;
-
-  // We need enough inputs to have these fixed inputs plus the maximum arguments
-  // to a function call.
-  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
-
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   ConstructForwardVarargs(uint64_t bitfield, ValueNode* target,
@@ -9996,27 +9957,8 @@ class ConstructForwardVarargs : public ValueNodeT<ConstructForwardVarargs> {
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
+  DECLARE_INPUTS(Target, NewTarget, Context)
 
-  Input target() { return input(kTargetIndex); }
-  ConstInput target() const { return input(kTargetIndex); }
-  Input new_target() { return input(kNewTargetIndex); }
-  ConstInput new_target() const { return input(kNewTargetIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
-  }
-  auto args() {
-    return std::views::transform(std::views::iota(0, num_args()),
-                                 [&](int i) { return arg(i); });
-  }
-
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -10030,12 +9972,8 @@ class ConstructForwardVarargs : public ValueNodeT<ConstructForwardVarargs> {
   Call::TargetType target_type_;
 };
 
-class CallRuntime : public ValueNodeT<CallRuntime> {
+class CallRuntime : public VarargsValueNodeT<1, CallRuntime> {
  public:
-  // We assume the context as fixed input.
-  static constexpr int kContextIndex = 0;
-  static constexpr int kFixedInputCount = 1;
-
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   CallRuntime(uint64_t bitfield, Runtime::FunctionId function_id,
@@ -10045,29 +9983,13 @@ class CallRuntime : public ValueNodeT<CallRuntime> {
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
+  DECLARE_INPUTS(Context)
 
   Runtime::FunctionId function_id() const { return function_id_; }
-
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
-  }
-  auto args() {
-    return std::views::transform(std::views::iota(0, num_args()),
-                                 [&](int i) { return arg(i); });
-  }
-
   int ReturnCount() const {
     return Runtime::FunctionForId(function_id())->result_size;
   }
 
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -10089,51 +10011,33 @@ class CallRuntime : public ValueNodeT<CallRuntime> {
   Runtime::FunctionId function_id_;
 };
 
-class CallWithSpread : public ValueNodeT<CallWithSpread> {
+class CallWithSpread : public VarargsValueNodeT<2, CallWithSpread> {
  public:
-  // We assume function and context as fixed inputs.
-  static constexpr int kFunctionIndex = 0;
-  static constexpr int kContextIndex = 1;
-  static constexpr int kFixedInputCount = 2;
-
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallWithSpread(uint64_t bitfield, ValueNode* function, ValueNode* context)
+  CallWithSpread(uint64_t bitfield, ValueNode* target, ValueNode* context)
       : Base(bitfield) {
-    set_input(kFunctionIndex, function);
+    set_input(kTargetIndex, target);
     set_input(kContextIndex, context);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
+  DECLARE_INPUTS(Target, Context)
 
-  Input function() { return input(kFunctionIndex); }
-  ConstInput function() const { return input(kFunctionIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
   int num_args_no_spread() const {
     DCHECK_GT(num_args(), 0);
     return num_args() - 1;
-  }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
   }
   auto args_no_spread() {
     return std::views::transform(std::views::iota(0, num_args_no_spread()),
                                  [&](int i) { return arg(i); });
   }
-
   Input spread() {
     // Spread is the last argument/input.
     return input(input_count() - 1);
   }
   Input receiver() { return arg(0); }
 
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -10144,7 +10048,7 @@ class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
   explicit CallWithArrayLike(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
-  DECLARE_INPUTS(Function, Receiver, ArgumentsList, Context)
+  DECLARE_INPUTS(Target, Receiver, ArgumentsList, Context)
   DECLARE_INPUT_TYPES(Tagged, Tagged, Tagged, Tagged)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -10155,53 +10059,22 @@ class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
-class CallSelf : public ValueNodeT<CallSelf> {
+class CallSelf : public VarargsValueNodeT<4, CallSelf> {
  public:
-  static constexpr int kClosureIndex = 0;
-  static constexpr int kContextIndex = 1;
-  static constexpr int kReceiverIndex = 2;
-  static constexpr int kNewTargetIndex = 3;
-  static constexpr int kFixedInputCount = 4;
-
-  // We need enough inputs to have these fixed inputs plus the maximum arguments
-  // to a function call.
-  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
-
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   CallSelf(uint64_t bitfield, int expected_parameter_count, ValueNode* closure,
            ValueNode* context, ValueNode* receiver, ValueNode* new_target)
       : Base(bitfield), expected_parameter_count_(expected_parameter_count) {
-    set_input(kClosureIndex, closure);
+    set_input(kTargetIndex, closure);
     set_input(kContextIndex, context);
     set_input(kReceiverIndex, receiver);
     set_input(kNewTargetIndex, new_target);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
+  DECLARE_INPUTS(Target, Context, Receiver, NewTarget)
 
-  Input closure() { return input(kClosureIndex); }
-  ConstInput closure() const { return input(kClosureIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
-  Input receiver() { return input(kReceiverIndex); }
-  ConstInput receiver() const { return input(kReceiverIndex); }
-  Input new_target() { return input(kNewTargetIndex); }
-  ConstInput new_target() const { return input(kNewTargetIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
-  }
-  auto args() {
-    return std::views::transform(std::views::iota(0, num_args()),
-                                 [&](int i) { return arg(i); });
-  }
-
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -10211,18 +10084,8 @@ class CallSelf : public ValueNodeT<CallSelf> {
   int expected_parameter_count_;
 };
 
-class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
+class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
  public:
-  static constexpr int kClosureIndex = 0;
-  static constexpr int kContextIndex = 1;
-  static constexpr int kReceiverIndex = 2;
-  static constexpr int kNewTargetIndex = 3;
-  static constexpr int kFixedInputCount = 4;
-
-  // We need enough inputs to have these fixed inputs plus the maximum arguments
-  // to a function call.
-  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
-
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   inline CallKnownJSFunction(
@@ -10236,24 +10099,7 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   // to do a deferred call.
   static constexpr OpProperties kProperties =
       OpProperties::JSCall() | OpProperties::DeferredCall();
-
-  Input closure() { return input(kClosureIndex); }
-  ConstInput closure() const { return input(kClosureIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
-  Input receiver() { return input(kReceiverIndex); }
-  ConstInput receiver() const { return input(kReceiverIndex); }
-  Input new_target() { return input(kNewTargetIndex); }
-  ConstInput new_target() const { return input(kNewTargetIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
-  }
-  auto args() {
-    return std::views::transform(std::views::iota(0, num_args()),
-                                 [&](int i) { return arg(i); });
-  }
+  DECLARE_INPUTS(Target, Context, Receiver, NewTarget)
 
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_;
@@ -10263,10 +10109,6 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
     return feedback_source_;
   }
 
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -10318,7 +10160,7 @@ class ReturnedValue : public ValueNodeT<ReturnedValue> {
 };
 static_assert(sizeof(ReturnedValue) <= sizeof(CallKnownJSFunction));
 
-class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
+class CallKnownApiFunction : public VarargsValueNodeT<1, CallKnownApiFunction> {
  public:
   enum Mode {
     // Use Builtin::kCallApiCallbackOptimizedNoProfiling.
@@ -10328,13 +10170,6 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
     // Use Builtin::kCallApiCallbackOptimized.
     kGeneric,
   };
-
-  static constexpr int kReceiverIndex = 0;
-  static constexpr int kFixedInputCount = 1;
-
-  // We need enough inputs to have these fixed inputs plus the maximum arguments
-  // to a function call.
-  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
@@ -10349,18 +10184,7 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   // TODO(ishell): introduce JSApiCall() which will take C++ ABI into account
   // when deciding which registers to splill.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
-
-  Input receiver() { return input(kReceiverIndex); }
-  ConstInput receiver() const { return input(kReceiverIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
-  }
-  auto args() {
-    return std::views::transform(std::views::iota(0, num_args()),
-                                 [&](int i) { return arg(i); });
-  }
+  DECLARE_INPUTS(Receiver)
 
   Mode mode() const { return ModeField::decode(bitfield()); }
 
@@ -10370,10 +10194,6 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
 
   bool inline_builtin() const { return mode() == kNoProfilingInlined; }
 
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -10403,41 +10223,25 @@ void ValueNode::MaybeRecordUseReprHint(UseRepresentationSet repr_mask) {
   }
 }
 
-class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
+class ConstructWithSpread : public VarargsValueNodeT<3, ConstructWithSpread> {
  public:
-  // We assume function and context as fixed inputs.
-  static constexpr int kFunctionIndex = 0;
-  static constexpr int kNewTargetIndex = 1;
-  static constexpr int kContextIndex = 2;
-  static constexpr int kFixedInputCount = 3;
-
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   ConstructWithSpread(uint64_t bitfield, compiler::FeedbackSource feedback,
                       ValueNode* function, ValueNode* new_target,
                       ValueNode* context)
       : Base(bitfield), feedback_(feedback) {
-    set_input(kFunctionIndex, function);
+    set_input(kTargetIndex, function);
     set_input(kNewTargetIndex, new_target);
     set_input(kContextIndex, context);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
+  DECLARE_INPUTS(Target, NewTarget, Context)
 
-  Input function() { return input(kFunctionIndex); }
-  ConstInput function() const { return input(kFunctionIndex); }
-  Input new_target() { return input(kNewTargetIndex); }
-  ConstInput new_target() const { return input(kNewTargetIndex); }
-  Input context() { return input(kContextIndex); }
-  ConstInput context() const { return input(kContextIndex); }
-  int num_args() const { return input_count() - kFixedInputCount; }
   int num_args_no_spread() const {
     DCHECK_GT(num_args(), 0);
     return num_args() - 1;
-  }
-  Input arg(int i) { return input(i + kFixedInputCount); }
-  void set_arg(int i, ValueNode* node) {
-    set_input(i + kFixedInputCount, node);
   }
   Input spread() {
     // Spread is the last argument/input.
@@ -10449,10 +10253,6 @@ class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
   }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
-  void VerifyInputs() const;
-#ifdef V8_COMPRESS_POINTERS
-  void MarkTaggedInputsAsDecompressing();
-#endif
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

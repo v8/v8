@@ -1304,8 +1304,8 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::Call* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-    V<Object> function = Map(node->function());
-    V<Context> context = Map(node->context());
+    V<Object> function = Map(node->TargetInput());
+    V<Context> context = Map(node->ContextInput());
 
     Builtin builtin;
     switch (node->target_type()) {
@@ -1391,7 +1391,7 @@ class GraphBuildingNodeProcessor {
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    V<Object> callee = Map(node->closure());
+    V<Object> callee = Map(node->TargetInput());
     int actual_parameter_count = JSParameterCount(node->num_args());
 
     if (node->shared_function_info().HasBuiltinId()) {
@@ -1409,13 +1409,13 @@ class GraphBuildingNodeProcessor {
       // GenerateBuiltinCall takes care of creating one.
       base::SmallVector<OpIndex, 16> arguments;
       arguments.push_back(callee);
-      arguments.push_back(Map(node->new_target()));
+      arguments.push_back(Map(node->NewTargetInput()));
       arguments.push_back(__ Word32Constant(actual_parameter_count));
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       arguments.push_back(
           __ Word32Constant(kPlaceholderDispatchHandle.value()));
 #endif
-      arguments.push_back(Map(node->receiver()));
+      arguments.push_back(Map(node->ReceiverInput()));
       for (int i = 0; i < node->num_args(); i++) {
         arguments.push_back(Map(node->arg(i)));
       }
@@ -1424,7 +1424,7 @@ class GraphBuildingNodeProcessor {
            i++) {
         arguments.push_back(undefined_value_);
       }
-      arguments.push_back(Map(node->context()));
+      arguments.push_back(Map(node->ContextInput()));
 
       GENERATE_AND_MAP_BUILTIN_CALL(
           node, builtin, frame_state, base::VectorOf(arguments),
@@ -1433,7 +1433,7 @@ class GraphBuildingNodeProcessor {
     } else {
       ThrowingScope throwing_scope(this, node);
       base::SmallVector<OpIndex, 16> arguments;
-      arguments.push_back(Map(node->receiver()));
+      arguments.push_back(Map(node->ReceiverInput()));
       for (int i = 0; i < node->num_args(); i++) {
         arguments.push_back(Map(node->arg(i)));
       }
@@ -1442,7 +1442,7 @@ class GraphBuildingNodeProcessor {
            i++) {
         arguments.push_back(undefined_value_);
       }
-      arguments.push_back(Map(node->new_target()));
+      arguments.push_back(Map(node->NewTargetInput()));
       arguments.push_back(__ Word32Constant(actual_parameter_count));
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
       arguments.push_back(
@@ -1498,7 +1498,7 @@ class GraphBuildingNodeProcessor {
     arguments.push_back(__ ExternalConstant(function_ref));
     arguments.push_back(__ Word32Constant(node->num_args()));
     arguments.push_back(target);
-    arguments.push_back(Map(node->receiver()));
+    arguments.push_back(Map(node->ReceiverInput()));
     for (maglev::Input arg : node->args()) {
       arguments.push_back(Map(arg));
     }
@@ -1624,7 +1624,7 @@ class GraphBuildingNodeProcessor {
         __ ExternalConstant(ExternalReference::Create(node->function_id())));
     arguments.push_back(__ Word32Constant(node->num_args()));
 
-    arguments.push_back(Map(node->context()));
+    arguments.push_back(Map(node->ContextInput()));
 
     OptionalV<FrameState> frame_state = OptionalV<FrameState>::Nullopt();
     if (call_descriptor->NeedsFrameState()) {
@@ -1869,7 +1869,7 @@ class GraphBuildingNodeProcessor {
 
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
     V<Context> context = Map(node->ContextInput());
-    V<Object> function = Map(node->FunctionInput());
+    V<Object> function = Map(node->TargetInput());
     V<Object> receiver = Map(node->ReceiverInput());
     V<Object> arguments_list = Map(node->ArgumentsListInput());
 
@@ -1885,8 +1885,8 @@ class GraphBuildingNodeProcessor {
     ThrowingScope throwing_scope(this, node);
 
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-    V<Context> context = Map(node->context());
-    V<Object> function = Map(node->function());
+    V<Context> context = Map(node->ContextInput());
+    V<Object> function = Map(node->TargetInput());
     V<Object> spread = Map(node->spread());
 
     base::SmallVector<V<Object>, 16> arguments_no_spread;
@@ -1908,8 +1908,8 @@ class GraphBuildingNodeProcessor {
     ThrowingScope throwing_scope(this, node);
 
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-    V<JSFunction> function = Map(node->function());
-    V<Context> context = Map(node->context());
+    V<JSFunction> function = Map(node->TargetInput());
+    V<Context> context = Map(node->ContextInput());
 
     base::SmallVector<V<Object>, 16> arguments;
     for (auto arg : node->args()) {
@@ -1940,8 +1940,8 @@ class GraphBuildingNodeProcessor {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
     base::SmallVector<OpIndex, 16> arguments;
 
-    arguments.push_back(Map(node->function()));
-    arguments.push_back(Map(node->new_target()));
+    arguments.push_back(Map(node->TargetInput()));
+    arguments.push_back(Map(node->NewTargetInput()));
     arguments.push_back(__ Word32Constant(node->num_args()));
 
 #ifndef V8_TARGET_ARCH_ARM64
@@ -1953,7 +1953,7 @@ class GraphBuildingNodeProcessor {
       arguments.push_back(Map(arg));
     }
 
-    arguments.push_back(Map(node->context()));
+    arguments.push_back(Map(node->ContextInput()));
 
 #ifndef V8_TARGET_ARCH_ARM64
     // Construct_WithFeedback can't be called from Turbofan on Arm64, because of
@@ -1983,8 +1983,8 @@ class GraphBuildingNodeProcessor {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
 
     base::SmallVector<OpIndex, 16> arguments;
-    arguments.push_back(Map(node->function()));
-    arguments.push_back(Map(node->new_target()));
+    arguments.push_back(Map(node->TargetInput()));
+    arguments.push_back(Map(node->NewTargetInput()));
     arguments.push_back(__ Word32Constant(node->num_args_no_spread()));
     arguments.push_back(Map(node->spread()));
 
@@ -1992,7 +1992,7 @@ class GraphBuildingNodeProcessor {
       arguments.push_back(Map(arg));
     }
 
-    arguments.push_back(Map(node->context()));
+    arguments.push_back(Map(node->ContextInput()));
 
     GENERATE_AND_MAP_BUILTIN_CALL(node, Builtin::kConstructWithSpread,
                                   frame_state, base::VectorOf(arguments),
@@ -2004,9 +2004,9 @@ class GraphBuildingNodeProcessor {
     ThrowingScope throwing_scope(this, node);
 
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
-    V<JSFunction> target = Map(node->target());
-    V<JSFunction> new_target = Map(node->new_target());
-    V<Context> context = Map(node->context());
+    V<JSFunction> target = Map(node->TargetInput());
+    V<JSFunction> new_target = Map(node->NewTargetInput());
+    V<Context> context = Map(node->ContextInput());
 
     base::SmallVector<V<Object>, 16> arguments;
     for (auto arg : node->args()) {
@@ -5294,7 +5294,7 @@ class GraphBuildingNodeProcessor {
       parameters_and_registers.push_back(
           Map(node->parameters_and_registers(i)));
     }
-    __ GeneratorStore(Map(node->context_input()), Map(node->generator_input()),
+    __ GeneratorStore(Map(node->ContextInput()), Map(node->GeneratorInput()),
                       parameters_and_registers, node->suspend_id(),
                       node->bytecode_offset());
     return maglev::ProcessResult::kContinue;

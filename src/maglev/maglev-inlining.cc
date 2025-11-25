@@ -293,7 +293,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   // Update caller deopt frame with inlined arguments.
   caller_details->deopt_frame =
       inner_graph_builder.AddInlinedArgumentsToDeoptFrame(
-          caller_deopt_frame, inner_unit, call_node->closure().node(),
+          caller_deopt_frame, inner_unit, call_node->TargetInput().node(),
           call_site->caller_details.arguments);
 
   // We truncate the graph to build the function in-place, preserving the
@@ -310,9 +310,9 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   // value.
   ReduceResult result = inner_graph_builder.BuildInlineFunction(
       caller_deopt_frame->GetSourcePosition(),
-      call_node->context().node()->Unwrap(),
-      call_node->closure().node()->Unwrap(),
-      call_node->new_target().node()->Unwrap());
+      call_node->ContextInput().node()->Unwrap(),
+      call_node->TargetInput().node()->Unwrap(),
+      call_node->NewTargetInput().node()->Unwrap());
 
   if (result.IsDoneWithAbort()) {
     if (inner_graph_builder.should_abort_compilation()) {
