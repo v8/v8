@@ -125,11 +125,13 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* Checks if the current character combined with mask (bitwise and)       */ \
   /* matches a character (e.g. used when two characters in a disjunction    */ \
   /* differ by only a single bit                                            */ \
+  /* TODO(pthier): mask should be kChar */                                     \
   V(CheckCharacterAfterAnd, AND_CHECK_CHAR, (character, mask, on_equal),       \
-    (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget))           \
+    (ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))         \
+  /* TODO(pthier): mask should be kChar */                                     \
   V(CheckNotCharacterAfterAnd, AND_CHECK_NOT_CHAR,                             \
     (character, mask, on_not_equal),                                           \
-    (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget))           \
+    (ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))         \
   V(CheckNotCharacterAfterMinusAnd, MINUS_AND_CHECK_NOT_CHAR,                  \
     (character, minus, mask, on_not_equal),                                    \
     (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kChar,                  \
@@ -246,11 +248,12 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* Combination of:                                                        */ \
   /* CHECK_CURRENT_POSITION, LOAD_CURRENT_CHAR_UNCHECKED, AND_CHECK_CHAR    */ \
   /* and ADVANCE_CP_AND_GOTO                                                */ \
+  /* TODO(pthier): mask should be kChar */                                     \
   V(SkipUntilCharAnd, SKIP_UNTIL_CHAR_AND,                                     \
     (cp_offset, advance_by, character, mask, eats_at_least, on_match,          \
      on_no_match),                                                             \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
-     ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,          \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
      ReBcOpType::kJumpTarget)) /* TODO(pthier): eats_at_least should be Offset \
                                 */                                             \
   /* Combination of:                                                        */ \
