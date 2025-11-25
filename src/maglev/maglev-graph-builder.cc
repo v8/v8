@@ -12889,7 +12889,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       // constructor.
       compiler::OptionalJSFunctionRef new_target_function =
           TryGetConstant<JSFunction>(new_target);
-      if (args.count() == 0 && new_target_function.has_value()) {
+      if (args.count() == 0 && new_target_function.has_value() &&
+          new_target_function->has_initial_map(broker())) {
         return BuildInlinedAllocation(
             CreateJSConstructor(new_target_function.value()),
             AllocationType::kYoung);
@@ -14151,7 +14152,9 @@ VirtualObject* MaglevGraphBuilder::CreateJSArrayIterator(
 
 VirtualObject* MaglevGraphBuilder::CreateJSConstructor(
     compiler::JSFunctionRef constructor) {
+  DCHECK(constructor.has_initial_map(broker()));
   using Shape = VirtualJSObjectShape;
+  // TODO(jgruber): SlackTrackingPrediction should store the initial_map.
   compiler::SlackTrackingPrediction prediction =
       broker()->dependencies()->DependOnInitialMapInstanceSizePrediction(
           constructor);
