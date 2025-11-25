@@ -289,6 +289,73 @@ class AsyncCompileJob {
   const int compilation_id_;
 };
 
+// The main purpose of this class is to copy the feedback vectors that live in
+// `FixedArray`s on the JavaScript heap to a C++ datastructure on the `module`
+// that is accessible to the background compilation threads.
+// While we are at it, we also do some light processing here, e.g., mapping the
+// feedback to functions, identified by their function index, and filtering out
+// feedback for calls to imported functions (which we currently don't inline).
+class V8_EXPORT_PRIVATE TransitiveTypeFeedbackProcessor {
+ public:
+  static void Process(Isolate* isolate,
+                      Tagged<WasmTrustedInstanceData> trusted_instance_data,
+                      int func_index) {
+    TransitiveTypeFeedbackProcessor ttfp{isolate, trusted_instance_data};
+    ttfp.queue_.insert(func_index);
+    ttfp.ProcessQueue();
+  }
+
+  static void ProcessAll(Isolate* isolate,
+                         Tagged<WasmTrustedInstanceData> trusted_instance_data);
+
+ private:
+  TransitiveTypeFeedbackProcessor(
+      Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data);
+
+  ~TransitiveTypeFeedbackProcessor() { DCHECK(queue_.empty()); }
+
+  void ProcessQueue() {
+    while (!queue_.empty()) {
+      auto next = queue_.cbegin();
+      ProcessFunction(*next);
+      queue_.erase(next);
+    }
+  }
+
+  void ProcessFunction(int func_index);
+
+  void EnqueueCallees(base::Vector<CallSiteFeedback> feedback) {
+    for (const CallSiteFeedback& csf : feedback) {
+      for (int j = 0; j < csf.num_cases(); j++) {
+        int func = csf.function_index(j);
+        // Don't spend time on calls that have never been executed.
+        if (csf.call_count(j) == 0) continue;
+        // Don't recompute feedback that has already been processed.
+        auto existing = feedback_for_function_.find(func);
+        if (existing != feedback_for_function_.end() &&
+            !existing->second.feedback_vector.empty()) {
+          if (!existing->second.needs_reprocessing_after_deopt) {
+            continue;
+          }
+          DCHECK(v8_flags.wasm_deopt);
+          existing->second.needs_reprocessing_after_deopt = false;
+        }
+        queue_.insert(func);
+      }
+    }
+  }
+
+  DisallowGarbageCollection no_gc_scope_;
+  Isolate* const isolate_;
+  const Tagged<WasmTrustedInstanceData> instance_data_;
+  const WasmModule* const module_;
+  // TODO(jkummerow): Check if it makes a difference to apply any updates
+  // as a single batch at the end.
+  base::MutexGuard mutex_guard;
+  std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function_;
+  std::set<int> queue_;
+};
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

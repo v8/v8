@@ -3043,6 +3043,8 @@ filegroup(
             "src/wasm/code-space-access.h",
             "src/wasm/compilation-environment.h",
             "src/wasm/compilation-environment-inl.h",
+            "src/wasm/compilation-hints-generation.cc",
+            "src/wasm/compilation-hints-generation.h",
             "src/wasm/constant-expression.cc",
             "src/wasm/constant-expression.h",
             "src/wasm/constant-expression-interface.cc",

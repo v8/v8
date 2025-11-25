@@ -143,6 +143,25 @@ enum SectionCode : int8_t {
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 
+// Names of custom sections.
+constexpr char kNameString[] = "name";
+constexpr char kSourceMappingURLString[] = "sourceMappingURL";
+constexpr char kInstTraceString[] = "metadata.code.trace_inst";
+constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
+#if V8_CC_GNU
+// TODO(miladfarca): remove once switched to using Clang.
+__attribute__((used))
+#endif
+constexpr char kCompilationPriorityString[] =
+    "metadata.code.compilation_priority";
+constexpr char kInstructionFrequenciesString[] = "metadata.code.instr_freq";
+constexpr char kCallTargetsString[] = "metadata.code.call_targets";
+constexpr char kDebugInfoString[] = ".debug_info";
+constexpr char kExternalDebugInfoString[] = "external_debug_info";
+constexpr char kBuildIdString[] = "build_id";
+// TODO(403372470): Rename to "descriptors" when finalized.
+constexpr char kDescriptorsString[] = "experimental-descriptors";
+
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {
   kModuleCode = 0,

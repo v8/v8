@@ -1227,77 +1227,6 @@ void ThrowLazyCompilationError(Isolate* isolate,
                                              std::move(decode_result).error()));
 }
 
-// The main purpose of this class is to copy the feedback vectors that live in
-// `FixedArray`s on the JavaScript heap to a C++ datastructure on the `module`
-// that is accessible to the background compilation threads.
-// While we are at it, we also do some light processing here, e.g., mapping the
-// feedback to functions, identified by their function index, and filtering out
-// feedback for calls to imported functions (which we currently don't inline).
-class TransitiveTypeFeedbackProcessor {
- public:
-  static void Process(Isolate* isolate,
-                      Tagged<WasmTrustedInstanceData> trusted_instance_data,
-                      int func_index) {
-    TransitiveTypeFeedbackProcessor{isolate, trusted_instance_data, func_index}
-        .ProcessQueue();
-  }
-
- private:
-  TransitiveTypeFeedbackProcessor(
-      Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data,
-      int func_index)
-      : isolate_(isolate),
-        instance_data_(trusted_instance_data),
-        module_(trusted_instance_data->module()),
-        mutex_guard(&module_->type_feedback.mutex),
-        feedback_for_function_(module_->type_feedback.feedback_for_function) {
-    queue_.insert(func_index);
-  }
-
-  ~TransitiveTypeFeedbackProcessor() { DCHECK(queue_.empty()); }
-
-  void ProcessQueue() {
-    while (!queue_.empty()) {
-      auto next = queue_.cbegin();
-      ProcessFunction(*next);
-      queue_.erase(next);
-    }
-  }
-
-  void ProcessFunction(int func_index);
-
-  void EnqueueCallees(base::Vector<CallSiteFeedback> feedback) {
-    for (const CallSiteFeedback& csf : feedback) {
-      for (int j = 0; j < csf.num_cases(); j++) {
-        int func = csf.function_index(j);
-        // Don't spend time on calls that have never been executed.
-        if (csf.call_count(j) == 0) continue;
-        // Don't recompute feedback that has already been processed.
-        auto existing = feedback_for_function_.find(func);
-        if (existing != feedback_for_function_.end() &&
-            !existing->second.feedback_vector.empty()) {
-          if (!existing->second.needs_reprocessing_after_deopt) {
-            continue;
-          }
-          DCHECK(v8_flags.wasm_deopt);
-          existing->second.needs_reprocessing_after_deopt = false;
-        }
-        queue_.insert(func);
-      }
-    }
-  }
-
-  DisallowGarbageCollection no_gc_scope_;
-  Isolate* const isolate_;
-  const Tagged<WasmTrustedInstanceData> instance_data_;
-  const WasmModule* const module_;
-  // TODO(jkummerow): Check if it makes a difference to apply any updates
-  // as a single batch at the end.
-  base::MutexGuard mutex_guard;
-  std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function_;
-  std::set<int> queue_;
-};
-
 bool IsCrossInstanceCall(Tagged<Object> obj, Isolate* const isolate) {
   return obj == ReadOnlyRoots{isolate}.wasm_cross_instance_call_symbol();
 }
@@ -1462,6 +1391,25 @@ class FeedbackMaker {
   // feedback, treat it as megamorphic.
   bool is_megamorphic_ = false;
 };
+
+TransitiveTypeFeedbackProcessor::TransitiveTypeFeedbackProcessor(
+    Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data)
+    : isolate_(isolate),
+      instance_data_(trusted_instance_data),
+      module_(trusted_instance_data->module()),
+      mutex_guard(&module_->type_feedback.mutex),
+      feedback_for_function_(module_->type_feedback.feedback_for_function) {}
+
+void TransitiveTypeFeedbackProcessor::ProcessAll(
+    Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data) {
+  TransitiveTypeFeedbackProcessor ttfp{isolate, trusted_instance_data};
+  const WasmModule* module = trusted_instance_data->native_module()->module();
+  for (int func_index = module->num_imported_functions;
+       func_index < static_cast<int>(module->functions.size()); func_index++) {
+    ttfp.queue_.insert(func_index);
+  }
+  ttfp.ProcessQueue();
+}
 
 void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   int which_vector = declared_function_index(module_, func_index);

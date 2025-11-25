@@ -722,6 +722,19 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
           wasm::declared_function_index(trusted_data->module(), func_index);
       trusted_data->tiering_budget_array()[array_index].store(
           v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
+    } else if (v8_flags.wasm_generate_compilation_hints ||
+               v8_flags.trace_wasm_generate_compilation_hints) {
+      // In this case, we do not tierup functions. However we have to remember
+      // that we marked them for tierup.
+      base::MutexGuard marked_for_tierup_mutex_guard(
+          &trusted_data->module()->marked_for_tierup_mutex);
+      trusted_data->module()->marked_for_tierup.emplace(func_index);
+      // We call this function when the tiering budget runs out, so reset that
+      // budget to appropriately delay the next call.
+      int array_index =
+          wasm::declared_function_index(trusted_data->module(), func_index);
+      trusted_data->tiering_budget_array()[array_index].store(
+          v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
     } else {
       wasm::TriggerTierUp(isolate, trusted_data, func_index);
     }

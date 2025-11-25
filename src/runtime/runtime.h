@@ -766,10 +766,10 @@ constexpr bool CanTriggerGC(T... properties) {
   F(CheckIsOnCentralStack, 0, 1)                                \
   F(CountUnoptimizedWasmToJSWrapper, 1, 1)                      \
   F(DisallowWasmCodegen, 1, 1)                                  \
-  F(FlushLiftoffCode, 0, 1)                                     \
-  F(WasmTriggerCodeGC, 0, 1)                                    \
   F(EstimateCurrentMemoryConsumption, 0, 1)                     \
+  F(FlushLiftoffCode, 0, 1)                                     \
   F(FreezeWasmLazyCompilation, 1, 1)                            \
+  F(GenerateWasmCompilationHints, 1, 1)                         \
   F(GetWasmExceptionTagId, 2, 1)                                \
   F(GetWasmExceptionValues, 1, 1)                               \
   F(GetWasmRecoveredTrapCount, 0, 1)                            \
@@ -800,6 +800,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmTraceEnter, 0, 1)                                       \
   F(WasmTraceExit, 1, 1)                                        \
   F(WasmTraceMemory, 1, 1)                                      \
+  F(WasmTriggerCodeGC, 0, 1)                                    \
   F(WasmTraceGlobal, 1, 1)                                      \
   F(WasmTriggerTierUpForTesting, 1, 1)
 
