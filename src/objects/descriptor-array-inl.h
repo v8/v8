@@ -33,7 +33,16 @@ namespace internal {
 #include "torque-generated/src/objects/descriptor-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(DescriptorArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(EnumCache)
+
+Tagged<FixedArray> EnumCache::keys() const { return keys_.load(); }
+void EnumCache::set_keys(Tagged<FixedArray> value, WriteBarrierMode mode) {
+  keys_.store(this, value, mode);
+}
+
+Tagged<FixedArray> EnumCache::indices() const { return indices_.load(); }
+void EnumCache::set_indices(Tagged<FixedArray> value, WriteBarrierMode mode) {
+  indices_.store(this, value, mode);
+}
 
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
                         kNumberOfAllDescriptorsOffset)

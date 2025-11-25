@@ -21,19 +21,52 @@
 namespace v8 {
 namespace internal {
 
+namespace compiler {
+class AccessBuilder;
+}  // namespace compiler
+
+namespace maglev {
+class MaglevGraphBuilder;
+}  // namespace maglev
+
+class AccessorAssembler;
+class CodeStubAssembler;
+class ObjectBuiltinsAssembler;
+class ObjectEntriesValuesBuiltinsAssembler;
 class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/descriptor-array-tq.inc"
 
 // An EnumCache is a pair used to hold keys and indices caches.
-class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
+V8_OBJECT class EnumCache : public StructLayout {
  public:
+  inline Tagged<FixedArray> keys() const;
+  inline void set_keys(Tagged<FixedArray> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> indices() const;
+  inline void set_indices(Tagged<FixedArray> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(EnumCache)
   DECL_VERIFIER(EnumCache)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(EnumCache)
-};
+ private:
+  friend class TorqueGeneratedEnumCacheAsserts;
+  friend class compiler::AccessBuilder;
+  friend class maglev::MaglevGraphBuilder;
+  friend class CodeStubAssembler;
+  friend class AccessorAssembler;
+  friend class ObjectBuiltinsAssembler;
+  friend class ObjectEntriesValuesBuiltinsAssembler;
+  friend class ObjectKeysAssembler;
+  friend class ObjectGetOwnPropertyNamesAssembler;
+
+  TaggedMember<FixedArray> keys_;
+  TaggedMember<FixedArray> indices_;
+} V8_OBJECT_END;
 
 // A DescriptorArray is a custom array that holds instance descriptors.
 // It has the following layout:

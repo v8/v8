@@ -15858,7 +15858,7 @@ ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
                                      DescriptorArray::kEnumCacheOffset));
       ValueNode* cache_array;
       GET_VALUE(cache_array,
-                BuildLoadTaggedField(enum_cache, EnumCache::kKeysOffset));
+                BuildLoadTaggedField(enum_cache, offsetof(EnumCache, keys_)));
 
       ValueNode* cache_length;
       GET_VALUE_OR_ABORT(cache_length,
@@ -15866,8 +15866,9 @@ ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
 
       if (hint == ForInHint::kEnumCacheKeysAndIndices) {
         ValueNode* cache_indices;
-        GET_VALUE(cache_indices,
-                  BuildLoadTaggedField(enum_cache, EnumCache::kIndicesOffset));
+        GET_VALUE(
+            cache_indices,
+            BuildLoadTaggedField(enum_cache, offsetof(EnumCache, indices_)));
         current_for_in_state.enum_cache_indices = cache_indices;
         RETURN_IF_ABORT(AddNewNode<CheckCacheIndicesNotCleared>(
             {cache_indices, cache_length}));

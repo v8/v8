@@ -205,7 +205,7 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
   TNode<EnumCache> enum_cache = LoadObjectField<EnumCache>(
       descriptors, DescriptorArray::kEnumCacheOffset);
   TNode<FixedArray> enum_keys =
-      LoadObjectField<FixedArray>(enum_cache, EnumCache::kKeysOffset);
+      LoadObjectField<FixedArray>(enum_cache, offsetof(EnumCache, keys_));
   // |p->enum_index()| comes from the outer loop's ForIn state.
   TNode<Object> key = LoadFixedArrayElement(enum_keys, p->enum_index());
   // Check if |p->name()| matches the key in enum cache. |p->name()| is the
@@ -213,7 +213,7 @@ void AccessorAssembler::TryEnumeratedKeyedLoad(
   // other bytecodes.
   GotoIf(TaggedNotEqual(key, p->name()), &no_enum_cache);
   TNode<FixedArray> enum_indices =
-      LoadObjectField<FixedArray>(enum_cache, EnumCache::kIndicesOffset);
+      LoadObjectField<FixedArray>(enum_cache, offsetof(EnumCache, indices_));
   // Check if we have enum indices available.
   GotoIf(IsEmptyFixedArray(enum_indices), &no_enum_cache);
   TNode<Int32T> field_index =

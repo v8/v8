@@ -666,7 +666,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     TNode<EnumCache> object_enum_cache = LoadObjectField<EnumCache>(
         object_descriptors, DescriptorArray::kEnumCacheOffset);
     auto object_enum_keys = LoadObjectField<FixedArrayBase>(
-        object_enum_cache, EnumCache::kKeysOffset);
+        object_enum_cache, offsetof(EnumCache, keys_));
 
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     TNode<JSArray> array;
@@ -796,7 +796,7 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     TNode<EnumCache> object_enum_cache = LoadObjectField<EnumCache>(
         object_descriptors, DescriptorArray::kEnumCacheOffset);
     auto object_enum_keys = LoadObjectField<FixedArrayBase>(
-        object_enum_cache, EnumCache::kKeysOffset);
+        object_enum_cache, offsetof(EnumCache, keys_));
 
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     TNode<JSArray> array;
