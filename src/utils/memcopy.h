@@ -16,227 +16,44 @@
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/memcopy.h"
 #include "src/utils/utils.h"
 
 namespace v8::internal {
 
 using Address = uintptr_t;
 
-// ----------------------------------------------------------------------------
-// Generated memcpy/memmove for ia32 and arm.
+void InitMemCopyFunctions();
 
-void init_memcopy_functions();
-
-#if defined(V8_TARGET_ARCH_IA32)
-// Limit below which the extra overhead of the MemCopy function is likely
-// to outweigh the benefits of faster copying.
-const size_t kMinComplexMemCopy = 64;
-
-// Copy memory area. No restrictions.
-V8_EXPORT_PRIVATE void MemMove(void* dest, const void* src, size_t size);
-using MemMoveFunction = void (*)(void* dest, const void* src, size_t size);
-
-// Keep the distinction of "move" vs. "copy" for the benefit of other
-// architectures.
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  MemMove(dest, src, size);
+inline void MemMove(void* dest, const void* src, size_t size) {
+  v8::base::MemMove(dest, src, size);
 }
 
-constexpr size_t kBlockCopyLimitForWordsAndTagged = 16;
-
-#elif defined(V8_HOST_ARCH_ARM)
-
-using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
-                                      size_t size);
-V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
-V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
-                                   size_t chars) {
-  memcpy(dest, src, chars);
-}
-// For values < 16, the assembler function is slower than the inlined C code.
-const size_t kMinComplexMemCopy = 16;
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
-                            reinterpret_cast<const uint8_t*>(src), size);
-}
-V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
-                                         size_t size) {
-  memmove(dest, src, size);
-}
-
-// For values < 12, the assembler function is slower than the inlined C code.
-const int kMinComplexConvertMemCopy = 12;
-
-constexpr size_t kBlockCopyLimitForWordsAndTagged = 16;
-
-#else  // !defined(V8_TARGET_ARCH_IA32) && !defined(V8_HOST_ARCH_ARM)
-
-#if defined(V8_OPTIMIZE_WITH_NEON)
-
-// We intentionally use misaligned read/writes for NEON intrinsics, disable
-// alignment sanitization explicitly.
-// Overlapping writes help to save instructions, e.g. doing 2 two-byte writes
-// instead 3 one-byte write for count == 3.
-template <typename IntType>
-V8_INLINE V8_CLANG_NO_SANITIZE("alignment") void OverlappingWrites(
-    void* dst, const void* src, size_t count) {
-  *reinterpret_cast<IntType*>(dst) = *reinterpret_cast<const IntType*>(src);
-  *reinterpret_cast<IntType*>(static_cast<uint8_t*>(dst) + count -
-                              sizeof(IntType)) =
-      *reinterpret_cast<const IntType*>(static_cast<const uint8_t*>(src) +
-                                        count - sizeof(IntType));
-}
-
-V8_CLANG_NO_SANITIZE("alignment")
-inline void SimdMemCopy(void* dst, const void* src, size_t count) {
-  auto* dst_u = static_cast<uint8_t*>(dst);
-  const auto* src_u = static_cast<const uint8_t*>(src);
-  // Common cases. Handle before doing clz.
-  if (count == 0) {
-    return;
-  }
-  if (count == 1) {
-    *dst_u = *src_u;
-    return;
-  }
-  const size_t order =
-      sizeof(count) * CHAR_BIT - base::bits::CountLeadingZeros(count - 1);
-  switch (order) {
-    case 1:  // count: [2, 2]
-      *reinterpret_cast<uint16_t*>(dst_u) =
-          *reinterpret_cast<const uint16_t*>(src_u);
-      return;
-    case 2:  // count: [3, 4]
-      OverlappingWrites<uint16_t>(dst_u, src_u, count);
-      return;
-    case 3:  // count: [5, 8]
-      OverlappingWrites<uint32_t>(dst_u, src_u, count);
-      return;
-    case 4:  // count: [9, 16]
-      OverlappingWrites<uint64_t>(dst_u, src_u, count);
-      return;
-    case 5:  // count: [17, 32]
-      vst1q_u8(dst_u, vld1q_u8(src_u));
-      vst1q_u8(dst_u + count - sizeof(uint8x16_t),
-               vld1q_u8(src_u + count - sizeof(uint8x16_t)));
-      return;
-    default:  // count: [33, ...]
-      vst1q_u8(dst_u, vld1q_u8(src_u));
-      for (size_t i = count % sizeof(uint8x16_t); i < count;
-           i += sizeof(uint8x16_t)) {
-        vst1q_u8(dst_u + i, vld1q_u8(src_u + i));
-      }
-      return;
-  }
-}
-
-inline void MemCopy(void* dst, const void* src, size_t count) {
-  // Wrap call to be able to easily identify SIMD usage in profiles.
-  SimdMemCopy(dst, src, count);
-}
-
-#else  // !defined(V8_OPTIMIZE_WITH_NEON)
-
-// Copy memory area to disjoint memory area.
 inline void MemCopy(void* dest, const void* src, size_t size) {
-  // Fast path for small sizes. The compiler will expand the {memcpy} for small
-  // fixed sizes to a sequence of move instructions. This avoids the overhead of
-  // the general {memcpy} function.
-  switch (size) {
-#define CASE(N)           \
-  case N:                 \
-    memcpy(dest, src, N); \
-    return;
-    CASE(1)
-    CASE(2)
-    CASE(3)
-    CASE(4)
-    CASE(5)
-    CASE(6)
-    CASE(7)
-    CASE(8)
-    CASE(9)
-    CASE(10)
-    CASE(11)
-    CASE(12)
-    CASE(13)
-    CASE(14)
-    CASE(15)
-    CASE(16)
-#undef CASE
-    default:
-      memcpy(dest, src, size);
-      return;
-  }
+  v8::base::MemCopy(dest, src, size);
 }
-
-#endif  // !defined(V8_OPTIMIZE_WITH_NEON)
 
 #if V8_TARGET_BIG_ENDIAN
 inline void MemCopyAndSwitchEndianness(void* dst, void* src,
                                        size_t num_elements,
                                        size_t element_size) {
-#define COPY_LOOP(type, reverse)                            \
-  {                                                         \
-    for (uint32_t i = 0; i < num_elements; i++) {           \
-      type t;                                               \
-      type* s = reinterpret_cast<type*>(src) + i;           \
-      type* d = reinterpret_cast<type*>(dst) + i;           \
-      memcpy(&t, reinterpret_cast<void*>(s), element_size); \
-      t = reverse(t);                                       \
-      memcpy(reinterpret_cast<void*>(d), &t, element_size); \
-    }                                                       \
-    return;                                                 \
-  }
+  v8::base::MemCopyAndSwitchEndianness(dst, src, num_elements, element_size);
+}
+#endif  // V8_TARGET_BIG_ENDIAN
 
-  switch (element_size) {
-    case 1:
-      MemCopy(dst, src, num_elements);
-      return;
-    case 2:
-      COPY_LOOP(uint16_t, ByteReverse16);
-    case 4:
-      COPY_LOOP(uint32_t, ByteReverse32);
-    case 8:
-      COPY_LOOP(uint64_t, ByteReverse64);
-    default:
-      UNREACHABLE();
-  }
-#undef COPY_LOOP
-}
-#endif
-V8_EXPORT_PRIVATE inline void MemMove(void* dest, const void* src,
-                                      size_t size) {
-  // Fast path for small sizes. The compiler will expand the {memmove} for small
-  // fixed sizes to a sequence of move instructions. This avoids the overhead of
-  // the general {memmove} function.
-  switch (size) {
-#define CASE(N)            \
-  case N:                  \
-    memmove(dest, src, N); \
-    return;
-    CASE(1)
-    CASE(2)
-    CASE(3)
-    CASE(4)
-    CASE(5)
-    CASE(6)
-    CASE(7)
-    CASE(8)
-    CASE(9)
-    CASE(10)
-    CASE(11)
-    CASE(12)
-    CASE(13)
-    CASE(14)
-    CASE(15)
-    CASE(16)
-#undef CASE
-    default:
-      memmove(dest, src, size);
-      return;
-  }
-}
+#if defined(V8_TARGET_ARCH_IA32)
+// Limit below which the extra overhead of the MemCopy function is likely
+// to outweigh the benefits of faster copying.
+constexpr size_t kMinComplexMemCopy = 64;
+constexpr size_t kBlockCopyLimitForWordsAndTagged = 16;
+
+#elif defined(V8_HOST_ARCH_ARM)
+
+// For values < 16, the assembler function is slower than the inlined C code.
+constexpr size_t kMinComplexMemCopy = 16;
+constexpr size_t kBlockCopyLimitForWordsAndTagged = 16;
+
+#else  // !defined(V8_TARGET_ARCH_IA32) && !defined(V8_HOST_ARCH_ARM)
 
 // Disable the CopyImpl fast paths as MemCopy has its own fast paths.
 constexpr size_t kMinComplexMemCopy = 0;
@@ -326,7 +143,7 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
 #if defined(V8_OPTIMIZE_WITH_NEON)
   if constexpr (std::is_same_v<DstTypeUnsigned, SrcTypeUnsigned>) {
     // Use simd optimized memcpy.
-    SimdMemCopy(dst_u, src_u, count * sizeof(DstTypeUnsigned));
+    v8::base::SimdMemCopy(dst_u, src_u, count * sizeof(DstTypeUnsigned));
     return;
   }
 #endif  // defined(V8_OPTIMIZE_WITH_NEON)
@@ -367,9 +184,7 @@ template <typename T, typename U>
 constexpr void Memset(T* destination, U value, size_t count)
   requires std::is_trivially_assignable_v<T&, U>
 {
-  for (size_t i = 0; i < count; i++) {
-    destination[i] = value;
-  }
+  return v8::base::Memset(destination, value, count);
 }
 
 // Fills `destination` with `count` `value`s.
@@ -377,9 +192,7 @@ template <typename T>
 inline void Relaxed_Memset(T* destination, T value, size_t count)
   requires std::is_integral_v<T>
 {
-  for (size_t i = 0; i < count; i++) {
-    std::atomic_ref<T>(destination[i]).store(value, std::memory_order_relaxed);
-  }
+  return v8::base::Relaxed_Memset(destination, value, count);
 }
 
 }  // namespace v8::internal

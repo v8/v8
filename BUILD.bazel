@@ -855,6 +855,8 @@ filegroup(
         "src/base/logging.cc",
         "src/base/logging.h",
         "src/base/macros.h",
+        "src/base/memcopy.cc",
+        "src/base/memcopy.h",
         "src/base/memory.h",
         "src/base/numbers/bignum.cc",
         "src/base/numbers/bignum.h",
