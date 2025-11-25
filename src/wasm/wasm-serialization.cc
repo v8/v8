@@ -142,14 +142,27 @@ class Reader {
   const uint8_t* pos_;
 };
 
-void WriteHeader(Writer* writer, WasmEnabledFeatures enabled_features) {
+size_t MeasureHeader(const CompileTimeImports& compile_imports) {
+  return 5 * kUInt32Size +  // magic number, version hash, cpu features, flags
+                            // hash, enabled features
+         sizeof(typename CompileTimeImportFlags::StorageType) +
+         sizeof(uint32_t) +  // length of constants_module.
+         compile_imports.constants_module().size();
+}
+
+void WriteHeader(Writer* writer, WasmEnabledFeatures enabled_features,
+                 const CompileTimeImports& compile_imports) {
   DCHECK_EQ(0, writer->bytes_written());
   writer->Write(SerializedData::kMagicNumber);
   writer->Write(Version::Hash());
   writer->Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer->Write(FlagList::Hash());
   writer->Write(enabled_features.ToIntegral());
-  DCHECK_EQ(WasmSerializer::kHeaderSize, writer->bytes_written());
+  writer->Write(compile_imports.flags().ToIntegral());
+  const std::string& constants_module = compile_imports.constants_module();
+  writer->Write(static_cast<uint32_t>(constants_module.size()));
+  writer->WriteVector(base::VectorOf(constants_module));
+  DCHECK_EQ(MeasureHeader(compile_imports), writer->bytes_written());
 }
 
 // On Intel, call sites are encoded as a displacement. For linking and for
@@ -377,14 +390,14 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
 }
 
 size_t NativeModuleSerializer::Measure() const {
-  // From {WriteHeader}:
-  size_t size = sizeof(WasmDetectedFeatures::StorageType) +
-                sizeof(size_t) +  // total code size
-                sizeof(bool) +    // all functions validated
-                sizeof(typename CompileTimeImportFlags::StorageType) +
-                sizeof(uint32_t) +  // length of constants_module.
-                native_module_->compile_imports().constants_module().size() +
-                import_statuses_.size() * sizeof(WellKnownImport);
+  size_t size =
+      // From {WriteHeader}:
+      MeasureHeader(native_module_->compile_imports()) +
+      // From {NativeModuleSerializer::WriteHeader}:
+      sizeof(WasmDetectedFeatures::StorageType) +
+      sizeof(size_t) +  // total code size
+      sizeof(bool) +    // all functions validated
+      import_statuses_.size() * sizeof(WellKnownImport);
 
   // From {WriteCode}, called repeatedly.
   for (WasmCode* code : code_table_) {
@@ -427,11 +440,6 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
   }
 #endif
 
-  const CompileTimeImports& compile_imports = native_module_->compile_imports();
-  const std::string& constants_module = compile_imports.constants_module();
-  writer->Write(compile_imports.flags().ToIntegral());
-  writer->Write(static_cast<uint32_t>(constants_module.size()));
-  writer->WriteVector(base::VectorOf(constants_module));
   writer->WriteVector(base::VectorOf(import_statuses_));
 }
 
@@ -657,17 +665,18 @@ WasmSerializer::WasmSerializer(NativeModule* native_module)
 size_t WasmSerializer::GetSerializedNativeModuleSize() const {
   NativeModuleSerializer serializer(native_module_, base::VectorOf(code_table_),
                                     base::VectorOf(import_statuses_));
-  return kHeaderSize + serializer.Measure();
+  return serializer.Measure();
 }
 
 bool WasmSerializer::SerializeNativeModule(base::Vector<uint8_t> buffer) const {
   NativeModuleSerializer serializer(native_module_, base::VectorOf(code_table_),
                                     base::VectorOf(import_statuses_));
-  size_t measured_size = kHeaderSize + serializer.Measure();
+  size_t measured_size = serializer.Measure();
   if (buffer.size() < measured_size) return false;
 
   Writer writer(buffer);
-  WriteHeader(&writer, native_module_->enabled_features());
+  WriteHeader(&writer, native_module_->enabled_features(),
+              native_module_->compile_imports());
 
   if (!serializer.Write(&writer)) return false;
   DCHECK_EQ(measured_size, writer.bytes_written());
@@ -725,7 +734,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   NativeModuleDeserializer(const NativeModuleDeserializer&) = delete;
   NativeModuleDeserializer& operator=(const NativeModuleDeserializer&) = delete;
 
-  bool Read(Reader* reader);
+  void Read(Reader* reader);
 
   base::Vector<const int> lazy_functions() {
     return base::VectorOf(lazy_functions_);
@@ -752,7 +761,6 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   // Updated in {ReadCode}.
   size_t remaining_code_size_ = 0;
   bool all_functions_validated_ = false;
-  CompileTimeImports compile_imports_;
   base::Vector<uint8_t> current_code_space_;
   NativeModule::JumpTablesRef current_jump_tables_;
   std::vector<int> lazy_functions_;
@@ -823,16 +831,13 @@ class DeserializeCodeTask : public JobTask {
 NativeModuleDeserializer::NativeModuleDeserializer(NativeModule* native_module)
     : native_module_(native_module) {}
 
-bool NativeModuleDeserializer::Read(Reader* reader) {
+void NativeModuleDeserializer::Read(Reader* reader) {
   DCHECK(!read_called_);
 #ifdef DEBUG
   read_called_ = true;
 #endif
 
   ReadHeader(reader);
-  if (compile_imports_.compare(native_module_->compile_imports()) != 0) {
-    return false;
-  }
 
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
@@ -886,7 +891,10 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   job_handle->Join();
 
   ReadTieringBudget(reader);
-  return reader->current_size() == 0;
+
+  // Hard fail if there's additional data. We assume that embedders pass valid
+  // bytes, as we can only check very few things about it anyway.
+  CHECK_EQ(0, reader->current_size());
 }
 
 void NativeModuleDeserializer::ReadHeader(Reader* reader) {
@@ -900,14 +908,6 @@ void NativeModuleDeserializer::ReadHeader(Reader* reader) {
   remaining_code_size_ = reader->Read<size_t>();
 
   all_functions_validated_ = reader->Read<bool>();
-
-  auto compile_imports_flags =
-      reader->Read<CompileTimeImportFlags::StorageType>();
-  uint32_t constants_module_size = reader->Read<uint32_t>();
-  base::Vector<const char> constants_module_data =
-      reader->ReadVector<char>(constants_module_size);
-  compile_imports_ = CompileTimeImports::FromSerialized(compile_imports_flags,
-                                                        constants_module_data);
 
   uint32_t imported = native_module_->module()->num_imported_functions;
   if (imported > 0) {
@@ -1110,14 +1110,16 @@ void NativeModuleDeserializer::Publish(std::vector<DeserializationUnit> batch) {
   }
 }
 
-bool IsSupportedVersion(base::Vector<const uint8_t> header,
-                        WasmEnabledFeatures enabled_features) {
-  if (header.size() < WasmSerializer::kHeaderSize) return false;
-  uint8_t current_version[WasmSerializer::kHeaderSize];
-  Writer writer({current_version, WasmSerializer::kHeaderSize});
-  WriteHeader(&writer, enabled_features);
-  return memcmp(header.begin(), current_version, WasmSerializer::kHeaderSize) ==
-         0;
+bool HeaderMatches(base::Vector<const uint8_t> data,
+                   WasmEnabledFeatures enabled_features,
+                   const CompileTimeImports& compile_imports) {
+  size_t header_size = MeasureHeader(compile_imports);
+  if (data.size() < header_size) return false;
+  base::SmallVector<uint8_t, 32> current_header(header_size);
+  Writer writer(base::VectorOf(current_header));
+  WriteHeader(&writer, enabled_features, compile_imports);
+  DCHECK_EQ(header_size, writer.bytes_written());
+  return base::VectorOf(current_header) == data.SubVector(0, header_size);
 }
 
 MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
@@ -1127,7 +1129,7 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     const CompileTimeImports& compile_imports,
     base::Vector<const char> source_url) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
-  if (!IsSupportedVersion(data, enabled_features)) return {};
+  if (!HeaderMatches(data, enabled_features, compile_imports)) return {};
 
   // Make the copy of the wire bytes early, so we use the same memory for
   // decoding, lookup in the native module cache, and insertion into the cache.
@@ -1138,7 +1140,9 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
   ModuleResult decode_result = DecodeWasmModule(
       isolate, enabled_features, owned_wire_bytes.as_vector(), false,
       i::wasm::kWasmOrigin, DecodingMethod::kDeserialize, &detected_features);
-  if (decode_result.failed()) return {};
+  // The wire bytes were previously considered valid for the same enabled
+  // features (checked above).
+  CHECK(!decode_result.failed());
   std::shared_ptr<WasmModule> module = std::move(decode_result).value();
   CHECK_NOT_NULL(module);
 
@@ -1162,16 +1166,12 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     shared_native_module->SetWireBytes(std::move(owned_wire_bytes));
 
     NativeModuleDeserializer deserializer(shared_native_module.get());
-    Reader reader(data + WasmSerializer::kHeaderSize);
-    bool error = !deserializer.Read(&reader);
-    if (error) {
-      wasm_engine->UpdateNativeModuleCache(
-          error, std::move(shared_native_module), isolate);
-      return {};
-    }
+    Reader reader(data + MeasureHeader(compile_imports));
+    deserializer.Read(&reader);
     shared_native_module->compilation_state()->InitializeAfterDeserialization(
         deserializer.lazy_functions(), deserializer.eager_functions());
-    wasm_engine->UpdateNativeModuleCache(error, shared_native_module, isolate);
+    wasm_engine->UpdateNativeModuleCache(false /* error */,
+                                         shared_native_module, isolate);
     // Now publish the full set of detected features (read during
     // deserialization, so potentially more than from DecodeWasmModule above).
     detected_features =

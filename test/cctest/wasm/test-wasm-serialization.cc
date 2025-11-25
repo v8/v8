@@ -64,11 +64,6 @@ class WasmSerializationTest {
     memset(const_cast<uint8_t*>(wire_bytes_.data()), 0, wire_bytes_.size() / 2);
   }
 
-  void PartlyDropTieringBudget() {
-    serialized_bytes_ = {serialized_bytes_.data(),
-                         serialized_bytes_.size() - 1};
-  }
-
   MaybeDirectHandle<WasmModuleObject> Deserialize(
       base::Vector<const char> source_url = {}) {
     return DeserializeNativeModule(
@@ -430,16 +425,6 @@ TEST(SerializeTieringBudget) {
   for (size_t i = 0; i < arraysize(mock_budget); ++i) {
     CHECK_EQ(mock_budget[i], native_module->tiering_budget_array()[i]);
   }
-}
-
-TEST(DeserializeTieringBudgetPartlyMissing) {
-  WasmSerializationTest test;
-  {
-    HandleScope scope(CcTest::i_isolate());
-    test.PartlyDropTieringBudget();
-    CHECK(test.Deserialize().is_null());
-  }
-  test.CollectGarbage();
 }
 
 TEST(SerializationFailsOnChangedFlags) {
