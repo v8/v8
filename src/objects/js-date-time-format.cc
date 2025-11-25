@@ -1028,9 +1028,12 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalYearMonth(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainYearMonth> temporal_year_month,
     const char* method_name) {
-  auto res = HandleDateTimeTemporalGeneric<JSTemporalPlainYearMonth>(
-      isolate, date_time_format, PatternKind::kPlainYearMonth,
-      temporal_year_month);
+  DateTimeValueRecord res;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, res,
+      HandleDateTimeTemporalGeneric<JSTemporalPlainYearMonth>(
+          isolate, date_time_format, PatternKind::kPlainYearMonth,
+          temporal_year_month));
   // 4. Let format be dateTimeFormat.[[TemporalPlainYearMonthFormat]].
   // 5. If format is null, throw a TypeError exception.
   // [[TemporalPlainYearMonthFormat]] is null when dateStyle is undefined and
@@ -1043,7 +1046,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalYearMonth(
                     NewTypeError(MessageTemplate::kInvalidArgumentForTemporal,
                                  temporal_year_month));
   }
-  return res;
+  return Just(res);
 }
 
 // #sec-temporal-handledatetimetemporalmonthday
@@ -1051,9 +1054,12 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainMonthDay> temporal_month_day,
     const char* method_name) {
-  auto res = HandleDateTimeTemporalGeneric<JSTemporalPlainMonthDay>(
-      isolate, date_time_format, PatternKind::kPlainMonthDay,
-      temporal_month_day);
+  DateTimeValueRecord res;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, res,
+      HandleDateTimeTemporalGeneric<JSTemporalPlainMonthDay>(
+          isolate, date_time_format, PatternKind::kPlainMonthDay,
+          temporal_month_day));
   // 4. Let format be dateTimeFormat.[[TemporalPlainMonthDayFormat]].
   // 5. If format is null, throw a TypeError exception.
   // [[TemporalPlainMonthDayFormat]] is null when dateStyle is undefined and
@@ -1066,7 +1072,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
                     NewTypeError(MessageTemplate::kInvalidArgumentForTemporal,
                                  temporal_month_day));
   }
-  return res;
+  return Just(res);
 }
 
 // #sec-temporal-handledatetimetemporaldatetime
@@ -1081,8 +1087,11 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalDateTime(
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainDate> temporal_date, const char* method_name) {
-  auto res = HandleDateTimeTemporalGeneric<JSTemporalPlainDate>(
-      isolate, date_time_format, PatternKind::kPlainDate, temporal_date);
+  DateTimeValueRecord res;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, res,
+      HandleDateTimeTemporalGeneric<JSTemporalPlainDate>(
+          isolate, date_time_format, PatternKind::kPlainDate, temporal_date));
   // 4. Let format be dateTimeFormat.[[TemporalPlainDateFormat]].
   // 5. If format is null, throw a TypeError exception.
   // [[TemporalPlainDateFormat]] is null when dateStyle is undefined and
@@ -1095,15 +1104,18 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
                     NewTypeError(MessageTemplate::kInvalidArgumentForTemporal,
                                  temporal_date));
   }
-  return res;
+  return Just(res);
 }
 
 // #sec-temporal-handledatetimetemporaltime
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainTime> temporal_time, const char* method_name) {
-  auto res = HandleDateTimeTemporalGeneric<JSTemporalPlainTime>(
-      isolate, date_time_format, PatternKind::kPlainTime, temporal_time);
+  DateTimeValueRecord res;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, res,
+      HandleDateTimeTemporalGeneric<JSTemporalPlainTime>(
+          isolate, date_time_format, PatternKind::kPlainTime, temporal_time));
   // 4. Let format be dateTimeFormat.[[TemporalPlainTimeFormat]].
   // 5. If format is null, throw a TypeError exception.
   // [[TemporalPlainTimeFormat]] is null when timeStyle is undefined and
@@ -1116,7 +1128,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
                     NewTypeError(MessageTemplate::kInvalidArgumentForTemporal,
                                  temporal_time));
   }
-  return res;
+  return Just(res);
 }
 #endif  // V8_TEMPORAL_SUPPORT
 
