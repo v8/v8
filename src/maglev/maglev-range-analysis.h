@@ -471,8 +471,13 @@ class RangeProcessor {
     }
     DCHECK_NE(predecessor_id, -1);
     for (Phi* phi : *block->phis()) {
-      ranges_.UnionUpdate(block, phi,
-                          ranges_.Get(pred, phi->input_node(predecessor_id)));
+      Range phi_range = ranges_.Get(pred, phi->input_node(predecessor_id));
+      if (phi->is_int32()) {
+        // Since phi representation selector promoted this phi to Int32,
+        // take its range into consideration.
+        phi_range = Range::Intersect(Range::Int32(), phi_range);
+      }
+      ranges_.UnionUpdate(block, phi, phi_range);
     }
   }
 
