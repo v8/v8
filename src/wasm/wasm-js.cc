@@ -1261,8 +1261,19 @@ void WebAssemblyInstantiateImpl(
             data->Get(1).As<Value>().As<Promise::Resolver>();
         Local<Value> imports = data->Get(2).As<Value>();
 
-        i::DirectHandle<i::WasmModuleObject> module_obj =
-            i::Cast<i::WasmModuleObject>(Utils::OpenDirectHandle(*info[0]));
+        i::DirectHandle<i::WasmModuleObject> module_obj;
+        if (!TryCast(Utils::OpenDirectHandle(*info[0]), &module_obj)) {
+          auto callback = reinterpret_cast<i::Isolate*>(isolate2)
+                              ->wasm_async_resolve_promise_callback();
+          CHECK(callback);
+          Local<Value> error = Exception::TypeError(String::NewFromUtf8Literal(
+              isolate2,
+              "Illegal call to WebAssembly.instantiate callback: Argument is "
+              "not a WasmModuleObject"));
+          callback(isolate2, context, promise_resolver, error,
+                   WasmAsyncSuccess::kFail);
+          return;
+        }
 
         i::wasm::GetWasmEngine()->AsyncInstantiate(
             reinterpret_cast<i::Isolate*>(isolate2),
