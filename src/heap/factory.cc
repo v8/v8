@@ -1701,7 +1701,7 @@ DirectHandle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData(
           shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
           read_only_roots().wasm_trusted_instance_data_map()));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->clear_padding();
   for (int offset : WasmTrustedInstanceData::kTaggedFieldOffsets) {
     result->RawField(offset).store(read_only_roots().undefined_value());
@@ -1727,7 +1727,7 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
           shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
           read_only_roots().wasm_dispatch_table_map()));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
   result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
   result->set_protected_offheap_data(*offheap_data);
@@ -1867,7 +1867,7 @@ DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
           *wasm_internal_function_map()));
 
   DisallowGarbageCollection no_gc;
-  internal->init_self_indirect_pointer(isolate());
+  internal->InitAndPublish(isolate());
   internal->set_call_target(call_target);
   DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
          IsWasmImportData(*implicit_arg));
@@ -1922,7 +1922,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   Tagged<WasmJSFunctionData> result =
       TrustedCast<WasmJSFunctionData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
@@ -1952,7 +1952,7 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
           map->instance_size(), AllocationType::kTrusted, map));
   auto suspender = handle(obj, isolate());
   // Ensure that all properties are initialized before the allocation below.
-  suspender->init_self_indirect_pointer(isolate());
+  suspender->InitAndPublish(isolate());
   suspender->init_stack(IsolateForSandbox(isolate()), nullptr);
   suspender->clear_parent();
   suspender->set_promise(*undefined_value());
@@ -2011,7 +2011,7 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   Tagged<WasmExportedFunctionData> result =
       TrustedCast<WasmExportedFunctionData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal_function);
@@ -2050,7 +2050,7 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   Tagged<WasmCapiFunctionData> result =
       TrustedCast<WasmCapiFunctionData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
@@ -3059,7 +3059,7 @@ DirectHandle<BytecodeArray> Factory::CopyBytecodeArray(
           size, AllocationType::kTrusted, *bytecode_array_map()));
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> raw_source = *source;
-  copy->init_self_indirect_pointer(isolate());
+  copy->InitAndPublish(isolate());
   copy->set_length(raw_source->length());
   copy->set_frame_size(raw_source->frame_size());
   copy->set_parameter_count(raw_source->parameter_count());
@@ -4025,7 +4025,7 @@ DirectHandle<InterpreterData> Factory::NewInterpreterData(
       AllocateRawWithImmortalMap(map->instance_size(), AllocationType::kTrusted,
                                  *interpreter_data_map()));
   DisallowGarbageCollection no_gc;
-  interpreter_data->init_self_indirect_pointer(isolate());
+  interpreter_data->InitAndPublish(isolate());
   interpreter_data->set_bytecode_array(*bytecode_array);
   interpreter_data->set_interpreter_trampoline(*code);
   return direct_handle(interpreter_data, isolate());
@@ -4296,7 +4296,7 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
       size, AllocationType::kTrusted, read_only_roots().atom_regexp_data_map());
   DisallowGarbageCollection no_gc;
   Tagged<AtomRegExpData> instance = TrustedCast<AtomRegExpData>(result);
-  instance->init_self_indirect_pointer(isolate());
+  instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::ATOM);
   instance->set_source(*source);
   instance->set_flags(flags);
@@ -4318,7 +4318,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
   DisallowGarbageCollection no_gc;
   Tagged<IrRegExpData> instance = TrustedCast<IrRegExpData>(result);
-  instance->init_self_indirect_pointer(isolate());
+  instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::IRREGEXP);
   instance->set_source(*source);
   instance->set_flags(flags);
@@ -4356,7 +4356,7 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
   // struct. `RegExpExecInternal` should probably distinguish between
   // EXPERIMENTAL and IRREGEXP, and then we can get rid of all the IRREGEXP only
   // fields.
-  instance->init_self_indirect_pointer(isolate());
+  instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::EXPERIMENTAL);
   instance->set_source(*source);
   instance->set_flags(flags);

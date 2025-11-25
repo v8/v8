@@ -88,7 +88,7 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   Tagged<Code> code = TrustedCast<Code>(
       AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  code->init_self_indirect_pointer(isolate());
+  code->InitAndPublish(isolate());
   code->initialize_flags(options.kind, options.is_context_specialized,
                          options.is_turbofanned);
   code->set_builtin_id(options.builtin);
@@ -346,7 +346,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
       size, allocation, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> instance = TrustedCast<BytecodeArray>(result);
-  instance->init_self_indirect_pointer(isolate());
+  instance->InitAndPublish(isolate());
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);
@@ -526,7 +526,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
       TrustedCast<UncompiledDataWithoutPreparseData>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -544,7 +544,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
       TrustedCast<UncompiledDataWithPreparseData>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -564,7 +564,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
       TrustedCast<UncompiledDataWithoutPreparseDataWithJob>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
@@ -584,7 +584,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
       TrustedCast<UncompiledDataWithPreparseDataAndJob>(
           AllocateRawWithImmortalMap(size, AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);

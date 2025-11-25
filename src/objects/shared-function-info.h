@@ -431,6 +431,9 @@ class SharedFunctionInfo
 
   // Some code may encounter unreachable unusable objects and needs to skip
   // over them without crashing.
+  // If we end up needing to check for this condition in many places, it might
+  // be easier to instead clear the trusted pointer of these SFIs as they are
+  // anyway unusable (and should always be unreachable as well).
   inline bool HasUnpublishedTrustedData(IsolateForSandbox isolate) const;
 
  private:

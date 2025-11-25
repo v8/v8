@@ -1490,7 +1490,7 @@ int Deserializer<IsolateT>::ReadInitializeSelfIndirectPointer(
 
   Tagged<ExposedTrustedObject> host =
       TrustedCast<ExposedTrustedObject>(*slot_accessor.object());
-  host->init_self_indirect_pointer(isolate());
+  host->InitAndPublish(isolate());
 
   return 1;
 #else

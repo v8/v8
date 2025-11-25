@@ -376,7 +376,7 @@ class ObjectPostProcessor final {
 #endif
 
   void PostProcessCode(Tagged<Code> o) {
-    o->init_self_indirect_pointer(isolate_);
+    o->InitAndPublish(isolate_);
     o->wrapper()->set_code(o);
     // RO space only contains builtin Code objects which don't have an
     // attached InstructionStream.

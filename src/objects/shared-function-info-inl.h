@@ -785,7 +785,11 @@ bool SharedFunctionInfo::has_simple_parameters() const {
 }
 
 bool SharedFunctionInfo::CanCollectSourcePosition(Isolate* isolate) {
-  return v8_flags.enable_lazy_source_positions && HasBytecodeArray() &&
+  // This function is called during heap iteration and so might see
+  // dead-but-inconsistent SFIs, e.g. those referencing an unpublished trusted
+  // object, so we need to check for that here.
+  return v8_flags.enable_lazy_source_positions &&
+         !HasUnpublishedTrustedData(isolate) && HasBytecodeArray() &&
          !GetBytecodeArray(isolate)->HasSourcePositionTable();
 }
 
@@ -1138,7 +1142,7 @@ void UncompiledData::InitAfterBytecodeFlush(
                        Tagged<HeapObject> target)>
         gc_notify_updated_slot) {
 #ifdef V8_ENABLE_SANDBOX
-  init_self_indirect_pointer(isolate);
+  InitAndPublish(isolate);
 #endif
   set_inferred_name(inferred_name);
   gc_notify_updated_slot(this, ObjectSlot(&inferred_name_), inferred_name);

@@ -2136,18 +2136,14 @@ EnumerateCompiledFunctions(Heap* heap) {
        obj = iterator.Next()) {
     if (IsSharedFunctionInfo(obj)) {
       Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(obj);
+      // We have to skip over a special case here: Wasm functions created by
+      // instantiation attempts that failed to complete have inaccessible
+      // WasmFunctionData. They are also unreachable, but since we're walking
+      // the entire heap here, we may still find them if no GC has cleaned them
+      // up yet. See crbug.com/385341243 and the associated fix for context.
+      if (sfi->HasUnpublishedTrustedData(isolate)) continue;
+
       if (sfi->is_compiled() && !sfi->HasBytecodeArray()) {
-#if V8_ENABLE_WEBASSEMBLY
-        // We have to skip over a special case here: Wasm functions created
-        // by instantiation attempts that failed to complete have inaccessible
-        // WasmFunctionData. They are also unreachable, but since we're walking
-        // the entire heap here, we may still find them if no GC has cleaned
-        // them up yet.
-        if (sfi->HasWasmFunctionData(isolate) &&
-            sfi->HasUnpublishedTrustedData(isolate)) {
-          continue;
-        }
-#endif  // V8_ENABLE_WEBASSEMBLY
         record(sfi, Cast<AbstractCode>(sfi->abstract_code(isolate)));
       }
     } else if (IsJSFunction(obj)) {

@@ -1234,6 +1234,13 @@ void HeapObject::InitSelfIndirectPointerField(
                                   opt_publishing_scope);
 }
 
+void HeapObject::InitSelfIndirectPointerFieldWithoutPublishing(
+    size_t offset, IsolateForSandbox isolate) {
+  DCHECK(IsExposedTrustedObject(*this));
+  i::InitSelfIndirectPointerField(field_address(offset), isolate, *this,
+                                  kUnpublishedIndirectPointerTag, nullptr);
+}
+
 void HeapObjectLayout::InitSelfIndirectPointerField(
     std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
     TrustedPointerPublishingScope* opt_publishing_scope) {

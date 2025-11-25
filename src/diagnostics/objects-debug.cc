@@ -1440,6 +1440,12 @@ bool ShouldVerifySharedFunctionInfoFunctionIndex(
 void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
   ReadOnlyRoots roots(isolate);
 
+  // As we're iterating the heap, we might see inconsistent (and unreachable)
+  // SFIs that reference unpublished trusted objects. This can for example
+  // happen in case Wasm module instantiation fails, in which case we
+  // "unpublish" the trusted objects as they'd be inconsistent.
+  if (HasUnpublishedTrustedData(isolate)) return;
+
   Tagged<Object> value = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(value)) {
     CHECK(!Cast<ScopeInfo>(value)->IsEmpty());

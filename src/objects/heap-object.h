@@ -386,9 +386,13 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // These are only available when the sandbox is enabled, in which case they
   // are the under-the-hood implementation of trusted pointers.
+
   inline void InitSelfIndirectPointerField(
       size_t offset, IsolateForSandbox isolate,
       TrustedPointerPublishingScope* opt_publishing_scope);
+
+  inline void InitSelfIndirectPointerFieldWithoutPublishing(
+      size_t offset, IsolateForSandbox isolate);
 #endif  // V8_ENABLE_SANDBOX
 
   // Trusted pointers.
