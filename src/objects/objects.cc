@@ -6172,18 +6172,18 @@ Tagged<AccessCheckInfo> AccessCheckInfo::Get(Isolate* isolate,
   if (IsFunctionTemplateInfo(maybe_constructor)) {
     Tagged<Object> data_obj =
         Cast<FunctionTemplateInfo>(maybe_constructor)->GetAccessCheckInfo();
-    if (IsUndefined(data_obj, isolate)) return AccessCheckInfo();
+    if (IsUndefined(data_obj, isolate)) return {};
     return Cast<AccessCheckInfo>(data_obj);
   }
   // Might happen for a detached context.
-  if (!IsJSFunction(maybe_constructor)) return AccessCheckInfo();
+  if (!IsJSFunction(maybe_constructor)) return {};
   Tagged<JSFunction> constructor = Cast<JSFunction>(maybe_constructor);
   // Might happen for the debug context.
-  if (!constructor->shared()->IsApiFunction()) return AccessCheckInfo();
+  if (!constructor->shared()->IsApiFunction()) return {};
 
   Tagged<Object> data_obj =
       constructor->shared()->api_func_data()->GetAccessCheckInfo();
-  if (IsUndefined(data_obj, isolate)) return AccessCheckInfo();
+  if (IsUndefined(data_obj, isolate)) return {};
 
   return Cast<AccessCheckInfo>(data_obj);
 }

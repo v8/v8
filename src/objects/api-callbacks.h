@@ -83,16 +83,44 @@ class AccessorInfo
   TQ_OBJECT_CONSTRUCTORS(AccessorInfo)
 };
 
-class AccessCheckInfo
-    : public TorqueGeneratedAccessCheckInfo<AccessCheckInfo, Struct> {
+V8_OBJECT class AccessCheckInfo : public StructLayout {
  public:
   static Tagged<AccessCheckInfo> Get(Isolate* isolate,
                                      DirectHandle<JSObject> receiver);
 
+  inline Tagged<UnionOf<Foreign, Smi, Undefined>> callback() const;
+  inline void set_callback(Tagged<UnionOf<Foreign, Smi, Undefined>> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> named_interceptor()
+      const;
+  inline void set_named_interceptor(
+      Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> indexed_interceptor()
+      const;
+  inline void set_indexed_interceptor(
+      Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> data() const;
+  inline void set_data(Tagged<Object> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(AccessCheckInfo)
+  DECL_VERIFIER(AccessCheckInfo)
+
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(AccessCheckInfo)
-};
+ private:
+  friend class TorqueGeneratedAccessCheckInfoAsserts;
+
+  TaggedMember<UnionOf<Foreign, Smi, Undefined>> callback_;
+  TaggedMember<UnionOf<InterceptorInfo, Smi, Undefined>> named_interceptor_;
+  TaggedMember<UnionOf<InterceptorInfo, Smi, Undefined>> indexed_interceptor_;
+  TaggedMember<Object> data_;
+} V8_OBJECT_END;
 
 #define INTERCEPTOR_INFO_CALLBACK_LIST(V) \
   V(Getter, getter)                       \

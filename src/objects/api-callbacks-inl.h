@@ -30,9 +30,41 @@ static_assert(Internals::kCallbackInfoDataOffset == AccessorInfo::kDataOffset);
 static_assert(Internals::kCallbackInfoDataOffset ==
               InterceptorInfo::kDataOffset);
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
+
+Tagged<UnionOf<Foreign, Smi, Undefined>> AccessCheckInfo::callback() const {
+  return callback_.load();
+}
+void AccessCheckInfo::set_callback(
+    Tagged<UnionOf<Foreign, Smi, Undefined>> value, WriteBarrierMode mode) {
+  callback_.store(this, value, mode);
+}
+
+Tagged<UnionOf<InterceptorInfo, Smi, Undefined>>
+AccessCheckInfo::named_interceptor() const {
+  return named_interceptor_.load();
+}
+void AccessCheckInfo::set_named_interceptor(
+    Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> value,
+    WriteBarrierMode mode) {
+  named_interceptor_.store(this, value, mode);
+}
+
+Tagged<UnionOf<InterceptorInfo, Smi, Undefined>>
+AccessCheckInfo::indexed_interceptor() const {
+  return indexed_interceptor_.load();
+}
+void AccessCheckInfo::set_indexed_interceptor(
+    Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> value,
+    WriteBarrierMode mode) {
+  indexed_interceptor_.store(this, value, mode);
+}
+
+Tagged<Object> AccessCheckInfo::data() const { return data_.load(); }
+void AccessCheckInfo::set_data(Tagged<Object> value, WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
 
 REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
     AccessorInfo, getter, Address, kGetterOffset, kAccessorInfoGetterTag,

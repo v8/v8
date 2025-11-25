@@ -1295,6 +1295,15 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   os << '\n';
 }
 
+void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {
+  PrintHeader(os, "AccessCheckInfo");
+  os << "\n - callback: " << Brief(callback());
+  os << "\n - named_interceptor: " << Brief(named_interceptor());
+  os << "\n - indexed_interceptor: " << Brief(indexed_interceptor());
+  os << "\n - data: " << Brief(data());
+  os << "\n";
+}
+
 void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
   TorqueGeneratedInterceptorInfo<InterceptorInfo,
                                  HeapObject>::InterceptorInfoPrint(os);

@@ -24,6 +24,7 @@ extern class InterceptorInfo extends HeapObject {
   definer: ExternalPointer;
 }
 
+@cppObjectLayoutDefinition
 extern class AccessCheckInfo extends Struct {
   callback: Foreign|Zero|Undefined;
   named_interceptor: InterceptorInfo|Zero|Undefined;
