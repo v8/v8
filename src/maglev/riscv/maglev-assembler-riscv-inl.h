@@ -375,14 +375,18 @@ inline void MaglevAssembler::SmiAddConstant(Register dst, Register src,
   AssertSmi(src);
   if (value != 0) {
     MaglevAssembler::TemporaryRegisterScope temps(this);
-    Register overflow = temps.AcquireScratch();
     Operand addend = Operand(Smi::FromInt(value));
     if (SmiValuesAre31Bits()) {
-      Add64(overflow, src, addend);
+      Register temp = (dst == src) ? temps.AcquireScratch() : src;
+      sext_w(temp, src);
       Add32(dst, src, addend);
-      Sub64(overflow, dst, overflow);
-      MacroAssembler::Branch(fail, ne, overflow, Operand(zero_reg), distance);
+      if (value > 0) {
+        MacroAssembler::Branch(fail, lt, dst, Operand(temp), distance);
+      } else {
+        MacroAssembler::Branch(fail, gt, dst, Operand(temp), distance);
+      }
     } else {
+      Register overflow = temps.AcquireScratch();
       AddOverflowWord(dst, src, addend, overflow);
       MacroAssembler::Branch(fail, lt, overflow, Operand(zero_reg), distance);
     }

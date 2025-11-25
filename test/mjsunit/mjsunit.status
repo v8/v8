@@ -1494,12 +1494,6 @@
   'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
-['arch == riscv64 and pointer_compression', {
-  # Maglev code bails out due to incorrect overflow check when pointer
-  # compression is enabled, but the test checks that the function remains
-  # optimized and thus fails.
-  'es6/for-of-array-iterator-optimization-maglev': [FAIL],
-}],  # 'arch == riscv64 and pointer_compression'
 
 ['(arch == riscv64 or arch == riscv32) and variant == stress', {
   'wasm/multi-value-simd': [SKIP]
