@@ -575,6 +575,9 @@ bool FunctionKindIsConciseMethod(FunctionKind kind) {
     case FunctionKind::kAsyncConciseGeneratorMethod:
     case FunctionKind::kStaticAsyncConciseGeneratorMethod:
     case FunctionKind::kClassMembersInitializerFunction:
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
+    case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return true;
     default:
       return false;
@@ -661,6 +664,9 @@ bool FunctionKindIsConstructable(FunctionKind kind) {
     case FunctionKind::kConciseMethod:
     case FunctionKind::kStaticConciseMethod:
     case FunctionKind::kClassMembersInitializerFunction:
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
+    case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return false;
     default:
       return true;

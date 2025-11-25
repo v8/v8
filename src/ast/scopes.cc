@@ -1448,7 +1448,7 @@ bool DeclarationScope::AllowsLazyCompilation() const {
   // Functions which force eager compilation and class member initializer
   // functions are not lazily compilable.
   return !force_eager_compilation_ &&
-         !IsClassMembersInitializerFunction(function_kind());
+         !IsClassInitializerFunction(function_kind());
 }
 
 int Scope::ContextChainLength(Scope* scope) const {

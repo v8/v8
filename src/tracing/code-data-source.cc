@@ -108,8 +108,10 @@ InternedV8JsFunction::Kind GetJsFunctionKind(FunctionKind kind) {
     case FunctionKind::kStaticConciseMethod:
       return InternedV8JsFunction::KIND_STATIC_CONCISE_METHOD;
     case FunctionKind::kClassMembersInitializerFunction:
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
       return InternedV8JsFunction::KIND_CLASS_MEMBERS_INITIALIZER_FUNCTION;
     case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return InternedV8JsFunction::KIND_CLASS_STATIC_INITIALIZER_FUNCTION;
     case FunctionKind::kInvalid:
       return InternedV8JsFunction::KIND_INVALID;

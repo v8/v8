@@ -467,7 +467,7 @@ DirectHandle<Object> CallSiteInfo::GetMethodName(
   DirectHandle<JSFunction> function(Cast<JSFunction>(info->function()),
                                     isolate);
   // Class members initializer function is not a method.
-  if (IsClassMembersInitializerFunction(function->shared()->kind())) {
+  if (IsClassInitializerFunction(function->shared()->kind())) {
     return isolate->factory()->null_value();
   }
 
