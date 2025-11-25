@@ -1854,7 +1854,7 @@ class Handlers : public HandlersBase {
     IntT val1 = pop<IntT>(sp, code, wasm_runtime);
 
     // r0: condition
-    r0 = r0 ? val1 : val2;
+    WriteRegister(r0, ReadRegister<int32_t>(r0) ? val1 : val2);
 
     NextOp();
   }
@@ -1869,7 +1869,7 @@ class Handlers : public HandlersBase {
     FloatT val1 = pop<FloatT>(sp, code, wasm_runtime);
 
     // r0: condition
-    fp0 = r0 ? val1 : val2;
+    WriteRegister(fp0, ReadRegister<int32_t>(r0) ? val1 : val2);
 
     NextOp();
   }
