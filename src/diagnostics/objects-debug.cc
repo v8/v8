@@ -195,17 +195,6 @@ void TaggedIndex::TaggedIndexVerify(Tagged<TaggedIndex> obj, Isolate* isolate) {
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   CHECK(IsHeapObject(*this));
 
-  if (SafeIsAnyHole(Tagged(*this))) {
-    ReadOnlyRoots roots(isolate);
-#define COMPARE_ROOTS_VALUE(_, Value, __) \
-  if (*this == roots.Value()) {           \
-    return;                               \
-  }
-    HOLE_LIST(COMPARE_ROOTS_VALUE);
-#undef COMPARE_ROOTS_VALUE
-    UNREACHABLE();
-  }
-
   PtrComprCageBase cage_base(isolate);
   Object::VerifyPointer(isolate, map(cage_base));
   CHECK(IsMap(map(cage_base), cage_base));

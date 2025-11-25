@@ -146,6 +146,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kPromiseFulfillReactionJobTaskMap = 0xf91;
   static constexpr Tagged_t kPromiseRejectReactionJobTaskMap = 0xfb9;
   static constexpr Tagged_t kCallableTaskMap = 0xfe1;
+  // -- End of values that fit in arm64 add/sub immediates --
   static constexpr Tagged_t kCallbackTaskMap = 0x1009;
   static constexpr Tagged_t kPromiseResolveThenableJobTaskMap = 0x1031;
   static constexpr Tagged_t kAccessCheckInfoMap = 0x1059;
@@ -1032,28 +1033,34 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kShadowRealmScopeInfo = 0x5e25;
   static constexpr Tagged_t kManyClosuresCell = 0x5e3d;
   static constexpr Tagged_t kPreallocatedNumberStringTable = 0x5e4d;
-  static constexpr Tagged_t kTheHoleValue = 0x6585;
-  static constexpr Tagged_t kPropertyCellHoleValue = 0x6589;
-  static constexpr Tagged_t kHashTableHoleValue = 0x658d;
-  static constexpr Tagged_t kPromiseHoleValue = 0x6591;
-  static constexpr Tagged_t kUninitializedValue = 0x6595;
-  static constexpr Tagged_t kArgumentsMarker = 0x6599;
-  static constexpr Tagged_t kTerminationException = 0x659d;
-  static constexpr Tagged_t kException = 0x65a1;
-  static constexpr Tagged_t kOptimizedOut = 0x65a5;
-  static constexpr Tagged_t kStaleRegister = 0x65a9;
-  static constexpr Tagged_t kSelfReferenceMarker = 0x65ad;
-  static constexpr Tagged_t kBasicBlockCountersMarker = 0x65b1;
-  static constexpr Tagged_t kJSMessageObjectMap = 0x65b5;
-  static constexpr Tagged_t kExternalMap = 0x65dd;
-  static constexpr Tagged_t kCppHeapExternalMap = 0x6605;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x662d;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x6675;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x669d;
-  static constexpr Tagged_t kNoOpInterceptorInfo = 0x66c5;
+  static constexpr Tagged_t kTheHoleValue = 0xfffd;
+  static constexpr Tagged_t kPropertyCellHoleValue = 0x2fffd;
+  // -- End of page 0 --
+  static constexpr Tagged_t kHashTableHoleValue = 0x4fffd;
+  static constexpr Tagged_t kPromiseHoleValue = 0x6fffd;
+  // -- End of page 1 --
+  static constexpr Tagged_t kUninitializedValue = 0x8fffd;
+  static constexpr Tagged_t kArgumentsMarker = 0xafffd;
+  // -- End of page 2 --
+  static constexpr Tagged_t kTerminationException = 0xcfffd;
+  static constexpr Tagged_t kException = 0xefffd;
+  // -- End of page 3 --
+  static constexpr Tagged_t kOptimizedOut = 0x10fffd;
+  static constexpr Tagged_t kStaleRegister = 0x12fffd;
+  // -- End of page 4 --
+  static constexpr Tagged_t kSelfReferenceMarker = 0x14fffd;
+  static constexpr Tagged_t kBasicBlockCountersMarker = 0x16fffd;
+  // -- End of page 5 --
+  static constexpr Tagged_t kJSMessageObjectMap = 0x180011;
+  static constexpr Tagged_t kExternalMap = 0x180039;
+  static constexpr Tagged_t kCppHeapExternalMap = 0x180061;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x180089;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1800d1;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1800f9;
+  static constexpr Tagged_t kNoOpInterceptorInfo = 0x180121;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x66c5;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x180121;
 };
 
 static constexpr std::array<Tagged_t, 1026> StaticReadOnlyRootsPointerTable = {

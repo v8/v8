@@ -346,8 +346,9 @@ void Factory::InitializeAllocationMemento(
 
 Tagged<HeapObject> Factory::New(DirectHandle<Map> map,
                                 AllocationType allocation) {
-  DCHECK(map->instance_type() != MAP_TYPE);
+  DCHECK_NE(map->instance_type(), MAP_TYPE);
   int size = map->instance_size();
+  DCHECK_NE(size, kVariableSizeSentinel);
   Tagged<HeapObject> result =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(size,
                                                                 allocation);
@@ -419,9 +420,13 @@ DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
 }
 
 DirectHandle<Hole> Factory::NewHole() {
+#if V8_CAN_UNMAP_HOLES_BOOL
+  UNREACHABLE();
+#else
   DirectHandle<Hole> hole(
       Cast<Hole>(New(hole_map(), AllocationType::kReadOnly)), isolate());
   return hole;
+#endif
 }
 
 DirectHandle<PropertyArray> Factory::NewPropertyArray(

@@ -1220,8 +1220,11 @@ void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
                                                    Label* dest) {
 #if V8_STATIC_ROOTS_BOOL
   // Quick check for Read-only and small Smi values.
-  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-  JumpIfUnsignedLessThan(value, kRegularPageSize, dest);
+  constexpr int kLastStaticRootPage =
+      RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
+  static_assert(kLastStaticRootPage <=
+                V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
+  JumpIfUnsignedLessThan(value, kLastStaticRootPage, dest);
 #endif  // V8_STATIC_ROOTS_BOOL
 }
 

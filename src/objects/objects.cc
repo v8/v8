@@ -2069,7 +2069,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return WasmArray::SizeFor(map, UncheckedCast<WasmArray>(*this)->length());
   }
   if (instance_type == WASM_NULL_TYPE) {
-    return WasmNull::Size();
+    return WasmNull::kSize;
   }
   if (instance_type == WASM_DISPATCH_TABLE_TYPE) {
     return WasmDispatchTable::SizeFor(
@@ -2087,6 +2087,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   if (instance_type == EMBEDDER_DATA_ARRAY_TYPE) {
     return EmbedderDataArray::SizeFor(
         UncheckedCast<EmbedderDataArray>(*this)->length());
+  }
+  if (instance_type == HOLE_TYPE) {
+    return sizeof(Hole);
   }
   UNREACHABLE();
 }

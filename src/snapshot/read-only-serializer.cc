@@ -433,10 +433,14 @@ class ReadOnlyHeapImageSerializer {
       return {{free_space.address() + sizeof(FreeSpace),
                free_space->Size() - static_cast<int>(sizeof(FreeSpace))}};
     }
+    if (Tagged<Hole> hole; TryCast<Hole>(obj, &hole)) {
+      return {{hole.address() + HeapObject::kHeaderSize,
+               sizeof(Hole) - HeapObject::kHeaderSize}};
+    }
 #ifdef V8_ENABLE_WEBASSEMBLY
     if (Tagged<WasmNull> wasm_null; TryCast<WasmNull>(obj, &wasm_null)) {
       return {{wasm_null.address() + WasmNull::kHeaderSize,
-               WasmNull::Size() - WasmNull::kHeaderSize}};
+               WasmNull::kSize - WasmNull::kHeaderSize}};
     }
 #endif
     return {};
@@ -471,10 +475,11 @@ class ReadOnlyHeapImageSerializer {
 
         // Either way, do the remaining serialization up to the water mark.
         ptrdiff_t segment_size = page->HighWaterMark() - pos;
-        CHECK_GE(segment_size, 0);
-        ReadOnlySegmentForSerialization segment(isolate_, page, pos,
-                                                segment_size, &pre_processor_);
-        EmitSegment(&segment);
+        if (segment_size > 0) {
+          ReadOnlySegmentForSerialization segment(
+              isolate_, page, pos, segment_size, &pre_processor_);
+          EmitSegment(&segment);
+        }
         return;
       }
 
@@ -488,7 +493,7 @@ class ReadOnlyHeapImageSerializer {
       // Serialize a segment from the current pos, up to the start of the
       // unmapped body.
       ptrdiff_t segment_size = unmapped_body->start - pos;
-      CHECK_GE(segment_size, 0);
+      CHECK_GT(segment_size, 0);
       ReadOnlySegmentForSerialization segment(isolate_, page, pos, segment_size,
                                               &pre_processor_);
       EmitSegment(&segment);

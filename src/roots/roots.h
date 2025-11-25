@@ -259,7 +259,6 @@ class RootVisitor;
   V(ByteArray, hash_seed, HashSeed)                                            \
   V(FixedArray, preallocated_number_string_table,                              \
     PreallocatedNumberStringTable)                                             \
-  IF_WASM(V, HeapObject, wasm_null_padding, WasmNullPadding)                   \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)
 
 // TODO(saelo): ideally, these would be read-only roots (and then become part

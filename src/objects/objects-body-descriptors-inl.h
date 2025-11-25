@@ -1011,6 +1011,13 @@ class JSSynchronizationPrimitive::BodyDescriptor final
   }
 };
 
+class Hole::BodyDescriptor : public DataOnlyBodyDescriptor {
+ public:
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return sizeof(Hole);
+  }
+};
+
 #if V8_ENABLE_WEBASSEMBLY
 class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
@@ -1230,7 +1237,7 @@ class WasmNull::BodyDescriptor : public DataOnlyBodyDescriptor {
                 WasmNull::kEndOfStrongFieldsOffset);
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return WasmNull::Size();
+    return WasmNull::kSize;
   }
 };
 

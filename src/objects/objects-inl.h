@@ -475,8 +475,11 @@ constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
   // roots. This is not strictly necessary and can be relaxed in future as the
   // most prominent static roots are anyways allocated at the beginning of the
   // first page.
-  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-  return obj < kRegularPageSize;
+  constexpr int kLastStaticRootPage =
+      RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
+  static_assert(kLastStaticRootPage <=
+                V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
+  return obj < kLastStaticRootPage;
 #else   // !V8_STATIC_ROOTS_BOOL
   return false;
 #endif  // !V8_STATIC_ROOTS_BOOL

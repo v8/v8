@@ -1044,13 +1044,9 @@ class Internals {
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
 #ifdef V8_ENABLE_WEBASSEMBLY
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x20001;
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x2fffd;
 #else
-#ifdef V8_INTL_SUPPORT
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x6585;
-#else
-    static constexpr Tagged_t kBuildDependentTheHoleValue = 0x58d5;
-#endif
+    static constexpr Tagged_t kBuildDependentTheHoleValue = 0xfffd;
 #endif
 
 #define DEF_ROOT(name, value) static constexpr Tagged_t k##name = value;
