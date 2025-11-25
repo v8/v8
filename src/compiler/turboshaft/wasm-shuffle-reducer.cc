@@ -13,11 +13,22 @@ namespace v8::internal::compiler::turboshaft {
     if (v8_flags.trace_wasm_simd_shuffle) PrintF(__VA_ARGS__); \
   } while (false)
 
+DemandedElementAnalysis::LaneBitSet DemandedElementAnalysis::ReduceLanes(
+    LaneBitSet lanes) {
+  // We have a bitset to represent each of the bytes in shuffle, and we will use
+  // the value to produce a mask of which bytes are required, or 'demanded'. So,
+  // by shifting right by half the current count, we will mask out the top half
+  // of the currently demanded lanes.
+  return lanes == k8x1Low ? lanes : lanes >>= lanes.count() / 2;
+}
+
 void DemandedElementAnalysis::AddOp(const Operation& op, LaneBitSet lanes) {
   // We're trying to find out which SIMD lanes of op are used. If op has more
   // than a single user we will have to visit it multiple times. Both `Record`
   // methods will attempt to recursively add more operations.
   if (op.saturated_use_count.IsOne()) {
+    TRACE("Found Op %d, demanded lanes: %#04x\n", input_graph().Index(op).id(),
+          static_cast<uint32_t>(lanes.to_ulong()));
     RecordOp(op, lanes);
   } else {
     RecordPartialOp(op, lanes);
@@ -30,8 +41,7 @@ void DemandedElementAnalysis::AddUnaryOp(const Simd128UnaryOp& unop,
   visited_.insert(&unop);
 
   if (IsUnaryLowHalfOp(unop.kind)) {
-    DCHECK(lanes == k8x16 || lanes == k8x8Low || lanes == k8x4Low);
-    lanes >>= lanes.count() / 2;
+    lanes = ReduceLanes(lanes);
     AddOp(input_graph().Get(unop.input()), lanes);
   }
 }
@@ -42,8 +52,7 @@ void DemandedElementAnalysis::AddBinaryOp(const Simd128BinopOp& binop,
   visited_.insert(&binop);
 
   if (IsBinaryLowHalfOp(binop.kind)) {
-    DCHECK(lanes == k8x16 || lanes == k8x8Low);
-    lanes >>= lanes.count() / 2;
+    lanes = ReduceLanes(lanes);
     AddOp(input_graph().Get(binop.left()), lanes);
     AddOp(input_graph().Get(binop.right()), lanes);
   }
@@ -69,8 +78,12 @@ bool DemandedElementAnalysis::AddUserAndCheckFoundAll(const Operation& op,
   for (MultiUserBits& multi_use : to_revisit_) {
     if (multi_use.op() == &op) {
       multi_use.add(lanes);
-      DCHECK_LE(multi_use.num_users(), op.saturated_use_count.Get());
-      return multi_use.num_users() == op.saturated_use_count.Get();
+      if (multi_use.FoundAllUsers()) {
+        // Ensure we don't visit this again from the top-level search.
+        visited_.insert(&op);
+        return true;
+      }
+      return false;
     }
   }
   if (to_revisit_.size() < kMaxNumOperations) {
@@ -84,23 +97,31 @@ bool DemandedElementAnalysis::AddUserAndCheckFoundAll(const Operation& op,
 
 void DemandedElementAnalysis::RecordPartialOp(const Operation& op,
                                               LaneBitSet lanes) {
+  TRACE("Recording partial Op %d, demanded lanes: %#04x\n",
+        input_graph().Index(op).id(), static_cast<uint32_t>(lanes.to_ulong()));
   if (auto* unop = op.TryCast<Simd128UnaryOp>()) {
     RecordPartialOp(*unop, lanes);
   } else if (auto* binop = op.TryCast<Simd128BinopOp>()) {
     RecordPartialOp(*binop, lanes);
   } else if (auto* shuffle = op.TryCast<Simd128ShuffleOp>()) {
-    AddUserAndCheckFoundAll(*shuffle, lanes);
+    if (AddUserAndCheckFoundAll(*shuffle, lanes)) {
+      TRACE("Found all users (%d) of ShuffleOp %d, demanded lanes: %#04x\n",
+            op.saturated_use_count.Get(), input_graph().Index(op).id(),
+            static_cast<uint32_t>(lanes.to_ulong()));
+    }
   }
 }
 
 void DemandedElementAnalysis::RecordPartialOp(const Simd128UnaryOp& unop,
                                               LaneBitSet lanes) {
   if (IsUnaryLowHalfOp(unop.kind)) {
-    DCHECK(lanes == k8x8Low || lanes == k8x4Low);
     // If we've now visited this unop from all of its users, visit its
     // operand.
     if (AddUserAndCheckFoundAll(unop, lanes)) {
-      lanes >>= lanes.count() / 2;
+      TRACE("Found all users (%d) of UnaryOp %d, demanded lanes: %#04x\n",
+            unop.saturated_use_count.Get(), input_graph().Index(unop).id(),
+            static_cast<uint32_t>(lanes.to_ulong()));
+      lanes = ReduceLanes(lanes);
       RecordPartialOp(input_graph().Get(unop.input()), lanes);
     }
   }
@@ -109,11 +130,13 @@ void DemandedElementAnalysis::RecordPartialOp(const Simd128UnaryOp& unop,
 void DemandedElementAnalysis::RecordPartialOp(const Simd128BinopOp& binop,
                                               LaneBitSet lanes) {
   if (IsBinaryLowHalfOp(binop.kind)) {
-    DCHECK(lanes == k8x8Low);
     // If we've now visited this binop from all of its users, visit its
     // operands.
     if (AddUserAndCheckFoundAll(binop, lanes)) {
-      lanes >>= lanes.count() / 2;
+      TRACE("Found all users (%d) of BinopOp %d, demanded lanes: %#04x\n",
+            binop.saturated_use_count.Get(), input_graph().Index(binop).id(),
+            static_cast<uint32_t>(lanes.to_ulong()));
+      lanes = ReduceLanes(lanes);
       RecordPartialOp(input_graph().Get(binop.left()), lanes);
       RecordPartialOp(input_graph().Get(binop.right()), lanes);
     }
@@ -142,21 +165,21 @@ void DemandedElementAnalysis::RevisitShuffle(const Simd128ShuffleOp& shuffle,
 
 void DemandedElementAnalysis::Revisit() {
   for (const MultiUserBits& multi_user : to_revisit_) {
-    const Operation* op = multi_user.op();
-    if (op->saturated_use_count.Get() != multi_user.num_users()) {
-      continue;
-    }
-
-    if (auto* shuffle = op->TryCast<Simd128ShuffleOp>()) {
-      RevisitShuffle(*shuffle, multi_user.used_lanes());
+    if (multi_user.FoundAllUsers()) {
+      const Operation* op = multi_user.op();
+      if (auto* shuffle = op->TryCast<Simd128ShuffleOp>()) {
+        RevisitShuffle(*shuffle, multi_user.used_lanes());
+      }
     }
   }
 }
 
 void WasmShuffleAnalyzer::Run() {
+  TRACE("Running WasmShuffleAnalyzer\n");
   for (uint32_t processed = input_graph().block_count(); processed > 0;
        --processed) {
     BlockIndex block_index = static_cast<BlockIndex>(processed - 1);
+    TRACE("BLOCK %d\n", block_index.id());
     const Block& block = input_graph().Get(block_index);
     auto idx_range = input_graph().OperationIndices(block);
     for (auto it = idx_range.rbegin(); it != idx_range.rend(); ++it) {

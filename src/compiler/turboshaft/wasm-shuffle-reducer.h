@@ -46,6 +46,7 @@ class DemandedElementAnalysis {
   static constexpr uint16_t k8x8Low = 0xFF;
   static constexpr uint16_t k8x4Low = 0xF;
   static constexpr uint16_t k8x2Low = 0x3;
+  static constexpr uint16_t k8x1Low = 0x1;
   static constexpr int kMaxNumOperations = 50;
 
   // TODO(sparker): Add floating-point conversions:
@@ -84,6 +85,7 @@ class DemandedElementAnalysis {
   DemandedElementAnalysis(Zone* phase_zone, const Graph& input_graph)
       : phase_zone_(phase_zone), input_graph_(input_graph) {}
 
+  LaneBitSet ReduceLanes(LaneBitSet lanes);
   void AddOp(const Operation& op, LaneBitSet lanes);
   void AddUnaryOp(const Simd128UnaryOp& unop, LaneBitSet lanes);
   void AddBinaryOp(const Simd128BinopOp& binop, LaneBitSet lanes);
@@ -111,6 +113,11 @@ class DemandedElementAnalysis {
     void add(LaneBitSet lanes) {
       used_lanes_ |= lanes;
       ++num_users_;
+    }
+
+    bool FoundAllUsers() const {
+      return num_users() == op()->saturated_use_count.Get() &&
+             !op()->saturated_use_count.IsSaturated();
     }
   };
 
