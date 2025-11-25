@@ -91,6 +91,7 @@ enum class IsolateFieldId : uint8_t;
 
 #define EXTERNAL_REFERENCE_LIST(V)                                             \
   V(abort_with_reason, "abort_with_reason")                                    \
+  V(abort_with_sandbox_violation, "abort_with_sandbox_violation")              \
   V(address_of_log_or_trace_osr, "v8_flags.log_or_trace_osr")                  \
   V(address_of_builtin_subclassing_flag, "v8_flags.builtin_subclassing")       \
   V(address_of_double_abs_constant, "double_absolute_constant")                \
@@ -693,6 +694,7 @@ size_t hash_value(ExternalReference);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 
 void abort_with_reason(int reason);
+void abort_with_sandbox_violation();
 
 }  // namespace internal
 }  // namespace v8

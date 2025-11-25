@@ -878,6 +878,17 @@ void SandboxTesting::Enable(Mode mode) {
 #endif  // V8_OS_LINUX
 }
 
+void SandboxTesting::Disable() {
+  if (mode_ == Mode::kDisabled) return;
+  mode_ = Mode::kDisabled;
+
+#ifdef V8_OS_LINUX
+  UninstallCrashFilter();
+#else
+  FATAL("The sandbox crash filter is currently only available on Linux");
+#endif  // V8_OS_LINUX
+}
+
 SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
   // This mechanism is currently very crude and needs to be manually maintained
   // and extended (e.g. when adding a js test for the sandbox). In the future,

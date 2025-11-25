@@ -369,7 +369,18 @@ void Interpreter::Initialize() {
   DCHECK(!code->has_instruction_stream());
   interpreter_entry_trampoline_instruction_start_ = code->instruction_start();
 
-  // Initialize the dispatch table.
+  // Initialize the dispatch table with pointers to IllegalHandler.
+  // This way, if we ever run into a situation where an invalid/unknown opcode
+  // is executed, this will be reported as a sandbox violation. This is
+  // important as such crashes are typically the symptom of a bug that could
+  // lead to arbitrary, attacker-controlled bytecode execution, which would
+  // allow breaking out of the sandbox.
+  Tagged<Code> illegal_bytecode_handler =
+      builtins->code(Builtin::kIllegalHandler);
+  for (int i = 0; i < kDispatchTableSize; ++i) {
+    dispatch_table_[i] = illegal_bytecode_handler->instruction_start();
+  }
+
   ForEachBytecode([=, this](Bytecode bytecode, OperandScale operand_scale) {
     Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
     Tagged<Code> handler = builtins->code(builtin);

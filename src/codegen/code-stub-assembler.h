@@ -4463,6 +4463,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     Unreachable();
   }
 
+  void AbortWithSandboxViolation() {
+    TNode<ExternalReference> abort_with_sandbox_violation =
+        ExternalConstant(ExternalReference::abort_with_sandbox_violation());
+    CallCFunction(abort_with_sandbox_violation, std::nullopt);
+    Unreachable();
+  }
+
   bool ConstexprBoolNot(bool value) { return !value; }
   int31_t ConstexprIntegerLiteralToInt31(const IntegerLiteral& i) {
     return int31_t(i.To<int32_t>());

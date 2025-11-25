@@ -3366,10 +3366,7 @@ IGNITION_HANDLER(ExtraWide, InterpreterAssembler) {
 // Illegal
 //
 // An invalid bytecode aborting execution if dispatched.
-IGNITION_HANDLER(Illegal, InterpreterAssembler) {
-  Abort(AbortReason::kInvalidBytecode);
-  Unreachable();
-}
+IGNITION_HANDLER(Illegal, InterpreterAssembler) { AbortWithSandboxViolation(); }
 
 // SuspendGenerator <generator> <first input register> <register count>
 // <suspend_id>
