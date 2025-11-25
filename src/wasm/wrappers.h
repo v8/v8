@@ -15,6 +15,31 @@
 #include "src/wasm/turboshaft-graph-interface.h"
 #include "src/wasm/wasm-engine.h"
 
+namespace v8::internal::compiler::turboshaft {
+struct WasmBodyInliningResult {
+  enum class Type {
+    kSuccessWithValue,  // Inlining succeeded and produced a value.
+    kSuccessVoid,       // Inlining succeeded for a void function (no value).
+    kFailed             // Inlining failed, e.g., because of bailing out due to
+                        // unsupported operations in the inlinee.
+  };
+
+  Type type = Type::kFailed;
+  OptionalV<Any> value = OptionalV<Any>::Nullopt();
+
+  static WasmBodyInliningResult SuccessWithValue(V<Any> result_value) {
+    return {Type::kSuccessWithValue, result_value};
+  }
+  static WasmBodyInliningResult SuccessVoid() {
+    return {Type::kSuccessVoid, OptionalV<Any>::Nullopt()};
+  }
+  static WasmBodyInliningResult Failed() {
+    return {Type::kFailed, OptionalV<Any>::Nullopt()};
+  }
+  bool IsSuccess() const { return type != Type::kFailed; }
+};
+}  // namespace v8::internal::compiler::turboshaft
+
 namespace v8::internal::wasm {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"

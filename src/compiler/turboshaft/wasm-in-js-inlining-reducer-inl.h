@@ -47,51 +47,83 @@ class WasmInJSInliningReducer : public Next {
                       OptionalV<turboshaft::FrameState> frame_state,
                       base::Vector<const OpIndex> arguments,
                       const TSCallDescriptor* descriptor, OpEffects effects) {
-    if (!descriptor->js_wasm_call_parameters) {
-      // Regular call, nothing to do with Wasm or inlining. Proceed untouched...
+    LABEL_BLOCK(non_inlined_call) {
       return Next::ReduceCall(callee, frame_state, arguments, descriptor,
                               effects);
+    }
+
+    if (!descriptor->js_wasm_call_parameters) {
+      // Regular call, nothing to do with Wasm or inlining. Proceed untouched...
+      goto non_inlined_call;
     }
 
     wasm::NativeModule* native_module =
         descriptor->js_wasm_call_parameters->native_module();
     uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
 
-    V<Any> result;
     if (v8_flags.turbolev_inline_js_wasm_wrappers && frame_state.has_value()) {
-      CHECK(v8_flags.turbolev);
       // TODO(353475584): Wrapper inlining in Turboshaft is only implemented for
       // the Turbolev frontend right now.
+      CHECK(v8_flags.turbolev);
       V<JSFunction> js_closure = V<JSFunction>::Cast(callee);
       V<Context> js_context = V<Context>::Cast(arguments[arguments.size() - 1]);
 
-      result = TryInlineJSWasmCallWrapperAndBody(
+      // Wrapper inlining can return an `V<Any>::Invalid()`, e.g., when the Wasm
+      // function signature unconditionally causes a type error to be thrown at
+      // runtime (see `IsJSCompatibleSignature` and `BuildJSToWasmWrapperImpl`).
+      // We conservatively still emit the non-inlined call in those cases,
+      // even though that may be dead code / superfluous.
+      // TODO(dlehmann,paolosev@microsoft.com): Change to a stronger return
+      // type for `TryInlineJSWasmCallWrapperAndBody` (something like
+      // `WasmBodyInliningResult`) and enforce the invariant that an invalid
+      // wrapper inlining result always means we do NOT need the code for the
+      // non-inlined call (i.e., wrapper inlining never "fails" at this point.)
+      V<Any> result = TryInlineJSWasmCallWrapperAndBody(
           native_module, func_idx, arguments, js_closure, js_context,
           descriptor->js_wasm_call_parameters->receiver_is_first_param(),
           frame_state.value(), descriptor->lazy_deopt_on_throw);
+      if (result.valid()) {
+        return result;
+      } else {
+        goto non_inlined_call;
+      }
     } else if (descriptor->lazy_deopt_on_throw != LazyDeoptOnThrow::kYes) {
-      // TODO(mliedtke,dlehmann): support lazy deopts in Wasm in order to allow
+      // TODO(mliedtke,dlehmann): Support lazy deopts in Wasm in order to allow
       // inlining calls that have LazyDeoptOnThrow::kYes.
 
       // TODO(dlehmann): Investigate if we need to prevent inlining into
       // try-blocks (due to wasm traps ignoring catch handlers in the inlined JS
       // frame).
 
-      // We shouldn't have attached `JSWasmCallParameters` at this call, unless
-      // we have TS Wasm-in-JS inlining enabled.
+      // We shouldn't have attached `JSWasmCallParameters` at this call in the
+      // Turbofan frontend, unless we have TS Wasm-in-JS inlining enabled.
       CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
-      result = TryInlineWasmCall(native_module, func_idx, arguments);
+
+      WasmBodyInliningResult inlining_result =
+          TryInlineWasmCall(native_module, func_idx, arguments);
+
+      switch (inlining_result.type) {
+        case WasmBodyInliningResult::Type::kSuccessWithValue:
+          return inlining_result.value.value();
+        case WasmBodyInliningResult::Type::kSuccessVoid:
+          // Inlining succeeded for a void function. The original call had no
+          // outputs, so the result is an invalid value (but unlike in the next
+          // case, the original call is reduced away).
+          return V<Any>::Invalid();
+        case WasmBodyInliningResult::Type::kFailed:
+          // Inlining failed. Simply generate the unmodified Wasm call.
+          goto non_inlined_call;
+      }
     }
 
-    if (!result.valid()) {
-      result =
-          Next::ReduceCall(callee, frame_state, arguments, descriptor, effects);
-    }
-    return result;
+    // Inlining not supported for this particular call (e.g., because of lazy
+    // deopts or else, see above).
+    goto non_inlined_call;
   }
 
-  V<Any> TryInlineWasmCall(wasm::NativeModule* native_module, uint32_t func_idx,
-                           base::Vector<const OpIndex> arguments);
+  WasmBodyInliningResult TryInlineWasmCall(
+      wasm::NativeModule* native_module, uint32_t func_idx,
+      base::Vector<const OpIndex> arguments);
 
  private:
   V<Any> TryInlineJSWasmCallWrapperAndBody(
@@ -153,7 +185,7 @@ class WasmInJsInliningInterface {
         arguments_(arguments),
         trusted_instance_data_(trusted_instance_data) {}
 
-  V<Any> Result() { return result_; }
+  WasmBodyInliningResult Result() { return result_; }
 
   void OnFirstError(FullDecoder*) {}
 
@@ -621,14 +653,17 @@ class WasmInJsInliningInterface {
     size_t return_count = decoder->sig_->return_count();
 
     if (return_count == 1) {
-      result_ =
+      V<Any> return_value =
           decoder
               ->stack_value(static_cast<uint32_t>(return_count + drop_values))
               ->op;
+      result_ = WasmBodyInliningResult::SuccessWithValue(return_value);
     } else if (return_count == 0) {
-      Isolate* isolate = __ data() -> isolate();
-      DCHECK_NOT_NULL(isolate);
-      result_ = __ HeapConstant(isolate->factory()->undefined_value());
+      // A void function doesn't produce a result. The operation that replaces
+      // the call will have no outputs. The surrounding JS-to-Wasm wrapper
+      // (outside this inlined Wasm body) is responsible for producing the
+      // JavaScript `undefined` value if the caller expects one.
+      result_ = WasmBodyInliningResult::SuccessVoid();
     } else {
       // We currently don't support wrapper inlining with multi-value returns,
       // so this should never be hit.
@@ -1277,7 +1312,7 @@ class WasmInJsInliningInterface {
   V<WasmTrustedInstanceData> trusted_instance_data_;
 
   // Populated only after decoding finished successfully, i.e., didn't bail out.
-  V<Any> result_;
+  WasmBodyInliningResult result_ = WasmBodyInliningResult::Failed();
 };
 
 template <class Next>
@@ -1317,7 +1352,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
 }
 
 template <class Next>
-V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
+WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmCall(
     wasm::NativeModule* native_module, uint32_t func_idx,
     base::Vector<const OpIndex> arguments) {
   const wasm::WasmModule* module = native_module->module();
@@ -1332,17 +1367,17 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   // in the JS pipeline.
   if (!Is64()) {
     TRACE("- not inlining: 32-bit platforms are not supported");
-    return V<Any>::Invalid();
+    return WasmBodyInliningResult::Failed();
   }
 
   if (wasm::is_asmjs_module(module)) {
     TRACE("- not inlining: asm.js-in-JS inlining is not supported");
-    return V<Any>::Invalid();
+    return WasmBodyInliningResult::Failed();
   }
 
   if (func_idx < module->num_imported_functions) {
     TRACE("- not inlining: call to an imported function");
-    return V<Any>::Invalid();
+    return WasmBodyInliningResult::Failed();
   }
   DCHECK_LT(func_idx - module->num_imported_functions,
             module->num_declared_functions);
@@ -1352,7 +1387,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   bool is_shared = module->type(func.sig_index).is_shared;
   if (is_shared) {
     TRACE("- not inlining: shared everything is not supported");
-    return V<Any>::Invalid();
+    return WasmBodyInliningResult::Failed();
   }
 
   base::Vector<const uint8_t> module_bytes = native_module->wire_bytes();
@@ -1372,7 +1407,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
                              env.module, &detected, func_body)
             .failed()) {
       TRACE("- not inlining: validation failed");
-      return V<Any>::Invalid();
+      return WasmBodyInliningResult::Failed();
     }
     env.module->set_function_validated(func_idx);
   }
@@ -1404,10 +1439,12 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
 
   // The function was already validated, so decoding can only fail if we bailed
   // out due to an unsupported instruction.
+  DCHECK_EQ(can_inline_decoder.ok(),
+            can_inline_decoder.interface().Result().IsSuccess());
   if (!can_inline_decoder.ok()) {
     TRACE("- not inlining: " << can_inline_decoder.error().message());
     __ Bind(inlinee_body_and_rest);
-    return V<Any>::Invalid();
+    return WasmBodyInliningResult::Failed();
   }
 
   // Second pass: Actually emit the inlinee instructions now.
@@ -1417,7 +1454,7 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
                            arguments_without_instance, trusted_instance_data);
   emitting_decoder.Decode();
   DCHECK(emitting_decoder.ok());
-  DCHECK(emitting_decoder.interface().Result().valid());
+  DCHECK(emitting_decoder.interface().Result().IsSuccess());
   TRACE("- inlining");
   return emitting_decoder.interface().Result();
 }
