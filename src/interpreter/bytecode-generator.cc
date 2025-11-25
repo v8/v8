@@ -1566,7 +1566,7 @@ template DirectHandle<TrustedByteArray>
 BytecodeGenerator::FinalizeSourcePositionTable(LocalIsolate* isolate);
 
 #ifdef DEBUG
-int BytecodeGenerator::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
+int BytecodeGenerator::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
   return builder()->CheckBytecodeMatches(bytecode);
 }
 #endif
@@ -2827,9 +2827,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
         feedback_index(feedback_spec()->AddBinaryOpICSlot()));
 
     builder()->StoreAccumulatorInRegister(r2);
-    builder()->CompareOperation(
-        Token::kEqStrict, r1,
-        feedback_index(feedback_spec()->AddCompareICSlot()));
+    builder()->CompareOperation(Token::kEqStrict, r1, kFeedbackIsEmbedded);
 
     switch_builder.JumpToFallThroughIfFalse();
     builder()->LoadAccumulatorWithRegister(r2);
@@ -2853,9 +2851,6 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
   if (use_jumps) {
     Register tag_holder = register_allocator()->NewRegister();
-    FeedbackSlot slot = clauses->length() > 0
-                            ? feedback_spec()->AddCompareICSlot()
-                            : FeedbackSlot::Invalid();
     builder()->StoreAccumulatorInRegister(tag_holder);
 
     {
@@ -2874,7 +2869,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
           // Perform label comparison as if via '===' with tag.
           VisitForAccumulatorValue(clause->label());
           builder()->CompareOperation(Token::kEqStrict, tag_holder,
-                                      feedback_index(slot));
+                                      kFeedbackIsEmbedded);
 #ifdef DEBUG
           case_ctr_checker[i] = case_compare_ctr;
 #endif
@@ -3677,11 +3672,10 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
           // case where we need to check for an own read only property we
           // special case this so we do not need to do this for every property.
 
-          FeedbackSlot slot = GetDummyCompareICSlot();
           BytecodeLabel done;
           builder()
               ->LoadLiteral(ast_string_constants()->prototype_string())
-              .CompareOperation(Token::kEqStrict, key, feedback_index(slot))
+              .CompareOperation(Token::kEqStrict, key, kFeedbackIsEmbedded)
               .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done)
               .CallRuntime(Runtime::kThrowStaticPrototypeError)
               .Bind(&done);
@@ -7765,10 +7759,13 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       slot = feedback_spec()->AddKeyedHasICSlot();
     } else if (expr->op() == Token::kInstanceOf) {
       slot = feedback_spec()->AddInstanceOfSlot();
+    } else if (expr->op() == Token::kEqStrict) {
     } else {
       slot = feedback_spec()->AddCompareICSlot();
     }
-    builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
+    builder()->CompareOperation(
+        expr->op(), lhs,
+        slot.IsInvalid() ? kFeedbackIsEmbedded : feedback_index(slot));
   }
   // Always returns a boolean value.
   execution_result()->SetResultIsBoolean();

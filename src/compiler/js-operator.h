@@ -46,8 +46,11 @@ struct JSOperatorGlobalCache;
 #define JS_BINOP_WITH_FEEDBACK(V) \
   JS_ARITH_BINOP_LIST(V)          \
   JS_BITWISE_BINOP_LIST(V)        \
-  JS_COMPARE_BINOP_LIST(V)        \
+  JS_COMPARE_BINOP_COMMON_LIST(V) \
   V(JSInstanceOf, InstanceOf)
+
+#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) \
+  JS_COMPARE_BINOP_WITH_EMBEDDED_FEEDBACK_LIST(V)
 
 // Predicates.
 class JSOperator final : public AllStatic {
@@ -70,6 +73,19 @@ class JSOperator final : public AllStatic {
     return true;
     switch (opcode) {
       JS_BINOP_WITH_FEEDBACK(CASE);
+      JS_BINOP_WITH_EMBEDDED_FEEDBACK(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+  }
+
+  static constexpr bool IsBinaryWithEmbeddedFeedback(Operator::Opcode opcode) {
+#define CASE(Name, ...)   \
+  case IrOpcode::k##Name: \
+    return true;
+    switch (opcode) {
+      JS_BINOP_WITH_EMBEDDED_FEEDBACK(CASE);
       default:
         return false;
     }
@@ -440,6 +456,27 @@ size_t hash_value(FeedbackParameter const&);
 std::ostream& operator<<(std::ostream&, FeedbackParameter const&);
 
 const FeedbackParameter& FeedbackParameterOf(const Operator* op);
+
+class EmbeddedHintParameter final {
+ public:
+  using EmbeddedHint = std::variant<CompareOperationHint>;
+  explicit EmbeddedHintParameter(const CompareOperationHint hint)
+      : hint_(hint) {}
+
+  const EmbeddedHint& hint() const { return hint_; }
+
+ private:
+  const EmbeddedHint hint_;
+};
+
+bool operator==(EmbeddedHintParameter const&, EmbeddedHintParameter const&);
+bool operator!=(EmbeddedHintParameter const&, EmbeddedHintParameter const&);
+
+size_t hash_value(EmbeddedHintParameter const&);
+
+std::ostream& operator<<(std::ostream&, EmbeddedHintParameter const&);
+
+const EmbeddedHintParameter& EmbeddedHintParameterOf(const Operator* op);
 
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSSetNamedProperty operators.
@@ -923,6 +960,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* Equal(FeedbackSource const& feedback);
   const Operator* StrictEqual(FeedbackSource const& feedback);
+  const Operator* StrictEqual(const CompareOperationHint feedback);
   const Operator* LessThan(FeedbackSource const& feedback);
   const Operator* GreaterThan(FeedbackSource const& feedback);
   const Operator* LessThanOrEqual(FeedbackSource const& feedback);
@@ -1218,8 +1256,30 @@ class JSBinaryOpNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
+class JSBinaryOpWithEmbeddedFeedbackNode final : JSNodeWrapperBase {
+ public:
+  explicit constexpr JSBinaryOpWithEmbeddedFeedbackNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    DCHECK(JSOperator::IsBinaryWithEmbeddedFeedback(node->opcode()));
+  }
+
+  const EmbeddedHintParameter& Parameters() const {
+    return EmbeddedHintParameterOf(node()->op());
+  }
+
+#define INPUTS(V)          \
+  V(Left, left, 0, Object) \
+  V(Right, right, 1, Object)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
 #define V(JSName, ...) using JSName##Node = JSBinaryOpNode;
 JS_BINOP_WITH_FEEDBACK(V)
+#undef V
+
+#define V(JSName, ...) using JSName##Node = JSBinaryOpWithEmbeddedFeedbackNode;
+JS_BINOP_WITH_EMBEDDED_FEEDBACK(V)
 #undef V
 
 class JSGetIteratorNode final : public JSNodeWrapperBase {

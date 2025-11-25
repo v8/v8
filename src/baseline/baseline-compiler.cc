@@ -1658,8 +1658,12 @@ void BaselineCompiler::VisitTestEqual() {
 }
 
 void BaselineCompiler::VisitTestEqualStrict() {
-  CallBuiltin<Builtin::kStrictEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(/*operand_index=*/1);
+
+  CallBuiltin<Builtin::kStrictEqual_Baseline>(RegisterOperand(0),
+                                              kInterpreterAccumulatorRegister,
+                                              feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestLessThan() {

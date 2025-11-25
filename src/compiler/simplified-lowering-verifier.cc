@@ -622,6 +622,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       MACHINE_ATOMIC_OP_LIST(CASE)
       CASE(AbortCSADcheck)
       CASE(DebugBreak)
+      IF_HARDWARE_SANDBOX(CASE, SwitchSandboxMode)
       CASE(Comment)
       CASE(Load)
       CASE(LoadImmutable)

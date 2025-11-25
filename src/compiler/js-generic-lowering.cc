@@ -185,7 +185,6 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
   DCHECK_EQ(node->op()->ControlInputCount(), 1);
   node->RemoveInput(NodeProperties::FirstControlIndex(node));
-  node->RemoveInput(JSStrictEqualNode::FeedbackVectorIndex());
 
   Callable callable = Builtins::CallableFor(isolate(), Builtin::kStrictEqual);
   ReplaceWithBuiltinCall(node, callable, CallDescriptor::kNoFlags,

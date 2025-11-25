@@ -2773,6 +2773,12 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableMemoryBarrier(memory_order);
   }
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  OpIndex SwitchSandboxMode(CodeSandboxingMode sandbox_mode) {
+    return ReduceIfReachableSwitchSandboxMode(sandbox_mode);
+  }
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   OpIndex Pause() { return ReduceIfReachablePause(); }
 
   OpIndex Load(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,

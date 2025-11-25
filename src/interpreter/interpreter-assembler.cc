@@ -144,6 +144,17 @@ TNode<BytecodeArray> InterpreterAssembler::BytecodeArrayTaggedPointer() {
   return bytecode_array_.value();
 }
 
+void InterpreterAssembler::UpdateEmbeddedFeedback(TNode<Smi> feedback,
+                                                  int feedback_operand_index) {
+#ifndef V8_JITLESS
+  TNode<IntPtrT> feedback_value_offset =
+      BytecodeOperandOffset(feedback_operand_index);
+  CodeStubAssembler::UpdateEmbeddedFeedback(SmiToInt32(feedback),
+                                            BytecodeArrayTaggedPointer(),
+                                            feedback_value_offset);
+#endif  // V8_JITLESS
+}
+
 TNode<ExternalReference> InterpreterAssembler::DispatchTablePointer() {
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
       (dispatch_table_.value() ==
@@ -679,6 +690,10 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandIntrinsicId(
       Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
   DCHECK_EQ(operand_size, OperandSize::kByte);
   return BytecodeUnsignedOperand(operand_index, operand_size);
+}
+
+TNode<IntPtrT> InterpreterAssembler::BytecodeOperandOffset(int operand_index) {
+  return IntPtrAdd(BytecodeOffset(), OperandOffset(operand_index));
 }
 
 TNode<Object> InterpreterAssembler::LoadConstantPoolEntry(TNode<WordT> index) {
