@@ -7188,7 +7188,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
 }
 
 ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
-  DCHECK(NodeTypeIs(GetType(string), NodeType::kString));
+  NodeType node_type = GetType(string);
+  if (node_type == NodeType::kNone) {
+    return BuildAbort(AbortReason::kUnreachable);
+  }
+  DCHECK(NodeTypeIs(node_type, NodeType::kString));
   if (auto vo_string = string->TryCast<InlinedAllocation>()) {
     VirtualObject* vobj = vo_string->object();
     if (vobj->object_type() == vobj::ObjectType::kConsString) {
