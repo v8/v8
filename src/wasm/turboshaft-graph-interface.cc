@@ -2662,6 +2662,18 @@ class TurboshaftGraphBuildingInterface
           if (!InlineTargetIsTypeCompatible(
                   decoder->module_, imm.sig,
                   decoder->module_->functions[inlined_index].sig)) {
+            if (v8_flags.trace_wasm_inlining ||
+                (v8_flags.trace_wasm_compilation_hints &&
+                 InliningTargetsProvidedByCustomSection())) {
+              PrintF(
+                  "[function %d%s: Will not inline function %d: "
+                  "wrong signature.%s]\n",
+                  func_index_, mode_ == kRegular ? "" : " (inlined)",
+                  inlined_index,
+                  InliningTargetsProvidedByCustomSection()
+                      ? " Maybe a faulty compilation hint?"
+                      : "");
+            }
             __ Goto(case_blocks[i + 1]);
             continue;
           }
@@ -2815,6 +2827,18 @@ class TurboshaftGraphBuildingInterface
           if (!InlineTargetIsTypeCompatible(
                   decoder->module_, imm.sig,
                   decoder->module_->functions[inlined_index].sig)) {
+            if (v8_flags.trace_wasm_inlining ||
+                (v8_flags.trace_wasm_compilation_hints &&
+                 InliningTargetsProvidedByCustomSection())) {
+              PrintF(
+                  "[function %d%s: Will not inline function %d: "
+                  "wrong signature.%s]\n",
+                  func_index_, mode_ == kRegular ? "" : " (inlined)",
+                  inlined_index,
+                  InliningTargetsProvidedByCustomSection()
+                      ? " Maybe a faulty compilation hint?"
+                      : "");
+            }
             __ Goto(case_blocks[i + 1]);
             continue;
           }
@@ -2907,7 +2931,8 @@ class TurboshaftGraphBuildingInterface
               decoder->module_->functions[inlined_index];
           if (!InlineTargetIsTypeCompatible(decoder->module_, sig,
                                             inlinee.sig)) {
-            if (v8_flags.trace_wasm_inlining) {
+            if (v8_flags.trace_wasm_inlining ||
+                v8_flags.trace_wasm_compilation_hints) {
               PrintF(
                   "[function %d%s: Ignoring inlining hint to function %d: "
                   "wrong signature]\n",
@@ -3052,7 +3077,8 @@ class TurboshaftGraphBuildingInterface
               decoder->module_->functions[inlined_index];
           if (!InlineTargetIsTypeCompatible(decoder->module_, sig,
                                             inlinee.sig)) {
-            if (v8_flags.trace_wasm_inlining) {
+            if (v8_flags.trace_wasm_inlining ||
+                v8_flags.trace_wasm_compilation_hints) {
               PrintF(
                   "[function %d%s: Ignoring inlining hint to function %d: "
                   "wrong signature]\n",

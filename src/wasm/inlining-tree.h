@@ -313,6 +313,9 @@ void InliningTree::Inline() {
         case kExprCallRef:
         case kExprReturnCallRef: {
           if (call_targets == nullptr) {
+            if (v8_flags.trace_wasm_compilation_hints) {
+              PrintF("(no call targets, skipping instruction frequencies) ");
+            }
             break;  // No call targets, do not inline.
           }
           // Find the call targets vector that corresponds to this offset.
@@ -320,11 +323,23 @@ void InliningTree::Inline() {
           // offset.
           while (call_targets_index < call_targets->size() &&
                  (*call_targets)[call_targets_index].first < offset) {
+            if (v8_flags.trace_wasm_compilation_hints) {
+              PrintF(
+                  "(no instruction frequencies or direct call at offset %d, "
+                  "skipping call targets) ",
+                  offset);
+            }
             call_targets_index++;
           }
           // Did not find call targets.
           if (call_targets_index >= call_targets->size() ||
               (*call_targets)[call_targets_index].first != offset) {
+            if (v8_flags.trace_wasm_compilation_hints) {
+              PrintF(
+                  "(no call targets at offset %d, skipping instruction "
+                  "frequencies) ",
+                  offset);
+            }
             break;
           }
           call_targets_for_call_site =
@@ -332,6 +347,12 @@ void InliningTree::Inline() {
           break;
         }
         default:
+          if (v8_flags.trace_wasm_compilation_hints) {
+            PrintF(
+                "(hint at offset %d does not map to a call instruction, "
+                "ignoring) ",
+                offset);
+          }
           break;
       }
 

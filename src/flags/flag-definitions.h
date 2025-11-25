@@ -2289,6 +2289,8 @@ DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_jitless)
 // it introduces.
 DEFINE_IMPLICATION(wasm_code_coverage, wasm_opt)
 
+DEFINE_BOOL(trace_wasm_compilation_hints, false,
+            "trace compilation hints parsing and usage errors")
 DEFINE_BOOL(wasm_generate_compilation_hints, false,
             "enable emitting compilation-hints sections for Wasm to a file")
 // Feedback collection is guarded by the --wasm-inlining flag.

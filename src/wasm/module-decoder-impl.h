@@ -1876,9 +1876,10 @@ class ModuleDecoderImpl : public Decoder {
       // module.
       if (inner.ok()) {
         module_->compilation_priorities = std::move(compilation_priorities);
-      } else {
-        TRACE("DecodeCompilationPriority error: %s",
-              inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeCompilationPriority error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole compilation priority section in the outer decoder.
@@ -1950,9 +1951,10 @@ class ModuleDecoderImpl : public Decoder {
       // module.
       if (inner.ok()) {
         module_->instruction_frequencies = std::move(frequencies);
-      } else {
-        TRACE("DecodeInstructionFrequencies error: %s",
-              inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeInstructionFrequencies error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole instruction frequencies section in the outer decoder.
@@ -2055,8 +2057,10 @@ class ModuleDecoderImpl : public Decoder {
       // If everything went well, accept the call-target hints for the module.
       if (inner.ok()) {
         module_->call_targets = std::move(call_targets);
-      } else {
-        TRACE("DecodeCallTargets error: %s", inner.error().message().c_str());
+      } else if (v8_flags.trace_wasm_decoder ||
+                 v8_flags.trace_wasm_compilation_hints) {
+        PrintF("DecodeCallTargets error, offset %d: %s\n",
+               inner.error().offset(), inner.error().message().c_str());
       }
     }
     // Skip the whole call-targets section in the outer decoder.
