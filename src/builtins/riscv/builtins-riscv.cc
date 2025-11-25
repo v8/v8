@@ -4034,11 +4034,14 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   DEFINE_PINNED(target_stack, WasmFXResumeDescriptor::GetRegisterParameter(0));
+  DEFINE_PINNED(arg_buffer, WasmFXResumeDescriptor::GetRegisterParameter(1))
   Label suspend;
   DEFINE_REG(scratch);
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, scratch, {target_stack});
+               target_stack, &suspend, no_reg, scratch,
+               {target_stack, arg_buffer});
   // kSimulatorBreakArgument is t6
+  DCHECK(!AreAliased(scratch, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, scratch);
   __ Trap();
   __ bind(&suspend);
@@ -4052,8 +4055,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   DEFINE_REG(scratch);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
-  __ Push(cont, kContextRegister);
+  __ Push(arg_buffer, cont, kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ PrepareCallCFunction(6, scratch);
@@ -4068,7 +4072,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   Register target_stack = kReturnRegister1;
   __ Move(target_stack, kReturnRegister0);
   cont = kReturnRegister0;
-  __ Pop(cont, kContextRegister);
+  __ Pop(arg_buffer, cont, kContextRegister);
 
   Label ok;
   __ Branch(&ok, ne, target_stack, Operand(zero_reg));
@@ -4077,9 +4081,11 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
+  DCHECK(!AreAliased(scratch, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, scratch);
   __ Trap();
   __ bind(&resume);
+  __ mv(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Ret();
 }
