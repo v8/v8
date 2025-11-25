@@ -2611,10 +2611,6 @@ DEFINE_BOOL(
 DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, true,
             "reclaim wrapper objects in parallel")
 
-// These flags will be removed after experiments. Do not rely on them.
-DEFINE_BOOL(gc_experiment_less_compaction, false,
-            "less compaction in non-memory reducing mode")
-
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 8000,
            "Delay before memory reducer start")
 
