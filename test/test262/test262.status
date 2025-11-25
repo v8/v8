@@ -1126,20 +1126,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'intl402/Collator/prototype/resolvedOptions/resolved-case-first-unicode-extensions-and-options': [SKIP],
-  'intl402/Collator/prototype/resolvedOptions/resolved-collation-unicode-extensions-and-options': [SKIP],
-  'intl402/Collator/prototype/resolvedOptions/resolved-numeric-unicode-extensions-and-options': [SKIP],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-calendar-unicode-extensions-and-options': [SKIP],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/DurationFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/NumberFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/RelativeTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-}],
-# End roll-watcher patch
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'language/expressions/assignmenttargettype/direct-callexpression': [SKIP],
   'language/expressions/assignmenttargettype/direct-callexpression-as-for-in-lhs': [SKIP],
   'language/expressions/assignmenttargettype/direct-callexpression-as-for-of-lhs': [SKIP],

@@ -2663,7 +2663,8 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   if (maybe_calendar.FromJust()) {
     auto ca_extension_it = r.extensions.find("ca");
     if (ca_extension_it != r.extensions.end() &&
-        ca_extension_it->second != calendar_stdstr) {
+        ca_extension_it->second != calendar_stdstr &&
+        Intl::IsValidCalendar(icu_locale, calendar_stdstr)) {
       icu_locale.setUnicodeKeywordValue("ca", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -2671,7 +2672,8 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   if (maybe_numberingSystem.FromJust()) {
     auto nu_extension_it = r.extensions.find("nu");
     if (nu_extension_it != r.extensions.end() &&
-        nu_extension_it->second != numbering_system_str) {
+        nu_extension_it->second != numbering_system_str &&
+        Intl::IsValidNumberingSystem(numbering_system_str)) {
       icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
