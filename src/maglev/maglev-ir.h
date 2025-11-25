@@ -5760,9 +5760,11 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   constexpr bool has_static_map() const {
     return object_type() != vobj::ObjectType::kConsString;
   }
-  compiler::MapRef map() const {
-    DCHECK(has_static_map());
-    return *map_;
+  compiler::OptionalMapRef map() const {
+    // Unlike map_from_slot(), this returns a map for everything else except
+    // cons strings.
+    DCHECK_EQ(has_static_map(), map_.has_value());
+    return map_;
   }
   compiler::MapRef map_from_slot(compiler::JSHeapBroker* broker) const;
   compiler::OptionalMapRef TryGetMapFromSlot(
@@ -6288,7 +6290,8 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
     if (obj->object_type() == vobj::ObjectType::kConsString) {
       return NodeType::kString;
     }
-    return StaticTypeForMap(obj->map(), broker);
+    DCHECK(obj->has_static_map());
+    return StaticTypeForMap(*obj->map(), broker);
   }
 
   size_t size() const { return object_->size(); }

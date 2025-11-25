@@ -8163,13 +8163,17 @@ void AllocationBlock::PrintParams(std::ostream& os) const {
 void InlinedAllocation::PrintParams(std::ostream& os) const {
   os << "(object";
   if (object()->has_static_map()) {
-    os << " " << *object()->map().object();
+    os << " " << *object()->map()->object();
   }
   os << ")";
 }
 
 void VirtualObject::PrintParams(std::ostream& os) const {
-  os << "(" << *map().object() << ")";
+  os << "(";
+  if (has_static_map()) {
+    os << *map()->object();
+  }
+  os << ")";
 }
 
 void Abort::PrintParams(std::ostream& os) const {

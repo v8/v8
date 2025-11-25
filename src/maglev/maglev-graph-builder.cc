@@ -4772,7 +4772,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadFixedArrayElement(ValueNode* elements,
   if (CanTrackObjectChanges(elements, TrackObjectMode::kLoad)) {
     VirtualObject* vobject =
         GetObjectFromAllocation(elements->Cast<InlinedAllocation>());
-    DCHECK(vobject->map().IsFixedArrayMap());
+    DCHECK(vobject->map()->IsFixedArrayMap());
     ValueNode* length_node = vobject->get(offsetof(FixedArray, length_));
     if (auto length = TryGetInt32Constant(length_node)) {
       if (index >= 0 && index < length.value()) {
@@ -6209,7 +6209,7 @@ std::optional<int32_t> MaglevGraphBuilder::CanElideBoundCheckAndResizing(
   if (!elements_array->Is<InlinedAllocation>()) return {};
   VirtualObject* vobj = elements_array->Cast<InlinedAllocation>()->object();
 
-  if (!vobj->map().IsJSArrayMap()) return {};
+  if (!vobj->map() || !vobj->map()->IsJSArrayMap()) return {};
 
   SmiConstant* array_length =
       vobj->get(JSArray::kLengthOffset)->TryCast<SmiConstant>();
@@ -9007,7 +9007,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
 
   if (!receiver->Is<InlinedAllocation>()) return {};
   VirtualObject* iterator = receiver->Cast<InlinedAllocation>()->object();
-  if (!iterator->map().IsJSArrayIteratorMap()) {
+  if (!iterator->map() || !iterator->map()->IsJSArrayIteratorMap()) {
     FAIL("iterator is not a JS array iterator object");
   }
 
@@ -9027,7 +9027,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
     if (IsInsideLoop()) {
       FAIL("we're inside a loop, iterated object map could change");
     }
-    auto map = array->map();
+    auto map = *array->map();
     if (!map.supports_fast_array_iteration(broker())) {
       FAIL("no fast array iteration support");
     }
@@ -11965,8 +11965,8 @@ ReduceResult MaglevGraphBuilder::ReduceCallWithArrayLikeForArgumentsObject(
     VirtualObject* arguments_object,
     const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kWithArrayLike);
-  DCHECK(arguments_object->map().IsJSArgumentsObjectMap() ||
-         arguments_object->map().IsJSArrayMap());
+  DCHECK(arguments_object->map()->IsJSArgumentsObjectMap() ||
+         arguments_object->map()->IsJSArrayMap());
   args.PopArrayLikeArgument();
   ValueNode* elements_value =
       arguments_object->get(JSArgumentsObject::kElementsOffset);
@@ -12027,8 +12027,8 @@ MaglevGraphBuilder::TryReduceConstructWithSpreadForArgumentsObject(
     VirtualObject* arguments_object,
     const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kWithSpread);
-  DCHECK(arguments_object->map().IsJSArgumentsObjectMap() ||
-         arguments_object->map().IsJSArrayMap());
+  DCHECK(arguments_object->map()->IsJSArgumentsObjectMap() ||
+         arguments_object->map()->IsJSArrayMap());
 
   ValueNode* elements_value =
       arguments_object->get(JSArgumentsObject::kElementsOffset);
@@ -12078,7 +12078,7 @@ MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
   VirtualObject* object = alloc->object();
   if (!object->has_static_map()) return {};
   // TODO(victorgomes): Support simple JSArray forwarding.
-  compiler::MapRef map = object->map();
+  compiler::MapRef map = *object->map();
   // It is a rest parameter, if it is an array with ArgumentsElements node as
   // the elements array.
   if (map.IsJSArrayMap() && object->get(JSArgumentsObject::kElementsOffset)
@@ -14281,7 +14281,7 @@ VirtualObject* MaglevGraphBuilder::CreateArgumentsObject(
   if (callee.has_value()) {
     vobj->set(JSSloppyArgumentsObject::kCalleeOffset, callee.value());
   }
-  DCHECK(vobj->map().IsJSArgumentsObjectMap() || vobj->map().IsJSArrayMap());
+  DCHECK(vobj->map()->IsJSArgumentsObjectMap() || vobj->map()->IsJSArrayMap());
   return vobj;
 }
 
@@ -15567,9 +15567,9 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
       }
     } else if (auto alloc = node->TryCast<InlinedAllocation>()) {
       if (alloc->object()->has_static_map()) {
-        if (alloc->object()->map().IsJSReceiverMap()) {
+        if (alloc->object()->map()->IsJSReceiverMap()) {
           known_to_boolean_value = true;
-          direction_is_true = !alloc->object()->map().is_undetectable();
+          direction_is_true = !alloc->object()->map()->is_undetectable();
         }
       }
     }
