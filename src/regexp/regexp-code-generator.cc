@@ -32,6 +32,7 @@ RegExpCodeGenerator::RegExpCodeGenerator(
       iter_(bytecode_),
       labels_(zone_.AllocateArray<Label>(bytecode_->length())),
       jump_targets_(bytecode_->length(), &zone_),
+      indirect_jump_targets_(bytecode_->length(), &zone_),
       has_unsupported_bytecode_(false) {}
 
 RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
@@ -551,6 +552,10 @@ void RegExpCodeGenerator::PreVisitBytecodes() {
       uint32_t offset = Operands::template Get<operand>(pc, no_gc);
       if (!jump_targets_.Contains(offset)) {
         jump_targets_.Add(offset);
+        if constexpr (bc == RegExpBytecode::kPushBacktrack) {
+          DCHECK(!indirect_jump_targets_.Contains(offset));
+          indirect_jump_targets_.Add(offset);
+        }
         Label* label = &labels_[offset];
         new (label) Label();
       }
@@ -563,7 +568,11 @@ void RegExpCodeGenerator::PreVisitBytecodes() {
 void RegExpCodeGenerator::VisitBytecodes() {
   for (; !iter_.done() && !has_unsupported_bytecode_; iter_.advance()) {
     if (jump_targets_.Contains(iter_.current_offset())) {
-      __ BindJumpTarget(&labels_[iter_.current_offset()]);
+      if (indirect_jump_targets_.Contains(iter_.current_offset())) {
+        __ BindJumpTarget(&labels_[iter_.current_offset()]);
+      } else {
+        __ Bind(&labels_[iter_.current_offset()]);
+      }
     }
     RegExpBytecodes::DispatchOnBytecode(
         iter_.current_bytecode(), [this]<RegExpBytecode bc>() { Visit<bc>(); });
