@@ -788,7 +788,7 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
 
       LookupIterator::State it_state = it.state();
       if (it_state != LookupIterator::NOT_FOUND &&
-          (it.state() != LookupIterator::DATA || it.IsReadOnly())) {
+          (it_state != LookupIterator::DATA || it.IsReadOnly())) {
         RETURN_RESULT_OR_FAILURE(
             isolate, SetPrototypePropertiesSlow(
                          isolate, context, obj, object_boilerplate_description,
@@ -797,13 +797,15 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
       DCHECK(!IsTheHole(*value));
       value = InstantiateIfSharedFunctionInfo(
           context, isolate, value, feedback_cell_array, current_slot);
-      DirectHandle<String> name = Cast<String>(key);
-      Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-      PropertyAttributes attr = maybe.ToChecked();
-      if (attr == ABSENT) attr = NONE;
 
-      JSObject::SetOwnPropertyIgnoreAttributes(js_proto, name, value, attr)
-          .Check();
+      if (it_state == LookupIterator::DATA &&
+          it.HolderIsReceiverOrHiddenPrototype()) {
+        Object::SetDataProperty(&it, value).Check();
+      } else {
+        Object::TransitionAndWriteDataProperty(
+            &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed)
+            .Check();
+      }
 
       result = value;
     }
