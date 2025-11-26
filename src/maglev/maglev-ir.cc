@@ -4923,7 +4923,7 @@ void GeneratorStore::GenerateCode(MaglevAssembler* masm,
   __ StoreTaggedFieldWithWriteBarrier(
       generator, JSGeneratorObject::kContextOffset, context,
       register_snapshot(),
-      GeneratorInput().node()->decompresses_tagged_result()
+      ContextInput().node()->decompresses_tagged_result()
           ? MaglevAssembler::kValueIsDecompressed
           : MaglevAssembler::kValueIsCompressed,
       MaglevAssembler::kValueCannotBeSmi);
