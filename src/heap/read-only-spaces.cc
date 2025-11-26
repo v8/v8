@@ -251,16 +251,8 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
       const int obj_size = obj->Size();
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
-      if (IsAnyHole(obj) || !IsFreeSpaceOrFiller(obj)) {
-#ifdef V8_ENABLE_WEBASSEMBLY
-        // WasmNull is extra special because it also reserves (unmapped) padding
-        // for the hole roots.
-        if (IsAnyHole(obj) || !IsWasmNull(obj)) {
-          DCHECK_VALID_REGULAR_OBJECT_SIZE(obj_size);
-        }
-#else
+      if (!IsFreeSpaceOrFiller(obj)) {
         DCHECK_VALID_REGULAR_OBJECT_SIZE(obj_size);
-#endif  // V8_ENABLE_WEBASSEMBLY
         return obj;
       }
     }
@@ -321,7 +313,7 @@ void ReadOnlySpace::VerifyCounters(Heap* heap) const {
     size_t real_allocated = 0;
     for (Tagged<HeapObject> object = it.Next(); !object.is_null();
          object = it.Next()) {
-      if (IsAnyHole(object) || !IsFreeSpaceOrFiller(object)) {
+      if (!IsFreeSpaceOrFiller(object)) {
         real_allocated += object->Size();
       }
     }

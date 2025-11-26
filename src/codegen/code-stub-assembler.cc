@@ -2271,8 +2271,6 @@ TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(TNode<HeapObject> object) {
-  // TODO(leszeks): Enable
-  // CSA_DCHECK(this, IsNotAnyHole(object), object);
   TNode<Map> map = LoadObjectField<Map>(object, HeapObject::kMapOffset);
 #ifdef V8_MAP_PACKING
   // Check the loaded map is unpacked. i.e. the lowest two bits != 0b10
@@ -7795,10 +7793,9 @@ TNode<Union<TheHole, JSMessageObject>> CodeStubAssembler::GetPendingMessage() {
 }
 void CodeStubAssembler::SetPendingMessage(
     TNode<Union<TheHole, JSMessageObject>> message) {
-  CSA_DCHECK(this, LogicalOr(IsTheHole(message), [&] {
-               return InstanceTypeEqual(LoadInstanceType(message),
-                                        JS_MESSAGE_OBJECT_TYPE);
-             }));
+  CSA_DCHECK(this, Word32Or(IsTheHole(message),
+                            InstanceTypeEqual(LoadInstanceType(message),
+                                              JS_MESSAGE_OBJECT_TYPE)));
   TNode<ExternalReference> pending_message = ExternalConstant(
       ExternalReference::address_of_pending_message(isolate()));
   StoreFullTaggedNoWriteBarrier(pending_message, message);
@@ -10810,15 +10807,10 @@ TNode<UintPtrT> CodeStubAssembler::UintPtrMin(TNode<UintPtrT> left,
                                   right);
 }
 
-TNode<BoolT> CodeStubAssembler::LogicalOr(
-    TNode<BoolT> lhs, base::FunctionRef<TNode<BoolT>()> rhs) {
-  return Select<BoolT>(lhs, [&] { return Int32TrueConstant(); }, rhs);
-}
-
 template <>
 TNode<HeapObject> CodeStubAssembler::LoadName<NameDictionary>(
     TNode<HeapObject> key) {
-  CSA_DCHECK(this, LogicalOr(IsTheHole(key), [&] { return IsName(key); }));
+  CSA_DCHECK(this, Word32Or(IsTheHole(key), IsName(key)));
   return key;
 }
 

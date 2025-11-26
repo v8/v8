@@ -477,7 +477,6 @@ macro StoreScriptContextElementImpl(
 
 macro LoadContextElementImpl(c: Context, i: intptr): Object {
   const val = c.elements[i];
-  if (val == TheHole) return val;
   const cell = Cast<ContextCell>(val) otherwise return val;
   dcheck(HasContextCells(c));
   dcheck(kContextCellConst == 0);

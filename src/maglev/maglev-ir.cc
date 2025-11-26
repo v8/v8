@@ -2743,7 +2743,6 @@ void LoadContextSlot::GenerateCode(MaglevAssembler* masm,
 
   // Check if an ContextCell
   __ JumpIfSmi(value, *done);
-  __ JumpIfRoot(value, RootIndex::kTheHoleValue, *done);
   __ CompareMapWithRoot(value, RootIndex::kContextCellMap, scratch);
   __ JumpToDeferredIf(
       kEqual,
@@ -3733,7 +3732,6 @@ void StoreContextSlotWithWriteBarrier::GenerateCode(
   __ LoadTaggedField(old_value, context, offset());
 
   __ JumpIfSmi(old_value, *do_normal_store);
-  __ JumpIfRoot(old_value, RootIndex::kTheHoleValue, *do_normal_store);
   __ CompareMapWithRoot(old_value, RootIndex::kContextCellMap, scratch);
   __ JumpToDeferredIf(
       kEqual,

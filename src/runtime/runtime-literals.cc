@@ -121,7 +121,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
             copy->map(isolate), details.field_index(),
             details.representation());
         Tagged<Object> raw = copy->RawFastPropertyAt(isolate, index);
-        if (IsUninitializedHole(raw)) continue;
         if (IsJSObject(raw, isolate)) {
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -139,7 +138,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
             copy->property_dictionary_swiss(isolate), isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> raw = dict->ValueAt(i);
-          if (IsUninitializedHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
@@ -152,7 +150,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                                           isolate);
         for (InternalIndex i : dict->IterateEntries()) {
           Tagged<Object> raw = dict->ValueAt(isolate, i);
-          if (IsUninitializedHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           DCHECK(IsName(dict->KeyAt(isolate, i)));
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
@@ -183,13 +180,12 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
-          DCHECK(IsTheHole(elements->get(i)) || !IsJSObject(elements->get(i)));
+          DCHECK(!IsJSObject(elements->get(i)));
         }
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
           Tagged<Object> raw = elements->get(i);
-          if (IsTheHole(raw)) continue;
           if (!IsJSObject(raw, isolate)) continue;
           Handle<JSObject> value(Cast<JSObject>(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -204,7 +200,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           copy->element_dictionary(isolate), isolate);
       for (InternalIndex i : element_dictionary->IterateEntries()) {
         Tagged<Object> raw = element_dictionary->ValueAt(isolate, i);
-        if (IsTheHole(raw)) continue;
         if (!IsJSObject(raw, isolate)) continue;
         Handle<JSObject> value(Cast<JSObject>(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -417,7 +412,7 @@ Handle<JSObject> CreateObjectLiteral(
                              isolate);
     Handle<Object> value(object_boilerplate_description->value(index), isolate);
 
-    if (IsHeapObject(*value) && !IsUninitializedHole(*value, isolate)) {
+    if (IsHeapObject(*value)) {
       if (IsArrayBoilerplateDescription(Cast<HeapObject>(*value), isolate)) {
         auto array_boilerplate = Cast<ArrayBoilerplateDescription>(value);
         value = CreateArrayLiteral(isolate, array_boilerplate, allocation);
@@ -433,9 +428,6 @@ Handle<JSObject> CreateObjectLiteral(
     uint32_t element_index = 0;
     if (Object::ToArrayIndex(*key, &element_index)) {
       // Array index (uint32).
-      if (IsUninitializedHole(*value, isolate)) {
-        value = handle(Smi::zero(), isolate);
-      }
       JSObject::SetOwnElementIgnoreAttributes(boilerplate, element_index, value,
                                               NONE)
           .Check();
@@ -473,8 +465,7 @@ Handle<JSObject> CreateArrayLiteral(
       if (DEBUG_BOOL) {
         auto fixed_array_values = Cast<FixedArray>(copied_elements_values);
         for (int i = 0; i < fixed_array_values->length(); i++) {
-          DCHECK_IMPLIES(!IsAnyHole(fixed_array_values->get(i)),
-                         !IsFixedArray(fixed_array_values->get(i)));
+          DCHECK(!IsFixedArray(fixed_array_values->get(i)));
         }
       }
     } else {

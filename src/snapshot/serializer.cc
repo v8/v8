@@ -159,10 +159,7 @@ void Serializer::SerializeDeferredObjects() {
 }
 
 void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
-  if (SafeIsAnyHole(*obj)) {
-    CHECK(SerializeRoot(*obj));
-    return;
-  } else if (IsThinString(*obj, isolate())) {
+  if (IsThinString(*obj, isolate())) {
     // ThinStrings are just an indirection to an internalized string, so elide
     // the indirection and serialize the actual string directly.
     obj = handle(Cast<ThinString>(*obj)->actual(), isolate());

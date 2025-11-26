@@ -642,9 +642,8 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
   if (info->IsEmpty()) {
     if (is_compiled()) return false;
     Tagged<UnionOf<ScopeInfo, TheHole>> maybe_outer_info = outer_scope_info();
-    if (IsTheHole(maybe_outer_info) || !IsScopeInfo(outer_scope_info()))
-      return false;
-    outer_info = Cast<ScopeInfo>(outer_scope_info());
+    if (IsTheHole(maybe_outer_info)) return false;
+    outer_info = Cast<ScopeInfo>(maybe_outer_info);
   } else {
     if (!info->HasOuterScopeInfo()) return false;
     outer_info = info->OuterScopeInfo();
@@ -671,13 +670,13 @@ void SharedFunctionInfo::set_outer_scope_info(
 bool SharedFunctionInfo::HasFeedbackMetadata() const {
   Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> raw =
       raw_outer_scope_info_or_feedback_metadata();
-  return !IsTheHole(raw) && IsFeedbackMetadata(raw);
+  return IsFeedbackMetadata(raw);
 }
 
 bool SharedFunctionInfo::HasFeedbackMetadata(AcquireLoadTag tag) const {
   Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> raw =
       raw_outer_scope_info_or_feedback_metadata(tag);
-  return !IsTheHole(raw) && IsFeedbackMetadata(raw);
+  return IsFeedbackMetadata(raw);
 }
 
 DEF_GETTER(SharedFunctionInfo, feedback_metadata, Tagged<FeedbackMetadata>) {

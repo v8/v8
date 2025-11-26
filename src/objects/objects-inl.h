@@ -218,23 +218,6 @@ bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
   return IsAnyHole(obj);
 }
 
-bool SafeIsAnyHole(Tagged<HeapObject> obj) {
-  if (detail::IsAnyHoleNoSpaceCheck(obj)) {
-#if V8_STATIC_ROOTS_BOOL
-    // Only check this after the hole check succeeds, to make it cheaper in the
-    // common case that things aren't holes.
-    if (!obj.IsInMainCageBase()) return false;
-#endif
-    return true;
-  }
-  return false;
-}
-
-bool SafeIsAnyHole(Tagged<Object> obj) {
-  Tagged<HeapObject> ho;
-  return TryCast<HeapObject>(obj, &ho) && SafeIsAnyHole(ho);
-}
-
 bool IsHole(Tagged<HeapObject> obj) { return IsAnyHole(obj); }
 
 bool IsHole(Tagged<HeapObject> obj, PtrComprCageBase) { return IsAnyHole(obj); }
@@ -301,40 +284,9 @@ IS_HELPER_DEF(Number)
 template <typename... T>
 struct CastTraits<Union<T...>> {
   static inline bool AllowFrom(Tagged<Object> value) {
-    // Make sure to test for holes first, recursing into a check of the Union
-    // without a Hole.
-    if constexpr (base::has_type_v<Hole, T...>) {
-      return IsAnyHole(value) ||
-             CastTraits<typename Union<T...>::template Without<Hole>>::
-                 AllowFrom(value);
-    }
-#define CHECK_HOLE_IF_HAS_HOLE(Type, ...)                             \
-  if constexpr (base::has_type_v<Type, T...>) {                       \
-    return Is##Type(value) ||                                         \
-           CastTraits<typename Union<T...>::template Without<Type>>:: \
-               AllowFrom(value);                                      \
-  }
-    HOLE_LIST(CHECK_HOLE_IF_HAS_HOLE)
-#undef CHECK_HOLE_IF_HAS_HOLE
-
     return (Is<T>(value) || ...);
   }
   static inline bool AllowFrom(Tagged<HeapObject> value) {
-    // Make sure to test for holes first.
-    if constexpr (base::has_type_v<Hole, T...>) {
-      return IsAnyHole(value) ||
-             CastTraits<typename Union<T...>::template Without<Hole>>::
-                 AllowFrom(value);
-    }
-#define CHECK_HOLE_IF_HAS_HOLE(Type, ...)                             \
-  if constexpr (base::has_type_v<Type, T...>) {                       \
-    return Is##Type(value) ||                                         \
-           CastTraits<typename Union<T...>::template Without<Type>>:: \
-               AllowFrom(value);                                      \
-  }
-    HOLE_LIST(CHECK_HOLE_IF_HAS_HOLE)
-#undef CHECK_HOLE_IF_HAS_HOLE
-
     return (Is<T>(value) || ...);
   }
 };

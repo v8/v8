@@ -184,7 +184,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     DirectHandle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
-  if (!IsTheHole(*object) && IsCell(*object)) {
+  if (IsCell(*object)) {
     // Already resolved (e.g. because it's a local export).
     return Cast<Cell>(object);
   }

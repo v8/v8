@@ -637,9 +637,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> BitwiseSmiOp(TNode<Smi> left32, TNode<Smi> right32,
                              Operation bitwise_op);
 
-  TNode<BoolT> LogicalOr(TNode<BoolT> lhs,
-                         base::FunctionRef<TNode<BoolT>()> rhs);
-
   // Align the value to kObjectAlignment8GbHeap if V8_COMPRESS_POINTERS_8GB is
   // defined.
   TNode<IntPtrT> AlignToAllocationAlignment(TNode<IntPtrT> value);

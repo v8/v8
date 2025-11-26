@@ -1705,7 +1705,7 @@ class MachineLoweringReducer : public Next {
           // constant-fold the map load from the hole and inserts an
           // Unreachable). We thus do a hole check here to avoid this kind of
           // issues.
-          IF (SafeIsAnyHole(V<HeapObject>::Cast(object))) {
+          IF (IsHole(V<HeapObject>::Cast(object))) {
             GOTO(done, 0);
           }
         }
@@ -4220,7 +4220,7 @@ class MachineLoweringReducer : public Next {
   }
 
 #if V8_STATIC_ROOTS_BOOL
-  V<Word32> SafeIsAnyHole(V<HeapObject> object) {
+  V<Word32> IsHole(V<HeapObject> object) {
     Address cage_base = isolate_->cage_base();
     V<WordPtr> ptr = __ BitcastHeapObjectToWordPtr(object);
     ScopedVar<Word32> result(this, 0);

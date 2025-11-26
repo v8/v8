@@ -613,7 +613,6 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
     // Load the key from the entry.
     const TNode<Object> candidate_key =
         UnsafeLoadKeyFromOrderedHashTableEntry(table, entry_start);
-    GotoIf(IsHashTableHole(candidate_key), &continue_next_entry);
 
     key_compare(candidate_key, &if_key_found, &continue_next_entry);
 
