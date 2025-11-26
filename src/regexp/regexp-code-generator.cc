@@ -563,7 +563,7 @@ void RegExpCodeGenerator::PreVisitBytecodes() {
 void RegExpCodeGenerator::VisitBytecodes() {
   for (; !iter_.done() && !has_unsupported_bytecode_; iter_.advance()) {
     if (jump_targets_.Contains(iter_.current_offset())) {
-      __ Bind(&labels_[iter_.current_offset()]);
+      __ BindJumpTarget(&labels_[iter_.current_offset()]);
     }
     RegExpBytecodes::DispatchOnBytecode(
         iter_.current_bytecode(), [this]<RegExpBytecode bc>() { Visit<bc>(); });
