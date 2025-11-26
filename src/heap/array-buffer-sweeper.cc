@@ -268,7 +268,7 @@ void ArrayBufferSweeper::Finish() {
   state_->FinishSweeping();
 
   Finalize();
-  DCHECK_LE(heap_->backing_store_bytes(), SIZE_MAX);
+  DCHECK_LE(total_bytes_, SIZE_MAX);
   DCHECK(!sweeping_in_progress());
 }
 
@@ -423,12 +423,14 @@ void ArrayBufferSweeper::UpdateApproximateBytes(int64_t delta,
 
 void ArrayBufferSweeper::IncrementExternalMemoryCounters(size_t bytes) {
   if (bytes == 0) return;
+  total_bytes_ += bytes;
   external_memory_accounter_.Increase(
       reinterpret_cast<v8::Isolate*>(heap_->isolate()), bytes);
 }
 
 void ArrayBufferSweeper::DecrementExternalMemoryCounters(size_t bytes) {
   if (bytes == 0) return;
+  total_bytes_ -= bytes;
   external_memory_accounter_.Decrease(
       reinterpret_cast<v8::Isolate*>(heap_->isolate()), bytes);
 }
@@ -563,6 +565,8 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
 uint64_t ArrayBufferSweeper::GetTraceIdForFlowEvent() const {
   return reinterpret_cast<uint64_t>(this) ^ heap_->tracer()->CurrentEpoch();
 }
+
+uint64_t ArrayBufferSweeper::GetBytes() const { return total_bytes_; }
 
 size_t ArrayBufferSweeper::BytesForTesting() const {
   return young().BytesSlow() + old().BytesSlow();

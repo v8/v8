@@ -80,6 +80,7 @@ class ArrayBufferSweeper final {
   size_t YoungBytes() const { return young().ApproximateBytes(); }
 
   V8_EXPORT_PRIVATE size_t BytesForTesting() const;
+  V8_EXPORT_PRIVATE uint64_t GetBytes() const;
 
   bool sweeping_in_progress() const { return state_.get(); }
 
@@ -117,6 +118,7 @@ class ArrayBufferSweeper final {
   // finishes.
   int64_t young_bytes_adjustment_while_sweeping_{0};
   int64_t old_bytes_adjustment_while_sweeping_{0};
+  uint64_t total_bytes_{0};
   V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 };
 

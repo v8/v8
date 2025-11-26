@@ -7159,7 +7159,7 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
 }
 
 uint64_t Heap::backing_store_bytes() const {
-  return external_string_table_.GetBytes();
+  return external_string_table_.GetBytes() + array_buffer_sweeper_->GetBytes();
 }
 
 StrongRootsEntry* Heap::RegisterStrongRoots(const char* label,
