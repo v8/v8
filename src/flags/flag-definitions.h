@@ -3884,6 +3884,7 @@ DEFINE_WEAK_IMPLICATION(future, proto_assign_seq_opt)
 DEFINE_UINT(proto_assign_seq_opt_count, 2,
             "The minimum number of consecutive property assignments on the "
             "prototype object for replacing it with a single byte code")
+DEFINE_NEG_IMPLICATION(proto_assign_seq_opt_count == 0, proto_assign_seq_opt)
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
