@@ -1670,11 +1670,6 @@ enum class CodeFlushMode {
   kForceFlush,
 };
 
-enum class ExternalBackingStoreType {
-  kExternalString,
-  kNumValues
-};
-
 enum class NewJSObjectType : uint8_t {
   // JS objects that may require embedder fields depending on their instance
   // type. They are not API wrappers.

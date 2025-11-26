@@ -762,9 +762,7 @@ class Heap final {
   V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
   uint64_t UpdateExternalMemory(int64_t delta);
 
-  uint64_t backing_store_bytes() const {
-    return backing_store_bytes_.load(std::memory_order_relaxed);
-  }
+  uint64_t backing_store_bytes() const;
 
   void CompactWeakArrayLists();
 
@@ -1573,6 +1571,8 @@ class Heap final {
   V8_EXPORT_PRIVATE size_t OldGenerationAllocationLimitForTesting() const;
   V8_EXPORT_PRIVATE size_t GlobalAllocationLimitForTesting() const;
 
+  V8_EXPORT_PRIVATE size_t GetExternalStrinBytesForTesting() const;
+
   // We allow incremental marking to overshoot the V8 and global allocation
   // limit for performance reasons. If the overshoot is too large then we are
   // more eager to finalize incremental marking.
@@ -1797,7 +1797,7 @@ class Heap final {
   // Returns the amount of external memory registered since last global gc.
   V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact() const;
 
-  size_t YoungAllocatedExternalBackingStoreBytes() const;
+  size_t YoungExternalMemoryBytes() const;
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       TaskPriority priority = TaskPriority::kUserBlocking) const;
@@ -1841,7 +1841,8 @@ class Heap final {
     inline void AddString(Tagged<String> string);
     bool Contains(Tagged<String> string);
 
-    void Iterate(RootVisitor* v);
+    void Iterate(RootVisitor* visitor);
+    void Update(base::FunctionRef<void(Tagged<HeapObject>)> callback);
 
     // Restores internal invariant and gets rid of collected strings. Must be
     // called after each Iterate*() that modified the strings.
@@ -1853,11 +1854,14 @@ class Heap final {
     void UpdateReferences(
         Heap::ExternalStringTableUpdaterCallback updater_func);
 
+    size_t GetBytes() const { return bytes_; }
+
    private:
     void Verify();
 
     Heap* const heap_;
 
+    size_t bytes_{0};
     std::vector<TaggedBase> old_strings_;
     // Used to protect access with --shared-string-table.
     base::Mutex mutex_;
@@ -2029,9 +2033,6 @@ class Heap final {
   // Performs a minor collection in new generation.
   void Scavenge();
 
-  void UpdateReferencesInExternalStringTable(
-      ExternalStringTableUpdaterCallback updater_func);
-
   void ProcessAllWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
@@ -2066,12 +2067,6 @@ class Heap final {
   void CheckIneffectiveMarkCompact(size_t old_generation_size,
                                    size_t global_size,
                                    double mutator_utilization);
-
-  inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
-  inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
 
   // ===========================================================================
   // Growing strategy. =========================================================
@@ -2297,11 +2292,6 @@ class Heap final {
 
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
-
-  // Backing store bytes (array buffers and external strings).
-  // Use uint64_t counter since the counter could overflow the 32-bit range
-  // temporarily on 32-bit.
-  std::atomic<uint64_t> backing_store_bytes_{0};
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.

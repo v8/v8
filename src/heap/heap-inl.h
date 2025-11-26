@@ -211,10 +211,6 @@ void Heap::RegisterExternalString(Tagged<String> string) {
 void Heap::FinalizeExternalString(Tagged<String> string) {
   DCHECK(IsExternalString(string));
   Tagged<ExternalString> ext_string = Cast<ExternalString>(string);
-  PageMetadata* page = PageMetadata::FromHeapObject(string);
-  page->DecrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kExternalString,
-      ext_string->ExternalPayloadSize());
   ext_string->DisposeResource(isolate());
 }
 
@@ -369,6 +365,7 @@ void Heap::ExternalStringTable::AddString(Tagged<String> string) {
   DCHECK(!HeapLayout::InYoungGeneration(string));
 
   old_strings_.push_back(string);
+  bytes_ += string->length();
 }
 
 Tagged<Boolean> Heap::ToBoolean(bool condition) {
@@ -389,20 +386,6 @@ uint32_t Heap::GetNextTemplateSerialNumber() {
   DCHECK_NE(next_serial_number, TemplateInfo::kUninitializedSerialNumber);
   set_next_template_serial_number(Smi::FromInt(next_serial_number));
   return next_serial_number;
-}
-
-void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                              size_t amount) {
-  base::CheckedIncrement(&backing_store_bytes_, static_cast<uint64_t>(amount),
-                         std::memory_order_relaxed);
-  // TODO(mlippautz): Implement interrupt for global memory allocations that can
-  // trigger garbage collections.
-}
-
-void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                              size_t amount) {
-  base::CheckedDecrement(&backing_store_bytes_, static_cast<uint64_t>(amount),
-                         std::memory_order_relaxed);
 }
 
 AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {

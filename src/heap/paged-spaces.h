@@ -451,10 +451,6 @@ class V8_EXPORT_PRIVATE OldSpace : public PagedSpace {
 
   void AddPromotedPage(PageMetadata* page, FreeMode free_mode);
 
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    return external_backing_store_bytes_[static_cast<int>(type)];
-  }
-
   void RelinkQuarantinedPageFreeList(PageMetadata* page,
                                      size_t filler_size_on_page);
 };
@@ -525,11 +521,6 @@ class SharedSpace final : public PagedSpace {
   explicit SharedSpace(Heap* heap)
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
-
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
-    return external_backing_store_bytes_[static_cast<int>(type)];
-  }
 };
 
 // -----------------------------------------------------------------------------
@@ -545,11 +536,6 @@ class TrustedSpace final : public PagedSpace {
   explicit TrustedSpace(Heap* heap)
       : PagedSpace(heap, TRUSTED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
-
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
-    return external_backing_store_bytes_[static_cast<int>(type)];
-  }
 };
 
 class SharedTrustedSpace final : public PagedSpace {
@@ -559,11 +545,6 @@ class SharedTrustedSpace final : public PagedSpace {
   explicit SharedTrustedSpace(Heap* heap)
       : PagedSpace(heap, SHARED_TRUSTED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
-
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
-    return external_backing_store_bytes_[static_cast<int>(type)];
-  }
 };
 
 // Iterates over the chunks (pages and large object pages) that can contain

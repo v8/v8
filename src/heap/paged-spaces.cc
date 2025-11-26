@@ -235,11 +235,6 @@ void PagedSpaceBase::AddPageImpl(PageMetadata* page) {
   AccountCommitted(page->size());
   IncreaseCapacity(page->area_size());
   IncreaseAllocatedBytes(page->allocated_bytes(), page);
-  ForAll<ExternalBackingStoreType>(
-      [this, page](ExternalBackingStoreType type, int index) {
-        IncrementExternalBackingStoreBytes(
-            type, page->ExternalBackingStoreBytes(type));
-      });
   IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
 }
 
@@ -268,11 +263,6 @@ void PagedSpaceBase::RemovePage(PageMetadata* page) {
   }
   DecreaseCapacity(page->area_size());
   AccountUncommitted(page->size());
-  ForAll<ExternalBackingStoreType>(
-      [this, page](ExternalBackingStoreType type, int index) {
-        DecrementExternalBackingStoreBytes(
-            type, page->ExternalBackingStoreBytes(type));
-      });
   DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
 }
 
@@ -364,13 +354,8 @@ void PagedSpaceBase::Verify(Isolate* isolate,
                             SpaceVerificationVisitor* visitor) const {
   CHECK_IMPLIES(identity() != NEW_SPACE, size_at_last_gc_ == 0);
 
-  size_t external_space_bytes[static_cast<int>(
-      ExternalBackingStoreType::kNumValues)] = {0};
   PtrComprCageBase cage_base(isolate);
   for (const PageMetadata* page : *this) {
-    size_t external_page_bytes[static_cast<int>(
-        ExternalBackingStoreType::kNumValues)] = {0};
-
     CHECK_EQ(page->owner(), this);
     CHECK_IMPLIES(identity() != NEW_SPACE, page->AllocatedLabSize() == 0);
     visitor->VerifyPage(page);
@@ -389,28 +374,10 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       int size = object->Size(cage_base);
       CHECK(object.address() + size <= top);
       end_of_previous_object = object.address() + size;
-
-      if (IsExternalString(object, cage_base)) {
-        Tagged<ExternalString> external_string = Cast<ExternalString>(object);
-        size_t payload_size = external_string->ExternalPayloadSize();
-        external_page_bytes[static_cast<int>(
-            ExternalBackingStoreType::kExternalString)] += payload_size;
-      }
     }
-    ForAll<ExternalBackingStoreType>(
-        [page, external_page_bytes, &external_space_bytes](
-            ExternalBackingStoreType type, int index) {
-          CHECK_EQ(external_page_bytes[index],
-                   page->ExternalBackingStoreBytes(type));
-          external_space_bytes[index] += external_page_bytes[index];
-        });
 
     visitor->VerifyPageDone(page);
   }
-  ForAll<ExternalBackingStoreType>(
-      [this, external_space_bytes](ExternalBackingStoreType type, int index) {
-        CHECK_EQ(external_space_bytes[index], ExternalBackingStoreBytes(type));
-      });
 
 #ifdef DEBUG
   VerifyCountersAfterSweeping(isolate->heap());

@@ -3093,8 +3093,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_EXTERNAL_STRING_TABLE);
-    ExternalStringTableCleanerVisitor<ExternalStringTableCleaningMode::kAll>
-        external_visitor(heap_);
+    ExternalStringTableCleanerVisitor external_visitor(heap_);
     heap_->external_string_table_.Iterate(&external_visitor);
     heap_->external_string_table_.CleanUp();
   }
@@ -4412,14 +4411,6 @@ static Tagged<String> UpdateReferenceInExternalStringTableEntry(
   if (map_word.IsForwardingAddress()) {
     Tagged<String> new_string =
         Cast<String>(map_word.ToForwardingAddress(old_string));
-
-    if (IsExternalString(new_string)) {
-      MutablePageMetadata::MoveExternalBackingStoreBytes(
-          ExternalBackingStoreType::kExternalString,
-          PageMetadata::FromAddress((*p).ptr()),
-          PageMetadata::FromHeapObject(new_string),
-          Cast<ExternalString>(new_string)->ExternalPayloadSize());
-    }
     return new_string;
   }
 
@@ -5644,7 +5635,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK);
     // Update pointers from external string table.
-    heap_->UpdateReferencesInExternalStringTable(
+    heap_->external_string_table_.UpdateReferences(
         &UpdateReferenceInExternalStringTableEntry);
 
     // Update pointers in string forwarding table.

@@ -2862,23 +2862,12 @@ bool Heap::ExternalStringTable::Contains(Tagged<String> string) {
 void Heap::UpdateExternalString(Tagged<String> string, size_t old_payload,
                                 size_t new_payload) {
   DCHECK(IsExternalString(string));
-
-  PageMetadata* page = PageMetadata::FromHeapObject(string);
-
-  if (old_payload > new_payload) {
-    page->DecrementExternalBackingStoreBytes(
-        ExternalBackingStoreType::kExternalString, old_payload - new_payload);
-  } else {
-    page->IncrementExternalBackingStoreBytes(
-        ExternalBackingStoreType::kExternalString, new_payload - old_payload);
-  }
 }
 
 void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
   std::set<Tagged<String>> visited_map;
   std::map<MutablePageMetadata*, size_t> size_map;
-  ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
 
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<String> obj = Cast<String>(Tagged<Object>(old_strings_[i]));
@@ -2894,9 +2883,6 @@ void Heap::ExternalStringTable::Verify() {
     visited_map.insert(obj);
     size_map[mc] += Cast<ExternalString>(obj)->ExternalPayloadSize();
   }
-  for (std::map<MutablePageMetadata*, size_t>::iterator it = size_map.begin();
-       it != size_map.end(); it++)
-    DCHECK_EQ(it->first->ExternalBackingStoreBytes(type), it->second);
 #endif
 }
 
@@ -2917,11 +2903,6 @@ void Heap::ExternalStringTable::UpdateReferences(
     for (FullObjectSlot p = start; p < end; ++p)
       p.store(updater_func(heap_, p));
   }
-}
-
-void Heap::UpdateReferencesInExternalStringTable(
-    ExternalStringTableUpdaterCallback updater_func) {
-  external_string_table_.UpdateReferences(updater_func);
 }
 
 void Heap::ProcessAllWeakReferences(WeakObjectRetainer* retainer) {
@@ -3127,8 +3108,7 @@ void* Heap::AllocateExternalBackingStore(
     return nullptr;
   }
   if (!always_allocate() && new_space()) {
-    size_t new_space_backing_store_bytes =
-        YoungAllocatedExternalBackingStoreBytes();
+    size_t new_space_backing_store_bytes = YoungExternalMemoryBytes();
     if ((!incremental_marking()->IsMajorMarking()) &&
         new_space_backing_store_bytes >=
             2 * DefaultMaxSemiSpaceSize(physical_memory()) &&
@@ -3148,13 +3128,8 @@ void* Heap::AllocateExternalBackingStore(
   return result;
 }
 
-size_t Heap::YoungAllocatedExternalBackingStoreBytes() const {
-  size_t result = 0;
-  if (new_space()) {
-    result += new_space()->ExternalBackingStoreOverallBytes();
-  }
-  result += array_buffer_sweeper()->YoungBytes();
-  return result;
+size_t Heap::YoungExternalMemoryBytes() const {
+  return array_buffer_sweeper()->YoungBytes();
 }
 
 // When old generation allocation limit is not configured (before the first full
@@ -7122,8 +7097,13 @@ void Heap::UpdateTotalGCTime(base::TimeDelta duration) {
   total_gc_time_ms_ += duration;
 }
 
+size_t Heap::GetExternalStrinBytesForTesting() const {
+  return external_string_table_.GetBytes();
+}
+
 void Heap::ExternalStringTable::CleanUp() {
-  int last = 0;
+  size_t last = 0;
+  size_t bytes = 0;
   Isolate* isolate = heap_->isolate();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<Object> o = old_strings_[i];
@@ -7136,8 +7116,10 @@ void Heap::ExternalStringTable::CleanUp() {
     DCHECK(IsExternalString(o));
     DCHECK(!HeapLayout::InYoungGeneration(o));
     old_strings_[last++] = o;
+    bytes += Cast<ExternalString>(o)->length();
   }
   old_strings_.resize(last);
+  bytes_ = bytes;
   if (v8_flags.verify_heap) {
     Verify();
   }
@@ -7172,6 +7154,10 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
     external_memory_.UpdateLowSinceMarkCompact(amount);
   }
   return amount;
+}
+
+uint64_t Heap::backing_store_bytes() const {
+  return external_string_table_.GetBytes();
 }
 
 StrongRootsEntry* Heap::RegisterStrongRoots(const char* label,
