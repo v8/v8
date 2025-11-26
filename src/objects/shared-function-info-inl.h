@@ -1044,7 +1044,8 @@ void SharedFunctionInfo::set_builtin_id(Builtin builtin) {
 }
 
 bool SharedFunctionInfo::HasUncompiledData(IsolateForSandbox isolate) const {
-  return IsUncompiledData(GetTrustedData(isolate));
+  return !HasUnpublishedTrustedData(isolate) &&
+         IsUncompiledData(GetTrustedData(isolate));
 }
 
 Tagged<UncompiledData> SharedFunctionInfo::uncompiled_data(
