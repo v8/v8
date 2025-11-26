@@ -639,6 +639,8 @@
   'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [SKIP],
   'staging/Intl402/Temporal/old/non-iso-calendars-roc': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/chinese-calendar-dates': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/dangi-calendar-dates': [SKIP],
 
   # Somehow passes on Android (b/433933898):
 }], # 'system == android'
