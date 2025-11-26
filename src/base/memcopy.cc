@@ -9,17 +9,7 @@
 
 namespace v8::base {
 
-#if defined(V8_TARGET_ARCH_IA32)
-
-namespace {
-void MemMoveWrapper(void* dest, const void* src, size_t size) {
-  memmove(dest, src, size);
-}
-}  // namespace
-
-MemMoveFunction g_memmove_function = &MemMoveWrapper;
-
-#elif defined(V8_HOST_ARCH_ARM)
+#if defined(V8_HOST_ARCH_ARM)
 
 namespace {
 void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src, size_t chars) {

@@ -10,13 +10,7 @@
 namespace v8::internal {
 
 void InitMemCopyFunctions() {
-#if defined(V8_TARGET_ARCH_IA32)
-  if (Isolate::CurrentEmbeddedBlobIsBinaryEmbedded()) {
-    EmbeddedData d = EmbeddedData::FromBlob();
-    v8::base::g_memmove_function = reinterpret_cast<v8::base::MemMoveFunction>(
-        d.InstructionStartOf(Builtin::kMemMove));
-  }
-#elif (V8_OS_POSIX || V8_OS_STARBOARD) && V8_HOST_ARCH_ARM
+#if (V8_OS_POSIX || V8_OS_STARBOARD) && V8_HOST_ARCH_ARM
   if (Isolate::CurrentEmbeddedBlobIsBinaryEmbedded()) {
     EmbeddedData d = EmbeddedData::FromBlob();
     v8::base::g_memcopy_uint8_function =

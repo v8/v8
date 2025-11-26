@@ -25,29 +25,7 @@ namespace v8::base {
 // implementations on different platforms for performance reasons. In an ideal
 // world this would all just be plain stdlib `memcpy()` and friends.
 
-#if defined(V8_TARGET_ARCH_IA32)
-
-using MemMoveFunction = void (*)(void* dest, const void* src, size_t size);
-
-V8_BASE_EXPORT extern MemMoveFunction g_memmove_function;
-
-// MemMove makes an indirect call to g_memmove_function which can be overwritten
-// to an address not permitted by CFI to be called indirectly.
-DISABLE_CFI_ICALL
-V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
-  if (size == 0) {
-    return;
-  }
-  (*g_memmove_function)(dest, src, size);
-}
-
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  // Keep the distinction of move vs copy for the benefit of other
-  // architectures.
-  MemMove(dest, src, size);
-}
-
-#elif defined(V8_HOST_ARCH_ARM)
+#if defined(V8_HOST_ARCH_ARM)
 
 using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
                                       size_t size);
@@ -69,7 +47,7 @@ V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
                               reinterpret_cast<const uint8_t*>(src), size);
 }
 
-#else  // !defined(V8_TARGET_ARCH_IA32) && !defined(V8_HOST_ARCH_ARM)
+#else  // !defined(V8_HOST_ARCH_ARM)
 
 #if defined(V8_OPTIMIZE_WITH_NEON)
 
@@ -139,30 +117,32 @@ V8_INLINE void MemCopy(void* dst, const void* src, size_t count) {
 
 // Copy memory area to disjoint memory area.
 V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  // Fast path for small sizes. The compiler will expand the {memcpy} for small
-  // fixed sizes to a sequence of move instructions. This avoids the overhead of
-  // the general {memcpy} function.
+  // Fast path for small sizes. The compiler will expand the `memcpy()` for
+  // small fixed sizes to a sequence of move instructions. This avoids the
+  // overhead of the general `memcpy()` function.
   switch (size) {
+    case 0:
+      return;
 #define CASE(N)           \
   case N:                 \
     memcpy(dest, src, N); \
     return;
-    CASE(1)
-    CASE(2)
-    CASE(3)
-    CASE(4)
-    CASE(5)
-    CASE(6)
-    CASE(7)
-    CASE(8)
-    CASE(9)
-    CASE(10)
-    CASE(11)
-    CASE(12)
-    CASE(13)
-    CASE(14)
-    CASE(15)
-    CASE(16)
+      CASE(1)
+      CASE(2)
+      CASE(3)
+      CASE(4)
+      CASE(5)
+      CASE(6)
+      CASE(7)
+      CASE(8)
+      CASE(9)
+      CASE(10)
+      CASE(11)
+      CASE(12)
+      CASE(13)
+      CASE(14)
+      CASE(15)
+      CASE(16)
 #undef CASE
     default:
       memcpy(dest, src, size);
@@ -173,30 +153,32 @@ V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
 #endif  // !defined(V8_OPTIMIZE_WITH_NEON)
 
 V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
-  // Fast path for small sizes. The compiler will expand the {memmove} for small
-  // fixed sizes to a sequence of move instructions. This avoids the overhead of
-  // the general {memmove} function.
+  // Fast path for small sizes. The compiler will expand the `memmove()` for
+  // small fixed sizes to a sequence of move instructions. This avoids the
+  // overhead of the general `memmove()` function.
   switch (size) {
+    case 0:
+      return;
 #define CASE(N)            \
   case N:                  \
     memmove(dest, src, N); \
     return;
-    CASE(1)
-    CASE(2)
-    CASE(3)
-    CASE(4)
-    CASE(5)
-    CASE(6)
-    CASE(7)
-    CASE(8)
-    CASE(9)
-    CASE(10)
-    CASE(11)
-    CASE(12)
-    CASE(13)
-    CASE(14)
-    CASE(15)
-    CASE(16)
+      CASE(1)
+      CASE(2)
+      CASE(3)
+      CASE(4)
+      CASE(5)
+      CASE(6)
+      CASE(7)
+      CASE(8)
+      CASE(9)
+      CASE(10)
+      CASE(11)
+      CASE(12)
+      CASE(13)
+      CASE(14)
+      CASE(15)
+      CASE(16)
 #undef CASE
     default:
       memmove(dest, src, size);

@@ -41,19 +41,13 @@ inline void MemCopyAndSwitchEndianness(void* dst, void* src,
 }
 #endif  // V8_TARGET_BIG_ENDIAN
 
-#if defined(V8_TARGET_ARCH_IA32)
-// Limit below which the extra overhead of the MemCopy function is likely
-// to outweigh the benefits of faster copying.
-constexpr size_t kMinComplexMemCopy = 64;
-constexpr size_t kBlockCopyLimitForWordsAndTagged = 16;
-
-#elif defined(V8_HOST_ARCH_ARM)
+#if defined(V8_HOST_ARCH_ARM)
 
 // For values < 16, the assembler function is slower than the inlined C code.
 constexpr size_t kMinComplexMemCopy = 16;
 constexpr size_t kBlockCopyLimitForWordsAndTagged = 16;
 
-#else  // !defined(V8_TARGET_ARCH_IA32) && !defined(V8_HOST_ARCH_ARM)
+#else  // !defined(V8_HOST_ARCH_ARM)
 
 // Disable the CopyImpl fast paths as MemCopy has its own fast paths.
 constexpr size_t kMinComplexMemCopy = 0;
