@@ -15419,6 +15419,12 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfRootConstant(
     return builder.AlwaysFalse();
   }
 
+  if (GetType(node) == NodeType::kNone) {
+    // `node` is dead, it doesn't matter what we return.
+    // TODO(428667907): Ideally we would BuildAbort here.
+    return builder.AlwaysFalse();
+  }
+
   if (CheckType(node, NodeType::kNumber)) {
     return builder.AlwaysFalse();
   }
