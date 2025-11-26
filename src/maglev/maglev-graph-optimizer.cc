@@ -275,6 +275,20 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   UNREACHABLE();
 }
 
+template <typename NodeT>
+ValueNode* MaglevGraphOptimizer::TrySmiTag(Input input) {
+  auto cst = reducer_.TryGetInt32Constant(input.node());
+  if (cst.has_value() && Smi::IsValid(cst.value())) {
+    return reducer_.GetSmiConstant(cst.value());
+  }
+  if (auto range = GetRange(input.node())) {
+    if (range->IsSmi()) {
+      return reducer_.AddNewNodeNoInputConversion<NodeT>({input.node()});
+    }
+  }
+  return nullptr;
+}
+
 template <Operation kOperation>
 std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldInt32Operation(
     ValueNode* node) {
@@ -1563,17 +1577,26 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToUint8Clamped(
 
 ProcessResult MaglevGraphOptimizer::VisitInt32ToNumber(
     Int32ToNumber* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  auto cst = reducer_.TryGetInt32Constant(node->input_node(0));
-  if (cst.has_value() && Smi::IsValid(cst.value())) {
-    return ReplaceWith(reducer_.GetSmiConstant(cst.value()));
-  }
+  REPLACE_AND_RETURN_IF_DONE(TrySmiTag<UnsafeSmiTagInt32>(node->ValueInput()));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitUint32ToNumber(
     Uint32ToNumber* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(TrySmiTag<UnsafeSmiTagUint32>(node->ValueInput()));
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitIntPtrToNumber(
+    IntPtrToNumber* node, const ProcessingState& state) {
+  REPLACE_AND_RETURN_IF_DONE(TrySmiTag<UnsafeSmiTagIntPtr>(node->ValueInput()));
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitShiftedInt53ToNumber(
+    ShiftedInt53ToNumber* node, const ProcessingState& state) {
+  REPLACE_AND_RETURN_IF_DONE(
+      TrySmiTag<UnsafeSmiTagShiftedInt53>(node->ValueInput()));
   return ProcessResult::kContinue;
 }
 
@@ -1597,12 +1620,6 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64CountLeadingZeros(
 
 ProcessResult MaglevGraphOptimizer::VisitIntPtrToBoolean(
     IntPtrToBoolean* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitIntPtrToNumber(
-    IntPtrToNumber* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -2625,7 +2642,6 @@ UNIMPLEMENTED_NODE(CheckedShiftedInt53ToUint32)
 UNIMPLEMENTED_NODE(CheckedIntPtrToShiftedInt53)
 UNIMPLEMENTED_NODE(CheckedHoleyFloat64ToShiftedInt53)
 UNIMPLEMENTED_NODE(UnsafeSmiTagShiftedInt53)
-UNIMPLEMENTED_NODE(ShiftedInt53ToNumber)
 UNIMPLEMENTED_NODE(ChangeInt32ToShiftedInt53)
 UNIMPLEMENTED_NODE(ChangeUint32ToShiftedInt53)
 UNIMPLEMENTED_NODE(ChangeShiftedInt53ToFloat64)

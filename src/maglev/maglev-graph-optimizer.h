@@ -79,6 +79,9 @@ class MaglevGraphOptimizer {
   void UnwrapDeoptFrames();
   void UnwrapInputs();
 
+  template <typename NodeT>
+  ValueNode* TrySmiTag(Input input);
+
   ValueNode* GetConstantWithRepresentation(
       ValueNode* node, UseRepresentation repr,
       std::optional<TaggedToFloat64ConversionType> conversion_type);
