@@ -2614,8 +2614,8 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
   void OnAbort() override;
 
-  bool Deserialize(base::Vector<const uint8_t> wire_bytes,
-                   base::Vector<const uint8_t> module_bytes) override;
+  bool Deserialize(base::Vector<const uint8_t> module_bytes,
+                   base::OwnedVector<const uint8_t>& wire_bytes) override;
 
  private:
   void CommitCompilationUnits();
@@ -3500,7 +3500,7 @@ void AsyncStreamingProcessor::OnAbort() {
 
 bool AsyncStreamingProcessor::Deserialize(
     base::Vector<const uint8_t> module_bytes,
-    base::Vector<const uint8_t> wire_bytes) {
+    base::OwnedVector<const uint8_t>& wire_bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
   Isolate* isolate = job_->isolate_specific_info_.isolate_;
   std::optional<TimedHistogramScope> time_scope;

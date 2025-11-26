@@ -66,8 +66,11 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   virtual void OnAbort() = 0;
 
   // Attempt to deserialize the module. Supports embedder caching.
+  // On successful deserialization, ownership of the `wire_bytes` vector is
+  // taken over by the deserialized module (the parameter will be reset to an
+  // empty vector); otherwise ownership stays with the caller.
   virtual bool Deserialize(base::Vector<const uint8_t> module_bytes,
-                           base::Vector<const uint8_t> wire_bytes) = 0;
+                           base::OwnedVector<const uint8_t>& wire_bytes) = 0;
 };
 
 // The StreamingDecoder takes a sequence of byte arrays, each received by a call

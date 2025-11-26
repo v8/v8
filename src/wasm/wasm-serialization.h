@@ -45,9 +45,12 @@ class V8_EXPORT_PRIVATE WasmSerializer {
 };
 
 // Deserializes the given data to create a Wasm module object.
+// On successful deserialization, ownership of the `wire_bytes` vector is taken
+// over by the deserialized module (the parameter will be reset to an empty
+// vector); otherwise ownership stays with the caller.
 V8_EXPORT_PRIVATE MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> data,
-    base::Vector<const uint8_t> wire_bytes,
+    base::OwnedVector<const uint8_t>& wire_bytes,
     const CompileTimeImports& compile_imports,
     base::Vector<const char> source_url);
 

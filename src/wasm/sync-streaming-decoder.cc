@@ -47,13 +47,17 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder final : public StreamingDecoder {
   void Finish(
       const WasmStreaming::ModuleCachingCallback& caching_callback) override {
     // We copy all received chunks into one byte buffer.
-    auto bytes = base::OwnedVector<uint8_t>::NewForOverwrite(buffer_size_);
-    uint8_t* destination = bytes.begin();
-    for (auto& chunk : buffer_) {
-      std::memcpy(destination, chunk.data(), chunk.size());
-      destination += chunk.size();
+    base::OwnedVector<const uint8_t> bytes_copy;
+    {
+      auto bytes = base::OwnedVector<uint8_t>::NewForOverwrite(buffer_size_);
+      uint8_t* destination = bytes.begin();
+      for (auto& chunk : buffer_) {
+        std::memcpy(destination, chunk.data(), chunk.size());
+        destination += chunk.size();
+      }
+      CHECK_EQ(destination - bytes.begin(), buffer_size_);
+      bytes_copy = std::move(bytes);
     }
-    CHECK_EQ(destination - bytes.begin(), buffer_size_);
 
     // Check if we can deserialize the module from cache.
     if (caching_callback) {
@@ -64,12 +68,12 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder final : public StreamingDecoder {
 
       struct CachingInterface : public WasmStreaming::ModuleCachingInterface {
         SyncStreamingDecoder* const decoder;
-        const base::Vector<const uint8_t> wire_bytes;
+        base::OwnedVector<const uint8_t>& wire_bytes;
         bool did_try_deserialization = false;
         MaybeDirectHandle<WasmModuleObject> deserialized_module_object;
 
         CachingInterface(SyncStreamingDecoder* decoder,
-                         base::Vector<const uint8_t> wire_bytes)
+                         base::OwnedVector<const uint8_t>& wire_bytes)
             : decoder(decoder), wire_bytes(wire_bytes) {}
 
         // Public API:
@@ -85,7 +89,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder final : public StreamingDecoder {
               decoder->Deserialize(wire_bytes, base::VectorOf(module_bytes));
           return !deserialized_module_object.IsEmpty();
         }
-      } caching_interface{this, bytes.as_vector()};
+      } caching_interface{this, bytes_copy};
 
       // Call the embedder.
       caching_callback(caching_interface);
@@ -98,12 +102,15 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder final : public StreamingDecoder {
       }
     }
 
+    // If we did not deserialize then `bytes_copy` still holds our owned copy.
+    DCHECK_EQ(buffer_size_, bytes_copy.size());
+
     // Compile the received bytes synchronously.
     ErrorThrower thrower(isolate_, api_method_name_for_errors_);
     MaybeDirectHandle<WasmModuleObject> module_object =
         GetWasmEngine()->SyncCompile(isolate_, enabled_,
                                      std::move(compile_imports_), &thrower,
-                                     std::move(bytes));
+                                     std::move(bytes_copy));
     if (thrower.error()) {
       resolver_->OnCompilationFailed(thrower.Reify());
       return;
@@ -127,7 +134,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder final : public StreamingDecoder {
 
  private:
   MaybeDirectHandle<WasmModuleObject> Deserialize(
-      base::Vector<const uint8_t> wire_bytes,
+      base::OwnedVector<const uint8_t>& wire_bytes,
       base::Vector<const uint8_t> cached_module_bytes) {
     return DeserializeNativeModule(isolate_, enabled_, cached_module_bytes,
                                    wire_bytes, compile_imports_,

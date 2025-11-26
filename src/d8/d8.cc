@@ -3046,8 +3046,6 @@ void Shell::WasmDeserializeModule(
   // deserialization.
   // For the wire bytes, we need a new copy anyway for storing in the new
   // NativeModule (if it does not come from the cache).
-  // TODO(clemensb): `DeserializeNativeModule` already does a copy; avoid one of
-  // them (same in the streaming decoder).
   base::OwnedVector<const uint8_t> wire_bytes_vec = ([&] {
     size_t length = wire_bytes_view->ByteLength();
     auto vec = base::OwnedVector<uint8_t>::NewForOverwrite(length);
@@ -3094,7 +3092,7 @@ void Shell::WasmDeserializeModule(
     // JSArrayBuffer backing store doesn't get relocated.
     if (!i::wasm::DeserializeNativeModule(
              i_isolate, enabled_features, serialized_bytes_vec.as_vector(),
-             wire_bytes_vec.as_vector(), compile_time_imports, {})
+             wire_bytes_vec, compile_time_imports, {})
              .ToHandle(&module_object)) {
       // Deserialization failed, probably because of mismatched compile time
       // imports. Invalid wire bytes are unlikely because of the hash check

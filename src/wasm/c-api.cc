@@ -1343,12 +1343,13 @@ WASM_EXPORT auto Module::deserialize(Store* store_abs,
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   const byte_t* ptr = serialized.get();
-  uint64_t binary_size = ReadLebU64(&ptr);
+  size_t binary_size = static_cast<size_t>(ReadLebU64(&ptr));
   ptrdiff_t size_size = ptr - serialized.get();
   size_t serial_size = serialized.size() - size_size - binary_size;
+  v8::base::OwnedVector<const uint8_t> wire_bytes =
+      v8::base::OwnedCopyOf(reinterpret_cast<const uint8_t*>(ptr), binary_size);
   i::DirectHandle<i::WasmModuleObject> module_obj;
   if (serial_size > 0) {
-    size_t data_size = static_cast<size_t>(binary_size);
     // The C-API does not allow passing compile imports.
     // We thus use an empty `CompileTimeImports` object, analogous to module
     // creation.
@@ -1360,9 +1361,8 @@ WASM_EXPORT auto Module::deserialize(Store* store_abs,
         i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
     if (!i::wasm::DeserializeNativeModule(
              isolate, features,
-             {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
-             {reinterpret_cast<const uint8_t*>(ptr), data_size},
-             compile_imports, {})
+             {reinterpret_cast<const uint8_t*>(ptr + binary_size), serial_size},
+             wire_bytes, compile_imports, {})
              .ToHandle(&module_obj)) {
       // We were given a serialized module, but failed to deserialize. Report
       // this as an error.

@@ -361,8 +361,8 @@ void AsyncStreamingDecoder::Finish(
   // transferred and stored in the NativeModule.
   base::OwnedVector<const uint8_t> bytes_copy;
   DCHECK_IMPLIES(full_wire_bytes_.back().empty(), full_wire_bytes_.size() == 1);
+  size_t total_length = 0;
   if (!full_wire_bytes_.back().empty()) {
-    size_t total_length = 0;
     for (auto& bytes : full_wire_bytes_) total_length += bytes.size();
     if (ok()) {
       // {DecodeSectionLength} enforces this with graceful error reporting.
@@ -391,12 +391,12 @@ void AsyncStreamingDecoder::Finish(
 
     struct CachingInterface : public WasmStreaming::ModuleCachingInterface {
       StreamingProcessor* const processor;
-      const base::Vector<const uint8_t> wire_bytes;
+      base::OwnedVector<const uint8_t>& wire_bytes;
       bool did_try_deserialization = false;
       bool did_deserialize = false;
 
       CachingInterface(StreamingProcessor* proc,
-                       base::Vector<const uint8_t> wire_bytes)
+                       base::OwnedVector<const uint8_t>& wire_bytes)
           : processor(proc), wire_bytes(wire_bytes) {}
 
       // Public API:
@@ -414,12 +414,15 @@ void AsyncStreamingDecoder::Finish(
             processor->Deserialize(base::VectorOf(module_bytes), wire_bytes);
         return did_deserialize;
       }
-    } caching_interface{processor_.get(), bytes_copy.as_vector()};
+    } caching_interface{processor_.get(), bytes_copy};
 
     // Call the embedder.
     caching_callback(caching_interface);
 
     if (caching_interface.did_deserialize) return;
+
+    // If we did not deserialize then `wire_bytes` still holds our owned copy.
+    DCHECK_EQ(total_length, bytes_copy.size());
 
     // The embedder did not provide a cached module or deserialization failed.
     // Restart decoding using |bytes_copy|.

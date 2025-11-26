@@ -91,7 +91,7 @@ class MockStreamingProcessor : public StreamingProcessor {
   void OnAbort() override {}
 
   bool Deserialize(base::Vector<const uint8_t> module_bytes,
-                   base::Vector<const uint8_t> wire_bytes) override {
+                   base::OwnedVector<const uint8_t>& wire_bytes) override {
     return false;
   }
 

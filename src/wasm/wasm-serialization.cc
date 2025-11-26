@@ -1125,20 +1125,15 @@ bool HeaderMatches(base::Vector<const uint8_t> data,
 MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> data,
-    base::Vector<const uint8_t> wire_bytes_vec,
+    base::OwnedVector<const uint8_t>& wire_bytes_vec,
     const CompileTimeImports& compile_imports,
     base::Vector<const char> source_url) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!HeaderMatches(data, enabled_features, compile_imports)) return {};
 
-  // Make the copy of the wire bytes early, so we use the same memory for
-  // decoding, lookup in the native module cache, and insertion into the cache.
-  base::OwnedVector<const uint8_t> owned_wire_bytes =
-      base::OwnedCopyOf(wire_bytes_vec);
-
   WasmDetectedFeatures detected_features;
   ModuleResult decode_result = DecodeWasmModule(
-      isolate, enabled_features, owned_wire_bytes.as_vector(), false,
+      isolate, enabled_features, wire_bytes_vec.as_vector(), false,
       i::wasm::kWasmOrigin, DecodingMethod::kDeserialize, &detected_features);
   // The wire bytes were previously considered valid for the same enabled
   // features (checked above).
@@ -1148,8 +1143,11 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
 
   WasmEngine* wasm_engine = GetWasmEngine();
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
-      module->origin, owned_wire_bytes.as_vector(), compile_imports);
+      module->origin, wire_bytes_vec.as_vector(), compile_imports);
   if (shared_native_module) {
+    // For consistency, take ownership of the passed `wire_bytes_vec` also when
+    // taking a module from cache.
+    wire_bytes_vec.ReleaseData();
     wasm_engine->UseNativeModuleInIsolate(shared_native_module.get(), isolate);
   } else {
     size_t code_size_estimate =
@@ -1163,7 +1161,7 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     // than the compilation ID of actual compilations, and also different than
     // the sentinel value of the CompilationState.
     shared_native_module->compilation_state()->set_compilation_id(-2);
-    shared_native_module->SetWireBytes(std::move(owned_wire_bytes));
+    shared_native_module->SetWireBytes(std::move(wire_bytes_vec));
 
     NativeModuleDeserializer deserializer(shared_native_module.get());
     Reader reader(data + MeasureHeader(compile_imports));
