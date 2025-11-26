@@ -562,9 +562,10 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
 
   if (IsAnyHole(*input, isolate)) {
     ReadOnlyRoots roots(isolate);
-#define HOLE_CASE(CamelName, snake_name, _) \
-  if (Is##CamelName(*input))                \
-    return isolate->factory()->NewStringFromAsciiChecked(#CamelName);
+#define HOLE_CASE(CamelName, snake_name, _)                           \
+  if (Is##CamelName(*input)) {                                        \
+    return isolate->factory()->NewStringFromAsciiChecked(#CamelName); \
+  }
     HOLE_LIST(HOLE_CASE)
 #undef HOLE_CASE
     UNREACHABLE();
@@ -4792,10 +4793,8 @@ Handle<Object> JSPromise::TriggerPromiseReactions(
     }
     if (!has_handler_context) handler_context = isolate->native_context();
 
-    static_assert(
-        static_cast<int>(PromiseReaction::kSize) ==
-        static_cast<int>(
-            PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks));
+    static_assert(static_cast<int>(sizeof(PromiseReaction)) ==
+                  static_cast<int>(sizeof(PromiseReactionJobTask)));
     if (type == PromiseReaction::kFulfill) {
       task->set_map(
           isolate,
@@ -4804,18 +4803,18 @@ Handle<Object> JSPromise::TriggerPromiseReactions(
       Cast<PromiseFulfillReactionJobTask>(task)->set_argument(*argument);
       Cast<PromiseFulfillReactionJobTask>(task)->set_context(*handler_context);
       static_assert(
-          static_cast<int>(PromiseReaction::kFulfillHandlerOffset) ==
-          static_cast<int>(PromiseFulfillReactionJobTask::kHandlerOffset));
+          static_cast<int>(offsetof(PromiseReaction, fulfill_handler_)) ==
+          static_cast<int>(offsetof(PromiseFulfillReactionJobTask, handler_)));
       static_assert(
-          static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
+          static_cast<int>(offsetof(PromiseReaction, promise_or_capability_)) ==
           static_cast<int>(
-              PromiseFulfillReactionJobTask::kPromiseOrCapabilityOffset));
+              offsetof(PromiseFulfillReactionJobTask, promise_or_capability_)));
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
       static_assert(
-          static_cast<int>(
-              PromiseReaction::kContinuationPreservedEmbedderDataOffset) ==
-          static_cast<int>(PromiseFulfillReactionJobTask::
-                               kContinuationPreservedEmbedderDataOffset));
+          static_cast<int>(offsetof(PromiseReaction,
+                                    continuation_preserved_embedder_data_)) ==
+          static_cast<int>(offsetof(PromiseFulfillReactionJobTask,
+                                    continuation_preserved_embedder_data_)));
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     } else {
       DisallowGarbageCollection no_gc;
@@ -4827,15 +4826,15 @@ Handle<Object> JSPromise::TriggerPromiseReactions(
       Cast<PromiseRejectReactionJobTask>(task)->set_context(*handler_context);
       Cast<PromiseRejectReactionJobTask>(task)->set_handler(*primary_handler);
       static_assert(
-          static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
+          static_cast<int>(offsetof(PromiseReaction, promise_or_capability_)) ==
           static_cast<int>(
-              PromiseRejectReactionJobTask::kPromiseOrCapabilityOffset));
+              offsetof(PromiseRejectReactionJobTask, promise_or_capability_)));
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
       static_assert(
-          static_cast<int>(
-              PromiseReaction::kContinuationPreservedEmbedderDataOffset) ==
-          static_cast<int>(PromiseRejectReactionJobTask::
-                               kContinuationPreservedEmbedderDataOffset));
+          static_cast<int>(offsetof(PromiseReaction,
+                                    continuation_preserved_embedder_data_)) ==
+          static_cast<int>(offsetof(PromiseRejectReactionJobTask,
+                                    continuation_preserved_embedder_data_)));
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     }
 

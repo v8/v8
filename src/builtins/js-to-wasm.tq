@@ -61,11 +61,9 @@ const kWasmF32Type:
 const kWasmF64Type:
     constexpr uint32 generates 'wasm::kWasmF64.raw_bit_field()';
 
-const kIsFpAlwaysDouble:
-    constexpr bool generates 'wasm::kIsFpAlwaysDouble';
+const kIsFpAlwaysDouble: constexpr bool generates 'wasm::kIsFpAlwaysDouble';
 const kIsBigEndian: constexpr bool generates 'wasm::kIsBigEndian';
-const kIsBigEndianOnSim:
-    constexpr bool generates 'wasm::kIsBigEndianOnSim';
+const kIsBigEndianOnSim: constexpr bool generates 'wasm::kIsBigEndianOnSim';
 
 extern enum Promise extends int32 constexpr 'wasm::Promise' {
   kPromise,
@@ -114,17 +112,13 @@ const kWrapperBufferStackReturnBufferStart: constexpr intptr
     generates 'JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferStart'
     ;
 const kWrapperBufferFPReturnRegister1: constexpr intptr
-    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister1'
-    ;
+    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister1';
 const kWrapperBufferFPReturnRegister2: constexpr intptr
-    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister2'
-    ;
+    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferFPReturnRegister2';
 const kWrapperBufferGPReturnRegister1: constexpr intptr
-    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister1'
-    ;
+    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister1';
 const kWrapperBufferGPReturnRegister2: constexpr intptr
-    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister2'
-    ;
+    generates 'JSToWasmWrapperFrameConstants::kWrapperBufferGPReturnRegister2';
 const kWrapperBufferSize: constexpr int32
     generates 'JSToWasmWrapperFrameConstants::kWrapperBufferSize';
 const kMaxParamBufferSize: constexpr intptr

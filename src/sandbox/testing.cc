@@ -977,7 +977,7 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[JS_PROMISE_TYPE]["reactions_or_result"] =
         JSPromise::kReactionsOrResultOffset;
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
-        PromiseReaction::kFulfillHandlerOffset;
+        offsetof(PromiseReaction, fulfill_handler_);
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
         JSFunction::kSharedFunctionInfoOffset;
 #ifdef V8_ENABLE_WEBASSEMBLY
