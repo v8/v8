@@ -650,6 +650,7 @@ void LoadOp::PrintOptions(std::ostream& os) const {
   os << (kind.tagged_base ? "tagged base" : "raw");
   if (kind.maybe_unaligned) os << ", unaligned";
   if (kind.with_trap_handler) os << ", protected";
+  if (kind.is_immutable) os << ", immutable";
   os << ", " << loaded_rep;
   os << ", " << result_rep;
   if (element_size_log2 != 0)

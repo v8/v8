@@ -3006,19 +3006,19 @@ struct LoadOp : OperationT<LoadOp> {
                  : LoadOp::Kind::RawUnaligned();
     }
 
-    constexpr Kind NotLoadEliminable() {
+    [[nodiscard]] constexpr Kind NotLoadEliminable() {
       Kind new_kind = *this;
       new_kind.load_eliminable = false;
       return new_kind;
     }
 
-    constexpr Kind Immutable() const {
+    [[nodiscard]] constexpr Kind Immutable() const {
       Kind new_kind(*this);
       new_kind.is_immutable = true;
       return new_kind;
     }
 
-    constexpr Kind Atomic() const {
+    [[nodiscard]] constexpr Kind Atomic() const {
       Kind new_kind(*this);
       new_kind.is_atomic = true;
       return new_kind;
