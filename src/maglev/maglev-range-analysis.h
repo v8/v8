@@ -376,25 +376,25 @@ class RangeProcessor {
     Range lhs_range = ranges_.Get(succ, lhs);
     Range rhs_range = ranges_.Get(succ, rhs);
     switch (node->operation()) {
-#define CASE(Op, NegOp)                                                       \
+#define CASE(Op, InvOp, NegOp, NegInvOp)                                      \
   case Operation::k##Op:                                                      \
     if (node->if_true() == succ) {                                            \
       ranges_.NarrowUpdate(succ, lhs,                                         \
                            lhs_range.Constrain##Op(lhs_range, rhs_range));    \
       ranges_.NarrowUpdate(succ, rhs,                                         \
-                           rhs_range.Constrain##NegOp(rhs_range, lhs_range)); \
+                           rhs_range.Constrain##InvOp(rhs_range, lhs_range)); \
     } else {                                                                  \
       DCHECK_EQ(node->if_false(), succ);                                      \
       ranges_.NarrowUpdate(succ, lhs,                                         \
                            lhs_range.Constrain##NegOp(lhs_range, rhs_range)); \
-      ranges_.NarrowUpdate(succ, rhs,                                         \
-                           rhs_range.Constrain##Op(rhs_range, lhs_range));    \
+      ranges_.NarrowUpdate(                                                   \
+          succ, rhs, rhs_range.Constrain##NegInvOp(rhs_range, lhs_range));    \
     }                                                                         \
     break;
-      CASE(LessThan, GreaterThanOrEqual)
-      CASE(LessThanOrEqual, GreaterThan)
-      CASE(GreaterThan, LessThanOrEqual)
-      CASE(GreaterThanOrEqual, LessThan)
+      CASE(LessThan, GreaterThan, GreaterThanOrEqual, LessThanOrEqual)
+      CASE(LessThanOrEqual, GreaterThanOrEqual, GreaterThan, LessThan)
+      CASE(GreaterThan, LessThan, LessThanOrEqual, GreaterThanOrEqual)
+      CASE(GreaterThanOrEqual, LessThanOrEqual, LessThan, GreaterThan)
 #undef CASE
       case Operation::kEqual:
       case Operation::kStrictEqual:
