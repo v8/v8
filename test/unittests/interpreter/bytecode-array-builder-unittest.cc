@@ -243,7 +243,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit Iterator-protocol operations
   builder.GetIterator(reg, load_slot.ToInt(), call_slot.ToInt());
-  builder.ForOfNext(reg, reg, pair);
+  builder.ForOfNext(reg, reg, pair, 1);
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::kNotInside)

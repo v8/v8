@@ -874,6 +874,26 @@ std::ostream& operator<<(std::ostream&, GetIteratorParameters const&);
 
 const GetIteratorParameters& GetIteratorParametersOf(const Operator* op);
 
+class ForOfNextParameters final {
+ public:
+  ForOfNextParameters(const FeedbackSource& call_feedback)
+      : call_feedback_(call_feedback) {}
+
+  FeedbackSource const& callFeedback() const { return call_feedback_; }
+
+ private:
+  FeedbackSource const call_feedback_;
+};
+
+bool operator==(ForOfNextParameters const&, ForOfNextParameters const&);
+bool operator!=(ForOfNextParameters const&, ForOfNextParameters const&);
+
+size_t hash_value(ForOfNextParameters const&);
+
+std::ostream& operator<<(std::ostream&, ForOfNextParameters const&);
+
+const ForOfNextParameters& ForOfNextParametersOf(const Operator* op);
+
 enum class ForInMode : uint8_t {
   kUseEnumCacheKeysAndIndices,
   kUseEnumCacheKeys,
@@ -1138,7 +1158,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ForInNext(ForInMode mode, const FeedbackSource& feedback);
   const Operator* ForInPrepare(ForInMode mode, const FeedbackSource& feedback);
 
-  const Operator* ForOfNext();
+  const Operator* ForOfNext(FeedbackSource const& call_feedback);
 
   const Operator* LoadMessage();
   const Operator* StoreMessage();
@@ -1295,6 +1315,24 @@ class JSGetIteratorNode final : public JSNodeWrapperBase {
 #define INPUTS(V)                  \
   V(Receiver, receiver, 0, Object) \
   V(FeedbackVector, feedback_vector, 1, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSForOfNextNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSForOfNextNode(Node* node) : JSNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kJSForOfNext, node->opcode());
+  }
+
+  const ForOfNextParameters& Parameters() const {
+    return ForOfNextParametersOf(node()->op());
+  }
+
+#define INPUTS(V)                       \
+  V(Iterator, iterator, 0, Object)      \
+  V(NextMethod, next_method, 1, Object) \
+  V(FeedbackVector, feedback_vector, 2, HeapObject)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };

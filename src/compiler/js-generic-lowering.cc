@@ -1124,6 +1124,13 @@ void JSGenericLowering::LowerJSForInNext(Node* node) {
 }
 
 void JSGenericLowering::LowerJSForOfNext(Node* node) {
+  JSForOfNextNode n(node);
+  ForOfNextParameters const& p = n.Parameters();
+
+  Node* call_slot = jsgraph()->SmiConstant(p.callFeedback().slot.ToInt());
+  static_assert(n.FeedbackVectorIndex() == 2);
+
+  node->InsertInput(zone(), 3, call_slot);
   ReplaceWithBuiltinCall(node, Builtin::kForOfNext);
 }
 

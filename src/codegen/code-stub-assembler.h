@@ -2311,11 +2311,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Calls the next method of an iterator and returns the pair of
   // {value, done} properties of the result.
   std::pair<TNode<Object>, TNode<Object>> CallIteratorNext(
-      TNode<Object> iterator, TNode<Object> next_method,
-      TNode<Context> context);
+      TNode<Context> context, TNode<Object> iterator, TNode<Object> next,
+      TNode<Union<FeedbackVector, Undefined>> feedback_vector,
+      TNode<UintPtrT> call_slot);
   using ForOfNextResult = TorqueStructForOfNextResult_0;
-  ForOfNextResult ForOfNextHelper(TNode<Context> context, TNode<Object> object,
-                                  TNode<Object> next);
+  ForOfNextResult ForOfNextHelper(
+      TNode<Context> context, TNode<Object> object, TNode<Object> next,
+      TNode<Union<FeedbackVector, Undefined>> feedback_vector,
+      TNode<UintPtrT> call_slot);
 
   TNode<JSObject> AllocatePromiseWithResolversResult(TNode<Context> context,
                                                      TNode<Object> promise,

@@ -16376,15 +16376,17 @@ ReduceResult MaglevGraphBuilder::VisitGetIterator() {
 }
 
 ReduceResult MaglevGraphBuilder::VisitForOfNext() {
-  // ForOfNext <iterator> <next> <value_done_out>
+  // ForOfNext <iterator> <next> <value_done_out> <call_slot>
 
   ValueNode* iterator = LoadRegister(0);
   ValueNode* next_method = LoadRegister(1);
 
   auto register_pair = iterator_.GetRegisterPairOperand(2);
+  int call_slot = iterator_.GetIndexOperand(3);
 
-  CallBuiltin* result_struct =
-      BuildCallBuiltin<Builtin::kForOfNext>({iterator, next_method});
+  CallBuiltin* result_struct = BuildCallBuiltin<Builtin::kForOfNext>(
+      {iterator, next_method, GetConstant(feedback()),
+       GetSmiConstant(call_slot)});
 
   StoreRegisterPair(register_pair, result_struct);
 

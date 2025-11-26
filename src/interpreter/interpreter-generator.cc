@@ -23,6 +23,7 @@
 #include "src/interpreter/interpreter-generator-tsa.h"
 #include "src/interpreter/interpreter-intrinsics-generator.h"
 #include "src/objects/cell.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
@@ -3342,15 +3343,20 @@ IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
   Dispatch();
 }
 
-// ForOfNext <object> <next> <value_done>
+// ForOfNext <object> <next> <value_done> <call_slot>
 //
 // Get the next value and done of the iterable.
 IGNITION_HANDLER(ForOfNext, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> next = LoadRegisterAtOperandIndex(1);
   TNode<Context> context = GetContext();
+  TNode<Union<FeedbackVector, Undefined>> feedback_vector =
+      LoadFeedbackVector();
+  TNode<TaggedIndex> call_slot = BytecodeOperandIdxTaggedIndex(3);
 
-  auto [value, done_value] = ForOfNextHelper(context, object, next);
+  auto [value, done_value] =
+      ForOfNextHelper(context, object, next, feedback_vector,
+                      Unsigned(TaggedIndexToIntPtr(call_slot)));
   StoreRegisterPairAtOperandIndex(value, done_value, 2);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we clobber the accumulator after the iterator.next call.

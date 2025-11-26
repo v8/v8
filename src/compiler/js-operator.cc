@@ -722,6 +722,29 @@ size_t hash_value(GetIteratorParameters const& p) {
                             FeedbackSource::Hash()(p.callFeedback()));
 }
 
+std::ostream& operator<<(std::ostream& os, ForOfNextParameters const& p) {
+  return os << p.callFeedback();
+}
+
+bool operator==(ForOfNextParameters const& lhs,
+                ForOfNextParameters const& rhs) {
+  return lhs.callFeedback() == rhs.callFeedback();
+}
+
+bool operator!=(ForOfNextParameters const& lhs,
+                ForOfNextParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+ForOfNextParameters const& ForOfNextParametersOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSForOfNext);
+  return OpParameter<ForOfNextParameters>(op);
+}
+
+size_t hash_value(ForOfNextParameters const& p) {
+  return FeedbackSource::Hash()(p.callFeedback());
+}
+
 size_t hash_value(ForInMode const& mode) { return static_cast<uint8_t>(mode); }
 
 std::ostream& operator<<(std::ostream& os, ForInMode const& mode) {
@@ -1153,11 +1176,14 @@ const Operator* JSOperatorBuilder::GetIterator(
       access);                                            // parameter
 }
 
-const Operator* JSOperatorBuilder::ForOfNext() {
-  return zone()->New<Operator>(                         // --
+const Operator* JSOperatorBuilder::ForOfNext(
+    FeedbackSource const& call_feedback) {
+  ForOfNextParameters access(call_feedback);
+  return zone()->New<Operator1<ForOfNextParameters>>(   // --
       IrOpcode::kJSForOfNext, Operator::kNoProperties,  // opcode
       "JSForOfNext",                                    // name
-      2, 1, 1, 2, 1, 2);                                // counts
+      3, 1, 1, 2, 1, 2,                                 // counts
+      access);                                          // parameter
 }
 
 const Operator* JSOperatorBuilder::HasProperty(FeedbackSource const& feedback) {

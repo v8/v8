@@ -3382,8 +3382,13 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
                                                       /* is_breakable */ false);
           if (v8_flags.for_of_optimization &&
               iterator.type() != IteratorType::kAsync) {
+            FeedbackSlot call_slot = feedback_spec()->AddCallICSlot();
+            feedback_spec()->AddLoadICSlot();  // value_slot
+            feedback_spec()->AddLoadICSlot();  // done_slot
+
             builder()
-                ->ForOfNext(iterator.object(), iterator.next(), output)
+                ->ForOfNext(iterator.object(), iterator.next(), output,
+                            feedback_index(call_slot))
                 .LoadAccumulatorWithRegister(done);
             // TODO(rezvan): Perform ToBoolean conversion inside ForOfNext.
             loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);

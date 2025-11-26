@@ -445,7 +445,7 @@ namespace interpreter {
                                                                                \
   /* Optimizing For..of */                                                     \
   V(ForOfNext, ImplicitRegisterUse::kClobberAccumulator, OperandType::kReg,    \
-    OperandType::kReg, OperandType::kRegOutPair)                               \
+    OperandType::kReg, OperandType::kRegOutPair, OperandType::kIdx)            \
                                                                                \
   /* Update the pending message */                                             \
   V(SetPendingMessage, ImplicitRegisterUse::kReadWriteAccumulator)             \
