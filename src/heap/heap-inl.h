@@ -153,13 +153,21 @@ void Heap::SetJSToWasmWrappers(Tagged<WeakFixedArray> js_to_wasm_wrappers) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-PagedSpace* Heap::paged_space(int idx) const {
-  DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE ||
-         idx == TRUSTED_SPACE || idx == SHARED_TRUSTED_SPACE);
-  return static_cast<PagedSpace*>(space_[idx].get());
+PagedSpace* Heap::paged_space(int index) const {
+  DCHECK(index == OLD_SPACE || index == CODE_SPACE || index == SHARED_SPACE ||
+         index == TRUSTED_SPACE || index == SHARED_TRUSTED_SPACE);
+  return static_cast<PagedSpace*>(space_[index].get());
 }
 
-Space* Heap::space(int idx) const { return space_[idx].get(); }
+Space* Heap::space(int index) const {
+  DCHECK_LE(AllocationSpace::FIRST_SPACE, index);
+  DCHECK_LE(index, AllocationSpace::LAST_SPACE);
+  return space_[index].get();
+}
+
+Space* Heap::space(AllocationSpace allocation_space) const {
+  return space(static_cast<int>(allocation_space));
+}
 
 inline const base::AddressRegion& Heap::code_region() {
   static constexpr base::AddressRegion kEmptyRegion;

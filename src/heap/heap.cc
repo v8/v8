@@ -4602,27 +4602,6 @@ bool Heap::CanReferenceHeapObject(Tagged<HeapObject> obj) {
   return obj_heap == expected_heap;
 }
 
-bool Heap::IsValidAllocationSpace(AllocationSpace space) {
-  switch (space) {
-    case NEW_SPACE:
-    case OLD_SPACE:
-    case CODE_SPACE:
-    case SHARED_SPACE:
-    case LO_SPACE:
-    case NEW_LO_SPACE:
-    case CODE_LO_SPACE:
-    case SHARED_LO_SPACE:
-    case TRUSTED_SPACE:
-    case SHARED_TRUSTED_SPACE:
-    case TRUSTED_LO_SPACE:
-    case SHARED_TRUSTED_LO_SPACE:
-    case RO_SPACE:
-      return true;
-    default:
-      return false;
-  }
-}
-
 #ifdef DEBUG
 void Heap::VerifyCountersAfterSweeping() {
   MakeHeapIterable(CompleteSweepingReason::kTesting);

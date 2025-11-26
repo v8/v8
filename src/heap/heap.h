@@ -444,8 +444,14 @@ class Heap final {
   [[noreturn]] V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(
       const char* location);
 
-  // Checks whether the space is valid.
-  static bool IsValidAllocationSpace(AllocationSpace space);
+  static constexpr std::optional<AllocationSpace>
+  TryGetAllocationSpaceFromIndex(size_t index) {
+    if (index > AllocationSpace::LAST_SPACE) {
+      return std::nullopt;
+    }
+    static_assert(AllocationSpace::FIRST_SPACE == 0);
+    return {static_cast<AllocationSpace>(index)};
+  }
 
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
     return collector == GarbageCollector::SCAVENGER ||
@@ -892,8 +898,9 @@ class Heap final {
     return shared_trusted_lo_allocation_space_;
   }
 
-  inline PagedSpace* paged_space(int idx) const;
-  inline Space* space(int idx) const;
+  inline PagedSpace* paged_space(int index) const;
+  inline Space* space(int index) const;
+  inline Space* space(AllocationSpace allocation_space) const;
 
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable::Space* young_external_pointer_space() {
