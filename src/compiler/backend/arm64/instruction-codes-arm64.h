@@ -119,12 +119,9 @@ namespace compiler {
   V(Arm64Usra)                          \
   V(Arm64S64x2Reverse)                  \
   V(Arm64S64x2Shuffle)                  \
-  V(Arm64S64x1Shuffle)                  \
   V(Arm64S32x4Shuffle)                  \
   V(Arm64S32x2Shuffle)                  \
-  V(Arm64S32x1Shuffle)                  \
   V(Arm64S16x2Shuffle)                  \
-  V(Arm64S16x1Shuffle)                  \
   V(Arm64S8x2Shuffle)                   \
   V(Arm64S8x16Concat)                   \
   V(Arm64I8x16Swizzle)                  \

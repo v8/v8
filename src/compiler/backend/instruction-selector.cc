@@ -1973,6 +1973,7 @@ IF_WASM(VISIT_UNSUPPORTED_OP, I64x2AddReduce)
 IF_WASM(VISIT_UNSUPPORTED_OP, F32x4AddReduce)
 IF_WASM(VISIT_UNSUPPORTED_OP, F64x2AddReduce)
 
+IF_WASM(VISIT_UNSUPPORTED_OP, I8x1Shuffle)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x2Shuffle)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x4Shuffle)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x8Shuffle)
@@ -3708,6 +3709,8 @@ void InstructionSelector::VisitNode(OpIndex node) {
       MarkAsSimd128(node);
       const Simd128ShuffleOp& shuffle = op.Cast<Simd128ShuffleOp>();
       switch (shuffle.kind) {
+        case Simd128ShuffleOp::Kind::kI8x1:
+          return VisitI8x1Shuffle(node);
         case Simd128ShuffleOp::Kind::kI8x2:
           return VisitI8x2Shuffle(node);
         case Simd128ShuffleOp::Kind::kI8x4:

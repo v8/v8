@@ -874,23 +874,6 @@ void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 
 int32_t GetLaneMask(int32_t lane_count) { return lane_count * 2 - 1; }
 
-void Shuffle1Helper(MacroAssembler* masm, Arm64OperandConverter i,
-                    VectorFormat f) {
-  VRegister dst = VRegister::Create(i.OutputSimd128Register().code(), f);
-  VRegister src0 = VRegister::Create(i.InputSimd128Register(0).code(), f);
-  VRegister src1 = VRegister::Create(i.InputSimd128Register(1).code(), f);
-
-  int32_t shuffle = i.InputInt32(2);
-  int32_t lane_count = LaneCountFromFormat(f);
-  int32_t max_src0_lane = lane_count - 1;
-  int32_t lane_mask = GetLaneMask(lane_count);
-
-  int lane = shuffle & lane_mask;
-  VRegister src = (lane > max_src0_lane) ? src1 : src0;
-  lane &= max_src0_lane;
-  masm->Dup(dst, src, lane);
-}
-
 void Shuffle2Helper(MacroAssembler* masm, Arm64OperandConverter i,
                     VectorFormat f) {
   VRegister dst = VRegister::Create(i.OutputSimd128Register().code(), f);
@@ -3641,16 +3624,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Shuffle2Helper(masm(), i, kFormat16B);
       break;
     }
-    case kArm64S16x1Shuffle: {
-      Shuffle1Helper(masm(), i, kFormat8H);
-      break;
-    }
     case kArm64S16x2Shuffle: {
       Shuffle2Helper(masm(), i, kFormat8H);
-      break;
-    }
-    case kArm64S32x1Shuffle: {
-      Shuffle1Helper(masm(), i, kFormat4S);
       break;
     }
     case kArm64S32x2Shuffle: {
@@ -3659,10 +3634,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64S32x4Shuffle: {
       Shuffle4Helper(masm(), i, kFormat4S);
-      break;
-    }
-    case kArm64S64x1Shuffle: {
-      Shuffle1Helper(masm(), i, kFormat2D);
       break;
     }
     case kArm64S64x2Shuffle: {

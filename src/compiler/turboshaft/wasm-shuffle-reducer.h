@@ -515,7 +515,11 @@ class WasmShuffleReducer : public Next {
                   shuffle_bytes.begin());
       }
 
-      if (lanes == DemandedElementAnalysis::k8x2Low) {
+      if (lanes == DemandedElementAnalysis::k8x1Low) {
+        return __ Simd128Shuffle(og_left, og_right,
+                                 Simd128ShuffleOp::Kind::kI8x1,
+                                 shuffle_bytes.data());
+      } else if (lanes == DemandedElementAnalysis::k8x2Low) {
         return __ Simd128Shuffle(og_left, og_right,
                                  Simd128ShuffleOp::Kind::kI8x2,
                                  shuffle_bytes.data());

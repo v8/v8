@@ -8860,6 +8860,7 @@ struct Simd128LoadTransformOp
 // among the input lanes according to `shuffle`.
 struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
   enum class Kind : uint8_t {
+    kI8x1,
     kI8x2,
     kI8x4,
     kI8x8,
@@ -8888,6 +8889,9 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
     switch (kind) {
       default:
         UNREACHABLE();
+      case Kind::kI8x1:
+        count = 1;
+        break;
       case Kind::kI8x2:
         count = 2;
         break;

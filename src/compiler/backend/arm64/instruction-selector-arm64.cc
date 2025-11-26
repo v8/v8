@@ -5782,7 +5782,34 @@ std::optional<ShufflePair> TryMapCanonicalShuffleToShufflePair(
   }
   return {};
 }
+
+int32_t GetLaneMask(int32_t lane_count) { return lane_count * 2 - 1; }
+
+template <int32_t lane_size>
+void EmitShuffle1(InstructionSelector* selector, OpIndex node, OpIndex input0,
+                  OpIndex input1, uint32_t shuffle) {
+  int32_t lane_count = 128 / lane_size;
+  int32_t max_input0_lane = lane_count - 1;
+  int32_t lane_mask = GetLaneMask(lane_count);
+  int32_t lane = shuffle & lane_mask;
+  OpIndex input = (lane > max_input0_lane) ? input1 : input0;
+  lane &= max_input0_lane;
+  Arm64OperandGenerator g(selector);
+  selector->Emit(kArm64S128Dup | LaneSizeField::encode(lane_size),
+                 g.DefineAsRegister(node), g.UseRegister(input),
+                 g.UseImmediate(lane));
+}
+
 }  // namespace
+
+void InstructionSelector::VisitI8x1Shuffle(OpIndex node) {
+  Arm64OperandGenerator g(this);
+  auto view = this->simd_shuffle_view(node);
+  OpIndex input0 = view.input(0);
+  OpIndex input1 = view.input(1);
+  uint8_t shuffle = view.data()[0];
+  EmitShuffle1<8>(this, node, input0, input1, shuffle);
+}
 
 void InstructionSelector::VisitI8x2Shuffle(OpIndex node) {
   Arm64OperandGenerator g(this);
@@ -5795,8 +5822,8 @@ void InstructionSelector::VisitI8x2Shuffle(OpIndex node) {
 
   uint8_t shuffle16x1;
   if (wasm::SimdShuffle::TryMatch16x1Shuffle(shuffle.data(), &shuffle16x1)) {
-    Emit(kArm64S16x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1), g.UseImmediate(shuffle16x1));
+    EmitShuffle1<16>(this, node, input0, input1, shuffle16x1);
+    return;
   } else {
     Emit(kArm64S8x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseRegister(input1),
@@ -5852,8 +5879,8 @@ void InstructionSelector::VisitI8x4Shuffle(OpIndex node) {
     return;
   } else if (wasm::SimdShuffle::TryMatch32x1Shuffle(shuffle.data(),
                                                     &shuffle32x1)) {
-    Emit(kArm64S32x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1), g.UseImmediate(shuffle32x1));
+    EmitShuffle1<32>(this, node, input0, input1, shuffle32x1);
+    return;
   } else if (wasm::SimdShuffle::TryMatch16x2Shuffle(shuffle.data(),
                                                     shuffle16x2.data())) {
     Emit(kArm64S16x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
@@ -5878,6 +5905,12 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
   OpIndex input1 = view.input(1);
   Arm64OperandGenerator g(this);
 
+  uint8_t shuffle64x1;
+  if (wasm::SimdShuffle::TryMatch64x1Shuffle(shuffle.data(), &shuffle64x1)) {
+    EmitShuffle1<64>(this, node, input0, input1, shuffle64x1);
+    return;
+  }
+
   const CanonicalShuffle canonical =
       wasm::SimdShuffle::TryMatchCanonical(shuffle);
 
@@ -5896,13 +5929,7 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
     return;
   }
 
-  uint8_t shuffle64x1;
   int index = 0;
-  if (wasm::SimdShuffle::TryMatch64x1Shuffle(shuffle.data(), &shuffle64x1)) {
-    Emit(kArm64S64x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1), g.UseImmediate(shuffle64x1));
-    return;
-  }
   std::array<uint8_t, 2> shuffle32x2;
   if (wasm::SimdShuffle::TryMatch32x2Shuffle(shuffle.data(),
                                              shuffle32x2.data())) {
