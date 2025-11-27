@@ -1016,14 +1016,6 @@ class Internals {
   static const int kIsolateRootsOffset =
       kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
 
-  // The mask for flags that might be encoded into kIsolateAndFlagsIndex
-  // slot of v8::FunctionCallbackInfo<T> and v8::PropertyCallbackInfo<T>.
-  // The least significant bit is excluded from the mask since it must
-  // be zero to make the contents of the slot look like a Smi.
-  static constexpr Address kCallbackInfoIsolateFlagsPayloadSize = 3;
-  static constexpr Address kCallbackInfoIsolateFlagsMask =
-      ((1 << kCallbackInfoIsolateFlagsPayloadSize) - 1) << kSmiTagSize;
-
   // Assert scopes
   static const int kDisallowGarbageCollectionAlign = alignof(uint32_t);
   static const int kDisallowGarbageCollectionSize = sizeof(uint32_t);

@@ -738,7 +738,7 @@ KeyAccumulator::FilterForEnumerableProperties(
 
   size_t length = accessor->GetCapacity(*result, result->elements());
   for (InternalIndex entry : InternalIndex::Range(length)) {
-    if (!accessor->HasEntry(isolate_, *result, entry)) continue;
+    if (!accessor->HasEntry(isolate(), *result, entry)) continue;
 
     // Query callbacks are not expected to have side effects.
     DirectHandle<Object> element = accessor->Get(isolate_, result, entry);
@@ -746,11 +746,10 @@ KeyAccumulator::FilterForEnumerableProperties(
     if (type == kIndexed) {
       uint32_t number;
       CHECK(Object::ToUint32(*element, &number));
-      attributes = args.CallIndexedQuery(isolate_, interceptor, number);
+      attributes = args.CallIndexedQuery(interceptor, number);
     } else {
       CHECK(IsName(*element));
-      attributes =
-          args.CallNamedQuery(isolate_, interceptor, Cast<Name>(element));
+      attributes = args.CallNamedQuery(interceptor, Cast<Name>(element));
     }
     // An exception was thrown in the interceptor. Propagate.
     RETURN_VALUE_IF_EXCEPTION(isolate_, ExceptionStatus::kException);
@@ -781,10 +780,10 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
   {
     DirectHandle<JSObjectOrUndefined> maybe_result;
     if (type == kIndexed) {
-      maybe_result = args.CallIndexedEnumerator(isolate_, interceptor);
+      maybe_result = args.CallIndexedEnumerator(interceptor);
     } else {
       DCHECK_EQ(type, kNamed);
-      maybe_result = args.CallNamedEnumerator(isolate_, interceptor);
+      maybe_result = args.CallNamedEnumerator(interceptor);
     }
     // An exception was thrown in the interceptor. Propagate.
     RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate_, args, Nothing<bool>());

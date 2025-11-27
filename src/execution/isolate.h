@@ -556,14 +556,6 @@ __attribute__((tls_model(V8_TLS_MODEL))) extern thread_local Isolate*
 // Factory's members available to Isolate directly.
 class V8_EXPORT_PRIVATE HiddenFactory : private Factory {};
 
-// Make sure Isolate pointer is page aligned. This ensures predictable offsets
-// of isolate fields within CPU cache lines and allows to add payload into
-// isolate pointers.
-constexpr uintptr_t kIsolateAlignment = kMinimumOSPageSize;
-
-// Make sure the Api flags encoded into isolate pointer will not corrupt it.
-static_assert(Internals::kCallbackInfoIsolateFlagsMask < kIsolateAlignment);
-
 class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // These forward declarations are required to make the friend declarations in
   // PerIsolateThreadData work on some older versions of gcc.
