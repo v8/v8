@@ -274,6 +274,9 @@ Reduction JSIntrinsicLowering::ReduceMajorGCForCompilerTesting(Node* node) {
   node->AppendInput(zone(), effect);
   node->AppendInput(zone(), control);
   NodeProperties::ChangeOp(node, common()->MajorGCForCompilerTesting());
+  // Replacing value uses of {node} by uses of UndefinedConstant, since
+  // MajorGCForCompilerTesting doesn't return anything.
+  ReplaceWithValue(node, jsgraph_->UndefinedConstant(), node, node);
   return Changed(node);
 }
 

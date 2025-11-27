@@ -12253,7 +12253,9 @@ ReduceResult MaglevGraphBuilder::VisitCallRuntime() {
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
 
   if (function_id == Runtime::kMajorGCForCompilerTesting) {
-    return AddNewNode<MajorGCForCompilerTesting>({});
+    RETURN_IF_ABORT(AddNewNode<MajorGCForCompilerTesting>({}));
+    SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
+    return ReduceResult::Done();
   }
 
   ValueNode* context = GetContext();
