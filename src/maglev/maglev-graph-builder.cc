@@ -15582,7 +15582,12 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfToBooleanTrue(
     // all maps have the same detectability, and if yes, the boolean value is
     // known.
     if (NodeInfo* node_info = known_node_aspects().TryGetInfoFor(node)) {
-      if (node_info && NodeTypeIs(node_info->type(), NodeType::kJSReceiver) &&
+      if (node_info->type() == NodeType::kNone) {
+        // `node` is dead, it doesn't matter what we return.
+        // TODO(428667907): Ideally we would BuildAbort here.
+        return builder.AlwaysFalse();
+      }
+      if (NodeTypeIs(node_info->type(), NodeType::kJSReceiver) &&
           node_info->possible_maps_are_known()) {
         bool all_detectable = true;
         bool all_undetectable = true;
