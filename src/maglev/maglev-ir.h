@@ -707,6 +707,21 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   }
 }
 
+constexpr bool CanBeTheHoleValue(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kInitialValue:
+    case Opcode::kCallRuntime:
+    case Opcode::kRootConstant:
+    case Opcode::kLoadContextSlot:
+    case Opcode::kLoadContextSlotNoCells:
+    case Opcode::kLoadFixedArrayElement:
+    case Opcode::kPhi:
+      return true;
+    default:
+      return false;
+  }
+}
+
 constexpr bool HasRangeField(Opcode opcode) {
   switch (opcode) {
     case Opcode::kFloat64Add:
@@ -800,6 +815,16 @@ class BranchControlNode;
 class UnconditionalControlNode;
 class TerminalControlNode;
 class ValueNode;
+
+enum class Tribool {
+  kTrue,
+  kFalse,
+  kMaybe,
+};
+
+inline constexpr Tribool ToTribool(bool b) {
+  return b ? Tribool::kTrue : Tribool::kFalse;
+}
 
 enum class ValueRepresentation : uint8_t {
   kTagged,
@@ -2513,6 +2538,12 @@ class NodeBase : public ZoneObject {
                                  [&](int i) { return input(i); });
   }
 
+  //  for (ConstInput input : node->inputs()) { ... }
+  auto inputs() const {
+    return std::views::transform(std::views::iota(0, input_count()),
+                                 [&](int i) { return input(i); });
+  }
+
   RegallocNodeInfo* regalloc_info() const {
     DCHECK_EQ(state_, kRegallocInfo);
     return regalloc_info_;
@@ -3052,6 +3083,8 @@ class ValueNode : public Node {
   bool StaticTypeIs(compiler::JSHeapBroker* broker, NodeType type) {
     return NodeTypeIs(GetStaticType(broker), type);
   }
+
+  Tribool IsTheHole() const;
 
   inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
   inline void MaybeRecordUseReprHint(UseRepresentation repr);

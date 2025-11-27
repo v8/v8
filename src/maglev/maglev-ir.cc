@@ -616,6 +616,31 @@ Range ValueNode::GetStaticRange() const {
   }
 }
 
+Tribool ValueNode::IsTheHole() const {
+  if (!CanBeTheHoleValue(opcode())) return Tribool::kFalse;
+  if (const RootConstant* cst = TryCast<RootConstant>()) {
+    return ToTribool(cst->index() == RootIndex::kTheHoleValue);
+  }
+  if (const LoadFixedArrayElement* load = TryCast<LoadFixedArrayElement>()) {
+    return ToTribool(load->load_type() == LoadType::kUnknown);
+  }
+  if (const Phi* phi = TryCast<Phi>()) {
+    if (!phi->is_loop_phi() || !phi->is_unmerged_loop_phi()) {
+      bool can_be_the_hole = false;
+      for (ConstInput input : phi->inputs()) {
+        if (input.node()->IsTheHole() != Tribool::kFalse) {
+          can_be_the_hole = true;
+          break;
+        }
+      }
+      if (!can_be_the_hole) {
+        return Tribool::kFalse;
+      }
+    }
+  }
+  return Tribool::kMaybe;
+}
+
 ExternalReference Float64Ieee754Unary::ieee_function_ref() const {
   switch (ieee_function_) {
 #define CASE(MathName, ExtName, EnumName) \

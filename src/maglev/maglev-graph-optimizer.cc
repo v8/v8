@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/common/operation.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -388,6 +389,14 @@ ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
   block->RemovePredecessorFollowing(control);
   reducer_.AddNewControlNode<Deopt>({}, reason);
   return ReduceResult::DoneWithAbort();
+}
+
+ProcessResult MaglevGraphOptimizer::EmitAbort(AbortReason reason) {
+  BasicBlock* block = reducer_.current_block();
+  ControlNode* control = block->reset_control_node();
+  block->RemovePredecessorFollowing(control);
+  reducer_.AddNewControlNode<Abort>({}, reason);
+  return ProcessResult::kTruncateBlock;
 }
 
 template <typename NodeT>
@@ -798,74 +807,64 @@ ProcessResult MaglevGraphOptimizer::VisitDeoptIfHole(DeoptIfHole* node,
 
 ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
     ThrowReferenceErrorIfHole* node, const ProcessingState& state) {
-  // Avoid the check if we know it is not the hole.
-  ValueNode* value = node->ValueInput().node();
-  if (IsConstantNode(value->opcode())) {
-    if (value->IsTheHoleValue()) {
-      ValueNode* input = reducer_.GetConstant(node->name());
-
-      node->OverwriteWith<Throw>();
-      node->Cast<Throw>()->UpdateBitfield(
-          Throw::kThrowAccessedUninitializedVariable,
-          /*has_input*/ true);
-      node->change_input(0, input);
-
-      // TODO(dmercadier): insert an Abort and cut the current basic block.
+  switch (node->ValueInput().node()->IsTheHole()) {
+    case Tribool::kTrue: {
+      ValueNode* throw_input = reducer_.GetConstant(node->name());
+      Throw* throw_node = node->OverwriteWith<Throw>();
+      throw_node->UpdateBitfield(Throw::kThrowAccessedUninitializedVariable,
+                                 /*has_input*/ true);
+      throw_node->change_input(0, throw_input);
+      // TODO(victorgomes): Ideally we should emit abort and truncate the graph
+      // here, however, if this node is the only reference to the catch
+      // block, KNA processor will not visit the newly added node above, we
+      // would have no references to catch block and we would then remove it.
       return ProcessResult::kContinue;
     }
-
-    // Not the hole; removing.
-    return ProcessResult::kRemove;
+    case Tribool::kFalse:
+      // Not the hole; removing.
+      return ProcessResult::kRemove;
+    case Tribool::kMaybe:
+      return ProcessResult::kContinue;
   }
-
-  // TODO(b/424157317): Optimize further.
-  return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
     ThrowSuperNotCalledIfHole* node, const ProcessingState& state) {
-  // Avoid the check if we know it is not the hole.
-  ValueNode* value = node->ValueInput().node();
-  if (IsConstantNode(value->opcode())) {
-    if (value->IsTheHoleValue()) {
-      node->OverwriteWith<Throw>();
-      node->Cast<Throw>()->UpdateBitfield(Throw::kThrowSuperNotCalled,
-                                          /*has_input*/ false);
-      node->change_input(0, reducer_.GetSmiConstant(0));
-
-      // TODO(dmercadier): insert an Abort and cut the current basic block.
+  switch (node->ValueInput().node()->IsTheHole()) {
+    case Tribool::kTrue: {
+      Throw* throw_node = node->OverwriteWith<Throw>();
+      throw_node->UpdateBitfield(Throw::kThrowSuperNotCalled,
+                                 /*has_input*/ false);
+      // TODO(victorgomes): Ideally we should emit abort here,
+      // see VisitThrowReferenceErrorIfHole.
       return ProcessResult::kContinue;
     }
-
-    // Not the hole; removing.
-    return ProcessResult::kRemove;
+    case Tribool::kFalse:
+      // Not the hole; removing.
+      return ProcessResult::kRemove;
+    case Tribool::kMaybe:
+      return ProcessResult::kContinue;
   }
-
-  // TODO(b/424157317): Optimize further.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
     ThrowSuperAlreadyCalledIfNotHole* node, const ProcessingState& state) {
-  // Avoid the check if we know it is not the hole.
-  ValueNode* value = node->ValueInput().node();
-  if (IsConstantNode(value->opcode())) {
-    if (!value->IsTheHoleValue()) {
-      node->OverwriteWith<Throw>();
-      node->Cast<Throw>()->UpdateBitfield(Throw::kThrowSuperAlreadyCalledError,
-                                          /*has_input*/ false);
-      node->change_input(0, reducer_.GetSmiConstant(0));
-
-      // TODO(dmercadier): insert an Abort and cut the current basic block.
+  switch (node->ValueInput().node()->IsTheHole()) {
+    case Tribool::kTrue:
+      // It is the hole; removing.
+      return ProcessResult::kRemove;
+    case Tribool::kFalse: {
+      Throw* throw_node = node->OverwriteWith<Throw>();
+      throw_node->UpdateBitfield(Throw::kThrowSuperAlreadyCalledError,
+                                 /*has_input*/ false);
+      // TODO(victorgomes): Ideally we should emit abort here,
+      // see VisitThrowReferenceErrorIfHole.
       return ProcessResult::kContinue;
     }
-
-    // Value is the hole; removing.
-    return ProcessResult::kRemove;
+    case Tribool::kMaybe:
+      return ProcessResult::kContinue;
   }
-
-  // TODO(b/424157317): Optimize further.
-  return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitThrowIfNotCallable(

@@ -16068,74 +16068,43 @@ ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
   // ThrowReferenceErrorIfHole <variable_name>
   compiler::NameRef name = GetRefOperand<Name>(0);
   ValueNode* value = GetAccumulator();
-
-  // Avoid the check if we know it is not the hole.
-  if (IsConstantNode(value->opcode())) {
-    if (value->IsTheHoleValue()) {
-      ValueNode* constant = GetConstant(name);
-      return BuildThrow(Throw::kThrowAccessedUninitializedVariable, constant);
-    }
-    return ReduceResult::Done();
-  }
-
-  // Avoid the check if {value}'s representation doesn't allow the hole.
-  switch (value->value_representation()) {
-    case ValueRepresentation::kInt32:
-    case ValueRepresentation::kUint32:
-    case ValueRepresentation::kFloat64:
-    case ValueRepresentation::kHoleyFloat64:
-    case ValueRepresentation::kIntPtr:
-    case ValueRepresentation::kShiftedInt53:
-      // Can't be the hole.
-      // Note that HoleyFloat64 when converted to Tagged becomes Undefined
-      // rather than the_hole, hence the early return for HoleyFloat64.
+  switch (value->IsTheHole()) {
+    case Tribool::kTrue:
+      return BuildThrow(Throw::kThrowAccessedUninitializedVariable,
+                        GetConstant(name));
+    case Tribool::kFalse:
       return ReduceResult::Done();
-
-    case ValueRepresentation::kTagged:
-      // Could be the hole.
-      break;
-    case ValueRepresentation::kRawPtr:
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
+    case Tribool::kMaybe:
+      DCHECK(value->is_tagged());
+      return AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
   }
-
-  // Avoid the check if {value} has an alternative whose representation doesn't
-  // allow the hole.
-  if (const NodeInfo* info = known_node_aspects().TryGetInfoFor(value)) {
-    auto& alt = info->alternative();
-    if (alt.int32() || alt.truncated_int32_to_number() || alt.float64()) {
-      return ReduceResult::Done();
-    }
-  }
-
-  DCHECK(value->is_tagged());
-  return AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
 }
-
 ReduceResult MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() {
   // ThrowSuperNotCalledIfHole
   ValueNode* value = GetAccumulator();
   if (CheckType(value, NodeType::kJSReceiver)) return ReduceResult::Done();
-  // Avoid the check if we know it is not the hole.
-  if (IsConstantNode(value->opcode())) {
-    if (value->IsTheHoleValue()) {
+  switch (value->IsTheHole()) {
+    case Tribool::kTrue:
       return BuildThrow(Throw::kThrowSuperNotCalled);
-    }
-    return ReduceResult::Done();
+    case Tribool::kFalse:
+      return ReduceResult::Done();
+    case Tribool::kMaybe:
+      DCHECK(value->is_tagged());
+      return AddNewNode<ThrowSuperNotCalledIfHole>({value});
   }
-  return AddNewNode<ThrowSuperNotCalledIfHole>({value});
 }
 ReduceResult MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
   // ThrowSuperAlreadyCalledIfNotHole
   ValueNode* value = GetAccumulator();
-  // Avoid the check if we know it is the hole.
-  if (IsConstantNode(value->opcode())) {
-    if (!value->IsTheHoleValue()) {
+  switch (value->IsTheHole()) {
+    case Tribool::kTrue:
+      return ReduceResult::Done();
+    case Tribool::kFalse:
       return BuildThrow(Throw::kThrowSuperAlreadyCalledError);
-    }
-    return ReduceResult::Done();
+    case Tribool::kMaybe:
+      DCHECK(value->is_tagged());
+      return AddNewNode<ThrowSuperAlreadyCalledIfNotHole>({value});
   }
-  return AddNewNode<ThrowSuperAlreadyCalledIfNotHole>({value});
 }
 ReduceResult MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() {
   // ThrowIfNotSuperConstructor <constructor>
