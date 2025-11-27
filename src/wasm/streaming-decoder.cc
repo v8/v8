@@ -267,8 +267,12 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder final : public StreamingDecoder {
 void AsyncStreamingDecoder::OnBytesReceived(base::Vector<const uint8_t> bytes) {
   TRACE_STREAMING("OnBytesReceived(%zu bytes)\n", bytes.size());
 
-  // {OnBytesReceived} should not be called after {Finish}, {Abort}, or
-  // {NotifyCompilationDiscarded}.
+  // If {OnBytesReceived} is still called after {NotifyCompilationDiscarded},
+  // this is probably just unfortunate timing (the user navigating away while
+  // data came in).
+  if (stream_state_ == StreamState::kDiscarded) return;
+
+  // {OnBytesReceived} should not be called after {Finish} or {Abort}.
   CHECK_EQ(StreamState::kReceivingBytes, stream_state_);
 
   // Note: The bytes are passed by the embedder, and they might point into the
