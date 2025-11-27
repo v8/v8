@@ -77,7 +77,6 @@
 #include "src/objects/slots.h"
 #include "src/objects/transitions.h"
 #include "src/regexp/regexp.h"
-#include "src/sandbox/bytecode-verifier.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/ostreams.h"
@@ -666,16 +665,6 @@ TEST(BytecodeArray) {
       constant_pool, handler_table);
 
   CHECK(IsBytecodeArray(*array));
-
-#ifdef V8_ENABLE_SANDBOX
-  // BytecodeArrays are not exposed to the sandbox ("published") immediately
-  // after allocation. Instead, this only happens once the bytecode has been
-  // verified. This way, we ensure that we only execute safe bytecode.
-  CHECK(!array->IsPublished(isolate));
-  BytecodeVerifier::Verify(isolate, array);
-  CHECK(array->IsPublished(isolate));
-#endif  // V8_ENABLE_SANDBOX
-
   CHECK_EQ(array->length(), (int)sizeof(kRawBytes));
   CHECK_EQ(array->frame_size(), kFrameSize);
   CHECK_EQ(array->parameter_count(), kParameterCount);

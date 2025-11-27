@@ -346,9 +346,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
       size, allocation, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> instance = TrustedCast<BytecodeArray>(result);
-  // BytecodeArrays are initially unpublished and are only published to the
-  // sandbox after bytecode verification.
-  instance->InitDontPublish(isolate());
+  instance->InitAndPublish(isolate());
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);
@@ -362,6 +360,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   CopyBytes(reinterpret_cast<uint8_t*>(instance->GetFirstBytecodeAddress()),
             raw_bytecodes, length);
   instance->clear_padding();
+  wrapper->set_bytecode(instance);
   return handle(instance, isolate());
 }
 
