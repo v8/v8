@@ -3052,6 +3052,10 @@ DirectHandle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(
 
 DirectHandle<BytecodeArray> Factory::CopyBytecodeArray(
     DirectHandle<BytecodeArray> source) {
+  // We don't validate bytecode when copying it, as we assume that the source
+  // bytecode was verified before. This DCHECK makes this assumption explicit
+  // (BytecodeArrays are unpublished until they are verified).
+  CHECK(source->IsPublished(isolate()));
   DirectHandle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(source->length());
   Tagged<BytecodeArray> copy =
