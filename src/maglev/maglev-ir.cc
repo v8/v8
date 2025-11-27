@@ -4418,6 +4418,7 @@ int MajorGCForCompilerTesting::MaxCallStackArgs() const {
 void MajorGCForCompilerTesting::SetValueLocationConstraints() {}
 void MajorGCForCompilerTesting::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
+  __ Move(kContextRegister, 0);
   __ CallRuntime(Runtime::kMajorGCForCompilerTesting, 0);
 }
 
