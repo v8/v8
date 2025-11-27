@@ -5913,10 +5913,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     setup_delegate_->SetupBuiltins(this, false);
   }
 
-  // Initialize custom memcopy and memmove functions (must happen after
-  // embedded blob setup).
-  InitMemCopyFunctions();
-
   if ((v8_flags.trace_turbo || v8_flags.trace_turbo_graph ||
        v8_flags.turbo_profiling) &&
       !v8_flags.concurrent_turbo_tracing) {

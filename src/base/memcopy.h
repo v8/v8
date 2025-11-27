@@ -25,30 +25,6 @@ namespace v8::base {
 // implementations on different platforms for performance reasons. In an ideal
 // world this would all just be plain stdlib `memcpy()` and friends.
 
-#if defined(V8_HOST_ARCH_ARM)
-
-using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
-                                      size_t size);
-
-V8_BASE_EXPORT extern MemCopyUint8Function g_memcopy_uint8_function;
-
-V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
-  memmove(dest, src, size);
-}
-
-// MemCopy makes an indirect call to g_memcopy_uint8_function which can be
-// overwritten to an address not permitted by CFI to be called indirectly.
-DISABLE_CFI_ICALL
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  if (size == 0) {
-    return;
-  }
-  (*g_memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
-                              reinterpret_cast<const uint8_t*>(src), size);
-}
-
-#else  // !defined(V8_HOST_ARCH_ARM)
-
 #if defined(V8_OPTIMIZE_WITH_NEON)
 
 // We intentionally use misaligned read/writes for NEON intrinsics, disable
@@ -219,8 +195,6 @@ inline void MemCopyAndSwitchEndianness(void* dst, void* src,
 #undef COPY_LOOP
 }
 #endif
-
-#endif  // !defined(V8_TARGET_ARCH_IA32) && !defined(V8_HOST_ARCH_ARM)
 
 // Fills `destination` with `count` `value`s.
 template <typename T, typename U>

@@ -23,8 +23,6 @@ namespace v8::internal {
 
 using Address = uintptr_t;
 
-void InitMemCopyFunctions();
-
 inline void MemMove(void* dest, const void* src, size_t size) {
   v8::base::MemMove(dest, src, size);
 }
@@ -41,23 +39,9 @@ inline void MemCopyAndSwitchEndianness(void* dst, void* src,
 }
 #endif  // V8_TARGET_BIG_ENDIAN
 
-#if defined(V8_HOST_ARCH_ARM)
-
-// For values < 16, the assembler function is slower than the inlined C code.
-constexpr size_t kMinComplexMemCopy = 16;
-constexpr size_t kBlockCopyLimitForWordsAndTagged = 16;
-
-#else  // !defined(V8_HOST_ARCH_ARM)
-
-// Disable the CopyImpl fast paths as MemCopy has its own fast paths.
-constexpr size_t kMinComplexMemCopy = 0;
-constexpr size_t kBlockCopyLimitForWordsAndTagged = 0;
-
-#endif  // !defined(V8_TARGET_ARCH_IA32) && !defined(V8_HOST_ARCH_ARM)
-
 // Copies words from |src| to |dst|. The data spans must not overlap.
 // |src| and |dst| must be TWord-size aligned.
-template <size_t kBlockCopyLimit, typename T>
+template <typename T>
 inline void CopyImpl(T* dst_ptr, const T* src_ptr, size_t count) {
   constexpr int kTWordSize = sizeof(T);
 #ifdef DEBUG
@@ -68,44 +52,28 @@ inline void CopyImpl(T* dst_ptr, const T* src_ptr, size_t count) {
   DCHECK(((src <= dst) && ((src + count * kTWordSize) <= dst)) ||
          ((dst <= src) && ((dst + count * kTWordSize) <= src)));
 #endif
-  if (count == 0) {
-    return;
-  }
-
-  if constexpr (kBlockCopyLimit > 0) {
-    if (count < kBlockCopyLimit) {
-      do {
-        count--;
-        *dst_ptr++ = *src_ptr++;
-      } while (count > 0);
-      return;
-    }
-  }
-
   MemCopy(dst_ptr, src_ptr, count * kTWordSize);
 }
 
 // Copies `count` system words from `src` to `dst`.  The data spans must not
 // overlap. `src` and `dst` must be kSystemPointerSize-aligned.
 inline void CopyWords(Address dst, const Address src, size_t count) {
-  CopyImpl<kBlockCopyLimitForWordsAndTagged>(
-      reinterpret_cast<Address*>(dst), reinterpret_cast<const Address*>(src),
-      count);
+  CopyImpl(reinterpret_cast<Address*>(dst),
+           reinterpret_cast<const Address*>(src), count);
 }
 
 // Copies `count` tagged words from `src` to `dst`.  The data spans must not
 // overlap. `src` and `dst` must be kTaggedSize-aligned.
 inline void CopyTagged(Address dst, const Address src, size_t count) {
-  CopyImpl<kBlockCopyLimitForWordsAndTagged>(
-      reinterpret_cast<Tagged_t*>(dst), reinterpret_cast<const Tagged_t*>(src),
-      count);
+  CopyImpl(reinterpret_cast<Tagged_t*>(dst),
+           reinterpret_cast<const Tagged_t*>(src), count);
 }
 
 // Copies `count` bytes from `src` to `dst`.  The data spans must not overlap.
 template <typename T>
 inline void CopyBytes(T* dst, const T* src, size_t count) {
   static_assert(sizeof(T) == 1);
-  CopyImpl<kMinComplexMemCopy>(dst, src, count);
+  CopyImpl(dst, src, count);
 }
 
 // Copy from 8bit/16bit chars to 8bit/16bit chars. Values are zero-extended if
