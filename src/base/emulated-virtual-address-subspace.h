@@ -52,7 +52,7 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
 
   Address AllocateSharedPages(Address hint, size_t size,
                               PagePermissions permissions,
-                              PlatformSharedMemoryHandle handle,
+                              SharedMemoryHandle handle,
                               uint64_t offset) override;
 
   void FreeSharedPages(Address address, size_t size) override;
@@ -74,7 +74,7 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions,
       std::optional<MemoryProtectionKeyId> key,
-      PlatformSharedMemoryHandle handle) override;
+      std::optional<SharedMemoryHandle> handle) override;
 
   bool RecommitPages(Address address, size_t size,
                      PagePermissions permissions) override;
