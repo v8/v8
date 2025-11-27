@@ -7066,6 +7066,13 @@ bool Isolate::HasCrashKeyStringCallbacks() {
 CrashKey Isolate::AddCrashKeyString(const char key[], CrashKeySize size,
                                     std::string_view value) {
   CHECK(HasCrashKeyStringCallbacks());
+#if DEBUG
+  // Keys are limited in their length, see
+  // crash_reporter::internal::kCrashKeyStorageKeySize in
+  // components/crash/core/common/crash_key.h.
+  static constexpr size_t kCrashKeyStorageKeySize = 40;
+  DCHECK_LT(strlen(key), kCrashKeyStorageKeySize);
+#endif  // DEBUG
   CrashKey crash_key = allocate_crash_key_string_callback_(key, size);
   set_crash_key_string_callback_(crash_key, value);
   return crash_key;

@@ -1593,11 +1593,11 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
       {"v8-oom-code-cage-start", "0x3000"},
       {"v8-oom-is-main-isolate", "true"},
       {"v8-oom-last-few-messages", kMessages},
-      {"v8-oom-main-cage-last-allocation-status",
+      {"v8-oom-main-cage-last-alloc-status",
        base::ToString(stats.main_cage.last_allocation_status)},
-      {"v8-oom-trusted-cage-last-allocation-status",
+      {"v8-oom-trusted-cage-last-alloc-status",
        base::ToString(stats.trusted_cage.last_allocation_status)},
-      {"v8-oom-code-cage-last-allocation-status",
+      {"v8-oom-code-cage-last-alloc-status",
        base::ToString(stats.code_cage.last_allocation_status)},
   };
 

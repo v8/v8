@@ -5463,7 +5463,7 @@ void Heap::ReportStatsAsCrashKeys(const HeapStats& heap_stats) {
   HANDLE_PRIMITIVE_FIELD(name##_free_size, value.free_size); \
   HANDLE_PRIMITIVE_FIELD(name##_largest_free_region,         \
                          value.largest_free_region);         \
-  HANDLE_PRIMITIVE_FIELD(name##_last_allocation_status,      \
+  HANDLE_PRIMITIVE_FIELD(name##_last_alloc_status,           \
                          value.last_allocation_status);
 
 #define HANDLE_GENERIC_FIELD(type, name)           \
