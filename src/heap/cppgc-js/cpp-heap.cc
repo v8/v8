@@ -766,9 +766,6 @@ void CppHeap::UpdateGCCapabilitiesFromFlags() {
   sweeping_support_ = v8_flags.single_threaded_gc
                           ? CppHeap::SweepingType::kIncremental
                           : CppHeap::SweepingType::kIncrementalAndConcurrent;
-
-  page_backend_->page_pool().SetDecommitPooledPages(
-      v8_flags.decommit_pooled_pages);
 }
 
 void CppHeap::InitializeMarking(
