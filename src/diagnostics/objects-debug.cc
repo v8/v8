@@ -442,8 +442,10 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
     auto o = wrapper();
     Object::VerifyPointer(isolate, o);
     CHECK(IsBytecodeWrapper(o));
-    // Our wrapper must point back to us.
-    CHECK_EQ(o->bytecode(isolate), *this);
+    if (o->has_bytecode()) {
+      // If the wrapper is fully initialized, it must point back to us.
+      CHECK_EQ(o->bytecode(isolate), *this);
+    }
   }
   {
     // Use the raw accessor here as source positions may not be available.

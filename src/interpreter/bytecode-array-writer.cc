@@ -16,6 +16,7 @@
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
 #include "src/objects/objects-inl.h"
+#include "src/sandbox/bytecode-verifier.h"
 
 namespace v8 {
 namespace internal {
@@ -53,6 +54,9 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
       max_arguments, constant_pool, handler_table);
+
+  BytecodeVerifier::Verify(isolate, bytecode_array);
+
   return bytecode_array;
 }
 

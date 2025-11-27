@@ -2479,6 +2479,8 @@ filegroup(
         "src/runtime/runtime-weak-refs.cc",
         "src/sandbox/bounded-size.h",
         "src/sandbox/bounded-size-inl.h",
+        "src/sandbox/bytecode-verifier.h",
+        "src/sandbox/bytecode-verifier.cc",
         "src/sandbox/check.h",
         "src/sandbox/external-pointer.h",
         "src/sandbox/external-pointer-inl.h",
