@@ -308,6 +308,13 @@ constexpr size_t kExternalPointerTableReservationSize = 256 * MB;
 // smaller than the maximum table size even after the C++ compiler multiplies
 // them by 8 to be used as indexes into a table of 64 bit pointers.
 constexpr uint32_t kExternalPointerIndexShift = 7;
+#elif defined(V8_TARGET_OS_IOS)
+// iOS restricts large memory allocations, with 128 MB being the maximum size we
+// can configure. If we exceed this, SegmentedTable::Initialize will throw a V8
+// out-of-memory error when running the JetStream benchmark
+// (https://browserbench.org/JetStream/).
+constexpr size_t kExternalPointerTableReservationSize = 128 * MB;
+constexpr uint32_t kExternalPointerIndexShift = 8;
 #else
 constexpr size_t kExternalPointerTableReservationSize = 512 * MB;
 constexpr uint32_t kExternalPointerIndexShift = 6;
