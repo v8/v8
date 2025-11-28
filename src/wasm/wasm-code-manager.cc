@@ -60,6 +60,10 @@
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 
+#if defined(V8_OS_IOS)
+#include "src/heap/code-range.h"
+#include "src/init/isolate-group.h"
+#endif  // V8_OS_IOS
 #define TRACE_HEAP(...)                                       \
   do {                                                        \
     if (v8_flags.trace_wasm_native_heap) PrintF(__VA_ARGS__); \
@@ -2149,11 +2153,42 @@ NativeModule::~NativeModule() {
   FreeCodePointerTableHandles();
 }
 
+namespace {
+v8::PageAllocator* GetPageAllocator() {
+#ifdef V8_OS_IOS
+  // On iOS, MAP_JIT can only be used once per process, and the CodeRange
+  // already uses it. Therefore, Wasm code must be allocated from the
+  // CodeRange's page allocator instead of the platform page allocator.
+  if (internal::IsolateGroup* isolate_group =
+          internal::IsolateGroup::current()) {
+    if (internal::CodeRange* code_range = isolate_group->GetCodeRange()) {
+      if (base::BoundedPageAllocator* allocator =
+              code_range->page_allocator()) {
+        return allocator;
+      }
+    }
+  }
+  // On iOS, the CodeRange must be initialized and provide a valid page
+  // allocator. Falling through to GetPlatformPageAllocator() would fail
+  // because MAP_JIT can only be called once per process.
+  UNREACHABLE();
+#else
+  return GetPlatformPageAllocator();
+#endif  // V8_OS_IOS
+}
+}  // namespace
 WasmCodeManager::WasmCodeManager()
     : max_committed_code_space_(v8_flags.wasm_max_committed_code_mb * MB),
       critical_committed_code_space_(max_committed_code_space_ / 2),
+#ifdef V8_OS_IOS
+      // On iOS, the CodeRange is not yet initialized when WasmCodeManager is
+      // constructed, so we cannot query it for a hint address.
+      next_code_space_hint_(kNullAddress)
+#else
       next_code_space_hint_(reinterpret_cast<Address>(
-          GetPlatformPageAllocator()->GetRandomMmapAddr())) {
+          GetPlatformPageAllocator()->GetRandomMmapAddr()))
+#endif  // V8_OS_IOS
+{
   // Check that --wasm-max-code-space-size-mb is not set bigger than the default
   // value. Otherwise we run into DCHECKs or other crashes later.
   CHECK_GE(kDefaultMaxWasmCodeSpaceSizeMb,
@@ -2198,7 +2233,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
 
   TRACE_HEAP("Setting rwx permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-  bool success = GetPlatformPageAllocator()->RecommitPages(
+  bool success = GetPageAllocator()->RecommitPages(
       reinterpret_cast<void*>(region.begin()), region.size(),
       PageAllocator::kReadWriteExecute);
 
@@ -2212,7 +2247,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
 }
 
 void WasmCodeManager::Decommit(base::AddressRegion region) {
-  PageAllocator* allocator = GetPlatformPageAllocator();
+  PageAllocator* allocator = GetPageAllocator();
   DCHECK(IsAligned(region.begin(), allocator->CommitPageSize()));
   DCHECK(IsAligned(region.size(), allocator->CommitPageSize()));
   [[maybe_unused]] size_t old_committed =
@@ -2220,6 +2255,14 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   DCHECK_LE(region.size(), old_committed);
   TRACE_HEAP("Decommitting system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
+#ifdef V8_OS_IOS
+  // iOS devices do not support toggling the page permissions after a MAP_JIT
+  // call. See https://developer.apple.com/forums/thread/672804
+  // Use DiscardSystemPages instead, which uses madvise() to release
+  // physical memory without changing page permissions.
+  allocator->DiscardSystemPages(reinterpret_cast<void*>(region.begin()),
+                                region.size());
+#else
   if (V8_UNLIKELY(!allocator->DecommitPages(
           reinterpret_cast<void*>(region.begin()), region.size()))) {
     // Decommit can fail in near-OOM situations.
@@ -2228,6 +2271,7 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
     V8::FatalProcessOutOfMemory(nullptr, "Decommit Wasm code space",
                                 {.detail = oom_detail.PrintToArray().data()});
   }
+#endif  // V8_OS_IOS
 }
 
 void WasmCodeManager::AssignRange(base::AddressRegion region,
@@ -2238,7 +2282,7 @@ void WasmCodeManager::AssignRange(base::AddressRegion region,
 }
 
 VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
-  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+  v8::PageAllocator* page_allocator = GetPageAllocator();
   DCHECK_GT(size, 0);
   size_t allocate_page_size = page_allocator->AllocatePageSize();
   size = RoundUp(size, allocate_page_size);
@@ -2289,7 +2333,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
     UNREACHABLE();
 #endif
   } else {
-    CHECK(SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
+    CHECK(SetPermissions(GetPageAllocator(), mem.address(), mem.size(),
                          PageAllocator::kReadWriteExecute));
   }
   page_allocator->DiscardSystemPages(reinterpret_cast<void*>(mem.address()),
