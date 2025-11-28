@@ -211,12 +211,12 @@ V8_NOINLINE static void DumpJSONArray(std::stringstream& stream, size_t* array,
   stream << PrintCollection(base::Vector<size_t>(array, len));
 }
 
-void ObjectStats::PrintKeyAndId(const char* key, int gc_count) {
+void ObjectStats::PrintKeyAndId(const char* key, GCEpoch gc_count) {
   PrintF("\"isolate\": \"%p\", \"id\": %d, \"key\": \"%s\", ",
-         reinterpret_cast<void*>(isolate()), gc_count, key);
+         reinterpret_cast<void*>(isolate()), gc_count.value(), key);
 }
 
-void ObjectStats::PrintInstanceTypeJSON(const char* key, int gc_count,
+void ObjectStats::PrintInstanceTypeJSON(const char* key, GCEpoch gc_count,
                                         const char* name, int index) {
   PrintF("{ ");
   PrintKeyAndId(key, gc_count);
@@ -236,7 +236,7 @@ void ObjectStats::PrintInstanceTypeJSON(const char* key, int gc_count,
 
 void ObjectStats::PrintJSON(const char* key) {
   double time = isolate()->time_millis_since_init();
-  int gc_count = heap()->gc_count();
+  GCEpoch gc_count = heap()->gc_count();
 
   // gc_descriptor
   PrintF("{ ");
@@ -336,7 +336,7 @@ void ObjectStats::DumpInstanceTypeData(std::stringstream& stream,
 
 void ObjectStats::Dump(std::stringstream& stream) {
   double time = isolate()->time_millis_since_init();
-  int gc_count = heap()->gc_count();
+  GCEpoch gc_count = heap()->gc_count();
 
   stream << "{";
   stream << "\"isolate\":\"" << reinterpret_cast<void*>(isolate()) << "\",";

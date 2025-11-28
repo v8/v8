@@ -240,7 +240,7 @@ bool Heap::CreateMutableHeapObjects() {
   // Create initial objects
   CreateInitialMutableObjects();
   CreateInternalAccessorInfoObjects();
-  CHECK_EQ(0u, gc_count_);
+  CHECK_EQ(kInitialGCEpoch, gc_count_);
 
   set_native_contexts_list(roots.undefined_value());
   set_allocation_sites_list(roots.undefined_value());

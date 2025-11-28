@@ -1032,7 +1032,7 @@ void Heap::GarbageCollectionPrologue(
 
 void Heap::GarbageCollectionPrologueInSafepoint(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
-  gc_count_++;
+  gc_count_ = GCEpoch(gc_count_.value() + 1);
   new_space_allocation_counter_ = NewSpaceAllocationCounter();
   // We provide a fallback for the case when the page pool timeout is disabled.
   // This is to prevent unbounded growth of the pool for the non-default
@@ -1840,55 +1840,71 @@ void Heap::CheckHeapLimitReached() {
   }
 }
 
-class IdleTaskOnContextDispose : public CancelableIdleTask {
+class TaskOnContextDispose final : public CancelableTask {
  public:
-  static void TryPostJob(Heap* heap) {
-    const auto runner = heap->GetForegroundTaskRunner();
-    if (runner->IdleTasksEnabled()) {
-      runner->PostIdleTask(
-          std::make_unique<IdleTaskOnContextDispose>(heap->isolate()));
+  static void TryPostJob(Heap* heap, size_t id, GCEpoch gc_count) {
+    const auto task_runner =
+        heap->GetForegroundTaskRunner(TaskPriority::kUserVisible);
+    const bool non_nestable_tasks_enabled =
+        task_runner->NonNestableTasksEnabled();
+    auto task = std::make_unique<TaskOnContextDispose>(
+        heap->isolate(),
+        non_nestable_tasks_enabled ? StackState::kNoHeapPointers
+                                   : StackState::kMayContainHeapPointers,
+        id, gc_count);
+
+    if (non_nestable_tasks_enabled) {
+      task_runner->PostNonNestableTask(std::move(task));
+    } else {
+      task_runner->PostTask(std::move(task));
     }
   }
 
-  explicit IdleTaskOnContextDispose(Isolate* isolate)
-      : CancelableIdleTask(isolate), isolate_(isolate) {}
+  TaskOnContextDispose(Isolate* isolate, StackState stack_state, size_t id,
+                       GCEpoch gc_count)
+      : CancelableTask(isolate),
+        isolate_(isolate),
+        stack_state_(stack_state),
+        id_(id),
+        gc_count_(gc_count) {}
 
-  void RunInternal(double deadline_in_seconds) override {
-    auto* heap = isolate_->heap();
-    const base::TimeDelta time_to_run = base::TimeTicks::Now() - creation_time_;
-    // The provided delta uses embedder timestamps.
-    const base::TimeDelta idle_time = base::TimeDelta::FromMillisecondsD(
-        (deadline_in_seconds * 1000) - heap->MonotonicallyIncreasingTimeInMs());
-    const bool time_to_run_exceeded = time_to_run > kMaxTimeToRun;
-    if (V8_UNLIKELY(v8_flags.trace_context_disposal)) {
+  void RunInternal() override {
+    // If the GC epoch doesn't match anymore, a GC was already triggered since
+    // NotifyContextDisposed(). In this case we just bail out.
+    const bool is_same_epoch = isolate_->heap()->gc_count() == gc_count_;
+
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCContextDisposedTask",
+                "id", id_, "is_same_epoch", is_same_epoch);
+    USE(id_);
+
+    if (is_same_epoch) {
+      TryRunMinorGC();
+    } else if (V8_UNLIKELY(v8_flags.trace_context_disposal)) {
       isolate_->PrintWithTimestamp(
-          "[context-disposal/idle task] time-to-run: %fms (max delay: %fms), "
-          "idle time: %fms%s\n",
-          time_to_run.InMillisecondsF(), kMaxTimeToRun.InMillisecondsF(),
-          idle_time.InMillisecondsF(),
-          time_to_run_exceeded ? ", not starting any action" : "");
+          "[context-disposal task] epochs do not match, not starting any "
+          "action.");
     }
-    if (time_to_run_exceeded) {
-      return;
-    }
-    TryRunMinorGC(idle_time);
   }
 
  private:
-  static constexpr base::TimeDelta kFrameTime =
-      base::TimeDelta::FromMillisecondsD(16);
-
-  // We limit any idle time actions here by a maximum time to run of a single
-  // frame. This avoids that these tasks are executed too late and causes
-  // (unpredictable) side effects with e.g. promotion of newly allocated
-  // objects.
-  static constexpr base::TimeDelta kMaxTimeToRun = kFrameTime + kFrameTime;
-
-  void TryRunMinorGC(const base::TimeDelta idle_time) {
-    // The following logic estimates whether a young generation GC would fit in
-    // `idle_time.` We bail out for a young gen below 1MB to avoid executing GC
+  void TryRunMinorGC() {
+    // We bail out for a young gen below 1MB to avoid executing GC
     // when the mutator is not actually active.
     static constexpr size_t kMinYounGenSize = 1 * MB;
+    // Use a small limit here to not postpone other work too much. We only
+    // trigger the GC when the estimated GC time is below this limit.
+    static constexpr base::TimeDelta kIdleLimit =
+        base::TimeDelta::FromMilliseconds(5);
+    static_assert(kIdleLimit <= kMaxSynchronuousGCOperation);
+
+    // Do not trigger Minor GC if marking is running. This would finalize it.
+    if (isolate_->heap()->incremental_marking()->IsMarking()) [[unlikely]] {
+      if (V8_UNLIKELY(v8_flags.trace_context_disposal)) {
+        isolate_->PrintWithTimestamp(
+            "[context-disposal task] marking already running\n");
+      }
+      return;
+    }
 
     auto* heap = isolate_->heap();
     const std::optional<double> young_gen_gc_speed =
@@ -1902,10 +1918,10 @@ class IdleTaskOnContextDispose : public CancelableIdleTask {
         base::TimeDelta::FromMillisecondsD(young_gen_bytes /
                                            *young_gen_gc_speed);
     const bool run_young_gen_gc =
-        young_gen_estimate < idle_time && young_gen_bytes > kMinYounGenSize;
+        young_gen_estimate < kIdleLimit && young_gen_bytes > kMinYounGenSize;
     if (V8_UNLIKELY(v8_flags.trace_context_disposal)) {
       isolate_->PrintWithTimestamp(
-          "[context-disposal/idle task] young generation size: %zuKB (min: "
+          "[context-disposal task] young generation size: %zuKB (min: "
           "%zuKB), GC speed: %fKB/ms, estimated time: %fms%s\n",
           young_gen_bytes / KB, kMinYounGenSize / KB, *young_gen_gc_speed / KB,
           young_gen_estimate.InMillisecondsF(),
@@ -1913,12 +1929,18 @@ class IdleTaskOnContextDispose : public CancelableIdleTask {
                            : ", not starting young gen GC");
     }
     if (run_young_gen_gc) {
+      EmbedderStackStateScope scope(
+          heap, EmbedderStackStateOrigin::kImplicitThroughTask, stack_state_);
+
       heap->CollectGarbage(NEW_SPACE,
                            GarbageCollectionReason::kIdleContextDisposal);
     }
   }
 
-  Isolate* isolate_;
+  Isolate* const isolate_;
+  StackState const stack_state_;
+  const size_t id_;
+  const GCEpoch gc_count_;
   const base::TimeTicks creation_time_ = base::TimeTicks::Now();
 };
 
@@ -1936,7 +1958,10 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
   } else if (v8_flags.idle_gc_on_context_disposal &&
              !v8_flags.single_generation) {
     DCHECK_NOT_NULL(new_space());
-    IdleTaskOnContextDispose::TryPostJob(this);
+    const size_t id = notify_context_disposed_counter_++;
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                "V8.GCNotifyContextDisposed", "id", id);
+    TaskOnContextDispose::TryPostJob(this, id, gc_count());
   }
   if (!isolate()->context().is_null()) {
     RemoveDirtyFinalizationRegistriesOnContext(isolate()->raw_native_context());
@@ -5855,7 +5880,7 @@ Heap::IncrementalMarkingLimitReached() {
 
   if (old_generation_space_available > new_space_target_capacity &&
       (global_memory_available > new_space_target_capacity)) {
-    if (cpp_heap() && gc_count_ == 0 && using_initial_limit()) {
+    if (cpp_heap() && gc_count_ == kInitialGCEpoch && using_initial_limit()) {
       // At this point the embedder memory is above the activation
       // threshold. No GC happened so far and it's thus unlikely to get a
       // configured heap any time soon. Start a memory reducer in this case
@@ -5897,7 +5922,7 @@ Heap::IncrementalMarkingLimitReached() {
 }
 
 bool Heap::ShouldStressCompaction() const {
-  return v8_flags.stress_compaction && (gc_count_ & 1) != 0;
+  return v8_flags.stress_compaction && (gc_count_.value() & 1) != 0;
 }
 
 void Heap::EnableInlineAllocation() { inline_allocation_enabled_ = true; }

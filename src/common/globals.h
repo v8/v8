@@ -1623,6 +1623,11 @@ enum AllocationAlignment : uint8_t {
   kDoubleUnaligned
 };
 
+struct GCEpochTag;
+using GCEpoch = base::StrongAlias<GCEpochTag, uint32_t>;
+
+static constexpr GCEpoch kInitialGCEpoch = GCEpoch(0);
+
 // TODO(ishell, v8:8875): Consider using aligned allocations once the
 // allocation alignment inconsistency is fixed. For now we keep using
 // tagged aligned (not double aligned) access since all our supported platforms

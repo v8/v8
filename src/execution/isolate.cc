@@ -6047,7 +6047,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // pretenured to old space.
   DCHECK_IMPLIES(heap()->new_space(), heap()->new_space()->Size() == 0);
   DCHECK_IMPLIES(heap()->new_lo_space(), heap()->new_lo_space()->Size() == 0);
-  DCHECK_EQ(heap()->gc_count(), 0);
+  DCHECK_EQ(heap()->gc_count(), kInitialGCEpoch);
 
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
   if (v8_flags.enable_etw_stack_walking ||

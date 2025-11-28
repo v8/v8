@@ -55,6 +55,7 @@ static constexpr v8::base::TimeDelta kMaxStepSizeOnTask =
     v8::base::TimeDelta::FromMilliseconds(1);
 static constexpr v8::base::TimeDelta kMaxStepSizeOnAllocation =
     v8::base::TimeDelta::FromMilliseconds(5);
+static_assert(kMaxStepSizeOnAllocation <= kMaxSynchronuousGCOperation);
 
 #ifndef DEBUG
 static constexpr size_t kV8ActivationThreshold = 8 * MB;

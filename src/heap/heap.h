@@ -251,6 +251,9 @@ constexpr const char* ToString(CompleteSweepingReason reason) {
   }
 }
 
+static constexpr v8::base::TimeDelta kMaxSynchronuousGCOperation =
+    v8::base::TimeDelta::FromMilliseconds(5);
+
 class Heap final {
  public:
   enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
@@ -1512,7 +1515,7 @@ class Heap final {
     old_generation_allocation_counter_at_last_gc_ = new_value;
   }
 
-  int gc_count() const { return gc_count_; }
+  GCEpoch gc_count() const { return gc_count_; }
 
   bool is_current_gc_forced() const { return is_current_gc_forced_; }
 
@@ -2375,10 +2378,10 @@ class Heap final {
   std::atomic<double> max_marking_limit_reached_ = 0.0;
 
   // How many mark-sweep collections happened.
-  unsigned int ms_count_ = 0;
+  uint32_t ms_count_ = 0;
 
   // How many gc happened.
-  unsigned int gc_count_ = 0;
+  GCEpoch gc_count_ = kInitialGCEpoch;
 
   // The number of Mark-Compact garbage collections that are considered as
   // ineffective. See IsIneffectiveMarkCompact() predicate.
@@ -2594,6 +2597,7 @@ class Heap final {
   perfetto::NamedTrack loading_track_;
 
   const uint8_t* gc_tracing_category_enabled_ = nullptr;
+  size_t notify_context_disposed_counter_ = 1;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;
