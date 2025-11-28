@@ -1031,9 +1031,11 @@ inline constexpr NodeType UnionType(NodeType left, NodeType right) {
   return static_cast<NodeType>(static_cast<NodeTypeInt>(left) |
                                static_cast<NodeTypeInt>(right));
 }
+// TODO(jgruber): Switch the default value back to kDefault once
+// BranchResult/BuildBranchIfFoo can signal an Abort.
 inline constexpr bool NodeTypeIs(
     NodeType type, NodeType to_check,
-    NodeTypeIsVariant variant = NodeTypeIsVariant::kDefault) {
+    NodeTypeIsVariant variant = NodeTypeIsVariant::kAllowNone) {
   DCHECK(!NodeTypeIsNeverStandalone(type));
   DCHECK(!NodeTypeIsNeverStandalone(to_check));
   if (variant != NodeTypeIsVariant::kAllowNone) {
@@ -1302,11 +1304,13 @@ inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
   return out;
 }
 
-#define DEFINE_NODE_TYPE_CHECK(Type, _)                          \
-  inline bool NodeTypeIs##Type(                                  \
-      NodeType type,                                             \
-      NodeTypeIsVariant variant = NodeTypeIsVariant::kDefault) { \
-    return NodeTypeIs(type, NodeType::k##Type, variant);         \
+// TODO(jgruber): Switch the default value back to kDefault once
+// BranchResult/BuildBranchIfFoo can signal an Abort.
+#define DEFINE_NODE_TYPE_CHECK(Type, _)                            \
+  inline bool NodeTypeIs##Type(                                    \
+      NodeType type,                                               \
+      NodeTypeIsVariant variant = NodeTypeIsVariant::kAllowNone) { \
+    return NodeTypeIs(type, NodeType::k##Type, variant);           \
   }
 NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
 #undef DEFINE_NODE_TYPE_CHECK
