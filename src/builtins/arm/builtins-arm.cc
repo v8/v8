@@ -4416,39 +4416,6 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   __ ldr(pc, MemOperand(sp, 0));  // Return to calling code.
 }
 
-void Builtins::Generate_MemCopyUint8Uint8(MacroAssembler* masm) {
-  Register dest = r0;
-  Register src = r1;
-  Register chars = r2;
-  Register temp1 = r3;
-  Label less_4;
-
-  {
-    UseScratchRegisterScope temps(masm);
-    Register temp2 = temps.Acquire();
-    Label loop;
-
-    __ bic(temp2, chars, Operand(0x3), SetCC);
-    __ b(&less_4, eq);
-    __ add(temp2, dest, temp2);
-
-    __ bind(&loop);
-    __ ldr(temp1, MemOperand(src, 4, PostIndex));
-    __ str(temp1, MemOperand(dest, 4, PostIndex));
-    __ cmp(dest, temp2);
-    __ b(&loop, ne);
-  }
-
-  __ bind(&less_4);
-  __ mov(chars, Operand(chars, LSL, 31), SetCC);
-  // bit0 => Z (ne), bit1 => C (cs)
-  __ ldrh(temp1, MemOperand(src, 2, PostIndex), cs);
-  __ strh(temp1, MemOperand(dest, 2, PostIndex), cs);
-  __ ldrb(temp1, MemOperand(src), ne);
-  __ strb(temp1, MemOperand(dest), ne);
-  __ Ret();
-}
-
 namespace {
 
 // This code tries to be close to ia32 code so that any changes can be

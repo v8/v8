@@ -1542,8 +1542,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFS(SetProperty, NeedsContext::kYes, kReceiver, kKey, kValue)                \
   TFS(CreateDataProperty, NeedsContext::kYes, kReceiver, kKey, kValue)         \
   TFS(GetOwnPropertyDescriptor, NeedsContext::kYes, kReceiver, kKey)           \
-  ASM(MemCopyUint8Uint8, CCall)                                                \
-  ASM(MemMove, CCall)                                                          \
   TFC(FindNonDefaultConstructorOrConstruct,                                    \
       FindNonDefaultConstructorOrConstruct)                                    \
   TFS(OrdinaryGetOwnPropertyDescriptor, NeedsContext::kYes, kReceiver, kKey)   \

@@ -1435,18 +1435,6 @@ void Builtins::Generate_WasmCEntry(MacroAssembler* masm) {
   Generate_CEntry(masm, 1, ArgvMode::kStack, false, true);
 }
 
-#if !defined(V8_TARGET_ARCH_ARM)
-void Builtins::Generate_MemCopyUint8Uint8(MacroAssembler* masm) {
-  masm->CallBuiltin(Builtin::kIllegal);
-}
-#endif  // !defined(V8_TARGET_ARCH_ARM)
-
-#ifndef V8_TARGET_ARCH_IA32
-void Builtins::Generate_MemMove(MacroAssembler* masm) {
-  masm->CallBuiltin(Builtin::kIllegal);
-}
-#endif  // V8_TARGET_ARCH_IA32
-
 void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
 #ifdef V8_ENABLE_SPARKPLUG
   EmitReturnBaseline(masm);

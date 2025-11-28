@@ -55,7 +55,6 @@ namespace internal {
   V(CallWithSpread)                                  \
   V(CallWithSpread_Baseline)                         \
   V(CallWithSpread_WithFeedback)                     \
-  V(CCall)                                           \
   V(CEntryDummy)                                     \
   V(CEntry1ArgvOnStack)                              \
   V(CloneObjectBaseline)                             \
@@ -831,17 +830,6 @@ class V8_EXPORT_PRIVATE JSEntryDescriptor
   DECLARE_DESCRIPTOR(JSEntryDescriptor)
 
   static constexpr auto registers();
-};
-
-// Dummy descriptor that marks builtins with C calling convention.
-// TODO(jgruber): Define real descriptors for C calling conventions.
-class CCallDescriptor : public StaticCallInterfaceDescriptor<CCallDescriptor> {
- public:
-  SANDBOX_EXPOSED_DESCRIPTOR(kInvalidEntrypointTag)
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS()
-  DEFINE_PARAMETER_TYPES()
-  DECLARE_DESCRIPTOR(CCallDescriptor)
 };
 
 // TODO(jgruber): Consider filling in the details here; however, this doesn't
