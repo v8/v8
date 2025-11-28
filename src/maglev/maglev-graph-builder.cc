@@ -9589,33 +9589,47 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSlice(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
-  if (args.count() != 1) return {};
+  if (args.count() == 1) {
+    // Reduce slice(-1).
+    ValueNode* index = args[0];
+    std::optional<int32_t> index_const = TryGetInt32Constant(index);
+    if (!index_const || *index_const != -1) return {};
 
-  // Reduce slice(-1).
-  ValueNode* index = args[0];
-  std::optional<int32_t> index_const = TryGetInt32Constant(index);
-  if (!index_const || *index_const != -1) return {};
+    // Ensure that {receiver} is actually a String.
+    ValueNode* receiver = GetValueOrUndefined(args.receiver());
+    RETURN_IF_ABORT(BuildCheckString(receiver));
 
-  // Ensure that {receiver} is actually a String.
-  ValueNode* receiver = GetValueOrUndefined(args.receiver());
-  RETURN_IF_ABORT(BuildCheckString(receiver));
+    ValueNode* receiver_length;
+    GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
 
-  ValueNode* receiver_length;
-  GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
+    return SelectReduction(
+        [&](BranchBuilder& builder) {
+          return BuildBranchIfInt32Compare(
+              builder, Operation::kEqual, receiver_length, GetInt32Constant(0));
+        },
+        [&] { return GetRootConstant(RootIndex::kempty_string); },
+        [&] {
+          ValueNode* index_last;
+          // TODO(marja): Consider TryReduceConstantStringAt.
+          GET_VALUE_OR_ABORT(index_last,
+                             AddNewNode<Int32Subtract>(
+                                 {receiver_length, GetInt32Constant(1)}));
+          return AddNewNode<StringAt>({receiver, index_last});
+        });
+  } else if (args.count() == 2 && is_turbolev()) {
+    // These will deopt if the argument is not an Int32; CanSpeculateCall above
+    // is needed for avoiding deopt loops.
+    ValueNode* start_index = GetInt32(args[0]);
+    if (!start_index) return {};
+    ValueNode* end_index = GetInt32(args[1]);
+    if (!end_index) return {};
 
-  return SelectReduction(
-      [&](BranchBuilder& builder) {
-        return BuildBranchIfInt32Compare(builder, Operation::kEqual,
-                                         receiver_length, GetInt32Constant(0));
-      },
-      [&] { return GetRootConstant(RootIndex::kempty_string); },
-      [&] {
-        ValueNode* index_last;
-        GET_VALUE_OR_ABORT(
-            index_last,
-            AddNewNode<Int32Subtract>({receiver_length, GetInt32Constant(1)}));
-        return AddNewNode<StringAt>({receiver, index_last});
-      });
+    ValueNode* receiver = GetValueOrUndefined(args.receiver());
+    RETURN_IF_ABORT(BuildCheckString(receiver));
+
+    return AddNewNode<StringSlice>({receiver, start_index, end_index});
+  }
+  return {};
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(

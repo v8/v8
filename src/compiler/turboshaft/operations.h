@@ -275,6 +275,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringOrOddballStrictEqual)                 \
   V(TypedArrayLength)                           \
   V(StringSubstring)                            \
+  V(StringSlice)                                \
   V(NewConsString)                              \
   V(TransitionAndStoreArrayElement)             \
   V(TransitionElementsKind)                     \
@@ -5929,6 +5930,33 @@ struct StringSubstringOp : FixedArityOperationT<3, StringSubstringOp> {
   StringSubstringOp(V<String> string, V<Word32> start, V<Word32> end)
       : Base(string, start, end) {}
 
+
+  auto options() const { return std::tuple{}; }
+};
+
+struct StringSliceOp : FixedArityOperationT<3, StringSliceOp> {
+  static constexpr OpEffects effects =
+      OpEffects()
+          // String content is immutable, the allocated result does not have
+          // identity.
+          .CanAllocateWithoutIdentity()
+          // We rely on the input being a string.
+          .CanDependOnChecks();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
+                          MaybeRegisterRepresentation::Word32(),
+                          MaybeRegisterRepresentation::Word32()>();
+  }
+
+  V<String> string() const { return Base::input<String>(0); }
+
+  StringSliceOp(V<String> string, V<Word32> start, V<Word32> end)
+      : Base(string, start, end) {}
 
   auto options() const { return std::tuple{}; }
 };

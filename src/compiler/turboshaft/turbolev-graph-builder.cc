@@ -2308,6 +2308,16 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::StringSlice* node,
+                                const maglev::ProcessingState& state) {
+    V<String> string = Map(node->StringInput());
+    V<Word32> start = Map(node->StartIndexInput());
+    V<Word32> end = Map(node->EndIndexInput());
+    V<String> slice = __ StringSlice(string, start, end);
+    SetMap(node, slice);
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::TestInstanceOf* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());

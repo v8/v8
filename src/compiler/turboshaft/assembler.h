@@ -4320,6 +4320,11 @@ class AssemblerOpInterface : public Next {
                               V<String> second) {
     return ReduceIfReachableNewConsString(length, first, second);
   }
+
+  V<String> StringSlice(V<String> string, V<Word32> start, V<Word32> end) {
+    return ReduceIfReachableStringSlice(string, start, end);
+  }
+
   V<AnyFixedArray> NewArray(V<WordPtr> length, NewArrayOp::Kind kind,
                             AllocationType allocation_type) {
     return ReduceIfReachableNewArray(length, kind, allocation_type);

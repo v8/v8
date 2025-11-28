@@ -2485,6 +2485,12 @@ ProcessResult MaglevGraphOptimizer::VisitSetPrototypeHas(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitStringSlice(
+    StringSlice* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitAbort(Abort* node,
                                                const ProcessingState& state) {
   // TODO(b/424157317): Optimize.

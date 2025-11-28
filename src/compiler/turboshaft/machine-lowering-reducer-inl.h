@@ -2659,6 +2659,56 @@ class MachineLoweringReducer : public Next {
         {.string = string, .from = s, .to = e});
   }
 
+  V<String> REDUCE(StringSlice)(V<String> string, V<Word32> start,
+                                V<Word32> end) {
+    V<Word32> length = __ StringLength(string);
+
+    // Avoid negating `start` and `end`, so that INT32_MIN is handled correctly.
+
+    // TODO(dmercadier): use kCMoveIfAvailable which should lower to CMove if
+    // available and Branch otherwise.
+    ScopedVar<Word32> relative_start(this);
+    IF (__ Int32LessThan(start, 0)) {
+      relative_start = __ Word32Add(length, start);
+      relative_start =
+          __ Select(__ Int32LessThan(relative_start, 0), __ Word32Constant(0),
+                    relative_start, RegisterRepresentation::Word32(),
+                    BranchHint::kNone, SelectOp::Implementation::kBranch);
+    } ELSE {
+      relative_start =
+          __ Select(__ Int32LessThan(start, length), start, length,
+                    RegisterRepresentation::Word32(), BranchHint::kNone,
+                    SelectOp::Implementation::kBranch);
+    }
+
+    ScopedVar<Word32> relative_end(this);
+    IF (__ Int32LessThan(end, 0)) {
+      relative_end = __ Word32Add(length, end);
+      relative_end =
+          __ Select(__ Int32LessThan(relative_end, 0), __ Word32Constant(0),
+                    relative_end, RegisterRepresentation::Word32(),
+                    BranchHint::kNone, SelectOp::Implementation::kBranch);
+    } ELSE {
+      relative_end =
+          __ Select(__ Int32LessThan(end, length), end, length,
+                    RegisterRepresentation::Word32(), BranchHint::kNone,
+                    SelectOp::Implementation::kBranch);
+    }
+    // substring() and slice() handle end < start differently; return empty here
+    // if end < start.
+    ScopedVar<String> result(this);
+    IF (__ Int32LessThan(relative_end, relative_start)) {
+      result = __ HeapConstant(factory_->empty_string());
+    } ELSE {
+      // TODO(marja): Create SLICED_STRINGs directly here.
+      result = __ template CallBuiltin<builtin::StringSubstring>(
+          {.string = string,
+           .from = __ ChangeInt32ToIntPtr(relative_start),
+           .to = __ ChangeInt32ToIntPtr(relative_end)});
+    }
+    return result;
+  }
+
   V<String> REDUCE(StringConcat)(V<Smi> length, V<String> left,
                                  V<String> right) {
     // TODO(nicohartmann@): Port StringBuilder once it is stable.
