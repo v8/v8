@@ -2648,8 +2648,6 @@ bool OperationValue(type left, type right) {
   }
 }
 
-
-
 template <Operation kOperation>
 MaybeReduceResult MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   if (kOperation != Operation::kStrictEqual &&
@@ -5330,7 +5328,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
           {heap_number, value}, static_cast<int>(offsetof(HeapNumber, value_)));
     }
   }
-
 
   StoreTaggedMode store_mode = access_info.HasTransitionMap()
                                    ? StoreTaggedMode::kTransitioning
@@ -8344,8 +8341,7 @@ bool MaglevGraphBuilder::ShouldEagerInlineCall(
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
-    JSDispatchHandle dispatch_handle,
-    compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kDefault);
@@ -8422,10 +8418,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   KnownNodeAspects* call_aspects = known_node_aspects().Clone(zone());
 
   CallKnownJSFunction* generic_call;
-  GET_VALUE_OR_ABORT(generic_call,
-                     BuildCallKnownJSFunction(context, function, new_target,
-                                              dispatch_handle,
-                                              shared, arguments));
+  GET_VALUE_OR_ABORT(generic_call, BuildCallKnownJSFunction(
+                                       context, function, new_target,
+                                       dispatch_handle, shared, arguments));
 
   // Note: We point to the generic call exception handler instead of
   // jump_targets_ because the former contains a BasicBlockRef that is
@@ -11552,8 +11547,7 @@ ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
 
 ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
-    JSDispatchHandle dispatch_handle,
-    compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     base::Vector<ValueNode*> arguments) {
   DCHECK_GT(arguments.size(), 0);
   constexpr int kSkipReceiver = 1;
@@ -11601,9 +11595,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   }
   if (v8_flags.maglev_inlining) {
     RETURN_IF_DONE(TryBuildInlineCall(context, function, new_target,
-                                      dispatch_handle,
-                                      shared, feedback_cell, args,
-                                      feedback_source));
+                                      dispatch_handle, shared, feedback_cell,
+                                      args, feedback_source));
   }
   return BuildCallKnownJSFunction(context, function, new_target,
                                   dispatch_handle, shared, feedback_cell, args,
@@ -11829,8 +11822,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForTarget(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
     ValueNode* target_node, ValueNode* target_context,
-    JSDispatchHandle dispatch_handle,
-    compiler::SharedFunctionInfoRef shared,
+    JSDispatchHandle dispatch_handle, compiler::SharedFunctionInfoRef shared,
     compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   // Do not reduce calls to functions with break points.
@@ -11846,9 +11838,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
     }
     RETURN_IF_DONE(TryBuildCallKnownJSFunction(
         target_context, target_node,
-        GetRootConstant(RootIndex::kUndefinedValue),
-        dispatch_handle,
-        shared, feedback_cell, args, feedback_source));
+        GetRootConstant(RootIndex::kUndefinedValue), dispatch_handle, shared,
+        feedback_cell, args, feedback_source));
   }
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
 }
@@ -11960,8 +11951,8 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
             TryBuildCallKnownJSFunction(
                 context, target_node,
                 GetRootConstant(RootIndex::kUndefinedValue),
-                feedback_cell.dispatch_handle(),
-                shared.value(), feedback_cell, args, feedback_source),
+                feedback_cell.dispatch_handle(), shared.value(), feedback_cell,
+                args, feedback_source),
             SetAccumulator);
         UNREACHABLE();
       }
@@ -16706,8 +16697,7 @@ void MaglevGraphBuilder::MarkBytecodeDead() {
                   is_tracing_enabled())) {
     std::cout << "== Dead ==\n"
               << std::setw(4) << iterator_.current_offset() << " : ";
-    interpreter::BytecodeDecoder::Decode(std::cout,
-                                         iterator_.current_address());
+    iterator_.PrintCurrentBytecodeTo(std::cout);
     std::cout << std::endl;
   }
 
@@ -16769,8 +16759,7 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
   if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                   is_tracing_enabled())) {
     std::cout << std::setw(4) << iterator_.current_offset() << " : ";
-    interpreter::BytecodeDecoder::Decode(std::cout,
-                                         iterator_.current_address());
+    iterator_.PrintCurrentBytecodeTo(std::cout);
     std::cout << std::endl;
   }
 
@@ -17144,20 +17133,19 @@ ReduceResult MaglevGraphBuilder::BuildCallBuiltinWithTaggedInputs(
 ReduceResult MaglevGraphBuilder::BuildCallRuntime(
     Runtime::FunctionId function_id, std::initializer_list<ValueNode*> inputs) {
   CallRuntime* result;
-  GET_VALUE_OR_ABORT(result, AddNewNode<CallRuntime>(
-                                 inputs.size() + CallRuntime::kFixedInputCount,
-                                 [&](CallRuntime* call_runtime) {
-                                   int arg_index = 0;
-                                   for (auto* input : inputs) {
-                                     ValueNode* tagged_arg;
-                                     GET_VALUE_OR_ABORT(tagged_arg,
-                                                        GetTaggedValue(input));
-                                     call_runtime->set_arg(arg_index++,
-                                                           tagged_arg);
-                                   }
-                                   return ReduceResult::Done();
-                                 },
-                                 function_id, GetContext()));
+  GET_VALUE_OR_ABORT(
+      result, AddNewNode<CallRuntime>(
+                  inputs.size() + CallRuntime::kFixedInputCount,
+                  [&](CallRuntime* call_runtime) {
+                    int arg_index = 0;
+                    for (auto* input : inputs) {
+                      ValueNode* tagged_arg;
+                      GET_VALUE_OR_ABORT(tagged_arg, GetTaggedValue(input));
+                      call_runtime->set_arg(arg_index++, tagged_arg);
+                    }
+                    return ReduceResult::Done();
+                  },
+                  function_id, GetContext()));
 
   if (RuntimeFunctionWillThrow(function_id)) {
     return BuildAbort(AbortReason::kUnexpectedReturnFromThrow);

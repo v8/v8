@@ -381,8 +381,10 @@ int BytecodeArrayIterator::GetAbsoluteOffset(int relative_offset) const {
   return current_offset() + relative_offset + prefix_size_;
 }
 
-std::ostream& BytecodeArrayIterator::PrintTo(std::ostream& os) const {
-  return BytecodeDecoder::Decode(os, cursor_ - prefix_size_);
+std::ostream& BytecodeArrayIterator::PrintCurrentBytecodeTo(
+    std::ostream& os) const {
+  return BytecodeDecoder::Decode(os, cursor_ - prefix_size_,
+                                 bytecode_array_->constant_pool());
 }
 
 void BytecodeArrayIterator::UpdatePointers() {

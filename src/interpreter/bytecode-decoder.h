@@ -11,6 +11,9 @@
 
 namespace v8 {
 namespace internal {
+
+class TrustedFixedArray;
+
 namespace interpreter {
 
 class V8_EXPORT_PRIVATE BytecodeDecoder final {
@@ -44,6 +47,7 @@ class V8_EXPORT_PRIVATE BytecodeDecoder final {
 
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
+                              Tagged<TrustedFixedArray> constant_pool,
                               bool with_hex = true);
 };
 

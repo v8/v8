@@ -145,9 +145,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
     StdoutStream os;
 
     // Print bytecode.
-    const uint8_t* base_address = reinterpret_cast<const uint8_t*>(
-        bytecode_array->GetFirstBytecodeAddress());
-    const uint8_t* bytecode_address = base_address + offset;
+    const uint8_t* bytecode_address = bytecode_iterator.current_address();
 
     if (frame->is_baseline()) {
       os << "B-> ";
@@ -156,7 +154,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
     }
     os << static_cast<const void*>(bytecode_address) << " @ " << std::setw(4)
        << offset << " : ";
-    interpreter::BytecodeDecoder::Decode(os, bytecode_address);
+    bytecode_iterator.PrintCurrentBytecodeTo(os);
     os << std::endl;
     // Print all input registers and accumulator.
     PrintRegisters(frame, os, true, bytecode_iterator, accumulator);

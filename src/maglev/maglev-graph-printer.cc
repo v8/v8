@@ -766,7 +766,7 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
       os << "\033[0;34m";
     }
     os << std::setw(4) << iterator.current_offset() << " : ";
-    interpreter::BytecodeDecoder::Decode(os, iterator.current_address(), false);
+    iterator.PrintCurrentBytecodeTo(os);
     os << "\n";
     if (v8_flags.log_colour) {
       os << "\033[m";

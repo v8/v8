@@ -524,7 +524,7 @@ void BaselineCompiler::VisitSingleBytecode() {
 
   ASM_CODE_COMMENT_STRING(&masm_, [&]() {
     std::ostringstream str;
-    iterator().PrintTo(str);
+    iterator().PrintCurrentBytecodeTo(str);
     return str.str();
   });
 

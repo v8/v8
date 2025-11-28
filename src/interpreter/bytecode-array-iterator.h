@@ -178,7 +178,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   // from the current bytecode.
   int GetAbsoluteOffset(int relative_offset) const;
 
-  std::ostream& PrintTo(std::ostream& os) const;
+  std::ostream& PrintCurrentBytecodeTo(std::ostream& os) const;
 
   static void UpdatePointersCallback(void* iterator) {
     reinterpret_cast<BytecodeArrayIterator*>(iterator)->UpdatePointers();
