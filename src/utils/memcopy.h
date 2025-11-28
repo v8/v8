@@ -49,8 +49,6 @@ inline void CopyImpl(T* dst_ptr, const T* src_ptr, size_t count) {
   Address src = reinterpret_cast<Address>(src_ptr);
   DCHECK(IsAligned(dst, kTWordSize));
   DCHECK(IsAligned(src, kTWordSize));
-  DCHECK(((src <= dst) && ((src + count * kTWordSize) <= dst)) ||
-         ((dst <= src) && ((dst + count * kTWordSize) <= src)));
 #endif
   MemCopy(dst_ptr, src_ptr, count * kTWordSize);
 }
@@ -90,6 +88,14 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   using SrcTypeUnsigned = std::make_unsigned_t<SrcType>;
   using DstTypeUnsigned = std::make_unsigned_t<DstType>;
 
+  auto* dst_u = reinterpret_cast<DstTypeUnsigned*>(dst);
+  auto* src_u = reinterpret_cast<const SrcTypeUnsigned*>(src);
+
+  if constexpr (std::is_same_v<DstTypeUnsigned, SrcTypeUnsigned>) {
+    v8::base::MemCopy(dst_u, src_u, count * sizeof(DstTypeUnsigned));
+    return;
+  }
+
 #ifdef DEBUG
   // Check for no overlap, otherwise {std::copy_n} cannot be used.
   Address src_start = reinterpret_cast<Address>(src);
@@ -98,17 +104,6 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   Address dst_end = dst_start + count * sizeof(DstType);
   DCHECK(src_end <= dst_start || dst_end <= src_start);
 #endif
-
-  auto* dst_u = reinterpret_cast<DstTypeUnsigned*>(dst);
-  auto* src_u = reinterpret_cast<const SrcTypeUnsigned*>(src);
-
-#if defined(V8_OPTIMIZE_WITH_NEON)
-  if constexpr (std::is_same_v<DstTypeUnsigned, SrcTypeUnsigned>) {
-    // Use simd optimized memcpy.
-    v8::base::SimdMemCopy(dst_u, src_u, count * sizeof(DstTypeUnsigned));
-    return;
-  }
-#endif  // defined(V8_OPTIMIZE_WITH_NEON)
 
   // Especially Atom CPUs profit from this explicit instantiation for small
   // counts. This gives up to 20 percent improvement for microbenchmarks such as

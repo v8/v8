@@ -84,15 +84,33 @@ inline void SimdMemCopy(void* dst, const void* src, size_t count) {
   }
 }
 
-V8_INLINE void MemCopy(void* dst, const void* src, size_t count) {
+V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
+#ifdef DEBUG
+  if (size == 0) {
+    return;
+  }
+  // Check that there's no overlap in ranges.
+  const char* src_char = reinterpret_cast<const char*>(src);
+  char* dest_char = reinterpret_cast<char*>(dest);
+  DCHECK(dest_char >= (src_char + size) || src_char >= (dest_char + size));
+#endif  // DEBUG
   // Wrap call to be able to easily identify SIMD usage in profiles.
-  SimdMemCopy(dst, src, count);
+  SimdMemCopy(dest, src, size);
 }
 
 #else  // !defined(V8_OPTIMIZE_WITH_NEON)
 
 // Copy memory area to disjoint memory area.
 V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
+#ifdef DEBUG
+  if (size == 0) {
+    return;
+  }
+  // Check that there's no overlap in ranges.
+  const char* src_char = reinterpret_cast<const char*>(src);
+  char* dest_char = reinterpret_cast<char*>(dest);
+  DCHECK(dest_char >= (src_char + size) || src_char >= (dest_char + size));
+#endif  // DEBUG
   // Fast path for small sizes. The compiler will expand the `memcpy()` for
   // small fixed sizes to a sequence of move instructions. This avoids the
   // overhead of the general `memcpy()` function.
@@ -195,6 +213,28 @@ inline void MemCopyAndSwitchEndianness(void* dst, void* src,
 #undef COPY_LOOP
 }
 #endif
+
+template <typename T>
+V8_INLINE bool TryTrivialCopy(const T* src_begin, const T* src_end, T* dest) {
+  DCHECK_LE(src_begin, src_end);
+  if constexpr (std::is_trivially_copyable_v<T>) {
+    const size_t count = src_end - src_begin;
+    base::MemCopy(dest, src_begin, count * sizeof(T));
+    return true;
+  }
+  return false;
+}
+
+template <typename T>
+V8_INLINE bool TryTrivialMove(const T* src_begin, const T* src_end, T* dest) {
+  DCHECK_LE(src_begin, src_end);
+  if constexpr (std::is_trivially_copyable_v<T>) {
+    const size_t count = src_end - src_begin;
+    base::MemMove(dest, src_begin, count * sizeof(T));
+    return true;
+  }
+  return false;
+}
 
 // Fills `destination` with `count` `value`s.
 template <typename T, typename U>

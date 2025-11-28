@@ -808,6 +808,7 @@ filegroup(
         "src/base/abort-mode.cc",
         "src/base/abort-mode.h",
         "src/base/address-region.h",
+        "src/base/algorithm.h",
         "src/base/atomic-utils.h",
         "src/base/atomicops.h",
         "src/base/base-export.h",

@@ -1232,13 +1232,15 @@ void* libc_memchr(void* string, int character, size_t search_length) {
 FUNCTION_REFERENCE(libc_memchr_function, libc_memchr)
 
 void* libc_memcpy(void* dest, const void* src, size_t n) {
-  return memcpy(dest, src, n);
+  base::MemCopy(dest, src, n);
+  return dest;
 }
 
 FUNCTION_REFERENCE(libc_memcpy_function, libc_memcpy)
 
 void* libc_memmove(void* dest, const void* src, size_t n) {
-  return memmove(dest, src, n);
+  base::MemMove(dest, src, n);
+  return dest;
 }
 
 FUNCTION_REFERENCE(libc_memmove_function, libc_memmove)
