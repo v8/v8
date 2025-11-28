@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-iterator.h"
 
+#include "src/codegen/bailout-reason.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects/feedback-vector.h"
@@ -182,15 +183,39 @@ uint32_t BytecodeArrayIterator::GetRegisterCountOperand(
   return GetUnsignedOperand(operand_index, OperandType::kRegCount);
 }
 
-uint32_t BytecodeArrayIterator::GetIndexOperand(int operand_index) const {
+uint32_t BytecodeArrayIterator::GetConstantPoolIndexOperand(
+    int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
-  DCHECK_EQ(operand_type, OperandType::kIdx);
+  DCHECK_EQ(operand_type, OperandType::kConstantPoolIndex);
+  return GetUnsignedOperand(operand_index, operand_type);
+}
+
+uint32_t BytecodeArrayIterator::GetFeedbackSlotOperand(
+    int operand_index) const {
+  OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK_EQ(operand_type, OperandType::kFeedbackSlot);
+  return GetUnsignedOperand(operand_index, operand_type);
+}
+
+uint32_t BytecodeArrayIterator::GetContextSlotOperand(int operand_index) const {
+  OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK_EQ(operand_type, OperandType::kContextSlot);
+  return GetUnsignedOperand(operand_index, operand_type);
+}
+
+uint32_t BytecodeArrayIterator::GetCoverageSlotOperand(
+    int operand_index) const {
+  OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK_EQ(operand_type, OperandType::kCoverageSlot);
   return GetUnsignedOperand(operand_index, operand_type);
 }
 
 FeedbackSlot BytecodeArrayIterator::GetSlotOperand(int operand_index) const {
-  int index = GetIndexOperand(operand_index);
+  int index = GetFeedbackSlotOperand(operand_index);
   return FeedbackVector::ToSlot(index);
 }
 
@@ -280,9 +305,22 @@ Runtime::FunctionId BytecodeArrayIterator::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
-template <typename IsolateT>
+AbortReason BytecodeArrayIterator::GetAbortReasonOperand(
+    int operand_index) const {
+  OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK_EQ(operand_type, OperandType::kAbortReason);
+  return static_cast<AbortReason>(
+      GetUnsignedOperand(operand_index, operand_type));
+}
+
 Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
-    int index, IsolateT* isolate) const {
+    int index, Isolate* isolate) const {
+  return handle(bytecode_array()->constant_pool()->get(index), isolate);
+}
+
+Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
+    int index, LocalIsolate* isolate) const {
   return handle(bytecode_array()->constant_pool()->get(index), isolate);
 }
 
@@ -290,17 +328,17 @@ Tagged<Smi> BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
   return Cast<Smi>(bytecode_array()->constant_pool()->get(index));
 }
 
-template <typename IsolateT>
-Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
-    int operand_index, IsolateT* isolate) const {
-  return GetConstantAtIndex(GetIndexOperand(operand_index), isolate);
+Handle<Object> BytecodeArrayIterator::GetConstantForOperand(
+    int operand_index, Isolate* isolate) const {
+  return GetConstantAtIndex(GetConstantPoolIndexOperand(operand_index),
+                            isolate);
 }
 
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
-        int operand_index, Isolate* isolate) const;
-template Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
-    int operand_index, LocalIsolate* isolate) const;
+Handle<Object> BytecodeArrayIterator::GetConstantForOperand(
+    int operand_index, LocalIsolate* isolate) const {
+  return GetConstantAtIndex(GetConstantPoolIndexOperand(operand_index),
+                            isolate);
+}
 
 int BytecodeArrayIterator::GetRelativeJumpTargetOffset() const {
   Bytecode bytecode = current_bytecode();
@@ -311,7 +349,7 @@ int BytecodeArrayIterator::GetRelativeJumpTargetOffset() const {
     }
     return relative_offset;
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
-    Tagged<Smi> smi = GetConstantAtIndexAsSmi(GetIndexOperand(0));
+    Tagged<Smi> smi = GetConstantAtIndexAsSmi(GetConstantPoolIndexOperand(0));
     return smi.value();
   } else {
     UNREACHABLE();
@@ -327,12 +365,12 @@ JumpTableTargetOffsets BytecodeArrayIterator::GetJumpTableTargetOffsets()
   uint32_t table_start, table_size;
   int32_t case_value_base;
   if (current_bytecode() == Bytecode::kSwitchOnGeneratorState) {
-    table_start = GetIndexOperand(1);
+    table_start = GetConstantPoolIndexOperand(1);
     table_size = GetUnsignedImmediateOperand(2);
     case_value_base = 0;
   } else {
     DCHECK_EQ(current_bytecode(), Bytecode::kSwitchOnSmiNoFeedback);
-    table_start = GetIndexOperand(0);
+    table_start = GetConstantPoolIndexOperand(0);
     table_size = GetUnsignedImmediateOperand(1);
     case_value_base = GetImmediateOperand(2);
   }

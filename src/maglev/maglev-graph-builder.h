@@ -610,9 +610,9 @@ class MaglevGraphBuilder {
     // The BytecodeArray itself was fetched by using a barrier so all reads
     // from the constant pool are safe.
     return MakeRefAssumeMemoryFence(
-        broker(), broker()->CanonicalPersistentHandle(
-                      Cast<T>(iterator_.GetConstantForIndexOperand(
-                          operand_index, local_isolate()))));
+        broker(),
+        broker()->CanonicalPersistentHandle(Cast<T>(
+            iterator_.GetConstantForOperand(operand_index, local_isolate()))));
   }
 
   MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t);

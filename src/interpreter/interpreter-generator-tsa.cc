@@ -223,8 +223,8 @@ class BytecodeHandlerReducer : public Next {
     return V<BytecodeArray>::Cast(bytecode_array_);
   }
 
-  V<Word32> BytecodeOperandIdxInt32(int operand_index) {
-    DCHECK_EQ(OperandType::kIdx,
+  V<Word32> BytecodeOperandFeedbackSlotInt32(int operand_index) {
+    DCHECK_EQ(OperandType::kFeedbackSlot,
               Bytecodes::GetOperandType(data_.bytecode, operand_index));
     OperandSize operand_size = Bytecodes::GetOperandSize(
         data_.bytecode, operand_index, operand_scale());
@@ -335,8 +335,8 @@ IGNITION_HANDLER_TS(BitwiseNot, NumberBuiltinsBytecodeHandlerAssembler) {
   V<Context> context = GetContext();
 
   constexpr int kSlotIndex = 0;
-  SetFeedbackSlot(
-      __ ChangeUint32ToUintPtr(__ BytecodeOperandIdxInt32(kSlotIndex)));
+  SetFeedbackSlot(__ ChangeUint32ToUintPtr(
+      __ BytecodeOperandFeedbackSlotInt32(kSlotIndex)));
   LoadFeedbackVectorOrUndefinedIfJitless();
 
   V<Object> result = BitwiseNot(context, value);

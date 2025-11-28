@@ -502,7 +502,8 @@ void BytecodeArrayWriter::PatchJumpTableSize(BytecodeJumpTable* table,
               Bytecodes::FromByte(bytecodes()->at(switch_location - 1))));
 
   DCHECK_EQ(Bytecodes::GetOperandType(switch_bytecode, 0), OperandType::kReg);
-  DCHECK_EQ(Bytecodes::GetOperandType(switch_bytecode, 1), OperandType::kIdx);
+  DCHECK_EQ(Bytecodes::GetOperandType(switch_bytecode, 1),
+            OperandType::kConstantPoolIndex);
   DCHECK_EQ(Bytecodes::GetOperandType(switch_bytecode, 2), OperandType::kUImm);
 
   size_t size_operand_location =

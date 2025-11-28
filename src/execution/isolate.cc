@@ -3369,7 +3369,7 @@ enum PromiseMethod { kThen, kCatch, kFinally, kInvalid };
 // Requires the iterator to be on a GetNamedProperty instruction
 PromiseMethod GetPromiseMethod(
     Isolate* isolate, const interpreter::BytecodeArrayIterator& iterator) {
-  DirectHandle<Object> object = iterator.GetConstantForIndexOperand(1, isolate);
+  DirectHandle<Object> object = iterator.GetConstantForOperand(1, isolate);
   if (!IsString(*object)) {
     return kInvalid;
   }
@@ -3440,7 +3440,7 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
       // Step over patterns like:
       //     StaCurrentContextSlot[NoCell] [x]
       //     LdaImmutableCurrentContextSlot/LdaCurrentContext[NoCell] [x]
-      unsigned int slot = iterator.GetIndexOperand(0);
+      unsigned int slot = iterator.GetContextSlotOperand(0);
       iterator.Advance();
       if (!iterator.done() &&
           (iterator.current_bytecode() ==
@@ -3448,7 +3448,7 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
            iterator.current_bytecode() == Bytecode::kLdaCurrentContextSlot ||
            iterator.current_bytecode() ==
                Bytecode::kLdaCurrentContextSlotNoCell)) {
-        if (iterator.GetIndexOperand(0) != slot) {
+        if (iterator.GetContextSlotOperand(0) != slot) {
           return false;
         }
         iterator.Advance();
@@ -3459,7 +3459,7 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
       //     StaContextSlot[NoCell] r_x [y] [z]
       //     LdaContextSlot[NoCell] r_x [y] [z]
       int context = iterator.GetRegisterOperand(0).index();
-      unsigned int slot = iterator.GetIndexOperand(1);
+      unsigned int slot = iterator.GetContextSlotOperand(1);
       unsigned int depth = iterator.GetUnsignedImmediateOperand(2);
       iterator.Advance();
       if (!iterator.done() &&
@@ -3467,7 +3467,7 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
            iterator.current_bytecode() == Bytecode::kLdaContextSlot ||
            iterator.current_bytecode() == Bytecode::kLdaContextSlotNoCell)) {
         if (iterator.GetRegisterOperand(0).index() != context ||
-            iterator.GetIndexOperand(1) != slot ||
+            iterator.GetContextSlotOperand(1) != slot ||
             iterator.GetUnsignedImmediateOperand(2) != depth) {
           return false;
         }
@@ -3477,13 +3477,13 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
       // Step over patterns like:
       //     StaLookupSlot [x] [_]
       //     LdaLookupSlot [x]
-      unsigned int slot = iterator.GetIndexOperand(0);
+      unsigned int slot = iterator.GetConstantPoolIndexOperand(0);
       iterator.Advance();
       if (!iterator.done() &&
           (iterator.current_bytecode() == Bytecode::kLdaLookupSlot ||
            iterator.current_bytecode() ==
                Bytecode::kLdaLookupSlotInsideTypeof)) {
-        if (iterator.GetIndexOperand(0) != slot) {
+        if (iterator.GetConstantPoolIndexOperand(0) != slot) {
           return false;
         }
         iterator.Advance();

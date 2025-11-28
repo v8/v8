@@ -7,6 +7,8 @@
 
 #include <cstdint>
 
+#include "src/base/macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -164,8 +166,8 @@ enum class AbortReason : uint8_t {
 #undef ERROR_MESSAGES_CONSTANTS
 
 const char* GetBailoutReason(BailoutReason reason);
-const char* GetAbortReason(AbortReason reason);
-bool IsValidAbortReason(int reason_id);
+V8_EXPORT_PRIVATE const char* GetAbortReason(AbortReason reason);
+V8_EXPORT_PRIVATE bool IsValidAbortReason(int reason_id);
 
 inline bool IsTerminalBailoutReason(BailoutReason reason) {
   switch (reason) {

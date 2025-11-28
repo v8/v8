@@ -21,6 +21,7 @@ namespace v8 {
 namespace internal {
 
 class BytecodeArray;
+enum class AbortReason : uint8_t;
 
 namespace interpreter {
 
@@ -136,7 +137,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   uint32_t GetFlag16Operand(int operand_index) const;
   uint32_t GetUnsignedImmediateOperand(int operand_index) const;
   int32_t GetImmediateOperand(int operand_index) const;
-  uint32_t GetIndexOperand(int operand_index) const;
+  uint32_t GetConstantPoolIndexOperand(int operand_index) const;
+  uint32_t GetFeedbackSlotOperand(int operand_index) const;
+  uint32_t GetContextSlotOperand(int operand_index) const;
+  uint32_t GetCoverageSlotOperand(int operand_index) const;
   FeedbackSlot GetSlotOperand(int operand_index) const;
   Register GetParameter(int parameter_index) const;
   uint32_t GetRegisterCountOperand(int operand_index) const;
@@ -148,12 +152,14 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   Runtime::FunctionId GetRuntimeIdOperand(int operand_index) const;
   Runtime::FunctionId GetIntrinsicIdOperand(int operand_index) const;
   uint32_t GetNativeContextIndexOperand(int operand_index) const;
-  template <typename IsolateT>
-  Handle<Object> GetConstantAtIndex(int offset, IsolateT* isolate) const;
+  AbortReason GetAbortReasonOperand(int operand_index) const;
+  Handle<Object> GetConstantAtIndex(int offset, Isolate* isolate) const;
+  Handle<Object> GetConstantAtIndex(int offset, LocalIsolate* isolate) const;
   Tagged<Smi> GetConstantAtIndexAsSmi(int offset) const;
-  template <typename IsolateT>
-  Handle<Object> GetConstantForIndexOperand(int operand_index,
-                                            IsolateT* isolate) const;
+  Handle<Object> GetConstantForOperand(int operand_index,
+                                       Isolate* isolate) const;
+  Handle<Object> GetConstantForOperand(int operand_index,
+                                       LocalIsolate* isolate) const;
 
   // Returns the relative offset of the branch target at the current bytecode.
   // It is an error to call this method if the bytecode is not for a jump or

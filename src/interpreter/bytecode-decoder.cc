@@ -152,7 +152,11 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
     Address operand_start = reinterpret_cast<Address>(
         &bytecode_start[prefix_offset + operand_offset]);
     switch (op_type) {
-      case interpreter::OperandType::kIdx:
+      case interpreter::OperandType::kConstantPoolIndex:
+      case interpreter::OperandType::kFeedbackSlot:
+      case interpreter::OperandType::kContextSlot:
+      case interpreter::OperandType::kCoverageSlot:
+      case interpreter::OperandType::kAbortReason:
       case interpreter::OperandType::kUImm:
         os << "["
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale)

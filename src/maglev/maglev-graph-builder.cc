@@ -3371,7 +3371,7 @@ ReduceResult MaglevGraphBuilder::BuildStoreContextSlot(
 
 ReduceResult MaglevGraphBuilder::VisitLdaContextSlotNoCell() {
   ValueNode* context = LoadRegister(0);
-  int slot_index = iterator_.GetIndexOperand(1);
+  int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   BuildLoadContextSlot(context, depth, slot_index, kMutable,
                        ContextMode::kNoContextCells);
@@ -3379,7 +3379,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaContextSlotNoCell() {
 }
 ReduceResult MaglevGraphBuilder::VisitLdaContextSlot() {
   ValueNode* context = LoadRegister(0);
-  int slot_index = iterator_.GetIndexOperand(1);
+  int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   BuildLoadContextSlot(context, depth, slot_index, kMutable,
                        ContextMode::kHasContextCells);
@@ -3387,7 +3387,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaContextSlot() {
 }
 ReduceResult MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
   ValueNode* context = LoadRegister(0);
-  int slot_index = iterator_.GetIndexOperand(1);
+  int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   BuildLoadContextSlot(context, depth, slot_index, kImmutable,
                        ContextMode::kNoContextCells);
@@ -3395,21 +3395,21 @@ ReduceResult MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
 }
 ReduceResult MaglevGraphBuilder::VisitLdaCurrentContextSlotNoCell() {
   ValueNode* context = GetContext();
-  int slot_index = iterator_.GetIndexOperand(0);
+  int slot_index = iterator_.GetContextSlotOperand(0);
   BuildLoadContextSlot(context, 0, slot_index, kMutable,
                        ContextMode::kNoContextCells);
   return ReduceResult::Done();
 }
 ReduceResult MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
   ValueNode* context = GetContext();
-  int slot_index = iterator_.GetIndexOperand(0);
+  int slot_index = iterator_.GetContextSlotOperand(0);
   BuildLoadContextSlot(context, 0, slot_index, kMutable,
                        ContextMode::kHasContextCells);
   return ReduceResult::Done();
 }
 ReduceResult MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
   ValueNode* context = GetContext();
-  int slot_index = iterator_.GetIndexOperand(0);
+  int slot_index = iterator_.GetContextSlotOperand(0);
   BuildLoadContextSlot(context, 0, slot_index, kImmutable,
                        ContextMode::kNoContextCells);
   return ReduceResult::Done();
@@ -3417,21 +3417,21 @@ ReduceResult MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
 
 ReduceResult MaglevGraphBuilder::VisitStaContextSlotNoCell() {
   ValueNode* context = LoadRegister(0);
-  int slot_index = iterator_.GetIndexOperand(1);
+  int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   return BuildStoreContextSlot(context, depth, slot_index, GetAccumulator(),
                                ContextMode::kNoContextCells);
 }
 ReduceResult MaglevGraphBuilder::VisitStaCurrentContextSlotNoCell() {
   ValueNode* context = GetContext();
-  int slot_index = iterator_.GetIndexOperand(0);
+  int slot_index = iterator_.GetContextSlotOperand(0);
   return BuildStoreContextSlot(context, 0, slot_index, GetAccumulator(),
                                ContextMode::kNoContextCells);
 }
 
 ReduceResult MaglevGraphBuilder::VisitStaContextSlot() {
   ValueNode* context = LoadRegister(0);
-  int slot_index = iterator_.GetIndexOperand(1);
+  int slot_index = iterator_.GetContextSlotOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   return BuildStoreContextSlot(context, depth, slot_index, GetAccumulator(),
                                ContextMode::kHasContextCells);
@@ -3439,7 +3439,7 @@ ReduceResult MaglevGraphBuilder::VisitStaContextSlot() {
 
 ReduceResult MaglevGraphBuilder::VisitStaCurrentContextSlot() {
   ValueNode* context = GetContext();
-  int slot_index = iterator_.GetIndexOperand(0);
+  int slot_index = iterator_.GetContextSlotOperand(0);
   return BuildStoreContextSlot(context, 0, slot_index, GetAccumulator(),
                                ContextMode::kHasContextCells);
 }
@@ -3909,7 +3909,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupSlot() {
 ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotNoCell() {
   // LdaLookupContextSlot <name_index> <feedback_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetContextSlotOperand(1));
   ValueNode* depth =
       GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(BuildCallBuiltin<Builtin::kLookupContextNoCellTrampoline>(
@@ -3920,7 +3920,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotNoCell() {
 ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlot() {
   // LdaLookupContextSlot <name_index> <feedback_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetContextSlotOperand(1));
   ValueNode* depth =
       GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
@@ -3979,7 +3979,8 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupGlobalSlot() {
     return BuildLoadGlobal(name, feedback_source, TypeofMode::kNotInside);
   } else {
     ValueNode* name_node = GetConstant(name);
-    ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+    ValueNode* slot =
+        GetTaggedIndexConstant(iterator_.GetFeedbackSlotOperand(1));
     ValueNode* depth =
         GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
     ValueNode* result;
@@ -4007,7 +4008,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
 ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotNoCellInsideTypeof() {
   // LdaLookupContextSlotInsideTypeof <name_index> <context_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetContextSlotOperand(1));
   ValueNode* depth =
       GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
@@ -4019,7 +4020,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotNoCellInsideTypeof() {
 ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
   // LdaLookupContextSlotInsideTypeof <name_index> <context_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetContextSlotOperand(1));
   ValueNode* depth =
       GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
@@ -4031,7 +4032,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
 ReduceResult MaglevGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
   // LdaLookupGlobalSlotInsideTypeof <name_index> <context_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetContextSlotOperand(1));
   ValueNode* depth =
       GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
   ValueNode* result;
@@ -14819,8 +14820,8 @@ ReduceResult MaglevGraphBuilder::VisitGetTemplateObject() {
 ReduceResult MaglevGraphBuilder::VisitCreateClosure() {
   compiler::SharedFunctionInfoRef shared_function_info =
       GetRefOperand<SharedFunctionInfo>(0);
-  compiler::FeedbackCellRef feedback_cell =
-      feedback().GetClosureFeedbackCell(broker(), iterator_.GetIndexOperand(1));
+  compiler::FeedbackCellRef feedback_cell = feedback().GetClosureFeedbackCell(
+      broker(), iterator_.GetFeedbackSlotOperand(1));
   uint32_t flags = GetFlag8Operand(2);
 
   if (interpreter::CreateClosureFlags::FastNewClosureBit::decode(flags)) {
@@ -16355,8 +16356,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetIterator(
 ReduceResult MaglevGraphBuilder::VisitGetIterator() {
   // GetIterator <object>
   ValueNode* receiver = LoadRegister(0);
-  int load_slot = iterator_.GetIndexOperand(1);
-  int call_slot = iterator_.GetIndexOperand(2);
+  int load_slot = iterator_.GetFeedbackSlotOperand(1);
+  int call_slot = iterator_.GetFeedbackSlotOperand(2);
   PROCESS_AND_RETURN_IF_DONE(
       TryReduceGetIterator(receiver, load_slot, call_slot), SetAccumulator);
   // Fallback to the builtin.
@@ -16372,7 +16373,7 @@ ReduceResult MaglevGraphBuilder::VisitForOfNext() {
   ValueNode* next_method = LoadRegister(1);
 
   auto register_pair = iterator_.GetRegisterPairOperand(2);
-  int call_slot = iterator_.GetIndexOperand(3);
+  int call_slot = iterator_.GetFeedbackSlotOperand(3);
 
   CallBuiltin* result_struct = BuildCallBuiltin<Builtin::kForOfNext>(
       {iterator, next_method, GetConstant(feedback()),
@@ -16391,7 +16392,8 @@ ReduceResult MaglevGraphBuilder::VisitIncBlockCounter() {
   ValueNode* closure = GetClosure();
   ValueNode* tagged_closure;
   GET_VALUE_OR_ABORT(tagged_closure, GetTaggedValue(closure));
-  ValueNode* coverage_array_slot = GetSmiConstant(iterator_.GetIndexOperand(0));
+  ValueNode* coverage_array_slot =
+      GetSmiConstant(iterator_.GetCoverageSlotOperand(0));
   BuildCallBuiltin<Builtin::kIncBlockCounter>(
       {tagged_closure, coverage_array_slot});
   return ReduceResult::Done();
