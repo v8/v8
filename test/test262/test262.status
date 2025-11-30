@@ -1336,4 +1336,20 @@
 }],
 # end import test262@bc5c6fe5bc9c82f031058e3bbe16bf3937a81fc5
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-format-with-era': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-format-with-era': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/withCalendar/extreme-dates': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/withCalendar/extreme-dates': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/withCalendar/extreme-dates': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-coptic': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-ethioaa': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-ethiopic': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-indian': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
