@@ -207,12 +207,13 @@ class WasmInterpreterRuntime {
   static int memory_start_offset();
   static int instruction_table_offset();
 
-#ifndef V8_DRUMBRAKE_BOUNDS_CHECKS
+#if defined(V8_ENABLE_DRUMBRAKE_TRACING) && !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
   static int trace_pop_func_offset();
   static int trace_pop2_func_offset();
   static int trace_push_func_offset();
   static int trace_replace_func_offset();
-#endif  // V8_DRUMBRAKE_BOUNDS_CHECKS
+#endif  // defined(V8_ENABLE_DRUMBRAKE_TRACING) &&
+        // !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
 
   size_t TotalBytecodeSize() const { return codemap_->TotalBytecodeSize(); }
 

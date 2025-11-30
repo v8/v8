@@ -680,7 +680,8 @@
   'wasm/growable-stacks': [SKIP],
 
   # --experimental-wasm-wasmfx
-  'wasm/stack-switching': [SKIP],
+  'regress/wasm/regress-455832038': [SKIP],
+  'wasm/stack-switching*': [SKIP],
 
   # --experimental-wasm-growable-stacks
   'regress/wasm/regress-421055121': [SKIP],
@@ -739,6 +740,7 @@
   'regress/wasm/regress-834619': [SKIP],
   'regress/wasm/regress-956771*': [SKIP],
   'regress/wasm/regress-1430858': [SKIP],
+  'regress/wasm/regress-441844767': [SKIP],
   'wasm/code-flushing*': [SKIP],
   'wasm/lazy-compilation': [SKIP],
   'wasm/lazy-feedback-vector-allocation': [SKIP],
@@ -748,6 +750,7 @@
   # --wasm-lazy-validation
   'regress/wasm/regress-334687959': [SKIP],
   'regress/wasm/regress-366350766': [SKIP],
+  'regress/wasm/regress-441221187': [SKIP],
 
   # Wasm imported strings (just text-decoder or text-encoder)
   'wasm/imported-strings-utf8': [SKIP],
@@ -758,6 +761,7 @@
   'regress/wasm/regress-327643791': [SKIP],
 
   # --experimental-wasm-shared
+  'regress/wasm/regress-454276076': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 
@@ -775,6 +779,7 @@
   'regress/wasm/regress-392928805': [SKIP],
   'regress/wasm/regress-406043349': [SKIP],
   'regress/wasm/regress-407298298': [SKIP],
+  'regress/wasm/regress-407797300': [SKIP],
   'regress/wasm/regress-408254017': [SKIP],
   'regress/wasm/regress-crbug-408253898': [SKIP],
 
@@ -786,6 +791,7 @@
   'wasm/redundant-shuffle-lanes': [SKIP],
 
   # --experimental-wasm-rab-integration
+  'regress/wasm/regress-451144692': [SKIP],
   'wasm/grow-huge-memory-resizable-buffer*': [SKIP],
   'wasm/grow-memory-detaching-resizable-buffer': [SKIP],
   'wasm/grow-memory-in-branch-resizable-buffer': [SKIP],
@@ -801,8 +807,15 @@
 
   # --experimental-wasm-custom-descriptors
   'regress/wasm/regress-433984397': [SKIP],
+  'regress/wasm/regress-435301441': [SKIP],
+  'regress/wasm/regress-435315689': [SKIP],
+  'regress/wasm/regress-436362279': [SKIP],
+  'regress/wasm/regress-436937141': [SKIP],
+  'regress/wasm/regress-443377612': [SKIP],
   'regress/wasm/regress-447613211': [SKIP],
   'regress/wasm/regress-448404198': [SKIP],
+  'regress/wasm/regress-452541294': [SKIP],
+  'regress/wasm/regress-457106696': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
 
@@ -812,6 +825,7 @@
 
   # --enable-testing-opcode-in-wasm
   'regress/wasm/regress-377971725': [SKIP],
+  'regress/wasm/regress-426164352': [SKIP],
 
   # Module serialization tests expect compilation
   'regress/wasm/regress-11024': [SKIP],
@@ -864,6 +878,7 @@
   'regress/wasm/regress-368241691': [SKIP],
   'regress/wasm/regress-373702823': [SKIP],
   'regress/wasm/regress-383356864': [SKIP],
+  'regress/wasm/regress-456319253': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
   'wasm/bit-shift-right': [SKIP],
   'wasm/bounds-check-turbofan': [SKIP],

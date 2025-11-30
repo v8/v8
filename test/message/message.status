@@ -87,7 +87,9 @@
   # Tests that require compilation
   'fail/wasm-async-compile-fail': [SKIP],
   'js-wasm-wrapper-inlining-turbolev*': [SKIP],
+  'wasm-compilation-hints-inlining-no-liftoff': [SKIP],
   'wasm-speculative-inlining': [SKIP],
+  'wasm-trace-globals': [SKIP],
   'wasm-trace-turbofan': [SKIP],
 
   # --trace-wasm-memory

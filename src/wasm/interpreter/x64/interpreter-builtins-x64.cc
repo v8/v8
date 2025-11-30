@@ -903,12 +903,12 @@ void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
   // rbp-0x08  Marker(StackFrame::C_WASM_ENTRY)
   // rbp       Old RBP
 
-#ifndef V8_OS_POSIX
+#ifdef V8_TARGET_OS_WIN
   // Offsets for arguments passed in WasmToJSCallSig. See declaration of
   // {WasmToJSCallSig} in src/wasm/interpreter/wasm-interpreter-runtime.h.
   constexpr int kCEntryFpParameterOffset = 0x30;
   constexpr int kCallableOffset = 0x38;
-#endif  // !V8_OS_POSIX
+#endif  // V8_TARGET_OS_WIN
 
   // Set up the stackframe.
   __ EnterFrame(StackFrame::C_WASM_ENTRY);
@@ -950,17 +950,17 @@ void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
   isolate_root = no_reg;
 
   Register callable = r8;
-#ifdef V8_OS_POSIX
-  __ movq(MemOperand(rbp, WasmInterpreterCWasmEntryConstants::kCEntryFPOffset),
-          r8);            // saved_c_entry_fp
-  __ movq(callable, r9);  // callable
-#else                     // Windows
+#ifdef V8_TARGET_OS_WIN
   // Store c_entry_fp into slot
   __ movq(rbx, MemOperand(rbp, kCEntryFpParameterOffset));
   __ movq(MemOperand(rbp, WasmInterpreterCWasmEntryConstants::kCEntryFPOffset),
           rbx);
   __ movq(callable, MemOperand(rbp, kCallableOffset));
-#endif                    // V8_OS_POSIX
+#else   // !V8_TARGET_OS_WIN
+  __ movq(MemOperand(rbp, WasmInterpreterCWasmEntryConstants::kCEntryFPOffset),
+          r8);            // saved_c_entry_fp
+  __ movq(callable, r9);  // callable
+#endif  // V8_TARGET_OS_WIN
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -1084,7 +1084,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
                      WasmToJSInterpreterFrameConstants::kGCScanSlotLimitOffset),
           rsp);
 
-#if V8_OS_POSIX
+#ifndef V8_TARGET_OS_WIN
   // Windows has a different calling convention.
   signature = r9;
   __ movq(signature, kCArgRegs[3]);
@@ -1092,7 +1092,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ movq(target_js_function, kCArgRegs[0]);
   packed_args = rdx;
   __ movq(packed_args, kCArgRegs[1]);
-#endif                    // V8_OS_POSIX
+#endif                    // !V8_TARGET_OS_WIN
   __ movq(callable, r8);  // Callable passed in r8.
 
   Register shared_function_info = r15;
