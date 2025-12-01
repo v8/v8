@@ -1101,7 +1101,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     base::TimeDelta time = base::TimeTicks::Now() - start_time;
     int codesize = result.code_desc.body_size();
     StdoutStream{} << "Compiled WasmToJS wrapper " << func_name << ", took "
-                   << time.InMilliseconds() << " ms; codesize " << codesize
+                   << time.InMicroseconds() << " μs; codesize " << codesize
                    << std::endl;
   }
 
@@ -1132,7 +1132,7 @@ wasm::WasmCompilationResult CompileWasmStackEntryWrapper() {
     base::TimeDelta time = base::TimeTicks::Now() - start_time;
     int codesize = result.code_desc.body_size();
     StdoutStream{} << "Compiled WasmContinuation wrapper " << func_name
-                   << ", took " << time.InMilliseconds() << " ms; codesize "
+                   << ", took " << time.InMicroseconds() << " μs; codesize "
                    << codesize << std::endl;
   }
 

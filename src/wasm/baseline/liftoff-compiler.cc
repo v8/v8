@@ -111,7 +111,12 @@ struct assert_field_size {
 // Liftoff's code comments are intentionally without source location to keep
 // readability up.
 #ifdef V8_CODE_COMMENTS
-#define CODE_COMMENT(str) __ RecordComment(str, SourceLocation{})
+#define CODE_COMMENT(str)                      \
+  do {                                         \
+    if (V8_UNLIKELY(v8_flags.code_comments)) { \
+      __ RecordComment(str, SourceLocation{}); \
+    }                                          \
+  } while (false)
 #define SCOPED_CODE_COMMENT(str)                                \
   AssemblerBase::CodeComment CONCAT(scoped_comment_, __LINE__)( \
       &asm_, str, SourceLocation{})
@@ -10900,7 +10905,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     StdoutStream{} << "Compiled function "
                    << reinterpret_cast<const void*>(env->module) << "#"
                    << compiler_options.func_index << " using Liftoff, took "
-                   << time.InMilliseconds() << " ms and "
+                   << time.InMicroseconds() << " μs and "
                    << zone.allocation_size() << " bytes; bodysize "
                    << func_body_size << " codesize " << codesize << std::endl;
   }

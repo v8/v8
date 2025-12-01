@@ -3339,7 +3339,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
     StdoutStream{} << "Compiled function "
                    << reinterpret_cast<const void*>(module) << "#"
                    << compilation_data.func_index << " using TurboFan, took "
-                   << time.InMilliseconds() << " ms and "
+                   << time.InMicroseconds() << " μs and "
                    << zone_stats.GetMaxAllocatedBytes() << " / "
                    << zone_stats.GetTotalAllocatedBytes()
                    << " max/total bytes; bodysize "
