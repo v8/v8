@@ -9074,8 +9074,8 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
 }
 
 size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
+  size_t bytes_to_copy = std::min(byte_length, ByteLength());
   auto self = Utils::OpenDirectHandle(this);
-  size_t bytes_to_copy = std::min(byte_length, self->byte_length());
   if (bytes_to_copy) {
     i::DisallowGarbageCollection no_gc;
     const char* source;

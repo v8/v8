@@ -306,6 +306,8 @@ class JSArrayBufferView
   DECL_PRIMITIVE_ACCESSORS(byte_offset, size_t)
 
   // [byte_length]: length of typed array in bytes.
+  // Only use for fixed-size arrays (`!IsVariableLength()`). Otherwise use
+  // `JSTypedArray::GetByteLength()`.
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   DECL_VERIFIER(JSArrayBufferView)
