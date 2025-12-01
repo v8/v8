@@ -103,8 +103,7 @@ class FastApiCallLoweringReducer : public Next {
       Label<> trigger_exception(this);
 
       V<Object> exception =
-          __ Load(__ ExternalConstant(ExternalReference::Create(
-                      IsolateAddressId::kExceptionAddress, isolate_)),
+          __ Load(__ IsolateField(IsolateFieldId::kException),
                   LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr());
       GOTO_IF_NOT(LIKELY(__ TaggedEqual(
                       exception,
@@ -423,8 +422,7 @@ class FastApiCallLoweringReducer : public Next {
     __ StoreOffHeap(target_address, __ BitcastHeapObjectToWordPtr(callee),
                     MemoryRepresentation::UintPtr());
 
-    OpIndex context_address = __ ExternalConstant(
-        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate_));
+    OpIndex context_address = __ IsolateField(IsolateFieldId::kContext);
 
     __ StoreOffHeap(context_address, __ BitcastHeapObjectToWordPtr(context),
                     MemoryRepresentation::UintPtr());

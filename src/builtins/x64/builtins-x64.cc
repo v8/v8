@@ -408,8 +408,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   }
 
   // Save copies of the top frame descriptor on the stack.
-  ExternalReference c_entry_fp = ExternalReference::Create(
-      IsolateAddressId::kCEntryFPAddress, masm->isolate());
+  Operand c_entry_fp_operand = __ AsMemOperand(IsolateFieldId::kCEntryFP);
 
   {
     // Keep this static_assert to preserve a link between the offset constant
@@ -422,7 +421,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     static_assert(EntryFrameConstants::kNextExitFrameFPOffset ==
                   -3 * kSystemPointerSize + -5 * kSystemPointerSize);
 #endif  // V8_TARGET_OS_WIN
-    Operand c_entry_fp_operand = masm->ExternalReferenceAsOperand(c_entry_fp);
     __ Push(c_entry_fp_operand);
 
     // Clear c_entry_fp, now we've pushed its previous value to the stack.
@@ -433,33 +431,31 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ Move(c_entry_fp_operand, 0);
 
     Operand fast_c_call_fp_operand =
-        masm->ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP);
-    Operand fast_c_call_pc_operand =
-        masm->ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC);
+        __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP);
     __ Push(fast_c_call_fp_operand);
     __ Move(fast_c_call_fp_operand, 0);
 
+    Operand fast_c_call_pc_operand =
+        __ AsMemOperand(IsolateFieldId::kFastCCallCallerPC);
     __ Push(fast_c_call_pc_operand);
     __ Move(fast_c_call_pc_operand, 0);
   }
 
   // Store the context address in the previously-reserved slot.
-  ExternalReference context_address = ExternalReference::Create(
-      IsolateAddressId::kContextAddress, masm->isolate());
-  __ Load(kScratchRegister, context_address);
+  Operand context_operand = __ AsMemOperand(IsolateFieldId::kContext);
+  __ movq(kScratchRegister, context_operand);
 
   static constexpr int kOffsetToContextSlot = -2 * kSystemPointerSize;
   __ movq(Operand(rbp, kOffsetToContextSlot), kScratchRegister);
 
   // If this is the outermost JS call, set js_entry_sp value.
-  ExternalReference js_entry_sp = ExternalReference::Create(
-      IsolateAddressId::kJSEntrySPAddress, masm->isolate());
-  __ Load(rax, js_entry_sp);
+  Operand js_entry_sp_operand = __ AsMemOperand(IsolateFieldId::kJSEntrySP);
+  __ movq(rax, js_entry_sp_operand);
   __ testq(rax, rax);
   __ j(not_zero, &not_outermost_js);
   __ Push(Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ movq(rax, rbp);
-  __ Store(js_entry_sp, rax);
+  __ movq(js_entry_sp_operand, rax);
   Label cont;
   __ jmp(&cont);
   __ bind(&not_outermost_js);
@@ -481,9 +477,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Caught exception: Store result (exception) in the exception
   // field in the JSEnv and return a failure sentinel.
-  ExternalReference exception = ExternalReference::Create(
-      IsolateAddressId::kExceptionAddress, masm->isolate());
-  __ Store(exception, rax);
+  __ movq(__ AsMemOperand(IsolateFieldId::kException), rax);
   __ LoadRoot(rax, RootIndex::kException);
   __ jmp(&exit);
 
@@ -504,27 +498,19 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Pop(rbx);
   __ cmpq(rbx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
-  __ Move(kScratchRegister, js_entry_sp);
-  __ movq(Operand(kScratchRegister, 0), Immediate(0));
+  __ Move(js_entry_sp_operand, 0);
   __ bind(&not_outermost_js_2);
 
   // Restore the top frame descriptor from the stack.
   {
-    Operand fast_c_call_pc_operand =
-        masm->ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC);
-    __ Pop(fast_c_call_pc_operand);
-
-    Operand fast_c_call_fp_operand =
-        masm->ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP);
-    __ Pop(fast_c_call_fp_operand);
-
-    Operand c_entry_fp_operand = masm->ExternalReferenceAsOperand(c_entry_fp);
+    __ Pop(__ AsMemOperand(IsolateFieldId::kFastCCallCallerPC));
+    __ Pop(__ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
     __ Pop(c_entry_fp_operand);
   }
 
   // Restore callee-saved registers (X64 conventions).
 #ifdef V8_TARGET_OS_WIN
-  // On Win64 XMM6-XMM15 are callee-save
+  // On Win64 XMM6-XMM15 are callee-save.
   __ movdqu(xmm6, Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 0));
   __ movdqu(xmm7, Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 1));
   __ movdqu(xmm8, Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 2));
@@ -540,7 +526,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   __ popq(rbx);
 #ifdef V8_TARGET_OS_WIN
-  // Callee save on in Win64 ABI, arguments/volatile in AMD64 ABI.
+  // Callee save in Win64 ABI, arguments/volatile in AMD64 ABI.
   __ popq(rsi);
   __ popq(rdi);
 #endif
@@ -623,12 +609,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Setup the context (we need to use the caller context from the isolate).
-    ExternalReference context_address = ExternalReference::Create(
-        IsolateAddressId::kContextAddress, masm->isolate());
-    __ movq(rsi, masm->ExternalReferenceAsOperand(context_address));
+    Operand context_operand = __ AsMemOperand(IsolateFieldId::kContext);
+    __ movq(rsi, context_operand);
 #ifdef DEBUG
-    __ Move(__ ExternalReferenceAsOperand(context_address),
-            Context::kNoContext);
+    __ Move(context_operand, Context::kNoContext);
 #endif  // DEBUG
 
     // Push the function onto the stack.
@@ -4042,11 +4026,8 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
   DCHECK(
       !AreAliased(kCArgRegs[0], kCArgRegs[1], kOldSPRegister, rax, rbx, r15));
 
-  ER on_central_stack_flag = ER::Create(
-      IsolateAddressId::kIsOnCentralStackFlagAddress, masm->isolate());
-
   Label do_not_need_to_switch;
-  __ cmpb(__ ExternalReferenceAsOperand(on_central_stack_flag), Immediate(0));
+  __ cmpb(__ AsMemOperand(IsolateFieldId::kIsOnCentralStackFlag), Immediate(0));
   __ j(not_zero, &do_not_need_to_switch);
 
   // Perform switching to the central stack.
@@ -4258,10 +4239,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   if (v8_flags.debug_code) {
     Label okay;
     __ LoadRoot(kScratchRegister, RootIndex::kTheHoleValue);
-    ER exception_address =
-        ER::Create(IsolateAddressId::kExceptionAddress, masm->isolate());
     __ cmp_tagged(kScratchRegister,
-                  masm->ExternalReferenceAsOperand(exception_address));
+                  __ AsMemOperand(IsolateFieldId::kException));
     __ j(equal, &okay, Label::kNear);
     __ int3();
     __ bind(&okay);
@@ -4280,15 +4259,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Handling of exception.
   __ bind(&exception_returned);
 
-  ER pending_handler_context_address = ER::Create(
-      IsolateAddressId::kPendingHandlerContextAddress, masm->isolate());
-  ER pending_handler_entrypoint_address = ER::Create(
-      IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
-  ER pending_handler_fp_address =
-      ER::Create(IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
-  ER pending_handler_sp_address =
-      ER::Create(IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
-
   // Ask the runtime for help to determine the handler. This will set rax to
   // contain the current exception, don't clobber it.
   ER find_handler = ER::Create(Runtime::kUnwindAndFindExceptionHandler);
@@ -4303,20 +4273,16 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
   // Drop frames from the shadow stack.
-  ER num_frames_above_pending_handler_address = ER::Create(
-      IsolateAddressId::kNumFramesAbovePendingHandlerAddress, masm->isolate());
-  __ movq(rcx, masm->ExternalReferenceAsOperand(
-                   num_frames_above_pending_handler_address));
+  __ movq(rcx, __ AsMemOperand(IsolateFieldId::kNumFramesAbovePendingHandler));
   __ IncsspqIfSupported(rcx, kScratchRegister);
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
   __ EnterSandbox();
 
   // Retrieve the handler context, SP and FP.
-  __ movq(rsi,
-          masm->ExternalReferenceAsOperand(pending_handler_context_address));
-  __ movq(rsp, masm->ExternalReferenceAsOperand(pending_handler_sp_address));
-  __ movq(rbp, masm->ExternalReferenceAsOperand(pending_handler_fp_address));
+  __ movq(rsi, __ AsMemOperand(IsolateFieldId::kPendingHandlerContext));
+  __ movq(rsp, __ AsMemOperand(IsolateFieldId::kPendingHandlerSP));
+  __ movq(rbp, __ AsMemOperand(IsolateFieldId::kPendingHandlerFP));
 
   // If the handler is a JS frame, restore the context to the frame. Note that
   // the context will be set to (rsi == 0) for non-JS frames.
@@ -4327,15 +4293,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ bind(&skip);
 
   // Clear c_entry_fp, like we do in `LeaveExitFrame`.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, masm->isolate());
-  Operand c_entry_fp_operand =
-      masm->ExternalReferenceAsOperand(c_entry_fp_address);
-  __ movq(c_entry_fp_operand, Immediate(0));
+  __ Move(__ AsMemOperand(IsolateFieldId::kCEntryFP), 0);
 
   // Compute the handler entry address and jump to it.
-  __ movq(rdi,
-          masm->ExternalReferenceAsOperand(pending_handler_entrypoint_address));
+  __ movq(rdi, __ AsMemOperand(IsolateFieldId::kPendingHandlerEntrypoint));
   __ jmp(rdi);
 }
 
@@ -4746,8 +4707,6 @@ namespace {
 
 void Generate_DeoptimizationEntry(MacroAssembler* masm,
                                   DeoptimizeKind deopt_kind) {
-  Isolate* isolate = masm->isolate();
-
   __ ExitSandbox();
   // This builtins transitions out of sandboxed execution mode.
   __ SetSandboxingModeForCurrentBuiltin(CodeSandboxingMode::kUnsandboxed);
@@ -4782,9 +4741,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   static constexpr int kCurrentOffsetToParentSP =
       kCurrentOffsetToReturnAddress + kPCOnStackSize;
 
-  __ Store(
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate),
-      rbp);
+  __ movq(__ AsMemOperand(IsolateFieldId::kCEntryFP), rbp);
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
@@ -5022,8 +4979,7 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   // (the_hole_value). If there is an exception, we call PropagateException to
   // trigger stack unwinding.
   Label no_exception;
-  __ movq(rax, __ ExternalReferenceAsOperand(ExternalReference::Create(
-                   IsolateAddressId::kExceptionAddress, __ isolate())));
+  __ movq(rax, __ AsMemOperand(IsolateFieldId::kException));
   __ CompareRoot(rax, RootIndex::kTheHoleValue);
 
   __ j(equal, &no_exception);

@@ -3864,19 +3864,15 @@ void MacroAssembler::PushStackHandler() {
   Push(Immediate(0));  // Padding.
 
   // Link the current handler as the next handler.
-  ExternalReference handler_address =
-      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  Push(ExternalReferenceAsOperand(handler_address));
+  Push(AsMemOperand(IsolateFieldId::kHandler));
 
   // Set this new handler as the current one.
-  movq(ExternalReferenceAsOperand(handler_address), rsp);
+  movq(AsMemOperand(IsolateFieldId::kHandler), rsp);
 }
 
 void MacroAssembler::PopStackHandler() {
   static_assert(StackHandlerConstants::kNextOffset == 0);
-  ExternalReference handler_address =
-      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  Pop(ExternalReferenceAsOperand(handler_address));
+  Pop(AsMemOperand(IsolateFieldId::kHandler));
   addq(rsp, Immediate(StackHandlerConstants::kSize - kSystemPointerSize));
 }
 
@@ -4615,11 +4611,10 @@ void MacroAssembler::EnterExitFrame(int extra_slots,
   Push(Immediate(0));  // Saved entry sp, patched below.
 
   DCHECK(!AreAliased(rbp, kContextRegister, c_function));
-  using ER = ExternalReference;
-  Store(ER::Create(IsolateAddressId::kCEntryFPAddress, isolate()), rbp);
-  Store(ER::Create(IsolateAddressId::kContextAddress, isolate()),
-        kContextRegister);
-  Store(ER::Create(IsolateAddressId::kCFunctionAddress, isolate()), c_function);
+
+  movq(AsMemOperand(IsolateFieldId::kCEntryFP), rbp);
+  movq(AsMemOperand(IsolateFieldId::kContext), kContextRegister);
+  movq(AsMemOperand(IsolateFieldId::kCFunction), c_function);
 
 #ifdef V8_TARGET_OS_WIN
   // Note this is only correct under the assumption that the caller hasn't
@@ -4643,19 +4638,13 @@ void MacroAssembler::LeaveExitFrame() {
   leave();
 
   // Restore the current context from top and clear it in debug mode.
-  ExternalReference context_address =
-      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  Operand context_operand = ExternalReferenceAsOperand(context_address);
-  movq(rsi, context_operand);
+  movq(rsi, AsMemOperand(IsolateFieldId::kContext));
 #ifdef DEBUG
-  Move(context_operand, Context::kNoContext);
+  Move(AsMemOperand(IsolateFieldId::kContext), Context::kNoContext);
 #endif
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address =
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  Operand c_entry_fp_operand = ExternalReferenceAsOperand(c_entry_fp_address);
-  Move(c_entry_fp_operand, 0);
+  Move(AsMemOperand(IsolateFieldId::kCEntryFP), 0);
 }
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {

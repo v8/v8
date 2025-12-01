@@ -6,6 +6,7 @@
 #define V8_CODEGEN_EXTERNAL_REFERENCE_H_
 
 #include "src/common/globals.h"
+#include "src/execution/isolate-data-fields.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -24,6 +25,7 @@ enum class IsolateFieldId : uint8_t;
 //------------------------------------------------------------------------------
 // External references
 
+// TODO(ishell): Remove entries accessible via IsolateFieldId.
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(V)                                \
   V(isolate_address, "isolate")                                                \
   V(handle_scope_implementer_address,                                          \
@@ -609,8 +611,8 @@ class ExternalReference {
   Create(Isolate* isolate, ApiFunction* ptr, Type type, Address* c_functions,
          const CFunctionInfo* const* c_signatures, unsigned num_functions);
   static ExternalReference Create(const Runtime::Function* f);
-  static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
   static V8_EXPORT_PRIVATE ExternalReference Create(Runtime::FunctionId id);
+  static ExternalReference Create(IsolateFieldId id, Isolate* isolate);
   static ExternalReference Create(IsolateFieldId id) {
     return ExternalReference{id};
   }
@@ -620,7 +622,10 @@ class ExternalReference {
   template <typename SubjectChar, typename PatternChar>
   static ExternalReference search_string_raw();
 
-  V8_EXPORT_PRIVATE static ExternalReference FromRawAddress(Address address);
+  V8_EXPORT_PRIVATE static ExternalReference FromRawAddress(Address address) {
+    // Use unchecked constructor.
+    return ExternalReference{address, nullptr};
+  }
 
 #define DECL_EXTERNAL_REFERENCE(name, desc) \
   V8_EXPORT_PRIVATE static ExternalReference name();
@@ -635,7 +640,6 @@ class ExternalReference {
   V8_EXPORT_PRIVATE static ExternalReference isolate_address();
   V8_EXPORT_PRIVATE static ExternalReference
   address_of_code_pointer_table_base_address();
-  V8_EXPORT_PRIVATE static ExternalReference jslimit_address();
 
   V8_EXPORT_PRIVATE V8_NOINLINE static ExternalReference
   runtime_function_table_address_for_unittests(Isolate* isolate);
@@ -647,7 +651,14 @@ class ExternalReference {
 
   static ExternalReference invoke_function_callback(CallApiCallbackMode mode);
 
-  bool IsIsolateFieldId() const;
+  bool IsIsolateFieldId() const { return IsIsolateFieldId(raw_); }
+
+  IsolateFieldId GetIsolateFieldId() const {
+    DCHECK(IsIsolateFieldId());
+    IsolateFieldId field_id =
+        static_cast<IsolateFieldId>(raw_ - kFirstIsolateFieldIdValue);
+    return field_id;
+  }
 
   Address raw() const { return raw_; }
 
@@ -670,6 +681,15 @@ class ExternalReference {
   static Address UnwrapRedirection(Address redirection_trampoline);
 
  private:
+  // IsolateFieldId's are encoded as `id + kFirstIsolateFieldIdValue` in order
+  // to avoid clash between first IsolateFieldId and kNullAddress.
+  static constexpr Address kFirstIsolateFieldIdValue = 1;
+
+  static constexpr bool IsIsolateFieldId(Address value) {
+    return (value >= kFirstIsolateFieldIdValue &&
+            value < (kFirstIsolateFieldIdValue + kNumIsolateFieldIds));
+  }
+
   explicit ExternalReference(Address address) : raw_(address) {
     CHECK(!IsIsolateFieldId());
   }
@@ -679,8 +699,11 @@ class ExternalReference {
     CHECK(!IsIsolateFieldId());
   }
 
+  // This is an unchecked constructor, used only in FromRawAddress.
+  explicit ExternalReference(Address address, std::nullptr_t) : raw_(address) {}
+
   explicit ExternalReference(IsolateFieldId id)
-      : raw_(static_cast<Address>(id)) {}
+      : raw_(static_cast<Address>(id) + kFirstIsolateFieldIdValue) {}
 
   Address raw_;
 };

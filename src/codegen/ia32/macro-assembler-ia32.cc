@@ -1121,14 +1121,10 @@ void MacroAssembler::EnterExitFrame(int extra_slots,
 
   // Save the frame pointer and the context in top.
   DCHECK(!AreAliased(ebp, kContextRegister, c_function));
-  using ER = ExternalReference;
-  ER r0 = ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  mov(ExternalReferenceAsOperand(r0, no_reg), ebp);
-  ER r1 = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  mov(ExternalReferenceAsOperand(r1, no_reg), kContextRegister);
+  mov(AsMemOperand(IsolateFieldId::kCEntryFP), ebp);
+  mov(AsMemOperand(IsolateFieldId::kContext), kContextRegister);
   static_assert(edx == kRuntimeCallFunctionRegister);
-  ER r2 = ER::Create(IsolateAddressId::kCFunctionAddress, isolate());
-  mov(ExternalReferenceAsOperand(r2, no_reg), c_function);
+  mov(AsMemOperand(IsolateFieldId::kCFunction), c_function);
 
   AllocateStackSpace(extra_slots * kSystemPointerSize);
 
@@ -1149,20 +1145,13 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   leave();
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address =
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  mov(ExternalReferenceAsOperand(c_entry_fp_address, scratch), Immediate(0));
+  mov(AsMemOperand(IsolateFieldId::kCEntryFP), Immediate(0));
 
   // Restore the current context from top and clear it in debug mode.
-  ExternalReference context_address =
-      ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  mov(esi, ExternalReferenceAsOperand(context_address, scratch));
+  mov(esi, AsMemOperand(IsolateFieldId::kContext));
 
 #ifdef DEBUG
-  push(eax);
-  mov(ExternalReferenceAsOperand(context_address, eax),
-      Immediate(Context::kNoContext));
-  pop(eax);
+  mov(AsMemOperand(IsolateFieldId::kContext), Immediate(Context::kNoContext));
 #endif
 }
 
@@ -1175,20 +1164,17 @@ void MacroAssembler::PushStackHandler(Register scratch) {
   push(Immediate(0));  // Padding.
 
   // Link the current handler as the next handler.
-  ExternalReference handler_address =
-      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  push(ExternalReferenceAsOperand(handler_address, scratch));
+  Operand handler_op = AsMemOperand(IsolateFieldId::kHandler);
+  push(handler_op);
 
   // Set this new handler as the current one.
-  mov(ExternalReferenceAsOperand(handler_address, scratch), esp);
+  mov(handler_op, esp);
 }
 
 void MacroAssembler::PopStackHandler(Register scratch) {
   ASM_CODE_COMMENT(this);
   static_assert(StackHandlerConstants::kNextOffset == 0);
-  ExternalReference handler_address =
-      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
-  pop(ExternalReferenceAsOperand(handler_address, scratch));
+  pop(AsMemOperand(IsolateFieldId::kHandler));
   add(esp, Immediate(StackHandlerConstants::kSize - kSystemPointerSize));
 }
 
@@ -1264,11 +1250,10 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_jslimit(isolate());
+
   // Compute the space that is left as a negative number in scratch. If
   // we already overflowed, this will be a positive number.
-  mov(scratch, ExternalReferenceAsOperand(real_stack_limit, scratch));
+  mov(scratch, AsMemOperand(IsolateFieldId::kRealJsLimit));
   sub(scratch, esp);
   // TODO(victorgomes): Remove {include_receiver} and always require one extra
   // word of the stack space.

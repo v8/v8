@@ -3837,6 +3837,7 @@ v8_header_set("v8_internal_headers") {
     "src/execution/frames.h",
     "src/execution/futex-emulation.h",
     "src/execution/interrupts-scope.h",
+    "src/execution/isolate-data-fields.h",
     "src/execution/isolate-data.h",
     "src/execution/isolate-inl.h",
     "src/execution/isolate-utils-inl.h",

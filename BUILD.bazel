@@ -1639,6 +1639,7 @@ filegroup(
         "src/execution/isolate.cc",
         "src/execution/isolate.h",
         "src/execution/isolate-data.h",
+        "src/execution/isolate-data-fields.h",
         "src/execution/isolate-inl.h",
         "src/execution/isolate-utils.h",
         "src/execution/isolate-utils-inl.h",

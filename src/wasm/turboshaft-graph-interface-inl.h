@@ -172,7 +172,7 @@ void WasmGraphBuilderBase<Assembler>::BuildSetNewStackLimit(
   // Set the new interrupt limit and real limit. Use a compare-and-swap for
   // the interrupt limit to avoid overwriting a pending interrupt.
   __ AtomicCompareExchange(
-      __ IsolateField(IsolateFieldId::kJsLimitAddress), __ UintPtrConstant(0),
+      __ IsolateField(IsolateFieldId::kJsLimit), __ UintPtrConstant(0),
       old_limit, new_limit, RegisterRepresentation::WordPtr(),
       MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal,
       RegisterRepresentation::WordPtr());
