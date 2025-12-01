@@ -78,7 +78,7 @@ class V8_EXPORT FixedArray : public Data {
  public:
   int Length() const;
 
-  V8_DEPRECATE_SOON("Use the version without context")
+  V8_DEPRECATED("Use the version without context")
   Local<Data> Get(Local<Context> context, int i) const { return Get(i); }
 
   Local<Data> Get(int i) const;
