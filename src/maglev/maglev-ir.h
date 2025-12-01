@@ -715,6 +715,7 @@ constexpr bool CanBeTheHoleValue(Opcode opcode) {
     // TODO(victorgomes): Should we have a list of builtins that could
     // return the hole?
     case Opcode::kCallBuiltin:
+    case Opcode::kGeneratorRestoreRegister:
     case Opcode::kRootConstant:
     case Opcode::kLoadContextSlot:
     case Opcode::kLoadContextSlotNoCells:
