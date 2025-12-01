@@ -192,7 +192,7 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
     uint32_t initial, bool has_maximum, uint64_t maximum,
     DirectHandle<Object> initial_value, wasm::AddressType address_type,
     DirectHandle<WasmDispatchTable>* out_dispatch_table) {
-  CHECK(type.is_object_reference());
+  CHECK(type.is_ref());
 
   DCHECK_LE(initial, wasm::max_table_size());
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(initial);
@@ -509,7 +509,7 @@ void WasmTableObject::Fill(Isolate* isolate,
 
 bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
                              wasm::CanonicalValueType table_type) {
-  DCHECK(table_type.is_object_reference());
+  DCHECK(table_type.is_ref());
   DCHECK(!table_type.is_shared());  // This code will need updating.
   // When in-sandbox data is corrupted, we can't trust the statically
   // checked types; to prevent sandbox escapes, we have to verify actual
@@ -1452,7 +1452,7 @@ MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
     global_obj->set_is_mutable(is_mutable);
   }
 
-  if (type.is_reference()) {
+  if (type.is_ref()) {
     DCHECK(maybe_untagged_buffer.is_null());
     DirectHandle<FixedArray> tagged_buffer;
     if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {
@@ -2181,7 +2181,7 @@ void WasmImportData::SetFuncRefAsCallOrigin(Tagged<WasmInternalFunction> func) {
 
 uint8_t* WasmTrustedInstanceData::GetGlobalStorage(
     const wasm::WasmGlobal& global) {
-  DCHECK(!global.type.is_reference());
+  DCHECK(!global.type.is_ref());
   if (global.mutability && global.imported) {
     return reinterpret_cast<uint8_t*>(
         imported_mutable_globals()->get_sandboxed_pointer(global.index));
@@ -2193,7 +2193,7 @@ std::pair<Tagged<FixedArray>, uint32_t>
 WasmTrustedInstanceData::GetGlobalBufferAndIndex(
     const wasm::WasmGlobal& global) {
   DisallowGarbageCollection no_gc;
-  DCHECK(global.type.is_reference());
+  DCHECK(global.type.is_ref());
   if (global.mutability && global.imported) {
     Tagged<FixedArray> buffer =
         Cast<FixedArray>(imported_mutable_globals_buffers()->get(global.index));
@@ -2207,7 +2207,7 @@ WasmTrustedInstanceData::GetGlobalBufferAndIndex(
 wasm::WasmValue WasmTrustedInstanceData::GetGlobalValue(
     Isolate* isolate, const wasm::WasmGlobal& global) {
   DisallowGarbageCollection no_gc;
-  if (global.type.is_reference()) {
+  if (global.type.is_ref()) {
     Tagged<FixedArray> global_buffer;  // The buffer of the global.
     uint32_t global_index = 0;         // The index into the buffer.
     std::tie(global_buffer, global_index) = GetGlobalBufferAndIndex(global);
@@ -2386,7 +2386,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
 
 void WasmArray::SetTaggedElement(uint32_t index, DirectHandle<Object> value,
                                  WriteBarrierMode mode) {
-  DCHECK(map()->wasm_type_info()->element_type().is_reference());
+  DCHECK(map()->wasm_type_info()->element_type().is_ref());
   TaggedField<Object>::store(*this, element_offset(index), *value);
   CONDITIONAL_WRITE_BARRIER(*this, element_offset(index), *value, mode);
 }

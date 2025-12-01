@@ -125,7 +125,7 @@ void WasmGlobalObject::set_type(wasm::ValueType value) {
 int WasmGlobalObject::type_size() const { return type().value_kind_size(); }
 
 Address WasmGlobalObject::address() const {
-  DCHECK(!type().is_reference());
+  DCHECK(!type().is_ref());
   DCHECK_LE(offset() + type_size(), untagged_buffer()->byte_length());
   return reinterpret_cast<Address>(untagged_buffer()->backing_store()) +
          offset();
@@ -153,7 +153,7 @@ uint8_t* WasmGlobalObject::GetS128RawBytes() {
 
 DirectHandle<Object> WasmGlobalObject::GetRef() {
   // We use this getter for externref, funcref, and stringref.
-  DCHECK(type().is_reference());
+  DCHECK(type().is_ref());
   return direct_handle(tagged_buffer()->get(offset()), Isolate::Current());
 }
 
@@ -174,7 +174,7 @@ void WasmGlobalObject::SetF64(double value) {
 }
 
 void WasmGlobalObject::SetRef(DirectHandle<Object> value) {
-  DCHECK(type().is_object_reference());
+  DCHECK(type().is_ref());
   tagged_buffer()->set(offset(), *value);
 }
 
@@ -805,7 +805,7 @@ Address WasmArray::ElementAddress(uint32_t index) {
 
 ObjectSlot WasmArray::ElementSlot(uint32_t index) {
   DCHECK_LE(index, length());
-  DCHECK(map()->wasm_type_info()->element_type().is_reference());
+  DCHECK(map()->wasm_type_info()->element_type().is_ref());
   return RawField(kHeaderSize + kTaggedSize * index);
 }
 

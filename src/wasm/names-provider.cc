@@ -394,7 +394,7 @@ void NamesProvider::PrintTagName(StringBuilder& out, uint32_t tag_index,
 }
 
 void NamesProvider::PrintHeapType(StringBuilder& out, HeapType type) {
-  if (type.is_index()) {
+  if (type.has_index()) {
     if (type.is_exact()) out << "exact ";
     PrintTypeName(out, type.ref_index());
   } else {

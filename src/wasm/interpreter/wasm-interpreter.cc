@@ -7498,7 +7498,7 @@ bool WasmBytecodeGenerator::FindSharedSlot(uint32_t stack_index,
                                            uint32_t* new_slot_index) {
   *new_slot_index = UINT_MAX;
   ValueType value_type = slots_[stack_[stack_index]].value_type;
-  if (value_type.is_reference()) return false;
+  if (value_type.is_ref()) return false;
 
   // Only consider stack entries added in the current block.
   // We don't need to consider ancestor blocks because if a block has a
@@ -9797,7 +9797,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           null_succeeds ? kNullable : kNonNullable);
 
       const ValueType obj_type = slots_[stack_.back()].value_type;
-      DCHECK(obj_type.is_object_reference());
+      DCHECK(obj_type.is_ref());
 
       // This logic ensures that code generation can assume that functions can
       // only be cast to function types, and data objects to data types.
@@ -9821,7 +9821,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         EmitI32Const(null_succeeds);
         HeapType br_on_cast_data_target_type(
             HeapType::FromBits(br_on_cast_data.target_type_bit_fields));
-        EmitI32Const(br_on_cast_data_target_type.is_index()
+        EmitI32Const(br_on_cast_data_target_type.has_index()
                          ? br_on_cast_data_target_type.raw_bit_field()
                          : target_type.heap_type().raw_bit_field());
         ValueType value_type = RefPop();
@@ -9853,7 +9853,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                                   null_succeeds ? kNullable : kNonNullable);
 
       const ValueType obj_type = slots_[stack_.back()].value_type;
-      DCHECK(obj_type.is_object_reference());
+      DCHECK(obj_type.is_ref());
 
       // This logic ensures that code generation can assume that functions can
       // only be cast to function types, and data objects to data types.
@@ -9879,7 +9879,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       } else {
         EMIT_INSTR_HANDLER(s2s_BranchOnCastFail);
         EmitI32Const(null_succeeds);
-        EmitI32Const(br_on_cast_data_target_type.is_index()
+        EmitI32Const(br_on_cast_data_target_type.has_index()
                          ? br_on_cast_data_target_type.raw_bit_field()
                          : target_type.heap_type().raw_bit_field());
         ValueType value_type = RefPop();
@@ -11832,7 +11832,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           target_type, null_succeeds ? kNullable : kNonNullable);
 
       ValueType obj_type = slots_[stack_.back()].value_type;
-      DCHECK(obj_type.is_object_reference());
+      DCHECK(obj_type.is_ref());
 
       // This logic ensures that code generation can assume that functions
       // can only be cast to function types, and data objects to data types.
@@ -11879,7 +11879,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           instr.optional.gc_heap_type_immediate.heap_type_bit_field);
 
       ValueType obj_type = slots_[stack_.back()].value_type;
-      DCHECK(obj_type.is_object_reference());
+      DCHECK(obj_type.is_ref());
 
       // This logic ensures that code generation can assume that functions
       // can only be cast to function types, and data objects to data types.

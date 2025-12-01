@@ -3683,7 +3683,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
       DCHECK_LE(current_index, param_count);
       for (size_t i = 0; i < current_index; i++) {
         wasm::ValueType type = sig.GetParam(i);
-        if (type.is_reference()) {
+        if (type.is_ref()) {
           // Make sure slot for ref args are 64-bit aligned.
           slot_ptr += (slot_ptr & 0x04);  // Branchless.
           FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
@@ -3709,7 +3709,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
       // When converting return values, all results are already in the array.
       for (size_t i = 0; i < return_count; i++) {
         wasm::ValueType type = sig.GetReturn(i);
-        if (type.is_reference()) {
+        if (type.is_ref()) {
           // Make sure slot for ref args are 64-bit aligned.
           slot_ptr += (slot_ptr & 0x04);  // Branchless.
           FullObjectSlot array_slot(&Memory<Address>(slot_ptr));
@@ -3928,7 +3928,7 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
       num_int_params++;
     } else if (param == wasm::kWasmI64) {
       num_int_params += kSystemPointerSize == 8 ? 1 : 2;
-    } else if (param.is_reference()) {
+    } else if (param.is_ref()) {
       num_ref_params++;
     }
   }

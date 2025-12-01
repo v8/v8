@@ -800,7 +800,7 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
                              : src_index + length > dst_index);
   wasm::CanonicalValueType element_type =
       src_array->map()->wasm_type_info()->element_type();
-  if (element_type.is_reference()) {
+  if (element_type.is_ref()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
     ObjectSlot src_slot = src_array->ElementSlot(src_index);
     Heap* heap = Isolate::Current()->heap();
@@ -929,7 +929,7 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
   }
 
   if (emit_write_barrier) {
-    DCHECK(type.is_reference());
+    DCHECK(type.is_ref());
     Tagged<WasmArray> array = Cast<WasmArray>(Tagged<Object>(raw_array));
     Isolate* isolate = Isolate::Current();
     ObjectSlot start(reinterpret_cast<Address>(initial_element_address));

@@ -287,7 +287,7 @@ class TurboshaftGraphBuildingInterface
       ValueType type = decoder->local_type(index);
       OpIndex op;
       if (!type.is_defaultable()) {
-        DCHECK(type.is_reference());
+        DCHECK(type.is_ref());
         op = __ RootConstant(RootIndex::kOptimizedOut);
       } else {
         op = DefaultValue(type);
@@ -1895,7 +1895,7 @@ class TurboshaftGraphBuildingInterface
     Label<> value_out_of_range(&asm_);
     for (size_t i = 1; i < param_count; ++i) {
       inputs[i] = OpIndex::Invalid();
-      if (sig->GetParam(i).is_reference()) {
+      if (sig->GetParam(i).is_ref()) {
         inputs[i] = __ AdaptLocalArgument(args[i].op);
       } else if (callback_sig->GetParam(i - 1).representation() ==
                  MachineRepresentation::kWord64) {
@@ -5193,8 +5193,7 @@ class TurboshaftGraphBuildingInterface
   void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
                  const Value& array, const Value& index, const Value& value,
                  const Value& length) {
-    const bool emit_write_barrier =
-        imm.array_type->element_type().is_reference();
+    const bool emit_write_barrier = imm.array_type->element_type().is_ref();
     auto array_value = V<WasmArrayNullable>::Cast(array.op);
     V<WasmArray> array_not_null = BoundsCheckArrayWithLength(
         array_value, index.op, length.op,
@@ -5227,7 +5226,7 @@ class TurboshaftGraphBuildingInterface
                        const ArrayIndexImmediate& array_imm,
                        const IndexImmediate& segment_imm, const Value& offset,
                        const Value& length, Value* result) {
-    bool is_element = array_imm.array_type->element_type().is_reference();
+    bool is_element = array_imm.array_type->element_type().is_ref();
     // TODO(14616): Data segments aren't available during streaming compilation.
     // Discussion: github.com/WebAssembly/shared-everything-threads/issues/83
     bool segment_is_shared =
@@ -5254,7 +5253,7 @@ class TurboshaftGraphBuildingInterface
                         const IndexImmediate& segment_imm, const Value& array,
                         const Value& array_index, const Value& segment_offset,
                         const Value& length) {
-    bool is_element = array_imm.array_type->element_type().is_reference();
+    bool is_element = array_imm.array_type->element_type().is_ref();
     // TODO(14616): Segments aren't available during streaming compilation.
     bool segment_is_shared =
         decoder->enabled_.has_shared() &&
@@ -8085,9 +8084,8 @@ class TurboshaftGraphBuildingInterface
   }
 
   OpIndex AnnotateResultIfReference(OpIndex result, wasm::ValueType type) {
-    return type.is_object_reference()
-               ? __ AnnotateWasmType(V<Object>::Cast(result), type)
-               : result;
+    return type.is_ref() ? __ AnnotateWasmType(V<Object>::Cast(result), type)
+                         : result;
   }
 
   void BuildWasmCall(
@@ -8835,12 +8833,11 @@ class TurboshaftGraphBuildingInterface
 
     // Differently to values on the heap, stack slots are always uncompressed.
     MemoryRepresentation memory_rep =
-        type.is_reference() ? MemoryRepresentation::UncompressedTaggedPointer()
-                            : MemoryRepresentation::FromMachineRepresentation(
-                                  input_type.machine_representation());
-    V<WordPtr> stack_slot =
-        __ StackSlot(memory_rep.SizeInBytes(), memory_rep.SizeInBytes(),
-                     type.is_reference());
+        type.is_ref() ? MemoryRepresentation::UncompressedTaggedPointer()
+                      : MemoryRepresentation::FromMachineRepresentation(
+                            input_type.machine_representation());
+    V<WordPtr> stack_slot = __ StackSlot(
+        memory_rep.SizeInBytes(), memory_rep.SizeInBytes(), type.is_ref());
     __ Store(stack_slot, value, StoreOp::Kind::RawAligned(), memory_rep,
              compiler::WriteBarrierKind::kNoWriteBarrier);
     return stack_slot;

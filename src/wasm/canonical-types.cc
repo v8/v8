@@ -144,7 +144,7 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
   static_assert(sizeof(CanonicalValueType) == sizeof(ValueType));
   static_assert(
       CanonicalValueType::Primitive(NumericKind::kI32).raw_bit_field() ==
-      ValueType::Primitive(kI32).raw_bit_field());
+      ValueType::Primitive(NumericKind::kI32).raw_bit_field());
   CanonicalType canonical{reinterpret_cast<const CanonicalSig*>(sig),
                           CanonicalTypeIndex{kNoSuperType}, kFinal, kNotShared};
   base::MutexGuard guard(&mutex_);

@@ -7158,7 +7158,7 @@ struct NullOp : FixedArityOperationT<0, NullOp> {
   }
 
   void Validate(const Graph& graph) const {
-    DCHECK(type.is_object_reference() && type.is_nullable());
+    DCHECK(type.is_ref() && type.is_nullable());
   }
 
   auto options() const { return std::tuple{type}; }
@@ -7357,7 +7357,7 @@ struct WasmTypeAnnotationOp : FixedArityOperationT<1, WasmTypeAnnotationOp> {
     // In theory, the operation could be used for non-reference types as well.
     // This would require updating inputs_rep and outputs_rep to be based on
     // the wasm type.
-    DCHECK(type.is_object_reference());
+    DCHECK(type.is_ref());
   }
 
   auto options() const { return std::tuple(type); }
@@ -7625,7 +7625,7 @@ struct StructAtomicRMWOp : OperationT<StructAtomicRMWOp> {
     DCHECK_LT(field_index, type->field_count());
     DCHECK(type->field(field_index) == wasm::kWasmI32 ||
            type->field(field_index) == wasm::kWasmI64 ||
-           (type->field(field_index).is_reference() &&
+           (type->field(field_index).is_ref() &&
             (bin_op == BinOp::kExchange || bin_op == BinOp::kCompareExchange)));
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
   }
@@ -7780,7 +7780,7 @@ struct ArrayAtomicRMWOp : OperationT<ArrayAtomicRMWOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64 ||
-           (element_type.is_reference() &&
+           (element_type.is_ref() &&
             (bin_op == BinOp::kExchange || bin_op == BinOp::kCompareExchange)));
     DCHECK_EQ(bin_op == BinOp::kCompareExchange, expected().valid());
   }

@@ -1479,7 +1479,7 @@ v8::Local<Value> AddressValueFromUnsigned(Isolate* isolate,
 
 i::DirectHandle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
                                                      i::wasm::ValueType type) {
-  DCHECK(type.is_object_reference());
+  DCHECK(type.is_ref());
   // Use undefined for JS type (externref) but null for wasm types as wasm does
   // not know undefined.
   if (type.is_reference_to(i::wasm::GenericKind::kExtern)) {

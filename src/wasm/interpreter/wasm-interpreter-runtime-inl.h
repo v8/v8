@@ -55,7 +55,7 @@ inline DirectHandle<Object> WasmInterpreterRuntime::GetGlobalRef(
     uint32_t index) const {
   // This function assumes that it is executed in a HandleScope.
   const wasm::WasmGlobal& global = module_->globals[index];
-  DCHECK(global.type.is_reference());
+  DCHECK(global.type.is_ref());
   Tagged<FixedArray> global_buffer;  // The buffer of the global.
   uint32_t global_index = 0;         // The index into the buffer.
   std::tie(global_buffer, global_index) =
@@ -67,7 +67,7 @@ inline void WasmInterpreterRuntime::SetGlobalRef(
     uint32_t index, DirectHandle<Object> ref) const {
   // This function assumes that it is executed in a HandleScope.
   const wasm::WasmGlobal& global = module_->globals[index];
-  DCHECK(global.type.is_reference());
+  DCHECK(global.type.is_ref());
   Tagged<FixedArray> global_buffer;  // The buffer of the global.
   uint32_t global_index = 0;         // The index into the buffer.
   std::tie(global_buffer, global_index) =

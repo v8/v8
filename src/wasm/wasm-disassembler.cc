@@ -402,7 +402,7 @@ class ImmediatesPrinter {
   void HeapType(HeapTypeImmediate& imm) {
     out_ << " ";
     names()->PrintHeapType(out_, imm.type);
-    if (imm.type.is_index()) use_type(imm.type.ref_index());
+    if (imm.type.has_index()) use_type(imm.type.ref_index());
   }
 
   void ValueType(ValueType type) {

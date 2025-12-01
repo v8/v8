@@ -1109,7 +1109,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
                              : src_index + length > dst_index);
   wasm::CanonicalValueType element_type =
       src_array->map()->wasm_type_info()->element_type();
-  if (element_type.is_reference()) {
+  if (element_type.is_ref()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
     ObjectSlot src_slot = src_array->ElementSlot(src_index);
     if (overlapping_ranges) {

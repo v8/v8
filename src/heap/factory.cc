@@ -2146,7 +2146,7 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index, uint32_t start_offset, uint32_t length,
     DirectHandle<Map> map, wasm::CanonicalValueType element_type) {
-  DCHECK(element_type.is_reference());
+  DCHECK(element_type.is_ref());
 
   // If the element segment has not been initialized yet, lazily initialize it
   // now.

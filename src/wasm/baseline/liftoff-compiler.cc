@@ -1219,7 +1219,7 @@ class LiftoffCompiler {
         for (uint32_t local_index = num_params; local_index < __ num_locals();
              ++local_index) {
           ValueType type = decoder->local_types_[local_index];
-          if (type.is_reference()) {
+          if (type.is_ref()) {
             __ Spill(__ cache_state()->stack_state[local_index].offset(),
                      type.use_wasm_null() ? LiftoffRegister(wasm_null_ref_reg)
                                           : LiftoffRegister(null_ref_reg),
@@ -8005,8 +8005,7 @@ class LiftoffCompiler {
 
     LiftoffRegister is_element_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(is_element_reg,
-            array_imm.array_type->element_type().is_reference());
+    LoadSmi(is_element_reg, array_imm.array_type->element_type().is_ref());
 
     LiftoffRegister extract_shared_data_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -8050,8 +8049,7 @@ class LiftoffCompiler {
 
     LiftoffRegister is_element_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LoadSmi(is_element_reg,
-            array_imm.array_type->element_type().is_reference());
+    LoadSmi(is_element_reg, array_imm.array_type->element_type().is_ref());
 
     LiftoffRegister extract_shared_data_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));

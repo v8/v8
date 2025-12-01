@@ -208,7 +208,7 @@ class WasmInJsInliningInterface {
       ValueType type = decoder->local_type(index);
       V<Any> op;
       if (!type.is_defaultable()) {
-        DCHECK(type.is_reference());
+        DCHECK(type.is_ref());
         op = __ RootConstant(RootIndex::kOptimizedOut);
       } else {
         op = DefaultValue(type);

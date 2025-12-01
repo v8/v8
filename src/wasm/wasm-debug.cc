@@ -652,7 +652,7 @@ class DebugInfoImpl {
           return WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())));
         } else if (value->type == kWasmI64) {
           return WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
-        } else if (value->type.is_reference()) {
+        } else if (value->type.is_ref()) {
           DirectHandle<Object> obj(
               Tagged<Object>(ReadUnalignedValue<Address>(gp_addr(reg.gp()))),
               isolate);

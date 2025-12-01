@@ -354,7 +354,7 @@ void WasmInterpreterRuntime::InitGlobalAddressCache() {
   global_addresses_.resize(module_->globals.size());
   for (size_t index = 0; index < module_->globals.size(); index++) {
     const WasmGlobal& global = module_->globals[index];
-    if (!global.type.is_reference()) {
+    if (!global.type.is_ref()) {
       global_addresses_[index] =
           wasm_trusted_instance_data()->GetGlobalStorage(global);
     }
@@ -1424,7 +1424,7 @@ void WasmInterpreterRuntime::InitializeRefLocalsRefs(
       if (local_type == kWasmExternRef || local_type == kWasmNullExternRef) {
         StoreWasmRef(ref_stack_index++,
                      WasmRef(isolate_->factory()->null_value()));
-      } else if (local_type.is_reference()) {
+      } else if (local_type.is_ref()) {
         StoreWasmRef(ref_stack_index++,
                      WasmRef(isolate_->factory()->wasm_null()));
       }

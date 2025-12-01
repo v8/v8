@@ -1596,7 +1596,7 @@ class WasmBytecodeGenerator {
     DCHECK(wasm::is_reference(slots_[stack_.back()].kind()));
     uint32_t ref_index = slots_[stack_.back()].ref_stack_index;
     ValueType value_type = slots_[stack_.back()].value_type;
-    DCHECK(value_type.is_object_reference());
+    DCHECK(value_type.is_ref());
     PopSlot();
     if (emit) EmitRefStackIndex(ref_index);
     return value_type;

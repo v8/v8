@@ -1243,9 +1243,9 @@ class MjsunitModuleDis {
     // Support self-referential and mutually-recursive types.
     std::vector<uint32_t> needed_at(module_->types.size(), kMaxUInt32);
     auto MarkAsNeededHere = [&needed_at](ValueType vt, uint32_t here) {
-      if (!vt.is_object_reference()) return;
+      if (!vt.is_ref()) return;
       HeapType ht = vt.heap_type();
-      if (!ht.is_index()) return;
+      if (!ht.has_index()) return;
       if (ht.ref_index().index < here) return;
       if (needed_at[ht.ref_index().index] < here) return;
       needed_at[ht.ref_index().index] = here;

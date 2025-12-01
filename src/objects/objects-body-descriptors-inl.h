@@ -1198,7 +1198,7 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    if (!WasmArray::GcSafeElementType(map).is_reference()) return;
+    if (!WasmArray::GcSafeElementType(map).is_ref()) return;
     IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
   }
 
@@ -1220,7 +1220,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
       v->VisitPointer(wasm_struct, wasm_struct->RawField(0));
     }
     for (uint32_t i = 0; i < type->field_count(); i++) {
-      if (!type->field(i).is_reference()) continue;
+      if (!type->field(i).is_ref()) continue;
       int offset = static_cast<int>(type->field_offset(i));
       v->VisitPointer(wasm_struct, wasm_struct->RawField(offset));
     }

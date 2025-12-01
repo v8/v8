@@ -135,7 +135,7 @@ class TestModuleBuilder {
   uint8_t AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
                    uint32_t maximum_size,
                    AddressType address_type = AddressType::kI32) {
-    CHECK(type.is_object_reference());
+    CHECK(type.is_ref());
     mod.tables.emplace_back();
     WasmTable& table = mod.tables.back();
     table.type = type;
@@ -6384,7 +6384,7 @@ class FunctionBodyDecoderTestAtomicInvalid
 std::string PrintAtomicGetInvalidParams(
     ::testing::TestParamInfo<TestAtomicParamT> info) {
   const auto [element_type, mutability, shared] = info.param;
-  std::string elem_type_name = element_type.is_reference()
+  std::string elem_type_name = element_type.is_ref()
                                    ? element_type.generic_heaptype_name()
                                    : element_type.name();
   std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');
@@ -6478,7 +6478,7 @@ class FunctionBodyDecoderTestAtomicInvalidPacked
 std::string PrintAtomicGetPackedInvalidParams(
     ::testing::TestParamInfo<std::tuple<ValueType, bool>> info) {
   const auto [element_type, shared] = info.param;
-  std::string elem_type_name = element_type.is_reference()
+  std::string elem_type_name = element_type.is_ref()
                                    ? element_type.generic_heaptype_name()
                                    : element_type.name();
   std::replace(elem_type_name.begin(), elem_type_name.end(), ' ', '_');

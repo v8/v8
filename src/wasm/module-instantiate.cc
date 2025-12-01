@@ -246,7 +246,7 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
             c_func_id, "at least one parameter is needed as the receiver");
         continue;
       }
-      if (!expected_sig->GetParam(0).is_reference()) {
+      if (!expected_sig->GetParam(0).is_ref()) {
         log_imported_function_mismatch(c_func_id,
                                        "the receiver has to be a reference");
         continue;
@@ -1756,7 +1756,7 @@ void InstanceBuilder::LoadDataSegments() {
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
                                        const WasmValue& value) {
   TRACE("init [globals_start=%p + %u] = %s, type = %s\n",
-        global.type.is_reference()
+        global.type.is_ref()
             ? reinterpret_cast<uint8_t*>(tagged_globals_->address())
             : raw_buffer_ptr(untagged_globals_, 0),
         global.offset, value.to_string().c_str(), global.type.name().c_str());
@@ -2124,7 +2124,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
   if (global.mutability) {
     DCHECK_LT(global.index, module_->num_imported_mutable_globals);
     DirectHandle<Object> buffer;
-    if (global.type.is_reference()) {
+    if (global.type.is_ref()) {
       static_assert(sizeof(global_object->offset()) <= sizeof(Address),
                     "The offset into the globals buffer does not fit into "
                     "the imported_mutable_globals array");
@@ -2238,7 +2238,7 @@ bool InstanceBuilder::ProcessImportedGlobal(int import_index, int global_index,
     return false;
   }
 
-  if (global.type.is_reference()) {
+  if (global.type.is_ref()) {
     const char* error_message;
     DirectHandle<Object> wasm_value;
     if (!wasm::JSToWasmObject(isolate_, module_, value, global.type,
@@ -2453,7 +2453,7 @@ void InstanceBuilder::InitGlobals() {
         trusted_data_, shared_trusted_data_);
     if (MaybeMarkError(result, thrower_)) return;
 
-    if (global.type.is_reference()) {
+    if (global.type.is_ref()) {
       (global.shared ? shared_tagged_globals_ : tagged_globals_)
           ->set(global.offset, *to_value(result).to_ref());
     } else {
@@ -2596,7 +2596,7 @@ void InstanceBuilder::ProcessExports() {
         if (global.mutability && global.imported) {
           DirectHandle<FixedArray> buffers_array(
               maybe_shared_data->imported_mutable_globals_buffers(), isolate_);
-          if (global.type.is_reference()) {
+          if (global.type.is_ref()) {
             tagged_buffer = direct_handle(
                 Cast<FixedArray>(buffers_array->get(global.index)), isolate_);
             // For externref globals we store the relative offset in the
@@ -2619,7 +2619,7 @@ void InstanceBuilder::ProcessExports() {
             offset = static_cast<uint32_t>(global_addr - backing_store);
           }
         } else {
-          if (global.type.is_reference()) {
+          if (global.type.is_ref()) {
             tagged_buffer = direct_handle(
                 maybe_shared_data->tagged_globals_buffer(), isolate_);
           } else {

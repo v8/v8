@@ -2439,7 +2439,7 @@ void V8HeapExplorer::ExtractWasmArrayReferences(Tagged<WasmArray> obj,
                                                 HeapEntry* entry) {
   const wasm::CanonicalValueType element_type =
       obj->map()->wasm_type_info()->element_type();
-  if (!element_type.is_reference()) return;
+  if (!element_type.is_ref()) return;
   Isolate* isolate = heap_->isolate();
   ReadOnlyRoots roots(isolate);
   for (uint32_t i = 0; i < obj->length(); i++) {

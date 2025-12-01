@@ -309,10 +309,10 @@ class WasmLoweringReducer : public Next {
     //  - if {value} is always an i31: kNoWriteBarrier
     //  - if {value} is never an i31: kPointerWriteBarrier
     // And apply the same logic to ArraySet.
-    __ Store(object, value, store_kind, repr,
-             type->field(field_index).is_reference() ? kFullWriteBarrier
-                                                     : kNoWriteBarrier,
-             field_offset(type, field_index));
+    __ Store(
+        object, value, store_kind, repr,
+        type->field(field_index).is_ref() ? kFullWriteBarrier : kNoWriteBarrier,
+        field_offset(type, field_index));
 
     return OpIndex::Invalid();
   }
@@ -378,7 +378,7 @@ class WasmLoweringReducer : public Next {
     }
     __ Store(array, __ ChangeInt32ToIntPtr(index), value, store_kind,
              RepresentationFor(element_type, true),
-             element_type.is_reference() ? kFullWriteBarrier : kNoWriteBarrier,
+             element_type.is_ref() ? kFullWriteBarrier : kNoWriteBarrier,
              WasmArray::kHeaderSize, element_type.value_kind_size_log2());
     return {};
   }
@@ -1049,7 +1049,7 @@ class WasmLoweringReducer : public Next {
           LOAD_IMMUTABLE_INSTANCE_FIELD(instance, ImportedMutableGlobals,
                                         MemoryRepresentation::TaggedPointer());
       int field_offset = FixedAddressArray::OffsetOfElementAt(global->index);
-      if (global->type.is_reference()) {
+      if (global->type.is_ref()) {
         V<FixedArray> buffers = LOAD_IMMUTABLE_INSTANCE_FIELD(
             instance, ImportedMutableGlobalsBuffers,
             MemoryRepresentation::TaggedPointer());
@@ -1087,7 +1087,7 @@ class WasmLoweringReducer : public Next {
           return OpIndex::Invalid();
         }
       }
-    } else if (global->type.is_reference()) {
+    } else if (global->type.is_ref()) {
       V<HeapObject> base = LOAD_IMMUTABLE_INSTANCE_FIELD(
           instance, TaggedGlobalsBuffer, MemoryRepresentation::TaggedPointer());
       int offset =

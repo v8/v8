@@ -21,7 +21,7 @@ SubtypeCheckExactness GetExactness(const wasm::WasmModule* module,
   // For types with custom descriptors, we need to look at their immediate
   // supertype instead of the object's map.
   // See Liftoff's {SubtypeCheck()} for detailed explanation.
-  if (!target.is_index()) {
+  if (!target.has_index()) {
     DCHECK(!target.is_exact());  // The spec only allows exact index types.
     return SubtypeCheckExactness::kMayBeSubtype;
   }

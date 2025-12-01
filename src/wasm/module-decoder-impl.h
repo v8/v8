@@ -614,7 +614,7 @@ class ModuleDecoderImpl : public Decoder {
         const uint8_t* pos = pc();
         HeapType hp = consume_heap_type();
 
-        if (!hp.is_index()) {
+        if (!hp.has_index()) {
           error(pos, "cont type must refer to a signature index");
           return {};
         }
@@ -992,7 +992,7 @@ class ModuleDecoderImpl : public Decoder {
           import->index = static_cast<uint32_t>(module_->tables.size());
           const uint8_t* type_position = pc();
           ValueType type = consume_value_type(module_.get());
-          if (!type.is_object_reference()) {
+          if (!type.is_ref()) {
             errorf(type_position, "Invalid table type %s", type.name().c_str());
             break;
           }
@@ -1159,7 +1159,7 @@ class ModuleDecoderImpl : public Decoder {
       }
 
       ValueType table_type = consume_value_type(module_.get());
-      if (!table_type.is_object_reference()) {
+      if (!table_type.is_ref()) {
         error(type_position, "Only reference types can be used as table types");
         break;
       }
@@ -2281,7 +2281,7 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
         global.index = num_imported_mutable_globals++;
-      } else if (global.type.is_reference()) {
+      } else if (global.type.is_ref()) {
         global.offset = tagged_offset;
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;

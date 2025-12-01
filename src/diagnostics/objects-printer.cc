@@ -3178,7 +3178,7 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
 
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmGlobalObject");
-  if (type().is_reference()) {
+  if (type().is_ref()) {
     os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   } else {
     os << "\n - untagged_buffer: " << Brief(untagged_buffer());

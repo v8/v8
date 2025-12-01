@@ -117,7 +117,7 @@ WasmInterpretationResult FastInterpretWasmModule(
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   for (const WasmValue& arg : args) {
-    if (arg.type().is_reference()) {
+    if (arg.type().is_ref()) {
       // We should pass WasmNull as null argument, not a JS null value.
       CHECK(!IsNull(*arg.to_ref(), isolate));
     }
@@ -128,8 +128,7 @@ WasmInterpretationResult FastInterpretWasmModule(
   // Returned values should not be the hole value.
   if (success) {
     for (auto& wasm_value : rets) {
-      if (wasm_value.type().is_reference())
-        CHECK(!IsTheHole(*wasm_value.to_ref()));
+      if (wasm_value.type().is_ref()) CHECK(!IsTheHole(*wasm_value.to_ref()));
     }
   }
 
