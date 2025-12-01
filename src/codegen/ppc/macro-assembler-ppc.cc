@@ -1308,8 +1308,6 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
          frame_type == StackFrame::API_ACCESSOR_EXIT ||
          frame_type == StackFrame::API_CALLBACK_EXIT);
 
-  using ER = ExternalReference;
-
   // Set up the frame structure on the stack.
   DCHECK_EQ(2 * kSystemPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kSystemPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -1334,12 +1332,8 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   }
 
   // Save the frame pointer and the context in top.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  StoreU64(fp, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
-
-  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  StoreU64(cp, ExternalReferenceAsOperand(context_address, no_reg));
+  StoreU64(fp, AsMemOperand(IsolateFieldId::kCEntryFP));
+  StoreU64(cp, AsMemOperand(IsolateFieldId::kContext));
 
   AddS64(sp, sp, Operand(-(stack_space + 1) * kSystemPointerSize));
 
@@ -1381,22 +1375,17 @@ int MacroAssembler::ActivationFrameAlignment() {
 void MacroAssembler::LeaveExitFrame(Register scratch) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
 
-  using ER = ExternalReference;
-
   // Restore current context from top and clear it in debug mode.
-  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  LoadU64(cp, ExternalReferenceAsOperand(context_address, no_reg));
+  LoadU64(cp, AsMemOperand(IsolateFieldId::kContext));
 
 #ifdef DEBUG
   mov(scratch, Operand(Context::kNoContext));
-  StoreU64(scratch, ExternalReferenceAsOperand(context_address, no_reg));
+  StoreU64(scratch, AsMemOperand(IsolateFieldId::kContext));
 #endif
 
   // Clear the top frame.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
   mov(scratch, Operand::Zero());
-  StoreU64(scratch, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
+  StoreU64(scratch, AsMemOperand(IsolateFieldId::kCEntryFP));
 
   // Tear down the exit frame, pop the arguments, and return.
   LeaveFrame(StackFrame::EXIT);
@@ -1628,13 +1617,11 @@ void MacroAssembler::PushStackHandler() {
 
   // Link the current handler as the next handler.
   // Preserve r4-r8.
-  Move(r3,
-       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
-  LoadU64(r0, MemOperand(r3));
+  LoadU64(r0, AsMemOperand(IsolateFieldId::kHandler));
   push(r0);
 
   // Set this new handler as the current one.
-  StoreU64(sp, MemOperand(r3));
+  StoreU64(sp, AsMemOperand(IsolateFieldId::kHandler));
 }
 
 void MacroAssembler::PopStackHandler() {
@@ -1642,9 +1629,7 @@ void MacroAssembler::PopStackHandler() {
   static_assert(StackHandlerConstants::kNextOffset == 0);
 
   pop(r4);
-  Move(ip,
-       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
-  StoreU64(r4, MemOperand(ip));
+  StoreU64(r4, AsMemOperand(IsolateFieldId::kHandler));
 
   Drop(1);  // Drop padding.
 }
