@@ -5,6 +5,7 @@
 #include "src/objects/bytecode-array.h"
 
 #include <iomanip>
+#include <sstream>
 
 #include "src/base/string-format.h"
 #include "src/codegen/handler-table.h"
@@ -58,25 +59,25 @@ void BytecodeArray::PrintJson(std::ostream& os) {
     first_data = false;
 
     os << "{\"offset\":" << iterator.current_offset() << ", \"disassembly\":\"";
-    iterator.PrintCurrentBytecodeTo(os);
+    std::stringstream disassembly_stream;
+    iterator.PrintCurrentBytecodeTo(disassembly_stream);
 
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
-      os << " (" << iterator.GetJumpTargetOffset() << ")";
+      disassembly_stream << " (" << iterator.GetJumpTargetOffset() << ")";
     }
 
     if (interpreter::Bytecodes::IsSwitch(iterator.current_bytecode())) {
-      os << " {";
+      disassembly_stream << " {";
       bool first_entry = true;
       for (interpreter::JumpTableTargetOffset entry :
            iterator.GetJumpTableTargetOffsets()) {
-        if (!first_entry) os << ", ";
+        if (!first_entry) disassembly_stream << ", ";
         first_entry = false;
-        os << entry.target_offset;
+        disassembly_stream << entry.target_offset;
       }
-      os << "}";
+      disassembly_stream << "}";
     }
-
-    os << "\"}";
+    os << base::JSONEscaped(disassembly_stream.str()) << "\"}";
     iterator.Advance();
   }
 
