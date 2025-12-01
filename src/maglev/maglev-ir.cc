@@ -625,7 +625,7 @@ Tribool ValueNode::IsTheHole() const {
     return ToTribool(load->load_type() == LoadType::kUnknown);
   }
   if (const Phi* phi = TryCast<Phi>()) {
-    if (!phi->is_loop_phi() || !phi->is_unmerged_loop_phi()) {
+    if (!phi->is_loop_phi()) {
       bool can_be_the_hole = false;
       for (ConstInput input : phi->inputs()) {
         if (input.node()->IsTheHole() != Tribool::kFalse) {
