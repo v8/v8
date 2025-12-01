@@ -256,7 +256,7 @@ bytecodes: [
   /*   35 S> */ B(LdaZero),
                 B(Star1),
   /*   38 S> */ B(LdaConstant), U8(0:HEAP_NUMBER_TYPE [0.01]),
-  /*   44 E> */ B(TestEqualStrict), R(0), Flag16(0x3),
+  /*   44 E> */ B(TestEqualStrict), R(0), Flag16(0x0),
                 B(JumpIfFalse), U8(10),
   /*   58 S> */ B(Mov), R(0), R(1),
   /* 1081 S> */ B(Wide), B(LdaSmi), I16(200),

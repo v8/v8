@@ -572,7 +572,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     case Token::kEqStrict:
       // feedback is embedded into bytecode array for strict equal
       DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
-      OutputTestEqualStrict(reg, /*feedback_value=*/0);
+      OutputTestEqualStrict(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kLessThan:
       OutputTestLessThan(reg, feedback_slot);

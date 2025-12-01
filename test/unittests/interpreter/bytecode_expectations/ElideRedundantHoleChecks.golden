@@ -817,7 +817,7 @@ bytecode array length: 67
 bytecodes: [
   /*   24 S> */ B(LdaImmutableCurrentContextSlot), C8(3),
   /*   44 E> */ B(ThrowReferenceErrorIfHole), U8(0:"x"),
-                B(TestEqualStrict), R(arg0), Flag16(0x8),
+                B(TestEqualStrict), R(arg0), Flag16(0x0),
                 B(Mov), R(arg0), R(0),
                 B(JumpIfTrue), U8(12),
                 B(LdaSmi), I8(42),

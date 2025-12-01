@@ -195,11 +195,22 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
         *stream << "0x" << std::hex
                 << bytecode_iterator.GetFlag8Operand(op_index) << std::dec;
         break;
-      case OperandType::kFlag16:
+      case OperandType::kFlag16: {
         *stream << "Flag" << size_tag << '(';
-        *stream << "0x" << std::hex
-                << bytecode_iterator.GetFlag16Operand(op_index) << std::dec;
+        if (Bytecodes::IsEmbeddedFeedbackBytecode(bytecode)) {
+          // Ignore embedded feedback bytes by setting them to uninitialized
+          // value.
+          // TODO(yuheng): add kEmbeddedFeedback operand type, to check this
+          // operand is embedded feedback.
+          DCHECK_EQ(op_index, 1);
+          *stream << "0x" << std::hex << kUninitializedEmbeddedFeedback
+                  << std::dec;
+        } else {
+          *stream << "0x" << std::hex
+                  << bytecode_iterator.GetFlag16Operand(op_index) << std::dec;
+        }
         break;
+      }
       case OperandType::kConstantPoolIndex: {
         *stream << 'U' << size_tag << '(';
         *stream << bytecode_iterator.GetConstantPoolIndexOperand(op_index);

@@ -873,6 +873,10 @@ enum class CallApiCallbackMode {
 // itself.
 constexpr int kFeedbackIsEmbedded = -1;
 
+// This constant is used as an sentinel value for embedded feedback in
+// byteocode, indicating an uninitialized state.
+constexpr int kUninitializedEmbeddedFeedback = 0;
+
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
 
