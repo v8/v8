@@ -161,12 +161,11 @@ NodeT* MaglevReducer<BaseT>::AddUnbufferedNewNodeNoInputConversion(
 
 template <typename BaseT>
 template <typename ControlNodeT, typename... Args>
-void MaglevReducer<BaseT>::AddNewControlNode(
+ReduceResult MaglevReducer<BaseT>::AddNewControlNode(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
   ControlNodeT* control_node = NodeBase::New<ControlNodeT>(
       zone(), inputs.size(), std::forward<Args>(args)...);
-  ReduceResult result = SetNodeInputs(control_node, inputs);
-  CHECK(result.IsDoneWithoutPayload());
+  RETURN_IF_ABORT(SetNodeInputs(control_node, inputs));
   AttachEagerDeoptInfo(control_node);
   AttachDeoptCheckpoint(control_node);
   static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
@@ -186,6 +185,7 @@ void MaglevReducer<BaseT>::AddNewControlNode(
                 << std::endl;
     }
   }
+  return ReduceResult::Done();
 }
 
 template <typename BaseT>

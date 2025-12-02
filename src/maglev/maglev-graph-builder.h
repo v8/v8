@@ -342,13 +342,13 @@ class MaglevGraphBuilder {
     MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
     LoopLabel BeginLoop(std::initializer_list<Variable*> loop_vars);
     template <typename ControlNodeT, typename... Args>
-    void GotoIfTrue(Label* true_target,
-                    std::initializer_list<ValueNode*> control_inputs,
-                    Args&&... args);
+    ReduceResult GotoIfTrue(Label* true_target,
+                            std::initializer_list<ValueNode*> control_inputs,
+                            Args&&... args);
     template <typename ControlNodeT, typename... Args>
-    void GotoIfFalse(Label* false_target,
-                     std::initializer_list<ValueNode*> control_inputs,
-                     Args&&... args);
+    ReduceResult GotoIfFalse(Label* false_target,
+                             std::initializer_list<ValueNode*> control_inputs,
+                             Args&&... args);
     void GotoOrTrim(Label* label);
     void Goto(Label* label);
     void ReducePredecessorCount(Label* label, unsigned num = 1);
@@ -863,8 +863,14 @@ class MaglevGraphBuilder {
                      BasicBlockRef& refs_to_block);
   void StartFallthroughBlock(int next_block_offset, BasicBlock* predecessor);
   template <typename ControlNodeT, typename... Args>
-  BasicBlock* FinishBlock(std::initializer_list<ValueNode*> control_inputs,
-                          Args&&... args);
+  std::optional<BasicBlock*> FinishBlock(
+      std::initializer_list<ValueNode*> control_inputs, Args&&... args);
+
+  // This version can be used when the control node doesn't have inputs, or the
+  // input conversion will always succeed, and thus we cannot bail out.
+  template <typename ControlNodeT, typename... Args>
+  BasicBlock* FinishBlockNoAbort(
+      std::initializer_list<ValueNode*> control_inputs, Args&&... args);
 
   ValueNode* GetValueOrUndefined(ValueNode* maybe_value) {
     if (maybe_value == nullptr) {

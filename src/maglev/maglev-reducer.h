@@ -184,6 +184,17 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     variable = res.node();                  \
   } while (false)
 
+// Can be used for extracting a BasicBlock* from std::optional<BasicBlock*>.
+#define GET_BLOCK_OR_ABORT(variable, result) \
+  do {                                       \
+    auto res = (result);                     \
+    if (!res) {                              \
+      return ReduceResult::DoneWithAbort();  \
+    }                                        \
+    variable = *res;                         \
+    DCHECK_NOT_NULL(variable);               \
+  } while (false)
+
 template <typename BaseT>
 concept ReducerBaseWithKNA = requires(BaseT* b) { b->known_node_aspects(); };
 
@@ -278,8 +289,8 @@ class MaglevReducer {
   NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
                                      Args&&... args);
   template <typename ControlNodeT, typename... Args>
-  void AddNewControlNode(std::initializer_list<ValueNode*> inputs,
-                         Args&&... args);
+  ReduceResult AddNewControlNode(std::initializer_list<ValueNode*> inputs,
+                                 Args&&... args);
 
   void AddInitializedNodeToGraph(Node* node);
 

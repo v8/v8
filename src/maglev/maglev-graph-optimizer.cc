@@ -387,7 +387,8 @@ ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
   ControlNode* control = block->reset_control_node();
   block->set_deferred(true);
   block->RemovePredecessorFollowing(control);
-  reducer_.AddNewControlNode<Deopt>({}, reason);
+  ReduceResult result = reducer_.AddNewControlNode<Deopt>({}, reason);
+  CHECK(!result.IsDoneWithAbort());
   return ReduceResult::DoneWithAbort();
 }
 
@@ -395,7 +396,8 @@ ProcessResult MaglevGraphOptimizer::EmitAbort(AbortReason reason) {
   BasicBlock* block = reducer_.current_block();
   ControlNode* control = block->reset_control_node();
   block->RemovePredecessorFollowing(control);
-  reducer_.AddNewControlNode<Abort>({}, reason);
+  ReduceResult result = reducer_.AddNewControlNode<Abort>({}, reason);
+  CHECK(!result.IsDoneWithAbort());
   return ProcessResult::kTruncateBlock;
 }
 
