@@ -16,6 +16,14 @@
 namespace v8 {
 namespace internal {
 
+// In official builds we drop the message in CHECK_WITH_MSG so we cannot check
+// for it in these tests.
+#ifdef OFFICIAL_BUILD
+#define EXPECTED_CHECK_WITH_MSG(msg) ""
+#else
+#define EXPECTED_CHECK_WITH_MSG(msg) msg
+#endif
+
 class BytecodeVerifierTest : public TestWithIsolateAndZone {
  public:
   void VerifyLight(IsolateForSandbox isolate, Handle<BytecodeArray> bytecode) {
@@ -161,8 +169,9 @@ TEST_F(BytecodeVerifierTest, JumpConstantToInvalidIndex) {
 
   Handle<BytecodeArray> bc =
       MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
-  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc),
-                            "Constant pool index out of bounds");
+  ASSERT_DEATH_IF_SUPPORTED(
+      VerifyLight(isolate, bc),
+      EXPECTED_CHECK_WITH_MSG("Constant pool index out of bounds"));
 }
 
 TEST_F(BytecodeVerifierTest, JumpConstantToNonSmi) {
@@ -179,8 +188,9 @@ TEST_F(BytecodeVerifierTest, JumpConstantToNonSmi) {
 
   Handle<BytecodeArray> bc =
       MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
-  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc),
-                            "Constant pool entry is not a Smi");
+  ASSERT_DEATH_IF_SUPPORTED(
+      VerifyLight(isolate, bc),
+      EXPECTED_CHECK_WITH_MSG("Constant pool entry is not a Smi"));
 }
 
 TEST_F(BytecodeVerifierTest, SwitchToInvalidIndex) {
@@ -200,8 +210,9 @@ TEST_F(BytecodeVerifierTest, SwitchToInvalidIndex) {
 
   Handle<BytecodeArray> bc =
       MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
-  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc),
-                            "Constant pool index out of bounds");
+  ASSERT_DEATH_IF_SUPPORTED(
+      VerifyLight(isolate, bc),
+      EXPECTED_CHECK_WITH_MSG("Constant pool index out of bounds"));
 }
 
 TEST_F(BytecodeVerifierTest, SwitchToNonSmi) {
@@ -223,8 +234,9 @@ TEST_F(BytecodeVerifierTest, SwitchToNonSmi) {
 
   Handle<BytecodeArray> bc =
       MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
-  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc),
-                            "Constant pool entry is not a Smi");
+  ASSERT_DEATH_IF_SUPPORTED(
+      VerifyLight(isolate, bc),
+      EXPECTED_CHECK_WITH_MSG("Constant pool entry is not a Smi"));
 }
 
 TEST_F(BytecodeVerifierTest, HandlerTableEntryWithInvalidRange) {
