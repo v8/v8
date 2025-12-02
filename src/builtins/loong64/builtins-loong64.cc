@@ -570,24 +570,20 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ li(s1, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   __ li(s2, Operand(StackFrame::TypeToMarker(type)));
   __ li(s3, Operand(StackFrame::TypeToMarker(type)));
-  ExternalReference c_entry_fp = ExternalReference::Create(
-      IsolateAddressId::kCEntryFPAddress, masm->isolate());
-  __ li(s5, c_entry_fp);
-  __ Ld_d(s4, MemOperand(s5, 0));
+  // s4 = C entry FP.
+  __ Ld_d(s4, __ AsMemOperand(IsolateFieldId::kCEntryFP));
   __ Push(s1, s2, s3, s4);
 
   // Clear c_entry_fp, now we've pushed its previous value to the stack.
   // If the c_entry_fp is not already zero and we don't clear it, the
   // StackFrameIteratorForProfiler will assume we are executing C++ and miss the
   // JS frames on top.
-  __ St_d(zero_reg, MemOperand(s5, 0));
+  __ St_d(zero_reg, __ AsMemOperand(IsolateFieldId::kCEntryFP));
 
-  __ LoadIsolateField(s1, IsolateFieldId::kFastCCallCallerFP);
-  __ Ld_d(s2, MemOperand(s1, 0));
-  __ St_d(zero_reg, MemOperand(s1, 0));
-  __ LoadIsolateField(s1, IsolateFieldId::kFastCCallCallerPC);
-  __ Ld_d(s3, MemOperand(s1, 0));
-  __ St_d(zero_reg, MemOperand(s1, 0));
+  __ Ld_d(s2, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
+  __ St_d(zero_reg, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
+  __ Ld_d(s3, __ AsMemOperand(IsolateFieldId::kFastCCallCallerPC));
+  __ St_d(zero_reg, __ AsMemOperand(IsolateFieldId::kFastCCallCallerPC));
   __ Push(s2, s3);
 
   // Set up frame pointer for the frame to be pushed.
@@ -614,12 +610,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
-  ExternalReference js_entry_sp = ExternalReference::Create(
-      IsolateAddressId::kJSEntrySPAddress, masm->isolate());
-  __ li(s1, js_entry_sp);
-  __ Ld_d(s2, MemOperand(s1, 0));
+  // s2 = previous JS entry SP.
+  __ Ld_d(s2, __ AsMemOperand(IsolateFieldId::kJSEntrySP));
   __ Branch(&non_outermost_js, ne, s2, Operand(zero_reg));
-  __ St_d(fp, MemOperand(s1, 0));
+  __ St_d(fp, __ AsMemOperand(IsolateFieldId::kJSEntrySP));
   __ li(s3, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   Label cont;
   __ b(&cont);
@@ -642,10 +636,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // field in the JSEnv and return a failure sentinel.  Coming in here the
   // fp will be invalid because the PushStackHandler below sets it to 0 to
   // signal the existence of the JSEntry frame.
-  __ li(s1, ExternalReference::Create(IsolateAddressId::kExceptionAddress,
-                                      masm->isolate()));
-  __ St_d(a0,
-          MemOperand(s1, 0));  // We come back from 'invoke'. result is in a0.
+  __ St_d(a0, __ AsMemOperand(IsolateFieldId::kException));
   __ LoadRoot(a0, RootIndex::kException);
   __ b(&exit);  // b exposes branch delay slot.
   __ nop();     // Branch delay slot nop.
@@ -694,21 +685,16 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Pop(a5);
   __ Branch(&non_outermost_js_2, ne, a5,
             Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
-  __ li(a5, js_entry_sp);
-  __ St_d(zero_reg, MemOperand(a5, 0));
+  __ St_d(zero_reg, __ AsMemOperand(IsolateFieldId::kJSEntrySP));
   __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
   __ Pop(a4, a5);
-  __ LoadIsolateField(a6, IsolateFieldId::kFastCCallCallerFP);
-  __ St_d(a4, MemOperand(a6, 0));
-  __ LoadIsolateField(a6, IsolateFieldId::kFastCCallCallerPC);
-  __ St_d(a5, MemOperand(a6, 0));
+  __ St_d(a4, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
+  __ St_d(a5, __ AsMemOperand(IsolateFieldId::kFastCCallCallerPC));
 
   __ Pop(a5);
-  __ li(a4, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                      masm->isolate()));
-  __ St_d(a5, MemOperand(a4, 0));
+  __ St_d(a5, __ AsMemOperand(IsolateFieldId::kCEntryFP));
 
   // Reset the stack to the callee saved registers.
   __ addi_d(sp, sp, -EntryFrameConstants::kNextExitFrameFPOffset);
@@ -753,10 +739,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Setup the context (we need to use the caller context from the isolate).
-    ExternalReference context_address = ExternalReference::Create(
-        IsolateAddressId::kContextAddress, masm->isolate());
-    __ li(cp, context_address);
-    __ Ld_d(cp, MemOperand(cp, 0));
+    __ Ld_d(cp, __ AsMemOperand(IsolateFieldId::kContext));
 
     // Push the function and the receiver onto the stack.
     __ Push(a2);
@@ -3905,11 +3888,9 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
   // Using a2-a4 as temporary registers, because they will be rewritten
   // before exiting to native code anyway.
 
-  ER on_central_stack_flag_loc = ER::Create(
-      IsolateAddressId::kIsOnCentralStackFlagAddress, masm->isolate());
   const Register& on_central_stack_flag = a2;
-  __ li(on_central_stack_flag, on_central_stack_flag_loc);
-  __ Ld_b(on_central_stack_flag, MemOperand(on_central_stack_flag, 0));
+  __ Ld_b(on_central_stack_flag,
+          __ AsMemOperand(IsolateFieldId::kIsOnCentralStackFlag));
 
   Label do_not_need_to_switch;
   __ Branch(&do_not_need_to_switch, ne, on_central_stack_flag,
@@ -4052,9 +4033,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // should have returned the exception sentinel.
   if (v8_flags.debug_code) {
     Label okay;
-    ER exception_address =
-        ER::Create(IsolateAddressId::kExceptionAddress, masm->isolate());
-    __ Ld_d(scratch, __ ExternalReferenceAsOperand(exception_address, no_reg));
+    __ Ld_d(scratch, __ AsMemOperand(IsolateFieldId::kException));
     // Cannot use check here as it attempts to generate call into runtime.
     __ Branch(&okay, eq, scratch, RootIndex::kTheHoleValue);
     __ stop();
@@ -4066,7 +4045,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // sp: stack pointer
   // fp: frame pointer
   // s0: still holds argc (C caller-saved).
-  __ LeaveExitFrame(scratch);
+  __ LeaveExitFrame();
   if (argv_mode == ArgvMode::kStack) {
     DCHECK(!AreAliased(scratch, argc_sav));
     __ Alsl_d(sp, argc_sav, sp, kSystemPointerSizeLog2);
@@ -4076,15 +4055,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Handling of exception.
   __ bind(&exception_returned);
-
-  ER pending_handler_context_address = ER::Create(
-      IsolateAddressId::kPendingHandlerContextAddress, masm->isolate());
-  ER pending_handler_entrypoint_address = ER::Create(
-      IsolateAddressId::kPendingHandlerEntrypointAddress, masm->isolate());
-  ER pending_handler_fp_address =
-      ER::Create(IsolateAddressId::kPendingHandlerFPAddress, masm->isolate());
-  ER pending_handler_sp_address =
-      ER::Create(IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
 
   // Ask the runtime for help to determine the handler. This will set a0 to
   // contain the current exception, don't clobber it.
@@ -4099,12 +4069,9 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // Retrieve the handler context, SP and FP.
-  __ li(cp, pending_handler_context_address);
-  __ Ld_d(cp, MemOperand(cp, 0));
-  __ li(sp, pending_handler_sp_address);
-  __ Ld_d(sp, MemOperand(sp, 0));
-  __ li(fp, pending_handler_fp_address);
-  __ Ld_d(fp, MemOperand(fp, 0));
+  __ Ld_d(cp, __ AsMemOperand(IsolateFieldId::kPendingHandlerContext));
+  __ Ld_d(sp, __ AsMemOperand(IsolateFieldId::kPendingHandlerSP));
+  __ Ld_d(fp, __ AsMemOperand(IsolateFieldId::kPendingHandlerFP));
 
   // If the handler is a JS frame, restore the context to the frame. Note that
   // the context will be set to (cp == 0) for non-JS frames.
@@ -4114,13 +4081,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ bind(&zero);
 
   // Clear c_entry_fp, like we do in `LeaveExitFrame`.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, masm->isolate());
-  __ St_d(zero_reg, __ ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
+  __ St_d(zero_reg, __ AsMemOperand(IsolateFieldId::kCEntryFP));
 
   // Compute the handler entry address and jump to it.
-  __ Ld_d(scratch, __ ExternalReferenceAsOperand(
-                       pending_handler_entrypoint_address, no_reg));
+  __ Ld_d(scratch, __ AsMemOperand(IsolateFieldId::kPendingHandlerEntrypoint));
   __ Jump(scratch);
 }
 
@@ -4534,8 +4498,6 @@ namespace {
 // easily ported.
 void Generate_DeoptimizationEntry(MacroAssembler* masm,
                                   DeoptimizeKind deopt_kind) {
-  Isolate* isolate = masm->isolate();
-
   // Unlike on ARM we don't save all the registers, just the useful ones.
   // For the rest, there are gaps on the stack, so the offsets remain the same.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -4565,9 +4527,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     }
   }
 
-  __ li(a2,
-        ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate));
-  __ St_d(fp, MemOperand(a2, 0));
+  __ St_d(fp, __ AsMemOperand(IsolateFieldId::kCEntryFP));
 
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kSystemPointerSize) + kSimd128RegsSize;
@@ -4757,10 +4717,7 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   // trigger stack unwinding.
   Label no_exception;
   Register scratch = a0;
-  __ Ld_d(scratch, __ ExternalReferenceAsOperand(
-                       ExternalReference::Create(
-                           IsolateAddressId::kExceptionAddress, __ isolate()),
-                       scratch));
+  __ Ld_d(scratch, __ AsMemOperand(IsolateFieldId::kException));
   __ CompareRootAndBranch(scratch, RootIndex::kTheHoleValue, eq, &no_exception);
 
   __ EnterFrame(StackFrame::INTERNAL);
@@ -4776,13 +4733,11 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   // We have to reset IsolateData::fast_c_call_caller_fp(), because otherwise
   // the  stack unwinder thinks that we are still within the fast C call.
   if (v8_flags.debug_code) {
-    __ Ld_d(scratch,
-            __ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
+    __ Ld_d(scratch, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
     __ Assert(ne, AbortReason::kFastCallFallbackInvalid, scratch,
               Operand(zero_reg));
   }
-  __ St_d(zero_reg,
-          __ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
+  __ St_d(zero_reg, __ AsMemOperand(IsolateFieldId::kFastCCallCallerFP));
   __ CallRuntime(Runtime::FunctionId::kPropagateException);
   __ MultiPop(kCalleeSaveRegisters);
   __ MultiPopFPU(kCalleeSaveFPRegisters);

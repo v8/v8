@@ -4831,26 +4831,24 @@ void MacroAssembler::PushStackHandler() {
   Push(Smi::zero());  // Padding.
 
   // Link the current handler as the next handler.
-  li(t2,
-     ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
-  Ld(t1, MemOperand(t2));
-  push(t1);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Ld(scratch, AsMemOperand(IsolateFieldId::kHandler));
+  Push(scratch);
 
   // Set this new handler as the current one.
-  Sd(sp, MemOperand(t2));
+  Sd(sp, AsMemOperand(IsolateFieldId::kHandler));
 }
 
 void MacroAssembler::PopStackHandler() {
   static_assert(StackHandlerConstants::kNextOffset == 0);
-  pop(a1);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Pop(scratch);
   Daddu(sp, sp,
         Operand(
             static_cast<int64_t>(StackHandlerConstants::kSize - kPointerSize)));
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  li(scratch,
-     ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
-  Sd(a1, MemOperand(scratch));
+  Sd(scratch, AsMemOperand(IsolateFieldId::kHandler));
 }
 
 void MacroAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
@@ -5579,8 +5577,6 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
          frame_type == StackFrame::API_ACCESSOR_EXIT ||
          frame_type == StackFrame::API_CALLBACK_EXIT);
 
-  using ER = ExternalReference;
-
   // Set up the frame structure on the stack.
   static_assert(2 * kPointerSize == ExitFrameConstants::kCallerSPDisplacement);
   static_assert(1 * kPointerSize == ExitFrameConstants::kCallerPCOffset);
@@ -5610,12 +5606,8 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   }
 
   // Save the frame pointer and the context in top.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  Sd(fp, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
-
-  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  Sd(cp, ExternalReferenceAsOperand(context_address, no_reg));
+  Sd(fp, AsMemOperand(IsolateFieldId::kCEntryFP));
+  Sd(cp, AsMemOperand(IsolateFieldId::kContext));
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
 
@@ -5634,25 +5626,20 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   Sd(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
-void MacroAssembler::LeaveExitFrame(Register scratch) {
+void MacroAssembler::LeaveExitFrame() {
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
 
-  using ER = ExternalReference;
-
   // Restore current context from top and clear it in debug mode.
-  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  Ld(cp, ExternalReferenceAsOperand(context_address, no_reg));
+  Ld(cp, AsMemOperand(IsolateFieldId::kContext));
 
   if (v8_flags.debug_code) {
-    li(scratch, Operand(Context::kNoContext));
-    Sd(scratch, ExternalReferenceAsOperand(context_address, no_reg));
+    static_assert(Context::kNoContext == 0);
+    Sd(zero_reg, AsMemOperand(IsolateFieldId::kContext));
   }
 
   // Clear the top frame.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  Sd(zero_reg, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
+  Sd(zero_reg, AsMemOperand(IsolateFieldId::kCEntryFP));
 
   // Pop the arguments, restore registers, and return.
   mov(sp, fp);  // Respect ABI stack constraint.
@@ -6501,13 +6488,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               MemOperand return_value_operand) {
   using ER = ExternalReference;
 
-  Isolate* isolate = masm->isolate();
-  MemOperand next_mem_op = __ ExternalReferenceAsOperand(
-      ER::handle_scope_next_address(isolate), no_reg);
-  MemOperand limit_mem_op = __ ExternalReferenceAsOperand(
-      ER::handle_scope_limit_address(isolate), no_reg);
-  MemOperand level_mem_op = __ ExternalReferenceAsOperand(
-      ER::handle_scope_level_address(isolate), no_reg);
+  MemOperand next_mem_op = __ AsMemOperand(IsolateFieldId::kHandleScopeNext);
+  MemOperand limit_mem_op = __ AsMemOperand(IsolateFieldId::kHandleScopeLimit);
+  MemOperand level_mem_op = __ AsMemOperand(IsolateFieldId::kHandleScopeLevel);
 
   Register return_value = v0;
   Register scratch = a4;
@@ -6547,8 +6530,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Label profiler_or_side_effects_check_enabled, done_api_call;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
-    __ Lb(scratch,
-          __ ExternalReferenceAsOperand(IsolateFieldId::kExecutionMode));
+    __ Lb(scratch, __ AsMemOperand(IsolateFieldId::kExecutionMode));
     __ Branch(&profiler_or_side_effects_check_enabled, ne, scratch,
               Operand(zero_reg));
 #ifdef V8_RUNTIME_CALL_STATS
@@ -6597,14 +6579,13 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ Ld(argc_reg, *argc_operand);
   }
 
-  __ LeaveExitFrame(scratch);
+  __ LeaveExitFrame();
 
   {
     ASM_CODE_COMMENT_STRING(masm,
                             "Check if the function scheduled an exception.");
     __ LoadRoot(scratch, RootIndex::kTheHoleValue);
-    __ Ld(scratch2, __ ExternalReferenceAsOperand(
-                        ER::exception_address(isolate), no_reg));
+    __ Ld(scratch2, __ AsMemOperand(IsolateFieldId::kException));
     __ Branch(&propagate_exception, ne, scratch, Operand(scratch2));
   }
 
@@ -6629,9 +6610,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ bind(&profiler_or_side_effects_check_enabled);
     // Additional parameter is the address of the actual callback.
     if (thunk_arg.is_valid()) {
-      MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-          IsolateFieldId::kApiCallbackThunkArgument);
-      __ Sd(thunk_arg, thunk_arg_mem_op);
+      __ Sd(thunk_arg,
+            __ AsMemOperand(IsolateFieldId::kApiCallbackThunkArgument));
     }
     __ li(scratch, thunk_ref);
     __ StoreReturnAddressAndCall(scratch);

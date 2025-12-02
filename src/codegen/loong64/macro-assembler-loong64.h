@@ -184,6 +184,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void PreCheckSkippedWriteBarrier(Register object, Register value,
                                    Register scratch, Label* ok);
 
+  // Operand for accessing respective Isolate field via kRootRegister.
+  MemOperand AsMemOperand(IsolateFieldId id) {
+    DCHECK(root_array_available());
+    return MemOperand(kRootRegister, IsolateData::GetOffset(id));
+  }
+
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
   // only guaranteed to be correct as long as the scratch register
@@ -192,6 +198,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // that is guaranteed not to be clobbered.
   MemOperand ExternalReferenceAsOperand(ExternalReference reference,
                                         Register scratch);
+  // TODO(ishell): use AsMemOperand(IsolateFieldId) instead.
   MemOperand ExternalReferenceAsOperand(IsolateFieldId id) {
     return ExternalReferenceAsOperand(ExternalReference::Create(id), no_reg);
   }
@@ -684,6 +691,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
   void MovePair(Register dst0, Register src0, Register dst1, Register src1);
 
+  // TODO(ishell): rename to LoadAddress to make semantics cleaner.
   void LoadIsolateField(Register dst, IsolateFieldId id);
 
   inline void FmoveLow(Register dst_low, FPURegister src) {
@@ -1127,7 +1135,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                       StackFrame::Type frame_type);
 
   // Leave the current exit frame.
-  void LeaveExitFrame(Register scratch);
+  void LeaveExitFrame();
 
   // Make sure the stack is aligned. Only emits code in debug mode.
   void AssertStackIsAligned() NOOP_UNLESS_DEBUG_CODE;
