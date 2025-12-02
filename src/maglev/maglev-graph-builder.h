@@ -1666,6 +1666,8 @@ class MaglevGraphBuilder {
     kDefault,
     kAlwaysTrue,
     kAlwaysFalse,
+    // Bailed out before evaluating the condition
+    kAbort
   };
 
   static inline BranchType NegateBranchType(BranchType jump_type) {
@@ -1839,16 +1841,12 @@ class MaglevGraphBuilder {
                                           BasicBlockRef* true_target,
                                           BasicBlockRef* false_target);
 
-  template <typename FCond, typename FTrue, typename FFalse>
-  ValueNode* Select(FCond cond, FTrue if_true, FFalse if_false);
+  ReduceResult BuildInt32Max(ValueNode* a, ValueNode* b);
+  ReduceResult BuildInt32Min(ValueNode* a, ValueNode* b);
 
-  ValueNode* BuildInt32Max(ValueNode* a, ValueNode* b);
-  ValueNode* BuildInt32Min(ValueNode* a, ValueNode* b);
-
-  ReduceResult SelectReduction(
-      base::FunctionRef<BranchResult(BranchBuilder&)> cond,
-      base::FunctionRef<ReduceResult()> if_true,
-      base::FunctionRef<ReduceResult()> if_false);
+  ReduceResult Select(base::FunctionRef<BranchResult(BranchBuilder&)> cond,
+                      base::FunctionRef<ReduceResult()> if_true,
+                      base::FunctionRef<ReduceResult()> if_false);
 
   void MarkBranchDeadAndJumpIfNeeded(bool is_jump_taken);
 

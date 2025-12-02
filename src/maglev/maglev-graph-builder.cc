@@ -979,13 +979,16 @@ ReduceResult MaglevGraphBuilder::MaglevSubGraphBuilder::Branch(
   BranchBuilder builder(builder_, this, BranchType::kBranchIfFalse,
                         &else_branch);
   BranchResult branch_result = cond(builder);
-  if (branch_result == BranchResult::kAlwaysTrue) {
-    return if_true();
+  switch (branch_result) {
+    case BranchResult::kAlwaysTrue:
+      return if_true();
+    case BranchResult::kAlwaysFalse:
+      return if_false();
+    case BranchResult::kAbort:
+      return ReduceResult::DoneWithAbort();
+    case BranchResult::kDefault:
+      break;
   }
-  if (branch_result == BranchResult::kAlwaysFalse) {
-    return if_false();
-  }
-  DCHECK(branch_result == BranchResult::kDefault);
   MaglevSubGraphBuilder::Label done(this, 2, vars);
   MaybeReduceResult result_if_true = if_true();
   CHECK(result_if_true.IsDone());
@@ -1001,49 +1004,23 @@ ReduceResult MaglevGraphBuilder::MaglevSubGraphBuilder::Branch(
   return ReduceResult::Done();
 }
 
-template <typename FCond, typename FTrue, typename FFalse>
-ValueNode* MaglevGraphBuilder::Select(FCond cond, FTrue if_true,
-                                      FFalse if_false) {
-  MaglevSubGraphBuilder subgraph(this, 1);
-  MaglevSubGraphBuilder::Label else_branch(&subgraph, 1);
-  BranchBuilder builder(this, &subgraph, BranchType::kBranchIfFalse,
-                        &else_branch);
-  BranchResult branch_result = cond(builder);
-  if (branch_result == BranchResult::kAlwaysTrue) {
-    return if_true();
-  }
-  if (branch_result == BranchResult::kAlwaysFalse) {
-    return if_false();
-  }
-  DCHECK(branch_result == BranchResult::kDefault);
-  MaglevSubGraphBuilder::Variable ret_val(0);
-  MaglevSubGraphBuilder::Label done(&subgraph, 2, {&ret_val});
-  subgraph.set(ret_val, if_true());
-  subgraph.Goto(&done);
-  subgraph.Bind(&else_branch);
-  subgraph.set(ret_val, if_false());
-  subgraph.Goto(&done);
-  subgraph.Bind(&done);
-  return subgraph.get(ret_val);
-}
-
-ValueNode* MaglevGraphBuilder::BuildInt32Max(ValueNode* a, ValueNode* b) {
+ReduceResult MaglevGraphBuilder::BuildInt32Max(ValueNode* a, ValueNode* b) {
   return Select(
       [&](BranchBuilder& builder) {
         return BuildBranchIfInt32Compare(builder, Operation::kLessThan, a, b);
       },
-      [&]() -> ValueNode* { return b; }, [&]() -> ValueNode* { return a; });
+      [&]() -> ReduceResult { return b; }, [&]() -> ReduceResult { return a; });
 }
 
-ValueNode* MaglevGraphBuilder::BuildInt32Min(ValueNode* a, ValueNode* b) {
+ReduceResult MaglevGraphBuilder::BuildInt32Min(ValueNode* a, ValueNode* b) {
   return Select(
       [&](BranchBuilder& builder) {
         return BuildBranchIfInt32Compare(builder, Operation::kLessThan, a, b);
       },
-      [&]() -> ValueNode* { return a; }, [&]() -> ValueNode* { return b; });
+      [&]() -> ReduceResult { return a; }, [&]() -> ReduceResult { return b; });
 }
 
-ReduceResult MaglevGraphBuilder::SelectReduction(
+ReduceResult MaglevGraphBuilder::Select(
     base::FunctionRef<BranchResult(BranchBuilder&)> cond,
     base::FunctionRef<ReduceResult()> if_true,
     base::FunctionRef<ReduceResult()> if_false) {
@@ -1052,13 +1029,16 @@ ReduceResult MaglevGraphBuilder::SelectReduction(
   BranchBuilder builder(this, &subgraph, BranchType::kBranchIfFalse,
                         &else_branch);
   BranchResult branch_result = cond(builder);
-  if (branch_result == BranchResult::kAlwaysTrue) {
-    return if_true();
+  switch (branch_result) {
+    case BranchResult::kAlwaysTrue:
+      return if_true();
+    case BranchResult::kAlwaysFalse:
+      return if_false();
+    case BranchResult::kAbort:
+      return ReduceResult::DoneWithAbort();
+    case BranchResult::kDefault:
+      break;
   }
-  if (branch_result == BranchResult::kAlwaysFalse) {
-    return if_false();
-  }
-  DCHECK(branch_result == BranchResult::kDefault);
   MaglevSubGraphBuilder::Variable ret_val(0);
   MaglevSubGraphBuilder::Label done(&subgraph, 2, {&ret_val});
   ReduceResult result_if_true = if_true();
@@ -2386,7 +2366,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     return BuildInlinedAllocation(cons_string, allocation_type);
   };
 
-  return SelectReduction(
+  return Select(
       [&](BranchBuilder& builder) {
         if (left_min_length > 0) return BranchResult::kAlwaysFalse;
         return BuildBranchIfInt32Compare(builder, Operation::kEqual,
@@ -2394,7 +2374,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
       },
       [&] { return right; },
       [&] {
-        return SelectReduction(
+        return Select(
             [&](BranchBuilder& builder) {
               if (right_min_length > 0) return BranchResult::kAlwaysFalse;
               return BuildBranchIfInt32Compare(builder, Operation::kEqual,
@@ -5753,7 +5733,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     ValueNode* uint32_length;
     GET_VALUE_OR_ABORT(uint32_length,
                        AddNewNode<UnsafeInt32ToUint32>({length}));
-    return SelectReduction(
+    return Select(
         [&](BranchBuilder& builder) {
           return BuildBranchIfUint32Compare(builder, Operation::kLessThan,
                                             positive_index, uint32_length);
@@ -6164,7 +6144,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
     ValueNode* uint32_length;
     GET_VALUE_OR_ABORT(uint32_length,
                        AddNewNode<UnsafeInt32ToUint32>({length}));
-    return SelectReduction(
+    return Select(
         [&](BranchBuilder& builder) {
           return BuildBranchIfUint32Compare(builder, Operation::kLessThan,
                                             positive_index, uint32_length);
@@ -9200,7 +9180,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
     index = GetInt32Constant(0);
   } else {
     GET_VALUE_OR_ABORT(index,
-                       SelectReduction(
+                       Select(
                            [&](BranchBuilder& builder) {
                              return BuildBranchIfInt32Compare(
                                  builder, Operation::kLessThan, args[0],
@@ -9215,14 +9195,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
   ValueNode* elements;
   GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver));
 
-  return SelectReduction(
+  return Select(
       [&](BranchBuilder& builder) {
         return BuildBranchIfInt32Compare(builder,
                                          Operation::kGreaterThanOrEqual, index,
                                          GetInt32Constant(0));
       },
       [&]() {
-        return SelectReduction(
+        return Select(
             [&](BranchBuilder& builder) {
               return BuildBranchIfInt32Compare(builder, Operation::kLessThan,
                                                index, length);
@@ -9434,7 +9414,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
   };
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
-    return SelectReduction(
+    return Select(
         [&](BranchBuilder& builder) {
           // Do unsafe conversions of length and index into uint32, to do an
           // unsigned comparison. The index might actually be a negative signed
@@ -9495,7 +9475,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
 
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
-    return SelectReduction(
+    return Select(
         [&](BranchBuilder& builder) {
           // Do unsafe conversions of length and index into uint32, to do an
           // unsigned comparison. The index might actually be a negative signed
@@ -9557,7 +9537,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
 
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
-    return SelectReduction(
+    return Select(
         [&](BranchBuilder& builder) {
           // Do unsafe conversions of length and index into uint32, to do an
           // unsigned comparison. The index might actually be a negative signed
@@ -9598,7 +9578,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSlice(
     ValueNode* receiver_length;
     GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
 
-    return SelectReduction(
+    return Select(
         [&](BranchBuilder& builder) {
           return BuildBranchIfInt32Compare(
               builder, Operation::kEqual, receiver_length, GetInt32Constant(0));
@@ -9650,8 +9630,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
   GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
 
   // min(max(start, 0), receiver_length)
-  ValueNode* clamped_start = GetInt32(BuildInt32Min(
-      BuildInt32Max(start, GetInt32Constant(0)), receiver_length));
+  ValueNode* max_value;
+  GET_VALUE_OR_ABORT(max_value, BuildInt32Max(start, GetInt32Constant(0)));
+  ValueNode* min_value;
+  GET_VALUE_OR_ABORT(min_value, BuildInt32Min(max_value, receiver_length));
+  ValueNode* clamped_start = GetInt32(min_value);
 
   ValueNode* search_length;
   GET_VALUE_OR_ABORT(search_length, BuildLoadStringLength(search_element));
@@ -10952,7 +10935,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMin(
   }
   return TryReduceMathMinMax(
       args,
-      [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
+      [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
         return BuildInt32Min(v1, v2);
       },
       [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
@@ -10974,7 +10957,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMax(
   }
   return TryReduceMathMinMax(
       args,
-      [&](ValueNode* v1, ValueNode* v2) -> ValueNode* {
+      [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
         return BuildInt32Max(v1, v2);
       },
       [&](ValueNode* v1, ValueNode* v2) -> ReduceResult {
@@ -11002,7 +10985,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathMinMax(
   if (all_args_are_int32_or_smi) {
     // TODO(C++23): Use std::ranges::fold_left_first.
     // int32_case will convert the parameters to Int32.
-    return std::reduce(args.begin() + 1, args.end(), *args.begin(), int32_case);
+    return std::reduce(
+        args.begin() + 1, args.end(), ReduceResult(*args.begin()),
+        [&](ReduceResult lhs_result, ReduceResult rhs_result) -> ReduceResult {
+          ValueNode* lhs;
+          GET_VALUE_OR_ABORT(lhs, lhs_result);
+          ValueNode* rhs;
+          GET_VALUE_OR_ABORT(rhs, rhs_result);
+          return int32_case(lhs, rhs);
+        });
   }
 
   // TODO(marja): Investigate whether a non-speculative Float64 case helps.
@@ -11878,7 +11869,7 @@ MaglevGraphBuilder::TryReduceFunctionPrototypeApplyCallWithReceiver(
   if (!known_node_aspects().MayBeNullOrUndefined(broker(), args[1])) {
     return build_call_with_array_like();
   }
-  return SelectReduction(
+  return Select(
       [&](BranchBuilder& builder) {
         return BuildBranchIfUndefinedOrNull(builder, args[1]);
       },
@@ -12804,7 +12795,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructArrayConstructor(
     // site to avoid deopt loops.
     if (!can_speculate_call) return {};
 
-    return SelectReduction(
+    return Select(
         [&](BranchBuilder& builder) {
           return BuildBranchIfInt32Compare(builder,
                                            Operation::kGreaterThanOrEqual,
@@ -14634,7 +14625,8 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
               GetContext(), unmapped_elements);
           ValueNode* the_hole_value = GetConstant(broker()->the_hole_value());
           for (int i = 0; i < param_count; i++, param_idx_in_ctxt--) {
-            ValueNode* value = Select(
+            ValueNode* value;
+            ReduceResult result = Select(
                 [&](BranchBuilder& builder) {
                   return BuildBranchIfInt32Compare(builder,
                                                    Operation::kLessThan,
@@ -14642,6 +14634,9 @@ VirtualObject* MaglevGraphBuilder::BuildVirtualArgumentsObject() {
                 },
                 [&] { return GetSmiConstant(param_idx_in_ctxt); },
                 [&] { return the_hole_value; });
+            // Cannot bail out, since we're comparing Int32Cosntant with
+            // ArgumentsLength, so no input conversion can go wrong.
+            GET_VALUE(value, result);
             elements->set(SloppyArgumentsElements::OffsetOfElementAt(i), value);
           }
           return CreateArgumentsObject(
@@ -16308,7 +16303,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetIterator(
   auto throw_symbol_iterator_invalid = [&] {
     return BuildThrow(Throw::kThrowSymbolIteratorInvalid);
   };
-  auto call_iterator_method = [&] {
+  auto call_iterator_method = [&]() -> ReduceResult {
     // If the call eager deopts (e.g. because of incorrect speculation of the
     // call target), we need to do the full call in the continuation.
     EagerDeoptFrameScope eager_deopt_continuation(
@@ -16330,14 +16325,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceGetIterator(
 
     if (result_call.IsDoneWithAbort()) return result_call;
     DCHECK(result_call.IsDoneWithValue());
-    return SelectReduction(
+    return Select(
         [&](BranchBuilder& builder) {
           return BuildBranchIfJSReceiver(builder, result_call.value());
         },
         [&] { return result_call; }, throw_symbol_iterator_invalid);
   };
   // Check if the iterator_method is undefined and call the method otherwise.
-  return SelectReduction(
+  return Select(
       [&](BranchBuilder& builder) {
         return BuildBranchIfUndefined(builder, iterator_method);
       },
