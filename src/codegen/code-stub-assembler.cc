@@ -2201,8 +2201,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodePointerTableBase() {
 
 void CodeStubAssembler::SetSupportsDynamicParameterCount(
     TNode<JSFunction> callee, TNode<JSDispatchHandleT> dispatch_handle) {
-  TNode<Uint16T> dynamic_parameter_count;
-  dynamic_parameter_count =
+  TNode<Uint16T> dynamic_parameter_count =
       LoadParameterCountFromJSDispatchTable(dispatch_handle);
   SetDynamicJSParameterCount(dynamic_parameter_count);
 }
