@@ -3828,7 +3828,7 @@ class GraphBuildingNodeProcessor {
                            ConvertWord32ToJSBool(__ RootEqual(
                                input, RootIndex::kFalseValue, isolate_)),
                            RegisterRepresentation::Tagged(), BranchHint::kNone,
-                           SelectOp::Implementation::kBranch);
+                           SelectOp::Implementation::kForceBranch);
         break;
       case interpreter::TestTypeOfFlags::LiteralFlag::kUndefined:
         result = __ Select(__ RootEqual(input, RootIndex::kNullValue, isolate_),
@@ -3837,7 +3837,7 @@ class GraphBuildingNodeProcessor {
                                input, ObjectIsOp::Kind::kUndetectable,
                                ObjectIsOp::InputAssumptions::kNone)),
                            RegisterRepresentation::Tagged(), BranchHint::kNone,
-                           SelectOp::Implementation::kBranch);
+                           SelectOp::Implementation::kForceBranch);
         break;
       case interpreter::TestTypeOfFlags::LiteralFlag::kObject:
         result = __ Select(__ ObjectIs(input, ObjectIsOp::Kind::kNonCallable,
@@ -3846,7 +3846,7 @@ class GraphBuildingNodeProcessor {
                            ConvertWord32ToJSBool(__ RootEqual(
                                input, RootIndex::kNullValue, isolate_)),
                            RegisterRepresentation::Tagged(), BranchHint::kNone,
-                           SelectOp::Implementation::kBranch);
+                           SelectOp::Implementation::kForceBranch);
         break;
       case interpreter::TestTypeOfFlags::LiteralFlag::kOther:
         UNREACHABLE();  // Should never be emitted.
@@ -5141,7 +5141,7 @@ class GraphBuildingNodeProcessor {
     SetMap(node,
            __ Select(cond, undefined_value_, Map<Object>(node->ObjectInput()),
                      RegisterRepresentation::Tagged(), BranchHint::kNone,
-                     SelectOp::Implementation::kBranch));
+                     SelectOp::Implementation::kForceBranch));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::ConvertReceiver* node,
@@ -6377,7 +6377,7 @@ class GraphBuildingNodeProcessor {
     V<Boolean> false_idx = __ HeapConstant(local_factory_->false_value());
     if (flip) std::swap(true_idx, false_idx);
     return __ Select(b, true_idx, false_idx, RegisterRepresentation::Tagged(),
-                     BranchHint::kNone, SelectOp::Implementation::kBranch);
+                     BranchHint::kNone, SelectOp::Implementation::kForceBranch);
   }
 
   V<Boolean> ConvertWord64ToJSBool(V<Word64> b, bool flip = false) {
@@ -6386,7 +6386,7 @@ class GraphBuildingNodeProcessor {
     if (flip) std::swap(true_idx, false_idx);
     return __ Select(__ Word64Equal(b, 0), false_idx, true_idx,
                      RegisterRepresentation::Tagged(), BranchHint::kNone,
-                     SelectOp::Implementation::kBranch);
+                     SelectOp::Implementation::kForceBranch);
   }
 
   V<Boolean> ConvertWordPtrToJSBool(V<WordPtr> b, bool flip = false) {
@@ -6395,7 +6395,7 @@ class GraphBuildingNodeProcessor {
     if (flip) std::swap(true_idx, false_idx);
     return __ Select(__ WordPtrEqual(b, __ WordPtrConstant(0)), false_idx,
                      true_idx, RegisterRepresentation::Tagged(),
-                     BranchHint::kNone, SelectOp::Implementation::kBranch);
+                     BranchHint::kNone, SelectOp::Implementation::kForceBranch);
   }
 
   // This function corresponds to MaglevAssembler::ToBoolean.

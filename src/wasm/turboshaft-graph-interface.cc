@@ -1000,10 +1000,10 @@ class TurboshaftGraphBuildingInterface
       case kBottom:
         UNREACHABLE();
     }
-    result->op = __ Select(
-        cond.op, tval.op, fval.op, RepresentationFor(tval.type),
-        BranchHint::kNone,
-        use_select ? Implementation::kCMove : Implementation::kBranch);
+    result->op = __ Select(cond.op, tval.op, fval.op,
+                           RepresentationFor(tval.type), BranchHint::kNone,
+                           use_select ? Implementation::kForceCMove
+                                      : Implementation::kForceBranch);
   }
 
   OpIndex BuildChangeEndiannessStore(OpIndex node,

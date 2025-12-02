@@ -1253,23 +1253,23 @@ OpIndex GraphBuilder::Process(
       return __ Select(cond, vtrue, vfalse,
                        RegisterRepresentation::FromMachineRepresentation(
                            params.representation()),
-                       params.hint(), SelectOp::Implementation::kBranch);
+                       params.hint(), SelectOp::Implementation::kForceBranch);
     }
     case IrOpcode::kWord32Select:
       return __ Select(
           Map<Word32>(node->InputAt(0)), Map<Word32>(node->InputAt(1)),
           Map<Word32>(node->InputAt(2)), RegisterRepresentation::Word32(),
-          BranchHint::kNone, SelectOp::Implementation::kCMove);
+          BranchHint::kNone, SelectOp::Implementation::kForceCMove);
     case IrOpcode::kWord64Select:
       return __ Select(
           Map<Word32>(node->InputAt(0)), Map<Word64>(node->InputAt(1)),
           Map<Word64>(node->InputAt(2)), RegisterRepresentation::Word64(),
-          BranchHint::kNone, SelectOp::Implementation::kCMove);
+          BranchHint::kNone, SelectOp::Implementation::kForceCMove);
     case IrOpcode::kFloat32Select:
       return __ Select(
           Map<Word32>(node->InputAt(0)), Map<Float32>(node->InputAt(1)),
           Map<Float32>(node->InputAt(2)), RegisterRepresentation::Float32(),
-          BranchHint::kNone, SelectOp::Implementation::kCMove);
+          BranchHint::kNone, SelectOp::Implementation::kForceCMove);
 
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable:

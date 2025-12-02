@@ -2673,12 +2673,12 @@ class MachineLoweringReducer : public Next {
       relative_start =
           __ Select(__ Int32LessThan(relative_start, 0), __ Word32Constant(0),
                     relative_start, RegisterRepresentation::Word32(),
-                    BranchHint::kNone, SelectOp::Implementation::kBranch);
+                    BranchHint::kNone, SelectOp::Implementation::kForceBranch);
     } ELSE {
       relative_start =
           __ Select(__ Int32LessThan(start, length), start, length,
                     RegisterRepresentation::Word32(), BranchHint::kNone,
-                    SelectOp::Implementation::kBranch);
+                    SelectOp::Implementation::kForceBranch);
     }
 
     ScopedVar<Word32> relative_end(this);
@@ -2687,12 +2687,12 @@ class MachineLoweringReducer : public Next {
       relative_end =
           __ Select(__ Int32LessThan(relative_end, 0), __ Word32Constant(0),
                     relative_end, RegisterRepresentation::Word32(),
-                    BranchHint::kNone, SelectOp::Implementation::kBranch);
+                    BranchHint::kNone, SelectOp::Implementation::kForceBranch);
     } ELSE {
       relative_end =
           __ Select(__ Int32LessThan(end, length), end, length,
                     RegisterRepresentation::Word32(), BranchHint::kNone,
-                    SelectOp::Implementation::kBranch);
+                    SelectOp::Implementation::kForceBranch);
     }
     // substring() and slice() handle end < start differently; return empty here
     // if end < start.

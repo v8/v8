@@ -40,7 +40,7 @@ class SelectLoweringReducer : public Next {
   V<Any> REDUCE(Select)(V<Word32> cond, V<Any> vtrue, V<Any> vfalse,
                         RegisterRepresentation rep, BranchHint hint,
                         SelectOp::Implementation implem) {
-    if (implem == SelectOp::Implementation::kCMove) {
+    if (implem == SelectOp::Implementation::kForceCMove) {
       // We do not lower Select operations that should be implemented with
       // CMove.
       return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);

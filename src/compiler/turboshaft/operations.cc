@@ -462,10 +462,12 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption) {
 
 std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind) {
   switch (kind) {
-    case SelectOp::Implementation::kBranch:
+    case SelectOp::Implementation::kForceBranch:
       return os << "Branch";
-    case SelectOp::Implementation::kCMove:
+    case SelectOp::Implementation::kForceCMove:
       return os << "CMove";
+    case SelectOp::Implementation::kAny:
+      return os << "Any";
   }
 }
 

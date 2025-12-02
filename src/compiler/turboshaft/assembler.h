@@ -3368,7 +3368,7 @@ class AssemblerOpInterface : public Next {
                      ConstOrV<Rep> vfalse) {                             \
     return Select<Rep>(resolve(cond), resolve(vtrue), resolve(vfalse),   \
                        RegisterRepresentation::Rep(), BranchHint::kNone, \
-                       SelectOp::Implementation::kCMove);                \
+                       SelectOp::Implementation::kForceCMove);           \
   }
   DEF_SELECT(Word32)
   DEF_SELECT(Word64)
@@ -3383,7 +3383,7 @@ class AssemblerOpInterface : public Next {
                                           BranchHint hint = BranchHint::kNone) {
     return Select(resolve(cond), vtrue, vfalse,
                   V<std::common_type_t<T, U>>::rep, hint,
-                  SelectOp::Implementation::kBranch);
+                  SelectOp::Implementation::kForceBranch);
   }
   void Switch(V<Word32> input, base::Vector<SwitchOp::Case> cases,
               Block* default_case,

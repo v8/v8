@@ -2538,7 +2538,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
 std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind assumption);
 
 struct SelectOp : FixedArityOperationT<3, SelectOp> {
-  enum class Implementation : uint8_t { kBranch, kCMove };
+  enum class Implementation : uint8_t { kAny, kForceBranch, kForceCMove };
 
   RegisterRepresentation rep;
   BranchHint hint;
@@ -2559,7 +2559,7 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
       : Base(cond, vtrue, vfalse), rep(rep), hint(hint), implem(implem) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK_IMPLIES(implem == Implementation::kCMove,
+    DCHECK_IMPLIES(implem == Implementation::kForceCMove,
                    (rep == RegisterRepresentation::Word32() &&
                     SupportedOperations::word32_select()) ||
                        (rep == RegisterRepresentation::Word64() &&
