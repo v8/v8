@@ -3211,7 +3211,6 @@ DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")
 DEFINE_BOOL(regexp_assemble_from_bytecode, false,
             "assemble regexp JIT-code from bytecode")
 DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
-DEFINE_WEAK_IMPLICATION(future, regexp_assemble_from_bytecode)
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
 DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
