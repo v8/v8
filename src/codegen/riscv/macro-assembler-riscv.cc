@@ -5594,15 +5594,12 @@ void MacroAssembler::PushStackHandler() {
 
   // Link the current handler as the next handler.
   UseScratchRegisterScope temps(this);
-  Register handler_address = temps.Acquire();
-  li(handler_address,
-     ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
   Register handler = temps.Acquire();
-  LoadWord(handler, MemOperand(handler_address));
+  LoadWord(handler, AsMemOperand(IsolateFieldId::kHandler));
   push(handler);
 
   // Set this new handler as the current one.
-  StoreWord(sp, MemOperand(handler_address));
+  StoreWord(sp, AsMemOperand(IsolateFieldId::kHandler));
 }
 
 void MacroAssembler::PopStackHandler() {
@@ -5611,11 +5608,7 @@ void MacroAssembler::PopStackHandler() {
   AddWord(sp, sp,
           Operand(static_cast<intptr_t>(StackHandlerConstants::kSize -
                                         kSystemPointerSize)));
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  li(scratch,
-     ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
-  StoreWord(a1, MemOperand(scratch));
+  StoreWord(a1, AsMemOperand(IsolateFieldId::kHandler));
 }
 
 void MacroAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
@@ -6776,8 +6769,6 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   // fp - (2 + stack_space + alignment) == sp == [fp - kSPOffset] - top of the
   //   new stack (will contain saved ra)
 
-  using ER = ExternalReference;
-
   // Save registers and reserve room for saved entry sp.
   AddWord(sp, sp,
           -2 * kSystemPointerSize - ExitFrameConstants::kFixedFrameSizeFromFp);
@@ -6794,11 +6785,8 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   }
 
   // Save the frame pointer and the context in top.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  StoreWord(fp, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
-  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  StoreWord(cp, ExternalReferenceAsOperand(context_address, no_reg));
+  StoreWord(fp, AsMemOperand(IsolateFieldId::kCEntryFP));
+  StoreWord(cp, AsMemOperand(IsolateFieldId::kContext));
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
 
@@ -6821,21 +6809,17 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
 void MacroAssembler::LeaveExitFrame(Register scratch) {
   ASM_CODE_COMMENT(this);
   BlockPoolsScope block_pools(this);
-  using ER = ExternalReference;
   // Clear top frame.
   // Restore current context from top and clear it in debug mode.
-  ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  LoadWord(cp, ExternalReferenceAsOperand(context_address, no_reg));
+  LoadWord(cp, AsMemOperand(IsolateFieldId::kContext));
 
   if (v8_flags.debug_code) {
     li(scratch, Operand(Context::kNoContext));
-    StoreWord(scratch, ExternalReferenceAsOperand(context_address, no_reg));
+    StoreWord(scratch, AsMemOperand(IsolateFieldId::kContext));
   }
 
   // Clear the top frame.
-  ER c_entry_fp_address =
-      ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  StoreWord(zero_reg, ExternalReferenceAsOperand(c_entry_fp_address, no_reg));
+  StoreWord(zero_reg, AsMemOperand(IsolateFieldId::kCEntryFP));
 
   // Pop the arguments, restore registers, and return.
   Mv(sp, fp);  // Respect ABI stack constraint.
