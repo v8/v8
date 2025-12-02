@@ -2840,7 +2840,8 @@ Maybe<bool> Object::TransitionAndWriteDataProperty(
     LookupIterator* it, DirectHandle<Object> value,
     PropertyAttributes attributes, Maybe<ShouldThrow> should_throw,
     StoreOrigin store_origin) {
-  DirectHandle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
+  DirectHandle<JSTransitionableReceiver> receiver =
+      it->GetStoreTarget<JSTransitionableReceiver>();
   it->UpdateProtector();
   // Migrate to the most up-to-date map that will be able to store |value|
   // under it->name() with |attributes|.

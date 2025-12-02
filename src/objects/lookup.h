@@ -17,6 +17,8 @@
 
 namespace v8::internal {
 
+using JSTransitionableReceiver = UnionOf<JSObject, JSProxy>;
+
 class PropertyKey {
  public:
   inline PropertyKey(Isolate* isolate, double index);
@@ -215,13 +217,14 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   /* PROPERTY */
   inline bool ExtendingNonExtensible(DirectHandle<JSReceiver> receiver);
   void PrepareForDataProperty(DirectHandle<Object> value);
-  void PrepareTransitionToDataProperty(DirectHandle<JSReceiver> receiver,
-                                       DirectHandle<Object> value,
-                                       PropertyAttributes attributes,
-                                       StoreOrigin store_origin);
+  void PrepareTransitionToDataProperty(
+      DirectHandle<JSTransitionableReceiver> receiver,
+      DirectHandle<Object> value, PropertyAttributes attributes,
+      StoreOrigin store_origin);
   inline bool IsCacheableTransition();
   V8_WARN_UNUSED_RESULT Maybe<bool> ApplyTransitionToDataProperty(
-      DirectHandle<JSReceiver> receiver, Maybe<ShouldThrow> should_throw);
+      DirectHandle<JSTransitionableReceiver> receiver,
+      Maybe<ShouldThrow> should_throw);
   void ReconfigureDataProperty(DirectHandle<Object> value,
                                PropertyAttributes attributes);
   void Delete();

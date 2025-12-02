@@ -1775,8 +1775,11 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
         if (it->HolderIsReceiverOrHiddenPrototype()) return false;
 
         if (it->ExtendingNonExtensible(receiver)) return false;
-        it->PrepareTransitionToDataProperty(receiver, value, NONE,
-                                            store_origin);
+
+        DirectHandle<JSTransitionableReceiver> rec =
+            Cast<JSTransitionableReceiver>(receiver);
+
+        it->PrepareTransitionToDataProperty(rec, value, NONE, store_origin);
         return it->IsCacheableTransition();
       }
       case LookupIterator::STRING_LOOKUP_START_OBJECT:
@@ -1808,8 +1811,9 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
         }
         receiver = it->GetStoreTarget<JSReceiver>();
         if (it->ExtendingNonExtensible(receiver)) return false;
-        it->PrepareTransitionToDataProperty(receiver, value, NONE,
-                                            store_origin);
+        DirectHandle<JSTransitionableReceiver> rec =
+            Cast<JSTransitionableReceiver>(receiver);
+        it->PrepareTransitionToDataProperty(rec, value, NONE, store_origin);
         return it->IsCacheableTransition();
     }
     UNREACHABLE();
