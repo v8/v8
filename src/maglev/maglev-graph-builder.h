@@ -1025,10 +1025,10 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceGetIterator(ValueNode* receiver, int load_slot,
                                          int call_slot);
 
-  ReduceResult BuildCallSelf(ValueNode* context, ValueNode* function,
-                             ValueNode* new_target,
-                             compiler::SharedFunctionInfoRef shared,
-                             CallArguments& args);
+  MaybeReduceResult BuildCallSelf(ValueNode* context, ValueNode* function,
+                                  ValueNode* new_target,
+                                  compiler::SharedFunctionInfoRef shared,
+                                  CallArguments& args);
   MaybeReduceResult TryReduceBuiltin(
       compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);

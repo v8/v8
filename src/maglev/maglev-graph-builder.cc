@@ -11263,9 +11263,10 @@ ReduceResult MaglevGraphBuilder::BuildGenericCall(ValueNode* target,
   }
 }
 
-ReduceResult MaglevGraphBuilder::BuildCallSelf(
+MaybeReduceResult MaglevGraphBuilder::BuildCallSelf(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
     compiler::SharedFunctionInfoRef shared, CallArguments& args) {
+  if (IsTheHoleConstant(args.receiver())) return {};
   ValueNode* receiver;
   GET_VALUE_OR_ABORT(receiver, GetConvertReceiver(shared, args));
   size_t input_count = args.count() + CallSelf::kFixedInputCount;
@@ -11487,18 +11488,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   ValueNode* closure = GetConstant(function);
   compiler::ContextRef context = function.context(broker());
   ValueNode* context_node = GetConstant(context);
-  MaybeReduceResult res;
-  if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function) &&
-      !graph_->is_osr()) {
+  if (V8_UNLIKELY(MaglevIsTopTier()) &&
+      TargetIsCurrentCompilingUnit(function) && !graph_->is_osr()) {
     DCHECK(!shared.HasBuiltinId());
-    DCHECK(!IsTheHoleConstant(args.receiver()));
-    res = BuildCallSelf(context_node, closure, new_target, shared, args);
-  } else {
-    res = TryBuildCallKnownJSFunction(
-        context_node, closure, new_target, function.dispatch_handle(), shared,
-        function.raw_feedback_cell(broker()), args, feedback_source);
+    RETURN_IF_DONE(
+        BuildCallSelf(context_node, closure, new_target, shared, args));
   }
-  return res;
+  return TryBuildCallKnownJSFunction(
+      context_node, closure, new_target, function.dispatch_handle(), shared,
+      function.raw_feedback_cell(broker()), args, feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCallKnownJSFunction(
