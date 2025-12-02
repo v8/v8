@@ -79,13 +79,7 @@ class NodeRanges {
     DCHECK_NOT_NULL(map);
     auto it = map->find(node);
     if (it == map->end()) {
-      if (IsConstantNode(node->opcode())) {
-        return GetConstantRange(node);
-      }
-      if (SameRangeAsFirstInput(node->opcode())) {
-        return Get(block, node->input_node(0));
-      }
-      return Range::All();
+      return node->GetStaticRange();
     }
     return it->second;
   }
@@ -142,9 +136,6 @@ class NodeRanges {
   }
 
   void NarrowUpdate(BasicBlock* block, ValueNode* node, Range narrowed_range) {
-    if (IsConstantNode(node->opcode())) {
-      return;
-    }
     auto* map = ranges_[block->id()];
     DCHECK_NOT_NULL(map);
     auto it = map->find(node);
@@ -190,37 +181,6 @@ class NodeRanges {
   ZoneVector<LessEqualConstraint::List> less_equals_;
 
   Zone* zone() const { return graph_->zone(); }
-
-  static bool SameRangeAsFirstInput(Opcode opcode) {
-    switch (opcode) {
-      case Opcode::kIdentity:
-      case Opcode::kReturnedValue:
-      case Opcode::kInt32ToNumber:
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  Range GetConstantRange(ValueNode* node) {
-    // TODO(victorgomes): Support other constant nodes.
-    switch (node->opcode()) {
-      case Opcode::kInt32Constant:
-        return Range(node->Cast<Int32Constant>()->value());
-      case Opcode::kUint32Constant:
-        return Range(node->Cast<Uint32Constant>()->value());
-      case Opcode::kSmiConstant:
-        return Range(node->Cast<SmiConstant>()->value().value());
-      case Opcode::kFloat64Constant: {
-        double value = node->Cast<Float64Constant>()->value().get_scalar();
-        if (!IsSafeInteger(value)) return Range::All();
-        int64_t int_value = static_cast<int64_t>(value);
-        return Range{int_value, int_value};
-      }
-      default:
-        return Range::All();
-    }
-  }
 };
 
 class RangeProcessor {

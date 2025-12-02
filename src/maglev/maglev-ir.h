@@ -3417,6 +3417,8 @@ class Identity : public FixedInputValueNodeT<1, Identity> {
 
   explicit Identity(uint64_t bitfield) : Base(bitfield) {}
 
+  Range range() const { return input_node(0)->GetStaticRange(); }
+
   void VerifyInputs() const {
     // Identity is valid for all input types.
   }
@@ -4170,6 +4172,7 @@ class IntPtrConstant : public FixedInputValueNodeT<0, IntPtrConstant> {
   static constexpr OpProperties kProperties = OpProperties::IntPtr();
 
   intptr_t value() const { return value_; }
+  Range range() const { return Range(value_); }
 
   bool ToBoolean(LocalIsolate* local_isolate) const { return value_ != 0; }
 
@@ -4423,6 +4426,7 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
     NodeType type() { return NodeType::k##node_type; }                 \
     __VA_ARGS__                                                        \
                                                                        \
+    Range range() const { return input_node(0)->GetStaticRange(); }    \
     int MaxCallStackArgs() const { return 0; }                         \
     void SetValueLocationConstraints();                                \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
@@ -4450,6 +4454,7 @@ class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
       return ConversionModeBitField::decode(bitfield());               \
     }                                                                  \
                                                                        \
+    Range range() const { return input_node(0)->GetStaticRange(); }    \
     int MaxCallStackArgs() const { return 0; }                         \
     void SetValueLocationConstraints();                                \
     void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
@@ -5411,6 +5416,7 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
 
   Tagged<Smi> value() const { return value_; }
   NodeType type() const { return NodeType::kSmi; }
+  Range range() const { return Range(value_.value()); }
 
   bool ToBoolean(LocalIsolate* local_isolate) const {
     return value_ != Smi::FromInt(0);
@@ -9488,6 +9494,8 @@ class StringLength : public FixedInputValueNodeT<1, StringLength> {
   DECLARE_INPUTS(String)
   DECLARE_INPUT_TYPES(Tagged)
 
+  Range range() const { return Range(0, String::kMaxLength); }
+
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -10249,6 +10257,7 @@ class ReturnedValue : public ValueNodeT<ReturnedValue> {
   explicit ReturnedValue(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::DeferredCall();
+  Range range() const { return input_node(0)->GetStaticRange(); }
   void VerifyInputs() const {
     // It doesn't make sense if the input is already tagged. Otherwise it can be
     // anything.
