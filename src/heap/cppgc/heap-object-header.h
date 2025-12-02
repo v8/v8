@@ -126,9 +126,9 @@ class HeapObjectHeader {
   enum class EncodedHalf : uint8_t { kLow, kHigh };
 
   // Used in |encoded_high_|.
-  using FullyConstructedField = v8::base::BitField16<bool, 0, 1>;
-  using UnusedField1 = FullyConstructedField::Next<bool, 1>;
-  using GCInfoIndexField = UnusedField1::Next<GCInfoIndex, 14>;
+  using GCInfoIndexField = v8::base::BitField16<GCInfoIndex, 0, 14>;
+  using UnusedField1 = GCInfoIndexField::Next<bool, 1>;
+  using FullyConstructedField = UnusedField1::Next<bool, 1>;
   // Used in |encoded_low_|.
   using MarkBitField = v8::base::BitField16<bool, 0, 1>;
   using SizeField =
@@ -196,9 +196,9 @@ HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
   // this write is not observed by the marker, since the sweeper  sets the
   // in-construction bit to 0 and we can rely on that to guarantee a correct
   // answer when checking if objects are in-construction.
-  v8::base::AsAtomicPtr(&encoded_high_)
-      ->store(GCInfoIndexField::encode(gc_info_index),
-              std::memory_order_relaxed);
+  std::atomic_ref<uint16_t>(encoded_high_)
+      .store(GCInfoIndexField::encode(gc_info_index),
+             std::memory_order_relaxed);
   DCHECK(IsInConstruction());
 #ifdef DEBUG
   CheckApiConstants();
