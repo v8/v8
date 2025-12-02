@@ -9559,12 +9559,15 @@ void BigInt::ToWordsArray(int* sign_bit, int* word_count,
 
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemoryImpl(
     int64_t change_in_bytes) {
-  // Try to check for unreasonably large or small values from the embedder.
-  static constexpr int64_t kMaxReasonableBytes = int64_t(1) << 60;
-  static constexpr int64_t kMinReasonableBytes = -kMaxReasonableBytes;
-  static_assert(kMaxReasonableBytes >= i::JSArrayBuffer::kMaxByteLength);
-  CHECK(kMinReasonableBytes <= change_in_bytes &&
-        change_in_bytes < kMaxReasonableBytes);
+  // Try to check for unreasonably large or small values from the embedder;
+  if (i::v8_flags.external_memory_max_reasonable_size > 0) {
+    const int64_t kMaxReasonableBytes =
+        static_cast<int64_t>(i::v8_flags.external_memory_max_reasonable_size) *
+        internal::GB;
+    const int64_t kMinReasonableBytes = -kMaxReasonableBytes;
+    CHECK_LE(kMinReasonableBytes, change_in_bytes);
+    CHECK_LT(change_in_bytes, kMaxReasonableBytes);
+  }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   const uint64_t amount =

@@ -2537,6 +2537,9 @@ DEFINE_FLOAT(
     external_memory_max_growing_factor, 1.3,
     "When external memory limits are computed as poart of the global limits,"
     "this is the upper bound for growing factor imposed on external memory.")
+DEFINE_INT(external_memory_max_reasonable_size, 32,
+           "Max external memory value (in GB) checked for a reasonable size, 0 "
+           "to disable the check.")
 DEFINE_BOOL(gc_speed_uses_counters, false,
             "Old gen GC speed is computed directly from gc tracer counters.")
 DEFINE_INT(heap_growing_percent, 0,
