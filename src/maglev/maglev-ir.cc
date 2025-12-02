@@ -622,7 +622,10 @@ Tribool ValueNode::IsTheHole() const {
     return ToTribool(cst->index() == RootIndex::kTheHoleValue);
   }
   if (const LoadFixedArrayElement* load = TryCast<LoadFixedArrayElement>()) {
-    return ToTribool(load->load_type() == LoadType::kUnknown);
+    if (load->load_type() != LoadType::kUnknown) {
+      return Tribool::kFalse;
+    }
+    return Tribool::kMaybe;
   }
   if (const Phi* phi = TryCast<Phi>()) {
     if (!phi->is_loop_phi()) {
