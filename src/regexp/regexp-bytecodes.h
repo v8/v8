@@ -29,22 +29,25 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
 // Basic operand types that have a direct mapping to a C-type.
 // Getters/Setters for these are fully auto-generated.
 // Format: V(Name, C type)
-#define BASIC_BYTECODE_OPERAND_TYPE_LIST(V)               \
-  V(Int16, int16_t)                                       \
-  V(Int32, int32_t)                                       \
-  V(Uint32, uint32_t)                                     \
-  V(Char, base::uc16)                                     \
-  V(JumpTarget, uint32_t)                                 \
-  V(Offset, int16_t)                                      \
-  V(Register, uint16_t)                                   \
-  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag) \
+#define BASIC_BYTECODE_OPERAND_TYPE_LIST(V)                                  \
+  V(Int16, int16_t)                                                          \
+  V(Int32, int32_t)                                                          \
+  V(Uint32, uint32_t)                                                        \
+  V(Char, base::uc16)                                                        \
+  V(JumpTarget, uint32_t)                                                    \
+  V(Offset, int16_t)                                                         \
+  /* TODO(433891213): Only for backwards-compatibility. Can be replaced with \
+     Offset once the old format is removed. */                               \
+  V(Offset32, int32_t)                                                       \
+  V(Register, uint16_t)                                                      \
+  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag)                    \
   V(StandardCharacterSet, StandardCharacterSet)
 
 // Special operand types that don't have a direct mapping to a C-type.
 // Getters/Setters for these types need to be specialized manually.
 #define SPECIAL_BYTECODE_OPERAND_TYPE_LIST(V)                              \
   V(BitTable, 16)                                                          \
-  /* TODO(pthier): padding is only required for backwards compatibility    \
+  /* TODO(433891213): padding is only required for backwards compatibility \
   with the old layout. It can be removed after everything is using the new \
   layout. */                                                               \
   V(Padding1, 1)                                                           \
@@ -81,7 +84,8 @@ using ReBcOpType = RegExpBytecodeOperandType;
   V(PushCurrentPosition, PUSH_CP, (), ())                                      \
   V(PushBacktrack, PUSH_BT, (on_bt_pushed), (ReBcOpType::kJumpTarget))         \
   V(WriteCurrentPositionToRegister, SET_REGISTER_TO_CP,                        \
-    (register_index, cp_offset), (ReBcOpType::kRegister, ReBcOpType::kOffset)) \
+    (register_index, cp_offset),                                               \
+    (ReBcOpType::kRegister, ReBcOpType::kOffset32))                            \
   V(ReadCurrentPositionFromRegister, SET_CP_TO_REGISTER, (register_index),     \
     (ReBcOpType::kRegister))                                                   \
   V(WriteStackPointerToRegister, SET_REGISTER_TO_SP, (register_index),         \
@@ -94,7 +98,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   V(ClearRegisters, CLEAR_REGISTERS, (padding, from_register, to_register),    \
     (ReBcOpType::kPadding2, ReBcOpType::kRegister, ReBcOpType::kRegister))     \
   V(AdvanceRegister, ADVANCE_REGISTER, (register_index, by),                   \
-    (ReBcOpType::kRegister, ReBcOpType::kOffset))                              \
+    (ReBcOpType::kRegister, ReBcOpType::kOffset32))                            \
   V(PopCurrentPosition, POP_CP, (), ())                                        \
   /* TODO(pthier): PushRegister fits into 4 byte once the restrictions due */  \
   /* to the old layout are lifted                                          */  \
