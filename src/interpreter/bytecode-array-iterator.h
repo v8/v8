@@ -153,6 +153,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   Runtime::FunctionId GetIntrinsicIdOperand(int operand_index) const;
   uint32_t GetNativeContextIndexOperand(int operand_index) const;
   AbortReason GetAbortReasonOperand(int operand_index) const;
+  Tagged<Object> GetConstantAtIndex(int offset) const;
   Handle<Object> GetConstantAtIndex(int offset, Isolate* isolate) const;
   Handle<Object> GetConstantAtIndex(int offset, LocalIsolate* isolate) const;
   Tagged<Smi> GetConstantAtIndexAsSmi(int offset) const;

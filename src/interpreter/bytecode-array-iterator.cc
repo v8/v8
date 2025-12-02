@@ -314,18 +314,27 @@ AbortReason BytecodeArrayIterator::GetAbortReasonOperand(
       GetUnsignedOperand(operand_index, operand_type));
 }
 
+Tagged<Object> BytecodeArrayIterator::GetConstantAtIndex(int index) const {
+  Tagged<TrustedFixedArray> constant_pool = bytecode_array()->constant_pool();
+  CHECK_WITH_MSG(base::IsInHalfOpenRange(index, 0, constant_pool->length()),
+                 "Constant pool index out of bounds");
+  return constant_pool->get(index);
+}
+
 Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
     int index, Isolate* isolate) const {
-  return handle(bytecode_array()->constant_pool()->get(index), isolate);
+  return handle(GetConstantAtIndex(index), isolate);
 }
 
 Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
     int index, LocalIsolate* isolate) const {
-  return handle(bytecode_array()->constant_pool()->get(index), isolate);
+  return handle(GetConstantAtIndex(index), isolate);
 }
 
 Tagged<Smi> BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
-  return Cast<Smi>(bytecode_array()->constant_pool()->get(index));
+  Tagged<Object> object = GetConstantAtIndex(index);
+  CHECK_WITH_MSG(IsSmi(object), "Constant pool entry is not a Smi");
+  return Cast<Smi>(object);
 }
 
 Handle<Object> BytecodeArrayIterator::GetConstantForOperand(

@@ -55,7 +55,7 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
       max_arguments, constant_pool, handler_table);
 
-  BytecodeVerifier::Verify(isolate, bytecode_array);
+  BytecodeVerifier::Verify(isolate, bytecode_array, zone());
 
   return bytecode_array;
 }

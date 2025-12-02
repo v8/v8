@@ -154,6 +154,7 @@ class BytecodeArray : public ExposedTrustedObject {
 
  private:
   friend class BytecodeVerifier;
+  friend class NoOpBytecodeVerifier;
 
   // Mark this BytecodeArray as successfully verified. Must only be called by
   // the BytecodeVerifier after successful verification.

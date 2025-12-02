@@ -118,6 +118,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   ConstantArrayBuilder* constant_array_builder() {
     return constant_array_builder_;
   }
+  Zone* zone() { return bytecodes_.zone(); }
 
   ZoneVector<uint8_t> bytecodes_;
   int unbound_jumps_;
