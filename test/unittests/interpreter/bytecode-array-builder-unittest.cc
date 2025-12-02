@@ -464,7 +464,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .ForInStep(reg);
 
   // Wide constant pool loads
-  for (int i = 0; i < 256; i++) {
+  for (int i = 0; i < 1024; i++) {
     // Emit junk in constant pool to force wide constant pool index.
     builder.LoadLiteral(2.5321 + i);
   }
