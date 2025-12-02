@@ -355,8 +355,8 @@ class RangeProcessor {
     return ProcessResult::kContinue;
   }
   ProcessResult Process(Int32ShiftRightLogical* node, const ProcessingState&) {
-    UnionUpdateInt32(node, Range::ShiftRightLogical(Get(node->input_node(0)),
-                                                    Get(node->input_node(1))));
+    UnionUpdateUint32(node, Range::ShiftRightLogical(Get(node->input_node(0)),
+                                                     Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
 
@@ -459,6 +459,14 @@ class RangeProcessor {
     DCHECK_NOT_NULL(current_block_);
     ranges_.UnionUpdate(current_block_, node,
                         range.IsInt32() ? range : Range::Int32());
+  }
+
+  void UnionUpdateUint32(ValueNode* node, Range range) {
+    // WARNING: This entails that the current range analysis cannot be used to
+    // identify truncation, since we always intersect Int32 operations range.
+    DCHECK_NOT_NULL(current_block_);
+    ranges_.UnionUpdate(current_block_, node,
+                        Range::Intersect(Range::Uint32(), range));
   }
 
   void ProcessPhis(BasicBlock* block, BasicBlock* pred) {
