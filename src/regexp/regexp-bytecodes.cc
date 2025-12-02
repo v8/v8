@@ -36,11 +36,13 @@ void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,
 
   ptrdiff_t offset = 0;
 
+  // TODO(pthier): Consider using the RegExpBytecodeIterator.
   while (offset < length) {
     const uint8_t* const pc = code_base + offset;
     PrintF("%p  %4" V8PRIxPTRDIFF "  ", pc, offset);
     RegExpBytecodeDisassembleSingle(code_base, pc);
-    offset += RegExpBytecodeLength(*pc);
+    int bytecode = *reinterpret_cast<const int32_t*>(pc) & BYTECODE_MASK;
+    offset += RegExpBytecodeLength(bytecode);
   }
 }
 

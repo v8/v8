@@ -22,12 +22,17 @@ void RegExpBytecodeIterator::advance() {
 
 RegExpBytecode RegExpBytecodeIterator::current_bytecode() const {
   DCHECK(!done());
-  return RegExpBytecodes::FromByte(*cursor_);
+  // TODO(433891213): Once we removed packing the first arg with the bytecode,
+  // we can simply read the current byte to get the bytecode.
+  // For now we need to read 4-byte to not break big-endian platforms.
+  DCHECK_LE(cursor_ + sizeof(uint32_t), end_);
+  uint32_t bytecode = *reinterpret_cast<uint32_t*>(cursor_) & BYTECODE_MASK;
+  return RegExpBytecodes::FromByte(bytecode);
 }
 
 uint8_t RegExpBytecodeIterator::current_size() const {
   DCHECK(!done());
-  return RegExpBytecodes::Size(*cursor_);
+  return RegExpBytecodes::Size(current_bytecode());
 }
 
 int RegExpBytecodeIterator::current_offset() const {
