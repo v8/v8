@@ -1239,7 +1239,7 @@ class MaglevGraphBuilder {
   template <bool flip = false>
   ReduceResult BuildToBoolean(ValueNode* node);
   ReduceResult BuildLogicalNot(ValueNode* value);
-  ValueNode* BuildTestUndetectable(ValueNode* value);
+  ReduceResult BuildTestUndetectable(ValueNode* value);
   ReduceResult BuildToNumberOrToNumeric(Object::Conversion mode);
 
   enum class TrackObjectMode { kLoad, kStore };
@@ -1776,6 +1776,7 @@ class MaglevGraphBuilder {
     BranchResult FromBool(bool value) const;
     BranchResult AlwaysTrue() const { return FromBool(true); }
     BranchResult AlwaysFalse() const { return FromBool(false); }
+    static BranchResult Abort() { return BranchResult::kAbort; }
 
     template <typename NodeT, typename... Args>
     BranchResult Build(std::initializer_list<ValueNode*> inputs,

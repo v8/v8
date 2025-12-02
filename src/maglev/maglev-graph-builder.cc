@@ -3489,7 +3489,7 @@ ReduceResult MaglevGraphBuilder::VisitTestReferenceEqual() {
   return SetAccumulator(BuildTaggedEqual(lhs, rhs));
 }
 
-ValueNode* MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
+ReduceResult MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
   if (value->properties().value_representation() ==
       ValueRepresentation::kHoleyFloat64) {
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
@@ -3529,12 +3529,17 @@ ValueNode* MaglevGraphBuilder::BuildTestUndetectable(ValueNode* value) {
   }
 
   enum CheckType type = GetCheckType(node_type);
-  return AddNewNodeNoInputConversion<TestUndetectable>({value}, type);
+  return AddNewNode<TestUndetectable>({value}, type);
 }
 
 MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfUndetectable(
     BranchBuilder& builder, ValueNode* value) {
-  ValueNode* result = BuildTestUndetectable(value);
+  ReduceResult test_result = BuildTestUndetectable(value);
+  if (test_result.IsDoneWithAbort()) {
+    return builder.Abort();
+  }
+  ValueNode* result;
+  GET_VALUE(result, test_result);
   switch (result->opcode()) {
     case Opcode::kRootConstant:
       switch (result->Cast<RootConstant>()->index()) {
@@ -3565,8 +3570,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfUndetectable(
 }
 
 ReduceResult MaglevGraphBuilder::VisitTestUndetectable() {
-  SetAccumulator(BuildTestUndetectable(GetAccumulator()));
-  return ReduceResult::Done();
+  return SetAccumulator(BuildTestUndetectable(GetAccumulator()));
 }
 
 ReduceResult MaglevGraphBuilder::VisitTestNull() {
@@ -13554,7 +13558,8 @@ ReduceResult MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
 
   NodeType value_type;
   if (CheckType(value, NodeType::kJSReceiver, &value_type)) {
-    ValueNode* result = BuildTestUndetectable(value);
+    ValueNode* result;
+    GET_VALUE_OR_ABORT(result, BuildTestUndetectable(value));
     // TODO(victorgomes): Check if it is worth to create
     // TestUndetectableLogicalNot or to remove ToBooleanLogicalNot, since we
     // already optimize LogicalNots by swapping the branches.
