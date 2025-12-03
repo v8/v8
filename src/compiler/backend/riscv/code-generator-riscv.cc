@@ -249,6 +249,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                                             : SaveFPRegsMode::kIgnore;
     if (must_save_ra_) {
       // We need to save and restore ra if the frame was elided.
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+      __ sspush_ra();
+#endif
       __ Push(ra);
     }
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
@@ -270,6 +273,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }
     if (must_save_ra_) {
       __ Pop(ra);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+      __ sspopchk_ra();
+#endif
     }
   }
 
@@ -308,6 +314,9 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
 
     if (must_save_ra_) {
       // We need to save and restore ra if the frame was elided.
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+      __ sspush_ra();
+#endif
       __ Push(ra);
     }
 
@@ -320,6 +329,9 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
 
     if (must_save_ra_) {
       __ Pop(ra);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+      __ sspopchk_ra();
+#endif
     }
   }
 
@@ -687,12 +699,18 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
 void CodeGenerator::AssembleDeconstructFrame() {
   __ Move(sp, fp);
   __ Pop(ra, fp);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspopchk_ra();
+#endif
 }
 
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
     __ LoadWord(ra, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
     __ LoadWord(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+    __ sspopchk_ra();
+#endif
   }
   frame_access_state()->SetFrameAccessToSP();
 }
@@ -5038,8 +5056,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // Reserve stack space for saving the c_entry_fp later.
         __ SubWord(sp, sp, Operand(kSystemPointerSize));
       } else {
-        __ Push(ra, fp);
-        __ Move(fp, sp);
+        __ PushCommonFrame(Register::no_reg());
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();

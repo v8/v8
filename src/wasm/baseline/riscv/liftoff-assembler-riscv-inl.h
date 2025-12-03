@@ -60,6 +60,9 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   // Set the new stack and frame pointer.
   AddWord(sp, fp, -stack_param_delta * kSystemPointerSize);
   Pop(ra, fp);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  sspopchk_ra();
+#endif
 }
 
 void LiftoffAssembler::AlignFrameSize() {}
@@ -2530,7 +2533,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
                 std::end(wasm::kGpParamRegisters));
 #endif
 
-  // On MIPS64, we must push at least {ra} before calling the stub, otherwise
+  // On RISCV64, we must push at least {ra} before calling the stub, otherwise
   // it would get clobbered with no possibility to recover it. So just set
   // up the frame here.
   EnterFrame(StackFrame::WASM);

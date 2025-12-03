@@ -100,12 +100,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   using MacroAssemblerBase::MacroAssemblerBase;
 
   // Activation support.
-  void EnterFrame(StackFrame::Type type);
+  enum ShadowStackStatus { kPush, kNoPush };
+  void EnterFrame(StackFrame::Type type, ShadowStackStatus ss = kPush);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
     // Out-of-line constant pool not implemented on RISC-V.
     UNREACHABLE();
   }
   void LeaveFrame(StackFrame::Type type);
+  // Push a fixed frame, consisting of ra, fp.
+  void PushCommonFrame(Register marker_reg = no_reg);
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
@@ -1991,9 +1994,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   template <typename TruncFunc>
   void RoundFloatingPointToInteger(Register rd, FPURegister fs, Register result,
                                    TruncFunc trunc);
-
-  // Push a fixed frame, consisting of ra, fp.
-  void PushCommonFrame(Register marker_reg = no_reg);
 
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,

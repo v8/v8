@@ -760,7 +760,8 @@ class DebugInfoImpl {
     }
 #else
     PointerAuthentication::ReplacePC(frame->pc_address(), new_pc,
-                                     kSystemPointerSize);
+                                     kSystemPointerSize,
+                                     frame->iteration_depth());
 #endif
     // The frame position should still be the same after OSR.
     DCHECK_EQ(old_position, frame->position());

@@ -8483,7 +8483,13 @@ void Simulator::PushShadowStack(uintptr_t value) {
   }
   csr_ssp_ = csr_ssp_ - 1;
   shadow_stack_[csr_ssp_] = value;
-  SNPrintF(trace_buf_, "%016" PRIuPTR "    (%" PRId64 ")", value, icount_);
+  if (v8_flags.trace_shadowstack) {
+    PrintF("PushShadowStack  %016" REGIx_FORMAT "    (%" PRId64
+           ")    ssp:%zu\n",
+           value, icount_, csr_ssp_);
+  }
+  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu",
+           value, icount_, csr_ssp_);
   return;
 }
 
@@ -8493,15 +8499,34 @@ uintptr_t Simulator::PopShadowStack(uintptr_t value) {
   auto temp = shadow_stack_[csr_ssp_];
   if (temp != value) {
     if (v8_flags.sim_abort_on_shadowstack_mismatch) {
+      PrintF("PopShadowStack %016" REGIx_FORMAT "    (%" PRId64
+             ")    ssp:%zu\n",
+             temp, icount_, csr_ssp_);
       FATAL("RISC-V ShadowStack mismatch");
     } else {
       ss_mismatch_count_ += 1;
+      csr_ssp_ += 1;
     }
   } else {
     csr_ssp_ += 1;
   }
-  SNPrintF(trace_buf_, "%016" PRIuPTR "    (%" PRId64 ")", value, icount_);
+  if (v8_flags.trace_shadowstack) {
+    PrintF("PopShadowStack  %016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu\n",
+           temp, icount_, csr_ssp_ - 1);
+  }
+  SNPrintF(trace_buf_, "%016" REGIx_FORMAT "    (%" PRId64 ")    ssp:%zu", temp,
+           icount_, csr_ssp_ - 1);
   return temp;
+}
+
+uintptr_t Simulator::SwapShadowStack(uintptr_t value, int nest) {
+  CHECK_GE(nest, 0);
+  auto pop_value = shadow_stack_[csr_ssp_ + nest];
+  shadow_stack_[csr_ssp_ + nest] = value;
+  if (v8_flags.trace_shadowstack) {
+    PrintF("SwapShadowStack: old=%016lx, new=%016lx\n", pop_value, value);
+  }
+  return pop_value;
 }
 
 #ifdef V8_TARGET_ARCH_RISCV64

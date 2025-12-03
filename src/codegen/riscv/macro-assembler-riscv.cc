@@ -207,6 +207,9 @@ void MacroAssembler::LoadCompressedTaggedRoot(Register destination,
 }
 
 void MacroAssembler::PushCommonFrame(Register marker_reg) {
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  sspush_ra();
+#endif
   if (marker_reg.is_valid()) {
     Push(ra, fp, marker_reg);
     AddWord(fp, sp, Operand(kSystemPointerSize));
@@ -218,6 +221,9 @@ void MacroAssembler::PushCommonFrame(Register marker_reg) {
 
 void MacroAssembler::PushStandardFrame(Register function_reg) {
   int offset = -StandardFrameConstants::kContextOffset;
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  sspush_ra();
+#endif
   if (function_reg.is_valid()) {
     Push(ra, fp, cp, function_reg, kJavaScriptCallArgCountRegister);
     offset += 2 * kSystemPointerSize;
@@ -828,6 +834,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
 
   // Record the actual write.
   if (ra_status == kRAHasNotBeenSaved) {
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+    sspush_ra();
+#endif
     push(ra);
   }
   Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
@@ -845,6 +854,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   }
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+    sspopchk_ra();
+#endif
   }
   if (v8_flags.slow_debug_code) li(slot_address, Operand(kZapValue));
 
@@ -4462,6 +4474,9 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 
   // If we fell through then inline version didn't succeed - call stub
   // instead.
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  sspush_ra();
+#endif
   push(ra);
   SubWord(sp, sp, Operand(kDoubleSize));  // Put input on stack.
   fsd(double_input, sp, 0);
@@ -4479,7 +4494,9 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 
   AddWord(sp, sp, Operand(kDoubleSize));
   pop(ra);
-
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  sspopchk_ra();
+#endif
   bind(&done);
 }
 
@@ -6729,11 +6746,16 @@ void MacroAssembler::StubPrologue(StackFrame::Type type) {
 
 void MacroAssembler::Prologue() { PushStandardFrame(a1); }
 
-void MacroAssembler::EnterFrame(StackFrame::Type type) {
+void MacroAssembler::EnterFrame(StackFrame::Type type, ShadowStackStatus ss) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   BlockPoolsScope block_pools(this);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  if (ss == ShadowStackStatus::kPush) {
+    sspush_ra();
+  }
+#endif
   Push(ra, fp);
   Move(fp, sp);
   if (!StackFrame::IsJavaScript(type)) {
@@ -6752,6 +6774,9 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   AddWord(sp, fp, 2 * kSystemPointerSize);
   LoadWord(ra, MemOperand(fp, 1 * kSystemPointerSize));
   LoadWord(fp, MemOperand(fp, 0 * kSystemPointerSize));
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  sspopchk_ra();
+#endif
 }
 
 void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
@@ -6780,6 +6805,9 @@ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
   // Save registers and reserve room for saved entry sp.
   AddWord(sp, sp,
           -2 * kSystemPointerSize - ExitFrameConstants::kFixedFrameSizeFromFp);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  sspush_ra();
+#endif
   StoreWord(ra, MemOperand(sp, 3 * kSystemPointerSize));
   StoreWord(fp, MemOperand(sp, 2 * kSystemPointerSize));
 
@@ -6833,7 +6861,9 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   Mv(sp, fp);  // Respect ABI stack constraint.
   LoadWord(fp, MemOperand(sp, ExitFrameConstants::kCallerFPOffset));
   LoadWord(ra, MemOperand(sp, ExitFrameConstants::kCallerPCOffset));
-
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  sspopchk_ra();
+#endif
   AddWord(sp, sp, 2 * kSystemPointerSize);
 }
 

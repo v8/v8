@@ -1,15 +1,21 @@
-// Copyright 2020 the V8 project authors. All rights reserved.
+// Copyright 2025 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_EXECUTION_POINTER_AUTHENTICATION_DUMMY_H_
-#define V8_EXECUTION_POINTER_AUTHENTICATION_DUMMY_H_
+#ifndef V8_EXECUTION_RISCV_SHADOW_STACK_RISCV_H_
+#define V8_EXECUTION_RISCV_SHADOW_STACK_RISCV_H_
 
 #include "include/v8-internal.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/execution/isolate.h"
 #include "src/execution/pointer-authentication.h"
+#include "src/execution/simulator.h"
 #include "src/flags/flags.h"
+
+#ifndef V8_ENABLE_RISCV_SHADOW_STACK
+#error "V8_ENABLE_RISCV_SHADOW_STACK should imply V8_TARGET_ARCH_RISCV"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -26,10 +32,12 @@ V8_INLINE Address PointerAuthentication::AuthenticatePC(Address* pc_address,
 // Return {pc} unmodified.
 V8_INLINE Address PointerAuthentication::StripPAC(Address pc) { return pc; }
 
-// Store {new_pc} to {pc_address} without signing.
+void RelaceShadowStack(Address* pc_address, Address new_pc, int nest);
+
 V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
-                                                Address new_pc, int, int) {
-  *pc_address = new_pc;
+                                                Address new_pc, int,
+                                                int num_frames_above) {
+  RelaceShadowStack(pc_address, new_pc, num_frames_above);
 }
 
 // Return {pc} unmodified.
@@ -52,4 +60,4 @@ V8_INLINE Address PointerAuthentication::MoveSignedPC(Isolate*, Address pc,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_EXECUTION_POINTER_AUTHENTICATION_DUMMY_H_
+#endif  // V8_EXECUTION_RISCV_SHADOW_STACK_RISCV_H_

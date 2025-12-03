@@ -2781,6 +2781,8 @@ DEFINE_BOOL(
 DEFINE_BOOL(sim_abort_on_shadowstack_mismatch, true,
             "Stop execution when shadowstack match fails in the "
             "riscv simulator.")
+DEFINE_BOOL(trace_shadowstack, false,
+            "Trace shadowstack operations in the riscv simulator.")
 #endif
 #endif
 

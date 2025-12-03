@@ -695,9 +695,13 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
     // Save callee-saved FPU registers.
     __ MultiPushFPU(kCalleeSavedFPU);
+
     // Save callee saved registers on the stack.
     __ MultiPush(kCalleeSaved);
-    __ Push(ra);
+    __ Push(ra);  // shadow_stack need push ra last.
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+    __ sspush_ra();
+#endif
     // Set up the reserved register for 0.0.
     __ LoadFPRImmediate(kDoubleRegZero, 0.0);
     __ LoadFPRImmediate(kSingleRegZero, 0.0f);
@@ -853,6 +857,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ AddWord(sp, sp, -EntryFrameConstants::kNextExitFrameFPOffset);
 
   __ Pop(ra);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspopchk_ra();
+#endif
   // Restore callee saved registers from the stack.
   __ MultiPop(kCalleeSaved);
   // Restore callee-saved fpu registers.
@@ -2016,6 +2023,9 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   __ AddWord(sp, sp,
              Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   __ Pop(ra);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspopchk_ra();
+#endif
   __ LoadEntryFromBuiltinIndex(t6, t6);
   __ Jump(t6);
 }
@@ -2048,6 +2058,7 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), a0.code());
   __ LoadWord(a0, MemOperand(sp, 0 * kSystemPointerSize));
   __ AddWord(sp, sp, Operand(1 * kSystemPointerSize));  // Remove state.
+
   __ Ret();
 }
 
@@ -3212,6 +3223,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ StoreWord(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
 
   SaveWasmParams(masm);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspush_ra();
+#endif
   __ Push(ra);
 
   // Arguments to the runtime function: instance data, func_index, and an
@@ -3224,6 +3238,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
 
   // Restore registers and frame type.
   __ Pop(ra);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspopchk_ra();
+#endif
   RestoreWasmParams(masm);
   __ LoadWord(kWasmImplicitArgRegister,
               MemOperand(fp, WasmFrameConstants::kWasmInstanceDataOffset));
@@ -3495,6 +3512,26 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ StoreWord(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ bind(&zero);
 
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  // Stack unwinding and popchk shadow stack  before function return.
+  // The num_frames_above_handler been modified in
+  // Runtime::kUnwindAndFindExceptionHandler.
+  ER num_frames_above_pending_handler_address = ER::Create(
+      IsolateAddressId::kNumFramesAbovePendingHandlerAddress, masm->isolate());
+  __ LoadWord(t1,
+              __ AsMemOperand(IsolateFieldId::kNumFramesAbovePendingHandler));
+  Label popchk_start;
+  __ LoadWord(scratch, __ AsMemOperand(IsolateFieldId::kCEntryFP));
+
+  __ bind(&popchk_start);
+  __ SubWord(t1, t1, Operand(1));
+  __ LoadWord(t0, MemOperand(scratch, ExitFrameConstants::kCallerPCOffset));
+  __ sspopchk_t0();
+  __ LoadWord(scratch,
+              MemOperand(scratch, ExitFrameConstants::kCallerFPOffset));
+  __ Branch(&popchk_start, gt, t1, Operand(zero_reg));
+#endif
+
   // Clear c_entry_fp, like we do in `LeaveExitFrame`.
   __ StoreWord(zero_reg, __ AsMemOperand(IsolateFieldId::kCEntryFP));
 
@@ -3757,6 +3794,12 @@ void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc,
                     Register tmp) {
   ASM_CODE_COMMENT(masm);
   SwitchStackPointerAndSimulatorStackLimit(masm, stack);
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  if (load_pc) {
+    __ LoadWord(t0, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
+    __ sspopchk_t0();
+  }
+#endif
   __ LoadWord(fp, MemOperand(stack, wasm::kStackFpOffset));
   if (load_pc) {
     __ LoadWord(tmp, MemOperand(stack, wasm::kStackPcOffset));
@@ -4106,7 +4149,8 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
   // so we could also push 0 directly. In any case we need to push it,
   // because this marks the base of the stack segment for
   // the stack frame iterator.
-  __ EnterFrame(StackFrame::WASM_JSPI);
+  __ EnterFrame(StackFrame::WASM_JSPI,
+                MacroAssembler::ShadowStackStatus::kNoPush);
 
   int stack_space =
       RoundUp(WasmJspiFrameConstants::kNumSpillSlots * kSystemPointerSize +
@@ -4710,22 +4754,26 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // have to do that here. Any caller must drop kCArgsSlotsSize stack space
   // after the call.
   __ AddWord(sp, sp, -kCArgsSlotsSize);
-
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspush_ra();
+#endif
   __ StoreWord(ra,
                MemOperand(sp, kCArgsSlotsSize));  // Store the return address.
   __ Call(t6);                                    // Call the C++ function.
-  __ LoadWord(t6, MemOperand(sp, kCArgsSlotsSize));  // Return to calling code.
-
+  __ LoadWord(ra, MemOperand(sp, kCArgsSlotsSize));  // Return to calling code.
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspopchk_ra();
+#endif
   if (v8_flags.debug_code && v8_flags.enable_slow_asserts) {
     // In case of an error the return address may point to a memory area
     // filled with kZapValue by the GC. Dereference the address and check for
     // this.
-    __ LoadWord(a4, MemOperand(t6));
+    __ LoadWord(a4, MemOperand(ra));
     __ Assert(ne, AbortReason::kReceivedInvalidReturnAddress, a4,
               Operand(kZapValue));
   }
 
-  __ Jump(t6);
+  __ Jump(ra);
 }
 
 namespace {
@@ -4930,6 +4978,21 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ AddWord(a4, a4, Operand(kSystemPointerSize));
   __ bind(&outer_loop_header);
   __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
+
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ LoadWord(a6, MemOperand(a0, Deoptimizer::shadow_stack_count_offset()));
+  __ LoadWord(a7, MemOperand(a0, Deoptimizer::shadow_stack_offset()));
+  __ AddWord(a5, a6, Operand(-1));
+  Label shadow_push_start, shadow_push_end;
+  __ bind(&shadow_push_start);
+  __ Branch(&shadow_push_end, lt, a5, Operand(zero_reg));
+  __ CalcScaledAddress(t0, a7, a5, kSystemPointerSizeLog2);
+  __ LoadWord(t0, MemOperand(t0, 0));
+  __ sspush_t0();
+  __ SubWord(a5, a5, Operand(1));
+  __ Branch(&shadow_push_start);
+  __ bind(&shadow_push_end);
+#endif
 
   // In case of a failed STUB, we have to restore the double and simd128.
   // registers.

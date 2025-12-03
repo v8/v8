@@ -730,8 +730,8 @@ TEST_F(AssemblerRISCV64Test, RISCVZicfiss) {
 
   {
     auto fn = [](MacroAssembler& assm) {
-      __ sspush_x1();
-      __ sspopchk_x1();
+      __ sspush_ra();
+      __ sspopchk_ra();
     };
     GenAndRunTest(fn);
   }
@@ -739,11 +739,11 @@ TEST_F(AssemblerRISCV64Test, RISCVZicfiss) {
     auto fn = [](MacroAssembler& assm) {
       for (int i = 0; i <= kInitialShadowStackSize + 1000; i++) {
         __ li(t0, i);
-        __ sspush_x5();
+        __ sspush_t0();
       }
       for (int i = kInitialShadowStackSize + 1000; i >= 0; i--) {
         __ li(t0, i);
-        __ sspopchk_x5();
+        __ sspopchk_t0();
       }
     };
     GenAndRunTest(fn);
@@ -760,9 +760,9 @@ TEST_F(AssemblerRISCV64Test, RISCVZicfiss_popchk) {
   {
     auto fn = [](MacroAssembler& assm) {
       __ li(t0, -1);
-      __ sspush_x5();
+      __ sspush_t0();
       __ li(t0, 0);
-      __ sspopchk_x5();
+      __ sspopchk_t0();
     };
     GenAndRunTest(fn);
   }
@@ -781,13 +781,13 @@ TEST_F(AssemblerRISCV64Test, RISCVZicfiss_popchk2) {
   {
     auto fn = [](MacroAssembler& assm) {
       __ li(t0, -1);
-      __ sspush_x5();
+      __ sspush_t0();
       __ li(t0, 0);
-      __ sspush_x5();
+      __ sspush_t0();
 
-      __ sspopchk_x5();
+      __ sspopchk_t0();
       __ li(t0, 3);
-      __ sspopchk_x5();
+      __ sspopchk_t0();
     };
     GenAndRunTest(fn);
   }

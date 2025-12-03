@@ -146,7 +146,7 @@ class Deoptimizer : public Malloced {
     return offsetof(Deoptimizer, caller_frame_top_);
   }
 
-#ifdef V8_ENABLE_CET_SHADOW_STACK
+#if defined(V8_ENABLE_CET_SHADOW_STACK) || defined(V8_ENABLE_RISCV_SHADOW_STACK)
   static constexpr int shadow_stack_offset() {
     return offsetof(Deoptimizer, shadow_stack_);
   }
@@ -319,7 +319,7 @@ class Deoptimizer : public Malloced {
   std::vector<ValueToMaterialize> values_to_materialize_;
   std::vector<ValueToMaterialize> feedback_vector_to_materialize_;
 
-#ifdef V8_ENABLE_CET_SHADOW_STACK
+#if defined(V8_ENABLE_CET_SHADOW_STACK) || defined(V8_ENABLE_RISCV_SHADOW_STACK)
   intptr_t* shadow_stack_ = nullptr;
   size_t shadow_stack_count_ = 0;
 #endif  // V8_ENABLE_CET_SHADOW_STACK

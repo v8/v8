@@ -1615,6 +1615,13 @@ config("toolchain") {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
       defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
     }
+
+    if (riscv_use_zicfiss) {
+      defines += [ "V8_ENABLE_RISCV_SHADOW_STACK" ]
+    }
+    if (riscv_use_zicond) {
+      defines += [ "__riscv_zicond" ]
+    }
     if (riscv_use_zba) {
       defines += [ "__riscv_zba" ]
     }
@@ -5074,6 +5081,11 @@ v8_header_set("v8_internal_headers") {
         "src/baseline/riscv/baseline-compiler-riscv-inl.h",
       ]
     }
+
+    if (riscv_use_zicfiss) {
+      sources += [ "src/execution/riscv/shadow-stack-riscv.h" ]
+    }
+
     if (v8_enable_webassembly) {
       # Trap handling is enabled on riscv64 Linux and in simulators on
       # x64 on Linux.
@@ -6455,6 +6467,9 @@ v8_source_set("v8_base_without_compiler") {
       }
       if (current_cpu == "x64" && is_linux) {
         sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
+      }
+      if (riscv_use_zicfiss) {
+        sources += [ "src/execution/riscv/shadow-stack-riscv.cc" ]
       }
     }
   } else if (v8_current_cpu == "riscv32") {

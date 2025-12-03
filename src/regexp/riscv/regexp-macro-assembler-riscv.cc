@@ -820,6 +820,9 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
 
   // According to MultiPush implementation, registers will be pushed in the
   // order of ra, fp, then s8, ..., s1, and finally a7,...a0
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspush_ra();
+#endif
   __ MultiPush(RegList{ra} | registers_to_retain);
 
   // Set frame pointer in space for it if this is not a direct call
@@ -1050,7 +1053,9 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
 
   // Restore registers fp..s11 and return (restoring ra to pc).
   __ MultiPop(registers_to_retain | ra);
-
+#ifdef V8_ENABLE_RISCV_SHADOW_STACK
+  __ sspopchk_ra();
+#endif
   __ Ret();
 
   // Backtrack code (branch target for conditional backtracks).

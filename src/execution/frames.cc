@@ -237,7 +237,6 @@ void StackFrameIterator::Advance() {
     while (!it.done()) it.Advance();
     handler_ = it.handler();
   }
-
   // Advance to the calling frame.
   SetNewFrame(type, &state);
   // When we're done iterating over the stack frames, the handler
