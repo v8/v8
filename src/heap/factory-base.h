@@ -146,7 +146,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
-      int length, AllocationType allocation = AllocationType::kYoung,
+      uint32_t length, AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
 
   // Allocates a trusted fixed array in trusted space, initialized with zeros.
@@ -165,17 +165,17 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Allocate a new fixed array with non-existing entries (the hole).
   Handle<FixedArray> NewFixedArrayWithHoles(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new fixed array with Tagged<Smi>(0) entries.
   DirectHandle<FixedArray> NewFixedArrayWithZeroes(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for length = 0,
   // so the return type must be the general fixed array class.
   Handle<FixedArrayBase> NewFixedDoubleArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      uint32_t length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a weak fixed array-like object with given map and initialized
   // with undefined values. Length must be > 0.
@@ -437,7 +437,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Tagged<HeapObject> NewWithImmortalMap(Tagged<Map> map,
                                         AllocationType allocation);
 
-  Handle<FixedArray> NewFixedArrayWithFiller(DirectHandle<Map> map, int length,
+  Handle<FixedArray> NewFixedArrayWithFiller(DirectHandle<Map> map,
+                                             uint32_t length,
                                              DirectHandle<HeapObject> filler,
                                              AllocationType allocation);
 

@@ -175,7 +175,7 @@ DirectHandle<CodeWrapper> FactoryBase<Impl>::NewCodeWrapper() {
 }
 
 template <typename Impl>
-Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(uint32_t length,
                                                     AllocationType allocation,
                                                     AllocationHint hint) {
   return FixedArray::New(isolate(), length, allocation, hint);
@@ -211,8 +211,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
-    int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
   return NewFixedArrayWithFiller(fixed_array_map(), length, the_hole_value(),
                                  allocation);
@@ -220,7 +219,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
-    DirectHandle<Map> map, int length, DirectHandle<HeapObject> filler,
+    DirectHandle<Map> map, uint32_t length, DirectHandle<HeapObject> filler,
     AllocationType allocation) {
   Tagged<HeapObject> result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
@@ -235,8 +234,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
 
 template <typename Impl>
 DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
-    int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
   if (length > FixedArray::kMaxLength) {
     base::FatalNoSecurityImpact("Invalid FixedArray size %d", length);
@@ -253,7 +251,7 @@ DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
 
 template <typename Impl>
 Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
-    int length, AllocationType allocation) {
+    uint32_t length, AllocationType allocation) {
   return FixedDoubleArray::New(isolate(), length, allocation);
 }
 

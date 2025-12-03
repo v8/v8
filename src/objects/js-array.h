@@ -54,7 +54,8 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // capacity is non-zero.
   V8_EXPORT_PRIVATE static void Initialize(Isolate* isolate,
                                            DirectHandle<JSArray> array,
-                                           int capacity, int length = 0);
+                                           uint32_t capacity,
+                                           uint32_t length = 0);
 
   // If the JSArray has fast elements, and new_length would result in
   // normalization, returns true.

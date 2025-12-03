@@ -545,14 +545,14 @@ class Heap final {
   // The source and destination memory ranges can overlap.
   template <typename TSlot>
   V8_EXPORT_PRIVATE void MoveRange(Tagged<HeapObject> dst_object,
-                                   TSlot dst_slot, TSlot src_slot, int len,
+                                   TSlot dst_slot, TSlot src_slot, uint32_t len,
                                    WriteBarrierMode mode);
 
   // Copy `len` tagged elements from `src_slot` to `dst_slot` of `dst_object`.
   // The source and destination memory ranges must not overlap.
   template <typename TSlot>
   V8_EXPORT_PRIVATE void CopyRange(Tagged<HeapObject> dst_object,
-                                   TSlot dst_slot, TSlot src_slot, int len,
+                                   TSlot dst_slot, TSlot src_slot, uint32_t len,
                                    WriteBarrierMode mode);
 
   // Initialize a filler object to keep the ability to iterate over the heap
@@ -588,7 +588,8 @@ class Heap final {
 
   // Trim the given array from the right.
   template <typename Array>
-  void RightTrimArray(Tagged<Array> object, int new_capacity, int old_capacity);
+  void RightTrimArray(Tagged<Array> object, uint32_t new_capacity,
+                      uint32_t old_capacity);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Tagged<Boolean> ToBoolean(bool condition);
@@ -2680,10 +2681,10 @@ constexpr const char* ToString(Heap::SweepingForcedFinalizationMode mode) {
   }
 }
 
-#define DECL_RIGHT_TRIM(T)                                        \
-  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void \
-  Heap::RightTrimArray<T>(Tagged<T> object, int new_capacity,     \
-                          int old_capacity);
+#define DECL_RIGHT_TRIM(T)                                         \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void  \
+  Heap::RightTrimArray<T>(Tagged<T> object, uint32_t new_capacity, \
+                          uint32_t old_capacity);
 RIGHT_TRIMMABLE_ARRAY_LIST(DECL_RIGHT_TRIM)
 #undef DECL_RIGHT_TRIM
 

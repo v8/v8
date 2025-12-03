@@ -994,7 +994,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   class FastBodyDescriptor;
 
   // Gets the number of currently used elements.
-  int GetFastElementsUsage();
+  uint32_t GetFastElementsUsage();
 
   template <typename Dictionary>
   static void ApplyAttributesToDictionary(Isolate* isolate, ReadOnlyRoots roots,

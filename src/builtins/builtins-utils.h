@@ -76,6 +76,7 @@ class BuiltinArguments : public JavaScriptArguments {
   // Gets the total number of arguments including the receiver (but
   // excluding extra arguments).
   int length() const { return Arguments::length() - kNumExtraArgs; }
+  uint32_t ulength() const { return static_cast<uint32_t>(length()); }
 };
 
 static_assert(BuiltinArguments::kNewTargetIndex ==

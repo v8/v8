@@ -445,8 +445,7 @@ DirectHandle<PropertyArray> Factory::NewPropertyArray(
 }
 
 MaybeHandle<FixedArray> Factory::TryNewFixedArray(
-    int length, AllocationType allocation_type) {
-  DCHECK_LE(0, length);
+    uint32_t length, AllocationType allocation_type) {
   if (length == 0) return empty_fixed_array();
 
   int size = FixedArray::SizeFor(length);
@@ -3307,8 +3306,8 @@ DirectHandle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
   return object;
 }
 
-Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, int length,
-                                    int capacity,
+Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, uint32_t length,
+                                    uint32_t capacity,
                                     ArrayStorageAllocationMode mode,
                                     AllocationType allocation) {
   DCHECK(capacity >= length);

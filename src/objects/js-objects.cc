@@ -2236,7 +2236,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   // The static cast is safe after the range check right above.
   Handle<FixedArray> values_or_entries = isolate->factory()->NewFixedArray(
       static_cast<int>(number_of_own_descriptors + number_of_own_elements));
-  int count = 0;
+  uint32_t count = 0;
 
   if (object->elements() != ReadOnlyRoots(isolate).empty_fixed_array()) {
     MAYBE_RETURN(object->GetElementsAccessor()->CollectValuesOrEntries(
@@ -5650,7 +5650,7 @@ static int HoleyElementsUsage(Tagged<JSObject> object,
   return used;
 }
 
-int JSObject::GetFastElementsUsage() {
+uint32_t JSObject::GetFastElementsUsage() {
   Tagged<FixedArrayBase> store = elements();
   switch (GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:

@@ -2180,13 +2180,14 @@ void CopyOrMoveRangeImpl(Heap* heap, Tagged<HeapObject> dst_object,
 
 template <typename TSlot>
 void Heap::MoveRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
-                     const TSlot src_slot, int len, WriteBarrierMode mode) {
+                     const TSlot src_slot, uint32_t len,
+                     WriteBarrierMode mode) {
   // Ensure no range overflow.
   DCHECK(dst_slot < TSlot(dst_slot + len));
   DCHECK(src_slot < src_slot + len);
 
   const auto atomic_callback = [](TSlot dst_slot, TSlot dst_end, TSlot src_slot,
-                                  int len) {
+                                  uint32_t len) {
     if (dst_slot < src_slot) {
       // Copy tagged values forward using relaxed load/stores that do not
       // involve value decompression.
@@ -2211,7 +2212,8 @@ void Heap::MoveRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
       }
     }
   };
-  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot, int len) {
+  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot,
+                                      uint32_t len) {
     MemMove(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
   };
   CopyOrMoveRangeImpl(this, dst_object, dst_slot, src_slot, len, mode,
@@ -2220,14 +2222,15 @@ void Heap::MoveRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
 
 template V8_EXPORT_PRIVATE void Heap::MoveRange<ObjectSlot>(
     Tagged<HeapObject> dst_object, ObjectSlot dst_slot, ObjectSlot src_slot,
-    int len, WriteBarrierMode mode);
+    uint32_t len, WriteBarrierMode mode);
 template V8_EXPORT_PRIVATE void Heap::MoveRange<MaybeObjectSlot>(
     Tagged<HeapObject> dst_object, MaybeObjectSlot dst_slot,
-    MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
+    MaybeObjectSlot src_slot, uint32_t len, WriteBarrierMode mode);
 
 template <typename TSlot>
 void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
-                     const TSlot src_slot, int len, WriteBarrierMode mode) {
+                     const TSlot src_slot, uint32_t len,
+                     WriteBarrierMode mode) {
   // Ensure ranges do not overlap.
   DCHECK(TSlot(dst_slot + len) <= src_slot || (src_slot + len) <= dst_slot);
 
@@ -2242,7 +2245,8 @@ void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
       ++src;
     }
   };
-  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot, int len) {
+  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot,
+                                      uint32_t len) {
     MemCopy(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
   };
   CopyOrMoveRangeImpl(this, dst_object, dst_slot, src_slot, len, mode,
@@ -2251,10 +2255,10 @@ void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
 
 template V8_EXPORT_PRIVATE void Heap::CopyRange<ObjectSlot>(
     Tagged<HeapObject> dst_object, ObjectSlot dst_slot, ObjectSlot src_slot,
-    int len, WriteBarrierMode mode);
+    uint32_t len, WriteBarrierMode mode);
 template V8_EXPORT_PRIVATE void Heap::CopyRange<MaybeObjectSlot>(
     Tagged<HeapObject> dst_object, MaybeObjectSlot dst_slot,
-    MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
+    MaybeObjectSlot src_slot, uint32_t len, WriteBarrierMode mode);
 
 bool Heap::CollectionRequested() {
   return collection_barrier_->RequestedGC().has_value();
@@ -3535,8 +3539,10 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
 }
 
 template <typename Array>
-void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
-                          int old_capacity) {
+void Heap::RightTrimArray(Tagged<Array> object, uint32_t new_capacity_raw,
+                          uint32_t old_capacity_raw) {
+  int new_capacity = new_capacity_raw;
+  int old_capacity = old_capacity_raw;
   DCHECK_EQ(old_capacity, object->capacity());
   DCHECK_LT(new_capacity, old_capacity);
   DCHECK_GE(new_capacity, 0);
@@ -3598,10 +3604,10 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
   }
 }
 
-#define DEF_RIGHT_TRIM(T)                                     \
-  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void     \
-  Heap::RightTrimArray<T>(Tagged<T> object, int new_capacity, \
-                          int old_capacity);
+#define DEF_RIGHT_TRIM(T)                                          \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void          \
+  Heap::RightTrimArray<T>(Tagged<T> object, uint32_t new_capacity, \
+                          uint32_t old_capacity);
 RIGHT_TRIMMABLE_ARRAY_LIST(DEF_RIGHT_TRIM)
 #undef DEF_RIGHT_TRIM
 

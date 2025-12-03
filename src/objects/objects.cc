@@ -4361,7 +4361,7 @@ void Oddball::Initialize(Isolate* isolate, DirectHandle<Oddball> oddball,
 
 // static
 void JSArray::Initialize(Isolate* isolate, DirectHandle<JSArray> array,
-                         int capacity, int length) {
+                         uint32_t capacity, uint32_t length) {
   DCHECK_GE(capacity, 0);
   isolate->factory()->NewJSArrayStorage(
       array, length, capacity,

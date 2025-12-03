@@ -137,14 +137,14 @@ int BaseNameDictionary<Derived, Shape>::Hash() const {
 bool NumberDictionary::requires_slow_elements() {
   Tagged<Object> max_index_object = get(kMaxNumberKeyIndex);
   if (!IsSmi(max_index_object)) return false;
-  return 0 != (Smi::ToInt(max_index_object) & kRequiresSlowElementsMask);
+  return 0 != (Smi::ToUInt(max_index_object) & kRequiresSlowElementsMask);
 }
 
 uint32_t NumberDictionary::max_number_key() {
   DCHECK(!requires_slow_elements());
   Tagged<Object> max_index_object = get(kMaxNumberKeyIndex);
   if (!IsSmi(max_index_object)) return 0;
-  uint32_t value = static_cast<uint32_t>(Smi::ToInt(max_index_object));
+  uint32_t value = Smi::ToUInt(max_index_object);
   return value >> kRequiresSlowElementsTagSize;
 }
 

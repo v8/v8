@@ -58,17 +58,21 @@ class SlotBase {
     DCHECK_GE(ptr_, other.ptr_);
     return static_cast<size_t>((ptr_ - other.ptr_) / kSlotDataSize);
   }
-  Subclass operator-(int i) const { return Subclass(ptr_ - i * kSlotDataSize); }
-  Subclass operator+(int i) const { return Subclass(ptr_ + i * kSlotDataSize); }
-  friend Subclass operator+(int i, const Subclass& slot) {
+  Subclass operator-(uint32_t i) const {
+    return Subclass(ptr_ - i * kSlotDataSize);
+  }
+  Subclass operator+(uint32_t i) const {
+    return Subclass(ptr_ + i * kSlotDataSize);
+  }
+  friend Subclass operator+(uint32_t i, const Subclass& slot) {
     return Subclass(slot.ptr_ + i * kSlotDataSize);
   }
-  Subclass& operator+=(int i) {
+  Subclass& operator+=(uint32_t i) {
     ptr_ += i * kSlotDataSize;
     return *static_cast<Subclass*>(this);
   }
-  Subclass operator-(int i) { return Subclass(ptr_ - i * kSlotDataSize); }
-  Subclass& operator-=(int i) {
+  Subclass operator-(uint32_t i) { return Subclass(ptr_ - i * kSlotDataSize); }
+  Subclass& operator-=(uint32_t i) {
     ptr_ -= i * kSlotDataSize;
     return *static_cast<Subclass*>(this);
   }

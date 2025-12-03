@@ -2197,10 +2197,10 @@ MaybeDirectHandle<JSArray> VectorToJSArray(
     Isolate* isolate, const std::vector<std::string>& array) {
   Factory* factory = isolate->factory();
   DirectHandle<FixedArray> fixed_array =
-      factory->NewFixedArray(static_cast<int32_t>(array.size()));
-  int32_t index = 0;
+      factory->NewFixedArray(static_cast<uint32_t>(array.size()));
+  uint32_t index = 0;
   for (const std::string& item : array) {
-    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
+    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item);
     fixed_array->set(index++, *str);
   }
   return factory->NewJSArrayWithElements(fixed_array);
@@ -2302,10 +2302,10 @@ MaybeDirectHandle<JSArray> AvailableUnits(Isolate* isolate) {
   Factory* factory = isolate->factory();
   std::set<std::string> sanctioned(Intl::SanctionedSimpleUnits());
   DirectHandle<FixedArray> fixed_array =
-      factory->NewFixedArray(static_cast<int32_t>(sanctioned.size()));
-  int32_t index = 0;
+      factory->NewFixedArray(static_cast<uint32_t>(sanctioned.size()));
+  uint32_t index = 0;
   for (const std::string& item : sanctioned) {
-    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item.c_str());
+    DirectHandle<String> str = factory->NewStringFromAsciiChecked(item);
     fixed_array->set(index++, *str);
   }
   return factory->NewJSArrayWithElements(fixed_array);
