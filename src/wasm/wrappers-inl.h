@@ -266,7 +266,6 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     V<Context> js_context, base::Vector<const OpIndex> arguments,
     OptionalV<FrameState> frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> V<Any> {
-  const bool do_conversion = true;
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
   const int args_count = wasm_param_count + 1;  // +1 for wasm_code.
 
@@ -310,8 +309,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
   // Check whether the signature of the function allows for a fast
   // transformation (if any params exist that need transformation).
   // Create a fast transformation path, only if it does.
-  bool include_fast_path =
-      do_conversion && wasm_param_count > 0 && QualifiesForFastTransform();
+  bool include_fast_path = wasm_param_count > 0 && QualifiesForFastTransform();
 
   V<SharedFunctionInfo> shared = __ Load(js_closure, LoadOp::Kind::TaggedBase(),
                                          MemoryRepresentation::TaggedPointer(),
@@ -329,8 +327,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
                 WasmExportedFunctionData::kProtectedInstanceDataOffset))
           : OpIndex::Invalid();
 
-  Label<Object> done(&Asm());
-  V<Object> jsval;
+  TSBlock* body_block = __ NewBlock();
+  base::SmallVector<OpIndex, 16> args_fast_path(wasm_param_count);
   if (include_fast_path) {
     TSBlock* slow_path = __ NewBlock();
     // Check if the params received on runtime can be actually transformed
@@ -342,58 +340,42 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     }
     // Convert JS parameters to wasm numbers using the fast transformation
     // and build the call.
-    base::SmallVector<OpIndex, 16> args(args_count);
-    args[0] = instance_data;
     for (int i = 0; i < wasm_param_count; ++i) {
-      OpIndex wasm_param = FromJSFast(params[i], sig_->GetParam(i));
-      args[i + 1] = wasm_param;
+      args_fast_path[i] = FromJSFast(params[i], sig_->GetParam(i));
     }
 
-    // Inline the wasm function, if possible.
-    jsval = InlineWasmFunctionInsideWrapper(js_context, function_data,
-                                            VectorOf(args), do_conversion,
-                                            frame_state, lazy_deopt_on_throw);
-
-    GOTO(done, jsval);
+    __ Goto(body_block);
     __ Bind(slow_path);
   }
 
   // Convert JS parameters to wasm numbers using the default transformation
   // and build the call.
+  base::SmallVector<OpIndex, 16> args_slow_path(wasm_param_count);
+  for (int i = 0; i < wasm_param_count; ++i) {
+    args_slow_path[i] =
+        FromJS(params[i], js_context, sig_->GetParam(i), frame_state);
+  }
+
+  // Merge the arguments of the slow and fast paths, if we emitted the latter.
+  // If we only have a slow path, simply take those.
   base::SmallVector<OpIndex, 16> args(args_count);
   args[0] = instance_data;
-  for (int i = 0; i < wasm_param_count; ++i) {
-    if (do_conversion) {
-      args[i + 1] =
-          FromJS(params[i], js_context, sig_->GetParam(i), frame_state);
-    } else {
-      OpIndex wasm_param = params[i];
-
-      // For Float32 parameters
-      // we set UseInfo::CheckedNumberOrOddballAsFloat64 in
-      // simplified-lowering and we need to add here a conversion from Float64
-      // to Float32.
-      if (sig_->GetParam(i).kind() == kF32) {
-        wasm_param = __ TruncateFloat64ToFloat32(wasm_param);
-      }
-      args[i + 1] = wasm_param;
+  if (include_fast_path) {
+    __ Goto(body_block);
+    __ Bind(body_block);
+    for (int i = 0; i < wasm_param_count; ++i) {
+      args[i + 1] = __ Phi({args_fast_path[i], args_slow_path[i]},
+                           this->RepresentationFor(sig_->GetParam(i)));
     }
+  } else {
+    std::copy(args_slow_path.begin(), args_slow_path.end(), args.begin() + 1);
   }
 
   // Inline the wasm function, if possible.
-  jsval = InlineWasmFunctionInsideWrapper(js_context, function_data,
-                                          VectorOf(args), do_conversion,
-                                          frame_state, lazy_deopt_on_throw);
-
-  // If both the default and a fast transformation paths are present,
-  // get the return value based on the path used.
-  if (include_fast_path) {
-    GOTO(done, jsval);
-    BIND(done, result);
-    return result;
-  } else {
-    return jsval;
-  }
+  V<Object> jsval = InlineWasmFunctionInsideWrapper(
+      js_context, function_data, VectorOf(args), /* do_conversion */ true,
+      frame_state, lazy_deopt_on_throw);
+  return jsval;
 }
 
 template <typename Assembler>

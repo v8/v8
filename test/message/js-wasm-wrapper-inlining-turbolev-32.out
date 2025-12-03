@@ -6,8 +6,6 @@ testJsWasmWrapperInliningWithI32Args
 Inlining JS-to-Wasm wrapper for Wasm function [0] squareI32 of module {ADDRESS}
 Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
 - not inlining: 32-bit platforms are not supported
-Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
-- not inlining: 32-bit platforms are not supported
 Test inputs of different convertible type
 Test input of unconvertible type
 Test different callee
@@ -18,16 +16,12 @@ testJsWasmWrapperInliningWithDifferentModules
 Inlining JS-to-Wasm wrapper for Wasm function [0] squareI32 of module {ADDRESS}
 Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
 - not inlining: 32-bit platforms are not supported
-Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
-- not inlining: 32-bit platforms are not supported
 Test callee from different instance
 [marking dependent code {ADDRESS} <Code TURBOFAN_JS> ({ADDRESS} <SharedFunctionInfo callSquare>) (opt id {NUMBER}) for deoptimization, reason: dependent context cell state changed]
 Test optimizing again does not trigger another deoptimization
 
 testJsWasmWrapperInliningOfSameExportedImportedFunction
 Inlining JS-to-Wasm wrapper for Wasm function [0] squareI32 of module {ADDRESS}
-Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
-- not inlining: 32-bit platforms are not supported
 Considering wasm function [0] squareI32 of module {ADDRESS} for inlining
 - not inlining: 32-bit platforms are not supported
 Test replacing callee with same function imported and exported by different modules
@@ -39,15 +33,11 @@ testJsWasmWrapperInliningWithF32Args
 Inlining JS-to-Wasm wrapper for Wasm function [0] squareF32 of module {ADDRESS}
 Considering wasm function [0] squareF32 of module {ADDRESS} for inlining
 - not inlining: 32-bit platforms are not supported
-Considering wasm function [0] squareF32 of module {ADDRESS} for inlining
-- not inlining: 32-bit platforms are not supported
 Test inputs of different convertible type
 Test input of unconvertible type
 
 testJsWasmWrapperInliningWithF64Args
 Inlining JS-to-Wasm wrapper for Wasm function [0] squareF64 of module {ADDRESS}
-Considering wasm function [0] squareF64 of module {ADDRESS} for inlining
-- not inlining: 32-bit platforms are not supported
 Considering wasm function [0] squareF64 of module {ADDRESS} for inlining
 - not inlining: 32-bit platforms are not supported
 Test inputs of different convertible type
@@ -63,7 +53,5 @@ testNoJsWasmWrapperInliningWithRefArgs
 
 testJsWasmWrapperInliningRetrievesWasmInstance
 Inlining JS-to-Wasm wrapper for Wasm function [0] globalTest of module {ADDRESS}
-Considering wasm function [0] globalTest of module {ADDRESS} for inlining
-- not inlining: 32-bit platforms are not supported
 Considering wasm function [0] globalTest of module {ADDRESS} for inlining
 - not inlining: 32-bit platforms are not supported
