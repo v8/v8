@@ -3955,8 +3955,12 @@ DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_code_traces)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, redirect_drumbrake_traces)
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
+                       experimental_wasm_assume_ref_cast_succeeds)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
                        experimental_wasm_skip_null_checks)
 DEFINE_NEG_IMPLICATION(disallow_unsafe_flags, experimental_wasm_ref_cast_nop)
+DEFINE_NEG_IMPLICATION(disallow_unsafe_flags,
+                       experimental_wasm_skip_bounds_checks)
 // Enabled-by-default flags that should not be disabled.
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_bounds_checks)
 DEFINE_IMPLICATION(disallow_unsafe_flags, wasm_stack_checks)
