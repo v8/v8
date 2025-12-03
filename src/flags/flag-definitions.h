@@ -317,7 +317,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V) V(js_upsert, "upsert")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V)
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -344,7 +344,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_explicit_resource_management, "explicit resource management")         \
   V(js_float16array,                                                         \
     "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16") \
-  V(js_base_64, "Uint8Array to/from base64 and hex")
+  V(js_base_64, "Uint8Array to/from base64 and hex")                         \
+  V(js_upsert, "upsert")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                  \
