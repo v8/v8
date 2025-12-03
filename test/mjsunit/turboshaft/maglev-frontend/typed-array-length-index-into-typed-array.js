@@ -22,8 +22,14 @@ assertOptimized(foo);
 
 // TODO(389019544): This might or might not fail once the deopt loop is fixed.
 if (%Is64Bit()) {
-  const largeLength = 8589934592;
-  const a2 = foo(largeLength);
-  assertEquals(1, a2[largeLength]);
-  assertUnoptimized(foo);
+  try {
+    const largeLength = 8589934592;
+    const a2 = foo(largeLength);
+    assertEquals(1, a2[largeLength]);
+    assertUnoptimized(foo);
+  } catch (e) {
+    // If alloating the TypedArray failed, we'll get a RangeError. Other
+    // errors are just normal test failures.
+    assertTrue(e instanceof RangeError);
+  }
 }

@@ -1550,7 +1550,13 @@
   'huge-typedarrays': [PASS, HEAVY, NO_VARIANTS],
 
   # TODO(thibaudm): investigate timeout.
-  'regress/wasm/regress-392928805': [SKIP]
+  'regress/wasm/regress-392928805': [SKIP],
+
+  # These allocate big TypedArrays.
+  'maglev/typed-array-length-index-into-typed-array': [PASS, HEAVY],
+  'maglev/typed-array-length-index-into-typed-array-large': [PASS, HEAVY],
+  'turboshaft/maglev-frontend/typed-array-length-index-into-typed-array': [PASS, HEAVY],
+  'turboshaft/maglev-frontend/typed-array-length-index-into-typed-array-large': [PASS, HEAVY]
 }],  # 'system == windows'
 
 ##############################################################################
