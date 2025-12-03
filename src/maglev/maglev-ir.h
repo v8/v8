@@ -7978,7 +7978,7 @@ class NewConsString : public FixedInputValueNodeT<3, NewConsString> {
 };
 
 class TransitionAndStoreArrayElement
-    : public FixedInputValueNodeT<3, TransitionAndStoreArrayElement> {
+    : public FixedInputNodeT<3, TransitionAndStoreArrayElement> {
  public:
   explicit TransitionAndStoreArrayElement(uint64_t bitfield,
                                           const compiler::MapRef& fast_map,
