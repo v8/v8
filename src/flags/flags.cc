@@ -51,25 +51,7 @@ static_assert(sizeof(FlagValues) % kMinimumOSPageSize == 0);
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_DEFAULTS
 
-char FlagHelpers::NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
 
-int FlagHelpers::FlagNamesCmp(const char* a, const char* b) {
-  int i = 0;
-  char ac, bc;
-  do {
-    ac = NormalizeChar(a[i]);
-    bc = NormalizeChar(b[i]);
-    if (ac < bc) return -1;
-    if (ac > bc) return 1;
-    i++;
-  } while (ac != '\0');
-  DCHECK_EQ(bc, '\0');
-  return 0;
-}
-
-bool FlagHelpers::EqualNames(const char* a, const char* b) {
-  return FlagNamesCmp(a, b) == 0;
-}
 
 // Checks if two flag names are equal, allowing for the second name to have a
 // suffix starting with a white space character, e.g. "max_opt < 3". This is
@@ -322,11 +304,26 @@ constexpr size_t kNumFlags = arraysize(flags);
 
 base::Vector<Flag> Flags() { return base::ArrayVector(flags); }
 
-struct FlagLess {
-  bool operator()(const Flag* a, const Flag* b) const {
-    return FlagHelpers::FlagNamesCmp(a->name(), b->name()) < 0;
+consteval std::array<int, kNumFlags> GetSortedFlagIndices() {
+  constexpr const char* kFlagNames[] = {
+#define FLAG_MODE_APPLY_NAME(nam) #nam,
+#define FLAG_ALIAS(ftype, ctype, alias, nam) #alias,
+#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
+#undef FLAG_ALIAS
+#undef FLAG_MODE_APPLY_NAME
+  };
+
+  static_assert(arraysize(kFlagNames) == kNumFlags);
+
+  std::array<int, kNumFlags> indices{};
+  for (size_t i = 0; i < kNumFlags; ++i) {
+    indices[i] = static_cast<int>(i);
   }
-};
+  std::sort(indices.begin(), indices.end(), [](int i, int j) {
+    return FlagHelpers::FlagNamesCmp(kFlagNames[i], kFlagNames[j]) < 0;
+  });
+  return indices;
+}
 
 struct FlagNameGreater {
   bool operator()(const Flag* a, const char* b) const {
@@ -340,10 +337,11 @@ struct FlagNameGreater {
 class FlagMapByName {
  public:
   FlagMapByName() {
+    constexpr std::array<int, kNumFlags> sorted_indices =
+        GetSortedFlagIndices();
     for (size_t i = 0; i < kNumFlags; ++i) {
-      flags_[i] = &flags[i];
+      flags_[i] = &flags[sorted_indices[i]];
     }
-    std::sort(flags_.begin(), flags_.end(), FlagLess());
   }
 
   // Returns the greatest flag whose name is less than or equal to the given
@@ -1036,7 +1034,7 @@ class ImplicationProcessor {
 #define FLAG_MODE_APPLY_NAME(name) \
   auto& name = v8_flags.name;      \
   USE(name);
-#include "src/flags/flag-definitions.h"
+#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_APPLY_NAME
 
 #define FLAG_MODE_DEFINE_IMPLICATIONS
