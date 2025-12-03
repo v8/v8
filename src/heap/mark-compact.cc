@@ -592,16 +592,21 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
     size_t* max_evacuated_bytes) {
   // For memory reducing and optimize for memory mode we directly define both
   // constants.
-  const int kTargetFragmentationPercentForReduceMemory = 20;
-  const size_t kMaxEvacuatedBytesForReduceMemory = 12 * MB;
-  const int kTargetFragmentationPercentForOptimizeMemory = 20;
-  const size_t kMaxEvacuatedBytesForOptimizeMemory = 6 * MB;
+  const int kTargetFragmentationPercentForReduceMemory =
+      v8_flags.compaction_target_fragmentation_percent_for_reduce_memory;
+  const size_t kMaxEvacuatedBytesForReduceMemory =
+      v8_flags.compaction_max_evacuated_bytes_mb_for_reduce_memory * MB;
+  const int kTargetFragmentationPercentForOptimizeMemory =
+      v8_flags.compaction_target_fragmentation_percent_for_optimize_memory;
+  const size_t kMaxEvacuatedBytesForOptimizeMemory =
+      v8_flags.compaction_max_evacuated_bytes_mb_for_optimize_memory * MB;
 
   // For regular mode (which is latency critical) we define less aggressive
   // defaults to start and switch to a trace-based (using compaction speed)
   // approach as soon as we have enough samples.
   const int kTargetFragmentationPercent = 70;
-  const size_t kMaxEvacuatedBytes = 4 * MB;
+  const size_t kMaxEvacuatedBytes =
+      v8_flags.compaction_max_evacuated_bytes_mb * MB;
   // Time to take for a single area (=payload of page). Used as soon as there
   // exist enough compaction speed samples.
   const float kTargetMsPerArea = .5;

@@ -2551,6 +2551,18 @@ DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
 DEFINE_BOOL(compact_with_stack, true,
             "Perform compaction when finalizing a full GC with stack")
+DEFINE_INT(compaction_max_evacuated_bytes_mb, 4,
+           "Max evacuated bytes during compaction")
+DEFINE_INT(compaction_max_evacuated_bytes_mb_for_reduce_memory, 12,
+           "Max evacuated bytes during compaction for reduce memory GCs")
+DEFINE_INT(compaction_max_evacuated_bytes_mb_for_optimize_memory, 6,
+           "Max evacuated bytes during compaction for GCs when "
+           "ShouldOptimizeForMemoryUsage() = true")
+DEFINE_INT(compaction_target_fragmentation_percent_for_reduce_memory, 20,
+           "Target fragmentation % during compaction for reduce memory GCs")
+DEFINE_INT(compaction_target_fragmentation_percent_for_optimize_memory, 20,
+           "Target fragmentation % during compaction for GCs when "
+           "ShouldOptimizeForMemoryUsage() = true")
 DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
