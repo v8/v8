@@ -483,22 +483,6 @@ MessageTemplate ToMessageTemplate(simdutf::error_code error) {
 }
 
 template <typename T>
-std::unique_ptr<char[]> ArrayBufferFromBase64(
-    T input_vector, size_t input_length, simdutf::base64_options alphabet,
-    simdutf::last_chunk_handling_options last_chunk_handling,
-    simdutf::result& simd_result, size_t& output_length) {
-  output_length = simdutf::maximal_binary_length_from_base64(
-      reinterpret_cast<const T>(input_vector), input_length);
-  std::unique_ptr<char[]> output = std::make_unique<char[]>(output_length);
-  simd_result = simdutf::base64_to_binary_safe(
-      reinterpret_cast<const T>(input_vector), input_length, output.get(),
-      output_length, alphabet, last_chunk_handling,
-      /*decode_up_to_bad_char*/ true);
-
-  return output;
-}
-
-template <typename T>
 simdutf::result ArrayBufferSetFromBase64(
     T input_vector, size_t input_length, size_t array_length,
     simdutf::base64_options alphabet,
@@ -553,30 +537,15 @@ BUILTIN(Uint8ArrayFromBase64) {
                                      HandleOptionsBag(isolate, options));
 
   // 9. Let result be ? FromBase64(string, alphabet, lastChunkHandling).
-  size_t input_length;
-  size_t output_length = 0;
-  simdutf::result simd_result;
-  DirectHandle<JSArrayBuffer> buffer;
-  std::unique_ptr<char[]> output;
-  {
-    DisallowGarbageCollection no_gc;
-    String::FlatContent input_content = input_string->GetFlatContent(no_gc);
-    if (input_content.IsOneByte()) {
-      const unsigned char* input_vector =
-          input_content.ToOneByteVector().data();
-      input_length = input_content.ToOneByteVector().size();
-      output = ArrayBufferFromBase64(
-          reinterpret_cast<const char*>(input_vector), input_length,
-          options_pair.first, options_pair.second, simd_result, output_length);
-    } else {
-      const base::uc16* input_vector = input_content.ToUC16Vector().data();
-      input_length = input_content.ToUC16Vector().size();
-      output = ArrayBufferFromBase64(
-          reinterpret_cast<const char16_t*>(input_vector), input_length,
-          options_pair.first, options_pair.second, simd_result, output_length);
-    }
-  }
+  size_t input_length = input_string->length();
+  // Allocate for worst case: every 4 base64 chars decode to 3 bytes.
+  // We could use simdutf::maximal_binary_length_from_base64 for a tighter
+  // bound, but that requires accessing the string content. Since we update
+  // byte_length after decoding anyway (to handle whitespace), the simpler
+  // calculation works.
+  size_t output_length = (input_length * 3 + 3) / 4;
 
+  DirectHandle<JSArrayBuffer> buffer;
   MaybeDirectHandle<JSArrayBuffer> result_buffer =
       isolate->factory()->NewJSArrayBufferAndBackingStore(
           output_length, InitializedFlag::kUninitialized);
@@ -587,7 +556,25 @@ BUILTIN(Uint8ArrayFromBase64) {
                                    method_name)));
   }
 
-  memcpy(buffer->backing_store(), output.get(), output_length);
+  simdutf::result simd_result;
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent input_content = input_string->GetFlatContent(no_gc);
+    if (input_content.IsOneByte()) {
+      simd_result = simdutf::base64_to_binary_safe(
+          reinterpret_cast<const char*>(input_content.ToOneByteVector().data()),
+          input_length, reinterpret_cast<char*>(buffer->backing_store()),
+          output_length, options_pair.first, options_pair.second,
+          /*decode_up_to_bad_char*/ false);
+    } else {
+      simd_result = simdutf::base64_to_binary_safe(
+          reinterpret_cast<const char16_t*>(
+              input_content.ToUC16Vector().data()),
+          input_length, reinterpret_cast<char*>(buffer->backing_store()),
+          output_length, options_pair.first, options_pair.second,
+          /*decode_up_to_bad_char*/ false);
+    }
+  }
 
   // 10. If result.[[Error]] is not none, then
   //    a. Throw result.[[Error]].
@@ -597,6 +584,11 @@ BUILTIN(Uint8ArrayFromBase64) {
   }
 
   // 11. Let resultLength be the length of result.[[Bytes]].
+  // base64_to_binary_safe modifies output_length to the actual bytes written.
+  // Update the buffer's byte_length to match (may differ due to whitespace).
+  buffer->set_byte_length(output_length);
+  buffer->set_max_byte_length(output_length);
+
   // 12. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%,
   //     "%Uint8Array.prototype%", resultLength).
   // 13. Set the value at each index of
