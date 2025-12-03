@@ -247,7 +247,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* LOAD_CURRENT_CHAR, CHECK_BIT_IN_TABLE and ADVANCE_CP_AND_GOTO          */ \
   V(SkipUntilBitInTable, SKIP_UNTIL_BIT_IN_TABLE,                              \
     (cp_offset, advance_by, table, on_match, on_no_match),                     \
-    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kBitTable,          \
+    (ReBcOpType::kOffset, ReBcOpType::kOffset32, ReBcOpType::kBitTable,        \
      ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget))                        \
   /* Combination of:                                                        */ \
   /* CHECK_CURRENT_POSITION, LOAD_CURRENT_CHAR_UNCHECKED, AND_CHECK_CHAR    */ \
@@ -309,19 +309,18 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* This pattern is common for finding a match from an alternative, e.g.:  */ \
   /* /<script|<style|<link/i.                                               */ \
   V(SkipUntilOneOfMasked3, SKIP_UNTIL_ONE_OF_MASKED3,                          \
-    (bc0_cp_offset, bc0_advance_by, bc0_advance_by_padding, bc0_table,         \
-     bc1_cp_offset, bc1_cp_offset_padding, bc1_on_failure, bc2_cp_offset,      \
+    (bc0_cp_offset, bc0_advance_by, bc0_table, bc1_cp_offset,                  \
+     bc1_cp_offset_padding, bc1_on_failure, bc2_cp_offset,                     \
      bc2_cp_offset_padding, bc3_characters, bc3_mask, bc4_by, bc5_cp_offset,   \
      bc6_characters, bc6_mask, bc6_on_equal, bc7_characters, bc7_mask,         \
      bc7_on_equal, bc8_characters, bc8_mask, fallthrough_jump_target),         \
-    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kPadding2,          \
-     ReBcOpType::kBitTable, ReBcOpType::kOffset, ReBcOpType::kPadding2,        \
-     ReBcOpType::kJumpTarget, ReBcOpType::kOffset, ReBcOpType::kPadding2,      \
-     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kOffset,            \
-     ReBcOpType::kOffset, ReBcOpType::kUint32, ReBcOpType::kUint32,            \
-     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
-     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
-     ReBcOpType::kJumpTarget))
+    (ReBcOpType::kOffset, ReBcOpType::kOffset32, ReBcOpType::kBitTable,        \
+     ReBcOpType::kOffset, ReBcOpType::kPadding2, ReBcOpType::kJumpTarget,      \
+     ReBcOpType::kOffset, ReBcOpType::kPadding2, ReBcOpType::kUint32,          \
+     ReBcOpType::kUint32, ReBcOpType::kOffset, ReBcOpType::kOffset,            \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))
 
 #define REGEXP_BYTECODE_LIST(V) \
   INVALID_BYTECODE_LIST(V)      \

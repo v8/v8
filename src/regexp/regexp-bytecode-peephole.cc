@@ -797,11 +797,7 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
     s3.ReplaceWith(BC_SKIP_UNTIL_ONE_OF_MASKED3)
         // Size 2 packed.
         .MapArgument(0, OSN_FIRST(B::kSkipUntilBitInTable, cp_offset))
-        // Size 2.
-        // TODO(jgruber): We emit this twice to satisfy alignment requirements
-        // of the next argument. Remove the duplicate once EmitArgument
-        // properly handles this on its own.
-        .MapArgument(0, OSN(B::kSkipUntilBitInTable, advance_by))
+        // Size 4.
         .MapArgument(0, OSN(B::kSkipUntilBitInTable, advance_by))
         // Size 16
         .MapArgument(0, OSN(B::kSkipUntilBitInTable, table))
