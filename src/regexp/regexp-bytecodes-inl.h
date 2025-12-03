@@ -179,6 +179,7 @@ class RegExpBytecodeOperandsBase {
     requires(RegExpOperandTypeTraits<OperandType>::kIsBasic)
   static auto GetAligned(const uint8_t* pc, int offset) {
     DCHECK_EQ(*pc, RegExpBytecodes::ToByte(bc));
+    DCHECK_NE(offset, 1);
     using CType = RegExpOperandTypeTraits<OperandType>::kCType;
     DCHECK(IsAligned(offset, sizeof(CType)));
     return *reinterpret_cast<const CType*>(pc + offset);
@@ -191,11 +192,12 @@ class RegExpBytecodeOperandsBase {
     requires(RegExpOperandTypeTraits<OperandType>::kIsBasic)
   static auto GetPacked(const uint8_t* pc, int offset) {
     DCHECK_EQ(*pc, RegExpBytecodes::ToByte(bc));
-    // Only unaligned packing of 2-byte values with the bytecode is supported.
+    // Only packing of 1-byte and 2-byte values with the bytecode is supported.
     DCHECK_EQ(offset, 1);
-    static_assert(RegExpOperandTypeTraits<OperandType>::kSize == 2);
+    constexpr int size = RegExpOperandTypeTraits<OperandType>::kSize;
+    static_assert(size <= 2);
     using CType = RegExpOperandTypeTraits<OperandType>::kCType;
-    DCHECK(!IsAligned(offset, sizeof(CType)));
+    DCHECK_IMPLIES(size > 1, !IsAligned(offset, sizeof(CType)));
     int32_t packed_value = *reinterpret_cast<const int32_t*>(pc);
     return static_cast<CType>(packed_value >> BYTECODE_SHIFT);
   }
@@ -206,11 +208,10 @@ class RegExpBytecodeOperandsBase {
   static auto Get(const uint8_t* pc, const DisallowGarbageCollection& no_gc) {
     constexpr RegExpBytecodeOperandType OperandType = Type(op);
     constexpr int offset = Offset(op);
-    using CType = RegExpOperandTypeTraits<OperandType>::kCType;
     // TODO(pthier): We can remove unaligned packing once we have fully switched
     // to the new bytecode layout. This is for backwards-compatibility with the
     // old layout only.
-    if constexpr (!IsAligned(offset, sizeof(CType))) {
+    if constexpr (offset == 1) {
       return GetPacked<OperandType>(pc, offset);
     } else {
       return GetAligned<OperandType>(pc, offset);
