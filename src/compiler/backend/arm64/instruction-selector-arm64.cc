@@ -5667,19 +5667,20 @@ void InstructionSelector::VisitI64x2RelaxedLaneSelect(OpIndex node) {
   VisitS128Select(node);
 }
 
-#define VISIT_SIMD_QFMOP(op)                                                  \
-  void InstructionSelector::Visit##op(OpIndex node) {                         \
-    Arm64OperandGenerator g(this);                                            \
-    const Simd128TernaryOp& op = Cast<Simd128TernaryOp>(node);                \
-    Emit(kArm64##op, g.DefineSameAsInput(node, 2), g.UseRegister(op.first()), \
-         g.UseRegister(op.second()), g.UseRegister(op.third()));              \
+#define VISIT_SIMD_QFMOP(op, instruction, lsf)                    \
+  void InstructionSelector::Visit##op(OpIndex node) {             \
+    Arm64OperandGenerator g(this);                                \
+    const Simd128TernaryOp& op = Cast<Simd128TernaryOp>(node);    \
+    Emit(kArm64##instruction | LaneSizeField::encode(lsf),        \
+         g.DefineSameAsInput(node, 2), g.UseRegister(op.first()), \
+         g.UseRegister(op.second()), g.UseRegister(op.third()));  \
   }
-VISIT_SIMD_QFMOP(F64x2Qfma)
-VISIT_SIMD_QFMOP(F64x2Qfms)
-VISIT_SIMD_QFMOP(F32x4Qfma)
-VISIT_SIMD_QFMOP(F32x4Qfms)
-VISIT_SIMD_QFMOP(F16x8Qfma)
-VISIT_SIMD_QFMOP(F16x8Qfms)
+VISIT_SIMD_QFMOP(F64x2Qfma, Ffma, 64)
+VISIT_SIMD_QFMOP(F64x2Qfms, Ffms, 64)
+VISIT_SIMD_QFMOP(F32x4Qfma, Ffma, 32)
+VISIT_SIMD_QFMOP(F32x4Qfms, Ffms, 32)
+VISIT_SIMD_QFMOP(F16x8Qfma, Ffma, 16)
+VISIT_SIMD_QFMOP(F16x8Qfms, Ffms, 16)
 #undef VISIT_SIMD_QFMOP
 
 namespace {

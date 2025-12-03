@@ -55,8 +55,8 @@ namespace compiler {
   V(Arm64Word64AtomicStoreWord64)
 
 #define TARGET_ARCH_SIMD_OPCODE_LIST(V) \
-  V(Arm64F64x2Qfma)                     \
-  V(Arm64F64x2Qfms)                     \
+  V(Arm64Ffma)                          \
+  V(Arm64Ffms)                          \
   V(Arm64F64x2Pmin)                     \
   V(Arm64F64x2Pmax)                     \
   V(Arm64F64x2ConvertLowI32x4S)         \
@@ -64,8 +64,6 @@ namespace compiler {
   V(Arm64F64x2PromoteLowF32x4)          \
   V(Arm64F32x4SConvertI32x4)            \
   V(Arm64F32x4UConvertI32x4)            \
-  V(Arm64F32x4Qfma)                     \
-  V(Arm64F32x4Qfms)                     \
   V(Arm64F32x4Pmin)                     \
   V(Arm64F32x4Pmax)                     \
   V(Arm64F32x4DemoteF64x2Zero)          \
@@ -78,8 +76,6 @@ namespace compiler {
   V(Arm64F16x8DemoteF64x2Zero)          \
   V(Arm64I16x8SConvertF16x8)            \
   V(Arm64I16x8UConvertF16x8)            \
-  V(Arm64F16x8Qfma)                     \
-  V(Arm64F16x8Qfms)                     \
   V(Arm64I64x2BitMask)                  \
   V(Arm64I32x4SConvertF32x4)            \
   V(Arm64I32x4Mul)                      \
