@@ -5332,6 +5332,14 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::TurbofanStaticAssert* node,
+                                const maglev::ProcessingState&) {
+    V<Word32> condition = __ TaggedEqual(
+        Map(node->CheckInput()), __ HeapConstant(local_factory_->true_value()));
+    __ StaticAssert(condition, "%TurbofanStaticAssert");
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::MajorGCForCompilerTesting* node,
                                 const maglev::ProcessingState&) {
     __ MajorGCForCompilerTesting();

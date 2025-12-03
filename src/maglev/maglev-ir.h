@@ -191,7 +191,9 @@ class ExceptionHandlerInfo;
   V(SetPrototypeHas)                \
   V(StringSlice)
 
-#define TURBOLEV_NON_VALUE_NODE_LIST(V) V(TransitionAndStoreArrayElement)
+#define TURBOLEV_NON_VALUE_NODE_LIST(V) \
+  V(TransitionAndStoreArrayElement)     \
+  V(TurbofanStaticAssert)
 
 #define CONVERSION_NODE_LIST(V)        \
   V(ChangeInt32ToFloat64)              \
@@ -7636,6 +7638,17 @@ class Throw : public FixedInputNodeT<1, Throw> {
   using FunctionBitField = NextBitField<Function, kNumberOfBitsForFunction>;
 
   using HasInputBitField = FunctionBitField::Next<bool, 1>;
+};
+
+class TurbofanStaticAssert : public FixedInputNodeT<1, TurbofanStaticAssert> {
+ public:
+  explicit TurbofanStaticAssert(uint64_t bitfield) : Base(bitfield) {}
+
+  DECLARE_INPUTS(Check)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
 class MajorGCForCompilerTesting

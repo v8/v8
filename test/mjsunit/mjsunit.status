@@ -130,6 +130,9 @@
   'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
 
+  # This test should always fail.
+  'turbolev/static-assert-fail': [FAIL],
+
   # This test variant makes only sense on arm.
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64]', SKIP]],
 
@@ -2748,6 +2751,14 @@
   'regress-414738826': [SKIP],
 }], # variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)
 
+
+##############################################################################
+['variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
+  # Maglev doesn't support %TurbofanStaticAssert.
+  'turbolev/static-assert-fail': [SKIP],
+}], # variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
+
+
 ##############################################################################
 ['(variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)) and (arch != arm)', {
   # Maglev doesn't suppress BigInt size errors on truncation.
@@ -2839,6 +2850,17 @@
   'optimized-map': [SKIP],
   'compiler/bound-functions-serialize': [SKIP],
   'field-type-tracking': [SKIP],
+
+  # %TurbofanStaticAssert that don't hold because of various missing
+  # optimizations in Turbolev.
+  'compiler/concurrent-inlining-1': [SKIP],
+  'compiler/concurrent-inlining-2': [SKIP],
+  'compiler/construct-bound-function': [SKIP],
+  'compiler/js-create-arguments': [SKIP],
+  'compiler/js-create': [SKIP],
+  'compiler/load-elimination-const-field': [SKIP],
+  'compiler/reference-equal-boolean': [SKIP],
+  'compiler/serializer-feedback-propagation-2': [SKIP],
 
   # --maglev-inline-api-calls is currently not supported by the translation.
   'regress/regress-crbug-1496606': [SKIP],
@@ -2946,8 +2968,9 @@
   # Requires lazy.
   'regress/regress-crbug-1407080': [SKIP],
 
-  # This test is not compatible with --fuzzing.
+  # These tests are not compatible with --fuzzing.
   'regress/regress-435630464-verification-failure': [SKIP],
+  'turbolev/static-assert-fail': [SKIP],
 
   # Negative tests are not supported, because we pass --no-fail.
   'bugs/*': [SKIP],

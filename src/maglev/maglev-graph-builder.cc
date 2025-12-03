@@ -12263,10 +12263,19 @@ ReduceResult MaglevGraphBuilder::VisitCallRuntime() {
   Runtime::FunctionId function_id = iterator_.GetRuntimeIdOperand(0);
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
 
-  if (function_id == Runtime::kMajorGCForCompilerTesting) {
-    RETURN_IF_ABORT(AddNewNode<MajorGCForCompilerTesting>({}));
-    SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
-    return ReduceResult::Done();
+  switch (function_id) {
+    case Runtime::kMajorGCForCompilerTesting:
+      RETURN_IF_ABORT(AddNewNode<MajorGCForCompilerTesting>({}));
+      SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
+      return ReduceResult::Done();
+    case Runtime::kTurbofanStaticAssert:
+      if (!is_turbolev()) break;
+      RETURN_IF_ABORT(AddNewNode<TurbofanStaticAssert>(
+          {current_interpreter_frame_.get(args[0])}));
+      SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
+      return ReduceResult::Done();
+    default:
+      break;
   }
 
   ValueNode* context = GetContext();

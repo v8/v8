@@ -631,6 +631,11 @@ ProcessResult MaglevGraphOptimizer::VisitDead(Dead* node,
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitTurbofanStaticAssert(
+    TurbofanStaticAssert*, const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitMajorGCForCompilerTesting(
     MajorGCForCompilerTesting*, const ProcessingState&) {
   return ProcessResult::kContinue;
