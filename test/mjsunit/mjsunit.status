@@ -160,6 +160,7 @@
   'ignition/regress-599001-verifyheap': [PASS, SLOW],
   'large-object-literal-slow-elements': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
+  'maglev/regress-464612781': [PASS, SLOW],
   'md5': [PASS, SLOW],
   'readonly': [PASS, SLOW],
   'regress/regress-1122': [PASS, SLOW],
