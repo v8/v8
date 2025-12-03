@@ -79,7 +79,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:8450d601b96c8117e0556dbf7acacd30436cefdf',
+  'gn_version': 'git_revision:0eb071f600702e6e235137ba133ee8834aeece83',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '39d55c5da2324729af9e76abc3c293bdeda48a06',
+  'partition_alloc_version': '2a811452fe4f79a9f8910ccb8df1f348a92a6236',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '23d9e985e66324aa24958b1696543bd277069514',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3a271f080ce5f53f5bde8a640419a18d967051eb',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'eca5f0685c48ed59ff06077cb18cee00934249dd',
   'buildtools/linux64': {
@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a202c86635d505fa893d73bad1e220a66bb644e6',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ce25f492c190203c97493e293c48943b4eeff729',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '04f6d79574804b7f96da878a78d523455e7f2466',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '4316a9516294cef012a044354384d90ee3d4bdfa',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
@@ -562,7 +562,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'bc951823b3f672c813f7009731ca8fd4a734e1c1',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'adabe6e669a66cb842e7a87a08620e486b6276f6',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
