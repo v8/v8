@@ -297,6 +297,11 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kLeakHole:
       return v8_flags.hole_fuzzing;
 
+    case Runtime::kInstallBytecode:
+      // This is only allowed when performing sandbox fuzzing as it allows
+      // installing arbitrary bytecode (if it passes bytecode verification).
+      return v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing;
+
     default:
       break;
   }

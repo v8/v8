@@ -35,6 +35,7 @@
 #include "src/objects/bytecode-array.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/sandbox/bytecode-verifier.h"
 #include "src/utils/utils.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
@@ -2598,6 +2599,201 @@ RUNTIME_FUNCTION(Runtime_GetUndefinedNaN) {
   CHECK_UNLESS_FUZZING(false && "undefined NaNs are disabled via build flag");
   return ReadOnlyRoots(isolate).undefined_value();
 #endif
+}
+
+RUNTIME_FUNCTION(Runtime_GetBytecode) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsJSFunction(args[0]));
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
+
+  DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
+  if (!shared->HasBytecodeArray()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  DirectHandle<BytecodeArray> bytecode_array(shared->GetBytecodeArray(isolate),
+                                             isolate);
+
+  if (v8_flags.print_bytecode) {
+    PrintF("%%GetBytecode:\n");
+    StdoutStream os;
+    bytecode_array->Disassemble(os);
+    os << std::flush;
+  }
+
+  int length = bytecode_array->length();
+  Handle<JSArrayBuffer> bytecode_buffer =
+      isolate->factory()
+          ->NewJSArrayBufferAndBackingStore(length,
+                                            InitializedFlag::kUninitialized)
+          .ToHandleChecked();
+  memcpy(
+      bytecode_buffer->backing_store(),
+      reinterpret_cast<const void*>(bytecode_array->GetFirstBytecodeAddress()),
+      length);
+
+  DirectHandle<TrustedFixedArray> constant_pool(bytecode_array->constant_pool(),
+                                                isolate);
+  int cp_length = constant_pool->length();
+  Handle<JSArray> constant_pool_array =
+      isolate->factory()->NewJSArray(cp_length);
+  for (int i = 0; i < cp_length; ++i) {
+    Handle<Object> value(constant_pool->get(i), isolate);
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, Object::SetElement(isolate, constant_pool_array, i, value,
+                                    ShouldThrow::kThrowOnError));
+  }
+
+  DirectHandle<TrustedByteArray> handler_table(bytecode_array->handler_table(),
+                                               isolate);
+  int ht_length = handler_table->length();
+  Handle<JSArrayBuffer> handler_table_buffer =
+      isolate->factory()
+          ->NewJSArrayBufferAndBackingStore(ht_length,
+                                            InitializedFlag::kUninitialized)
+          .ToHandleChecked();
+  memcpy(handler_table_buffer->backing_store(), handler_table->begin(),
+         ht_length);
+
+  Handle<JSObject> result =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  JSObject::AddProperty(isolate, result, "bytecode", bytecode_buffer,
+                        PropertyAttributes::NONE);
+  JSObject::AddProperty(isolate, result, "constant_pool", constant_pool_array,
+                        PropertyAttributes::NONE);
+  JSObject::AddProperty(isolate, result, "handler_table", handler_table_buffer,
+                        PropertyAttributes::NONE);
+
+  JSObject::AddProperty(
+      isolate, result, "frame_size",
+      isolate->factory()->NewNumberFromInt(bytecode_array->frame_size()),
+      PropertyAttributes::NONE);
+  JSObject::AddProperty(
+      isolate, result, "parameter_count",
+      isolate->factory()->NewNumberFromInt(bytecode_array->parameter_count()),
+      PropertyAttributes::NONE);
+  JSObject::AddProperty(
+      isolate, result, "max_arguments",
+      isolate->factory()->NewNumberFromInt(bytecode_array->max_arguments()),
+      PropertyAttributes::NONE);
+  JSObject::AddProperty(
+      isolate, result, "incoming_new_target_or_generator_register",
+      isolate->factory()->NewNumberFromInt(
+          bytecode_array->incoming_new_target_or_generator_register().index()),
+      PropertyAttributes::NONE);
+
+  return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_InstallBytecode) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsJSFunction(args[0]));
+  CHECK_UNLESS_FUZZING(IsJSObject(args[1]));
+
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
+  Handle<JSObject> input = args.at<JSObject>(1);
+
+  auto GetIntProperty = [&](const char* name) -> Maybe<int32_t> {
+    Handle<Object> val;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, val, JSReceiver::GetProperty(isolate, input, name),
+        Nothing<int32_t>());
+    Handle<Object> result_obj;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result_obj, Object::ToInt32(isolate, val), Nothing<int32_t>());
+    int32_t result;
+    CHECK(Object::ToInt32(*result_obj, &result));
+    return Just(result);
+  };
+
+  Handle<Object> bytecode_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, bytecode_obj,
+      JSReceiver::GetProperty(isolate, input, "bytecode"));
+  CHECK_UNLESS_FUZZING(IsJSArrayBuffer(*bytecode_obj));
+  auto bytecode_buffer = Cast<JSArrayBuffer>(bytecode_obj);
+
+  Handle<Object> cp_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, cp_obj,
+      JSReceiver::GetProperty(isolate, input, "constant_pool"));
+  CHECK_UNLESS_FUZZING(IsJSArray(*cp_obj));
+  auto cp_array = Cast<JSArray>(cp_obj);
+  int cp_length = Smi::ToInt(cp_array->length());
+  DirectHandle<TrustedFixedArray> constant_pool =
+      isolate->factory()->NewTrustedFixedArray(cp_length);
+  for (int i = 0; i < cp_length; ++i) {
+    Handle<Object> val;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, val, JSReceiver::GetElement(isolate, cp_array, i));
+    constant_pool->set(i, *val);
+  }
+
+  Handle<Object> ht_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, ht_obj,
+      JSReceiver::GetProperty(isolate, input, "handler_table"));
+  CHECK_UNLESS_FUZZING(IsJSArrayBuffer(*ht_obj));
+  auto ht_buffer = Cast<JSArrayBuffer>(ht_obj);
+  int ht_length = static_cast<int>(ht_buffer->byte_length());
+  uint8_t* ht_data = static_cast<uint8_t*>(ht_buffer->backing_store());
+  DirectHandle<TrustedByteArray> handler_table =
+      isolate->factory()->NewTrustedByteArray(ht_length);
+  memcpy(handler_table->begin(), ht_data, ht_length);
+
+  int frame_size;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, frame_size,
+                                     GetIntProperty("frame_size"));
+
+  int parameter_count;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, parameter_count,
+                                     GetIntProperty("parameter_count"));
+
+  int max_arguments;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, max_arguments,
+                                     GetIntProperty("max_arguments"));
+
+  int incoming_reg_index;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, incoming_reg_index,
+      GetIntProperty("incoming_new_target_or_generator_register"));
+
+  int length = static_cast<int>(bytecode_buffer->byte_length());
+  const uint8_t* raw_bytecodes =
+      static_cast<uint8_t*>(bytecode_buffer->backing_store());
+  Handle<BytecodeArray> new_bytecode = isolate->factory()->NewBytecodeArray(
+      length, raw_bytecodes, frame_size, parameter_count, max_arguments,
+      constant_pool, handler_table);
+
+  new_bytecode->set_incoming_new_target_or_generator_register(
+      interpreter::Register(incoming_reg_index));
+
+  Zone zone(isolate->allocator(), "Runtime_InstallBytecode");
+  BytecodeVerifier::Verify(isolate, new_bytecode, &zone);
+
+  if (v8_flags.print_bytecode) {
+    PrintF("%%InstallBytecode:\n");
+    StdoutStream os;
+    new_bytecode->Disassemble(os);
+    os << std::flush;
+  }
+
+  DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
+  if (shared->is_compiled()) {
+    SharedFunctionInfo::DiscardCompiled(isolate, shared);
+  }
+  shared->set_bytecode_array(*new_bytecode);
+
+  if (function->HasAttachedOptimizedCode(isolate)) {
+    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting);
+  }
+  function->UpdateCode(isolate,
+                       *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal
