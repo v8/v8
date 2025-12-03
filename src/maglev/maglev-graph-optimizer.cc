@@ -2182,13 +2182,18 @@ ProcessResult MaglevGraphOptimizer::VisitInt32DecrementWithOverflow(
 
 ProcessResult MaglevGraphOptimizer::VisitInt32Compare(
     Int32Compare* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto result = reducer_.TryFoldInt32CompareOperation(
+          node->operation(), node->input_node(0), node->input_node(1))) {
+    return ReplaceWith(reducer_.GetBooleanConstant(result.value()));
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitInt32ToBoolean(
     Int32ToBoolean* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetInt32Constant(node->input_node(0))) {
+    return ReplaceWith(reducer_.GetBooleanConstant(cst.value() != 0));
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2262,7 +2267,13 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Compare(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64ToBoolean(
     Float64ToBoolean* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, node->input_node(0),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    double value = cst.value().get_scalar();
+    bool boolean_value = value != 0.0 && !std::isnan(value);
+    return ReplaceWith(reducer_.GetBooleanConstant(boolean_value));
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2548,7 +2559,11 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32ToBooleanTrue(
     BranchIfInt32ToBooleanTrue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetInt32Constant(node->ConditionInput().node())) {
+    bool condition_value = cst.value() != 0;
+    FoldBranch(state.block(), node, condition_value);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2560,7 +2575,14 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfIntPtrToBooleanTrue(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64ToBooleanTrue(
     BranchIfFloat64ToBooleanTrue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, node->ConditionInput().node(),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    double value = cst.value().get_scalar();
+    bool condition_value = value != 0.0 && !std::isnan(value);
+    FoldBranch(state.block(), node, condition_value);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
