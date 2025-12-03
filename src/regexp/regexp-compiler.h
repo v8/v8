@@ -17,7 +17,7 @@ namespace internal {
 
 class DynamicBitSet;
 class Isolate;
-class FixedLengthLoopState;
+class SpecialLoopState;
 
 namespace regexp_compiler_constants {
 
@@ -247,7 +247,7 @@ class Trace {
         has_any_actions_(false),
         action_(nullptr),
         backtrack_(nullptr),
-        fixed_length_loop_state_(nullptr),
+        special_loop_state_(nullptr),
         characters_preloaded_(0),
         bound_checked_up_to_(0),
         next_(nullptr) {}
@@ -259,7 +259,7 @@ class Trace {
         has_any_actions_(other.has_any_actions_),
         action_(nullptr),
         backtrack_(other.backtrack_),
-        fixed_length_loop_state_(other.fixed_length_loop_state_),
+        special_loop_state_(other.special_loop_state_),
         characters_preloaded_(other.characters_preloaded_),
         bound_checked_up_to_(other.bound_checked_up_to_),
         quick_check_performed_(other.quick_check_performed_),
@@ -312,9 +312,7 @@ class Trace {
   TriBool at_start() const { return at_start_; }
   void set_at_start(TriBool at_start) { at_start_ = at_start; }
   Label* backtrack() const { return backtrack_; }
-  FixedLengthLoopState* fixed_length_loop_state() const {
-    return fixed_length_loop_state_;
-  }
+  SpecialLoopState* special_loop_state() const { return special_loop_state_; }
   int characters_preloaded() const { return characters_preloaded_; }
   int bound_checked_up_to() const { return bound_checked_up_to_; }
   int flush_budget() const { return flush_budget_; }
@@ -332,8 +330,8 @@ class Trace {
     has_any_actions_ = true;
   }
   void set_backtrack(Label* backtrack) { backtrack_ = backtrack; }
-  void set_fixed_length_loop_state(FixedLengthLoopState* state) {
-    fixed_length_loop_state_ = state;
+  void set_special_loop_state(SpecialLoopState* state) {
+    special_loop_state_ = state;
   }
   void set_characters_preloaded(int count) { characters_preloaded_ = count; }
   void set_bound_checked_up_to(int to) { bound_checked_up_to_ = to; }
@@ -385,29 +383,33 @@ class Trace {
   bool has_any_actions_ : 8;  // Whether any trace in the chain has an action.
   ActionNode* action_;
   Label* backtrack_;
-  FixedLengthLoopState* fixed_length_loop_state_;
+  SpecialLoopState* special_loop_state_;
   int characters_preloaded_;
   int bound_checked_up_to_;
   QuickCheckDetails quick_check_performed_;
   const Trace* next_;
 };
 
-class FixedLengthLoopState {
+// Used for fixed length greedy loops (counted loops like .*) and for
+// omnivorous non-greedy loops (the initial loop ahead of a non-anchored
+// regexp).
+class SpecialLoopState {
  public:
-  explicit FixedLengthLoopState(bool not_at_start,
-                                ChoiceNode* loop_choice_node);
+  explicit SpecialLoopState(bool not_at_start, ChoiceNode* loop_choice_node);
 
-  void BindStepBackwardsLabel(RegExpMacroAssembler* macro_assembler);
+  void BindStepLabel(RegExpMacroAssembler* macro_assembler);
   void BindLoopTopLabel(RegExpMacroAssembler* macro_assembler);
   void GoToLoopTopLabel(RegExpMacroAssembler* macro_assembler);
   ChoiceNode* loop_choice_node() const { return loop_choice_node_; }
-  Trace* counter_backtrack_trace() { return &counter_backtrack_trace_; }
+  Trace* backtrack_trace() { return &backtrack_trace_; }
 
  private:
-  Label step_backwards_label_;
+  // Step backwards (fixed length greed loop) or forwards (non-greedy
+  // omnivourous loop.
+  Label step_label_;
   Label loop_top_label_;
   ChoiceNode* loop_choice_node_;
-  Trace counter_backtrack_trace_;
+  Trace backtrack_trace_;
 };
 
 struct PreloadState {

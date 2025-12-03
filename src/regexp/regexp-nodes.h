@@ -14,7 +14,7 @@ namespace internal {
 
 class AlternativeGenerationList;
 class BoyerMooreLookahead;
-class FixedLengthLoopState;
+class SpecialLoopState;
 class NodeVisitor;
 class QuickCheckDetails;
 class RegExpCompiler;
@@ -729,13 +729,14 @@ class ChoiceNode : public RegExpNode {
   void SetUpPreLoad(RegExpCompiler* compiler, Trace* current_trace,
                     PreloadState* preloads);
   void AssertGuardsMentionRegisters(Trace* trace);
-  int EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler, Trace* trace);
+  int EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler, Trace* trace,
+                                    SpecialLoopState* search_loop_state);
   // Returns nullptr on failure.
   // TODO(jgruber): Consider wrapping the return value in EmitResult.
   V8_WARN_UNUSED_RESULT Trace* EmitFixedLengthLoop(
       RegExpCompiler* compiler, Trace* trace,
       AlternativeGenerationList* alt_gens, PreloadState* preloads,
-      FixedLengthLoopState* fixed_length_loop_state, int text_length,
+      SpecialLoopState* fixed_length_loop_state, int text_length,
       RegExpFlags flags);
   V8_WARN_UNUSED_RESULT EmitResult
   EmitChoices(RegExpCompiler* compiler, AlternativeGenerationList* alt_gens,
