@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/bits.h"
 #include "src/base/numerics/safe_conversions.h"
 #include "src/execution/isolate.h"
 #include "src/objects/fixed-array-inl.h"
@@ -3028,47 +3029,70 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead)) return;
 
   // Check if we only have a single non-empty position info, and that info
-  // contains precisely one character.
-  bool found_single_character = false;
-  int single_character = 0;
-  for (int i = max_lookahead; i >= min_lookahead; i--) {
+  // contains only one or two characters.
+  bool found_single_position = false;
+  constexpr uint32_t kNoChar = 0xffffffff;
+  uint32_t char_one = kNoChar;
+  uint32_t char_two = kNoChar;
+  bool use_simd = masm->SkipUntilBitInTableUseSimd(1);
+  for (int i = min_lookahead; i <= max_lookahead; i++) {
     BoyerMoorePositionInfo* map = bitmaps_->at(i);
-    if (map->map_count() == 0) continue;
+    if (map->map_count() == 0) {
+      // If we have a position where no characters can match then we just can't
+      // match.
+      masm->Fail();
+      return;
+    }
 
-    if (found_single_character || map->map_count() > 1) {
-      found_single_character = false;
+    if (found_single_position || map->map_count() > 2) {
+      // We found a second position or there were more than two characters that
+      // matched at this position.
+      found_single_position = false;
       break;
     }
 
-    DCHECK(!found_single_character);
-    DCHECK_EQ(map->map_count(), 1);
+    BoyerMoorePositionInfo::Bitset bitset = map->raw_bitset();
+    char_one = BitsetFirstSetBit(bitset);
+    if (map->map_count() == 2) {
+      bitset.reset(char_one);
+      char_two = BitsetFirstSetBit(bitset);
+    } else {
+      char_two = char_one;  // Everything below here works for identical chars.
+    }
+    DCHECK(!found_single_position);
+    if (base::bits::CountPopulation(char_one ^ char_two) > 1) {
+      // For case independent matches we often find two characters that differ
+      // only at one bit positions, but in this case they differed more.  We
+      // don't have a great bytecode for two characters that are too different.
+      break;
+    }
 
-    found_single_character = true;
-    single_character = BitsetFirstSetBit(map->raw_bitset());
+    DCHECK_LE(map->map_count(), 2);
 
-    DCHECK_NE(single_character, -1);
+    found_single_position = true;
+
+    DCHECK_NE(char_one, kNoChar);
+    DCHECK_NE(char_two, kNoChar);
   }
 
-  int lookahead_width = max_lookahead + 1 - min_lookahead;
+  DCHECK_IMPLIES(found_single_position, max_lookahead == min_lookahead);
 
-  if (found_single_character && lookahead_width == 1 && max_lookahead < 3) {
+  if (found_single_position && max_lookahead < 3) {
     // The mask-compare can probably handle this better.
     return;
   }
 
-  if (found_single_character) {
-    // TODO(pthier): Add vectorized version.
-    Label cont, again;
-    masm->Bind(&again);
-    masm->LoadCurrentCharacter(max_lookahead, &cont, true);
-    if (max_char_ > kSize) {
-      masm->CheckCharacterAfterAnd(single_character,
-                                   RegExpMacroAssembler::kTableMask, &cont);
-    } else {
-      masm->CheckCharacter(single_character, &cont);
-    }
-    masm->AdvanceCurrentPosition(lookahead_width);
-    masm->GoTo(&again);
+  if (found_single_position && !use_simd) {
+    // TODO(pthier): Add vectorized version. At that point we will want
+    // to remove the ' && !use_simd' above.
+    DCHECK(max_char_ > kSize);  // This means we will have to do the 'and'.
+
+    Label cont;
+    base::uc16 mask = RegExpMacroAssembler::kTableMask;
+    mask &= ~(char_one ^ char_two);  // Mask out the bit where they differ.
+    masm->SkipUntilCharAnd(max_lookahead, 1, char_one & mask, mask, length(),
+                           &cont, &cont);
+
     masm->Bind(&cont);
     return;
   }
