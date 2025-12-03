@@ -2665,34 +2665,24 @@ class MachineLoweringReducer : public Next {
 
     // Avoid negating `start` and `end`, so that INT32_MIN is handled correctly.
 
-    // TODO(dmercadier): use kCMoveIfAvailable which should lower to CMove if
-    // available and Branch otherwise.
     ScopedVar<Word32> relative_start(this);
     IF (__ Int32LessThan(start, 0)) {
       relative_start = __ Word32Add(length, start);
-      relative_start =
-          __ Select(__ Int32LessThan(relative_start, 0), __ Word32Constant(0),
-                    relative_start, RegisterRepresentation::Word32(),
-                    BranchHint::kNone, SelectOp::Implementation::kForceBranch);
+      relative_start = __ Word32Select(__ Int32LessThan(relative_start, 0), 0,
+                                       relative_start);
     } ELSE {
       relative_start =
-          __ Select(__ Int32LessThan(start, length), start, length,
-                    RegisterRepresentation::Word32(), BranchHint::kNone,
-                    SelectOp::Implementation::kForceBranch);
+          __ Word32Select(__ Int32LessThan(start, length), start, length);
     }
 
     ScopedVar<Word32> relative_end(this);
     IF (__ Int32LessThan(end, 0)) {
       relative_end = __ Word32Add(length, end);
       relative_end =
-          __ Select(__ Int32LessThan(relative_end, 0), __ Word32Constant(0),
-                    relative_end, RegisterRepresentation::Word32(),
-                    BranchHint::kNone, SelectOp::Implementation::kForceBranch);
+          __ Word32Select(__ Int32LessThan(relative_end, 0), 0, relative_end);
     } ELSE {
       relative_end =
-          __ Select(__ Int32LessThan(end, length), end, length,
-                    RegisterRepresentation::Word32(), BranchHint::kNone,
-                    SelectOp::Implementation::kForceBranch);
+          __ Word32Select(__ Int32LessThan(end, length), end, length);
     }
     // substring() and slice() handle end < start differently; return empty here
     // if end < start.

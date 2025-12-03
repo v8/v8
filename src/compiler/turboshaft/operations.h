@@ -2559,15 +2559,32 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
       : Base(cond, vtrue, vfalse), rep(rep), hint(hint), implem(implem) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK_IMPLIES(implem == Implementation::kForceCMove,
-                   (rep == RegisterRepresentation::Word32() &&
-                    SupportedOperations::word32_select()) ||
-                       (rep == RegisterRepresentation::Word64() &&
-                        SupportedOperations::word64_select()) ||
-                       (rep == RegisterRepresentation::Float32() &&
-                        SupportedOperations::float32_select()) ||
-                       (rep == RegisterRepresentation::Float64() &&
-                        SupportedOperations::float64_select()));
+#ifdef DEBUG
+    if (implem == Implementation::kForceCMove) {
+      switch (rep.value()) {
+        case RegisterRepresentation::Enum::kWord32:
+          DCHECK(SupportedOperations::word32_select());
+          break;
+        case RegisterRepresentation::Enum::kWord64:
+          DCHECK(SupportedOperations::word64_select());
+          break;
+        case RegisterRepresentation::Enum::kFloat32:
+          DCHECK(SupportedOperations::float32_select());
+          break;
+        case RegisterRepresentation::Enum::kFloat64:
+          DCHECK(SupportedOperations::float64_select());
+          break;
+
+        case RegisterRepresentation::Enum::kCompressed:
+        case RegisterRepresentation::Enum::kTagged:
+          FATAL("CMove for Tagged/Compressed values isn't implemented yet");
+
+        case RegisterRepresentation::Enum::kSimd128:
+        case RegisterRepresentation::Enum::kSimd256:
+          FATAL("CMove for Simd register not supported");
+      }
+    }
+#endif
   }
 
   V<Word32> cond() const { return input<Word32>(0); }

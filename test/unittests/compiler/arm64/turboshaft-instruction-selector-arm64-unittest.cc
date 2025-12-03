@@ -5171,7 +5171,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Float32SelectWithRegisters) {
   StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
                   MachineType::Float32());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Float32Select(cond, m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Float32CMove(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
@@ -5184,7 +5184,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Float32SelectWithRegisters) {
 TEST_F(TurboshaftInstructionSelectorTest, Float32SelectWithZero) {
   StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Float32Select(cond, m.Parameter(0), m.Float32Constant(0.0f)));
+  m.Return(m.Float32CMove(cond, m.Parameter(0), m.Float32Constant(0.0f)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
@@ -5199,7 +5199,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Float64SelectWithRegisters) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
                   MachineType::Float64());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Float64Select(cond, m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Float64CMove(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
@@ -5212,7 +5212,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Float64SelectWithRegisters) {
 TEST_F(TurboshaftInstructionSelectorTest, Float64SelectWithZero) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Float64Select(cond, m.Parameter(0), m.Float64Constant(0.0f)));
+  m.Return(m.Float64CMove(cond, m.Parameter(0), m.Float64Constant(0.0f)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
@@ -5227,7 +5227,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32SelectWithRegisters) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                   MachineType::Int32());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Word32Select(cond, m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Word32CMove(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
@@ -5240,7 +5240,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32SelectWithRegisters) {
 TEST_F(TurboshaftInstructionSelectorTest, Word32SelectWithZero) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Word32Select(cond, m.Parameter(0), m.Int32Constant(0)));
+  m.Return(m.Word32CMove(cond, m.Parameter(0), m.Int32Constant(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
@@ -5255,7 +5255,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64SelectWithRegisters) {
   StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                   MachineType::Int64());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Word64Select(cond, m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Word64CMove(cond, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
@@ -5268,7 +5268,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Word64SelectWithRegisters) {
 TEST_F(TurboshaftInstructionSelectorTest, Word64SelectWithZero) {
   StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
   OpIndex cond = m.Int32Constant(1);
-  m.Return(m.Word64Select(cond, m.Parameter(0), m.Int64Constant(0)));
+  m.Return(m.Word64CMove(cond, m.Parameter(0), m.Int64Constant(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
@@ -8625,7 +8625,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex p0 = m.Parameter(0);
     const OpIndex p1 = m.Parameter(1);
 
-    m.Return(m.Word32Select(m.Int32GreaterThan(p0, p1), p0, p1));
+    m.Return(m.Word32CMove(m.Int32GreaterThan(p0, p1), p0, p1));
 
     Stream s = m.Build();
 
@@ -8645,7 +8645,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex p0 = m.Parameter(0);
     const OpIndex p1 = m.Parameter(1);
 
-    m.Return(m.Word64Select(m.Int64GreaterThanOrEqual(p0, p1), p1, p0));
+    m.Return(m.Word64CMove(m.Int64GreaterThanOrEqual(p0, p1), p1, p0));
 
     Stream s = m.Build();
 
@@ -8665,7 +8665,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex p0 = m.Parameter(0);
     const OpIndex p1 = m.Parameter(1);
 
-    m.Return(m.Word32Select(m.Int32LessThan(p1, p0), p1, p0));
+    m.Return(m.Word32CMove(m.Int32LessThan(p1, p0), p1, p0));
 
     Stream s = m.Build();
 
@@ -8685,7 +8685,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex p0 = m.Parameter(0);
     const OpIndex p1 = m.Parameter(1);
 
-    m.Return(m.Word64Select(m.Int64LessThanOrEqual(p1, p0), p0, p1));
+    m.Return(m.Word64CMove(m.Int64LessThanOrEqual(p1, p0), p0, p1));
 
     Stream s = m.Build();
 
@@ -8705,7 +8705,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex p0 = m.Parameter(0);
     const OpIndex p1 = m.Parameter(1);
 
-    m.Return(m.Word32Select(m.Uint32GreaterThanOrEqual(p0, p1), p1, p0));
+    m.Return(m.Word32CMove(m.Uint32GreaterThanOrEqual(p0, p1), p1, p0));
 
     Stream s = m.Build();
 
@@ -8725,7 +8725,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex p0 = m.Parameter(0);
     const OpIndex p1 = m.Parameter(1);
 
-    m.Return(m.Word64Select(m.Uint64GreaterThan(p0, p1), p0, p1));
+    m.Return(m.Word64CMove(m.Uint64GreaterThan(p0, p1), p0, p1));
 
     Stream s = m.Build();
 
@@ -8745,7 +8745,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex p0 = m.Parameter(0);
     const OpIndex p1 = m.Parameter(1);
 
-    m.Return(m.Word32Select(m.Uint32LessThanOrEqual(p1, p0), p0, p1));
+    m.Return(m.Word32CMove(m.Uint32LessThanOrEqual(p1, p0), p0, p1));
 
     Stream s = m.Build();
 
@@ -8765,7 +8765,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex p0 = m.Parameter(0);
     const OpIndex p1 = m.Parameter(1);
 
-    m.Return(m.Word64Select(m.Uint64LessThan(p1, p0), p1, p0));
+    m.Return(m.Word64CMove(m.Uint64LessThan(p1, p0), p1, p0));
 
     Stream s = m.Build();
 
@@ -8785,7 +8785,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex c0 = m.Int32Constant(c);
     const OpIndex p0 = m.Parameter(0);
 
-    m.Return(m.Word32Select(m.Int32GreaterThan(p0, c0), p0, c0));
+    m.Return(m.Word32CMove(m.Int32GreaterThan(p0, c0), p0, c0));
 
     Stream s = m.Build();
 
@@ -8804,7 +8804,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex c0 = m.Int64Constant(c);
     const OpIndex p0 = m.Parameter(0);
 
-    m.Return(m.Word64Select(m.Int64LessThanOrEqual(p0, c0), c0, p0));
+    m.Return(m.Word64CMove(m.Int64LessThanOrEqual(p0, c0), c0, p0));
 
     Stream s = m.Build();
 
@@ -8823,7 +8823,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex c0 = m.Int32Constant(c);
     const OpIndex p0 = m.Parameter(0);
 
-    m.Return(m.Word32Select(m.Uint32GreaterThanOrEqual(c0, p0), p0, c0));
+    m.Return(m.Word32CMove(m.Uint32GreaterThanOrEqual(c0, p0), p0, c0));
 
     Stream s = m.Build();
 
@@ -8842,7 +8842,7 @@ TEST_F(TurboshaftInstructionSelectorTest, MaxMin) {
     const OpIndex c0 = m.Int64Constant(c);
     const OpIndex p0 = m.Parameter(0);
 
-    m.Return(m.Word64Select(m.Uint64LessThan(c0, p0), c0, p0));
+    m.Return(m.Word64CMove(m.Uint64LessThan(c0, p0), c0, p0));
 
     Stream s = m.Build();
 

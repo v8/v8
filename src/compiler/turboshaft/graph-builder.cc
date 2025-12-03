@@ -1253,7 +1253,7 @@ OpIndex GraphBuilder::Process(
       return __ Select(cond, vtrue, vfalse,
                        RegisterRepresentation::FromMachineRepresentation(
                            params.representation()),
-                       params.hint(), SelectOp::Implementation::kForceBranch);
+                       params.hint(), SelectOp::Implementation::kAny);
     }
     case IrOpcode::kWord32Select:
       return __ Select(

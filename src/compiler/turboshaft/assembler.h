@@ -3363,12 +3363,14 @@ class AssemblerOpInterface : public Next {
                   implem);
   }
 
+  // Using Word32Select/Word64Select/Float64Select/Float64Select lowers to a
+  // CMove if possible and a Branch otherwise.
 #define DEF_SELECT(Rep)                                                  \
   V<Rep> Rep##Select(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,         \
                      ConstOrV<Rep> vfalse) {                             \
     return Select<Rep>(resolve(cond), resolve(vtrue), resolve(vfalse),   \
                        RegisterRepresentation::Rep(), BranchHint::kNone, \
-                       SelectOp::Implementation::kForceCMove);           \
+                       SelectOp::Implementation::kAny);                  \
   }
   DEF_SELECT(Word32)
   DEF_SELECT(Word64)
@@ -3376,6 +3378,22 @@ class AssemblerOpInterface : public Next {
   DEF_SELECT(Float32)
   DEF_SELECT(Float64)
 #undef DEF_SELECT
+
+  // CMove always lowers to a conditional move and crashes if the target
+  // architecture doesn't support it.
+#define DEF_CMOVE(Rep, rep)                                              \
+  V<Rep> Rep##CMove(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,          \
+                    ConstOrV<Rep> vfalse) {                              \
+    DCHECK(SupportedOperations::rep##_select());                         \
+    return Select<Rep>(resolve(cond), resolve(vtrue), resolve(vfalse),   \
+                       RegisterRepresentation::Rep(), BranchHint::kNone, \
+                       SelectOp::Implementation::kForceCMove);           \
+  }
+  DEF_CMOVE(Word32, word32)
+  DEF_CMOVE(Word64, word64)
+  DEF_CMOVE(Float32, float32)
+  DEF_CMOVE(Float64, float64)
+#undef DEF_CMOVE
 
   template <typename T, typename U>
   V<std::common_type_t<T, U>> Conditional(ConstOrV<Word32> cond, V<T> vtrue,

@@ -974,36 +974,9 @@ class TurboshaftGraphBuildingInterface
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
     using Implementation = compiler::turboshaft::SelectOp::Implementation;
-    bool use_select = false;
-    switch (tval.type.kind()) {
-      case kI32:
-        if (SupportedOperations::word32_select()) use_select = true;
-        break;
-      case kI64:
-        if (SupportedOperations::word64_select()) use_select = true;
-        break;
-      case kF32:
-        if (SupportedOperations::float32_select()) use_select = true;
-        break;
-      case kF64:
-        if (SupportedOperations::float64_select()) use_select = true;
-        break;
-      case kRef:
-      case kRefNull:
-      case kS128:
-        break;
-      case kI8:
-      case kI16:
-      case kF16:
-      case kVoid:
-      case kTop:
-      case kBottom:
-        UNREACHABLE();
-    }
-    result->op = __ Select(cond.op, tval.op, fval.op,
-                           RepresentationFor(tval.type), BranchHint::kNone,
-                           use_select ? Implementation::kForceCMove
-                                      : Implementation::kForceBranch);
+    result->op =
+        __ Select(cond.op, tval.op, fval.op, RepresentationFor(tval.type),
+                  BranchHint::kNone, Implementation::kAny);
   }
 
   OpIndex BuildChangeEndiannessStore(OpIndex node,
