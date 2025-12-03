@@ -497,20 +497,11 @@ VISIT(SkipUntilOneOfMasked3) {
        bc4_by, bc5_cp_offset, bc6_characters, bc6_mask, bc6_on_equal,
        bc7_characters, bc7_mask, bc7_on_equal, bc8_characters, bc8_mask,
        fallthrough_jump_target);
-  // The nibble table is optionally constructed if we use SIMD.
-  Handle<ByteArray> nibble_table;
-  if (masm_->SkipUntilBitInTableUseSimd(bc0_advance_by)) {
-    static_assert(RegExpMacroAssembler::kTableSize == 128);
-    nibble_table = isolate_->factory()->NewByteArray(
-        RegExpMacroAssembler::kTableSize / kBitsPerByte, AllocationType::kOld);
-  }
-  Handle<ByteArray> table =
-      CreateBitTableByteArray(isolate_, bc0_table, nibble_table);
   RegExpMacroAssembler::SkipUntilOneOfMasked3Args args = {
       .bc0_cp_offset = bc0_cp_offset,
       .bc0_advance_by = bc0_advance_by,
-      .bc0_table = table,
-      .bc0_nibble_table = nibble_table,
+      .bc0_table = {},
+      .bc0_nibble_table = {},
       .bc1_cp_offset = bc1_cp_offset,
       .bc1_on_failure = bc1_on_failure,
       .bc2_cp_offset = bc2_cp_offset,
@@ -528,6 +519,19 @@ VISIT(SkipUntilOneOfMasked3) {
       .bc8_mask = bc8_mask,
       .fallthrough_jump_target = fallthrough_jump_target,
   };
+
+  // The nibble table is optionally constructed if we use SIMD.
+  Handle<ByteArray> nibble_table;
+  if (masm_->SkipUntilOneOfMasked3UseSimd(args)) {
+    static_assert(RegExpMacroAssembler::kTableSize == 128);
+    nibble_table = isolate_->factory()->NewByteArray(
+        RegExpMacroAssembler::kTableSize / kBitsPerByte, AllocationType::kOld);
+  }
+  Handle<ByteArray> table =
+      CreateBitTableByteArray(isolate_, bc0_table, nibble_table);
+  args.bc0_table = table;
+  args.bc0_nibble_table = nibble_table;
+
   __ SkipUntilOneOfMasked3(args);
 }
 

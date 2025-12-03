@@ -167,6 +167,10 @@ class RegExpMacroAssembler {
     unsigned bc8_mask;
     Label* fallthrough_jump_target;
   };
+  virtual bool SkipUntilOneOfMasked3UseSimd(
+      const SkipUntilOneOfMasked3Args& args) {
+    return false;
+  }
   virtual void SkipUntilOneOfMasked3(const SkipUntilOneOfMasked3Args& args);
 
   // Checks whether the given offset from the current position is is in-bounds.
@@ -334,6 +338,7 @@ class RegExpMacroAssembler {
     static_assert(static_cast<int>(Mode::UC16) == sizeof(uint16_t));
     return static_cast<int>(mode());
   }
+
   bool has_backtrack_limit() const;
   uint32_t backtrack_limit() const { return backtrack_limit_; }
 

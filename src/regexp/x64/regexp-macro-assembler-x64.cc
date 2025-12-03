@@ -11,6 +11,7 @@
 #include "src/heap/factory.h"
 #include "src/logging/log.h"
 #include "src/objects/code-inl.h"
+#include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 
@@ -594,6 +595,129 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
   BranchOrBacktrack(not_equal, on_bit_set);
 }
 
+void RegExpMacroAssemblerX64::EmitSkipUntilBitInTableSimdHelper(
+    int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
+    int max_on_match_lookahead, Label* scalar_fallback,
+    base::FunctionRef<void(Register, Label*)> on_match) {
+  // This function uses rax and r11 as scratch, and {xmm0..5} for simd.
+
+  Label simd_loop, advance_vector, process_next_bit;
+  static constexpr int kVectorSize = 16;
+  // Currently this helper is only used for LATIN1.
+  DCHECK_EQ(mode(), RegExpMacroAssembler::LATIN1);
+  const int kCharsPerVector = kVectorSize / char_size();
+
+  // Hoist the bounds check, there is one more copy before the loop backedge.
+  //
+  // Fallback to scalar version if there are less than kCharsPerVector chars
+  // left in the subject. We subtract 1 because CheckPosition assumes we are
+  // reading 1 character plus cp_offset. So the -1 is the the character that is
+  // assumed to be read by default.
+  static constexpr int kCheckPositionOffset = -1;
+  CheckPosition(cp_offset + kCharsPerVector + kCheckPositionOffset +
+                    max_on_match_lookahead,
+                scalar_fallback);
+
+  // Hoist constants.
+  XMMRegister nibble_table = xmm0;
+  __ Move(r11, nibble_table_handle);
+  __ Movdqu(nibble_table, FieldOperand(r11, OFFSET_OF_DATA_START(ByteArray)));
+  XMMRegister nibble_mask = xmm1;
+  __ Move(r11, 0x0f0f0f0f'0f0f0f0f);
+  __ movq(nibble_mask, r11);
+  __ Movddup(nibble_mask, nibble_mask);
+  XMMRegister hi_nibble_lookup_mask = xmm2;
+  __ Move(r11, 0x80402010'08040201);
+  __ movq(hi_nibble_lookup_mask, r11);
+  __ Movddup(hi_nibble_lookup_mask, hi_nibble_lookup_mask);
+
+  __ bind(&simd_loop);
+  // Load next characters into vector.
+  XMMRegister input_vec = xmm3;
+  __ Movdqu(input_vec, Operand(rsi, rdi, times_1, cp_offset));
+
+  // Extract low nibbles.
+  // lo_nibbles = input & 0x0f
+  XMMRegister lo_nibbles = xmm4;
+  if (CpuFeatures::IsSupported(AVX)) {
+    __ Andps(lo_nibbles, nibble_mask, input_vec);
+  } else {
+    __ Movdqa(lo_nibbles, nibble_mask);
+    __ Andps(lo_nibbles, lo_nibbles, input_vec);
+  }
+  // Extract high nibbles.
+  // hi_nibbles = (input >> 4) & 0x0f
+  __ Psrlw(input_vec, uint8_t{4});
+  XMMRegister hi_nibbles = ReassignRegister(input_vec);
+  __ Andps(hi_nibbles, hi_nibbles, nibble_mask);
+
+  // Get rows of nibbles table based on low nibbles.
+  // row = nibble_table[lo_nibbles]
+  XMMRegister row = xmm5;
+  __ Pshufb(row, nibble_table, lo_nibbles);
+
+  // Check if high nibble is set in row.
+  // bitmask = 1 << (hi_nibbles & 0x7)
+  //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
+  // Note: The hi_nibbles & 0x7 part is implicitly executed, as pshufb sets
+  // the result byte to zero if bit 7 is set in the source byte.
+  XMMRegister bitmask = ReassignRegister(lo_nibbles);
+  __ Pshufb(bitmask, hi_nibble_lookup_mask, hi_nibbles);
+
+  // result = row & bitmask == bitmask
+  XMMRegister result = ReassignRegister(row);
+  __ Andps(result, result, bitmask);
+  __ Pcmpeqb(result, result, bitmask);
+
+  // Check if any bit is set.
+  // Copy the most significant bit of each result byte to r11.
+  __ Pmovmskb(r11, result);
+  __ testl(r11, r11);
+  __ j(zero, &advance_vector);
+
+  __ bind(&process_next_bit);
+  // Extract the position of the lowest set bit.
+  __ bsfl(rax, r11);
+
+  if (mode() == RegExpMacroAssembler::UC16) {
+    // Make sure that we skip an even number of bytes in 2-byte subjects.
+    // Odd skips can happen if the higher byte produced a match.
+    // False positives should be rare and are no problem in general, as the
+    // following instructions will check for an exact match.
+    __ andl(rax, Immediate(0xfffe));
+  }
+
+  // We've found a match and loaded the bit position into rax.
+  Label next_candidate;
+  on_match(rax, &next_candidate);
+
+  __ bind(&next_candidate);
+  // Clear the lowest set bit.
+  if (__ IsEnabled(BMI1)) {
+    __ blsrl(r11, r11);
+  } else {
+    // The fallback sequence is:
+    // r11 = r11 & (r11 - 1)
+    __ movl(rax, r11);
+    __ decl(rax);
+    __ andl(r11, rax);
+  }
+  __ j(not_zero, &process_next_bit);
+
+  // The maximum lookahead for boyer moore is less than vector size, so we can
+  // ignore advance_by in the vectorized version.
+  DCHECK_LE(advance_by, regexp_compiler_constants::kMaxLookaheadForBoyerMoore);
+  DCHECK_LT(regexp_compiler_constants::kMaxLookaheadForBoyerMoore,
+            kCharsPerVector);
+
+  __ bind(&advance_vector);
+  AdvanceCurrentPosition(kCharsPerVector);
+  CheckPosition(cp_offset + kCharsPerVector + kCheckPositionOffset +
+                    max_on_match_lookahead,
+                scalar_fallback);
+  __ jmp(&simd_loop);
+}
+
 void RegExpMacroAssemblerX64::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table,
     Handle<ByteArray> nibble_table_array, int advance_by, Label* on_match,
@@ -603,94 +727,13 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
   const bool use_simd = SkipUntilBitInTableUseSimd(advance_by);
   if (use_simd) {
     DCHECK(!nibble_table_array.is_null());
-    Label simd_repeat, found, scalar;
-    static constexpr int kVectorSize = 16;
-    const int kCharsPerVector = kVectorSize / char_size();
-
-    // Fallback to scalar version if there are less than kCharsPerVector chars
-    // left in the subject.
-    // We subtract 1 because CheckPosition assumes we are reading 1 character
-    // plus cp_offset. So the -1 is the the character that is assumed to be
-    // read by default.
-    CheckPosition(cp_offset + kCharsPerVector - 1, &scalar);
-
-    // Load table and mask constants.
-    // For a description of the table layout, check the comment on
-    // BoyerMooreLookahead::GetSkipTable in regexp-compiler.cc.
-    XMMRegister nibble_table = xmm0;
-    __ Move(r11, nibble_table_array);
-    __ Movdqu(nibble_table, FieldOperand(r11, OFFSET_OF_DATA_START(ByteArray)));
-    XMMRegister nibble_mask = xmm1;
-    __ Move(r11, 0x0f0f0f0f'0f0f0f0f);
-    __ movq(nibble_mask, r11);
-    __ Movddup(nibble_mask, nibble_mask);
-    XMMRegister hi_nibble_lookup_mask = xmm2;
-    __ Move(r11, 0x80402010'08040201);
-    __ movq(hi_nibble_lookup_mask, r11);
-    __ Movddup(hi_nibble_lookup_mask, hi_nibble_lookup_mask);
-
-    Bind(&simd_repeat);
-    // Load next characters into vector.
-    XMMRegister input_vec = xmm3;
-    __ Movdqu(input_vec, Operand(rsi, rdi, times_1, cp_offset));
-
-    // Extract low nibbles.
-    // lo_nibbles = input & 0x0f
-    XMMRegister lo_nibbles = xmm4;
-    if (CpuFeatures::IsSupported(AVX)) {
-      __ Andps(lo_nibbles, nibble_mask, input_vec);
-    } else {
-      __ Movdqa(lo_nibbles, nibble_mask);
-      __ Andps(lo_nibbles, lo_nibbles, input_vec);
-    }
-    // Extract high nibbles.
-    // hi_nibbles = (input >> 4) & 0x0f
-    __ Psrlw(input_vec, uint8_t{4});
-    XMMRegister hi_nibbles = ReassignRegister(input_vec);
-    __ Andps(hi_nibbles, hi_nibbles, nibble_mask);
-
-    // Get rows of nibbles table based on low nibbles.
-    // row = nibble_table[lo_nibbles]
-    XMMRegister row = xmm5;
-    __ Pshufb(row, nibble_table, lo_nibbles);
-
-    // Check if high nibble is set in row.
-    // bitmask = 1 << (hi_nibbles & 0x7)
-    //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
-    // Note: The hi_nibbles & 0x7 part is implicitly executed, as pshufb sets
-    // the result byte to zero if bit 7 is set in the source byte.
-    XMMRegister bitmask = ReassignRegister(lo_nibbles);
-    __ Pshufb(bitmask, hi_nibble_lookup_mask, hi_nibbles);
-
-    // result = row & bitmask == bitmask
-    XMMRegister result = ReassignRegister(row);
-    __ Andps(result, result, bitmask);
-    __ Pcmpeqb(result, result, bitmask);
-
-    // Check if any bit is set.
-    // Copy the most significant bit of each result byte to r11.
-    __ Pmovmskb(r11, result);
-    __ testl(r11, r11);
-    __ j(not_zero, &found);
-
-    // The maximum lookahead for boyer moore is less than vector size, so we can
-    // ignore advance_by in the vectorized version.
-    AdvanceCurrentPosition(kCharsPerVector);
-    CheckPosition(cp_offset + kCharsPerVector - 1, &scalar);
-    __ jmp(&simd_repeat);
-
-    Bind(&found);
-    // Extract position.
-    __ bsfl(r11, r11);
-    if (mode() == UC16) {
-      // Make sure that we skip an even number of bytes in 2-byte subjects.
-      // Odd skips can happen if the higher byte produced a match.
-      // False positives should be rare and are no problem in general, as the
-      // following instructions will check for an exact match.
-      __ andl(r11, Immediate(0xfffe));
-    }
-    __ addq(rdi, r11);
-    __ jmp(on_match);
+    Label scalar;
+    EmitSkipUntilBitInTableSimdHelper(cp_offset, advance_by, nibble_table_array,
+                                      0, &scalar,
+                                      [&](Register index, Label* next) {
+                                        __ addq(rdi, index);
+                                        __ jmp(on_match);
+                                      });
     Bind(&scalar);
   }
 
@@ -965,6 +1008,125 @@ bool RegExpMacroAssemblerX64::SkipUntilOneOfMaskedUseSimd(int advance_by) {
   // We only use SIMD instead of the scalar version if we advance by 1 byte
   // in each iteration. For higher values the scalar version performs better.
   return v8_flags.regexp_simd && advance_by * char_size() == 1;
+}
+
+bool RegExpMacroAssemblerX64::SkipUntilOneOfMasked3UseSimd(
+    const SkipUntilOneOfMasked3Args& args) {
+  // To use the SIMD variant we require SSSE3 as there is no shuffle equivalent
+  // in older extensions.
+  return v8_flags.regexp_simd && char_size() == 1 &&
+         CpuFeatures::IsSupported(SSSE3);
+}
+
+void RegExpMacroAssemblerX64::SkipUntilOneOfMasked3(
+    const SkipUntilOneOfMasked3Args& args) {
+  // See the definition of the BC_SKIP_UNTIL_ONE_OF_MASKED3 peephole bytecode
+  // for more context. The initial bytecode sequence is:
+  //
+  // sequence offset name
+  // bc0   0  SKIP_UNTIL_BIT_IN_TABLE
+  // bc1  20  CHECK_CURRENT_POSITION
+  // bc2  28  LOAD_4_CURRENT_CHARS_UNCHECKED
+  // bc3  2c  AND_CHECK_4_CHARS
+  // bc4  3c  ADVANCE_CP_AND_GOTO
+  // bc5  48  LOAD_4_CURRENT_CHARS
+  // bc6  4c  AND_CHECK_4_CHARS
+  // bc7  5c  AND_CHECK_4_CHARS
+  // bc8  6c  AND_CHECK_NOT_4_CHARS
+
+  if (!SkipUntilOneOfMasked3UseSimd(args)) {
+    // If we cannot optimize the entire sequence, fall back to the generic
+    // implementation. Note we may still use simd to optimize a subsequence
+    // there.
+    RegExpMacroAssembler::SkipUntilOneOfMasked3(args);
+    return;
+  }
+
+  DCHECK(!args.bc0_nibble_table.is_null());
+  DCHECK(!args.bc0_table.is_null());
+
+  Label scalar_fallback;
+
+  // We need to load 4 chars at bc2 and bc5.
+  static constexpr int kCharsPerLoad = 4;
+  int max_on_match_lookahead =
+      std::max(args.bc2_cp_offset, args.bc5_cp_offset) + kCharsPerLoad;
+
+  EmitSkipUntilBitInTableSimdHelper(
+      args.bc0_cp_offset, args.bc0_advance_by, args.bc0_nibble_table,
+      max_on_match_lookahead, &scalar_fallback,
+      [&](Register index, Label* next) {
+        // SkipUntilBitInTable has matched at offset `index`. Bounds checks
+        // have ensured we can safely perform the below loads without checks.
+        //
+        // The following inner checks are done using simple scalar code.
+        Label bc5_load, continue_outer_loop, pop_and_goto_bc6_on_equal,
+            pop_and_goto_bc7_on_equal;
+
+        // The current position is temporarily advanced for this inner block.
+        // If no match is found, it is reverted to the previous state before
+        // returning to simd code for the next loop iteration.
+        __ pushq(rdi);
+        __ addq(rdi, index);
+
+        // bc2: Load.
+        LoadCurrentCharacter(args.bc2_cp_offset, nullptr, false, kCharsPerLoad);
+
+        // bc3: Check.
+        CheckCharacterAfterAnd(args.bc3_characters, args.bc3_mask, &bc5_load);
+        GoTo(&continue_outer_loop);
+
+        Bind(&bc5_load);
+        // bc5: Load.
+        LoadCurrentCharacter(args.bc5_cp_offset, nullptr, false, kCharsPerLoad);
+
+        // bc6, bc7, bc8.
+        CheckCharacterAfterAnd(args.bc6_characters, args.bc6_mask,
+                               &pop_and_goto_bc6_on_equal);
+        CheckCharacterAfterAnd(args.bc7_characters, args.bc7_mask,
+                               &pop_and_goto_bc7_on_equal);
+        CheckNotCharacterAfterAnd(args.bc8_characters, args.bc8_mask,
+                                  &continue_outer_loop);
+
+        // Success cases:
+        __ popq(kScratchRegister);
+        GoTo(args.fallthrough_jump_target);
+
+        Bind(&pop_and_goto_bc6_on_equal);
+        __ popq(kScratchRegister);
+        GoTo(args.bc6_on_equal);
+
+        Bind(&pop_and_goto_bc7_on_equal);
+        __ popq(kScratchRegister);
+        GoTo(args.bc7_on_equal);
+
+        Bind(&continue_outer_loop);
+        // Restore the previous current position before continuing.
+        __ popq(rdi);
+      });
+
+  Bind(&scalar_fallback);
+  Label bc0_skip_until_bit_in_table, bc1_check_current_position,
+      bc4_advance_cp_and_goto, bc5_load_4_current_chars;
+  Bind(&bc0_skip_until_bit_in_table);
+  SkipUntilBitInTable(args.bc0_cp_offset, args.bc0_table, args.bc0_nibble_table,
+                      args.bc0_advance_by, &bc1_check_current_position,
+                      &bc1_check_current_position);
+  Bind(&bc1_check_current_position);
+  CheckPosition(args.bc1_cp_offset, args.bc1_on_failure);
+  LoadCurrentCharacter(args.bc2_cp_offset, nullptr, false, 4);
+  CheckCharacterAfterAnd(args.bc3_characters, args.bc3_mask,
+                         &bc5_load_4_current_chars);
+  Bind(&bc4_advance_cp_and_goto);
+  AdvanceCurrentPosition(args.bc4_by);
+  GoTo(&bc0_skip_until_bit_in_table);
+  Bind(&bc5_load_4_current_chars);
+  LoadCurrentCharacter(args.bc5_cp_offset, &bc4_advance_cp_and_goto, true, 4);
+  CheckCharacterAfterAnd(args.bc6_characters, args.bc6_mask, args.bc6_on_equal);
+  CheckCharacterAfterAnd(args.bc7_characters, args.bc7_mask, args.bc7_on_equal);
+  CheckNotCharacterAfterAnd(args.bc8_characters, args.bc8_mask,
+                            &bc4_advance_cp_and_goto);
+  GoTo(args.fallthrough_jump_target);
 }
 
 void RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,
