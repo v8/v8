@@ -1493,9 +1493,6 @@
   'd8/flush-denormals-helper': [SKIP],
   'd8/flush-denormals-worker': [SKIP],
   'wasm/denormals': [SKIP],
-
-  # Wasm deopt doesn't support simd128.
-  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 
@@ -2568,11 +2565,11 @@
 }],  # (arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != loong64 and arch != riscv64 and arch != ppc64 and arch != s390x)
 
 ##############################################################################
-['arch != x64 and arch != arm64 and arch != loong64 and arch != mips64', {
+['arch != x64 and arch != arm64 and arch != loong64 and arch != mips64 and arch != riscv64', {
   # Tests that include types only supported on x64/arm64.
   'compiler/fast-api-sequences-x64': [SKIP],
   'compiler/fast-api-annotations': [SKIP],
-}],  # arch != x64 and arch != arm64 and arch != loong64 and arch != mips64'
+}],  # arch != x64 and arch != arm64 and arch != loong64 and arch != mips64 and arch != riscv64'
 
 ##############################################################################
 # TODO(14716): memory64 trap handling doesn't work on arm64 without pointer
