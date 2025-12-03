@@ -4133,7 +4133,7 @@ struct MajorGCForCompilerTestingOp
     return MaybeRepVector<>();
   }
 
-  explicit MajorGCForCompilerTestingOp() : Base() {}
+  MajorGCForCompilerTestingOp() : Base() {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -5029,7 +5029,11 @@ struct ConvertUntaggedToJSPrimitiveOp
     return InputsRepFactory::SingleRep(input_rep);
   }
 
-  V<Untagged> input() const { return Base::input<Untagged>(0); }
+  template <IsUntagged T>
+  V<T> input() const {
+    DCHECK_EQ(V<T>::rep, input_rep);
+    return Base::input<T>(0);
+  }
 
   ConvertUntaggedToJSPrimitiveOp(V<Untagged> input, JSPrimitiveKind kind,
                                  RegisterRepresentation input_rep,

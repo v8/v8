@@ -48,12 +48,26 @@ class SimplifiedOptimizationReducer : public Next {
             switch (multi(convert->input_rep, kind)) {
               case multi(RegisterRepresentation::Float64(),
                          TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32):
-                return __ JSTruncateFloat64ToWord32(
-                    V<Float64>::Cast(convert->input()));
+                return __ JSTruncateFloat64ToWord32(convert->input<Float64>());
               default:
                 // TODO(dmercadier): support more cases.
                 break;
             }
+          }
+          if (convert->input_interpretation ==
+                  ConvertUntaggedToJSPrimitiveOp::InputInterpretation::
+                      kSigned &&
+              convert->input_rep == RegisterRepresentation::Word32() &&
+              kind == TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32) {
+            // Signed conversion from Word32 to Number and back to Word32 can be
+            // completely replaced with the original input.
+            return convert->input<Word32>();
+          }
+          // When converting to a single bit, signedness doesn't matter.
+          if (convert->input_rep == RegisterRepresentation::Word32() &&
+              kind == TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit) {
+            return __ Word32Select(__ Word32Equal(convert->input<Word32>(), 0),
+                                   0, 1);
           }
           break;
         }
@@ -61,7 +75,7 @@ class SimplifiedOptimizationReducer : public Next {
         case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi: {
           if (convert->input_rep == RegisterRepresentation::Word32() &&
               kind == TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32) {
-            return convert->input();
+            return convert->input<Word32>();
           }
           break;
         }

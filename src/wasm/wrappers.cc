@@ -55,8 +55,8 @@ void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
       compiler::turboshaft::DataViewLoweringReducer,
       compiler::turboshaft::VariableReducer>;
   Assembler assembler(data, graph, graph, &zone);
-  WasmWrapperTSGraphBuilder<Assembler> builder(data->isolate(), &zone,
-                                               assembler, sig);
+  WasmWrapperTSGraphBuilder<Assembler> builder(
+      data->isolate(), &zone, assembler, sig, /*is_inlining_into_js*/ false);
   if (wrapper_info.code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
     builder.BuildJSToWasmWrapper(wrapper_info.receiver_is_first_param);
   } else if (wrapper_info.code_kind == CodeKind::WASM_TO_JS_FUNCTION) {

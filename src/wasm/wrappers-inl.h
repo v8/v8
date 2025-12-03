@@ -67,7 +67,11 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
   if (type.is_numeric()) {
     switch (type.numeric_kind()) {
       case NumericKind::kI32:
-        return BuildChangeInt32ToNumber(ret);
+        // When inlining into JS, emit a "high-level" JS conversion to allow
+        // further optimizations. These are lowered in the MachineLoweringPhase
+        // in the JS pipeline.
+        return is_inlining_into_js() ? __ ConvertInt32ToNumber(ret)
+                                     : BuildChangeInt32ToNumber(ret);
       case NumericKind::kI64:
         return this->BuildChangeInt64ToBigInt(
             ret, StubCallMode::kCallBuiltinPointer);
@@ -395,6 +399,9 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
 template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     bool receiver_is_first_param) {
+  // JS-to-Wasm wrappers are compiled per isolate, so they can emit
+  // isolate-dependent code.
+  DCHECK_NOT_NULL(isolate_);
   V<Any> result = BuildJSToWasmWrapperImpl(
       receiver_is_first_param, OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
       compiler::LazyDeoptOnThrow::kNo);
@@ -406,6 +413,8 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
 template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
     ImportCallKind kind, int expected_arity, Suspend suspend) {
+  // Wasm-to-JS wrappers need to be isolate-independent (as of now).
+  DCHECK_NULL(isolate_);
   int wasm_count = static_cast<int>(sig_->parameter_count());
 
   __ Bind(__ NewBlock());
