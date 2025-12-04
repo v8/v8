@@ -44,13 +44,6 @@ MaybeHandle<String> ConcatenateStrings(Handle<String> left,
         .ToHandleChecked();
   }
 
-  // If one of the string is not in readonly space, then we need a
-  // SharedStringAccessGuardIfNeeded before accessing its content.
-  bool require_guard = SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *left, broker->local_isolate_or_isolate()) ||
-                       SharedStringAccessGuardIfNeeded::IsNeeded(
-                           *right, broker->local_isolate_or_isolate());
-
   // Check string representation of both strings. This does not require the
   // SharedStringAccessGuardIfNeeded as the representation is stable.
   const bool result_is_one_byte_string =
@@ -68,7 +61,7 @@ MaybeHandle<String> ConcatenateStrings(Handle<String> left,
             .ToHandleChecked());
     DisallowGarbageCollection no_gc;
     SharedStringAccessGuardIfNeeded access_guard(
-        require_guard ? broker->local_isolate_or_isolate() : nullptr);
+        broker->local_isolate_or_isolate(), *left, *right);
     String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
                         left->length(), access_guard);
     String::WriteToFlat(*right,
@@ -86,7 +79,7 @@ MaybeHandle<String> ConcatenateStrings(Handle<String> left,
           .ToHandleChecked());
   DisallowGarbageCollection no_gc;
   SharedStringAccessGuardIfNeeded access_guard(
-      require_guard ? broker->local_isolate_or_isolate() : nullptr);
+      broker->local_isolate_or_isolate(), *left, *right);
   String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
                       left->length(), access_guard);
   String::WriteToFlat(*right,
