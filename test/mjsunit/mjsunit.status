@@ -558,7 +558,7 @@
 
   'maglev/regress-355256380': [SKIP],
 
-  'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
+  'turbolev/has-in-prototype-chain-wasm': [SKIP],
 
   'sandbox/regress/regress-334120897': [SKIP],
   'sandbox/regress/regress-349502157': [SKIP],
@@ -1177,7 +1177,7 @@
   # Maglev's Construct node should be lowered to a call to Construct_WithFeedback
   # in the Maglev->Turboshaft graph builder, but this builtin can't currently be
   # called from Turbofan on Arm64.
-  'turboshaft/maglev-frontend/construct-array-feedback': [SKIP],
+  'turbolev/construct-array-feedback': [SKIP],
 }],  # 'arch == arm64'
 
 ##############################################################################
@@ -1429,7 +1429,7 @@
   'regress/regress-779407': [SKIP],
 
   # MIPS64 port doesn't support maglev yet.
-  'turboshaft/maglev-frontend/*': [SKIP],
+  'turbolev/*': [SKIP],
 
   # Flush to zero is not supported yet.
   'd8/flush-denormals-flag': [SKIP],
@@ -1446,7 +1446,7 @@
   'wasm/float-constant-folding': [SKIP],
 
   # Loong64 port doesn't support maglev yet.
-  'turboshaft/maglev-frontend/*': [SKIP],
+  'turbolev/*': [SKIP],
 
   # Flush to zero is not supported yet.
   'd8/flush-denormals-flag': [SKIP],
@@ -1567,8 +1567,8 @@
   # These allocate big TypedArrays.
   'maglev/typed-array-length-index-into-typed-array': [PASS, HEAVY],
   'maglev/typed-array-length-index-into-typed-array-large': [PASS, HEAVY],
-  'turboshaft/maglev-frontend/typed-array-length-index-into-typed-array': [PASS, HEAVY],
-  'turboshaft/maglev-frontend/typed-array-length-index-into-typed-array-large': [PASS, HEAVY]
+  'turbolev/typed-array-length-index-into-typed-array': [PASS, HEAVY],
+  'turbolev/typed-array-length-index-into-typed-array-large': [PASS, HEAVY]
 }],  # 'system == windows'
 
 ##############################################################################
@@ -1974,7 +1974,7 @@
 
   # kInitialMaxFastElementArray is different on ppc which
   # leads to not deopting where we should.
-  'turboshaft/maglev-frontend/new-array': [SKIP]
+  'turbolev/new-array': [SKIP]
 }],  # 'arch == ppc64'
 
 ##############################################################################
@@ -2241,7 +2241,7 @@
   'wasm/*': [SKIP],
   # Contain Wasm functions, which are not supported in snapshots.
   'maglev/regress-355256380': [SKIP],
-  'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
+  'turbolev/has-in-prototype-chain-wasm': [SKIP],
   # Investigate (IsScript).
   'harmony/import-from-compilation-errored': [SKIP],
   'harmony/private-fields-special-object': [SKIP],
@@ -2472,7 +2472,7 @@
   # Flaky under this variant, skipping per https://crbug.com/v8/12267#c4
   'compiler/inlined-call-polymorphic': [SKIP],
   # Flaky under this variant, skipping per https://crbug.com/v8/14630#c3
-  'turboshaft/maglev-frontend/*': [SKIP]
+  'turbolev/*': [SKIP]
 }],  # variant == stress_concurrent_inlining
 
 ##############################################################################
@@ -2519,7 +2519,7 @@
 
   # TODO(v8:14581): Re-enable this test once TransitionElementsKindOrCheckMap is
   # supported by the Maglev->Turboshaft graph builder.
-  'turboshaft/maglev-frontend/*': [SKIP],
+  'turbolev/*': [SKIP],
 
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.
@@ -2642,7 +2642,7 @@
   'regress/regress-trap-allocation-memento': [FAIL],
 
   # TODO(v8:14581): Re-enable this once turboshaft frontend is done.
-  'turboshaft/maglev-frontend/*': [SKIP],
+  'turbolev/*': [SKIP],
 }], # variant == google3_nociu or variant == google3_icu
 
 # Specific failures for no_icu builds
