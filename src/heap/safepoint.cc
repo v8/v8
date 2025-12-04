@@ -21,6 +21,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/counters-scopes.h"
 #include "src/objects/objects.h"
@@ -99,7 +100,11 @@ class GlobalSafepointInterruptTask : public CancelableTask {
 
  private:
   // v8::internal::CancelableTask overrides.
-  void RunInternal() override { heap_->main_thread_local_heap()->Safepoint(); }
+  void RunInternal() override {
+    LocalHeap* local_heap = heap_->main_thread_local_heap();
+    SetCurrentLocalHeapScope local_heap_scope(local_heap);
+    local_heap->Safepoint();
+  }
 
   Heap* heap_;
 };
