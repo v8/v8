@@ -808,7 +808,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::BeginLoop(
   // and the back edge), and initialise with the current state.
   MergePointInterpreterFrameState* loop_state =
       MergePointInterpreterFrameState::NewForLoop(
-          variable_frame_, builder_->graph(), *variable_compilation_unit_, 0, 2,
+          variable_frame_, builder_, *variable_compilation_unit_, 0, 2,
           loop_header_liveness, loop_info);
 
   {
@@ -1320,7 +1320,7 @@ void MaglevGraphBuilder::BuildMergeStates() {
     DCHECK_NULL(merge_states_[offset]);
     TRACE("- Creating loop merge state at @" << offset);
     merge_states_[offset] = MergePointInterpreterFrameState::NewForLoop(
-        current_interpreter_frame_, graph_, *compilation_unit_, offset,
+        current_interpreter_frame_, this, *compilation_unit_, offset,
         predecessor_count(offset), liveness, &loop_info);
   }
 
@@ -8258,14 +8258,6 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
     return false;
   }
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
-  // TODO(dmercadier): support inlining async functions. Unlike generator
-  // functions, which always suspend before executing anything, async function
-  // will execute up to the first `await`, which could very well be inside of a
-  // loop in some control flow, which will require some care when inlining.
-  if (IsAsyncFunction(shared.kind())) {
-    TRACE_CANNOT_INLINE("cannot inline async function");
-    return false;
-  }
   if (call_frequency < min_inlining_frequency()) {
     TRACE_CANNOT_INLINE("call frequency (" << call_frequency
                                            << ") < minimum threshold ("
@@ -15150,7 +15142,7 @@ void MaglevGraphBuilder::BuildLoopForPeeling() {
   // predecessors: the two copies of `JumpLoop`.
   InitializePredecessorCount(loop_header, 2);
   merge_states_[loop_header] = MergePointInterpreterFrameState::NewForLoop(
-      current_interpreter_frame_, graph_, *compilation_unit_, loop_header, 2,
+      current_interpreter_frame_, this, *compilation_unit_, loop_header, 2,
       GetInLivenessFor(loop_header),
       &bytecode_analysis_.GetLoopInfoFor(loop_header),
       /* has_been_peeled */ true);
