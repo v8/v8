@@ -628,7 +628,7 @@ Tribool ValueNode::IsTheHole() const {
     return Tribool::kMaybe;
   }
   if (const Phi* phi = TryCast<Phi>()) {
-    if (!phi->is_loop_phi()) {
+    if (!phi->is_loop_phi() && !phi->is_exception_phi()) {
       bool can_be_the_hole = false;
       for (ConstInput input : phi->inputs()) {
         if (input.node()->IsTheHole() != Tribool::kFalse) {
