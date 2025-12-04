@@ -59,7 +59,7 @@ void MergePointInterpreterFrameState::set_is_resumable_loop(Graph* graph) {
 
 // static
 MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
-    const InterpreterFrameState& start_state, Graph* graph,
+    const InterpreterFrameState& start_state, const MaglevGraphBuilder* builder,
     const MaglevCompilationUnit& info, int merge_offset, int predecessor_count,
     const compiler::BytecodeLivenessState* liveness,
     const compiler::LoopInfo* loop_info, bool has_been_peeled) {
@@ -71,10 +71,21 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
   state->bitfield_ =
       kIsLoopWithPeeledIterationBit::update(state->bitfield_, has_been_peeled);
   state->loop_metadata_ = LoopMetadata{loop_info, nullptr};
-  if (loop_info->resumable()) {
+  if (loop_info->resumable() && !builder->is_inline()) {
+    // Note that inlined loops are never resumable:
+    //
+    //  - for generators, we only inline the part of the function that sets up
+    //  the generator, which suspends right away without ever reaching any loop
+    //  (which means that even if the generator function did contain resumable
+    //  loops, they are now unreachable).
+    //
+    //  - for async functions, suspending is done with SuspendGenerator, but
+    //  once inlined it actually just returns a Promise to the caller, which
+    //  will take care of awaiting this Promise, which will resume in a
+    //  non-inlined version of the function.
     state->known_node_aspects_ =
         info.zone()->New<KnownNodeAspects>(info.zone());
-    state->set_is_resumable_loop(graph);
+    state->set_is_resumable_loop(builder->graph());
   }
   auto& assignments = loop_info->assignments();
   auto& frame_state = state->frame_state_;
