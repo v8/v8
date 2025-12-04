@@ -845,12 +845,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   DCHECK_IMPLIES(
       owner == interpreter::Register::current_context() ||
           (is_exception_handler() && owner == catch_block_context_register()),
-      IsResumableFunction(builder->compilation_unit()
-                              ->info()
-                              ->toplevel_compilation_unit()
-                              ->shared_function_info()
-                              .kind()) ||
-          builder->compilation_unit()->info()->toplevel_is_osr());
+      builder->MayNeedContextPhis());
 
   // Up to this point all predecessors had the same value for this interpreter
   // frame slot. Now that we find a distinct value, insert a copy of the first

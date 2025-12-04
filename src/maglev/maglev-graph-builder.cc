@@ -61,6 +61,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/function-kind.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
@@ -8129,6 +8130,13 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
   compiler::BytecodeArrayRef bytecode = compilation_unit_->bytecode();
   compiler::FeedbackVectorRef feedback = compilation_unit_->feedback();
 
+  // TODO(dmercadier): when inlining a resumable function, we're really just
+  // inlining the initialization part, since the rest of the function is only
+  // executed when calling .next() on the generator. We're currently relying on
+  // optimizations to detect this statically and remove the whole graph except
+  // for the initialization of the generator object, but it would make sense to
+  // only just inling the initialization part from the start.
+
   if (is_tracing_enabled()) {
     if (v8_flags.maglev_print_inlined && v8_flags.maglev_print_bytecode) {
       std::cout << "\n----- Inlining " << Brief(*shared.object())
@@ -8249,10 +8257,13 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
     TRACE_CANNOT_INLINE(inlineability);
     return false;
   }
-  // TODO(victorgomes): Support resumable functions inlining.
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
-  if (IsResumableFunction(shared.kind())) {
-    TRACE_CANNOT_INLINE("cannot inline resumable function");
+  // TODO(dmercadier): support inlining async functions. Unlike generator
+  // functions, which always suspend before executing anything, async function
+  // will execute up to the first `await`, which could very well be inside of a
+  // loop in some control flow, which will require some care when inlining.
+  if (IsAsyncFunction(shared.kind())) {
+    TRACE_CANNOT_INLINE("cannot inline async function");
     return false;
   }
   if (call_frequency < min_inlining_frequency()) {
@@ -15357,7 +15368,7 @@ void MaglevGraphBuilder::MergeDeadLoopIntoFrameState(int target) {
   DecrementDeadPredecessorAndAccountForPeeling(target);
 }
 
-void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
+void MaglevGraphBuilder::MergeIntoInlinedReturnFrameStateForReturn(
     BasicBlock* predecessor) {
   int target = inline_exit_offset();
   if (merge_states_[target] == nullptr) {
@@ -15375,6 +15386,43 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
     // Again, all returns should have the same liveness, so double check this.
     DCHECK(GetInLiveness()->Equals(
         *merge_states_[target]->frame_state().liveness()));
+    merge_states_[target]->Merge(this, current_interpreter_frame_, predecessor);
+  }
+}
+
+void MaglevGraphBuilder::MergeIntoInlinedReturnFrameStateForSuspendGenerator(
+    BasicBlock* predecessor) {
+  int target = inline_exit_offset();
+  if (merge_states_[target] == nullptr) {
+    // All returns should have the same liveness, which is that only the
+    // accumulator is live.
+    const compiler::BytecodeLivenessState* liveness = GetInLiveness();
+    DCHECK(liveness->AccumulatorIsLive());
+
+    // SuspendGenerator can have multiple inputs, and thus {liveness} can have
+    // multiple live_value_count. That being said, we don't need to merge any
+    // of them at {target}. We thus create a fake liveness that only contains
+    // the accumulator live, which will be used for the merge at {target}.
+    DCHECK_EQ(iterator_.current_bytecode(),
+              interpreter::Bytecode::kSuspendGenerator);
+    compiler::BytecodeLivenessState* fake_liveness =
+        zone()->New<compiler::BytecodeLivenessState>(liveness->register_count(),
+                                                     zone());
+    fake_liveness->MarkAccumulatorLive();
+    liveness = fake_liveness;
+
+    // If there's no target frame state, allocate a new one.
+    merge_states_[target] = MergePointInterpreterFrameState::New(
+        *compilation_unit_, current_interpreter_frame_, target,
+        predecessor_count(target), predecessor, liveness);
+  } else {
+    // Just checking that the accumulator is currently live, since this the
+    // only thing that we've set in our fake liveness above.
+    DCHECK(GetInLiveness()->AccumulatorIsLive());
+    DCHECK(
+        merge_states_[target]->frame_state().liveness()->AccumulatorIsLive());
+    DCHECK_EQ(
+        merge_states_[target]->frame_state().liveness()->live_value_count(), 1);
     merge_states_[target]->Merge(this, current_interpreter_frame_, predecessor);
   }
 }
@@ -16071,26 +16119,27 @@ ReduceResult MaglevGraphBuilder::VisitReturn() {
         {GetFeedbackCell()}, relative_jump_bytecode_offset));
   }
 
-  if (!is_inline()) {
-    return FinishBlock<Return>({GetAccumulator()}).has_value()
-               ? ReduceResult::Done()
-               : ReduceResult::DoneWithAbort();
+  if (is_inline()) {
+    // All inlined function returns instead jump to one past the end of the
+    // bytecode, where we'll later create a final basic block which resumes
+    // execution of the caller. If there is only one return, at the end of the
+    // function, we can elide this jump and just continue in the same basic
+    // block.
+    if (iterator_.next_offset() != inline_exit_offset() ||
+        predecessor_count(inline_exit_offset()) > 1) {
+      BasicBlock* block =
+          FinishBlockNoAbort<Jump>({}, &jump_targets_[inline_exit_offset()]);
+      // The context is dead by now, set it to optimized out to avoid creating
+      // unnecessary phis.
+      SetContext(GetRootConstant(RootIndex::kOptimizedOut));
+      MergeIntoInlinedReturnFrameStateForReturn(block);
+    }
+    return ReduceResult::Done();
   }
 
-  // All inlined function returns instead jump to one past the end of the
-  // bytecode, where we'll later create a final basic block which resumes
-  // execution of the caller. If there is only one return, at the end of the
-  // function, we can elide this jump and just continue in the same basic block.
-  if (iterator_.next_offset() != inline_exit_offset() ||
-      predecessor_count(inline_exit_offset()) > 1) {
-    BasicBlock* block =
-        FinishBlockNoAbort<Jump>({}, &jump_targets_[inline_exit_offset()]);
-    // The context is dead by now, set it to optimized out to avoid creating
-    // unnecessary phis.
-    SetContext(GetRootConstant(RootIndex::kOptimizedOut));
-    MergeIntoInlinedReturnFrameState(block);
-  }
-  return ReduceResult::Done();
+  return FinishBlock<Return>({GetAccumulator()}).has_value()
+             ? ReduceResult::Done()
+             : ReduceResult::DoneWithAbort();
 }
 
 ReduceResult MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
@@ -16160,7 +16209,24 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   // means we can skip checking for it and switching on its state.
   if (offsets.size() == 0) return ReduceResult::Done();
 
-  graph()->set_has_resumable_generator();
+  if (!is_inline()) {
+    // When inlining a generator function, we're really just inlining the
+    // initialization part of the generator rather than the whole
+    // yielding/resuming part. For instance, consider
+    //
+    //   function* MyGen() { ... }
+    //
+    //   ...
+    //   let gen = MyGen(); // <--- inlining MyGen here
+    //   gen.next();
+    //
+    // In this example, the only call to `MyGen` that can be inlined is when
+    // creating the generator. The parts that access the generator call
+    // `.next()` and this is not something that we inline. Hence, when we inline
+    // a generator function, the only non-dead part of what we inline is the
+    // initialization of the generator object.
+    graph()->set_has_resumable_generator();
+  }
 
   // We create an initial block that checks if the generator is undefined.
   ValueNode* maybe_generator = LoadRegister(0);
@@ -16259,6 +16325,24 @@ ReduceResult MaglevGraphBuilder::VisitSuspendGenerator() {
       },
 
       context, generator, suspend_id, debug_pos_offset));
+
+  if (is_inline()) {
+    // All inlined function returns instead jump to one past the end of the
+    // bytecode, where we'll later create a final basic block which resumes
+    // execution of the caller. If there is only one return, at the end of the
+    // function, we can elide this jump and just continue in the same basic
+    // block.
+    if (iterator_.next_offset() != inline_exit_offset() ||
+        predecessor_count(inline_exit_offset()) > 1) {
+      BasicBlock* block =
+          FinishBlockNoAbort<Jump>({}, &jump_targets_[inline_exit_offset()]);
+      // The context is dead by now, set it to optimized out to avoid creating
+      // unnecessary phis.
+      SetContext(GetRootConstant(RootIndex::kOptimizedOut));
+      MergeIntoInlinedReturnFrameStateForSuspendGenerator(block);
+    }
+    return ReduceResult::Done();
+  }
 
   return FinishBlock<Return>({GetAccumulator()}).has_value()
              ? ReduceResult::Done()
@@ -17278,6 +17362,25 @@ ValueNode* MaglevGraphBuilder::GetSecondValue(ValueNode* result) {
 bool MaglevGraphBuilder::IsNodeCreatedForThisBytecode(ValueNode* node) const {
   return reducer_.WasNodeCreatedDuringCurrentPeriod(node);
 }
+
+bool MaglevGraphBuilder::MayNeedContextPhis() const {
+  if (graph()->is_osr()) return true;
+  if (IsResumableFunction(compilation_unit_->GetTopLevelCompilationUnit()
+                              ->shared_function_info()
+                              .kind())) {
+    // Top level function is resumable.
+    return true;
+  }
+  if (IsResumableFunction(compilation_unit_->shared_function_info().kind())) {
+    // Currently inlining a resumable function.
+    return true;
+  }
+  // Checking if we've already inlined a resumable function.
+  for (auto fun : graph()->inlined_functions()) {
+    if (IsResumableFunction(fun.shared_info->kind())) return true;
+  }
+  return false;
+}
 #endif  // DEBUG
 
 template <typename NodeT>
@@ -17397,6 +17500,10 @@ void MaglevGraphBuilder::StartNewBlock(
 template <typename ControlNodeT, typename... Args>
 std::optional<BasicBlock*> MaglevGraphBuilder::FinishBlock(
     std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
+  // Returning from inlined functions needs special care and shouldn't even emit
+  // a Return, cf VisitReturn and VisitSuspendGenerator.
+  DCHECK_IMPLIES((std::is_same_v<Return, ControlNodeT>), !is_inline());
+
   ReduceResult result = reducer_.AddNewControlNode<ControlNodeT>(
       control_inputs, std::forward<Args>(args)...);
   if (result.IsDoneWithAbort()) {

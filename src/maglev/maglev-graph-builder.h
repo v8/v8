@@ -324,6 +324,10 @@ class MaglevGraphBuilder {
   static SpeculationMode GetSpeculationMode(
       compiler::JSHeapBroker* broker, compiler::FeedbackSource feedback_source);
 
+#ifdef DEBUG
+  bool MayNeedContextPhis() const;
+#endif
+
  private:
   class DeoptFrameScopeBase;
 
@@ -1656,7 +1660,8 @@ class MaglevGraphBuilder {
   void MergeIntoFrameState(BasicBlock* block, int target);
   void MergeDeadIntoFrameState(int target);
   void MergeDeadLoopIntoFrameState(int target);
-  void MergeIntoInlinedReturnFrameState(BasicBlock* block);
+  void MergeIntoInlinedReturnFrameStateForReturn(BasicBlock* block);
+  void MergeIntoInlinedReturnFrameStateForSuspendGenerator(BasicBlock* block);
 
   bool HasValidInitialMap(compiler::JSFunctionRef new_target,
                           compiler::JSFunctionRef constructor);
