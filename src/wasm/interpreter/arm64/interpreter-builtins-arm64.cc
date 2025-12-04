@@ -1024,9 +1024,7 @@ void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
            MemOperand(fp, WasmInterpreterCWasmEntryConstants::kSPFPOffset));
   }
 
-  __ Mov(x11, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
-                                        masm->isolate()));
-  __ Ldr(x10, MemOperand(x11));  // x10 = C entry FP.
+  __ Ldr(x10, __ AsMemOperand(IsolateFieldId::kCEntryFP));  // x10 = C entry FP.
 
   __ Str(x10,
          MemOperand(fp, WasmInterpreterCWasmEntryConstants::kCEntryFPOffset));
@@ -1056,9 +1054,7 @@ void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
   __ Bind(&invoke);
 
   // Link the current handler as the next handler.
-  __ Mov(x11, ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                        masm->isolate()));
-  __ Ldr(x10, MemOperand(x11));
+  __ Ldr(x10, __ AsMemOperand(IsolateFieldId::kHandler));
   __ Push(padreg, x10);
 
   // Set this new handler as the current one.
@@ -1077,10 +1073,8 @@ void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
   static_assert(StackHandlerConstants::kNextOffset == 0 * kSystemPointerSize,
                 "Unexpected offset for StackHandlerConstants::kNextOffset");
   __ Pop(x10, padreg);
-  __ Mov(x11, ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                        masm->isolate()));
   __ Drop(StackHandlerConstants::kSlotCount - 2);
-  __ Str(x10, MemOperand(x11));
+  __ Str(x10, __ AsMemOperand(IsolateFieldId::kHandler));
 
   __ Bind(&exit);
 
