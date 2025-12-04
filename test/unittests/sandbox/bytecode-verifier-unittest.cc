@@ -113,6 +113,30 @@ TEST_F(BytecodeVerifierTest, JumpToMisalignedOffset) {
   ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc), "Invalid control-flow");
 }
 
+TEST_F(BytecodeVerifierTest, ForwardJumpToCurrentInstruction) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  // We assume that forward jumps go forward and not (back) to the current
+  // instruction. Some of our compilers (e.g. the baseline compiler) may get
+  // confused if they ever see such jumps as they will initially emit a
+  // placeholder jump instruction (assuming the instruction will be patched
+  // again later on), but then fail to update the instruction as they never
+  // bind the label (as it's for an instruction that has already been
+  // processed). This would then lead to invalid machine code. As such, we rely
+  // on the bytecode verifier to forbid such jumps.
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kJump), 0,
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+  ASSERT_DEATH_IF_SUPPORTED(VerifyLight(isolate, bc), "Invalid jump offset");
+}
+
 TEST_F(BytecodeVerifierTest, SwitchToInvalidOffset) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
