@@ -29,19 +29,27 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
 // Basic operand types that have a direct mapping to a C-type.
 // Getters/Setters for these are fully auto-generated.
 // Format: V(Name, C type)
-#define BASIC_BYTECODE_OPERAND_TYPE_LIST(V)                                  \
-  V(Int16, int16_t)                                                          \
-  V(Int32, int32_t)                                                          \
-  V(Uint32, uint32_t)                                                        \
-  V(Char, base::uc16)                                                        \
-  V(JumpTarget, uint32_t)                                                    \
-  V(Offset, int16_t)                                                         \
+#define BASIC_BYTECODE_OPERAND_TYPE_LIST(V) \
+  V(Int16, int16_t)                         \
+  V(Int32, int32_t)                         \
+  V(Uint32, uint32_t)                       \
+  V(Char, base::uc16)                       \
+  V(JumpTarget, uint32_t)
+
+#define BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V)                           \
+  V(Offset, int16_t, RegExpMacroAssembler::kMinCPOffset,                     \
+    RegExpMacroAssembler::kMaxCPOffset)                                      \
   /* TODO(433891213): Only for backwards-compatibility. Can be replaced with \
-     Offset once the old format is removed. */                               \
-  V(Offset32, int32_t)                                                       \
-  V(Register, uint16_t)                                                      \
-  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag)                    \
-  V(StandardCharacterSet, StandardCharacterSet)
+   */                                                                        \
+  /* Offset once the old format is removed. */                               \
+  V(Offset32, int32_t, RegExpMacroAssembler::kMinCPOffset,                   \
+    RegExpMacroAssembler::kMaxCPOffset)                                      \
+  V(Register, uint16_t, 0, RegExpMacroAssembler::kMaxRegister)               \
+  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag,                    \
+    RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck,                \
+    RegExpMacroAssembler::StackCheckFlag::kCheckStackLimit)                  \
+  V(StandardCharacterSet, StandardCharacterSet,                              \
+    StandardCharacterSet::kEverything, StandardCharacterSet::kWord)
 
 // Special operand types that don't have a direct mapping to a C-type.
 // Getters/Setters for these types need to be specialized manually.
@@ -53,8 +61,9 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
   V(Padding1, 1)                                                           \
   V(Padding2, 2)
 
-#define BYTECODE_OPERAND_TYPE_LIST(V) \
-  BASIC_BYTECODE_OPERAND_TYPE_LIST(V) \
+#define BYTECODE_OPERAND_TYPE_LIST(V)        \
+  BASIC_BYTECODE_OPERAND_TYPE_LIST(V)        \
+  BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V) \
   SPECIAL_BYTECODE_OPERAND_TYPE_LIST(V)
 
 enum class RegExpBytecodeOperandType : uint8_t {

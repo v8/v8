@@ -7,6 +7,7 @@
 
 #include "src/base/strings.h"
 #include "src/codegen/label.h"
+#include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
@@ -37,14 +38,15 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void PopRegister(int register_index) override;
   void PushRegister(int register_index,
                     StackCheckFlag check_stack_limit) override;
-  void AdvanceRegister(int reg, int by) override;  // r[reg] += by.
+  void AdvanceRegister(int register_index, int by) override;  // r[reg] += by.
   void SetCurrentPositionFromEnd(int by) override;
   void SetRegister(int register_index, int to) override;
-  void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
+  void WriteCurrentPositionToRegister(int register_index,
+                                      int cp_offset) override;
   void ClearRegisters(int reg_from, int reg_to) override;
   void ReadCurrentPositionFromRegister(int reg) override;
-  void WriteStackPointerToRegister(int reg) override;
-  void ReadStackPointerFromRegister(int reg) override;
+  void WriteStackPointerToRegister(int register_index) override;
+  void ReadStackPointerFromRegister(int register_index) override;
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
   void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
@@ -113,9 +115,11 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,
                                        bool unicode,
                                        Label* on_no_match) override;
-  void IfRegisterLT(int register_index, int comparand, Label* if_lt) override;
-  void IfRegisterGE(int register_index, int comparand, Label* if_ge) override;
-  void IfRegisterEqPos(int register_index, Label* if_eq) override;
+  void IfRegisterLT(int register_index, int comparand,
+                    Label* on_less_than) override;
+  void IfRegisterGE(int register_index, int comparand,
+                    Label* on_greater_or_equal) override;
+  void IfRegisterEqPos(int register_index, Label* on_equal) override;
   void RecordComment(std::string_view comment) override {}
   MacroAssembler* masm() override { return nullptr; }
 
@@ -124,26 +128,50 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
                                    RegExpFlags flags) override;
 
  private:
-  void ExpandBuffer();
-
   // Code and bitmap emission.
-  inline void EmitOrLink(Label* label);
-  inline void Emit32(uint32_t x);
-  inline void Emit16(uint32_t x);
-  inline void Emit8(uint32_t x);
-  inline void Emit(uint32_t bc, uint32_t arg);
-  inline void Emit(uint32_t bc, int32_t arg);
+  template <RegExpBytecode bytecode, typename... Args>
+  void Emit(Args... args);
+  template <RegExpBytecodeOperandType OperandType, typename T>
+  auto GetCheckedBasicOperandValue(T value);
+  template <RegExpBytecodeOperandType OperandType, typename T>
+  void EmitOperand(T value, int offset);
+  template <RegExpBytecodeOperandType OperandType, typename T>
+  void EmitPackedOperand(RegExpBytecode bc, T value);
+
+  template <typename T>
+  inline void Emit(T value, int offset);
+  inline void EmitBytecode(RegExpBytecode bc, uint32_t packed_arg = 0);
   void EmitSkipTable(DirectHandle<ByteArray> table);
   // Bytecode buffer.
   int length();
   void Copy(uint8_t* a);
+  inline void EnsureCapacity(size_t size);
+  void ExpandBuffer();
+  inline void ResetPc(int new_pc);
 
+#ifdef DEBUG
+  // Emit padding from start (inclusive) to end (exclusive)
+  inline void EmitPadding(int offset);
+#define EMIT_PADDING(offset) EmitPadding(offset)
+#else
+#define EMIT_PADDING(offset) ((void)0)
+#endif
   // The buffer into which code and relocation info are generated.
   static constexpr int kInitialBufferSize = 1024;
   ZoneVector<uint8_t> buffer_;
 
-  // The program counter.
+  // The program counter. Always points at the beginning of a bytecode while
+  // we generate the ByteArray. Points to the end when we are done.
   int pc_;
+#ifdef DEBUG
+  // End of the bytecode we are currently emitting (exclusive). Absolute value
+  // greater than `pc_`.
+  int end_of_bc_;
+  // Position (absolute) within the current bytecode. This value is updated with
+  // every operand and is guaranteed to be between `pc_` and `end_of_bc_`.
+  int pc_within_bc_;
+#endif
+
   Label backtrack_;
 
   int advance_current_start_;

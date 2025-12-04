@@ -8,47 +8,67 @@
 #include "src/regexp/regexp-bytecode-generator.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/regexp/regexp-bytecodes.h"
+#include "src/regexp/regexp-bytecodes-inl.h"
 
 namespace v8 {
 namespace internal {
 
-void RegExpBytecodeGenerator::Emit(uint32_t byte, uint32_t twenty_four_bits) {
-  DCHECK(is_uint24(twenty_four_bits));
-  Emit32((twenty_four_bits << BYTECODE_SHIFT) | byte);
+template <typename T>
+void RegExpBytecodeGenerator::Emit(T value, int offset) {
+  const int new_pc_within_bc = pc_ + offset;
+  DCHECK(base::IsInRange(new_pc_within_bc, pc_within_bc_, end_of_bc_));
+  DCHECK_LE(new_pc_within_bc + sizeof(T), buffer_.size());
+  DCHECK_LE(new_pc_within_bc + sizeof(T), end_of_bc_);
+  DCHECK(IsAligned(new_pc_within_bc, sizeof(T)));
+  EMIT_PADDING(offset);
+  *reinterpret_cast<T*>(buffer_.data() + new_pc_within_bc) = value;
+#ifdef DEBUG
+  pc_within_bc_ = new_pc_within_bc + sizeof(T);
+#endif
 }
 
-void RegExpBytecodeGenerator::Emit(uint32_t byte, int32_t twenty_four_bits) {
-  DCHECK(is_int24(twenty_four_bits));
-  Emit32((static_cast<uint32_t>(twenty_four_bits) << BYTECODE_SHIFT) | byte);
+void RegExpBytecodeGenerator::EmitBytecode(RegExpBytecode bc,
+                                           uint32_t packed_arg) {
+  DCHECK_EQ(pc_, end_of_bc_);
+  DCHECK_EQ(pc_within_bc_, end_of_bc_);
+  uint32_t word = (packed_arg << BYTECODE_SHIFT) | RegExpBytecodes::ToByte(bc);
+#ifdef DEBUG
+  end_of_bc_ = pc_ + RegExpBytecodes::Size(bc);
+  pc_within_bc_ = pc_;
+#endif
+  Emit(word, 0);
 }
 
-void RegExpBytecodeGenerator::Emit16(uint32_t word) {
-  DCHECK(pc_ <= static_cast<int>(buffer_.size()));
-  if (pc_ + 1 >= static_cast<int>(buffer_.size())) {
+void RegExpBytecodeGenerator::EnsureCapacity(size_t size) {
+  if (V8_UNLIKELY(pc_ + size > buffer_.size())) {
     ExpandBuffer();
   }
-  *reinterpret_cast<uint16_t*>(buffer_.data() + pc_) = word;
-  pc_ += 2;
 }
 
-void RegExpBytecodeGenerator::Emit8(uint32_t word) {
-  DCHECK(pc_ <= static_cast<int>(buffer_.size()));
-  if (pc_ == static_cast<int>(buffer_.size())) {
-    ExpandBuffer();
-  }
-  *reinterpret_cast<unsigned char*>(buffer_.data() + pc_) = word;
-  pc_ += 1;
+void RegExpBytecodeGenerator::ResetPc(int new_pc) {
+  // Resetting is only allowed at the beginning of a bytecode.
+  DCHECK_EQ(pc_, pc_within_bc_);
+  DCHECK_LE(new_pc, pc_);
+  pc_ = new_pc;
+#ifdef DEBUG
+  pc_within_bc_ = pc_;
+  end_of_bc_ = pc_;
+#endif
 }
 
-void RegExpBytecodeGenerator::Emit32(uint32_t word) {
-  DCHECK(pc_ <= static_cast<int>(buffer_.size()));
-  if (pc_ + 3 >= static_cast<int>(buffer_.size())) {
-    ExpandBuffer();
+#ifdef DEBUG
+void RegExpBytecodeGenerator::EmitPadding(int offset) {
+  const int padding_to = pc_ + offset;
+  DCHECK_LE(padding_to, buffer_.size());
+  DCHECK_LE(padding_to, end_of_bc_);
+  DCHECK_GE(padding_to, pc_within_bc_);
+  static constexpr uint8_t kPaddingByte = 0x0;
+  for (int i = pc_within_bc_; i < padding_to; ++i) {
+    buffer_[i] = kPaddingByte;
   }
-  *reinterpret_cast<uint32_t*>(buffer_.data() + pc_) = word;
-  pc_ += 4;
+  pc_within_bc_ = padding_to;
 }
+#endif
 
 }  // namespace internal
 }  // namespace v8

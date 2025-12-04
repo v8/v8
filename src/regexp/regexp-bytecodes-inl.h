@@ -20,16 +20,37 @@ namespace internal {
 template <RegExpBytecodeOperandType>
 struct RegExpOperandTypeTraits;
 
-#define DECLARE_BASIC_OPERAND_TYPE_TRAITS(Name, CType)                 \
-  template <>                                                          \
-  struct RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name> { \
-    static_assert(!std::is_pointer_v<CType>);                          \
-    static constexpr uint8_t kSize = sizeof(CType);                    \
-    using kCType = CType;                                              \
-    static constexpr bool kIsBasic = true;                             \
+#define DECLARE_BASIC_OPERAND_TYPE_TRAITS(Name, CType)                      \
+  template <>                                                               \
+  struct RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name> {      \
+    static_assert(!std::is_pointer_v<CType>);                               \
+    static constexpr uint8_t kSize = sizeof(CType);                         \
+    using kCType = CType;                                                   \
+    static constexpr bool kIsBasic = true;                                  \
+    static constexpr kCType kMinValue = std::numeric_limits<kCType>::min(); \
+    static constexpr kCType kMaxValue = std::numeric_limits<kCType>::max(); \
   };
 BASIC_BYTECODE_OPERAND_TYPE_LIST(DECLARE_BASIC_OPERAND_TYPE_TRAITS)
 #undef DECLARE_OPERAND_TYPE_TRAITS
+
+#define DECLARE_BASIC_OPERAND_TYPE_LIMITS_TRAITS(Name, CType, MinValue, \
+                                                 MaxValue)              \
+  template <>                                                           \
+  struct RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name> {  \
+    static_assert(!std::is_pointer_v<CType>);                           \
+    static constexpr uint8_t kSize = sizeof(CType);                     \
+    using kCType = CType;                                               \
+    static constexpr bool kIsBasic = true;                              \
+    static_assert(std::is_enum_v<kCType> ||                             \
+                  MinValue >= std::numeric_limits<kCType>::min());      \
+    static_assert(std::is_enum_v<kCType> ||                             \
+                  MaxValue <= std::numeric_limits<kCType>::max());      \
+    static constexpr kCType kMinValue = MinValue;                       \
+    static constexpr kCType kMaxValue = MaxValue;                       \
+  };
+BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(
+    DECLARE_BASIC_OPERAND_TYPE_LIMITS_TRAITS)
+#undef DECLARE_OPERAND_TYPE_LIMITS_TRAITS
 
 #define DECLARE_SPECIAL_OPERAND_TYPE_TRAITS(Name, Size)                \
   template <>                                                          \
@@ -162,6 +183,20 @@ class RegExpBytecodeOperandsBase {
     constexpr auto filtered_ops = GetOperandsTuple();
     std::apply([&](auto... ops) { (..., f.template operator()<ops.value>()); },
                filtered_ops);
+  }
+
+  // Similar to ForEachOperand, but additionally provides the current index as
+  // a template argument. The index is a sequential index of operands with
+  // filtered padding.
+  template <typename Func>
+  static constexpr void ForEachOperandWithIndex(Func&& f) {
+    constexpr auto filtered_ops = GetOperandsTuple();
+    [&]<size_t... I>(std::index_sequence<I...>) {
+      (...,
+       f.template operator()<
+           std::tuple_element_t<I, decltype(filtered_ops)>::value /* Operand */,
+           I /* Index */>());
+    }(std::make_index_sequence<std::tuple_size_v<decltype(filtered_ops)>>{});
   }
 
   // Similar to above, but calls |f| only for operands of a given type.
