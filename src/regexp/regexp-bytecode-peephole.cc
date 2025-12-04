@@ -4,6 +4,8 @@
 
 #include "src/regexp/regexp-bytecode-peephole.h"
 
+#include <optional>
+
 #include "src/flags/flags.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-bytecodes-inl.h"
@@ -84,16 +86,12 @@ struct BytecodeArgumentCheck : public BytecodeArgument {
 // Trie-Node for storing bytecode sequences we want to optimize.
 class BytecodeSequenceNode {
  public:
-  // Dummy bytecode used when we need to store/return a bytecode but it's not a
-  // valid bytecode in the current context.
-  static constexpr int kDummyBytecode = -1;
-
-  BytecodeSequenceNode(int bytecode, Zone* zone);
+  BytecodeSequenceNode(std::optional<RegExpBytecode> bytecode, Zone* zone);
   // Adds a new node as child of the current node if it isn't a child already.
-  BytecodeSequenceNode& FollowedBy(int bytecode);
+  BytecodeSequenceNode& FollowedBy(RegExpBytecode bytecode);
   // Marks the end of a sequence and sets optimized bytecode to replace all
   // bytecodes of the sequence with.
-  BytecodeSequenceNode& ReplaceWith(int bytecode);
+  BytecodeSequenceNode& ReplaceWith(RegExpBytecode bytecode);
   // Maps arguments of bytecodes in the sequence to the optimized bytecode.
   // Order of invocation determines order of arguments in the optimized
   // bytecode.
@@ -160,12 +158,11 @@ class BytecodeSequenceNode {
   bool IsSequence() const;
   // Returns the length of the sequence in bytes.
   int SequenceLength() const;
-  // Returns the optimized bytecode for the node or kDummyBytecode if it is not
-  // the end of a valid sequence.
-  int OptimizedBytecode() const;
+  // Returns the optimized bytecode for the node.
+  RegExpBytecode OptimizedBytecode() const;
   // Returns the child of the current node matching the given bytecode or
   // nullptr if no such child is found.
-  BytecodeSequenceNode* Find(int bytecode) const;
+  BytecodeSequenceNode* Find(RegExpBytecode bytecode) const;
   // Returns number of arguments mapped to the current node.
   // Invoking this method is only allowed on nodes that mark the end of a valid
   // sequence (i.e. if IsSequence())
@@ -190,22 +187,18 @@ class BytecodeSequenceNode {
   BytecodeSequenceNode& GetNodeByIndexInSequence(int index_in_sequence);
   Zone* zone() const;
 
-  int bytecode_;
-  int bytecode_replacement_;
+  std::optional<RegExpBytecode> bytecode_;
+  std::optional<RegExpBytecode> bytecode_replacement_;
   int index_in_sequence_;
   int start_offset_;
   BytecodeSequenceNode* parent_;
-  ZoneUnorderedMap<int, BytecodeSequenceNode*> children_;
+  ZoneUnorderedMap<RegExpBytecode, BytecodeSequenceNode*> children_;
   ZoneVector<BytecodeArgumentMapping>* argument_mapping_;
   ZoneLinkedList<BytecodeArgumentCheck>* argument_check_;
   ZoneLinkedList<BytecodeArgument>* argument_ignored_;
 
   Zone* zone_;
 };
-
-// These definitions are here in order to please the linker, which in debug mode
-// sometimes requires static constants to be defined in .cc files.
-constexpr int BytecodeSequenceNode::kDummyBytecode;
 
 class RegExpBytecodePeephole {
  public:
@@ -225,7 +218,7 @@ class RegExpBytecodePeephole {
   // Sets up all sequences that are going to be used.
   void DefineStandardSequences();
   // Starts a new bytecode sequence.
-  BytecodeSequenceNode& CreateSequence(int bytecode);
+  BytecodeSequenceNode& CreateSequence(RegExpBytecode bytecode);
   // Checks for optimization candidates at pc and emits optimized bytecode to
   // the internal buffer. Returns the length of replaced bytecodes in bytes.
   int TryOptimizeSequence(const uint8_t* bytecode, int bytecode_length,
@@ -312,27 +305,28 @@ int32_t GetArgumentValue(const uint8_t* bytecode, int offset, int length) {
   }
 }
 
-BytecodeSequenceNode::BytecodeSequenceNode(int bytecode, Zone* zone)
+BytecodeSequenceNode::BytecodeSequenceNode(
+    std::optional<RegExpBytecode> bytecode, Zone* zone)
     : bytecode_(bytecode),
-      bytecode_replacement_(kDummyBytecode),
+      bytecode_replacement_(std::nullopt),
       index_in_sequence_(0),
       start_offset_(0),
       parent_(nullptr),
-      children_(ZoneUnorderedMap<int, BytecodeSequenceNode*>(zone)),
+      children_(ZoneUnorderedMap<RegExpBytecode, BytecodeSequenceNode*>(zone)),
       argument_mapping_(zone->New<ZoneVector<BytecodeArgumentMapping>>(zone)),
       argument_check_(zone->New<ZoneLinkedList<BytecodeArgumentCheck>>(zone)),
       argument_ignored_(zone->New<ZoneLinkedList<BytecodeArgument>>(zone)),
       zone_(zone) {}
 
-BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(int bytecode) {
-  DCHECK(0 <= bytecode && bytecode < kRegExpBytecodeCount);
-
+BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(
+    RegExpBytecode bytecode) {
   if (children_.find(bytecode) == children_.end()) {
     BytecodeSequenceNode* new_node =
         zone()->New<BytecodeSequenceNode>(bytecode, zone());
     // If node is not the first in the sequence, set offsets and parent.
-    if (bytecode_ != kDummyBytecode) {
-      new_node->start_offset_ = start_offset_ + RegExpBytecodeLength(bytecode_);
+    if (bytecode_.has_value()) {
+      new_node->start_offset_ =
+          start_offset_ + RegExpBytecodes::Size(bytecode_.value());
       new_node->index_in_sequence_ = index_in_sequence_ + 1;
       new_node->parent_ = this;
     }
@@ -342,9 +336,8 @@ BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(int bytecode) {
   return *children_[bytecode];
 }
 
-BytecodeSequenceNode& BytecodeSequenceNode::ReplaceWith(int bytecode) {
-  DCHECK(0 <= bytecode && bytecode < kRegExpBytecodeCount);
-
+BytecodeSequenceNode& BytecodeSequenceNode::ReplaceWith(
+    RegExpBytecode bytecode) {
   bytecode_replacement_ = bytecode;
 
   return *this;
@@ -358,7 +351,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::MapArgument(
 
   BytecodeSequenceNode& ref_node =
       GetNodeByIndexInSequence(bytecode_index_in_sequence);
-  DCHECK_LT(argument_offset, RegExpBytecodeLength(ref_node.bytecode_));
+  DCHECK_LT(argument_offset, RegExpBytecodes::Size(ref_node.bytecode_.value()));
 
   int absolute_offset = ref_node.start_offset_ + argument_offset;
   if (new_argument_byte_length == 0) {
@@ -380,7 +373,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::EmitOffsetAfterSequence() {
 
 BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsOffset(
     int argument_offset, int argument_byte_length, int check_byte_offset) {
-  DCHECK_LT(argument_offset, RegExpBytecodeLength(bytecode_));
+  DCHECK_LT(argument_offset, RegExpBytecodes::Size(bytecode_.value()));
   DCHECK(argument_byte_length == 1 || argument_byte_length == 2 ||
          argument_byte_length == 4);
 
@@ -396,13 +389,14 @@ BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsValueAtOffset(
     int argument_offset, int argument_byte_length,
     int other_bytecode_index_in_sequence, int other_argument_offset,
     int other_argument_byte_length) {
-  DCHECK_LT(argument_offset, RegExpBytecodeLength(bytecode_));
+  DCHECK_LT(argument_offset, RegExpBytecodes::Size(bytecode_.value()));
   DCHECK_LE(other_bytecode_index_in_sequence, index_in_sequence_);
   DCHECK_EQ(argument_byte_length, other_argument_byte_length);
 
   BytecodeSequenceNode& ref_node =
       GetNodeByIndexInSequence(other_bytecode_index_in_sequence);
-  DCHECK_LT(other_argument_offset, RegExpBytecodeLength(ref_node.bytecode_));
+  DCHECK_LT(other_argument_offset,
+            RegExpBytecodes::Size(ref_node.bytecode_.value()));
 
   int absolute_offset = start_offset_ + argument_offset;
   int other_absolute_offset = ref_node.start_offset_ + other_argument_offset;
@@ -422,7 +416,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::IgnoreArgument(
 
   BytecodeSequenceNode& ref_node =
       GetNodeByIndexInSequence(bytecode_index_in_sequence);
-  DCHECK_LT(argument_offset, RegExpBytecodeLength(ref_node.bytecode_));
+  DCHECK_LT(argument_offset, RegExpBytecodes::Size(ref_node.bytecode_.value()));
 
   int absolute_offset = ref_node.start_offset_ + argument_offset;
 
@@ -452,18 +446,19 @@ bool BytecodeSequenceNode::CheckArguments(const uint8_t* bytecode, int pc) {
 }
 
 bool BytecodeSequenceNode::IsSequence() const {
-  return bytecode_replacement_ != kDummyBytecode;
+  return bytecode_replacement_.has_value();
 }
 
 int BytecodeSequenceNode::SequenceLength() const {
-  return start_offset_ + RegExpBytecodeLength(bytecode_);
+  return start_offset_ + RegExpBytecodes::Size(bytecode_.value());
 }
 
-int BytecodeSequenceNode::OptimizedBytecode() const {
-  return bytecode_replacement_;
+RegExpBytecode BytecodeSequenceNode::OptimizedBytecode() const {
+  return bytecode_replacement_.value();
 }
 
-BytecodeSequenceNode* BytecodeSequenceNode::Find(int bytecode) const {
+BytecodeSequenceNode* BytecodeSequenceNode::Find(
+    RegExpBytecode bytecode) const {
   auto found = children_.find(bytecode);
   if (found == children_.end()) return nullptr;
   return found->second;
@@ -519,8 +514,7 @@ RegExpBytecodePeephole::RegExpBytecodePeephole(
     Zone* zone, size_t buffer_size,
     const ZoneUnorderedMap<int, int>& jump_edges)
     : optimized_bytecode_buffer_(zone),
-      sequences_(zone->New<BytecodeSequenceNode>(
-          BytecodeSequenceNode::kDummyBytecode, zone)),
+      sequences_(zone->New<BytecodeSequenceNode>(std::nullopt, zone)),
       jump_edges_(zone),
       jump_edges_mapped_(zone),
       jump_usage_counts_(zone),
@@ -544,15 +538,17 @@ RegExpBytecodePeephole::RegExpBytecodePeephole(
 }
 
 void RegExpBytecodePeephole::DefineStandardSequences() {
+  using B = RegExpBytecode;
+
   // Commonly used sequences can be found by creating regexp bytecode traces
   // (--trace-regexp-bytecodes) and using v8/tools/regexp-sequences.py.
-  CreateSequence(BC_LOAD_CURRENT_CHAR)
-      .FollowedBy(BC_CHECK_BIT_IN_TABLE)
-      .FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+  CreateSequence(B::kLoadCurrentCharacter)
+      .FollowedBy(B::kCheckBitInTable)
+      .FollowedBy(B::kAdvanceCpAndGoto)
       // Sequence is only valid if the jump target of ADVANCE_CP_AND_GOTO is the
       // first bytecode in this sequence.
       .IfArgumentEqualsOffset(4, 4, 0)
-      .ReplaceWith(BC_SKIP_UNTIL_BIT_IN_TABLE)
+      .ReplaceWith(B::kSkipUntilBitInTable)
       .MapArgument(0, 1, 3)      // load offset
       .MapArgument(2, 1, 3, 4)   // advance by
       .MapArgument(1, 8, 16)     // bit table
@@ -560,14 +556,14 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
       .MapArgument(0, 4, 4)      // goto on failure
       .IgnoreArgument(2, 4, 4);  // loop jump
 
-  CreateSequence(BC_CHECK_CURRENT_POSITION)
-      .FollowedBy(BC_LOAD_CURRENT_CHAR_UNCHECKED)
-      .FollowedBy(BC_CHECK_CHAR)
-      .FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+  CreateSequence(B::kCheckPosition)
+      .FollowedBy(B::kLoadCurrentCharacterUnchecked)
+      .FollowedBy(B::kCheckCharacter)
+      .FollowedBy(B::kAdvanceCpAndGoto)
       // Sequence is only valid if the jump target of ADVANCE_CP_AND_GOTO is the
       // first bytecode in this sequence.
       .IfArgumentEqualsOffset(4, 4, 0)
-      .ReplaceWith(BC_SKIP_UNTIL_CHAR_POS_CHECKED)
+      .ReplaceWith(B::kSkipUntilCharPosChecked)
       .MapArgument(1, 1, 3)      // load offset
       .MapArgument(3, 1, 3, 2)   // advance_by
       .MapArgument(2, 1, 3, 2)   // c
@@ -576,14 +572,14 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
       .MapArgument(0, 4, 4)      // goto on failure
       .IgnoreArgument(3, 4, 4);  // loop jump
 
-  CreateSequence(BC_CHECK_CURRENT_POSITION)
-      .FollowedBy(BC_LOAD_CURRENT_CHAR_UNCHECKED)
-      .FollowedBy(BC_AND_CHECK_CHAR)
-      .FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+  CreateSequence(B::kCheckPosition)
+      .FollowedBy(B::kLoadCurrentCharacterUnchecked)
+      .FollowedBy(B::kCheckCharacterAfterAnd)
+      .FollowedBy(B::kAdvanceCpAndGoto)
       // Sequence is only valid if the jump target of ADVANCE_CP_AND_GOTO is the
       // first bytecode in this sequence.
       .IfArgumentEqualsOffset(4, 4, 0)
-      .ReplaceWith(BC_SKIP_UNTIL_CHAR_AND)
+      .ReplaceWith(B::kSkipUntilCharAnd)
       .MapArgument(1, 1, 3)      // load offset
       .MapArgument(3, 1, 3, 2)   // advance_by
       .MapArgument(2, 1, 3, 2)   // c
@@ -598,13 +594,13 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
   // one. This could be the case if there are jumps inside the sequence and we
   // have to replicate parts of the sequence. A method to mark such sequences
   // might be useful.
-  CreateSequence(BC_LOAD_CURRENT_CHAR)
-      .FollowedBy(BC_CHECK_CHAR)
-      .FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+  CreateSequence(B::kLoadCurrentCharacter)
+      .FollowedBy(B::kCheckCharacter)
+      .FollowedBy(B::kAdvanceCpAndGoto)
       // Sequence is only valid if the jump target of ADVANCE_CP_AND_GOTO is the
       // first bytecode in this sequence.
       .IfArgumentEqualsOffset(4, 4, 0)
-      .ReplaceWith(BC_SKIP_UNTIL_CHAR)
+      .ReplaceWith(B::kSkipUntilChar)
       .MapArgument(0, 1, 3)      // load offset
       .MapArgument(2, 1, 3, 2)   // advance by
       .MapArgument(1, 1, 3, 2)   // character
@@ -612,17 +608,17 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
       .MapArgument(0, 4, 4)      // goto on failure
       .IgnoreArgument(2, 4, 4);  // loop jump
 
-  CreateSequence(BC_LOAD_CURRENT_CHAR)
-      .FollowedBy(BC_CHECK_CHAR)
-      .FollowedBy(BC_CHECK_CHAR)
+  CreateSequence(B::kLoadCurrentCharacter)
+      .FollowedBy(B::kCheckCharacter)
+      .FollowedBy(B::kCheckCharacter)
       // Sequence is only valid if the jump targets of both CHECK_CHAR bytecodes
       // are equal.
       .IfArgumentEqualsValueAtOffset(4, 4, 1, 4, 4)
-      .FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+      .FollowedBy(B::kAdvanceCpAndGoto)
       // Sequence is only valid if the jump target of ADVANCE_CP_AND_GOTO is the
       // first bytecode in this sequence.
       .IfArgumentEqualsOffset(4, 4, 0)
-      .ReplaceWith(BC_SKIP_UNTIL_CHAR_OR_CHAR)
+      .ReplaceWith(B::kSkipUntilCharOrChar)
       .MapArgument(0, 1, 3)      // load offset
       .MapArgument(3, 1, 3, 4)   // advance by
       .MapArgument(1, 1, 3, 2)   // character 1
@@ -632,25 +628,25 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
       .IgnoreArgument(2, 4, 4)   // goto when match 2
       .IgnoreArgument(3, 4, 4);  // loop jump
 
-  CreateSequence(BC_LOAD_CURRENT_CHAR)
-      .FollowedBy(BC_CHECK_GT)
+  CreateSequence(B::kLoadCurrentCharacter)
+      .FollowedBy(B::kCheckCharacterGT)
       // Sequence is only valid if the jump target of CHECK_GT is the first
       // bytecode AFTER the whole sequence.
       .IfArgumentEqualsOffset(4, 4, 56)
-      .FollowedBy(BC_CHECK_BIT_IN_TABLE)
+      .FollowedBy(B::kCheckBitInTable)
       // Sequence is only valid if the jump target of CHECK_BIT_IN_TABLE is
       // the ADVANCE_CP_AND_GOTO bytecode at the end of the sequence.
       .IfArgumentEqualsOffset(4, 4, 48)
-      .FollowedBy(BC_GOTO)
+      .FollowedBy(B::kGoTo)
       // Sequence is only valid if the jump target of GOTO is the same as the
       // jump target of CHECK_GT (i.e. both jump to the first bytecode AFTER the
       // whole sequence.
       .IfArgumentEqualsValueAtOffset(4, 4, 1, 4, 4)
-      .FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+      .FollowedBy(B::kAdvanceCpAndGoto)
       // Sequence is only valid if the jump target of ADVANCE_CP_AND_GOTO is the
       // first bytecode in this sequence.
       .IfArgumentEqualsOffset(4, 4, 0)
-      .ReplaceWith(BC_SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE)
+      .ReplaceWith(B::kSkipUntilGtOrNotBitInTable)
       .MapArgument(0, 1, 3)      // load offset
       .MapArgument(4, 1, 3, 2)   // advance by
       .MapArgument(1, 1, 3, 2)   // character
@@ -661,21 +657,21 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
       .IgnoreArgument(3, 4, 4)   // jump out of loop
       .IgnoreArgument(4, 4, 4);  // loop jump
 
-  CreateSequence(BC_CHECK_CURRENT_POSITION)
-      .FollowedBy(BC_LOAD_4_CURRENT_CHARS_UNCHECKED)
-      .FollowedBy(BC_AND_CHECK_4_CHARS)
+  CreateSequence(B::kCheckPosition)
+      .FollowedBy(B::kLoad4CurrentCharsUnchecked)
+      .FollowedBy(B::kAndCheck4Chars)
       // Jump target is the offset of the next AND_CHECK_4_CHARS (right after
       // ADVANCE_CP_AND_GOTO).
       .IfArgumentEqualsOffset(12, 4, 0x24)
-      .FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+      .FollowedBy(B::kAdvanceCpAndGoto)
       // Jump target of ADVANCE_CP_AND_GOTO is the first bytecode in this
       // sequence.
       .IfArgumentEqualsOffset(4, 4, 0)
-      .FollowedBy(BC_AND_CHECK_4_CHARS)
-      .FollowedBy(BC_AND_CHECK_NOT_4_CHARS)
+      .FollowedBy(B::kAndCheck4Chars)
+      .FollowedBy(B::kAndCheckNot4Chars)
       // Jump target is ADVANCE_CP_AND_GOTO.
       .IfArgumentEqualsOffset(12, 4, 0x1c)
-      .ReplaceWith(BC_SKIP_UNTIL_ONE_OF_MASKED)
+      .ReplaceWith(B::kSkipUntilOneOfMasked)
       .MapArgument(1, 1, 3)       // load offset
       .MapArgument(3, 1, 3, 4)    // advance_by
       .MapArgument(2, 4, 4)       // c
@@ -728,12 +724,11 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
   OP_OFFSET(BYTECODE, OPERAND), OP_SIZE(BYTECODE, OPERAND)
 
   {
-    using B = RegExpBytecode;
     static constexpr int kOffsetOfBc0SkipUntilBitInTable = 0x0;
     static constexpr int kOffsetOfBc1CheckCurrentPosition = 0x20;
     static constexpr int kOffsetOfBc4AdvanceBcAndGoto = 0x3c;
     BytecodeSequenceNode& s0 =
-        CreateSequence(BC_SKIP_UNTIL_BIT_IN_TABLE)
+        CreateSequence(B::kSkipUntilBitInTable)
             .IfArgumentEqualsOffset(
                 OP_OFFSET_AND_SIZE(B::kSkipUntilBitInTable, on_no_match),
                 kOffsetOfBc1CheckCurrentPosition)
@@ -745,9 +740,9 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
     DCHECK_EQ(s0.SequenceLength(), kOffsetOfBc1CheckCurrentPosition);
     static constexpr int kOffsetOfBc5Load4CurrentChars = 0x44;
     BytecodeSequenceNode& s1 =
-        s0.FollowedBy(BC_CHECK_CURRENT_POSITION)
-            .FollowedBy(BC_LOAD_4_CURRENT_CHARS_UNCHECKED)
-            .FollowedBy(BC_AND_CHECK_4_CHARS)
+        s0.FollowedBy(B::kCheckPosition)
+            .FollowedBy(B::kLoad4CurrentCharsUnchecked)
+            .FollowedBy(B::kAndCheck4Chars)
             .IfArgumentEqualsOffset(
                 OP_OFFSET_AND_SIZE(B::kAndCheck4Chars, on_equal),
                 kOffsetOfBc5Load4CurrentChars);
@@ -755,7 +750,7 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
     DCHECK_EQ(s1.SequenceLength(), 0x3c);
     DCHECK_EQ(s1.SequenceLength(), kOffsetOfBc4AdvanceBcAndGoto);
     BytecodeSequenceNode& s2 =
-        s1.FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+        s1.FollowedBy(B::kAdvanceCpAndGoto)
             .IfArgumentEqualsOffset(
                 OP_OFFSET_AND_SIZE(B::kAdvanceCpAndGoto, on_goto),
                 kOffsetOfBc0SkipUntilBitInTable);
@@ -763,13 +758,13 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
     DCHECK_EQ(s2.SequenceLength(), 0x44);
     DCHECK_EQ(s2.SequenceLength(), kOffsetOfBc5Load4CurrentChars);
     BytecodeSequenceNode& s3 =
-        s2.FollowedBy(BC_LOAD_4_CURRENT_CHARS)
+        s2.FollowedBy(B::kLoad4CurrentChars)
             .IfArgumentEqualsOffset(
                 OP_OFFSET_AND_SIZE(B::kLoad4CurrentChars, on_failure),
                 kOffsetOfBc4AdvanceBcAndGoto)
-            .FollowedBy(BC_AND_CHECK_4_CHARS)
-            .FollowedBy(BC_AND_CHECK_4_CHARS)
-            .FollowedBy(BC_AND_CHECK_NOT_4_CHARS)
+            .FollowedBy(B::kAndCheck4Chars)
+            .FollowedBy(B::kAndCheck4Chars)
+            .FollowedBy(B::kAndCheckNot4Chars)
             .IfArgumentEqualsOffset(
                 OP_OFFSET_AND_SIZE(B::kAndCheckNot4Chars, on_not_equal),
                 kOffsetOfBc4AdvanceBcAndGoto);
@@ -794,7 +789,7 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
     // TODO(jgruber): Remove the verbose size comments and the duplicate args
     // that ensure alignment, once we've switched exclusively to the new
     // bytecode format.
-    s3.ReplaceWith(BC_SKIP_UNTIL_ONE_OF_MASKED3)
+    s3.ReplaceWith(B::kSkipUntilOneOfMasked3)
         // Size 2 packed.
         .MapArgument(0, OSN_FIRST(B::kSkipUntilBitInTable, cp_offset))
         // Size 4.
@@ -868,8 +863,7 @@ bool RegExpBytecodePeephole::OptimizeBytecode(const uint8_t* bytecode,
       old_pc += replaced_len;
       did_optimize = true;
     } else {
-      int bc = bytecode[old_pc];
-      int bc_len = RegExpBytecodeLength(bc);
+      int bc_len = RegExpBytecodes::Size(bytecode[old_pc]);
       CopyRangeToOutput(bytecode, old_pc, bc_len);
       old_pc += bc_len;
     }
@@ -888,9 +882,9 @@ void RegExpBytecodePeephole::CopyOptimizedBytecode(uint8_t* to_address) const {
 
 int RegExpBytecodePeephole::Length() const { return pc(); }
 
-BytecodeSequenceNode& RegExpBytecodePeephole::CreateSequence(int bytecode) {
+BytecodeSequenceNode& RegExpBytecodePeephole::CreateSequence(
+    RegExpBytecode bytecode) {
   DCHECK(sequences_ != nullptr);
-  DCHECK(0 <= bytecode && bytecode < kRegExpBytecodeCount);
 
   return sequences_->FollowedBy(bytecode);
 }
@@ -906,12 +900,12 @@ int RegExpBytecodePeephole::TryOptimizeSequence(const uint8_t* bytecode,
   // Check for the longest valid sequence matching any of the pre-defined
   // sequences in the Trie data structure.
   while (current_pc < bytecode_length) {
-    seq_node = seq_node->Find(bytecode[current_pc]);
+    seq_node = seq_node->Find(RegExpBytecodes::FromByte(bytecode[current_pc]));
     if (seq_node == nullptr) break;
     if (!seq_node->CheckArguments(bytecode, start_pc)) break;
 
     if (seq_node->IsSequence()) valid_seq_end = seq_node;
-    current_pc += RegExpBytecodeLength(bytecode[current_pc]);
+    current_pc += RegExpBytecodes::Size(bytecode[current_pc]);
   }
 
   if (valid_seq_end) {
@@ -938,8 +932,8 @@ void RegExpBytecodePeephole::EmitOptimization(
   ZoneLinkedList<uint32_t> after_sequence_offsets =
       ZoneLinkedList<uint32_t>(zone());
 
-  uint32_t bc = last_node.OptimizedBytecode();
-  EmitValue(bc);
+  RegExpBytecode bc = last_node.OptimizedBytecode();
+  EmitValue<uint32_t>(RegExpBytecodes::ToByte(bc));
 
   for (size_t arg = 0; arg < last_node.ArgumentSize(); arg++) {
     BytecodeArgumentMapping arg_map = last_node.ArgumentMapping(arg);
@@ -978,7 +972,7 @@ void RegExpBytecodePeephole::EmitOptimization(
   }
 
   DCHECK_EQ(pc(), optimized_start_pc +
-                      RegExpBytecodeLength(last_node.OptimizedBytecode()));
+                      RegExpBytecodes::Size(last_node.OptimizedBytecode()));
 
   // Remove jumps from arguments we ignore.
   if (last_node.HasIgnoredArguments()) {
@@ -999,7 +993,7 @@ void RegExpBytecodePeephole::EmitOptimization(
     }
   }
 
-  int fixup_length = RegExpBytecodeLength(bc) - last_node.SequenceLength();
+  int fixup_length = RegExpBytecodes::Size(bc) - last_node.SequenceLength();
 
   // Check if there are any jumps inside the old sequence.
   // If so we have to keep the bytecodes that are jumped to around.
