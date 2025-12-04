@@ -148,7 +148,9 @@ class V8_EXPORT_PRIVATE GCTracer {
    private:
     GCTracer* const tracer_;
     const ScopeId scope_;
+#ifdef DEBUG
     const ThreadKind thread_kind_;
+#endif  // DEBUG
     const base::TimeTicks start_time_;
 #ifdef V8_RUNTIME_CALL_STATS
     RuntimeCallTimer timer_;

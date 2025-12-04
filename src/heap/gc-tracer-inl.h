@@ -29,14 +29,16 @@ constexpr GCTracer::IncrementalInfos& GCTracer::IncrementalInfos::operator+=(
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
     : tracer_(tracer),
       scope_(scope),
+#ifdef DEBUG
       thread_kind_(thread_kind),
+#endif  // DEBUG
       start_time_(base::TimeTicks::Now()) {
   DCHECK_IMPLIES(thread_kind_ == ThreadKind::kMain,
                  LocalHeap::Current()->is_main_thread());
 
 #ifdef V8_RUNTIME_CALL_STATS
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  if (thread_kind_ == ThreadKind::kMain) {
+  if (thread_kind == ThreadKind::kMain) {
     runtime_stats_ = tracer_->heap_->isolate_->counters()->runtime_call_stats();
     runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
   } else {
@@ -52,14 +54,12 @@ GCTracer::Scope::~Scope() {
   const base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
   tracer_->AddScopeSample(scope_, duration);
 
-  if (thread_kind_ == ThreadKind::kMain) {
-    if (scope_ == ScopeId::MC_INCREMENTAL ||
-        scope_ == ScopeId::MC_INCREMENTAL_START) {
-      auto* long_task_stats =
-          tracer_->heap_->isolate_->GetCurrentLongTaskStats();
-      long_task_stats->gc_full_incremental_wall_clock_duration_us +=
-          duration.InMicroseconds();
-    }
+  if (scope_ == ScopeId::MC_INCREMENTAL ||
+      scope_ == ScopeId::MC_INCREMENTAL_START) {
+    DCHECK_EQ(thread_kind_, ThreadKind::kMain);
+    auto* long_task_stats = tracer_->heap_->isolate_->GetCurrentLongTaskStats();
+    long_task_stats->gc_full_incremental_wall_clock_duration_us +=
+        duration.InMicroseconds();
   }
 
 #ifdef V8_RUNTIME_CALL_STATS
