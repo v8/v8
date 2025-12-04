@@ -196,17 +196,26 @@ inline bool IsAnyHoleNoSpaceCheck(Tagged<HeapObject> obj) {
 
 bool IsAnyHole(Tagged<HeapObject> obj) {
   if (detail::IsAnyHoleNoSpaceCheck(obj)) {
-#if defined(DEBUG) && V8_STATIC_ROOTS_BOOL
+#if V8_STATIC_ROOTS_BOOL
     // Compressed object tests need to be done on a matching compression scheme.
-    // We allow trusted space comparisons, because the first 1MB is unmapped
-    // there anyway, so no trusted object can alias a hole.
+    // Holes are always in the main cage's RO space. If the object is in a
+    // different cage, IsAnyHoleNoSpaceCheck may have returned a false positive
+    // due to address aliasing.
     //
     // Only check this after the hole check succeeds, to make it cheaper in the
     // common case that things aren't holes.
     if (V8_UNLIKELY(!obj.IsInMainCageBase())) {
+#if defined(DEBUG) && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+      // When contiguous compressed RO space is enabled, the trusted space guard
+      // region is large enough (kContiguousReadOnlyReservationSize) to prevent
+      // aliasing with hole values. This DCHECK verifies that assumption.
       DCHECK(obj.IsInTrustedCageBase());
       DCHECK_GT(TrustedSpaceCompressionScheme::CompressObject(obj.ptr()),
                 detail::kMaxStaticHoleValue);
+#endif
+      // Object is not in main cage, so it can't be a hole (holes are in RO
+      // space which is in the main cage).
+      return false;
     }
 #endif
     return true;
@@ -422,19 +431,22 @@ Tagged<Object> HeapObject::SeqCst_CompareAndSwapField(
 }
 
 constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
-#if V8_STATIC_ROOTS_BOOL
+#if V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // The following assert ensures that the page size check covers all our static
   // roots. This is not strictly necessary and can be relaxed in future as the
   // most prominent static roots are anyways allocated at the beginning of the
   // first page.
+  // This optimization requires contiguous compressed RO space to ensure RO
+  // space is at the beginning of the cage; otherwise, objects from other spaces
+  // could alias with low addresses.
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
   static_assert(kLastStaticRootPage <=
                 V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
   return obj < kLastStaticRootPage;
-#else   // !V8_STATIC_ROOTS_BOOL
+#else
   return false;
-#endif  // !V8_STATIC_ROOTS_BOOL
+#endif
 }
 
 constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged<MaybeObject> obj) {

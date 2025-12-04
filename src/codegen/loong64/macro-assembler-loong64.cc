@@ -196,14 +196,17 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
 
 void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
                                                    Label* dest) {
-#if V8_STATIC_ROOTS_BOOL
+#if V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // Quick check for Read-only and small Smi values.
+  // This optimization requires contiguous compressed RO space to ensure RO
+  // space is at the beginning of the cage; otherwise, objects from other spaces
+  // could alias with low addresses.
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
   static_assert(kLastStaticRootPage <=
                 V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
   JumpIfUnsignedLessThan(value, kLastStaticRootPage, dest);
-#endif  // V8_STATIC_ROOTS_BOOL
+#endif  // V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }
 
 // Clobbers object, dst, value, and ra, if (ra_status == kRAHasBeenSaved)
