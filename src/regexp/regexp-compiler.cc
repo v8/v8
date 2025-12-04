@@ -1520,8 +1520,8 @@ bool QuickCheckDetails::Rationalize(bool asc) {
 }
 
 uint32_t RegExpNode::EatsAtLeast(bool not_at_start) {
-  return not_at_start ? eats_at_least_.eats_at_least_from_not_start
-                      : eats_at_least_.eats_at_least_from_possibly_start;
+  return not_at_start ? eats_at_least_.from_not_start
+                      : eats_at_least_.from_possibly_start;
 }
 
 EatsAtLeastInfo RegExpNode::EatsAtLeastFromLoopEntry() {
@@ -1547,8 +1547,8 @@ EatsAtLeastInfo LoopChoiceNode::EatsAtLeastFromLoopEntry() {
   if (read_backward()) {
     // The eats_at_least value is not used if reading backward. The
     // EatsAtLeastPropagator should've zeroed it as well.
-    DCHECK_EQ(eats_at_least_info()->eats_at_least_from_possibly_start, 0);
-    DCHECK_EQ(eats_at_least_info()->eats_at_least_from_not_start, 0);
+    DCHECK_EQ(eats_at_least_info()->from_possibly_start, 0);
+    DCHECK_EQ(eats_at_least_info()->from_not_start, 0);
     return {};
   }
 
@@ -1570,20 +1570,19 @@ EatsAtLeastInfo LoopChoiceNode::EatsAtLeastFromLoopEntry() {
   int loop_iterations = base::saturated_cast<uint8_t>(min_loop_iterations());
 
   EatsAtLeastInfo result;
-  result.eats_at_least_from_not_start =
+  result.from_not_start =
       base::saturated_cast<uint8_t>(loop_iterations * loop_body_from_not_start +
                                     continue_node_->EatsAtLeast(true));
   if (loop_iterations > 0 && loop_body_from_possibly_start > 0) {
     // First loop iteration eats at least one, so all subsequent iterations
     // and the after-loop chunk are guaranteed to not be at the start.
-    result.eats_at_least_from_possibly_start = base::saturated_cast<uint8_t>(
+    result.from_possibly_start = base::saturated_cast<uint8_t>(
         loop_body_from_possibly_start +
         (loop_iterations - 1) * loop_body_from_not_start +
         continue_node_->EatsAtLeast(true));
   } else {
     // Loop body might eat nothing, so only continue node contributes.
-    result.eats_at_least_from_possibly_start =
-        continue_node_->EatsAtLeast(false);
+    result.from_possibly_start = continue_node_->EatsAtLeast(false);
   }
   return result;
 }
@@ -3739,11 +3738,10 @@ class EatsAtLeastPropagator : public AllStatic {
     // The eats_at_least value is not used if reading backward.
     if (!that->read_backward()) {
       // We are not at the start after this node, and thus we can use the
-      // successor's eats_at_least_from_not_start value.
+      // successor's from_not_start value.
       uint8_t eats_at_least = base::saturated_cast<uint8_t>(
-          that->Length() + that->on_success()
-                               ->eats_at_least_info()
-                               ->eats_at_least_from_not_start);
+          that->Length() +
+          that->on_success()->eats_at_least_info()->from_not_start);
       that->set_eats_at_least_info(EatsAtLeastInfo(eats_at_least));
     }
   }
@@ -3828,7 +3826,7 @@ class EatsAtLeastPropagator : public AllStatic {
       // since false implies false.  So let's just set the max answer
       // (UINT8_MAX) since that won't prevent us from preloading a lot of
       // characters for the other branches in the node graph.
-      eats_at_least.eats_at_least_from_not_start = UINT8_MAX;
+      eats_at_least.from_not_start = UINT8_MAX;
     }
     that->set_eats_at_least_info(eats_at_least);
   }
