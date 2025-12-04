@@ -118,7 +118,11 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
 
     DCHECK(!ReadOnlyHeap::Contains(str));
     Isolate* isolate = Isolate::Current();
-    if (str->IsShared()) isolate = isolate->shared_space_isolate();
+    // For strings in the shared space we need the shared space isolate instead
+    // of the current isolate.
+    if (HeapLayout::InWritableSharedSpace(str)) {
+      isolate = isolate->shared_space_isolate();
+    }
     DCHECK_EQ(isolate->heap(), Heap::FromWritableHeapObject(str));
     return isolate;
   }
