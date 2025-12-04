@@ -4701,6 +4701,8 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-tier.h",
       "src/wasm/wasm-tracing.h",
       "src/wasm/wasm-value.h",
+      "src/wasm/wasm-wrapper-cache-inl.h",
+      "src/wasm/wasm-wrapper-cache.h",
       "src/wasm/well-known-imports.h",
       "src/wasm/wrappers-inl.h",
       "src/wasm/wrappers.h",
@@ -6187,6 +6189,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-serialization.cc",
       "src/wasm/wasm-subtyping.cc",
       "src/wasm/wasm-tracing.cc",
+      "src/wasm/wasm-wrapper-cache.cc",
       "src/wasm/well-known-imports.cc",
     ]
     if (v8_wasm_random_fuzzers) {

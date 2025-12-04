@@ -42,7 +42,7 @@ class NativeModule;
 class WasmCode;
 struct WasmFunction;
 struct WasmGlobal;
-class WasmImportWrapperHandle;
+class WasmWrapperHandle;
 struct WasmModule;
 struct WasmTag;
 using WasmTagSig = FunctionSig;
@@ -146,7 +146,7 @@ class ImportedFunctionEntry {
   // allocates a WasmImportData.
   V8_EXPORT_PRIVATE void SetWasmToWrapper(
       Isolate*, DirectHandle<JSReceiver> callable,
-      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+      std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
       wasm::Suspend suspend, const wasm::CanonicalSig* sig);
 
   Tagged<JSReceiver> callable();
@@ -777,28 +777,26 @@ class WasmTagObject
 };
 
 // Off-heap data object owned by a WasmDispatchTable. Owns the {shared_ptr}s
-// which manage the lifetimes of the {WasmImportWrapperHandle}s.
+// which manage the lifetimes of the {WasmWrapperHandle}s.
 class WasmDispatchTableData {
  public:
   // If a wrapper is installed at the given {index}, returns the corresponding
-  // {WasmImportWrapperHandle} so that it can be reused in other tables.
+  // {WasmWrapperHandle} so that it can be reused in other tables.
   V8_EXPORT_PRIVATE
-  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
-  MaybeGetWrapperHandle(int index) const;
+  std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> MaybeGetWrapperHandle(
+      int index) const;
 
 #ifdef DEBUG
   WasmCodePointer WrapperCodePointerForDebugging(int index);
 #endif
 
-  void Add(int index,
-           std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
+  void Add(int index, std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle);
   void Remove(int index);
 
  private:
   friend class WasmDispatchTable;
 
-  std::unordered_map<int, std::shared_ptr<wasm::WasmImportWrapperHandle>>
-      wrappers_;
+  std::unordered_map<int, std::shared_ptr<wasm::WasmWrapperHandle>> wrappers_;
 };
 
 // The dispatch table is referenced from a WasmTableObject and from every
@@ -904,7 +902,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   // Set an entry for indirect calls to a WasmToJS wrapper.
   void V8_EXPORT_PRIVATE
   SetForWrapper(int index, Tagged<WasmImportData> implicit_arg,
-                std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+                std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
                 wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
                 uint32_t function_index,
@@ -917,8 +915,8 @@ class WasmDispatchTable : public ExposedTrustedObject {
 
   void Clear(int index, NewOrExistingEntry new_or_existing);
 
-  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
-  MaybeGetWrapperHandle(int index);
+  std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> MaybeGetWrapperHandle(
+      int index);
 
   static void V8_EXPORT_PRIVATE
   AddUse(Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
@@ -1014,20 +1012,19 @@ class WasmDispatchTableForImports : public TrustedObject {
       WasmDispatchTable::NewOrExistingEntry new_or_existing);
 
   // Set an entry for indirect calls to a WasmToJS wrapper.
-  void SetForWrapper(
-      int index, Tagged<WasmImportData> implicit_arg,
-      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
-      wasm::CanonicalTypeIndex sig_id,
+  void SetForWrapper(int index, Tagged<WasmImportData> implicit_arg,
+                     std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle,
+                     wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-      uint32_t function_index,
+                     uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-      WasmDispatchTable::NewOrExistingEntry new_or_existing);
+                     WasmDispatchTable::NewOrExistingEntry new_or_existing);
 
   void Clear(int index, WasmDispatchTable::NewOrExistingEntry new_or_existing);
 
   V8_EXPORT_PRIVATE
-  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
-  MaybeGetWrapperHandle(int index);
+  std::optional<std::shared_ptr<wasm::WasmWrapperHandle>> MaybeGetWrapperHandle(
+      int index);
 
   DECL_PRINTER(WasmDispatchTableForImports)
   DECL_VERIFIER(WasmDispatchTableForImports)
@@ -1311,15 +1308,15 @@ class WasmJSFunctionData
   class OffheapData {
    public:
     explicit OffheapData(
-        std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle)
+        std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle)
         : wrapper_handle_(wrapper_handle) {}
 
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle() const {
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle() const {
       return wrapper_handle_;
     }
 
    private:
-    const std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle_;
+    const std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle_;
   };
 
   DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,

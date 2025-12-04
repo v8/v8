@@ -1958,7 +1958,7 @@ bool InstanceBuilder::ProcessImportedFunction(int import_index,
 #ifdef V8_ENABLE_TURBOFAN
       DCHECK(IsJSFunction(*callable) || IsJSBoundFunction(*callable));
 
-      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+      std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
           GetWasmImportWrapperCache()->CompileWasmJsFastCallWrapper(
               isolate_, callable, expected_sig);
 
@@ -1992,8 +1992,8 @@ bool InstanceBuilder::ProcessImportedFunction(int import_index,
   }
 
   WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle = cache->Get(
-      isolate_, kind, expected_arity, resolved.suspend(), expected_sig);
+  std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle = cache->Get(
+      isolate_, {kind, expected_sig, expected_arity, resolved.suspend()});
 
   imported_entry.SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
                                   resolved.suspend(), expected_sig);

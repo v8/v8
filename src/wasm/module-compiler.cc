@@ -4362,15 +4362,15 @@ void CompilationStateImpl::TierUpAllFunctions() {
   }
 }
 
-std::shared_ptr<wasm::WasmImportWrapperHandle> CompileImportWrapperForTest(
+std::shared_ptr<wasm::WasmWrapperHandle> CompileImportWrapperForTest(
     Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
     int expected_arity, Suspend suspend) {
   if (v8_flags.wasm_jitless) {
     return nullptr;
   }
 
-  return GetWasmImportWrapperCache()->GetCompiled(isolate, kind, expected_arity,
-                                                  suspend, sig);
+  return GetWasmImportWrapperCache()->GetCompiled(
+      isolate, {kind, sig, expected_arity, suspend});
 }
 
 }  // namespace v8::internal::wasm

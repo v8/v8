@@ -52,6 +52,7 @@ struct ModuleWireBytes;
 class StreamingDecoder;
 class WasmEnabledFeatures;
 class WasmOrphanedGlobalHandle;
+class WasmImportWrapperCache;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:

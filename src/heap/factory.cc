@@ -1746,7 +1746,7 @@ Factory::NewWasmDispatchTableForImports(int length, bool shared) {
   // an entry in a std::unordered_map<int, std::shared_ptr<...>>, the map
   // is probably about half full.
   constexpr size_t kPerEntrySize =
-      sizeof(int) + sizeof(std::shared_ptr<wasm::WasmImportWrapperHandle>) +
+      sizeof(int) + sizeof(std::shared_ptr<wasm::WasmWrapperHandle>) +
       2 * sizeof(void*);
   size_t estimated_offheap_size = length * kPerEntrySize;
   DirectHandle<TrustedManaged<WasmDispatchTableData>> offheap_data =
@@ -1897,7 +1897,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::Suspend suspend, wasm::Promise promise,
-    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle) {
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle) {
   constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data = NewWasmImportData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig, kShared);

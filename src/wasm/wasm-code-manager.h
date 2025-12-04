@@ -53,7 +53,8 @@ class NamesProvider;
 class NativeModule;
 struct WasmCompilationResult;
 class WasmEngine;
-class WasmImportWrapperCache;
+template <typename CacheKey>
+class WasmWrapperCache;
 struct WasmModule;
 enum class WellKnownImport : uint8_t;
 
@@ -393,7 +394,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
  private:
   friend class NativeModule;
-  friend class WasmImportWrapperCache;
+  template <typename CacheKey>
+  friend class WasmWrapperCache;
 
   WasmCode(NativeModule* native_module, int index,
            base::Vector<uint8_t> instructions, int stack_slots, int ool_spills,
@@ -1241,7 +1243,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   friend class WasmCodeAllocator;
   friend class WasmCodeLookupCache;
   friend class WasmEngine;
-  friend class WasmImportWrapperCache;
+  template <typename CacheKey>
+  friend class WasmWrapperCache;
 
   std::shared_ptr<NativeModule> NewNativeModule(
       WasmEnabledFeatures enabled_features,
