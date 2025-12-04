@@ -327,6 +327,15 @@ class RangeProcessor {
                       ValueRepresentation::kInt32) {
       UnionUpdate(node, Range::Int32());
     }
+    if constexpr (NodeT::kProperties.can_throw()) {
+      ExceptionHandlerInfo* info = node->exception_handler_info();
+      if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
+        BasicBlock* exception_handler =
+            node->exception_handler_info()->catch_block();
+        DCHECK(exception_handler->is_exception_handler_block());
+        ranges_.Join(exception_handler, current_block_);
+      }
+    }
     return ProcessResult::kContinue;
   }
 
