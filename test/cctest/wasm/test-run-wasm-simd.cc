@@ -7418,6 +7418,86 @@ TEST(RunWasmTurbofan_ForcePackIntToIntExtensionSplat) {
       kExprI64x2SConvertI32x4High);
 }
 
+TEST(RunWasmTurbofan_ExtendLowHighRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  auto RunCase = [&](WasmOpcode ext0, WasmOpcode ext1,
+                     ExpectedResult expected) {
+    WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+    int8_t* memory = r.builder().AddMemoryElems<int8_t>(64);
+
+    uint8_t param1 = 0;
+    uint8_t param2 = 1;
+    uint8_t temp1 = r.AllocateLocal(kWasmS128);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    uint8_t temp3 = r.AllocateLocal(kWasmS128);
+    constexpr uint8_t offset = 16;
+
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveAnySimd256Op, expected);
+
+    // temp3 = v128.load(param1)
+    // temp1 = ext0(temp3)
+    // temp2 = ext1(temp3)
+    // store temp1 at param2, temp2 at param2 + 16
+    r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(temp1, WASM_SIMD_UNOP(ext0, WASM_LOCAL_GET(temp3))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_UNOP(ext1, WASM_LOCAL_GET(temp3))),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp2)),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+             WASM_ONE});
+
+    for (int i = 0; i < 16; ++i) {
+      r.builder().WriteMemory(&memory[i], static_cast<int8_t>(i));
+    }
+    r.Call(0, 32);
+
+    int16_t* out_memory = reinterpret_cast<int16_t*>(memory + 32);
+    bool is_signed = (ext0 == kExprI16x8SConvertI8x16Low ||
+                      ext0 == kExprI16x8SConvertI8x16High);
+    // Check if inverted (High, Low) order
+    bool is_inverted = (ext0 == kExprI16x8SConvertI8x16High ||
+                        ext0 == kExprI16x8UConvertI8x16High);
+    int16_t expected_value;
+    // Check low and high extension results (lanes 0-15)
+    for (int i = 0; i < 16; i++) {
+      if (is_inverted) {
+        if (i < 8) {
+          expected_value =
+              is_signed ? static_cast<int16_t>(static_cast<int8_t>(i + 8))
+                        : static_cast<int16_t>(static_cast<uint8_t>(i + 8));
+        } else {
+          expected_value =
+              is_signed ? static_cast<int16_t>(static_cast<int8_t>(i - 8))
+                        : static_cast<int16_t>(static_cast<uint8_t>(i - 8));
+        }
+      } else {
+        expected_value = is_signed
+                             ? static_cast<int16_t>(static_cast<int8_t>(i))
+                             : static_cast<int16_t>(static_cast<uint8_t>(i));
+        CHECK_EQ(expected_value, out_memory[i]);
+      }
+    }
+  };
+
+  // Signed 8 -> 16: (low, high) expected to pass.
+  RunCase(kExprI16x8SConvertI8x16Low, kExprI16x8SConvertI8x16High,
+          ExpectedResult::kPass);
+  // Unsigned 8 -> 16: (low, high) expected to pass.
+  RunCase(kExprI16x8UConvertI8x16Low, kExprI16x8UConvertI8x16High,
+          ExpectedResult::kPass);
+  // Mixed signed / unsigned 8 -> 16: (low, high) expected to fail.
+  RunCase(kExprI16x8UConvertI8x16Low, kExprI16x8SConvertI8x16High,
+          ExpectedResult::kFail);
+  RunCase(kExprI16x8SConvertI8x16Low, kExprI16x8UConvertI8x16High,
+          ExpectedResult::kFail);
+  // Inverted (high, low) expected to fail.
+  RunCase(kExprI16x8SConvertI8x16High, kExprI16x8SConvertI8x16Low,
+          ExpectedResult::kFail);
+}
+
 TEST(RunWasmTurbofan_ForcePackI16x16ConvertI8x16ExpectFail) {
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
   if (!CpuFeatures::IsSupported(AVX2)) return;

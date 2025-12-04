@@ -20,6 +20,17 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+bool IsSignExtensionOp(const Operation& op) {
+  if (const Simd128UnaryOp* unop = op.TryCast<Simd128UnaryOp>()) {
+    return unop->kind >= Simd128UnaryOp::Kind::kFirstSignExtensionOp &&
+           unop->kind <= Simd128UnaryOp::Kind::kLastSignExtensionOp;
+  } else if (const Simd128BinopOp* binop = op.TryCast<Simd128BinopOp>()) {
+    return binop->kind >= Simd128BinopOp::Kind::kFirstSignExtensionOp &&
+           binop->kind <= Simd128BinopOp::Kind::kLastSignExtensionOp;
+  }
+  return false;
+}
+
 // Compares the {kind} of two ops with the same SIMD opcode.
 bool IsSameSimd128OpKind(const Operation& op0, const Operation& op1) {
   DCHECK_EQ(op0.opcode, op1.opcode);
@@ -44,8 +55,13 @@ bool IsSameSimd128OpKind(const Operation& op0, const Operation& op1) {
 #undef CASE
 }
 
-bool IsSameOpAndKind(const Operation& op0, const Operation& op1) {
-  return op0.opcode == op1.opcode && IsSameSimd128OpKind(op0, op1);
+bool IsCompatibleOpAndKind(const Operation& op0, const Operation& op1) {
+  if (op0.opcode != op1.opcode) return false;
+  // For sign-extension ops, allow differing kinds (low/high)
+  if (IsSignExtensionOp(op0) && IsSignExtensionOp(op1)) {
+    return true;
+  }
+  return IsSameSimd128OpKind(op0, op1);
 }
 
 std::string GetSimdOpcodeName(Operation const& op) {
@@ -458,13 +474,14 @@ PackNode* SLPTree::NewCommutativePackNodeAndRecurse(const NodeGroup& node_group,
   const Simd128BinopOp& op0 = graph_.Get(node_group[0]).Cast<Simd128BinopOp>();
   const Simd128BinopOp& op1 = graph_.Get(node_group[1]).Cast<Simd128BinopOp>();
 
-  bool same_kind =
+  bool compatible_kind =
       (op0.left() == op1.left()) ||
-      IsSameOpAndKind(graph_.Get(op0.left()), graph_.Get(op1.left()));
-  // If op0.left() and op1.left() don't have the same kind, they'll definitely
-  // fail in {BuildTreeRec}, so swap op1's inputs if possible for another
-  // chance at success.
-  bool swap_inputs = Simd128BinopOp::IsCommutative(op1.kind) && !same_kind;
+      IsCompatibleOpAndKind(graph_.Get(op0.left()), graph_.Get(op1.left()));
+  // If op0.left() and op1.left() don't have the compatible kinds, they'll
+  // definitely fail in {BuildTreeRec}, so swap op1's inputs if possible for
+  // another chance at success.
+  bool swap_inputs =
+      Simd128BinopOp::IsCommutative(op1.kind) && !compatible_kind;
   if (swap_inputs) {
     TRACE("Change the order of binop operands\n");
   }
@@ -878,17 +895,6 @@ bool SLPTree::IsSideEffectFreeRange(OpIndex from, OpIndex to) {
   return true;
 }
 
-bool IsSignExtensionOp(Operation& op) {
-  if (const Simd128UnaryOp* unop = op.TryCast<Simd128UnaryOp>()) {
-    return unop->kind >= Simd128UnaryOp::Kind::kFirstSignExtensionOp &&
-           unop->kind <= Simd128UnaryOp::Kind::kLastSignExtensionOp;
-  } else if (const Simd128BinopOp* binop = op.TryCast<Simd128BinopOp>()) {
-    return binop->kind >= Simd128BinopOp::Kind::kFirstSignExtensionOp &&
-           binop->kind <= Simd128BinopOp::Kind::kLastSignExtensionOp;
-  }
-  return false;
-}
-
 bool SLPTree::IsEqual(const OpIndex node0, const OpIndex node1) {
   if (node0 == node1) return true;
   if (const ConstantOp* const0 = graph_.Get(node0).TryCast<ConstantOp>()) {
@@ -919,20 +925,13 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
   }
 
   // Check if this node group can be packed.
-  if (op0.opcode != op1.opcode) {
-    TRACE("Can't pack different opcodes\n");
-    return nullptr;
-  }
-
   if (graph_.BlockIndexOf(node0) != graph_.BlockIndexOf(node1)) {
     TRACE("Can't pack operations in different basic blocks\n");
     return nullptr;
   }
 
-  auto is_sign_ext = IsSignExtensionOp(op0) && IsSignExtensionOp(op1);
-
-  if (!is_sign_ext && !IsSameSimd128OpKind(op0, op1)) {
-    TRACE("(%s, %s) have different kind\n", GetSimdOpcodeName(op0).c_str(),
+  if (!IsCompatibleOpAndKind(op0, op1)) {
+    TRACE("(%s, %s) have incompatible kinds\n", GetSimdOpcodeName(op0).c_str(),
           GetSimdOpcodeName(op1).c_str());
     return nullptr;
   }
