@@ -316,6 +316,28 @@ class JobTask {
   virtual size_t GetMaxConcurrency(size_t worker_count) const = 0;
 };
 
+// Allows a thread to temporarily boost another thread's priority to match its
+// own priority. The priority is reset when the object is destroyed, which must
+// happens on the boosted thread.
+class ScopedBoostablePriority {
+ public:
+  virtual ~ScopedBoostablePriority() = default;
+  ScopedBoostablePriority(const ScopedBoostablePriority&) = delete;
+  ScopedBoostablePriority& operator=(const ScopedBoostablePriority& other) =
+      delete;
+
+  // Boosts the priority of the thread where this ScopedBoostablePriority was
+  // created. Can be called from any thread, but requires proper external
+  // synchronization with the constructor, destructor and any other call to
+  // BoostPriority/Reset(). If called multiple times, only the first call takes
+  // effect.
+  virtual bool BoostPriority() = 0;
+
+  // Resets the priority of the thread where this ScopedBoostablePriority was
+  // created to its original priority.
+  virtual void Reset() = 0;
+};
+
 /**
  * A "blocking call" refers to any call that causes the calling thread to wait
  * off-CPU. It includes but is not limited to calls that wait on synchronous
@@ -1370,6 +1392,14 @@ class Platform {
       TaskPriority priority, std::unique_ptr<JobTask> job_task,
       SourceLocation location = SourceLocation::Current()) {
     return CreateJobImpl(priority, std::move(job_task), location);
+  }
+
+  /**
+   * Instantiates a ScopedBoostablePriority to boost a thread's priority.
+   */
+  virtual std::unique_ptr<ScopedBoostablePriority>
+  CreateBoostablePriorityScope() {
+    return nullptr;
   }
 
   /**
