@@ -9,7 +9,6 @@ import("//build/config/dcheck_always_on.gni")
 import("//build/config/host_byteorder.gni")
 import("//build/config/mips.gni")
 import("//build/config/riscv.gni")
-import("//build/config/rust.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 import("//third_party/icu/config.gni")
@@ -19,6 +18,10 @@ import("gni/v8.gni")
 
 if (is_clang) {
   import("//build/config/clang/clang.gni")
+}
+
+if (v8_enable_temporal_support) {
+  import("//build/config/rust.gni")
 }
 
 if (is_ios) {
