@@ -57,6 +57,7 @@ class ReturnValue {
   V8_INLINE void Set(const Local<S> handle);
   template <typename S>
   V8_INLINE void SetNonEmpty(const Local<S> handle);
+
   // Fast primitive number setters.
   V8_INLINE void Set(bool value);
   V8_INLINE void Set(double i);
@@ -66,11 +67,13 @@ class ReturnValue {
   V8_INLINE void Set(uint16_t i);
   V8_INLINE void Set(uint32_t i);
   V8_INLINE void Set(uint64_t i);
+
   // Fast JS primitive setters.
   V8_INLINE void SetNull();
   V8_INLINE void SetUndefined();
   V8_INLINE void SetFalse();
   V8_INLINE void SetEmptyString();
+
   // Convenience getter for the Isolate.
   V8_INLINE Isolate* GetIsolate() const;
 
@@ -372,27 +375,9 @@ void ReturnValue<T>::SetNonEmpty(const BasicTracedReference<S>& handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(const Local<S> handle) {
-  // "V8_DEPRECATED" this method if |T| is |void|.
-#if defined(V8_DEPRECATION_WARNINGS) || \
-    defined(V8_IMMINENT_DEPRECATION_WARNINGS)
-  static constexpr bool is_allowed_void = false;
-  static_assert(!std::is_void_v<T>,
-                "ReturnValue<void>::Set(const Local<S>) is deprecated. "
-                "Do nothing to indicate that the operation succeeded or use "
-                "SetFalse() to indicate that the operation failed (don't "
-                "forget to handle info.ShouldThrowOnError()). "
-                "See http://crbug.com/348660658 for details.");
-#else
-  static constexpr bool is_allowed_void = std::is_void_v<T>;
-#endif  // defined(V8_DEPRECATION_WARNINGS) ||
-        // defined(V8_IMMINENT_DEPRECATION_WARNINGS)
-  static_assert(is_allowed_void || std::is_base_of_v<T, S>, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
     SetDefaultValue();
-  } else if constexpr (is_allowed_void) {
-    // Simulate old behaviour for "v8::AccessorSetterCallback" for which
-    // it was possible to set the return value even for ReturnValue<void>.
-    Set(handle->BooleanValue(GetIsolate()));
   } else {
     SetInternal(handle.ptr());
   }
@@ -401,32 +386,11 @@ void ReturnValue<T>::Set(const Local<S> handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
-  // "V8_DEPRECATED" this method if |T| is |void|.
-#if defined(V8_DEPRECATION_WARNINGS) || \
-    defined(V8_IMMINENT_DEPRECATION_WARNINGS)
-  static constexpr bool is_allowed_void = false;
-  static_assert(!std::is_void_v<T>,
-                "ReturnValue<void>::SetNonEmpty(const Local<S>) is deprecated. "
-                "Do nothing to indicate that the operation succeeded or use "
-                "SetFalse() to indicate that the operation failed (don't "
-                "forget to handle info.ShouldThrowOnError()). "
-                "See http://crbug.com/348660658 for details.");
-#else
-  static constexpr bool is_allowed_void = std::is_void_v<T>;
-#endif  // defined(V8_DEPRECATION_WARNINGS) ||
-        // defined(V8_IMMINENT_DEPRECATION_WARNINGS)
-
-  static_assert(is_allowed_void || std::is_base_of_v<T, S>, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
 #endif  // V8_ENABLE_CHECKS
-  if constexpr (is_allowed_void) {
-    // Simulate old behaviour for "v8::AccessorSetterCallback" for which
-    // it was possible to set the return value even for ReturnValue<void>.
-    Set(handle->BooleanValue(GetIsolate()));
-  } else {
-    SetInternal(handle.ptr());
-  }
+  SetInternal(handle.ptr());
 }
 
 template <typename T>
