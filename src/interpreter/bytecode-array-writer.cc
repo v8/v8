@@ -95,7 +95,7 @@ int BytecodeArrayWriter::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
   int min_length = std::min(bytecode_size, bytecode->length());
 
   BytecodeArrayIterator it(bytecode);
-  while (it.current_offset() < min_length && !it.done()) {
+  while (!it.done() && it.current_offset() < min_length) {
     int bytes_need_to_check = it.current_bytecode_size();
     // skip embedded feedback value.
     if (Bytecodes::IsEmbeddedFeedbackBytecode(it.current_bytecode())) {

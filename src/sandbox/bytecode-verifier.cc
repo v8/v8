@@ -123,6 +123,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
 
   interpreter::BytecodeArrayIterator iterator(bytecode);
   interpreter::Bytecode previous_bytecode = interpreter::Bytecode::kIllegal;
+  int previous_bytecode_end = 0;
   for (; !iterator.done(); iterator.Advance()) {
     interpreter::Bytecode current_bytecode = iterator.current_bytecode();
     previous_bytecode = current_bytecode;
@@ -133,6 +134,11 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
     // a bug, so we have to disallow it here for fuzzer cleanliness.
     Check(current_bytecode != interpreter::Bytecode::kIllegal,
           "Illegal bytecode");
+
+    int current_bytecode_start = iterator.current_offset();
+    int current_bytecode_end =
+        current_bytecode_start + iterator.current_bytecode_size();
+    previous_bytecode_end = current_bytecode_end;
 
     if (iterator.current_operand_scale() > interpreter::OperandScale::kSingle) {
       bool bytecode_can_be_scaled =
@@ -211,14 +217,14 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
     }
   }
 
-  Check(iterator.current_offset() <= bytecode->length(),
-        "Final instruction extends past the end of the bytecode");
+  Check(previous_bytecode_end == bytecode->length(),
+        "Final instruction does not end at the end of the bytecode array");
 
   if (!interpreter::Bytecodes::Returns(previous_bytecode) &&
       !interpreter::Bytecodes::UnconditionallyThrows(previous_bytecode) &&
       !interpreter::Bytecodes::IsUnconditionalJump(previous_bytecode)) {
     FailVerification(
-        "Bytecode must end with a control-flow terminating instruction");
+        "Bytecode does not end with a control-flow terminating instruction");
   }
 
   // Finally perform lightweight verification for CFI. If we ever enable full

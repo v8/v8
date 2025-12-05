@@ -530,7 +530,7 @@ TEST_F(BytecodeVerifierTest, FinalInstructionPartiallyOutOfBounds) {
       MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
   ASSERT_DEATH_IF_SUPPORTED(
       VerifyFull(isolate, bc),
-      "Final instruction extends past the end of the bytecode");
+      "Final instruction does not end at the end of the bytecode array");
 }
 
 TEST_F(BytecodeVerifierTest, InvalidFinalInstruction) {
@@ -547,7 +547,7 @@ TEST_F(BytecodeVerifierTest, InvalidFinalInstruction) {
       MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
   ASSERT_DEATH_IF_SUPPORTED(
       VerifyFull(isolate, bc),
-      "Bytecode must end with a control-flow terminating instruction");
+      "Bytecode does not end with a control-flow terminating instruction");
 }
 
 }  // namespace internal

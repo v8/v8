@@ -27,7 +27,7 @@ BytecodeArrayIterator::BytecodeArrayIterator(
                       ? LocalHeap::Current()
                       : Isolate::Current()->main_thread_local_heap()) {
   local_heap_->AddGCEpilogueCallback(UpdatePointersCallback, this);
-  UpdateOperandScale();
+  UpdateCurrentBytecode();
   if (initial_offset != 0) {
     AdvanceTo(initial_offset);
   }
@@ -45,7 +45,7 @@ BytecodeArrayIterator::BytecodeArrayIterator(
       prefix_size_(0),
       local_heap_(nullptr) {
   // Don't add a GC callback, since we're in a no_gc scope.
-  UpdateOperandScale();
+  UpdateCurrentBytecode();
   if (initial_offset != 0) {
     AdvanceTo(initial_offset);
   }
@@ -58,8 +58,9 @@ BytecodeArrayIterator::~BytecodeArrayIterator() {
 }
 
 void BytecodeArrayIterator::AdvanceTo(int offset) {
-  DCHECK_GE(offset, current_offset());
-  while (current_offset() != offset && cursor_ < end_) {
+  DCHECK(base::IsInRange(cursor_ - prefix_size_, start_, start_ + offset));
+  DCHECK_LE(current_offset(), offset);
+  while (current_offset() < offset) {
     Advance();
   }
   // Make sure we're always at a valid offset.
@@ -68,7 +69,7 @@ void BytecodeArrayIterator::AdvanceTo(int offset) {
 
 void BytecodeArrayIterator::SetOffset(int offset) {
   DCHECK_GE(offset, 0);
-  if (offset < current_offset()) {
+  if (!base::IsInRange(cursor_ - prefix_size_, start_, start_ + offset)) {
     Reset();
   }
   // Advance to the given offset instead of just setting cursor_.
@@ -78,14 +79,14 @@ void BytecodeArrayIterator::SetOffset(int offset) {
 
 void BytecodeArrayIterator::Reset() {
   cursor_ = start_;
-  UpdateOperandScale();
+  UpdateCurrentBytecode();
 }
 
 // protected
 void BytecodeArrayIterator::SetOffsetUnchecked(int offset) {
   DCHECK_GE(offset, 0);
   cursor_ = start_ + offset;
-  UpdateOperandScale();
+  UpdateCurrentBytecode();
 }
 
 // static
@@ -403,8 +404,10 @@ void BytecodeArrayIterator::UpdatePointers() {
   if (start != start_) {
     start_ = start;
     uint8_t* end = start + bytecode_array_->length();
-    size_t distance_to_end = end_ - cursor_;
-    cursor_ = end - distance_to_end;
+    if (cursor_ != nullptr) {
+      size_t distance_to_end = end_ - cursor_;
+      cursor_ = end - distance_to_end;
+    }
     end_ = end;
   }
 }
