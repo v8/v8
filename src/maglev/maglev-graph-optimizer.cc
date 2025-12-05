@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-graph-optimizer.h"
 
+#include <cmath>
 #include <optional>
 
 #include "src/base/logging.h"
@@ -2207,7 +2208,12 @@ ProcessResult MaglevGraphOptimizer::VisitShiftedInt53AddWithOverflow(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Abs(
     Float64Abs* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, node->input_node(0),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    return ReplaceWith(
+        reducer_.GetFloat64Constant(std::abs(cst.value().get_scalar())));
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2255,13 +2261,31 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Negate(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Round(
     Float64Round* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, node->input_node(0),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    double value = cst.value().get_scalar();
+    switch (node->kind()) {
+      case Float64Round::Kind::kFloor:
+        value = std::floor(value);
+        break;
+      case Float64Round::Kind::kCeil:
+        value = std::ceil(value);
+        break;
+      case Float64Round::Kind::kNearest:
+        return ProcessResult::kContinue;
+    }
+    return ReplaceWith(reducer_.GetFloat64Constant(value));
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Compare(
     Float64Compare* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto result = reducer_.TryFoldFloat64CompareOperation(
+          node->operation(), node->input_node(0), node->input_node(1))) {
+    return ReplaceWith(reducer_.GetBooleanConstant(result.value()));
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2305,7 +2329,12 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Ieee754Binary(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Sqrt(
     Float64Sqrt* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, node->input_node(0),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    return ReplaceWith(
+        reducer_.GetFloat64Constant(std::sqrt(cst.value().get_scalar())));
+  }
   return ProcessResult::kContinue;
 }
 

@@ -1790,6 +1790,50 @@ bool MaglevReducer<BaseT>::TryFoldInt32CompareOperation(Operation op,
 }
 
 template <typename BaseT>
+std::optional<bool> MaglevReducer<BaseT>::TryFoldFloat64CompareOperation(
+    Operation op, ValueNode* left, ValueNode* right) {
+  if (auto cst_right = TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, right,
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    return TryFoldFloat64CompareOperation(op, left, cst_right->get_scalar());
+  }
+  return {};
+}
+
+template <typename BaseT>
+std::optional<bool> MaglevReducer<BaseT>::TryFoldFloat64CompareOperation(
+    Operation op, ValueNode* left, double cst_right) {
+  if (auto cst_left = TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, left,
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    return TryFoldFloat64CompareOperation(op, cst_left->get_scalar(),
+                                          cst_right);
+  }
+  return {};
+}
+
+template <typename BaseT>
+bool MaglevReducer<BaseT>::TryFoldFloat64CompareOperation(Operation op,
+                                                          double left,
+                                                          double right) {
+  switch (op) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return left == right;
+    case Operation::kLessThan:
+      return left < right;
+    case Operation::kLessThanOrEqual:
+      return left <= right;
+    case Operation::kGreaterThan:
+      return left > right;
+    case Operation::kGreaterThanOrEqual:
+      return left >= right;
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <typename BaseT>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldShiftedInt53Add(
     ValueNode* left, ValueNode* right) {
   std::optional<ShiftedInt53> cst_left = TryGetShiftedInt53Constant(left);
