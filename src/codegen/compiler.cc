@@ -4506,7 +4506,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     return;
   }
   // Discard code compiled for a discarded native context without finalization.
-  if (function->native_context()->global_object()->IsDetached(isolate)) {
+  if (function->native_context()->IsDetached()) {
     CompilerTracer::TraceAbortedMaglevCompile(
         isolate, function, BailoutReason::kDetachedNativeContext);
     return;
