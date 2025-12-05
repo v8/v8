@@ -521,8 +521,8 @@ IrregexpInterpreter::Result RawMatch(
 // DECODE(). This way we can only get values between 0 (only the least
 // significant byte of an integer is used) and kRegExpPaddedBytecodeCount - 1
 // (BYTECODE_MASK is defined to be exactly this value).
-// All entries from kRegExpBytecodeCount to kRegExpPaddedBytecodeCount have to
-// be filled with BREAKs (invalid operation).
+// All entries from RegExpBytecodes::kCount to kRegExpPaddedBytecodeCount have
+// to be filled with BREAKs (invalid operation).
 
 // Fill dispatch table from last defined bytecode up to the next power of two
 // with BREAK (invalid operation).
@@ -537,11 +537,11 @@ IrregexpInterpreter::Result RawMatch(
   // Make sure kRegExpPaddedBytecodeCount is actually the closest possible power
   // of two.
   DCHECK_EQ(kRegExpPaddedBytecodeCount,
-            base::bits::RoundUpToPowerOfTwo32(kRegExpBytecodeCount));
+            base::bits::RoundUpToPowerOfTwo32(RegExpBytecodes::kCount));
 
   // Make sure every bytecode we get by using BYTECODE_MASK is well defined.
-  static_assert(kRegExpBytecodeCount <= kRegExpPaddedBytecodeCount);
-  static_assert(kRegExpBytecodeCount + kRegExpBytecodeFillerCount ==
+  static_assert(RegExpBytecodes::kCount <= kRegExpPaddedBytecodeCount);
+  static_assert(RegExpBytecodes::kCount + kRegExpBytecodeFillerCount ==
                 kRegExpPaddedBytecodeCount);
 
 #define DECLARE_DISPATCH_TABLE_ENTRY(name, ...) &&BC_k##name,

@@ -123,11 +123,11 @@ struct RegExpBytecodeOperandsTraits {
 template <RegExpBytecode bc>
 struct RegExpBytecodeOperandNames;
 
-#define DECLARE_OPERAND_NAMES(CamelName, SnakeName, OpNames, OpTypes) \
-  template <>                                                         \
-  struct RegExpBytecodeOperandNames<RegExpBytecode::k##CamelName> {   \
-    enum class Operand { UNPAREN(OpNames) };                          \
-    using enum Operand;                                               \
+#define DECLARE_OPERAND_NAMES(CamelName, OpNames, OpTypes)          \
+  template <>                                                       \
+  struct RegExpBytecodeOperandNames<RegExpBytecode::k##CamelName> { \
+    enum class Operand { UNPAREN(OpNames) };                        \
+    using enum Operand;                                             \
   };
 REGEXP_BYTECODE_LIST(DECLARE_OPERAND_NAMES)
 #undef DECLARE_OPERAND_NAMES
@@ -289,7 +289,7 @@ class RegExpBytecodeOperandsBase {
 
 #define PACK_OPTIONAL(x, ...) x __VA_OPT__(, ) __VA_ARGS__
 
-#define DECLARE_OPERANDS(CamelName, SnakeName, OpNames, OpTypes)   \
+#define DECLARE_OPERANDS(CamelName, OpNames, OpTypes)              \
   template <>                                                      \
   class RegExpBytecodeOperands<RegExpBytecode::k##CamelName> final \
       : public detail::RegExpBytecodeOperandsBase<PACK_OPTIONAL(   \
@@ -352,22 +352,6 @@ constexpr uint8_t RegExpBytecodes::Size(uint8_t bytecode) {
   DCHECK_LT(bytecode, kCount);
   return detail::kBytecodeSizes[bytecode];
 }
-
-// Checks for backwards compatibility.
-// TODO(pthier): Remove once we removed the old bytecode format.
-static_assert(kRegExpBytecodeCount == RegExpBytecodes::kCount);
-
-#define CHECK_BYTECODE_VALUE(CamelName, SnakeName, ...)                  \
-  static_assert(RegExpBytecodes::ToByte(RegExpBytecode::k##CamelName) == \
-                BC_##SnakeName);
-REGEXP_BYTECODE_LIST(CHECK_BYTECODE_VALUE)
-#undef CHECK_BYTECODE_VALUE
-
-#define CHECK_LENGTH(CamelName, SnakeName, ...)                        \
-  static_assert(RegExpBytecodes::Size(RegExpBytecode::k##CamelName) == \
-                RegExpBytecodeLength(BC_##SnakeName));
-REGEXP_BYTECODE_LIST(CHECK_LENGTH)
-#undef CHECK_LENGTH
 
 }  // namespace internal
 }  // namespace v8

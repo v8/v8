@@ -1142,7 +1142,7 @@ void RegExpBytecodePeephole::FixJump(int jump_source, int jump_destination) {
   // actually used and check if we jump to one of them.
   uint8_t jump_bc = optimized_bytecode_buffer_[fixed_jump_destination];
   DCHECK_GT(jump_bc, 0);
-  DCHECK_LT(jump_bc, kRegExpBytecodeCount);
+  DCHECK_LT(jump_bc, RegExpBytecodes::kCount);
 #endif
 
   if (jump_destination != fixed_jump_destination) {

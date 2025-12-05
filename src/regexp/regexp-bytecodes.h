@@ -78,107 +78,89 @@ using ReBcOpType = RegExpBytecodeOperandType;
 // equivalent in RegExpMacroAssembler.
 // It's a requirement that BREAK has an enum value of 0 (as e.g. jumps to offset
 // 0 are considered invalid).
-// Format: V(CamelName, SNAKE_NAME, (OperandNames...), // (OperandTypes...))
-// TODO(pthier): SNAKE_NAME is temporary to static_assert that the new bytecode
-// enum and bytecode layouts are compatible with the old one. Remove once all
-// uses have been migrated.
-#define INVALID_BYTECODE_LIST(V) V(Break, BREAK, (), ())
+// Format: V(CamelName, (OperandNames...), (OperandTypes...))
+#define INVALID_BYTECODE_LIST(V) V(Break, (), ())
 
-// Basic Bytecodes. These have a direct equivalent in the RegExpMacroAssembler.
-// Format: V(CamelName, SNAKE_NAME, (OperandNames...), (OperandTypes...))
-// TODO(pthier): SNAKE_NAME is temporary to static_assert that the new bytecode
-// enum and bytecode layouts are compatible with the old one. Remove once all
-// uses have been migrated.
+// Format: V(CamelName, (OperandNames...), (OperandTypes...))
 #define BASIC_BYTECODE_LIST(V)                                                 \
-  V(PushCurrentPosition, PUSH_CP, (), ())                                      \
-  V(PushBacktrack, PUSH_BT, (on_bt_pushed), (ReBcOpType::kJumpTarget))         \
-  V(WriteCurrentPositionToRegister, SET_REGISTER_TO_CP,                        \
-    (register_index, cp_offset),                                               \
+  V(PushCurrentPosition, (), ())                                               \
+  V(PushBacktrack, (on_bt_pushed), (ReBcOpType::kJumpTarget))                  \
+  V(WriteCurrentPositionToRegister, (register_index, cp_offset),               \
     (ReBcOpType::kRegister, ReBcOpType::kOffset32))                            \
-  V(ReadCurrentPositionFromRegister, SET_CP_TO_REGISTER, (register_index),     \
+  V(ReadCurrentPositionFromRegister, (register_index),                         \
     (ReBcOpType::kRegister))                                                   \
-  V(WriteStackPointerToRegister, SET_REGISTER_TO_SP, (register_index),         \
-    (ReBcOpType::kRegister))                                                   \
-  V(ReadStackPointerFromRegister, SET_SP_TO_REGISTER, (register_index),        \
-    (ReBcOpType::kRegister))                                                   \
-  V(SetRegister, SET_REGISTER, (register_index, value),                        \
+  V(WriteStackPointerToRegister, (register_index), (ReBcOpType::kRegister))    \
+  V(ReadStackPointerFromRegister, (register_index), (ReBcOpType::kRegister))   \
+  V(SetRegister, (register_index, value),                                      \
     (ReBcOpType::kRegister, ReBcOpType::kInt32))                               \
   /* Clear registers in the range from_register to to_register (inclusive) */  \
-  V(ClearRegisters, CLEAR_REGISTERS, (padding, from_register, to_register),    \
+  V(ClearRegisters, (padding, from_register, to_register),                     \
     (ReBcOpType::kPadding2, ReBcOpType::kRegister, ReBcOpType::kRegister))     \
-  V(AdvanceRegister, ADVANCE_REGISTER, (register_index, by),                   \
+  V(AdvanceRegister, (register_index, by),                                     \
     (ReBcOpType::kRegister, ReBcOpType::kOffset32))                            \
-  V(PopCurrentPosition, POP_CP, (), ())                                        \
+  V(PopCurrentPosition, (), ())                                                \
   /* TODO(pthier): PushRegister fits into 4 byte once the restrictions due */  \
   /* to the old layout are lifted                                          */  \
-  V(PushRegister, PUSH_REGISTER, (register_index, padding, stack_check),       \
+  V(PushRegister, (register_index, padding, stack_check),                      \
     (ReBcOpType::kRegister, ReBcOpType::kPadding1,                             \
      ReBcOpType::kStackCheckFlag))                                             \
-  V(PopRegister, POP_REGISTER, (register_index), (ReBcOpType::kRegister))      \
-  V(Fail, FAIL, (), ())                                                        \
-  V(Succeed, SUCCEED, (), ())                                                  \
-  V(AdvanceCurrentPosition, ADVANCE_CP, (by), (ReBcOpType::kOffset))           \
+  V(PopRegister, (register_index), (ReBcOpType::kRegister))                    \
+  V(Fail, (), ())                                                              \
+  V(Succeed, (), ())                                                           \
+  V(AdvanceCurrentPosition, (by), (ReBcOpType::kOffset))                       \
   /* Jump to another bytecode given its offset.                             */ \
-  V(GoTo, GOTO, (label), (ReBcOpType::kJumpTarget))                            \
+  V(GoTo, (label), (ReBcOpType::kJumpTarget))                                  \
   /* Check if offset is in range and load character at given offset.        */ \
-  V(LoadCurrentCharacter, LOAD_CURRENT_CHAR, (cp_offset, on_failure),          \
+  V(LoadCurrentCharacter, (cp_offset, on_failure),                             \
     (ReBcOpType::kOffset, ReBcOpType::kJumpTarget))                            \
   /* Checks if current position + given offset is in range.                 */ \
   /* I.e. jumps to |on_failure| if current pos + |cp_offset| >= subject len */ \
-  V(CheckPosition, CHECK_CURRENT_POSITION, (cp_offset, on_failure),            \
+  V(CheckPosition, (cp_offset, on_failure),                                    \
     (ReBcOpType::kOffset, ReBcOpType::kJumpTarget))                            \
-  V(CheckSpecialClassRanges, CHECK_SPECIAL_CLASS_RANGES,                       \
-    (character_set, on_no_match),                                              \
+  V(CheckSpecialClassRanges, (character_set, on_no_match),                     \
     (ReBcOpType::kStandardCharacterSet, ReBcOpType::kJumpTarget))              \
   /* Check if current character is equal to a given character               */ \
-  V(CheckCharacter, CHECK_CHAR, (character, on_equal),                         \
+  V(CheckCharacter, (character, on_equal),                                     \
     (ReBcOpType::kChar, ReBcOpType::kJumpTarget))                              \
-  V(CheckNotCharacter, CHECK_NOT_CHAR, (character, on_not_equal),              \
+  V(CheckNotCharacter, (character, on_not_equal),                              \
     (ReBcOpType::kChar, ReBcOpType::kJumpTarget))                              \
   /* Checks if the current character combined with mask (bitwise and)       */ \
   /* matches a character (e.g. used when two characters in a disjunction    */ \
   /* differ by only a single bit                                            */ \
   /* TODO(pthier): mask should be kChar */                                     \
-  V(CheckCharacterAfterAnd, AND_CHECK_CHAR, (character, mask, on_equal),       \
+  V(CheckCharacterAfterAnd, (character, mask, on_equal),                       \
     (ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))         \
   /* TODO(pthier): mask should be kChar */                                     \
-  V(CheckNotCharacterAfterAnd, AND_CHECK_NOT_CHAR,                             \
-    (character, mask, on_not_equal),                                           \
+  V(CheckNotCharacterAfterAnd, (character, mask, on_not_equal),                \
     (ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))         \
-  V(CheckNotCharacterAfterMinusAnd, MINUS_AND_CHECK_NOT_CHAR,                  \
-    (character, minus, mask, on_not_equal),                                    \
+  V(CheckNotCharacterAfterMinusAnd, (character, minus, mask, on_not_equal),    \
     (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kChar,                  \
      ReBcOpType::kJumpTarget))                                                 \
-  V(CheckCharacterInRange, CHECK_CHAR_IN_RANGE,                                \
-    (padding, from, to, on_in_range),                                          \
+  V(CheckCharacterInRange, (padding, from, to, on_in_range),                   \
     (ReBcOpType::kPadding2, ReBcOpType::kChar, ReBcOpType::kChar,              \
      ReBcOpType::kJumpTarget))                                                 \
-  V(CheckCharacterNotInRange, CHECK_CHAR_NOT_IN_RANGE,                         \
-    (padding, from, to, on_not_in_range),                                      \
+  V(CheckCharacterNotInRange, (padding, from, to, on_not_in_range),            \
     (ReBcOpType::kPadding2, ReBcOpType::kChar, ReBcOpType::kChar,              \
      ReBcOpType::kJumpTarget))                                                 \
-  V(CheckCharacterLT, CHECK_LT, (limit, on_less),                              \
+  V(CheckCharacterLT, (limit, on_less),                                        \
     (ReBcOpType::kChar, ReBcOpType::kJumpTarget))                              \
-  V(CheckCharacterGT, CHECK_GT, (limit, on_greater),                           \
+  V(CheckCharacterGT, (limit, on_greater),                                     \
     (ReBcOpType::kChar, ReBcOpType::kJumpTarget))                              \
-  V(IfRegisterLT, CHECK_REGISTER_LT,                                           \
-    (register_index, comparand, on_less_than),                                 \
+  V(IfRegisterLT, (register_index, comparand, on_less_than),                   \
     (ReBcOpType::kRegister, ReBcOpType::kInt32, ReBcOpType::kJumpTarget))      \
-  V(IfRegisterGE, CHECK_REGISTER_GE,                                           \
-    (register_index, comparand, on_greater_or_equal),                          \
+  V(IfRegisterGE, (register_index, comparand, on_greater_or_equal),            \
     (ReBcOpType::kRegister, ReBcOpType::kInt32, ReBcOpType::kJumpTarget))      \
-  V(IfRegisterEqPos, CHECK_REGISTER_EQ_POS, (register_index, on_eq),           \
+  V(IfRegisterEqPos, (register_index, on_eq),                                  \
     (ReBcOpType::kRegister, ReBcOpType::kJumpTarget))                          \
-  V(CheckAtStart, CHECK_AT_START, (cp_offset, on_at_start),                    \
+  V(CheckAtStart, (cp_offset, on_at_start),                                    \
     (ReBcOpType::kOffset, ReBcOpType::kJumpTarget))                            \
-  V(CheckNotAtStart, CHECK_NOT_AT_START, (cp_offset, on_not_at_start),         \
+  V(CheckNotAtStart, (cp_offset, on_not_at_start),                             \
     (ReBcOpType::kOffset, ReBcOpType::kJumpTarget))                            \
   /* Checks if the current position matches top of backtrack stack          */ \
-  V(CheckFixedLengthLoop, CHECK_FIXED_LENGTH,                                  \
-    (on_tos_equals_current_position), (ReBcOpType::kJumpTarget))               \
+  V(CheckFixedLengthLoop, (on_tos_equals_current_position),                    \
+    (ReBcOpType::kJumpTarget))                                                 \
   /* Advance character pointer by given offset and jump to another bytecode.*/ \
-  V(SetCurrentPositionFromEnd, SET_CURRENT_POSITION_FROM_END, (by),            \
-    (ReBcOpType::kOffset))
+  V(SetCurrentPositionFromEnd, (by), (ReBcOpType::kOffset))
 
 // Bytecodes dealing with multiple characters, introduced due to special logic
 // in the bytecode-generator or requiring additional logic when assembling;
@@ -186,59 +168,47 @@ using ReBcOpType = RegExpBytecodeOperandType;
 // MacroAssembler names, non-default MacroAssembler arguments that need to be
 // provided, etc.
 // These share a method with Basic Bytecodes in RegExpMacroAssembler.
-// Format: V(CamelName, SNAKE_NAME, (OperandNames...), (OperandTypes...))
-// TODO(pthier): SNAKE_NAME is temporary to static_assert that the new bytecode
-// enum and bytecode layouts are compatible with the old one. Remove once all
-// uses have been migrated.
+// Format: V(CamelName, (OperandNames...), (OperandTypes...))
 #define SPECIAL_BYTECODE_LIST(V)                                               \
-  V(Backtrack, POP_BT, (return_code), (ReBcOpType::kInt16))                    \
+  V(Backtrack, (return_code), (ReBcOpType::kInt16))                            \
   /* Load character at given offset without range checks.                   */ \
-  V(LoadCurrentCharacterUnchecked, LOAD_CURRENT_CHAR_UNCHECKED, (cp_offset),   \
-    (ReBcOpType::kOffset))                                                     \
+  V(LoadCurrentCharacterUnchecked, (cp_offset), (ReBcOpType::kOffset))         \
   /* Checks if the current character matches any of the characters encoded  */ \
   /* in a bit table. Similar to/inspired by boyer moore string search       */ \
   /* Todo(pthier): Change order to (table, label) and move to Basic */         \
-  V(CheckBitInTable, CHECK_BIT_IN_TABLE, (on_bit_set, table),                  \
+  V(CheckBitInTable, (on_bit_set, table),                                      \
     (ReBcOpType::kJumpTarget, ReBcOpType::kBitTable))                          \
-  V(Load2CurrentChars, LOAD_2_CURRENT_CHARS, (cp_offset, on_failure),          \
+  V(Load2CurrentChars, (cp_offset, on_failure),                                \
     (ReBcOpType::kOffset, ReBcOpType::kJumpTarget))                            \
-  V(Load2CurrentCharsUnchecked, LOAD_2_CURRENT_CHARS_UNCHECKED, (cp_offset),   \
-    (ReBcOpType::kOffset))                                                     \
-  V(Load4CurrentChars, LOAD_4_CURRENT_CHARS, (cp_offset, on_failure),          \
+  V(Load2CurrentCharsUnchecked, (cp_offset), (ReBcOpType::kOffset))            \
+  V(Load4CurrentChars, (cp_offset, on_failure),                                \
     (ReBcOpType::kOffset, ReBcOpType::kJumpTarget))                            \
-  V(Load4CurrentCharsUnchecked, LOAD_4_CURRENT_CHARS_UNCHECKED, (cp_offset),   \
-    (ReBcOpType::kOffset))                                                     \
-  V(Check4Chars, CHECK_4_CHARS, (characters, on_equal),                        \
+  V(Load4CurrentCharsUnchecked, (cp_offset), (ReBcOpType::kOffset))            \
+  V(Check4Chars, (characters, on_equal),                                       \
     (ReBcOpType::kUint32, ReBcOpType::kJumpTarget))                            \
-  V(CheckNot4Chars, CHECK_NOT_4_CHARS, (characters, on_not_equal),             \
+  V(CheckNot4Chars, (characters, on_not_equal),                                \
     (ReBcOpType::kUint32, ReBcOpType::kJumpTarget))                            \
-  V(AndCheck4Chars, AND_CHECK_4_CHARS, (characters, mask, on_equal),           \
+  V(AndCheck4Chars, (characters, mask, on_equal),                              \
     (ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))       \
-  V(AndCheckNot4Chars, AND_CHECK_NOT_4_CHARS,                                  \
-    (characters, mask, on_not_equal),                                          \
+  V(AndCheckNot4Chars, (characters, mask, on_not_equal),                       \
     (ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))       \
-  V(AdvanceCpAndGoto, ADVANCE_CP_AND_GOTO, (by, on_goto),                      \
+  V(AdvanceCpAndGoto, (by, on_goto),                                           \
     (ReBcOpType::kOffset, ReBcOpType::kJumpTarget))                            \
   /* TODO(pthier): CheckNotBackRef variants could be merged into a single */   \
   /* Bytecode without increasing the size */                                   \
-  V(CheckNotBackRef, CHECK_NOT_BACK_REF, (start_reg, on_not_equal),            \
+  V(CheckNotBackRef, (start_reg, on_not_equal),                                \
     (ReBcOpType::kRegister, ReBcOpType::kJumpTarget))                          \
-  V(CheckNotBackRefNoCase, CHECK_NOT_BACK_REF_NO_CASE,                         \
-    (start_reg, on_not_equal),                                                 \
+  V(CheckNotBackRefNoCase, (start_reg, on_not_equal),                          \
     (ReBcOpType::kRegister, ReBcOpType::kJumpTarget))                          \
-  V(CheckNotBackRefNoCaseUnicode, CHECK_NOT_BACK_REF_NO_CASE_UNICODE,          \
-    (start_reg, on_not_equal),                                                 \
+  V(CheckNotBackRefNoCaseUnicode, (start_reg, on_not_equal),                   \
     (ReBcOpType::kRegister, ReBcOpType::kJumpTarget))                          \
-  V(CheckNotBackRefBackward, CHECK_NOT_BACK_REF_BACKWARD,                      \
-    (start_reg, on_not_equal),                                                 \
+  V(CheckNotBackRefBackward, (start_reg, on_not_equal),                        \
     (ReBcOpType::kRegister, ReBcOpType::kJumpTarget))                          \
-  V(CheckNotBackRefNoCaseBackward, CHECK_NOT_BACK_REF_NO_CASE_BACKWARD,        \
-    (start_reg, on_not_equal),                                                 \
+  V(CheckNotBackRefNoCaseBackward, (start_reg, on_not_equal),                  \
     (ReBcOpType::kRegister, ReBcOpType::kJumpTarget))                          \
-  V(CheckNotBackRefNoCaseUnicodeBackward,                                      \
-    CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD, (start_reg, on_not_equal),    \
+  V(CheckNotBackRefNoCaseUnicodeBackward, (start_reg, on_not_equal),           \
     (ReBcOpType::kRegister, ReBcOpType::kJumpTarget))                          \
-  V(CheckNotRegsEqual, CHECK_NOT_REGS_EQUAL, (reg1, reg2, on_not_equal),       \
+  V(CheckNotRegsEqual, (reg1, reg2, on_not_equal),                             \
     (ReBcOpType::kRegister, ReBcOpType::kRegister,                             \
      ReBcOpType::kJumpTarget)) /* TODO(pthier): This Bytecode is unused. */
 
@@ -247,53 +217,50 @@ using ReBcOpType = RegExpBytecodeOperandType;
 // All peephole generated bytecodes should have a default implementation in
 // RegExpMacroAssembler, that maps the optimized sequence back to the basic
 // sequence they were created from.
-// Format: V(CamelName, SNAKE_NAME, // (OperandNames...), (OperandTypes...))
-// TODO(pthier): SNAKE_NAME is temporary to static_assert that the new bytecode
-// enum and bytecode layouts are compatible with the old one. Remove once all
-// uses have been migrated.
+// Format: V(CamelName, (OperandNames...), (OperandTypes...))
 #define PEEPHOLE_BYTECODE_LIST(V)                                              \
   /* Combination of:                                                        */ \
-  /* LOAD_CURRENT_CHAR, CHECK_BIT_IN_TABLE and ADVANCE_CP_AND_GOTO          */ \
-  V(SkipUntilBitInTable, SKIP_UNTIL_BIT_IN_TABLE,                              \
+  /* LoadCurrentCharacter, CheckBitInTable and AdvanceCpAndGoto             */ \
+  V(SkipUntilBitInTable,                                                       \
     (cp_offset, advance_by, table, on_match, on_no_match),                     \
     (ReBcOpType::kOffset, ReBcOpType::kOffset32, ReBcOpType::kBitTable,        \
      ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget))                        \
   /* Combination of:                                                        */ \
-  /* CHECK_CURRENT_POSITION, LOAD_CURRENT_CHAR_UNCHECKED, AND_CHECK_CHAR    */ \
-  /* and ADVANCE_CP_AND_GOTO                                                */ \
+  /* CheckPosition, LoadCurrentCharacterUnchecked, CheckCharacterAfterAnd   */ \
+  /* and AdvanceCpAndGoto                                                   */ \
   /* TODO(pthier): mask should be kChar */                                     \
-  V(SkipUntilCharAnd, SKIP_UNTIL_CHAR_AND,                                     \
+  /* TODO(pthier): eats_at_least should be Offset                           */ \
+  V(SkipUntilCharAnd,                                                          \
     (cp_offset, advance_by, character, mask, eats_at_least, on_match,          \
      on_no_match),                                                             \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
      ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
-     ReBcOpType::kJumpTarget)) /* TODO(pthier): eats_at_least should be Offset \
-                                */                                             \
+     ReBcOpType::kJumpTarget))                                                 \
   /* Combination of:                                                        */ \
-  /* LOAD_CURRENT_CHAR, CHECK_CHAR and ADVANCE_CP_AND_GOTO                  */ \
-  V(SkipUntilChar, SKIP_UNTIL_CHAR,                                            \
-    (cp_offset, advance_by, character, on_match, on_no_match),                 \
+  /* LoadCurrentCharacter, CheckCharacter and AdvanceCpAndGoto */              \
+  V(SkipUntilChar, (cp_offset, advance_by, character, on_match, on_no_match),  \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
      ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget))                        \
   /* Combination of:                                                        */ \
-  /* CHECK_CURRENT_POSITION, LOAD_CURRENT_CHAR_UNCHECKED, CHECK_CHAR        */ \
-  /* and ADVANCE_CP_AND_GOTO                                                */ \
-  V(SkipUntilCharPosChecked, SKIP_UNTIL_CHAR_POS_CHECKED,                      \
+  /* CheckPosition, LoadCurrentCharacterUnchecked, CheckCharacter           */ \
+  /* and AdvanceCpAndGoto                                                   */ \
+  V(SkipUntilCharPosChecked,                                                   \
     (cp_offset, advance_by, character, eats_at_least, on_match, on_no_match),  \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
      ReBcOpType::kUint32, ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget))   \
-  /* TODO(pthier): eats_at_least should be Offset instead of Uint32 */         \
+  /* TODO(pthier): eats_at_least should be Offset instead of Uint32         */ \
   /* Combination of:                                                        */ \
-  /* LOAD_CURRENT_CHAR, CHECK_CHAR, CHECK_CHAR and ADVANCE_CP_AND_GOTO      */ \
-  V(SkipUntilCharOrChar, SKIP_UNTIL_CHAR_OR_CHAR,                              \
+  /* LoadCurrentCharacter, CheckCharacter, CheckCharacter and               */ \
+  /* AdvanceCpAndGoto                                                       */ \
+  V(SkipUntilCharOrChar,                                                       \
     (cp_offset, advance_by, padding, char1, char2, on_match, on_no_match),     \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kPadding2,          \
      ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget,            \
      ReBcOpType::kJumpTarget))                                                 \
   /* Combination of:                                                        */ \
-  /* LOAD_CURRENT_CHAR, CHECK_GT, CHECK_BIT_IN_TABLE, GOTO and              */ \
-  /* and ADVANCE_CP_AND_GOTO                                                */ \
-  V(SkipUntilGtOrNotBitInTable, SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE,             \
+  /* LoadCurrentCharacter, CheckCharacterGT, CheckBitInTable, GoTo and      */ \
+  /* AdvanceCpAndGoto                                                       */ \
+  V(SkipUntilGtOrNotBitInTable,                                                \
     (cp_offset, advance_by, character, table, on_match, on_no_match),          \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
      ReBcOpType::kBitTable, ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget)) \
@@ -302,7 +269,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* AdvanceCpAndGoto, AndCheck4Chars, AndCheckNot4Chars                    */ \
   /* This pattern is common for finding a match from an alternative with    */ \
   /* few different characters. E.g. /[ab]bbbc|[de]eeef/.                    */ \
-  V(SkipUntilOneOfMasked, SKIP_UNTIL_ONE_OF_MASKED,                            \
+  V(SkipUntilOneOfMasked,                                                      \
     (cp_offset, advance_by, both_chars, both_mask, max_offset, chars1, mask1,  \
      chars2, mask2, on_match1, on_match2, on_failure),                         \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kUint32,            \
@@ -317,7 +284,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* CheckNotCharacterAfterAnd.                                             */ \
   /* This pattern is common for finding a match from an alternative, e.g.:  */ \
   /* /<script|<style|<link/i.                                               */ \
-  V(SkipUntilOneOfMasked3, SKIP_UNTIL_ONE_OF_MASKED3,                          \
+  V(SkipUntilOneOfMasked3,                                                     \
     (bc0_cp_offset, bc0_advance_by, bc0_table, bc1_cp_offset,                  \
      bc1_cp_offset_padding, bc1_on_failure, bc2_cp_offset,                     \
      bc2_cp_offset_padding, bc3_characters, bc3_mask, bc4_by, bc5_cp_offset,   \
@@ -336,214 +303,6 @@ using ReBcOpType = RegExpBytecodeOperandType;
   BASIC_BYTECODE_LIST(V)        \
   SPECIAL_BYTECODE_LIST(V)      \
   PEEPHOLE_BYTECODE_LIST(V)
-
-// The list of bytecodes, in format: V(Name, Code, ByteLength).
-// TODO(pthier): Argument offsets of bytecodes should be easily accessible by
-// name or at least by position.
-// TODO(jgruber): More precise types (e.g. int32/uint32 instead of value32).
-#define BYTECODE_ITERATOR(V)                                                   \
-  V(BREAK, 0, 4)              /* bc8                                        */ \
-  V(PUSH_CP, 1, 4)            /* bc8 pad24                                  */ \
-  V(PUSH_BT, 2, 8)            /* bc8 pad24 offset32                         */ \
-  V(SET_REGISTER_TO_CP, 3, 8) /* bc8 reg_idx24 offset32                     */ \
-  V(SET_CP_TO_REGISTER, 4, 4) /* bc8 reg_idx24                              */ \
-  V(SET_REGISTER_TO_SP, 5, 4) /* bc8 reg_idx24                              */ \
-  V(SET_SP_TO_REGISTER, 6, 4) /* bc8 reg_idx24                              */ \
-  V(SET_REGISTER, 7, 8)       /* bc8 reg_idx24 value32                      */ \
-  V(CLEAR_REGISTERS, 8, 8)    /* bc8 pad24 reg_idx26 reg_idx16              */ \
-  V(ADVANCE_REGISTER, 9, 8)   /* bc8 reg_idx24 value32                      */ \
-  V(POP_CP, 10, 4)            /* bc8 pad24                                  */ \
-  V(PUSH_REGISTER, 11, 8)     /* bc8 reg_idx24 pad16 int16                  */ \
-  V(POP_REGISTER, 12, 4)      /* bc8 reg_idx24                              */ \
-  V(FAIL, 13, 4)              /* bc8 pad24                                  */ \
-  V(SUCCEED, 14, 4)           /* bc8 pad24                                  */ \
-  V(ADVANCE_CP, 15, 4)        /* bc8 offset24                               */ \
-  /* Jump to another bytecode given its offset.                             */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07:   0x10 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F:   0x00 (unused) Padding                                   */ \
-  /* 0x20 - 0x3F:   Address of bytecode to jump to                          */ \
-  V(GOTO, 16, 8) /* bc8 pad24 addr32                                        */ \
-  /* Check if offset is in range and load character at given offset.        */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07:   0x11 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F:   Offset from current position                            */ \
-  /* 0x20 - 0x3F:   Address of bytecode when load is out of range           */ \
-  V(LOAD_CURRENT_CHAR, 17, 8) /* bc8 offset24 addr32                        */ \
-  /* Checks if current position + given offset is in range.                 */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07:   0x34 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F:   Offset from current position                            */ \
-  /* 0x20 - 0x3F:   Address of bytecode when position is out of range       */ \
-  V(CHECK_CURRENT_POSITION, 18, 8) /* bc8 idx24 addr32         */              \
-  /* Checks if a character matches a standard character set */                 \
-  V(CHECK_SPECIAL_CLASS_RANGES, 19, 8)                                         \
-  /* Check if current character is equal to a given character               */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07:   0x19 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x0F:   0x00 (unused) Padding                                   */ \
-  /* 0x10 - 0x1F:   Character to check                                      */ \
-  /* 0x20 - 0x3F:   Address of bytecode when matched                        */ \
-  V(CHECK_CHAR, 20, 8)     /* bc8 pad8 uint16 addr32                        */ \
-  V(CHECK_NOT_CHAR, 21, 8) /* bc8 pad8 uint16 addr32                        */ \
-  /* Checks if the current character combined with mask (bitwise and)       */ \
-  /* matches a character (e.g. used when two characters in a disjunction    */ \
-  /* differ by only a single bit                                            */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07:   0x1c (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x0F:   0x00 (unused) Padding                                   */ \
-  /* 0x10 - 0x1F:   Character to match against (after mask aplied)          */ \
-  /* 0x20 - 0x3F:   Bitmask bitwise and combined with current character     */ \
-  /* 0x40 - 0x5F:   Address of bytecode when matched                        */ \
-  V(AND_CHECK_CHAR, 22, 12)     /* bc8 pad8 uint16 uint32 addr32            */ \
-  V(AND_CHECK_NOT_CHAR, 23, 12) /* bc8 pad8 uint16 uint32 addr32            */ \
-  V(MINUS_AND_CHECK_NOT_CHAR, 24,                                              \
-    12) /* bc8 pad8 base::uc16 base::uc16 base::uc16 addr32                 */ \
-  V(CHECK_CHAR_IN_RANGE, 25, 12) /* bc8 pad24 base::uc16 base::uc16 addr32  */ \
-  V(CHECK_CHAR_NOT_IN_RANGE, 26,                                               \
-    12) /* bc8 pad24 base::uc16 base::uc16 addr32                           */ \
-  V(CHECK_LT, 27, 8)              /* bc8 pad8 base::uc16 addr32             */ \
-  V(CHECK_GT, 28, 8)              /* bc8 pad8 base::uc16 addr32             */ \
-  V(CHECK_REGISTER_LT, 29, 12)    /* bc8 reg_idx24 value32 addr32           */ \
-  V(CHECK_REGISTER_GE, 30, 12)    /* bc8 reg_idx24 value32 addr32           */ \
-  V(CHECK_REGISTER_EQ_POS, 31, 8) /* bc8 reg_idx24 addr32                   */ \
-  V(CHECK_AT_START, 32, 8)        /* bc8 pad24 addr32                       */ \
-  V(CHECK_NOT_AT_START, 33, 8)    /* bc8 offset24 addr32                    */ \
-  /* Checks if the current position matches top of backtrack stack          */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07:   0x31 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F:   0x00 (unused) Padding                                   */ \
-  /* 0x20 - 0x3F:   Address of bytecode when current matches tos            */ \
-  V(CHECK_FIXED_LENGTH, 34, 8) /* bc8 pad24 addr32                          */ \
-  /* Advance character pointer by given offset and jump to another bytecode.*/ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07:   0x32 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F:   Number of characters to advance                         */ \
-  /* 0x20 - 0x3F:   Address of bytecode to jump to                          */ \
-  V(SET_CURRENT_POSITION_FROM_END, 35, 4) /* bc8 idx24                      */ \
-  V(POP_BT, 36, 4)                        /* bc8 pad24                      */ \
-  /* Load character at given offset without range checks.                   */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07:   0x12 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F:   Offset from current position                            */ \
-  V(LOAD_CURRENT_CHAR_UNCHECKED, 37, 4) /* bc8 offset24                   */   \
-  /* Checks if the current character matches any of the characters encoded  */ \
-  /* in a bit table. Similar to/inspired by boyer moore string search       */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07:   0x22 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F:   0x00 (unused) Padding                                   */ \
-  /* 0x20 - 0x3F:   Address of bytecode when bit is set                     */ \
-  /* 0x40 - 0xBF:   Bit table                                               */ \
-  V(CHECK_BIT_IN_TABLE, 38, 24)            /* bc8 pad24 addr32 bits128      */ \
-  V(LOAD_2_CURRENT_CHARS, 39, 8)           /* bc8 offset24 addr32           */ \
-  V(LOAD_2_CURRENT_CHARS_UNCHECKED, 40, 4) /* bc8 offset24                  */ \
-  V(LOAD_4_CURRENT_CHARS, 41, 8)           /* bc8 offset24 addr32           */ \
-  V(LOAD_4_CURRENT_CHARS_UNCHECKED, 42, 4) /* bc8 offset24                  */ \
-  V(CHECK_4_CHARS, 43, 12)                 /* bc8 pad24 uint32 addr32       */ \
-  V(CHECK_NOT_4_CHARS, 44, 12)             /* bc8 pad24 uint32 addr32       */ \
-  V(AND_CHECK_4_CHARS, 45, 16)             /* bc8 pad24 uint32 uint32 addr32*/ \
-  V(AND_CHECK_NOT_4_CHARS, 46, 16)         /* bc8 pad24 uint32 uint32 addr32*/ \
-  V(ADVANCE_CP_AND_GOTO, 47, 8)            /* bc8 offset24 addr32           */ \
-  V(CHECK_NOT_BACK_REF, 48, 8)             /* bc8 reg_idx24 addr32     */      \
-  V(CHECK_NOT_BACK_REF_NO_CASE, 49, 8)     /* bc8 reg_idx24 addr32     */      \
-  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE, 50, 8)                                 \
-  V(CHECK_NOT_BACK_REF_BACKWARD, 51, 8)         /* bc8 reg_idx24 addr32     */ \
-  V(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD, 52, 8) /* bc8 reg_idx24 addr32     */ \
-  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD, 53, 8)                        \
-  V(CHECK_NOT_REGS_EQUAL, 54, 12) /* bc8 regidx24 reg_idx32 addr32          */ \
-  /* Combination of:                                                        */ \
-  /* LOAD_CURRENT_CHAR, CHECK_BIT_IN_TABLE and ADVANCE_CP_AND_GOTO          */ \
-  /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07    0x35 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F    Load character offset from current position             */ \
-  /* 0x20 - 0x3F    Number of characters to advance                         */ \
-  /* 0x40 - 0xBF    Bit Table                                               */ \
-  /* 0xC0 - 0xDF    Address of bytecode when character is matched           */ \
-  /* 0xE0 - 0xFF    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_BIT_IN_TABLE, 55, 32)                                           \
-  /* Combination of:                                                        */ \
-  /* CHECK_CURRENT_POSITION, LOAD_CURRENT_CHAR_UNCHECKED, AND_CHECK_CHAR    */ \
-  /* and ADVANCE_CP_AND_GOTO                                                */ \
-  /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07    0x36 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F    Load character offset from current position             */ \
-  /* 0x20 - 0x2F    Number of characters to advance                         */ \
-  /* 0x30 - 0x3F    Character to match against (after mask applied)         */ \
-  /* 0x40 - 0x5F:   Bitmask bitwise and combined with current character     */ \
-  /* 0x60 - 0x7F    Minimum number of characters this pattern consumes      */ \
-  /* 0x80 - 0x9F    Address of bytecode when character is matched           */ \
-  /* 0xA0 - 0xBF    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_CHAR_AND, 56, 24)                                               \
-  /* Combination of:                                                        */ \
-  /* LOAD_CURRENT_CHAR, CHECK_CHAR and ADVANCE_CP_AND_GOTO                  */ \
-  /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07    0x37 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F    Load character offset from current position             */ \
-  /* 0x20 - 0x2F    Number of characters to advance                         */ \
-  /* 0x30 - 0x3F    Character to match                                      */ \
-  /* 0x40 - 0x5F    Address of bytecode when character is matched           */ \
-  /* 0x60 - 0x7F    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_CHAR, 57, 16)                                                   \
-  /* Combination of:                                                        */ \
-  /* CHECK_CURRENT_POSITION, LOAD_CURRENT_CHAR_UNCHECKED, CHECK_CHAR        */ \
-  /* and ADVANCE_CP_AND_GOTO                                                */ \
-  /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07    0x38 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F    Load character offset from current position             */ \
-  /* 0x20 - 0x2F    Number of characters to advance                         */ \
-  /* 0x30 - 0x3F    Character to match                                      */ \
-  /* 0x40 - 0x5F    Minimum number of characters this pattern consumes      */ \
-  /* 0x60 - 0x7F    Address of bytecode when character is matched           */ \
-  /* 0x80 - 0x9F    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_CHAR_POS_CHECKED, 58, 20)                                       \
-  /* Combination of:                                                        */ \
-  /* LOAD_CURRENT_CHAR, CHECK_CHAR, CHECK_CHAR and ADVANCE_CP_AND_GOTO      */ \
-  /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07    0x39 (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F    Load character offset from current position             */ \
-  /* 0x20 - 0x3F    Number of characters to advance                         */ \
-  /* 0x40 - 0x4F    Character to match                                      */ \
-  /* 0x50 - 0x5F    Other Character to match                                */ \
-  /* 0x60 - 0x7F    Address of bytecode when either character is matched    */ \
-  /* 0x80 - 0x9F    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_CHAR_OR_CHAR, 59, 20)                                           \
-  /* Combination of:                                                        */ \
-  /* LOAD_CURRENT_CHAR, CHECK_GT, CHECK_BIT_IN_TABLE, GOTO and              */ \
-  /* and ADVANCE_CP_AND_GOTO                                                */ \
-  /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \
-  /* Bit Layout:                                                            */ \
-  /* 0x00 - 0x07    0x3A (fixed) Bytecode                                   */ \
-  /* 0x08 - 0x1F    Load character offset from current position             */ \
-  /* 0x20 - 0x2F    Number of characters to advance                         */ \
-  /* 0x30 - 0x3F    Character to check if it is less than current char      */ \
-  /* 0x40 - 0xBF    Bit Table                                               */ \
-  /* 0xC0 - 0xDF    Address of bytecode when character is matched           */ \
-  /* 0xE0 - 0xFF    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE, 60, 32)                                 \
-  /* Combination of:                                                        */ \
-  /* CHECK_CURRENT_POSITION, LOAD_4_CURRENT_CHARS_UNCHECKED,                */ \
-  /* AND_CHECK_4_CHARS, ADVANCE_CP_AND_GOTO, AND_CHECK_4_CHARS,             */ \
-  /* AND_CHECK_NOT_4_CHARS                                                  */ \
-  /* This pattern is common for finding a match from an alternative with    */ \
-  /* few different characters. E.g. /[ab]bbbc|[de]eeef/.                    */ \
-  V(SKIP_UNTIL_ONE_OF_MASKED, 61, 48)                                          \
-  V(SKIP_UNTIL_ONE_OF_MASKED3, 62, 84)
-
-#define COUNT(...) +1
-static constexpr int kRegExpBytecodeCount = BYTECODE_ITERATOR(COUNT);
-#undef COUNT
-
-// Just making sure we assigned values above properly. They should be
-// contiguous, strictly increasing, and start at 0.
-// TODO(jgruber): Do not explicitly assign values, instead generate them
-// implicitly from the list order.
-static_assert(kRegExpBytecodeCount == 63);
-static_assert(kRegExpBytecodeCount <= kRegExpPaddedBytecodeCount);
 
 enum class RegExpBytecode : uint8_t {
 #define DECLARE_BYTECODE(CamelName, ...) k##CamelName,
@@ -593,33 +352,6 @@ class RegExpBytecodes final : public AllStatic {
   static constexpr uint8_t Size(RegExpBytecode bytecode);
   static constexpr uint8_t Size(uint8_t bytecode);
 };
-
-#define DECLARE_BYTECODES(name, code, length) \
-  static constexpr int BC_##name = code;
-BYTECODE_ITERATOR(DECLARE_BYTECODES)
-#undef DECLARE_BYTECODES
-
-static constexpr int kRegExpBytecodeLengths[] = {
-#define DECLARE_BYTECODE_LENGTH(name, code, length) length,
-    BYTECODE_ITERATOR(DECLARE_BYTECODE_LENGTH)
-#undef DECLARE_BYTECODE_LENGTH
-};
-
-inline constexpr int RegExpBytecodeLength(int bytecode) {
-  DCHECK(base::IsInRange(bytecode, 0, kRegExpBytecodeCount - 1));
-  return kRegExpBytecodeLengths[bytecode];
-}
-
-static constexpr const char* const kRegExpBytecodeNames[] = {
-#define DECLARE_BYTECODE_NAME(name, ...) #name,
-    BYTECODE_ITERATOR(DECLARE_BYTECODE_NAME)
-#undef DECLARE_BYTECODE_NAME
-};
-
-inline constexpr const char* RegExpBytecodeName(int bytecode) {
-  DCHECK(base::IsInRange(bytecode, 0, kRegExpBytecodeCount - 1));
-  return kRegExpBytecodeNames[bytecode];
-}
 
 void RegExpBytecodeDisassembleSingle(const uint8_t* code_base,
                                      const uint8_t* pc);
