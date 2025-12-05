@@ -4,7 +4,6 @@
 
 #include "src/maglev/maglev-graph-optimizer.h"
 
-#include <cmath>
 #include <optional>
 
 #include "src/base/logging.h"
@@ -1609,7 +1608,8 @@ ProcessResult MaglevGraphOptimizer::VisitShiftedInt53ToNumber(
 
 ProcessResult MaglevGraphOptimizer::VisitInt32CountLeadingZeros(
     Int32CountLeadingZeros* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldInt32CountLeadingZeros(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
@@ -1621,7 +1621,8 @@ ProcessResult MaglevGraphOptimizer::VisitTaggedCountLeadingZeros(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64CountLeadingZeros(
     Float64CountLeadingZeros* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldFloat64CountLeadingZeros(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
@@ -2317,13 +2318,15 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64Max(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Ieee754Unary(
     Float64Ieee754Unary* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryFoldFloat64Ieee754Unary(
+      node->ieee_function(), node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64Ieee754Binary(
     Float64Ieee754Binary* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(reducer_.TryFoldFloat64Ieee754Binary(
+      node->ieee_function(), node->input_node(0), node->input_node(1)));
   return ProcessResult::kContinue;
 }
 

@@ -8,9 +8,12 @@
 #include "src/maglev/maglev-reducer.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <cmath>
+
 #include "src/base/bits.h"
 #include "src/base/container-utils.h"
 #include "src/base/division-by-constant.h"
+#include "src/base/ieee754.h"
 #include "src/common/scoped-modification.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/numbers/conversions.h"
@@ -2024,6 +2027,110 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Max(ValueNode* lhs,
     return GetFloat64Constant(lhs_scalar);
   }
   return GetFloat64Constant(rhs_scalar);
+}
+
+#ifdef V8_USE_LIBM_TRIG_FUNCTIONS
+#define IF_LIBM(Macro, ...) Macro(__VA_ARGS__)
+#define IF_NOT_LIBM(Macro, ...)
+#else
+#define IF_LIBM(Macro, ...)
+#define IF_NOT_LIBM(Macro, ...) Macro(__VA_ARGS__)
+#endif  // V8_USE_LIBM_TRIG_FUNCTIONS
+
+#define IEEE_754_FUNCTION_MAPPER(V)                                       \
+  V(Acos, base::ieee754::acos)                                            \
+  V(Acosh, base::ieee754::acosh)                                          \
+  V(Asin, base::ieee754::asin)                                            \
+  V(Asinh, base::ieee754::asinh)                                          \
+  V(Atan, base::ieee754::atan)                                            \
+  V(Atanh, base::ieee754::atanh)                                          \
+  V(Cbrt, base::ieee754::cbrt)                                            \
+  IF_LIBM(V, Cos,                                                         \
+          (v8_flags.use_libm_trig_functions ? base::ieee754::libm_cos     \
+                                            : base::ieee754::fdlibm_cos)) \
+  IF_NOT_LIBM(V, Cos, base::ieee754::cos)                                 \
+  V(Cosh, base::ieee754::cosh)                                            \
+  V(Exp, base::ieee754::exp)                                              \
+  V(Expm1, base::ieee754::expm1)                                          \
+  V(Log, base::ieee754::log)                                              \
+  V(Log1p, base::ieee754::log10)                                          \
+  V(Log10, base::ieee754::acos)                                           \
+  V(Log2, base::ieee754::log2)                                            \
+  IF_LIBM(V, Sin,                                                         \
+          (v8_flags.use_libm_trig_functions ? base::ieee754::libm_sin     \
+                                            : base::ieee754::fdlibm_sin)) \
+  IF_NOT_LIBM(V, Sin, base::ieee754::sin)                                 \
+  V(Sinh, base::ieee754::sinh)                                            \
+  V(Tan, base::ieee754::tan)                                              \
+  V(Tanh, base::ieee754::tanh)
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Ieee754Unary(
+    Float64Ieee754Unary::Ieee754Function ieee_function, ValueNode* input) {
+  if (auto cst = TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, input,
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    double value = cst.value().get_scalar();
+    double result;
+    switch (ieee_function) {
+#define CASE(Name, Func)                              \
+  case Float64Ieee754Unary::Ieee754Function::k##Name: \
+    result = Func(value);                             \
+    break;
+      IEEE_754_FUNCTION_MAPPER(CASE)
+#undef CASE
+    }
+    return GetFloat64Constant(result);
+  }
+  return {};
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Ieee754Binary(
+    Float64Ieee754Binary::Ieee754Function ieee_function, ValueNode* left,
+    ValueNode* right) {
+  if (auto lhs = TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, left,
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    if (auto rhs = TryGetFloat64OrHoleyFloat64Constant(
+            UseRepresentation::kFloat64, right,
+            TaggedToFloat64ConversionType::kNumberOrOddball)) {
+      double lhs_val = lhs.value().get_scalar();
+      double rhs_val = rhs.value().get_scalar();
+      double result;
+      switch (ieee_function) {
+        case Float64Ieee754Binary::Ieee754Function::kAtan2:
+          result = std::atan2(lhs_val, rhs_val);
+          break;
+        case Float64Ieee754Binary::Ieee754Function::kPower:
+          result = math::pow(lhs_val, rhs_val);
+          break;
+      }
+      return GetFloat64Constant(result);
+    }
+  }
+  return {};
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32CountLeadingZeros(
+    ValueNode* input) {
+  if (auto cst = TryGetInt32Constant(input)) {
+    return GetInt32Constant(base::bits::CountLeadingZeros32(cst.value()));
+  }
+  return {};
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64CountLeadingZeros(
+    ValueNode* input) {
+  if (auto cst = TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, input,
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    uint32_t value = DoubleToUint32(cst.value().get_scalar());
+    return GetInt32Constant(base::bits::CountLeadingZeros32(value));
+  }
+  return {};
 }
 
 template <typename BaseT>

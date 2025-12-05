@@ -571,6 +571,14 @@ class MaglevReducer {
   MaybeReduceResult TryFoldFloat64Min(ValueNode* left, ValueNode* right);
   MaybeReduceResult TryFoldFloat64Max(ValueNode* left, ValueNode* right);
 
+  MaybeReduceResult TryFoldFloat64Ieee754Unary(
+      Float64Ieee754Unary::Ieee754Function ieee_function, ValueNode* input);
+  MaybeReduceResult TryFoldFloat64Ieee754Binary(
+      Float64Ieee754Binary::Ieee754Function ieee_function, ValueNode* left,
+      ValueNode* right);
+  MaybeReduceResult TryFoldInt32CountLeadingZeros(ValueNode* input);
+  MaybeReduceResult TryFoldFloat64CountLeadingZeros(ValueNode* input);
+
   MaybeReduceResult TryFoldLogicalNot(ValueNode* input);
 
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {

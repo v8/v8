@@ -11054,10 +11054,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
   if (arg_repr == ValueRepresentation::kInt32 ||
       arg_repr == ValueRepresentation::kUint32 ||
       arg_repr == ValueRepresentation::kIntPtr) {
+    RETURN_IF_DONE(reducer_.TryFoldInt32CountLeadingZeros(arg));
     return AddNewNode<Int32CountLeadingZeros>({arg});
   }
   if (arg_repr == ValueRepresentation::kFloat64 ||
       arg_repr == ValueRepresentation::kHoleyFloat64) {
+    RETURN_IF_DONE(reducer_.TryFoldFloat64CountLeadingZeros(arg));
     if (IsSupported(CpuOperation::kFloat64Round)) {
       if (arg_repr == ValueRepresentation::kHoleyFloat64) {
         GET_VALUE_OR_ABORT(
@@ -11105,6 +11107,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringConstructor(
     if (args.count() < 1) {                                                \
       return GetRootConstant(RootIndex::kNanValue);                        \
     }                                                                      \
+    RETURN_IF_DONE(reducer_.TryFoldFloat64Ieee754Unary(                    \
+        Float64Ieee754Unary::Ieee754Function::k##EnumName, args[0]));      \
     if (!CanSpeculateCall() && !CheckType(args[0], NodeType::kNumber)) {   \
       return {};                                                           \
     }                                                                      \
@@ -11127,6 +11131,9 @@ IEEE_754_UNARY_LIST(MATH_UNARY_IEEE_BUILTIN_REDUCER)
       }                                                                    \
       return GetRootConstant(RootIndex::kNanValue);                        \
     }                                                                      \
+    RETURN_IF_DONE(reducer_.TryFoldFloat64Ieee754Binary(                   \
+        Float64Ieee754Binary::Ieee754Function::k##EnumName, args[0],       \
+        args[1]));                                                         \
     if (!CanSpeculateCall() && (!CheckType(args[0], NodeType::kNumber) ||  \
                                 !CheckType(args[1], NodeType::kNumber))) { \
       return {};                                                           \
