@@ -651,7 +651,6 @@ class BootstrapStep(Step):
     if not os.path.exists(self._options.work_dir):
       os.makedirs(self._options.work_dir)
     if not os.path.exists(self.default_cwd):
-      self.Git("cl creds-check", pipe=False, cwd=self._options.work_dir)
       self.Git("clone https://chromium.googlesource.com/v8/v8",
                cwd=self._options.work_dir)
 
