@@ -213,7 +213,7 @@ class RegExpBytecodeOperandsBase {
   template <RegExpBytecodeOperandType OperandType>
     requires(RegExpOperandTypeTraits<OperandType>::kIsBasic)
   static auto GetAligned(const uint8_t* pc, int offset) {
-    DCHECK_EQ(*pc, RegExpBytecodes::ToByte(bc));
+    DCHECK_EQ(RegExpBytecodes::FromPtr(pc), bc);
     DCHECK_NE(offset, 1);
     using CType = RegExpOperandTypeTraits<OperandType>::kCType;
     DCHECK(IsAligned(offset, sizeof(CType)));
@@ -226,7 +226,7 @@ class RegExpBytecodeOperandsBase {
   template <RegExpBytecodeOperandType OperandType>
     requires(RegExpOperandTypeTraits<OperandType>::kIsBasic)
   static auto GetPacked(const uint8_t* pc, int offset) {
-    DCHECK_EQ(*pc, RegExpBytecodes::ToByte(bc));
+    DCHECK_EQ(RegExpBytecodes::FromPtr(pc), bc);
     // Only packing of 1-byte and 2-byte values with the bytecode is supported.
     DCHECK_EQ(offset, 1);
     constexpr int size = RegExpOperandTypeTraits<OperandType>::kSize;
@@ -267,7 +267,7 @@ class RegExpBytecodeOperandsBase {
     requires(Type(op) == RegExpBytecodeOperandType::kBitTable)
   static auto Get(const uint8_t* pc, const DisallowGarbageCollection& no_gc) {
     static_assert(Size(op) == RegExpMacroAssembler::kTableSize / kBitsPerByte);
-    DCHECK_EQ(*pc, RegExpBytecodes::ToByte(bc));
+    DCHECK_EQ(RegExpBytecodes::FromPtr(pc), bc);
     constexpr int offset = Offset(op);
     return pc + offset;
   }
@@ -277,7 +277,7 @@ class RegExpBytecodeOperandsBase {
   static auto Get(DirectHandle<TrustedByteArray> bytecode, int offset,
                   Zone* zone) {
     static_assert(Size(op) == RegExpMacroAssembler::kTableSize / kBitsPerByte);
-    DCHECK_EQ(bytecode->get(offset), RegExpBytecodes::ToByte(bc));
+    DCHECK_EQ(RegExpBytecodes::FromPtr(bytecode->begin() + offset), bc);
     constexpr int op_offset = Offset(op);
     const uint8_t* start = bytecode->begin() + offset + op_offset;
     const uint8_t* end = start + Size(op);
