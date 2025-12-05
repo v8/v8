@@ -70,8 +70,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
         // When inlining into JS, emit a "high-level" JS conversion to allow
         // further optimizations. These are lowered in the MachineLoweringPhase
         // in the JS pipeline.
-        return is_inlining_into_js() ? __ ConvertInt32ToNumber(ret)
-                                     : BuildChangeInt32ToNumber(ret);
+        return is_inlining_into_js_ ? __ ConvertInt32ToNumber(ret)
+                                    : BuildChangeInt32ToNumber(ret);
       case NumericKind::kI64:
         return this->BuildChangeInt64ToBigInt(
             ret, StubCallMode::kCallBuiltinPointer);
@@ -198,8 +198,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildCallAndReturn(
 
   V<Object> jsval;
   if (sig_->return_count() == 0) {
-    DCHECK_NOT_NULL(isolate_);
-    jsval = __ HeapConstant(isolate_->factory()->undefined_value());
+    DCHECK_NOT_NULL(__ data()->isolate());
+    jsval = __ HeapConstant(__ data()->isolate()->factory()->undefined_value());
   } else if (sig_->return_count() == 1) {
     jsval =
         do_conversion ? ToJS(rets[0], sig_->GetReturn(), js_context) : rets[0];
@@ -245,9 +245,10 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
                       js_context);
         case WasmBodyInliningResult::Type::kSuccessVoid:
           DCHECK_EQ(sig_->return_count(), 0);
-          DCHECK_NOT_NULL(isolate_);
+          DCHECK_NOT_NULL(__ data()->isolate());
           DCHECK(!inlining_result.value.valid());
-          return __ HeapConstant(isolate_->factory()->undefined_value());
+          return __ HeapConstant(
+              __ data()->isolate()->factory()->undefined_value());
         case WasmBodyInliningResult::Type::kFailed:
           // Do nothing, building non-inlined call is handled below.
           break;
@@ -383,7 +384,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapper(
     bool receiver_is_first_param) {
   // JS-to-Wasm wrappers are compiled per isolate, so they can emit
   // isolate-dependent code.
-  DCHECK_NOT_NULL(isolate_);
+  DCHECK_NOT_NULL(__ data()->isolate());
   V<Any> result = BuildJSToWasmWrapperImpl(
       receiver_is_first_param, OpIndex::Invalid(), OpIndex::Invalid(), {}, {},
       compiler::LazyDeoptOnThrow::kNo);
@@ -396,7 +397,7 @@ template <typename Assembler>
 void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
     ImportCallKind kind, int expected_arity, Suspend suspend) {
   // Wasm-to-JS wrappers need to be isolate-independent (as of now).
-  DCHECK_NULL(isolate_);
+  DCHECK_NULL(__ data()->isolate());
   int wasm_count = static_cast<int>(sig_->parameter_count());
 
   __ Bind(__ NewBlock());
