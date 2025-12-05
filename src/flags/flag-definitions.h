@@ -995,8 +995,7 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
 #if V8_STATIC_ROOTS_BOOL
-DEFINE_BOOL(unmap_holes, false, "unmap the page containing the holes.")
-DEFINE_IMPLICATION(fuzzing, unmap_holes)
+DEFINE_BOOL(unmap_holes, true, "unmap the page containing the holes.")
 #else
 DEFINE_BOOL_READONLY(unmap_holes, false, "unmap the page containing the holes.")
 #endif
