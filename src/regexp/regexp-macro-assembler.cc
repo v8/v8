@@ -378,19 +378,19 @@ void RegExpMacroAssembler::SkipUntilOneOfMasked3(
   // The base implementation for architectures that don't implement simd
   // optimizations.
   //
-  // See the definition of the BC_SKIP_UNTIL_ONE_OF_MASKED3 peephole bytecode
+  // See the definition of the kSkipUntilOneOfMasked3 peephole bytecode
   // for more context. The initial bytecode sequence is:
   //
   // sequence offset name
-  // bc0   0  SKIP_UNTIL_BIT_IN_TABLE
-  // bc1  20  CHECK_CURRENT_POSITION
-  // bc2  28  LOAD_4_CURRENT_CHARS_UNCHECKED
-  // bc3  2c  AND_CHECK_4_CHARS
-  // bc4  3c  ADVANCE_CP_AND_GOTO
-  // bc5  48  LOAD_4_CURRENT_CHARS
-  // bc6  4c  AND_CHECK_4_CHARS
-  // bc7  5c  AND_CHECK_4_CHARS
-  // bc8  6c  AND_CHECK_NOT_4_CHARS
+  // bc0   0  SkipUntilBitInTable
+  // bc1  20  CheckPosition
+  // bc2  28  Load4CurrentCharsUnchecked
+  // bc3  2c  AndCheck4Chars
+  // bc4  3c  AdvanceCpAndGoto
+  // bc5  48  Load4CurrentChars
+  // bc6  4c  AndCheck4Chars
+  // bc7  5c  AndCheck4Chars
+  // bc8  6c  AndCheckNot4Chars
 
   Label bc0_skip_until_bit_in_table, bc1_check_current_position,
       bc4_advance_cp_and_goto, bc5_load_4_current_chars;

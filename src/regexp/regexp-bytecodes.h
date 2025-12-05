@@ -568,6 +568,16 @@ class RegExpBytecodes final : public AllStatic {
     DCHECK_LT(byte, kCount);
     return static_cast<RegExpBytecode>(byte);
   }
+  // Extract the bytecode from the given `ptr`, which must point at the
+  // word32-aligned region containing the bytecode (and maybe packed
+  // arguments). Endian-ness independent.
+  static constexpr RegExpBytecode FromPtr(const void* ptr) {
+    if (!std::is_constant_evaluated()) {
+      DCHECK(IsAligned(reinterpret_cast<Address>(ptr), kUInt32Size));
+    }
+    // Load the uint32_t value and implicitly cast to uint8_t.
+    return FromByte(*static_cast<const uint32_t*>(ptr));
+  }
 
   // Calls |f| templatized by RegExpBytecode. This allows the usage of the
   // functions template argument in other templates.

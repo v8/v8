@@ -687,7 +687,7 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
       .IgnoreArgument(3, 4, 4)    // loop jump
       .IgnoreArgument(2, 12, 4);  // jump to the second AND_CHECK_4_CHARS
 
-  // TODO(jgruber): BC_SKIP_UNTIL_BIT_IN_TABLE is itself both a
+  // TODO(jgruber): kSkipUntilBitInTable is itself both a
   // peephole-generated bc, AND a standard bytecode. Either we run to a fixed
   // point, or we need to be careful around ordering (and specify the seq based
   // on basic bytecodes).
@@ -701,18 +701,18 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
   //
   //  foo.MapArgument(0, kSkipUntilBitInTable::cp_offset)
   //
-  // The original bytecode sequence for BC_SKIP_UNTIL_ONE_OF_MASKED3 is:
+  // The original bytecode sequence for kSkipUntilOneOfMasked3 is:
   //
   // sequence offset name
-  // bc0   0  SKIP_UNTIL_BIT_IN_TABLE
-  // bc1  20  CHECK_CURRENT_POSITION
-  // bc2  28  LOAD_4_CURRENT_CHARS_UNCHECKED
-  // bc3  2c  AND_CHECK_4_CHARS
-  // bc4  3c  ADVANCE_CP_AND_GOTO
-  // bc5  48  LOAD_4_CURRENT_CHARS
-  // bc6  4c  AND_CHECK_4_CHARS
-  // bc7  5c  AND_CHECK_4_CHARS
-  // bc8  6c  AND_CHECK_NOT_4_CHARS
+  // bc0   0  SkipUntilBitInTable
+  // bc1  20  CheckPosition
+  // bc2  28  Load4CurrentCharsUnchecked
+  // bc3  2c  AndCheck4Chars
+  // bc4  3c  AdvanceCpAndGoto
+  // bc5  48  Load4CurrentChars
+  // bc6  4c  AndCheck4Chars
+  // bc7  5c  AndCheck4Chars
+  // bc8  6c  AndCheckNot4Chars
 
 #define OP_OFFSET(BYTECODE, OPERAND)        \
   RegExpBytecodeOperands<BYTECODE>::Offset( \
