@@ -423,6 +423,7 @@ test_tag
     del(fake_config["DEFAULT_CWD"])
 
     self.Expect([
+      Cmd("git cl creds-check", "", cwd=work_dir),
       Cmd("git clone https://chromium.googlesource.com/v8/v8", "",
           cwd=work_dir),
     ])
