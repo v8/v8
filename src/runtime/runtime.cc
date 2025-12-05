@@ -297,9 +297,14 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kLeakHole:
       return v8_flags.hole_fuzzing;
 
+    case Runtime::kGetBytecode:
     case Runtime::kInstallBytecode:
-      // This is only allowed when performing sandbox fuzzing as it allows
-      // installing arbitrary bytecode (if it passes bytecode verification).
+      // These are designed for sandbox fuzzing, specifically of the bytecode
+      // verifier. They are not safe to be used during regular fuzzing as
+      // * %GetBytecode exposes the objects in the BytecodeArray's constant
+      //   pool (which may be internal objects such as ScopeInfo) to the caller
+      // * %InstallBytecode allows installing manipulated bytecode that has
+      //   only been checked for sandbox safety, not general correctness.
       return v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing;
 
     default:
