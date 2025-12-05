@@ -7354,6 +7354,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
 }
 
 void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
+  if (env->IsDetached()) return;
   counters()->errors_thrown_per_context()->AddSample(env->GetErrorsThrown());
 
   ReadOnlyRoots roots(this);
