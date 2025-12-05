@@ -50,6 +50,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #include "src/wasm/well-known-imports.h"
 
 #if V8_ENABLE_DRUMBRAKE
@@ -586,20 +587,27 @@ void WasmCode::DecrementRefCount(base::Vector<WasmCode* const> code_vec) {
   // Decrement the ref counter of all given code objects. Keep the ones whose
   // ref count drops to zero.
   WasmEngine::DeadCodeMap dead_code;
-  std::vector<WasmCode*> dead_wrappers;
+  std::vector<WasmCode*> dead_import_wrappers;
+  std::vector<WasmCode*> dead_stack_wrappers;
   for (WasmCode* code : code_vec) {
     if (!code->DecRef()) continue;  // Remaining references.
     NativeModule* native_module = code->native_module();
     if (native_module != nullptr) {
       dead_code[native_module].push_back(code);
+    } else if (code->kind() == kWasmStackEntryWrapper) {
+      dead_stack_wrappers.push_back(code);
     } else {
-      dead_wrappers.push_back(code);
+      dead_import_wrappers.push_back(code);
     }
   }
 
-  if (dead_code.empty() && dead_wrappers.empty()) return;
+  if (dead_code.empty() && dead_import_wrappers.empty() &&
+      dead_stack_wrappers.empty()) {
+    return;
+  }
 
-  GetWasmEngine()->FreeDeadCode(dead_code, dead_wrappers);
+  GetWasmEngine()->FreeDeadCode(dead_code, dead_import_wrappers,
+                                dead_stack_wrappers);
 }
 
 SourcePosition WasmCode::GetSourcePositionBefore(int code_offset) {
@@ -3014,7 +3022,9 @@ NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {
 WasmCode* WasmCodeManager::LookupCode(Address pc) const {
   NativeModule* candidate = LookupNativeModule(pc);
   if (candidate) return candidate->Lookup(pc);
-  return GetWasmImportWrapperCache()->Lookup(pc);
+  WasmCode* import_wrapper = GetWasmImportWrapperCache()->Lookup(pc);
+  if (import_wrapper) return import_wrapper;
+  return GetWasmStackEntryWrapperCache()->Lookup(pc);
 }
 
 WasmCode* WasmCodeManager::LookupCode(Isolate* isolate, Address pc) const {

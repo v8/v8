@@ -44,6 +44,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #if V8_ENABLE_DRUMBRAKE
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -3777,6 +3778,11 @@ void WasmJspiFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot result_array_slot(
       &Memory<Address>(fp() + WasmJspiFrameConstants::kResultArrayOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, result_array_slot);
+}
+
+wasm::WasmCode* WasmStackEntryFrame::wasm_code() {
+  return wasm::GetWasmStackEntryWrapperCache()->Lookup(
+      maybe_unauthenticated_pc());
 }
 
 #if V8_ENABLE_DRUMBRAKE

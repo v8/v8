@@ -33,6 +33,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #include "src/wasm/wasm-subtyping.h"
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1107,10 +1108,10 @@ MaybeDirectHandle<WasmInstanceObject> InstanceBuilder::Build() {
   isolate_->metrics_recorder()->DelayMainThreadEvent(module_instantiated,
                                                      context_id_);
 
-  // Publish any delayed counter updates of the NativeModule and the import
-  // wrapper cache in the isolate.
+  // Publish any delayed counter updates.
   native_module_->counter_updates()->Publish(isolate_);
   GetWasmImportWrapperCache()->PublishCounterUpdates(isolate_);
+  GetWasmStackEntryWrapperCache()->PublishCounterUpdates(isolate_);
 
   return direct_handle(trusted_data_->instance_object(), isolate_);
 }

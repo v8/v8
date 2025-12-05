@@ -6,11 +6,18 @@
 
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 
 namespace v8::internal::wasm {
 
 void WasmWrapperHandle::set_code(WasmCode* code) {
-  GetWasmImportWrapperCache()->mutex_.AssertHeld();
+#ifdef DEBUG
+  if (code->kind() == WasmCode::Kind::kWasmStackEntryWrapper) {
+    GetWasmStackEntryWrapperCache()->mutex_.AssertHeld();
+  } else {
+    GetWasmImportWrapperCache()->mutex_.AssertHeld();
+  }
+#endif
   // We're taking ownership of a WasmCode object that has just been allocated
   // and should have a refcount of 1.
   code->DcheckRefCountIsOne();

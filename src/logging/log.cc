@@ -59,6 +59,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
@@ -2676,6 +2677,7 @@ void ExistingCodeLogger::LogCompiledFunctions(
                                                  module_object->script());
   }
   wasm::GetWasmImportWrapperCache()->LogForIsolate(isolate_);
+  wasm::GetWasmStackEntryWrapperCache()->LogForIsolate(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

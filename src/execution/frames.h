@@ -1451,6 +1451,7 @@ class WasmStackEntryFrame : public TypedFrame {
  public:
   Type type() const override { return WASM_STACK_ENTRY; }
   void Iterate(RootVisitor* v) const override {}
+  wasm::WasmCode* wasm_code();
 
  protected:
   inline explicit WasmStackEntryFrame(StackFrameIteratorBase* iterator);
