@@ -1027,11 +1027,12 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
     }
   }
 
-  // This is called when converting inputs in AddNewNode. We might already have
-  // an empty type for `value` here. Make sure we don't add unsafe conversion
-  // nodes in that case by checking for the empty node type explicitly.
-  // TODO(marja): The checks can be removed after we're able to bail out
-  // earlier.
+  // Check for the empty type first, so that we don't emit unsafe conversion
+  // nodes below.
+  if (IsEmptyNodeType(node_info->type())) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
+  }
+
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kTagged: {
       auto combined_type = IntersectType(allowed_input_type, node_info->type());
