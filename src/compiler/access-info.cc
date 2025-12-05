@@ -719,22 +719,27 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
 
   PropertyConstness constness =
       map.GetPropertyDetails(broker_, descriptor).constness();
-  switch (constness) {
-    case PropertyConstness::kMutable:
-      return PropertyAccessInfo::DataField(
-          broker(), zone(), receiver_map, std::move(unrecorded_dependencies),
-          field_index, details_representation, field_type, field_owner_map,
-          field_map, holder, {});
-    case PropertyConstness::kConst:
-      auto constness_dep = dependencies()->FieldConstnessDependencyOffTheRecord(
-          map, field_owner_map, descriptor);
-      unrecorded_dependencies.push_back(constness_dep);
+
+  if (constness == PropertyConstness::kConst) {
+    if (auto constness_dep =
+            dependencies()->FieldConstnessDependencyOffTheRecord(
+                map, field_owner_map, descriptor)) {
+      unrecorded_dependencies.push_back(*constness_dep);
       return PropertyAccessInfo::FastDataConstant(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
           details_representation, field_type, field_owner_map, field_map,
           holder, {});
+    }
+
+    if (access_mode != AccessMode::kLoad && access_mode != AccessMode::kHas) {
+      return PropertyAccessInfo::Invalid(zone());
+    }
   }
-  UNREACHABLE();
+
+  return PropertyAccessInfo::DataField(
+      broker(), zone(), receiver_map, std::move(unrecorded_dependencies),
+      field_index, details_representation, field_type, field_owner_map,
+      field_map, holder, {});
 }
 
 namespace {
@@ -1477,19 +1482,22 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   PropertyConstness constness =
       transition_map.GetPropertyDetails(broker_, number).constness();
   switch (constness) {
+    case PropertyConstness::kConst:
+      if (auto constness_dep =
+              dependencies()->FieldConstnessDependencyOffTheRecord(
+                  transition_map, transition_map, number)) {
+        unrecorded_dependencies.push_back(*constness_dep);
+        return PropertyAccessInfo::FastDataConstant(
+            zone(), map, std::move(unrecorded_dependencies), field_index,
+            details_representation, field_type, transition_map, field_map,
+            holder, transition_map);
+      }
+      return PropertyAccessInfo::Invalid(zone());
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           broker(), zone(), map, std::move(unrecorded_dependencies),
           field_index, details_representation, field_type, transition_map,
           field_map, holder, transition_map);
-    case PropertyConstness::kConst:
-      auto constness_dep = dependencies()->FieldConstnessDependencyOffTheRecord(
-          transition_map, transition_map, number);
-      unrecorded_dependencies.push_back(constness_dep);
-      return PropertyAccessInfo::FastDataConstant(
-          zone(), map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, transition_map, field_map, holder,
-          transition_map);
   }
   UNREACHABLE();
 }
