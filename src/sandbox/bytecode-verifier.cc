@@ -197,6 +197,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
         }
         case interpreter::OperandType::kFlag8:
         case interpreter::OperandType::kFlag16:
+        case interpreter::OperandType::kEmbeddedFeedback:
         case interpreter::OperandType::kIntrinsicId:
         case interpreter::OperandType::kNativeContextIndex:
         case interpreter::OperandType::kUImm:

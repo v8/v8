@@ -1860,14 +1860,16 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
       }
     }
 
-    UpdateEmbeddedFeedback(var_type_feedback.value(), 1);
+    UpdateEmbeddedFeedback(var_type_feedback.value(),
+                           kEmbeddedFeedbackOperandIndex);
 
     SetAccumulator(result);
     Dispatch();
 
     BIND(&if_exception);
     {
-      UpdateEmbeddedFeedback(var_type_feedback.value(), 1);
+      UpdateEmbeddedFeedback(var_type_feedback.value(),
+                             kEmbeddedFeedbackOperandIndex);
       CallRuntime(Runtime::kReThrow, context, var_exception.value());
       Unreachable();
     }

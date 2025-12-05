@@ -423,6 +423,9 @@ uint32_t BaselineCompiler::Flag8(int operand_index) {
 uint32_t BaselineCompiler::Flag16(int operand_index) {
   return iterator().GetFlag16Operand(operand_index);
 }
+uint32_t BaselineCompiler::EmbeddedFeedback(int operand_index) {
+  return iterator().GetEmbeddedFeedback(operand_index);
+}
 uint32_t BaselineCompiler::RegisterCount(int operand_index) {
   return iterator().GetRegisterCountOperand(operand_index);
 }

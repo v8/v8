@@ -415,12 +415,11 @@ void BytecodeArrayIterator::UpdatePointers() {
 uint32_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
   DCHECK_GE(operand_index, 0);
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
-  DCHECK_EQ(OperandType::kFlag16,
+  DCHECK_EQ(OperandType::kEmbeddedFeedback,
             Bytecodes::GetOperandType(current_bytecode(), operand_index));
   Address embedded_feedback_start = reinterpret_cast<Address>(cursor_) +
                                     current_operand_offset(operand_index);
-  return BytecodeDecoder::RacyDecodeEmbeddedFeedback(embedded_feedback_start,
-                                                     OperandSize::kShort);
+  return BytecodeDecoder::RacyDecodeEmbeddedFeedback(embedded_feedback_start);
 }
 
 CompareOperationHint BytecodeArrayIterator::GetEmbeddedCompareOperationHint() {
@@ -431,7 +430,7 @@ CompareOperationHint BytecodeArrayIterator::GetEmbeddedCompareOperationHint() {
 
 int BytecodeArrayIterator::GetEmbeddedFeedbackOffset(int operand_index) const {
   DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
-            OperandType::kFlag16);
+            OperandType::kEmbeddedFeedback);
   return BytecodeArray::kHeaderSize - kHeapObjectTag + current_offset() +
          prefix_size_ + current_operand_offset(operand_index);
 }

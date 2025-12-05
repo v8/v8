@@ -714,6 +714,16 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandAbortReason(
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
+TNode<Uint32T> InterpreterAssembler::BytecodeOperandEmbeddedFeedback(
+    int operand_index) {
+  DCHECK_EQ(OperandType::kEmbeddedFeedback,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  DCHECK_EQ(operand_size, OperandSize::kShort);
+  return BytecodeUnsignedOperand(operand_index, operand_size);
+}
+
 TNode<IntPtrT> InterpreterAssembler::BytecodeOperandReg(int operand_index) {
   DCHECK(Bytecodes::IsRegisterOperandType(
       Bytecodes::GetOperandType(bytecode_, operand_index)));

@@ -328,7 +328,7 @@ namespace interpreter {
   V(TestEqual, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,  \
     OperandType::kFeedbackSlot)                                                \
   V(TestEqualStrict, ImplicitRegisterUse::kReadWriteAccumulator,               \
-    OperandType::kReg, OperandType::kFlag16)                                   \
+    OperandType::kReg, OperandType::kEmbeddedFeedback)                         \
   V(TestLessThan, ImplicitRegisterUse::kReadWriteAccumulator,                  \
     OperandType::kReg, OperandType::kFeedbackSlot)                             \
   V(TestGreaterThan, ImplicitRegisterUse::kReadWriteAccumulator,               \

@@ -877,6 +877,9 @@ constexpr int kFeedbackIsEmbedded = -1;
 // byteocode, indicating an uninitialized state.
 constexpr int kUninitializedEmbeddedFeedback = 0;
 
+// The bytecode operand index for embedded feedback.
+constexpr int kEmbeddedFeedbackOperandIndex = 1;
+
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
 

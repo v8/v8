@@ -328,6 +328,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
             EXPECT_THAT(m.BytecodeOperandFlag16(i),
                         m.IsUnsignedOperand(offset, operand_size));
             break;
+          case interpreter::OperandType::kEmbeddedFeedback:
+            EXPECT_THAT(m.BytecodeOperandEmbeddedFeedback(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
           case interpreter::OperandType::kConstantPoolIndex:
             EXPECT_THAT(m.BytecodeOperandConstantPoolIndex(i),
                         c::IsChangeUint32ToWord(

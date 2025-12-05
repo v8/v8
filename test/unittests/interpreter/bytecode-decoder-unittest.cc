@@ -63,7 +63,11 @@ TEST_F(BytecodeDecoderTest, DecodeBytecodeAndOperands) {
        "JumpIfNull.ExtraWide [123456789]"},
       {{B(CallJSRuntime), U8(Context::BOOLEAN_FUNCTION_INDEX), R8(0), U8(0)},
        4,
-       "      CallJSRuntime [boolean_function], r0-r0"}};
+       "      CallJSRuntime [boolean_function], r0-r0"},
+      {{B(TestEqualStrict), R8(0), U16(0x3ff)},
+       4,
+       "      TestEqualStrict r0, EmbeddedFeedback[0x3ff]"},
+  };
 
   Handle<TrustedFixedArray> constant_pool =
       factory()->NewTrustedFixedArray(2000);

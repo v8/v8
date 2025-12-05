@@ -115,7 +115,7 @@ bytecodes: [
                 B(ToName),
                 B(Star9),
                 B(LdaConstant), U8(7:"prototype"),
-                B(TestEqualStrict), R(9), Flag16(0x0),
+                B(TestEqualStrict), R(9), EmbeddedFeedback(),
                 B(Mov), R(3), R(5),
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), RegCount8(0),

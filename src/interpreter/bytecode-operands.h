@@ -42,7 +42,8 @@ namespace interpreter {
   V(IntrinsicId, OperandTypeInfo::kFixedUnsignedByte)        \
   V(RuntimeId, OperandTypeInfo::kFixedUnsignedShort)         \
   V(NativeContextIndex, OperandTypeInfo::kFixedUnsignedByte) \
-  V(AbortReason, OperandTypeInfo::kFixedUnsignedByte)
+  V(AbortReason, OperandTypeInfo::kFixedUnsignedByte)        \
+  V(EmbeddedFeedback, OperandTypeInfo::kFixedUnsignedShort)
 
 // Carefully ordered for operand type range checks below.
 #define NON_REGISTER_OPERAND_TYPE_LIST(V)       \

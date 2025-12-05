@@ -86,6 +86,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the 32-bit unsigned abort reason immediate for bytecode operand
   // |operand_index| in the current bytecode.
   TNode<Uint32T> BytecodeOperandAbortReason(int operand_index);
+  // Returns the 32-bit unsigned 2-byte embedded feedback for bytecode operand
+  // |operand_index| in the current bytecode.
+  TNode<Uint32T> BytecodeOperandEmbeddedFeedback(int operand_index);
   // Returns the word-size signed bytecode offset of the operand at
   // |operand_index|.
   TNode<IntPtrT> BytecodeOperandOffset(int operand_index);
