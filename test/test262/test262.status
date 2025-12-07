@@ -295,7 +295,6 @@
   'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-format-with-era': [FAIL],
 
   # Old tests with formatting differences between ICU4C versions
-  'staging/Intl402/Temporal/old/non-iso-calendars-indian': [SKIP],
 
   # End Temporal test expectations
 
@@ -590,17 +589,8 @@
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-rgsa': [SKIP],
 
   # Older ICU4C revision with different era codes
-  'staging/Intl402/Temporal/old/non-iso-calendars-hebrew': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-civil': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-tbla': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamicc': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-roc': [SKIP],
   'intl402/DateTimeFormat/prototype/formatToParts/chinese-calendar-dates': [SKIP],
   'intl402/DateTimeFormat/prototype/formatToParts/dangi-calendar-dates': [SKIP],
   'intl402/DateTimeFormat/prototype/formatRangeToParts/chinese-calendar-dates': [SKIP],
@@ -1345,6 +1335,26 @@
 [ALWAYS, {
   'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-format-with-era': [SKIP],
   'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-format-with-era': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/formatToParts/compare-to-temporal-lunisolar': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/daysInYear/basic-chinese': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/daysInYear/basic-chinese': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/daysInYear/basic-chinese': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-hebrew': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-hebrew': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/with/chinese-calendar-leap-dates': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/with/dangi-calendar-leap-dates': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/daysInYear/basic-chinese': [SKIP],
 }],
 # End roll-watcher patch
 ####
