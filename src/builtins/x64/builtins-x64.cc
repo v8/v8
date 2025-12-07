@@ -4684,9 +4684,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 #endif
 
   ExternalReference thunk_ref = ER::invoke_accessor_getter_callback();
-  // Pass AccessorInfo to thunk wrapper in case profiler or side-effect
-  // checking is enabled.
-  Register thunk_arg = callback;
+  Register no_thunk_arg = no_reg;
 
   Operand return_value_operand = Operand(rbp, FC::kReturnValueOffset);
   static constexpr int kSlotsToDropOnReturn =
@@ -4695,7 +4693,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   const bool with_profiling = true;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
-                           thunk_ref, thunk_arg, kSlotsToDropOnReturn,
+                           thunk_ref, no_thunk_arg, kSlotsToDropOnReturn,
                            kUseStackSpaceConstant, return_value_operand);
 }
 

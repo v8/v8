@@ -5016,7 +5016,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
 
         DirectHandle<Object> holder =
             Utils::OpenDirectHandle(*callback_info->HolderV2());
-        Handle<Object> maybe_name =
+        DirectHandle<Object> maybe_name =
             PropertyCallbackArguments::GetPropertyKeyHandle(*callback_info);
         DirectHandle<Name> name =
             IsSmi(*maybe_name)

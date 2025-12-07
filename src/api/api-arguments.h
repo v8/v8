@@ -202,15 +202,23 @@ class PropertyCallbackArguments final
     return GetPropertyCallbackInfo<Value>().ShouldThrowOnError();
   }
 
+  // Unofficial way of getting AccessorInfo from v8::PropertyCallbackInfo<T>.
+  template <typename T>
+  static DirectHandle<AccessorInfo> GetAccessorInfo(
+      const PropertyCallbackInfo<T>& info) {
+    return Cast<AccessorInfo>(
+        DirectHandle<Object>::FromSlot(&info.args_[kCallbackInfoIndex]));
+  }
+
   // Unofficial way of getting property key from v8::PropertyCallbackInfo<T>.
   template <typename T>
   static Tagged<Object> GetPropertyKey(const PropertyCallbackInfo<T>& info) {
     return Tagged<Object>(info.args_[kPropertyKeyIndex]);
   }
   template <typename T>
-  static Handle<Object> GetPropertyKeyHandle(
+  static DirectHandle<Object> GetPropertyKeyHandle(
       const PropertyCallbackInfo<T>& info) {
-    return Handle<Object>(&info.args_[kPropertyKeyIndex]);
+    return DirectHandle<Object>::FromSlot(&info.args_[kPropertyKeyIndex]);
   }
 
   // Returns index value passed to CallIndexedXXX(). This works as long as

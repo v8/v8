@@ -12109,11 +12109,8 @@ void InvokeAccessorGetterCallback(
 
   v8::AccessorNameGetterCallback getter;
   {
-    Address arg = i_isolate->isolate_data()->api_callback_thunk_argument();
-    // Currently we don't call InterceptorInfo callbacks via CallApiGetter.
-    DCHECK(IsAccessorInfo(Tagged<Object>(arg)));
-    Tagged<AccessorInfo> accessor_info =
-        Cast<AccessorInfo>(Tagged<Object>(arg));
+    DirectHandle<AccessorInfo> accessor_info =
+        PropertyCallbackArguments::GetAccessorInfo(info);
     getter = reinterpret_cast<v8::AccessorNameGetterCallback>(
         accessor_info->getter(i_isolate));
 
@@ -12121,8 +12118,7 @@ void InvokeAccessorGetterCallback(
       i::DirectHandle<Object> receiver_check_unsupported;
 
       if (!i_isolate->debug()->PerformSideEffectCheckForAccessor(
-              direct_handle(accessor_info, i_isolate),
-              receiver_check_unsupported, ACCESSOR_GETTER)) {
+              accessor_info, receiver_check_unsupported, ACCESSOR_GETTER)) {
         return;
       }
     }
