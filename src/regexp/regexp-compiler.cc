@@ -314,7 +314,7 @@ bool Trace::GetStoredPosition(int reg, int* cp_offset) const {
   DCHECK_EQ(0, *cp_offset);
   for (auto trace : *this) {
     if (trace->has_action() && trace->action()->Mentions(reg)) {
-      if (trace->action_->action_type() == ActionNode::CLEAR_POSITION ||
+      if (trace->action_->action_type() == ActionNode::STORE_POSITION ||
           trace->action_->action_type() == ActionNode::RESTORE_POSITION) {
         *cp_offset = trace->next_->cp_offset();
         return true;
@@ -391,6 +391,89 @@ void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
   }
 }
 
+// Scans back through the deferred actions to find, for a given register, what
+// needs to be done to effectuate the deferred actions.  Also tells us what
+// needs to be undone on backtrack.
+void Trace::ScanDeferredActions(Trace* top, int reg, RegisterFlushInfo* info) {
+  // The chronologically first deferred action in the trace
+  // is used to infer the action needed to restore a register
+  // to its previous state (or not, if it's safe to ignore it).
+
+  // This is a little tricky because we are scanning the actions in reverse
+  // historical order (newest first).
+  for (auto trace : *top) {
+    ActionNode* action = trace->action_;
+    if (!action) continue;
+    if (action->Mentions(reg)) {
+      switch (action->action_type()) {
+        case ActionNode::SET_REGISTER_FOR_LOOP: {
+          if (!info->absolute) {
+            info->value += action->value();
+            info->absolute = true;
+          }
+          // SET_REGISTER_FOR_LOOP is only used for newly introduced loop
+          // counters. They can have a significant previous value if they
+          // occur in a loop. TODO(lrn): Propagate this information, so
+          // we can set undo_action to IGNORE if we know there is no value to
+          // restore.
+          info->undo_action = RESTORE;
+          DCHECK_EQ(info->store_position, kNoStore);
+          DCHECK(!info->clear);
+          break;
+        }
+        case ActionNode::INCREMENT_REGISTER:
+          if (!info->absolute) {
+            info->value++;
+          }
+          DCHECK_EQ(info->store_position, kNoStore);
+          DCHECK(!info->clear);
+          info->undo_action = RESTORE;
+          break;
+        case ActionNode::STORE_POSITION:
+        case ActionNode::RESTORE_POSITION: {
+          if (!info->clear && info->store_position == kNoStore) {
+            info->store_position = trace->next()->cp_offset();
+          }
+
+          // For captures we know that stores and clears alternate.
+          // Other register, are never cleared, and if the occur
+          // inside a loop, they might be assigned more than once.
+          if (reg <= 1) {
+            // Registers zero and one, aka "capture zero", is
+            // always set correctly if we succeed. There is no
+            // need to undo a setting on backtrack, because we
+            // will set it again or fail.
+            info->undo_action = IGNORE;
+          } else {
+            if (action->action_type() == ActionNode::STORE_POSITION) {
+              info->undo_action = CLEAR;
+            } else {
+              info->undo_action = RESTORE;
+            }
+          }
+          DCHECK(!info->absolute);
+          DCHECK_EQ(info->value, 0);
+          break;
+        }
+        case ActionNode::CLEAR_CAPTURES: {
+          // Since we're scanning in reverse order, if we've already
+          // set the position we have to ignore historically earlier
+          // clearing operations.
+          if (info->store_position == kNoStore) {
+            info->clear = true;
+          }
+          info->undo_action = RESTORE;
+          DCHECK(!info->absolute);
+          DCHECK_EQ(info->value, 0);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+}
+
 void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
                                    int max_register,
                                    const DynamicBitSet& affected_registers,
@@ -403,92 +486,11 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
   for (int reg = 0; reg <= max_register; reg++) {
     if (!affected_registers.Get(reg)) continue;
 
-    // The chronologically first deferred action in the trace
-    // is used to infer the action needed to restore a register
-    // to its previous state (or not, if it's safe to ignore it).
-    enum DeferredActionUndoType { IGNORE, RESTORE, CLEAR };
-    DeferredActionUndoType undo_action = IGNORE;
+    RegisterFlushInfo info;
+    ScanDeferredActions(this, reg, &info);
 
-    int value = 0;
-    bool absolute = false;
-    bool clear = false;
-    static const int kNoStore = kMinInt;
-    int store_position = kNoStore;
-    // This is a little tricky because we are scanning the actions in reverse
-    // historical order (newest first).
-    for (auto trace : *this) {
-      ActionNode* action = trace->action_;
-      if (!action) continue;
-      if (action->Mentions(reg)) {
-        switch (action->action_type()) {
-          case ActionNode::SET_REGISTER_FOR_LOOP: {
-            if (!absolute) {
-              value += action->value();
-              absolute = true;
-            }
-            // SET_REGISTER_FOR_LOOP is only used for newly introduced loop
-            // counters. They can have a significant previous value if they
-            // occur in a loop. TODO(lrn): Propagate this information, so
-            // we can set undo_action to IGNORE if we know there is no value to
-            // restore.
-            undo_action = RESTORE;
-            DCHECK_EQ(store_position, kNoStore);
-            DCHECK(!clear);
-            break;
-          }
-          case ActionNode::INCREMENT_REGISTER:
-            if (!absolute) {
-              value++;
-            }
-            DCHECK_EQ(store_position, kNoStore);
-            DCHECK(!clear);
-            undo_action = RESTORE;
-            break;
-          case ActionNode::CLEAR_POSITION:
-          case ActionNode::RESTORE_POSITION: {
-            if (!clear && store_position == kNoStore) {
-              store_position = trace->next()->cp_offset();
-            }
-
-            // For captures we know that stores and clears alternate.
-            // Other register, are never cleared, and if the occur
-            // inside a loop, they might be assigned more than once.
-            if (reg <= 1) {
-              // Registers zero and one, aka "capture zero", is
-              // always set correctly if we succeed. There is no
-              // need to undo a setting on backtrack, because we
-              // will set it again or fail.
-              undo_action = IGNORE;
-            } else {
-              if (action->action_type() == ActionNode::CLEAR_POSITION) {
-                undo_action = CLEAR;
-              } else {
-                undo_action = RESTORE;
-              }
-            }
-            DCHECK(!absolute);
-            DCHECK_EQ(value, 0);
-            break;
-          }
-          case ActionNode::CLEAR_CAPTURES: {
-            // Since we're scanning in reverse order, if we've already
-            // set the position we have to ignore historically earlier
-            // clearing operations.
-            if (store_position == kNoStore) {
-              clear = true;
-            }
-            undo_action = RESTORE;
-            DCHECK(!absolute);
-            DCHECK_EQ(value, 0);
-            break;
-          }
-          default:
-            UNREACHABLE();
-        }
-      }
-    }
     // Prepare for the undo-action (e.g., push if it's going to be popped).
-    if (undo_action == RESTORE) {
+    if (info.undo_action == RESTORE) {
       pushes++;
       RegExpMacroAssembler::StackCheckFlag stack_check =
           RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck;
@@ -500,19 +502,19 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
 
       assembler->PushRegister(reg, stack_check);
       registers_to_pop->Set(reg, zone);
-    } else if (undo_action == CLEAR) {
+    } else if (info.undo_action == CLEAR) {
       registers_to_clear->Set(reg, zone);
     }
     // Perform the chronologically last action (or accumulated increment)
     // for the register.
-    if (store_position != kNoStore) {
-      assembler->WriteCurrentPositionToRegister(reg, store_position);
-    } else if (clear) {
+    if (info.store_position != kNoStore) {
+      assembler->WriteCurrentPositionToRegister(reg, info.store_position);
+    } else if (info.clear) {
       assembler->ClearRegisters(reg, reg);
-    } else if (absolute) {
-      assembler->SetRegister(reg, value);
-    } else if (value != 0) {
-      assembler->AdvanceRegister(reg, value);
+    } else if (info.absolute) {
+      assembler->SetRegister(reg, info.value);
+    } else if (info.value != 0) {
+      assembler->AdvanceRegister(reg, info.value);
     }
   }
 }
@@ -669,8 +671,8 @@ ActionNode* ActionNode::IncrementRegister(int reg, RegExpNode* on_success) {
                                              reg);
 }
 
-ActionNode* ActionNode::ClearPosition(int reg, RegExpNode* on_success) {
-  return on_success->zone()->New<ActionNode>(CLEAR_POSITION, on_success, reg);
+ActionNode* ActionNode::StorePosition(int reg, RegExpNode* on_success) {
+  return on_success->zone()->New<ActionNode>(STORE_POSITION, on_success, reg);
 }
 
 ActionNode* ActionNode::RestorePosition(int reg, RegExpNode* on_success) {
@@ -3537,7 +3539,7 @@ EmitResult ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     // Start with the actions we know how to defer. These are just recorded in
     // the new trace, no code is emitted right now.  (If we backtrack then we
     // don't have to perform and undo these actions.)
-    case CLEAR_POSITION:
+    case STORE_POSITION:
     case RESTORE_POSITION:
     case INCREMENT_REGISTER:
     case SET_REGISTER_FOR_LOOP:

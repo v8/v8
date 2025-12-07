@@ -343,7 +343,7 @@ class ActionNode : public SeqRegExpNode {
   enum ActionType {
     SET_REGISTER_FOR_LOOP,
     INCREMENT_REGISTER,
-    CLEAR_POSITION,
+    STORE_POSITION,
     RESTORE_POSITION,
     BEGIN_POSITIVE_SUBMATCH,
     BEGIN_NEGATIVE_SUBMATCH,
@@ -355,7 +355,7 @@ class ActionNode : public SeqRegExpNode {
   static ActionNode* SetRegisterForLoop(int reg, int val,
                                         RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
-  static ActionNode* ClearPosition(int reg, RegExpNode* on_success);
+  static ActionNode* StorePosition(int reg, RegExpNode* on_success);
   static ActionNode* RestorePosition(int reg, RegExpNode* on_success);
   static ActionNode* ClearCaptures(Interval range, RegExpNode* on_success);
   static ActionNode* BeginPositiveSubmatch(int stack_pointer_reg,
@@ -407,7 +407,7 @@ class ActionNode : public SeqRegExpNode {
   }
 
   bool IsSimpleAction() const {
-    return action_type() == CLEAR_POSITION ||
+    return action_type() == STORE_POSITION ||
            action_type() == RESTORE_POSITION ||
            action_type() == INCREMENT_REGISTER ||
            action_type() == SET_REGISTER_FOR_LOOP ||

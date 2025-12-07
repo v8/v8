@@ -1287,9 +1287,9 @@ RegExpNode* RegExpCapture::ToNode(RegExpTree* body, int index,
   int start_reg = RegExpCapture::StartRegister(index);
   int end_reg = RegExpCapture::EndRegister(index);
   if (compiler->read_backward()) std::swap(start_reg, end_reg);
-  RegExpNode* store_end = ActionNode::ClearPosition(end_reg, on_success);
+  RegExpNode* store_end = ActionNode::StorePosition(end_reg, on_success);
   RegExpNode* body_node = body->ToNode(compiler, store_end);
-  return ActionNode::ClearPosition(start_reg, body_node);
+  return ActionNode::StorePosition(start_reg, body_node);
 }
 
 namespace {

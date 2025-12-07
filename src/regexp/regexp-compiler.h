@@ -369,6 +369,19 @@ class Trace {
   ConstIterator end() const { return ConstIterator(nullptr); }
 
  private:
+  enum DeferredActionUndoType { IGNORE, RESTORE, CLEAR };
+  static constexpr int kNoStore = kMinInt;
+  // For a given register, records the actions recorded in the trace.
+  // See ScanDeferredActions.
+  struct RegisterFlushInfo {
+    DeferredActionUndoType undo_action = IGNORE;
+    int value = 0;
+    bool absolute = false;  // Set register to value.
+    bool clear = false;     // Clear register (set to zero):
+    int store_position =
+        kNoStore;  // Store current position plus value to register.
+  };
+
   int FindAffectedRegisters(DynamicBitSet* affected_registers, Zone* zone);
   void PerformDeferredActions(RegExpMacroAssembler* macro, int max_register,
                               const DynamicBitSet& affected_registers,
@@ -377,6 +390,8 @@ class Trace {
   void RestoreAffectedRegisters(RegExpMacroAssembler* macro, int max_register,
                                 const DynamicBitSet& registers_to_pop,
                                 const DynamicBitSet& registers_to_clear);
+  void ScanDeferredActions(Trace* top, int reg, RegisterFlushInfo* info);
+
   int cp_offset_;
   uint16_t flush_budget_;
   TriBool at_start_ : 8;      // Whether we are at the start of the string.

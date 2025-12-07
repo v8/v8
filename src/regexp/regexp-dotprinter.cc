@@ -224,7 +224,7 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
     case ActionNode::INCREMENT_REGISTER:
       os_ << "label=\"$" << that->register_from() << "++\", shape=octagon";
       break;
-    case ActionNode::CLEAR_POSITION:
+    case ActionNode::STORE_POSITION:
       os_ << "label=\"$" << that->register_from()
           << ":=$pos c\", shape=octagon";
       break;
