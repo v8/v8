@@ -86,7 +86,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:41351d34a647bb3f390000f021786db0a6ad2430',
+  'siso_version': 'git_revision:49dcca5d2be985d8ac6d512e59ee59e315264fb8',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '090a06003985436a6e146838dbb3a5ec71c958b7',
+  'partition_alloc_version': 'fe0329b346753191011b073535fc9f2fe64da141',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -134,9 +134,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e9bd49146e7e69608f4075150925da029d1881cf',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2971fed89bb80708a105ef942e18ad2e1acee3eb',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'eca5f0685c48ed59ff06077cb18cee00934249dd',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a497a3a27e9e0ca74d8d4c898d4596951646fb10',
   'buildtools/linux64': {
     'packages': [
       {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '360ca0918027da3637562b93334db9bd68a51f0c',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f8cc59a94be950b1f174d5f3373fdc0843c90036',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
