@@ -7,7 +7,6 @@
 #include <optional>
 
 #include "src/base/strings.h"
-#include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-linkage.h"
@@ -74,16 +73,10 @@ CallDescriptor* GetContinuationResumeDescriptor(Zone* zone) {
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   // TODO(thibaudm): Add support for arguments and return values.
-  LocationSignature::Builder locations(zone, 0, 2);
-  // The WasmFXResume builtin just forwards its register arguments (the stack
-  // pointer and the argument buffer) to the target stack, so expect them to be
-  // in the same registers on stack entry:
+  LocationSignature::Builder locations(zone, 0, 1);
+  // Pointer to the resumed StackMemory.
   locations.AddParam(LinkageLocation(LinkageLocation::ForRegister(
-      WasmFXResumeDescriptor::GetRegisterParameter(0).code(),
-      MachineType::Pointer())));
-  locations.AddParam(LinkageLocation(LinkageLocation::ForRegister(
-      WasmFXResumeDescriptor::GetRegisterParameter(1).code(),
-      MachineType::Pointer())));
+      wasm::kGpParamRegisters[0].code(), MachineType::Pointer())));
   const RegList kCalleeSaveRegisters;
   const DoubleRegList kCalleeSaveFPRegisters;
   return zone->New<CallDescriptor>(                   // --
@@ -112,7 +105,7 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
                                       WasmCallKind call_kind,
                                       bool need_frame_state) {
   if (call_kind == kWasmContinuation) {
-    if (fsig->return_count() > 0) {
+    if (fsig->parameter_count() > 0 || fsig->return_count() > 0) {
       UNIMPLEMENTED();
     }
     return GetContinuationResumeDescriptor(zone);

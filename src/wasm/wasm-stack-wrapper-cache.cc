@@ -12,8 +12,7 @@ namespace v8::internal::wasm {
 std::pair<WasmCompilationResult, WasmCode::Kind>
 WasmStackEntryWrapperCache::CompileWrapper(Isolate* isolate,
                                            const CacheKey& cache_key) {
-  wasm::WasmCompilationResult result =
-      compiler::CompileWasmStackEntryWrapper(cache_key.sig);
+  wasm::WasmCompilationResult result = compiler::CompileWasmStackEntryWrapper();
   return {std::move(result), WasmCode::kWasmStackEntryWrapper};
 }
 
