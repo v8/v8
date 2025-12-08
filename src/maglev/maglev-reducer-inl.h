@@ -2053,8 +2053,8 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Max(ValueNode* lhs,
   V(Exp, base::ieee754::exp)                                              \
   V(Expm1, base::ieee754::expm1)                                          \
   V(Log, base::ieee754::log)                                              \
-  V(Log1p, base::ieee754::log10)                                          \
-  V(Log10, base::ieee754::acos)                                           \
+  V(Log1p, base::ieee754::log1p)                                          \
+  V(Log10, base::ieee754::log10)                                          \
   V(Log2, base::ieee754::log2)                                            \
   IF_LIBM(V, Sin,                                                         \
           (v8_flags.use_libm_trig_functions ? base::ieee754::libm_sin     \
