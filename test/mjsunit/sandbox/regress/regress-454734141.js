@@ -6,9 +6,7 @@
 
 const segment = (new Intl.Segmenter).segment();
 
-const addr = Sandbox.getAddressOf(segment);
-const buffer = new DataView(new Sandbox.MemoryView(0, 0x100000000));
-buffer.setUint8(addr + 22, 0x1);
+Sandbox.corruptObjectField(segment, 20, 0x1);
 
 gc();
 new Uint8Array(segment);

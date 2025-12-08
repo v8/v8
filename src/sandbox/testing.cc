@@ -364,6 +364,13 @@ void SandboxGetInstanceTypeIdFor(
   info.GetReturnValue().Set(type_id);
 }
 
+void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
+  isolate->ThrowException(v8::Exception::TypeError(
+      v8::String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
+                              static_cast<int>(message.size()))
+          .ToLocalChecked()));
+}
+
 // Obtain the offset of a field in an object.
 //
 // This can be used to obtain the offsets of internal object fields in order to
@@ -482,6 +489,58 @@ void SandboxSetFunctionCodeToBuiltin(
   info.GetReturnValue().Set(true);
 }
 
+// Corrupt one field of an object without setting up a memory view first.
+//
+//   Sandbox.corruptObjectField(obj, offset, value);
+// is identical to
+//   (new DataView(new Sandbox.MemoryView(0, 0x100000000))).setUint32(
+//      Sandbox.getAddressOf(obj) + offset, value << kSmiTagSize, true);
+//
+// (note the Smi tagging and little endianness)
+//
+// Sandbox.corruptObjectField(Object, Number, Number) -> undefined
+void SandboxCorruptObjectField(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  Tagged<HeapObject> obj;
+  if (!GetArgumentObjectPassedAsReference(info, &obj)) return;
+
+  int offset;
+  int value;
+
+  if (!info[1]->IsInt32() || !info[1]->Int32Value(context).To(&offset)) {
+    isolate->ThrowError("Second argument must be an integer");
+    return;
+  }
+
+  int object_size = obj->Size();
+  DCHECK_EQ(0, object_size % kTaggedSize);
+  if (offset < 0 || offset >= object_size) {
+    std::ostringstream error;
+    error << "Second argument (offset=" << offset << ") is "
+          << "out of bounds of the given object of size " << object_size;
+    ThrowTypeError(isolate, error.view());
+    return;
+  }
+  if ((offset % kTaggedSize) != 0) {
+    std::ostringstream error;
+    error << "Second argument (offset=" << offset << ") is "
+          << "not tagged-size-aligned";
+    ThrowTypeError(isolate, error.view());
+    return;
+  }
+
+  if (!info[2]->IsInt32() || !info[2]->Int32Value(context).To(&value)) {
+    isolate->ThrowError("Third argument must be an integer");
+    return;
+  }
+
+  obj->WriteField(offset, value);
+}
+
 Handle<FunctionTemplateInfo> NewFunctionTemplate(
     Isolate* isolate, FunctionCallback func,
     ConstructorBehavior constructor_behavior) {
@@ -580,6 +639,8 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
                   0);
   InstallFunction(isolate, sandbox, SandboxSetFunctionCodeToBuiltin,
                   "setFunctionCodeToBuiltin", 2);
+  InstallFunction(isolate, sandbox, SandboxCorruptObjectField,
+                  "corruptObjectField", 3);
 
   // Install the Sandbox object as property on the global object.
   Handle<JSGlobalObject> global = isolate->global_object();
