@@ -1032,14 +1032,20 @@ void MaglevAssembler::JumpIfNotHoleNan(DoubleRegister value, Register scratch,
 void MaglevAssembler::JumpIfNotHoleNan(MemOperand operand, Label* target,
                                        Label::Distance distance) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register scratch = r0;
-  mov(scratch, Operand(kHoleNanInt64));
-  CmpU32(scratch, operand);
-  JumpIf(ne, target, distance);
-
-  LoadU64(scratch, operand);
-  ShiftRightU64(scratch, scratch, Operand(32));
-  CompareInt32AndJumpIf(scratch, kHoleNanUpper32, kNotEqual, target, distance);
+  Register upper_bits = temps.AcquireScratch();
+#if V8_TARGET_BIG_ENDIAN
+  // Big-endian: upper 32 bits are at the base offset.
+  LoadU32(upper_bits, operand, r0);
+#else
+  // Little-endian (e.g., S390 simulator on x64): upper 32 bits are at
+  // offset + kDoubleSize/2.
+  LoadU32(upper_bits,
+          MemOperand(operand.getIndexRegister(), operand.getBaseRegister(),
+                     operand.offset() + (kDoubleSize / 2)),
+          r0);
+#endif
+  CompareInt32AndJumpIf(upper_bits, kHoleNanUpper32, kNotEqual, target,
+                        distance);
 }
 
 void MaglevAssembler::JumpIfNan(DoubleRegister value, Label* target,
