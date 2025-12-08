@@ -1049,7 +1049,11 @@ class ImplicationProcessor {
   void ResetFlagsImpliedBy(const Flag* implier_flag) {
     const char* implier_flag_name = FlagName{implier_flag->name()}.name;
     for (Flag* flag : implied_by_map_[implier_flag_name]) {
+      if (flag->IsDefault()) {
+        continue;
+      }
       flag->Reset();
+      ResetFlagsImpliedBy(flag);
     }
     implied_by_map_.erase(implier_flag_name);
   }
