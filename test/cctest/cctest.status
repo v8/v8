@@ -587,13 +587,6 @@
 
   # --experimental-wasm-fp16
   'test-run-wasm-f16/*': [SKIP],
-
-  # -- Bug 435317720: Non-canonical NaNs are not propagated correctly in the Wasm interpreter.
-  'test-run-wasm/RunWasmInterpreter_Float32Add*': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_Float32Sub*': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_Float32Mul*': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_Float32Div*': [SKIP],
-
  }],  # has_wasm_interpreter
 
 ##############################################################################
