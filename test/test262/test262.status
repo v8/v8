@@ -275,6 +275,12 @@
   'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-chinese': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-dangi': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-hebrew': [FAIL],
+  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-hebrew': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-chinese': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-dangi': [SKIP],
+  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-hebrew': [SKIP],
 
   # Rounding window
   # Fix: https://github.com/boa-dev/temporal/pull/636
@@ -1343,19 +1349,29 @@
 # Roll-watcher patch
 [ALWAYS, {
   'intl402/DateTimeFormat/prototype/formatToParts/compare-to-temporal-lunisolar': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/daysInYear/basic-chinese': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/daysInYear/basic-chinese': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/daysInYear/basic-chinese': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-chinese': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-dangi': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-hebrew': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-chinese': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-dangi': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-hebrew': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/with/chinese-calendar-leap-dates': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/with/dangi-calendar-leap-dates': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/daysInYear/basic-chinese': [SKIP],
 }],
 # End roll-watcher patch
 ####
+
+
+####
+# import test262@c0cf527756840ae8ba679e53e627ec20f3bbc5c8
+[ALWAYS, {
+  'language/import/import-defer/evaluation-triggers/ignore-exported-then-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-exported-then-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-private-name-access': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-symbol-other-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-symbol-other-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/trigger-exported-string-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/trigger-exported-string-hasProperty-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-get-in-prototype': [SKIP],
+  'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-hasProperty-in-prototype': [SKIP],
+}],
+# end import test262@c0cf527756840ae8ba679e53e627ec20f3bbc5c8
+####
+
 ]
