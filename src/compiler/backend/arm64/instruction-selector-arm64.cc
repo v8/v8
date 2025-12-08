@@ -4800,7 +4800,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(F16x8Div, kArm64FDiv, 16)                          \
   V(F16x8Min, kArm64FMin, 16)                          \
   V(F16x8Max, kArm64FMax, 16)                          \
-  V(I64x2Sub, kArm64ISub, 64)                          \
   V(I32x4GtU, kArm64IGtU, 32)                          \
   V(I32x4GeU, kArm64IGeU, 32)                          \
   V(I32x4MinS, kArm64IMinS, 32)                        \
@@ -5339,6 +5338,7 @@ void InstructionSelector::VisitS128Xor(OpIndex node) {
 
 namespace {
 
+// Used in ADDL, ADDW, SUBL, and SUBW instructions.
 template <Simd128UnaryOp::Kind K>
 bool CanOptimizeUnaryWithKind(InstructionSelector* selector, const OpIndex node,
                               OpIndex child) {
@@ -5541,8 +5541,103 @@ void InstructionSelector::VisitI16x8Add(OpIndex node) {
 }
 #undef VISIT_SIMD_ADD
 
+namespace {
+template <Simd128UnaryOp::Kind K>
+InstructionCode SublOpcodeFromConvert() {
+  switch (K) {
+    case Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low:
+    case Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low:
+    case Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low:
+      return kArm64Usubl;
+    case Simd128UnaryOp::Kind::kI64x2UConvertI32x4High:
+    case Simd128UnaryOp::Kind::kI32x4UConvertI16x8High:
+    case Simd128UnaryOp::Kind::kI16x8UConvertI8x16High:
+      return kArm64Usubl2;
+    case Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low:
+    case Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low:
+    case Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low:
+      return kArm64Ssubl;
+    case Simd128UnaryOp::Kind::kI64x2SConvertI32x4High:
+    case Simd128UnaryOp::Kind::kI32x4SConvertI16x8High:
+    case Simd128UnaryOp::Kind::kI16x8SConvertI8x16High:
+      return kArm64Ssubl2;
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Simd128UnaryOp::Kind K>
+InstructionCode SubwOpcodeFromConvert() {
+  switch (K) {
+    case Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low:
+    case Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low:
+    case Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low:
+      return kArm64Usubw;
+    case Simd128UnaryOp::Kind::kI64x2UConvertI32x4High:
+    case Simd128UnaryOp::Kind::kI32x4UConvertI16x8High:
+    case Simd128UnaryOp::Kind::kI16x8UConvertI8x16High:
+      return kArm64Usubw2;
+    case Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low:
+    case Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low:
+    case Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low:
+      return kArm64Ssubw;
+    case Simd128UnaryOp::Kind::kI64x2SConvertI32x4High:
+    case Simd128UnaryOp::Kind::kI32x4SConvertI16x8High:
+    case Simd128UnaryOp::Kind::kI16x8SConvertI8x16High:
+      return kArm64Ssubw2;
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Simd128UnaryOp::Kind K>
+bool TryEmitSub(InstructionSelector* selector, const OpIndex node,
+                int target_lane_size) {
+  Arm64OperandGenerator g(selector);
+  const Simd128BinopOp* sub_op = selector->Get(node).TryCast<Simd128BinopOp>();
+  bool left = CanOptimizeUnaryWithKind<K>(selector, node, sub_op->left());
+  bool right = CanOptimizeUnaryWithKind<K>(selector, node, sub_op->right());
+  if (left && right) {  // SUBL
+    int opcode = SublOpcodeFromConvert<K>();
+    OpIndex vn = selector->Get(sub_op->left()).Cast<Simd128UnaryOp>().input();
+    OpIndex vm = selector->Get(sub_op->right()).Cast<Simd128UnaryOp>().input();
+    selector->Emit(opcode | LaneSizeField::encode(target_lane_size),
+                   g.DefineAsRegister(node), g.UseRegister(vn),
+                   g.UseRegister(vm));
+    return true;
+  } else if (right) {  // SUBW, optimising right
+    int opcode = SubwOpcodeFromConvert<K>();
+    OpIndex vm = selector->Get(sub_op->right()).Cast<Simd128UnaryOp>().input();
+    selector->Emit(opcode | LaneSizeField::encode(target_lane_size),
+                   g.DefineAsRegister(node), g.UseRegister(sub_op->left()),
+                   g.UseRegister(vm));
+    return true;
+  }
+  // NB: There is no SUBW that optimises left
+  return false;
+}
+}  // namespace
+
+void InstructionSelector::VisitI64x2Sub(OpIndex node) {
+  if (TryEmitSub<Simd128UnaryOp::Kind::kI64x2UConvertI32x4Low>(this, node,
+                                                               64)) {
+    return;
+  } else if (TryEmitSub<Simd128UnaryOp::Kind::kI64x2UConvertI32x4High>(
+                 this, node, 64)) {
+    return;
+  } else if (TryEmitSub<Simd128UnaryOp::Kind::kI64x2SConvertI32x4Low>(
+                 this, node, 64)) {
+    return;
+  } else if (TryEmitSub<Simd128UnaryOp::Kind::kI64x2SConvertI32x4High>(
+                 this, node, 64)) {
+    return;
+  } else {
+    VisitRRR(this, kArm64ISub | LaneSizeField::encode(64), node);
+  }
+}
+
 #define VISIT_SIMD_SUB(Type, LaneSize)                                    \
-  void InstructionSelector::Visit##Type##Sub(OpIndex node) {              \
+  {                                                                       \
     Arm64OperandGenerator g(this);                                        \
     const Simd128BinopOp& sub = Get(node).Cast<Simd128BinopOp>();         \
     const Operation& right = Get(sub.right());                            \
@@ -5557,8 +5652,41 @@ void InstructionSelector::VisitI16x8Add(OpIndex node) {
     VisitRRR(this, kArm64ISub | LaneSizeField::encode(LaneSize), node);   \
   }
 
-VISIT_SIMD_SUB(I32x4, 32)
-VISIT_SIMD_SUB(I16x8, 16)
+void InstructionSelector::VisitI32x4Sub(OpIndex node) {
+  if (TryEmitSub<Simd128UnaryOp::Kind::kI32x4UConvertI16x8Low>(this, node,
+                                                               32)) {
+    return;
+  } else if (TryEmitSub<Simd128UnaryOp::Kind::kI32x4UConvertI16x8High>(
+                 this, node, 32)) {
+    return;
+  } else if (TryEmitSub<Simd128UnaryOp::Kind::kI32x4SConvertI16x8Low>(
+                 this, node, 32)) {
+    return;
+  } else if (TryEmitSub<Simd128UnaryOp::Kind::kI32x4SConvertI16x8High>(
+                 this, node, 32)) {
+    return;
+  } else {
+    VISIT_SIMD_SUB(I32x4, 32)
+  }
+}
+
+void InstructionSelector::VisitI16x8Sub(OpIndex node) {
+  if (TryEmitSub<Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low>(this, node,
+                                                               16)) {
+    return;
+  } else if (TryEmitSub<Simd128UnaryOp::Kind::kI16x8UConvertI8x16High>(
+                 this, node, 16)) {
+    return;
+  } else if (TryEmitSub<Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low>(
+                 this, node, 16)) {
+    return;
+  } else if (TryEmitSub<Simd128UnaryOp::Kind::kI16x8SConvertI8x16High>(
+                 this, node, 16)) {
+    return;
+  } else {
+    VISIT_SIMD_SUB(I16x8, 16)
+  }
+}
 #undef VISIT_SIMD_SUB
 
 namespace {

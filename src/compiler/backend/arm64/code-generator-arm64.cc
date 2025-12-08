@@ -3588,6 +3588,70 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputSimd128Register(1).Format(tb));
       break;
     }
+    case kArm64Ssubw: {
+      VectorFormat ta = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VectorFormat tb = VectorFormatHalfWidth(ta);
+      __ Ssubw(i.OutputSimd128Register().Format(ta),
+               i.InputSimd128Register(0).Format(ta),
+               i.InputSimd128Register(1).Format(tb));
+      break;
+    }
+    case kArm64Ssubw2: {
+      VectorFormat ta = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VectorFormat tb = VectorFormatFillQ(VectorFormatHalfWidth(ta));
+      __ Ssubw2(i.OutputSimd128Register().Format(ta),
+                i.InputSimd128Register(0).Format(ta),
+                i.InputSimd128Register(1).Format(tb));
+      break;
+    }
+    case kArm64Usubw: {
+      VectorFormat ta = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VectorFormat tb = VectorFormatHalfWidth(ta);
+      __ Usubw(i.OutputSimd128Register().Format(ta),
+               i.InputSimd128Register(0).Format(ta),
+               i.InputSimd128Register(1).Format(tb));
+      break;
+    }
+    case kArm64Usubw2: {
+      VectorFormat ta = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VectorFormat tb = VectorFormatFillQ(VectorFormatHalfWidth(ta));
+      __ Usubw2(i.OutputSimd128Register().Format(ta),
+                i.InputSimd128Register(0).Format(ta),
+                i.InputSimd128Register(1).Format(tb));
+      break;
+    }
+    case kArm64Ssubl: {
+      VectorFormat ta = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VectorFormat tb = VectorFormatHalfWidth(ta);
+      __ Ssubl(i.OutputSimd128Register().Format(ta),
+               i.InputSimd128Register(0).Format(tb),
+               i.InputSimd128Register(1).Format(tb));
+      break;
+    }
+    case kArm64Ssubl2: {
+      VectorFormat ta = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VectorFormat tb = VectorFormatFillQ(VectorFormatHalfWidth(ta));
+      __ Ssubl2(i.OutputSimd128Register().Format(ta),
+                i.InputSimd128Register(0).Format(tb),
+                i.InputSimd128Register(1).Format(tb));
+      break;
+    }
+    case kArm64Usubl: {
+      VectorFormat ta = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VectorFormat tb = VectorFormatHalfWidth(ta);
+      __ Usubl(i.OutputSimd128Register().Format(ta),
+               i.InputSimd128Register(0).Format(tb),
+               i.InputSimd128Register(1).Format(tb));
+      break;
+    }
+    case kArm64Usubl2: {
+      VectorFormat ta = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VectorFormat tb = VectorFormatFillQ(VectorFormatHalfWidth(ta));
+      __ Usubl2(i.OutputSimd128Register().Format(ta),
+                i.InputSimd128Register(0).Format(tb),
+                i.InputSimd128Register(1).Format(tb));
+      break;
+    }
     case kArm64Ssra: {
       int8_t laneSize = LaneSizeField::decode(opcode);
       VectorFormat f = VectorFormatFillQ(laneSize);

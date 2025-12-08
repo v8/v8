@@ -212,7 +212,15 @@ namespace compiler {
   V(Arm64Saddl)                         \
   V(Arm64Saddl2)                        \
   V(Arm64Uaddl)                         \
-  V(Arm64Uaddl2)
+  V(Arm64Uaddl2)                        \
+  V(Arm64Ssubw)                         \
+  V(Arm64Ssubw2)                        \
+  V(Arm64Usubw)                         \
+  V(Arm64Usubw2)                        \
+  V(Arm64Ssubl)                         \
+  V(Arm64Ssubl2)                        \
+  V(Arm64Usubl)                         \
+  V(Arm64Usubl2)
 
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
