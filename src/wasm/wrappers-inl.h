@@ -268,11 +268,10 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     OptionalV<FrameState> frame_state,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> V<Any> {
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
-  const int args_count = wasm_param_count + 1;  // +1 for wasm_code.
 
   __ Bind(__ NewBlock());
 
-  base::SmallVector<OpIndex, 16> params(args_count);
+  base::SmallVector<OpIndex, 16> params(wasm_param_count);
   const int param_offset = receiver_is_first_param ? 0 : 1;
   if (js_closure.valid()) {
     DCHECK(js_context.valid());
@@ -298,7 +297,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
   }
 
   if (!IsJSCompatibleSignature(sig_)) {
-    // Throw a TypeError. Use the js_context of the calling javascript
+    // Throw a TypeError. Use the js_context of the calling JavaScript
     // function (passed as a parameter), such that the generated code is
     // js_context independent.
     __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
@@ -307,20 +306,14 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     return OpIndex::Invalid();
   }
 
-  // Check whether the signature of the function allows for a fast
-  // transformation (if any params exist that need transformation).
-  // Create a fast transformation path, only if it does.
-  bool include_fast_path = wasm_param_count > 0 && QualifiesForFastTransform();
-
-  V<SharedFunctionInfo> shared = __ Load(js_closure, LoadOp::Kind::TaggedBase(),
-                                         MemoryRepresentation::TaggedPointer(),
-                                         JSFunction::kSharedFunctionInfoOffset);
+  V<SharedFunctionInfo> sfi = __ Load(js_closure, LoadOp::Kind::TaggedBase(),
+                                      MemoryRepresentation::TaggedPointer(),
+                                      JSFunction::kSharedFunctionInfoOffset);
   V<WasmFunctionData> function_data =
       V<WasmFunctionData>::Cast(__ LoadTrustedPointerField(
-          shared, LoadOp::Kind::TaggedBase(),
-          kWasmFunctionDataIndirectPointerTag,
+          sfi, LoadOp::Kind::TaggedBase(), kWasmFunctionDataIndirectPointerTag,
           SharedFunctionInfo::kTrustedFunctionDataOffset));
-  // If we are not inlining, we don't need the wasm instance.
+  // If we are not inlining the Wasm body, we don't need the Wasm instance.
   V<WasmTrustedInstanceData> instance_data =
       inlined_function_data_.has_value()
           ? V<WasmTrustedInstanceData>::Cast(__ LoadProtectedPointerField(
@@ -328,48 +321,13 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
                 WasmExportedFunctionData::kProtectedInstanceDataOffset))
           : OpIndex::Invalid();
 
-  TSBlock* body_block = __ NewBlock();
-  base::SmallVector<OpIndex, 16> args_fast_path(wasm_param_count);
-  if (include_fast_path) {
-    TSBlock* slow_path = __ NewBlock();
-    // Check if the params received on runtime can be actually transformed
-    // using the fast transformation. When a param that cannot be transformed
-    // fast is encountered, skip checking the rest and fall back to the slow
-    // path.
-    for (int i = 0; i < wasm_param_count; ++i) {
-      CanTransformFast(params[i], sig_->GetParam(i), slow_path);
-    }
-    // Convert JS parameters to wasm numbers using the fast transformation
-    // and build the call.
-    for (int i = 0; i < wasm_param_count; ++i) {
-      args_fast_path[i] = FromJSFast(params[i], sig_->GetParam(i));
-    }
-
-    __ Goto(body_block);
-    __ Bind(slow_path);
-  }
-
   // Convert JS parameters to wasm numbers using the default transformation
   // and build the call.
-  base::SmallVector<OpIndex, 16> args_slow_path(wasm_param_count);
-  for (int i = 0; i < wasm_param_count; ++i) {
-    args_slow_path[i] =
-        FromJS(params[i], js_context, sig_->GetParam(i), frame_state);
-  }
-
-  // Merge the arguments of the slow and fast paths, if we emitted the latter.
-  // If we only have a slow path, simply take those.
+  const int args_count = wasm_param_count + /* instance_data */ 1;
   base::SmallVector<OpIndex, 16> args(args_count);
   args[0] = instance_data;
-  if (include_fast_path) {
-    __ Goto(body_block);
-    __ Bind(body_block);
-    for (int i = 0; i < wasm_param_count; ++i) {
-      args[i + 1] = __ Phi({args_fast_path[i], args_slow_path[i]},
-                           this->RepresentationFor(sig_->GetParam(i)));
-    }
-  } else {
-    std::copy(args_slow_path.begin(), args_slow_path.end(), args.begin() + 1);
+  for (int i = 0; i < wasm_param_count; ++i) {
+    args[i + 1] = FromJS(params[i], js_context, sig_->GetParam(i), frame_state);
   }
 
   // Inline the wasm function, if possible.

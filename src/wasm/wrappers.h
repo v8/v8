@@ -226,42 +226,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
         input, compiler::AccessBuilder::ForHeapNumberValue());
   }
 
-  OpIndex FromJSFast(OpIndex input, CanonicalValueType type) {
-    switch (type.kind()) {
-      case kI32:
-        return BuildChangeSmiToInt32(input);
-      case kF32: {
-        ScopedVar<Float32> result(this, OpIndex::Invalid());
-        IF (__ IsSmi(input)) {
-          result = __ ChangeInt32ToFloat32(__ UntagSmi(input));
-        } ELSE {
-          result = __ TruncateFloat64ToFloat32(HeapNumberToFloat64(input));
-        }
-        return result;
-      }
-      case kF64: {
-        ScopedVar<Float64> result(this, OpIndex::Invalid());
-        IF (__ IsSmi(input)) {
-          result = __ ChangeInt32ToFloat64(__ UntagSmi(input));
-        } ELSE{
-          result = HeapNumberToFloat64(input);
-        }
-        return result;
-      }
-      case kRef:
-      case kRefNull:
-      case kI64:
-      case kS128:
-      case kI8:
-      case kI16:
-      case kF16:
-      case kTop:
-      case kBottom:
-      case kVoid:
-        UNREACHABLE();
-    }
-  }
-
   OpIndex LoadInstanceType(V<Map> map) {
     return __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
                    MemoryRepresentation::Uint16(), Map::kInstanceTypeOffset);
@@ -294,20 +258,70 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     return result;
   }
 
+  V<Float32> BuildChangeTaggedToFloat32(
+      OpIndex value, OpIndex context,
+      compiler::turboshaft::OptionalOpIndex frame_state) {
+    ScopedVar<Float32> result(this, OpIndex::Invalid());
+    // The builtin below does handle both the Smi and HeapNumber case as
+    // well, but it's good to have a fast path that doesn't require a call.
+    IF (__ IsSmi(value)) {
+      // TODO(dlehmann,wasm-runtime): If `ChangeInt32ToFloat32(x)` is exactly
+      // equivalent to `TruncateFloat64ToFloat32(ChangeInt32ToFloat64(x))`, we
+      // could `TruncateFloat64ToFloat32(BuildChangeTaggedToFloat64(x))` and
+      // get rid of this separate function, but I am not 100% sure whether that
+      // is a valid optimization so we conservatively keep it.
+      result = __ ChangeInt32ToFloat32(__ UntagSmi(value));
+    } ELSE {
+      V<Map> map = LoadMap(value);
+      V<Map> heap_number_map = LOAD_ROOT(HeapNumberMap);
+      // TODO(thibaudm): Handle map packing.
+      IF (LIKELY(__ TaggedEqual(heap_number_map, map))) {
+        result = __ TruncateFloat64ToFloat32(HeapNumberToFloat64(value));
+      } ELSE {
+        result = __ TruncateFloat64ToFloat32(
+            frame_state.valid()
+                ? CallBuiltin<WasmTaggedToFloat64Descriptor>(
+                      Builtin::kWasmTaggedToFloat64, frame_state.value(),
+                      Operator::kNoProperties, value, context)
+                : CallBuiltin<WasmTaggedToFloat64Descriptor>(
+                      Builtin::kWasmTaggedToFloat64, Operator::kNoProperties,
+                      value, context));
+        // The source position here is needed for asm.js, see the comment on the
+        // source position of the call to JavaScript in the wasm-to-js wrapper.
+        __ output_graph().source_positions()[result] = SourcePosition(1);
+      }
+    }
+    return result;
+  }
+
   V<Float64> BuildChangeTaggedToFloat64(
       OpIndex value, OpIndex context,
       compiler::turboshaft::OptionalOpIndex frame_state) {
-    OpIndex call = frame_state.valid()
-                       ? CallBuiltin<WasmTaggedToFloat64Descriptor>(
-                             Builtin::kWasmTaggedToFloat64, frame_state.value(),
-                             Operator::kNoProperties, value, context)
-                       : CallBuiltin<WasmTaggedToFloat64Descriptor>(
-                             Builtin::kWasmTaggedToFloat64,
-                             Operator::kNoProperties, value, context);
-    // The source position here is needed for asm.js, see the comment on the
-    // source position of the call to JavaScript in the wasm-to-js wrapper.
-    __ output_graph().source_positions()[call] = SourcePosition(1);
-    return call;
+    ScopedVar<Float64> result(this, OpIndex::Invalid());
+    // The builtin below does handle both the Smi and HeapNumber case as
+    // well, but it's good to have a fast path that doesn't require a call.
+    IF (__ IsSmi(value)) {
+      result = __ ChangeInt32ToFloat64(__ UntagSmi(value));
+    } ELSE {
+      V<Map> map = LoadMap(value);
+      V<Map> heap_number_map = LOAD_ROOT(HeapNumberMap);
+      // TODO(thibaudm): Handle map packing.
+      IF (LIKELY(__ TaggedEqual(heap_number_map, map))) {
+        result = HeapNumberToFloat64(value);
+      } ELSE {
+        result = frame_state.valid()
+                     ? CallBuiltin<WasmTaggedToFloat64Descriptor>(
+                           Builtin::kWasmTaggedToFloat64, frame_state.value(),
+                           Operator::kNoProperties, value, context)
+                     : CallBuiltin<WasmTaggedToFloat64Descriptor>(
+                           Builtin::kWasmTaggedToFloat64,
+                           Operator::kNoProperties, value, context);
+        // The source position here is needed for asm.js, see the comment on the
+        // source position of the call to JavaScript in the wasm-to-js wrapper.
+        __ output_graph().source_positions()[result] = SourcePosition(1);
+      }
+    }
+    return result;
   }
 
   OpIndex BuildChangeTaggedToInt32(
@@ -316,21 +330,19 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     // We expect most integers at runtime to be Smis, so it is important for
     // wrapper performance that Smi conversion be inlined.
     ScopedVar<Word32> result(this, OpIndex::Invalid());
-    IF (__ IsSmi(value)) {
+    IF (LIKELY(__ IsSmi(value))) {
       result = BuildChangeSmiToInt32(value);
     } ELSE{
-      OpIndex call =
-          frame_state.valid()
-              ? CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
-                    Builtin::kWasmTaggedNonSmiToInt32, frame_state.value(),
-                    Operator::kNoProperties, value, context)
-              : CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
-                    Builtin::kWasmTaggedNonSmiToInt32, Operator::kNoProperties,
-                    value, context);
-      result = call;
+      result = frame_state.valid()
+                   ? CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
+                         Builtin::kWasmTaggedNonSmiToInt32, frame_state.value(),
+                         Operator::kNoProperties, value, context)
+                   : CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
+                         Builtin::kWasmTaggedNonSmiToInt32,
+                         Operator::kNoProperties, value, context);
       // The source position here is needed for asm.js, see the comment on the
       // source position of the call to JavaScript in the wasm-to-js wrapper.
-      __ output_graph().source_positions()[call] = SourcePosition(1);
+      __ output_graph().source_positions()[result] = SourcePosition(1);
     }
     return result;
   }
@@ -378,8 +390,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
           return BuildChangeBigIntToInt64(input, context, frame_state);
 #endif
         case NumericKind::kF32:
-          return __ TruncateFloat64ToFloat32(
-              BuildChangeTaggedToFloat64(input, context, frame_state));
+          return BuildChangeTaggedToFloat32(input, context, frame_state);
         case NumericKind::kF64:
           return BuildChangeTaggedToFloat64(input, context, frame_state);
         case NumericKind::kS128:
@@ -466,31 +477,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
                               inputs, context);
   }
 
-  bool QualifiesForFastTransform() {
-    const int wasm_count = static_cast<int>(sig_->parameter_count());
-    for (int i = 0; i < wasm_count; ++i) {
-      CanonicalValueType type = sig_->GetParam(i);
-      switch (type.kind()) {
-        case kRef:
-        case kRefNull:
-        case kI64:
-        case kS128:
-        case kI8:
-        case kI16:
-        case kF16:
-        case kTop:
-        case kBottom:
-        case kVoid:
-          return false;
-        case kI32:
-        case kF32:
-        case kF64:
-          break;
-      }
-    }
-    return true;
-  }
-
 #ifdef V8_MAP_PACKING
   V<Map> UnpackMapWord(OpIndex map_word) {
     map_word = __ BitcastTaggedToWordPtrForTagAndSmiBits(map_word);
@@ -511,40 +497,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 #else
     return map_word;
 #endif
-  }
-
-  void CanTransformFast(OpIndex input, CanonicalValueType type,
-                        TSBlock* slow_path) {
-    switch (type.kind()) {
-      case kI32: {
-        __ GotoIfNot(LIKELY(__ IsSmi(input)), slow_path);
-        return;
-      }
-      case kF32:
-      case kF64: {
-        TSBlock* done = __ NewBlock();
-        __ GotoIf(__ IsSmi(input), done);
-        V<Map> map = LoadMap(input);
-        V<Map> heap_number_map = LOAD_ROOT(HeapNumberMap);
-        // TODO(thibaudm): Handle map packing.
-        V<Word32> is_heap_number = __ TaggedEqual(heap_number_map, map);
-        __ GotoIf(LIKELY(is_heap_number), done);
-        __ Goto(slow_path);
-        __ Bind(done);
-        return;
-      }
-      case kRef:
-      case kRefNull:
-      case kI64:
-      case kS128:
-      case kI8:
-      case kI16:
-      case kF16:
-      case kTop:
-      case kBottom:
-      case kVoid:
-        UNREACHABLE();
-    }
   }
 
   // Must be called in the first block to emit the Parameter ops.
