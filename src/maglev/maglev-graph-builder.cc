@@ -16208,7 +16208,7 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
   // means we can skip checking for it and switching on its state.
   if (offsets.size() == 0) return ReduceResult::Done();
 
-  if (!is_inline()) {
+  if (is_inline()) {
     // When inlining a generator function, we're really just inlining the
     // initialization part of the generator rather than the whole
     // yielding/resuming part. For instance, consider
@@ -16224,8 +16224,18 @@ ReduceResult MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
     // `.next()` and this is not something that we inline. Hence, when we inline
     // a generator function, the only non-dead part of what we inline is the
     // initialization of the generator object.
-    graph()->set_has_resumable_generator();
+    //
+    // We thus mark every resume point (the content of {offsets}) as dead, and
+    // don't bother emitting the initial generator switch: we just fallthrough
+    // into the next block, which is where the initialization of the generator
+    // happens.
+    for (interpreter::JumpTableTargetOffset offset : offsets) {
+      MergeDeadIntoFrameState(offset.target_offset);
+    }
+    return ReduceResult::Done();
   }
+
+  graph()->set_has_resumable_generator();
 
   // We create an initial block that checks if the generator is undefined.
   ValueNode* maybe_generator = LoadRegister(0);
