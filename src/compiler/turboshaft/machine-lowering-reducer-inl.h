@@ -2651,10 +2651,95 @@ class MachineLoweringReducer : public Next {
   }
 #endif  // V8_INTL_SUPPORT
 
+  V<String> CreateSubstring(V<String> string, V<Word32> start, V<Word32> end) {
+    Label<String> done(this);
+    Label<> right_type(this);
+    Label<> single_char(this);
+    Label<> slow(this);
+    V<Map> map = __ LoadMapField(string);
+    V<Word32> instance_type = __ LoadInstanceTypeField(map);
+
+    // Fast path for INTERNALIZED_ONE_BYTE_STRING_TYPE /
+    // SEQ_ONE_BYTE_STRING_TYPE and length < Substring::kMinLength.
+    GOTO_IF(__ Word32Equal(instance_type, INTERNALIZED_ONE_BYTE_STRING_TYPE),
+            right_type);
+    GOTO_IF(__ Word32Equal(instance_type, SEQ_ONE_BYTE_STRING_TYPE),
+            right_type);
+    GOTO(slow);
+
+    BIND(right_type);
+    {
+      V<Word32> length = __ Word32Sub(end, start);
+      V<WordPtr> length_ptr = __ ChangeInt32ToIntPtr(length);
+      GOTO_IF_NOT(__ IntPtrLessThan(length_ptr, SlicedString::kMinLength),
+                  slow);
+      GOTO_IF(__ WordPtrEqual(length_ptr, 1), single_char);
+
+      // Calculate the allocation size: Header + Length * 1 (kOneByteSize),
+      // aligned to kObjectAlignment.
+      V<WordPtr> size = __ WordPtrAdd(
+          __ IntPtrConstant(ObjectTraits<SeqOneByteString>::kHeaderSize),
+          length_ptr);
+      // Align: (size + kObjectAlignmentMask) & ~kObjectAlignmentMask
+      size = __ WordPtrBitwiseAnd(
+          __ WordPtrAdd(size, __ IntPtrConstant(kObjectAlignment - 1)),
+          __ IntPtrConstant(~(kObjectAlignment - 1)));
+
+      auto new_string = __ template Allocate<SeqOneByteString>(
+          size, AllocationType::kYoung, kTaggedAligned);
+      __ InitializeField(new_string, AccessBuilderTS::ForMap(),
+                         __ LoadRoot(RootIndex::kSeqOneByteStringMap));
+      __ InitializeField(new_string, AccessBuilderTS::ForNameRawHashField(),
+                         __ Word32Constant(Name::kEmptyHashField));
+      __ InitializeField(new_string, AccessBuilderTS::ForStringLength(),
+                         length);
+
+      auto access = AccessBuilderTS::ForSeqOneByteStringCharacter();
+
+      V<WordPtr> start_ptr = __ ChangeInt32ToIntPtr(start);
+      ScopedVar<WordPtr> index(this, 0);
+      // TODO(marja): Loop 4 bytes at once.
+      WHILE(__ UintPtrLessThan(index, length_ptr)) {
+        V<Word32> char_code = __ template LoadNonArrayBufferElement<Word32>(
+            string, AccessBuilder::ForSeqOneByteStringCharacter(),
+            __ WordPtrAdd(index, start_ptr));
+        __ InitializeElement(new_string, access, index, char_code);
+        index = __ WordPtrAdd(index, 1);
+      }
+
+      // Padding must be zeroed.
+      V<WordPtr> payload_size =
+          __ WordPtrSub(size, __ IntPtrConstant(access.header_size));
+      WHILE(__ UintPtrLessThan(index, payload_size)) {
+        __ InitializeElement(new_string, access, index, __ Word32Constant(0));
+        index = __ WordPtrAdd(index, 1);
+      }
+
+      GOTO(done, __ FinishInitialization(std::move(new_string)));
+    }
+    BIND(single_char);
+    {
+      V<WordPtr> start_ptr = __ ChangeInt32ToIntPtr(start);
+      V<Word32> char_code = __ template LoadNonArrayBufferElement<Word32>(
+          string, AccessBuilder::ForSeqOneByteStringCharacter(), start_ptr);
+      GOTO(done, StringFromSingleCharCode(char_code));
+    }
+
+    BIND(slow);
+    GOTO(done, __ template CallBuiltin<builtin::StringSubstring>(
+                   {.string = string,
+                    .from = __ ChangeInt32ToIntPtr(start),
+                    .to = __ ChangeInt32ToIntPtr(end)}));
+    BIND(done, result);
+    return result;
+  }
+
   V<String> REDUCE(StringSubstring)(V<String> string, V<Word32> start,
                                     V<Word32> end) {
     V<WordPtr> s = __ ChangeInt32ToIntPtr(start);
     V<WordPtr> e = __ ChangeInt32ToIntPtr(end);
+    // TODO(marja): This can be replaced with CreateSubstring too, but we need
+    // bounds checking outside.
     return __ template CallBuiltin<builtin::StringSubstring>(
         {.string = string, .from = s, .to = e});
   }
@@ -2685,16 +2770,12 @@ class MachineLoweringReducer : public Next {
           __ Word32Select(__ Int32LessThan(end, length), end, length);
     }
     // substring() and slice() handle end < start differently; return empty here
-    // if end < start.
+    // if end <= start.
     ScopedVar<String> result(this);
-    IF (__ Int32LessThan(relative_end, relative_start)) {
+    IF (__ Int32LessThanOrEqual(relative_end, relative_start)) {
       result = __ HeapConstant(factory_->empty_string());
     } ELSE {
-      // TODO(marja): Create SLICED_STRINGs directly here.
-      result = __ template CallBuiltin<builtin::StringSubstring>(
-          {.string = string,
-           .from = __ ChangeInt32ToIntPtr(relative_start),
-           .to = __ ChangeInt32ToIntPtr(relative_end)});
+      result = CreateSubstring(string, relative_start, relative_end);
     }
     return result;
   }
