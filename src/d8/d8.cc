@@ -2543,7 +2543,7 @@ void Shell::RealmCreateAllowCrossRealmAccess(
 }
 
 // Realm.navigate(i) creates a new realm with a distinct security token
-// in place of realm i.
+// in place of realm i. The old context is disposed.
 void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = info.GetIsolate();
@@ -2557,20 +2557,39 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
-  v8::MaybeLocal<Value> global_object = context->Global();
-
-  // Context::Global doesn't return JSGlobalProxy if DetachGlobal is called in
-  // advance.
-  if (!global_object.IsEmpty()) {
-    HandleScope scope(isolate);
-    if (!IsJSGlobalProxy(
-            *Utils::OpenDirectHandle(*global_object.ToLocalChecked()))) {
-      global_object = v8::MaybeLocal<Value>();
-    }
-  }
+  v8::Local<Value> global = context->Global();
+  CHECK(!global.IsEmpty());
 
   DisposeRealm(info, index);
-  CreateRealm(info, index, global_object);
+  CreateRealm(info, index, global);
+}
+
+// Realm.navigateSameOrigin(i) creates a new realm with the same security token
+// in place of realm i. The old realm's context is left around in detached
+// state.
+void Shell::RealmNavigateSameOrigin(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  int index = data->RealmIndexOrThrow(info, 0);
+  if (index == -1) return;
+  if (index == 0 || index == data->realm_current_ ||
+      index == data->realm_switch_) {
+    ThrowError(isolate, "Invalid realm index");
+    return;
+  }
+
+  Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
+  v8::Local<Value> global = context->Global();
+  context->DetachGlobal();
+  CHECK(!global.IsEmpty());
+
+  Local<Value> old_security_token = context->GetSecurityToken();
+  Local<Context> new_context;
+  if (CreateRealm(info, index, global).ToLocal(&new_context)) {
+    new_context->SetSecurityToken(old_security_token);
+  }
 }
 
 // Realm.detachGlobal(i) detaches the global objects of realm i from realm i.
@@ -4369,6 +4388,8 @@ Local<ObjectTemplate> Shell::CreateRealmTemplate(Isolate* isolate) {
       FunctionTemplate::New(isolate, RealmCreateAllowCrossRealmAccess));
   realm_template->Set(isolate, "navigate",
                       FunctionTemplate::New(isolate, RealmNavigate));
+  realm_template->Set(isolate, "navigateSameOrigin",
+                      FunctionTemplate::New(isolate, RealmNavigateSameOrigin));
   realm_template->Set(isolate, "detachGlobal",
                       FunctionTemplate::New(isolate, RealmDetachGlobal));
   realm_template->Set(isolate, "dispose",

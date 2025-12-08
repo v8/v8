@@ -305,10 +305,6 @@ class FunctionCallbackArguments
   int const argc_;
 };
 
-// Returns holder object suitable for Api callbacks - in case the holder is
-// JSGlobalObject returns respective JSGlobalProxy.
-inline Tagged<JSObject> GetHolderForApi(Tagged<JSObject> holder);
-
 static_assert(BuiltinArguments::kNumExtraArgs ==
               BuiltinExitFrameConstants::kNumExtraArgs);
 static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==

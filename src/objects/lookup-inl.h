@@ -14,7 +14,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
-#include "src/objects/api-callbacks.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
@@ -284,14 +284,6 @@ DirectHandle<T> LookupIterator::GetHolder() const {
   // lookup_start_object() instead.
   DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   return Cast<T>(holder_);
-}
-
-Tagged<JSObject> LookupIterator::GetHolderForApi() const {
-  DCHECK(state_ == INTERCEPTOR || state_ == ACCESSOR || state_ == ACCESS_CHECK);
-  if (IsJSGlobalObject(*holder_)) {
-    return Cast<JSGlobalObject>(holder_)->global_proxy();
-  }
-  return Cast<JSObject>(*holder_);
 }
 
 bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {

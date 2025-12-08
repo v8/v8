@@ -1445,6 +1445,7 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
 
   // Set up the pointer back from the global object to the global proxy.
   global_object->set_global_proxy(*global_proxy);
+  global_object->set_global_proxy_for_api(*global_proxy);
   // Set the native context of the global proxy.
   global_proxy->map()->set_map(isolate(), native_context()->meta_map());
   // Set the global proxy of the native context. If the native context has been

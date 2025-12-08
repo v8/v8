@@ -225,6 +225,18 @@ void InterceptorInfo::clear_padding() {
          FIELD_SIZE(kOptionalPaddingOffset));
 }
 
+// Returns holder object suitable for Api callbacks - in case the holder is
+// JSGlobalObject returns respective JSGlobalProxy.
+inline Tagged<JSObject> GetHolderForApi(Tagged<JSObject> holder) {
+  Tagged<JSGlobalObject> global_object;
+  if (TryCast<JSGlobalObject>(holder, &global_object)) {
+    Tagged<JSGlobalProxy> global_proxy = global_object->global_proxy_for_api();
+    DCHECK(!global_proxy->IsDetachedFrom(global_object));
+    return global_proxy;
+  }
+  return Cast<JSObject>(holder);
+}
+
 }  // namespace internal
 }  // namespace v8
 

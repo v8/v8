@@ -7354,8 +7354,35 @@ void Isolate::CheckDetachedContextsAfterGC() {
 }
 
 void Isolate::DetachGlobal(DirectHandle<NativeContext> env) {
-  if (env->IsDetached()) return;
+  if (env->IsDetached()) {
+    // Respective global_proxy_for_api object must be "attached" to the
+    // global object.
+    DCHECK(!env->global_object()->global_proxy_for_api()->IsDetachedFrom(
+        env->global_object()));
+    return;
+  }
   counters()->errors_thrown_per_context()->AddSample(env->GetErrorsThrown());
+
+  {
+    // Create a copy of JSGlobalProxy that will be used as holder for contextual
+    // accesses to global properties in detached context that involve Api
+    // callbacks (both accessor and interceptor).
+    // This JSGlobalProxy keeps 1:1 relationship to JSGlobalObject but looses
+    // the global object identity and looses connection to respective embedder
+    // fields and Api wrappers.
+    CHECK_EQ(env->global_object()->global_proxy_for_api(),
+             env->global_object()->global_proxy());
+
+    DirectHandle<Map> map(env->global_object()->global_proxy_for_api()->map(),
+                          this);
+    DirectHandle<JSGlobalProxy> global_proxy_for_api =
+        Cast<JSGlobalProxy>(factory()->NewJSObjectFromMap(
+            map, AllocationType::kOld, {},
+            NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper));
+
+    env->global_object()->set_global_proxy_for_api(*global_proxy_for_api);
+    DCHECK(!global_proxy_for_api->IsDetachedFrom(env->global_object()));
+  }
 
   ReadOnlyRoots roots(this);
   DirectHandle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
