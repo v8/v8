@@ -183,9 +183,8 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
         }
         case interpreter::OperandType::kRuntimeId: {
           Runtime::FunctionId id = iterator.GetRuntimeIdOperand(i);
-          Check(id < Runtime::kNumFunctions, "Invalid runtime id");
-          // TODO(461681036): we might need to validate that the runtime
-          // function is safe to call here...
+          Check(id < Runtime::kNumFunctions, "Invalid runtime function id");
+          Check(IsAllowedRuntimeFunction(id), "Disallowed runtime function");
           break;
         }
         case interpreter::OperandType::kAbortReason: {
@@ -239,6 +238,23 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
   // invalid bytecode opcodes. Therefore we do this at the end, once we're
   // certain that the bytecode is otherwise well-structured.
   VerifyLight(isolate, bytecode, zone);
+}
+
+// static
+bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
+  // This is currently purely for fuzzer-cleanliness and so we only add
+  // functions to this blocklist if we see them cause crashes during fuzzing.
+  // It's unclear if we'll ever need this in production, but if we decide to
+  // use it, we should do a more thorough audit to determine which functions
+  // should be disallowed here.
+  switch (id) {
+#if V8_ENABLE_WEBASSEMBLY
+    case Runtime::kWasmTriggerTierUp:
+      return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+    default:
+      return true;
+  }
 }
 
 }  // namespace v8::internal

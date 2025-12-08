@@ -30,6 +30,8 @@ class V8_EXPORT_PRIVATE BytecodeVerifier {
   static void VerifyFull(IsolateForSandbox isolate,
                          Handle<BytecodeArray> bytecode, Zone* zone);
 
+  static bool IsAllowedRuntimeFunction(Runtime::FunctionId id);
+
   [[noreturn]] static void FailVerification(const char* reason) {
     // If desired, we could log more information here, such as the current
     // bytecode and its offset. This might require making the BytecodeVerifier
