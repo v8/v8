@@ -242,7 +242,7 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
   Register length = ToRegister(result());
   Label done;
   __ LoadU64(length, MemOperand(fp, StandardFrameConstants::kArgCOffset), r0);
-  __ SubS32(length, length, Operand(formal_parameter_count() + 1), r0);
+  __ SubS32(length, length, Operand(formal_parameter_count() + 1), r0, SetRC);
   __ bge(&done);
   __ Move(length, 0);
   __ bind(&done);
