@@ -226,7 +226,7 @@ class AsyncCompileJob {
   // that in a separate late-initialized field to avoid accidentally using a
   // field too early.
   struct IsolateSpecificInfo {
-    Isolate* isolate_;
+    Isolate* isolate_ = nullptr;
     IndirectHandle<NativeContext> native_context_;
     // TODO(clemensb): Move this out into the resolver.
     IndirectHandle<NativeContext> incumbent_context_;
