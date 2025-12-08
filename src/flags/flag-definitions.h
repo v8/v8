@@ -3278,13 +3278,19 @@ DEFINE_BOOL(trace_read_only_promotion_verbose, false,
 DEFINE_WEAK_IMPLICATION(trace_read_only_promotion_verbose,
                         trace_read_only_promotion)
 
-// Testing flags test/cctest/test-{flags,api,serialization}.cc
+// Testing flags for flag-definitions-unittest.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
 DEFINE_MAYBE_BOOL(testing_maybe_bool_flag, "testing_maybe_bool_flag")
 DEFINE_INT(testing_int_flag, 13, "testing_int_flag")
 DEFINE_FLOAT(testing_float_flag, 2.5, "float-flag")
 DEFINE_STRING(testing_string_flag, "Hello, world!", "string-flag")
 DEFINE_INT(testing_prng_seed, 42, "Seed used for threading test randomness")
+// Testing flags for testing implicaton order in flag-definitions-unittest.cc
+DEFINE_BOOL(testing_bool_flag_A, false, "testing_bool_flag_A")
+DEFINE_BOOL(testing_bool_flag_B, true, "testing_bool_flag_B")
+DEFINE_IMPLICATION(testing_bool_flag_B, testing_bool_flag_A)
+DEFINE_BOOL(testing_bool_flag_C, false, "testing_bool_flag_C")
+DEFINE_NEG_IMPLICATION(testing_bool_flag_C, testing_bool_flag_B)
 
 DEFINE_EXPERIMENTAL_FEATURE(
     strict_termination_checks,

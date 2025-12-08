@@ -15,6 +15,7 @@
 #include <optional>
 #include <set>
 #include <sstream>
+#include <unordered_map>
 
 #include "src/base/fpu.h"
 #include "src/base/hashing.h"
@@ -1045,6 +1046,14 @@ class ImplicationProcessor {
   }
 
  private:
+  void ResetFlagsImpliedBy(const Flag* implier_flag) {
+    const char* implier_flag_name = FlagName{implier_flag->name()}.name;
+    for (Flag* flag : implied_by_map_[implier_flag_name]) {
+      flag->Reset();
+    }
+    implied_by_map_.erase(implier_flag_name);
+  }
+
   // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h.
   template <class T>
   bool TriggerImplication(bool premise, const char* premise_name,
@@ -1053,10 +1062,11 @@ class ImplicationProcessor {
                           bool weak_implication) {
     if (!premise) return false;
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
+    const bool is_conclusion_value_change = conclusion_value->value() != value;
     if (!conclusion_flag->CheckFlagChange(
             weak_implication ? Flag::SetBy::kWeakImplication
                              : Flag::SetBy::kImplication,
-            conclusion_value->value() != value, premise_name)) {
+            is_conclusion_value_change, premise_name)) {
       return false;
     }
     if (V8_UNLIKELY(num_iterations_ >= kMaxNumIterations)) {
@@ -1067,7 +1077,15 @@ class ImplicationProcessor {
         cycle_ << FlagName{conclusion_flag->name()} << " = " << value;
       }
     }
-    *conclusion_value = value;
+    if (is_conclusion_value_change) {
+      *conclusion_value = value;
+      // Any implications by the conclusion flag are now invalid. Reset the
+      // flags previously implied by the conclusion flag. If they were also
+      // implied by some other flag, they will be reimplied in the next
+      // implication iteration.
+      ResetFlagsImpliedBy(conclusion_flag);
+      implied_by_map_[FlagName{premise_name}.name].push_back(conclusion_flag);
+    }
     return true;
   }
 
@@ -1140,6 +1158,8 @@ class ImplicationProcessor {
   // cycles in flags.
   uint32_t cycle_start_hash_;
   std::ostringstream cycle_;
+
+  std::unordered_map<std::string, std::vector<Flag*>> implied_by_map_;
 };
 
 }  // namespace
