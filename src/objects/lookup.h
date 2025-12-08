@@ -196,7 +196,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   inline DirectHandle<T> GetHolder() const;
   // Returns holder object suitable for Api callbacks - in case the holder is
   // JSGlobalObject returns respective JSGlobalProxy.
-  inline Tagged<JSObject> GetHolderForApi() const;
+  Tagged<JSObject> GetHolderForApi() const;
 
   DirectHandle<JSAny> lookup_start_object() const {
     return lookup_start_object_;

@@ -2607,7 +2607,8 @@ void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {
 
 void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {
   JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSGlobalObject");
-  os << "\n - global proxy: " << Brief(global_proxy());
+  os << "\n - global_proxy: " << Brief(global_proxy());
+  os << "\n - global_proxy_for_api: " << Brief(global_proxy_for_api());
   JSObjectPrintBody(os, *this);
 }
 

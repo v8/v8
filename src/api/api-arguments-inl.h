@@ -525,13 +525,6 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   return IsTrue(*result, isolate);
 }
 
-Tagged<JSObject> GetHolderForApi(Tagged<JSObject> holder) {
-  if (IsJSGlobalObject(holder)) {
-    return Cast<JSGlobalObject>(holder)->global_proxy();
-  }
-  return holder;
-}
-
 #undef PREPARE_CALLBACK_INFO_ACCESSOR
 #undef PREPARE_CALLBACK_INFO_INTERCEPTOR
 
