@@ -1190,8 +1190,6 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
 
   const WasmModule* module = native_module->module();
   const bool lazy_module = IsLazyModule(module);
-  DCHECK(!(native_module->enabled_features().has_compilation_hints() &&
-           module->compilation_priorities.contains(func_index)));
   if (lazy_module && tiers.baseline_tier < tiers.top_tier) {
     WasmCompilationUnit tiering_unit{func_index, tiers.top_tier,
                                      kNotForDebugging};

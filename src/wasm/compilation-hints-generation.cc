@@ -15,9 +15,9 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
                                   NativeModule* native_module) {
   const WasmModule* module = native_module->module();
 
-  // Emit the wasm-module prelude.
-  buffer.write_u32(kWasmMagic);
-  buffer.write_u32(kWasmVersion);
+  // Do not emit the wasm-module prelude for now.
+  // buffer.write_u32(kWasmMagic);
+  // buffer.write_u32(kWasmVersion);
 
   // Emit the compilation-priority section.
   {
@@ -155,9 +155,10 @@ void EmitCompilationHintsToBuffer(ZoneBuffer& buffer,
                 FunctionTypeFeedback::kCallRef) {
           continue;  // Direct call, do not emit call targets.
         }
-        num_hints++;
         wasm::CallSiteFeedback& slot =
             feedback_for_function.feedback_vector[slot_index];
+        if (slot.num_cases() == 0) continue;
+        num_hints++;
         int total_count_at_slot = 0;
         for (int call = 0; call < slot.num_cases(); call++) {
           total_count_at_slot += slot.call_count(call);
@@ -199,7 +200,7 @@ void WriteCompilationHintsToFile(ZoneBuffer& buffer,
   uint32_t hash =
       static_cast<uint32_t>(GetWireBytesHash(native_module->wire_bytes()));
   base::EmbeddedVector<char, 48> filename;
-  SNPrintF(filename, "compilation-hints-wasm-%08x.wasm", hash);
+  SNPrintF(filename, "compilation-hints-wasm-%08x.wasm-no-header", hash);
 
   base::OwnedVector<uint8_t> data = base::OwnedCopyOf(buffer);
 

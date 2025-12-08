@@ -185,6 +185,8 @@ TEST_F(WasmCompilationHintsUnittest, RecoverCompilationHints) {
     wasm::TransitiveTypeFeedbackProcessor::ProcessAll(
         isolate(), *builder.trusted_instance_data());
   }
+  buffer.write_u32(kWasmMagic);
+  buffer.write_u32(kWasmVersion);
   EmitCompilationHintsToBuffer(
       buffer, builder.trusted_instance_data()->native_module());
 
