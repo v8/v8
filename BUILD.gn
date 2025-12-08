@@ -1592,8 +1592,8 @@ config("toolchain") {
     defines += [ "V8_TARGET_ARCH_S390X" ]
     if (host_byteorder == "little") {
       defines += [ "V8_TARGET_ARCH_S390X_LE_SIM" ]
-    } else if (current_os != "zos") {
-      cflags += [ "-march=z196" ]
+    } else if (!v8_target_is_simulator && current_os != "zos") {
+      cflags += [ "-march=z14" ]
     }
   }
   if (v8_current_cpu == "ppc64") {
@@ -1608,6 +1608,8 @@ config("toolchain") {
         # Work around AIX assembler popcntb bug.
         "-mno-popcntb",
       ]
+    } else if (!v8_target_is_simulator) {
+      cflags += [ "-mcpu=pwr9" ]
     }
   }
 
