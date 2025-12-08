@@ -109,9 +109,7 @@ class RegisterDump {
     return dump_.flags_ & Flags_mask;
   }
 
-  inline bool IsComplete() const {
-    return completed_;
-  }
+  inline bool IsComplete() const { return completed_; }
 
  private:
   // Indicate whether the dump operation has been completed.

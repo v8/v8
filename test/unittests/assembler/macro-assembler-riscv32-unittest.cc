@@ -38,10 +38,10 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/test-helper-riscv32.h"
 #include "test/common/assembler-tester.h"
 #include "test/common/value-helper.h"
+#include "test/unittests/assembler/test-helper-riscv32.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -62,39 +62,44 @@ using F3 = void*(void* p, int p1, int p2, int p3, int p4);
 using F4 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ masm.
-static uint32_t run_CalcScaledAddress(uint32_t rt, uint32_t rs, int8_t sa) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
 
-  auto fn = [sa](MacroAssembler& masm) {
-    __ CalcScaledAddress(a0, a0, a1, sa);
-  };
-  auto f = AssembleCode<FV>(isolate, fn);
+class MacroAssemblerTest : public TestWithIsolate {
+ public:
+  uint32_t run_CalcScaledAddress(uint32_t rt, uint32_t rs, int8_t sa) {
+    Isolate* isolate = i_isolate();
+    HandleScope scope(isolate);
 
-  uint32_t res = reinterpret_cast<uint32_t>(f.Call(rt, rs, 0, 0, 0));
+    auto fn = [sa](MacroAssembler& masm) {
+      __ CalcScaledAddress(a0, a0, a1, sa);
+    };
+    auto f = AssembleCode<FV>(isolate, fn);
 
-  return res;
-}
+    uint32_t res = reinterpret_cast<uint32_t>(f.Call(rt, rs, 0, 0, 0));
 
-template <typename VTYPE, typename Func>
-VTYPE run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
-                    VTYPE value, Func GenerateUnalignedInstructionFunc) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
+    return res;
+  }
 
-  auto fn = [in_offset, out_offset,
-             GenerateUnalignedInstructionFunc](MacroAssembler& masm) {
-    GenerateUnalignedInstructionFunc(masm, in_offset, out_offset);
-  };
-  auto f = AssembleCode<int32_t(char*)>(isolate, fn);
+  template <typename VTYPE, typename Func>
+  VTYPE run_Unaligned(char* memory_buffer, int32_t in_offset,
+                      int32_t out_offset, VTYPE value,
+                      Func GenerateUnalignedInstructionFunc) {
+    Isolate* isolate = i_isolate();
+    HandleScope scope(isolate);
 
-  MemCopy(memory_buffer + in_offset, &value, sizeof(VTYPE));
-  f.Call(memory_buffer);
-  VTYPE res;
-  MemCopy(&res, memory_buffer + out_offset, sizeof(VTYPE));
+    auto fn = [in_offset, out_offset,
+               GenerateUnalignedInstructionFunc](MacroAssembler& masm) {
+      GenerateUnalignedInstructionFunc(masm, in_offset, out_offset);
+    };
+    auto f = AssembleCode<int32_t(char*)>(isolate, fn);
 
-  return res;
-}
+    MemCopy(memory_buffer + in_offset, &value, sizeof(VTYPE));
+    f.Call(memory_buffer);
+    VTYPE res;
+    MemCopy(&res, memory_buffer + out_offset, sizeof(VTYPE));
+
+    return res;
+  }
+};
 
 static const std::vector<int32_t> unsigned_test_offset() {
   static const int32_t kValues[] = {// value, offset
@@ -108,9 +113,48 @@ static const std::vector<int32_t> unsigned_test_offset_increment() {
   return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
-TEST(LoadConstants) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerTest, TestHardAbort) {
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
+  __ set_root_array_available(false);
+  __ set_abort_hard(true);
+  __ Abort(AbortReason::kNoReason);
+
+  CodeDesc desc;
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
+  buffer->MakeExecutable();
+  // We need an isolate here to execute in the simulator.
+  auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
+  ASSERT_DEATH_IF_SUPPORTED(
+      { f.Call(); }, v8_flags.debug_code ? "abort: no reason" : "");
+}
+
+TEST_F(MacroAssemblerTest, TestCheck) {
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
+  __ set_root_array_available(false);
+  __ set_abort_hard(true);
+
+  // Fail if the first parameter (in {a0}) is 17.
+  __ Check(Condition::ne, AbortReason::kNoReason, a0, Operand(17));
+  __ Ret();
+
+  CodeDesc desc;
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
+  buffer->MakeExecutable();
+  // We need an isolate here to execute in the simulator.
+  auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
+
+  f.Call(0);
+  f.Call(18);
+  ASSERT_DEATH_IF_SUPPORTED(
+      { f.Call(17); }, v8_flags.debug_code ? "abort: no reason" : "");
+}
+
+TEST_F(MacroAssemblerTest, LoadConstants) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
   int32_t refConstants[32];
@@ -139,9 +183,8 @@ TEST(LoadConstants) {
   }
 }
 
-TEST(LoadAddress) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerTest, LoadAddress) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -176,13 +219,13 @@ TEST(LoadAddress) {
   // Check results.
 }
 
-TEST(jump_tables4) {
+TEST_F(MacroAssemblerTest, jump_tables4) {
   // Similar to test-assembler-mips jump_tables1, with extra test for branch
   // trampoline required before emission of the dd table (where trampolines are
   // blocked), and proper transition to long-branch mode.
   // Regression test for v8:4294.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -235,15 +278,15 @@ TEST(jump_tables4) {
   }
 }
 
-TEST(jump_tables6) {
+TEST_F(MacroAssemblerTest, jump_tables6) {
   // Similar to test-assembler-mips jump_tables1, with extra test for branch
   // trampoline required after emission of the dd table (where trampolines are
   // blocked). This test checks if number of really generated instructions is
   // greater than number of counted instructions from code, as we are expecting
   // generation of trampoline in this case (when number of kFillInstr
   // instructions is close to 32K)
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -322,8 +365,7 @@ TEST(jump_tables6) {
   }
 }
 
-TEST(CalcScaledAddress) {
-  CcTest::InitializeVM();
+TEST_F(MacroAssemblerTest, CalcScaledAddress) {
   struct TestCaseLsa {
     int32_t rt;
     int32_t rs;
@@ -416,8 +458,7 @@ static const std::vector<int32_t> cvt_trunc_int32_test_values() {
 #define FOR_INT32_TWO_INPUTS(var1, var2, test_vector) \
   FOR_TWO_INPUTS(int32_t, var1, var2, test_vector)
 
-TEST(Cvt_s_uw_Trunc_uw_s) {
-  CcTest::InitializeVM();
+TEST_F(MacroAssemblerTest, Cvt_s_uw_Trunc_uw_s) {
   auto fn = [](MacroAssembler& masm) {
     __ Cvt_s_uw(fa0, a0);
     __ Trunc_uw_s(a0, fa0);
@@ -430,8 +471,7 @@ TEST(Cvt_s_uw_Trunc_uw_s) {
   }
 }
 
-TEST(cvt_d_w_Trunc_w_d) {
-  CcTest::InitializeVM();
+TEST_F(MacroAssemblerTest, cvt_d_w_Trunc_w_d) {
   auto fn = [](MacroAssembler& masm) {
     __ fcvt_d_w(fa0, a0);
     __ Trunc_w_d(a0, fa0);
@@ -452,9 +492,8 @@ static const std::vector<int32_t> overflow_int32_test_values() {
   return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
-TEST(OverflowInstructions) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerTest, OverflowInstructions) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
   struct T {
@@ -548,9 +587,8 @@ TEST(OverflowInstructions) {
   }
 }
 
-TEST(min_max_nan) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerTest, min_max_nan) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct TestFloat {
@@ -626,9 +664,7 @@ TEST(min_max_nan) {
   }
 }
 
-TEST(Ulh) {
-  CcTest::InitializeVM();
-
+TEST_F(MacroAssemblerTest, Ulh) {
   static const int kBufferSize = 300 * KB;
   char memory_buffer[kBufferSize];
   char* buffer_middle = memory_buffer + (kBufferSize / 2);
@@ -679,9 +715,7 @@ TEST(Ulh) {
   }
 }
 
-TEST(Ulh_bitextension) {
-  CcTest::InitializeVM();
-
+TEST_F(MacroAssemblerTest, Ulh_bitextension) {
   static const int kBufferSize = 300 * KB;
   char memory_buffer[kBufferSize];
   char* buffer_middle = memory_buffer + (kBufferSize / 2);
@@ -730,9 +764,7 @@ TEST(Ulh_bitextension) {
   }
 }
 
-TEST(Ulw) {
-  CcTest::InitializeVM();
-
+TEST_F(MacroAssemblerTest, Ulw) {
   static const int kBufferSize = 300 * KB;
   char memory_buffer[kBufferSize];
   char* buffer_middle = memory_buffer + (kBufferSize / 2);
@@ -765,12 +797,11 @@ TEST(Ulw) {
   }
 }
 
-TEST(ULoadFloat) {
+TEST_F(MacroAssemblerTest, ULoadFloat) {
   auto fn = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
     __ ULoadFloat(fa0, MemOperand(a0, in_offset));
     __ UStoreFloat(fa0, MemOperand(a0, out_offset));
   };
-  CcTest::InitializeVM();
 
   static const int kBufferSize = 300 * KB;
   char memory_buffer[kBufferSize];
@@ -791,9 +822,7 @@ TEST(ULoadFloat) {
   }
 }
 
-TEST(ULoadDouble) {
-  CcTest::InitializeVM();
-
+TEST_F(MacroAssemblerTest, ULoadDouble) {
   static const int kBufferSize = 300 * KB;
   char memory_buffer[kBufferSize];
   char* buffer_middle = memory_buffer + (kBufferSize / 2);
@@ -818,9 +847,7 @@ TEST(ULoadDouble) {
   }
 }
 
-TEST(Sltu) {
-  CcTest::InitializeVM();
-
+TEST_F(MacroAssemblerTest, Sltu) {
   FOR_UINT32_INPUTS(i) {
     FOR_UINT32_INPUTS(j) {
       // compare against immediate value
@@ -862,10 +889,10 @@ static void GenerateMacroFloat32MinMax(MacroAssembler& masm) {
 #undef FLOAT_MIN_MAX
 }
 
-TEST(macro_float_minmax_f32) {
+TEST_F(MacroAssemblerTest, macro_float_minmax_f32) {
   // Test the Float32Min and Float32Max macros.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct Inputs {
@@ -962,10 +989,10 @@ static void GenerateMacroFloat64MinMax(MacroAssembler& masm) {
 #undef FLOAT_MIN_MAX
 }
 
-TEST(macro_float_minmax_f64) {
+TEST_F(MacroAssemblerTest, macro_float_minmax_f64) {
   // Test the Float64Min and Float64Max macros.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct Inputs {
@@ -1102,9 +1129,7 @@ static void FCompare32Helper(FPUCondition cond) {
 //   }
 // }
 
-TEST(FCompare32_Branch) {
-  CcTest::InitializeVM();
-
+TEST_F(MacroAssemblerTest, FCompare32_Branch) {
   FCompare32Helper(EQ);
   FCompare32Helper(LT);
   FCompare32Helper(LE);
@@ -1120,8 +1145,8 @@ TEST(FCompare32_Branch) {
   CHECK_EQ(true, GenAndRunTest<int32_t>(snan_f, qnan_f, fn));
 }
 
-// TEST(FCompare64_Branch) {
-//   CcTest::InitializeVM();
+// TEST_F(MacroAssemblerTest, FCompare64_Branch) {
+//
 //   FCompare64Helper(EQ);
 //   FCompare64Helper(LT);
 //   FCompare64Helper(LE);
@@ -1157,8 +1182,7 @@ static void CompareIHelper(Condition cond) {
   }
 }
 
-TEST(CompareI) {
-  CcTest::InitializeVM();
+TEST_F(MacroAssemblerTest, CompareI) {
   CompareIHelper(eq);
   CompareIHelper(ne);
 
@@ -1173,8 +1197,7 @@ TEST(CompareI) {
   CompareIHelper(Uless_equal);
 }
 
-TEST(Clz32) {
-  CcTest::InitializeVM();
+TEST_F(MacroAssemblerTest, Clz32) {
   auto fn = [](MacroAssembler& masm) { __ Clz32(a0, a0); };
   FOR_UINT32_INPUTS(i) {
     // __builtin_clzll(0) is undefined
@@ -1183,8 +1206,7 @@ TEST(Clz32) {
   }
 }
 
-TEST(Ctz32) {
-  CcTest::InitializeVM();
+TEST_F(MacroAssemblerTest, Ctz32) {
   auto fn = [](MacroAssembler& masm) { __ Ctz32(a0, a0); };
   FOR_UINT32_INPUTS(i) {
     // __builtin_clzll(0) is undefined
@@ -1205,19 +1227,12 @@ static void ByteSwapHelper() {
   CHECK_EQ((int32_t)0x89ab'cdef, GenAndRunTest<int32_t>(0xefcd'ab89, fn));
 }
 
-TEST(ByteSwap) {
-  CcTest::InitializeVM();
-  ByteSwapHelper<true>();
-}
+TEST_F(MacroAssemblerTest, ByteSwap) { ByteSwapHelper<true>(); }
 
-TEST(ByteSwap_no_scratch) {
-  CcTest::InitializeVM();
-  ByteSwapHelper<false>();
-}
+TEST_F(MacroAssemblerTest, ByteSwap_no_scratch) { ByteSwapHelper<false>(); }
 
-TEST(Popcnt) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerTest, Popcnt) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
   uint32_t in[8];
@@ -1267,8 +1282,8 @@ TEST(Popcnt) {
   }
 }
 
-// TEST(Move) {
-//   CcTest::InitializeVM();
+// TEST_F(MacroAssemblerTest, Move) {
+//
 //   union {
 //     double dval;
 //     int32_t ival[2];
@@ -1290,8 +1305,8 @@ TEST(Popcnt) {
 //   }
 // }
 
-TEST(DeoptExitSizeIsFixed) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerTest, DeoptExitSizeIsFixed) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -1316,8 +1331,7 @@ TEST(DeoptExitSizeIsFixed) {
   }
 }
 
-TEST(AddWithImm) {
-  CcTest::InitializeVM();
+TEST_F(MacroAssemblerTest, AddWithImm) {
 #define Test(Op, Input, Expected)                                       \
   {                                                                     \
     auto fn = [](MacroAssembler& masm) { __ Op(a0, zero_reg, Input); }; \

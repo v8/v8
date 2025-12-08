@@ -28,11 +28,13 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
-#include "test/cctest/assembler-helper-arm.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/assembler/assembler-helper-arm.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+
+using SyncPrimitivesArmTest = TestWithIsolate;
 
 // These tests rely on the behaviour specific to the simulator so we cannot
 // expect the same results on real hardware. The reason for this is that our
@@ -191,7 +193,7 @@ void AssembleStoreExcl(Assembler* assembler, MemoryAccess access,
 void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
                                    MemoryAccess access2, MemoryAccess access3,
                                    int expected_res, TestData expected_data) {
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
   auto f = AssembleCode<int(TestData*, int, int, int)>(
@@ -222,7 +224,7 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
 
 }  // namespace
 
-TEST(simulator_invalidate_exclusive_access) {
+TEST_F(SyncPrimitivesArmTest, simulator_invalidate_exclusive_access) {
   using Kind = MemoryAccess::Kind;
   using Size = MemoryAccess::Size;
 
@@ -275,17 +277,18 @@ int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
 
 class MemoryAccessThread : public v8::base::Thread {
  public:
-  MemoryAccessThread()
+  explicit MemoryAccessThread(v8::ArrayBuffer::Allocator* allocator)
       : Thread(Options("MemoryAccessThread")),
         test_data_(nullptr),
         is_finished_(false),
         has_request_(false),
         did_request_(false),
-        isolate_(nullptr) {}
+        isolate_(nullptr),
+        allocator_(allocator) {}
 
   virtual void Run() {
     v8::Isolate::CreateParams create_params;
-    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    create_params.array_buffer_allocator = allocator_;
     isolate_ = v8::Isolate::New(create_params);
     Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate_);
     {
@@ -338,18 +341,19 @@ class MemoryAccessThread : public v8::base::Thread {
   v8::base::ConditionVariable has_request_cv_;
   v8::base::ConditionVariable did_request_cv_;
   v8::Isolate* isolate_;
+  v8::ArrayBuffer::Allocator* allocator_;
 };
 
-TEST(simulator_invalidate_exclusive_access_threaded) {
+TEST_F(SyncPrimitivesArmTest, simulator_invalidate_exclusive_access_threaded) {
   using Kind = MemoryAccess::Kind;
   using Size = MemoryAccess::Size;
 
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   TestData test_data(1);
 
-  MemoryAccessThread thread;
+  MemoryAccessThread thread(v8_isolate()->GetArrayBufferAllocator());
   CHECK(thread.Start());
 
   MemoryAccess ldrex_w(Kind::LoadExcl, Size::Word, offsetof(TestData, w));

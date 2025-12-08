@@ -34,21 +34,32 @@
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/utils/ostreams.h"
-#include "test/cctest/assembler-helper-arm.h"
-#include "test/cctest/cctest.h"
 #include "test/common/value-helper.h"
+#include "test/unittests/assembler/assembler-helper-arm.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+
 namespace test_assembler_arm {
 
 using base::RandomNumberGenerator;
 
+enum VCVTTypes { s32_f64, u32_f64 };
+
+class AssemblerArmTest : public i::TestWithIsolate {
+ public:
+  void TestRoundingMode(VCVTTypes types, VFPRoundingMode mode, double value,
+                        int expected, bool expected_exception = false);
+
+  template <typename T, typename Inputs, typename Results>
+  GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(MacroAssembler* assm_ptr);
+};
+
 #define __ assm.
 
-TEST(0) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, 0) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -70,10 +81,8 @@ TEST(0) {
   CHECK_EQ(7, res);
 }
 
-
-TEST(1) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, 1) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -106,10 +115,8 @@ TEST(1) {
   CHECK_EQ(5050, res);
 }
 
-
-TEST(2) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, 2) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -151,10 +158,8 @@ TEST(2) {
   CHECK_EQ(3628800, res);
 }
 
-
-TEST(3) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, 3) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -198,16 +203,14 @@ TEST(3) {
   int res = reinterpret_cast<int>(f.Call(&t, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(101010, res);
-  CHECK_EQ(100000/2, t.i);
-  CHECK_EQ(10*4, t.c);
-  CHECK_EQ(1000/8, t.s);
+  CHECK_EQ(100000 / 2, t.i);
+  CHECK_EQ(10 * 4, t.c);
+  CHECK_EQ(1000 / 8, t.s);
 }
 
-
-TEST(4) {
+TEST_F(AssemblerArmTest, 4) {
   // Test the VFP floating point instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -356,11 +359,9 @@ TEST(4) {
   }
 }
 
-
-TEST(5) {
+TEST_F(AssemblerArmTest, 5) {
   // Test the ARMv7 bitfield instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -372,7 +373,7 @@ TEST(5) {
     __ sbfx(r0, r0, 0, 5);   // 0b11..111111110101 = -11
     __ bfc(r0, 1, 3);        // 0b11..111111110001 = -15
     __ mov(r1, Operand(7));
-    __ bfi(r0, r1, 3, 3);    // 0b11..111111111001 = -7
+    __ bfi(r0, r1, 3, 3);  // 0b11..111111111001 = -7
     __ mov(pc, Operand(lr));
 
     CodeDesc desc;
@@ -390,11 +391,9 @@ TEST(5) {
   }
 }
 
-
-TEST(6) {
+TEST_F(AssemblerArmTest, 6) {
   // Test saturating instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -420,18 +419,10 @@ TEST(6) {
   CHECK_EQ(382, res);
 }
 
-
-enum VCVTTypes {
-  s32_f64,
-  u32_f64
-};
-
-static void TestRoundingMode(VCVTTypes types,
-                             VFPRoundingMode mode,
-                             double value,
-                             int expected,
-                             bool expected_exception = false) {
-  Isolate* isolate = CcTest::i_isolate();
+void AssemblerArmTest::TestRoundingMode(VCVTTypes types, VFPRoundingMode mode,
+                                        double value, int expected,
+                                        bool expected_exception) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -487,21 +478,19 @@ static void TestRoundingMode(VCVTTypes types,
   CHECK_EQ(expected, res);
 }
 
-
-TEST(7) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerArmTest, 7) {
   // Test vfp rounding modes.
 
   // s32_f64 (double to integer).
 
-  TestRoundingMode(s32_f64, RN,  0, 0);
-  TestRoundingMode(s32_f64, RN,  0.5, 0);
+  TestRoundingMode(s32_f64, RN, 0, 0);
+  TestRoundingMode(s32_f64, RN, 0.5, 0);
   TestRoundingMode(s32_f64, RN, -0.5, 0);
-  TestRoundingMode(s32_f64, RN,  1.5, 2);
+  TestRoundingMode(s32_f64, RN, 1.5, 2);
   TestRoundingMode(s32_f64, RN, -1.5, -2);
-  TestRoundingMode(s32_f64, RN,  123.7, 124);
+  TestRoundingMode(s32_f64, RN, 123.7, 124);
   TestRoundingMode(s32_f64, RN, -123.7, -124);
-  TestRoundingMode(s32_f64, RN,  123456.2,  123456);
+  TestRoundingMode(s32_f64, RN, 123456.2, 123456);
   TestRoundingMode(s32_f64, RN, -123456.2, -123456);
   TestRoundingMode(s32_f64, RN, static_cast<double>(kMaxInt), kMaxInt);
   TestRoundingMode(s32_f64, RN, (kMaxInt + 0.49), kMaxInt);
@@ -512,12 +501,12 @@ TEST(7) {
   TestRoundingMode(s32_f64, RN, (kMinInt - 1.0), kMinInt, true);
   TestRoundingMode(s32_f64, RN, (kMinInt - 0.51), kMinInt, true);
 
-  TestRoundingMode(s32_f64, RM,  0, 0);
-  TestRoundingMode(s32_f64, RM,  0.5, 0);
+  TestRoundingMode(s32_f64, RM, 0, 0);
+  TestRoundingMode(s32_f64, RM, 0.5, 0);
   TestRoundingMode(s32_f64, RM, -0.5, -1);
-  TestRoundingMode(s32_f64, RM,  123.7, 123);
+  TestRoundingMode(s32_f64, RM, 123.7, 123);
   TestRoundingMode(s32_f64, RM, -123.7, -124);
-  TestRoundingMode(s32_f64, RM,  123456.2,  123456);
+  TestRoundingMode(s32_f64, RM, 123456.2, 123456);
   TestRoundingMode(s32_f64, RM, -123456.2, -123457);
   TestRoundingMode(s32_f64, RM, static_cast<double>(kMaxInt), kMaxInt);
   TestRoundingMode(s32_f64, RM, (kMaxInt + 0.5), kMaxInt);
@@ -526,12 +515,12 @@ TEST(7) {
   TestRoundingMode(s32_f64, RM, (kMinInt - 0.5), kMinInt, true);
   TestRoundingMode(s32_f64, RM, (kMinInt + 0.5), kMinInt);
 
-  TestRoundingMode(s32_f64, RZ,  0, 0);
-  TestRoundingMode(s32_f64, RZ,  0.5, 0);
+  TestRoundingMode(s32_f64, RZ, 0, 0);
+  TestRoundingMode(s32_f64, RZ, 0.5, 0);
   TestRoundingMode(s32_f64, RZ, -0.5, 0);
-  TestRoundingMode(s32_f64, RZ,  123.7,  123);
+  TestRoundingMode(s32_f64, RZ, 123.7, 123);
   TestRoundingMode(s32_f64, RZ, -123.7, -123);
-  TestRoundingMode(s32_f64, RZ,  123456.2,  123456);
+  TestRoundingMode(s32_f64, RZ, 123456.2, 123456);
   TestRoundingMode(s32_f64, RZ, -123456.2, -123456);
   TestRoundingMode(s32_f64, RZ, static_cast<double>(kMaxInt), kMaxInt);
   TestRoundingMode(s32_f64, RZ, (kMaxInt + 0.5), kMaxInt);
@@ -539,7 +528,6 @@ TEST(7) {
   TestRoundingMode(s32_f64, RZ, static_cast<double>(kMinInt), kMinInt);
   TestRoundingMode(s32_f64, RZ, (kMinInt - 0.5), kMinInt);
   TestRoundingMode(s32_f64, RZ, (kMinInt - 1.0), kMinInt, true);
-
 
   // u32_f64 (double to integer).
 
@@ -562,47 +550,45 @@ TEST(7) {
   // Positive values.
   // kMaxInt is the maximum *signed* integer: 0x7FFFFFFF.
   static const uint32_t kMaxUInt = 0xFFFFFFFFu;
-  TestRoundingMode(u32_f64, RZ,  0, 0);
-  TestRoundingMode(u32_f64, RZ,  0.5, 0);
-  TestRoundingMode(u32_f64, RZ,  123.7,  123);
-  TestRoundingMode(u32_f64, RZ,  123456.2,  123456);
+  TestRoundingMode(u32_f64, RZ, 0, 0);
+  TestRoundingMode(u32_f64, RZ, 0.5, 0);
+  TestRoundingMode(u32_f64, RZ, 123.7, 123);
+  TestRoundingMode(u32_f64, RZ, 123456.2, 123456);
   TestRoundingMode(u32_f64, RZ, static_cast<double>(kMaxInt), kMaxInt);
   TestRoundingMode(u32_f64, RZ, (kMaxInt + 0.5), kMaxInt);
   TestRoundingMode(u32_f64, RZ, (kMaxInt + 1.0),
-                                static_cast<uint32_t>(kMaxInt) + 1);
+                   static_cast<uint32_t>(kMaxInt) + 1);
   TestRoundingMode(u32_f64, RZ, (kMaxUInt + 0.5), kMaxUInt);
   TestRoundingMode(u32_f64, RZ, (kMaxUInt + 1.0), kMaxUInt, true);
 
-  TestRoundingMode(u32_f64, RM,  0, 0);
-  TestRoundingMode(u32_f64, RM,  0.5, 0);
-  TestRoundingMode(u32_f64, RM,  123.7, 123);
-  TestRoundingMode(u32_f64, RM,  123456.2,  123456);
+  TestRoundingMode(u32_f64, RM, 0, 0);
+  TestRoundingMode(u32_f64, RM, 0.5, 0);
+  TestRoundingMode(u32_f64, RM, 123.7, 123);
+  TestRoundingMode(u32_f64, RM, 123456.2, 123456);
   TestRoundingMode(u32_f64, RM, static_cast<double>(kMaxInt), kMaxInt);
   TestRoundingMode(u32_f64, RM, (kMaxInt + 0.5), kMaxInt);
   TestRoundingMode(u32_f64, RM, (kMaxInt + 1.0),
-                                static_cast<uint32_t>(kMaxInt) + 1);
+                   static_cast<uint32_t>(kMaxInt) + 1);
   TestRoundingMode(u32_f64, RM, (kMaxUInt + 0.5), kMaxUInt);
   TestRoundingMode(u32_f64, RM, (kMaxUInt + 1.0), kMaxUInt, true);
 
-  TestRoundingMode(u32_f64, RN,  0, 0);
-  TestRoundingMode(u32_f64, RN,  0.5, 0);
-  TestRoundingMode(u32_f64, RN,  1.5, 2);
-  TestRoundingMode(u32_f64, RN,  123.7, 124);
-  TestRoundingMode(u32_f64, RN,  123456.2,  123456);
+  TestRoundingMode(u32_f64, RN, 0, 0);
+  TestRoundingMode(u32_f64, RN, 0.5, 0);
+  TestRoundingMode(u32_f64, RN, 1.5, 2);
+  TestRoundingMode(u32_f64, RN, 123.7, 124);
+  TestRoundingMode(u32_f64, RN, 123456.2, 123456);
   TestRoundingMode(u32_f64, RN, static_cast<double>(kMaxInt), kMaxInt);
   TestRoundingMode(u32_f64, RN, (kMaxInt + 0.49), kMaxInt);
   TestRoundingMode(u32_f64, RN, (kMaxInt + 0.5),
-                                static_cast<uint32_t>(kMaxInt) + 1);
+                   static_cast<uint32_t>(kMaxInt) + 1);
   TestRoundingMode(u32_f64, RN, (kMaxUInt + 0.49), kMaxUInt);
   TestRoundingMode(u32_f64, RN, (kMaxUInt + 0.5), kMaxUInt, true);
   TestRoundingMode(u32_f64, RN, (kMaxUInt + 1.0), kMaxUInt, true);
 }
 
-
-TEST(8) {
+TEST_F(AssemblerArmTest, 8) {
   // Test VFP multi load/store with ia_w.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct D {
@@ -703,11 +689,9 @@ TEST(8) {
   CHECK_EQ(6.0f, f.h);
 }
 
-
-TEST(9) {
+TEST_F(AssemblerArmTest, 9) {
   // Test VFP multi load/store with ia.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct D {
@@ -812,11 +796,9 @@ TEST(9) {
   CHECK_EQ(6.0f, f.h);
 }
 
-
-TEST(10) {
+TEST_F(AssemblerArmTest, 10) {
   // Test VFP multi load/store with db_w.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct D {
@@ -917,11 +899,9 @@ TEST(10) {
   CHECK_EQ(6.0f, f.h);
 }
 
-
-TEST(11) {
+TEST_F(AssemblerArmTest, 11) {
   // Test instructions using the carry flag.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct I {
@@ -980,11 +960,9 @@ TEST(11) {
   CHECK_EQ(static_cast<int32_t>(0xFFFFFFFF), i.d);
 }
 
-
-TEST(12) {
+TEST_F(AssemblerArmTest, 12) {
   // Test chaining of label usages within instructions (issue 1644).
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -995,11 +973,9 @@ TEST(12) {
   __ nop();
 }
 
-
-TEST(13) {
+TEST_F(AssemblerArmTest, 13) {
   // Test VFP instructions using registers d16-d31.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   if (!CpuFeatures::IsSupported(VFP32DREGS)) {
@@ -1118,11 +1094,9 @@ TEST(13) {
   }
 }
 
-
-TEST(14) {
+TEST_F(AssemblerArmTest, 14) {
   // Test the VFP Canonicalized Nan mode.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -1230,10 +1204,9 @@ TEST(14) {
 #define UINT32_TO_FLOAT(val) \
   std::round(static_cast<float>(base::bit_cast<uint32_t>(val)))
 
-TEST(15) {
+TEST_F(AssemblerArmTest, 15) {
   // Test the Neon instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -2274,10 +2247,10 @@ TEST(15) {
     CHECK_EQ_SPLAT(vmaxf, 2.0);
     CHECK_EQ_SPLAT(vsubf, -1.0);
     CHECK_EQ_SPLAT(vmulf, 4.0);
-    CHECK_ESTIMATE_SPLAT(vrecpe, 0.5f, 0.1f);  // 1 / 2
-    CHECK_EQ_SPLAT(vrecps, -1.0f);   // 2 - (2 * 1.5)
+    CHECK_ESTIMATE_SPLAT(vrecpe, 0.5f, 0.1f);   // 1 / 2
+    CHECK_EQ_SPLAT(vrecps, -1.0f);              // 2 - (2 * 1.5)
     CHECK_ESTIMATE_SPLAT(vrsqrte, 0.5f, 0.1f);  // 1 / sqrt(4)
-    CHECK_EQ_SPLAT(vrsqrts, -1.0f);  // (3 - (2 * 2.5)) / 2
+    CHECK_EQ_SPLAT(vrsqrts, -1.0f);             // (3 - (2 * 2.5)) / 2
     CHECK_EQ_SPLAT(vceqf, 0xFFFFFFFFu);
     // [0] >= [-1, 1, -0, 0]
     CHECK_EQ_32X4(vcgef, 0u, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu);
@@ -2422,10 +2395,9 @@ TEST(15) {
   }
 }
 
-TEST(16) {
+TEST_F(AssemblerArmTest, 16) {
   // Test the pkh, uxtb, uxtab and uxtb16 instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -2493,17 +2465,15 @@ TEST(16) {
   CHECK_EQ(0x11121313u, t.dst4);
 }
 
-
-TEST(17) {
+TEST_F(AssemblerArmTest, 17) {
   // Test generating labels at high addresses.
   // Should not assert.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   // Generate a code segment that will be longer than 2^24 bytes.
   Assembler assm(AssemblerOptions{});
-  for (size_t i = 0; i < 1 << 23 ; ++i) {  // 2^23
+  for (size_t i = 0; i < 1 << 23; ++i) {  // 2^23
     __ nop();
   }
 
@@ -2520,10 +2490,9 @@ TEST(17) {
   f.Call(&t, 0, 0, 0, 0);                         \
   CHECK_EQ(expected_, t.result);
 
-TEST(sdiv) {
+TEST_F(AssemblerArmTest, sdiv) {
   // Test the sdiv.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -2544,7 +2513,7 @@ TEST(sdiv) {
     __ sdiv(r2, r0, r1);
     __ str(r2, MemOperand(r3, offsetof(T, result)));
 
-  __ bx(lr);
+    __ bx(lr);
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -2570,7 +2539,6 @@ TEST(sdiv) {
   }
 }
 
-
 #undef TEST_SDIV
 
 #define TEST_UDIV(expected_, dividend_, divisor_) \
@@ -2580,10 +2548,9 @@ TEST(sdiv) {
   f.Call(&t, 0, 0, 0, 0);                         \
   CHECK_EQ(expected_, t.result);
 
-TEST(udiv) {
+TEST_F(AssemblerArmTest, udiv) {
   // Test the udiv.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -2622,13 +2589,10 @@ TEST(udiv) {
   }
 }
 
-
 #undef TEST_UDIV
 
-
-TEST(smmla) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, smmla) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2650,10 +2614,8 @@ TEST(smmla) {
   }
 }
 
-
-TEST(smmul) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, smmul) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2675,10 +2637,8 @@ TEST(smmul) {
   }
 }
 
-
-TEST(sxtb) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, sxtb) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2700,10 +2660,8 @@ TEST(sxtb) {
   }
 }
 
-
-TEST(sxtab) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, sxtab) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2725,10 +2683,8 @@ TEST(sxtab) {
   }
 }
 
-
-TEST(sxth) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, sxth) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2750,10 +2706,8 @@ TEST(sxth) {
   }
 }
 
-
-TEST(sxtah) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, sxtah) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2775,10 +2729,8 @@ TEST(sxtah) {
   }
 }
 
-
-TEST(uxtb) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, uxtb) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2800,10 +2752,8 @@ TEST(uxtb) {
   }
 }
 
-
-TEST(uxtab) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, uxtab) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2825,10 +2775,8 @@ TEST(uxtab) {
   }
 }
 
-
-TEST(uxth) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, uxth) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2850,10 +2798,8 @@ TEST(uxth) {
   }
 }
 
-
-TEST(uxtah) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, uxtah) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   RandomNumberGenerator* const rng = isolate->random_number_generator();
   Assembler assm(AssemblerOptions{});
@@ -2881,9 +2827,8 @@ TEST(uxtah) {
   f.Call(&t, 0, 0, 0, 0);            \
   CHECK_EQ(static_cast<uint32_t>(expected_), t.result);
 
-TEST(rbit) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, rbit) {
+  Isolate* const isolate = i_isolate();
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -2920,12 +2865,10 @@ TEST(rbit) {
   }
 }
 
-
-TEST(code_relative_offset) {
+TEST_F(AssemblerArmTest, code_relative_offset) {
   // Test extracting the offset of a label from the beginning of the code
   // in a register.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   // Initialize a code object that will contain the code.
   Handle<HeapObject> code_object(ReadOnlyRoots(isolate).self_reference_marker(),
@@ -2993,10 +2936,9 @@ TEST(code_relative_offset) {
   CHECK_EQ(42, res);
 }
 
-TEST(msr_mrs) {
+TEST_F(AssemblerArmTest, msr_mrs) {
   // Test msr and mrs.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -3063,10 +3005,9 @@ TEST(msr_mrs) {
 #undef CHECK_MSR_MRS
 }
 
-TEST(ARMv8_float32_vrintX) {
+TEST_F(AssemblerArmTest, ARMv8_float32_vrintX) {
   // Test the vrintX floating point instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -3082,7 +3023,6 @@ TEST(ARMv8_float32_vrintX) {
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the floats.
   Assembler assm(AssemblerOptions{});
-
 
   if (CpuFeatures::IsSupported(ARMv8)) {
     CpuFeatureScope scope(&assm, ARMv8);
@@ -3163,11 +3103,9 @@ TEST(ARMv8_float32_vrintX) {
   }
 }
 
-
-TEST(ARMv8_vrintX) {
+TEST_F(AssemblerArmTest, ARMv8_vrintX) {
   // Test the vrintX floating point instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -3183,7 +3121,6 @@ TEST(ARMv8_vrintX) {
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
   Assembler assm(AssemblerOptions{});
-
 
   if (CpuFeatures::IsSupported(ARMv8)) {
     CpuFeatureScope scope(&assm, ARMv8);
@@ -3264,10 +3201,9 @@ TEST(ARMv8_vrintX) {
   }
 }
 
-TEST(ARMv8_vsel) {
+TEST_F(AssemblerArmTest, ARMv8_vsel) {
   // Test the vsel floating point instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -3414,10 +3350,9 @@ TEST(ARMv8_vsel) {
   }
 }
 
-TEST(ARMv8_vminmax_f64) {
+TEST_F(AssemblerArmTest, ARMv8_vminmax_f64) {
   // Test the vminnm and vmaxnm floating point instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -3496,10 +3431,9 @@ TEST(ARMv8_vminmax_f64) {
   }
 }
 
-TEST(ARMv8_vminmax_f32) {
+TEST_F(AssemblerArmTest, ARMv8_vminmax_f32) {
   // Test the vminnm and vmaxnm floating point instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -3579,7 +3513,7 @@ TEST(ARMv8_vminmax_f32) {
 }
 
 template <typename T, typename Inputs, typename Results>
-static GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(
+GeneratedCode<F_ppiii> AssemblerArmTest::GenerateMacroFloatMinMax(
     MacroAssembler* assm_ptr) {
   MacroAssembler& assm = *assm_ptr;
 
@@ -3676,10 +3610,9 @@ static GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(
   return GeneratedCode<F_ppiii>::FromCode(assm.isolate(), *code);
 }
 
-TEST(macro_float_minmax_f64) {
+TEST_F(AssemblerArmTest, macro_float_minmax_f64) {
   // Test the FloatMin and FloatMax macros.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, CodeObjectRequired::kYes);
@@ -3747,10 +3680,9 @@ TEST(macro_float_minmax_f64) {
 #undef CHECK_MINMAX
 }
 
-TEST(macro_float_minmax_f32) {
+TEST_F(AssemblerArmTest, macro_float_minmax_f32) {
   // Test the FloatMin and FloatMax macros.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, CodeObjectRequired::kYes);
@@ -3818,10 +3750,9 @@ TEST(macro_float_minmax_f32) {
 #undef CHECK_MINMAX
 }
 
-TEST(unaligned_loads) {
+TEST_F(AssemblerArmTest, unaligned_loads) {
   // All supported ARM targets allow unaligned accesses.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -3872,10 +3803,9 @@ TEST(unaligned_loads) {
   CHECK_EQ(0x83828180u, t.ldr);
 }
 
-TEST(unaligned_stores) {
+TEST_F(AssemblerArmTest, unaligned_stores) {
   // All supported ARM targets allow unaligned accesses.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -3926,11 +3856,10 @@ TEST(unaligned_stores) {
   }
 }
 
-TEST(vswp) {
+TEST_F(AssemblerArmTest, vswp) {
   if (!CpuFeatures::IsSupported(NEON)) return;
 
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -4009,9 +3938,8 @@ TEST(vswp) {
   CHECK_EQ(t.vswp_q5[3], test_1);
 }
 
-TEST(regress4292_b) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, regress4292_b) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -4023,10 +3951,8 @@ TEST(regress4292_b) {
   __ bind(&end);
 }
 
-
-TEST(regress4292_bl) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, regress4292_bl) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -4038,10 +3964,8 @@ TEST(regress4292_bl) {
   __ bind(&end);
 }
 
-
-TEST(regress4292_blx) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, regress4292_blx) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -4053,10 +3977,8 @@ TEST(regress4292_blx) {
   __ bind(&end);
 }
 
-
-TEST(regress4292_CheckConstPool) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, regress4292_CheckConstPool) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -4066,9 +3988,8 @@ TEST(regress4292_CheckConstPool) {
   __ vldr(d0, MemOperand(r0, 0));
 }
 
-TEST(use_scratch_register_scope) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, use_scratch_register_scope) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -4088,9 +4009,8 @@ TEST(use_scratch_register_scope) {
   CHECK_EQ(*assm.GetScratchRegisterList(), RegList{ip});
 }
 
-TEST(use_scratch_vfp_register_scope) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, use_scratch_vfp_register_scope) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -4183,9 +4103,8 @@ TEST(use_scratch_vfp_register_scope) {
   CHECK_EQ(*assm.GetScratchVfpRegisterList(), orig_scratches);
 }
 
-TEST(split_add_immediate) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, split_add_immediate) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   {
@@ -4275,8 +4194,8 @@ std::vector<Float64> Float64Inputs() {
 
 }  // namespace
 
-TEST(vabs_32) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, vabs_32) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   auto f = AssembleCode<F_iiiii>(isolate, [](Assembler& assm) {
@@ -4293,8 +4212,8 @@ TEST(vabs_32) {
   }
 }
 
-TEST(vabs_64) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, vabs_64) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   auto f = AssembleCode<F_iiiii>(isolate, [](Assembler& assm) {
@@ -4313,8 +4232,8 @@ TEST(vabs_64) {
   }
 }
 
-TEST(vneg_32) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, vneg_32) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   auto f = AssembleCode<F_iiiii>(isolate, [](Assembler& assm) {
@@ -4331,8 +4250,8 @@ TEST(vneg_32) {
   }
 }
 
-TEST(vneg_64) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, vneg_64) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   auto f = AssembleCode<F_iiiii>(isolate, [](Assembler& assm) {
@@ -4351,8 +4270,8 @@ TEST(vneg_64) {
   }
 }
 
-TEST(move_pair) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerArmTest, move_pair) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   auto f = AssembleCode<F_piiii>(isolate, [](MacroAssembler& assm) {
@@ -4423,7 +4342,6 @@ TEST(move_pair) {
   CHECK_EQ(0xbabababa, r[0]);
   CHECK_EQ(0xabababab, r[1]);
 }
-
 
 #undef __
 

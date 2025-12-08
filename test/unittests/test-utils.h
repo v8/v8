@@ -250,6 +250,10 @@ class WithIsolateScopeMixin : public TMixin {
     return v8::String::NewFromUtf8(this->v8_isolate(), string).ToLocalChecked();
   }
 
+  v8::Local<v8::Number> NewNumber(double value) {
+    return v8::Number::New(this->v8_isolate(), value);
+  }
+
   void EmptyMessageQueues() {
     while (v8::platform::PumpMessageLoop(internal::V8::GetCurrentPlatform(),
                                          this->v8_isolate())) {

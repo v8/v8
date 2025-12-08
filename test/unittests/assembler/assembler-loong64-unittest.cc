@@ -34,10 +34,30 @@
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+
+class AssemblerLoong64Test : public TestWithIsolate {
+ public:
+  uint64_t run_beq(int64_t value1, int64_t value2, int16_t offset);
+  uint64_t run_bne(int64_t value1, int64_t value2, int16_t offset);
+  uint64_t run_blt(int64_t value1, int64_t value2, int16_t offset);
+  uint64_t run_bge(uint64_t value1, uint64_t value2, int16_t offset);
+  uint64_t run_bltu(int64_t value1, int64_t value2, int16_t offset);
+  uint64_t run_bgeu(int64_t value1, int64_t value2, int16_t offset);
+  uint64_t run_beqz(int64_t value, int32_t offset);
+  uint64_t run_bnez_b(int64_t value, int32_t offset);
+  uint64_t run_bl(int32_t offset);
+  uint64_t run_jirl(int16_t offset);
+  uint64_t run_bceqz(int fcc_value, int32_t offset);
+  uint64_t run_bcnez(int fcc_value, int32_t offset);
+  uint64_t run_li_macro(int64_t imm, LiFlags mode, int32_t num_instr = 0);
+
+  template <typename T, typename F>
+  void helper_fmadd_fmsub_fnmadd_fnmsub(F func);
+};
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 // TODO(LOONG64): Refine these signatures per test case.
@@ -49,9 +69,8 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 // v0->a2, v1->a3
-TEST(LA0) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, LA0) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -71,9 +90,8 @@ TEST(LA0) {
   CHECK_EQ(0xABCL, res);
 }
 
-TEST(LA1) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, LA1) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -105,9 +123,8 @@ TEST(LA1) {
   CHECK_EQ(1275L, res);
 }
 
-TEST(LA2) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, LA2) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -152,10 +169,9 @@ TEST(LA2) {
   CHECK_EQ(0x31415926L, res);
 }
 
-TEST(LA3) {
+TEST_F(AssemblerLoong64Test, LA3) {
   // Test 32bit calculate instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -281,10 +297,9 @@ TEST(LA3) {
   CHECK_EQ(0x31415926L, res);
 }
 
-TEST(LA4) {
+TEST_F(AssemblerLoong64Test, LA4) {
   // Test 64bit calculate instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -304,15 +319,15 @@ TEST(LA4) {
   __ sub_d(a2, a2, a4);
   __ Branch(&error, ne, a2, Operand(0x1012131415161718));
   __ ori(a3, zero_reg, 0);
-  __ add_d(a3, a6, a7);  //溢出
+  __ add_d(a3, a6, a7);  // 溢出
   __ Branch(&error, ne, a3, Operand(0xd1f4b764a26e7411));
-  __ sub_d(a3, t3, a4);  //溢出
+  __ sub_d(a3, t3, a4);  // 溢出
   __ Branch(&error, ne, a3, Operand(0x7ffffffffffe8cee));
 
   __ ori(a2, zero_reg, 0);
-  __ addi_d(a2, a5, 0x412);  //正值
+  __ addi_d(a2, a5, 0x412);  // 正值
   __ Branch(&error, ne, a2, Operand(0x1012131415161b2a));
-  __ addi_d(a2, a7, 0x547);  //负值
+  __ addi_d(a2, a7, 0x547);  // 负值
   __ Branch(&error, ne, a2, Operand(0x8000000000000546));
 
   __ ori(t4, zero_reg, 0);
@@ -401,9 +416,8 @@ TEST(LA4) {
   CHECK_EQ(0x31415926L, res);
 }
 
-TEST(LA5) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, LA5) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -516,10 +530,9 @@ TEST(LA5) {
   CHECK_EQ(0x31415926L, res);
 }
 
-TEST(LA6) {
+TEST_F(AssemblerLoong64Test, LA6) {
   // Test loads and stores instruction.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -635,9 +648,8 @@ TEST(LA6) {
   CHECK_EQ(static_cast<int64_t>(0x1122334411111111), t.result_st_w);
 }
 
-TEST(LA7) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, LA7) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -768,9 +780,8 @@ TEST(LA7) {
   CHECK_EQ(static_cast<int64_t>(0x1122334411111111), t.result_stx_w);
 }
 
-TEST(LDPTR_STPTR) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, LDPTR_STPTR) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -808,10 +819,9 @@ TEST(LDPTR_STPTR) {
   CHECK_EQ(static_cast<int64_t>(0x1122334411111111), test[6]);
 }
 
-TEST(LA8) {
+TEST_F(AssemblerLoong64Test, LA8) {
   // Test 32bit shift instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -1005,10 +1015,9 @@ TEST(LA8) {
   CHECK_EQ(static_cast<int32_t>(0x2468ACF0), t.result_rotri_w_31);
 }
 
-TEST(LA9) {
+TEST_F(AssemblerLoong64Test, LA9) {
   // Test 64bit shift instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -1203,10 +1212,9 @@ TEST(LA9) {
   CHECK_EQ(static_cast<int64_t>(0xa3e96ec944dce824), t.result_rotri_d_63);
 }
 
-TEST(LA10) {
+TEST_F(AssemblerLoong64Test, LA10) {
   // Test 32bit bit operation instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -1357,10 +1365,9 @@ TEST(LA10) {
   CHECK_EQ(static_cast<int32_t>(0x11dc4), t.result_bstrpick_w_si2);
 }
 
-TEST(LA11) {
+TEST_F(AssemblerLoong64Test, LA11) {
   // Test 64bit bit operation instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -1552,8 +1559,9 @@ TEST(LA11) {
   CHECK_EQ(static_cast<int64_t>(0xFB8017FF781A15C3), t.result_masknez_si2);
 }
 
-uint64_t run_beq(int64_t value1, int64_t value2, int16_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_beq(int64_t value1, int64_t value2,
+                                       int16_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -1599,8 +1607,7 @@ uint64_t run_beq(int64_t value1, int64_t value2, int16_t offset) {
   return res;
 }
 
-TEST(BEQ) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BEQ) {
   struct TestCaseBeq {
     int64_t value1;
     int64_t value2;
@@ -1626,8 +1633,9 @@ TEST(BEQ) {
   }
 }
 
-uint64_t run_bne(int64_t value1, int64_t value2, int16_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_bne(int64_t value1, int64_t value2,
+                                       int16_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -1673,8 +1681,7 @@ uint64_t run_bne(int64_t value1, int64_t value2, int16_t offset) {
   return res;
 }
 
-TEST(BNE) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BNE) {
   struct TestCaseBne {
     int64_t value1;
     int64_t value2;
@@ -1700,8 +1707,9 @@ TEST(BNE) {
   }
 }
 
-uint64_t run_blt(int64_t value1, int64_t value2, int16_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_blt(int64_t value1, int64_t value2,
+                                       int16_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -1747,8 +1755,7 @@ uint64_t run_blt(int64_t value1, int64_t value2, int16_t offset) {
   return res;
 }
 
-TEST(BLT) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BLT) {
   struct TestCaseBlt {
     int64_t value1;
     int64_t value2;
@@ -1775,8 +1782,9 @@ TEST(BLT) {
   }
 }
 
-uint64_t run_bge(uint64_t value1, uint64_t value2, int16_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_bge(uint64_t value1, uint64_t value2,
+                                       int16_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -1822,8 +1830,7 @@ uint64_t run_bge(uint64_t value1, uint64_t value2, int16_t offset) {
   return res;
 }
 
-TEST(BGE) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BGE) {
   struct TestCaseBge {
     int64_t value1;
     int64_t value2;
@@ -1849,8 +1856,9 @@ TEST(BGE) {
   }
 }
 
-uint64_t run_bltu(int64_t value1, int64_t value2, int16_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_bltu(int64_t value1, int64_t value2,
+                                        int16_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -1896,8 +1904,7 @@ uint64_t run_bltu(int64_t value1, int64_t value2, int16_t offset) {
   return res;
 }
 
-TEST(BLTU) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BLTU) {
   struct TestCaseBltu {
     int64_t value1;
     int64_t value2;
@@ -1923,8 +1930,9 @@ TEST(BLTU) {
   }
 }
 
-uint64_t run_bgeu(int64_t value1, int64_t value2, int16_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_bgeu(int64_t value1, int64_t value2,
+                                        int16_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -1970,8 +1978,7 @@ uint64_t run_bgeu(int64_t value1, int64_t value2, int16_t offset) {
   return res;
 }
 
-TEST(BGEU) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BGEU) {
   struct TestCaseBgeu {
     int64_t value1;
     int64_t value2;
@@ -1997,8 +2004,8 @@ TEST(BGEU) {
   }
 }
 
-uint64_t run_beqz(int64_t value, int32_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_beqz(int64_t value, int32_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -2044,8 +2051,7 @@ uint64_t run_beqz(int64_t value, int32_t offset) {
   return res;
 }
 
-TEST(BEQZ) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BEQZ) {
   struct TestCaseBeqz {
     int64_t value;
     int32_t offset;
@@ -2070,9 +2076,9 @@ TEST(BEQZ) {
   }
 }
 
-uint64_t run_bnez_b(int64_t value, int32_t offset) {
+uint64_t AssemblerLoong64Test::run_bnez_b(int64_t value, int32_t offset) {
   // bnez, b.
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -2118,8 +2124,7 @@ uint64_t run_bnez_b(int64_t value, int32_t offset) {
   return res;
 }
 
-TEST(BNEZ_B) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BNEZ_B) {
   struct TestCaseBnez {
     int64_t value;
     int32_t offset;
@@ -2144,8 +2149,8 @@ TEST(BNEZ_B) {
   }
 }
 
-uint64_t run_bl(int32_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_bl(int32_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -2193,8 +2198,7 @@ uint64_t run_bl(int32_t offset) {
   return res;
 }
 
-TEST(BL) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BL) {
   struct TestCaseBl {
     int32_t offset;
     uint64_t expected_res;
@@ -2217,9 +2221,8 @@ TEST(BL) {
   }
 }
 
-TEST(PCADD) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, PCADD) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -2332,8 +2335,8 @@ TEST(PCADD) {
   CHECK_EQ(0x31415926L, res);
 }
 
-uint64_t run_jirl(int16_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_jirl(int16_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -2382,8 +2385,7 @@ uint64_t run_jirl(int16_t offset) {
   return res;
 }
 
-TEST(JIRL) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, JIRL) {
   struct TestCaseJirl {
     int16_t offset;
     uint64_t expected_res;
@@ -2406,10 +2408,9 @@ TEST(JIRL) {
   }
 }
 
-TEST(LA12) {
+TEST_F(AssemblerLoong64Test, LA12) {
   // Test floating point calculate instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -2522,9 +2523,8 @@ TEST(LA12) {
   // CHECK_EQ(static_cast<double>(), t.result_fclass_d);
 }
 
-TEST(LA13) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, LA13) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -2633,9 +2633,8 @@ TEST(LA13) {
   // CHECK_EQ(static_cast<float>(), t.result_fclass_s);
 }
 
-TEST(FCMP_COND) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FCMP_COND) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3028,9 +3027,8 @@ TEST(FCMP_COND) {
     CHECK_EQ(test.fSune, test.fTrue);*/
 }
 
-TEST(FCVT) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FCVT) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3094,9 +3092,8 @@ TEST(FCVT) {
   CHECK_EQ(test.fcvt_s_d_out, static_cast<float>(test.fcvt_s_d_in));
 }
 
-TEST(FFINT) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FFINT) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3180,9 +3177,8 @@ TEST(FFINT) {
   CHECK_EQ(test.ffint_d_l_out, static_cast<double>(test.ffint_d_l_in));
 }
 
-TEST(FTINT) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FTINT) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3288,9 +3284,8 @@ TEST(FTINT) {
   }
 }
 
-TEST(FTINTRM) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FTINTRM) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3357,9 +3352,8 @@ TEST(FTINTRM) {
   }
 }
 
-TEST(FTINTRP) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FTINTRP) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3426,9 +3420,8 @@ TEST(FTINTRP) {
   }
 }
 
-TEST(FTINTRZ) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FTINTRZ) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3495,9 +3488,8 @@ TEST(FTINTRZ) {
   }
 }
 
-TEST(FTINTRNE) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FTINTRNE) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3564,9 +3556,8 @@ TEST(FTINTRNE) {
   }
 }
 
-TEST(FRINT) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FRINT) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3771,10 +3762,9 @@ TEST(FRINT) {
   }
 }
 
-TEST(FMOV) {
+TEST_F(AssemblerLoong64Test, FMOV) {
   const int kTableLength = 7;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -3834,9 +3824,8 @@ TEST(FMOV) {
   }
 }
 
-TEST(LA14) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, LA14) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -3903,8 +3892,8 @@ TEST(LA14) {
   CHECK_EQ(static_cast<int64_t>(0x3F800000L), t.low);
 }
 
-uint64_t run_bceqz(int fcc_value, int32_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_bceqz(int fcc_value, int32_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -3957,8 +3946,7 @@ uint64_t run_bceqz(int fcc_value, int32_t offset) {
   return res;
 }
 
-TEST(BCEQZ) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BCEQZ) {
   struct TestCaseBceqz {
     int fcc;
     int32_t offset;
@@ -3984,8 +3972,8 @@ TEST(BCEQZ) {
   }
 }
 
-uint64_t run_bcnez(int fcc_value, int32_t offset) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_bcnez(int fcc_value, int32_t offset) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -4038,8 +4026,7 @@ uint64_t run_bcnez(int fcc_value, int32_t offset) {
   return res;
 }
 
-TEST(BCNEZ) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerLoong64Test, BCNEZ) {
   struct TestCaseBcnez {
     int fcc;
     int32_t offset;
@@ -4065,10 +4052,9 @@ TEST(BCNEZ) {
   }
 }
 
-TEST(jump_tables1) {
+TEST_F(AssemblerLoong64Test, jump_tables1) {
   // Test jump tables with forward jumps.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4126,10 +4112,9 @@ TEST(jump_tables1) {
   }
 }
 
-TEST(jump_tables2) {
+TEST_F(AssemblerLoong64Test, jump_tables2) {
   // Test jump tables with backward jumps.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4189,10 +4174,9 @@ TEST(jump_tables2) {
   }
 }
 
-TEST(jump_tables3) {
+TEST_F(AssemblerLoong64Test, jump_tables3) {
   // Test jump tables with backward jumps and embedded heap objects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4265,8 +4249,9 @@ TEST(jump_tables3) {
   }
 }
 
-uint64_t run_li_macro(int64_t imm, LiFlags mode, int32_t num_instr = 0) {
-  Isolate* isolate = CcTest::i_isolate();
+uint64_t AssemblerLoong64Test::run_li_macro(int64_t imm, LiFlags mode,
+                                            int32_t num_instr) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4294,9 +4279,7 @@ uint64_t run_li_macro(int64_t imm, LiFlags mode, int32_t num_instr = 0) {
   return res;
 }
 
-TEST(li_macro) {
-  CcTest::InitializeVM();
-
+TEST_F(AssemblerLoong64Test, li_macro) {
   // Test li macro-instruction for border cases.
 
   struct TestCase_li {
@@ -4362,9 +4345,8 @@ TEST(li_macro) {
   }
 }
 
-TEST(FMIN_FMAX) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FMIN_FMAX) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4444,10 +4426,9 @@ TEST(FMIN_FMAX) {
   }
 }
 
-TEST(FMINA_FMAXA) {
+TEST_F(AssemblerLoong64Test, FMINA_FMAXA) {
   const int kTableLength = 23;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   const double dnan = std::numeric_limits<double>::quiet_NaN();
@@ -4535,9 +4516,8 @@ TEST(FMINA_FMAXA) {
   }
 }
 
-TEST(FADD) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FADD) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4601,10 +4581,9 @@ TEST(FADD) {
   CHECK(std::isnan(test.f));
 }
 
-TEST(FSUB) {
+TEST_F(AssemblerLoong64Test, FSUB) {
   const int kTableLength = 12;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4672,10 +4651,9 @@ TEST(FSUB) {
   }
 }
 
-TEST(FMUL) {
+TEST_F(AssemblerLoong64Test, FMUL) {
   const int kTableLength = 4;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4730,9 +4708,8 @@ TEST(FMUL) {
   }
 }
 
-TEST(FDIV) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FDIV) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4828,9 +4805,8 @@ TEST(FDIV) {
   CHECK(std::isnan(test.fRes));
 }
 
-TEST(FABS) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerLoong64Test, FABS) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -4922,9 +4898,8 @@ struct TestCaseMaddMsub {
 };
 
 template <typename T, typename F>
-void helper_fmadd_fmsub_fnmadd_fnmsub(F func) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+void AssemblerLoong64Test::helper_fmadd_fmsub_fnmadd_fnmsub(F func) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -5000,7 +4975,7 @@ void helper_fmadd_fmsub_fnmadd_fnmsub(F func) {
   }
 }
 
-TEST(FMADD_FMSUB_FNMADD_FNMSUB_S) {
+TEST_F(AssemblerLoong64Test, FMADD_FMSUB_FNMADD_FNMSUB_S) {
   helper_fmadd_fmsub_fnmadd_fnmsub<float>([](MacroAssembler& assm) {
     __ fmadd_s(f11, f8, f9, f10);
     __ Fst_s(f11, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_fmadd)));
@@ -5013,7 +4988,7 @@ TEST(FMADD_FMSUB_FNMADD_FNMSUB_S) {
   });
 }
 
-TEST(FMADD_FMSUB_FNMADD_FNMSUB_D) {
+TEST_F(AssemblerLoong64Test, FMADD_FMSUB_FNMADD_FNMSUB_D) {
   helper_fmadd_fmsub_fnmadd_fnmsub<double>([](MacroAssembler& assm) {
     __ fmadd_d(f11, f8, f9, f10);
     __ Fst_d(f11, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_fmadd)));
@@ -5029,14 +5004,13 @@ TEST(FMADD_FMSUB_FNMADD_FNMSUB_D) {
 }
 
 /*
-TEST(FSQRT_FRSQRT_FRECIP) {
+TEST_F(AssemblerLoong64Test, FSQRT_FRSQRT_FRECIP) {
   const int kTableLength = 4;
   const double deltaDouble = 2E-15;
   const float deltaFloat = 2E-7;
   const float sqrt2_s = sqrt(2);
   const double sqrt2_d = sqrt(2);
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
@@ -5122,10 +5096,9 @@ TEST(FSQRT_FRSQRT_FRECIP) {
   }
 }*/
 
-TEST(LA15) {
+TEST_F(AssemblerLoong64Test, LA15) {
   // Test chaining of label usages within instructions (issue 1644).
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -5146,11 +5119,10 @@ TEST(LA15) {
   f.Call(1, 1, 0, 0, 0);
 }
 
-TEST(Trampoline) {
+TEST_F(AssemblerLoong64Test, Trampoline) {
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
 
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);

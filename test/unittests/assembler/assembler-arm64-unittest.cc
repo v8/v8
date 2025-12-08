@@ -42,9 +42,9 @@
 #include "src/diagnostics/arm64/disasm-arm64.h"
 #include "src/execution/arm64/simulator-arm64.h"
 #include "src/heap/factory.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/test-utils-arm64.h"
 #include "test/common/assembler-tester.h"
+#include "test/unittests/assembler/test-utils-arm64.h"
+#include "test/unittests/test-utils.h"
 #include "third_party/fp16/src/include/fp16.h"
 
 namespace v8 {
@@ -56,7 +56,7 @@ namespace internal {
 // The testing code should not perform an explicit return once completed. For
 // example to test the mov immediate instruction a very simple test would be:
 //
-//   TEST(mov_x0_one) {
+//   TEST_F(AssemblerArm64Test, mov_x0_one) {
 //     SETUP();
 //
 //     START();
@@ -96,22 +96,10 @@ namespace internal {
 //
 //   CHECK_EQUAL_64(0x1234, core.xreg(0) & 0xFFFF);
 
-#if 0  // TODO(all): enable.
-static v8::Persistent<v8::Context> env;
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    env = v8::Context::New();
-  }
-}
-#endif
-
 #define __ masm.
 
 #define BUF_SIZE 8192
 #define SETUP() SETUP_SIZE(BUF_SIZE)
-
-#define INIT_V8() CcTest::InitializeVM();
 
 // Declare that a test will use an optional feature, which means execution needs
 // to be behind CAN_RUN().
@@ -128,7 +116,7 @@ static void InitializeVM() {
 
 // Run tests with the simulator.
 #define SETUP_SIZE(buf_size)                                                  \
-  Isolate* isolate = CcTest::i_isolate();                                     \
+  Isolate* isolate = i_isolate();                                             \
   HandleScope scope(isolate);                                                 \
   CHECK_NOT_NULL(isolate);                                                    \
   auto owned_buf =                                                            \
@@ -154,16 +142,16 @@ static void InitializeVM() {
 // END is encountered.
 //
 // Most tests should call START, rather than call RESET directly.
-#define RESET()                                                                \
-  __ Reset();                                                                  \
+#define RESET() \
+  __ Reset();   \
   simulator.ResetState();
 
-#define START_AFTER_RESET()                                                    \
-  __ PushCalleeSavedRegisters();                                               \
+#define START_AFTER_RESET()      \
+  __ PushCalleeSavedRegisters(); \
   __ Debug("Start test.", __LINE__, TRACE_ENABLE | LOG_ALL);
 
-#define START()                                                                \
-  RESET();                                                                     \
+#define START() \
+  RESET();      \
   START_AFTER_RESET();
 
 #define RUN() \
@@ -187,7 +175,7 @@ static void InitializeVM() {
 
 // Run the test on real hardware or models.
 #define SETUP_SIZE(buf_size)                                           \
-  Isolate* isolate = CcTest::i_isolate();                              \
+  Isolate* isolate = i_isolate();                                      \
   HandleScope scope(isolate);                                          \
   CHECK_NOT_NULL(isolate);                                             \
   auto owned_buf = AllocateAssemblerBuffer(buf_size);                  \
@@ -204,8 +192,7 @@ static void InitializeVM() {
   __ Msr(NZCV, xzr);                                           \
   __ Msr(FPCR, xzr);
 
-#define START_AFTER_RESET()                                                    \
-  __ PushCalleeSavedRegisters();
+#define START_AFTER_RESET() __ PushCalleeSavedRegisters();
 
 #define START() \
   RESET();      \
@@ -231,20 +218,18 @@ static void InitializeVM() {
 
 #endif  // ifdef USE_SIMULATOR.
 
-#define CHECK_EQUAL_NZCV(expected)                                            \
-  CHECK(EqualNzcv(expected, core.flags_nzcv()))
+#define CHECK_EQUAL_NZCV(expected) CHECK(EqualNzcv(expected, core.flags_nzcv()))
 
 #define CHECK_EQUAL_REGISTERS(expected) \
   CHECK(EqualV8Registers(&expected, &core))
 
-#define CHECK_EQUAL_32(expected, result)                                      \
+#define CHECK_EQUAL_32(expected, result) \
   CHECK(Equal32(static_cast<uint32_t>(expected), &core, result))
 
-#define CHECK_EQUAL_FP32(expected, result)                                    \
+#define CHECK_EQUAL_FP32(expected, result) \
   CHECK(EqualFP32(expected, &core, result))
 
-#define CHECK_EQUAL_64(expected, result)                                      \
-  CHECK(Equal64(expected, &core, result))
+#define CHECK_EQUAL_64(expected, result) CHECK(Equal64(expected, &core, result))
 
 #define CHECK_FULL_HEAP_OBJECT_IN_REGISTER(expected, result) \
   CHECK(Equal64((*expected).ptr(), &core, result))
@@ -258,7 +243,7 @@ static void InitializeVM() {
     CHECK_NE(value0, value1);                       \
   }
 
-#define CHECK_EQUAL_FP64(expected, result)                                    \
+#define CHECK_EQUAL_FP64(expected, result) \
   CHECK(EqualFP64(expected, &core, result))
 
 // Expected values for 128-bit comparisons are passed as two 64-bit values,
@@ -273,8 +258,83 @@ static void InitializeVM() {
 #define CHECK_CONSTANT_POOL_SIZE(expected) ((void)0)
 #endif
 
-TEST(stack_ops) {
-  INIT_V8();
+enum LiteralPoolEmitOutcome { EmitExpected, NoEmitExpected };
+enum LiteralPoolEmissionAlignment { EmitAtUnaligned, EmitAtAligned };
+
+// This enum is used only as an argument to the push-pop test helpers.
+enum PushPopMethod {
+  // Push or Pop using the Push and Pop methods, with blocks of up to four
+  // registers. (Smaller blocks will be used if necessary.)
+  PushPopByFour,
+
+  // Use Push<Size>RegList and Pop<Size>RegList to transfer the registers.
+  PushPopRegList
+};
+
+using MinMaxOp = void (MacroAssembler::*)(const Register&, const Register&,
+                                          const Operand&);
+using AtomicMemoryLoadSignature = void (MacroAssembler::*)(
+    const Register& rs, const Register& rt, const MemOperand& src);
+using AtomicMemoryStoreSignature =
+    void (MacroAssembler::*)(const Register& rs, const MemOperand& src);
+
+class AssemblerArm64Test : public i::TestWithIsolate {
+ public:
+  void SmullHelper(int64_t expected, int64_t a, int64_t b);
+  void BtiHelper(Register ipreg);
+  void LdrLiteralRangeHelper(size_t range, LiteralPoolEmitOutcome outcome,
+                             LiteralPoolEmissionAlignment unaligned_emission);
+  template <typename T, typename Op>
+  void AdcsSbcsHelper(Op op, T left, T right, int carry, T expected,
+                      StatusFlags expected_flags);
+  void FmaddFmsubHelper(double n, double m, double a, double fmadd,
+                        double fmsub, double fnmadd, double fnmsub);
+  void FmaddFmsubHelper(float n, float m, float a, float fmadd, float fmsub,
+                        float fnmadd, float fnmsub);
+  void FminFmaxDoubleHelper(double n, double m, double min, double max,
+                            double minnm, double maxnm);
+  void FminFmaxFloatHelper(float n, float m, float min, float max, float minnm,
+                           float maxnm);
+  void FjcvtzsHelper(uint64_t value, uint64_t expected, uint32_t expected_z);
+  void TestUScvtfHelper(uint64_t in, uint64_t expected_scvtf_bits,
+                        uint64_t expected_ucvtf_bits);
+  void TestUScvtf32Helper(uint64_t in, uint32_t expected_scvtf_bits,
+                          uint32_t expected_ucvtf_bits);
+  void PushPopSimpleHelper(int reg_count, int reg_size,
+                           PushPopMethod push_method, PushPopMethod pop_method);
+  void PushPopFPSimpleHelper(int reg_count, int reg_size,
+                             PushPopMethod push_method,
+                             PushPopMethod pop_method);
+  void PushPopMixedMethodsHelper(int reg_size);
+  void AtomicMemoryWHelper(AtomicMemoryLoadSignature* load_funcs,
+                           AtomicMemoryStoreSignature* store_funcs,
+                           uint64_t arg1, uint64_t arg2, uint64_t expected,
+                           uint64_t result_mask);
+  void AtomicMemoryXHelper(AtomicMemoryLoadSignature* load_funcs,
+                           AtomicMemoryStoreSignature* store_funcs,
+                           uint64_t arg1, uint64_t arg2, uint64_t expected);
+  void ProcessNaNsHelper(double n, double m, double expected);
+  void ProcessNaNsHelper(float n, float m, float expected);
+  void DefaultNaNHelper(float n, float m, float a);
+  void DefaultNaNHelper(double n, double m, double a);
+  void AbsHelperX(int64_t value);
+  void AbsHelperW(int32_t value);
+  void MinMaxHelper(MinMaxOp op, bool is_signed, uint64_t a, uint64_t b,
+                    uint32_t wexp, uint64_t xexp);
+};
+
+void AssemblerArm64Test::SmullHelper(int64_t expected, int64_t a, int64_t b) {
+  SETUP();
+  START();
+  __ Mov(w0, a);
+  __ Mov(w1, b);
+  __ Smull(x2, w0, w1);
+  END();
+  RUN();
+  CHECK_EQUAL_64(expected, x2);
+}
+
+TEST_F(AssemblerArm64Test, stack_ops) {
   SETUP();
 
   START();
@@ -321,8 +381,7 @@ TEST(stack_ops) {
   CHECK_EQUAL_64(0xFFFFFFF8, x5);
 }
 
-TEST(mvn) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, mvn) {
   SETUP();
 
   START();
@@ -364,8 +423,7 @@ TEST(mvn) {
   CHECK_EQUAL_64(0xFFFFFFFFFFFE000FUL, x15);
 }
 
-TEST(mov) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, mov) {
   SETUP();
 
   START();
@@ -442,8 +500,7 @@ TEST(mov) {
   CHECK_EQUAL_64(0x000000000001FFE0UL, x27);
 }
 
-TEST(move_pair) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, move_pair) {
   SETUP();
 
   START();
@@ -496,8 +553,7 @@ TEST(move_pair) {
   CHECK_EQUAL_64(0xabababab, x1);
 }
 
-TEST(mov_imm_w) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, mov_imm_w) {
   SETUP();
 
   START();
@@ -527,8 +583,7 @@ TEST(mov_imm_w) {
   CHECK_EQUAL_32(kWMinInt, w9);
 }
 
-TEST(mov_imm_x) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, mov_imm_x) {
   SETUP();
 
   START();
@@ -591,8 +646,7 @@ TEST(mov_imm_x) {
   CHECK_EQUAL_64(0x8000FFFF00000000L, x28);
 }
 
-TEST(orr) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, orr) {
   SETUP();
 
   START();
@@ -625,8 +679,7 @@ TEST(orr) {
   CHECK_EQUAL_64(0xF0000000F000F0F0L, x11);
 }
 
-TEST(orr_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, orr_extend) {
   SETUP();
 
   START();
@@ -654,8 +707,7 @@ TEST(orr_extend) {
   CHECK_EQUAL_64(0x0000000400040401UL, x13);
 }
 
-TEST(bitwise_wide_imm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, bitwise_wide_imm) {
   SETUP();
 
   START();
@@ -679,8 +731,7 @@ TEST(bitwise_wide_imm) {
   CHECK_EQUAL_32(kWMinInt, w13);
 }
 
-TEST(orn) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, orn) {
   SETUP();
 
   START();
@@ -713,8 +764,7 @@ TEST(orn) {
   CHECK_EQUAL_64(0xFFFF0000FFFFF0F0L, x11);
 }
 
-TEST(orn_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, orn_extend) {
   SETUP();
 
   START();
@@ -742,8 +792,7 @@ TEST(orn_extend) {
   CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x13);
 }
 
-TEST(and_) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, and_) {
   SETUP();
 
   START();
@@ -776,8 +825,7 @@ TEST(and_) {
   CHECK_EQUAL_64(0x000000F0, x11);
 }
 
-TEST(and_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, and_extend) {
   SETUP();
 
   START();
@@ -805,8 +853,7 @@ TEST(and_extend) {
   CHECK_EQUAL_64(0x0000000400040408UL, x13);
 }
 
-TEST(ands) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ands) {
   SETUP();
 
   START();
@@ -862,8 +909,7 @@ TEST(ands) {
   CHECK_EQUAL_64(0x80000000, x0);
 }
 
-TEST(bic) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, bic) {
   SETUP();
 
   START();
@@ -908,8 +954,7 @@ TEST(bic) {
   CHECK_EQUAL_64(0x543210, x21);
 }
 
-TEST(bic_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, bic_extend) {
   SETUP();
 
   START();
@@ -937,8 +982,7 @@ TEST(bic_extend) {
   CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x13);
 }
 
-TEST(bics) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, bics) {
   SETUP();
 
   START();
@@ -993,8 +1037,7 @@ TEST(bics) {
   CHECK_EQUAL_64(0x00000000, x0);
 }
 
-TEST(eor) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, eor) {
   SETUP();
 
   START();
@@ -1027,8 +1070,7 @@ TEST(eor) {
   CHECK_EQUAL_64(0xFF00FF00FF0000F0L, x11);
 }
 
-TEST(eor_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, eor_extend) {
   SETUP();
 
   START();
@@ -1056,8 +1098,7 @@ TEST(eor_extend) {
   CHECK_EQUAL_64(0x1111111511151519UL, x13);
 }
 
-TEST(eon) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, eon) {
   SETUP();
 
   START();
@@ -1090,8 +1131,7 @@ TEST(eon) {
   CHECK_EQUAL_64(0xFFFFEFFFFFFF100FL, x11);
 }
 
-TEST(eon_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, eon_extend) {
   SETUP();
 
   START();
@@ -1119,8 +1159,7 @@ TEST(eon_extend) {
   CHECK_EQUAL_64(0xEEEEEEEAEEEAEAE6UL, x13);
 }
 
-TEST(mul) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, mul) {
   SETUP();
 
   START();
@@ -1173,19 +1212,7 @@ TEST(mul) {
   CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x23);
 }
 
-static void SmullHelper(int64_t expected, int64_t a, int64_t b) {
-  SETUP();
-  START();
-  __ Mov(w0, a);
-  __ Mov(w1, b);
-  __ Smull(x2, w0, w1);
-  END();
-  RUN();
-  CHECK_EQUAL_64(expected, x2);
-}
-
-TEST(smull) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, smull) {
   SmullHelper(0, 0, 0);
   SmullHelper(1, 1, 1);
   SmullHelper(-1, -1, 1);
@@ -1194,8 +1221,7 @@ TEST(smull) {
   SmullHelper(0x0000000080000000, 0x00010000, 0x00008000);
 }
 
-TEST(madd) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, madd) {
   SETUP();
 
   START();
@@ -1261,8 +1287,7 @@ TEST(madd) {
   CHECK_EQUAL_64(0, x27);
 }
 
-TEST(msub) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, msub) {
   SETUP();
 
   START();
@@ -1328,8 +1353,7 @@ TEST(msub) {
   CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x27);
 }
 
-TEST(smulh) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, smulh) {
   SETUP();
 
   START();
@@ -1374,8 +1398,7 @@ TEST(smulh) {
   CHECK_EQUAL_64(0x1C71C71C71C71C72UL, x11);
 }
 
-TEST(smaddl_umaddl) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, smaddl_umaddl) {
   SETUP();
 
   START();
@@ -1407,8 +1430,7 @@ TEST(smaddl_umaddl) {
   CHECK_EQUAL_64(0x1, x22);
 }
 
-TEST(smsubl_umsubl) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, smsubl_umsubl) {
   SETUP();
 
   START();
@@ -1440,8 +1462,7 @@ TEST(smsubl_umsubl) {
   CHECK_EQUAL_64(0x3FFFFFFFFUL, x22);
 }
 
-TEST(div) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, div) {
   SETUP();
 
   START();
@@ -1520,8 +1541,7 @@ TEST(div) {
   CHECK_EQUAL_64(0, x21);
 }
 
-TEST(rbit_rev) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, rbit_rev) {
   SETUP();
 
   START();
@@ -1546,8 +1566,7 @@ TEST(rbit_rev) {
   CHECK_EQUAL_64(0x1032547698BADCFEUL, x6);
 }
 
-TEST(clz_cls) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, clz_cls) {
   SETUP();
 
   START();
@@ -1584,8 +1603,7 @@ TEST(clz_cls) {
   CHECK_EQUAL_64(63, x11);
 }
 
-TEST(label) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, label) {
   SETUP();
 
   Label label_1, label_2, label_3, label_4;
@@ -1593,17 +1611,17 @@ TEST(label) {
   START();
   __ Mov(x0, 0x1);
   __ Mov(x1, 0x0);
-  __ Mov(x22, lr);    // Save lr.
+  __ Mov(x22, lr);  // Save lr.
 
   __ B(&label_1);
   __ B(&label_1);
-  __ B(&label_1);     // Multiple branches to the same label.
+  __ B(&label_1);  // Multiple branches to the same label.
   __ Mov(x0, 0x0);
   __ Bind(&label_2);
-  __ B(&label_3);     // Forward branch.
+  __ B(&label_3);  // Forward branch.
   __ Mov(x0, 0x0);
   __ Bind(&label_1);
-  __ B(&label_2);     // Backward branch.
+  __ B(&label_2);  // Backward branch.
   __ Mov(x0, 0x0);
   __ Bind(&label_3);
   __ Call(&label_4);
@@ -1620,8 +1638,7 @@ TEST(label) {
   CHECK_EQUAL_64(0x1, x1);
 }
 
-TEST(branch_at_start) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, branch_at_start) {
   SETUP();
 
   Label good, exit;
@@ -1650,17 +1667,16 @@ TEST(branch_at_start) {
   CHECK_EQUAL_64(0x1, x0);
 }
 
-TEST(adr) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, adr) {
   SETUP();
 
   Label label_1, label_2, label_3, label_4;
 
   START();
-  __ Mov(x0, 0x0);        // Set to non-zero to indicate failure.
-  __ Adr(x1, &label_3);   // Set to zero to indicate success.
+  __ Mov(x0, 0x0);       // Set to non-zero to indicate failure.
+  __ Adr(x1, &label_3);  // Set to zero to indicate success.
 
-  __ Adr(x2, &label_1);   // Multiple forward references to the same label.
+  __ Adr(x2, &label_1);  // Multiple forward references to the same label.
   __ Adr(x3, &label_1);
   __ Adr(x4, &label_1);
 
@@ -1672,17 +1688,17 @@ TEST(adr) {
   __ Br(x2);  // label_1, label_3
 
   __ Bind(&label_3, BranchTargetIdentifier::kBtiJump);
-  __ Adr(x2, &label_3);   // Self-reference (offset 0).
+  __ Adr(x2, &label_3);  // Self-reference (offset 0).
   __ Eor(x1, x1, Operand(x2));
-  __ Adr(x2, &label_4);   // Simple forward reference.
-  __ Br(x2);  // label_4
+  __ Adr(x2, &label_4);  // Simple forward reference.
+  __ Br(x2);             // label_4
 
   __ Bind(&label_1, BranchTargetIdentifier::kBtiJump);
-  __ Adr(x2, &label_3);   // Multiple reverse references to the same label.
+  __ Adr(x2, &label_3);  // Multiple reverse references to the same label.
   __ Adr(x3, &label_3);
   __ Adr(x4, &label_3);
-  __ Adr(x5, &label_2);   // Simple reverse reference.
-  __ Br(x5);  // label_2
+  __ Adr(x5, &label_2);  // Simple reverse reference.
+  __ Br(x5);             // label_2
 
   __ Bind(&label_4, BranchTargetIdentifier::kBtiJump);
   END();
@@ -1693,9 +1709,7 @@ TEST(adr) {
   CHECK_EQUAL_64(0x0, x1);
 }
 
-TEST(adr_far) {
-  INIT_V8();
-
+TEST_F(AssemblerArm64Test, adr_far) {
   int max_range = 1 << (Instruction::ImmPCRelRangeBitwidth - 1);
   SETUP_SIZE(max_range + 1000 * kInstrSize);
 
@@ -1754,8 +1768,7 @@ TEST(adr_far) {
   CHECK_EQUAL_64(0xF, x0);
 }
 
-TEST(branch_cond) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, branch_cond) {
   SETUP();
 
   Label wrong;
@@ -1841,8 +1854,7 @@ TEST(branch_cond) {
   CHECK_EQUAL_64(0x1, x0);
 }
 
-TEST(branch_cond_consistent) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, branch_cond_consistent) {
   SETUP();
   SETUP_FEATURE(HBC);
 
@@ -1930,8 +1942,7 @@ TEST(branch_cond_consistent) {
   }
 }
 
-TEST(branch_to_reg) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, branch_to_reg) {
   SETUP();
 
   // Test br.
@@ -1978,7 +1989,7 @@ TEST(branch_to_reg) {
   CHECK_EQUAL_64(84, x2);
 }
 
-static void BtiHelper(Register ipreg) {
+void AssemblerArm64Test::BtiHelper(Register ipreg) {
   SETUP();
 
   Label jump_target, jump_call_target, call_target, test_pacibsp,
@@ -2025,12 +2036,12 @@ static void BtiHelper(Register ipreg) {
 #endif  // USE_SIMULATOR
 }
 
-TEST(bti) {
+TEST_F(AssemblerArm64Test, bti) {
   BtiHelper(x16);
   BtiHelper(x17);
 }
 
-TEST(unguarded_bti_is_nop) {
+TEST_F(AssemblerArm64Test, unguarded_bti_is_nop) {
   SETUP();
 
   Label start, none, c, j, jc;
@@ -2065,8 +2076,7 @@ TEST(unguarded_bti_is_nop) {
 #endif  // USE_SIMULATOR
 }
 
-TEST(compare_branch) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, compare_branch) {
   SETUP();
 
   START();
@@ -2135,8 +2145,7 @@ TEST(compare_branch) {
   CHECK_EQUAL_64(0, x5);
 }
 
-TEST(test_branch) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, test_branch) {
   SETUP();
 
   START();
@@ -2197,9 +2206,7 @@ void GenerateLandingNops(MacroAssembler* masm, int n, Label* landing_pad) {
 }
 }  // namespace
 
-TEST(far_branch_backward) {
-  INIT_V8();
-
+TEST_F(AssemblerArm64Test, far_branch_backward) {
   ImmBranchType branch_types[] = {TestBranchType, CompareBranchType,
                                   CondBranchType};
 
@@ -2321,15 +2328,13 @@ TEST(far_branch_backward) {
   }
 }
 
-TEST(far_branch_simple_veneer) {
-  INIT_V8();
-
+TEST_F(AssemblerArm64Test, far_branch_simple_veneer) {
   // Test that the MacroAssembler correctly emits veneers for forward branches
   // to labels that are outside the immediate range of branch instructions.
   int max_range =
-    std::max(Instruction::ImmBranchRange(TestBranchType),
-             std::max(Instruction::ImmBranchRange(CompareBranchType),
-                      Instruction::ImmBranchRange(CondBranchType)));
+      std::max(Instruction::ImmBranchRange(TestBranchType),
+               std::max(Instruction::ImmBranchRange(CompareBranchType),
+                        Instruction::ImmBranchRange(CondBranchType)));
 
   SETUP_SIZE(max_range + 1000 * kInstrSize);
 
@@ -2388,9 +2393,7 @@ TEST(far_branch_simple_veneer) {
   CHECK_EQUAL_64(0x1, x1);
 }
 
-TEST(far_branch_veneer_link_chain) {
-  INIT_V8();
-
+TEST_F(AssemblerArm64Test, far_branch_veneer_link_chain) {
   // Test that the MacroAssembler correctly emits veneers for forward branches
   // that target out-of-range labels and are part of multiple instructions
   // jumping to that label.
@@ -2400,9 +2403,9 @@ TEST(far_branch_veneer_link_chain) {
   // (2)- When the branch is in the middle of the chain with cbz.
   // (3)- When the branch is at the end of the chain with bcond.
   int max_range =
-    std::max(Instruction::ImmBranchRange(TestBranchType),
-             std::max(Instruction::ImmBranchRange(CompareBranchType),
-                      Instruction::ImmBranchRange(CondBranchType)));
+      std::max(Instruction::ImmBranchRange(TestBranchType),
+               std::max(Instruction::ImmBranchRange(CompareBranchType),
+                        Instruction::ImmBranchRange(CondBranchType)));
 
   SETUP_SIZE(max_range + 1000 * kInstrSize);
 
@@ -2469,9 +2472,7 @@ TEST(far_branch_veneer_link_chain) {
   CHECK_EQUAL_64(0x1, x1);
 }
 
-TEST(far_branch_veneer_broken_link_chain) {
-  INIT_V8();
-
+TEST_F(AssemblerArm64Test, far_branch_veneer_broken_link_chain) {
   // Check that the MacroAssembler correctly handles the situation when removing
   // a branch from the link chain of a label and the two links on each side of
   // the removed branch cannot be linked together (out of range).
@@ -2605,9 +2606,7 @@ TEST(far_branch_veneer_broken_link_chain) {
   CHECK_EQUAL_64(0x1, x1);
 }
 
-TEST(branch_type) {
-  INIT_V8();
-
+TEST_F(AssemblerArm64Test, branch_type) {
   SETUP();
 
   Label fail, done;
@@ -2659,8 +2658,7 @@ TEST(branch_type) {
   CHECK_EQUAL_64(0x0, x0);
 }
 
-TEST(ldr_str_offset) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_str_offset) {
   SETUP();
 
   uint64_t src[2] = {0xFEDCBA9876543210UL, 0x0123456789ABCDEFUL};
@@ -2699,8 +2697,7 @@ TEST(ldr_str_offset) {
   CHECK_EQUAL_64(dst_base, x19);
 }
 
-TEST(ldr_str_wide) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_str_wide) {
   SETUP();
 
   uint32_t src[8192];
@@ -2745,8 +2742,7 @@ TEST(ldr_str_wide) {
   CHECK_EQUAL_64(dst_base + 6144 * sizeof(dst[0]), x27);
 }
 
-TEST(ldr_str_preindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_str_preindex) {
   SETUP();
 
   uint64_t src[2] = {0xFEDCBA9876543210UL, 0x0123456789ABCDEFUL};
@@ -2801,8 +2797,7 @@ TEST(ldr_str_preindex) {
   CHECK_EQUAL_64(dst_base + 41, x26);
 }
 
-TEST(ldr_str_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_str_postindex) {
   SETUP();
 
   uint64_t src[2] = {0xFEDCBA9876543210UL, 0x0123456789ABCDEFUL};
@@ -2857,8 +2852,7 @@ TEST(ldr_str_postindex) {
   CHECK_EQUAL_64(dst_base, x26);
 }
 
-TEST(load_signed) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, load_signed) {
   SETUP();
 
   uint32_t src[2] = {0x80008080, 0x7FFF7F7F};
@@ -2892,8 +2886,7 @@ TEST(load_signed) {
   CHECK_EQUAL_64(0x000000007FFF7F7FUL, x9);
 }
 
-TEST(load_store_regoffset) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, load_store_regoffset) {
   SETUP();
 
   uint32_t src[3] = {1, 2, 3};
@@ -2937,8 +2930,7 @@ TEST(load_store_regoffset) {
   CHECK_EQUAL_32(3, dst[3]);
 }
 
-TEST(load_store_float) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, load_store_float) {
   SETUP();
 
   float src[3] = {1.0, 2.0, 3.0};
@@ -2977,8 +2969,7 @@ TEST(load_store_float) {
   CHECK_EQUAL_64(dst_base, x22);
 }
 
-TEST(load_store_double) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, load_store_double) {
   SETUP();
 
   double src[3] = {1.0, 2.0, 3.0};
@@ -3017,8 +3008,7 @@ TEST(load_store_double) {
   CHECK_EQUAL_64(dst_base, x22);
 }
 
-TEST(load_store_b) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, load_store_b) {
   SETUP();
 
   uint8_t src[3] = {0x12, 0x23, 0x34};
@@ -3057,8 +3047,7 @@ TEST(load_store_b) {
   CHECK_EQUAL_64(dst_base, x22);
 }
 
-TEST(load_store_h) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, load_store_h) {
   SETUP();
 
   uint16_t src[3] = {0x1234, 0x2345, 0x3456};
@@ -3097,8 +3086,7 @@ TEST(load_store_h) {
   CHECK_EQUAL_64(dst_base, x22);
 }
 
-TEST(load_store_q) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, load_store_q) {
   SETUP();
 
   uint8_t src[48] = {0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0x01, 0x23,
@@ -3145,8 +3133,7 @@ TEST(load_store_q) {
   CHECK_EQUAL_64(dst_base, x22);
 }
 
-TEST(neon_ld1_d) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld1_d) {
   SETUP();
 
   uint8_t src[32 + 5];
@@ -3193,8 +3180,7 @@ TEST(neon_ld1_d) {
   CHECK_EQUAL_128(0, 0x24232221201F1E1D, q23);
 }
 
-TEST(neon_ld1_d_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld1_d_postindex) {
   SETUP();
 
   uint8_t src[32 + 5];
@@ -3259,8 +3245,7 @@ TEST(neon_ld1_d_postindex) {
   CHECK_EQUAL_64(x23, x24);
 }
 
-TEST(neon_ld1_q) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld1_q) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -3300,8 +3285,7 @@ TEST(neon_ld1_q) {
   CHECK_EQUAL_128(0x434241403F3E3D3C, 0x3B3A393837363534, q1);
 }
 
-TEST(neon_ld1_q_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld1_q_postindex) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -3357,8 +3341,7 @@ TEST(neon_ld1_q_postindex) {
   CHECK_EQUAL_64(x23, x24);
 }
 
-TEST(neon_ld1_lane) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld1_lane) {
   SETUP();
 
   uint8_t src[64];
@@ -3419,8 +3402,7 @@ TEST(neon_ld1_lane) {
   CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q7);
 }
 
-TEST(neon_ld2_d) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld2_d) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -3452,8 +3434,7 @@ TEST(neon_ld2_d) {
   CHECK_EQUAL_128(0, 0x1211100F0A090807, q0);
 }
 
-TEST(neon_ld2_d_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld2_d_postindex) {
   SETUP();
 
   uint8_t src[32 + 4];
@@ -3503,8 +3484,7 @@ TEST(neon_ld2_d_postindex) {
   CHECK_EQUAL_64(x23, x24);
 }
 
-TEST(neon_ld2_q) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld2_q) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -3540,8 +3520,7 @@ TEST(neon_ld2_q) {
   CHECK_EQUAL_128(0x232221201F1E1D1C, 0x131211100F0E0D0C, q0);
 }
 
-TEST(neon_ld2_q_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld2_q_postindex) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -3592,8 +3571,7 @@ TEST(neon_ld2_q_postindex) {
   CHECK_EQUAL_64(x23, x24);
 }
 
-TEST(neon_ld2_lane) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld2_lane) {
   SETUP();
 
   uint8_t src[64];
@@ -3670,8 +3648,7 @@ TEST(neon_ld2_lane) {
   CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q15);
 }
 
-TEST(neon_ld2_lane_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld2_lane_postindex) {
   SETUP();
 
   uint8_t src[64];
@@ -3770,8 +3747,7 @@ TEST(neon_ld2_lane_postindex) {
   CHECK_EQUAL_64(x25, x26);
 }
 
-TEST(neon_ld2_alllanes) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld2_alllanes) {
   SETUP();
 
   uint8_t src[64];
@@ -3815,8 +3791,7 @@ TEST(neon_ld2_alllanes) {
   CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x21201F1E1D1C1B1A, q13);
 }
 
-TEST(neon_ld2_alllanes_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld2_alllanes_postindex) {
   SETUP();
 
   uint8_t src[64];
@@ -3864,8 +3839,7 @@ TEST(neon_ld2_alllanes_postindex) {
   CHECK_EQUAL_64(x23, x24);
 }
 
-TEST(neon_ld3_d) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld3_d) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -3901,8 +3875,7 @@ TEST(neon_ld3_d) {
   CHECK_EQUAL_128(0, 0x1A1918170E0D0C0B, q1);
 }
 
-TEST(neon_ld3_d_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld3_d_postindex) {
   SETUP();
 
   uint8_t src[32 + 4];
@@ -3959,8 +3932,7 @@ TEST(neon_ld3_d_postindex) {
   CHECK_EQUAL_64(x23, x24);
 }
 
-TEST(neon_ld3_q) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld3_q) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -4001,8 +3973,7 @@ TEST(neon_ld3_q) {
   CHECK_EQUAL_128(0x333231302F2E2D2C, 0x1B1A191817161514, q1);
 }
 
-TEST(neon_ld3_q_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld3_q_postindex) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -4059,8 +4030,7 @@ TEST(neon_ld3_q_postindex) {
   CHECK_EQUAL_64(x23, x24);
 }
 
-TEST(neon_ld3_lane) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld3_lane) {
   SETUP();
 
   uint8_t src[64];
@@ -4143,8 +4113,7 @@ TEST(neon_ld3_lane) {
   CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x0504252423222120, q17);
 }
 
-TEST(neon_ld3_lane_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld3_lane_postindex) {
   SETUP();
 
   uint8_t src[64];
@@ -4256,8 +4225,7 @@ TEST(neon_ld3_lane_postindex) {
   CHECK_EQUAL_64(x25, x26);
 }
 
-TEST(neon_ld3_alllanes) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld3_alllanes) {
   SETUP();
 
   uint8_t src[64];
@@ -4308,8 +4276,7 @@ TEST(neon_ld3_alllanes) {
   CHECK_EQUAL_128(0x302F2E2D2C2B2A29, 0x302F2E2D2C2B2A29, q20);
 }
 
-TEST(neon_ld3_alllanes_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld3_alllanes_postindex) {
   SETUP();
 
   uint8_t src[64];
@@ -4364,8 +4331,7 @@ TEST(neon_ld3_alllanes_postindex) {
   CHECK_EQUAL_64(x23, x24);
 }
 
-TEST(neon_ld4_d) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld4_d) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -4405,8 +4371,7 @@ TEST(neon_ld4_d) {
   CHECK_EQUAL_128(0, 0x2221201F1211100F, q1);
 }
 
-TEST(neon_ld4_d_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld4_d_postindex) {
   SETUP();
 
   uint8_t src[32 + 4];
@@ -4473,8 +4438,7 @@ TEST(neon_ld4_d_postindex) {
   CHECK_EQUAL_64(x23, x24);
 }
 
-TEST(neon_ld4_q) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld4_q) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -4520,8 +4484,7 @@ TEST(neon_ld4_q) {
   CHECK_EQUAL_128(0x434241403F3E3D3C, 0x232221201F1E1D1C, q21);
 }
 
-TEST(neon_ld4_q_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld4_q_postindex) {
   SETUP();
 
   uint8_t src[64 + 4];
@@ -4580,8 +4543,7 @@ TEST(neon_ld4_q_postindex) {
   CHECK_EQUAL_64(src_base + 4 + 64, x21);
 }
 
-TEST(neon_ld4_lane) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld4_lane) {
   SETUP();
 
   uint8_t src[64];
@@ -4685,8 +4647,7 @@ TEST(neon_ld4_lane) {
   CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x3736353433323130, q31);
 }
 
-TEST(neon_ld4_lane_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld4_lane_postindex) {
   SETUP();
 
   uint8_t src[64];
@@ -4809,8 +4770,7 @@ TEST(neon_ld4_lane_postindex) {
   CHECK_EQUAL_64(src_base + 4, x24);
 }
 
-TEST(neon_ld4_alllanes) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld4_alllanes) {
   SETUP();
 
   uint8_t src[64];
@@ -4869,8 +4829,7 @@ TEST(neon_ld4_alllanes) {
   CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3F3E3D3C3B3A3938, q27);
 }
 
-TEST(neon_ld4_alllanes_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld4_alllanes_postindex) {
   SETUP();
 
   uint8_t src[64];
@@ -4931,8 +4890,7 @@ TEST(neon_ld4_alllanes_postindex) {
   CHECK_EQUAL_64(src_base + 64, x17);
 }
 
-TEST(neon_st1_lane) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st1_lane) {
   SETUP();
 
   uint8_t src[64];
@@ -4980,8 +4938,7 @@ TEST(neon_st1_lane) {
   CHECK_EQUAL_128(0x0706050403020100, 0x0F0E0D0C0B0A0908, q4);
 }
 
-TEST(neon_st2_lane) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st2_lane) {
   SETUP();
 
   // Struct size * addressing modes * element sizes * vector size.
@@ -5071,8 +5028,7 @@ TEST(neon_st2_lane) {
   CHECK_EQUAL_128(0x18191A1B1C1D1E1F, 0x08090A0B0C0D0E0F, q23);
 }
 
-TEST(neon_st3_lane) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st3_lane) {
   SETUP();
 
   // Struct size * addressing modes * element sizes * vector size.
@@ -5168,8 +5124,7 @@ TEST(neon_st3_lane) {
   CHECK_EQUAL_128(0x2C2D2E2F1C1D1E1F, 0x0C0D0E0F28292A2B, q28);
 }
 
-TEST(neon_st4_lane) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st4_lane) {
   SETUP();
 
   // Struct size * element sizes * vector size.
@@ -5249,8 +5204,7 @@ TEST(neon_st4_lane) {
   CHECK_EQUAL_128(0x2021222324252627, 0x2021222324252627, q27);
 }
 
-TEST(neon_ld1_lane_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld1_lane_postindex) {
   SETUP();
 
   uint8_t src[64];
@@ -5325,8 +5279,7 @@ TEST(neon_ld1_lane_postindex) {
   CHECK_EQUAL_64(src_base + 4, x24);
 }
 
-TEST(neon_st1_lane_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st1_lane_postindex) {
   SETUP();
 
   uint8_t src[64];
@@ -5370,8 +5323,7 @@ TEST(neon_st1_lane_postindex) {
   CHECK_EQUAL_128(0x0706050403020100, 0x0F0E0D0C0B0A0908, q4);
 }
 
-TEST(neon_ld1_alllanes) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld1_alllanes) {
   SETUP();
 
   uint8_t src[64];
@@ -5411,8 +5363,7 @@ TEST(neon_ld1_alllanes) {
   CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0F0E0D0C0B0A0908, q7);
 }
 
-TEST(neon_ld1_alllanes_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_ld1_alllanes_postindex) {
   SETUP();
 
   uint8_t src[64];
@@ -5445,8 +5396,7 @@ TEST(neon_ld1_alllanes_postindex) {
   CHECK_EQUAL_64(src_base + 19, x17);
 }
 
-TEST(neon_st1_d) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st1_d) {
   SETUP();
 
   uint8_t src[14 * kDRegSize];
@@ -5500,8 +5450,7 @@ TEST(neon_st1_d) {
   CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q24);
 }
 
-TEST(neon_st1_d_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st1_d_postindex) {
   SETUP();
 
   uint8_t src[64 + 14 * kDRegSize];
@@ -5557,8 +5506,7 @@ TEST(neon_st1_d_postindex) {
   CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q24);
 }
 
-TEST(neon_st1_q) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st1_q) {
   SETUP();
 
   uint8_t src[64 + 160];
@@ -5607,8 +5555,7 @@ TEST(neon_st1_q) {
   CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323130, q25);
 }
 
-TEST(neon_st1_q_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st1_q_postindex) {
   SETUP();
 
   uint8_t src[64 + 160];
@@ -5663,8 +5610,7 @@ TEST(neon_st1_q_postindex) {
   CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323130, q25);
 }
 
-TEST(neon_st2_d) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st2_d) {
   SETUP();
 
   uint8_t src[4 * 16];
@@ -5701,8 +5647,7 @@ TEST(neon_st2_d) {
   CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323117, q3);
 }
 
-TEST(neon_st2_d_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st2_d_postindex) {
   SETUP();
 
   uint8_t src[4 * 16];
@@ -5736,8 +5681,7 @@ TEST(neon_st2_d_postindex) {
   CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726251716151407, q2);
 }
 
-TEST(neon_st2_q) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st2_q) {
   SETUP();
 
   uint8_t src[5 * 16];
@@ -5776,8 +5720,7 @@ TEST(neon_st2_q) {
   CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0F0E0D0C0B0A0908, q3);
 }
 
-TEST(neon_st2_q_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st2_q_postindex) {
   SETUP();
 
   uint8_t src[5 * 16];
@@ -5816,8 +5759,7 @@ TEST(neon_st2_q_postindex) {
   CHECK_EQUAL_128(0x4F4E4D4C4B4A1F1E, 0x1D1C1B1A19180F0E, q4);
 }
 
-TEST(neon_st3_d) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st3_d) {
   SETUP();
 
   uint8_t src[3 * 16];
@@ -5851,8 +5793,7 @@ TEST(neon_st3_d) {
   CHECK_EQUAL_128(0x1F1E1D2726252417, 0x1615140706050423, q1);
 }
 
-TEST(neon_st3_d_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st3_d_postindex) {
   SETUP();
 
   uint8_t src[4 * 16];
@@ -5889,8 +5830,7 @@ TEST(neon_st3_d_postindex) {
   CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736352726252417, q3);
 }
 
-TEST(neon_st3_q) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st3_q) {
   SETUP();
 
   uint8_t src[6 * 16];
@@ -5934,8 +5874,7 @@ TEST(neon_st3_q) {
   CHECK_EQUAL_128(0x5F5E5D5C5B5A5958, 0x572F2E2D2C2B2A29, q5);
 }
 
-TEST(neon_st3_q_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st3_q_postindex) {
   SETUP();
 
   uint8_t src[7 * 16];
@@ -5979,8 +5918,7 @@ TEST(neon_st3_q_postindex) {
   CHECK_EQUAL_128(0x6F6E6D6C6B6A2F2E, 0x2D2C2B2A29281F1E, q6);
 }
 
-TEST(neon_st4_d) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st4_d) {
   SETUP();
 
   uint8_t src[4 * 16];
@@ -6019,8 +5957,7 @@ TEST(neon_st4_d) {
   CHECK_EQUAL_128(0x3F3E3D3C3B373635, 0x3427262524171615, q3);
 }
 
-TEST(neon_st4_d_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st4_d_postindex) {
   SETUP();
 
   uint8_t src[5 * 16];
@@ -6062,8 +5999,7 @@ TEST(neon_st4_d_postindex) {
   CHECK_EQUAL_128(0x4F4E4D4C4B4A4948, 0x4746453736353427, q4);
 }
 
-TEST(neon_st4_q) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st4_q) {
   SETUP();
 
   uint8_t src[7 * 16];
@@ -6111,8 +6047,7 @@ TEST(neon_st4_q) {
   CHECK_EQUAL_128(0x6F6E6D6C6B6A6968, 0x673F3E3D3C3B3A39, q6);
 }
 
-TEST(neon_st4_q_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_st4_q_postindex) {
   SETUP();
 
   uint8_t src[9 * 16];
@@ -6164,8 +6099,7 @@ TEST(neon_st4_q_postindex) {
   CHECK_EQUAL_128(0x8F8E8D8C8B8A3F3E, 0x3D3C3B3A39382F2E, q8);
 }
 
-TEST(neon_destructive_minmaxp) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_destructive_minmaxp) {
   SETUP();
 
   START();
@@ -6228,8 +6162,7 @@ TEST(neon_destructive_minmaxp) {
   CHECK_EQUAL_128(0, 0x3333333333333333, q31);
 }
 
-TEST(neon_destructive_tbl) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_destructive_tbl) {
   SETUP();
 
   START();
@@ -6278,8 +6211,7 @@ TEST(neon_destructive_tbl) {
   CHECK_EQUAL_128(0x0F000000C4C5C6B7, 0xB8B9AAABAC424100, q26);
 }
 
-TEST(neon_destructive_tbx) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_destructive_tbx) {
   SETUP();
 
   START();
@@ -6328,8 +6260,7 @@ TEST(neon_destructive_tbx) {
   CHECK_EQUAL_128(0x0F414243C4C5C6B7, 0xB8B9AAABAC424100, q26);
 }
 
-TEST(neon_destructive_fcvtl) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_destructive_fcvtl) {
   SETUP();
 
   START();
@@ -6364,8 +6295,7 @@ TEST(neon_destructive_fcvtl) {
   CHECK_EQUAL_128(0x400000003F800000, 0x3F80000040000000, q23);
 }
 
-TEST(ldp_stp_float) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldp_stp_float) {
   SETUP();
 
   float src[2] = {1.0, 2.0};
@@ -6391,8 +6321,7 @@ TEST(ldp_stp_float) {
   CHECK_EQUAL_64(dst_base + sizeof(dst[1]), x17);
 }
 
-TEST(ldp_stp_double) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldp_stp_double) {
   SETUP();
 
   double src[2] = {1.0, 2.0};
@@ -6418,7 +6347,7 @@ TEST(ldp_stp_double) {
   CHECK_EQUAL_64(dst_base + sizeof(dst[1]), x17);
 }
 
-TEST(ldp_stp_quad) {
+TEST_F(AssemblerArm64Test, ldp_stp_quad) {
   SETUP();
 
   uint64_t src[4] = {0x0123456789ABCDEF, 0xAAAAAAAA55555555, 0xFEDCBA9876543210,
@@ -6448,8 +6377,7 @@ TEST(ldp_stp_quad) {
   CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[1]), x17);
 }
 
-TEST(ldp_stp_offset) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldp_stp_offset) {
   SETUP();
 
   uint64_t src[3] = {0x0011223344556677UL, 0x8899AABBCCDDEEFFUL,
@@ -6500,8 +6428,7 @@ TEST(ldp_stp_offset) {
   CHECK_EQUAL_64(dst_base + 56, x19);
 }
 
-TEST(ldp_stp_offset_wide) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldp_stp_offset_wide) {
   SETUP();
 
   uint64_t src[3] = {0x0011223344556677, 0x8899AABBCCDDEEFF,
@@ -6555,8 +6482,7 @@ TEST(ldp_stp_offset_wide) {
   CHECK_EQUAL_64(dst_base + base_offset + 56, x19);
 }
 
-TEST(ldp_stp_preindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldp_stp_preindex) {
   SETUP();
 
   uint64_t src[3] = {0x0011223344556677UL, 0x8899AABBCCDDEEFFUL,
@@ -6607,8 +6533,7 @@ TEST(ldp_stp_preindex) {
   CHECK_EQUAL_64(dst_base + 24, x22);
 }
 
-TEST(ldp_stp_preindex_wide) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldp_stp_preindex_wide) {
   SETUP();
 
   uint64_t src[3] = {0x0011223344556677, 0x8899AABBCCDDEEFF,
@@ -6667,8 +6592,7 @@ TEST(ldp_stp_preindex_wide) {
   CHECK_EQUAL_64(dst_base + 24, x22);
 }
 
-TEST(ldp_stp_postindex) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldp_stp_postindex) {
   SETUP();
 
   uint64_t src[4] = {0x0011223344556677UL, 0x8899AABBCCDDEEFFUL,
@@ -6719,8 +6643,7 @@ TEST(ldp_stp_postindex) {
   CHECK_EQUAL_64(dst_base + 24, x22);
 }
 
-TEST(ldp_stp_postindex_wide) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldp_stp_postindex_wide) {
   SETUP();
 
   uint64_t src[4] = {0x0011223344556677, 0x8899AABBCCDDEEFF, 0xFFEEDDCCBBAA9988,
@@ -6779,8 +6702,7 @@ TEST(ldp_stp_postindex_wide) {
   CHECK_EQUAL_64(dst_base - base_offset + 24, x22);
 }
 
-TEST(ldp_sign_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldp_sign_extend) {
   SETUP();
 
   uint32_t src[2] = {0x80000000, 0x7FFFFFFF};
@@ -6797,8 +6719,7 @@ TEST(ldp_sign_extend) {
   CHECK_EQUAL_64(0x000000007FFFFFFFUL, x1);
 }
 
-TEST(ldur_stur) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldur_stur) {
   SETUP();
 
   int64_t src[2] = {0x0123456789ABCDEFUL, 0x0123456789ABCDEFUL};
@@ -6839,8 +6760,7 @@ TEST(ldur_stur) {
   CHECK_EQUAL_64(dst_base + 32, x20);
 }
 
-TEST(ldr_pcrel_large_offset) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_pcrel_large_offset) {
   SETUP_SIZE(1 * MB);
 
   START();
@@ -6865,8 +6785,7 @@ TEST(ldr_pcrel_large_offset) {
   CHECK_FULL_HEAP_OBJECT_IN_REGISTER(isolate->factory()->undefined_value(), x2);
 }
 
-TEST(ldr_literal) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_literal) {
   SETUP();
 
   START();
@@ -6881,10 +6800,8 @@ TEST(ldr_literal) {
 
 #ifdef DEBUG
 // These tests rely on functions available in debug mode.
-enum LiteralPoolEmitOutcome { EmitExpected, NoEmitExpected };
-enum LiteralPoolEmissionAlignment { EmitAtUnaligned, EmitAtAligned };
 
-static void LdrLiteralRangeHelper(
+void AssemblerArm64Test::LdrLiteralRangeHelper(
     size_t range, LiteralPoolEmitOutcome outcome,
     LiteralPoolEmissionAlignment unaligned_emission) {
   SETUP_SIZE(static_cast<int>(range + 1024));
@@ -6989,32 +6906,28 @@ static void LdrLiteralRangeHelper(
   CHECK_FULL_HEAP_OBJECT_IN_REGISTER(isolate->factory()->false_value(), x5);
 }
 
-TEST(ldr_literal_range_max_dist_emission_1) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_literal_range_max_dist_emission_1) {
   LdrLiteralRangeHelper(
       MacroAssembler::GetApproxMaxDistToConstPoolForTesting() +
           MacroAssembler::GetCheckConstPoolIntervalForTesting(),
       EmitExpected, EmitAtAligned);
 }
 
-TEST(ldr_literal_range_max_dist_emission_2) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_literal_range_max_dist_emission_2) {
   LdrLiteralRangeHelper(
       MacroAssembler::GetApproxMaxDistToConstPoolForTesting() +
           MacroAssembler::GetCheckConstPoolIntervalForTesting(),
       EmitExpected, EmitAtUnaligned);
 }
 
-TEST(ldr_literal_range_max_dist_no_emission_1) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_literal_range_max_dist_no_emission_1) {
   LdrLiteralRangeHelper(
       MacroAssembler::GetApproxMaxDistToConstPoolForTesting() -
           MacroAssembler::GetCheckConstPoolIntervalForTesting(),
       NoEmitExpected, EmitAtUnaligned);
 }
 
-TEST(ldr_literal_range_max_dist_no_emission_2) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ldr_literal_range_max_dist_no_emission_2) {
   LdrLiteralRangeHelper(
       MacroAssembler::GetApproxMaxDistToConstPoolForTesting() -
           MacroAssembler::GetCheckConstPoolIntervalForTesting(),
@@ -7023,8 +6936,7 @@ TEST(ldr_literal_range_max_dist_no_emission_2) {
 
 #endif
 
-TEST(add_sub_imm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, add_sub_imm) {
   SETUP();
 
   START();
@@ -7077,8 +6989,7 @@ TEST(add_sub_imm) {
   CHECK_EQUAL_32(0xFFFFFFFF, w27);
 }
 
-TEST(add_sub_wide_imm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, add_sub_wide_imm) {
   SETUP();
 
   START();
@@ -7113,8 +7024,7 @@ TEST(add_sub_wide_imm) {
   CHECK_EQUAL_32(-0x12345678, w21);
 }
 
-TEST(add_sub_shifted) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, add_sub_shifted) {
   SETUP();
 
   START();
@@ -7163,8 +7073,7 @@ TEST(add_sub_shifted) {
   CHECK_EQUAL_64(0x10FEDCBA98765432L, x27);
 }
 
-TEST(add_sub_extended) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, add_sub_extended) {
   SETUP();
 
   START();
@@ -7231,8 +7140,7 @@ TEST(add_sub_extended) {
   CHECK_EQUAL_64(256, x30);
 }
 
-TEST(add_sub_negative) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, add_sub_negative) {
   SETUP();
 
   START();
@@ -7274,8 +7182,7 @@ TEST(add_sub_negative) {
   CHECK_EQUAL_32(402000, w22);
 }
 
-TEST(add_sub_zero) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, add_sub_zero) {
   SETUP();
 
   START();
@@ -7309,8 +7216,7 @@ TEST(add_sub_zero) {
   CHECK_EQUAL_64(0, x2);
 }
 
-TEST(preshift_immediates) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, preshift_immediates) {
   SETUP();
 
   START();
@@ -7377,8 +7283,7 @@ TEST(preshift_immediates) {
   CHECK_EQUAL_64(0x11100, x15);
 }
 
-TEST(claim_drop_zero) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, claim_drop_zero) {
   SETUP();
 
   START();
@@ -7400,8 +7305,7 @@ TEST(claim_drop_zero) {
   RUN();
 }
 
-TEST(neg) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neg) {
   SETUP();
 
   START();
@@ -7447,8 +7351,9 @@ TEST(neg) {
 }
 
 template <typename T, typename Op>
-static void AdcsSbcsHelper(Op op, T left, T right, int carry, T expected,
-                           StatusFlags expected_flags) {
+void AssemblerArm64Test::AdcsSbcsHelper(Op op, T left, T right, int carry,
+                                        T expected,
+                                        StatusFlags expected_flags) {
   int reg_size = sizeof(T) * 8;
   auto left_reg = Register::Create(0, reg_size);
   auto right_reg = Register::Create(1, reg_size);
@@ -7473,8 +7378,7 @@ static void AdcsSbcsHelper(Op op, T left, T right, int carry, T expected,
   CHECK_EQUAL_NZCV(expected_flags);
 }
 
-TEST(adcs_sbcs_x) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, adcs_sbcs_x) {
   uint64_t inputs[] = {
       0x0000000000000000, 0x0000000000000001, 0x7FFFFFFFFFFFFFFE,
       0x7FFFFFFFFFFFFFFF, 0x8000000000000000, 0x8000000000000001,
@@ -7642,8 +7546,7 @@ TEST(adcs_sbcs_x) {
   }
 }
 
-TEST(adcs_sbcs_w) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, adcs_sbcs_w) {
   uint32_t inputs[] = {
       0x00000000, 0x00000001, 0x7FFFFFFE, 0x7FFFFFFF,
       0x80000000, 0x80000001, 0xFFFFFFFE, 0xFFFFFFFF,
@@ -7810,8 +7713,7 @@ TEST(adcs_sbcs_w) {
   }
 }
 
-TEST(adc_sbc_shift) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, adc_sbc_shift) {
   SETUP();
 
   START();
@@ -7879,8 +7781,7 @@ TEST(adc_sbc_shift) {
   CHECK_EQUAL_32(0x9A222221 + 1, w27);
 }
 
-TEST(adc_sbc_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, adc_sbc_extend) {
   SETUP();
 
   START();
@@ -7970,8 +7871,7 @@ TEST(adc_sbc_extend) {
   CHECK_EQUAL_NZCV(NVFlag);
 }
 
-TEST(adc_sbc_wide_imm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, adc_sbc_wide_imm) {
   SETUP();
 
   START();
@@ -8015,8 +7915,7 @@ TEST(adc_sbc_wide_imm) {
   CHECK_EQUAL_64(0x10000, x23);
 }
 
-TEST(flags) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, flags) {
   SETUP();
 
   START();
@@ -8162,8 +8061,7 @@ TEST(flags) {
   CHECK_EQUAL_NZCV(ZCFlag);
 }
 
-TEST(cmp_shift) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, cmp_shift) {
   SETUP();
 
   START();
@@ -8215,8 +8113,7 @@ TEST(cmp_shift) {
   CHECK_EQUAL_32(ZCFlag, w7);
 }
 
-TEST(cmp_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, cmp_extend) {
   SETUP();
 
   START();
@@ -8265,8 +8162,7 @@ TEST(cmp_extend) {
   CHECK_EQUAL_32(ZCFlag, w7);
 }
 
-TEST(ccmp) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ccmp) {
   SETUP();
 
   START();
@@ -8306,8 +8202,7 @@ TEST(ccmp) {
   CHECK_EQUAL_32(ZCFlag, w5);
 }
 
-TEST(ccmp_wide_imm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ccmp_wide_imm) {
   SETUP();
 
   START();
@@ -8328,8 +8223,7 @@ TEST(ccmp_wide_imm) {
   CHECK_EQUAL_32(NoFlag, w1);
 }
 
-TEST(ccmp_shift_extend) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ccmp_shift_extend) {
   SETUP();
 
   START();
@@ -8369,8 +8263,7 @@ TEST(ccmp_shift_extend) {
   CHECK_EQUAL_32(NZCVFlag, w4);
 }
 
-TEST(csel) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, csel) {
   SETUP();
 
   START();
@@ -8436,8 +8329,7 @@ TEST(csel) {
   CHECK_EQUAL_64(0, x27);
 }
 
-TEST(csel_imm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, csel_imm) {
   SETUP();
 
   START();
@@ -8487,8 +8379,7 @@ TEST(csel_imm) {
   CHECK_EQUAL_64(0x8000000000000000UL, x15);
 }
 
-TEST(lslv) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, lslv) {
   SETUP();
 
   uint64_t value = 0x0123456789ABCDEFUL;
@@ -8537,8 +8428,7 @@ TEST(lslv) {
   CHECK_EQUAL_32(value << (shift[5] & 31), w27);
 }
 
-TEST(lsrv) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, lsrv) {
   SETUP();
 
   uint64_t value = 0x0123456789ABCDEFUL;
@@ -8589,8 +8479,7 @@ TEST(lsrv) {
   CHECK_EQUAL_32(value >> (shift[5] & 31), w27);
 }
 
-TEST(asrv) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, asrv) {
   SETUP();
 
   int64_t value = 0xFEDCBA98FEDCBA98UL;
@@ -8641,8 +8530,7 @@ TEST(asrv) {
   CHECK_EQUAL_32(value32 >> (shift[5] & 31), w27);
 }
 
-TEST(rorv) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, rorv) {
   SETUP();
 
   uint64_t value = 0x0123456789ABCDEFUL;
@@ -8691,8 +8579,7 @@ TEST(rorv) {
   CHECK_EQUAL_32(0xF89ABCDE, w27);
 }
 
-TEST(bfm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, bfm) {
   SETUP();
 
   START();
@@ -8728,8 +8615,7 @@ TEST(bfm) {
   CHECK_EQUAL_64(0x88888888888888ABL, x13);
 }
 
-TEST(sbfm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, sbfm) {
   SETUP();
 
   START();
@@ -8787,8 +8673,7 @@ TEST(sbfm) {
   CHECK_EQUAL_64(0x76543210, x29);
 }
 
-TEST(ubfm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, ubfm) {
   SETUP();
 
   START();
@@ -8841,8 +8726,7 @@ TEST(ubfm) {
   CHECK_EQUAL_64(0x89ABCDEFL, x22);
 }
 
-TEST(extr) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, extr) {
   SETUP();
 
   START();
@@ -8876,8 +8760,7 @@ TEST(extr) {
   CHECK_EQUAL_64(0x02468ACF13579BDEUL, x25);
 }
 
-TEST(fmov_imm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fmov_imm) {
   SETUP();
 
   START();
@@ -8903,8 +8786,7 @@ TEST(fmov_imm) {
   CHECK_EQUAL_FP64(kFP64NegativeInfinity, d6);
 }
 
-TEST(fmov_reg) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fmov_reg) {
   SETUP();
 
   START();
@@ -8931,8 +8813,7 @@ TEST(fmov_reg) {
   CHECK_EQUAL_FP32(base::bit_cast<float>(0x89ABCDEF), s6);
 }
 
-TEST(fadd) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fadd) {
   SETUP();
 
   START();
@@ -8985,8 +8866,7 @@ TEST(fadd) {
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
 }
 
-TEST(fsub) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fsub) {
   SETUP();
 
   START();
@@ -9039,8 +8919,7 @@ TEST(fsub) {
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
 }
 
-TEST(fmul) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fmul) {
   SETUP();
 
   START();
@@ -9094,10 +8973,9 @@ TEST(fmul) {
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
 }
 
-
-static void FmaddFmsubHelper(double n, double m, double a,
-                             double fmadd, double fmsub,
-                             double fnmadd, double fnmsub) {
+void AssemblerArm64Test::FmaddFmsubHelper(double n, double m, double a,
+                                          double fmadd, double fmsub,
+                                          double fnmadd, double fnmsub) {
   SETUP();
   START();
 
@@ -9118,9 +8996,7 @@ static void FmaddFmsubHelper(double n, double m, double a,
   CHECK_EQUAL_FP64(fnmsub, d31);
 }
 
-TEST(fmadd_fmsub_double) {
-  INIT_V8();
-
+TEST_F(AssemblerArm64Test, fmadd_fmsub_double) {
   // It's hard to check the result of fused operations because the only way to
   // calculate the result is using fma, which is what the simulator uses anyway.
   // TODO(jbramley): Add tests to check behaviour against a hardware trace.
@@ -9131,27 +9007,25 @@ TEST(fmadd_fmsub_double) {
 
   // Check the sign of exact zeroes.
   //               n     m     a     fmadd  fmsub  fnmadd fnmsub
-  FmaddFmsubHelper(-0.0, +0.0, -0.0, -0.0,  +0.0,  +0.0,  +0.0);
-  FmaddFmsubHelper(+0.0, +0.0, -0.0, +0.0,  -0.0,  +0.0,  +0.0);
-  FmaddFmsubHelper(+0.0, +0.0, +0.0, +0.0,  +0.0,  -0.0,  +0.0);
-  FmaddFmsubHelper(-0.0, +0.0, +0.0, +0.0,  +0.0,  +0.0,  -0.0);
-  FmaddFmsubHelper(+0.0, -0.0, -0.0, -0.0,  +0.0,  +0.0,  +0.0);
-  FmaddFmsubHelper(-0.0, -0.0, -0.0, +0.0,  -0.0,  +0.0,  +0.0);
-  FmaddFmsubHelper(-0.0, -0.0, +0.0, +0.0,  +0.0,  -0.0,  +0.0);
-  FmaddFmsubHelper(+0.0, -0.0, +0.0, +0.0,  +0.0,  +0.0,  -0.0);
+  FmaddFmsubHelper(-0.0, +0.0, -0.0, -0.0, +0.0, +0.0, +0.0);
+  FmaddFmsubHelper(+0.0, +0.0, -0.0, +0.0, -0.0, +0.0, +0.0);
+  FmaddFmsubHelper(+0.0, +0.0, +0.0, +0.0, +0.0, -0.0, +0.0);
+  FmaddFmsubHelper(-0.0, +0.0, +0.0, +0.0, +0.0, +0.0, -0.0);
+  FmaddFmsubHelper(+0.0, -0.0, -0.0, -0.0, +0.0, +0.0, +0.0);
+  FmaddFmsubHelper(-0.0, -0.0, -0.0, +0.0, -0.0, +0.0, +0.0);
+  FmaddFmsubHelper(-0.0, -0.0, +0.0, +0.0, +0.0, -0.0, +0.0);
+  FmaddFmsubHelper(+0.0, -0.0, +0.0, +0.0, +0.0, +0.0, -0.0);
 
   // Check NaN generation.
-  FmaddFmsubHelper(kFP64PositiveInfinity, 0.0, 42.0,
-                   kFP64DefaultNaN, kFP64DefaultNaN,
-                   kFP64DefaultNaN, kFP64DefaultNaN);
-  FmaddFmsubHelper(0.0, kFP64PositiveInfinity, 42.0,
-                   kFP64DefaultNaN, kFP64DefaultNaN,
-                   kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(kFP64PositiveInfinity, 0.0, 42.0, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(0.0, kFP64PositiveInfinity, 42.0, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN, kFP64DefaultNaN);
   FmaddFmsubHelper(kFP64PositiveInfinity, 1.0, kFP64PositiveInfinity,
-                   kFP64PositiveInfinity,   //  inf + ( inf * 1) = inf
-                   kFP64DefaultNaN,         //  inf + (-inf * 1) = NaN
-                   kFP64NegativeInfinity,   // -inf + (-inf * 1) = -inf
-                   kFP64DefaultNaN);        // -inf + ( inf * 1) = NaN
+                   kFP64PositiveInfinity,  //  inf + ( inf * 1) = inf
+                   kFP64DefaultNaN,        //  inf + (-inf * 1) = NaN
+                   kFP64NegativeInfinity,  // -inf + (-inf * 1) = -inf
+                   kFP64DefaultNaN);       // -inf + ( inf * 1) = NaN
   FmaddFmsubHelper(kFP64NegativeInfinity, 1.0, kFP64PositiveInfinity,
                    kFP64DefaultNaN,         //  inf + (-inf * 1) = NaN
                    kFP64PositiveInfinity,   //  inf + ( inf * 1) = inf
@@ -9159,9 +9033,9 @@ TEST(fmadd_fmsub_double) {
                    kFP64NegativeInfinity);  // -inf + (-inf * 1) = -inf
 }
 
-static void FmaddFmsubHelper(float n, float m, float a,
-                             float fmadd, float fmsub,
-                             float fnmadd, float fnmsub) {
+void AssemblerArm64Test::FmaddFmsubHelper(float n, float m, float a,
+                                          float fmadd, float fmsub,
+                                          float fnmadd, float fnmsub) {
   SETUP();
   START();
 
@@ -9182,8 +9056,7 @@ static void FmaddFmsubHelper(float n, float m, float a,
   CHECK_EQUAL_FP32(fnmsub, s31);
 }
 
-TEST(fmadd_fmsub_float) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fmadd_fmsub_float) {
   // It's hard to check the result of fused operations because the only way to
   // calculate the result is using fma, which is what the simulator uses anyway.
   // TODO(jbramley): Add tests to check behaviour against a hardware trace.
@@ -9204,17 +9077,15 @@ TEST(fmadd_fmsub_float) {
   FmaddFmsubHelper(+0.0f, -0.0f, +0.0f, +0.0f, +0.0f, +0.0f, -0.0f);
 
   // Check NaN generation.
-  FmaddFmsubHelper(kFP32PositiveInfinity, 0.0f, 42.0f,
-                   kFP32DefaultNaN, kFP32DefaultNaN,
-                   kFP32DefaultNaN, kFP32DefaultNaN);
-  FmaddFmsubHelper(0.0f, kFP32PositiveInfinity, 42.0f,
-                   kFP32DefaultNaN, kFP32DefaultNaN,
-                   kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(kFP32PositiveInfinity, 0.0f, 42.0f, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(0.0f, kFP32PositiveInfinity, 42.0f, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN, kFP32DefaultNaN);
   FmaddFmsubHelper(kFP32PositiveInfinity, 1.0f, kFP32PositiveInfinity,
-                   kFP32PositiveInfinity,   //  inf + ( inf * 1) = inf
-                   kFP32DefaultNaN,         //  inf + (-inf * 1) = NaN
-                   kFP32NegativeInfinity,   // -inf + (-inf * 1) = -inf
-                   kFP32DefaultNaN);        // -inf + ( inf * 1) = NaN
+                   kFP32PositiveInfinity,  //  inf + ( inf * 1) = inf
+                   kFP32DefaultNaN,        //  inf + (-inf * 1) = NaN
+                   kFP32NegativeInfinity,  // -inf + (-inf * 1) = -inf
+                   kFP32DefaultNaN);       // -inf + ( inf * 1) = NaN
   FmaddFmsubHelper(kFP32NegativeInfinity, 1.0f, kFP32PositiveInfinity,
                    kFP32DefaultNaN,         //  inf + (-inf * 1) = NaN
                    kFP32PositiveInfinity,   //  inf + ( inf * 1) = inf
@@ -9222,8 +9093,7 @@ TEST(fmadd_fmsub_float) {
                    kFP32NegativeInfinity);  // -inf + (-inf * 1) = -inf
 }
 
-TEST(fmadd_fmsub_double_nans) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fmadd_fmsub_double_nans) {
   // Make sure that NaN propagation works correctly.
   double s1 = base::bit_cast<double>(0x7FF5555511111111);
   double s2 = base::bit_cast<double>(0x7FF5555522222222);
@@ -9290,22 +9160,17 @@ TEST(fmadd_fmsub_double_nans) {
   FmaddFmsubHelper(s1, s2, sa, sa_proc, sa_proc, sa_proc_neg, sa_proc_neg);
 
   // A NaN generated by the intermediate op1 * op2 overrides a quiet NaN in a.
-  FmaddFmsubHelper(0, kFP64PositiveInfinity, qa,
-                   kFP64DefaultNaN, kFP64DefaultNaN,
-                   kFP64DefaultNaN, kFP64DefaultNaN);
-  FmaddFmsubHelper(kFP64PositiveInfinity, 0, qa,
-                   kFP64DefaultNaN, kFP64DefaultNaN,
-                   kFP64DefaultNaN, kFP64DefaultNaN);
-  FmaddFmsubHelper(0, kFP64NegativeInfinity, qa,
-                   kFP64DefaultNaN, kFP64DefaultNaN,
-                   kFP64DefaultNaN, kFP64DefaultNaN);
-  FmaddFmsubHelper(kFP64NegativeInfinity, 0, qa,
-                   kFP64DefaultNaN, kFP64DefaultNaN,
-                   kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(0, kFP64PositiveInfinity, qa, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(kFP64PositiveInfinity, 0, qa, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(0, kFP64NegativeInfinity, qa, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN, kFP64DefaultNaN);
+  FmaddFmsubHelper(kFP64NegativeInfinity, 0, qa, kFP64DefaultNaN,
+                   kFP64DefaultNaN, kFP64DefaultNaN, kFP64DefaultNaN);
 }
 
-TEST(fmadd_fmsub_float_nans) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fmadd_fmsub_float_nans) {
   // Make sure that NaN propagation works correctly.
   float s1 = base::bit_cast<float>(0x7F951111);
   float s2 = base::bit_cast<float>(0x7F952222);
@@ -9372,22 +9237,17 @@ TEST(fmadd_fmsub_float_nans) {
   FmaddFmsubHelper(s1, s2, sa, sa_proc, sa_proc, sa_proc_neg, sa_proc_neg);
 
   // A NaN generated by the intermediate op1 * op2 overrides a quiet NaN in a.
-  FmaddFmsubHelper(0, kFP32PositiveInfinity, qa,
-                   kFP32DefaultNaN, kFP32DefaultNaN,
-                   kFP32DefaultNaN, kFP32DefaultNaN);
-  FmaddFmsubHelper(kFP32PositiveInfinity, 0, qa,
-                   kFP32DefaultNaN, kFP32DefaultNaN,
-                   kFP32DefaultNaN, kFP32DefaultNaN);
-  FmaddFmsubHelper(0, kFP32NegativeInfinity, qa,
-                   kFP32DefaultNaN, kFP32DefaultNaN,
-                   kFP32DefaultNaN, kFP32DefaultNaN);
-  FmaddFmsubHelper(kFP32NegativeInfinity, 0, qa,
-                   kFP32DefaultNaN, kFP32DefaultNaN,
-                   kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(0, kFP32PositiveInfinity, qa, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(kFP32PositiveInfinity, 0, qa, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(0, kFP32NegativeInfinity, qa, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN, kFP32DefaultNaN);
+  FmaddFmsubHelper(kFP32NegativeInfinity, 0, qa, kFP32DefaultNaN,
+                   kFP32DefaultNaN, kFP32DefaultNaN, kFP32DefaultNaN);
 }
 
-TEST(fdiv) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fdiv) {
   SETUP();
 
   START();
@@ -9441,11 +9301,8 @@ TEST(fdiv) {
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
 }
 
-
-static float MinMaxHelper(float n,
-                          float m,
-                          bool min,
-                          float quiet_nan_substitute = 0.0) {
+float MinMaxConstantHelper(float n, float m, bool min,
+                           float quiet_nan_substitute = 0.0f) {
   uint32_t raw_n = base::bit_cast<uint32_t>(n);
   uint32_t raw_m = base::bit_cast<uint32_t>(m);
 
@@ -9474,19 +9331,15 @@ static float MinMaxHelper(float n,
     }
   }
 
-  if ((n == 0.0) && (m == 0.0) &&
-      (copysign(1.0, n) != copysign(1.0, m))) {
+  if ((n == 0.0) && (m == 0.0) && (copysign(1.0, n) != copysign(1.0, m))) {
     return min ? -0.0 : 0.0;
   }
 
   return min ? fminf(n, m) : fmaxf(n, m);
 }
 
-
-static double MinMaxHelper(double n,
-                           double m,
-                           bool min,
-                           double quiet_nan_substitute = 0.0) {
+static double MinMaxConstantHelper(double n, double m, bool min,
+                                   double quiet_nan_substitute = 0.0) {
   uint64_t raw_n = base::bit_cast<uint64_t>(n);
   uint64_t raw_m = base::bit_cast<uint64_t>(m);
 
@@ -9515,17 +9368,16 @@ static double MinMaxHelper(double n,
     }
   }
 
-  if ((n == 0.0) && (m == 0.0) &&
-      (copysign(1.0, n) != copysign(1.0, m))) {
+  if ((n == 0.0) && (m == 0.0) && (copysign(1.0, n) != copysign(1.0, m))) {
     return min ? -0.0 : 0.0;
   }
 
   return min ? fmin(n, m) : fmax(n, m);
 }
 
-
-static void FminFmaxDoubleHelper(double n, double m, double min, double max,
-                                 double minnm, double maxnm) {
+void AssemblerArm64Test::FminFmaxDoubleHelper(double n, double m, double min,
+                                              double max, double minnm,
+                                              double maxnm) {
   SETUP();
 
   START();
@@ -9545,8 +9397,7 @@ static void FminFmaxDoubleHelper(double n, double m, double min, double max,
   CHECK_EQUAL_FP64(maxnm, d31);
 }
 
-TEST(fmax_fmin_d) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fmax_fmin_d) {
   // Use non-standard NaNs to check that the payload bits are preserved.
   double snan = base::bit_cast<double>(0x7FF5555512345678);
   double qnan = base::bit_cast<double>(0x7FFAAAAA87654321);
@@ -9565,30 +9416,30 @@ TEST(fmax_fmin_d) {
   FminFmaxDoubleHelper(kFP64PositiveInfinity, kFP64NegativeInfinity,
                        kFP64NegativeInfinity, kFP64PositiveInfinity,
                        kFP64NegativeInfinity, kFP64PositiveInfinity);
-  FminFmaxDoubleHelper(snan, 0,
-                       snan_processed, snan_processed,
+  FminFmaxDoubleHelper(snan, 0, snan_processed, snan_processed, snan_processed,
+                       snan_processed);
+  FminFmaxDoubleHelper(0, snan, snan_processed, snan_processed, snan_processed,
+                       snan_processed);
+  FminFmaxDoubleHelper(qnan, 0, qnan_processed, qnan_processed, 0, 0);
+  FminFmaxDoubleHelper(0, qnan, qnan_processed, qnan_processed, 0, 0);
+  FminFmaxDoubleHelper(qnan, snan, snan_processed, snan_processed,
                        snan_processed, snan_processed);
-  FminFmaxDoubleHelper(0, snan,
-                       snan_processed, snan_processed,
-                       snan_processed, snan_processed);
-  FminFmaxDoubleHelper(qnan, 0,
-                       qnan_processed, qnan_processed,
-                       0, 0);
-  FminFmaxDoubleHelper(0, qnan,
-                       qnan_processed, qnan_processed,
-                       0, 0);
-  FminFmaxDoubleHelper(qnan, snan,
-                       snan_processed, snan_processed,
-                       snan_processed, snan_processed);
-  FminFmaxDoubleHelper(snan, qnan,
-                       snan_processed, snan_processed,
+  FminFmaxDoubleHelper(snan, qnan, snan_processed, snan_processed,
                        snan_processed, snan_processed);
 
   // Iterate over all combinations of inputs.
-  double inputs[] = { DBL_MAX, DBL_MIN, 1.0, 0.0,
-                      -DBL_MAX, -DBL_MIN, -1.0, -0.0,
-                      kFP64PositiveInfinity, kFP64NegativeInfinity,
-                      kFP64QuietNaN, kFP64SignallingNaN };
+  double inputs[] = {DBL_MAX,
+                     DBL_MIN,
+                     1.0,
+                     0.0,
+                     -DBL_MAX,
+                     -DBL_MIN,
+                     -1.0,
+                     -0.0,
+                     kFP64PositiveInfinity,
+                     kFP64NegativeInfinity,
+                     kFP64QuietNaN,
+                     kFP64SignallingNaN};
 
   const int count = sizeof(inputs) / sizeof(inputs[0]);
 
@@ -9596,17 +9447,18 @@ TEST(fmax_fmin_d) {
     double n = inputs[in];
     for (int im = 0; im < count; im++) {
       double m = inputs[im];
-      FminFmaxDoubleHelper(n, m,
-                           MinMaxHelper(n, m, true),
-                           MinMaxHelper(n, m, false),
-                           MinMaxHelper(n, m, true, kFP64PositiveInfinity),
-                           MinMaxHelper(n, m, false, kFP64NegativeInfinity));
+      FminFmaxDoubleHelper(
+          n, m, MinMaxConstantHelper(n, m, true),
+          MinMaxConstantHelper(n, m, false),
+          MinMaxConstantHelper(n, m, true, kFP64PositiveInfinity),
+          MinMaxConstantHelper(n, m, false, kFP64NegativeInfinity));
     }
   }
 }
 
-static void FminFmaxFloatHelper(float n, float m, float min, float max,
-                                float minnm, float maxnm) {
+void AssemblerArm64Test::FminFmaxFloatHelper(float n, float m, float min,
+                                             float max, float minnm,
+                                             float maxnm) {
   SETUP();
 
   START();
@@ -9626,8 +9478,7 @@ static void FminFmaxFloatHelper(float n, float m, float min, float max,
   CHECK_EQUAL_FP32(maxnm, s31);
 }
 
-TEST(fmax_fmin_s) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fmax_fmin_s) {
   // Use non-standard NaNs to check that the payload bits are preserved.
   float snan = base::bit_cast<float>(0x7F951234);
   float qnan = base::bit_cast<float>(0x7FEA8765);
@@ -9646,30 +9497,30 @@ TEST(fmax_fmin_s) {
   FminFmaxFloatHelper(kFP32PositiveInfinity, kFP32NegativeInfinity,
                       kFP32NegativeInfinity, kFP32PositiveInfinity,
                       kFP32NegativeInfinity, kFP32PositiveInfinity);
-  FminFmaxFloatHelper(snan, 0,
-                      snan_processed, snan_processed,
+  FminFmaxFloatHelper(snan, 0, snan_processed, snan_processed, snan_processed,
+                      snan_processed);
+  FminFmaxFloatHelper(0, snan, snan_processed, snan_processed, snan_processed,
+                      snan_processed);
+  FminFmaxFloatHelper(qnan, 0, qnan_processed, qnan_processed, 0, 0);
+  FminFmaxFloatHelper(0, qnan, qnan_processed, qnan_processed, 0, 0);
+  FminFmaxFloatHelper(qnan, snan, snan_processed, snan_processed,
                       snan_processed, snan_processed);
-  FminFmaxFloatHelper(0, snan,
-                      snan_processed, snan_processed,
-                      snan_processed, snan_processed);
-  FminFmaxFloatHelper(qnan, 0,
-                      qnan_processed, qnan_processed,
-                      0, 0);
-  FminFmaxFloatHelper(0, qnan,
-                      qnan_processed, qnan_processed,
-                      0, 0);
-  FminFmaxFloatHelper(qnan, snan,
-                      snan_processed, snan_processed,
-                      snan_processed, snan_processed);
-  FminFmaxFloatHelper(snan, qnan,
-                      snan_processed, snan_processed,
+  FminFmaxFloatHelper(snan, qnan, snan_processed, snan_processed,
                       snan_processed, snan_processed);
 
   // Iterate over all combinations of inputs.
-  float inputs[] = { FLT_MAX, FLT_MIN, 1.0, 0.0,
-                     -FLT_MAX, -FLT_MIN, -1.0, -0.0,
-                     kFP32PositiveInfinity, kFP32NegativeInfinity,
-                     kFP32QuietNaN, kFP32SignallingNaN };
+  float inputs[] = {FLT_MAX,
+                    FLT_MIN,
+                    1.0,
+                    0.0,
+                    -FLT_MAX,
+                    -FLT_MIN,
+                    -1.0,
+                    -0.0,
+                    kFP32PositiveInfinity,
+                    kFP32NegativeInfinity,
+                    kFP32QuietNaN,
+                    kFP32SignallingNaN};
 
   const int count = sizeof(inputs) / sizeof(inputs[0]);
 
@@ -9677,17 +9528,16 @@ TEST(fmax_fmin_s) {
     float n = inputs[in];
     for (int im = 0; im < count; im++) {
       float m = inputs[im];
-      FminFmaxFloatHelper(n, m,
-                          MinMaxHelper(n, m, true),
-                          MinMaxHelper(n, m, false),
-                          MinMaxHelper(n, m, true, kFP32PositiveInfinity),
-                          MinMaxHelper(n, m, false, kFP32NegativeInfinity));
+      FminFmaxFloatHelper(
+          n, m, MinMaxConstantHelper(n, m, true),
+          MinMaxConstantHelper(n, m, false),
+          MinMaxConstantHelper(n, m, true, kFP32PositiveInfinity),
+          MinMaxConstantHelper(n, m, false, kFP32NegativeInfinity));
     }
   }
 }
 
-TEST(fccmp) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fccmp) {
   SETUP();
 
   START();
@@ -9751,8 +9601,7 @@ TEST(fccmp) {
   CHECK_EQUAL_32(ZCFlag, w9);
 }
 
-TEST(fcmp) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcmp) {
   SETUP();
 
   START();
@@ -9831,8 +9680,7 @@ TEST(fcmp) {
   CHECK_EQUAL_32(NFlag, w16);
 }
 
-TEST(fcsel) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcsel) {
   SETUP();
 
   START();
@@ -9861,8 +9709,7 @@ TEST(fcsel) {
   CHECK_EQUAL_FP64(3.0, d5);
 }
 
-TEST(fneg) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fneg) {
   SETUP();
 
   START();
@@ -9903,8 +9750,7 @@ TEST(fneg) {
   CHECK_EQUAL_FP64(kFP64PositiveInfinity, d11);
 }
 
-TEST(fabs) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fabs) {
   SETUP();
 
   START();
@@ -9937,8 +9783,7 @@ TEST(fabs) {
   CHECK_EQUAL_FP64(kFP64PositiveInfinity, d7);
 }
 
-TEST(fsqrt) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fsqrt) {
   SETUP();
 
   START();
@@ -9991,8 +9836,7 @@ TEST(fsqrt) {
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
 }
 
-TEST(frinta) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, frinta) {
   SETUP();
 
   START();
@@ -10077,8 +9921,7 @@ TEST(frinta) {
   CHECK_EQUAL_FP64(-0.0, d23);
 }
 
-TEST(frintm) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, frintm) {
   SETUP();
 
   START();
@@ -10163,8 +10006,7 @@ TEST(frintm) {
   CHECK_EQUAL_FP64(-1.0, d23);
 }
 
-TEST(frintn) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, frintn) {
   SETUP();
 
   START();
@@ -10249,8 +10091,7 @@ TEST(frintn) {
   CHECK_EQUAL_FP64(-0.0, d23);
 }
 
-TEST(frintp) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, frintp) {
   SETUP();
 
   START();
@@ -10335,8 +10176,7 @@ TEST(frintp) {
   CHECK_EQUAL_FP64(-0.0, d23);
 }
 
-TEST(frintz) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, frintz) {
   SETUP();
 
   START();
@@ -10415,8 +10255,7 @@ TEST(frintz) {
   CHECK_EQUAL_FP64(-0.0, d21);
 }
 
-TEST(fcvt_ds) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvt_ds) {
   SETUP();
 
   START();
@@ -10479,8 +10318,7 @@ TEST(fcvt_ds) {
   CHECK_EQUAL_FP64(base::bit_cast<double>(0x7FF82468A0000000), d14);
 }
 
-TEST(fcvt_sd) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvt_sd) {
   // There are a huge number of corner-cases to check, so this test iterates
   // through a list. The list is then negated and checked again (since the sign
   // is irrelevant in ties-to-even rounding), so the list shouldn't include any
@@ -10632,8 +10470,7 @@ TEST(fcvt_sd) {
   }
 }
 
-TEST(fcvtas) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvtas) {
   SETUP();
 
   int64_t scratch = 0;
@@ -10661,15 +10498,15 @@ TEST(fcvtas) {
   __ Fmov(s19, -2.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
-  __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);  // Largest float < INT64_MAX.
+  __ Fneg(s23, s22);                   // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 2.5);
   __ Fmov(d26, -2.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
-  __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);  // Largest double < INT64_MAX.
+  __ Fneg(d30, d29);                   // Smallest double > INT64_MIN.
 
   __ Fcvtas(w0, s0);
   __ Fcvtas(w1, s1);
@@ -10742,8 +10579,7 @@ TEST(fcvtas) {
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 }
 
-TEST(fcvtau) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvtau) {
   SETUP();
 
   START();
@@ -10839,8 +10675,7 @@ TEST(fcvtau) {
   CHECK_EQUAL_64(0xFFFFFFFF, x30);
 }
 
-TEST(fcvtms) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvtms) {
   SETUP();
 
   int64_t scratch = 0;
@@ -10868,15 +10703,15 @@ TEST(fcvtms) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
-  __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);  // Largest float < INT64_MAX.
+  __ Fneg(s23, s22);                   // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
-  __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);  // Largest double < INT64_MAX.
+  __ Fneg(d30, d29);                   // Smallest double > INT64_MIN.
 
   __ Fcvtms(w0, s0);
   __ Fcvtms(w1, s1);
@@ -10949,8 +10784,7 @@ TEST(fcvtms) {
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 }
 
-TEST(fcvtmu) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvtmu) {
   SETUP();
 
   int64_t scratch = 0;
@@ -10978,15 +10812,15 @@ TEST(fcvtmu) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
-  __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);  // Largest float < INT64_MAX.
+  __ Fneg(s23, s22);                   // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
-  __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);  // Largest double < INT64_MAX.
+  __ Fneg(d30, d29);                   // Smallest double > INT64_MIN.
 
   __ Fcvtmu(w0, s0);
   __ Fcvtmu(w1, s1);
@@ -11059,8 +10893,7 @@ TEST(fcvtmu) {
   CHECK_EQUAL_64(0x0UL, x30);
 }
 
-TEST(fcvtn) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvtn) {
   SETUP();
   START();
 
@@ -11079,8 +10912,7 @@ TEST(fcvtn) {
   CHECK_EQUAL_128(0, 0x3f800000'3f800000, q0);
 }
 
-TEST(fcvtns) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvtns) {
   SETUP();
 
   int64_t scratch = 0;
@@ -11108,15 +10940,15 @@ TEST(fcvtns) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
-  __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);  // Largest float < INT64_MAX.
+  __ Fneg(s23, s22);                   // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
-  __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);  // Largest double < INT64_MAX.
+  __ Fneg(d30, d29);                   // Smallest double > INT64_MIN.
 
   __ Fcvtns(w0, s0);
   __ Fcvtns(w1, s1);
@@ -11144,7 +10976,7 @@ TEST(fcvtns) {
   __ Fcvtns(x25, d25);
   __ Fcvtns(x26, d26);
   __ Fcvtns(x27, d27);
-//  __ Fcvtns(x28, d28);
+  //  __ Fcvtns(x28, d28);
 
   // Save results to the scratch memory, for those that don't fit in registers.
   __ Mov(x30, scratch_base);
@@ -11189,8 +11021,7 @@ TEST(fcvtns) {
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 }
 
-TEST(fcvtnu) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvtnu) {
   SETUP();
 
   START();
@@ -11249,7 +11080,7 @@ TEST(fcvtnu) {
   __ Fcvtnu(x25, d25);
   __ Fcvtnu(x26, d26);
   __ Fcvtnu(x27, d27);
-//  __ Fcvtnu(x28, d28);
+  //  __ Fcvtnu(x28, d28);
   __ Fcvtnu(x29, d29);
   __ Fcvtnu(w30, s30);
   END();
@@ -11286,8 +11117,7 @@ TEST(fcvtnu) {
   CHECK_EQUAL_64(0xFFFFFFFF, x30);
 }
 
-TEST(fcvtzs) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvtzs) {
   SETUP();
 
   int64_t scratch = 0;
@@ -11315,15 +11145,15 @@ TEST(fcvtzs) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
-  __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);  // Largest float < INT64_MAX.
+  __ Fneg(s23, s22);                   // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
-  __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);  // Largest double < INT64_MAX.
+  __ Fneg(d30, d29);                   // Smallest double > INT64_MIN.
 
   __ Fcvtzs(w0, s0);
   __ Fcvtzs(w1, s1);
@@ -11396,8 +11226,8 @@ TEST(fcvtzs) {
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 }
 
-static void FjcvtzsHelper(uint64_t value, uint64_t expected,
-                          uint32_t expected_z) {
+void AssemblerArm64Test::FjcvtzsHelper(uint64_t value, uint64_t expected,
+                                       uint32_t expected_z) {
   SETUP();
   START();
   __ Fmov(d0, base::bit_cast<double>(value));
@@ -11413,7 +11243,7 @@ static void FjcvtzsHelper(uint64_t value, uint64_t expected,
   }
 }
 
-TEST(fjcvtzs) {
+TEST_F(AssemblerArm64Test, fjcvtzs) {
   // Simple values.
   FjcvtzsHelper(0x0000000000000000, 0, ZFlag);   // 0.0
   FjcvtzsHelper(0x0010000000000000, 0, NoFlag);  // The smallest normal value.
@@ -11500,8 +11330,7 @@ TEST(fjcvtzs) {
   }
 }
 
-TEST(fcvtzu) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, fcvtzu) {
   SETUP();
 
   int64_t scratch = 0;
@@ -11529,15 +11358,15 @@ TEST(fcvtzu) {
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
-  __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);  // Largest float < INT64_MAX.
+  __ Fneg(s23, s22);                   // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
-  __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);  // Largest double < INT64_MAX.
+  __ Fneg(d30, d29);                   // Smallest double > INT64_MIN.
 
   __ Fcvtzu(w0, s0);
   __ Fcvtzu(w1, s1);
@@ -11610,7 +11439,6 @@ TEST(fcvtzu) {
   CHECK_EQUAL_64(0x0UL, x30);
 }
 
-
 // Test that scvtf and ucvtf can convert the 64-bit input into the expected
 // value. All possible values of 'fbits' are tested. The expected value is
 // modified accordingly in each case.
@@ -11621,9 +11449,9 @@ TEST(fcvtzu) {
 //
 // Where the input value is representable by int32_t or uint32_t, conversions
 // from W registers will also be tested.
-static void TestUScvtfHelper(uint64_t in,
-                             uint64_t expected_scvtf_bits,
-                             uint64_t expected_ucvtf_bits) {
+void AssemblerArm64Test::TestUScvtfHelper(uint64_t in,
+                                          uint64_t expected_scvtf_bits,
+                                          uint64_t expected_ucvtf_bits) {
   uint64_t u64 = in;
   uint32_t u32 = u64 & 0xFFFFFFFF;
   int64_t s64 = static_cast<int64_t>(in);
@@ -11706,8 +11534,7 @@ static void TestUScvtfHelper(uint64_t in,
   }
 }
 
-TEST(scvtf_ucvtf_double) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, scvtf_ucvtf_double) {
   // Simple conversions of positive numbers which require no rounding; the
   // results should not depened on the rounding mode, and ucvtf and scvtf should
   // produce the same result.
@@ -11772,9 +11599,9 @@ TEST(scvtf_ucvtf_double) {
 }
 
 // The same as TestUScvtfHelper, but convert to floats.
-static void TestUScvtf32Helper(uint64_t in,
-                               uint32_t expected_scvtf_bits,
-                               uint32_t expected_ucvtf_bits) {
+void AssemblerArm64Test::TestUScvtf32Helper(uint64_t in,
+                                            uint32_t expected_scvtf_bits,
+                                            uint32_t expected_ucvtf_bits) {
   uint64_t u64 = in;
   uint32_t u32 = u64 & 0xFFFFFFFF;
   int64_t s64 = static_cast<int64_t>(in);
@@ -11857,8 +11684,7 @@ static void TestUScvtf32Helper(uint64_t in,
   }
 }
 
-TEST(scvtf_ucvtf_float) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, scvtf_ucvtf_float) {
   // Simple conversions of positive numbers which require no rounding; the
   // results should not depened on the rounding mode, and ucvtf and scvtf should
   // produce the same result.
@@ -11925,8 +11751,7 @@ TEST(scvtf_ucvtf_float) {
   TestUScvtf32Helper(0xFFFFFFFFFFFFFFFF, 0xBF800000, 0x5F800000);
 }
 
-TEST(system_mrs) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, system_mrs) {
   SETUP();
 
   START();
@@ -11962,8 +11787,7 @@ TEST(system_mrs) {
   CHECK_EQUAL_32(0, w6);
 }
 
-TEST(system_msr) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, system_msr) {
   // All FPCR fields that must be implemented: AHP, DN, FZ, RMode
   const uint64_t fpcr_core = 0x07C00000;
 
@@ -12031,7 +11855,7 @@ TEST(system_msr) {
   CHECK_EQUAL_64(0, x10);
 }
 
-TEST(system_pauth_b) {
+TEST_F(AssemblerArm64Test, system_pauth_b) {
   i::v8_flags.sim_abort_on_bad_auth = false;
   SETUP();
   START();
@@ -12105,8 +11929,7 @@ TEST(system_pauth_b) {
 #endif  // USE_SIMULATOR
 }
 
-TEST(system) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, system) {
   SETUP();
   RegisterDump before;
 
@@ -12122,8 +11945,7 @@ TEST(system) {
   CHECK_EQUAL_NZCV(before.flags_nzcv());
 }
 
-TEST(zero_dest) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, zero_dest) {
   SETUP();
   RegisterDump before;
 
@@ -12137,7 +11959,7 @@ TEST(zero_dest) {
   for (int i = 2; i < x30.code(); i++) {
     // Skip x18, the platform register.
     if (i == 18) continue;
-    __ Add(Register::XRegFromCode(i), Register::XRegFromCode(i-1), x1);
+    __ Add(Register::XRegFromCode(i), Register::XRegFromCode(i - 1), x1);
   }
   before.Dump(&masm);
 
@@ -12188,8 +12010,7 @@ TEST(zero_dest) {
   CHECK_EQUAL_NZCV(before.flags_nzcv());
 }
 
-TEST(zero_dest_setflags) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, zero_dest_setflags) {
   SETUP();
   RegisterDump before;
 
@@ -12203,7 +12024,7 @@ TEST(zero_dest_setflags) {
   for (int i = 2; i < 30; i++) {
     // Skip x18, the platform register.
     if (i == 18) continue;
-    __ Add(Register::XRegFromCode(i), Register::XRegFromCode(i-1), x1);
+    __ Add(Register::XRegFromCode(i), Register::XRegFromCode(i - 1), x1);
   }
   before.Dump(&masm);
 
@@ -12251,7 +12072,7 @@ TEST(zero_dest_setflags) {
   CHECK_EQUAL_REGISTERS(before);
 }
 
-TEST(register_bit) {
+TEST_F(AssemblerArm64Test, register_bit) {
   // No code generation takes place in this test, so no need to setup and
   // teardown.
 
@@ -12279,8 +12100,7 @@ TEST(register_bit) {
   CHECK_EQ(RegList{sp}.bits(), RegList{wsp}.bits());
 }
 
-TEST(peek_poke_simple) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, peek_poke_simple) {
   SETUP();
   START();
 
@@ -12342,8 +12162,7 @@ TEST(peek_poke_simple) {
   CHECK_EQUAL_64((literal_base * 4) & 0xFFFFFFFF, x13);
 }
 
-TEST(peek_poke_unaligned) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, peek_poke_unaligned) {
   SETUP();
   START();
 
@@ -12419,8 +12238,7 @@ TEST(peek_poke_unaligned) {
   CHECK_EQUAL_64((literal_base * 3) & 0xFFFFFFFF, x12);
 }
 
-TEST(peek_poke_endianness) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, peek_poke_endianness) {
   SETUP();
   START();
 
@@ -12466,8 +12284,7 @@ TEST(peek_poke_endianness) {
   CHECK_EQUAL_64(x5_expected, x5);
 }
 
-TEST(peek_poke_mixed) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, peek_poke_mixed) {
   SETUP();
   START();
 
@@ -12496,8 +12313,8 @@ TEST(peek_poke_mixed) {
   {
     __ Peek(x6, 4);
     __ Peek(w7, 6);
-    __ Poke(xzr, 0);    // Clobber the space we're about to drop.
-    __ Poke(xzr, 8);    // Clobber the space we're about to drop.
+    __ Poke(xzr, 0);  // Clobber the space we're about to drop.
+    __ Poke(xzr, 8);  // Clobber the space we're about to drop.
     __ Drop(2);
     __ Poke(x3, 8);
     __ Poke(x2, 0);
@@ -12527,16 +12344,6 @@ TEST(peek_poke_mixed) {
   CHECK_EQUAL_64(x7_expected, x7);
 }
 
-// This enum is used only as an argument to the push-pop test helpers.
-enum PushPopMethod {
-  // Push or Pop using the Push and Pop methods, with blocks of up to four
-  // registers. (Smaller blocks will be used if necessary.)
-  PushPopByFour,
-
-  // Use Push<Size>RegList and Pop<Size>RegList to transfer the registers.
-  PushPopRegList
-};
-
 // The maximum number of registers that can be used by the PushPop* tests,
 // where a reg_count field is provided.
 static int const kPushPopMaxRegCount = -1;
@@ -12548,9 +12355,9 @@ static int const kPushPopMaxRegCount = -1;
 //
 // Different push and pop methods can be specified independently to test for
 // proper word-endian behaviour.
-static void PushPopSimpleHelper(int reg_count, int reg_size,
-                                PushPopMethod push_method,
-                                PushPopMethod pop_method) {
+void AssemblerArm64Test::PushPopSimpleHelper(int reg_count, int reg_size,
+                                             PushPopMethod push_method,
+                                             PushPopMethod pop_method) {
   SETUP();
 
   START();
@@ -12602,9 +12409,15 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         // Finish off the leftovers.
         switch (i) {
-          case 3:  __ Push(r[2], r[1], r[0]); break;
-          case 2:  __ Push(r[1], r[0]);       break;
-          case 1:  __ Push(r[0]);             break;
+          case 3:
+            __ Push(r[2], r[1], r[0]);
+            break;
+          case 2:
+            __ Push(r[1], r[0]);
+            break;
+          case 1:
+            __ Push(r[0]);
+            break;
           default:
             CHECK_EQ(i, 0);
             break;
@@ -12621,15 +12434,21 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
     switch (pop_method) {
       case PushPopByFour:
         // Pop low-numbered registers first (from the lowest addresses).
-        for (i = 0; i <= (reg_count-4); i += 4) {
+        for (i = 0; i <= (reg_count - 4); i += 4) {
           __ Pop<MacroAssembler::kDontLoadLR>(r[i], r[i + 1], r[i + 2],
                                               r[i + 3]);
         }
         // Finish off the leftovers.
         switch (reg_count - i) {
-          case 3:  __ Pop(r[i], r[i+1], r[i+2]); break;
-          case 2:  __ Pop(r[i], r[i+1]);         break;
-          case 1:  __ Pop(r[i]);                 break;
+          case 3:
+            __ Pop(r[i], r[i + 1], r[i + 2]);
+            break;
+          case 2:
+            __ Pop(r[i], r[i + 1]);
+            break;
+          case 1:
+            __ Pop(r[i]);
+            break;
           default:
             CHECK_EQ(i, reg_count);
             break;
@@ -12658,9 +12477,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
   }
 }
 
-TEST(push_pop_simple_32) {
-  INIT_V8();
-
+TEST_F(AssemblerArm64Test, push_pop_simple_32) {
   for (int count = 0; count < kPushPopMaxRegCount; count += 4) {
     PushPopSimpleHelper(count, kWRegSizeInBits, PushPopByFour, PushPopByFour);
     PushPopSimpleHelper(count, kWRegSizeInBits, PushPopByFour, PushPopRegList);
@@ -12672,8 +12489,7 @@ TEST(push_pop_simple_32) {
   // is not supported for pushing.
 }
 
-TEST(push_pop_simple_64) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, push_pop_simple_64) {
   for (int count = 0; count <= 8; count += 2) {
     PushPopSimpleHelper(count, kXRegSizeInBits, PushPopByFour, PushPopByFour);
     PushPopSimpleHelper(count, kXRegSizeInBits, PushPopByFour, PushPopRegList);
@@ -12702,9 +12518,9 @@ static int const kPushPopFPMaxRegCount = -1;
 //
 // Different push and pop methods can be specified independently to test for
 // proper word-endian behaviour.
-static void PushPopFPSimpleHelper(int reg_count, int reg_size,
-                                  PushPopMethod push_method,
-                                  PushPopMethod pop_method) {
+void AssemblerArm64Test::PushPopFPSimpleHelper(int reg_count, int reg_size,
+                                               PushPopMethod push_method,
+                                               PushPopMethod pop_method) {
   SETUP();
 
   START();
@@ -12748,13 +12564,19 @@ static void PushPopFPSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Push high-numbered registers first (to the highest addresses).
         for (i = reg_count; i >= 4; i -= 4) {
-          __ Push(v[i-1], v[i-2], v[i-3], v[i-4]);
+          __ Push(v[i - 1], v[i - 2], v[i - 3], v[i - 4]);
         }
         // Finish off the leftovers.
         switch (i) {
-          case 3:  __ Push(v[2], v[1], v[0]); break;
-          case 2:  __ Push(v[1], v[0]);       break;
-          case 1:  __ Push(v[0]);             break;
+          case 3:
+            __ Push(v[2], v[1], v[0]);
+            break;
+          case 2:
+            __ Push(v[1], v[0]);
+            break;
+          case 1:
+            __ Push(v[0]);
+            break;
           default:
             CHECK_EQ(i, 0);
             break;
@@ -12771,14 +12593,20 @@ static void PushPopFPSimpleHelper(int reg_count, int reg_size,
     switch (pop_method) {
       case PushPopByFour:
         // Pop low-numbered registers first (from the lowest addresses).
-        for (i = 0; i <= (reg_count-4); i += 4) {
-          __ Pop(v[i], v[i+1], v[i+2], v[i+3]);
+        for (i = 0; i <= (reg_count - 4); i += 4) {
+          __ Pop(v[i], v[i + 1], v[i + 2], v[i + 3]);
         }
         // Finish off the leftovers.
         switch (reg_count - i) {
-          case 3:  __ Pop(v[i], v[i+1], v[i+2]); break;
-          case 2:  __ Pop(v[i], v[i+1]);         break;
-          case 1:  __ Pop(v[i]);                 break;
+          case 3:
+            __ Pop(v[i], v[i + 1], v[i + 2]);
+            break;
+          case 2:
+            __ Pop(v[i], v[i + 1]);
+            break;
+          case 1:
+            __ Pop(v[i]);
+            break;
           default:
             CHECK_EQ(i, reg_count);
             break;
@@ -12806,8 +12634,7 @@ static void PushPopFPSimpleHelper(int reg_count, int reg_size,
   }
 }
 
-TEST(push_pop_fp_simple_32) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, push_pop_fp_simple_32) {
   for (int count = 0; count <= 8; count += 4) {
     PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopByFour, PushPopByFour);
     PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopByFour,
@@ -12828,8 +12655,7 @@ TEST(push_pop_fp_simple_32) {
                         PushPopRegList);
 }
 
-TEST(push_pop_fp_simple_64) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, push_pop_fp_simple_64) {
   for (int count = 0; count <= 8; count += 2) {
     PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopByFour, PushPopByFour);
     PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopByFour,
@@ -12850,10 +12676,9 @@ TEST(push_pop_fp_simple_64) {
                         PushPopRegList);
 }
 
-
 // Push and pop data using an overlapping combination of Push/Pop and
 // RegList-based methods.
-static void PushPopMixedMethodsHelper(int reg_size) {
+void AssemblerArm64Test::PushPopMixedMethodsHelper(int reg_size) {
   SETUP();
 
   // Registers in the TmpList can be used by the macro assembler for debug code
@@ -12923,13 +12748,11 @@ static void PushPopMixedMethodsHelper(int reg_size) {
   CHECK_EQUAL_64(literal_base * 2, x[4]);
 }
 
-TEST(push_pop_mixed_methods_64) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, push_pop_mixed_methods_64) {
   PushPopMixedMethodsHelper(kXRegSizeInBits);
 }
 
-TEST(push_pop) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, push_pop) {
   SETUP();
 
   START();
@@ -13014,8 +12837,7 @@ TEST(push_pop) {
   CHECK_EQUAL_32(0x33333333U, w29);
 }
 
-TEST(copy_slots_down) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, copy_slots_down) {
   SETUP();
 
   const uint64_t ones = 0x1111111111111111UL;
@@ -13079,8 +12901,7 @@ TEST(copy_slots_down) {
   CHECK_EQUAL_64(ones, x0);
 }
 
-TEST(copy_slots_up) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, copy_slots_up) {
   SETUP();
 
   const uint64_t ones = 0x1111111111111111UL;
@@ -13139,8 +12960,7 @@ TEST(copy_slots_up) {
   CHECK_EQUAL_64(ones, x2);
 }
 
-TEST(copy_double_words_downwards_even) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, copy_double_words_downwards_even) {
   SETUP();
 
   const uint64_t ones = 0x1111111111111111UL;
@@ -13191,8 +13011,7 @@ TEST(copy_double_words_downwards_even) {
   CHECK_EQUAL_64(fours, x4);
 }
 
-TEST(copy_double_words_downwards_odd) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, copy_double_words_downwards_odd) {
   SETUP();
 
   const uint64_t ones = 0x1111111111111111UL;
@@ -13247,8 +13066,7 @@ TEST(copy_double_words_downwards_odd) {
   CHECK_EQUAL_64(fours, x4);
 }
 
-TEST(copy_noop) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, copy_noop) {
   SETUP();
 
   const uint64_t ones = 0x1111111111111111UL;
@@ -13312,7 +13130,7 @@ TEST(copy_noop) {
   CHECK_EQUAL_64(0, x16);
 }
 
-TEST(noreg) {
+TEST_F(AssemblerArm64Test, noreg) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to NoReg.
   CHECK_EQ(NoReg, NoVReg);
@@ -13327,7 +13145,7 @@ TEST(noreg) {
   CHECK(NoCPUReg.IsNone());
 }
 
-TEST(vreg) {
+TEST_F(AssemblerArm64Test, vreg) {
   // This test doesn't generate any code, but it verifies
   // Helper functions and methods pertaining to VRegister logic.
 
@@ -13777,7 +13595,7 @@ TEST(vreg) {
   CHECK(!test_v2s.IsSameFormat(test_v2d));
 }
 
-TEST(isvalid) {
+TEST_F(AssemblerArm64Test, isvalid) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to IsValid().
   CHECK(!NoReg.is_valid());
@@ -13853,7 +13671,7 @@ TEST(isvalid) {
   CHECK(!static_cast<CPURegister>(s0).IsRegister());
 }
 
-TEST(areconsecutive) {
+TEST_F(AssemblerArm64Test, areconsecutive) {
   // This test generates no code; it just checks that AreConsecutive works.
   CHECK(AreConsecutive(b0, NoVReg));
   CHECK(AreConsecutive(b1, b2));
@@ -13904,7 +13722,7 @@ TEST(areconsecutive) {
   CHECK(!AreConsecutive(s28, s30, NoVReg, NoVReg));
 }
 
-TEST(cpureglist_utils_x) {
+TEST_F(AssemblerArm64Test, cpureglist_utils_x) {
   // This test doesn't generate any code, but it verifies the behaviour of
   // the CPURegList utility methods.
 
@@ -13965,7 +13783,7 @@ TEST(cpureglist_utils_x) {
   CHECK(test.IsEmpty());
 }
 
-TEST(cpureglist_utils_w) {
+TEST_F(AssemblerArm64Test, cpureglist_utils_w) {
   // This test doesn't generate any code, but it verifies the behaviour of
   // the CPURegList utility methods.
 
@@ -14030,7 +13848,7 @@ TEST(cpureglist_utils_w) {
   CHECK(test.IsEmpty());
 }
 
-TEST(cpureglist_utils_d) {
+TEST_F(AssemblerArm64Test, cpureglist_utils_d) {
   // This test doesn't generate any code, but it verifies the behaviour of
   // the CPURegList utility methods.
 
@@ -14096,7 +13914,7 @@ TEST(cpureglist_utils_d) {
   CHECK(test.IsEmpty());
 }
 
-TEST(cpureglist_utils_s) {
+TEST_F(AssemblerArm64Test, cpureglist_utils_s) {
   // This test doesn't generate any code, but it verifies the behaviour of
   // the CPURegList utility methods.
 
@@ -14116,7 +13934,7 @@ TEST(cpureglist_utils_s) {
   CHECK(test.IncludesAliasOf(s23));
 }
 
-TEST(cpureglist_utils_empty) {
+TEST_F(AssemblerArm64Test, cpureglist_utils_empty) {
   // This test doesn't generate any code, but it verifies the behaviour of
   // the CPURegList utility methods.
 
@@ -14149,13 +13967,12 @@ TEST(cpureglist_utils_empty) {
   CHECK(fpreg64.IsEmpty());
 }
 
-TEST(printf) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, printf) {
   SETUP_SIZE(BUF_SIZE * 2);
   START();
 
-  char const * test_plain_string = "Printf with no arguments.\n";
-  char const * test_substring = "'This is a substring.'";
+  char const* test_plain_string = "Printf with no arguments.\n";
+  char const* test_substring = "'This is a substring.'";
   RegisterDump before;
 
   // Initialize x29 to the value of the stack pointer. We will use x29 as a
@@ -14198,12 +14015,13 @@ TEST(printf) {
   // Check that we don't clobber any registers.
   before.Dump(&masm);
 
-  __ Printf(test_plain_string);   // NOLINT(runtime/printf)
+  __ Printf(test_plain_string);  // NOLINT(runtime/printf)
   __ Printf("x0: %" PRId64 ", x1: 0x%08" PRIx64 "\n", x0, x1);
-  __ Printf("w5: %" PRId32 ", x5: %" PRId64"\n", w5, x5);
+  __ Printf("w5: %" PRId32 ", x5: %" PRId64 "\n", w5, x5);
   __ Printf("d0: %f\n", d0);
   __ Printf("Test %%s: %s\n", x2);
-  __ Printf("w3(uint32): %" PRIu32 "\nw4(int32): %" PRId32 "\n"
+  __ Printf("w3(uint32): %" PRIu32 "\nw4(int32): %" PRId32
+            "\n"
             "x5(uint64): %" PRIu64 "\nx6(int64): %" PRId64 "\n",
             w3, w4, x5, x6);
   __ Printf("%%f: %f\n%%g: %g\n%%e: %e\n%%E: %E\n", s1, s2, d3, d4);
@@ -14218,10 +14036,10 @@ TEST(printf) {
   __ Printf("3=%u, 4=%u, 5=%u\n", x10, x11, x12);
 
   // Mixed argument types.
-  __ Printf("w3: %" PRIu32 ", s1: %f, x5: %" PRIu64 ", d3: %f\n",
-            w3, s1, x5, d3);
-  __ Printf("s1: %f, d3: %f, w3: %" PRId32 ", x5: %" PRId64 "\n",
-            s1, d3, w3, x5);
+  __ Printf("w3: %" PRIu32 ", s1: %f, x5: %" PRIu64 ", d3: %f\n", w3, s1, x5,
+            d3);
+  __ Printf("s1: %f, d3: %f, w3: %" PRId32 ", x5: %" PRId64 "\n", s1, d3, w3,
+            x5);
 
   END();
   RUN();
@@ -14233,13 +14051,12 @@ TEST(printf) {
   CHECK_EQUAL_REGISTERS(before);
 }
 
-TEST(printf_no_preserve) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, printf_no_preserve) {
   SETUP();
   START();
 
-  char const * test_plain_string = "Printf with no arguments.\n";
-  char const * test_substring = "'This is a substring.'";
+  char const* test_plain_string = "Printf with no arguments.\n";
+  char const* test_substring = "'This is a substring.'";
 
   __ PrintfNoPreserve(test_plain_string);
   __ Mov(x19, x0);
@@ -14247,7 +14064,7 @@ TEST(printf_no_preserve) {
   // Test simple integer arguments.
   __ Mov(x0, 1234);
   __ Mov(x1, 0x1234);
-  __ PrintfNoPreserve("x0: %" PRId64", x1: 0x%08" PRIx64 "\n", x0, x1);
+  __ PrintfNoPreserve("x0: %" PRId64 ", x1: 0x%08" PRIx64 "\n", x0, x1);
   __ Mov(x20, x0);
 
   // Test simple floating-point arguments.
@@ -14265,7 +14082,8 @@ TEST(printf_no_preserve) {
   __ Mov(w4, 0xFFFFFFFF);
   __ Mov(x5, 0xFFFFFFFFFFFFFFFF);
   __ Mov(x6, 0xFFFFFFFFFFFFFFFF);
-  __ PrintfNoPreserve("w3(uint32): %" PRIu32 "\nw4(int32): %" PRId32 "\n"
+  __ PrintfNoPreserve("w3(uint32): %" PRIu32 "\nw4(int32): %" PRId32
+                      "\n"
                       "x5(uint64): %" PRIu64 "\nx6(int64): %" PRId64 "\n",
                       w3, w4, x5, x6);
   __ Mov(x23, x0);
@@ -14298,8 +14116,8 @@ TEST(printf_no_preserve) {
   __ Fmov(s1, 1.234);
   __ Mov(x5, 0xFFFFFFFFFFFFFFFF);
   __ Fmov(d3, 3.456);
-  __ PrintfNoPreserve("w3: %" PRIu32 ", s1: %f, x5: %" PRIu64 ", d3: %f\n",
-                      w3, s1, x5, d3);
+  __ PrintfNoPreserve("w3: %" PRIu32 ", s1: %f, x5: %" PRIu64 ", d3: %f\n", w3,
+                      s1, x5, d3);
   __ Mov(x28, x0);
 
   END();
@@ -14336,9 +14154,8 @@ TEST(printf_no_preserve) {
   CHECK_EQUAL_64(69, x28);
 }
 
-TEST(blr_lr) {
+TEST_F(AssemblerArm64Test, blr_lr) {
   // A simple test to check that the simulator correcty handle "blr lr".
-  INIT_V8();
   SETUP();
 
   START();
@@ -14363,9 +14180,8 @@ TEST(blr_lr) {
   CHECK_EQUAL_64(0xC001C0DE, x0);
 }
 
-TEST(barriers) {
+TEST_F(AssemblerArm64Test, barriers) {
   // Generate all supported barriers, this is just a smoke test
-  INIT_V8();
   SETUP();
 
   START();
@@ -14420,7 +14236,7 @@ TEST(barriers) {
   RUN();
 }
 
-TEST(cas_casa_casl_casal_w) {
+TEST_F(AssemblerArm64Test, cas_casa_casl_casal_w) {
   uint64_t data1 = 0x0123456789abcdef;
   uint64_t data2 = 0x0123456789abcdef;
   uint64_t data3 = 0x0123456789abcdef;
@@ -14430,7 +14246,6 @@ TEST(cas_casa_casl_casal_w) {
   uint64_t data7 = 0x0123456789abcdef;
   uint64_t data8 = 0x0123456789abcdef;
 
-  INIT_V8();
   SETUP();
   SETUP_FEATURE(LSE);
 
@@ -14490,7 +14305,7 @@ TEST(cas_casa_casl_casal_w) {
   }
 }
 
-TEST(cas_casa_casl_casal_x) {
+TEST_F(AssemblerArm64Test, cas_casa_casl_casal_x) {
   uint64_t data1 = 0x0123456789abcdef;
   uint64_t data2 = 0x0123456789abcdef;
   uint64_t data3 = 0x0123456789abcdef;
@@ -14500,7 +14315,6 @@ TEST(cas_casa_casl_casal_x) {
   uint64_t data7 = 0x0123456789abcdef;
   uint64_t data8 = 0x0123456789abcdef;
 
-  INIT_V8();
   SETUP();
   SETUP_FEATURE(LSE);
 
@@ -14560,7 +14374,7 @@ TEST(cas_casa_casl_casal_x) {
   }
 }
 
-TEST(casb_casab_caslb_casalb) {
+TEST_F(AssemblerArm64Test, casb_casab_caslb_casalb) {
   uint32_t data1 = 0x01234567;
   uint32_t data2 = 0x01234567;
   uint32_t data3 = 0x01234567;
@@ -14570,7 +14384,6 @@ TEST(casb_casab_caslb_casalb) {
   uint32_t data7 = 0x01234567;
   uint32_t data8 = 0x01234567;
 
-  INIT_V8();
   SETUP();
   SETUP_FEATURE(LSE);
 
@@ -14630,7 +14443,7 @@ TEST(casb_casab_caslb_casalb) {
   }
 }
 
-TEST(cash_casah_caslh_casalh) {
+TEST_F(AssemblerArm64Test, cash_casah_caslh_casalh) {
   uint64_t data1 = 0x0123456789abcdef;
   uint64_t data2 = 0x0123456789abcdef;
   uint64_t data3 = 0x0123456789abcdef;
@@ -14640,7 +14453,6 @@ TEST(cash_casah_caslh_casalh) {
   uint64_t data7 = 0x0123456789abcdef;
   uint64_t data8 = 0x0123456789abcdef;
 
-  INIT_V8();
   SETUP();
   SETUP_FEATURE(LSE);
 
@@ -14700,7 +14512,7 @@ TEST(cash_casah_caslh_casalh) {
   }
 }
 
-TEST(casp_caspa_caspl_caspal_w) {
+TEST_F(AssemblerArm64Test, casp_caspa_caspl_caspal_w) {
   uint64_t data1[] = {0x7766554433221100, 0xffeeddccbbaa9988};
   uint64_t data2[] = {0x7766554433221100, 0xffeeddccbbaa9988};
   uint64_t data3[] = {0x7766554433221100, 0xffeeddccbbaa9988};
@@ -14710,7 +14522,6 @@ TEST(casp_caspa_caspl_caspal_w) {
   uint64_t data7[] = {0x7766554433221100, 0xffeeddccbbaa9988};
   uint64_t data8[] = {0x7766554433221100, 0xffeeddccbbaa9988};
 
-  INIT_V8();
   SETUP();
   SETUP_FEATURE(LSE);
 
@@ -14798,7 +14609,7 @@ TEST(casp_caspa_caspl_caspal_w) {
   }
 }
 
-TEST(casp_caspa_caspl_caspal_x) {
+TEST_F(AssemblerArm64Test, casp_caspa_caspl_caspal_x) {
   alignas(kXRegSize * 2)
       uint64_t data1[] = {0x7766554433221100, 0xffeeddccbbaa9988,
                           0xfedcba9876543210, 0x0123456789abcdef};
@@ -14824,7 +14635,6 @@ TEST(casp_caspa_caspl_caspal_x) {
       uint64_t data8[] = {0x7766554433221100, 0xffeeddccbbaa9988,
                           0xfedcba9876543210, 0x0123456789abcdef};
 
-  INIT_V8();
   SETUP();
   SETUP_FEATURE(LSE);
 
@@ -14938,15 +14748,10 @@ TEST(casp_caspa_caspl_caspal_x) {
   }
 }
 
-typedef void (MacroAssembler::*AtomicMemoryLoadSignature)(
-    const Register& rs, const Register& rt, const MemOperand& src);
-typedef void (MacroAssembler::*AtomicMemoryStoreSignature)(
-    const Register& rs, const MemOperand& src);
-
-static void AtomicMemoryWHelper(AtomicMemoryLoadSignature* load_funcs,
-                                AtomicMemoryStoreSignature* store_funcs,
-                                uint64_t arg1, uint64_t arg2, uint64_t expected,
-                                uint64_t result_mask) {
+void AssemblerArm64Test::AtomicMemoryWHelper(
+    AtomicMemoryLoadSignature* load_funcs,
+    AtomicMemoryStoreSignature* store_funcs, uint64_t arg1, uint64_t arg2,
+    uint64_t expected, uint64_t result_mask) {
   alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
   alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
   alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
@@ -15010,10 +14815,10 @@ static void AtomicMemoryWHelper(AtomicMemoryLoadSignature* load_funcs,
   }
 }
 
-static void AtomicMemoryXHelper(AtomicMemoryLoadSignature* load_funcs,
-                                AtomicMemoryStoreSignature* store_funcs,
-                                uint64_t arg1, uint64_t arg2,
-                                uint64_t expected) {
+void AssemblerArm64Test::AtomicMemoryXHelper(
+    AtomicMemoryLoadSignature* load_funcs,
+    AtomicMemoryStoreSignature* store_funcs, uint64_t arg1, uint64_t arg2,
+    uint64_t expected) {
   alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
   alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
   alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
@@ -15099,7 +14904,7 @@ static void AtomicMemoryXHelper(AtomicMemoryLoadSignature* load_funcs,
     {&MacroAssembler::St##NAME##h, &MacroAssembler::St##NAME##lh}
 // clang-format on
 
-TEST(atomic_memory_add) {
+TEST_F(AssemblerArm64Test, atomic_memory_add) {
   AtomicMemoryLoadSignature loads[] = MAKE_LOADS(add);
   AtomicMemoryStoreSignature stores[] = MAKE_STORES(add);
   AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(add);
@@ -15116,15 +14921,13 @@ TEST(atomic_memory_add) {
   uint64_t arg2 = 0x0200002000200202;
   uint64_t expected = arg1 + arg2;
 
-  INIT_V8();
-
   AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
   AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
   AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
   AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
 }
 
-TEST(atomic_memory_clr) {
+TEST_F(AssemblerArm64Test, atomic_memory_clr) {
   AtomicMemoryLoadSignature loads[] = MAKE_LOADS(clr);
   AtomicMemoryStoreSignature stores[] = MAKE_STORES(clr);
   AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(clr);
@@ -15136,15 +14939,13 @@ TEST(atomic_memory_clr) {
   uint64_t arg2 = 0x0500005000500505;
   uint64_t expected = arg2 & ~arg1;
 
-  INIT_V8();
-
   AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
   AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
   AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
   AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
 }
 
-TEST(atomic_memory_eor) {
+TEST_F(AssemblerArm64Test, atomic_memory_eor) {
   AtomicMemoryLoadSignature loads[] = MAKE_LOADS(eor);
   AtomicMemoryStoreSignature stores[] = MAKE_STORES(eor);
   AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(eor);
@@ -15156,15 +14957,13 @@ TEST(atomic_memory_eor) {
   uint64_t arg2 = 0x0500005000500505;
   uint64_t expected = arg1 ^ arg2;
 
-  INIT_V8();
-
   AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
   AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
   AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
   AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
 }
 
-TEST(atomic_memory_set) {
+TEST_F(AssemblerArm64Test, atomic_memory_set) {
   AtomicMemoryLoadSignature loads[] = MAKE_LOADS(set);
   AtomicMemoryStoreSignature stores[] = MAKE_STORES(set);
   AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(set);
@@ -15182,7 +14981,7 @@ TEST(atomic_memory_set) {
   AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
 }
 
-TEST(atomic_memory_smax) {
+TEST_F(AssemblerArm64Test, atomic_memory_smax) {
   AtomicMemoryLoadSignature loads[] = MAKE_LOADS(smax);
   AtomicMemoryStoreSignature stores[] = MAKE_STORES(smax);
   AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(smax);
@@ -15194,15 +14993,13 @@ TEST(atomic_memory_smax) {
   uint64_t arg2 = 0x0100001000100101;
   uint64_t expected = 0x0100001000100101;
 
-  INIT_V8();
-
   AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
   AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
   AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
   AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
 }
 
-TEST(atomic_memory_smin) {
+TEST_F(AssemblerArm64Test, atomic_memory_smin) {
   AtomicMemoryLoadSignature loads[] = MAKE_LOADS(smin);
   AtomicMemoryStoreSignature stores[] = MAKE_STORES(smin);
   AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(smin);
@@ -15214,15 +15011,13 @@ TEST(atomic_memory_smin) {
   uint64_t arg2 = 0x0100001000100101;
   uint64_t expected = 0x8100000080108181;
 
-  INIT_V8();
-
   AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
   AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
   AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
   AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
 }
 
-TEST(atomic_memory_umax) {
+TEST_F(AssemblerArm64Test, atomic_memory_umax) {
   AtomicMemoryLoadSignature loads[] = MAKE_LOADS(umax);
   AtomicMemoryStoreSignature stores[] = MAKE_STORES(umax);
   AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(umax);
@@ -15240,7 +15035,7 @@ TEST(atomic_memory_umax) {
   AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
 }
 
-TEST(atomic_memory_umin) {
+TEST_F(AssemblerArm64Test, atomic_memory_umin) {
   AtomicMemoryLoadSignature loads[] = MAKE_LOADS(umin);
   AtomicMemoryStoreSignature stores[] = MAKE_STORES(umin);
   AtomicMemoryLoadSignature b_loads[] = MAKE_B_LOADS(umin);
@@ -15252,15 +15047,13 @@ TEST(atomic_memory_umin) {
   uint64_t arg2 = 0x0100001000100101;
   uint64_t expected = 0x0100001000100101;
 
-  INIT_V8();
-
   AtomicMemoryWHelper(b_loads, b_stores, arg1, arg2, expected, kByteMask);
   AtomicMemoryWHelper(h_loads, h_stores, arg1, arg2, expected, kHalfWordMask);
   AtomicMemoryWHelper(loads, stores, arg1, arg2, expected, kWordMask);
   AtomicMemoryXHelper(loads, stores, arg1, arg2, expected);
 }
 
-TEST(atomic_memory_swp) {
+TEST_F(AssemblerArm64Test, atomic_memory_swp) {
   AtomicMemoryLoadSignature loads[] = {
       &MacroAssembler::Swp, &MacroAssembler::Swpa, &MacroAssembler::Swpl,
       &MacroAssembler::Swpal};
@@ -15275,8 +15068,6 @@ TEST(atomic_memory_swp) {
   uint64_t arg2 = 0x0200002000200202;
   uint64_t expected = 0x0100001000100101;
 
-  INIT_V8();
-
   // SWP functions have equivalent signatures to the Atomic Memory LD functions
   // so we can use the same helper but without the ST aliases.
   AtomicMemoryWHelper(b_loads, NULL, arg1, arg2, expected, kByteMask);
@@ -15285,8 +15076,7 @@ TEST(atomic_memory_swp) {
   AtomicMemoryXHelper(loads, NULL, arg1, arg2, expected);
 }
 
-TEST(process_nan_double) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, process_nan_double) {
   // Make sure that NaN propagation works correctly.
   double sn = base::bit_cast<double>(0x7FF5555511111111);
   double qn = base::bit_cast<double>(0x7FFAAAAA11111111);
@@ -15329,7 +15119,7 @@ TEST(process_nan_double) {
   __ Frintn(d16, d10);
   __ Frintz(d17, d10);
 
-  // The behaviour of fcvt is checked in TEST(fcvt_sd).
+  // The behaviour of fcvt is checked in TEST_F(AssemblerArm64Test, fcvt_sd).
 
   END();
   RUN();
@@ -15358,8 +15148,7 @@ TEST(process_nan_double) {
   CHECK_EQUAL_FP64(qn_proc, d17);
 }
 
-TEST(process_nan_float) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, process_nan_float) {
   // Make sure that NaN propagation works correctly.
   float sn = base::bit_cast<float>(0x7F951111);
   float qn = base::bit_cast<float>(0x7FEA1111);
@@ -15402,7 +15191,7 @@ TEST(process_nan_float) {
   __ Frintn(s16, s10);
   __ Frintz(s17, s10);
 
-  // The behaviour of fcvt is checked in TEST(fcvt_sd).
+  // The behaviour of fcvt is checked in TEST_F(AssemblerArm64Test, fcvt_sd).
 
   END();
   RUN();
@@ -15432,8 +15221,8 @@ TEST(process_nan_float) {
   CHECK_EQUAL_FP32(qn_proc, s17);
 }
 
-
-static void ProcessNaNsHelper(double n, double m, double expected) {
+void AssemblerArm64Test::ProcessNaNsHelper(double n, double m,
+                                           double expected) {
   CHECK(std::isnan(n) || std::isnan(m));
   CHECK(std::isnan(expected));
 
@@ -15463,8 +15252,7 @@ static void ProcessNaNsHelper(double n, double m, double expected) {
   CHECK_EQUAL_FP64(expected, d7);
 }
 
-TEST(process_nans_double) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, process_nans_double) {
   // Make sure that NaN propagation works correctly.
   double sn = base::bit_cast<double>(0x7FF5555511111111);
   double sm = base::bit_cast<double>(0x7FF5555522222222);
@@ -15501,7 +15289,7 @@ TEST(process_nans_double) {
   ProcessNaNsHelper(sn, sm, sn_proc);
 }
 
-static void ProcessNaNsHelper(float n, float m, float expected) {
+void AssemblerArm64Test::ProcessNaNsHelper(float n, float m, float expected) {
   CHECK(std::isnan(n) || std::isnan(m));
   CHECK(std::isnan(expected));
 
@@ -15531,8 +15319,7 @@ static void ProcessNaNsHelper(float n, float m, float expected) {
   CHECK_EQUAL_FP32(expected, s7);
 }
 
-TEST(process_nans_float) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, process_nans_float) {
   // Make sure that NaN propagation works correctly.
   float sn = base::bit_cast<float>(0x7F951111);
   float sm = base::bit_cast<float>(0x7F952222);
@@ -15569,7 +15356,7 @@ TEST(process_nans_float) {
   ProcessNaNsHelper(sn, sm, sn_proc);
 }
 
-static void DefaultNaNHelper(float n, float m, float a) {
+void AssemblerArm64Test::DefaultNaNHelper(float n, float m, float a) {
   CHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
 
   bool test_1op = std::isnan(n);
@@ -15653,8 +15440,7 @@ static void DefaultNaNHelper(float n, float m, float a) {
   CHECK_EQUAL_FP32(kFP32DefaultNaN, s27);
 }
 
-TEST(default_nan_float) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, default_nan_float) {
   float sn = base::bit_cast<float>(0x7F951111);
   float sm = base::bit_cast<float>(0x7F952222);
   float sa = base::bit_cast<float>(0x7F95AAAA);
@@ -15694,7 +15480,7 @@ TEST(default_nan_float) {
   DefaultNaNHelper(qn, qm, qa);
 }
 
-static void DefaultNaNHelper(double n, double m, double a) {
+void AssemblerArm64Test::DefaultNaNHelper(double n, double m, double a) {
   CHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
 
   bool test_1op = std::isnan(n);
@@ -15777,8 +15563,7 @@ static void DefaultNaNHelper(double n, double m, double a) {
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d27);
 }
 
-TEST(default_nan_double) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, default_nan_double) {
   double sn = base::bit_cast<double>(0x7FF5555511111111);
   double sm = base::bit_cast<double>(0x7FF5555522222222);
   double sa = base::bit_cast<double>(0x7FF55555AAAAAAAA);
@@ -15818,8 +15603,7 @@ TEST(default_nan_double) {
   DefaultNaNHelper(qn, qm, qa);
 }
 
-TEST(near_call_no_relocation) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, near_call_no_relocation) {
   SETUP();
 
   START();
@@ -15900,7 +15684,7 @@ TEST(near_call_no_relocation) {
     CHECK_EQUAL_64(expected, x13);                                      \
   }
 
-static void AbsHelperX(int64_t value) {
+void AssemblerArm64Test::AbsHelperX(int64_t value) {
   {
     SETUP();
     ABS_HELPER_X(true, value);
@@ -15968,7 +15752,7 @@ static void AbsHelperX(int64_t value) {
     CHECK_EQUAL_32(expected, w13);                                             \
   }
 
-static void AbsHelperW(int32_t value) {
+void AssemblerArm64Test::AbsHelperW(int32_t value) {
   {
     SETUP();
     ABS_HELPER_W(true, value);
@@ -15981,8 +15765,7 @@ static void AbsHelperW(int32_t value) {
   }
 }
 
-TEST(abs) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, abs) {
   AbsHelperX(0);
   AbsHelperX(42);
   AbsHelperX(-42);
@@ -15996,8 +15779,7 @@ TEST(abs) {
   AbsHelperW(kWMaxInt);
 }
 
-TEST(pool_size) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, pool_size) {
   SETUP();
 
   // This test does not execute any code. It only tests that the size of the
@@ -16045,11 +15827,10 @@ TEST(pool_size) {
   CHECK_EQ(pool_count, 2);
 }
 
-TEST(jump_tables_forward) {
+TEST_F(AssemblerArm64Test, jump_tables_forward) {
   // Test jump tables with forward jumps.
   const int kNumCases = 512;
 
-  INIT_V8();
   SETUP_SIZE(kNumCases * 5 * kInstrSize + 8192);
   START();
 
@@ -16106,11 +15887,10 @@ TEST(jump_tables_forward) {
   }
 }
 
-TEST(jump_tables_backward) {
+TEST_F(AssemblerArm64Test, jump_tables_backward) {
   // Test jump tables with backward jumps.
   const int kNumCases = 512;
 
-  INIT_V8();
   SETUP_SIZE(kNumCases * 5 * kInstrSize + 8192);
   START();
 
@@ -16168,10 +15948,9 @@ TEST(jump_tables_backward) {
   }
 }
 
-TEST(internal_reference_linked) {
+TEST_F(AssemblerArm64Test, internal_reference_linked) {
   // Test internal reference when they are linked in a label chain.
 
-  INIT_V8();
   SETUP();
   START();
 
@@ -16206,8 +15985,7 @@ TEST(internal_reference_linked) {
   CHECK_EQUAL_64(0x1, x0);
 }
 
-TEST(scalar_movi) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, scalar_movi) {
   SETUP();
   START();
 
@@ -16225,8 +16003,7 @@ TEST(scalar_movi) {
   CHECK_EQUAL_64(0, x0);
 }
 
-TEST(neon_pmull) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_pmull) {
   SETUP();
   SETUP_FEATURE(PMULL1Q);
   START();
@@ -16253,8 +16030,7 @@ TEST(neon_pmull) {
   }
 }
 
-TEST(neon_3extension_dot_product) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_3extension_dot_product) {
   SETUP();
   SETUP_FEATURE(DOTPROD);
   START();
@@ -16279,8 +16055,7 @@ TEST(neon_3extension_dot_product) {
   }
 }
 
-TEST(neon_sha3) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, neon_sha3) {
   SETUP();
   SETUP_FEATURE(SHA3);
   START();
@@ -16333,8 +16108,7 @@ float fmin(float a, float b) { return a < b ? a : b; }
 }  // namespace
 
 #define TEST_FP16_OP(op)                                             \
-  TEST(vector_fp16_##op) {                                           \
-    INIT_V8();                                                       \
+  TEST_F(AssemblerArm64Test, vector_fp16_##op) {                     \
     SETUP();                                                         \
     SETUP_FEATURE(FP16);                                             \
     START();                                                         \
@@ -16369,8 +16143,7 @@ FP16_OP_LIST(TEST_FP16_OP)
   V(frintp, ceilf)
 
 #define TEST_FP16_OP(op, cop)                                        \
-  TEST(vector_fp16_##op) {                                           \
-    INIT_V8();                                                       \
+  TEST_F(AssemblerArm64Test, vector_fp16_##op) {                     \
     SETUP();                                                         \
     SETUP_FEATURE(FP16);                                             \
     START();                                                         \
@@ -16393,8 +16166,7 @@ FP16_OP_LIST(TEST_FP16_OP)
 #undef TEST_FP16_OP
 #undef FP16_OP_LIST
 
-TEST(cssc_abs) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, cssc_abs) {
   SETUP();
   SETUP_FEATURE(CSSC);
   START();
@@ -16455,8 +16227,7 @@ TEST(cssc_abs) {
   }
 }
 
-TEST(cssc_cnt) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, cssc_cnt) {
   SETUP();
   SETUP_FEATURE(CSSC);
   START();
@@ -16511,8 +16282,7 @@ TEST(cssc_cnt) {
   }
 }
 
-TEST(cssc_ctz) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, cssc_ctz) {
   SETUP();
   SETUP_FEATURE(CSSC);
   START();
@@ -16567,8 +16337,7 @@ TEST(cssc_ctz) {
   }
 }
 
-TEST(mops_cpy) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, mops_cpy) {
   SETUP();
   SETUP_FEATURE(MOPS);
 
@@ -16658,8 +16427,7 @@ TEST(mops_cpy) {
   }
 }
 
-TEST(mops_set) {
-  INIT_V8();
+TEST_F(AssemblerArm64Test, mops_set) {
   SETUP();
   SETUP_FEATURE(MOPS);
 
@@ -16720,11 +16488,9 @@ TEST(mops_set) {
   }
 }
 
-using MinMaxOp = void (MacroAssembler::*)(const Register&, const Register&,
-                                          const Operand&);
-
-static void MinMaxHelper(MinMaxOp op, bool is_signed, uint64_t a, uint64_t b,
-                         uint32_t wexp, uint64_t xexp) {
+void AssemblerArm64Test::MinMaxHelper(MinMaxOp op, bool is_signed, uint64_t a,
+                                      uint64_t b, uint32_t wexp,
+                                      uint64_t xexp) {
   SETUP();
   SETUP_FEATURE(CSSC);
   START();
@@ -16749,14 +16515,13 @@ static void MinMaxHelper(MinMaxOp op, bool is_signed, uint64_t a, uint64_t b,
   }
 }
 
-TEST(cssc_umin) {
+TEST_F(AssemblerArm64Test, cssc_umin) {
   MinMaxOp op = &MacroAssembler::Umin;
   uint32_t s32min = 0x8000'0000;
   uint32_t s32max = 0x7fff'ffff;
   uint64_t s64min = 0x8000'0000'0000'0000;
   uint64_t s64max = 0x7fff'ffff'ffff'ffff;
 
-  INIT_V8();
   MinMaxHelper(op, false, 0, 0, 0, 0);
   MinMaxHelper(op, false, 128, 255, 128, 128);
   MinMaxHelper(op, false, 0, 0xffff'ffff'ffff'ffff, 0, 0);
@@ -16766,14 +16531,13 @@ TEST(cssc_umin) {
   MinMaxHelper(op, false, s64min, s64max, 0, s64max);
 }
 
-TEST(cssc_umax) {
+TEST_F(AssemblerArm64Test, cssc_umax) {
   MinMaxOp op = &MacroAssembler::Umax;
   uint32_t s32min = 0x8000'0000;
   uint32_t s32max = 0x7fff'ffff;
   uint64_t s64min = 0x8000'0000'0000'0000;
   uint64_t s64max = 0x7fff'ffff'ffff'ffff;
 
-  INIT_V8();
   MinMaxHelper(op, false, 0, 0, 0, 0);
   MinMaxHelper(op, false, 128, 255, 255, 255);
   MinMaxHelper(op, false, 0, 0xffff'ffff'ffff'ffff, 0xffff'ffff,
@@ -16784,14 +16548,13 @@ TEST(cssc_umax) {
   MinMaxHelper(op, false, s64min, s64max, 0xffff'ffff, s64min);
 }
 
-TEST(cssc_smin) {
+TEST_F(AssemblerArm64Test, cssc_smin) {
   MinMaxOp op = &MacroAssembler::Smin;
   uint32_t s32min = 0x8000'0000;
   uint32_t s32max = 0x7fff'ffff;
   uint64_t s64min = 0x8000'0000'0000'0000;
   uint64_t s64max = 0x7fff'ffff'ffff'ffff;
 
-  INIT_V8();
   MinMaxHelper(op, true, 0, 0, 0, 0);
   MinMaxHelper(op, true, 128, 255, 128, 128);
   MinMaxHelper(op, true, 0, 0xffff'ffff'ffff'ffff, 0xffff'ffff,
@@ -16802,14 +16565,13 @@ TEST(cssc_smin) {
   MinMaxHelper(op, true, s64min, s64max, 0xffff'ffff, s64min);
 }
 
-TEST(cssc_smax) {
+TEST_F(AssemblerArm64Test, cssc_smax) {
   MinMaxOp op = &MacroAssembler::Smax;
   uint32_t s32min = 0x8000'0000;
   uint32_t s32max = 0x7fff'ffff;
   uint64_t s64min = 0x8000'0000'0000'0000;
   uint64_t s64max = 0x7fff'ffff'ffff'ffff;
 
-  INIT_V8();
   MinMaxHelper(op, true, 0, 0, 0, 0);
   MinMaxHelper(op, true, 128, 255, 255, 255);
   MinMaxHelper(op, true, 0, 0xffff'ffff'ffff'ffff, 0, 0);

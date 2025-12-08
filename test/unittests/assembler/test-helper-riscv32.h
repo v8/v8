@@ -12,7 +12,7 @@
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
 #include "src/utils/utils.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 #define PRINT_RES(res, expected_res, in_hex)                         \
   if (in_hex) std::cout << "[hex-form]" << std::hex;                 \
@@ -34,7 +34,7 @@ template <typename OUTPUT_T, typename INPUT_T>
 OUTPUT_T GenAndRunTest(INPUT_T input0, Func test_generator) {
   DCHECK((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
 
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -81,7 +81,7 @@ template <typename OUTPUT_T, typename INPUT_T>
 OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, Func test_generator) {
   DCHECK((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
 
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -130,7 +130,7 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
                        Func test_generator) {
   DCHECK((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
 
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -181,7 +181,7 @@ template <typename T>
 void GenAndRunTestForLoadStore(T value, Func test_generator) {
   DCHECK(sizeof(T) == 4 || sizeof(T) == 8);
 
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -225,7 +225,7 @@ template <typename T, typename Func>
 void GenAndRunTestForLRSC(T value, Func test_generator) {
   DCHECK(sizeof(T) == 4 || sizeof(T) == 8);
 
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -271,7 +271,7 @@ OUTPUT_T GenAndRunTestForAMO(INPUT_T input0, INPUT_T input1,
                              Func test_generator) {
   DCHECK(sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8);
   DCHECK(sizeof(OUTPUT_T) == 4 || sizeof(OUTPUT_T) == 8);
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);

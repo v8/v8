@@ -34,10 +34,11 @@
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+using SimpleRISCV32Test = TestWithIsolate;
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 // TODO(mips64): Refine these signatures per test case.
@@ -49,9 +50,8 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
-TEST(RISCV_SIMPLE0) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(SimpleRISCV32Test, RISCV_SIMPLE0) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -65,13 +65,12 @@ TEST(RISCV_SIMPLE0) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F2>::FromCode(isolate, *code);
-  int64_t res = reinterpret_cast<int64_t>(f.Call(0xAB0, 0xC, 0, 0, 0));
+  int32_t res = reinterpret_cast<int32_t>(f.Call(0xAB0, 0xC, 0, 0, 0));
   CHECK_EQ(0xABCL, res);
 }
 
-TEST(RISCV_SIMPLE1) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(SimpleRISCV32Test, RISCV_SIMPLE1) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -85,14 +84,13 @@ TEST(RISCV_SIMPLE1) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
-  int64_t res = reinterpret_cast<int64_t>(f.Call(100, 0, 0, 0, 0));
+  int32_t res = reinterpret_cast<int32_t>(f.Call(100, 0, 0, 0, 0));
   CHECK_EQ(99L, res);
 }
 
 // Loop 100 times, adding loop counter to result
-TEST(RISCV_SIMPLE2) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(SimpleRISCV32Test, RISCV_SIMPLE2) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -115,18 +113,17 @@ TEST(RISCV_SIMPLE2) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-#ifdef OBJECT_PRINT
+#ifdef DEBUG
   Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
-  int64_t res = reinterpret_cast<int64_t>(f.Call(100, 0, 0, 0, 0));
+  int32_t res = reinterpret_cast<int32_t>(f.Call(100, 0, 0, 0, 0));
   CHECK_EQ(5050, res);
 }
 
 // Test part of Load and Store
-TEST(RISCV_SIMPLE3) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(SimpleRISCV32Test, RISCV_SIMPLE3) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -140,14 +137,13 @@ TEST(RISCV_SIMPLE3) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
-  int64_t res = reinterpret_cast<int64_t>(f.Call(255, 0, 0, 0, 0));
+  int32_t res = reinterpret_cast<int32_t>(f.Call(255, 0, 0, 0, 0));
   CHECK_EQ(-1, res);
 }
 
 // Test loading immediates of various sizes
-TEST(LI) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(SimpleRISCV32Test, LI) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -169,18 +165,6 @@ TEST(LI) {
   __ add(a0, a1, a2);
   __ bnez(a0, &error);
 
-  // Load large number (33-64 bits)
-  __ RV_li(a1, 11649936536080);
-  __ RV_li(a2, -11649936536080);
-  __ add(a0, a1, a2);
-  __ bnez(a0, &error);
-
-  // Load large number (33-64 bits)
-  __ RV_li(a1, 1070935975390360080);
-  __ RV_li(a2, -1070935975390360080);
-  __ add(a0, a1, a2);
-  __ bnez(a0, &error);
-
   __ mv(a0, zero_reg);
   __ jr(ra);
 
@@ -192,13 +176,12 @@ TEST(LI) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
-  int64_t res = reinterpret_cast<int64_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
+  int32_t res = reinterpret_cast<int32_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
   CHECK_EQ(0L, res);
 }
 
-TEST(LI_CONST) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(SimpleRISCV32Test, LI_CONST) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -220,18 +203,6 @@ TEST(LI_CONST) {
   __ add(a0, a1, a2);
   __ bnez(a0, &error);
 
-  // Load large number (33-64 bits)
-  __ li_constant(a1, 11649936536080);
-  __ li_constant(a2, -11649936536080);
-  __ add(a0, a1, a2);
-  __ bnez(a0, &error);
-
-  // Load large number (33-64 bits)
-  __ li_constant(a1, 1070935975390360080);
-  __ li_constant(a2, -1070935975390360080);
-  __ add(a0, a1, a2);
-  __ bnez(a0, &error);
-
   __ mv(a0, zero_reg);
   __ jr(ra);
 
@@ -243,7 +214,7 @@ TEST(LI_CONST) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
-  int64_t res = reinterpret_cast<int64_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
+  int32_t res = reinterpret_cast<int32_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
   CHECK_EQ(0L, res);
 }
 

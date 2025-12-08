@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "test/cctest/test-utils-arm64.h"
+#include "test/unittests/assembler/test-utils-arm64.h"
 
 #include "src/base/template-utils.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
@@ -34,24 +34,21 @@
 namespace v8 {
 namespace internal {
 
-
 #define __ masm->
-
 
 bool Equal32(uint32_t expected, const RegisterDump*, uint32_t result) {
   if (result != expected) {
-    printf("Expected 0x%08" PRIx32 "\t Found 0x%08" PRIx32 "\n",
-           expected, result);
+    printf("Expected 0x%08" PRIx32 "\t Found 0x%08" PRIx32 "\n", expected,
+           result);
   }
 
   return expected == result;
 }
 
-
 bool Equal64(uint64_t expected, const RegisterDump*, uint64_t result) {
   if (result != expected) {
-    printf("Expected 0x%016" PRIx64 "\t Found 0x%016" PRIx64 "\n",
-           expected, result);
+    printf("Expected 0x%016" PRIx64 "\t Found 0x%016" PRIx64 "\n", expected,
+           result);
   }
 
   return expected == result;
@@ -87,7 +84,6 @@ bool EqualFP32(float expected, const RegisterDump*, float result) {
   }
 }
 
-
 bool EqualFP64(double expected, const RegisterDump*, double result) {
   if (base::bit_cast<uint64_t>(expected) == base::bit_cast<uint64_t>(result)) {
     return true;
@@ -107,25 +103,21 @@ bool EqualFP64(double expected, const RegisterDump*, double result) {
   return false;
 }
 
-
 bool Equal32(uint32_t expected, const RegisterDump* core, const Register& reg) {
   CHECK(reg.Is32Bits());
   // Retrieve the corresponding X register so we can check that the upper part
   // was properly cleared.
   int64_t result_x = core->xreg(reg.code());
   if ((result_x & 0xFFFFFFFF00000000L) != 0) {
-    printf("Expected 0x%08" PRIx32 "\t Found 0x%016" PRIx64 "\n",
-           expected, result_x);
+    printf("Expected 0x%08" PRIx32 "\t Found 0x%016" PRIx64 "\n", expected,
+           result_x);
     return false;
   }
   uint32_t result_w = core->wreg(reg.code());
   return Equal32(expected, core, result_w);
 }
 
-
-bool Equal64(uint64_t expected,
-             const RegisterDump* core,
-             const Register& reg) {
+bool Equal64(uint64_t expected, const RegisterDump* core, const Register& reg) {
   CHECK(reg.Is64Bits());
   uint64_t result = core->xreg(reg.code());
   return Equal64(expected, core, result);
@@ -160,9 +152,7 @@ bool EqualFP64(double expected, const RegisterDump* core,
   return EqualFP64(expected, core, core->dreg(fpreg.code()));
 }
 
-
-bool Equal64(const Register& reg0,
-             const RegisterDump* core,
+bool Equal64(const Register& reg0, const RegisterDump* core,
              const Register& reg1) {
   CHECK(reg0.Is64Bits() && reg1.Is64Bits());
   int64_t expected = core->xreg(reg0.code());
@@ -170,34 +160,21 @@ bool Equal64(const Register& reg0,
   return Equal64(expected, core, result);
 }
 
+static char FlagN(uint32_t flags) { return (flags & NFlag) ? 'N' : 'n'; }
 
-static char FlagN(uint32_t flags) {
-  return (flags & NFlag) ? 'N' : 'n';
-}
+static char FlagZ(uint32_t flags) { return (flags & ZFlag) ? 'Z' : 'z'; }
 
+static char FlagC(uint32_t flags) { return (flags & CFlag) ? 'C' : 'c'; }
 
-static char FlagZ(uint32_t flags) {
-  return (flags & ZFlag) ? 'Z' : 'z';
-}
-
-
-static char FlagC(uint32_t flags) {
-  return (flags & CFlag) ? 'C' : 'c';
-}
-
-
-static char FlagV(uint32_t flags) {
-  return (flags & VFlag) ? 'V' : 'v';
-}
-
+static char FlagV(uint32_t flags) { return (flags & VFlag) ? 'V' : 'v'; }
 
 bool EqualNzcv(uint32_t expected, uint32_t result) {
   CHECK_EQ(expected & ~NZCVFlag, 0);
   CHECK_EQ(result & ~NZCVFlag, 0);
   if (result != expected) {
-    printf("Expected: %c%c%c%c\t Found: %c%c%c%c\n",
-        FlagN(expected), FlagZ(expected), FlagC(expected), FlagV(expected),
-        FlagN(result), FlagZ(result), FlagC(result), FlagV(result));
+    printf("Expected: %c%c%c%c\t Found: %c%c%c%c\n", FlagN(expected),
+           FlagZ(expected), FlagC(expected), FlagV(expected), FlagN(result),
+           FlagZ(result), FlagC(result), FlagV(result));
     return false;
   }
 
@@ -210,8 +187,8 @@ bool EqualV8Registers(const RegisterDump* a, const RegisterDump* b) {
   while (!available_regs.IsEmpty()) {
     int i = available_regs.PopLowestIndex().code();
     if (a->xreg(i) != b->xreg(i)) {
-      printf("x%d\t Expected 0x%016" PRIx64 "\t Found 0x%016" PRIx64 "\n",
-             i, a->xreg(i), b->xreg(i));
+      printf("x%d\t Expected 0x%016" PRIx64 "\t Found 0x%016" PRIx64 "\n", i,
+             a->xreg(i), b->xreg(i));
       return false;
     }
   }
@@ -220,8 +197,8 @@ bool EqualV8Registers(const RegisterDump* a, const RegisterDump* b) {
     uint64_t a_bits = a->dreg_bits(i);
     uint64_t b_bits = b->dreg_bits(i);
     if (a_bits != b_bits) {
-      printf("d%d\t Expected 0x%016" PRIx64 "\t Found 0x%016" PRIx64 "\n",
-             i, a_bits, b_bits);
+      printf("d%d\t Expected 0x%016" PRIx64 "\t Found 0x%016" PRIx64 "\n", i,
+             a_bits, b_bits);
       return false;
     }
   }
@@ -329,7 +306,6 @@ void Clobber(MacroAssembler* masm, CPURegList reg_list) {
     UNREACHABLE();
   }
 }
-
 
 void RegisterDump::Dump(MacroAssembler* masm) {
   // Ensure that we don't unintentionally clobber any registers.

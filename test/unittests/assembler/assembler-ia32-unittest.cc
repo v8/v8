@@ -36,10 +36,11 @@
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/utils/ostreams.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+using AssemblerIa32Test = TestWithIsolate;
 
 using F0 = int();
 using F1 = int(int x);
@@ -47,9 +48,8 @@ using F2 = int(int x, int y);
 
 #define __ assm.
 
-TEST(AssemblerIa320) {
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerIa320) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
 
   uint8_t buffer[256];
@@ -74,10 +74,8 @@ TEST(AssemblerIa320) {
   CHECK_EQ(7, res);
 }
 
-
-TEST(AssemblerIa321) {
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerIa321) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
 
   uint8_t buffer[256];
@@ -112,10 +110,8 @@ TEST(AssemblerIa321) {
   CHECK_EQ(5050, res);
 }
 
-
-TEST(AssemblerIa322) {
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerIa322) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
 
   uint8_t buffer[256];
@@ -155,10 +151,8 @@ TEST(AssemblerIa322) {
 
 using F3 = int(float x);
 
-TEST(AssemblerIa323) {
-  CcTest::InitializeVM();
-
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerIa323) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
 
   uint8_t buffer[256];
@@ -184,10 +178,8 @@ TEST(AssemblerIa323) {
 
 using F4 = int(double x);
 
-TEST(AssemblerIa324) {
-  CcTest::InitializeVM();
-
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerIa324) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
 
   uint8_t buffer[256];
@@ -211,11 +203,9 @@ TEST(AssemblerIa324) {
   CHECK_EQ(2, res);
 }
 
-
 static int baz = 42;
-TEST(AssemblerIa325) {
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerIa325) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
 
   uint8_t buffer[256];
@@ -236,10 +226,8 @@ TEST(AssemblerIa325) {
 
 using F5 = double(double x, double y);
 
-TEST(AssemblerIa326) {
-  CcTest::InitializeVM();
-
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerIa326) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
@@ -274,10 +262,8 @@ TEST(AssemblerIa326) {
 
 using F6 = double(int x);
 
-TEST(AssemblerIa328) {
-  CcTest::InitializeVM();
-
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerIa328) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
@@ -305,10 +291,9 @@ TEST(AssemblerIa328) {
   CHECK(11.99 < res && res < 12.001);
 }
 
-TEST(AssemblerIa3210) {
+TEST_F(AssemblerIa32Test, AssemblerIa3210) {
   // Test chaining of label usages within instructions (issue 1644).
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -319,10 +304,8 @@ TEST(AssemblerIa3210) {
   __ nop();
 }
 
-
-TEST(AssemblerMultiByteNop) {
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerMultiByteNop) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[1024];
   Assembler assm(AssemblerOptions{},
@@ -384,15 +367,14 @@ TEST(AssemblerMultiByteNop) {
   CHECK_EQ(42, res);
 }
 
-
 #ifdef __GNUC__
 #define ELEMENT_COUNT 4u
 
 void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
 
   CHECK(info[0]->IsArray());
   v8::Local<v8::Array> vec = v8::Local<v8::Array>::Cast(info[0]);
@@ -432,58 +414,58 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   int res = f.Call();
-  info.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
+  info.GetReturnValue().Set(v8::Integer::New(info.GetIsolate(), res));
 }
 
-TEST(StackAlignmentForSSE2) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerIa32Test, StackAlignmentForSSE2) {
   CHECK_EQ(0, v8::base::OS::ActivationFrameAlignment() % 16);
 
-  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
-  global_template->Set(v8_str("do_sse2"),
+  global_template->Set(NewString("do_sse2"),
                        v8::FunctionTemplate::New(isolate, DoSSE2));
 
-  LocalContext env(nullptr, global_template);
-  CompileRun(
+  v8::Local<v8::Context> context =
+      v8::Context::New(isolate, nullptr, global_template);
+  v8::Context::Scope context_scope(context);
+  RunJS(
       "function foo(vec) {"
       "  return do_sse2(vec);"
       "}");
 
-  v8::Local<v8::Object> global_object = env->Global();
+  v8::Local<v8::Object> global_object = context->Global();
   v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
-      global_object->Get(env.local(), v8_str("foo")).ToLocalChecked());
+      global_object->Get(context, NewString("foo")).ToLocalChecked());
 
-  int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
+  int32_t vec[ELEMENT_COUNT] = {-1, 1, 1, 1};
   v8::Local<v8::Array> v8_vec = v8::Array::New(isolate, ELEMENT_COUNT);
   for (unsigned i = 0; i < ELEMENT_COUNT; i++) {
-    v8_vec->Set(env.local(), i, v8_num(vec[i])).FromJust();
+    v8_vec->Set(context, i, NewNumber(vec[i])).FromJust();
   }
 
   v8::Local<v8::Value> args[] = {v8_vec};
   v8::Local<v8::Value> result =
-      foo->Call(env.local(), global_object, 1, args).ToLocalChecked();
+      foo->Call(context, global_object, 1, args).ToLocalChecked();
 
   // The mask should be 0b1000.
-  CHECK_EQ(8, result->Int32Value(env.local()).FromJust());
+  CHECK_EQ(8, result->Int32Value(context).FromJust());
 }
 
 #undef ELEMENT_COUNT
 #endif  // __GNUC__
 
-
-TEST(AssemblerIa32Extractps) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerIa32Test, AssemblerIa32Extractps) {
   if (!CpuFeatures::IsSupported(SSE4_1)) return;
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
-  { CpuFeatureScope fscope41(&assm, SSE4_1);
+  {
+    CpuFeatureScope fscope41(&assm, SSE4_1);
     __ movsd(xmm1, Operand(esp, 4));
     __ extractps(eax, xmm1, 0x1);
     __ ret(0);
@@ -507,10 +489,8 @@ TEST(AssemblerIa32Extractps) {
 }
 
 using F8 = int(float x, float y);
-TEST(AssemblerIa32SSE) {
-  CcTest::InitializeVM();
-
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+TEST_F(AssemblerIa32Test, AssemblerIa32SSE) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -542,11 +522,10 @@ TEST(AssemblerIa32SSE) {
   CHECK_EQ(2, f.Call(1.0, 2.0));
 }
 
-TEST(AssemblerIa32SSE3) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerIa32Test, AssemblerIa32SSE3) {
   if (!CpuFeatures::IsSupported(SSE3)) return;
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -576,11 +555,10 @@ TEST(AssemblerIa32SSE3) {
 }
 
 using F9 = int(double x, double y, double z);
-TEST(AssemblerX64FMA_sd) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerIa32Test, AssemblerX64FMA_sd) {
   if (!CpuFeatures::IsSupported(FMA3)) return;
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[1024];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -685,7 +663,6 @@ TEST(AssemblerX64FMA_sd) {
     __ ucomisd(xmm4, xmm3);
     __ j(not_equal, &exit);
 
-
     // - xmm0 * xmm1 + xmm2
     __ movaps(xmm3, xmm0);
     __ mulsd(xmm3, xmm1);
@@ -733,7 +710,6 @@ TEST(AssemblerX64FMA_sd) {
     __ vfnmadd231sd(xmm4, xmm0, Operand(esp, 0));
     __ ucomisd(xmm4, xmm3);
     __ j(not_equal, &exit);
-
 
     // - xmm0 * xmm1 - xmm2
     __ movaps(xmm3, xmm0);
@@ -783,7 +759,6 @@ TEST(AssemblerX64FMA_sd) {
     __ ucomisd(xmm4, xmm3);
     __ j(not_equal, &exit);
 
-
     __ xor_(eax, eax);
     __ bind(&exit);
     __ add(esp, Immediate(kDoubleSize));
@@ -805,11 +780,10 @@ TEST(AssemblerX64FMA_sd) {
 }
 
 using F10 = int(float x, float y, float z);
-TEST(AssemblerX64FMA_ss) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerIa32Test, AssemblerX64FMA_ss) {
   if (!CpuFeatures::IsSupported(FMA3)) return;
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[1024];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -914,7 +888,6 @@ TEST(AssemblerX64FMA_ss) {
     __ ucomiss(xmm4, xmm3);
     __ j(not_equal, &exit);
 
-
     // - xmm0 * xmm1 + xmm2
     __ movaps(xmm3, xmm0);
     __ mulss(xmm3, xmm1);
@@ -962,7 +935,6 @@ TEST(AssemblerX64FMA_ss) {
     __ vfnmadd231ss(xmm4, xmm0, Operand(esp, 0));
     __ ucomiss(xmm4, xmm3);
     __ j(not_equal, &exit);
-
 
     // - xmm0 * xmm1 - xmm2
     __ movaps(xmm3, xmm0);
@@ -1012,7 +984,6 @@ TEST(AssemblerX64FMA_ss) {
     __ ucomiss(xmm4, xmm3);
     __ j(not_equal, &exit);
 
-
     __ xor_(eax, eax);
     __ bind(&exit);
     __ add(esp, Immediate(kDoubleSize));
@@ -1032,12 +1003,10 @@ TEST(AssemblerX64FMA_ss) {
   CHECK_EQ(0, f.Call(9.26621069e-05f, -2.4607749f, -1.09587872f));
 }
 
-
-TEST(AssemblerIa32BMI1) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerIa32Test, AssemblerIa32BMI1) {
   if (!CpuFeatures::IsSupported(BMI1)) return;
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[1024];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -1140,12 +1109,10 @@ TEST(AssemblerIa32BMI1) {
   CHECK_EQ(0, f.Call());
 }
 
-
-TEST(AssemblerIa32LZCNT) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerIa32Test, AssemblerIa32LZCNT) {
   if (!CpuFeatures::IsSupported(LZCNT)) return;
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -1188,12 +1155,10 @@ TEST(AssemblerIa32LZCNT) {
   CHECK_EQ(0, f.Call());
 }
 
-
-TEST(AssemblerIa32POPCNT) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerIa32Test, AssemblerIa32POPCNT) {
   if (!CpuFeatures::IsSupported(POPCNT)) return;
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -1236,12 +1201,10 @@ TEST(AssemblerIa32POPCNT) {
   CHECK_EQ(0, f.Call());
 }
 
-
-TEST(AssemblerIa32BMI2) {
-  CcTest::InitializeVM();
+TEST_F(AssemblerIa32Test, AssemblerIa32BMI2) {
   if (!CpuFeatures::IsSupported(BMI2)) return;
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   uint8_t buffer[2048];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -1382,11 +1345,9 @@ TEST(AssemblerIa32BMI2) {
   CHECK_EQ(0, f.Call());
 }
 
-
-TEST(AssemblerIa32JumpTables1) {
+TEST_F(AssemblerIa32Test, AssemblerIa32JumpTables1) {
   // Test jump tables with forward jumps.
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -1429,11 +1390,9 @@ TEST(AssemblerIa32JumpTables1) {
   }
 }
 
-
-TEST(AssemblerIa32JumpTables2) {
+TEST_F(AssemblerIa32Test, AssemblerIa32JumpTables2) {
   // Test jump tables with backward jumps.
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -1477,12 +1436,11 @@ TEST(AssemblerIa32JumpTables2) {
   }
 }
 
-TEST(Regress621926) {
+TEST_F(AssemblerIa32Test, Regress621926) {
   // Bug description:
   // The opcodes for cmpw r/m16, r16 and cmpw r16, r/m16 were swapped.
   // This was causing non-commutative comparisons to produce the wrong result.
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -1518,8 +1476,8 @@ TEST(Regress621926) {
   CHECK_EQ(1, f.Call());
 }
 
-TEST(DeoptExitSizeIsFixed) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerIa32Test, DeoptExitSizeIsFixed) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   uint8_t buffer[256];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -1539,7 +1497,7 @@ TEST(DeoptExitSizeIsFixed) {
   }
 }
 
-TEST(CpuFeatures_ProbeImpl) {
+TEST_F(AssemblerIa32Test, CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));
   CHECK_IMPLIES(CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(AVX));

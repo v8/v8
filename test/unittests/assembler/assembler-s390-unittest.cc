@@ -25,18 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/init/v8.h"
-
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/s390/assembler-s390-inl.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "test/cctest/cctest.h"
+#include "src/init/v8.h"
 #include "test/common/assembler-tester.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+using AssemblerS390Test = TestWithIsolate;
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 // TODO(s390): Refine these signatures per test case.
@@ -48,9 +48,8 @@ using F4 = void*(void* p0, void* p1, int p2, int p3, int p4);
 #define __ assm.
 
 // Simple add parameter 1 to parameter 2 and return
-TEST(0) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 0) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -75,9 +74,8 @@ TEST(0) {
 }
 
 // Loop 100 times, adding loop counter to result
-TEST(1) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 1) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -113,9 +111,8 @@ TEST(1) {
   CHECK_EQ(5050, static_cast<int>(res));
 }
 
-TEST(2) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 2) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   // Create a function that accepts &t, and loads, manipulates, and stores
@@ -164,9 +161,8 @@ TEST(2) {
   CHECK_EQ(3628800, static_cast<int>(res));
 }
 
-TEST(3) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 3) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -218,9 +214,8 @@ TEST(3) {
 }
 
 #if 0
-TEST(4) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 4) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -263,9 +258,8 @@ TEST(4) {
 
 
 // Test ExtractBitRange
-TEST(5) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 5) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -291,9 +285,8 @@ TEST(5) {
 
 
 // Test JumpIfSmi
-TEST(6) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 6) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -325,9 +318,8 @@ TEST(6) {
 
 
 // Test fix<->floating point conversion.
-TEST(7) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 7) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -357,9 +349,8 @@ TEST(7) {
 
 
 // Test DSGR
-TEST(8) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 8) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -389,9 +380,8 @@ TEST(8) {
 
 
 // Test LZDR
-TEST(9) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 9) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -414,15 +404,14 @@ TEST(9) {
 #endif
 
 // Test msrkc and msgrkc
-TEST(10) {
+TEST_F(AssemblerS390Test, 10) {
   if (!CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
     return;
   }
 
   ::printf("MISC_INSTR_EXT2 is enabled.\n");
 
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -497,11 +486,9 @@ TEST(10) {
   CHECK_EQ(0, static_cast<int>(res));
 }
 
-
 // brxh
-TEST(11) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 11) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -521,7 +508,7 @@ TEST(11) {
   __ brxh(r1, r3, &continue2);
   __ b(&failed);
 
-  //r1 - operand; r4 - inc; r5 - test val
+  // r1 - operand; r4 - inc; r5 - test val
   __ bind(&continue2);
   __ lgfi(r1, Operand(-2));
   __ lgfi(r4, Operand(1));
@@ -547,15 +534,13 @@ TEST(11) {
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
-  ::printf("f() = %" V8PRIdPTR  "\n", res);
+  ::printf("f() = %" V8PRIdPTR "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
 }
 
-
 // brxhg
-TEST(12) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerS390Test, 12) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -575,7 +560,7 @@ TEST(12) {
   __ brxhg(r1, r3, &continue2);
   __ b(&failed);
 
-  //r1 - operand; r4 - inc; r5 - test val
+  // r1 - operand; r4 - inc; r5 - test val
   __ bind(&continue2);
   __ lgfi(r1, Operand(-2));
   __ lgfi(r4, Operand(1));
@@ -601,19 +586,18 @@ TEST(12) {
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
-  ::printf("f() = %" V8PRIdPTR  "\n", res);
+  ::printf("f() = %" V8PRIdPTR "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
 }
 
 // vector basics
-TEST(13) {
+TEST_F(AssemblerS390Test, 13) {
   // check if the VECTOR_FACILITY is supported
   if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
     return;
   }
 
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -669,16 +653,14 @@ TEST(13) {
   CHECK_EQ(0, static_cast<int>(res));
 }
 
-
 // vector sum, packs, unpacks
-TEST(14) {
+TEST_F(AssemblerS390Test, 14) {
   // check if the VECTOR_FACILITY is supported
   if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
     return;
   }
 
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -761,14 +743,13 @@ TEST(14) {
 }
 
 // vector comparisons
-TEST(15) {
+TEST_F(AssemblerS390Test, 15) {
   // check if the VECTOR_FACILITY is supported
   if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
     return;
   }
 
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -851,14 +832,13 @@ TEST(15) {
 }
 
 // vector select and test mask
-TEST(16) {
+TEST_F(AssemblerS390Test, 16) {
   // check if the VECTOR_FACILITY is supported
   if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
     return;
   }
 
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -898,14 +878,13 @@ TEST(16) {
 }
 
 // vector fp instructions
-TEST(17) {
+TEST_F(AssemblerS390Test, 17) {
   // check if the VECTOR_FACILITY is supported
   if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
     return;
   }
 
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -971,10 +950,9 @@ TEST(17) {
   CHECK_EQ(0, static_cast<int>(res));
 }
 
-//TMHH, TMHL
-TEST(18) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+// TMHH, TMHL
+TEST_F(AssemblerS390Test, 18) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   Assembler assm(AssemblerOptions{});
 
@@ -985,35 +963,35 @@ TEST(18) {
   // selected bits all 0
   __ lgfi(r1, Operand(0));
   __ tmhh(r1, Operand(1));
-  __ beq(&continue1); //8
+  __ beq(&continue1);  // 8
   __ b(&error);
 
   __ bind(&continue1);
   __ tmhl(r1, Operand(1));
-  __ beq(&continue2); //8
+  __ beq(&continue2);  // 8
   __ b(&error);
 
   // mask = 0
   __ bind(&continue2);
   __ lgfi(r1, Operand(-1));
   __ tmhh(r1, Operand(0));
-  __ beq(&continue3);  //8
+  __ beq(&continue3);  // 8
   __ b(&error);
 
   __ bind(&continue3);
   __ tmhh(r1, Operand(0));
-  __ beq(&continue4);  //8
+  __ beq(&continue4);  // 8
   __ b(&error);
 
   // selected bits all 1
   __ bind(&continue4);
   __ tmhh(r1, Operand(1));
-  __ b(Condition(1), &continue5); //1
+  __ b(Condition(1), &continue5);  // 1
   __ b(&error);
 
   __ bind(&continue5);
   __ tmhl(r1, Operand(1));
-  __ b(Condition(1), &continue6); //1
+  __ b(Condition(1), &continue6);  // 1
   __ b(&error);
 
   // leftmost = 1
@@ -1021,12 +999,12 @@ TEST(18) {
   __ lgfi(r1, Operand(0xF000F000));
   __ slag(r2, r1, Operand(32));
   __ tmhh(r2, Operand(0xFFFF));
-  __ b(Condition(2), &done); //2
+  __ b(Condition(2), &done);  // 2
   __ b(&error);
 
   __ bind(&continue7);
   __ tmhl(r1, Operand(0xFFFF));
-  __ b(Condition(2), &continue8); //2
+  __ b(Condition(2), &continue8);  // 2
   __ b(&error);
 
   // leftmost = 0
@@ -1034,12 +1012,12 @@ TEST(18) {
   __ lgfi(r1, Operand(0x0FF00FF0));
   __ slag(r2, r1, Operand(32));
   __ tmhh(r2, Operand(0xFFFF));
-  __ b(Condition(4), &done); //4
+  __ b(Condition(4), &done);  // 4
   __ b(&error);
 
   __ bind(&continue9);
   __ tmhl(r1, Operand(0xFFFF));
-  __ b(Condition(4), &done); //4
+  __ b(Condition(4), &done);  // 4
   __ b(&error);
 
   __ bind(&error);

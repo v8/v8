@@ -25,17 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/init/v8.h"
-
 #include "src/codegen/ppc/assembler-ppc-inl.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "test/cctest/cctest.h"
+#include "src/init/v8.h"
 #include "test/common/assembler-tester.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+using AssemblerPpcTest = TestWithIsolate;
 
 // TODO(ppc): Refine these signatures per test case, they can have arbitrary
 // return and argument types and arbitrary number of arguments.
@@ -48,9 +48,8 @@ using F_ippii = void*(int p0, void* p1, void* p2, int p3, int p4);
 #define __ assm.
 
 // Simple add parameter 1 to parameter 2 and return
-TEST(0) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerPpcTest, 0) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -71,11 +70,9 @@ TEST(0) {
   CHECK_EQ(7, static_cast<int>(res));
 }
 
-
 // Loop 100 times, adding loop counter to result
-TEST(1) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerPpcTest, 1) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -107,10 +104,8 @@ TEST(1) {
   CHECK_EQ(5050, static_cast<int>(res));
 }
 
-
-TEST(2) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerPpcTest, 2) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -155,10 +150,8 @@ TEST(2) {
   CHECK_EQ(3628800, static_cast<int>(res));
 }
 
-
-TEST(3) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerPpcTest, 3) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -231,10 +224,9 @@ TEST(3) {
 }
 
 #if 0
-TEST(4) {
+TEST_F(AssemblerPpcTest, 4) {
   // Test the VFP floating point instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct T {
@@ -365,10 +357,9 @@ TEST(4) {
 }
 
 
-TEST(5) {
+TEST_F(AssemblerPpcTest, 5) {
   // Test the ARMv7 bitfield instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -401,10 +392,9 @@ TEST(5) {
 }
 
 
-TEST(6) {
+TEST_F(AssemblerPpcTest, 6) {
   // Test saturating instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -445,8 +435,7 @@ static void TestRoundingMode(VCVTTypes types,
                              double value,
                              int expected,
                              bool expected_exception = false) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -511,7 +500,7 @@ static void TestRoundingMode(VCVTTypes types,
 }
 
 
-TEST(7) {
+TEST_F(AssemblerPpcTest, 7) {
   // Test vfp rounding modes.
 
   // s32_f64 (double to integer).
@@ -621,10 +610,9 @@ TEST(7) {
 }
 
 
-TEST(8) {
+TEST_F(AssemblerPpcTest, 8) {
   // Test VFP multi load/store with ia_w.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct D {
@@ -732,10 +720,9 @@ TEST(8) {
 }
 
 
-TEST(9) {
+TEST_F(AssemblerPpcTest, 9) {
   // Test VFP multi load/store with ia.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct D {
@@ -847,10 +834,9 @@ TEST(9) {
 }
 
 
-TEST(10) {
+TEST_F(AssemblerPpcTest, 10) {
   // Test VFP multi load/store with db_w.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct D {
@@ -958,10 +944,9 @@ TEST(10) {
 }
 
 
-TEST(11) {
+TEST_F(AssemblerPpcTest, 11) {
   // Test instructions using the carry flag.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   struct I {
@@ -1023,10 +1008,9 @@ TEST(11) {
 }
 
 
-TEST(12) {
+TEST_F(AssemblerPpcTest, 12) {
   // Test chaining of label usages within instructions (issue 1644).
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});
@@ -1038,9 +1022,8 @@ TEST(12) {
 }
 #endif
 
-TEST(WordSizedVectorInstructions) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(AssemblerPpcTest, WordSizedVectorInstructions) {
+  Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
   Assembler assm(AssemblerOptions{});

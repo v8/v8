@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/assembler-helper-arm.h"
+#include "test/unittests/assembler/assembler-helper-arm.h"
 
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/isolate-inl.h"

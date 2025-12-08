@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/test-helper-riscv32.h"
+#include "test/unittests/assembler/test-helper-riscv32.h"
 
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 
 int32_t GenAndRunTest(Func test_generator) {
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
