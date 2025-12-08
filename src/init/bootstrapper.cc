@@ -5522,6 +5522,7 @@ void Genesis::InitializeGlobal_js_upsert() {
                           Builtin::kMapPrototypeGetOrInsert, 2, kAdapt);
     SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
                           Builtin::kMapPrototypeGetOrInsertComputed, 2, kAdapt);
+    native_context()->set_initial_map_prototype_map(prototype->map());
   }
   {
     auto prototype =
@@ -5531,6 +5532,7 @@ void Genesis::InitializeGlobal_js_upsert() {
     SimpleInstallFunction(isolate_, prototype, "getOrInsertComputed",
                           Builtin::kWeakMapPrototypeGetOrInsertComputed, 2,
                           kAdapt);
+    native_context()->set_initial_weakmap_prototype_map(prototype->map());
   }
 }
 
