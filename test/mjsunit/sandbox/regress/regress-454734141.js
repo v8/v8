@@ -6,7 +6,7 @@
 
 const segment = (new Intl.Segmenter).segment();
 
-Sandbox.corruptObjectField(segment, 20, 0x1);
+Sandbox.corruptObjectField(segment, "unicode_string", 0x1);
 
 gc();
 new Uint8Array(segment);
