@@ -696,16 +696,13 @@ void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
       [](Tagged<T> xs, int i) { return Cast<Object>(xs->get(i)); });
 }
 
-void PrintDictionaryElements(std::ostream& os,
-                             Tagged<FixedArrayBase> elements) {
-  // Print some internal fields
-  Tagged<NumberDictionary> dict = Cast<NumberDictionary>(elements);
+void PrintNumberDictionaryFlags(std::ostream& os,
+                                Tagged<NumberDictionary> dict) {
   if (dict->requires_slow_elements()) {
-    os << "\n   - requires_slow_elements";
+    os << "\n - requires_slow_elements";
   } else {
-    os << "\n   - max_number_key: " << dict->max_number_key();
+    os << "\n - max_number_key: " << dict->max_number_key();
   }
-  PrintDictionaryContents(os, dict);
 }
 
 void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
@@ -731,7 +728,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
     PrintFixedArrayElements(os, arguments_store);
   } else {
     DCHECK_EQ(kind, SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
-    PrintDictionaryElements(os, arguments_store);
+    PrintDictionaryContents(os, Cast<NumberDictionary>(arguments_store));
   }
 }
 
@@ -758,7 +755,7 @@ void JSObject::PrintElements(std::ostream& os) {
   // look at what elements() is, as opposed to what it should be according to
   // the map(), as much as possible.
 
-  if (IsFixedArray(elements())) {
+  if (IsFixedArrayExact(elements())) {
     PrintFixedArrayElements(os, Cast<FixedArray>(elements()));
   } else if (IsFixedDoubleArray(elements())) {
     DoPrintElements<FixedDoubleArray>(os, elements(), elements()->length());
@@ -784,10 +781,12 @@ void JSObject::PrintElements(std::ostream& os) {
         UNREACHABLE();
     }
   } else if (IsNumberDictionary(elements())) {
-    PrintDictionaryElements(os, elements());
+    PrintDictionaryContents(os, Cast<NumberDictionary>(elements()));
   } else if (IsSloppyArgumentsElements(elements())) {
     PrintSloppyArgumentElements(os, map()->elements_kind(),
                                 Cast<SloppyArgumentsElements>(elements()));
+  } else {
+    os << "   Unexpected elements backing store\n";
   }
   os << "\n }\n";
 }
@@ -1561,6 +1560,7 @@ void RegisteredSymbolTable::RegisteredSymbolTablePrint(std::ostream& os) {
 
 void NumberDictionary::NumberDictionaryPrint(std::ostream& os) {
   PrintHashTableHeader(os, this, "NumberDictionary");
+  PrintNumberDictionaryFlags(os, this);
   PrintDictionaryContentsFull(os, this);
 }
 

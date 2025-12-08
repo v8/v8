@@ -265,13 +265,12 @@ void CopyDictionaryToObjectElements(Isolate* isolate,
                                     Tagged<FixedArrayBase> to_base,
                                     ElementsKind to_kind, uint32_t to_start,
                                     uint32_t raw_copy_size) {
-  // TODO(ishell): what if the max_number_key() is not computed? Calculations
-  // below make sense only if max_number_key() is valid.
+  // Dictionaries requiring slow elements must never reach here and for
+  // the other dictionaries max_number_key() is guaranteed to be computed.
   CHECK_LE(from_start, Cast<NumberDictionary>(from_base)->max_number_key());
   DCHECK_LE(to_start, to_base->ulength());
-  // |raw_copy_size| is either kCopyToEndAndInitializeToHole or it must not
-  // cause OOB accesses in both from_base and to_base arrays. This is DCHECKed
-  // below.
+  // |raw_copy_size| value could be larger than to_base array's length.
+  // The code below handles this case.
 
   DisallowGarbageCollection no_gc;
   Tagged<NumberDictionary> from = Cast<NumberDictionary>(from_base);
@@ -285,7 +284,7 @@ void CopyDictionaryToObjectElements(Isolate* isolate,
                    ReadOnlyRoots(isolate).the_hole_value(), length - start);
     }
   }
-  DCHECK(to_base != from_base);
+  DCHECK_NE(to_base, from_base);
   DCHECK(IsSmiOrObjectElementsKind(to_kind));
   if (copy_size == 0) return;
   Tagged<FixedArray> to = Cast<FixedArray>(to_base);
@@ -519,13 +518,12 @@ void CopyDictionaryToDoubleElements(Isolate* isolate,
                                     uint32_t from_start,
                                     Tagged<FixedArrayBase> to_base,
                                     uint32_t to_start, uint32_t raw_copy_size) {
-  // TODO(ishell): what if the max_number_key() is not computed? Calculations
-  // below make sense only if max_number_key() is valid.
+  // Dictionaries requiring slow elements must never reach here and for
+  // the other dictionaries max_number_key() is guaranteed to be computed.
   CHECK_LE(from_start, Cast<NumberDictionary>(from_base)->max_number_key());
   DCHECK_LE(to_start, to_base->ulength());
-  // |raw_copy_size| is either kCopyToEndAndInitializeToHole or it must not
-  // cause OOB accesses in both from_base and to_base arrays. This is DCHECKed
-  // below.
+  // |raw_copy_size| value could be larger than to_base array's length.
+  // The code below handles this case.
 
   DisallowGarbageCollection no_gc;
   Tagged<NumberDictionary> from = Cast<NumberDictionary>(from_base);
@@ -536,7 +534,6 @@ void CopyDictionaryToDoubleElements(Isolate* isolate,
       Cast<FixedDoubleArray>(to_base)->set_the_hole(i);
     }
   }
-  DCHECK_LE(copy_size + to_start, to_base->ulength());
   if (copy_size == 0) return;
   Tagged<FixedDoubleArray> to = Cast<FixedDoubleArray>(to_base);
   uint32_t to_length = to->ulength();
