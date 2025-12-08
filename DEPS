@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'fe0329b346753191011b073535fc9f2fe64da141',
+  'partition_alloc_version': 'd2b46c259f0bd47fcc5d20c2cca97043ca5c71fe',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -134,9 +134,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2971fed89bb80708a105ef942e18ad2e1acee3eb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '17267aca59a124961212260dbb4b55898ee61319',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a497a3a27e9e0ca74d8d4c898d4596951646fb10',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5ee2a7a7f1e0329808b98bc664d28e228136cda5',
   'buildtools/linux64': {
     'packages': [
       {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f8cc59a94be950b1f174d5f3373fdc0843c90036',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ac1b095b090e103e66c726cc737bd48993252fc3',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '8ab293da46a370dc17283a4d413242385e2033b1',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '2c25db2ed646a382c74d5c804e580a2a83a4ddda',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
