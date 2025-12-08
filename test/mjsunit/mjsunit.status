@@ -506,6 +506,9 @@
   # Too slow: https://crbug.com/371893264
   'harmony/regress/regress-369010108': [SKIP],
 
+  # https://crbug.com/466948626
+  'wasm/stack-switching-params': [SKIP],
+
   # The --stress-compaction flag prevents minor GCs.
   'weakrefs/minor-gc-*': [SKIP],
 }],  # 'gc_stress'
