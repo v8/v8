@@ -143,8 +143,6 @@ HOLE_LIST(OBJECT_TYPE_HOLE_CASE)
 #undef OBJECT_TYPE_CASE
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
-#undef OBJECT_TYPE_ODDBALL_CASE
-#undef OBJECT_TYPE_HOLE_CASE
 
 template <class... T>
 struct ObjectTypeOf<Union<T...>> {
@@ -485,6 +483,59 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Base Assembler
   // ===========================================================================
 
+  template <class PreviousType, bool FromTyped>
+  class CheckedNode {
+   public:
+#ifdef DEBUG
+    CheckedNode(Node* node, CodeAssembler* code_assembler, const char* location)
+        : node_(node), code_assembler_(code_assembler), location_(location) {}
+#else
+    CheckedNode(compiler::Node* node, CodeAssembler*, const char*)
+        : node_(node) {}
+#endif
+
+    template <class A>
+    operator TNode<A>() {
+      static_assert(!std::is_same_v<A, Tagged<MaybeObject>>,
+                    "Can't cast to Tagged<MaybeObject>, use explicit "
+                    "conversion functions. ");
+
+      static_assert(types_have_common_values<A, PreviousType>::value,
+                    "Incompatible types: this cast can never succeed.");
+      static_assert(std::is_convertible_v<TNode<A>, TNode<MaybeObject>> ||
+                        std::is_convertible_v<TNode<A>, TNode<Object>>,
+                    "Coercion to untagged values cannot be "
+                    "checked.");
+      static_assert(
+          !FromTyped || !std::is_convertible_v<TNode<PreviousType>, TNode<A>>,
+          "Unnecessary CAST: types are convertible.");
+#ifdef DEBUG
+      if (v8_flags.slow_debug_code) {
+        TNode<ExternalReference> function = code_assembler_->ExternalConstant(
+            ExternalReference::check_object_type());
+        code_assembler_->CallCFunction(
+            function, MachineType::AnyTagged(),
+            std::make_pair(MachineType::AnyTagged(), node_),
+            std::make_pair(MachineType::TaggedSigned(),
+                           code_assembler_->SmiConstant(
+                               static_cast<int>(ObjectTypeOf<A>::value))),
+            std::make_pair(MachineType::AnyTagged(),
+                           code_assembler_->StringConstant(location_)));
+      }
+#endif
+      return TNode<A>::UncheckedCast(node_);
+    }
+
+    Node* node() const { return node_; }
+
+   private:
+    Node* node_;
+#ifdef DEBUG
+    CodeAssembler* code_assembler_;
+    const char* location_;
+#endif
+  };
+
   template <class T>
   TNode<T> UncheckedCast(Node* value) {
     return TNode<T>::UncheckedCast(value);
@@ -502,6 +553,28 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<T> ReinterpretCast(Node* value) {
     return TNode<T>::UncheckedCast(value);
   }
+
+  CheckedNode<Object, false> Cast(Node* value, const char* location = "") {
+    return {value, this, location};
+  }
+
+  template <class T>
+  CheckedNode<T, true> Cast(TNode<T> value, const char* location = "") {
+    return {value, this, location};
+  }
+
+#ifdef DEBUG
+#define STRINGIFY(x) #x
+#define TO_STRING_LITERAL(x) STRINGIFY(x)
+#define CAST(x) \
+  Cast(x, "CAST(" #x ") at " __FILE__ ":" TO_STRING_LITERAL(__LINE__))
+#define TORQUE_CAST(...)                                      \
+  ca_.Cast(__VA_ARGS__, "CAST(" #__VA_ARGS__ ") at " __FILE__ \
+                        ":" TO_STRING_LITERAL(__LINE__))
+#else
+#define CAST(x) Cast(x)
+#define TORQUE_CAST(...) ca_.Cast(__VA_ARGS__)
+#endif
 
   // Constants.
   TNode<Int32T> UniqueInt32Constant(int32_t value);
@@ -628,14 +701,31 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   static_assert(kTargetParameterIndex == -1);
 
   template <class T>
+  TNode<T> Parameter(int value,
+                     SourceLocation loc = SourceLocation::Current()) {
+    static_assert(
+        std::is_convertible_v<TNode<T>, TNode<Object>>,
+        "Parameter is only for tagged types. Use UncheckedParameter instead.");
+    std::stringstream message;
+    message << "Parameter " << value;
+    if (loc.FileName()) {
+      message << " at " << loc.FileName() << ":" << loc.Line();
+    }
+    size_t buf_size = message.str().size() + 1;
+    char* message_dup = zone()->AllocateArray<char>(buf_size);
+    snprintf(message_dup, buf_size, "%s", message.str().c_str());
+
+    return Cast(UntypedParameter(value), message_dup);
+  }
+
+  template <class T>
   TNode<T> UncheckedParameter(int value) {
     return UncheckedCast<T>(UntypedParameter(value));
   }
 
   Node* UntypedParameter(int value);
 
-  Node* GetUntypedJSContextParameter();
-
+  TNode<Context> GetJSContextParameter();
   void Return(TNode<Object> value);
   void Return(TNode<Object> value1, TNode<Object> value2);
   void Return(TNode<Object> value1, TNode<Object> value2, TNode<Object> value3);
@@ -1355,10 +1445,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // A specialized version of CallBuiltin for builtins with JS linkage.
   // This for example takes care of computing and supplying the argument count.
   template <class... TArgs>
-  Node* CallJSBuiltin(Builtin builtin, TNode<Context> context,
-                      TNode<Object> function,
-                      std::optional<TNode<Object>> new_target,
-                      TNode<Object> receiver, TArgs... args) {
+  TNode<Object> CallJSBuiltin(Builtin builtin, TNode<Context> context,
+                              TNode<Object> function,
+                              std::optional<TNode<Object>> new_target,
+                              TNode<Object> receiver, TArgs... args) {
     DCHECK(Builtins::HasJSLinkage(builtin));
     // The receiver is also passed on the stack so needs to be included.
     DCHECK_EQ(Builtins::GetStackParameterCount(builtin), 1 + sizeof...(args));
@@ -1374,9 +1464,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     TNode<JSDispatchHandleT> dispatch_handle = UncheckedCast<JSDispatchHandleT>(
         Uint32Constant(kInvalidDispatchHandle.value()));
     TNode<Code> target = HeapConstantNoHole(callable.code());
-    return CallJSStubImpl(callable.descriptor(), target, context, function,
-                          new_target, arity, dispatch_handle,
-                          {receiver, args...});
+    return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
+                               new_target, arity, dispatch_handle,
+                               {receiver, args...}));
   }
 
   // A specialized version of TailCallBuiltin for builtins with JS linkage.
@@ -1406,8 +1496,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Call the given JavaScript callable through one of the JS Call builtins.
   template <class... TArgs>
-  Node* CallJS(Builtin builtin, TNode<Context> context, TNode<Object> function,
-               TNode<JSAny> receiver, TArgs... args) {
+  TNode<JSAny> CallJS(Builtin builtin, TNode<Context> context,
+                      TNode<Object> function, TNode<JSAny> receiver,
+                      TArgs... args) {
     DCHECK(Builtins::IsAnyCall(builtin));
 #if V8_ENABLE_WEBASSEMBLY
     // Unimplemented. Add code for switching to the central stack here if
@@ -1419,27 +1510,27 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Code> target = HeapConstantNoHole(callable.code());
-    return CallJSStubImpl(callable.descriptor(), target, context, function,
-                          std::nullopt, arity, std::nullopt,
-                          {receiver, args...});
+    return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
+                               std::nullopt, arity, std::nullopt,
+                               {receiver, args...}));
   }
 
   // Construct the given JavaScript callable through a JS Construct builtin.
   template <class... TArgs>
-  Node* ConstructJS(Builtin builtin, TNode<Context> context,
-                    TNode<Object> function, TNode<JSAny> new_target,
-                    TArgs... args) {
+  TNode<JSAny> ConstructJS(Builtin builtin, TNode<Context> context,
+                           TNode<Object> function, TNode<JSAny> new_target,
+                           TArgs... args) {
     // Consider creating a Builtins::IsAnyConstruct if we ever expect other
     // Construct builtins here.
     DCHECK_EQ(builtin, Builtin::kConstruct);
     Callable callable = Builtins::CallableFor(isolate(), builtin);
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
-    TNode<JSAny> receiver =
-        UncheckedCast<JSAny>(LoadRoot(RootIndex::kUndefinedValue));
+    TNode<JSAny> receiver = CAST(LoadRoot(RootIndex::kUndefinedValue));
     TNode<Code> target = HeapConstantNoHole(callable.code());
-    return CallJSStubImpl(callable.descriptor(), target, context, function,
-                          new_target, arity, std::nullopt, {receiver, args...});
+    return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
+                               new_target, arity, std::nullopt,
+                               {receiver, args...}));
   }
 
   // Tailcalls to the given code object with JSCall linkage. The JS arguments
