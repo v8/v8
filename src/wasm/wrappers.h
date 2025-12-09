@@ -235,11 +235,15 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
                            CanonicalValueType type) {
     auto done = __ NewBlock();
     auto type_error = __ NewBlock();
-    ScopedVar<Object> result(this, LOAD_ROOT(WasmNull));
+    ScopedVar<Object> result(this,
+                             __ template LoadRootWasm<RootIndex::kWasmNull>());
     __ GotoIf(__ IsSmi(input), type_error, BranchHint::kFalse);
     if (type.is_nullable()) {
       auto not_null = __ NewBlock();
-      __ GotoIfNot(__ TaggedEqual(input, LOAD_ROOT(NullValue)), not_null);
+      __ GotoIfNot(
+          __ TaggedEqual(input,
+                         __ template LoadRootWasm<RootIndex::kNullValue>()),
+          not_null);
       __ Goto(done);
       __ Bind(not_null);
     }
@@ -273,9 +277,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
       result = __ ChangeInt32ToFloat32(__ UntagSmi(value));
     } ELSE {
       V<Map> map = LoadMap(value);
-      V<Map> heap_number_map = LOAD_ROOT(HeapNumberMap);
       // TODO(thibaudm): Handle map packing.
-      IF (LIKELY(__ TaggedEqual(heap_number_map, map))) {
+      IF (LIKELY(__ TaggedEqual(
+              __ template LoadRootWasm<RootIndex::kHeapNumberMap>(), map))) {
         result = __ TruncateFloat64ToFloat32(HeapNumberToFloat64(value));
       } ELSE {
         result = __ TruncateFloat64ToFloat32(
@@ -304,9 +308,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
       result = __ ChangeInt32ToFloat64(__ UntagSmi(value));
     } ELSE {
       V<Map> map = LoadMap(value);
-      V<Map> heap_number_map = LOAD_ROOT(HeapNumberMap);
       // TODO(thibaudm): Handle map packing.
-      IF (LIKELY(__ TaggedEqual(heap_number_map, map))) {
+      IF (LIKELY(__ TaggedEqual(
+              __ template LoadRootWasm<RootIndex::kHeapNumberMap>(), map))) {
         result = HeapNumberToFloat64(value);
       } ELSE {
         result = frame_state.valid()
@@ -405,7 +409,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
         // TODO(14034): Add more fast paths?
         case GenericKind::kExtern: {
           if (type.is_non_nullable()) {
-            IF (UNLIKELY(__ TaggedEqual(input, LOAD_ROOT(NullValue)))) {
+            IF (UNLIKELY(__ TaggedEqual(
+                    input,
+                    __ template LoadRootWasm<RootIndex::kNullValue>()))) {
               __ WasmCallRuntime(__ phase_zone(),
                                  Runtime::kWasmThrowJSTypeError, {}, context);
               __ Unreachable();
@@ -580,9 +586,9 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
         this->GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
     auto* then_call_desc =
         GetBuiltinCallDescriptor(Builtin::kPerformPromiseThen, __ graph_zone());
-    base::SmallVector<OpIndex, 16> args{promise, on_fulfilled, on_rejected,
-                                        LOAD_ROOT(UndefinedValue),
-                                        native_context};
+    base::SmallVector<OpIndex, 16> args{
+        promise, on_fulfilled, on_rejected,
+        __ template LoadRootWasm<RootIndex::kUndefinedValue>(), native_context};
     __ Call(promise_then, OpIndex::Invalid(), base::VectorOf(args),
             then_call_desc);
 

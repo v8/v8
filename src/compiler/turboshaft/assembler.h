@@ -4811,6 +4811,13 @@ class AssemblerOpInterface : public Next {
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  template <RootIndex index>
+  decltype(auto) LoadRootWasm() {
+    return LoadRootHelper<index>(Asm(), __ data()->isolate());
+  }
+#endif
+
   V<Object> LoadRoot(RootIndex root_index) {
     Isolate* isolate = __ data() -> isolate();
     DCHECK_NOT_NULL(isolate);

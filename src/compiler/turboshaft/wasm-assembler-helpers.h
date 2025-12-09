@@ -9,20 +9,41 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <type_traits>
+
 #include "src/compiler/turboshaft/operations.h"
 #include "src/roots/roots.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-struct RootTypes {
-#define DEFINE_TYPE(type, name, CamelName) using k##CamelName##Type = type;
-  ROOT_LIST(DEFINE_TYPE)
-#undef DEFINE_TYPE
-};
+template <RootIndex>
+struct RootType;
 
-template <typename AssemblerT>
-OpIndex LoadRootHelper(AssemblerT&& assembler, RootIndex index) {
+#define DEFINE_ROOT_TYPE(type, name, CamelName) \
+  template <>                                   \
+  struct RootType<RootIndex::k##CamelName> {    \
+    using value = type;                         \
+  };
+ROOT_LIST(DEFINE_ROOT_TYPE)
+#undef DEFINE_ROOT_TYPE
+
+// TODO(mliedtke): Integrate this with the LoadRoot for JS in assembler.h.
+template <RootIndex index, typename AssemblerT>
+V<typename RootType<index>::value> LoadRootHelper(AssemblerT&& assembler,
+                                                  Isolate* isolate = nullptr) {
+  using RootObjectType = RootType<index>::value;
   if (RootsTable::IsImmortalImmovable(index)) {
+    if (isolate != nullptr) {
+      Handle<Object> root = isolate->root_handle(index);
+      const bool is_smi = i::IsSmi(*root);
+      if constexpr (std::is_convertible_v<Smi, RootObjectType>) {
+        if (is_smi) {
+          return assembler.SmiConstant(Cast<Smi>(*root));
+        }
+      }
+      CHECK(!is_smi);
+      return assembler.HeapConstantMaybeHole(i::Cast<RootObjectType>(root));
+    }
     return assembler.Load(assembler.LoadRootRegister(),
                           LoadOp::Kind::RawAligned().Immutable(),
                           MemoryRepresentation::AnyUncompressedTagged(),
@@ -53,10 +74,6 @@ OpIndex LoadRootHelper(AssemblerT&& assembler, RootIndex index) {
   __ Load(instance,                                                     \
           compiler::turboshaft::LoadOp::Kind::TaggedBase().Immutable(), \
           representation, WasmTrustedInstanceData::k##name##Offset)
-
-#define LOAD_ROOT(name)                                    \
-  V<compiler::turboshaft::RootTypes::k##name##Type>::Cast( \
-      LoadRootHelper(Asm(), RootIndex::k##name))
 
 }  // namespace v8::internal::compiler::turboshaft
 
