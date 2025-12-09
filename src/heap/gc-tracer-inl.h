@@ -26,6 +26,11 @@ constexpr GCTracer::IncrementalInfos& GCTracer::IncrementalInfos::operator+=(
   return *this;
 }
 
+GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, JobDelegate* delegate)
+    : Scope(tracer, scope,
+            delegate->IsJoiningThread() ? ThreadKind::kMain
+                                        : ThreadKind::kBackground) {}
+
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
     : tracer_(tracer),
       scope_(scope),
