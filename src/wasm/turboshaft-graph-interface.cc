@@ -3960,13 +3960,6 @@ class TurboshaftGraphBuildingInterface
     // target stack.
     const FunctionSig* sig = imm.tag->sig;
     auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig);
-    OpIndex arg_buffer = __ StackSlot(size, alignment);
-    IterateWasmFXArgBuffer(sig, [&](size_t index, int offset) {
-      DCHECK_EQ(args[index].type, sig->GetParam(index));
-      __ StoreOffHeap(arg_buffer, args[index].op,
-                      MemoryRepresentationFor(args[index].type), offset);
-    });
-
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
@@ -3975,6 +3968,12 @@ class TurboshaftGraphBuildingInterface
     V<WasmContinuationObject> cont = __ WasmCallRuntime(
         decoder->zone(), Runtime::kWasmAllocateEmptyContinuation, {},
         native_context);
+    OpIndex arg_buffer = __ StackSlot(size, alignment);
+    IterateWasmFXArgBuffer(sig, [&](size_t index, int offset) {
+      DCHECK_EQ(args[index].type, sig->GetParam(index));
+      __ StoreOffHeap(arg_buffer, args[index].op,
+                      MemoryRepresentationFor(args[index].type), offset);
+    });
     arg_buffer =
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXSuspend>(
             decoder, native_context, {wanted_tag, cont, arg_buffer},
