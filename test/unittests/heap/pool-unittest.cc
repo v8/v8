@@ -371,7 +371,7 @@ PoolTestMixin<TMixin>::~PoolTestMixin() {
 TEST_F(PoolTest, UnmapOnTeardown) {
   // Disable the heartbeat task for the test as otherwise it may concurrently
   // release the page that is later checked for permissions.
-  FlagScope<int> reset_page_pool_timeout(&v8_flags.page_pool_timeout, 0);
+  FlagScope<int> reset_memory_pool_timeout(&v8_flags.memory_pool_timeout, 0);
   // Then wait for the task to finish, if scheduled.
   pool()->CancelAndWaitForTaskToFinishForTesting();
 

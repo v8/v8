@@ -481,7 +481,7 @@ class MemoryPool::ReleasePooledChunksTask final : public CancelableTask {
     // Repost itself to the next heartbeat only if pool is not fully emptied.
     if (!stats.pool_emptied) {
       pool_->PostDelayedReleaseTask(
-          isolate_, base::TimeDelta::FromSeconds(v8_flags.page_pool_timeout));
+          isolate_, base::TimeDelta::FromSeconds(v8_flags.memory_pool_timeout));
     }
   }
 
@@ -492,7 +492,7 @@ class MemoryPool::ReleasePooledChunksTask final : public CancelableTask {
 
 void MemoryPool::PostDelayedReleaseTask(Isolate* isolate,
                                         base::TimeDelta delay) {
-  DCHECK(v8_flags.page_pool_timeout);
+  DCHECK(v8_flags.memory_pool_timeout);
   // With these scheme, a pooled page may be reclaimed in [timeout, 2 * timeout)
   // second. This helps to prevent the case when a page is too prematurely
   // freed, e.g. when a GC runs right before the task is executed.
@@ -514,11 +514,11 @@ void MemoryPool::PostDelayedReleaseTaskIfNeeded(Isolate* isolate) {
   // Allow some seconds slack if the task was not executed. This could happen if
   // the worker thread on which the task was scheduled has died.
   static constexpr base::TimeDelta kTimeSlack = base::TimeDelta::FromSeconds(4);
-  const int page_pool_timeout = v8_flags.page_pool_timeout;
-  if (page_pool_timeout <= 0) return;
+  const int memory_pool_timeout = v8_flags.memory_pool_timeout;
+  if (memory_pool_timeout <= 0) return;
 
   const base::TimeDelta delta =
-      base::TimeDelta::FromSeconds(page_pool_timeout) + kTimeSlack;
+      base::TimeDelta::FromSeconds(memory_pool_timeout) + kTimeSlack;
   const base::TimeTicks now = base::TimeTicks::Now();
   const base::TimeTicks deadline =
       posted_time_.load(std::memory_order_relaxed) + delta;
