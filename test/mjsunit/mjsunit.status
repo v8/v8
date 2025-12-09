@@ -885,6 +885,7 @@
   'wasm/enter-and-leave-debug-state': [SKIP],
   'wasm/inlining-multi-instance': [SKIP],
   'wasm/inlining-mutable-instance-fields': [SKIP],
+  'wasm/nan-constant': [SKIP],
   'wasm/recognize-imports': [SKIP],
   'wasm/simd-relaxed-lane-select': [SKIP],
   'wasm/speculative-inlining': [SKIP],
@@ -907,9 +908,6 @@
   # asm.js tests
   'asm/*': [SKIP],
   'regress/asm/*': [SKIP],
-
-  # NaN representation
-  'wasm/nan-constant': [SKIP],
 
   # Interpreter needs more stack space
   'wasm/turboshaft/reduction-shuffle': [SKIP],

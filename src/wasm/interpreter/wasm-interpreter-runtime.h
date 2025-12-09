@@ -247,6 +247,13 @@ class WasmInterpreterRuntime {
                                             uint32_t* sp,
                                             uint32_t return_slot_offset);
 
+  ExternalCallResult CallExternalWasmFunction(uint32_t function_index,
+                                              DirectHandle<Object> object_ref,
+                                              const FunctionSig* sig,
+                                              uint32_t* sp,
+                                              uint32_t return_slot_offset,
+                                              uint32_t ref_stack_fp_offset);
+
   inline Address EffectiveAddress(uint64_t index) const;
 
   // Checks if [index, index+size) is in range [0, WasmMemSize), where
