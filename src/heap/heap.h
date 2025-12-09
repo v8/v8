@@ -1998,7 +1998,8 @@ class Heap final {
 
   void CollectGarbageOnMemoryPressure();
 
-  void EagerlyFreeExternalMemoryAndWasmCode();
+  void FlushLiftoffCode(GarbageCollectionReason gc_reason);
+  void CompleteArrayBufferSweeping();
 
   bool InvokeNearHeapLimitCallback();
 

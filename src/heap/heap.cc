@@ -1426,7 +1426,8 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
         tracer()->AverageMarkCompactMutatorUtilization());
   }
 
-  EagerlyFreeExternalMemoryAndWasmCode();
+  FlushLiftoffCode(gc_reason);
+  CompleteArrayBufferSweeping();
 
   if (gc_reason == GarbageCollectionReason::kLastResort &&
       v8_flags.heap_snapshot_on_oom) {
@@ -2057,14 +2058,11 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   }
 }
 
-namespace {
-void CompleteArrayBufferSweeping(Heap* heap) {
-  auto* array_buffer_sweeper = heap->array_buffer_sweeper();
-  if (array_buffer_sweeper->sweeping_in_progress()) {
-    auto* tracer = heap->tracer();
+void Heap::CompleteArrayBufferSweeping() {
+  if (array_buffer_sweeper()->sweeping_in_progress()) {
     GCTracer::Scope::ScopeId scope_id;
 
-    switch (tracer->GetCurrentCollector()) {
+    switch (tracer()->GetCurrentCollector()) {
       case GarbageCollector::MINOR_MARK_SWEEPER:
         scope_id = GCTracer::Scope::MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS;
         break;
@@ -2075,13 +2073,12 @@ void CompleteArrayBufferSweeping(Heap* heap) {
         scope_id = GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
     }
 
-    TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id, ThreadKind::kMain,
-                             array_buffer_sweeper->GetTraceIdForFlowEvent(),
+    TRACE_GC_EPOCH_WITH_FLOW(tracer(), scope_id, ThreadKind::kMain,
+                             array_buffer_sweeper()->GetTraceIdForFlowEvent(),
                              TRACE_EVENT_FLAG_FLOW_IN);
-    array_buffer_sweeper->EnsureFinished();
+    array_buffer_sweeper()->EnsureFinished();
   }
 }
-}  // namespace
 
 void Heap::CompleteSweepingFull(CompleteSweepingReason reason) {
   EnsureSweepingCompleted(SweepingForcedFinalizationMode::kUnifiedHeap, reason);
@@ -4256,12 +4253,14 @@ void Heap::CollectGarbageOnMemoryPressure() {
   const double kGarbageThresholdAsFractionOfTotalMemory = 0.1;
   // This constant is the maximum response time in RAIL performance model.
   const double kMaxMemoryPressurePauseMs = 100;
+  const GarbageCollectionReason gc_reason =
+      GarbageCollectionReason::kMemoryPressure;
 
   double start = MonotonicallyIncreasingTimeInMs();
-  CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
-                    GarbageCollectionReason::kMemoryPressure,
+  CollectAllGarbage(GCFlag::kReduceMemoryFootprint, gc_reason,
                     kGCCallbackFlagCollectAllAvailableGarbage);
-  EagerlyFreeExternalMemoryAndWasmCode();
+  FlushLiftoffCode(gc_reason);
+  CompleteArrayBufferSweeping();
   double end = MonotonicallyIncreasingTimeInMs();
 
   // Estimate how much memory we can free.
@@ -4275,13 +4274,11 @@ void Heap::CollectGarbageOnMemoryPressure() {
     // If we spent less than half of the time budget, then perform full GC
     // Otherwise, start incremental marking.
     if (end - start < kMaxMemoryPressurePauseMs / 2) {
-      CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
-                        GarbageCollectionReason::kMemoryPressure,
+      CollectAllGarbage(GCFlag::kReduceMemoryFootprint, gc_reason,
                         kGCCallbackFlagCollectAllAvailableGarbage);
     } else {
       if (v8_flags.incremental_marking && incremental_marking()->IsStopped()) {
-        StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
-                                GarbageCollectionReason::kMemoryPressure);
+        StartIncrementalMarking(GCFlag::kReduceMemoryFootprint, gc_reason);
       }
     }
   }
@@ -4308,13 +4305,15 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
   }
 }
 
-void Heap::EagerlyFreeExternalMemoryAndWasmCode() {
+void Heap::FlushLiftoffCode(GarbageCollectionReason gc_reason) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.flush_liftoff_code) {
+  const bool should_flush =
+      gc_reason == GarbageCollectionReason::kLastResort ||
+      gc_reason == GarbageCollectionReason::kMemoryPressure;
+  if (should_flush && v8_flags.flush_liftoff_code) {
     wasm::GetWasmEngine()->FlushLiftoffCode();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  CompleteArrayBufferSweeping(this);
 }
 
 void Heap::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
@@ -7703,7 +7702,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
                    dict.Add("epoch", tracer()->CurrentEpoch());
                  });
 
-  CompleteArrayBufferSweeping(this);
+  CompleteArrayBufferSweeping();
 
   EnsureQuarantinedPagesSweepingCompleted();
 
@@ -7783,7 +7782,7 @@ void Heap::EnsureQuarantinedPagesSweepingCompleted() {
 }
 
 void Heap::EnsureYoungSweepingCompleted() {
-  CompleteArrayBufferSweeping(this);
+  CompleteArrayBufferSweeping();
 
   EnsureQuarantinedPagesSweepingCompleted();
 
