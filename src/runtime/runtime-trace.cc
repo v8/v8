@@ -262,9 +262,9 @@ RUNTIME_FUNCTION(Runtime_DumpExecutionFrame) {
     int function_local_bytecode_offset = bytecode_iterator.current_offset();
     DCHECK_GE(function_local_bytecode_offset, 0);
     DumpFrameType frame_dump_type = kInterpreterFrame;
-    isolate->dumpling_manager()->DoPrint(frame, function,
-                                         function_local_bytecode_offset,
-                                         frame_dump_type, accumulator);
+    isolate->dumpling_manager()->DoPrint(
+        frame, function, function_local_bytecode_offset, frame_dump_type,
+        bytecode_array, accumulator);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

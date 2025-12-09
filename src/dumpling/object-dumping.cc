@@ -4,7 +4,7 @@
 
 #include "src/dumpling/object-dumping.h"
 
-#include <fstream>
+#include <iostream>
 
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -12,7 +12,7 @@
 
 namespace v8::internal {
 
-void DifferentialFuzzingPrint(Tagged<Object> obj, std::ofstream& os) {
+void DifferentialFuzzingPrint(Tagged<Object> obj, std::ostream& os) {
   Tagged<HeapObject> heap_object;
 
   DCHECK(!obj.IsCleared());

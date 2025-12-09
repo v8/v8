@@ -31,6 +31,7 @@ class DumplingManager {
 
   void DoPrint(UnoptimizedJSFrame* frame, Tagged<JSFunction> function,
                int bytecode_offset, DumpFrameType frame_dump_type,
+               Handle<BytecodeArray> bytecode_array,
                Handle<Object> accumulator);
 
  private:
@@ -39,9 +40,20 @@ class DumplingManager {
   std::string GetDumpOutFilename() const;
 
   template <typename T>
+  std::optional<std::string> DumpValuePlain(T value, T& last_value);
+
+  template <typename T>
   std::optional<std::string> DumpValue(T value, T& last_value);
 
   std::optional<std::string> DumpBytecodeOffset(int bytecode_offset);
+
+  std::optional<std::string> DumpArgCount(int arg_count);
+
+  std::optional<std::string> DumpRegCount(int reg_count);
+
+  std::optional<std::string> DumpArg(unsigned int index, std::string arg);
+
+  std::optional<std::string> DumpReg(unsigned int index, std::string reg);
 
   std::optional<std::string> DumpAcc(std::string acc);
 

@@ -28,6 +28,7 @@ V8_INLINE void MaybePrint(std::string short_name,
 void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
                               Tagged<JSFunction> function, int bytecode_offset,
                               DumpFrameType frame_dump_type,
+                              Handle<BytecodeArray> bytecode_array,
                               Handle<Object> accumulator) {
   DCHECK(IsDumpingEnabled());
 
@@ -41,8 +42,29 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
 
   MaybePrint("b:", DumpBytecodeOffset(bytecode_offset), dumpling_os_);
 
+  int param_count = bytecode_array->parameter_count() - 1;
+  MaybePrint("n:", DumpArgCount(param_count), dumpling_os_);
+  int register_count = bytecode_array->register_count();
+  MaybePrint("m:", DumpRegCount(register_count), dumpling_os_);
+
+  for (int i = 0; i < param_count; i++) {
+    std::stringstream check_arg;
+    Tagged<Object> arg_object = frame->GetParameter(i);
+    DifferentialFuzzingPrint(arg_object, check_arg);
+    std::string label = "a" + std::to_string(i) + ":";
+    MaybePrint(label, DumpArg(i, check_arg.str()), dumpling_os_);
+  }
+
+  for (int i = 0; i < register_count; i++) {
+    std::stringstream check_reg;
+    Tagged<Object> reg_object = frame->ReadInterpreterRegister(i);
+    DifferentialFuzzingPrint(reg_object, check_reg);
+    std::string label = "r" + std::to_string(i) + ":";
+    MaybePrint(label, DumpReg(i, check_reg.str()), dumpling_os_);
+  }
+
   std::stringstream check_acc;
-  DifferentialFuzzingPrint(*accumulator, dumpling_os_);
+  DifferentialFuzzingPrint(*accumulator, check_acc);
   MaybePrint("x:", DumpAcc(check_acc.str()), dumpling_os_);
 
   dumpling_os_ << "\n";
@@ -69,9 +91,43 @@ std::optional<std::string> DumplingManager::DumpAcc(std::string acc) {
   return acc;
 }
 
+template <typename T>
+std::optional<std::string> DumplingManager::DumpValuePlain(T value,
+                                                           T& last_value) {
+  if (value == last_value) {
+    return {};
+  }
+  last_value = value;
+  return value;
+}
+
 std::optional<std::string> DumplingManager::DumpBytecodeOffset(
     int bytecode_offset) {
   return DumpValue(bytecode_offset, dumpling_last_frame_.bytecode_offset);
+}
+
+std::optional<std::string> DumplingManager::DumpArgCount(int arg_count) {
+  return DumpValue(arg_count, dumpling_last_frame_.arg_count);
+}
+
+std::optional<std::string> DumplingManager::DumpRegCount(int reg_count) {
+  return DumpValue(reg_count, dumpling_last_frame_.reg_count);
+}
+
+std::optional<std::string> DumplingManager::DumpArg(unsigned int index,
+                                                    std::string arg) {
+  if (index >= dumpling_last_frame_.args.size()) {
+    dumpling_last_frame_.args.resize(index + 1);
+  }
+  return DumpValuePlain(arg, dumpling_last_frame_.args[index]);
+}
+
+std::optional<std::string> DumplingManager::DumpReg(unsigned int index,
+                                                    std::string reg) {
+  if (index >= dumpling_last_frame_.regs.size()) {
+    dumpling_last_frame_.regs.resize(index + 1);
+  }
+  return DumpValuePlain(reg, dumpling_last_frame_.regs[index]);
 }
 
 DumplingManager::DumplingManager()
