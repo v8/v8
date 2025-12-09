@@ -3823,24 +3823,11 @@ class TurboshaftGraphBuildingInterface
                 const ContIndexImmediate& new_imm, Value* result) {
     UNIMPLEMENTED();
   }
-  using WasmFXArgBufferCallback =
-      base::FunctionRef<void(size_t value_index, int offset)>;
-
-  int IterateWasmFXArgBuffer(const FunctionSig* sig,
-                             WasmFXArgBufferCallback callback) {
-    int offset = 0;
-    for (size_t i = 0; i < sig->parameter_count(); i++) {
-      int param_size = sig->GetParam(i).value_kind_full_size();
-      offset = RoundUp(offset, param_size);
-      callback(i, offset);
-      offset += param_size;
-    }
-    return offset;
-  }
 
   std::pair<int, int> GetBufferSizeAndAlignmentFor(const FunctionSig* sig) {
     int alignment = kSystemPointerSize;
-    int size = IterateWasmFXArgBuffer(sig, [&](size_t index, int offset) {
+    int size = IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index,
+                                                             int offset) {
       alignment =
           std::max(alignment, sig->GetParam(index).value_kind_full_size());
     });
@@ -3874,7 +3861,7 @@ class TurboshaftGraphBuildingInterface
         decoder->module_->signature(imm.cont_type->contfun_typeindex());
     auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig);
     OpIndex arg_buffer = __ StackSlot(size, alignment);
-    IterateWasmFXArgBuffer(sig, [&](size_t index, int offset) {
+    IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
       DCHECK_EQ(args[index].type, sig->GetParam(index));
       this->Asm().StoreOffHeap(arg_buffer, args[index].op,
                                MemoryRepresentationFor(args[index].type),
@@ -3903,7 +3890,7 @@ class TurboshaftGraphBuildingInterface
 
     // Unpack tag params.
     const FunctionSig* sig = handlers[handler_index].tag.tag->sig;
-    IterateWasmFXArgBuffer(sig, [&](size_t index, int offset) {
+    IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
       DCHECK_EQ(tag_params[index].type, sig->GetParam(index));
       tag_params[index].op = this->Asm().LoadOffHeap(
           arg_buffer, offset, MemoryRepresentationFor(sig->GetParam(index)));
@@ -3971,7 +3958,7 @@ class TurboshaftGraphBuildingInterface
         decoder->zone(), Runtime::kWasmAllocateEmptyContinuation, {},
         native_context);
     OpIndex arg_buffer = __ StackSlot(size, alignment);
-    IterateWasmFXArgBuffer(sig, [&](size_t index, int offset) {
+    IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
       DCHECK_EQ(args[index].type, sig->GetParam(index));
       __ StoreOffHeap(arg_buffer, args[index].op,
                       MemoryRepresentationFor(args[index].type), offset);
@@ -3982,7 +3969,7 @@ class TurboshaftGraphBuildingInterface
             CheckForException::kCatchInThisFrame);
 
     // Unpack tag returns.
-    IterateWasmFXArgBuffer(sig, [&](size_t index, int offset) {
+    IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
       DCHECK_EQ(returns[index].type, sig->GetParam(index));
       returns[index].op = this->Asm().LoadOffHeap(
           arg_buffer, offset, MemoryRepresentationFor(sig->GetParam(index)));

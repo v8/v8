@@ -189,6 +189,11 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns {true} if this descriptor is a call to a Wasm C API function.
   bool IsWasmCapiFunction() const { return kind_ == kCallWasmCapiFunction; }
+
+  // Returns {true} if this descriptor is a call to a Wasm continuation.
+  bool IsResumeWasmContinuation() const {
+    return kind_ == kResumeWasmContinuation;
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool IsBuiltinPointerCall() const { return kind_ == kCallBuiltinPointer; }

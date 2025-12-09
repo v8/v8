@@ -960,15 +960,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return coverage_data_;
   }
 
-  void set_continuation_wrapper(WasmCode* wrapper) {
-    continuation_wrapper_ = wrapper;
-  }
-
-  WasmCode* continuation_wrapper() {
-    DCHECK_NOT_NULL(continuation_wrapper_);
-    return continuation_wrapper_;
-  }
-
   DelayedCounterUpdates* counter_updates() { return &counter_updates_; }
 
  private:
@@ -1176,9 +1167,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<std::atomic<const MachineSignature*>[]> fast_api_signatures_;
 
   std::shared_ptr<WasmModuleCoverageData> coverage_data_;
-  // TODO(thibaudm): Share the wrappers across modules, and cache them per
-  // signature once we support arguments and return values.
-  WasmCode* continuation_wrapper_{nullptr};
 
   // The native module does not belong to an isolate, so we cannot immediately
   // update counters in an isolate. Store them here instead and publish them the

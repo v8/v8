@@ -14,7 +14,8 @@ std::pair<WasmCompilationResult, WasmCode::Kind>
 WasmStackEntryWrapperCache::CompileWrapper(Isolate* isolate,
                                            const CacheKey& cache_key) {
 #if V8_ENABLE_TURBOFAN
-  wasm::WasmCompilationResult result = compiler::CompileWasmStackEntryWrapper();
+  wasm::WasmCompilationResult result =
+      compiler::CompileWasmStackEntryWrapper(cache_key.sig);
   return {std::move(result), WasmCode::kWasmStackEntryWrapper};
 #else
   UNREACHABLE();

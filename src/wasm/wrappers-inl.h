@@ -562,6 +562,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   __ Bind(__ NewBlock());
   V<WordPtr> stack_metadata =
       __ Parameter(0, RegisterRepresentation::WordPtr());
+  V<WordPtr> arg_buffer = __ Parameter(1, RegisterRepresentation::WordPtr());
   V<WasmFuncRef> func_ref =
       __ Load(stack_metadata, LoadOp::Kind::RawAligned(),
               MemoryRepresentation::UncompressedTaggedPointer(),
@@ -575,9 +576,19 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
           WasmFuncRef::kTrustedInternalOffset));
   auto [target, instance] =
       this->BuildFunctionTargetAndImplicitArg(internal_function);
-  OpIndex arg = instance;
-  BuildCallWasmFromWrapper(__ phase_zone(), sig_, target,
-                           base::VectorOf(&arg, 1), {}, {},
+
+  base::Vector<OpIndex> args =
+      __ phase_zone()
+          -> template AllocateVector<OpIndex>(1 + sig_->parameter_count());
+  args[0] = instance;
+  // Unpack continuation params.
+  IterateWasmFXArgBuffer(sig_->parameters(), [&](size_t index, int offset) {
+    args[index + 1] = __ LoadOffHeap(arg_buffer, offset,
+                                     MemoryRepresentation::FromMachineType(
+                                         sig_->GetParam(index).machine_type()));
+  });
+
+  BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, args, {}, {},
                            compiler::LazyDeoptOnThrow::kNo);
   CallBuiltin<WasmFXReturnDescriptor>(Builtin::kWasmFXReturn,
                                       Operator::kNoProperties);

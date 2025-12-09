@@ -4260,6 +4260,7 @@ void CodeGenerator::AssembleConstructFrame() {
     } else if (call_descriptor->IsAnyWasmFunctionCall() ||
                call_descriptor->IsWasmCapiFunction() ||
                call_descriptor->IsWasmImportWrapper() ||
+               call_descriptor->IsResumeWasmContinuation() ||
                (call_descriptor->IsCFunctionCall() &&
                 info()->GetOutputStackFrameType() ==
                     StackFrame::C_WASM_ENTRY)) {
@@ -4274,6 +4275,11 @@ void CodeGenerator::AssembleConstructFrame() {
       if (call_descriptor->IsWasmCapiFunction()) {
         // The C-API function has one extra slot for the PC.
         required_slots++;
+      }
+      if (call_descriptor->IsResumeWasmContinuation()) {
+        // The stack entry wrapper does not have an instance slot, but we
+        // still push it for stack alignment.
+        required_slots--;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else if (call_descriptor->kind() == CallDescriptor::kCallCodeObject) {
