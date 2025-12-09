@@ -22,10 +22,12 @@ extern class JSIteratorFilterHelper extends JSIteratorHelper {
 
 extern class JSIteratorTakeHelper extends JSIteratorHelper {
   remaining: Number;
+  innerAlive: Boolean;
 }
 
 extern class JSIteratorDropHelper extends JSIteratorHelper {
   remaining: Number;
+  innerAlive: Boolean;
 }
 
 extern class JSIteratorFlatMapHelper extends JSIteratorHelper {
