@@ -28,7 +28,21 @@ namespace internal {
 // a buffer and executing them.  These tests do not initialize the
 // V8 library, create a context, or use any V8 objects.
 
-class MacroAssemblerTest : public TestWithIsolate {};
+class MacroAssemblerTest : public TestWithIsolate {
+ public:
+  uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa);
+  uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa);
+
+  template <typename RET_TYPE, typename IN_TYPE, typename Func>
+  RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc);
+
+  template <typename IN_TYPE, typename Func>
+  bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
+                     IN_TYPE value, Func GenerateUnalignedInstructionFunc);
+
+  template <typename Func>
+  bool run_Sltu(uint64_t rs, uint64_t rd, Func GenerateSltuInstructionFunc);
+};
 
 TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
@@ -71,10 +85,6 @@ TEST_F(MacroAssemblerTest, TestCheck) {
   ASSERT_DEATH_IF_SUPPORTED(
       { f.Call(17); }, v8_flags.debug_code ? "abort: no reason" : "");
 }
-
-#undef __
-
-using MacroAssemblerTest = TestWithIsolate;
 
 // TODO(mips64): Refine these signatures per test case.
 using FV = void*(int64_t x, int64_t y, int p2, int p3, int p4);
@@ -452,7 +462,7 @@ TEST_F(MacroAssemblerTest, jump_tables6) {
   }
 }
 
-static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
+uint64_t MacroAssemblerTest::run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -462,7 +472,7 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   __ nop();
 
   CodeDesc desc;
-  assembler.GetCode(isolate, &desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
@@ -528,7 +538,7 @@ TEST_F(MacroAssemblerTest, Lsa) {
   }
 }
 
-static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
+uint64_t MacroAssemblerTest::run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -538,7 +548,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   __ nop();
 
   CodeDesc desc;
-  assembler.GetCode(isolate, &desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
@@ -672,13 +682,13 @@ static const std::vector<int64_t> cvt_trunc_int64_test_values() {
   FOR_INPUTS(uint64_t, uint64, var, test_vector)
 
 template <typename RET_TYPE, typename IN_TYPE, typename Func>
-RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
+RET_TYPE MacroAssemblerTest::run_Cvt(IN_TYPE x,
+                                     Func GenerateConvertInstructionFunc) {
   using F_CVT = RET_TYPE(IN_TYPE x0, int x1, int x2, int x3, int x4);
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
-  MacroAssembler* masm = &assm;
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   GenerateConvertInstructionFunc(masm);
   __ dmfc1(v0, f2);
@@ -686,7 +696,7 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
@@ -698,7 +708,7 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
 TEST_F(MacroAssemblerTest, Cvt_s_uw_Trunc_uw_s) {
   FOR_UINT32_INPUTS(i, cvt_trunc_uint32_test_values) {
     uint32_t input = *i;
-    auto fn = [](MacroAssembler* masm) {
+    auto fn = [](MacroAssembler& masm) {
       __ Cvt_s_uw(f0, a0);
       __ mthc1(zero_reg, f2);
       __ Trunc_uw_s(f2, f0, f1);
@@ -710,7 +720,7 @@ TEST_F(MacroAssemblerTest, Cvt_s_uw_Trunc_uw_s) {
 TEST_F(MacroAssemblerTest, Cvt_s_ul_Trunc_ul_s) {
   FOR_UINT64_INPUTS(i, cvt_trunc_uint64_test_values) {
     uint64_t input = *i;
-    auto fn = [](MacroAssembler* masm) {
+    auto fn = [](MacroAssembler& masm) {
       __ Cvt_s_ul(f0, a0);
       __ Trunc_ul_s(f2, f0, f1, v0);
     };
@@ -721,7 +731,7 @@ TEST_F(MacroAssemblerTest, Cvt_s_ul_Trunc_ul_s) {
 TEST_F(MacroAssemblerTest, Cvt_d_ul_Trunc_ul_d) {
   FOR_UINT64_INPUTS(i, cvt_trunc_uint64_test_values) {
     uint64_t input = *i;
-    auto fn = [](MacroAssembler* masm) {
+    auto fn = [](MacroAssembler& masm) {
       __ Cvt_d_ul(f0, a0);
       __ Trunc_ul_d(f2, f0, f1, v0);
     };
@@ -732,7 +742,7 @@ TEST_F(MacroAssemblerTest, Cvt_d_ul_Trunc_ul_d) {
 TEST_F(MacroAssemblerTest, cvt_d_l_Trunc_l_d) {
   FOR_INT64_INPUTS(i, cvt_trunc_int64_test_values) {
     int64_t input = *i;
-    auto fn = [](MacroAssembler* masm) {
+    auto fn = [](MacroAssembler& masm) {
       __ dmtc1(a0, f4);
       __ cvt_d_l(f0, f4);
       __ Trunc_l_d(f2, f0);
@@ -745,7 +755,7 @@ TEST_F(MacroAssemblerTest, cvt_d_l_Trunc_l_ud) {
   FOR_INT64_INPUTS(i, cvt_trunc_int64_test_values) {
     int64_t input = *i;
     uint64_t abs_input = (input >= 0 || input == INT64_MIN) ? input : -input;
-    auto fn = [](MacroAssembler* masm) {
+    auto fn = [](MacroAssembler& masm) {
       __ dmtc1(a0, f4);
       __ cvt_d_l(f0, f4);
       __ Trunc_l_ud(f2, f0, f6);
@@ -757,7 +767,7 @@ TEST_F(MacroAssemblerTest, cvt_d_l_Trunc_l_ud) {
 TEST_F(MacroAssemblerTest, cvt_d_w_Trunc_w_d) {
   FOR_INT32_INPUTS(i, cvt_trunc_int32_test_values) {
     int32_t input = *i;
-    auto fn = [](MacroAssembler* masm) {
+    auto fn = [](MacroAssembler& masm) {
       __ mtc1(a0, f4);
       __ cvt_d_w(f0, f4);
       __ Trunc_w_d(f2, f0);
@@ -930,7 +940,7 @@ TEST_F(MacroAssemblerTest, min_max_nan) {
   float outputsfmax[kTableLength] = {3.0,  3.0,  0.0,  0.0,  finf, finf, finf,
                                      finf, fnan, fnan, fnan, fnan, fnan};
 
-  auto handle_dnan = [masm](FPURegister dst, Label* nan, Label* back) {
+  auto handle_dnan = [&masm](FPURegister dst, Label* nan, Label* back) {
     __ bind(nan);
     __ LoadRoot(t8, RootIndex::kNanValue);
     __ Ldc1(dst, FieldMemOperand(
@@ -938,7 +948,7 @@ TEST_F(MacroAssemblerTest, min_max_nan) {
     __ Branch(back);
   };
 
-  auto handle_snan = [masm, fnan](FPURegister dst, Label* nan, Label* back) {
+  auto handle_snan = [&masm, fnan](FPURegister dst, Label* nan, Label* back) {
     __ bind(nan);
     __ Move(dst, fnan);
     __ Branch(back);
@@ -995,14 +1005,14 @@ TEST_F(MacroAssemblerTest, min_max_nan) {
 }
 
 template <typename IN_TYPE, typename Func>
-bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
-                   IN_TYPE value, Func GenerateUnalignedInstructionFunc) {
+bool MacroAssemblerTest::run_Unaligned(char* memory_buffer, int32_t in_offset,
+                                       int32_t out_offset, IN_TYPE value,
+                                       Func GenerateUnalignedInstructionFunc) {
   using F_CVT = int32_t(char* x0, int x1, int x2, int x3, int x4);
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
-  MacroAssembler* masm = &assm;
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
   IN_TYPE res;
 
   GenerateUnalignedInstructionFunc(masm, in_offset, out_offset);
@@ -1010,7 +1020,7 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
@@ -1054,7 +1064,7 @@ TEST_F(MacroAssemblerTest, Ulh) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        auto fn_1 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_1 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ Ulh(v0, MemOperand(a0, in_offset));
           __ Ush(v0, MemOperand(a0, out_offset), v0);
@@ -1062,7 +1072,7 @@ TEST_F(MacroAssemblerTest, Ulh) {
         CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_1));
 
-        auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_2 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ mov(t0, a0);
           __ Ulh(a0, MemOperand(a0, in_offset));
@@ -1071,7 +1081,7 @@ TEST_F(MacroAssemblerTest, Ulh) {
         CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_2));
 
-        auto fn_3 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_3 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ mov(t0, a0);
           __ Ulhu(a0, MemOperand(a0, in_offset));
@@ -1080,7 +1090,7 @@ TEST_F(MacroAssemblerTest, Ulh) {
         CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_3));
 
-        auto fn_4 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_4 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ Ulhu(v0, MemOperand(a0, in_offset));
           __ Ush(v0, MemOperand(a0, out_offset), t1);
@@ -1104,7 +1114,7 @@ TEST_F(MacroAssemblerTest, Ulh_bitextension) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn = [](MacroAssembler& masm, int32_t in_offset,
                      int32_t out_offset) {
           Label success, fail, end, different;
           __ Ulh(t0, MemOperand(a0, in_offset));
@@ -1154,7 +1164,7 @@ TEST_F(MacroAssemblerTest, Ulw) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        auto fn_1 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_1 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ Ulw(v0, MemOperand(a0, in_offset));
           __ Usw(v0, MemOperand(a0, out_offset));
@@ -1162,7 +1172,7 @@ TEST_F(MacroAssemblerTest, Ulw) {
         CHECK_EQ(true, run_Unaligned<uint32_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_1));
 
-        auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_2 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ mov(t0, a0);
           __ Ulw(a0, MemOperand(a0, in_offset));
@@ -1172,7 +1182,7 @@ TEST_F(MacroAssemblerTest, Ulw) {
                  run_Unaligned<uint32_t>(buffer_middle, in_offset, out_offset,
                                          (uint32_t)value, fn_2));
 
-        auto fn_3 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_3 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ Ulwu(v0, MemOperand(a0, in_offset));
           __ Usw(v0, MemOperand(a0, out_offset));
@@ -1180,7 +1190,7 @@ TEST_F(MacroAssemblerTest, Ulw) {
         CHECK_EQ(true, run_Unaligned<uint32_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_3));
 
-        auto fn_4 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_4 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ mov(t0, a0);
           __ Ulwu(a0, MemOperand(a0, in_offset));
@@ -1206,7 +1216,7 @@ TEST_F(MacroAssemblerTest, Ulw_extension) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn = [](MacroAssembler& masm, int32_t in_offset,
                      int32_t out_offset) {
           Label success, fail, end, different;
           __ Ulw(t0, MemOperand(a0, in_offset));
@@ -1256,7 +1266,7 @@ TEST_F(MacroAssemblerTest, Uld) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        auto fn_1 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_1 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ Uld(v0, MemOperand(a0, in_offset));
           __ Usd(v0, MemOperand(a0, out_offset));
@@ -1264,7 +1274,7 @@ TEST_F(MacroAssemblerTest, Uld) {
         CHECK_EQ(true, run_Unaligned<uint64_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_1));
 
-        auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn_2 = [](MacroAssembler& masm, int32_t in_offset,
                        int32_t out_offset) {
           __ mov(t0, a0);
           __ Uld(a0, MemOperand(a0, in_offset));
@@ -1290,7 +1300,7 @@ TEST_F(MacroAssemblerTest, Ulwc1) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn = [](MacroAssembler& masm, int32_t in_offset,
                      int32_t out_offset) {
           __ Ulwc1(f0, MemOperand(a0, in_offset), t0);
           __ Uswc1(f0, MemOperand(a0, out_offset), t0);
@@ -1314,7 +1324,7 @@ TEST_F(MacroAssemblerTest, Uldc1) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+        auto fn = [](MacroAssembler& masm, int32_t in_offset,
                      int32_t out_offset) {
           __ Uldc1(f0, MemOperand(a0, in_offset), t0);
           __ Usdc1(f0, MemOperand(a0, out_offset), t0);
@@ -1347,20 +1357,20 @@ static const std::vector<uint64_t> sltu_test_values() {
 }
 
 template <typename Func>
-bool run_Sltu(uint64_t rs, uint64_t rd, Func GenerateSltuInstructionFunc) {
+bool MacroAssemblerTest::run_Sltu(uint64_t rs, uint64_t rd,
+                                  Func GenerateSltuInstructionFunc) {
   using F_CVT = int64_t(uint64_t x0, uint64_t x1, int x2, int x3, int x4);
 
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
-  MacroAssembler* masm = &assm;
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   GenerateSltuInstructionFunc(masm, rd);
   __ jr(ra);
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
+  masm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
@@ -1375,12 +1385,12 @@ TEST_F(MacroAssemblerTest, Sltu) {
       uint64_t rs = *i;
       uint64_t rd = *j;
 
-      auto fn_1 = [](MacroAssembler* masm, uint64_t imm) {
+      auto fn_1 = [](MacroAssembler& masm, uint64_t imm) {
         __ Sltu(v0, a0, Operand(imm));
       };
       CHECK_EQ(rs < rd, run_Sltu(rs, rd, fn_1));
 
-      auto fn_2 = [](MacroAssembler* masm, uint64_t imm) {
+      auto fn_2 = [](MacroAssembler& masm, uint64_t imm) {
         __ Sltu(v0, a0, a1);
       };
       CHECK_EQ(rs < rd, run_Sltu(rs, rd, fn_2));
@@ -1389,7 +1399,7 @@ TEST_F(MacroAssemblerTest, Sltu) {
 }
 
 template <typename T, typename Inputs, typename Results>
-static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
+static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler& masm) {
   T a = T::from_code(4);  // f4
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
@@ -1465,7 +1475,6 @@ TEST_F(MacroAssemblerTest, macro_float_minmax_f32) {
   // Test the Float32Min and Float32Max macros.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   struct Inputs {
@@ -1533,7 +1542,7 @@ TEST_F(MacroAssemblerTest, macro_float_minmax_f32) {
 }
 
 template <typename T, typename Inputs, typename Results>
-static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
+static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler& masm) {
   T a = T::from_code(4);  // f4
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
@@ -1609,7 +1618,6 @@ TEST_F(MacroAssemblerTest, macro_float_minmax_f64) {
   // Test the Float64Min and Float64Max macros.
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
-
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   struct Inputs {
@@ -1695,8 +1703,6 @@ TEST_F(MacroAssemblerTest, DeoptExitSizeIsFixed) {
                                            : Deoptimizer::kEagerDeoptExitSize);
   }
 }
-
-#undef __
 
 #undef __
 

@@ -38,7 +38,174 @@
 
 namespace v8 {
 namespace internal {
-using AssemblerMips64Test = TestWithIsolate;
+
+union msa_reg_t {
+  uint8_t b[16];
+  uint16_t h[8];
+  uint32_t w[4];
+  uint64_t d[2];
+};
+
+struct TestCaseMsaBranch {
+  uint64_t wt_lo;
+  uint64_t wt_hi;
+};
+
+struct TestCaseMsa2R {
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint64_t exp_res_lo;
+  uint64_t exp_res_hi;
+};
+
+struct TestCaseMsa2RF_F_I {
+  float ws1;
+  float ws2;
+  float ws3;
+  float ws4;
+  int32_t exp_res_1;
+  int32_t exp_res_2;
+  int32_t exp_res_3;
+  int32_t exp_res_4;
+};
+
+struct TestCaseMsa2RF_D_I {
+  double ws1;
+  double ws2;
+  int64_t exp_res_1;
+  int64_t exp_res_2;
+};
+
+struct TestCaseMsa2RF_F_F {
+  float ws1;
+  float ws2;
+  float ws3;
+  float ws4;
+  float exp_res_1;
+  float exp_res_2;
+  float exp_res_3;
+  float exp_res_4;
+};
+
+struct TestCaseMsa2RF_D_D {
+  double ws1;
+  double ws2;
+  double exp_res_1;
+  double exp_res_2;
+};
+
+struct TestCaseMsa2RF_F_U {
+  float ws1;
+  float ws2;
+  float ws3;
+  float ws4;
+  uint32_t exp_res_1;
+  uint32_t exp_res_2;
+  uint32_t exp_res_3;
+  uint32_t exp_res_4;
+};
+
+struct TestCaseMsa2RF_D_U {
+  double ws1;
+  double ws2;
+  uint64_t exp_res_1;
+  uint64_t exp_res_2;
+};
+
+class AssemblerMips64Test : public TestWithIsolate {
+ public:
+  uint64_t run_align(uint64_t rs_value, uint64_t rt_value, uint8_t bp);
+  uint64_t run_dalign(uint64_t rs_value, uint64_t rt_value, uint8_t bp);
+  uint64_t run_aluipc(int16_t offset);
+  uint64_t run_auipc(int16_t offset);
+  uint64_t run_aui(uint64_t rs, uint16_t offset);
+  uint64_t run_daui(uint64_t rs, uint16_t offset);
+  uint64_t run_dahi(uint64_t rs, uint16_t offset);
+  uint64_t run_dati(uint64_t rs, uint16_t offset);
+  uint64_t run_li_macro(uint64_t imm, LiFlags mode, int32_t num_instr = 0);
+  uint64_t run_lwpc(int offset);
+  uint64_t run_lwupc(int offset);
+  uint64_t run_jic(int16_t offset);
+  uint64_t run_beqzc(int32_t value, int32_t offset);
+
+  template <typename Branch>
+  void run_bz_bnz(TestCaseMsaBranch* input, Branch GenerateBranch,
+                  bool branched);
+  uint64_t run_jialc(int16_t offset);
+  uint64_t run_addiupc(int32_t imm19);
+  uint64_t run_ldpc(int offset);
+  int64_t run_bc(int32_t offset);
+  int64_t run_balc(int32_t offset);
+  uint64_t run_dsll(uint64_t rt_value, uint16_t sa_value);
+  uint64_t run_bal(int16_t offset);
+
+  template <typename T, typename F>
+  void helper_madd_msub_maddf_msubf(F func);
+  uint64_t run_Subu(uint64_t imm, int32_t num_instr);
+  uint64_t run_Dsubu(uint64_t imm, int32_t num_instr);
+  uint64_t run_Dins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size);
+  uint64_t run_Ins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size);
+  uint64_t run_Ext(uint64_t source, uint16_t pos, uint16_t size);
+
+  template <typename T>
+  void run_msa_insert(int64_t rs_value, int n, msa_reg_t* w);
+  void run_msa_ctc_cfc(uint64_t value);
+
+  template <typename ExpectFunc, typename OperFunc>
+  void run_msa_sldi(OperFunc GenerateOperation,
+                    ExpectFunc GenerateExpectedResult);
+  void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
+                  uint8_t i8);
+
+  template <typename InstFunc, typename OperFunc>
+  void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
+                  InstFunc GenerateI5InstructionFunc,
+                  OperFunc GenerateOperationFunc);
+
+  template <typename Func>
+  void run_msa_2r(const struct TestCaseMsa2R* input,
+                  Func Generate2RInstructionFunc);
+
+  template <typename InstFunc, typename OperFunc>
+  void run_msa_vector(struct TestCaseMsaVector* input,
+                      InstFunc GenerateVectorInstructionFunc,
+                      OperFunc GenerateOperationFunc);
+
+  template <typename InstFunc, typename OperFunc>
+  void run_msa_bit(struct TestCaseMsaBit* input,
+                   InstFunc GenerateInstructionFunc,
+                   OperFunc GenerateOperationFunc);
+
+  template <typename InstFunc, typename OperFunc>
+  void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
+                   OperFunc GenerateOperationFunc);
+
+  template <typename T, typename InstFunc>
+  void run_msa_mi10(InstFunc GenerateVectorInstructionFunc);
+
+  template <typename InstFunc, typename OperFunc>
+  void run_msa_3r(struct TestCaseMsa3R* input,
+                  InstFunc GenerateI5InstructionFunc,
+                  OperFunc GenerateOperationFunc);
+
+  template <typename Func>
+  void run_msa_3rf(const struct TestCaseMsa3RF* input,
+                   const struct ExpectedResult_MSA3RF* output,
+                   Func Generate2RInstructionFunc);
+
+  void test_frint_s(size_t data_size, TestCaseMsa2RF_F_F tc_d[],
+                    int rounding_mode);
+  void test_frint_d(size_t data_size, TestCaseMsa2RF_D_D tc_d[],
+                    int rounding_mode);
+  void test_ftint_s_s(size_t data_size, TestCaseMsa2RF_F_I tc_d[],
+                      int rounding_mode);
+  void test_ftint_s_d(size_t data_size, TestCaseMsa2RF_D_I tc_d[],
+                      int rounding_mode);
+  void test_ftint_u_s(size_t data_size, TestCaseMsa2RF_F_U tc_d[],
+                      int rounding_mode);
+  void test_ftint_u_d(size_t data_size, TestCaseMsa2RF_D_U tc_d[],
+                      int rounding_mode);
+};
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 // TODO(mips64): Refine these signatures per test case.
@@ -4860,7 +5027,8 @@ TEST_F(AssemblerMips64Test, DIV_FMT) {
   CHECK(std::isnan(test.fRes));
 }
 
-uint64_t run_align(uint64_t rs_value, uint64_t rt_value, uint8_t bp) {
+uint64_t AssemblerMips64Test::run_align(uint64_t rs_value, uint64_t rt_value,
+                                        uint8_t bp) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -4910,7 +5078,8 @@ TEST_F(AssemblerMips64Test, r6_align) {
   }
 }
 
-uint64_t run_dalign(uint64_t rs_value, uint64_t rt_value, uint8_t bp) {
+uint64_t AssemblerMips64Test::run_dalign(uint64_t rs_value, uint64_t rt_value,
+                                         uint8_t bp) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -4965,7 +5134,7 @@ TEST_F(AssemblerMips64Test, r6_dalign) {
 
 uint64_t PC;  // The program counter.
 
-uint64_t run_aluipc(int16_t offset) {
+uint64_t AssemblerMips64Test::run_aluipc(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5012,7 +5181,7 @@ TEST_F(AssemblerMips64Test, r6_aluipc) {
   }
 }
 
-uint64_t run_auipc(int16_t offset) {
+uint64_t AssemblerMips64Test::run_auipc(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5059,7 +5228,7 @@ TEST_F(AssemblerMips64Test, r6_auipc) {
   }
 }
 
-uint64_t run_aui(uint64_t rs, uint16_t offset) {
+uint64_t AssemblerMips64Test::run_aui(uint64_t rs, uint16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5082,7 +5251,7 @@ uint64_t run_aui(uint64_t rs, uint16_t offset) {
   return res;
 }
 
-uint64_t run_daui(uint64_t rs, uint16_t offset) {
+uint64_t AssemblerMips64Test::run_daui(uint64_t rs, uint16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5105,7 +5274,7 @@ uint64_t run_daui(uint64_t rs, uint16_t offset) {
   return res;
 }
 
-uint64_t run_dahi(uint64_t rs, uint16_t offset) {
+uint64_t AssemblerMips64Test::run_dahi(uint64_t rs, uint16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5128,7 +5297,7 @@ uint64_t run_dahi(uint64_t rs, uint16_t offset) {
   return res;
 }
 
-uint64_t run_dati(uint64_t rs, uint16_t offset) {
+uint64_t AssemblerMips64Test::run_dati(uint64_t rs, uint16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5225,7 +5394,8 @@ TEST_F(AssemblerMips64Test, r6_aui_family) {
   }
 }
 
-uint64_t run_li_macro(uint64_t imm, LiFlags mode, int32_t num_instr = 0) {
+uint64_t AssemblerMips64Test::run_li_macro(uint64_t imm, LiFlags mode,
+                                           int32_t num_instr) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -5415,7 +5585,7 @@ TEST_F(AssemblerMips64Test, li_macro) {
   }
 }
 
-uint64_t run_lwpc(int offset) {
+uint64_t AssemblerMips64Test::run_lwpc(int offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5488,7 +5658,7 @@ TEST_F(AssemblerMips64Test, r6_lwpc) {
   }
 }
 
-uint64_t run_lwupc(int offset) {
+uint64_t AssemblerMips64Test::run_lwupc(int offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5561,7 +5731,7 @@ TEST_F(AssemblerMips64Test, r6_lwupc) {
   }
 }
 
-uint64_t run_jic(int16_t offset) {
+uint64_t AssemblerMips64Test::run_jic(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5632,7 +5802,7 @@ TEST_F(AssemblerMips64Test, r6_jic) {
   }
 }
 
-uint64_t run_beqzc(int32_t value, int32_t offset) {
+uint64_t AssemblerMips64Test::run_beqzc(int32_t value, int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5722,21 +5892,9 @@ inline void store_elements_of_vector(MacroAssembler* assm_ptr, MSARegister w,
   __ st_d(w, MemOperand(a, 0));
 }
 
-union msa_reg_t {
-  uint8_t b[16];
-  uint16_t h[8];
-  uint32_t w[4];
-  uint64_t d[2];
-};
-
-struct TestCaseMsaBranch {
-  uint64_t wt_lo;
-  uint64_t wt_hi;
-};
-
 template <typename Branch>
-void run_bz_bnz(TestCaseMsaBranch* input, Branch GenerateBranch,
-                bool branched) {
+void AssemblerMips64Test::run_bz_bnz(TestCaseMsaBranch* input,
+                                     Branch GenerateBranch, bool branched) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5892,7 +6050,7 @@ TEST_F(AssemblerMips64Test, MSA_bz_bnz) {
 #undef TEST_BNZ_DF
 }
 
-uint64_t run_jialc(int16_t offset) {
+uint64_t AssemblerMips64Test::run_jialc(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -5973,7 +6131,7 @@ TEST_F(AssemblerMips64Test, r6_jialc) {
   }
 }
 
-uint64_t run_addiupc(int32_t imm19) {
+uint64_t AssemblerMips64Test::run_addiupc(int32_t imm19) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6022,7 +6180,7 @@ TEST_F(AssemblerMips64Test, r6_addiupc) {
   }
 }
 
-uint64_t run_ldpc(int offset) {
+uint64_t AssemblerMips64Test::run_ldpc(int offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6099,7 +6257,7 @@ TEST_F(AssemblerMips64Test, r6_ldpc) {
   }
 }
 
-int64_t run_bc(int32_t offset) {
+int64_t AssemblerMips64Test::run_bc(int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6172,7 +6330,7 @@ TEST_F(AssemblerMips64Test, r6_bc) {
   }
 }
 
-int64_t run_balc(int32_t offset) {
+int64_t AssemblerMips64Test::run_balc(int32_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6248,7 +6406,7 @@ TEST_F(AssemblerMips64Test, r6_balc) {
   }
 }
 
-uint64_t run_dsll(uint64_t rt_value, uint16_t sa_value) {
+uint64_t AssemblerMips64Test::run_dsll(uint64_t rt_value, uint16_t sa_value) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6292,7 +6450,7 @@ TEST_F(AssemblerMips64Test, dsll) {
   }
 }
 
-uint64_t run_bal(int16_t offset) {
+uint64_t AssemblerMips64Test::run_bal(int16_t offset) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6434,7 +6592,7 @@ struct TestCaseMaddMsub {
 };
 
 template <typename T, typename F>
-void helper_madd_msub_maddf_msubf(F func) {
+void AssemblerMips64Test::helper_madd_msub_maddf_msubf(F func) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -6553,7 +6711,7 @@ TEST_F(AssemblerMips64Test, maddf_msubf_d) {
   });
 }
 
-uint64_t run_Subu(uint64_t imm, int32_t num_instr) {
+uint64_t AssemblerMips64Test::run_Subu(uint64_t imm, int32_t num_instr) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6634,7 +6792,7 @@ TEST_F(AssemblerMips64Test, Subu) {
   }
 }
 
-uint64_t run_Dsubu(uint64_t imm, int32_t num_instr) {
+uint64_t AssemblerMips64Test::run_Dsubu(uint64_t imm, int32_t num_instr) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6729,7 +6887,8 @@ TEST_F(AssemblerMips64Test, Dsubu) {
   }
 }
 
-uint64_t run_Dins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
+uint64_t AssemblerMips64Test::run_Dins(uint64_t imm, uint64_t source,
+                                       uint16_t pos, uint16_t size) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6787,7 +6946,8 @@ TEST_F(AssemblerMips64Test, Dins) {
   }
 }
 
-uint64_t run_Ins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
+uint64_t AssemblerMips64Test::run_Ins(uint64_t imm, uint64_t source,
+                                      uint16_t pos, uint16_t size) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -6853,7 +7013,8 @@ TEST_F(AssemblerMips64Test, Ins) {
            0xFFFFFFFFF5555555);
 }
 
-uint64_t run_Ext(uint64_t source, uint16_t pos, uint16_t size) {
+uint64_t AssemblerMips64Test::run_Ext(uint64_t source, uint16_t pos,
+                                      uint16_t size) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -7075,7 +7236,8 @@ TEST_F(AssemblerMips64Test, MSA_fill_copy_3) {
 }
 
 template <typename T>
-void run_msa_insert(int64_t rs_value, int n, msa_reg_t* w) {
+void AssemblerMips64Test::run_msa_insert(int64_t rs_value, int n,
+                                         msa_reg_t* w) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -7197,7 +7359,7 @@ TEST_F(AssemblerMips64Test, MSA_insert) {
   }
 }
 
-void run_msa_ctc_cfc(uint64_t value) {
+void AssemblerMips64Test::run_msa_ctc_cfc(uint64_t value) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -7279,8 +7441,8 @@ TEST_F(AssemblerMips64Test, MSA_move_v) {
 }
 
 template <typename ExpectFunc, typename OperFunc>
-void run_msa_sldi(OperFunc GenerateOperation,
-                  ExpectFunc GenerateExpectedResult) {
+void AssemblerMips64Test::run_msa_sldi(OperFunc GenerateOperation,
+                                       ExpectFunc GenerateExpectedResult) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -7402,8 +7564,8 @@ struct ExpResShf {
   uint64_t hi;
 };
 
-void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
-                uint8_t i8) {
+void AssemblerMips64Test::run_msa_i8(SecondaryField opcode, uint64_t ws_lo,
+                                     uint64_t ws_hi, uint8_t i8) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -7643,9 +7805,10 @@ struct TestCaseMsaI5 {
 };
 
 template <typename InstFunc, typename OperFunc>
-void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
-                InstFunc GenerateI5InstructionFunc,
-                OperFunc GenerateOperationFunc) {
+void AssemblerMips64Test::run_msa_i5(struct TestCaseMsaI5* input,
+                                     bool i5_sign_ext,
+                                     InstFunc GenerateI5InstructionFunc,
+                                     OperFunc GenerateOperationFunc) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -8063,16 +8226,9 @@ TEST_F(AssemblerMips64Test, MSA_ceqi_clti_clei) {
 #undef CEQI_CLTI_CLEI_U_DF
 }
 
-struct TestCaseMsa2R {
-  uint64_t ws_lo;
-  uint64_t ws_hi;
-  uint64_t exp_res_lo;
-  uint64_t exp_res_hi;
-};
-
 template <typename Func>
-void run_msa_2r(const struct TestCaseMsa2R* input,
-                Func Generate2RInstructionFunc) {
+void AssemblerMips64Test::run_msa_2r(const struct TestCaseMsa2R* input,
+                                     Func Generate2RInstructionFunc) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -8262,24 +8418,6 @@ TEST_F(AssemblerMips64Test, MSA_nloc) {
   }
 }
 
-struct TestCaseMsa2RF_F_U {
-  float ws1;
-  float ws2;
-  float ws3;
-  float ws4;
-  uint32_t exp_res_1;
-  uint32_t exp_res_2;
-  uint32_t exp_res_3;
-  uint32_t exp_res_4;
-};
-
-struct TestCaseMsa2RF_D_U {
-  double ws1;
-  double ws2;
-  uint64_t exp_res_1;
-  uint64_t exp_res_2;
-};
-
 TEST_F(AssemblerMips64Test, MSA_fclass) {
   if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
     return;
@@ -8336,24 +8474,6 @@ TEST_F(AssemblerMips64Test, MSA_fclass) {
 #undef POS_SUBNORMAL_BIT
 #undef POS_ZERO_BIT
 }
-
-struct TestCaseMsa2RF_F_I {
-  float ws1;
-  float ws2;
-  float ws3;
-  float ws4;
-  int32_t exp_res_1;
-  int32_t exp_res_2;
-  int32_t exp_res_3;
-  int32_t exp_res_4;
-};
-
-struct TestCaseMsa2RF_D_I {
-  double ws1;
-  double ws2;
-  int64_t exp_res_1;
-  int64_t exp_res_2;
-};
 
 TEST_F(AssemblerMips64Test, MSA_ftrunc_s) {
   if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
@@ -8427,24 +8547,6 @@ TEST_F(AssemblerMips64Test, MSA_ftrunc_u) {
                [](MacroAssembler& assm) { __ ftrunc_u_d(w2, w0); });
   }
 }
-
-struct TestCaseMsa2RF_F_F {
-  float ws1;
-  float ws2;
-  float ws3;
-  float ws4;
-  float exp_res_1;
-  float exp_res_2;
-  float exp_res_3;
-  float exp_res_4;
-};
-
-struct TestCaseMsa2RF_D_D {
-  double ws1;
-  double ws2;
-  double exp_res_1;
-  double exp_res_2;
-};
 
 TEST_F(AssemblerMips64Test, MSA_fsqrt) {
   if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
@@ -8523,8 +8625,9 @@ TEST_F(AssemblerMips64Test, MSA_frcp) {
   }
 }
 
-void test_frint_s(size_t data_size, TestCaseMsa2RF_F_F tc_d[],
-                  int rounding_mode) {
+void AssemblerMips64Test::test_frint_s(size_t data_size,
+                                       TestCaseMsa2RF_F_F tc_d[],
+                                       int rounding_mode) {
   for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_F_F); ++i) {
     run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
                [&rounding_mode](MacroAssembler& assm) {
@@ -8538,8 +8641,9 @@ void test_frint_s(size_t data_size, TestCaseMsa2RF_F_F tc_d[],
   }
 }
 
-void test_frint_d(size_t data_size, TestCaseMsa2RF_D_D tc_d[],
-                  int rounding_mode) {
+void AssemblerMips64Test::test_frint_d(size_t data_size,
+                                       TestCaseMsa2RF_D_D tc_d[],
+                                       int rounding_mode) {
   for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_D_D); ++i) {
     run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
                [&rounding_mode](MacroAssembler& assm) {
@@ -8636,8 +8740,9 @@ TEST_F(AssemblerMips64Test, MSA_flog2) {
   }
 }
 
-void test_ftint_s_s(size_t data_size, TestCaseMsa2RF_F_I tc_d[],
-                    int rounding_mode) {
+void AssemblerMips64Test::test_ftint_s_s(size_t data_size,
+                                         TestCaseMsa2RF_F_I tc_d[],
+                                         int rounding_mode) {
   for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_F_I); ++i) {
     run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
                [&rounding_mode](MacroAssembler& assm) {
@@ -8651,8 +8756,9 @@ void test_ftint_s_s(size_t data_size, TestCaseMsa2RF_F_I tc_d[],
   }
 }
 
-void test_ftint_s_d(size_t data_size, TestCaseMsa2RF_D_I tc_d[],
-                    int rounding_mode) {
+void AssemblerMips64Test::test_ftint_s_d(size_t data_size,
+                                         TestCaseMsa2RF_D_I tc_d[],
+                                         int rounding_mode) {
   for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_D_I); ++i) {
     run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
                [&rounding_mode](MacroAssembler& assm) {
@@ -8746,8 +8852,9 @@ TEST_F(AssemblerMips64Test, MSA_ftint_s) {
   test_ftint_s_d(sizeof(tc_d4), tc_d4, kRoundToMinusInf);
 }
 
-void test_ftint_u_s(size_t data_size, TestCaseMsa2RF_F_U tc_d[],
-                    int rounding_mode) {
+void AssemblerMips64Test::test_ftint_u_s(size_t data_size,
+                                         TestCaseMsa2RF_F_U tc_d[],
+                                         int rounding_mode) {
   for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_F_U); ++i) {
     run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
                [&rounding_mode](MacroAssembler& assm) {
@@ -8761,8 +8868,9 @@ void test_ftint_u_s(size_t data_size, TestCaseMsa2RF_F_U tc_d[],
   }
 }
 
-void test_ftint_u_d(size_t data_size, TestCaseMsa2RF_D_U tc_d[],
-                    int rounding_mode) {
+void AssemblerMips64Test::test_ftint_u_d(size_t data_size,
+                                         TestCaseMsa2RF_D_U tc_d[],
+                                         int rounding_mode) {
   for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_D_U); ++i) {
     run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
                [&rounding_mode](MacroAssembler& assm) {
@@ -9079,9 +9187,9 @@ struct TestCaseMsaVector {
 };
 
 template <typename InstFunc, typename OperFunc>
-void run_msa_vector(struct TestCaseMsaVector* input,
-                    InstFunc GenerateVectorInstructionFunc,
-                    OperFunc GenerateOperationFunc) {
+void AssemblerMips64Test::run_msa_vector(struct TestCaseMsaVector* input,
+                                         InstFunc GenerateVectorInstructionFunc,
+                                         OperFunc GenerateOperationFunc) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -9170,8 +9278,9 @@ struct TestCaseMsaBit {
 };
 
 template <typename InstFunc, typename OperFunc>
-void run_msa_bit(struct TestCaseMsaBit* input, InstFunc GenerateInstructionFunc,
-                 OperFunc GenerateOperationFunc) {
+void AssemblerMips64Test::run_msa_bit(struct TestCaseMsaBit* input,
+                                      InstFunc GenerateInstructionFunc,
+                                      OperFunc GenerateOperationFunc) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -9634,8 +9743,9 @@ TEST_F(AssemblerMips64Test, MSA_sat_s_sat_u) {
 }
 
 template <typename InstFunc, typename OperFunc>
-void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
-                 OperFunc GenerateOperationFunc) {
+void AssemblerMips64Test::run_msa_i10(int32_t input,
+                                      InstFunc GenerateVectorInstructionFunc,
+                                      OperFunc GenerateOperationFunc) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -9703,7 +9813,7 @@ TEST_F(AssemblerMips64Test, MSA_ldi) {
 }
 
 template <typename T, typename InstFunc>
-void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
+void AssemblerMips64Test::run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -9783,8 +9893,9 @@ struct TestCaseMsa3R {
 static const uint64_t Unpredictable = 0x312014017725ll;
 
 template <typename InstFunc, typename OperFunc>
-void run_msa_3r(struct TestCaseMsa3R* input, InstFunc GenerateI5InstructionFunc,
-                OperFunc GenerateOperationFunc) {
+void AssemblerMips64Test::run_msa_3r(struct TestCaseMsa3R* input,
+                                     InstFunc GenerateI5InstructionFunc,
+                                     OperFunc GenerateOperationFunc) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
@@ -10788,9 +10899,10 @@ struct ExpectedResult_MSA3RF {
 };
 
 template <typename Func>
-void run_msa_3rf(const struct TestCaseMsa3RF* input,
-                 const struct ExpectedResult_MSA3RF* output,
-                 Func Generate2RInstructionFunc) {
+void AssemblerMips64Test::run_msa_3rf(
+    const struct TestCaseMsa3RF* input,
+    const struct ExpectedResult_MSA3RF* output,
+    Func Generate2RInstructionFunc) {
   Isolate* isolate = i_isolate();
   HandleScope scope(isolate);
 
