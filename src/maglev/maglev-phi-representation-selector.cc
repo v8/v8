@@ -175,6 +175,13 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
         hoist_untagging[i] = HoistType::kPrologue;
         continue;
       }
+      if (LoadTaggedField* load = input->TryCast<LoadTaggedField>()) {
+        // If we're loading a Smi, we can untag it to get a Int32 input.
+        if (load->load_type() == LoadType::kSmi) {
+          input_reprs.Add(ValueRepresentation::kInt32);
+          continue;
+        }
+      }
       if (node->is_loop_phi() && !node->is_backedge_offset(i)) {
         BasicBlock* pred = node->merge_state()->predecessor_at(i);
         if (CanHoistUntaggingTo(pred)) {
@@ -777,6 +784,31 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         TRACE_UNTAGGING(TRACE_INPUT_LABEL
                         << ": Keeping untagged Phi input as-is");
       }
+    } else if (LoadTaggedField* load = input->TryCast<LoadTaggedField>()) {
+      DCHECK_EQ(load->load_type(), LoadType::kSmi);
+      ValueNode* untagged_input =
+          AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiUntag>(
+              phi->predecessor_at(input_index), {load});
+      switch (repr) {
+        case ValueRepresentation::kInt32:
+          break;
+        case ValueRepresentation::kFloat64:
+          untagged_input =
+              AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToFloat64>(
+                  phi->predecessor_at(input_index), {untagged_input});
+          break;
+        case ValueRepresentation::kHoleyFloat64:
+          untagged_input =
+              AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToHoleyFloat64>(
+                  phi->predecessor_at(input_index), {untagged_input});
+          break;
+        case ValueRepresentation::kShiftedInt53:
+          UNIMPLEMENTED();
+        default:
+          UNREACHABLE();
+      }
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Untagging smi-load input");
+      phi->change_input(input_index, untagged_input);
     } else if (hoist_untagging[input_index] != HoistType::kNone) {
       CHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
       BasicBlock* block;

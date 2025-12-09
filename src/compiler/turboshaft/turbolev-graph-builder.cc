@@ -3163,9 +3163,10 @@ class GraphBuildingNodeProcessor {
 
   template <typename NodeT>
   maglev::ProcessResult ProcessAbstractLoadTaggedField(
-      NodeT* node, const maglev::ProcessingState& state) {
+      NodeT* node, MemoryRepresentation mem_repr) {
     V<Object> value =
-        __ LoadTaggedField(Map(node->ValueInput()), node->offset());
+        __ Load(Map(node->ValueInput()), LoadOp::Kind::TaggedBase(), mem_repr,
+                node->offset());
     SetMap(node, value);
 
     if (generator_analyzer_.has_header_bypasses() &&
@@ -3182,11 +3183,16 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::LoadTaggedField* node,
                                 const maglev::ProcessingState& state) {
-    return ProcessAbstractLoadTaggedField(node, state);
+    MemoryRepresentation mem_repr = MemoryRepresentation::AnyTagged();
+    if (node->load_type() == maglev::LoadType::kSmi) {
+      mem_repr = MemoryRepresentation::TaggedSigned();
+    }
+    return ProcessAbstractLoadTaggedField(node, mem_repr);
   }
   maglev::ProcessResult Process(maglev::LoadContextSlotNoCells* node,
                                 const maglev::ProcessingState& state) {
-    return ProcessAbstractLoadTaggedField(node, state);
+    return ProcessAbstractLoadTaggedField(node,
+                                          MemoryRepresentation::AnyTagged());
   }
   maglev::ProcessResult Process(maglev::LoadContextSlot* node,
                                 const maglev::ProcessingState& state) {

@@ -5046,6 +5046,20 @@ bool AccessInfoGuaranteedConst(
   }
   return true;
 }
+
+LoadType FieldRepresentationToLoadType(Representation repr) {
+  switch (repr.kind()) {
+    case Representation::kSmi:
+      return LoadType::kSmi;
+    case Representation::kDouble:
+    case Representation::kHeapObject:
+    case Representation::kNone:
+    case Representation::kTagged:
+    case Representation::kWasmValue:
+    case Representation::kNumRepresentations:
+      return LoadType::kUnknown;
+  }
+}
 }  // namespace
 
 ReduceResult MaglevGraphBuilder::BuildLoadField(
@@ -5094,11 +5108,14 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
     return AddNewNode<LoadFloat64>(
         {heap_number}, static_cast<int>(offsetof(HeapNumber, value_)));
   }
+  // TODO(dmercadier): can we use `access_info.type()` to get a more precise
+  // type than what `access_info.field_representation()` gives us?
+  LoadType type =
+      FieldRepresentationToLoadType(access_info.field_representation());
   ValueNode* value;
-  GET_VALUE_OR_ABORT(value,
-                     BuildLoadTaggedField(
-                         load_source, field_index.offset(), LoadType::kUnknown,
-                         AccessInfoGuaranteedConst(access_info), name));
+  GET_VALUE_OR_ABORT(value, BuildLoadTaggedField(
+                                load_source, field_index.offset(), type,
+                                AccessInfoGuaranteedConst(access_info), name));
   // Insert stable field information if present.
   if (access_info.field_representation().IsSmi()) {
     NodeInfo* known_info = GetOrCreateInfoFor(value);
