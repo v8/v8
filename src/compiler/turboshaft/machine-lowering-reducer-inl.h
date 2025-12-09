@@ -2767,7 +2767,7 @@ class MachineLoweringReducer : public Next {
           __ Word32Select(__ Int32LessThan(relative_end, 0), 0, relative_end);
     } ELSE {
       relative_end =
-          __ Word32Select(__ Int32LessThan(end, length), end, length);
+          __ Word32Select(__ Int32LessThanOrEqual(end, length), end, length);
     }
     // substring() and slice() handle end < start differently; return empty here
     // if end <= start.
