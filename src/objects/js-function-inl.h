@@ -479,7 +479,8 @@ void JSFunction::ResetIfCodeFlushed(
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
     ResetTieringRequests();
-    UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
+    UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy),
+               SKIP_WRITE_BARRIER);
     raw_feedback_cell()->reset_feedback_vector(gc_notify_updated_slot);
     return;
   }
@@ -489,7 +490,8 @@ void JSFunction::ResetIfCodeFlushed(
   if (kBaselineCodeCanFlush && NeedsResetDueToFlushedBaselineCode(isolate)) {
     // Flush baseline code from the closure if required
     ResetTieringRequests();
-    UpdateCode(isolate, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+    UpdateCode(isolate, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline),
+               SKIP_WRITE_BARRIER);
   }
 }
 

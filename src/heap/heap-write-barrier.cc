@@ -568,9 +568,19 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
                                                     JSDispatchHandle handle,
                                                     WriteBarrierMode mode) {
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-  if (mode == SKIP_WRITE_BARRIER &&
-      WriteBarrier::IsRequired(host, jdt->GetCode(handle))) {
-    return false;
+  Tagged<Code> value = jdt->GetCode(handle);
+
+  if (mode == SKIP_WRITE_BARRIER) {
+    if (value->is_builtin()) {
+      // Builtins are immortal and immovable, so no write barrier needed.
+      PageMetadata* page = PageMetadata::FromHeapObject(value);
+      DCHECK(page->never_evacuate());
+      return true;
+    }
+
+    if (WriteBarrier::IsRequired(host, value)) {
+      return false;
+    }
   }
 
   if (CurrentMarkingBarrier(host)->is_not_major()) return true;
@@ -586,7 +596,6 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
   if (jdt->IsMarked(handle)) {
     return true;
   }
-  Tagged<Code> value = jdt->GetCode(handle);
   if (ReadOnlyHeap::Contains(value)) {
     return true;
   }
