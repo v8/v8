@@ -131,6 +131,27 @@ class LoadStoreSimplificationReducer : public Next,
                                         offset);
   }
 
+#if V8_ENABLE_SANDBOX
+  V<Object> REDUCE(LoadTrustedPointerField)(V<WordPtr> table, V<Word32> handle,
+                                            bool is_immutable,
+                                            IndirectPointerTag tag) {
+    V<Word32> table_index =
+        __ Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
+    V<Word64> table_offset = __ ChangeUint32ToUint64(
+        __ Word32ShiftLeft(table_index, kTrustedPointerTableEntrySizeLog2));
+    LoadOp::Kind kind = LoadOp::Kind::RawAligned();
+    if (is_immutable) kind = kind.Immutable();
+    V<WordPtr> decoded_ptr =
+        __ Load(table, table_offset, kind, MemoryRepresentation::UintPtr());
+
+    // Untag the pointer and remove the marking bit in one operation.
+    decoded_ptr =
+        __ Word64BitwiseAnd(decoded_ptr, ~(tag | kTrustedPointerTableMarkBit));
+    // Bitcast to tagged to this gets scanned by the GC properly.
+    return __ BitcastWordPtrToTagged(decoded_ptr);
+  }
+#endif
+
  private:
   bool CanEncodeOffset(int32_t offset, bool tagged_base) const {
     // If the base is tagged we also need to subtract the kHeapObjectTag

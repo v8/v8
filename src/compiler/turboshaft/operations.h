@@ -352,11 +352,14 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
 // MachineLoweringPhase.
-#define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
-  V(Allocate)                              \
-  V(MajorGCForCompilerTesting)             \
-  V(DecodeExternalPointer)                 \
-  V(JSStackCheck)
+#define TURBOSHAFT_OTHER_OPERATION_LIST(V)                                     \
+  V(Allocate)                                                                  \
+  V(MajorGCForCompilerTesting)                                                 \
+  V(DecodeExternalPointer)                                                     \
+  V(JSStackCheck)                                                              \
+  /* TODO(mliedtke): Align DecodeExternalPointer to only emit it when building \
+   * with sandbox support and rename it to LoadExternalPointer. */             \
+  IF_SANDBOX(V, LoadTrustedPointerField)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
@@ -3152,6 +3155,36 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
       (kind.load_eliminable << 2) | (kind.is_immutable << 3) |
       (kind.with_trap_handler << 4) | (kind.is_atomic << 5));
 }
+
+#if V8_ENABLE_SANDBOX
+struct LoadTrustedPointerFieldOp
+    : FixedArityOperationT<2, LoadTrustedPointerFieldOp> {
+  const bool is_immutable;
+  IndirectPointerTag tag;
+
+  static constexpr OpEffects effects =
+      OpEffects().CanReadMemory().CanDependOnChecks();
+
+  explicit LoadTrustedPointerFieldOp(V<WordPtr> table, V<Word32> handle,
+                                     bool is_immutable, IndirectPointerTag tag)
+      : Base(table, handle), is_immutable(is_immutable), tag(tag) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::WordPtr(),
+                          MaybeRegisterRepresentation::Word32()>();
+  }
+
+  V<WordPtr> table() const { return input<WordPtr>(0); }
+  V<Word32> handle() const { return input<Word32>(1); }
+
+  auto options() const { return std::tuple{is_immutable, tag}; }
+};
+#endif
 
 struct AtomicRMWOp : OperationT<AtomicRMWOp> {
   enum class BinOp : uint8_t {

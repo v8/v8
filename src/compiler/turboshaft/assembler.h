@@ -2841,30 +2841,25 @@ class AssemblerOpInterface : public Next {
     static_assert(COMPRESS_POINTERS_BOOL);
     V<Word32> handle =
         Load(base, index, kind, MemoryRepresentation::Uint32(), offset);
-    V<Word32> table_index =
-        Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
-    V<Word64> table_offset = __ ChangeUint32ToUint64(
-        Word32ShiftLeft(table_index, kTrustedPointerTableEntrySizeLog2));
     V<WordPtr> table =
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
              IsolateData::trusted_pointer_table_offset() +
                  Internals::kTrustedPointerTableBasePointerOffset);
-    V<WordPtr> decoded_ptr =
-        Load(table, table_offset, LoadOp::Kind::RawAligned(),
-             MemoryRepresentation::UintPtr());
-
-    // Untag the pointer and remove the marking bit in one operation.
-    decoded_ptr =
-        __ Word64BitwiseAnd(decoded_ptr, ~(tag | kTrustedPointerTableMarkBit));
-
-    // Bitcast to tagged to this gets scanned by the GC properly.
-    return BitcastWordPtrToTagged(decoded_ptr);
+    return LoadTrustedPointerField(table, handle, kind.is_immutable, tag);
 #else
     return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),
                 offset);
 #endif  // V8_ENABLE_SANDBOX
   }
+
+#if V8_ENABLE_SANDBOX
+  V<Object> LoadTrustedPointerField(V<WordPtr> table, V<Word32> handle,
+                                    bool is_immutable, IndirectPointerTag tag) {
+    return ReduceIfReachableLoadTrustedPointerField(table, handle, is_immutable,
+                                                    tag);
+  }
+#endif
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
   V<Object> LoadTrustedPointerField(V<HeapObject> base, LoadOp::Kind kind,

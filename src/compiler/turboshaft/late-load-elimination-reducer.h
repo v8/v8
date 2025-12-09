@@ -482,6 +482,35 @@ class MemoryContentTable
     }
   }
 
+#if V8_ENABLE_SANDBOX
+  OpIndex Find(const LoadTrustedPointerFieldOp& load) {
+    OpIndex base = ResolveBase(load.table());
+    OptionalOpIndex index = load.handle();
+    int32_t offset = 0;
+    uint8_t element_size_log2 = kTrustedPointerTableEntrySizeLog2;
+    uint8_t size = MemoryRepresentation::UintPtr().SizeInBytes();
+
+    MemoryAddress mem{base, index, offset, element_size_log2, size};
+    auto key = all_keys_.find(mem);
+    if (key == all_keys_.end()) return OpIndex::Invalid();
+    return Get(key->second);
+  }
+
+  void Insert(const LoadTrustedPointerFieldOp& load, OpIndex load_idx) {
+    OpIndex base = ResolveBase(load.table());
+    OptionalOpIndex index = load.handle();
+    int32_t offset = 0;
+    uint8_t element_size_log2 = kTrustedPointerTableEntrySizeLog2;
+    uint8_t size = MemoryRepresentation::UintPtr().SizeInBytes();
+
+    if (load.is_immutable) {
+      InsertImmutable(base, index, offset, element_size_log2, size, load_idx);
+    } else {
+      Insert(base, index, offset, element_size_log2, size, load_idx);
+    }
+  }
+#endif
+
 #ifdef DEBUG
   void Print() {
     std::cout << "MemoryContentTable:\n";
@@ -713,6 +742,9 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
  private:
   void ProcessBlock(const Block& block, bool compute_start_snapshot);
   void ProcessLoad(OpIndex op_idx, const LoadOp& op);
+#if V8_ENABLE_SANDBOX
+  void ProcessTrustedLoad(OpIndex op_idx, const LoadTrustedPointerFieldOp& op);
+#endif
   void ProcessStore(OpIndex op_idx, const StoreOp& op);
   void ProcessAtomicRMW(OpIndex op_idx, const AtomicRMWOp& op);
   void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
@@ -793,6 +825,27 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
     Next::Analyze();
   }
 
+#if DEBUG
+  void EmitReportLoadEliminationError() {
+    CHECK(v8_flags.turboshaft_verify_load_elimination);
+#if V8_ENABLE_WEBASSEMBLY
+    if (__ data()->pipeline_kind() == TurboshaftPipelineKind::kWasm) {
+      __ WasmCallRuntime(__ phase_zone(), Runtime::kAbort,
+                         {__ TagSmi(static_cast<int>(
+                             AbortReason::kTurboshaftLoadEliminationError))},
+                         __ NoContextConstant());
+      __ Unreachable();
+      return;
+    }
+#endif
+    __ template CallRuntime<runtime::Abort>(
+        __ NoContextConstant(),
+        {.messageOrMessageId = __ SmiConstant(
+             Smi::FromEnum(AbortReason::kTurboshaftLoadEliminationError))});
+    __ Unreachable();
+  }
+#endif  // DEBUG
+
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
     if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
@@ -858,26 +911,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
             }
           }
 
-          auto abort = [&]() {
-#if V8_ENABLE_WEBASSEMBLY
-            if (__ data()->pipeline_kind() == TurboshaftPipelineKind::kWasm) {
-              __ WasmCallRuntime(
-                  __ phase_zone(), Runtime::kAbort,
-                  {__ TagSmi(static_cast<int>(
-                      AbortReason::kTurboshaftLoadEliminationError))},
-                  __ NoContextConstant());
-            } else {
-#endif
-              __ template CallRuntime<runtime::Abort>(
-                  __ NoContextConstant(),
-                  {.messageOrMessageId = __ SmiConstant(Smi::FromEnum(
-                       AbortReason::kTurboshaftLoadEliminationError))});
-#if V8_ENABLE_WEBASSEMBLY
-            }
-#endif
-            __ Unreachable();
-          };
-
           IF_NOT (__ Equal(actual_idx, replacement_idx, compare_rep)) {
             if (actual_rep == any_of(RegisterRepresentation::Float32(),
                                      RegisterRepresentation::Float64())) {
@@ -890,7 +923,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                                replacement_rep))) {
                 // At least one of {actual_idx} and {reaplcement_idx} is not
                 // NaN.
-                abort();
+                EmitReportLoadEliminationError();
               }
             } else if (compare_rep == RegisterRepresentation::Tagged()) {
               // We are trying to replace a Tagged value by a different Tagged
@@ -912,11 +945,11 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
               //  input, in order to determine the encoding of the outputs.
 
               IF_NOT (__ IsStringMap(actual_idx)) {
-                abort();
+                EmitReportLoadEliminationError();
               }
 
               IF_NOT (__ IsStringMap(replacement_idx)) {
-                abort();
+                EmitReportLoadEliminationError();
               }
 
               // Both actual and replacement are strings.
@@ -931,13 +964,13 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
               V<Word32> replacement_encoding = __ Word32BitwiseAnd(
                   replacement_instance_type, kStringEncodingMask);
               IF_NOT (__ Word32Equal(actual_encoding, replacement_encoding)) {
-                abort();
+                EmitReportLoadEliminationError();
               }
 
               // NOT aborting: we replaced a string map with a different string
               // map, but they have the same encoding.
             } else {
-              abort();
+              EmitReportLoadEliminationError();
             }
           }
         }
@@ -988,6 +1021,31 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
     // Instruction Selector.
     return {};
   }
+
+#if V8_ENABLE_SANDBOX
+  V<Object> REDUCE_INPUT_GRAPH(LoadTrustedPointerField)(
+      V<Object> ig_index, const LoadTrustedPointerFieldOp& load) {
+    if (v8_flags.turboshaft_trusted_load_elimination) {
+      CHECK(v8_flags.turboshaft_load_elimination);
+      Replacement replacement = analyzer_.GetReplacement(ig_index);
+      if (replacement.IsLoadElimination()) {
+        OpIndex replacement_ig_index = replacement.replacement();
+        OpIndex replacement_idx = Asm().MapToNewGraph(replacement_ig_index);
+#if DEBUG
+        if (v8_flags.turboshaft_verify_load_elimination) {
+          OpIndex actual_idx =
+              Next::ReduceInputGraphLoadTrustedPointerField(ig_index, load);
+          IF_NOT (__ TaggedEqual(actual_idx, replacement_idx)) {
+            EmitReportLoadEliminationError();
+          }
+        }
+#endif  // DEBUG
+        return replacement_idx;
+      }
+    }
+    return Next::ReduceInputGraphLoadTrustedPointerField(ig_index, load);
+  }
+#endif
 
  private:
   using RawBaseAssumption = LateLoadEliminationAnalyzer::RawBaseAssumption;

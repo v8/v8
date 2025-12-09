@@ -511,6 +511,12 @@ bool is_inbounds(float_t v) {
 #define IF_HARDWARE_SANDBOX(V, ...)
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
+#ifdef V8_ENABLE_SANDBOX
+#define IF_SANDBOX(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_SANDBOX(V, ...)
+#endif  // V8_ENABLE_SANDBOX
+
 // Defines IF_INTL, to be used in macro lists for elements that should only be
 // there if INTL is enabled.
 #ifdef V8_INTL_SUPPORT

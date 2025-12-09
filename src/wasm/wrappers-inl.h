@@ -312,18 +312,21 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     return OpIndex::Invalid();
   }
 
-  V<SharedFunctionInfo> sfi = __ Load(js_closure, LoadOp::Kind::TaggedBase(),
-                                      MemoryRepresentation::TaggedPointer(),
-                                      JSFunction::kSharedFunctionInfoOffset);
+  V<SharedFunctionInfo> sfi =
+      __ Load(js_closure, LoadOp::Kind::TaggedBase().Immutable(),
+              MemoryRepresentation::TaggedPointer(),
+              JSFunction::kSharedFunctionInfoOffset);
   V<WasmFunctionData> function_data =
       V<WasmFunctionData>::Cast(__ LoadTrustedPointerField(
-          sfi, LoadOp::Kind::TaggedBase(), kWasmFunctionDataIndirectPointerTag,
+          sfi, LoadOp::Kind::TaggedBase().Immutable(),
+          kWasmFunctionDataIndirectPointerTag,
           SharedFunctionInfo::kTrustedFunctionDataOffset));
   // If we are not inlining the Wasm body, we don't need the Wasm instance.
+
   V<WasmTrustedInstanceData> instance_data =
       inlined_function_data_.has_value()
           ? V<WasmTrustedInstanceData>::Cast(__ LoadProtectedPointerField(
-                function_data, LoadOp::Kind::TaggedBase(),
+                function_data, LoadOp::Kind::TaggedBase().Immutable(),
                 WasmExportedFunctionData::kProtectedInstanceDataOffset))
           : OpIndex::Invalid();
 
