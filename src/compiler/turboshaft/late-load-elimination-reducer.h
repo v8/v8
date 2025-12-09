@@ -944,13 +944,10 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
               //  - NewConsString: this only cares about the encoding of the
               //  input, in order to determine the encoding of the outputs.
 
-              IF_NOT (__ IsStringMap(actual_idx)) {
-                EmitReportLoadEliminationError();
-              }
-
-              IF_NOT (__ IsStringMap(replacement_idx)) {
-                EmitReportLoadEliminationError();
-              }
+              Label<> error(this);
+              Label<> done(this);
+              GOTO_IF_NOT(LIKELY(__ IsStringMap(actual_idx)), error);
+              GOTO_IF_NOT(LIKELY(__ IsStringMap(replacement_idx)), error);
 
               // Both actual and replacement are strings.
 
@@ -963,9 +960,14 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                   actual_instance_type, kStringEncodingMask);
               V<Word32> replacement_encoding = __ Word32BitwiseAnd(
                   replacement_instance_type, kStringEncodingMask);
-              IF_NOT (__ Word32Equal(actual_encoding, replacement_encoding)) {
-                EmitReportLoadEliminationError();
-              }
+              GOTO_IF(
+                  LIKELY(__ Word32Equal(actual_encoding, replacement_encoding)),
+                  done);
+              GOTO(error);
+
+              BIND(error);
+              EmitReportLoadEliminationError();
+              BIND(done);
 
               // NOT aborting: we replaced a string map with a different string
               // map, but they have the same encoding.
