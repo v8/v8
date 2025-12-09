@@ -1371,6 +1371,19 @@ TNode<BoolT> CodeStubAssembler::TaggedIsNotStrongHeapObject(
   return Word32BinaryNot(TaggedIsStrongHeapObject(a));
 }
 
+TNode<BoolT> CodeStubAssembler::TaggedIsWeakHeapObject(TNode<MaybeObject> a) {
+  static_assert(kHeapObjectTagMask < kMaxUInt32);
+  return Word32Equal(
+      Word32And(TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
+                Int32Constant(kHeapObjectTagMask)),
+      Int32Constant(kWeakHeapObjectTag));
+}
+
+TNode<BoolT> CodeStubAssembler::TaggedIsNotWeakHeapObject(
+    TNode<MaybeObject> a) {
+  return Word32BinaryNot(TaggedIsWeakHeapObject(a));
+}
+
 TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(TNode<Object> a) {
 #if defined(V8_HOST_ARCH_32_BIT) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   return Word32Equal(
@@ -8345,6 +8358,10 @@ TNode<BoolT> CodeStubAssembler::IsJSShadowRealm(TNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::IsJSRegExpStringIterator(
     TNode<HeapObject> object) {
   return HasInstanceType(object, JS_REG_EXP_STRING_ITERATOR_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsBytecodeArray(TNode<HeapObject> object) {
+  return HasInstanceType(object, BYTECODE_ARRAY_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsMap(TNode<HeapObject> object) {
@@ -17295,9 +17312,10 @@ void CodeStubAssembler::GotoIfNumberOrUndefined(TNode<Object> input,
 }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
-void CodeStubAssembler::GotoIfNumber(TNode<Object> input, Label* is_number) {
-  GotoIf(TaggedIsSmi(input), is_number);
-  GotoIf(IsHeapNumber(CAST(input)), is_number);
+void CodeStubAssembler::GotoIfNumber(TNode<Object> input, Label* is_number,
+                                     GotoHint hint) {
+  GotoIf(TaggedIsSmi(input), is_number, hint);
+  GotoIf(IsHeapNumber(CAST(input)), is_number, hint);
 }
 
 TNode<Word32T> CodeStubAssembler::NormalizeShift32OperandIfNecessary(

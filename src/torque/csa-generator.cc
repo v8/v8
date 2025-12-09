@@ -219,12 +219,11 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
     if (!original_type->StructSupertype() &&
         return_type->GetGeneratedTNodeTypeName() !=
             original_type->GetGeneratedTNodeTypeName()) {
-      if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        out() << "TORQUE_CAST";
-      } else {
-        out() << "ca_.UncheckedCast<"
-              << return_type->GetGeneratedTNodeTypeName() << ">";
-      }
+      // Don't use TORQUE_CAST inside casts, to avoid recursion with inlined
+      // type checks. We've done the checks, we shouldn't need to do a checked
+      // CAST.
+      out() << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
+            << ">";
     }
   } else if (instruction.intrinsic->ExternalName() == "%GetClassMapConstant") {
     if (!parameter_types.empty()) {

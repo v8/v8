@@ -41,12 +41,12 @@ class CodeAssemblerState;
     TNode<T> Parameter(                                                     \
         Descriptor::ParameterIndices index,                                 \
         cppgc::SourceLocation loc = cppgc::SourceLocation::Current()) {     \
-      return CodeAssembler::Parameter<T>(static_cast<int>(index), loc);     \
+      return AssemblerBase::Parameter<T>(static_cast<int>(index), loc);     \
     }                                                                       \
                                                                             \
     template <class T>                                                      \
     TNode<T> UncheckedParameter(Descriptor::ParameterIndices index) {       \
-      return CodeAssembler::UncheckedParameter<T>(static_cast<int>(index)); \
+      return AssemblerBase::UncheckedParameter<T>(static_cast<int>(index)); \
     }                                                                       \
   };                                                                        \
   void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) {     \

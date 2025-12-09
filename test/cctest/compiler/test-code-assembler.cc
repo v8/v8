@@ -153,13 +153,13 @@ TEST(SimpleCallJSFunction0Arg) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeAssembler m(asm_tester.state());
   {
-    auto function = m.Parameter<JSFunction>(1);
-    auto context = m.GetJSContextParameter();
+    auto function = m.UncheckedParameter<JSFunction>(1);
+    auto context = m.UncheckedCast<Context>(m.GetUntypedJSContextParameter());
 
     auto receiver = SmiTag(&m, m.IntPtrConstant(42));
 
-    TNode<Object> result =
-        m.CallJS(Builtins::Call(), context, function, receiver);
+    TNode<Object> result = m.UncheckedCast<Object>(
+        m.CallJS(Builtins::Call(), context, function, receiver));
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -175,14 +175,14 @@ TEST(SimpleCallJSFunction1Arg) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeAssembler m(asm_tester.state());
   {
-    auto function = m.Parameter<JSFunction>(1);
-    auto context = m.GetJSContextParameter();
+    auto function = m.UncheckedParameter<JSFunction>(1);
+    auto context = m.UncheckedCast<Context>(m.GetUntypedJSContextParameter());
 
     auto receiver = SmiTag(&m, m.IntPtrConstant(42));
     auto a = SmiTag(&m, m.IntPtrConstant(13));
 
-    TNode<Object> result =
-        m.CallJS(Builtins::Call(), context, function, receiver, a);
+    TNode<Object> result = m.UncheckedCast<Object>(
+        m.CallJS(Builtins::Call(), context, function, receiver, a));
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -198,15 +198,15 @@ TEST(SimpleCallJSFunction2Arg) {
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeAssembler m(asm_tester.state());
   {
-    auto function = m.Parameter<JSFunction>(1);
-    auto context = m.GetJSContextParameter();
+    auto function = m.UncheckedParameter<JSFunction>(1);
+    auto context = m.UncheckedCast<Context>(m.GetUntypedJSContextParameter());
 
     auto receiver = SmiTag(&m, m.IntPtrConstant(42));
     auto a = SmiTag(&m, m.IntPtrConstant(13));
     auto b = SmiTag(&m, m.IntPtrConstant(153));
 
-    TNode<Object> result =
-        m.CallJS(Builtins::Call(), context, function, receiver, a, b);
+    TNode<Object> result = m.UncheckedCast<Object>(
+        m.CallJS(Builtins::Call(), context, function, receiver, a, b));
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -401,11 +401,11 @@ TEST(DeferredCodePhiHints) {
   {
     TVariable<Map> var_object(&m);
     CodeAssemblerLabel loop(&m, &var_object);
-    var_object = m.CAST(LoadMap(&m, m.SmiConstant(0)));
+    var_object = m.UncheckedCast<Map>(LoadMap(&m, m.SmiConstant(0)));
     m.Goto(&loop);
     m.Bind(&loop);
     {
-      TNode<Map> map = m.CAST(LoadMap(&m, var_object.value()));
+      TNode<Map> map = m.UncheckedCast<Map>(LoadMap(&m, var_object.value()));
       var_object = map;
       m.Goto(&loop);
     }

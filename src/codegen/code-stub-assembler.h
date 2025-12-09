@@ -78,6 +78,97 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   explicit CodeStubAssembler(compiler::CodeAssemblerState* state);
 
+  template <class PreviousType, bool FromTyped>
+  class CheckedNode {
+   public:
+#ifdef DEBUG
+    CheckedNode(compiler::Node* node, CodeStubAssembler* csa,
+                const char* location)
+        : node_(node), csa_(csa), location_(location) {}
+#else
+    CheckedNode(compiler::Node* node, compiler::CodeAssembler*, const char*)
+        : node_(node) {}
+#endif
+
+    template <class A>
+    operator TNode<A>() {
+      static_assert(!std::is_same_v<A, Tagged<MaybeObject>>,
+                    "Can't cast to Tagged<MaybeObject>, use explicit "
+                    "conversion functions. ");
+
+      static_assert(types_have_common_values<A, PreviousType>::value,
+                    "Incompatible types: this cast can never succeed.");
+      static_assert(std::is_convertible_v<TNode<A>, TNode<MaybeObject>> ||
+                        std::is_convertible_v<TNode<A>, TNode<Object>>,
+                    "Coercion to untagged values cannot be "
+                    "checked.");
+      static_assert(
+          !FromTyped || !std::is_convertible_v<TNode<PreviousType>, TNode<A>>,
+          "Unnecessary CAST: types are convertible.");
+#ifdef DEBUG
+      if (v8_flags.slow_debug_code) {
+        Label ok(csa_);
+
+        if constexpr (FromTyped) {
+          InlineTypeCheck<A>::Check(
+              csa_, csa_->UncheckedCast<PreviousType>(node_), &ok);
+        } else {
+          InlineTypeCheck<A>::Check(
+              csa_, csa_->UncheckedCast<MaybeObject>(node_), &ok);
+        }
+
+        TNode<ExternalReference> function =
+            csa_->ExternalConstant(ExternalReference::check_object_type());
+        csa_->CallCFunction(
+            function, MachineType::AnyTagged(),
+            std::make_pair(MachineType::AnyTagged(), node_),
+            std::make_pair(
+                MachineType::TaggedSigned(),
+                csa_->SmiConstant(static_cast<int>(ObjectTypeOf<A>::value))),
+            std::make_pair(MachineType::AnyTagged(),
+                           csa_->StringConstant(location_)));
+
+        csa_->Goto(&ok);
+        csa_->Bind(&ok);
+      }
+#endif
+      return TNode<A>::UncheckedCast(node_);
+    }
+
+    compiler::Node* node() const { return node_; }
+
+   private:
+    compiler::Node* node_;
+#ifdef DEBUG
+    CodeStubAssembler* csa_;
+    const char* location_;
+#endif
+  };
+
+  CheckedNode<Object, false> Cast(compiler::Node* value,
+                                  const char* location = "") {
+    return {value, this, location};
+  }
+
+  template <class T>
+  CheckedNode<T, true> Cast(TNode<T> value, const char* location = "") {
+    return {value, this, location};
+  }
+
+#ifdef DEBUG
+#define STRINGIFY(x) #x
+#define TO_STRING_LITERAL(x) STRINGIFY(x)
+#define CAST(x) \
+  Cast(x, "CAST(" #x ") at " __FILE__ ":" TO_STRING_LITERAL(__LINE__))
+#define TORQUE_CAST(...)                                               \
+  CodeStubAssembler(state_).Cast(__VA_ARGS__,                          \
+                                 "CAST(" #__VA_ARGS__ ") at " __FILE__ \
+                                 ":" TO_STRING_LITERAL(__LINE__))
+#else
+#define CAST(x) Cast(x)
+#define TORQUE_CAST(...) CodeStubAssembler(state_).Cast(__VA_ARGS__)
+#endif
+
   enum class AllocationFlag : uint8_t {
     kNone = 0,
     kDoubleAlignment = 1,
@@ -109,6 +200,57 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename TIndex>
   TNode<TIndex> TaggedToParameter(TNode<Smi> value);
+
+  template <class T>
+  TNode<T> Parameter(int value,
+                     SourceLocation loc = SourceLocation::Current()) {
+    static_assert(
+        std::is_convertible_v<TNode<T>, TNode<Object>>,
+        "Parameter is only for tagged types. Use UncheckedParameter instead.");
+    std::stringstream message;
+    message << "Parameter " << value;
+    if (loc.FileName()) {
+      message << " at " << loc.FileName() << ":" << loc.Line();
+    }
+    size_t buf_size = message.str().size() + 1;
+    char* message_dup = zone()->AllocateArray<char>(buf_size);
+    snprintf(message_dup, buf_size, "%s", message.str().c_str());
+
+    return Cast(UntypedParameter(value), message_dup);
+  }
+
+  TNode<Context> GetJSContextParameter() {
+    return CAST(CodeAssembler::GetUntypedJSContextParameter());
+  }
+
+  // A specialized version of CallBuiltin for builtins with JS linkage.
+  // This for example takes care of computing and supplying the argument count.
+  template <class... TArgs>
+  TNode<Object> CallJSBuiltin(Builtin builtin, TNode<Context> context,
+                              TNode<Object> function,
+                              std::optional<TNode<Object>> new_target,
+                              TNode<Object> receiver, TArgs... args) {
+    return CAST(CodeAssembler::CallJSBuiltin(builtin, context, function,
+                                             new_target, receiver, args...));
+  }
+
+  // Call the given JavaScript callable through one of the JS Call builtins.
+  template <class... TArgs>
+  TNode<JSAny> CallJS(Builtin builtin, TNode<Context> context,
+                      TNode<Object> function, TNode<JSAny> receiver,
+                      TArgs... args) {
+    return CAST(
+        CodeAssembler::CallJS(builtin, context, function, receiver, args...));
+  }
+
+  // Construct the given JavaScript callable through a JS Construct builtin.
+  template <class... TArgs>
+  TNode<JSAny> ConstructJS(Builtin builtin, TNode<Context> context,
+                           TNode<Object> function, TNode<JSAny> new_target,
+                           TArgs... args) {
+    return CAST(CodeAssembler::ConstructJS(builtin, context, function,
+                                           new_target, args...));
+  }
 
   bool ToParameterConstant(TNode<Smi> node, intptr_t* out) {
     if (TryToIntPtrConstant(node, out)) {
@@ -625,7 +767,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GotoIfNotNumberOrUndefined(TNode<Object> value,
                                   Label* is_not_number_or_undefined);
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
-  void GotoIfNumber(TNode<Object> value, Label* is_number);
+  void GotoIfNumber(TNode<Object> value, Label* is_number,
+                    GotoHint hint = GotoHint::kNone);
   TNode<Number> SmiToNumber(TNode<Smi> v) { return v; }
 
   // BigInt operations.
@@ -821,6 +964,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Check a value for HeapObject-ness (for a heap object tag bit).
   TNode<BoolT> TaggedIsStrongHeapObject(TNode<MaybeObject> a);
   TNode<BoolT> TaggedIsNotStrongHeapObject(TNode<MaybeObject> a);
+
+  // Check a value for weak HeapObject-ness.
+  TNode<BoolT> TaggedIsWeakHeapObject(TNode<MaybeObject> a);
+  TNode<BoolT> TaggedIsNotWeakHeapObject(TNode<MaybeObject> a);
 
   // Check that the value is a non-negative smi.
   TNode<BoolT> TaggedIsPositiveSmi(TNode<Object> a);
@@ -2915,6 +3062,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSSharedStruct(TNode<HeapObject> object);
   TNode<BoolT> IsJSSharedStruct(TNode<Object> object);
   TNode<BoolT> IsJSWrappedFunction(TNode<HeapObject> object);
+  TNode<BoolT> IsBytecodeArray(TNode<HeapObject> object);
   TNode<BoolT> IsMap(TNode<HeapObject> object);
   TNode<BoolT> IsName(TNode<HeapObject> object);
   TNode<BoolT> IsNameInstanceType(TNode<Int32T> instance_type);
@@ -4794,6 +4942,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
  private:
   friend class CodeStubArguments;
+  template <typename T>
+  class InlineTypeCheck;
 
   void BigInt64Comparison(Operation op, TNode<Object>& left,
                           TNode<Object>& right, Label* return_true,
@@ -5148,6 +5298,109 @@ DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags)
   }
 UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(CLASS_MAP_CONSTANT_ADAPTER, _)
 #undef CLASS_MAP_CONSTANT_ADAPTER
+
+template <typename From>
+class CodeStubAssembler::InlineTypeCheck {
+ public:
+  static void Check(CodeStubAssembler* csa, compiler::Node* node, Label* ok) {
+    // No fast check, fall through to C++ check.
+  }
+};
+
+template <>
+class CodeStubAssembler::InlineTypeCheck<Smi> {
+ public:
+  template <typename From>
+  static void Check(CodeStubAssembler* csa, TNode<From> node, Label* ok) {
+    csa->GotoIf(csa->TaggedIsSmi(node), ok, GotoHint::kLabel);
+  }
+};
+
+template <>
+class CodeStubAssembler::InlineTypeCheck<Object> {
+ public:
+  template <typename From>
+  static void Check(CodeStubAssembler* csa, TNode<From> node, Label* ok) {
+    csa->GotoIf(csa->TaggedIsNotWeakHeapObject(node), ok, GotoHint::kLabel);
+  }
+};
+
+template <>
+class CodeStubAssembler::InlineTypeCheck<HeapObject> {
+ public:
+  template <typename From>
+  static void Check(CodeStubAssembler* csa, TNode<From> node, Label* ok) {
+    csa->GotoIf(csa->TaggedIsStrongHeapObject(node), ok, GotoHint::kLabel);
+  }
+};
+
+template <>
+class CodeStubAssembler::InlineTypeCheck<Number> {
+ public:
+  template <typename From>
+  static void Check(CodeStubAssembler* csa, TNode<From> node, Label* ok) {
+    Label not_ok(csa);
+    if constexpr (is_subtype_v<Smi, From>) {
+      csa->GotoIf(csa->TaggedIsSmi(node), ok, GotoHint::kLabel);
+    }
+    if constexpr (is_subtype_v<MaybeWeak<HeapObject>, From>) {
+      csa->GotoIfNot(csa->TaggedIsStrongHeapObject(node), &not_ok,
+                     GotoHint::kFallthrough);
+    }
+    csa->Branch(csa->IsHeapNumber(csa->UncheckedCast<HeapObject>(node)), ok,
+                &not_ok, BranchHint::kTrue);
+    csa->BIND(&not_ok);
+  }
+};
+
+template <>
+class CodeStubAssembler::InlineTypeCheck<Map> {
+ public:
+  template <typename From>
+  static void Check(CodeStubAssembler* csa, TNode<From> node, Label* ok) {
+    Label not_ok(csa);
+    if constexpr (!is_subtype_v<From, HeapObject>) {
+      csa->GotoIfNot(csa->TaggedIsStrongHeapObject(node), &not_ok,
+                     GotoHint::kFallthrough);
+    }
+
+    // Maps can't be trivially tested for, since the load of their map also
+    // needs testing. Assume that their map is a map to avoid the recursion.
+    TNode<Map> node_map = csa->UncheckedCast<Map>(csa->LoadObjectField(
+        csa->UncheckedCast<HeapObject>(node), HeapObject::kMapOffset));
+
+    csa->Branch(
+        csa->InstanceTypeEqual(csa->LoadMapInstanceType(node_map), MAP_TYPE),
+        ok, &not_ok, BranchHint::kTrue);
+    csa->BIND(&not_ok);
+  }
+};
+
+#define SIMPLE_INLINE_TYPE_CHECK(Type)                                       \
+  template <>                                                                \
+  class CodeStubAssembler::InlineTypeCheck<Type> {                           \
+   public:                                                                   \
+    template <typename From>                                                 \
+    static void Check(CodeStubAssembler* csa, TNode<From> node, Label* ok) { \
+      Label not_ok(csa);                                                     \
+      if constexpr (!is_subtype_v<From, HeapObject>) {                       \
+        csa->GotoIfNot(csa->TaggedIsStrongHeapObject(node), &not_ok,         \
+                       GotoHint::kFallthrough);                              \
+      }                                                                      \
+      csa->Branch(csa->Is##Type(csa->UncheckedCast<HeapObject>(node)), ok,   \
+                  &not_ok, BranchHint::kTrue);                               \
+      csa->BIND(&not_ok);                                                    \
+    }                                                                        \
+  };
+
+SIMPLE_INLINE_TYPE_CHECK(FeedbackVector)
+SIMPLE_INLINE_TYPE_CHECK(Context)
+SIMPLE_INLINE_TYPE_CHECK(BytecodeArray)
+SIMPLE_INLINE_TYPE_CHECK(JSObject)
+SIMPLE_INLINE_TYPE_CHECK(String)
+SIMPLE_INLINE_TYPE_CHECK(HeapNumber)
+
+#undef SIMPLE_INLINE_TYPE_CHECK
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 

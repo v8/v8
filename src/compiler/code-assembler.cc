@@ -504,10 +504,10 @@ bool CodeAssembler::IsJSFunctionCall() const {
   return call_descriptor->IsJSFunctionCall();
 }
 
-TNode<Context> CodeAssembler::GetJSContextParameter() {
+Node* CodeAssembler::GetUntypedJSContextParameter() {
   auto call_descriptor = raw_assembler()->call_descriptor();
   DCHECK(call_descriptor->IsJSFunctionCall());
-  return Parameter<Context>(Linkage::GetJSCallContextParamIndex(
+  return UntypedParameter(Linkage::GetJSCallContextParamIndex(
       static_cast<int>(call_descriptor->JSParameterCount())));
 }
 
@@ -1198,7 +1198,7 @@ void CodeAssembler::HandleException(Node* node) {
   Bind(&exception);
   const Operator* op = raw_assembler()->common()->IfException();
   Node* exception_value = raw_assembler()->AddNode(op, node, node);
-  label->AddInputs({CAST(exception_value)});
+  label->AddInputs({UncheckedCast<JSAny>(exception_value)});
   Goto(label->plain_label());
 
   Bind(&success);
