@@ -3828,25 +3828,6 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                           factory->numberingSystem_string(),
                           Builtin::kLocalePrototypeNumberingSystem, kAdapt);
 
-      if (!v8_flags.harmony_remove_intl_locale_info_getters) {
-        // Intl Locale Info functions
-        SimpleInstallGetter(isolate(), prototype, factory->calendars_string(),
-                            Builtin::kLocalePrototypeCalendars, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->collations_string(),
-                            Builtin::kLocalePrototypeCollations, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->hourCycles_string(),
-                            Builtin::kLocalePrototypeHourCycles, kAdapt);
-        SimpleInstallGetter(isolate(), prototype,
-                            factory->numberingSystems_string(),
-                            Builtin::kLocalePrototypeNumberingSystems, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->textInfo_string(),
-                            Builtin::kLocalePrototypeTextInfo, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->timeZones_string(),
-                            Builtin::kLocalePrototypeTimeZones, kAdapt);
-        SimpleInstallGetter(isolate(), prototype, factory->weekInfo_string(),
-                            Builtin::kLocalePrototypeWeekInfo, kAdapt);
-      }
-
       SimpleInstallFunction(isolate(), prototype, "getCalendars",
                             Builtin::kLocalePrototypeGetCalendars, 0,
                             kDontAdapt);
@@ -5501,7 +5482,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_decorators)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_remove_intl_locale_info_getters)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE

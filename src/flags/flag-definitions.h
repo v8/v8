@@ -350,10 +350,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_upsert, "upsert")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                  \
-  HARMONY_SHIPPING_BASE(V)                   \
-  V(harmony_remove_intl_locale_info_getters, \
-    "Remove Obsoleted Intl Locale Info getters")
+#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)

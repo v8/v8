@@ -2143,14 +2143,10 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(LocalePrototypeBaseName, JSParameterCount(0))                            \
   /* ecma402 #sec-Intl.Locale.prototype.calendar */                            \
   CPP(LocalePrototypeCalendar, JSParameterCount(0))                            \
-  /* ecma402 #sec-Intl.Locale.prototype.calendars */                           \
-  CPP(LocalePrototypeCalendars, JSParameterCount(0))                           \
   /* ecma402 #sec-Intl.Locale.prototype.caseFirst */                           \
   CPP(LocalePrototypeCaseFirst, JSParameterCount(0))                           \
   /* ecma402 #sec-Intl.Locale.prototype.collation */                           \
   CPP(LocalePrototypeCollation, JSParameterCount(0))                           \
-  /* ecma402 #sec-Intl.Locale.prototype.collations */                          \
-  CPP(LocalePrototypeCollations, JSParameterCount(0))                          \
   /* ecma402 #sec-Intl.Locale.prototype.firstDayOfWeek */                      \
   CPP(LocalePrototypeFirstDayOfWeek, JSParameterCount(0))                      \
   /* ecma402 #sec-Intl.Locale.prototype.getCalendars */                        \
@@ -2169,8 +2165,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(LocalePrototypeGetWeekInfo, kDontAdaptArgumentsSentinel)                 \
   /* ecma402 #sec-Intl.Locale.prototype.hourCycle */                           \
   CPP(LocalePrototypeHourCycle, JSParameterCount(0))                           \
-  /* ecma402 #sec-Intl.Locale.prototype.hourCycles */                          \
-  CPP(LocalePrototypeHourCycles, JSParameterCount(0))                          \
   /* ecma402 #sec-Intl.Locale.prototype.language */                            \
   CPP(LocalePrototypeLanguage, JSParameterCount(0))                            \
   /* ecma402 #sec-Intl.Locale.prototype.maximize */                            \
@@ -2181,22 +2175,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(LocalePrototypeNumeric, JSParameterCount(0))                             \
   /* ecma402 #sec-Intl.Locale.prototype.numberingSystem */                     \
   CPP(LocalePrototypeNumberingSystem, JSParameterCount(0))                     \
-  /* ecma402 #sec-Intl.Locale.prototype.numberingSystems */                    \
-  CPP(LocalePrototypeNumberingSystems, JSParameterCount(0))                    \
   /* ecma402 #sec-Intl.Locale.prototype.region */                              \
   CPP(LocalePrototypeRegion, JSParameterCount(0))                              \
   /* ecma402 #sec-Intl.Locale.prototype.script */                              \
   CPP(LocalePrototypeScript, JSParameterCount(0))                              \
-  /* ecma402 #sec-Intl.Locale.prototype.textInfo */                            \
-  CPP(LocalePrototypeTextInfo, JSParameterCount(0))                            \
-  /* ecma402 #sec-Intl.Locale.prototype.timezones */                           \
-  CPP(LocalePrototypeTimeZones, JSParameterCount(0))                           \
   /* ecma402 #sec-Intl.Locale.prototype.toString */                            \
   CPP(LocalePrototypeToString, kDontAdaptArgumentsSentinel)                    \
   /* ecma402 #sec-Intl.Locale.prototype.variants */                            \
   CPP(LocalePrototypeVariants, JSParameterCount(0))                            \
-  /* ecma402 #sec-Intl.Locale.prototype.weekInfo */                            \
-  CPP(LocalePrototypeWeekInfo, JSParameterCount(0))                            \
   /* ecma402 #sec-intl.numberformat */                                         \
   CPP(NumberFormatConstructor, kDontAdaptArgumentsSentinel)                    \
   /* ecma402 #sec-number-format-functions */                                   \

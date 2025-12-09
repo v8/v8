@@ -937,10 +937,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kLocaleConstructor:
     case Builtin::kLocalePrototypeBaseName:
     case Builtin::kLocalePrototypeCalendar:
-    case Builtin::kLocalePrototypeCalendars:
     case Builtin::kLocalePrototypeCaseFirst:
     case Builtin::kLocalePrototypeCollation:
-    case Builtin::kLocalePrototypeCollations:
     case Builtin::kLocalePrototypeFirstDayOfWeek:
     case Builtin::kLocalePrototypeGetCalendars:
     case Builtin::kLocalePrototypeGetCollations:
@@ -950,20 +948,15 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kLocalePrototypeGetTimeZones:
     case Builtin::kLocalePrototypeGetWeekInfo:
     case Builtin::kLocalePrototypeHourCycle:
-    case Builtin::kLocalePrototypeHourCycles:
     case Builtin::kLocalePrototypeLanguage:
     case Builtin::kLocalePrototypeMaximize:
     case Builtin::kLocalePrototypeMinimize:
     case Builtin::kLocalePrototypeNumeric:
     case Builtin::kLocalePrototypeNumberingSystem:
-    case Builtin::kLocalePrototypeNumberingSystems:
     case Builtin::kLocalePrototypeRegion:
     case Builtin::kLocalePrototypeScript:
-    case Builtin::kLocalePrototypeTextInfo:
-    case Builtin::kLocalePrototypeTimeZones:
     case Builtin::kLocalePrototypeToString:
     case Builtin::kLocalePrototypeVariants:
-    case Builtin::kLocalePrototypeWeekInfo:
     // Intl.NumberFormat builtins.
     case Builtin::kNumberFormatConstructor:
     case Builtin::kNumberFormatInternalFormatNumber:
