@@ -2380,14 +2380,13 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
-  int visited_frames = 0;
   bool ignore_next_frame = false;
-  for (StackFrameIterator iter(this, thread_local_top());;
-       iter.Advance(), visited_frames++) {
+  for (StackFrameIterator iter(this, thread_local_top());; iter.Advance()) {
     if (ignore_next_frame) {
       ignore_next_frame = false;
       continue;
     }
+    int visited_frames = iter.frame()->iteration_depth();
 #if V8_ENABLE_WEBASSEMBLY
     if (iter.frame()->type() == StackFrame::WASM_JSPI) {
       if (catchable_by_js && iter.frame()->LookupCode()->builtin_id() !=

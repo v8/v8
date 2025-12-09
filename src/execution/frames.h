@@ -183,6 +183,9 @@ class StackFrame {
     Address* constant_pool_address = nullptr;
     bool is_profiler_entry_frame = false;
     bool is_stack_exit_frame = false;
+    // The iteration depth of StackFrameIterator,
+    // see StackFrameIterator::Advance.
+    uint32_t iteration_depth = 0;
   };
 
   // Convert a stack frame type to a marker that can be stored on the stack.
@@ -298,6 +301,7 @@ class StackFrame {
   Address callee_fp() const { return state_.callee_fp; }
   Address callee_pc() const { return state_.callee_pc; }
   Address caller_sp() const { return GetCallerStackPointer(); }
+  uint32_t iteration_depth() const { return state_.iteration_depth; }
   inline Address pc() const;
   bool is_profiler_entry_frame() const {
     return state_.is_profiler_entry_frame;

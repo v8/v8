@@ -182,6 +182,7 @@ void StackFrameIterator::Advance() {
   // handler and the value of any callee-saved register if needed.
   StackFrame::State state;
   StackFrame::Type type;
+  state.iteration_depth = frame_->iteration_depth() + 1;
 #if V8_ENABLE_WEBASSEMBLY
   if (((frame_->type() == StackFrame::WASM_JSPI &&
         Memory<Address>(frame_->fp() +
