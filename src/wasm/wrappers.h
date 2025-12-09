@@ -124,15 +124,19 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   template <typename Descriptor, typename... Args>
   OpIndex CallBuiltin(Builtin name, OpIndex frame_state,
-                      Operator::Properties properties, Args... args) {
+                      Operator::Properties properties,
+                      compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
+                      Args... args) {
     auto call_descriptor = compiler::Linkage::GetStubCallDescriptor(
         __ graph_zone(), Descriptor(), 0,
         frame_state.valid() ? CallDescriptor::kNeedsFrameState
                             : CallDescriptor::kNoFlags,
         Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
+    compiler::CanThrow can_throw = (properties & Operator::kNoThrow)
+                                       ? compiler::CanThrow::kNo
+                                       : compiler::CanThrow::kYes;
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        call_descriptor, can_throw, lazy_deopt_on_throw, __ graph_zone());
     V<WordPtr> call_target = GetTargetForBuiltinCall(name);
     return __ Call(call_target, frame_state, base::VectorOf({args...}),
                    ts_call_descriptor);
@@ -144,9 +148,12 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     auto call_descriptor = compiler::Linkage::GetStubCallDescriptor(
         __ graph_zone(), Descriptor(), 0, CallDescriptor::kNoFlags,
         Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
+    compiler::CanThrow can_throw = (properties & Operator::kNoThrow)
+                                       ? compiler::CanThrow::kNo
+                                       : compiler::CanThrow::kYes;
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        call_descriptor, can_throw, compiler::LazyDeoptOnThrow::kNo,
+        __ graph_zone());
     V<WordPtr> call_target = GetTargetForBuiltinCall(name);
     return __ Call(call_target, {args...}, ts_call_descriptor);
   }
@@ -264,7 +271,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   V<Float32> BuildChangeTaggedToFloat32(
       OpIndex value, OpIndex context,
-      compiler::turboshaft::OptionalOpIndex frame_state) {
+      compiler::turboshaft::OptionalOpIndex frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
     ScopedVar<Float32> result(this, OpIndex::Invalid());
     // The builtin below does handle both the Smi and HeapNumber case as
     // well, but it's good to have a fast path that doesn't require a call.
@@ -286,7 +294,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
             frame_state.valid()
                 ? CallBuiltin<WasmTaggedToFloat64Descriptor>(
                       Builtin::kWasmTaggedToFloat64, frame_state.value(),
-                      Operator::kNoProperties, value, context)
+                      Operator::kNoProperties, lazy_deopt_on_throw, value,
+                      context)
                 : CallBuiltin<WasmTaggedToFloat64Descriptor>(
                       Builtin::kWasmTaggedToFloat64, Operator::kNoProperties,
                       value, context));
@@ -300,7 +309,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   V<Float64> BuildChangeTaggedToFloat64(
       OpIndex value, OpIndex context,
-      compiler::turboshaft::OptionalOpIndex frame_state) {
+      compiler::turboshaft::OptionalOpIndex frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
     ScopedVar<Float64> result(this, OpIndex::Invalid());
     // The builtin below does handle both the Smi and HeapNumber case as
     // well, but it's good to have a fast path that doesn't require a call.
@@ -316,7 +326,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
         result = frame_state.valid()
                      ? CallBuiltin<WasmTaggedToFloat64Descriptor>(
                            Builtin::kWasmTaggedToFloat64, frame_state.value(),
-                           Operator::kNoProperties, value, context)
+                           Operator::kNoProperties, lazy_deopt_on_throw, value,
+                           context)
                      : CallBuiltin<WasmTaggedToFloat64Descriptor>(
                            Builtin::kWasmTaggedToFloat64,
                            Operator::kNoProperties, value, context);
@@ -330,17 +341,19 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   OpIndex BuildChangeTaggedToInt32(
       OpIndex value, OpIndex context,
-      compiler::turboshaft::OptionalOpIndex frame_state) {
+      compiler::turboshaft::OptionalOpIndex frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
     // We expect most integers at runtime to be Smis, so it is important for
     // wrapper performance that Smi conversion be inlined.
     ScopedVar<Word32> result(this, OpIndex::Invalid());
     IF (LIKELY(__ IsSmi(value))) {
       result = BuildChangeSmiToInt32(value);
-    } ELSE{
+    } ELSE {
       result = frame_state.valid()
                    ? CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
                          Builtin::kWasmTaggedNonSmiToInt32, frame_state.value(),
-                         Operator::kNoProperties, value, context)
+                         Operator::kNoProperties, lazy_deopt_on_throw, value,
+                         context)
                    : CallBuiltin<WasmTaggedNonSmiToInt32Descriptor>(
                          Builtin::kWasmTaggedNonSmiToInt32,
                          Operator::kNoProperties, value, context);
@@ -359,7 +372,8 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 
   OpIndex BuildChangeBigIntToInt64(
       OpIndex input, OpIndex context,
-      compiler::turboshaft::OptionalOpIndex frame_state) {
+      compiler::turboshaft::OptionalOpIndex frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
     OpIndex target;
     if (Is64()) {
       target = GetTargetForBuiltinCall(Builtin::kBigIntToI64);
@@ -373,8 +387,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
     CallDescriptor* call_descriptor =
         GetBigIntToI64CallDescriptor(frame_state.valid());
     const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo,
-        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+        call_descriptor, compiler::CanThrow::kYes,
+        frame_state.valid() ? lazy_deopt_on_throw
+                            : compiler::LazyDeoptOnThrow::kNo,
+        __ graph_zone());
     return frame_state.valid()
                ? __ Call(target, frame_state.value(),
                          base::VectorOf({input, context}), ts_call_descriptor)
@@ -383,20 +399,26 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
 #endif
 
   OpIndex FromJS(V<Object> input, OpIndex context, CanonicalValueType type,
-                 OptionalOpIndex frame_state = {}) {
+                 OptionalOpIndex frame_state = {},
+                 compiler::LazyDeoptOnThrow lazy_deopt_on_throw =
+                     compiler::LazyDeoptOnThrow::kNo) {
     if (type.is_numeric()) {
       switch (type.numeric_kind()) {
         case NumericKind::kI32:
-          return BuildChangeTaggedToInt32(input, context, frame_state);
+          return BuildChangeTaggedToInt32(input, context, frame_state,
+                                          lazy_deopt_on_throw);
         case NumericKind::kI64:
 #ifdef V8_ENABLE_TURBOFAN
           // i64 values can only come from BigInt.
-          return BuildChangeBigIntToInt64(input, context, frame_state);
+          return BuildChangeBigIntToInt64(input, context, frame_state,
+                                          lazy_deopt_on_throw);
 #endif
         case NumericKind::kF32:
-          return BuildChangeTaggedToFloat32(input, context, frame_state);
+          return BuildChangeTaggedToFloat32(input, context, frame_state,
+                                            lazy_deopt_on_throw);
         case NumericKind::kF64:
-          return BuildChangeTaggedToFloat64(input, context, frame_state);
+          return BuildChangeTaggedToFloat64(input, context, frame_state,
+                                            lazy_deopt_on_throw);
         case NumericKind::kS128:
         case NumericKind::kI8:
         case NumericKind::kI16:
