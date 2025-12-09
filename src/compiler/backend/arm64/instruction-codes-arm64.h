@@ -57,18 +57,14 @@ namespace compiler {
 #define TARGET_ARCH_SIMD_OPCODE_LIST(V) \
   V(Arm64Ffma)                          \
   V(Arm64Ffms)                          \
-  V(Arm64F64x2Pmin)                     \
-  V(Arm64F64x2Pmax)                     \
+  V(Arm64Pmin)                          \
+  V(Arm64Pmax)                          \
   V(Arm64F64x2ConvertLowI32x4S)         \
   V(Arm64F64x2ConvertLowI32x4U)         \
   V(Arm64F64x2PromoteLowF32x4)          \
   V(Arm64F32x4SConvertI32x4)            \
   V(Arm64F32x4UConvertI32x4)            \
-  V(Arm64F32x4Pmin)                     \
-  V(Arm64F32x4Pmax)                     \
   V(Arm64F32x4DemoteF64x2Zero)          \
-  V(Arm64F16x8Pmin)                     \
-  V(Arm64F16x8Pmax)                     \
   V(Arm64F32x4PromoteLowF16x8)          \
   V(Arm64F16x8SConvertI16x8)            \
   V(Arm64F16x8UConvertI16x8)            \
@@ -120,10 +116,7 @@ namespace compiler {
   V(Arm64S32x4OneLaneSwizzle)           \
   V(Arm64S128MoveLane)                  \
   V(Arm64V128AnyTrue)                   \
-  V(Arm64I64x2AllTrue)                  \
-  V(Arm64I32x4AllTrue)                  \
-  V(Arm64I16x8AllTrue)                  \
-  V(Arm64I8x16AllTrue)                  \
+  V(Arm64AllTrue)                       \
   V(Arm64Sxtl)                          \
   V(Arm64Sxtl2)                         \
   V(Arm64Uxtl)                          \

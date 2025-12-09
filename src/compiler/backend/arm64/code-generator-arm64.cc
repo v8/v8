@@ -3068,10 +3068,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1).Format(format));
       break;
     }
-    case kArm64F64x2Pmin: {
-      VRegister dst = i.OutputSimd128Register().V2D();
-      VRegister lhs = i.InputSimd128Register(0).V2D();
-      VRegister rhs = i.InputSimd128Register(1).V2D();
+    case kArm64Pmin: {
+      VectorFormat format = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VRegister dst = i.OutputSimd128Register().Format(format);
+      VRegister lhs = i.InputSimd128Register(0).Format(format);
+      VRegister rhs = i.InputSimd128Register(1).Format(format);
       // f64x2.pmin(lhs, rhs)
       // = v128.bitselect(rhs, lhs, f64x2.lt(rhs,lhs))
       // = v128.bitselect(rhs, lhs, f64x2.gt(lhs,rhs))
@@ -3079,10 +3080,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
       break;
     }
-    case kArm64F64x2Pmax: {
-      VRegister dst = i.OutputSimd128Register().V2D();
-      VRegister lhs = i.InputSimd128Register(0).V2D();
-      VRegister rhs = i.InputSimd128Register(1).V2D();
+    case kArm64Pmax: {
+      VectorFormat format = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      // 64:
+      VRegister dst = i.OutputSimd128Register().Format(format);
+      VRegister lhs = i.InputSimd128Register(0).Format(format);
+      VRegister rhs = i.InputSimd128Register(1).Format(format);
       // f64x2.pmax(lhs, rhs)
       // = v128.bitselect(rhs, lhs, f64x2.gt(rhs, lhs))
       __ Fcmgt(dst, rhs, lhs);
@@ -3098,48 +3101,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fmul(i.OutputSimd128Register().Format(v_f),
               i.InputSimd128Register(0).Format(v_f),
               i.InputSimd128Register(1).Format(s_f), i.InputInt8(2));
-      break;
-    }
-    case kArm64F32x4Pmin: {
-      VRegister dst = i.OutputSimd128Register().V4S();
-      VRegister lhs = i.InputSimd128Register(0).V4S();
-      VRegister rhs = i.InputSimd128Register(1).V4S();
-      // f32x4.pmin(lhs, rhs)
-      // = v128.bitselect(rhs, lhs, f32x4.lt(rhs, lhs))
-      // = v128.bitselect(rhs, lhs, f32x4.gt(lhs, rhs))
-      __ Fcmgt(dst, lhs, rhs);
-      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
-      break;
-    }
-    case kArm64F32x4Pmax: {
-      VRegister dst = i.OutputSimd128Register().V4S();
-      VRegister lhs = i.InputSimd128Register(0).V4S();
-      VRegister rhs = i.InputSimd128Register(1).V4S();
-      // f32x4.pmax(lhs, rhs)
-      // = v128.bitselect(rhs, lhs, f32x4.gt(rhs, lhs))
-      __ Fcmgt(dst, rhs, lhs);
-      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
-      break;
-    }
-    case kArm64F16x8Pmin: {
-      VRegister dst = i.OutputSimd128Register().V8H();
-      VRegister lhs = i.InputSimd128Register(0).V8H();
-      VRegister rhs = i.InputSimd128Register(1).V8H();
-      // f16x8.pmin(lhs, rhs)
-      // = v128.bitselect(rhs, lhs, f16x8.lt(rhs, lhs))
-      // = v128.bitselect(rhs, lhs, f16x8.gt(lhs, rhs))
-      __ Fcmgt(dst, lhs, rhs);
-      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
-      break;
-    }
-    case kArm64F16x8Pmax: {
-      VRegister dst = i.OutputSimd128Register().V8H();
-      VRegister lhs = i.InputSimd128Register(0).V8H();
-      VRegister rhs = i.InputSimd128Register(1).V8H();
-      // f16x8.pmax(lhs, rhs)
-      // = v128.bitselect(rhs, lhs, f16x8.gt(rhs, lhs))
-      __ Fcmgt(dst, rhs, lhs);
-      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
       break;
     }
     case kArm64IExtractLane: {
@@ -3835,10 +3796,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.OutputSimd128Register(1).Format(f), i.MemoryOperand(0));
       break;
     }
-    case kArm64I64x2AllTrue: {
-      __ I64x2AllTrue(i.OutputRegister32(), i.InputSimd128Register(0));
-      break;
-    }
     case kArm64V128AnyTrue: {
       UseScratchRegisterScope scope(masm());
       // For AnyTrue, the format does not matter; also, we would like to avoid
@@ -3872,19 +3829,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, to, src1, from);
       break;
     }
-#define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \
-  case Op: {                                               \
-    UseScratchRegisterScope scope(masm());                 \
-    VRegister temp = scope.AcquireV(format);               \
-    __ Instr(temp, i.InputSimd128Register(0).V##FORMAT()); \
-    __ Umov(i.OutputRegister32(), temp, 0);                \
-    __ Cmp(i.OutputRegister32(), 0);                       \
-    __ Cset(i.OutputRegister32(), ne);                     \
-    break;                                                 \
-  }
-      SIMD_REDUCE_OP_CASE(kArm64I32x4AllTrue, Uminv, kFormatS, 4S);
-      SIMD_REDUCE_OP_CASE(kArm64I16x8AllTrue, Uminv, kFormatH, 8H);
-      SIMD_REDUCE_OP_CASE(kArm64I8x16AllTrue, Uminv, kFormatB, 16B);
+    case kArm64AllTrue: {
+      int lane_size = LaneSizeField::decode(opcode);
+      if (lane_size == 64) {
+        __ I64x2AllTrue(i.OutputRegister32(), i.InputSimd128Register(0));
+      } else {
+        VectorFormat format = VectorFormatFillQ(lane_size);
+        UseScratchRegisterScope scope(masm());
+        VRegister temp = scope.AcquireV(ScalarFormatFromLaneSize(lane_size));
+        __ Uminv(temp, i.InputSimd128Register(0).Format(format));
+        __ Umov(i.OutputRegister32(), temp, 0);
+        __ Cmp(i.OutputRegister32(), 0);
+        __ Cset(i.OutputRegister32(), ne);
+      }
+      break;
+    }
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return kSuccess;

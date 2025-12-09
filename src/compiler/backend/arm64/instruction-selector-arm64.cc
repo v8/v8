@@ -4722,11 +4722,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(I32x4RelaxedTruncF64x2UZero, kArm64I32x4TruncSatF64x2UZero) \
   V(I16x8BitMask, kArm64I16x8BitMask)                           \
   V(S128Not, kArm64S128Not)                                     \
-  V(V128AnyTrue, kArm64V128AnyTrue)                             \
-  V(I64x2AllTrue, kArm64I64x2AllTrue)                           \
-  V(I32x4AllTrue, kArm64I32x4AllTrue)                           \
-  V(I16x8AllTrue, kArm64I16x8AllTrue)                           \
-  V(I8x16AllTrue, kArm64I8x16AllTrue)
+  V(V128AnyTrue, kArm64V128AnyTrue)
 
 #define SIMD_UNOP_LANE_SIZE_LIST(V) \
   V(F64x2Splat, kArm64FSplat, 64)   \
@@ -4829,6 +4825,17 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   V(I8x16MaxS, kArm64IMaxS, 8)                         \
   V(I8x16MinU, kArm64IMinU, 8)                         \
   V(I8x16MaxU, kArm64IMaxU, 8)
+
+#define SIMD_VISIT_ALLTRUE(Name, lane_size)                                \
+  void InstructionSelector::Visit##Name(OpIndex node) {                    \
+    VisitRR(this, kArm64AllTrue | LaneSizeField::encode(lane_size), node); \
+  }
+
+SIMD_VISIT_ALLTRUE(I64x2AllTrue, 64)
+SIMD_VISIT_ALLTRUE(I32x4AllTrue, 32)
+SIMD_VISIT_ALLTRUE(I16x8AllTrue, 16)
+SIMD_VISIT_ALLTRUE(I8x16AllTrue, 8)
+#undef SIMD_VISIT_ALLTRUE
 
 void InstructionSelector::VisitS128Const(OpIndex node) {
   Arm64OperandGenerator g(this);
@@ -6274,39 +6281,39 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(OpIndex node) {
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 void VisitPminOrPmax(InstructionSelector* selector, ArchOpcode opcode,
-                     OpIndex node) {
+                     OpIndex node, int lane_size) {
   Arm64OperandGenerator g(selector);
   const Simd128BinopOp& op = selector->Cast<Simd128BinopOp>(node);
   // Need all unique registers because we first compare the two inputs, then
   // we need the inputs to remain unchanged for the bitselect later.
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseUniqueRegister(op.left()),
+  selector->Emit(opcode | LaneSizeField::encode(lane_size),
+                 g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
                  g.UseUniqueRegister(op.right()));
 }
 }  // namespace
 
 void InstructionSelector::VisitF16x8Pmin(OpIndex node) {
-  VisitPminOrPmax(this, kArm64F16x8Pmin, node);
+  VisitPminOrPmax(this, kArm64Pmin, node, 16);
 }
 
 void InstructionSelector::VisitF16x8Pmax(OpIndex node) {
-  VisitPminOrPmax(this, kArm64F16x8Pmax, node);
+  VisitPminOrPmax(this, kArm64Pmax, node, 16);
 }
 
 void InstructionSelector::VisitF32x4Pmin(OpIndex node) {
-  VisitPminOrPmax(this, kArm64F32x4Pmin, node);
+  VisitPminOrPmax(this, kArm64Pmin, node, 32);
 }
 
 void InstructionSelector::VisitF32x4Pmax(OpIndex node) {
-  VisitPminOrPmax(this, kArm64F32x4Pmax, node);
+  VisitPminOrPmax(this, kArm64Pmax, node, 32);
 }
 
 void InstructionSelector::VisitF64x2Pmin(OpIndex node) {
-  VisitPminOrPmax(this, kArm64F64x2Pmin, node);
+  VisitPminOrPmax(this, kArm64Pmin, node, 64);
 }
 
 void InstructionSelector::VisitF64x2Pmax(OpIndex node) {
-  VisitPminOrPmax(this, kArm64F64x2Pmax, node);
+  VisitPminOrPmax(this, kArm64Pmax, node, 64);
 }
 
 namespace {
