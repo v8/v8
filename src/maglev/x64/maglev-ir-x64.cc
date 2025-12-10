@@ -93,7 +93,12 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
 
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
   UseRegister(IndexInput());
-  UseRegister(ByteLengthInput());
+  int element_size = compiler::ExternalArrayElementSize(element_type_);
+  if (element_size > 1) {
+    UseAndClobberRegister(ByteLengthInput());
+  } else {
+    UseRegister(ByteLengthInput());
+  }
 }
 
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
