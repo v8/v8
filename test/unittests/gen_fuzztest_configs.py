@@ -38,7 +38,8 @@ MIN_FUZZTESTS = 2
 MAX_FUZZTESTS = 100
 
 WRAPPER_HEADER = """
-#!/bin/sh
+#!/bin/bash
+
 BINARY_DIR="$(cd "${{0%/*}}"/..; pwd)"
 cd $BINARY_DIR
 """.strip()

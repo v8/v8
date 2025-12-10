@@ -101,7 +101,8 @@ class TestFullRun(fake_filesystem_unittest.TestCase):
                        f.read())
 
     expected_wrapper = dedent("""\
-      #!/bin/sh
+      #!/bin/bash
+
       BINARY_DIR="$(cd "${0%/*}"/..; pwd)"
       cd $BINARY_DIR
       # Normal fuzzing.
