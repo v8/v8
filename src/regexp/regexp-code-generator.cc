@@ -83,9 +83,6 @@ auto RegExpCodeGenerator::GetArgumentValuesAsTuple() {
 #define VISIT_COMMENT(bc)
 #endif
 
-#define FIRST_ARG(arg1, ...) arg1
-#define IS_VA_EMPTY(...) FIRST_ARG(__VA_OPT__(0, ) 1)
-
 #define VISIT(Name) \
   template <>       \
   void RegExpCodeGenerator::Visit<RegExpBytecode::k##Name>()
@@ -100,10 +97,10 @@ auto RegExpCodeGenerator::GetArgumentValuesAsTuple() {
                            "Number of arguments to VISIT doesn't match the " \
                            "bytecodes operands count");                      \
              auto [__VA_ARGS__] = argument_tuple;)                           \
-  static_assert((IS_VA_EMPTY(__VA_ARGS__) == 1) ==                           \
-                    (Operands::kCountWithoutPadding == 0),                   \
-                "Number of arguments to VISIT doesn't match the bytecodes "  \
-                "operands count")
+  static_assert(                                                             \
+      (IS_VA_EMPTY(__VA_ARGS__)) == (Operands::kCountWithoutPadding == 0),   \
+      "Number of arguments to VISIT doesn't match the bytecodes "            \
+      "operands count")
 
 // Basic Bytecodes
 
@@ -113,8 +110,8 @@ VISIT(PushCurrentPosition) {
 }
 
 VISIT(PushBacktrack) {
-  INIT(PushBacktrack, on_bt_pushed);
-  __ PushBacktrack(on_bt_pushed);
+  INIT(PushBacktrack, label);
+  __ PushBacktrack(label);
 }
 
 VISIT(WriteCurrentPositionToRegister) {

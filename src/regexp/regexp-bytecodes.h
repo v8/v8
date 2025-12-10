@@ -84,7 +84,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
 // Format: V(CamelName, (OperandNames...), (OperandTypes...))
 #define BASIC_BYTECODE_LIST(V)                                                 \
   V(PushCurrentPosition, (), ())                                               \
-  V(PushBacktrack, (on_bt_pushed), (ReBcOpType::kJumpTarget))                  \
+  V(PushBacktrack, (label), (ReBcOpType::kJumpTarget))                         \
   V(WriteCurrentPositionToRegister, (register_index, cp_offset),               \
     (ReBcOpType::kRegister, ReBcOpType::kOffset32))                            \
   V(ReadCurrentPositionFromRegister, (register_index),                         \

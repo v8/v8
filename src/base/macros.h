@@ -41,6 +41,9 @@
 #define GET_NTH_ARG_IMPL_6(_0, _1, _2, _3, _4, _5, _6, ...) _6
 #define GET_NTH_ARG_IMPL_7(_0, _1, _2, _3, _4, _5, _6, _7, ...) _7
 
+// Expands to true if __VA_ARGS__ is empty, false otherwise.
+#define IS_VA_EMPTY(...) GET_NTH_ARG(0, __VA_OPT__(false, ) true)
+
 // UNPAREN(x) removes a layer of nested parentheses on x, if any. This means
 // that both UNPAREN(x) and UNPAREN((x)) expand to x. This is helpful for macros
 // that want to support multi argument templates with commas, e.g.
