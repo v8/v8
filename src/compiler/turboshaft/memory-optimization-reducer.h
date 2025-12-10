@@ -310,7 +310,7 @@ class MemoryOptimizationReducer : public Next {
         }
         static_assert(std::is_same_v<Smi, BuiltinPtr>,
                       "BuiltinPtr must be Smi");
-        allocate_builtin = __ NumberConstant(static_cast<int>(builtin));
+        allocate_builtin = __ SmiConstant(Smi::FromEnum(builtin));
       } else {
         if (type == AllocationType::kYoung) {
           allocate_builtin =

@@ -1144,6 +1144,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFJ(StringPrototypeSplit, kDontAdaptArgumentsSentinel)                       \
   /* ES6 #sec-string.raw */                                                    \
   CPP(StringRaw, kDontAdaptArgumentsSentinel)                                  \
+  IF_TSA(TFC_TSA, IGNORE_BUILTIN, ToString, ToString)                          \
                                                                                \
   /* Symbol */                                                                 \
   /* ES #sec-symbol-constructor */                                             \

@@ -94,6 +94,12 @@ template <TYPENAME1... Ts, TYPENAME1 Element>
 struct contains_impl1<list1<Ts...>, Element>
     : std::bool_constant<(equals1<Ts, Element>::value || ...)> {};
 
+template <typename List, template <typename> typename P>
+struct all_of_impl;
+template <typename... Ts, template <typename> typename P>
+struct all_of_impl<list<Ts...>, P> : std::bool_constant<(P<Ts>::value && ...)> {
+};
+
 template <typename List, template <typename, typename> typename Cmp>
 struct all_equal_impl;
 template <typename Head, typename... Tail,
@@ -240,6 +246,13 @@ template <typename List1, TYPENAME1 T>
 struct contains1 : detail::contains_impl1<List1, T> {};
 template <typename List1, TYPENAME1 T>
 constexpr bool contains1_v = contains1<List1, T>::value;
+
+// all_of<List, P>::value is true iff P<T>::value is true for all instantiations
+// of values T in {List}.
+template <typename List, template <typename> typename P>
+struct all_of : detail::all_of_impl<List, P> {};
+template <typename List, template <typename> typename P>
+constexpr bool all_of_v = all_of<List, P>::value;
 
 // all_equal<List, Cmp = equals>::value is true iff all values in {List}
 // are equal with respect to {Cmp}.

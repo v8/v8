@@ -4593,6 +4593,7 @@ TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
   return CAST(var_result.value());
 }
 
+// LINT.IfChange
 TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
     uint32_t length, AllocationFlags flags) {
   Comment("AllocateSeqOneByteString");
@@ -4613,6 +4614,7 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
                                  Int32Constant(String::kEmptyHashField));
   return CAST(result);
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 TNode<BoolT> CodeStubAssembler::IsZeroOrContext(TNode<Object> object) {
   return Select<BoolT>(
@@ -4625,6 +4627,7 @@ TNode<BoolT> CodeStubAssembler::IsEmptyDependentCode(TNode<Object> object) {
   return TaggedEqual(object, EmptyWeakArrayListConstant());
 }
 
+// LINT.IfChange
 TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
     uint32_t length, AllocationFlags flags) {
   Comment("AllocateSeqTwoByteString");
@@ -4645,6 +4648,7 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
                                  Int32Constant(String::kEmptyHashField));
   return CAST(result);
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 TNode<String> CodeStubAssembler::AllocateSlicedString(RootIndex map_root_index,
                                                       TNode<Uint32T> length,
@@ -9411,6 +9415,7 @@ TNode<String> CodeStubAssembler::LoadDoubleStringCacheEntryValue(
   return CAST(maybe_value);
 }
 
+// LINT.IfChange
 TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
                                                 Label* bailout) {
   TVARIABLE(String, result);
@@ -9443,6 +9448,7 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
   BIND(&done);
   return result.value();
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 TNode<String> CodeStubAssembler::SmiToString(TNode<Smi> smi_input,
                                              Label* bailout) {
@@ -12547,6 +12553,7 @@ CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
   return CAST(result);
 }
 
+// LINT.IfChange
 TNode<BoolT> CodeStubAssembler::IsInterestingProperty(TNode<Name> name) {
   TVARIABLE(BoolT, var_result);
   Label return_false(this), return_true(this), return_generic(this);
@@ -12643,6 +12650,7 @@ TNode<JSAny> CodeStubAssembler::GetInterestingProperty(
                             (*var_holder).value(), name, receiver,
                             SmiConstant(OnNonExistent::kReturnUndefined));
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 void CodeStubAssembler::TryLookupElement(
     TNode<HeapObject> object, TNode<Map> map, TNode<Int32T> instance_type,
@@ -14908,6 +14916,7 @@ void CodeStubAssembler::InitializeFieldsWithRoot(TNode<HeapObject> object,
       -kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPre);
 }
 
+// LINT.IfChange
 void CodeStubAssembler::BranchIfNumberRelationalComparison(Operation op,
                                                            TNode<Number> left,
                                                            TNode<Number> right,
@@ -15003,6 +15012,7 @@ void CodeStubAssembler::BranchIfNumberRelationalComparison(Operation op,
     }
   }
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 void CodeStubAssembler::GotoIfNumberGreaterThanOrEqual(TNode<Number> left,
                                                        TNode<Number> right,

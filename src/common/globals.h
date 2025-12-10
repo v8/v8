@@ -355,6 +355,12 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_UNDEFINED_DOUBLE_BOOL false
 #endif
 
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+#define V8_EXPERIMENTAL_TSA_BUILTINS_BOOL true
+#else
+#define V8_EXPERIMENTAL_TSA_BUILTINS_BOOL false
+#endif
+
 #define V8_STACK_ALLOCATED CPPGC_STACK_ALLOCATED
 
 // Superclass for classes only using static method functions.

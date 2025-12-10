@@ -1257,8 +1257,12 @@ class MachineLoweringReducer : public Next {
                   ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kBoolean);
         return __ TaggedEqual(object, __ HeapConstant(factory_->true_value()));
       case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64: {
-        if (input_assumptions == ConvertJSPrimitiveToUntaggedOp::
-                                     InputAssumptions::kNumberOrOddball) {
+        if (input_assumptions ==
+            ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmi) {
+          return __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(object)));
+        } else if (input_assumptions ==
+                   ConvertJSPrimitiveToUntaggedOp::InputAssumptions::
+                       kNumberOrOddball) {
           Label<Float64> done(this);
 
           IF (LIKELY(__ ObjectIsSmi(object))) {

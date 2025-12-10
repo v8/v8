@@ -1873,6 +1873,7 @@ template V8_EXPORT_PRIVATE void StringBuiltinsAssembler::CopyStringCharacters(
     TNode<IntPtrT> character_count, String::Encoding from_encoding,
     String::Encoding to_encoding);
 
+// LINT.IfChange
 template <typename T>
 void StringBuiltinsAssembler::CopyStringCharacters(
     TNode<T> from_string, TNode<String> to_string, TNode<IntPtrT> from_index,
@@ -1936,6 +1937,7 @@ void StringBuiltinsAssembler::CopyStringCharacters(
       },
       from_increment, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 // A wrapper around CopyStringCharacters which determines the correct string
 // encoding, allocates a corresponding sequential string, and then copies the

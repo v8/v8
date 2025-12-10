@@ -114,6 +114,18 @@ struct runtime : CallDescriptorBuilder {
         Operator::kNoDeopt | Operator::kNoThrow;
   };
 
+  struct NumberToStringSlow : public Descriptor<NumberToStringSlow> {
+    static constexpr auto kFunction = Runtime::kNumberToStringSlow;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Number>, input)
+    };
+    using returns_t = V<String>;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
   struct StackGuard : public Descriptor<StackGuard> {
     static constexpr auto kFunction = Runtime::kStackGuard;
     using Arguments = NoArguments;

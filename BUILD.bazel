@@ -3831,6 +3831,7 @@ filegroup(
         "src/builtins/builtins-string-gen.cc",
         "src/builtins/builtins-string-gen.h",
         "src/builtins/builtins-string-tsa.cc",
+        "src/builtins/builtins-string-tsa-inl.h",
         "src/builtins/builtins-typed-array-gen.cc",
         "src/builtins/builtins-typed-array-gen.h",
         "src/builtins/builtins-utils-gen.h",

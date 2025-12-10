@@ -2029,9 +2029,11 @@ class MachineOptimizationReducer : public Next {
           // HeapObject, so unparking the JSHeapBroker here rather than before
           // the optimization pass itself it probably more efficient.
 
-          DCHECK_IMPLIES(
-              __ data()->pipeline_kind() != TurboshaftPipelineKind::kCSA,
-              broker != nullptr);
+          TurboshaftPipelineKind pkind = __ data() -> pipeline_kind();
+          USE(pkind);
+          DCHECK_IMPLIES(pkind != TurboshaftPipelineKind::kCSA &&
+                             pkind != TurboshaftPipelineKind::kTSABuiltin,
+                         broker != nullptr);
           if (broker != nullptr) {
             UnparkedScopeIfNeeded scope(broker);
             AllowHandleDereference allow_handle_dereference;

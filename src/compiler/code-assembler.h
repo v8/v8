@@ -1508,6 +1508,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #endif
   }
 
+  // LINT.IfChange
   // Call the given JavaScript callable through one of the JS Call builtins.
   template <class... TArgs>
   TNode<JSAny> CallJS(Builtin builtin, TNode<Context> context,
@@ -1528,6 +1529,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                std::nullopt, arity, std::nullopt,
                                {receiver, args...}));
   }
+  // LINT.ThenChange(/src/codegen/turboshaft-builtins-assembler-inl.h)
 
   // Construct the given JavaScript callable through a JS Construct builtin.
   template <class... TArgs>

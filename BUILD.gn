@@ -3121,6 +3121,7 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-sharedarraybuffer-gen.cc",
     "src/builtins/builtins-string-gen.cc",
     "src/builtins/builtins-string-gen.h",
+    "src/builtins/builtins-string-tsa-inl.h",
     "src/builtins/builtins-string-tsa.cc",
     "src/builtins/builtins-typed-array-gen.cc",
     "src/builtins/builtins-typed-array-gen.h",

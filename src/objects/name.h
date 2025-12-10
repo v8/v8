@@ -22,6 +22,9 @@ namespace internal {
 
 namespace compiler {
 class WasmGraphBuilder;
+namespace turboshaft {
+class AccessBuilderTS;
+}
 }
 
 namespace maglev {
@@ -314,6 +317,7 @@ V8_OBJECT class Symbol : public Name {
   friend class CodeStubAssembler;
   friend class maglev::MaglevAssembler;
   friend class TorqueGeneratedSymbolAsserts;
+  friend class compiler::turboshaft::AccessBuilderTS;
 
   // TODO(cbruni): remove once the new maptracer is in place.
   friend class Name;  // For PrivateSymbolToName.

@@ -833,6 +833,7 @@ transitioning builtin ArrayPrototypeJoinImpl(
       false, o, len, separator, Undefined, Undefined);
 }
 
+// LINT.IfChange
 // Shortcut implementation for JSArray.toString() when JSArray is known to not
 // have "toString" or "join" properties and prototype chain is unmodified.
 transitioning macro ArrayPrototypeToString_Inline(
@@ -856,6 +857,7 @@ transitioning macro ArrayPrototypeToString_Inline(
   const result = ArrayPrototypeJoinImpl(array, len, separator);
   return Cast<String>(result) otherwise unreachable;
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.tolocalestring
 transitioning javascript builtin ArrayPrototypeToLocaleString(

@@ -177,6 +177,7 @@ transitioning builtin ToObject(implicit context: Context)(
   }
 }
 
+// LINT.IfChange
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
 
 transitioning macro TryGetExoticToPrimitive(
@@ -208,6 +209,7 @@ transitioning macro CallExoticToPrimitive(
     }
   }
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 transitioning builtin NonPrimitiveToPrimitive_Default(
     implicit context: Context)(input: JSReceiver): JSPrimitive {
@@ -241,6 +243,7 @@ transitioning builtin NonPrimitiveToPrimitive_Number(
       input, exoticToPrimitive, NumberStringConstant());
 }
 
+// LINT.IfChange
 transitioning macro NonPrimitiveToPrimitive_String_Inline(
     implicit context: Context)(input: JSReceiver): JSPrimitive {
   try {
@@ -321,5 +324,6 @@ transitioning macro OrdinaryToPrimitive_String_Inline(
     ThrowTypeError(MessageTemplate::kCannotConvertToPrimitive);
   }
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 }  // namespace conversion

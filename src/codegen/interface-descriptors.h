@@ -17,6 +17,14 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(TSA_MACRO(__VA_ARGS__))
+#else
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(CSA_MACRO(__VA_ARGS__))
+#endif
+
 #define TORQUE_BUILTIN_LIST_TFC(V)                                            \
   BUILTIN_LIST_FROM_TORQUE(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
                            IGNORE_BUILTIN, IGNORE_BUILTIN)
@@ -162,6 +170,7 @@ namespace internal {
   V(WasmHandleStackOverflow)                         \
   V(WriteBarrier)                                    \
   V(IndirectPointerWriteBarrier)                     \
+  IF_TSA(V, IGNORE_BUILTIN, ToString)                \
   IF_TSAN(V, TSANLoad)                               \
   IF_TSAN(V, TSANStore)                              \
   BUILTIN_LIST_TFS(V)                                \
@@ -2974,6 +2983,19 @@ class CheckTurboshaftFloat64TypeDescriptor
                                     MachineType::TaggedSigned())
   DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat64TypeDescriptor)
 };
+
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+class ToStringDescriptor
+    : public StaticCallInterfaceDescriptor<ToStringDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kO)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineType::AnyTagged())
+  DECLARE_DEFAULT_DESCRIPTOR(ToStringDescriptor)
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
 #define DEFINE_DEBUG_PRINT_BUILTIN_DESCRIPTOR(Name, Type)                    \
   class DebugPrint##Name##Descriptor                                         \

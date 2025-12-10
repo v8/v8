@@ -620,6 +620,7 @@ Cast<FastJSArrayForReadWithNoCustomIteration>(
   return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(a);
 }
 
+// LINT.IfChange
 Cast<JSArrayForFastToString>(
     implicit context: Context)(o: HeapObject): JSArrayForFastToString
     labels CastError {
@@ -671,6 +672,7 @@ Cast<JSArrayForFastToString>(
 
   return %RawDownCast<JSArrayForFastToString>(o);
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 Cast<JSSetWithNoCustomIteration>(
     implicit context: Context)(o: HeapObject): JSSetWithNoCustomIteration

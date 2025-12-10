@@ -591,7 +591,7 @@ using NumberOrUndefined = UnionOf<Number, Undefined>;
 using AnyFixedArray = UnionOf<FixedArray, FixedDoubleArray>;
 using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
 using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
-using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, Word32>;
+using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, Word32, BuiltinPtr>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 using Word32Pair = Tuple<Word32, Word32>;
 
@@ -795,6 +795,8 @@ class ConstOrV {
  public:
   using type = T;
   using constant_type = C;
+
+  ConstOrV() : constant_value_(), value_() {}
 
   ConstOrV(constant_type value)  // NOLINT(runtime/explicit)
       : constant_value_(value), value_() {}

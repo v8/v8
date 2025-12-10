@@ -4632,14 +4632,15 @@ class TurboshaftGraphBuildingInterface
     V<Word32> size = size_val.op;
     DCHECK_EQ(table->shared, table->shared);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableInit>(
-        decoder, {
-                     dst_wordptr,
-                     src,
-                     size,
-                     __ NumberConstant(imm.table.index),
-                     __ NumberConstant(imm.element_segment.index),
-                     __ NumberConstant((!shared_ && table->shared) ? 1 : 0),
-                 });
+        decoder,
+        {
+            dst_wordptr,
+            src,
+            size,
+            __ SmiConstant(Smi::FromInt(imm.table.index)),
+            __ SmiConstant(Smi::FromInt(imm.element_segment.index)),
+            __ SmiConstant(Smi::FromInt((!shared_ && table->shared) ? 1 : 0)),
+        });
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
@@ -4660,10 +4661,11 @@ class TurboshaftGraphBuildingInterface
     // TODO(14616): Is this too restrictive?
     DCHECK_EQ(table_is_shared, imm.table_src.table->shared);
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableCopy>(
-        decoder, {dst_wordptr, src_wordptr, size_wordptr,
-                  __ NumberConstant(imm.table_dst.index),
-                  __ NumberConstant(imm.table_src.index),
-                  __ NumberConstant((!shared_ && table_is_shared) ? 1 : 0)});
+        decoder,
+        {dst_wordptr, src_wordptr, size_wordptr,
+         __ SmiConstant(Smi::FromInt(imm.table_dst.index)),
+         __ SmiConstant(Smi::FromInt(imm.table_src.index)),
+         __ SmiConstant(Smi::FromInt((!shared_ && table_is_shared) ? 1 : 0))});
   }
 
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate& imm,
@@ -4687,7 +4689,7 @@ class TurboshaftGraphBuildingInterface
     DCHECK_GE(kSmiMaxValue, wasm::max_table_size());
     V<Word32> call_result = __ UntagSmi(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableGrow>(
-            decoder, {__ NumberConstant(imm.index), delta_wordptr,
+            decoder, {__ SmiConstant(Smi::FromInt(imm.index)), delta_wordptr,
                       __ Word32Constant(extract_shared_data), value.op}));
     GOTO(end, call_result);
 
@@ -4709,7 +4711,7 @@ class TurboshaftGraphBuildingInterface
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableFill>(
         decoder,
         {start_wordptr, count_wordptr, __ Word32Constant(extract_shared_data),
-         __ NumberConstant(imm.index), value.op});
+         __ SmiConstant(Smi::FromInt(imm.index)), value.op});
   }
 
   V<WasmTableObject> LoadTable(FullDecoder* decoder,
