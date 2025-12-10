@@ -658,6 +658,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void JumpIfNotUndefinedNan(DoubleRegister value, Register scratch,
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
+  inline void JumpIfUndefinedNan(MemOperand operand, Label* target,
+                                 Label::Distance distance = Label::kFar);
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
   inline void JumpIfHoleNan(DoubleRegister value, Register scratch,
                             Label* target,
@@ -669,6 +671,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                         Label::Distance distance = Label::kFar);
   inline void JumpIfNotNan(DoubleRegister value, Label* target,
                            Label::Distance distance = Label::kFar);
+  inline void JumpIfHoleNan(MemOperand operand, Label* target,
+                            Label::Distance distance = Label::kFar);
   inline void JumpIfNotHoleNan(MemOperand operand, Label* target,
                                Label::Distance distance = Label::kFar);
 

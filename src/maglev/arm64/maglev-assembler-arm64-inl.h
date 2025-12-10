@@ -1185,6 +1185,17 @@ void MaglevAssembler::JumpIfUndefinedNan(DoubleRegister value, Register scratch,
              value, scratch, is_undefined, is_not_undefined));
   bind(*is_not_undefined);
 }
+void MaglevAssembler::JumpIfUndefinedNan(MemOperand operand, Label* target,
+                                         Label::Distance distance) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register upper_bits = temps.AcquireScratch();
+  DCHECK(operand.IsImmediateOffset() && operand.shift_amount() == 0);
+  Ldr(upper_bits.W(),
+      MemOperand(operand.base(), operand.offset() + (kDoubleSize / 2),
+                 operand.addrmode()));
+  CompareInt32AndJumpIf(upper_bits.W(), kUndefinedNanUpper32, kEqual, target,
+                        distance);
+}
 void MaglevAssembler::JumpIfNotUndefinedNan(DoubleRegister value,
                                             Register scratch, Label* target,
                                             Label::Distance distance) {
@@ -1216,6 +1227,18 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
              },
              value, scratch, is_hole, is_not_hole));
   bind(*is_not_hole);
+}
+
+void MaglevAssembler::JumpIfHoleNan(MemOperand operand, Label* target,
+                                    Label::Distance distance) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register upper_bits = temps.AcquireScratch();
+  DCHECK(operand.IsImmediateOffset() && operand.shift_amount() == 0);
+  Ldr(upper_bits.W(),
+      MemOperand(operand.base(), operand.offset() + (kDoubleSize / 2),
+                 operand.addrmode()));
+  CompareInt32AndJumpIf(upper_bits.W(), kHoleNanUpper32, kEqual, target,
+                        distance);
 }
 
 void MaglevAssembler::JumpIfNotHoleNan(DoubleRegister value, Register scratch,
