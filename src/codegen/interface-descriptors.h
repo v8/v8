@@ -161,6 +161,7 @@ namespace internal {
   IF_WASM(V, WasmAllocateShared)                     \
   IF_WASM(V, WasmFXResume)                           \
   IF_WASM(V, WasmFXSuspend)                          \
+  IF_WASM(V, WasmFXReturn)                           \
   V(WasmDummy)                                       \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
@@ -911,9 +912,11 @@ class WasmFXResumeDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(0, kTargetStack, kArgBuffer)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr(),
-                                    MachineType::IntPtr())
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kTargetStack, kArgBuffer)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::IntPtr(),  // Return: result buffer.
+      MachineType::IntPtr(),  // Param 0: target stack.
+      MachineType::IntPtr())  // Param 1: arg buffer.
   DECLARE_DESCRIPTOR(WasmFXResumeDescriptor)
 
   static constexpr int kMaxRegisterParams = 2;
@@ -935,6 +938,20 @@ class WasmFXSuspendDescriptor final
   static constexpr int kMaxRegisterParams = 3;
   static constexpr inline auto registers();
 };
+
+class WasmFXReturnDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFXReturnDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(0, kArgBuffer)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::IntPtr())
+  DECLARE_DESCRIPTOR(WasmFXReturnDescriptor)
+
+  static constexpr int kMaxRegisterParams = 1;
+  static constexpr inline auto registers();
+};
+
 #endif
 
 class NewHeapNumberDescriptor
@@ -1015,10 +1032,6 @@ class NoContextDescriptor
 
   static constexpr auto registers();
 };
-
-#if V8_ENABLE_WEBASSEMBLY
-using WasmFXReturnDescriptor = NoContextDescriptor;
-#endif
 
 // LoadDescriptor is used by all stubs that implement Load ICs.
 class LoadDescriptor : public StaticCallInterfaceDescriptor<LoadDescriptor> {

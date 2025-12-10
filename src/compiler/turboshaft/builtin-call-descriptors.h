@@ -1727,7 +1727,8 @@ struct BuiltinCallDescriptor {
     static constexpr auto kFunction = Builtin::kWasmFXResume;
     // Target stack and arg buffer.
     using arguments_t = std::tuple<V<WordPtr>, V<WordPtr>>;
-    using results_t = std::tuple<>;
+    // Return values buffer.
+    using results_t = std::tuple<V<WordPtr>>;
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;

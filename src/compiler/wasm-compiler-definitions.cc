@@ -112,9 +112,6 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
                                       WasmCallKind call_kind,
                                       bool need_frame_state) {
   if (call_kind == kWasmContinuation) {
-    if (fsig->return_count() > 0) {
-      UNIMPLEMENTED();
-    }
     return GetContinuationResumeDescriptor(zone);
   }
   // The extra here is to accommodate the instance object as first parameter

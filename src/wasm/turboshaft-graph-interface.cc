@@ -3824,16 +3824,6 @@ class TurboshaftGraphBuildingInterface
     UNIMPLEMENTED();
   }
 
-  std::pair<int, int> GetBufferSizeAndAlignmentFor(const FunctionSig* sig) {
-    int alignment = kSystemPointerSize;
-    int size = IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index,
-                                                             int offset) {
-      alignment =
-          std::max(alignment, sig->GetParam(index).value_kind_full_size());
-    });
-    return {size, alignment};
-  }
-
   void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
               base::Vector<HandlerCase> handlers, const Value& cont_ref,
               const Value args[], Value returns[]) {
@@ -3859,7 +3849,7 @@ class TurboshaftGraphBuildingInterface
     // target stack.
     const FunctionSig* sig =
         decoder->module_->signature(imm.cont_type->contfun_typeindex());
-    auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig);
+    auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig->parameters());
     OpIndex arg_buffer = __ StackSlot(size, alignment);
     IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
       DCHECK_EQ(args[index].type, sig->GetParam(index));
@@ -3869,9 +3859,16 @@ class TurboshaftGraphBuildingInterface
     });
 
     asm_.set_effect_handlers_for_next_call(asm_handlers);
-    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
-                                HandleEffects::kYes>(
-        decoder, {stack, arg_buffer}, CheckForException::kCatchInThisFrame);
+    OpIndex result_buffer =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
+                                    HandleEffects::kYes>(
+            decoder, {stack, arg_buffer}, CheckForException::kCatchInThisFrame);
+    IterateWasmFXArgBuffer(sig->returns(), [&](size_t index, int offset) {
+      DCHECK_EQ(returns[index].type, sig->GetReturn(index));
+      returns[index].op =
+          __ LoadOffHeap(result_buffer, offset,
+                         MemoryRepresentationFor(sig->GetReturn(index)));
+    });
   }
 
   void ResumeHandler(FullDecoder* decoder,
@@ -3948,7 +3945,7 @@ class TurboshaftGraphBuildingInterface
     // Reserve a stack buffer, move the tag params there and pass it to the
     // target stack.
     const FunctionSig* sig = imm.tag->sig;
-    auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig);
+    auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig->parameters());
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());

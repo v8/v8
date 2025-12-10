@@ -820,6 +820,9 @@ constexpr auto WasmFXSuspendDescriptor::registers() {
   return RegisterArray(wasm::kGpParamRegisters[1], wasm::kGpParamRegisters[2],
                        wasm::kGpParamRegisters[3]);
 }
+constexpr auto WasmFXReturnDescriptor::registers() {
+  return RegisterArray(wasm::kGpParamRegisters[0]);
+}
 #endif
 
 #define DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER(Name, DescriptorName) \

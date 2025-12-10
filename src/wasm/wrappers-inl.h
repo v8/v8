@@ -589,10 +589,25 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
                                          sig_->GetParam(index).machine_type()));
   });
 
-  BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, args, {}, {},
+  base::Vector<OpIndex> returns =
+      __ phase_zone() -> template AllocateVector<OpIndex>(sig_->return_count());
+  BuildCallWasmFromWrapper(__ phase_zone(), sig_, target, args, returns, {},
                            compiler::LazyDeoptOnThrow::kNo);
+
+  auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig_->returns());
+  // The stack is not freed immediately on return, so the pointer stays valid
+  // until its use in the parent stack.
+  OpIndex result_buffer =
+      __ StackSlot(size, std::max(2 * kSystemPointerSize, alignment));
+  IterateWasmFXArgBuffer(sig_->returns(), [&](size_t index, int offset) {
+    __ StoreOffHeap(result_buffer, returns[index],
+                    MemoryRepresentation::FromMachineType(
+                        sig_->GetReturn(index).machine_type()),
+                    offset);
+  });
+
   CallBuiltin<WasmFXReturnDescriptor>(Builtin::kWasmFXReturn,
-                                      Operator::kNoProperties);
+                                      Operator::kNoProperties, result_buffer);
   __ Unreachable();
 }
 

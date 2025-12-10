@@ -3815,9 +3815,9 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
   Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
-  Label suspend;
+  Label return_;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
+               target_stack, &return_, no_reg, {target_stack, arg_buffer});
   // When we resume the stack for the first time, we enter the wrapper. However
   // the wrapper starts with bti c, not bti j, so we cannot jump to it with an
   // arbitrary register. We have to use ip0 or ip1 as the target register here
@@ -3829,7 +3829,9 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   DCHECK(!AreAliased(ip1, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, ip1);
   __ Trap();
-  __ Bind(&suspend, BranchTargetIdentifier::kBtiJump);
+  __ Bind(&return_, BranchTargetIdentifier::kBtiJump);
+  // Return the arg buffer.
+  __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Ret(lr);
 }
@@ -3877,13 +3879,15 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
-  Register active_stack = x0;
+  Register arg_buffer = WasmFXReturnDescriptor::GetRegisterParameter(0);
+  Register active_stack = x1;
+  DCHECK_NE(arg_buffer, active_stack);
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
-  Register parent = x1;
+  Register parent = x2;
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
   SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, {parent});
-  LoadJumpBuffer(masm, parent, true, x2);
+               no_reg, {parent, arg_buffer});
+  LoadJumpBuffer(masm, parent, true, x3);
   __ Trap();
 }
 

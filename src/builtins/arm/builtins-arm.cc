@@ -3295,13 +3295,15 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
   Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
-  Label suspend;
+  Label return_;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
+               target_stack, &return_, no_reg, {target_stack, arg_buffer});
   DCHECK(!AreAliased(r1, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, r1);
   __ Trap();
-  __ bind(&suspend);
+  __ bind(&return_);
+  // Return the arg buffer.
+  __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Jump(lr);
 }
@@ -3349,13 +3351,16 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
+  Register arg_buffer = WasmFXReturnDescriptor::GetRegisterParameter(0);
   Register active_stack = r0;
+  DCHECK_NE(arg_buffer, active_stack);
   __ LoadRootRelative(active_stack, IsolateData::active_stack_offset());
-  Register parent = r1;
+  Register parent = r2;
+  DCHECK_NE(arg_buffer, parent);
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
   SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, {parent});
-  LoadJumpBuffer(masm, parent, true, r2);
+               no_reg, {parent, arg_buffer});
+  LoadJumpBuffer(masm, parent, true, r6);
   __ Trap();
 }
 
