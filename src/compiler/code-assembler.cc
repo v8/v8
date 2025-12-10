@@ -1052,6 +1052,21 @@ void CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
       CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
 }
 
+void CodeAssembler::UnalignedStoreNoWriteBarrier(MachineRepresentation rep,
+                                                 TNode<BytecodeArray> base,
+                                                 TNode<IntPtrT> offset,
+                                                 Node* value) {
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
+  if (UnalignedStoreSupported(rep)) {
+    raw_assembler()->Store(
+        rep, base, offset, value,
+        CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
+  } else {
+    Node* base_raw = BitcastTaggedToWord(base);
+    raw_assembler()->UnalignedStore(rep, base_raw, offset, value);
+  }
+}
+
 void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
                                               Node* base, Node* value) {
   raw_assembler()->Store(rep, base, value, kNoWriteBarrier);

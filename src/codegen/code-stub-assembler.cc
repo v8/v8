@@ -13315,7 +13315,8 @@ void CodeStubAssembler::UpdateEmbeddedFeedback(
   Label end(this);
 
   TNode<Int32T> previous_feedback =
-      Load<Uint16T>(bytecode_array, feedback_offset);
+      UnalignedLoad<Uint16T>(bytecode_array, feedback_offset);
+
   TNode<Int32T> combined_feedback = Word32Or(previous_feedback, feedback);
 
   GotoIf(Word32Equal(previous_feedback, combined_feedback), &end);
@@ -13325,8 +13326,8 @@ void CodeStubAssembler::UpdateEmbeddedFeedback(
     ExitSandbox();
 #endif
 
-    StoreNoWriteBarrier(MachineRepresentation::kWord16, bytecode_array,
-                        feedback_offset, combined_feedback);
+    UnalignedStoreNoWriteBarrier(MachineRepresentation::kWord16, bytecode_array,
+                                 feedback_offset, combined_feedback);
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
     EnterSandbox();
