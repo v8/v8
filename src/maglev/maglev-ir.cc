@@ -5881,19 +5881,6 @@ void Float64ToString::GenerateCode(MaglevAssembler* masm,
   masm->DefineLazyDeoptPoint(this->lazy_deopt_info());
 }
 
-void DeoptIfHole::SetValueLocationConstraints() {
-  // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
-  // support constant inputs (which UseAny allows). Constants should have been
-  // optimized already by MaglevGraphBuilder or MaglevGraphOptimizer.
-  DCHECK(!IsConstantNode(ValueInput().node()->opcode()));
-  UseAny(ValueInput());
-}
-void DeoptIfHole::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  __ EmitEagerDeoptIf(__ IsRootConstant(ValueInput(), RootIndex::kTheHoleValue),
-                      DeoptimizeReason::kHole, this);
-}
-
 int ThrowReferenceErrorIfHole::MaxCallStackArgs() const { return 1; }
 void ThrowReferenceErrorIfHole::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
