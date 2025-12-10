@@ -1185,11 +1185,11 @@ void WasmEngine::DeleteCompileJobsOnContext(DirectHandle<Context> context) {
       DirectHandle<NativeContext> job_context;
       if (it->first->context().ToHandle(&job_context) &&
           job_context.is_identical_to(context)) {
+        jobs_to_delete.push_back(std::move(it->second));
+        it = async_compile_jobs_.erase(it);
+      } else {
         ++it;
-        continue;
       }
-      jobs_to_delete.push_back(std::move(it->second));
-      it = async_compile_jobs_.erase(it);
     }
   }
 }
@@ -1203,12 +1203,12 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
     base::MutexGuard guard(&mutex_);
     for (auto it = async_compile_jobs_.begin();
          it != async_compile_jobs_.end();) {
-      if (it->first->isolate() != isolate) {
+      if (it->first->isolate() == isolate) {
+        jobs_to_delete.push_back(std::move(it->second));
+        it = async_compile_jobs_.erase(it);
+      } else {
         ++it;
-        continue;
       }
-      jobs_to_delete.push_back(std::move(it->second));
-      it = async_compile_jobs_.erase(it);
     }
     DCHECK(isolates_.contains(isolate));
     auto* isolate_info = isolates_[isolate].get();
