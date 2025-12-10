@@ -342,7 +342,7 @@ bool IndexIsInBounds(int index, int length) {
   do {                                                                    \
     RegExpBytecode next_bc = RegExpBytecodes::FromPtr(next_pc);           \
     next_handler_addr =                                                   \
-        dispatch_table[RegExpBytecodes::ToByte(next_bc) & BYTECODE_MASK]; \
+        dispatch_table[RegExpBytecodes::ToByte(next_bc) & kBytecodeMask]; \
   } while (false)
 #define DISPATCH()  \
   pc = next_pc;     \
@@ -501,43 +501,49 @@ IrregexpInterpreter::Result RawMatch(
 
 #if V8_USE_COMPUTED_GOTO
 
-// We have to make sure that no OOB access to the dispatch table is possible and
-// all values are valid label addresses.
-// Otherwise jumps to arbitrary addresses could potentially happen.
-// This is ensured as follows:
-// Every index to the dispatch table gets masked using BYTECODE_MASK in
-// DECODE(). This way we can only get values between 0 (only the least
-// significant byte of an integer is used) and kRegExpPaddedBytecodeCount - 1
-// (BYTECODE_MASK is defined to be exactly this value).
-// All entries from RegExpBytecodes::kCount to kRegExpPaddedBytecodeCount have
-// to be filled with BREAKs (invalid operation).
+  // Maximum number of bytecodes that will be used (next power of 2 of actually
+  // defined bytecodes).
+  // All slots between the last actually defined bytecode and maximum id will be
+  // filled with kBreaks, indicating an invalid operation. This way using
+  // kBytecodeMask guarantees no OOB access to the dispatch table.
+  constexpr int kPaddedBytecodeCount =
+      base::bits::RoundUpToPowerOfTwo32(RegExpBytecodes::kCount);
+  constexpr int kBytecodeMask = kPaddedBytecodeCount - 1;
+  static_assert(1 << BYTECODE_SHIFT > kBytecodeMask);
 
-// Fill dispatch table from last defined bytecode up to the next power of two
-// with BREAK (invalid operation).
-// TODO(pthier): Find a way to fill up automatically (at compile time)
-#define BYTECODE_FILLER_ITERATOR(V) V(Break) /* 1 */
-
-#define COUNT(...) +1
-  static constexpr int kRegExpBytecodeFillerCount =
-      BYTECODE_FILLER_ITERATOR(COUNT);
-#undef COUNT
-
-  // Make sure kRegExpPaddedBytecodeCount is actually the closest possible power
-  // of two.
-  DCHECK_EQ(kRegExpPaddedBytecodeCount,
-            base::bits::RoundUpToPowerOfTwo32(RegExpBytecodes::kCount));
-
-  // Make sure every bytecode we get by using BYTECODE_MASK is well defined.
-  static_assert(RegExpBytecodes::kCount <= kRegExpPaddedBytecodeCount);
-  static_assert(RegExpBytecodes::kCount + kRegExpBytecodeFillerCount ==
-                kRegExpPaddedBytecodeCount);
+  // We have to make sure that no OOB access to the dispatch table is possible
+  // and all values are valid label addresses. Otherwise jumps to arbitrary
+  // addresses could potentially happen. This is ensured as follows: Every index
+  // to the dispatch table gets masked using kBytecodeMask in DECODE(). This way
+  // we can only get values between 0 (only the least significant byte of an
+  // integer is used) and kPaddedBytecodeCount - 1 (kBytecodeMask is defined to
+  // be exactly this value). All entries from RegExpBytecodes::kCount to
+  // kRegExpPaddedBytecodeCount are automatically filled with kBreak (invalid
+  // operation).
 
 #define DECLARE_DISPATCH_TABLE_ENTRY(name, ...) &&BC_k##name,
-  static const void* const dispatch_table[kRegExpPaddedBytecodeCount] = {
-      REGEXP_BYTECODE_LIST(DECLARE_DISPATCH_TABLE_ENTRY)
-          BYTECODE_FILLER_ITERATOR(DECLARE_DISPATCH_TABLE_ENTRY)};
+  static const void* const unsafe_dispatch_table[RegExpBytecodes::kCount] = {
+      REGEXP_BYTECODE_LIST(DECLARE_DISPATCH_TABLE_ENTRY)};
 #undef DECLARE_DISPATCH_TABLE_ENTRY
 #undef BYTECODE_FILLER_ITERATOR
+
+  static const void* const filler_entry = &&BC_kBreak;
+  static const std::array<const void*, kPaddedBytecodeCount> dispatch_table =
+      [=]() {
+        std::array<const void*, kPaddedBytecodeCount> table;
+
+        size_t i = 0;
+        // Copy all valid Bytecodes to the dispatch table.
+        for (; i < RegExpBytecodes::kCount; ++i) {
+          table[i] = unsafe_dispatch_table[i];
+        }
+        // Fill dispatch table from last defined bytecode up to the next power
+        // of two with kBreak (invalid operation).
+        for (; i < kPaddedBytecodeCount; ++i) {
+          table[i] = filler_entry;
+        }
+        return table;
+      }();
 
 #endif  // V8_USE_COMPUTED_GOTO
 

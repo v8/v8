@@ -13,18 +13,10 @@
 namespace v8 {
 namespace internal {
 
-// Maximum number of bytecodes that will be used (next power of 2 of actually
-// defined bytecodes).
-// All slots between the last actually defined bytecode and maximum id will be
-// filled with BREAKs, indicating an invalid operation. This way using
-// BYTECODE_MASK guarantees no OOB access to the dispatch table.
-constexpr int kRegExpPaddedBytecodeCount = 1 << 6;
-constexpr int BYTECODE_MASK = kRegExpPaddedBytecodeCount - 1;
 // The first argument is packed in with the byte code in one word.
 // We only support packing of up to 2 bytes.
 const unsigned int MAX_FIRST_ARG = 0xffffu;
 const int BYTECODE_SHIFT = 8;
-static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
 
 // Basic operand types that have a direct mapping to a C-type.
 // Getters/Setters for these are fully auto-generated.
