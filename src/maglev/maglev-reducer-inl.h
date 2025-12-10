@@ -2101,7 +2101,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Ieee754Binary(
       double result;
       switch (ieee_function) {
         case Float64Ieee754Binary::Ieee754Function::kAtan2:
-          result = std::atan2(lhs_val, rhs_val);
+          result = base::ieee754::atan2(lhs_val, rhs_val);
           break;
         case Float64Ieee754Binary::Ieee754Function::kPower:
           result = math::pow(lhs_val, rhs_val);
