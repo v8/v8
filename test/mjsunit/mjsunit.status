@@ -2627,6 +2627,10 @@
   'compiler/osr-block-scope': [SKIP],
   'regress/regress-425583995': [SKIP],
 
+  # Needs temporal:
+  'regress/regress-463593768': [SKIP],
+  'regress/regress-464961493': [SKIP],
+
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
   'wasm/bulk-memory': [SKIP],
