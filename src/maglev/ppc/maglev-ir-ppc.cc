@@ -964,18 +964,27 @@ int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
   UseRegister(IndexInput());
   UseRegister(ByteLengthInput());
+  int element_size = compiler::ExternalArrayElementSize(element_type_);
+  if (element_size > 1) {
+    set_temporaries_needed(1);
+  }
 }
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   Register index = ToRegister(IndexInput());
   Register byte_length = ToRegister(ByteLengthInput());
 
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register limit = byte_length;
+
   int element_size = compiler::ExternalArrayElementSize(element_type_);
   if (element_size > 1) {
-    __ SubS64(byte_length, byte_length, Operand(element_size - 1), r0);
+    limit = temps.Acquire();
+    __ SubS64(limit, byte_length, Operand(element_size - 1), r0, LeaveOE,
+              SetRC);
     __ EmitEagerDeoptIf(lt, DeoptimizeReason::kOutOfBounds, this);
   }
-  __ CmpS32(index, byte_length);
+  __ CmpS32(index, limit);
   __ EmitEagerDeoptIf(ge, DeoptimizeReason::kOutOfBounds, this);
 }
 
