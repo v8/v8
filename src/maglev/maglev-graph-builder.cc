@@ -12960,15 +12960,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       break;
     }
     case Builtin::kObjectConstructor: {
+      if (target != new_target) return {};
       // If no value is passed, we can immediately lower to a simple
       // constructor.
-      compiler::OptionalJSFunctionRef new_target_function =
-          TryGetConstant<JSFunction>(new_target);
-      if (args.count() == 0 && new_target_function.has_value() &&
-          new_target_function->has_initial_map(broker())) {
-        return BuildInlinedAllocation(
-            CreateJSConstructor(new_target_function.value()),
-            AllocationType::kYoung);
+      if (args.count() == 0) {
+        return BuildInlinedAllocation(CreateJSConstructor(target_function),
+                                      AllocationType::kYoung);
       }
       break;
     }
