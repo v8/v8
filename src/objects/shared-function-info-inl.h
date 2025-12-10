@@ -817,17 +817,28 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
     IsolateT* isolate) const {
   MutexGuardIfOffThread<IsolateT> mutex_guard(
       isolate->shared_function_info_access(), isolate);
+  Isolate* main_isolate = isolate->GetMainThreadIsolateUnsafe();
+  return GetBytecodeArrayInternal(main_isolate);
+}
 
+Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArrayForGC(
+    Isolate* isolate) const {
+  // Can only be used during GC when all threads are halted.
+  DCHECK_EQ(Isolate::Current()->heap()->gc_state(), Heap::MARK_COMPACT);
+  return GetBytecodeArrayInternal(isolate);
+}
+
+Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArrayInternal(
+    Isolate* isolate) const {
   DCHECK(HasBytecodeArray());
 
-  Isolate* main_isolate = isolate->GetMainThreadIsolateUnsafe();
-  std::optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(main_isolate);
+  std::optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(isolate);
   if (debug_info.has_value() &&
       debug_info.value()->HasInstrumentedBytecodeArray()) {
-    return debug_info.value()->OriginalBytecodeArray(main_isolate);
+    return debug_info.value()->OriginalBytecodeArray(isolate);
   }
 
-  return GetActiveBytecodeArray(main_isolate);
+  return GetActiveBytecodeArray(isolate);
 }
 
 Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(

@@ -469,6 +469,7 @@ class SharedFunctionInfo
   DECL_GETTER(HasBytecodeArray, bool)
   template <typename IsolateT>
   inline Tagged<BytecodeArray> GetBytecodeArray(IsolateT* isolate) const;
+  inline Tagged<BytecodeArray> GetBytecodeArrayForGC(Isolate* isolate) const;
 
   // Sets the bytecode for this SFI. This is only allowed when this SFI has not
   // yet been compiled or if it has been "uncompiled", or in other words when
@@ -907,6 +908,9 @@ class SharedFunctionInfo
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
 
   TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
+
+ private:
+  inline Tagged<BytecodeArray> GetBytecodeArrayInternal(Isolate* isolate) const;
 };
 
 std::ostream& operator<<(std::ostream& os, SharedFunctionInfo::Inlineability i);

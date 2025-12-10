@@ -3442,7 +3442,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Replace the bytecode with an uncompiled data object.
   Tagged<BytecodeArray> bytecode_array =
-      shared_info->GetBytecodeArray(heap_->isolate());
+      shared_info->GetBytecodeArrayForGC(heap_->isolate());
 
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!HeapLayout::InWritableSharedSpace(shared_info));
@@ -3571,7 +3571,7 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   if (!bytecode_already_decompiled) {
     // Check if the bytecode is still live.
     Tagged<BytecodeArray> bytecode =
-        flushing_candidate->GetBytecodeArray(isolate);
+        flushing_candidate->GetBytecodeArrayForGC(isolate);
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, non_atomic_marking_state_,
                                             bytecode)) {
       return true;
@@ -3601,7 +3601,7 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
   bool is_bytecode_live = false;
   if (!bytecode_already_decompiled) {
     Tagged<BytecodeArray> bytecode =
-        flushing_candidate->GetBytecodeArray(heap_->isolate());
+        flushing_candidate->GetBytecodeArrayForGC(heap_->isolate());
     is_bytecode_live = MarkingHelper::IsMarkedOrAlwaysLive(
         heap_, non_atomic_marking_state_, bytecode);
   }
