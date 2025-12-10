@@ -693,8 +693,6 @@ class WasmLoweringReducer : public Next {
                 __ Word32Constant(0));
   }
 
-  // TODO(mliedtke): For WasmTypeCheckAbstract and WasmTypeCastAbstract make
-  // sure that the sharedness matches when casting from (unshared) any.
   V<Word32> ReduceWasmTypeCheckAbstract(V<Object> object,
                                         WasmTypeCheckConfig config) {
     const bool object_can_be_null = config.from.is_nullable();
