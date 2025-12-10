@@ -1584,12 +1584,7 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
   // maps as immutable. Therefore we are not allowed to mutate them here.
   DCHECK(!IsWasmStructMap(value) && !IsWasmArrayMap(value));
 #endif
-  // Object layout changes are currently not supported on background threads.
-  // This method might change object layout and therefore can't be used on
-  // background threads.
-  DCHECK_IMPLIES(mode != VerificationMode::kSafeMapTransition,
-                 LocalHeap::Current()->is_main_thread());
-  if (v8_flags.verify_heap && !value.is_null()) {
+  if (v8_flags.verify_heap) {
     if (mode == VerificationMode::kSafeMapTransition) {
       HeapVerifier::VerifySafeMapTransition(isolate->heap()->AsHeap(), *this,
                                             value);
@@ -1602,14 +1597,12 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
   set_map_word(value, order);
   Heap::NotifyObjectLayoutChangeDone(*this);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  if (!value.is_null()) {
-    if (emit_write_barrier == EmitWriteBarrier::kYes) {
-      WriteBarrier::ForValue(*this, MaybeObjectSlot(map_slot()), value,
-                             UPDATE_WRITE_BARRIER);
-    } else {
-      DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
-      SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
-    }
+  if (emit_write_barrier == EmitWriteBarrier::kYes) {
+    WriteBarrier::ForValue(*this, MaybeObjectSlot(map_slot()), value,
+                           UPDATE_WRITE_BARRIER);
+  } else {
+    DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
+    DCHECK(!WriteBarrier::IsRequired(*this, value));
   }
 #endif
 }
