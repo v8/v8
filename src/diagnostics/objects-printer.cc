@@ -2299,12 +2299,14 @@ void JSIteratorFilterHelper::JSIteratorFilterHelperPrint(std::ostream& os) {
 void JSIteratorTakeHelper::JSIteratorTakeHelperPrint(std::ostream& os) {
   JSIteratorHelperPrintHeader(os, "JSIteratorTakeHelper");
   os << "\n - remaining: " << remaining();
+  os << "\n - innerAlive" << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorDropHelper::JSIteratorDropHelperPrint(std::ostream& os) {
   JSIteratorHelperPrintHeader(os, "JSIteratorDropHelper");
   os << "\n - remaining: " << remaining();
+  os << "\n - innerAlive" << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
