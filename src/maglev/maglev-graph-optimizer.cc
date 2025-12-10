@@ -2622,19 +2622,33 @@ ProcessResult MaglevGraphOptimizer::VisitSwitch(Switch* node,
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfSmi(
     BranchIfSmi* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* input = node->input_node(0);
+  if (input->Is<SmiConstant>()) {
+    FoldBranch(state.block(), node, true);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfRootConstant(
     BranchIfRootConstant* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* input = node->input_node(0);
+  if (input->Is<RootConstant>()) {
+    bool match = input->Cast<RootConstant>()->index() == node->root_index();
+    FoldBranch(state.block(), node, match);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     BranchIfToBooleanTrue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (IsConstantNode(node->input_node(0)->opcode())) {
+    bool condition =
+        FromConstantToBool(reducer_.local_isolate(), node->input_node(0));
+    FoldBranch(state.block(), node, condition);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2650,7 +2664,10 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32ToBooleanTrue(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfIntPtrToBooleanTrue(
     BranchIfIntPtrToBooleanTrue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetIntPtrConstant(node->input_node(0))) {
+    FoldBranch(state.block(), node, cst.value() != 0);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2669,7 +2686,19 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64ToBooleanTrue(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfHoleyFloat64ToBooleanTrue(
     BranchIfHoleyFloat64ToBooleanTrue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kHoleyFloat64, node->ConditionInput().node(),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    bool result;
+    if (cst.value().is_undefined_or_hole_nan()) {
+      result = false;
+    } else {
+      double value = cst.value().get_scalar();
+      result = (value != 0.0 && !std::isnan(value));
+    }
+    FoldBranch(state.block(), node, result);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2677,7 +2706,12 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfHoleyFloat64ToBooleanTrue(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64IsUndefinedOrHole(
     BranchIfFloat64IsUndefinedOrHole* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kHoleyFloat64, node->input_node(0),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    FoldBranch(state.block(), node, cst.value().is_undefined_or_hole_nan());
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2685,13 +2719,23 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64IsUndefinedOrHole(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64IsHole(
     BranchIfFloat64IsHole* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kHoleyFloat64, node->input_node(0),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    FoldBranch(state.block(), node, cst.value().is_undefined_or_hole_nan());
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfReferenceEqual(
     BranchIfReferenceEqual* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* left = node->input_node(0);
+  ValueNode* right = node->input_node(1);
+  if (left == right) {
+    FoldBranch(state.block(), node, true);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2707,31 +2751,61 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfInt32Compare(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfUint32Compare(
     BranchIfUint32Compare* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto result = reducer_.TryFoldUint32CompareOperation(
+          node->operation(), node->input_node(0), node->input_node(1))) {
+    FoldBranch(state.block(), node, result.value());
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfFloat64Compare(
     BranchIfFloat64Compare* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto result = reducer_.TryFoldFloat64CompareOperation(
+          node->operation(), node->input_node(0), node->input_node(1))) {
+    FoldBranch(state.block(), node, result.value());
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfUndefinedOrNull(
     BranchIfUndefinedOrNull* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* input = node->input_node(0);
+  if (auto cst = reducer_.TryGetConstant<HeapObject>(input)) {
+    bool match = cst->IsUndefined() || cst->IsNull();
+    FoldBranch(state.block(), node, match);
+    return ProcessResult::kRevisit;
+  }
+  if (input->Is<RootConstant>()) {
+    RootIndex index = input->Cast<RootConstant>()->index();
+    bool match =
+        (index == RootIndex::kUndefinedValue || index == RootIndex::kNullValue);
+    FoldBranch(state.block(), node, match);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfUndetectable(
     BranchIfUndetectable* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* input = node->input_node(0);
+  if (auto cst = reducer_.TryGetConstant<HeapObject>(input)) {
+    bool match = cst->map(broker()).is_undetectable();
+    FoldBranch(state.block(), node, match);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfJSReceiver(
     BranchIfJSReceiver* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* input = node->input_node(0);
+  if (auto cst = reducer_.TryGetConstant<HeapObject>(input)) {
+    bool match = cst->map(broker()).IsJSReceiverMap();
+    FoldBranch(state.block(), node, match);
+    return ProcessResult::kRevisit;
+  }
   return ProcessResult::kContinue;
 }
 

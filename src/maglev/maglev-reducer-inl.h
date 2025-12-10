@@ -1809,6 +1809,39 @@ bool MaglevReducer<BaseT>::TryFoldInt32CompareOperation(Operation op,
 }
 
 template <typename BaseT>
+std::optional<bool> MaglevReducer<BaseT>::TryFoldUint32CompareOperation(
+    Operation op, ValueNode* left, ValueNode* right) {
+  if (auto cst_left = TryGetUint32Constant(left)) {
+    if (auto cst_right = TryGetUint32Constant(right)) {
+      return TryFoldUint32CompareOperation(op, cst_left.value(),
+                                           cst_right.value());
+    }
+  }
+  return {};
+}
+
+template <typename BaseT>
+bool MaglevReducer<BaseT>::TryFoldUint32CompareOperation(Operation op,
+                                                         uint32_t left,
+                                                         uint32_t right) {
+  switch (op) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return left == right;
+    case Operation::kLessThan:
+      return left < right;
+    case Operation::kLessThanOrEqual:
+      return left <= right;
+    case Operation::kGreaterThan:
+      return left > right;
+    case Operation::kGreaterThanOrEqual:
+      return left >= right;
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <typename BaseT>
 std::optional<bool> MaglevReducer<BaseT>::TryFoldFloat64CompareOperation(
     Operation op, ValueNode* left, ValueNode* right) {
   if (auto cst_right = TryGetFloat64OrHoleyFloat64Constant(

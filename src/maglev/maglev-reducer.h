@@ -547,6 +547,12 @@ class MaglevReducer {
                                                    int32_t cst_right);
   bool TryFoldInt32CompareOperation(Operation op, int32_t left, int32_t right);
 
+  std::optional<bool> TryFoldUint32CompareOperation(Operation op,
+                                                    ValueNode* left,
+                                                    ValueNode* right);
+  bool TryFoldUint32CompareOperation(Operation op, uint32_t left,
+                                     uint32_t right);
+
   std::optional<bool> TryFoldFloat64CompareOperation(Operation op,
                                                      ValueNode* left,
                                                      ValueNode* right);
