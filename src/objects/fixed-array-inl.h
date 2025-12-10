@@ -645,7 +645,8 @@ void FixedDoubleArray::set(uint32_t index, double value) {
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 void FixedDoubleArray::set_undefined(uint32_t index) {
-  values()[index].set_value(UndefinedNan());
+  DCHECK(IsInBounds(index));
+  values()[index].set_value_as_bits(kUndefinedNanInt64);
   DCHECK(!is_the_hole(index));
   DCHECK(is_undefined(index));
 }

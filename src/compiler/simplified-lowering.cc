@@ -1134,11 +1134,13 @@ class RepresentationSelector {
 
   // Helper for no-op node.
   template <Phase T>
-  void VisitNoop(Node* node, Truncation truncation) {
+  void VisitNoop(Node* node, Truncation truncation,
+                 Type restriction_type = Type::Any()) {
     if (truncation.IsUnused()) return VisitUnused<T>(node);
     MachineRepresentation representation =
         GetOutputInfoForPhi(TypeOf(node), truncation);
-    VisitUnop<T>(node, UseInfo(representation, truncation), representation);
+    VisitUnop<T>(node, UseInfo(representation, truncation), representation,
+                 restriction_type);
     if (lower<T>()) DeferReplacement(node, node->InputAt(0));
   }
 
@@ -4009,7 +4011,7 @@ class RepresentationSelector {
                          MachineRepresentation::kFloat64, output_type);
             if (lower<T>()) DeferReplacement(node, node->InputAt(0));
           } else {
-            VisitNoop<T>(node, truncation);
+            VisitNoop<T>(node, truncation, output_type);
           }
         } else {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
