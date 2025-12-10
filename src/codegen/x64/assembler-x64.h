@@ -1048,7 +1048,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Bit operations.
   void bswapl(Register dst);
   void bswapq(Register dst);
+  // Uses the low 6 bits in src to select a bit in dst, setting the carry flag
+  // according to its value.  Does not write to dst.
   void btq(Operand dst, Register src);
+  // Uses the low 6 bits in src to select a bit in dst, setting the carry flag
+  // according to its value.  Does not write to dst.
+  void btq(Register dst, Register src);
+  // Uses the low 5 bits in src to select a bit in dst, setting the carry flag
+  // according to its value.  Does not write to dst.
+  void btl(Register dst, Register src);
   void btsq(Operand dst, Register src);
   void btsq(Register dst, Immediate imm8);
   void btrq(Register dst, Immediate imm8);

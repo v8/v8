@@ -1056,6 +1056,22 @@ void Assembler::btq(Operand dst, Register src) {
   emit_operand(src, dst);
 }
 
+void Assembler::btq(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0xA3);
+  emit_modrm(src, dst);
+}
+
+void Assembler::btl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(src, dst);
+  emit(0x0F);
+  emit(0xA3);
+  emit_modrm(src, dst);
+}
+
 void Assembler::btsq(Operand dst, Register src) {
   EnsureSpace ensure_space(this);
   emit_rex_64(src, dst);
