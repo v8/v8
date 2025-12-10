@@ -132,7 +132,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ObserveNode, 1, 1)                            \
   F(ResolvePossiblyDirectEval, 6, 1)              \
   F(VerifyType, 1, 1)                             \
-  F(CheckTurboshaftTypeOf, 2, 1)
+  F(CheckTurboshaftTypeOf, 2, 1)                  \
+  IF_SPARKPLUG_PLUS(F, MaybePatchBinaryBaselineCode, 4, 1)
 
 // TODO(olivf): Unify the Maglev/TF variants into one runtime function and pass
 // the optimization tier as an argument.

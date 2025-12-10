@@ -8616,6 +8616,23 @@ TNode<BoolT> CodeStubAssembler::IsInternalizedStringInstanceType(
       Int32Constant(kStringTag | kInternalizedTag));
 }
 
+TNode<BoolT> CodeStubAssembler::IsInternalizedStringMap(TNode<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  return IsInRange(
+      TruncateIntPtrToInt32(BitcastTaggedToWord(map)),
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kInternalizedString
+          .first,
+      InstanceTypeChecker::kUniqueMapRangeOfStringType::kInternalizedString
+          .second);
+#else
+  return IsInternalizedStringInstanceType(LoadMapInstanceType(map));
+#endif
+}
+
+TNode<BoolT> CodeStubAssembler::IsInternalizedString(TNode<HeapObject> object) {
+  return IsInternalizedStringMap(LoadMap(object));
+}
+
 TNode<BoolT> CodeStubAssembler::IsSharedStringInstanceType(
     TNode<Int32T> instance_type) {
   TNode<BoolT> is_shared = Word32Equal(
@@ -15605,6 +15622,26 @@ TNode<Smi> CodeStubAssembler::CollectFeedbackForString(
       CompareOperationFeedback::kString);
   return feedback;
 }
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+void CodeStubAssembler::GenerateStrictEqualAndTryPatchCode(
+    TNode<Object> lhs, TNode<Object> rhs, TNode<Int32T> current_type_feedback,
+    TNode<UintPtrT> feedback_offset) {
+  // Get compare result and try patch to typed stubs
+  TVARIABLE(Smi, var_type_feedback);
+
+  TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
+  TNode<Int32T> combined_type_feedback =
+      Word32Or(SmiToInt32(var_type_feedback.value()), current_type_feedback);
+
+  // Update embedded feedback in the runtime function to avoid
+  // repeatedly entering/exiting hardware sandbox.
+  auto bytecode_array = LoadBytecodeArrayFromBaseline();
+  TailCallRuntime(Runtime::kMaybePatchBinaryBaselineCode, NoContextConstant(),
+                  SmiFromInt32(combined_type_feedback), result, bytecode_array,
+                  ChangeUintPtrToTagged(feedback_offset));
+}
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 void CodeStubAssembler::GenerateEqual_Same(TNode<Object> value, Label* if_equal,
                                            Label* if_notequal,

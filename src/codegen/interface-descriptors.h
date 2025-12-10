@@ -71,6 +71,7 @@ namespace internal {
   V(CompareNoContext)                                \
   V(StringEqual)                                     \
   V(Compare_Baseline)                                \
+  IF_SPARKPLUG_PLUS(V, CompareAndTryPatchCode)       \
   V(Compare_WithFeedback)                            \
   V(Compare_WithEmbeddedFeedback)                    \
   V(Compare_WithEmbeddedFeedbackOffset)              \
@@ -2908,6 +2909,23 @@ class Compare_BaselineDescriptor
 
   static constexpr inline auto registers();
 };
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+class CompareAndTryPatchCodeDescriptor
+    : public StaticCallInterfaceDescriptor<CompareAndTryPatchCodeDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kCurrentFeedback, kFeedbackOffset)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::Int32(),      // kCurrentFeedback
+                         MachineType::UintPtr())    // kFeedbackOffset
+  DECLARE_DESCRIPTOR(CompareAndTryPatchCodeDescriptor)
+
+  static constexpr inline auto registers();
+};
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 class Compare_WithEmbeddedFeedbackOffsetDescriptor
     : public StaticCallInterfaceDescriptor<

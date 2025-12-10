@@ -2961,6 +2961,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsInternalizedStringMap(TNode<Map> map);
+  TNode<BoolT> IsInternalizedString(TNode<HeapObject> object);
   TNode<BoolT> IsSharedStringInstanceType(TNode<Int32T> instance_type);
 #ifdef V8_TEMPORAL_SUPPORT
   TNode<BoolT> IsTemporalInstantInstanceType(TNode<Int32T> instance_type);
@@ -4111,6 +4113,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void GotoIfNumberGreaterThanOrEqual(TNode<Number> left, TNode<Number> right,
                                       Label* if_false);
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  void GenerateStrictEqualAndTryPatchCode(TNode<Object> lhs, TNode<Object> rhs,
+                                          TNode<Int32T> current_type_feedback,
+                                          TNode<UintPtrT> feedback_offset);
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
 
   TNode<Boolean> Equal(TNode<Object> lhs, TNode<Object> rhs,
                        TNode<Context> context,

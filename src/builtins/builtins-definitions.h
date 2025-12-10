@@ -120,6 +120,21 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LOAD_IC_HANDLER_LIST(V) \
   LOAD_IC_HANDLER_LIST(V, GENERATE_BUILTIN_LOAD_IC_DEFINITION)
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define TYPED_STRICTEQUAL_HANDLER_HELPER(V, TYPE) \
+  V(StrictEqual_##TYPE##_Baseline, Compare_WithEmbeddedFeedbackOffset)
+
+#define GENERATE_BUILTIN_TYPED_STRICTEQUAL_HANDLER(V)     \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, Any)                \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, Symbol)             \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, Number)             \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, Receiver)           \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, String)             \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, InternalizedString) \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, SignedSmall)        \
+  TYPED_STRICTEQUAL_HANDLER_HELPER(V, None)
+#endif
+
 /* Tiering related builtins
  *
  * These builtins are used for tiering. Some special conventions apply. They,
@@ -968,7 +983,12 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
                                                                                \
   /* Compare ops with feedback collection */                                   \
   TFC(Equal_Baseline, Compare_Baseline)                                        \
-  TFC(StrictEqual_Baseline, Compare_WithEmbeddedFeedbackOffset)                \
+  TFC(StrictEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)        \
+                                                                               \
+  /* Typed StirctEqual baseline stubs */                                       \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_STRICTEQUAL_HANDLER, TFC)           \
+  IF_SPARKPLUG_PLUS(TFC, StrictEqualAndTryPatchCode, CompareAndTryPatchCode)   \
+                                                                               \
   TFC(LessThan_Baseline, Compare_Baseline)                                     \
   TFC(GreaterThan_Baseline, Compare_Baseline)                                  \
   TFC(LessThanOrEqual_Baseline, Compare_Baseline)                              \
