@@ -2616,6 +2616,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSIteratorDropHelper::kHeaderSize;
     case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
       return JSIteratorFlatMapHelper::kHeaderSize;
+    case JS_ITERATOR_CONCAT_HELPER_TYPE:
+      return JSIteratorConcatHelper::kHeaderSize;
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
     case JS_SHARED_ARRAY_TYPE:

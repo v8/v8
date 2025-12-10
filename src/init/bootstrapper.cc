@@ -4634,32 +4634,52 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                               Builtin::kIteratorPrototypeSetConstructor);
 
     // --- Helper maps
-#define INSTALL_ITERATOR_HELPER(lowercase_name, Capitalized_name,              \
-                                ALL_CAPS_NAME, argc)                           \
-  {                                                                            \
-    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(        \
-        JS_ITERATOR_##ALL_CAPS_NAME##_HELPER_TYPE,                             \
-        JSIterator##Capitalized_name##Helper::kHeaderSize,                     \
-        TERMINAL_FAST_ELEMENTS_KIND, 0);                                       \
-    Map::SetPrototype(isolate(), map, iterator_helper_prototype);              \
-    map->SetConstructor(*iterator_function);                                   \
-    native_context()->set_iterator_##lowercase_name##_helper_map(*map);        \
-    SimpleInstallFunction(isolate(), iterator_prototype, #lowercase_name,      \
-                          Builtin::kIteratorPrototype##Capitalized_name, argc, \
-                          kAdapt);                                             \
+#define INSTALL_ITERATOR_HELPER(BASE_AND_BUILTIN, lowercase_name,             \
+                                Capitalized_name, ALL_CAPS_NAME, argc, adapt) \
+  {                                                                           \
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(       \
+        JS_ITERATOR_##ALL_CAPS_NAME##_HELPER_TYPE,                            \
+        JSIterator##Capitalized_name##Helper::kHeaderSize,                    \
+        TERMINAL_FAST_ELEMENTS_KIND, 0);                                      \
+    Map::SetPrototype(isolate(), map, iterator_helper_prototype);             \
+    map->SetConstructor(*iterator_function);                                  \
+    native_context()->set_iterator_##lowercase_name##_helper_map(*map);       \
+    auto [base, builtin] = BASE_AND_BUILTIN(Capitalized_name);                \
+    SimpleInstallFunction(isolate(), base, #lowercase_name, builtin, argc,    \
+                          adapt);                                             \
   }
 
-#define ITERATOR_HELPERS(V)    \
-  V(map, Map, MAP, 1)          \
-  V(filter, Filter, FILTER, 1) \
-  V(take, Take, TAKE, 1)       \
-  V(drop, Drop, DROP, 1)       \
-  V(flatMap, FlatMap, FLAT_MAP, 1)
+#define ITERATOR_PROTOTYPE(Capitalized_name)  \
+  std::pair<DirectHandle<JSObject>, Builtin>{ \
+      iterator_prototype, Builtin::kIteratorPrototype##Capitalized_name}
+#define ITERATOR_FUNCTION(Capitalized_name)   \
+  std::pair<DirectHandle<JSObject>, Builtin>{ \
+      iterator_function, Builtin::kIterator##Capitalized_name}
+
+#define ITERATOR_HELPERS(V)                                \
+  V(ITERATOR_PROTOTYPE, map, Map, MAP, 1, kAdapt)          \
+  V(ITERATOR_PROTOTYPE, filter, Filter, FILTER, 1, kAdapt) \
+  V(ITERATOR_PROTOTYPE, take, Take, TAKE, 1, kAdapt)       \
+  V(ITERATOR_PROTOTYPE, drop, Drop, DROP, 1, kAdapt)       \
+  V(ITERATOR_PROTOTYPE, flatMap, FlatMap, FLAT_MAP, 1, kAdapt)
+
+    // TODO(nikolaos, 434977727): Once the --js-iterator-sequencing flag is
+    // removed, add the following line to the above macro:
+    // V(ITERATOR_FUNCTION, concat, Concat, CONCAT, 0, kDontAdapt)
 
     ITERATOR_HELPERS(INSTALL_ITERATOR_HELPER)
 
 #undef INSTALL_ITERATOR_HELPER
+#undef ITERATOR_PROTOTYPE
+#undef ITERATOR_FUNCTION
 #undef ITERATOR_HELPERS
+
+    // TODO(nikolaos, 434977727): Once the --js-iterator-sequencing flag is
+    // removed, remove the three lines below.
+    USE(v8_flags.js_iterator_sequencing);
+    native_context()->set_initial_iterator_helper_prototype(
+        *iterator_helper_prototype);
+    native_context()->set_initial_iterator_function(*iterator_function);
   }
 
   {  // -- I t e r a t o r R e s u l t
@@ -5529,6 +5549,23 @@ void Genesis::InitializeGlobal_js_immutable_arraybuffer() {
   SimpleInstallFunction(isolate(), prototype, "sliceToImmutable",
                         Builtin::kArrayBufferPrototypeSliceToImmutable, 2,
                         kAdapt);
+}
+
+void Genesis::InitializeGlobal_js_iterator_sequencing() {
+  if (!v8_flags.js_iterator_sequencing) return;
+  auto iterator_helper_prototype = direct_handle(
+      native_context()->initial_iterator_helper_prototype(), isolate_);
+  auto iterator_function =
+      direct_handle(native_context()->initial_iterator_function(), isolate_);
+  DirectHandle<Map> map =
+      isolate_->factory()->NewContextfulMapForCurrentContext(
+          JS_ITERATOR_CONCAT_HELPER_TYPE, JSIteratorConcatHelper::kHeaderSize,
+          TERMINAL_FAST_ELEMENTS_KIND, 0);
+  Map::SetPrototype(isolate(), map, iterator_helper_prototype);
+  map->SetConstructor(*iterator_function);
+  native_context()->set_iterator_concat_helper_map(*map);
+  SimpleInstallFunction(isolate_, iterator_function, "concat",
+                        Builtin::kIteratorConcat, 0, kDontAdapt);
 }
 
 void Genesis::InitializeGlobal_js_upsert() {

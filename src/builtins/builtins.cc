@@ -890,6 +890,10 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kUint8ArrayPrototypeSetFromHex:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_base_64);
 
+    // --js-iterator-sequencing:
+    case Builtin::kIteratorConcat:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);
+
     // --js-upsert
     case Builtin::kMapPrototypeGetOrInsert:
     case Builtin::kMapPrototypeGetOrInsertComputed:

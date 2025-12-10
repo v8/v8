@@ -1930,6 +1930,10 @@ void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperVerify(Isolate* isolate) {
   CHECK_GE(Object::NumberValue(counter()), 0);
 }
 
+void JSIteratorConcatHelper::JSIteratorConcatHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorConcatHelperVerify(*this, isolate);
+}
+
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell(this));
 

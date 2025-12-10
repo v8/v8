@@ -161,6 +161,9 @@ enum ContextLookupFlags {
     initial_async_iterator_prototype)                                          \
   V(INITIAL_ASYNC_GENERATOR_PROTOTYPE_INDEX, JSObject,                         \
     initial_async_generator_prototype)                                         \
+  V(INITIAL_ITERATOR_FUNCTION_INDEX, JSFunction, initial_iterator_function)    \
+  V(INITIAL_ITERATOR_HELPER_PROTOTYPE_INDEX, JSObject,                         \
+    initial_iterator_helper_prototype)                                         \
   V(INITIAL_ITERATOR_PROTOTYPE_INDEX, JSObject, initial_iterator_prototype)    \
   V(INITIAL_DISPOSABLE_STACK_PROTOTYPE_INDEX, JSObject,                        \
     initial_disposable_stack_prototype)                                        \
@@ -205,6 +208,7 @@ enum ContextLookupFlags {
   V(ITERATOR_TAKE_HELPER_MAP_INDEX, Map, iterator_take_helper_map)             \
   V(ITERATOR_DROP_HELPER_MAP_INDEX, Map, iterator_drop_helper_map)             \
   V(ITERATOR_FLAT_MAP_HELPER_MAP_INDEX, Map, iterator_flatMap_helper_map)      \
+  V(ITERATOR_CONCAT_HELPER_MAP_INDEX, Map, iterator_concat_helper_map)         \
   V(ITERATOR_FUNCTION_INDEX, JSFunction, iterator_function)                    \
   V(VALID_ITERATOR_WRAPPER_MAP_INDEX, Map, valid_iterator_wrapper_map)         \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \

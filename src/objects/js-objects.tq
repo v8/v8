@@ -200,7 +200,7 @@ extern class JSStringIterator extends JSObject {
 }
 
 // The wrapper returned by Iterator.from().
-// https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype-object
+// https://tc39.es/ecma262/#sec-wrapforvaliditeratorprototype-object
 extern class JSValidIteratorWrapper extends JSObject {
   // The [[Iterated]] slot.
   underlying: iterator::IteratorRecord;

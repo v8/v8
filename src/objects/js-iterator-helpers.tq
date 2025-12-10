@@ -36,3 +36,9 @@ extern class JSIteratorFlatMapHelper extends JSIteratorHelper {
   innerIterator: iterator::IteratorRecord;
   innerAlive: Boolean;
 }
+
+extern class JSIteratorConcatHelper extends JSIteratorHelper {
+  iterables: FixedArray;
+  current: Smi;
+  innerAlive: Boolean;
+}
