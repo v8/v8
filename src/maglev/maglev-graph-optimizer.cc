@@ -167,9 +167,7 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(
   ReduceResult result = reducer_.SetNodeInputs(new_node, inputs);
   DCHECK(result.IsDone());
   if (result.IsDoneWithAbort()) {
-    ReduceResult deopt = EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
-    USE(deopt);
-    return ProcessResult::kTruncateBlock;
+    return DeoptAndTruncate(DeoptimizeReason::kUnknown);
   }
   return ProcessResult::kContinue;
 }
@@ -424,31 +422,60 @@ ProcessResult MaglevGraphOptimizer::VisitCheckDynamicValue(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckInt32IsSmi(
     CheckInt32IsSmi* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetInt32Constant(node->input_node(0))) {
+    if (Smi::IsValid(cst.value())) {
+      return ProcessResult::kRemove;
+    }
+    return DeoptAndTruncate(DeoptimizeReason::kNotASmi);
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckUint32IsSmi(
     CheckUint32IsSmi* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetUint32Constant(node->input_node(0))) {
+    if (Smi::IsValid(cst.value())) {
+      return ProcessResult::kRemove;
+    }
+    return DeoptAndTruncate(DeoptimizeReason::kNotASmi);
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckIntPtrIsSmi(
     CheckIntPtrIsSmi* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetIntPtrConstant(node->input_node(0))) {
+    if (Smi::IsValid(cst.value())) {
+      return ProcessResult::kRemove;
+    }
+    return DeoptAndTruncate(DeoptimizeReason::kNotASmi);
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckFloat64IsSmi(
     CheckFloat64IsSmi* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, node->input_node(0),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    if (IsSmiDouble(cst.value().get_scalar())) {
+      return ProcessResult::kRemove;
+    }
+    return DeoptAndTruncate(DeoptimizeReason::kNotASmi);
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64IsSmi(
     CheckHoleyFloat64IsSmi* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kHoleyFloat64, node->input_node(0),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    if (IsSmiDouble(cst.value().get_scalar())) {
+      return ProcessResult::kRemove;
+    }
+    return DeoptAndTruncate(DeoptimizeReason::kNotASmi);
+  }
   return ProcessResult::kContinue;
 }
 
@@ -596,13 +623,35 @@ ProcessResult MaglevGraphOptimizer::VisitCheckValue(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckValueEqualsInt32(
     CheckValueEqualsInt32* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetInt32Constant(node->input_node(0))) {
+    if (cst.value() == node->value()) {
+      return ProcessResult::kRemove;
+    }
+    return DeoptAndTruncate(node->deoptimize_reason());
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckFloat64SameValue(
     CheckFloat64SameValue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (auto cst = reducer_.TryGetFloat64OrHoleyFloat64Constant(
+          UseRepresentation::kFloat64, node->input_node(0),
+          TaggedToFloat64ConversionType::kNumberOrOddball)) {
+    double left = cst.value().get_scalar();
+    double right = node->value().get_scalar();
+    bool same_value = false;
+    if (std::isnan(left) && std::isnan(right)) {
+      same_value = true;
+    } else {
+      same_value =
+          base::bit_cast<uint64_t>(left) == base::bit_cast<uint64_t>(right);
+    }
+
+    if (same_value) {
+      return ProcessResult::kRemove;
+    }
+    return DeoptAndTruncate(node->deoptimize_reason());
+  }
   return ProcessResult::kContinue;
 }
 

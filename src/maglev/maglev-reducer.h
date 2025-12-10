@@ -317,6 +317,7 @@ class MaglevReducer {
 
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
+  std::optional<intptr_t> TryGetIntPtrConstant(ValueNode* value);
   std::optional<ShiftedInt53> TryGetShiftedInt53Constant(ValueNode* value);
   std::optional<Float64> TryGetFloat64OrHoleyFloat64Constant(
       UseRepresentation use_repr, ValueNode* value,

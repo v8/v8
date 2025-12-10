@@ -84,6 +84,12 @@ class MaglevGraphOptimizer {
 
   ReduceResult EmitUnconditionalDeopt(DeoptimizeReason);
 
+  ProcessResult DeoptAndTruncate(DeoptimizeReason reason) {
+    ReduceResult result = EmitUnconditionalDeopt(reason);
+    CHECK(result.IsDoneWithAbort());
+    return ProcessResult::kTruncateBlock;
+  }
+
  private:
   MaglevReducer<MaglevGraphOptimizer> reducer_;
   RecomputeKnownNodeAspectsProcessor& kna_processor_;

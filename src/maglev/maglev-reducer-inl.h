@@ -858,6 +858,21 @@ std::optional<uint32_t> MaglevReducer<BaseT>::TryGetUint32Constant(
 }
 
 template <typename BaseT>
+std::optional<intptr_t> MaglevReducer<BaseT>::TryGetIntPtrConstant(
+    ValueNode* value) {
+  switch (value->opcode()) {
+    case Opcode::kIntPtrConstant:
+      return value->Cast<IntPtrConstant>()->value();
+    default:
+      break;
+  }
+  if (auto c = TryGetConstantAlternative(value)) {
+    return TryGetIntPtrConstant(*c);
+  }
+  return {};
+}
+
+template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kTruncatedInt32);
