@@ -19,7 +19,7 @@ namespace internal {
 
 #define DEOPTIMIZE_REASON_LIST(V)                                              \
   DEOPTIMIZE_IN_BUILTIN_REASON_LIST(V)                                         \
-  V(ArrayBufferWasDetached, "array buffer was detached")                       \
+  V(ArrayBufferWasDetached, "array buffer was detached or immutable")          \
   V(ArrayLengthChanged, "the array length changed")                            \
   V(BigIntTooBig, "BigInt too big")                                            \
   V(ConstTrackingLet, "const tracking let constness invalidated")              \

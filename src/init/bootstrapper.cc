@@ -5512,6 +5512,25 @@ void Genesis::InitializeGlobal_js_error_iserror() {
                                Builtin::kErrorIsError, 1, kAdapt);
 }
 
+void Genesis::InitializeGlobal_js_immutable_arraybuffer() {
+  if (!v8_flags.js_immutable_arraybuffer) return;
+
+  DirectHandle<JSFunction> array_buffer_fun(
+      native_context()->array_buffer_fun(), isolate());
+  DirectHandle<JSObject> prototype(
+      Cast<JSObject>(array_buffer_fun->instance_prototype()), isolate());
+
+  SimpleInstallGetter(isolate(), prototype,
+                      isolate()->factory()->immutable_string(),
+                      Builtin::kArrayBufferPrototypeGetImmutable, kAdapt);
+  SimpleInstallFunction(isolate(), prototype, "transferToImmutable",
+                        Builtin::kArrayBufferPrototypeTransferToImmutable, 0,
+                        kDontAdapt);
+  SimpleInstallFunction(isolate(), prototype, "sliceToImmutable",
+                        Builtin::kArrayBufferPrototypeSliceToImmutable, 2,
+                        kAdapt);
+}
+
 void Genesis::InitializeGlobal_js_upsert() {
   if (!v8_flags.js_upsert) return;
 

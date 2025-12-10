@@ -3628,12 +3628,14 @@ class TypedElementsAccessor
 
   static PropertyDetails GetDetailsImpl(Tagged<JSObject> holder,
                                         InternalIndex entry) {
-    return PropertyDetails(PropertyKind::kData, NONE,
-                           PropertyCellType::kNoCell);
-  }
-
-  static PropertyDetails GetDetailsImpl(Tagged<FixedArrayBase> backing_store,
-                                        InternalIndex entry) {
+    Tagged<JSTypedArray> typed_array = Cast<JSTypedArray>(holder);
+    Tagged<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(typed_array->buffer());
+    if (buffer->is_immutable()) {
+      return PropertyDetails(
+          PropertyKind::kData,
+          static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY),
+          PropertyCellType::kNoCell);
+    }
     return PropertyDetails(PropertyKind::kData, NONE,
                            PropertyCellType::kNoCell);
   }

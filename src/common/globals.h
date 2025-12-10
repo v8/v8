@@ -1649,6 +1649,8 @@ static constexpr GCEpoch kInitialGCEpoch = GCEpoch(0);
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 
+enum class TypedArrayAccessMode { kRead, kWrite };
+
 enum MinimumCapacity {
   USE_DEFAULT_MINIMUM_CAPACITY,
   USE_CUSTOM_MINIMUM_CAPACITY

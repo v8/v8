@@ -104,7 +104,19 @@ namespace internal {
   T(DefineDisallowed, "Cannot define property %, object is not extensible")    \
   T(DefineDisallowedFixedLayout,                                               \
     "Cannot define property %, object has fixed layout")                       \
-  T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
+  T(TypedArrayDetachedErrorOperation,                                          \
+    "Cannot perform % on a detached ArrayBuffer")                              \
+  T(TypedArrayOOBErrorOperation,                                               \
+    "Cannot perform % out-of-bounds of the ArrayBuffer")                       \
+  T(TypedArrayValidateErrorOperation,                                          \
+    "Cannot perform % on a detached or out-of-bounds ArrayBuffer")             \
+  T(TypedArrayValidateWriteErrorOperation,                                     \
+    (v8_flags.js_immutable_arraybuffer                                         \
+         ? "Cannot perform % on a detached or out-of-bounds or immutable "     \
+           "ArrayBuffer"                                                       \
+         : "Cannot perform % on a detached or out-of-bounds ArrayBuffer"))     \
+  T(TypedArrayImmutableBufferErrorOperation,                                   \
+    "Cannot perform % on an immutable ArrayBuffer")                            \
   T(DoNotUse, "Do not use %; %")                                               \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueNotConstructor,                                                \

@@ -461,11 +461,14 @@ extern enum MessageTemplate {
   kBigIntTooBig,
   kBigIntDivZero,
   kNotTypedArray,
-  kDetachedOperation,
+  kTypedArrayDetachedErrorOperation,
+  kTypedArrayValidateErrorOperation,
+  kTypedArrayValidateWriteErrorOperation,
   kBadSortComparisonFunction,
   kIncompatibleMethodReceiver,
   kInvalidDataViewAccessorOffset,
   kTypedArraySetOffsetOutOfBounds,
+  kTypedArrayImmutableBufferErrorOperation,
   kInvalidArgument,
   kInvalidRegExpExecResult,
   kInvalidSizeValue,
@@ -2240,3 +2243,5 @@ extern macro LoadSimd128(intptr): Simd128;
 extern macro I8x16BitMask(I8X16): int32;
 extern macro I8x16Eq(I8X16, I8X16): I8X16;
 extern macro I8x16Splat(int32): I8X16;
+
+extern enum TypedArrayAccessMode extends int31 { kRead, kWrite }

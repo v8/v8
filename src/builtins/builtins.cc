@@ -897,6 +897,12 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kWeakMapPrototypeGetOrInsertComputed:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_upsert);
 
+    // --js-immutable-arraybuffer
+    case Builtin::kArrayBufferPrototypeGetImmutable:
+    case Builtin::kArrayBufferPrototypeTransferToImmutable:
+    case Builtin::kArrayBufferPrototypeSliceToImmutable:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_immutable_arraybuffer);
+
 #ifdef V8_INTL_SUPPORT
     // --js-intl-locale-variants
     case Builtin::kLocalePrototypeVariants:

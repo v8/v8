@@ -83,6 +83,9 @@ class JSArrayBuffer
   // GrowableSharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_resizable_by_js)
 
+  // [is_immutable]: true if this is an ImmutableArrayBuffer.
+  DECL_BOOLEAN_ACCESSORS(is_immutable)
+
   // An ArrayBuffer is empty if its BackingStore is empty or if there is none.
   // An empty ArrayBuffer will have a byte_length of zero but not necessarily a
   // nullptr backing_store. An ArrayBuffer with a byte_length of zero may not
@@ -411,7 +414,8 @@ class JSTypedArray
       Isolate* isolate);
 
   static inline MaybeDirectHandle<JSTypedArray> Validate(
-      Isolate* isolate, DirectHandle<Object> receiver, const char* method_name);
+      Isolate* isolate, DirectHandle<Object> receiver, const char* method_name,
+      TypedArrayAccessMode access_mode = TypedArrayAccessMode::kRead);
 
   // Dispatched behavior.
   DECL_PRINTER(JSTypedArray)

@@ -569,6 +569,9 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* https://tc39.es/proposal-arraybuffer-transfer/ */                         \
   CPP(ArrayBufferPrototypeTransfer, kDontAdaptArgumentsSentinel)               \
   CPP(ArrayBufferPrototypeTransferToFixedLength, kDontAdaptArgumentsSentinel)  \
+  /* https://tc39.es/proposal-immutable-arraybuffer/ */                        \
+  CPP(ArrayBufferPrototypeTransferToImmutable, kDontAdaptArgumentsSentinel)    \
+  CPP(ArrayBufferPrototypeSliceToImmutable, JSParameterCount(2))               \
                                                                                \
   /* AsyncFunction */                                                          \
   TFS(AsyncFunctionEnter, NeedsContext::kYes, kClosure, kReceiver)             \

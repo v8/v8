@@ -1250,7 +1250,7 @@ builtin ThrowDataViewTypeError(value: JSAny): JSAny {
 
 builtin ThrowDataViewDetachedError(): JSAny {
   const context = LoadContextFromFrame();
-  const error = MessageTemplate::kDetachedOperation;
+  const error = MessageTemplate::kTypedArrayValidateErrorOperation;
   runtime::WasmThrowDataViewDetachedError(context, SmiConstant(error));
 }
 

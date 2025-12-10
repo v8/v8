@@ -70,6 +70,7 @@ FEATURE_FLAGS = {
     'upsert': '--js-upsert',
     'Intl.Locale': '--js-intl-locale-variants',
     'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',
+    'immutable-arraybuffer': '--js-immutable-arraybuffer',
 }
 
 SKIPPED_FEATURES = set([])

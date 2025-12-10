@@ -908,7 +908,8 @@ transitioning javascript builtin TypedArrayPrototypeJoin(
   // Spec: ValidateTypedArray is applied to the this value prior to evaluating
   // the algorithm.
   const length = typed_array::ValidateTypedArrayAndGetLength(
-      context, receiver, '%TypedArray%.prototype.join');
+      context, receiver, '%TypedArray%.prototype.join',
+      TypedArrayAccessMode::kRead);
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   // 3. If separator is undefined, let sep be the single-element String ",".
@@ -929,7 +930,8 @@ transitioning javascript builtin TypedArrayPrototypeToLocaleString(
   // Spec: ValidateTypedArray is applied to the this value prior to evaluating
   // the algorithm.
   const length = typed_array::ValidateTypedArrayAndGetLength(
-      context, receiver, '%TypedArray%.prototype.toLocaleString');
+      context, receiver, '%TypedArray%.prototype.toLocaleString',
+      TypedArrayAccessMode::kRead);
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
 
   return CycleProtectedArrayJoin<JSTypedArray>(

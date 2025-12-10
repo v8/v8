@@ -8677,6 +8677,12 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     return NoChange();
   }
 
+  if (access == DataViewAccess::kSet && v8_flags.js_immutable_arraybuffer &&
+      !dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // TODO(450237486, olivf): Support immutable AB checks.
+    return NoChange();
+  }
+
   // Check that the {offset} is within range for the {receiver}.
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue() && m.Ref(broker()).IsJSDataView()) {

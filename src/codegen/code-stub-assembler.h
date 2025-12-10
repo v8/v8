@@ -4206,9 +4206,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<JSArrayBuffer> array_buffer);
   TNode<RawPtrT> LoadJSArrayBufferBackingStorePtr(
       TNode<JSArrayBuffer> array_buffer);
-  void ThrowIfArrayBufferIsDetached(TNode<Context> context,
-                                    TNode<JSArrayBuffer> array_buffer,
-                                    const char* method_name);
 
   // JSArrayBufferView helpers
   TNode<JSArrayBuffer> LoadJSArrayBufferViewBuffer(
@@ -4221,28 +4218,35 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<JSArrayBufferView> array_buffer_view);
   void StoreJSArrayBufferViewByteOffset(
       TNode<JSArrayBufferView> array_buffer_view, TNode<UintPtrT> value);
-  void ThrowIfArrayBufferViewBufferIsDetached(
-      TNode<Context> context, TNode<JSArrayBufferView> array_buffer_view,
-      const char* method_name);
 
   // JSTypedArray helpers
   TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
-  TNode<UintPtrT> LoadJSTypedArrayLengthAndCheckDetached(
-      TNode<JSTypedArray> typed_array, Label* detached);
+  TNode<UintPtrT> LoadJSTypedArrayLengthAndValidate(
+      TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail);
+  TNode<UintPtrT> LoadJSTypedArrayLengthAndValidate(
+      TNode<JSTypedArray> typed_array, TNode<JSArrayBuffer> buffer,
+      TypedArrayAccessMode mode, bool is_resizable, Label* fail);
+
   // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
   // ResizableArrayBuffer.
+
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayLength(
       TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
-      Label* detached_or_out_of_bounds);
-  // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
-  // ResizableArrayBuffer.
+      TypedArrayAccessMode mode, Label* fail);
+
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayByteLength(
       TNode<Context> context, TNode<JSTypedArray> array,
       TNode<JSArrayBuffer> buffer);
+
+  // Helper for length tracking JSArrayBufferViews and JSArrayBufferViews backed
+  // by ResizableArrayBuffer.
   TNode<UintPtrT> LoadVariableLengthJSArrayBufferViewByteLength(
       TNode<JSArrayBufferView> array, TNode<JSArrayBuffer> buffer,
-      Label* detached_or_out_of_bounds);
+      TypedArrayAccessMode mode, Label* fail);
 
+  void IsJSArrayBufferViewValid(TNode<JSArrayBufferView> array_buffer_view,
+                                TypedArrayAccessMode mode, Label* valid,
+                                Label* fail);
   void IsJSArrayBufferViewDetachedOrOutOfBounds(
       TNode<JSArrayBufferView> array_buffer_view, Label* detached_or_oob,
       Label* not_detached_nor_oob);
