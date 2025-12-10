@@ -8064,10 +8064,9 @@ class TurboshaftGraphBuildingInterface
             : LoadOp::Kind::TaggedBase().Immutable();
 
     V<WasmInternalFunction> internal_function =
-        V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
+        V<WasmInternalFunction>::Cast(__ LoadTrustedPointer(
             func_ref, load_kind, kWasmInternalFunctionIndirectPointerTag,
             WasmFuncRef::kTrustedInternalOffset));
-
     return BuildFunctionTargetAndImplicitArg(internal_function);
   }
 

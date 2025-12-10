@@ -2899,9 +2899,9 @@ class AssemblerOpInterface : public Next {
   }
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
-  V<Object> LoadTrustedPointerField(V<HeapObject> base, OptionalV<Word32> index,
-                                    LoadOp::Kind kind, IndirectPointerTag tag,
-                                    int offset = 0) {
+  V<Object> LoadTrustedPointer(V<HeapObject> base, OptionalV<Word32> index,
+                               LoadOp::Kind kind, IndirectPointerTag tag,
+                               int offset = 0) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
     V<Word32> handle =
@@ -2911,7 +2911,7 @@ class AssemblerOpInterface : public Next {
              MemoryRepresentation::UintPtr(),
              IsolateData::trusted_pointer_table_offset() +
                  Internals::kTrustedPointerTableBasePointerOffset);
-    return LoadTrustedPointerField(table, handle, kind.is_immutable, tag);
+    return LoadTrustedPointer(table, handle, kind.is_immutable, tag);
 #else
     return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),
                 offset);
@@ -2919,17 +2919,17 @@ class AssemblerOpInterface : public Next {
   }
 
 #if V8_ENABLE_SANDBOX
-  V<Object> LoadTrustedPointerField(V<WordPtr> table, V<Word32> handle,
-                                    bool is_immutable, IndirectPointerTag tag) {
-    return ReduceIfReachableLoadTrustedPointerField(table, handle, is_immutable,
-                                                    tag);
+  V<Object> LoadTrustedPointer(V<WordPtr> table, V<Word32> handle,
+                               bool is_immutable, IndirectPointerTag tag) {
+    return ReduceIfReachableLoadTrustedPointer(table, handle, is_immutable,
+                                               tag);
   }
 #endif
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
-  V<Object> LoadTrustedPointerField(V<HeapObject> base, LoadOp::Kind kind,
-                                    IndirectPointerTag tag, int offset = 0) {
-    return LoadTrustedPointerField(base, OpIndex::Invalid(), kind, tag, offset);
+  V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
+                               IndirectPointerTag tag, int offset = 0) {
+    return LoadTrustedPointer(base, OpIndex::Invalid(), kind, tag, offset);
   }
 
   V<WordPtr> LoadExternalPointerFromObject(V<Object> object, int offset,
@@ -2937,7 +2937,7 @@ class AssemblerOpInterface : public Next {
 #ifdef V8_ENABLE_SANDBOX
     V<Word32> handle = __ Load(object, LoadOp::Kind::TaggedBase(),
                                MemoryRepresentation::Uint32(), offset);
-    return __ DecodeExternalPointer(handle, tag);
+    return __ LoadExternalPointer(handle, tag);
 #else
     return __ Load(object, LoadOp::Kind::TaggedBase(),
                    MemoryRepresentation::UintPtr(), offset);
@@ -3129,8 +3129,8 @@ class AssemblerOpInterface : public Next {
     V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
-      value = V<Rep>::Cast(DecodeExternalPointer(V<Word32>::Cast(value),
-                                                 access.external_pointer_tag));
+      value = V<Rep>::Cast(LoadExternalPointer(V<Word32>::Cast(value),
+                                               access.external_pointer_tag));
     }
     if (access.is_bounded_size_access) {
       DCHECK(!is_sandboxed_external);
@@ -3376,9 +3376,11 @@ class AssemblerOpInterface : public Next {
     return __ FinishInitialization(std::move(result));
   }
 
-  V<WordPtr> DecodeExternalPointer(V<Word32> handle, ExternalPointerTag tag) {
-    return ReduceIfReachableDecodeExternalPointer(handle, tag);
+#if V8_ENABLE_SANDBOX
+  V<WordPtr> LoadExternalPointer(V<Word32> handle, ExternalPointerTag tag) {
+    return ReduceIfReachableLoadExternalPointer(handle, tag);
   }
+#endif
 
 #if V8_ENABLE_WEBASSEMBLY
   void WasmStackCheck(WasmStackCheckOp::Kind kind) {

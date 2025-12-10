@@ -765,11 +765,13 @@ void AllocateOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
-void DecodeExternalPointerOp::PrintOptions(std::ostream& os) const {
+#if V8_ENABLE_SANDBOX
+void LoadExternalPointerOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";
   os << ']';
 }
+#endif
 
 void FrameStateOp::PrintOptions(std::ostream& os) const {
   os << '[';

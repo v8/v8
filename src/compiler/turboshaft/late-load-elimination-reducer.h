@@ -483,7 +483,7 @@ class MemoryContentTable
   }
 
 #if V8_ENABLE_SANDBOX
-  OpIndex Find(const LoadTrustedPointerFieldOp& load) {
+  OpIndex Find(const LoadTrustedPointerOp& load) {
     OpIndex base = ResolveBase(load.table());
     OptionalOpIndex index = load.handle();
     int32_t offset = 0;
@@ -496,7 +496,7 @@ class MemoryContentTable
     return Get(key->second);
   }
 
-  void Insert(const LoadTrustedPointerFieldOp& load, OpIndex load_idx) {
+  void Insert(const LoadTrustedPointerOp& load, OpIndex load_idx) {
     OpIndex base = ResolveBase(load.table());
     OptionalOpIndex index = load.handle();
     int32_t offset = 0;
@@ -743,7 +743,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessBlock(const Block& block, bool compute_start_snapshot);
   void ProcessLoad(OpIndex op_idx, const LoadOp& op);
 #if V8_ENABLE_SANDBOX
-  void ProcessTrustedLoad(OpIndex op_idx, const LoadTrustedPointerFieldOp& op);
+  void ProcessTrustedLoad(OpIndex op_idx, const LoadTrustedPointerOp& op);
 #endif
   void ProcessStore(OpIndex op_idx, const StoreOp& op);
   void ProcessAtomicRMW(OpIndex op_idx, const AtomicRMWOp& op);
@@ -1025,8 +1025,8 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
 #if V8_ENABLE_SANDBOX
-  V<Object> REDUCE_INPUT_GRAPH(LoadTrustedPointerField)(
-      V<Object> ig_index, const LoadTrustedPointerFieldOp& load) {
+  V<Object> REDUCE_INPUT_GRAPH(LoadTrustedPointer)(
+      V<Object> ig_index, const LoadTrustedPointerOp& load) {
     if (v8_flags.turboshaft_trusted_load_elimination) {
       CHECK(v8_flags.turboshaft_load_elimination);
       Replacement replacement = analyzer_.GetReplacement(ig_index);
@@ -1036,7 +1036,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
 #if DEBUG
         if (v8_flags.turboshaft_verify_load_elimination) {
           OpIndex actual_idx =
-              Next::ReduceInputGraphLoadTrustedPointerField(ig_index, load);
+              Next::ReduceInputGraphLoadTrustedPointer(ig_index, load);
           IF_NOT (__ TaggedEqual(actual_idx, replacement_idx)) {
             EmitReportLoadEliminationError();
           }
@@ -1045,7 +1045,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
         return replacement_idx;
       }
     }
-    return Next::ReduceInputGraphLoadTrustedPointerField(ig_index, load);
+    return Next::ReduceInputGraphLoadTrustedPointer(ig_index, load);
   }
 #endif
 

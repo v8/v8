@@ -417,9 +417,9 @@ class MemoryOptimizationReducer : public Next {
         __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
 
-  V<WordPtr> REDUCE(DecodeExternalPointer)(V<Word32> handle,
-                                           ExternalPointerTagRange tag_range) {
-#ifdef V8_ENABLE_SANDBOX
+#if V8_ENABLE_SANDBOX
+  V<WordPtr> REDUCE(LoadExternalPointer)(V<Word32> handle,
+                                         ExternalPointerTagRange tag_range) {
     // Decode loaded external pointer.
     V<WordPtr> table;
     if (isolate_ != nullptr) {
@@ -496,10 +496,8 @@ class MemoryOptimizationReducer : public Next {
     }
     __ BindReachable(done);
     return __ Word64BitwiseAnd(pointer, kExternalPointerPayloadMask);
-#else   // V8_ENABLE_SANDBOX
-    UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
   }
+#endif  // V8_ENABLE_SANDBOX
 
   V<None> REDUCE(MajorGCForCompilerTesting)() {
     __ template CallRuntime<runtime::MajorGCForCompilerTesting>(

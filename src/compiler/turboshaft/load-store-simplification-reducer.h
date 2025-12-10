@@ -132,9 +132,9 @@ class LoadStoreSimplificationReducer : public Next,
   }
 
 #if V8_ENABLE_SANDBOX
-  V<Object> REDUCE(LoadTrustedPointerField)(V<WordPtr> table, V<Word32> handle,
-                                            bool is_immutable,
-                                            IndirectPointerTag tag) {
+  V<Object> REDUCE(LoadTrustedPointer)(V<WordPtr> table, V<Word32> handle,
+                                       bool is_immutable,
+                                       IndirectPointerTag tag) {
     V<Word32> table_index =
         __ Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
     V<Word64> table_offset = __ ChangeUint32ToUint64(

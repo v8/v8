@@ -1714,7 +1714,7 @@ OpIndex GraphBuilder::Process(
       OpIndex value = __ Load(Map(object), kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
       if (is_sandboxed_external) {
-        value = __ DecodeExternalPointer(value, access.external_pointer_tag);
+        value = __ LoadExternalPointer(value, access.external_pointer_tag);
       }
       if (access.is_bounded_size_access) {
         DCHECK(!is_sandboxed_external);

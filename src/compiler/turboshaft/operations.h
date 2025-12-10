@@ -352,14 +352,12 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 // These are operations that are not Machine operations and need to be lowered
 // before Instruction Selection, but they are not lowered during the
 // MachineLoweringPhase.
-#define TURBOSHAFT_OTHER_OPERATION_LIST(V)                                     \
-  V(Allocate)                                                                  \
-  V(MajorGCForCompilerTesting)                                                 \
-  V(DecodeExternalPointer)                                                     \
-  V(JSStackCheck)                                                              \
-  /* TODO(mliedtke): Align DecodeExternalPointer to only emit it when building \
-   * with sandbox support and rename it to LoadExternalPointer. */             \
-  IF_SANDBOX(V, LoadTrustedPointerField)
+#define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
+  V(Allocate)                              \
+  V(MajorGCForCompilerTesting)             \
+  V(JSStackCheck)                          \
+  IF_SANDBOX(V, LoadExternalPointer)       \
+  IF_SANDBOX(V, LoadTrustedPointer)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
@@ -3157,16 +3155,15 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
 }
 
 #if V8_ENABLE_SANDBOX
-struct LoadTrustedPointerFieldOp
-    : FixedArityOperationT<2, LoadTrustedPointerFieldOp> {
+struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
   const bool is_immutable;
   IndirectPointerTag tag;
 
   static constexpr OpEffects effects =
       OpEffects().CanReadMemory().CanDependOnChecks();
 
-  explicit LoadTrustedPointerFieldOp(V<WordPtr> table, V<Word32> handle,
-                                     bool is_immutable, IndirectPointerTag tag)
+  explicit LoadTrustedPointerOp(V<WordPtr> table, V<Word32> handle,
+                                bool is_immutable, IndirectPointerTag tag)
       : Base(table, handle), is_immutable(is_immutable), tag(tag) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -3683,8 +3680,8 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   }
 };
 
-struct DecodeExternalPointerOp
-    : FixedArityOperationT<1, DecodeExternalPointerOp> {
+#if V8_ENABLE_SANDBOX
+struct LoadExternalPointerOp : FixedArityOperationT<1, LoadExternalPointerOp> {
   ExternalPointerTagRange tag_range;
 
   // Accessing external pointers is only safe if the garbage collected pointer
@@ -3703,13 +3700,14 @@ struct DecodeExternalPointerOp
 
   V<Word32> handle() const { return input<Word32>(0); }
 
-  DecodeExternalPointerOp(V<Word32> handle, ExternalPointerTagRange tag_range)
+  LoadExternalPointerOp(V<Word32> handle, ExternalPointerTagRange tag_range)
       : Base(handle), tag_range(tag_range) {}
 
   void Validate(const Graph& graph) const { DCHECK(!tag_range.IsEmpty()); }
   void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{tag_range}; }
 };
+#endif
 
 struct JSStackCheckOp : OperationT<JSStackCheckOp> {
   enum class Kind : uint8_t { kFunctionEntry, kBuiltinEntry, kLoop };
