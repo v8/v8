@@ -1638,8 +1638,7 @@ OpIndex GraphBuilder::Process(
 
 #ifdef V8_ENABLE_SANDBOX
       if (access.is_bounded_size_access) {
-        value = __ ShiftLeft(value, kBoundedSizeShift,
-                             WordRepresentation::WordPtr());
+        value = __ WordPtrShiftLeft(value, kBoundedSizeShift);
       }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -1719,8 +1718,7 @@ OpIndex GraphBuilder::Process(
       }
       if (access.is_bounded_size_access) {
         DCHECK(!is_sandboxed_external);
-        value = __ ShiftRightLogical(value, kBoundedSizeShift,
-                                     WordRepresentation::WordPtr());
+        value = __ WordPtrShiftRightLogical(value, kBoundedSizeShift);
       }
 #endif  // V8_ENABLE_SANDBOX
       return value;

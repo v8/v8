@@ -480,12 +480,11 @@ class MemoryOptimizationReducer : public Next {
     Block* done = __ NewBlock();
     if (tag_range.Size() == 1) {
       // The common and simple case: we expect a specific tag.
-      V<Word64> tag_bits = __ Word64BitwiseAnd(
-          pointer, __ Word64Constant(kExternalPointerTagMask));
+      V<Word64> tag_bits =
+          __ Word64BitwiseAnd(pointer, kExternalPointerTagMask);
       tag_bits = __ Word64ShiftRightLogical(tag_bits, kExternalPointerTagShift);
       V<Word32> tag = __ TruncateWord64ToWord32(tag_bits);
-      V<Word32> expected_tag = __ Word32Constant(tag_range.first);
-      __ GotoIf(__ Word32Equal(tag, expected_tag), done, BranchHint::kTrue);
+      __ GotoIf(__ Word32Equal(tag, tag_range.first), done, BranchHint::kTrue);
       // TODO(saelo): it would be nicer to abort here with
       // AbortReason::kExternalPointerTagMismatch. That might require adding a
       // builtin call here though, which is not currently available.

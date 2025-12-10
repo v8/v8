@@ -329,7 +329,7 @@ class FastApiCallLoweringReducer : public Next {
         return __ HeapConstant(factory_->undefined_value());
       case CTypeInfo::Type::kBool:
         static_assert(sizeof(bool) == 1, "unsupported bool size");
-        return __ Word32BitwiseAnd(result, __ Word32Constant(0xFF));
+        return __ Word32BitwiseAnd(result, 0xFF);
       case CTypeInfo::Type::kInt32:
       case CTypeInfo::Type::kUint32:
       case CTypeInfo::Type::kFloat32:

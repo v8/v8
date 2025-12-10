@@ -1751,9 +1751,9 @@ class AssemblerOpInterface : public Next {
   DECL_SINGLE_REP_BINOP_V(Float64Power, FloatBinop, Power, Float64)
   DECL_SINGLE_REP_BINOP_V(Float64Atan2, FloatBinop, Atan2, Float64)
 
-  V<Word> Shift(V<Word> left, V<Word32> right, ShiftOp::Kind kind,
+  V<Word> Shift(V<Word> left, ConstOrV<Word32> right, ShiftOp::Kind kind,
                 WordRepresentation rep) {
-    return ReduceIfReachableShift(left, right, kind, rep);
+    return ReduceIfReachableShift(left, resolve(right), kind, rep);
   }
 
 #define DECL_SINGLE_REP_SHIFT_V(name, kind, tag)                        \
@@ -1761,55 +1761,43 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableShift(resolve(left), resolve(right),        \
                                   ShiftOp::Kind::k##kind, V<tag>::rep); \
   }
+#define DECL_MULTI_REP_SHIFT_V(name)                                           \
+  V<Word> name(V<Word> left, ConstOrV<Word32> right, WordRepresentation rep) { \
+    return ReduceIfReachableShift(left, resolve(right),                        \
+                                  ShiftOp::Kind::k##name, rep);                \
+  }
 
-  DECL_MULTI_REP_BINOP(ShiftRightArithmeticShiftOutZeros, Shift,
-                       WordRepresentation, ShiftRightArithmeticShiftOutZeros)
+  DECL_MULTI_REP_SHIFT_V(ShiftRightArithmeticShiftOutZeros)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, WordPtr)
-  DECL_MULTI_REP_BINOP(ShiftRightArithmetic, Shift, WordRepresentation,
-                       ShiftRightArithmetic)
+  DECL_MULTI_REP_SHIFT_V(ShiftRightArithmetic)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightArithmetic, ShiftRightArithmetic,
                           Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightArithmetic, ShiftRightArithmetic,
                           Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightArithmetic, ShiftRightArithmetic,
                           WordPtr)
-  DECL_MULTI_REP_BINOP(ShiftRightLogical, Shift, WordRepresentation,
-                       ShiftRightLogical)
+  DECL_MULTI_REP_SHIFT_V(ShiftRightLogical)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightLogical, ShiftRightLogical, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightLogical, ShiftRightLogical, Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightLogical, ShiftRightLogical, WordPtr)
-  DECL_MULTI_REP_BINOP(ShiftLeft, Shift, WordRepresentation, ShiftLeft)
+  DECL_MULTI_REP_SHIFT_V(ShiftLeft)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftLeft, ShiftLeft, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftLeft, ShiftLeft, Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftLeft, ShiftLeft, WordPtr)
-  DECL_MULTI_REP_BINOP(RotateRight, Shift, WordRepresentation, RotateRight)
+  DECL_MULTI_REP_SHIFT_V(RotateRight)
   DECL_SINGLE_REP_SHIFT_V(Word32RotateRight, RotateRight, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64RotateRight, RotateRight, Word64)
-  DECL_MULTI_REP_BINOP(RotateLeft, Shift, WordRepresentation, RotateLeft)
+  DECL_MULTI_REP_SHIFT_V(RotateLeft)
   DECL_SINGLE_REP_SHIFT_V(Word32RotateLeft, RotateLeft, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64RotateLeft, RotateLeft, Word64)
 
-  V<Word> ShiftRightLogical(V<Word> left, uint32_t right,
-                            WordRepresentation rep) {
-    DCHECK_GE(right, 0);
-    DCHECK_LT(right, rep.bit_width());
-    return ShiftRightLogical(left, this->Word32Constant(right), rep);
-  }
-  V<Word> ShiftRightArithmetic(V<Word> left, uint32_t right,
-                               WordRepresentation rep) {
-    DCHECK_GE(right, 0);
-    DCHECK_LT(right, rep.bit_width());
-    return ShiftRightArithmetic(left, this->Word32Constant(right), rep);
-  }
-  V<Word> ShiftLeft(V<Word> left, uint32_t right, WordRepresentation rep) {
-    DCHECK_LT(right, rep.bit_width());
-    return ShiftLeft(left, this->Word32Constant(right), rep);
-  }
+#undef DECL_SINGLE_REP_SHIFT_V
+#undef DECL_MULTI_REP_SHIFT_V
 
   V<Word32> Equal(V<Any> left, V<Any> right, RegisterRepresentation rep) {
     return Comparison(left, right, ComparisonOp::Kind::kEqual, rep);
@@ -3172,7 +3160,7 @@ class AssemblerOpInterface : public Next {
 
   V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type) {
     return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
-                       Word32Constant(instance_type));
+                       instance_type);
   }
 
   V<Float64> LoadHeapNumberValue(V<HeapNumber> heap_number) {
@@ -3347,7 +3335,7 @@ class AssemblerOpInterface : public Next {
   V<Word32> IsStringMap(V<HeapObject> obj) {
     return __ Uint32LessThanOrEqual(
         __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(obj)),
-        __ Word32Constant(InstanceTypeChecker::kStringMapUpperBound));
+        InstanceTypeChecker::kStringMapUpperBound);
   }
 #endif  // V8_STATIC_ROOTS_BOOL
 

@@ -1243,7 +1243,7 @@ class MachineOptimizationReducer : public Next {
     if (matcher_.MatchWordSub(high->right(), &a, &b, rep) &&
         matcher_.MatchIntegralWordConstant(a, rep, &k) && b == low->right() &&
         k == rep.bit_width()) {
-      return __ RotateRight(x, b, rep);
+      return __ RotateRight(x, V<Word32>::Cast(b), rep);
     } else if (matcher_.MatchWordSub(low->right(), &a, &b, rep) &&
                matcher_.MatchIntegralWordConstant(a, rep, &k) &&
                b == high->right() && k == rep.bit_width()) {
@@ -1732,10 +1732,9 @@ class MachineOptimizationReducer : public Next {
           if (k == l) {
             return x;
           } else if (k > l) {
-            return __ ShiftRightArithmeticShiftOutZeros(
-                x, __ Word32Constant(k - l), rep);
+            return __ ShiftRightArithmeticShiftOutZeros(x, k - l, rep);
           } else if (k < l) {
-            return __ ShiftLeft(x, __ Word32Constant(l - k), rep);
+            return __ ShiftLeft(x, l - k, rep);
           }
         }
         // (x >>> K) << K => x & ~(2^K - 1)

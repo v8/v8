@@ -357,7 +357,7 @@ class MachineLoweringReducer : public Next {
           is_null_or_undefined = __ Uint32LessThanOrEqual(
               __ TruncateWordPtrToWord32(
                   __ BitcastHeapObjectToWordPtr(V<HeapObject>::Cast(input))),
-              __ Word32Constant(StaticReadOnlyRoot::kNullValue));
+              StaticReadOnlyRoot::kNullValue);
         }
 #endif  // V8_STATIC_ROOTS_BOOL
 
@@ -558,10 +558,9 @@ class MachineLoweringReducer : public Next {
         }
 
         V<Map> map = __ LoadMapField(input);
-        GOTO(done,
-             __ Word32Equal(
-                 __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map)),
-                 __ Word32Constant(StaticReadOnlyRoot::kSymbolMap)));
+        GOTO(done, __ Word32Equal(__ TruncateWordPtrToWord32(
+                                      __ BitcastHeapObjectToWordPtr(map)),
+                                  StaticReadOnlyRoot::kSymbolMap));
 
         BIND(done, result);
         return result;
@@ -4101,10 +4100,9 @@ class MachineLoweringReducer : public Next {
         V<Word32> map_int32 =
             __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map));
         V<Word32> is_in_range = __ Uint32LessThanOrEqual(
-            __ Word32Sub(map_int32,
-                         __ Word32Constant(StaticReadOnlyRoot::kBooleanMap)),
-            __ Word32Constant(StaticReadOnlyRoot::kHeapNumberMap -
-                              StaticReadOnlyRoot::kBooleanMap));
+            __ Word32Sub(map_int32, StaticReadOnlyRoot::kBooleanMap),
+            StaticReadOnlyRoot::kHeapNumberMap -
+                StaticReadOnlyRoot::kBooleanMap);
         __ DeoptimizeIfNot(is_in_range, frame_state,
                            DeoptimizeReason::kNotANumberOrBoolean, feedback);
 #else
@@ -4128,10 +4126,8 @@ class MachineLoweringReducer : public Next {
         V<Word32> map_int32 =
             __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map));
         V<Word32> is_in_range = __ Uint32LessThanOrEqual(
-            __ Word32Sub(map_int32,
-                         __ Word32Constant(kNumberOrOddballRange.first)),
-            __ Word32Constant(kNumberOrOddballRange.second -
-                              kNumberOrOddballRange.first));
+            __ Word32Sub(map_int32, kNumberOrOddballRange.first),
+            kNumberOrOddballRange.second - kNumberOrOddballRange.first);
         __ DeoptimizeIfNot(is_in_range, frame_state,
                            DeoptimizeReason::kNotANumberOrOddball, feedback);
 #else

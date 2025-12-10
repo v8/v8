@@ -3209,13 +3209,11 @@ class GraphBuildingNodeProcessor {
             __ LoadField<Word32>(slot, AccessBuilder::ForContextCellState());
         static_assert(ContextCell::State::kConst == 0);
         static_assert(ContextCell::State::kSmi == 1);
-        IF (__ Int32LessThanOrEqual(slot_state,
-                                    __ Word32Constant(ContextCell::kSmi))) {
+        IF (__ Int32LessThanOrEqual(slot_state, ContextCell::kSmi)) {
           result = __ LoadField<Object>(
               slot, AccessBuilder::ForContextCellTaggedValue());
         } ELSE {
-          IF (__ Word32Equal(slot_state,
-                             __ Word32Constant(ContextCell::kInt32))) {
+          IF (__ Word32Equal(slot_state, ContextCell::kInt32)) {
             result = V<Number>::Cast(__ ConvertUntaggedToJSPrimitive(
                 __ LoadField<Word32>(slot,
                                      AccessBuilder::ForContextCellInt32Value()),
@@ -4428,8 +4426,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::Int32BitwiseNot* node,
                                 const maglev::ProcessingState& state) {
     // Turboshaft doesn't have a bitwise Not operator; we instead use "^ -1".
-    SetMap(node,
-           __ Word32BitwiseXor(Map(node->ValueInput()), __ Word32Constant(-1)));
+    SetMap(node, __ Word32BitwiseXor(Map(node->ValueInput()), -1));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Int32AbsWithOverflow* node,
@@ -6407,9 +6404,9 @@ class GraphBuildingNodeProcessor {
     V<Boolean> true_idx = __ HeapConstant(local_factory_->true_value());
     V<Boolean> false_idx = __ HeapConstant(local_factory_->false_value());
     if (flip) std::swap(true_idx, false_idx);
-    return __ Select(__ WordPtrEqual(b, __ WordPtrConstant(0)), false_idx,
-                     true_idx, RegisterRepresentation::Tagged(),
-                     BranchHint::kNone, SelectOp::Implementation::kForceBranch);
+    return __ Select(__ WordPtrEqual(b, 0), false_idx, true_idx,
+                     RegisterRepresentation::Tagged(), BranchHint::kNone,
+                     SelectOp::Implementation::kForceBranch);
   }
 
   // This function corresponds to MaglevAssembler::ToBoolean.
