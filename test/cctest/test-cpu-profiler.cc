@@ -4827,6 +4827,10 @@ TEST(BytecodeFlushEventsEagerLogging) {
   v8_flags.flush_bytecode = true;
   v8_flags.allow_natives_syntax = true;
 
+  // This test is not compatible with conservative stack scanning, as it
+  // expects that the compilation cache is flushed after a number of GCs.
+  if (v8_flags.conservative_stack_scanning) return;
+
   TestSetup test_setup;
   ManualGCScope manual_gc_scope;
 
@@ -4834,8 +4838,6 @@ TEST(BytecodeFlushEventsEagerLogging) {
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();
   Factory* factory = i_isolate->factory();
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      CcTest::heap());
 
   CpuProfiler profiler(i_isolate, kDebugNaming, kEagerLogging);
   InstructionStreamMap* instruction_stream_map = profiler.code_map_for_test();
