@@ -593,9 +593,12 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       } else if (repr == ValueRepresentation::kHoleyFloat64) {
         TRACE_UNTAGGING(TRACE_INPUT_LABEL
                         << ": Making HoleyFloat64 instead of Constant");
-        phi->change_input(input_index,
-                          graph_->GetHoleyFloat64Constant(Float64{
-                              constant->object().AsHeapNumber().value()}));
+        Float64 f64 = Float64::FromBits(
+            base::double_to_uint64(constant->object().AsHeapNumber().value()));
+        // We need to silence hole and undefined patterns as their
+        // interpretation will now change.
+        if (f64.is_undefined_or_hole_nan()) f64 = f64.to_quiet_nan();
+        phi->change_input(input_index, graph_->GetHoleyFloat64Constant(f64));
       } else if (repr == ValueRepresentation::kShiftedInt53) {
         TRACE_UNTAGGING(TRACE_INPUT_LABEL
                         << ": Making ShiftedInt53 instead of Constant");
