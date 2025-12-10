@@ -1808,7 +1808,7 @@ ReduceResult MaglevGraphBuilder::GetInternalizedString(
   return maybe_unwrapping_node;
 }
 
-ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
+ReduceResult MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   return reducer_.GetTruncatedInt32ForToNumber(value, allowed_input_type);
 }
@@ -1988,8 +1988,10 @@ ReduceResult MaglevGraphBuilder::BuildInt32UnaryOperationNode() {
 
 ReduceResult MaglevGraphBuilder::BuildTruncatingInt32BitwiseNotForToNumber(
     NodeType allowed_input_type) {
-  ValueNode* value = GetTruncatedInt32ForToNumber(
-      current_interpreter_frame_.accumulator(), allowed_input_type);
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(
+      value, GetTruncatedInt32ForToNumber(
+                 current_interpreter_frame_.accumulator(), allowed_input_type));
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldInt32UnaryOperation<Operation::kBitwiseNot>(value),
       SetAccumulator);
@@ -2018,15 +2020,20 @@ MaglevGraphBuilder::BuildTruncatingInt32BinaryOperationNodeForToNumber(
   ValueNode* left;
   ValueNode* right;
   if (IsRegisterEqualToAccumulator(0)) {
-    left = right = GetTruncatedInt32ForToNumber(
-        current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)),
-        allowed_input_type);
+    GET_VALUE_OR_ABORT(
+        right,
+        GetTruncatedInt32ForToNumber(
+            current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)),
+            allowed_input_type));
+    left = right;
   } else {
-    left = GetTruncatedInt32ForToNumber(
-        current_interpreter_frame_.get(iterator_.GetRegisterOperand(0)),
-        allowed_input_type);
-    right = GetTruncatedInt32ForToNumber(
-        current_interpreter_frame_.accumulator(), allowed_input_type);
+    GET_VALUE_OR_ABORT(
+        left, GetTruncatedInt32ForToNumber(current_interpreter_frame_.get(
+                                               iterator_.GetRegisterOperand(0)),
+                                           allowed_input_type));
+    GET_VALUE_OR_ABORT(right, GetTruncatedInt32ForToNumber(
+                                  current_interpreter_frame_.accumulator(),
+                                  allowed_input_type));
   }
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldInt32BinaryOperation<kOperation>(left, right),
@@ -2055,8 +2062,10 @@ ReduceResult
 MaglevGraphBuilder::BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
     NodeType allowed_input_type) {
   static_assert(BinaryOperationIsBitwiseInt32<kOperation>());
-  ValueNode* left = GetTruncatedInt32ForToNumber(
-      current_interpreter_frame_.accumulator(), allowed_input_type);
+  ValueNode* left;
+  GET_VALUE_OR_ABORT(
+      left, GetTruncatedInt32ForToNumber(
+                current_interpreter_frame_.accumulator(), allowed_input_type));
   int32_t constant = iterator_.GetImmediateOperand(0);
   PROCESS_AND_RETURN_IF_DONE(
       reducer_.TryFoldInt32BinaryOperation<kOperation>(left, constant),
@@ -2855,8 +2864,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
       if (TryConstantFoldUint32ComparedToZero(left, right)) {
         return ReduceResult::Done();
       }
-      left = GetInt32(left);
-      right = GetInt32(right);
+      GET_VALUE_OR_ABORT(left, GetInt32(left));
+      GET_VALUE_OR_ABORT(right, GetInt32(right));
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
       if (TryConstantFoldInt32(left, right)) return ReduceResult::Done();
       SortCommute(left, right);
@@ -3251,7 +3260,7 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
       return AddNewNode<StoreSmiContextCell>({GetConstant(slot_ref), value},
                                              context_ref, offset);
     case ContextCell::kInt32:
-      EnsureInt32(value, true);
+      RETURN_IF_ABORT(EnsureInt32(value, true));
       broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return AddNewNode<StoreInt32ContextCell>({GetConstant(slot_ref), value},
                                                context_ref, offset);
@@ -5637,8 +5646,19 @@ ReduceResult MaglevGraphBuilder::GetInt32ElementIndex(ValueNode* object) {
         return GetInt32Constant(constant->value().value());
       } else if (CheckType(object, NodeType::kSmi, &old_type)) {
         auto& alternative = GetOrCreateInfoFor(object)->alternative();
-        return alternative.get_or_set_int32(
-            [&]() { return BuildSmiUntag(object); });
+        bool bailout = false;
+        ValueNode* value = alternative.get_or_set_int32([&]() -> ValueNode* {
+          ReduceResult result = BuildSmiUntag(object);
+          if (result.IsDoneWithAbort()) {
+            bailout = true;
+            return nullptr;
+          }
+          return result.value();
+        });
+        if (bailout) {
+          return ReduceResult::DoneWithAbort();
+        }
+        return value;
       } else {
         // TODO(leszeks): Cache this knowledge/converted value somehow on
         // the node info.
@@ -5982,10 +6002,13 @@ ReduceResult MaglevGraphBuilder::BuildStoreTypedArrayElement(
     case INT32_ELEMENTS:
     case UINT8_ELEMENTS:
     case UINT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-      BUILD_STORE_TYPED_ARRAY(Int, GetAccumulatorTruncatedInt32ForToNumber(
-                                       NodeType::kNumberOrOddball))
+    case UINT32_ELEMENTS: {
+      ValueNode* value;
+      GET_VALUE_OR_ABORT(value, GetAccumulatorTruncatedInt32ForToNumber(
+                                    NodeType::kNumberOrOddball));
+      BUILD_STORE_TYPED_ARRAY(Int, value)
       break;
+    }
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS: {
       ValueNode* value;
@@ -6022,11 +6045,13 @@ ReduceResult MaglevGraphBuilder::BuildStoreConstantTypedArrayElement(
     case INT32_ELEMENTS:
     case UINT8_ELEMENTS:
     case UINT16_ELEMENTS:
-    case UINT32_ELEMENTS:
-      BUILD_STORE_CONSTANT_TYPED_ARRAY(
-          Int,
-          GetAccumulatorTruncatedInt32ForToNumber(NodeType::kNumberOrOddball))
+    case UINT32_ELEMENTS: {
+      ValueNode* value;
+      GET_VALUE_OR_ABORT(value, GetAccumulatorTruncatedInt32ForToNumber(
+                                    NodeType::kNumberOrOddball));
+      BUILD_STORE_CONSTANT_TYPED_ARRAY(Int, value)
       break;
+    }
     case FLOAT32_ELEMENTS:
     case FLOAT64_ELEMENTS: {
       ValueNode* value;
@@ -8813,7 +8838,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
     AddNewNodeNoInputConversion<ThrowIfNotCallable>({callback});
   });
 
-  ValueNode* original_length_int32 = GetInt32(original_length);
+  ValueNode* original_length_int32;
+  GET_VALUE_OR_ABORT(original_length_int32, GetInt32(original_length));
 
   // Remember the receiver map set before entering the loop the call.
   bool receiver_maps_were_unstable = false;
@@ -8869,7 +8895,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   // ```
   Phi* index_tagged = sub_builder.get(var_index)->Cast<Phi>();
   EnsureType(index_tagged, NodeType::kSmi);
-  ValueNode* index_int32 = GetInt32(index_tagged);
+  ValueNode* index_int32;
+  GET_VALUE_OR_ABORT(index_int32, GetInt32(index_tagged));
 
   RETURN_IF_ABORT(sub_builder.GotoIfFalse<BranchIfInt32Compare>(
       &loop_end, {index_int32, original_length_int32}, Operation::kLessThan));
@@ -9123,7 +9150,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
                                           uint32_index, uint32_length);
       },
       [&] {
-        ValueNode* int32_index = GetInt32(uint32_index);
+        ValueNode* int32_index;
+        GET_VALUE_OR_ABORT(int32_index, GetInt32(uint32_index));
         subgraph.set(is_done, GetBooleanConstant(false));
         DCHECK(
             iterator->get(JSArrayIterator::kKindOffset)->Is<Int32Constant>());
@@ -9367,8 +9395,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringFromCharCode(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
   if (args.count() != 1) return {};
-  return AddNewNode<BuiltinStringFromCharCode>(
-      {GetTruncatedInt32ForToNumber(args[0], NodeType::kNumberOrOddball)});
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(
+      value, GetTruncatedInt32ForToNumber(args[0], NodeType::kNumberOrOddball));
+  return AddNewNode<BuiltinStringFromCharCode>({value});
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceConstantStringAt(
@@ -9634,9 +9664,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSlice(
   } else if (args.count() == 2 && is_turbolev()) {
     // These will deopt if the argument is not an Int32; CanSpeculateCall above
     // is needed for avoiding deopt loops.
-    ValueNode* start_index = GetInt32(args[0]);
+    ValueNode* start_index;
+    GET_VALUE_OR_ABORT(start_index, GetInt32(args[0]));
     if (!start_index) return {};
-    ValueNode* end_index = GetInt32(args[1]);
+    ValueNode* end_index;
+    GET_VALUE_OR_ABORT(end_index, GetInt32(args[1]));
     if (!end_index) return {};
 
     ValueNode* receiver = GetValueOrUndefined(args.receiver());
@@ -9673,7 +9705,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
   GET_VALUE_OR_ABORT(max_value, BuildInt32Max(start, GetInt32Constant(0)));
   ValueNode* min_value;
   GET_VALUE_OR_ABORT(min_value, BuildInt32Min(max_value, receiver_length));
-  ValueNode* clamped_start = GetInt32(min_value);
+  ValueNode* clamped_start;
+  GET_VALUE_OR_ABORT(clamped_start, GetInt32(min_value));
 
   ValueNode* search_length;
   GET_VALUE_OR_ABORT(search_length, BuildLoadStringLength(search_element));
@@ -16031,7 +16064,7 @@ ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
                                                           feedback_source));
       StoreRegisterPair({cache_array_reg, cache_length_reg}, result);
       // Force a conversion to Int32 for the cache length value.
-      EnsureInt32(cache_length_reg);
+      RETURN_IF_ABORT(EnsureInt32(cache_length_reg));
       break;
     }
   }
@@ -17094,8 +17127,8 @@ ReduceResult MaglevGraphBuilder::GetTaggedValue(
   return GetTaggedValue(value, record_use_repr_hint);
 }
 
-ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value,
-                                        bool can_be_heap_number) {
+ReduceResult MaglevGraphBuilder::GetInt32(ValueNode* value,
+                                          bool can_be_heap_number) {
   return reducer_.GetInt32(value, can_be_heap_number);
 }
 
@@ -17106,13 +17139,13 @@ ReduceResult MaglevGraphBuilder::GetInt32(ReduceResult value_result,
   return reducer_.GetInt32(value, can_be_heap_number);
 }
 
-void MaglevGraphBuilder::EnsureInt32(ValueNode* value,
-                                     bool can_be_heap_number) {
-  reducer_.EnsureInt32(value, can_be_heap_number);
+ReduceResult MaglevGraphBuilder::EnsureInt32(ValueNode* value,
+                                             bool can_be_heap_number) {
+  return reducer_.EnsureInt32(value, can_be_heap_number);
 }
 
-void MaglevGraphBuilder::EnsureInt32(interpreter::Register reg) {
-  EnsureInt32(current_interpreter_frame_.get(reg));
+ReduceResult MaglevGraphBuilder::EnsureInt32(interpreter::Register reg) {
+  return EnsureInt32(current_interpreter_frame_.get(reg));
 }
 
 ReduceResult MaglevGraphBuilder::GetFloat64(ValueNode* value) {
@@ -17741,7 +17774,7 @@ bool MaglevGraphBuilder::IsInsideLoop() const {
   return false;
 }
 
-ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
+ReduceResult MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   return reducer_.BuildSmiUntag(node);
 }
 

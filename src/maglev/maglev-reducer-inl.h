@@ -605,8 +605,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
-                                          bool can_be_heap_number) {
+ReduceResult MaglevReducer<BaseT>::GetInt32(ValueNode* value,
+                                            bool can_be_heap_number) {
   value->MaybeRecordUseReprHint(UseRepresentation::kInt32);
 
   if (ValueNode* int32_value = TryGetInt32(value)) {
@@ -627,7 +627,9 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
         return alternative.set_int32(
             AddNewNodeNoInputConversion<CheckedNumberToInt32>({value}));
       }
-      return alternative.set_int32(BuildSmiUntag(value));
+      ValueNode* untagged;
+      GET_VALUE_OR_ABORT(untagged, BuildSmiUntag(value));
+      return alternative.set_int32(untagged);
     }
     case ValueRepresentation::kUint32: {
       if (!IsEmptyNodeType(known_node_aspects().GetType(broker(), value)) &&
@@ -873,7 +875,7 @@ std::optional<intptr_t> MaglevReducer<BaseT>::TryGetIntPtrConstant(
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
+ReduceResult MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kTruncatedInt32);
 
@@ -937,7 +939,9 @@ ValueNode* MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
       if (NodeTypeIsSmi(old_type, NodeTypeIsVariant::kAllowNone)) {
         // Smi untagging can be cached as an int32 alternative, not just a
         // truncated alternative.
-        return alternative.set_int32(BuildSmiUntag(value));
+        ValueNode* int32_value;
+        GET_VALUE_OR_ABORT(int32_value, BuildSmiUntag(value));
+        return alternative.set_int32(int32_value);
       }
       if (allowed_input_type == NodeType::kSmi) {
         return alternative.set_int32(
@@ -1054,7 +1058,9 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       if (!IsEmptyNodeType(combined_type) &&
           NodeTypeIs(combined_type, NodeType::kSmi)) {
         // Get the float64 value of a Smi value its int32 representation.
-        return GetFloat64OrHoleyFloat64Impl(GetInt32(value), use_rep,
+        ValueNode* int32_value;
+        GET_VALUE_OR_ABORT(int32_value, GetInt32(value));
+        return GetFloat64OrHoleyFloat64Impl(int32_value, use_rep,
                                             combined_type);
       }
       if (!IsEmptyNodeType(combined_type) &&
@@ -1218,11 +1224,11 @@ ReduceResult MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
 }
 
 template <typename BaseT>
-void MaglevReducer<BaseT>::EnsureInt32(ValueNode* value,
-                                       bool can_be_heap_number) {
+ReduceResult MaglevReducer<BaseT>::EnsureInt32(ValueNode* value,
+                                               bool can_be_heap_number) {
   // Either the value is Int32 already, or we force a conversion to Int32 and
   // cache the value in its alternative representation node.
-  GetInt32(value, can_be_heap_number);
+  return GetInt32(value, can_be_heap_number);
 }
 
 template <typename BaseT>
@@ -1463,7 +1469,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
 }
 
 template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
+ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
   // This is called when converting inputs in AddNewNode. We might already have
   // an empty type for `node` here. Make sure we don't add unsafe conversion
   // nodes in that case by checking for the empty node type explicitly.
@@ -1491,7 +1497,8 @@ ReduceResult MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64OrHoleyFloat64(
       GetTaggedToFloat64ConversionType(allowed_input_type);
   if (EnsureType(node, allowed_input_type, &old_type)) {
     if (old_type == NodeType::kSmi) {
-      ValueNode* untagged_smi = BuildSmiUntag(node);
+      ValueNode* untagged_smi;
+      GET_VALUE_OR_ABORT(untagged_smi, BuildSmiUntag(node));
       ValueNode* float64;
       GET_VALUE_OR_ABORT(float64,
                          AddNewNode<ChangeInt32ToFloat64>({untagged_smi}));
@@ -1618,7 +1625,7 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
     }
 
     // Deopt if {left} is not an Int32.
-    EnsureInt32(left);
+    RETURN_IF_ABORT(EnsureInt32(left));
     if (left->is_conversion()) {
       return left->input(0).node();
     }
@@ -1701,14 +1708,14 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldInt32BinaryOperation(
     case Operation::kBitwiseAnd:
       // x & 0 = 0
       if (cst_right == 0) {
-        EnsureInt32(left);
+        RETURN_IF_ABORT(EnsureInt32(left));
         return GetInt32Constant(0);
       }
       return {};
     case Operation::kBitwiseOr:
       // x | -1 = -1
       if (cst_right == 0) {
-        EnsureInt32(left);
+        RETURN_IF_ABORT(EnsureInt32(left));
         return GetInt32Constant(-1);
       }
       return {};

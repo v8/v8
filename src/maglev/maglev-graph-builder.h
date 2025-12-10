@@ -664,11 +664,11 @@ class MaglevGraphBuilder {
   // oddballs.
   //
   // Deopts if the ToNumber is non-trivial.
-  ValueNode* GetTruncatedInt32ForToNumber(ValueNode* value,
-                                          NodeType allowed_input_type);
+  ReduceResult GetTruncatedInt32ForToNumber(ValueNode* value,
+                                            NodeType allowed_input_type);
 
-  ValueNode* GetTruncatedInt32ForToNumber(interpreter::Register reg,
-                                          NodeType allowed_input_type) {
+  ReduceResult GetTruncatedInt32ForToNumber(interpreter::Register reg,
+                                            NodeType allowed_input_type) {
     return GetTruncatedInt32ForToNumber(current_interpreter_frame_.get(reg),
                                         allowed_input_type);
   }
@@ -700,12 +700,12 @@ class MaglevGraphBuilder {
 
   // Get an Int32 representation node whose value is equivalent to the given
   // node.
-  ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult GetInt32(ValueNode* value, bool can_be_heap_number = false);
   ReduceResult GetInt32(ReduceResult value_result,
                         bool can_be_heap_number = false);
 
-  void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
-  void EnsureInt32(interpreter::Register reg);
+  ReduceResult EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult EnsureInt32(interpreter::Register reg);
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
   std::optional<double> TryGetHoleyFloat64Constant(ValueNode* value);
@@ -743,7 +743,7 @@ class MaglevGraphBuilder {
                        record_use_repr_hint);
   }
 
-  ValueNode* GetAccumulatorTruncatedInt32ForToNumber(
+  ReduceResult GetAccumulatorTruncatedInt32ForToNumber(
       NodeType allowed_input_type) {
     return GetTruncatedInt32ForToNumber(
         interpreter::Register::virtual_accumulator(), allowed_input_type);
@@ -1195,7 +1195,7 @@ class MaglevGraphBuilder {
       ValueNode* this_function, ValueNode* new_target,
       std::pair<interpreter::Register, interpreter::Register> result);
 
-  ValueNode* BuildSmiUntag(ValueNode* node);
+  ReduceResult BuildSmiUntag(ValueNode* node);
   ReduceResult BuildGetCharCodeAt(ValueNode* string, ValueNode* index);
 
   ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);

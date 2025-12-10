@@ -334,7 +334,7 @@ class MaglevReducer {
                                      const MapContainer& maps,
                                      KnownMapsMerger<MapContainer>& merger);
 
-  ValueNode* BuildSmiUntag(ValueNode* node);
+  ReduceResult BuildSmiUntag(ValueNode* node);
 
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
@@ -349,7 +349,7 @@ class MaglevReducer {
   // node.
   //
   // Deopts if the value is not exactly representable as an Int32.
-  ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult GetInt32(ValueNode* value, bool can_be_heap_number = false);
 
   // This does not emit any conversion.
   ValueNode* TryGetInt32(ValueNode* value);
@@ -366,8 +366,8 @@ class MaglevReducer {
   // oddballs.
   //
   // Deopts if the ToNumber is non-trivial.
-  ValueNode* GetTruncatedInt32ForToNumber(ValueNode* value,
-                                          NodeType allowed_input_type);
+  ReduceResult GetTruncatedInt32ForToNumber(ValueNode* value,
+                                            NodeType allowed_input_type);
 
   ReduceResult GetFloat64OrHoleyFloat64Impl(ValueNode* value,
                                             UseRepresentation use_rep,
@@ -394,7 +394,7 @@ class MaglevReducer {
   ReduceResult GetHoleyFloat64ForToNumber(ValueNode* value,
                                           NodeType allowed_input_type);
 
-  void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
 
   BasicBlock* current_block() const { return current_block_; }
   void set_current_block(BasicBlock* block) {

@@ -310,7 +310,12 @@ std::optional<ProcessResult> MaglevGraphOptimizer::TryFoldInt32Operation(
     CHECK(result.value()->Is<Uint32Constant>());
     return ReplaceWith(result.value());
   }
-  return ReplaceWith(reducer_.GetInt32(result.value()));
+  ReduceResult int32_result = reducer_.GetInt32(result.value());
+  if (int32_result.IsDoneWithAbort()) {
+    return ProcessResult::kTruncateBlock;
+  }
+  DCHECK(int32_result.IsDoneWithValue());
+  return ReplaceWith(int32_result.value());
 }
 
 template <Operation kOperation>

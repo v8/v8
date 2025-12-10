@@ -87,7 +87,11 @@ class NodeInfo {
   ValueNode* get_or_set_##name(Function create) {                           \
     ValueNode* existing_alt = name();                                       \
     if (existing_alt != nullptr) return existing_alt;                       \
-    return set_##name(create());                                            \
+    ValueNode* new_alt = create();                                          \
+    if (new_alt) {                                                          \
+      return set_##name(new_alt);                                           \
+    }                                                                       \
+    return nullptr;                                                         \
   }
     ALTERNATIVES(API)
 #undef API
