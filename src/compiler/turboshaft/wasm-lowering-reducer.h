@@ -60,7 +60,7 @@ class WasmLoweringReducer : public Next {
   V<Word32> REDUCE(IsRootConstant)(OpIndex object, RootIndex index) {
 #if V8_STATIC_ROOTS_BOOL
     if (RootsTable::IsReadOnly(index)) {
-      V<Object> root = V<Object>::Cast(__ UintPtrConstant(
+      V<Object> root = __ BitcastWordPtrToTagged(__ UintPtrConstant(
           StaticReadOnlyRootsPointerTable[static_cast<size_t>(index)]));
       return __ TaggedEqual(object, root);
     }
