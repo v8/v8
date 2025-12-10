@@ -323,10 +323,9 @@ void String::MakeExternalDuringGC(Isolate* isolate, T* resource) {
   static_cast<ExternalString*>(this)
       ->InitExternalPointerFieldsDuringExternalization(new_map, isolate);
 
-  // We are storing the new map using release store after creating a filler in
-  // the NotifyObjectSizeChange call for the left-over space to avoid races with
-  // the sweeper thread.
-  this->set_map(isolate, new_map, kReleaseStore);
+  // This is run during GC when no sweeping is running, so updating the map can
+  // be relaxed.
+  this->set_map_no_write_barrier(isolate, new_map, kRelaxedStore);
 
   if constexpr (is_one_byte) {
     Tagged<ExternalOneByteString> self = Cast<ExternalOneByteString>(this);

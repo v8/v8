@@ -80,7 +80,14 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
 
   static bool IsNeeded(Tagged<String> str, bool check_local_heap = true) {
     if (check_local_heap) {
-      if (LocalHeap::Current()->is_main_thread()) {
+      LocalHeap* current = LocalHeap::TryGetCurrent();
+
+      if (!current) {
+        // GC worker threads may access the string content but do not have a
+        // LocalHeap.
+        DCHECK_EQ(Isolate::Current()->heap()->gc_state(), Heap::MARK_COMPACT);
+        return false;
+      } else if (current->is_main_thread()) {
         // Don't acquire the lock for the main thread.
         return false;
       }
