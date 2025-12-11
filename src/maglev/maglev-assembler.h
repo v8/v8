@@ -495,8 +495,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                              Label* max, Label* done);
 
   template <typename NodeT>
-  inline void DeoptIfBufferDetached(Register array, Register scratch,
-                                    NodeT* node);
+  inline void DeoptIfBufferNotValid(Register array, Register scratch,
+                                    TypedArrayAccessMode mode, NodeT* node);
 
   inline Condition IsCallableAndNotUndetectable(Register map, Register scratch);
   inline Condition IsNotCallableNorUndetactable(Register map, Register scratch);

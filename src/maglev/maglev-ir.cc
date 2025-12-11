@@ -7119,17 +7119,17 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
   __ bind(*done);
 }
 
-void CheckTypedArrayNotDetached::SetValueLocationConstraints() {
+void CheckTypedArrayValid::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   set_temporaries_needed(1);
 }
 
-void CheckTypedArrayNotDetached::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
+void CheckTypedArrayValid::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register object = ToRegister(ValueInput());
   Register scratch = temps.Acquire();
-  __ DeoptIfBufferDetached(object, scratch, this);
+  __ DeoptIfBufferNotValid(object, scratch, access_mode(), this);
 }
 
 void GetContinuationPreservedEmbedderData::SetValueLocationConstraints() {

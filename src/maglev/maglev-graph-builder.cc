@@ -6091,13 +6091,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
     return {};
   }
   if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
-    // TODO(450237486, olivf): Support immutable AB checks.
-    if (keyed_mode.access_mode() == compiler::AccessMode::kStore &&
-        v8_flags.js_immutable_arraybuffer) {
-      return {};
-    }
     // TODO(leszeks): Eliminate this check.
-    RETURN_IF_ABORT(AddNewNode<CheckTypedArrayNotDetached>({object}));
+    RETURN_IF_ABORT(AddNewNode<CheckTypedArrayValid>(
+        {object}, keyed_mode.IsStore() ? TypedArrayAccessMode::kWrite
+                                       : TypedArrayAccessMode::kRead));
   }
   ValueNode* index;
   ValueNode* length;

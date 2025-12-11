@@ -171,6 +171,17 @@ class JSArrayBuffer
 
   class BodyDescriptor;
 
+  static uint32_t NotValidMask(TypedArrayAccessMode mode) {
+    switch (mode) {
+      case TypedArrayAccessMode::kRead:
+        return JSArrayBuffer::WasDetachedBit::kMask;
+      case TypedArrayAccessMode::kWrite:
+        return JSArrayBuffer::WasDetachedBit::kMask |
+               JSArrayBuffer::IsImmutableBit::kMask;
+    }
+    UNREACHABLE();
+  }
+
  private:
   void DetachInternal(bool force_for_wasm_memory, Isolate* isolate);
 

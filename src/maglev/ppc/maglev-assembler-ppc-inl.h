@@ -787,8 +787,9 @@ inline void MaglevAssembler::ToUint8Clamped(Register result,
 }
 
 template <typename NodeT>
-inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
+inline void MaglevAssembler::DeoptIfBufferNotValid(Register array,
                                                    Register scratch,
+                                                   TypedArrayAccessMode mode,
                                                    NodeT* node) {
   // A detached buffer leads to megamorphic feedback, so we won't have a deopt
   // loop if we deopt here.
@@ -797,7 +798,7 @@ inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
                   FieldMemOperand(array, JSArrayBufferView::kBufferOffset));
   LoadU32(scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset),
           r0);
-  TestBitMask(scratch, JSArrayBuffer::WasDetachedBit::kMask);
+  TestBitMask(scratch, JSArrayBuffer::NotValidMask(mode));
   EmitEagerDeoptIf(ne, DeoptimizeReason::kArrayBufferWasDetached, node);
 }
 

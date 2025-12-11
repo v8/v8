@@ -410,7 +410,7 @@ class ExceptionHandlerInfo;
   V(CheckCacheIndicesNotCleared)              \
   V(CheckJSDataViewBounds)                    \
   V(CheckTypedArrayBounds)                    \
-  V(CheckTypedArrayNotDetached)               \
+  V(CheckTypedArrayValid)                     \
   V(CheckMaps)                                \
   V(CheckMapsWithMigrationAndDeopt)           \
   V(CheckMapsWithMigration)                   \
@@ -7510,16 +7510,25 @@ class LoadDataViewDataPointer
   auto options() const { return std::tuple{}; }
 };
 
-class CheckTypedArrayNotDetached
-    : public FixedInputNodeT<1, CheckTypedArrayNotDetached> {
+class CheckTypedArrayValid : public FixedInputNodeT<1, CheckTypedArrayValid> {
  public:
-  explicit CheckTypedArrayNotDetached(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckTypedArrayValid(uint64_t bitfield, TypedArrayAccessMode mode)
+      : Base(bitfield | AccessModeField::encode(mode)) {}
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::CanRead();
   DECLARE_UNOP(Tagged)
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  auto options() const { return std::tuple{access_mode()}; }
+
+  TypedArrayAccessMode access_mode() const {
+    return AccessModeField::decode(bitfield());
+  }
+
+ private:
+  using AccessModeField = NextBitField<TypedArrayAccessMode, 1>;
 };
 
 class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {

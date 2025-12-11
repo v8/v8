@@ -8677,12 +8677,6 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     return NoChange();
   }
 
-  if (access == DataViewAccess::kSet && v8_flags.js_immutable_arraybuffer &&
-      !dependencies()->DependOnArrayBufferDetachingProtector()) {
-    // TODO(450237486, olivf): Support immutable AB checks.
-    return NoChange();
-  }
-
   // Check that the {offset} is within range for the {receiver}.
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue() && m.Ref(broker()).IsJSDataView()) {
@@ -8765,7 +8759,9 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
         simplified()->NumberEqual(),
         graph()->NewNode(
             simplified()->NumberBitwiseAnd(), buffer_bit_field,
-            jsgraph()->ConstantNoHole(JSArrayBuffer::WasDetachedBit::kMask)),
+            jsgraph()->ConstantNoHole(JSArrayBuffer::NotValidMask(
+                access == DataViewAccess::kSet ? TypedArrayAccessMode::kWrite
+                                               : TypedArrayAccessMode::kRead))),
         jsgraph()->ZeroConstant());
     effect = graph()->NewNode(
         simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,

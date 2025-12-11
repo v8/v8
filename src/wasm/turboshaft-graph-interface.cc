@@ -1630,8 +1630,8 @@ class TurboshaftGraphBuildingInterface
 
   void DataViewDetachedBufferCheck(FullDecoder* decoder, V<Object> dataview,
                                    DataViewOp op_type) {
-    IF (UNLIKELY(
-            __ ArrayBufferIsDetached(V<JSArrayBufferView>::Cast(dataview)))) {
+    IF (UNLIKELY(__ ArrayBufferNotValid(V<JSArrayBufferView>::Cast(dataview),
+                                        TypedArrayAccessMode::kRead))) {
       ThrowDataViewDetachedError(decoder, op_type);
     }
   }

@@ -3339,12 +3339,13 @@ class AssemblerOpInterface : public Next {
   }
 #endif  // V8_STATIC_ROOTS_BOOL
 
-  V<Word32> ArrayBufferIsDetached(V<JSArrayBufferView> object) {
+  V<Word32> ArrayBufferNotValid(V<JSArrayBufferView> object,
+                                TypedArrayAccessMode mode) {
     V<HeapObject> buffer = __ template LoadField<HeapObject>(
         object, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
     V<Word32> bitfield = __ template LoadField<Word32>(
         buffer, compiler::AccessBuilder::ForJSArrayBufferBitField());
-    return __ Word32BitwiseAnd(bitfield, JSArrayBuffer::WasDetachedBit::kMask);
+    return __ Word32BitwiseAnd(bitfield, JSArrayBuffer::NotValidMask(mode));
   }
 
   template <typename T = HeapObject>

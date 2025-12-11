@@ -525,8 +525,8 @@ ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayBounds(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayNotDetached(
-    CheckTypedArrayNotDetached* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitCheckTypedArrayValid(
+    CheckTypedArrayValid* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

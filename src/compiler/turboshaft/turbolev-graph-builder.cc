@@ -3692,11 +3692,12 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
-  maglev::ProcessResult Process(maglev::CheckTypedArrayNotDetached* node,
+  maglev::ProcessResult Process(maglev::CheckTypedArrayValid* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     __ DeoptimizeIf(
-        __ ArrayBufferIsDetached(Map<JSArrayBufferView>(node->ValueInput())),
+        __ ArrayBufferNotValid(Map<JSArrayBufferView>(node->ValueInput()),
+                               node->access_mode()),
         frame_state, DeoptimizeReason::kArrayBufferWasDetached,
         node->eager_deopt_info()->feedback_to_update());
 
