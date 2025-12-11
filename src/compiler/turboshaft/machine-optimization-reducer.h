@@ -366,7 +366,9 @@ class MachineOptimizationReducer : public Next {
     if (const ConstantOp* cst = matcher_.TryCast<ConstantOp>(input)) {
       // Try to constant-fold Word constant -> Tagged (Smi).
       if (cst->IsIntegral() && to == RegisterRepresentation::Tagged()) {
-        if (Smi::IsValid(cst->integral())) {
+        // Any Tagged value that has the Smi Tag is a Smi, regardless of its
+        // value, so there is no need to check that {cst} is in Smi range.
+        if (HAS_SMI_TAG(cst->integral())) {
           return __ SmiConstant(
               i::Tagged<Smi>(static_cast<intptr_t>(cst->integral())));
         }
