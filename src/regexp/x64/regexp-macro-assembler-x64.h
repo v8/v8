@@ -298,7 +298,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   void EmitSkipUntilBitInTableSimdHelper(
       int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
       int max_on_match_lookahead, Label* scalar_fallback,
-      base::FunctionRef<void(Register, Label*)> on_match);
+      base::FunctionRef<void(Register, Register)> on_match);
 
   Isolate* isolate() const { return masm_.isolate(); }
 

@@ -598,7 +598,7 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
 void RegExpMacroAssemblerX64::EmitSkipUntilBitInTableSimdHelper(
     int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
     int max_on_match_lookahead, Label* scalar_fallback,
-    base::FunctionRef<void(Register, Label*)> on_match) {
+    base::FunctionRef<void(Register, Register)> on_match) {
   // This function uses rax and r11 as scratch, and {xmm0..5} for simd.
 
   Label simd_loop, advance_vector, process_next_bit;
@@ -687,11 +687,10 @@ void RegExpMacroAssemblerX64::EmitSkipUntilBitInTableSimdHelper(
     __ andl(rax, Immediate(0xfffe));
   }
 
-  // We've found a match and loaded the bit position into rax.
-  Label next_candidate;
-  on_match(rax, &next_candidate);
+  // We've found a match and loaded the bit position into rax. r11 MUST be
+  // preserved across this call if execution continues in the fallthrough path.
+  on_match(rax, r11);
 
-  __ bind(&next_candidate);
   // Clear the lowest set bit.
   if (__ IsEnabled(BMI1)) {
     __ blsrl(r11, r11);
@@ -728,12 +727,13 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
   if (use_simd) {
     DCHECK(!nibble_table_array.is_null());
     Label scalar;
-    EmitSkipUntilBitInTableSimdHelper(cp_offset, advance_by, nibble_table_array,
-                                      0, &scalar,
-                                      [&](Register index, Label* next) {
-                                        __ addq(rdi, index);
-                                        __ jmp(on_match);
-                                      });
+    EmitSkipUntilBitInTableSimdHelper(
+        cp_offset, advance_by, nibble_table_array, 0, &scalar,
+        [&](Register index, Register callee_saved) {
+          // No need to push callee_saved since we never fall through.
+          __ addq(rdi, index);
+          __ jmp(on_match);
+        });
     Bind(&scalar);
   }
 
@@ -1055,7 +1055,7 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked3(
   EmitSkipUntilBitInTableSimdHelper(
       args.bc0_cp_offset, args.bc0_advance_by, args.bc0_nibble_table,
       max_on_match_lookahead, &scalar_fallback,
-      [&](Register index, Label* next) {
+      [&](Register index, Register callee_saved) {
         // SkipUntilBitInTable has matched at offset `index`. Bounds checks
         // have ensured we can safely perform the below loads without checks.
         //
@@ -1066,7 +1066,10 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked3(
         // The current position is temporarily advanced for this inner block.
         // If no match is found, it is reverted to the previous state before
         // returning to simd code for the next loop iteration.
+        // The callee_saved register must be preserved across the inner block.
+        static constexpr int kPushedRegisters = 2;
         __ pushq(rdi);
+        __ pushq(callee_saved);
         __ addq(rdi, index);
 
         // bc2: Load.
@@ -1089,44 +1092,28 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked3(
                                   &continue_outer_loop);
 
         // Success cases:
-        __ popq(kScratchRegister);
+        __ Drop(kPushedRegisters);
         GoTo(args.fallthrough_jump_target);
 
         Bind(&pop_and_goto_bc6_on_equal);
-        __ popq(kScratchRegister);
+        __ Drop(kPushedRegisters);
         GoTo(args.bc6_on_equal);
 
         Bind(&pop_and_goto_bc7_on_equal);
-        __ popq(kScratchRegister);
+        __ Drop(kPushedRegisters);
         GoTo(args.bc7_on_equal);
 
         Bind(&continue_outer_loop);
         // Restore the previous current position before continuing.
+        __ popq(callee_saved);
         __ popq(rdi);
       });
 
   Bind(&scalar_fallback);
-  Label bc0_skip_until_bit_in_table, bc1_check_current_position,
-      bc4_advance_cp_and_goto, bc5_load_4_current_chars;
-  Bind(&bc0_skip_until_bit_in_table);
-  SkipUntilBitInTable(args.bc0_cp_offset, args.bc0_table, args.bc0_nibble_table,
-                      args.bc0_advance_by, &bc1_check_current_position,
-                      &bc1_check_current_position);
-  Bind(&bc1_check_current_position);
-  CheckPosition(args.bc1_cp_offset, args.bc1_on_failure);
-  LoadCurrentCharacter(args.bc2_cp_offset, nullptr, false, 4);
-  CheckCharacterAfterAnd(args.bc3_characters, args.bc3_mask,
-                         &bc5_load_4_current_chars);
-  Bind(&bc4_advance_cp_and_goto);
-  AdvanceCurrentPosition(args.bc4_by);
-  GoTo(&bc0_skip_until_bit_in_table);
-  Bind(&bc5_load_4_current_chars);
-  LoadCurrentCharacter(args.bc5_cp_offset, &bc4_advance_cp_and_goto, true, 4);
-  CheckCharacterAfterAnd(args.bc6_characters, args.bc6_mask, args.bc6_on_equal);
-  CheckCharacterAfterAnd(args.bc7_characters, args.bc7_mask, args.bc7_on_equal);
-  CheckNotCharacterAfterAnd(args.bc8_characters, args.bc8_mask,
-                            &bc4_advance_cp_and_goto);
-  GoTo(args.fallthrough_jump_target);
+  // TODO(jgruber): The fallback is only reached when close to the end of the
+  // subject string, and simd can no longer be used. Jump directly to the scalar
+  // path.
+  RegExpMacroAssembler::SkipUntilOneOfMasked3(args);
 }
 
 void RegExpMacroAssemblerX64::CheckSpecialClassRanges(StandardCharacterSet type,

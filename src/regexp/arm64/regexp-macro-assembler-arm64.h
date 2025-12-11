@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_ARM64_REGEXP_MACRO_ASSEMBLER_ARM64_H_
 #define V8_REGEXP_ARM64_REGEXP_MACRO_ASSEMBLER_ARM64_H_
 
+#include "src/base/functional/function-ref.h"
 #include "src/base/strings.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/macro-assembler.h"
@@ -66,6 +67,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
                             Label* on_match1, Label* on_match2,
                             Label* on_failure) override;
   bool SkipUntilOneOfMaskedUseSimd(int advance_by);
+  bool SkipUntilOneOfMasked3UseSimd(
+      const SkipUntilOneOfMasked3Args& args) override;
+  void SkipUntilOneOfMasked3(const SkipUntilOneOfMasked3Args& args) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
@@ -306,6 +310,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   void StoreRegExpStackPointerToMemory(Register src, Register scratch);
   void PushRegExpBasePointer(Register stack_pointer, Register scratch);
   void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
+
+  void EmitSkipUntilBitInTableSimdHelper(
+      int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
+      int max_on_match_lookahead, Label* scalar_fallback,
+      base::FunctionRef<void(Register, Register)> on_match);
 
   Isolate* isolate() const { return masm_->isolate(); }
 
