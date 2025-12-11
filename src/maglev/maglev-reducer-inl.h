@@ -935,8 +935,14 @@ ReduceResult MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
     case ValueRepresentation::kTagged: {
       NodeType old_type;
       EnsureType(value, allowed_input_type, &old_type);
-      // TODO(428667907): Ideally we should bail out early for the kNone type.
-      if (NodeTypeIsSmi(old_type, NodeTypeIsVariant::kAllowNone)) {
+
+      // Check for the empty type first, so that we don't emit unsafe conversion
+      // nodes below.
+      if (IsEmptyNodeType(old_type)) {
+        return EmitUnconditionalDeopt(DeoptimizeReason::kWrongValue);
+      }
+
+      if (NodeTypeIsSmi(old_type)) {
         // Smi untagging can be cached as an int32 alternative, not just a
         // truncated alternative.
         ValueNode* int32_value;
@@ -947,9 +953,7 @@ ReduceResult MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
         return alternative.set_int32(
             AddNewNodeNoInputConversion<CheckedSmiUntag>({value}));
       }
-      // TODO(428667907): Ideally we should bail out early for the kNone type.
-      if (NodeTypeIs(old_type, allowed_input_type,
-                     NodeTypeIsVariant::kAllowNone)) {
+      if (NodeTypeIs(old_type, allowed_input_type)) {
         return alternative.set_truncated_int32_to_number(
             AddNewNodeNoInputConversion<TruncateUnsafeNumberOrOddballToInt32>(
                 {value}, GetTaggedToFloat64ConversionType(allowed_input_type)));
@@ -1473,9 +1477,10 @@ ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
   // This is called when converting inputs in AddNewNode. We might already have
   // an empty type for `node` here. Make sure we don't add unsafe conversion
   // nodes in that case by checking for the empty node type explicitly.
-  // TODO(marja): The checks can be removed after we're able to bail out
-  // earlier.
-  if (!IsEmptyNodeType(GetType(node)) && EnsureType(node, NodeType::kSmi)) {
+  if (IsEmptyNodeType(GetType(node))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
+  }
+  if (EnsureType(node, NodeType::kSmi)) {
     if (SmiValuesAre31Bits()) {
       if (auto phi = node->TryCast<Phi>()) {
         phi->SetUseRequires31BitValue();
