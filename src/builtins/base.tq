@@ -1421,6 +1421,7 @@ extern macro Float32Constant(constexpr float32): float32;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;
+extern macro SmiConstant(constexpr BuiltinsName): Smi;
 extern macro SmiConstant(constexpr bool): Smi;
 extern macro SmiConstant(constexpr uint32): Smi;
 macro SmiConstant(il: constexpr IntegerLiteral): Smi {

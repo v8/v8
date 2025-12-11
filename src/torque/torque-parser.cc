@@ -1607,8 +1607,9 @@ std::optional<ParseResult> MakeEnumDeclaration(
       if (generate_typed_constant) {
         // namespace Enum {
         //   const constexpr_constant_kEntry0: constexpr kEntry0 constexpr
-        //   'Enum::kEntry0'; const kEntry0 = %RawDownCast<T,
-        //   Base>(FromConstexpr<Enum>(constexpr_constant_kEntry0));
+        //       'Enum::kEntry0';
+        //   const kEntry0 = %RawDownCast<T, Base>(
+        //       FromConstexpr<Enum>(constexpr_constant_kEntry0));
         // }
         if (!generate_nonconstexpr) {
           Error(

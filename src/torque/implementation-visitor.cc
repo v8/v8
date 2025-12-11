@@ -3397,8 +3397,19 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
                                     Arguments{{source}, {}},
                                     {destination_type, *from}, false));
   } else if (IsAssignableFrom(destination_type, source.type())) {
-    source.SetType(destination_type);
-    return scope.Yield(GenerateCopy(source));
+    if (!source.IsOnStack()) {
+      // static_cast constexpr values to the right type, for cases where the
+      // C++ conversion is not as implicit as the torque one (in particular,
+      // `enum class` to its underlying type).
+      return scope.Yield(
+          VisitResult(destination_type,
+                      "CastIfEnumClass<" +
+                          destination_type->GetConstexprGeneratedTypeName() +
+                          ">(" + source.constexpr_value() + ")"));
+    } else {
+      source.SetType(destination_type);
+      return scope.Yield(GenerateCopy(source));
+    }
   } else {
     std::stringstream s;
     if (const TopType* top_type = TopType::DynamicCast(source.type())) {
