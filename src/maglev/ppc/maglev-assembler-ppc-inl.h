@@ -1076,6 +1076,21 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
   bind(*is_not_hole);
 }
 
+void MaglevAssembler::JumpIfHoleNan(MemOperand operand, Label* target,
+                                    Label::Distance distance) {
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register upper_bits = temps.AcquireScratch();
+#if V8_TARGET_BIG_ENDIAN
+  LoadU32(upper_bits, operand, r0);
+#else
+  LoadU32(upper_bits,
+          MemOperand(operand.ra(), operand.rb(),
+                     operand.offset() + (kDoubleSize / 2)),
+          r0);
+#endif
+  CompareInt32AndJumpIf(upper_bits, kHoleNanUpper32, kEqual, target, distance);
+}
+
 void MaglevAssembler::JumpIfNotHoleNan(DoubleRegister value, Register scratch,
                                        Label* target,
                                        Label::Distance distance) {
