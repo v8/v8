@@ -570,6 +570,7 @@ void RegExpMacroAssemblerTracer::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
   PrintF(" CheckSpecialClassRanges(type='%c', label[%08x])\n",
          static_cast<char>(type), LabelToInt(on_no_match));
+  assembler_->CheckSpecialClassRanges(type, on_no_match);
 }
 
 void RegExpMacroAssemblerTracer::IfRegisterLT(int register_index,
