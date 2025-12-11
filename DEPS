@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:30.20251204.1.1',
+  'fuchsia_version': 'version:30.20251211.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c0fe27e349d130735192a239c0ae8f8f2051b5bc',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2683ff330e3b6f780965c451ca74b9a6a051f095',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '797cad2655a981ef74a1703349859c9bbc0177a1',
   'buildtools/linux64': {
@@ -308,13 +308,13 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'b4596f1d2b9d2bd3e667e847c18da57450b008a8',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '83a852080747b9a362e8f9e361366b7a601f302c',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'ad354a108725bcfe6f81db448308fc2c955392e9',
   'third_party/libpfm4':
     Var('chromium_url') + '/chromium/src/third_party/libpfm4.git' + '@' + '25c29f04c9127e1ca09e6c1181f74850aa7f118b',
   'third_party/libpfm4/src':
     Var('chromium_url') + '/external/git.code.sf.net/p/perfmon2/libpfm4.git' + '@' + '964baf9d35d5f88d8422f96d8a82c672042e7064',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'ef486348f6aa7c99da17ea603cce525e08927d76',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '634b5977998de8d30f5dc649b6ffd12ed95e1c22',
   'third_party/llvm-libc/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '03f822d2a88c8f68f6a92c5cb3e79ccc3002e8a9',
   'third_party/llvm-build/Release+Asserts': {
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'a2c5efe7f8cbb386fb87516edf820e6214747835',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'c54877e5250b6655111e04af8f58c548dbf0e845',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
