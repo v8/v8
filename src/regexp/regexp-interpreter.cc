@@ -381,14 +381,24 @@ bool IndexIsInBounds(int index, int length) {
   } while (false)
 #define ADVANCE_CURRENT_POSITION(by) SET_CURRENT_POSITION(current + (by))
 
+// These weird looking macros are required for clang-format and cpplint to not
+// interfere/complain about our logic of opening/closing blocks in our macros.
+#define OPEN_BLOCK {
+#define CLOSE_BLOCK }
+#define BYTECODES_START() OPEN_BLOCK
+#define BYTECODES_END() CLOSE_BLOCK
+
 #ifdef DEBUG
-#define BYTECODE(name)                                            \
-  BC_LABEL(name)                                                  \
-  MaybeTraceInterpreter(                                          \
-      code_base, pc, backtrack_stack.sp(), current, current_char, \
-      RegExpBytecodes::Size(RegExpBytecode::k##name), #name);
+#define BYTECODE(Name, ...)                                              \
+  CLOSE_BLOCK                                                            \
+  BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);       \
+  MaybeTraceInterpreter(code_base, pc, backtrack_stack.sp(), current,    \
+                        current_char, RegExpBytecodes::Size(current_bc), \
+                        #Name);
 #else
-#define BYTECODE(name) BC_LABEL(name)
+#define BYTECODE(Name, ...) \
+  CLOSE_BLOCK               \
+  BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);
 #endif  // DEBUG
 
 #define INIT(Name, ...)                                                    \
@@ -571,25 +581,23 @@ IrregexpInterpreter::Result RawMatch(
 #else
     switch (RegExpBytecodes::FromPtr(pc)) {
 #endif  // V8_USE_COMPUTED_GOTO
+    BYTECODES_START()
     BYTECODE(Break) { UNREACHABLE(); }
     BYTECODE(PushCurrentPosition) {
-      INIT(PushCurrentPosition);
       ADVANCE();
       if (!backtrack_stack.push(current)) {
         return MaybeThrowStackOverflow(isolate, call_origin);
       }
       DISPATCH();
     }
-    BYTECODE(PushBacktrack) {
-      INIT(PushBacktrack, label);
+    BYTECODE(PushBacktrack, label) {
       ADVANCE();
       if (!backtrack_stack.push(label)) {
         return MaybeThrowStackOverflow(isolate, call_origin);
       }
       DISPATCH();
     }
-    BYTECODE(PushRegister) {
-      INIT(PushRegister, register_index, stack_check);
+    BYTECODE(PushRegister, register_index, stack_check) {
       ADVANCE();
       USE(stack_check);  // Unused in interpreter.
       if (!backtrack_stack.push(registers[register_index])) {
@@ -597,14 +605,12 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(SetRegister) {
-      INIT(SetRegister, register_index, value);
+    BYTECODE(SetRegister, register_index, value) {
       ADVANCE();
       registers[register_index] = value;
       DISPATCH();
     }
-    BYTECODE(ClearRegisters) {
-      INIT(ClearRegisters, from_register, to_register);
+    BYTECODE(ClearRegisters, from_register, to_register) {
       ADVANCE();
       SBXCHECK_LE(from_register, to_register);
       for (uint16_t i = from_register; i <= to_register; ++i) {
@@ -612,44 +618,37 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(AdvanceRegister) {
-      INIT(AdvanceRegister, register_index, by);
+    BYTECODE(AdvanceRegister, register_index, by) {
       ADVANCE();
       registers[register_index] += by;
       DISPATCH();
     }
-    BYTECODE(WriteCurrentPositionToRegister) {
-      INIT(WriteCurrentPositionToRegister, register_index, cp_offset);
+    BYTECODE(WriteCurrentPositionToRegister, register_index, cp_offset) {
       ADVANCE();
       registers[register_index] = current + cp_offset;
       DISPATCH();
     }
-    BYTECODE(ReadCurrentPositionFromRegister) {
-      INIT(ReadCurrentPositionFromRegister, register_index);
+    BYTECODE(ReadCurrentPositionFromRegister, register_index) {
       ADVANCE();
       SET_CURRENT_POSITION(registers[register_index]);
       DISPATCH();
     }
-    BYTECODE(WriteStackPointerToRegister) {
-      INIT(WriteStackPointerToRegister, register_index);
+    BYTECODE(WriteStackPointerToRegister, register_index) {
       ADVANCE();
       registers[register_index] = backtrack_stack.sp();
       DISPATCH();
     }
-    BYTECODE(ReadStackPointerFromRegister) {
-      INIT(ReadStackPointerFromRegister, register_index);
+    BYTECODE(ReadStackPointerFromRegister, register_index) {
       ADVANCE();
       backtrack_stack.set_sp(registers[register_index]);
       DISPATCH();
     }
     BYTECODE(PopCurrentPosition) {
-      INIT(PopCurrentPosition);
       ADVANCE();
       SET_CURRENT_POSITION(backtrack_stack.pop());
       DISPATCH();
     }
-    BYTECODE(Backtrack) {
-      INIT(Backtrack, return_code);
+    BYTECODE(Backtrack, return_code) {
       static_assert(JSRegExp::kNoBacktrackLimit == 0);
       if (++backtrack_count == backtrack_limit) {
         return static_cast<IrregexpInterpreter::Result>(return_code);
@@ -663,44 +662,37 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(backtrack_stack.pop());
       DISPATCH();
     }
-    BYTECODE(PopRegister) {
-      INIT(PopRegister, register_index);
+    BYTECODE(PopRegister, register_index) {
       ADVANCE();
       registers[register_index] = backtrack_stack.pop();
       DISPATCH();
     }
     BYTECODE(Fail) {
-      INIT(Fail);
       isolate->counters()->regexp_backtracks()->AddSample(
           static_cast<int>(backtrack_count));
       return IrregexpInterpreter::FAILURE;
     }
     BYTECODE(Succeed) {
-      INIT(Succeed);
       isolate->counters()->regexp_backtracks()->AddSample(
           static_cast<int>(backtrack_count));
       registers.CopyToOutputRegisters();
       return IrregexpInterpreter::SUCCESS;
     }
-    BYTECODE(AdvanceCurrentPosition) {
-      INIT(AdvanceCurrentPosition, by);
+    BYTECODE(AdvanceCurrentPosition, by) {
       ADVANCE();
       ADVANCE_CURRENT_POSITION(by);
       DISPATCH();
     }
-    BYTECODE(GoTo) {
-      INIT(GoTo, label);
+    BYTECODE(GoTo, label) {
       SET_PC_FROM_OFFSET(label);
       DISPATCH();
     }
-    BYTECODE(AdvanceCpAndGoto) {
-      INIT(AdvanceCpAndGoto, by, on_goto);
+    BYTECODE(AdvanceCpAndGoto, by, on_goto) {
       SET_PC_FROM_OFFSET(on_goto);
       ADVANCE_CURRENT_POSITION(by);
       DISPATCH();
     }
-    BYTECODE(CheckFixedLengthLoop) {
-      INIT(CheckFixedLengthLoop, on_tos_equals_current_position);
+    BYTECODE(CheckFixedLengthLoop, on_tos_equals_current_position) {
       if (current == backtrack_stack.peek()) {
         SET_PC_FROM_OFFSET(on_tos_equals_current_position);
         backtrack_stack.pop();
@@ -709,8 +701,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(LoadCurrentCharacter) {
-      INIT(LoadCurrentCharacter, cp_offset, on_failure);
+    BYTECODE(LoadCurrentCharacter, cp_offset, on_failure) {
       int pos = current + cp_offset;
       if (pos >= subject.length() || pos < 0) {
         SET_PC_FROM_OFFSET(on_failure);
@@ -720,15 +711,13 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(LoadCurrentCharacterUnchecked) {
-      INIT(LoadCurrentCharacterUnchecked, cp_offset);
+    BYTECODE(LoadCurrentCharacterUnchecked, cp_offset) {
       ADVANCE();
       int pos = current + cp_offset;
       current_char = subject[pos];
       DISPATCH();
     }
-    BYTECODE(Load2CurrentChars) {
-      INIT(Load2CurrentChars, cp_offset, on_failure);
+    BYTECODE(Load2CurrentChars, cp_offset, on_failure) {
       int pos = current + cp_offset;
       if (pos + 2 > subject.length() || pos < 0) {
         SET_PC_FROM_OFFSET(on_failure);
@@ -738,15 +727,13 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(Load2CurrentCharsUnchecked) {
-      INIT(Load2CurrentCharsUnchecked, cp_offset);
+    BYTECODE(Load2CurrentCharsUnchecked, cp_offset) {
       ADVANCE();
       int pos = current + cp_offset;
       current_char = Load2Characters(subject, pos);
       DISPATCH();
     }
-    BYTECODE(Load4CurrentChars) {
-      INIT(Load4CurrentChars, cp_offset, on_failure);
+    BYTECODE(Load4CurrentChars, cp_offset, on_failure) {
       DCHECK_EQ(1, sizeof(Char));
       int pos = current + cp_offset;
       if (pos + 4 > subject.length() || pos < 0) {
@@ -757,16 +744,14 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(Load4CurrentCharsUnchecked) {
-      INIT(Load4CurrentCharsUnchecked, cp_offset);
+    BYTECODE(Load4CurrentCharsUnchecked, cp_offset) {
       ADVANCE();
       DCHECK_EQ(1, sizeof(Char));
       int pos = current + cp_offset;
       current_char = Load4Characters(subject, pos);
       DISPATCH();
     }
-    BYTECODE(Check4Chars) {
-      INIT(Check4Chars, characters, on_equal);
+    BYTECODE(Check4Chars, characters, on_equal) {
       if (characters == current_char) {
         SET_PC_FROM_OFFSET(on_equal);
       } else {
@@ -774,8 +759,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckCharacter) {
-      INIT(CheckCharacter, character, on_equal);
+    BYTECODE(CheckCharacter, character, on_equal) {
       if (character == current_char) {
         SET_PC_FROM_OFFSET(on_equal);
       } else {
@@ -783,8 +767,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckNot4Chars) {
-      INIT(CheckNot4Chars, characters, on_not_equal);
+    BYTECODE(CheckNot4Chars, characters, on_not_equal) {
       if (characters != current_char) {
         SET_PC_FROM_OFFSET(on_not_equal);
       } else {
@@ -792,8 +775,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckNotCharacter) {
-      INIT(CheckNotCharacter, character, on_not_equal);
+    BYTECODE(CheckNotCharacter, character, on_not_equal) {
       if (character != current_char) {
         SET_PC_FROM_OFFSET(on_not_equal);
       } else {
@@ -801,8 +783,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(AndCheck4Chars) {
-      INIT(AndCheck4Chars, characters, mask, on_equal);
+    BYTECODE(AndCheck4Chars, characters, mask, on_equal) {
       if (characters == (current_char & mask)) {
         SET_PC_FROM_OFFSET(on_equal);
       } else {
@@ -810,8 +791,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckCharacterAfterAnd) {
-      INIT(CheckCharacterAfterAnd, character, mask, on_equal);
+    BYTECODE(CheckCharacterAfterAnd, character, mask, on_equal) {
       if (character == (current_char & mask)) {
         SET_PC_FROM_OFFSET(on_equal);
       } else {
@@ -819,8 +799,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(AndCheckNot4Chars) {
-      INIT(AndCheckNot4Chars, characters, mask, on_not_equal);
+    BYTECODE(AndCheckNot4Chars, characters, mask, on_not_equal) {
       if (characters != (current_char & mask)) {
         SET_PC_FROM_OFFSET(on_not_equal);
       } else {
@@ -828,8 +807,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckNotCharacterAfterAnd) {
-      INIT(CheckNotCharacterAfterAnd, character, mask, on_not_equal);
+    BYTECODE(CheckNotCharacterAfterAnd, character, mask, on_not_equal) {
       if (character != (current_char & mask)) {
         SET_PC_FROM_OFFSET(on_not_equal);
       } else {
@@ -837,9 +815,8 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckNotCharacterAfterMinusAnd) {
-      INIT(CheckNotCharacterAfterMinusAnd, character, minus, mask,
-           on_not_equal);
+    BYTECODE(CheckNotCharacterAfterMinusAnd, character, minus, mask,
+             on_not_equal) {
       if (character != ((current_char - minus) & mask)) {
         SET_PC_FROM_OFFSET(on_not_equal);
       } else {
@@ -847,8 +824,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckCharacterInRange) {
-      INIT(CheckCharacterInRange, from, to, on_in_range);
+    BYTECODE(CheckCharacterInRange, from, to, on_in_range) {
       if (from <= current_char && current_char <= to) {
         SET_PC_FROM_OFFSET(on_in_range);
       } else {
@@ -856,8 +832,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckCharacterNotInRange) {
-      INIT(CheckCharacterNotInRange, from, to, on_not_in_range);
+    BYTECODE(CheckCharacterNotInRange, from, to, on_not_in_range) {
       if (from > current_char || current_char > to) {
         SET_PC_FROM_OFFSET(on_not_in_range);
       } else {
@@ -865,8 +840,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckBitInTable) {
-      INIT(CheckBitInTable, on_bit_set, table);
+    BYTECODE(CheckBitInTable, on_bit_set, table) {
       if (CheckBitInTable(current_char, table)) {
         SET_PC_FROM_OFFSET(on_bit_set);
       } else {
@@ -874,8 +848,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckCharacterLT) {
-      INIT(CheckCharacterLT, limit, on_less);
+    BYTECODE(CheckCharacterLT, limit, on_less) {
       if (current_char < limit) {
         SET_PC_FROM_OFFSET(on_less);
       } else {
@@ -883,8 +856,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckCharacterGT) {
-      INIT(CheckCharacterGT, limit, on_greater);
+    BYTECODE(CheckCharacterGT, limit, on_greater) {
       if (current_char > limit) {
         SET_PC_FROM_OFFSET(on_greater);
       } else {
@@ -892,8 +864,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(IfRegisterLT) {
-      INIT(IfRegisterLT, register_index, comparand, on_less_than);
+    BYTECODE(IfRegisterLT, register_index, comparand, on_less_than) {
       if (registers[register_index] < comparand) {
         SET_PC_FROM_OFFSET(on_less_than);
       } else {
@@ -901,8 +872,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(IfRegisterGE) {
-      INIT(IfRegisterGE, register_index, comparand, on_greater_or_equal);
+    BYTECODE(IfRegisterGE, register_index, comparand, on_greater_or_equal) {
       if (registers[register_index] >= comparand) {
         SET_PC_FROM_OFFSET(on_greater_or_equal);
       } else {
@@ -910,8 +880,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(IfRegisterEqPos) {
-      INIT(IfRegisterEqPos, register_index, on_eq);
+    BYTECODE(IfRegisterEqPos, register_index, on_eq) {
       if (registers[register_index] == current) {
         SET_PC_FROM_OFFSET(on_eq);
       } else {
@@ -919,8 +888,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckNotRegsEqual) {
-      INIT(CheckNotRegsEqual, reg1, reg2, on_not_equal);
+    BYTECODE(CheckNotRegsEqual, reg1, reg2, on_not_equal) {
       if (registers[reg1] == registers[reg2]) {
         ADVANCE();
       } else {
@@ -928,8 +896,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckNotBackRef) {
-      INIT(CheckNotBackRef, start_reg, on_not_equal);
+    BYTECODE(CheckNotBackRef, start_reg, on_not_equal) {
       int from = registers[start_reg];
       int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
@@ -943,8 +910,7 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CheckNotBackRefBackward) {
-      INIT(CheckNotBackRefBackward, start_reg, on_not_equal);
+    BYTECODE(CheckNotBackRefBackward, start_reg, on_not_equal) {
       int from = registers[start_reg];
       int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
@@ -958,8 +924,7 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CheckNotBackRefNoCaseUnicode) {
-      INIT(CheckNotBackRefNoCaseUnicode, start_reg, on_not_equal);
+    BYTECODE(CheckNotBackRefNoCaseUnicode, start_reg, on_not_equal) {
       int from = registers[start_reg];
       int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
@@ -973,8 +938,7 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CheckNotBackRefNoCase) {
-      INIT(CheckNotBackRefNoCase, start_reg, on_not_equal);
+    BYTECODE(CheckNotBackRefNoCase, start_reg, on_not_equal) {
       int from = registers[start_reg];
       int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
@@ -989,8 +953,7 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CheckNotBackRefNoCaseUnicodeBackward) {
-      INIT(CheckNotBackRefNoCaseUnicodeBackward, start_reg, on_not_equal);
+    BYTECODE(CheckNotBackRefNoCaseUnicodeBackward, start_reg, on_not_equal) {
       int from = registers[start_reg];
       int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
@@ -1005,8 +968,7 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CheckNotBackRefNoCaseBackward) {
-      INIT(CheckNotBackRefNoCaseBackward, start_reg, on_not_equal);
+    BYTECODE(CheckNotBackRefNoCaseBackward, start_reg, on_not_equal) {
       int from = registers[start_reg];
       int len = registers[start_reg + 1] - from;
       if (from >= 0 && len > 0) {
@@ -1021,8 +983,7 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE();
       DISPATCH();
     }
-    BYTECODE(CheckAtStart) {
-      INIT(CheckAtStart, cp_offset, on_at_start);
+    BYTECODE(CheckAtStart, cp_offset, on_at_start) {
       if (current + cp_offset == 0) {
         SET_PC_FROM_OFFSET(on_at_start);
       } else {
@@ -1030,8 +991,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckNotAtStart) {
-      INIT(CheckNotAtStart, cp_offset, on_not_at_start);
+    BYTECODE(CheckNotAtStart, cp_offset, on_not_at_start) {
       if (current + cp_offset == 0) {
         ADVANCE();
       } else {
@@ -1039,8 +999,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(SetCurrentPositionFromEnd) {
-      INIT(SetCurrentPositionFromEnd, by);
+    BYTECODE(SetCurrentPositionFromEnd, by) {
       ADVANCE();
       if (subject.length() - current > by) {
         SET_CURRENT_POSITION(subject.length() - by);
@@ -1048,8 +1007,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckPosition) {
-      INIT(CheckPosition, cp_offset, on_failure);
+    BYTECODE(CheckPosition, cp_offset, on_failure) {
       int pos = current + cp_offset;
       if (pos >= subject.length() || pos < 0) {
         SET_PC_FROM_OFFSET(on_failure);
@@ -1058,8 +1016,7 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckSpecialClassRanges) {
-      INIT(CheckSpecialClassRanges, character_set, on_no_match);
+    BYTECODE(CheckSpecialClassRanges, character_set, on_no_match) {
       const bool match =
           CheckSpecialClassRanges<Char>(current_char, character_set);
       if (match) {
@@ -1069,9 +1026,8 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(SkipUntilChar) {
-      INIT(SkipUntilChar, cp_offset, advance_by, character, on_match,
-           on_no_match);
+    BYTECODE(SkipUntilChar, cp_offset, advance_by, character, on_match,
+             on_no_match) {
       while (IndexIsInBounds(current + cp_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (character == current_char) {
@@ -1083,9 +1039,8 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilCharAnd) {
-      INIT(SkipUntilCharAnd, cp_offset, advance_by, character, mask,
-           eats_at_least, on_match, on_no_match);
+    BYTECODE(SkipUntilCharAnd, cp_offset, advance_by, character, mask,
+             eats_at_least, on_match, on_no_match) {
       while (IndexIsInBounds(current + eats_at_least, subject.length())) {
         current_char = subject[current + cp_offset];
         if (character == (current_char & mask)) {
@@ -1097,9 +1052,8 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilCharPosChecked) {
-      INIT(SkipUntilCharPosChecked, cp_offset, advance_by, character,
-           eats_at_least, on_match, on_no_match);
+    BYTECODE(SkipUntilCharPosChecked, cp_offset, advance_by, character,
+             eats_at_least, on_match, on_no_match) {
       while (IndexIsInBounds(current + eats_at_least, subject.length())) {
         current_char = subject[current + cp_offset];
         if (character == current_char) {
@@ -1111,9 +1065,8 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilBitInTable) {
-      INIT(SkipUntilBitInTable, cp_offset, advance_by, table, on_match,
-           on_no_match);
+    BYTECODE(SkipUntilBitInTable, cp_offset, advance_by, table, on_match,
+             on_no_match) {
       while (IndexIsInBounds(current + cp_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (CheckBitInTable(current_char, table)) {
@@ -1125,9 +1078,8 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilGtOrNotBitInTable) {
-      INIT(SkipUntilGtOrNotBitInTable, cp_offset, advance_by, character, table,
-           on_match, on_no_match);
+    BYTECODE(SkipUntilGtOrNotBitInTable, cp_offset, advance_by, character,
+             table, on_match, on_no_match) {
       while (IndexIsInBounds(current + cp_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (current_char > character) {
@@ -1143,9 +1095,8 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilCharOrChar) {
-      INIT(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2, on_match,
-           on_no_match);
+    BYTECODE(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2, on_match,
+             on_no_match) {
       while (IndexIsInBounds(current + cp_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         // The two if-statements below are split up intentionally, as combining
@@ -1164,10 +1115,9 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilOneOfMasked) {
-      INIT(SkipUntilOneOfMasked, cp_offset, advance_by, both_chars, both_mask,
-           max_offset, chars1, mask1, chars2, mask2, on_match1, on_match2,
-           on_failure);
+    BYTECODE(SkipUntilOneOfMasked, cp_offset, advance_by, both_chars, both_mask,
+             max_offset, chars1, mask1, chars2, mask2, on_match1, on_match2,
+             on_failure) {
       DCHECK_GE(cp_offset, 0);
       DCHECK_GE(max_offset, cp_offset);
       // We should only get here in 1-byte mode.
@@ -1190,12 +1140,11 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_failure);
       DISPATCH();
     }
-    BYTECODE(SkipUntilOneOfMasked3) {
-      INIT(SkipUntilOneOfMasked3, bc0_cp_offset, bc0_advance_by, bc0_table,
-           bc1_cp_offset, bc1_on_failure, bc2_cp_offset, bc3_characters,
-           bc3_mask, bc4_by, bc5_cp_offset, bc6_characters, bc6_mask,
-           bc6_on_equal, bc7_characters, bc7_mask, bc7_on_equal, bc8_characters,
-           bc8_mask, fallthrough_jump_target);
+    BYTECODE(SkipUntilOneOfMasked3, bc0_cp_offset, bc0_advance_by, bc0_table,
+             bc1_cp_offset, bc1_on_failure, bc2_cp_offset, bc3_characters,
+             bc3_mask, bc4_by, bc5_cp_offset, bc6_characters, bc6_mask,
+             bc6_on_equal, bc7_characters, bc7_mask, bc7_on_equal,
+             bc8_characters, bc8_mask, fallthrough_jump_target) {
       // We should only get here in 1-byte mode.
       DCHECK_EQ(1, sizeof(Char));
 
@@ -1261,6 +1210,7 @@ IrregexpInterpreter::Result RawMatch(
 
       UNREACHABLE();
     }
+    BYTECODES_END()
 #if V8_USE_COMPUTED_GOTO
 // Lint gets confused a lot if we just use !V8_USE_COMPUTED_GOTO or ifndef
 // V8_USE_COMPUTED_GOTO here.
@@ -1275,6 +1225,10 @@ IrregexpInterpreter::Result RawMatch(
   }
 }
 
+#undef OPEN_BLOCK
+#undef CLOSE_BLOCK
+#undef BYTECODES_START
+#undef BYTECODES_END
 #undef BYTECODE
 #undef ADVANCE_CURRENT_POSITION
 #undef SET_CURRENT_POSITION
