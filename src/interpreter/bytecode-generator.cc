@@ -7678,13 +7678,23 @@ static bool IsCharU(const AstRawString* str) {
 static bool IsLiteralCompareTypeof(CompareOperation* expr,
                                    Expression** sub_expr,
                                    TestTypeOfFlags::LiteralFlag* flag,
+                                   bool* negate,
                                    const AstStringConstants* ast_constants) {
+  // Note: The parser normalizes `typeof x !== 'string'` to
+  // `!(typeof x === 'string')` at the AST level, so we only see Eq/EqStrict
+  // here, never NotEq/NotEqStrict. The wrapping Not is handled by VisitNot,
+  // which applies InvertControlFlow in test context.
+  // See ParseBinaryContinuation in parser-base.h.
+  DCHECK_NE(expr->op(), Token::kNotEq);
+  DCHECK_NE(expr->op(), Token::kNotEqStrict);
+
   if (IsTypeof(expr->left()) && expr->right()->IsStringLiteral()) {
     Literal* right_lit = expr->right()->AsLiteral();
 
     if (Token::IsEqualityOp(expr->op())) {
       // typeof(x) === 'string'
       *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, right_lit);
+      *negate = false;
     } else if (expr->op() == Token::kGreaterThan &&
                IsCharU(right_lit->AsRawString())) {
       // typeof(x) > 'u'
@@ -7692,6 +7702,14 @@ static bool IsLiteralCompareTypeof(CompareOperation* expr,
       // since `undefined` is the only valid value that is greater than 'u'.
       // Check the test OnlyUndefinedGreaterThanU in bytecodes-unittest.cc
       *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+      *negate = false;
+    } else if (expr->op() == Token::kLessThan &&
+               IsCharU(right_lit->AsRawString())) {
+      // typeof(x) < 'u'
+      // Minifier may convert `typeof(x) !== 'undefined'` to this form,
+      // since `undefined` is the only valid value that is greater than 'u'.
+      *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+      *negate = true;
     } else {
       return false;
     }
@@ -7706,10 +7724,17 @@ static bool IsLiteralCompareTypeof(CompareOperation* expr,
     if (Token::IsEqualityOp(expr->op())) {
       // 'string' === typeof(x)
       *flag = TestTypeOfFlags::GetFlagForLiteral(ast_constants, left_lit);
+      *negate = false;
     } else if (expr->op() == Token::kLessThan &&
                IsCharU(left_lit->AsRawString())) {
       // 'u' < typeof(x)
       *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+      *negate = false;
+    } else if (expr->op() == Token::kGreaterThan &&
+               IsCharU(left_lit->AsRawString())) {
+      // 'u' > typeof(x)
+      *flag = TestTypeOfFlags::LiteralFlag::kUndefined;
+      *negate = true;
     } else {
       return false;
     }
@@ -7725,15 +7750,25 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
   TestTypeOfFlags::LiteralFlag flag;
-  if (IsLiteralCompareTypeof(expr, &sub_expr, &flag, ast_string_constants())) {
+  bool negate;
+  if (IsLiteralCompareTypeof(expr, &sub_expr, &flag, &negate,
+                             ast_string_constants())) {
     // Emit a fast literal comparison for expressions of the form:
     // typeof(x) === 'string'.
     VisitForTypeOfValue(sub_expr);
     builder()->SetExpressionPosition(expr);
     if (flag == TestTypeOfFlags::LiteralFlag::kOther) {
+      DCHECK(!negate);
       builder()->LoadFalse();
     } else {
       builder()->CompareTypeOf(flag);
+      if (negate) {
+        if (execution_result()->IsTest()) {
+          execution_result()->AsTest()->InvertControlFlow();
+        } else {
+          builder()->LogicalNot(ToBooleanMode::kAlreadyBoolean);
+        }
+      }
     }
   } else if (expr->IsLiteralStrictCompareBoolean(&sub_expr, &literal)) {
     DCHECK(expr->op() == Token::kEqStrict);
