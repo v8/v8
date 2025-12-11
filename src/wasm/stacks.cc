@@ -195,6 +195,7 @@ void StackMemory::Reset() {
   size_ = active_segment_->size_;
   clear_stack_switch_info();
   current_cont_ = {};
+  func_ref_ = {};
 }
 
 bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {

@@ -241,6 +241,9 @@ class StackMemory {
   StackSegment* active_segment_ = nullptr;
   Tagged<WasmContinuationObject> current_cont_ = {};
   Tagged<WasmFuncRef> func_ref_ = {};
+  // When adding fields here, also check if it needs to be cleared in
+  // StackMemory::Reset() when the stack is moved to the stack pool after
+  // retiring.
 };
 
 constexpr int kStackSpOffset =
