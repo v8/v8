@@ -393,7 +393,7 @@ std::optional<int> GetFieldOffset(v8::Isolate* isolate,
   auto offset_it = obj_fields.find(field_name);
   if (offset_it == obj_fields.end()) {
     std::ostringstream error;
-    error << "Unknown field \"" << field_name << "\" of instance type \""
+    error << "Unknown field \"" << field_name << "\" of instance type "
           << ToString(instance_type)
           << ". If needed, add it in SandboxTesting::GetFieldOffsetMap";
     ThrowTypeError(isolate, error.view());
@@ -1047,17 +1047,14 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSTypedArray::kExternalPointerOffset;
     fields[JS_TYPED_ARRAY_TYPE]["base_pointer"] =
         JSTypedArray::kBasePointerOffset;
-    fields[SEQ_ONE_BYTE_STRING_TYPE]["length"] =
-        offsetof(SeqOneByteString, length_);
-    fields[SEQ_TWO_BYTE_STRING_TYPE]["hash"] =
-        offsetof(SeqTwoByteString, raw_hash_field_);
-    fields[SEQ_TWO_BYTE_STRING_TYPE]["length"] =
-        offsetof(SeqTwoByteString, length_);
-    fields[INTERNALIZED_ONE_BYTE_STRING_TYPE]["length"] =
-        offsetof(InternalizedString, length_);
+    for (std::underlying_type_t<InstanceType> string_type = FIRST_STRING_TYPE;
+         string_type <= LAST_STRING_TYPE; ++string_type) {
+      InstanceType instance_type = static_cast<InstanceType>(string_type);
+      fields[instance_type]["length"] = offsetof(String, length_);
+      fields[instance_type]["hash"] = offsetof(String, raw_hash_field_);
+    }
     fields[SLICED_ONE_BYTE_STRING_TYPE]["parent"] =
         offsetof(SlicedString, parent_);
-    fields[CONS_ONE_BYTE_STRING_TYPE]["length"] = offsetof(ConsString, length_);
     fields[CONS_ONE_BYTE_STRING_TYPE]["first"] = offsetof(ConsString, first_);
     fields[CONS_ONE_BYTE_STRING_TYPE]["second"] = offsetof(ConsString, second_);
     fields[SHARED_FUNCTION_INFO_TYPE]["trusted_function_data"] =
