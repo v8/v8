@@ -468,7 +468,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   if (found_numeric.FromJust()) {
     SetNumericOption(icu_collator.get(), numeric);
     if (kn_extension_it != r.extensions.end() &&
-        kn_extension_it->second == "false") {
+        (kn_extension_it->second == "false") == numeric) {
       icu_locale.setUnicodeKeywordValue("kn", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -488,10 +488,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   if (case_first != CaseFirst::kUndefined) {
     SetCaseFirstOption(icu_collator.get(), case_first);
     if (kf_extension_it != r.extensions.end() &&
-        ((case_first == CaseFirst::kLower &&
-          kf_extension_it->second != "lower") ||
-         (case_first == CaseFirst::kUpper &&
-          kf_extension_it->second != "upper"))) {
+        case_first != ToCaseFirst(kf_extension_it->second.c_str())) {
       icu_locale.setUnicodeKeywordValue("kf", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
