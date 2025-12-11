@@ -974,9 +974,7 @@ void Heap::AddHeapObjectAllocationTracker(
 
 void Heap::RemoveHeapObjectAllocationTracker(
     HeapObjectAllocationTracker* tracker) {
-  allocation_trackers_.erase(std::remove(allocation_trackers_.begin(),
-                                         allocation_trackers_.end(), tracker),
-                             allocation_trackers_.end());
+  std::erase(allocation_trackers_, tracker);
   if (allocation_trackers_.empty()) {
     isolate_->UpdateLogObjectRelocation();
   }
