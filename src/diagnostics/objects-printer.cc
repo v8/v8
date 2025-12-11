@@ -4723,6 +4723,11 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_StackTrace() {
   isolate->PrintStack(stdout);
 }
 
+V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_StackTraceConcise() {
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->PrintStack(stdout, i::Isolate::PrintStackMode::kPrintStackConcise);
+}
+
 namespace _v8_internal_debugonly {
 // This class is easy to navigate in a GUI debugger and not intended for
 // use elsewhere.
