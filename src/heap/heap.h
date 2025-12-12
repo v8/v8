@@ -414,8 +414,6 @@ class Heap final {
 
   V8_EXPORT_PRIVATE static size_t DefaultInitialOldGenerationSize(
       uint64_t physical_memory);
-  V8_EXPORT_PRIVATE static size_t OldGenerationLowMemory(
-      uint64_t physical_memory);
 
 #if V8_OS_ANDROID
   V8_EXPORT_PRIVATE static bool IsHighEndAndroid(uint64_t physical_memory);

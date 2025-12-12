@@ -5032,11 +5032,6 @@ size_t Heap::DefaultInitialOldGenerationSize(uint64_t physical_memory) {
 }
 
 // static
-size_t Heap::OldGenerationLowMemory(uint64_t physical_memory) {
-  return 128 * MB * HeapLimitMultiplier(physical_memory);
-}
-
-// static
 size_t Heap::DefaultMinSemiSpaceSize() {
   return RoundUp(512 * KB, PageMetadata::kPageSize);
 }
