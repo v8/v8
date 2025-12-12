@@ -4424,8 +4424,6 @@ void Heap::CollectCodeStatistics() {
 
 void Heap::Print() {
   if (!HasBeenSetUp()) return;
-  isolate()->PrintStack(stdout);
-
   for (SpaceIterator it(this); it.HasNext();) {
     it.Next()->Print();
   }
