@@ -2111,7 +2111,8 @@ DEFINE_EXPERIMENTAL_FEATURE(
     wasm_lazy_validation,
     "enable lazy validation for lazily compiled wasm functions")
 DEFINE_WEAK_IMPLICATION(wasm_lazy_validation, wasm_lazy_compilation)
-DEFINE_BOOL(wasm_simd_ssse3_codegen, false, "allow wasm SIMD SSSE3 codegen")
+DEFINE_EXPERIMENTAL_FEATURE(wasm_simd_ssse3_codegen,
+                            "allow wasm SIMD SSSE3 codegen")
 
 DEFINE_BOOL(wasm_code_gc, true, "enable garbage collection of wasm code")
 DEFINE_BOOL(trace_wasm_code_gc, false, "trace garbage collection of wasm code")
