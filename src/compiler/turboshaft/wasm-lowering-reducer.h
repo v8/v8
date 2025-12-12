@@ -454,7 +454,7 @@ class WasmLoweringReducer : public Next {
                                         : compiler::kNoWriteBarrier),
         rtt);
     __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       __ template LoadRootWasm<RootIndex::kEmptyFixedArray>());
+                       __ template LoadRoot<RootIndex::kEmptyFixedArray>());
     __ InitializeField(a, AccessBuilder::ForWasmArrayLength(), length);
 
     // Note: Only the array header initialization is finished here, the elements
@@ -477,7 +477,7 @@ class WasmLoweringReducer : public Next {
                                         : compiler::kNoWriteBarrier),
         rtt);
     __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       __ template LoadRootWasm<RootIndex::kEmptyFixedArray>());
+                       __ template LoadRoot<RootIndex::kEmptyFixedArray>());
     // Note: Struct initialization isn't finished here, the user defined fields
     // still need to be initialized by other operations.
     V<WasmStruct> struct_value = __ FinishInitialization(std::move(s));

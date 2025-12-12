@@ -91,9 +91,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
     // Function reference. Extract the external function.
     ScopedVar<Object> result(this, OpIndex::Invalid());
     if (type.is_nullable()) {
-      IF (__ TaggedEqual(ret,
-                         __ template LoadRootWasm<RootIndex::kWasmNull>())) {
-        result = __ template LoadRootWasm<RootIndex::kNullValue>();
+      IF (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
+        result = __ template LoadRoot<RootIndex::kNullValue>();
       } ELSE{
         V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
             __ LoadTrustedPointer(ret, LoadOp::Kind::TaggedBase(),
@@ -105,7 +104,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
                     WasmInternalFunction::kExternalOffset);
         IF (__ TaggedEqual(
                 maybe_external,
-                __ template LoadRootWasm<RootIndex::kUndefinedValue>())) {
+                __ template LoadRoot<RootIndex::kUndefinedValue>())) {
           result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
               Builtin::kWasmInternalFunctionCreateExternal,
               Operator::kNoProperties, internal, context);
@@ -122,8 +121,8 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
       result = __ Load(internal, LoadOp::Kind::TaggedBase(),
                        MemoryRepresentation::TaggedPointer(),
                        WasmInternalFunction::kExternalOffset);
-      IF (__ TaggedEqual(
-              result, __ template LoadRootWasm<RootIndex::kUndefinedValue>())) {
+      IF (__ TaggedEqual(result,
+                         __ template LoadRoot<RootIndex::kUndefinedValue>())) {
         result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
             Builtin::kWasmInternalFunctionCreateExternal,
             Operator::kNoProperties, internal, context);
@@ -135,16 +134,14 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
   // Cases that are never or always null:
   if (!type.is_nullable()) return ret;
   if (!type.use_wasm_null()) return ret;
-  if (type.is_none_type())
-    return __ template LoadRootWasm<RootIndex::kNullValue>();
+  if (type.is_none_type()) return __ template LoadRoot<RootIndex::kNullValue>();
 
   // Nullable reference. Convert WasmNull if needed.
   ScopedVar<Object> result(this, OpIndex::Invalid());
-  IF_NOT (__ TaggedEqual(ret,
-                         __ template LoadRootWasm<RootIndex::kWasmNull>())) {
+  IF_NOT (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
     result = ret;
   } ELSE{
-    result = __ template LoadRootWasm<RootIndex::kNullValue>();
+    result = __ template LoadRoot<RootIndex::kNullValue>();
   }
   return result;
 }
@@ -390,7 +387,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
   }
 
   V<Undefined> undefined_node =
-      __ template LoadRootWasm<RootIndex::kUndefinedValue>();
+      __ template LoadRoot<RootIndex::kUndefinedValue>();
   int pushed_count = std::max(expected_arity, wasm_count);
   // 5 extra arguments: receiver, new target, arg count, dispatch handle and
   // context.
@@ -424,7 +421,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmToJSWrapper(
     if (v8_flags.stress_wasm_stack_switching) {
       V<Word32> for_stress_testing = __ TaggedEqual(
           __ LoadTaggedField(suspender, WasmSuspenderObject::kResumeOffset),
-          __ template LoadRootWasm<RootIndex::kUndefinedValue>());
+          __ template LoadRoot<RootIndex::kUndefinedValue>());
       IF (for_stress_testing) {
         __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {},
                            native_context);

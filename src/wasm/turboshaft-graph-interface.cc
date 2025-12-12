@@ -2012,8 +2012,8 @@ class TurboshaftGraphBuildingInterface
         __ LoadRootRegister(), LoadOp::Kind::RawAligned(),
         MemoryRepresentation::UintPtr(), IsolateData::exception_offset());
 
-    IF_NOT (LIKELY(__ TaggedEqual(
-                exception, __ LoadRootWasm<RootIndex::kTheHoleValue>()))) {
+    IF_NOT (LIKELY(__ TaggedEqual(exception,
+                                  __ LoadRoot<RootIndex::kTheHoleValue>()))) {
       CallBuiltinThroughJumptable<
           BuiltinCallDescriptor::WasmPropagateException>(
           decoder, {}, CheckForException::kCatchInThisFrame);
@@ -2278,7 +2278,7 @@ class TurboshaftGraphBuildingInterface
           Label<String> search_done_label(&asm_);
           GOTO_IF_NOT(__ IsNull(search, args[1].type), search_done_label,
                       search);
-          GOTO(search_done_label, __ LoadRootWasm<RootIndex::knull_string>());
+          GOTO(search_done_label, __ LoadRoot<RootIndex::knull_string>());
           BIND(search_done_label, search_value);
           search = search_value;
         }
@@ -3585,7 +3585,7 @@ class TurboshaftGraphBuildingInterface
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, native_context,
             {block->exception,
-             __ LoadRootWasm<RootIndex::kwasm_exception_tag_symbol>()}));
+             __ LoadRoot<RootIndex::kwasm_exception_tag_symbol>()}));
     // TODO(14616): Support shared tags.
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
@@ -3608,8 +3608,8 @@ class TurboshaftGraphBuildingInterface
       // Only perform this check if the tag signature is the same as
       // the JSTag signature, i.e. a single externref or (ref extern), otherwise
       // we know statically that it cannot be the JSTag.
-      V<Word32> caught_tag_undefined = __ TaggedEqual(
-          caught_tag, __ LoadRootWasm<RootIndex::kUndefinedValue>());
+      V<Word32> caught_tag_undefined =
+          __ TaggedEqual(caught_tag, __ LoadRoot<RootIndex::kUndefinedValue>());
       Label<Object> if_catch(&asm_);
       Label<> no_catch_merge(&asm_);
 
@@ -3720,7 +3720,7 @@ class TurboshaftGraphBuildingInterface
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, native_context,
             {block->exception,
-             __ LoadRootWasm<RootIndex::kwasm_exception_tag_symbol>()}));
+             __ LoadRoot<RootIndex::kwasm_exception_tag_symbol>()}));
     // TODO(14616): Support shared tags.
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
@@ -3743,8 +3743,8 @@ class TurboshaftGraphBuildingInterface
       // Only perform this check if the tag signature is the same as
       // the JSTag signature, i.e. a single externref, otherwise
       // we know statically that it cannot be the JSTag.
-      V<Word32> caught_tag_undefined = __ TaggedEqual(
-          caught_tag, __ LoadRootWasm<RootIndex::kUndefinedValue>());
+      V<Word32> caught_tag_undefined =
+          __ TaggedEqual(caught_tag, __ LoadRoot<RootIndex::kUndefinedValue>());
       Label<Object> if_catch(&asm_);
       Label<> no_catch_merge(&asm_);
 
@@ -4742,7 +4742,7 @@ class TurboshaftGraphBuildingInterface
         trusted_instance_data(shared), ElementSegments,
         MemoryRepresentation::TaggedPointer());
     __ StoreFixedArrayElement(elem_segments, imm.index,
-                              __ LoadRootWasm<RootIndex::kEmptyFixedArray>(),
+                              __ LoadRoot<RootIndex::kEmptyFixedArray>(),
                               compiler::kFullWriteBarrier);
   }
 
@@ -7987,8 +7987,7 @@ class TurboshaftGraphBuildingInterface
         // Note: The reference cannot have been cleared: Since the loaded_sig
         // corresponds to a function of the same canonical type, that function
         // will have kept the type alive.
-        V<WeakFixedArray> rtts =
-            __ LoadRootWasm<RootIndex::kWasmCanonicalRtts>();
+        V<WeakFixedArray> rtts = __ LoadRoot<RootIndex::kWasmCanonicalRtts>();
         V<Object> weak_rtt = __ Load(
             rtts, __ ChangeInt32ToIntPtr(loaded_sig),
             LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
@@ -8465,7 +8464,7 @@ class TurboshaftGraphBuildingInterface
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, instance_cache_.native_context(),
             {exception,
-             __ LoadRootWasm<RootIndex::kwasm_exception_values_symbol>()}));
+             __ LoadRoot<RootIndex::kwasm_exception_values_symbol>()}));
 
     int index = 0;
     for (Value& value : values) {

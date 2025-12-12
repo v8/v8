@@ -2691,7 +2691,7 @@ class MachineLoweringReducer : public Next {
       auto new_string = __ template Allocate<SeqOneByteString>(
           size, AllocationType::kYoung, kTaggedAligned);
       __ InitializeField(new_string, AccessBuilderTS::ForMap(),
-                         __ LoadRoot(RootIndex::kSeqOneByteStringMap));
+                         __ SeqOneByteStringMapConstant());
       __ InitializeField(new_string, AccessBuilderTS::ForNameRawHashField(),
                          __ Word32Constant(Name::kEmptyHashField));
       __ InitializeField(new_string, AccessBuilderTS::ForStringLength(),

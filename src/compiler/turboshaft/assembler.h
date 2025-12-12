@@ -930,6 +930,21 @@ class FrameStateForCall {
   OptionalV<turboshaft::FrameState> framestate_;
 };
 
+// Meta-class to map a root index to the corresponding C++-type.
+template <RootIndex>
+struct RootType;
+
+#define DEFINE_ROOT_TYPE(ctype, name, CamelName) \
+  template <>                                    \
+  struct RootType<RootIndex::k##CamelName> {     \
+    using type = ctype;                          \
+  };
+ROOT_LIST(DEFINE_ROOT_TYPE)
+#undef DEFINE_ROOT_TYPE
+
+template <RootIndex index>
+using root_type_t = RootType<index>::type;
+
 // Forward declarations
 template <typename Next>
 class GraphVisitor;
@@ -4917,76 +4932,41 @@ class AssemblerOpInterface : public Next {
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
   }
 
-#if V8_ENABLE_WEBASSEMBLY
   template <RootIndex index>
-  decltype(auto) LoadRootWasm() {
-    return LoadRootHelper<index>(Asm(), __ data()->isolate());
-  }
-#endif
-
-  V<Object> LoadRoot(RootIndex root_index) {
+  V<root_type_t<index>> LoadRoot() {
+    using RootObjectType = root_type_t<index>;
     Isolate* isolate = __ data() -> isolate();
-    DCHECK_NOT_NULL(isolate);
-    if (RootsTable::IsImmortalImmovable(root_index)) {
-      Handle<Object> root = isolate->root_handle(root_index);
-      if (i::IsSmi(*root)) {
-        return __ SmiConstant(Cast<Smi>(*root));
-      } else {
-        return HeapConstantMaybeHole(i::Cast<HeapObject>(root));
+    if (RootsTable::IsImmortalImmovable(index)) {
+      if (isolate != nullptr) {
+        Handle<Object> root = isolate->root_handle(index);
+        const bool is_smi = i::IsSmi(*root);
+        // For Root types that could be a smi, emit a smi constant if the actual
+        // value can be stored in a smi.
+        if constexpr (std::is_convertible_v<Smi, RootObjectType>) {
+          if (is_smi) {
+            return SmiConstant(Cast<Smi>(*root));
+          }
+        }
+        CHECK(!is_smi);
+        return HeapConstantMaybeHole(i::Cast<RootObjectType>(root));
       }
+      return Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
+                  MemoryRepresentation::AnyUncompressedTagged(),
+                  IsolateData::root_slot_offset(index));
+    } else {
+      return Load(LoadRootRegister(), LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::AnyUncompressedTagged(),
+                  IsolateData::root_slot_offset(index));
     }
-
-    // TODO(jgruber): In theory we could generate better code for this by
-    // letting the macro assembler decide how to load from the roots list. In
-    // most cases, it would boil down to loading from a fixed kRootRegister
-    // offset.
-    OpIndex isolate_root =
-        __ ExternalConstant(ExternalReference::isolate_root(isolate));
-    int offset = IsolateData::root_slot_offset(root_index);
-    return __ LoadOffHeap(isolate_root, offset,
-                          MemoryRepresentation::AnyTagged());
   }
 
-#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)          \
-  V<RemoveTagged<                                                              \
-      decltype(std::declval<ReadOnlyRoots>().rootAccessorName())>::type>       \
-      name##Constant() {                                                       \
-    const TurboshaftPipelineKind kind = __ data() -> pipeline_kind();          \
-    if (V8_UNLIKELY(kind == TurboshaftPipelineKind::kCSA ||                    \
-                    kind == TurboshaftPipelineKind::kTSABuiltin)) {            \
-      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::k##rootIndexName));    \
-      return V<RemoveTagged<                                                   \
-          decltype(std::declval<ReadOnlyRoots>().rootAccessorName())>::type>:: \
-          Cast(__ LoadRoot(RootIndex::k##rootIndexName));                      \
-    } else {                                                                   \
-      Isolate* isolate = __ data() -> isolate();                               \
-      DCHECK_NOT_NULL(isolate);                                                \
-      Factory* factory = isolate->factory();                                   \
-      DCHECK_NOT_NULL(factory);                                                \
-      return __ HeapConstant(factory->rootAccessorName());                     \
-    }                                                                          \
+#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)  \
+  decltype(auto) name##Constant() {                                    \
+    static_assert(                                                     \
+        RootsTable::IsImmortalImmovable(RootIndex::k##rootIndexName)); \
+    return LoadRoot<RootIndex::k##rootIndexName>();                    \
   }
   HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
-#undef HEAP_CONSTANT_ACCESSOR
-
-#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)       \
-  V<RemoveTagged<decltype(std::declval<Heap>().rootAccessorName())>::type>  \
-      name##Constant() {                                                    \
-    const TurboshaftPipelineKind kind = __ data() -> pipeline_kind();       \
-    if (V8_UNLIKELY(kind == TurboshaftPipelineKind::kCSA ||                 \
-                    kind == TurboshaftPipelineKind::kTSABuiltin)) {         \
-      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::k##rootIndexName)); \
-      return V<                                                             \
-          RemoveTagged<decltype(std::declval<Heap>().rootAccessorName())>:: \
-              type>::Cast(__ LoadRoot(RootIndex::k##rootIndexName));        \
-    } else {                                                                \
-      Isolate* isolate = __ data() -> isolate();                            \
-      DCHECK_NOT_NULL(isolate);                                             \
-      Factory* factory = isolate->factory();                                \
-      DCHECK_NOT_NULL(factory);                                             \
-      return __ HeapConstant(factory->rootAccessorName());                  \
-    }                                                                       \
-  }
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
