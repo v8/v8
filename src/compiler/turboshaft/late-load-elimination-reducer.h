@@ -385,7 +385,7 @@ class MemoryContentTable
       if (index.valid()) {
         // {index} could be anything, so we invalidate everything.
         TRACE(">> Invalidating everything because of valid index");
-        return InvalidateMaybeAliasing();
+        return InvalidateMaybeAliasing(base);
       }
 
       // Invalidating all of the values with valid Index.
@@ -411,15 +411,29 @@ class MemoryContentTable
   }
 
   // Invalidates all Keys that are not known as non-aliasing.
-  void InvalidateMaybeAliasing() {
+  void InvalidateMaybeAliasing(
+      OptionalOpIndex base = OptionalOpIndex::Nullopt()) {
     TRACE(">> InvalidateMaybeAliasing");
+    MapMaskAndOr base_maps =
+        base.has_value() ? object_maps_.Get(base.value()) : MapMaskAndOr{};
     // We find current active keys through {base_keys_} so that we can bail out
     // for whole buckets non-aliasing bases (if we had gone through
     // {offset_keys_} instead, then for each key we would've had to check
     // whether it was non-aliasing or not).
     for (auto& base_keys : base_keys_) {
-      OpIndex base = base_keys.first;
-      if (non_aliasing_objects_.Get(base)) continue;
+      OpIndex other_base = base_keys.first;
+      if (non_aliasing_objects_.Get(other_base)) {
+        TRACE(">>> Not invalidating at base " << other_base
+                                              << " because it's non-aliasing");
+        continue;
+      }
+      if (base.has_value() &&
+          !BasesCouldAlias(base.value(), base_maps, other_base)) {
+        TRACE(">>> Not invalidating at base "
+              << other_base << " because it can't alias with " << base
+              << " (based on its map)");
+        continue;
+      }
       for (auto it = base_keys.second.with_offsets.begin();
            it != base_keys.second.with_offsets.end();) {
         Key key = *it;
@@ -613,11 +627,7 @@ class MemoryContentTable
         ++it;
         continue;
       }
-      MapMaskAndOr this_maps = key.data().mem.base == base
-                                   ? base_maps
-                                   : object_maps_.Get(key.data().mem.base);
-      if (!is_empty(base_maps) && !is_empty(this_maps) &&
-          !CouldHaveSameMap(base_maps, this_maps)) {
+      if (!BasesCouldAlias(base, base_maps, key)) {
         TRACE(">>>> InvalidateAtOffset: not invalidating thanks for maps: "
               << key.data().mem);
         ++it;
@@ -627,6 +637,20 @@ class MemoryContentTable
       TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
       Set(key, OpIndex::Invalid());
     }
+  }
+
+  bool BasesCouldAlias(OpIndex base, MapMaskAndOr base_maps, Key other) {
+    return BasesCouldAlias(base, base_maps, other.data().mem.base);
+  }
+
+  bool BasesCouldAlias(OpIndex base, MapMaskAndOr base_maps, OpIndex other) {
+    if (is_empty(base_maps)) return true;
+
+    MapMaskAndOr other_maps =
+        other == base ? base_maps : object_maps_.Get(other);
+    if (is_empty(other_maps)) return true;
+
+    return CouldHaveSameMap(base_maps, other_maps);
   }
 
   OpIndex ResolveBase(OpIndex base) {

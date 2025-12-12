@@ -431,7 +431,7 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     TRACE(
         ">> Raw base or maybe inner pointer ==> Invalidating whole "
         "maybe-aliasing memory");
-    memory_.InvalidateMaybeAliasing();
+    memory_.InvalidateMaybeAliasing(store.base());
   }
 
   if (!store.kind.load_eliminable) {
@@ -481,7 +481,7 @@ void LateLoadEliminationAnalyzer::ProcessAtomicRMW(OpIndex op_idx,
     return;
   }
   TRACE(">> Invalidating whole maybe-aliasing memory");
-  memory_.InvalidateMaybeAliasing();
+  memory_.InvalidateMaybeAliasing(store.base());
 #endif
 }
 
