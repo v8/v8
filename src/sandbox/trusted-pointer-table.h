@@ -97,7 +97,7 @@ struct TrustedPointerTableEntry {
     static constexpr bool kSupportsZapping = false;
   };
 
-  struct Payload : TaggedPayload<TrustedPointerTaggingScheme> {
+  struct Payload : TaggedPayloadDeprecated<TrustedPointerTaggingScheme> {
     static Payload ForTrustedPointerEntry(Address pointer,
                                           IndirectPointerTag tag) {
       // We expect to only store references to (trusted) HeapObjects in the
@@ -118,7 +118,7 @@ struct TrustedPointerTableEntry {
 
    private:
     Payload(Address pointer, IndirectPointerTag tag)
-        : TaggedPayload(pointer, tag) {}
+        : TaggedPayloadDeprecated(pointer, tag) {}
   };
 
   std::atomic<Payload> payload_;

@@ -486,8 +486,8 @@ struct TagRange {
     // Need to perform the math with uint32_t. Otherwise, the uint16_ts would
     // be promoted to (signed) int, allowing the compiler to (wrongly) assume
     // that an underflow cannot happen as that would be undefined behavior.
-    return static_cast<uint32_t>(tag) - first <=
-           static_cast<uint32_t>(last) - first;
+    return static_cast<uint32_t>(tag) - static_cast<uint32_t>(first) <=
+           static_cast<uint32_t>(last) - static_cast<uint32_t>(first);
   }
 
   constexpr bool Contains(TagRange tag_range) const {

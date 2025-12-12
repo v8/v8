@@ -6106,7 +6106,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 // static
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
                          CppHeapPointerTagRange tag_range) {
-  DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
+  DCHECK_LE(tag_range.first, tag_range.last);
   return i::CppHeapObjectWrapper(
              i::Cast<i::JSObject>(i::Tagged<i::Object>(wrapper_obj)))
       .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), tag_range);
@@ -7326,7 +7326,7 @@ Local<CppHeapExternal> v8::CppHeapExternal::NewImpl(Isolate* v8_isolate,
 
 void* CppHeapExternal::ValueImpl(v8::Isolate* isolate,
                                  CppHeapPointerTagRange tag_range) const {
-  DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
+  DCHECK_LE(tag_range.first, tag_range.last);
   auto self = Utils::OpenDirectHandle(this);
   return i::CppHeapObjectWrapper(*self).GetCppHeapWrappable(
       reinterpret_cast<i::Isolate*>(isolate), tag_range);
