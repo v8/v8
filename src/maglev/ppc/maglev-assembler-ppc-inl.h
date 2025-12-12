@@ -798,7 +798,8 @@ inline void MaglevAssembler::DeoptIfBufferNotValid(Register array,
                   FieldMemOperand(array, JSArrayBufferView::kBufferOffset));
   LoadU32(scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset),
           r0);
-  TestBitMask(scratch, JSArrayBuffer::NotValidMask(mode));
+  AndU32(scratch, scratch, Operand(JSArrayBuffer::NotValidMask(mode)), r0,
+         SetRC);
   EmitEagerDeoptIf(ne, DeoptimizeReason::kArrayBufferWasDetached, node);
 }
 
