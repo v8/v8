@@ -224,7 +224,7 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
 // static
 Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
                                               bool is_define) {
-  DCHECK(it->GetName()->IsPrivateName());
+  DCHECK(it->GetName()->IsAnyPrivateName());
   Isolate* isolate = it->isolate();
   DirectHandle<String> name_string(
       Cast<String>(Cast<Symbol>(it->GetName())->description()), isolate);
@@ -959,7 +959,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
   if (IsJSProxy(*it->GetReceiver())) {
     if (it->state() != LookupIterator::NOT_FOUND) {
       DCHECK_EQ(LookupIterator::DATA, it->state());
-      DCHECK(it->name()->IsPrivate());
+      DCHECK(it->name()->IsAnyPrivate());
       it->Delete();
     }
     return Just(true);
@@ -1828,7 +1828,7 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
   DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(it->GetReceiver());
   DCHECK(!IsAlwaysSharedSpaceJSObject(*receiver));
   Isolate* isolate = it->isolate();
-  DCHECK(it->GetName()->IsPrivateName());
+  DCHECK(it->GetName()->IsAnyPrivateName());
   DirectHandle<Symbol> symbol = Cast<Symbol>(it->GetName());
 
   switch (it->state()) {
@@ -3687,7 +3687,7 @@ void JSObject::AddProperty(Isolate* isolate, DirectHandle<JSObject> object,
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   DCHECK(maybe.IsJust());
   DCHECK(!it.IsFound());
-  DCHECK(object->map()->is_extensible() || name->IsPrivate());
+  DCHECK(object->map()->is_extensible() || name->IsAnyPrivate());
 #endif
   CHECK(Object::AddDataProperty(&it, value, attributes,
                                 Just(ShouldThrow::kThrowOnError),
@@ -4261,7 +4261,7 @@ bool TestFastPropertiesIntegrityLevel(Tagged<Map> map,
 
   Tagged<DescriptorArray> descriptors = map->instance_descriptors();
   for (InternalIndex i : map->IterateOwnDescriptors()) {
-    if (descriptors->GetKey(i)->IsPrivate()) continue;
+    if (descriptors->GetKey(i)->IsAnyPrivate()) continue;
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsConfigurable()) return false;
     if (level == FROZEN && details.kind() == PropertyKind::kData &&

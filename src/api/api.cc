@@ -827,7 +827,7 @@ bool Data::IsValue() const {
   i::Tagged<i::HeapObject> heap_object = i::Cast<i::HeapObject>(self);
   DCHECK(!IsTheHole(heap_object));
   if (i::IsSymbol(heap_object)) {
-    return !i::Cast<i::Symbol>(heap_object)->is_private();
+    return !i::Cast<i::Symbol>(heap_object)->is_any_private();
   }
   return IsPrimitiveHeapObject(heap_object) || IsJSReceiver(heap_object);
 }
@@ -3941,7 +3941,7 @@ void v8::Symbol::CheckCast(v8::Data* that) {
 
 void v8::Private::CheckCast(v8::Data* that) {
   auto obj = Utils::OpenDirectHandle(that);
-  Utils::ApiCheck(IsSymbol(*obj) && i::Cast<i::Symbol>(obj)->is_private(),
+  Utils::ApiCheck(IsSymbol(*obj) && i::Cast<i::Symbol>(obj)->is_any_private(),
                   "v8::Private::Cast", "Value is not a Private");
 }
 

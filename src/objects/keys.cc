@@ -135,11 +135,11 @@ ExceptionStatus KeyAccumulator::AddKey(DirectHandle<Object> key,
                                        AddKeyConversion convert) {
   if (filter_ == PRIVATE_NAMES_ONLY) {
     if (!IsSymbol(*key)) return ExceptionStatus::kSuccess;
-    if (!Cast<Symbol>(*key)->is_private_name())
+    if (!Cast<Symbol>(*key)->is_any_private_name())
       return ExceptionStatus::kSuccess;
   } else if (IsSymbol(*key)) {
     if (filter_ & SKIP_SYMBOLS) return ExceptionStatus::kSuccess;
-    if (Cast<Symbol>(*key)->is_private()) return ExceptionStatus::kSuccess;
+    if (Cast<Symbol>(*key)->is_any_private()) return ExceptionStatus::kSuccess;
   } else if (filter_ & SKIP_STRINGS) {
     return ExceptionStatus::kSuccess;
   }

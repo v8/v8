@@ -8728,10 +8728,12 @@ TNode<BoolT> CodeStubAssembler::IsPrimitiveInstanceType(
                               Int32Constant(LAST_PRIMITIVE_HEAP_OBJECT_TYPE));
 }
 
-TNode<BoolT> CodeStubAssembler::IsPrivateName(TNode<Symbol> symbol) {
+TNode<BoolT> CodeStubAssembler::IsAnyPrivateName(TNode<Symbol> symbol) {
   TNode<Uint32T> flags =
       LoadObjectField<Uint32T>(symbol, offsetof(Symbol, flags_));
-  return IsSetWord32<Symbol::IsPrivateNameBit>(flags);
+  return Int32GreaterThanOrEqual(
+      DecodeWord32<Symbol::PrivateSymbolKindBits>(flags),
+      Int32Constant(static_cast<int>(PrivateSymbolKind::kFieldName)));
 }
 
 TNode<BoolT> CodeStubAssembler::IsHashTable(TNode<HeapObject> object) {

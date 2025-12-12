@@ -870,7 +870,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   if (lookup->state() == LookupIterator::ACCESS_CHECK) {
     handler = MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
   } else if (!lookup->IsFound()) {
-    if (lookup->IsPrivateName()) {
+    if (lookup->IsAnyPrivateName()) {
       handler = MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
     } else {
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
@@ -1208,7 +1208,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
 
     case LookupIterator::JSPROXY: {
       // Private names on JSProxy is currently not supported.
-      if (lookup->name()->IsPrivate()) {
+      if (lookup->name()->IsAnyPrivate()) {
         return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
       }
       Handle<Smi> smi_handler = LoadHandler::LoadProxy(isolate());
@@ -1952,7 +1952,7 @@ MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
     // KeyedStoreIC should handle DefineKeyedOwnIC with deprecated maps directly
     // instead of reusing this method.
     DCHECK(!IsDefineKeyedOwnIC());
-    DCHECK(!name->IsPrivateName());
+    DCHECK(!name->IsAnyPrivateName());
 
     PropertyKey key(isolate(), name);
     if (IsDefineNamedOwnIC()) {
@@ -1986,8 +1986,8 @@ MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
       isolate(), object, key,
       IsAnyDefineOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
 
-  if (name->IsPrivate()) {
-    if (name->IsPrivateName()) {
+  if (name->IsAnyPrivate()) {
+    if (name->IsAnyPrivateName()) {
       DCHECK(!IsDefineNamedOwnIC());
       Maybe<bool> can_store =
           JSReceiver::CheckPrivateNameStore(&it, IsDefineKeyedOwnIC());
@@ -2013,7 +2013,7 @@ MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
   // present. We can also skip this for private names since they are not
   // bound by configurability or extensibility checks, and errors would've
   // been thrown if the private field already exists in the object.
-  if (IsAnyDefineOwn() && !name->IsPrivateName() && IsJSObject(*object) &&
+  if (IsAnyDefineOwn() && !name->IsAnyPrivateName() && IsJSObject(*object) &&
       !Cast<JSObject>(object)->HasNamedInterceptor()) {
     Maybe<bool> can_define = JSObject::CheckIfCanDefineAsConfigurable(
         isolate(), &it, value, Nothing<ShouldThrow>());
@@ -2042,7 +2042,7 @@ MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
   // ES #sec-runtime-semantics-propertydefinitionevaluation
   // IsAnyDefineOwn() can be true when this method is reused by KeyedStoreIC.
   if (IsAnyDefineOwn()) {
-    if (name->IsPrivateName()) {
+    if (name->IsAnyPrivateName()) {
       // We should define private fields without triggering traps or checking
       // extensibility.
       MAYBE_RETURN_NULL(
@@ -2184,7 +2184,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           Cast<JSReceiver>(lookup->GetReceiver());
       Handle<JSObject> holder =
           indirect_handle(lookup->GetHolder<JSObject>(), isolate());
-      DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsPrivate());
+      DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsAnyPrivate());
 
       if (IsAnyDefineOwn()) {
         set_slow_stub_reason("define own with existing accessor");
@@ -2293,7 +2293,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       DirectHandle<JSObject> receiver = Cast<JSObject>(lookup->GetReceiver());
       USE(receiver);
       DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
-      DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsPrivate());
+      DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsAnyPrivate());
 
       DCHECK_EQ(PropertyKind::kData, lookup->property_details().kind());
       if (lookup->is_dictionary_holder()) {
@@ -3187,7 +3187,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Slow) {
   // Unlike DefineKeyedOwnIC, DefineNamedOwnIC doesn't handle private
   // fields and is used for defining data properties in object literals
   // and defining named public class fields.
-  DCHECK(!IsSymbol(*key) || !Cast<Symbol>(*key)->is_private_name());
+  DCHECK(!IsSymbol(*key) || !Cast<Symbol>(*key)->is_any_private_name());
 
   PropertyKey lookup_key(isolate, key);
   MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate, object, lookup_key,
@@ -3518,7 +3518,7 @@ FastCloneObjectMode GetCloneModeForMap(DirectHandle<Map> map,
     PropertyDetails details = descriptors->GetDetails(i);
     Tagged<Name> key = descriptors->GetKey(i);
     if (details.kind() != PropertyKind::kData || !details.IsEnumerable() ||
-        key->IsPrivateName()) {
+        key->IsAnyPrivateName()) {
       return FastCloneObjectMode::kNotSupported;
     }
     if (!details.IsConfigurable() || details.IsReadOnly()) {

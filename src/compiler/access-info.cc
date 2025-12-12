@@ -1114,7 +1114,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (access_mode == AccessMode::kStoreInLiteral ||
         access_mode == AccessMode::kDefine) {
       PropertyAttributes attrs = NONE;
-      if (name.object()->IsPrivate()) {
+      if (name.object()->IsAnyPrivate()) {
         // When PrivateNames are added to an object, they are by definition
         // non-enumerable.
         attrs = DONT_ENUM;
@@ -1123,7 +1123,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Don't lookup private symbols on the prototype chain.
-    if (name.object()->IsPrivate()) {
+    if (name.object()->IsAnyPrivate()) {
       return Invalid();
     }
 

@@ -259,8 +259,8 @@ bool LookupIterator::IsElement(Tagged<JSReceiver> object) const {
           object->map()->has_any_typed_array_or_wasm_array_elements());
 }
 
-bool LookupIterator::IsPrivateName() const {
-  return !IsElement() && name()->IsPrivateName();
+bool LookupIterator::IsAnyPrivateName() const {
+  return !IsElement() && name()->IsAnyPrivateName();
 }
 
 bool LookupIterator::is_dictionary_holder() const {
@@ -294,7 +294,7 @@ bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
     return false;
   }
   // Extending with elements and non-private properties is not allowed.
-  if (IsElement() || !name_->IsPrivate()) {
+  if (IsElement() || !name_->IsAnyPrivate()) {
     return true;
   }
   // These JSObject types are wrappers around a set of primitive values
@@ -310,8 +310,8 @@ bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   // Extending non-extensible objects with private fields is currently allowed,
   // but we're disallowing it soon.
   DCHECK(!receiver_map->is_extensible());
-  DCHECK(name_->IsPrivate());
-  if (name_->IsPrivateName()) {
+  DCHECK(name_->IsAnyPrivate());
+  if (name_->IsAnyPrivateName()) {
     isolate()->CountUsage(v8::Isolate::kExtendingNonExtensibleWithPrivate);
   }
   return v8_flags.js_nonextensible_applies_to_private;
@@ -383,7 +383,7 @@ LookupIterator::Configuration LookupIterator::ComputeConfiguration(
     Isolate* isolate, Configuration configuration, size_t index,
     DirectHandle<Name> name) {
   if (index != kInvalidIndex) return configuration;
-  return name->IsPrivate() ? OWN_SKIP_INTERCEPTOR : configuration;
+  return name->IsAnyPrivate() ? OWN_SKIP_INTERCEPTOR : configuration;
 }
 
 template <class T>

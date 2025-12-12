@@ -2924,7 +2924,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsOneByteStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsSeqOneByteStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsPrimitiveInstanceType(TNode<Int32T> instance_type);
-  TNode<BoolT> IsPrivateName(TNode<Symbol> symbol);
+  TNode<BoolT> IsAnyPrivateName(TNode<Symbol> symbol);
   TNode<BoolT> IsPropertyArray(TNode<HeapObject> object);
   TNode<BoolT> IsPropertyCell(TNode<HeapObject> object);
   TNode<BoolT> IsPromiseReactionJobTask(TNode<HeapObject> object);

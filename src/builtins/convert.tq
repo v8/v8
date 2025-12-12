@@ -187,6 +187,11 @@ FromConstexpr<string::TrimMode, string::constexpr TrimMode>(
   return %RawDownCast<string::TrimMode>(Unsigned(%FromConstexpr<int32>(c)));
 }
 
+FromConstexpr<PrivateSymbolKind, constexpr PrivateSymbolKind>(
+    c: constexpr PrivateSymbolKind): PrivateSymbolKind {
+  return %RawDownCast<PrivateSymbolKind>(Unsigned(%FromConstexpr<int32>(c)));
+}
+
 macro Convert<To: type, From: type>(i: From): To {
   return i;
 }

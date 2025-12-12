@@ -18,6 +18,7 @@
 #include "src/heap/factory-base.h"
 #include "src/heap/heap.h"
 #include "src/objects/feedback-cell.h"
+#include "src/objects/name.h"
 #include "src/objects/property-cell.h"
 // TODO(leszeks): Remove this by forward declaring JSRegExp::Flags.
 #include "src/objects/js-regexp.h"
@@ -404,6 +405,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Symbol> NewPrivateSymbol(
       AllocationType allocation = AllocationType::kOld);
   DirectHandle<Symbol> NewPrivateNameSymbol(DirectHandle<String> name);
+  DirectHandle<Symbol> NewPrivateBrandSymbol(DirectHandle<String> name);
 
   // Create a global (but otherwise uninitialized) context.
   Handle<NativeContext> NewNativeContext();
@@ -1340,7 +1342,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       size_t byte_length);
 
   Tagged<Symbol> NewSymbolInternal(
-      AllocationType allocation = AllocationType::kOld);
+      PrivateSymbolKind kind, AllocationType allocation = AllocationType::kOld);
 
   // Allocates new context with given map, sets length and initializes the
   // after-header part with uninitialized values and leaves the context header

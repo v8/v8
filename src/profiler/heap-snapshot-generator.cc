@@ -965,7 +965,7 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
                       names_->GetName(Cast<String>(object)));
     }
   } else if (InstanceTypeChecker::IsSymbol(instance_type)) {
-    if (Cast<Symbol>(object)->is_private())
+    if (Cast<Symbol>(object)->is_any_private())
       return AddEntry(object, HeapEntry::kHidden, "private symbol");
     else
       return AddEntry(object, HeapEntry::kSymbol, "symbol");

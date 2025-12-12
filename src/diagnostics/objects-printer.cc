@@ -1048,9 +1048,7 @@ void Symbol::SymbolPrint(std::ostream& os) {
   if (IsUndefined(description())) {
     os << " (" << PrivateSymbolToName() << ")";
   }
-  os << "\n - private: " << is_private();
-  os << "\n - private_name: " << is_private_name();
-  os << "\n - private_brand: " << is_private_brand();
+  os << "\n - private_symbol_kind: " << private_symbol_kind();
   os << "\n - is_interesting_symbol: " << is_interesting_symbol();
   os << "\n - is_well_known_symbol: " << is_well_known_symbol();
   os << "\n";

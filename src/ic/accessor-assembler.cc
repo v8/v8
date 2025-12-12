@@ -1591,7 +1591,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         // StoreGlobalIC_PropertyCellCase doesn't support definition
         // of private fields, so handle them in runtime.
         GotoIfNot(IsSymbol(CAST(p->name())), &proceed_defining);
-        Branch(IsPrivateName(CAST(p->name())), &if_slow, &proceed_defining);
+        Branch(IsAnyPrivateName(CAST(p->name())), &if_slow, &proceed_defining);
         BIND(&proceed_defining);
       }
 
@@ -3062,7 +3062,7 @@ void AccessorAssembler::GenericPropertyLoad(
       // For private names that don't exist on the receiver, we bail
       // to the runtime to throw. For private symbols, we just return
       // undefined.
-      Branch(IsPrivateName(CAST(name)), slow, &return_undefined);
+      Branch(IsAnyPrivateName(CAST(name)), slow, &return_undefined);
     }
 
     BIND(&return_undefined);

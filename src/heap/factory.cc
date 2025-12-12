@@ -72,6 +72,7 @@
 #include "src/objects/megadom-handler-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/name.h"
 #include "src/objects/objects.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
@@ -1225,7 +1226,8 @@ DirectHandle<JSStringIterator> Factory::NewJSStringIterator(
   return iterator;
 }
 
-Tagged<Symbol> Factory::NewSymbolInternal(AllocationType allocation) {
+Tagged<Symbol> Factory::NewSymbolInternal(PrivateSymbolKind kind,
+                                          AllocationType allocation) {
   DCHECK(allocation != AllocationType::kYoung);
   // Statically ensure that it is safe to allocate symbols in paged spaces.
   static_assert(sizeof(Symbol) <= kMaxRegularHeapObjectSize);
@@ -1247,26 +1249,32 @@ Tagged<Symbol> Factory::NewSymbolInternal(AllocationType allocation) {
                                SKIP_WRITE_BARRIER);
   }
   symbol->set_flags(0);
-  DCHECK(!symbol->is_private());
+  symbol->set_private_symbol_kind(kind);
   return symbol;
 }
 
 Handle<Symbol> Factory::NewSymbol(AllocationType allocation) {
-  return handle(NewSymbolInternal(allocation), isolate());
+  return handle(NewSymbolInternal(PrivateSymbolKind::kPublic, allocation),
+                isolate());
 }
 
 Handle<Symbol> Factory::NewPrivateSymbol(AllocationType allocation) {
   DCHECK(allocation != AllocationType::kYoung);
-  Tagged<Symbol> symbol = NewSymbolInternal(allocation);
-  DisallowGarbageCollection no_gc;
-  symbol->set_is_private(true);
+  Tagged<Symbol> symbol =
+      NewSymbolInternal(PrivateSymbolKind::kInternal, allocation);
   return handle(symbol, isolate());
 }
 
 DirectHandle<Symbol> Factory::NewPrivateNameSymbol(DirectHandle<String> name) {
-  Tagged<Symbol> symbol = NewSymbolInternal();
+  Tagged<Symbol> symbol = NewSymbolInternal(PrivateSymbolKind::kFieldName);
   DisallowGarbageCollection no_gc;
-  symbol->set_is_private_name();
+  symbol->set_description(*name);
+  return direct_handle(symbol, isolate());
+}
+
+DirectHandle<Symbol> Factory::NewPrivateBrandSymbol(DirectHandle<String> name) {
+  Tagged<Symbol> symbol = NewSymbolInternal(PrivateSymbolKind::kBrand);
+  DisallowGarbageCollection no_gc;
   symbol->set_description(*name);
   return direct_handle(symbol, isolate());
 }

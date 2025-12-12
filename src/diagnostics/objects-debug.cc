@@ -416,8 +416,8 @@ void Symbol::SymbolVerify(Isolate* isolate) {
   CHECK(has_hash);
   CHECK_GT(hash, 0);
   CHECK(IsUndefined(description(), isolate) || IsString(description()));
-  CHECK_IMPLIES(IsPrivateName(), IsPrivate());
-  CHECK_IMPLIES(IsPrivateBrand(), IsPrivateName());
+  CHECK_IMPLIES(IsAnyPrivateName(), IsAnyPrivate());
+  CHECK_IMPLIES(IsPrivateBrand(), IsAnyPrivateName());
 }
 
 void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
@@ -1069,7 +1069,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
       // written during descriptor array construction.
       if (IsUndefined(key, isolate)) continue;
       PropertyDetails details = GetDetails(descriptor);
-      if (Cast<Name>(key)->IsPrivate()) {
+      if (Cast<Name>(key)->IsAnyPrivate()) {
         CHECK_NE(details.attributes() & DONT_ENUM, 0);
       }
       Tagged<MaybeObject> value = GetValue(descriptor);

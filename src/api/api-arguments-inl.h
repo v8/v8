@@ -46,7 +46,7 @@ inline DirectHandle<Object> PropertyCallbackArguments::receiver() const {
 
 #define DCHECK_NAME_COMPATIBLE(interceptor, name) \
   DCHECK(interceptor->is_named());                \
-  DCHECK(!name->IsPrivate());                     \
+  DCHECK(!name->IsAnyPrivate());                  \
   DCHECK_IMPLIES(IsSymbol(*name), interceptor->can_intercept_symbols());
 
 #define PREPARE_CALLBACK_INFO_ACCESSOR(ISOLATE, F, API_RETURN_TYPE,            \
