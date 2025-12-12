@@ -39,22 +39,10 @@ class WasmLoweringReducer : public Next {
   }
 
   OpIndex REDUCE(RootConstant)(RootIndex index) {
-    OpIndex roots = __ LoadRootRegister();
-    // We load the value as a pointer here and not as a TaggedPointer because
-    // it is stored uncompressed in the IsolateData, and a load of a
-    // TaggedPointer loads compressed pointers.
-#if V8_TARGET_BIG_ENDIAN
-    // On big endian a full pointer load is needed as otherwise the wrong half
-    // of the 64 bit address is loaded.
-    return __ BitcastWordPtrToTagged(__ Load(
-        roots, LoadOp::Kind::RawAligned().Immutable(),
-        MemoryRepresentation::UintPtr(), IsolateData::root_slot_offset(index)));
-#else
-    // On little endian a tagged load is enough and saves the bitcast.
-    return __ Load(roots, LoadOp::Kind::RawAligned().Immutable(),
-                   MemoryRepresentation::TaggedPointer(),
+    return __ Load(__ LoadRootRegister(),
+                   LoadOp::Kind::RawAligned().Immutable(),
+                   MemoryRepresentation::AnyUncompressedTagged(),
                    IsolateData::root_slot_offset(index));
-#endif
   }
 
   V<Word32> REDUCE(IsRootConstant)(OpIndex object, RootIndex index) {
