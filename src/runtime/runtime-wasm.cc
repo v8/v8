@@ -2656,7 +2656,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
       TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   DirectHandle<WasmFuncRef> func_ref =
       handle(Cast<WasmFuncRef>(args[1]), isolate);
-  std::unique_ptr<wasm::StackMemory> stack = wasm::StackMemory::New();
+  std::unique_ptr<wasm::StackMemory> stack =
+      isolate->stack_pool().GetOrAllocate();
   stack->jmpbuf()->fp = kNullAddress;
   stack->jmpbuf()->sp = stack->base();
   stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
