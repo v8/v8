@@ -321,6 +321,7 @@ class JobTask {
 // happens on the boosted thread.
 class ScopedBoostablePriority {
  public:
+  ScopedBoostablePriority() = default;
   virtual ~ScopedBoostablePriority() = default;
   ScopedBoostablePriority(const ScopedBoostablePriority&) = delete;
   ScopedBoostablePriority& operator=(const ScopedBoostablePriority& other) =
