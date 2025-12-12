@@ -8247,6 +8247,9 @@ void LoadTaggedField::PrintParams(std::ostream& os) const {
   if (is_const()) {
     os << ", is_const";
   }
+  if (load_type() != LoadType::kUnknown) {
+    os << ", " << load_type();
+  }
   os << ")";
 }
 

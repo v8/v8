@@ -8215,6 +8215,30 @@ enum class LoadType {
 constexpr int kLoadTypeBitSize =
     std::bit_width(static_cast<unsigned>(LoadType::kLastLoadType));
 
+inline std::ostream& operator<<(std::ostream& os, LoadType type) {
+  switch (type) {
+    case LoadType::kUnknown:
+      os << "Unknown";
+      break;
+    case LoadType::kSmi:
+      os << "Smi";
+      break;
+    case LoadType::kHeapNumber:
+      os << "HeapNumber";
+      break;
+    case LoadType::kNumber:
+      os << "Number";
+      break;
+    case LoadType::kInternalizedString:
+      os << "InternalizedString";
+      break;
+    case LoadType::kContext:
+      os << "Context";
+      break;
+  }
+  return os;
+}
+
 constexpr inline NodeType NodeTypeFromLoadType(LoadType type) {
   switch (type) {
     case LoadType::kUnknown:

@@ -175,13 +175,6 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
         hoist_untagging[i] = HoistType::kPrologue;
         continue;
       }
-      if (LoadTaggedField* load = input->TryCast<LoadTaggedField>()) {
-        // If we're loading a Smi, we can untag it to get a Int32 input.
-        if (load->load_type() == LoadType::kSmi) {
-          input_reprs.Add(ValueRepresentation::kInt32);
-          continue;
-        }
-      }
       if (node->is_loop_phi() && !node->is_backedge_offset(i)) {
         BasicBlock* pred = node->merge_state()->predecessor_at(i);
         if (CanHoistUntaggingTo(pred)) {
@@ -211,6 +204,14 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
               continue;
             }
           }
+        }
+      }
+
+      if (LoadTaggedField* load = input->TryCast<LoadTaggedField>()) {
+        // If we're loading a Smi, we can untag it to get a Int32 input.
+        if (load->load_type() == LoadType::kSmi) {
+          input_reprs.Add(ValueRepresentation::kInt32);
+          continue;
         }
       }
 
@@ -547,7 +548,93 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
 #define TRACE_INPUT_LABEL \
   "    @ Input " << input_index << " (" << PrintNodeLabel(input) << ")"
 
-    if (input->Is<SmiConstant>()) {
+    if (hoist_untagging[input_index] != HoistType::kNone) {
+      CHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
+      BasicBlock* block;
+      auto GetDeoptFrame = [](BasicBlock* block) {
+        return &block->control_node()
+                    ->Cast<CheckpointedJump>()
+                    ->eager_deopt_info()
+                    ->top_frame();
+      };
+      switch (hoist_untagging[input_index]) {
+        case HoistType::kLoopEntryUnchecked:
+          block = phi->merge_state()->predecessor_at(input_index);
+          eager_deopt_frame_ = nullptr;
+          break;
+        case HoistType::kLoopEntry:
+          block = phi->merge_state()->predecessor_at(input_index);
+          eager_deopt_frame_ = GetDeoptFrame(block);
+          break;
+        case HoistType::kPrologue:
+          block = *graph_->begin();
+          eager_deopt_frame_ = GetDeoptFrame(block);
+          break;
+        case HoistType::kNone:
+          UNREACHABLE();
+      }
+      // Ensure the hoisted value is actually live at the hoist location.
+      CHECK(input->Is<InitialValue>() ||
+            (phi->is_loop_phi() && !phi->is_backedge_offset(input_index)));
+      ValueNode* untagged;
+      switch (repr) {
+        case ValueRepresentation::kInt32:
+          if (!eager_deopt_frame_) {
+            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
+                              NodeType::kSmi));
+            untagged = AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiUntag>(
+                block, {input});
+
+          } else {
+            untagged =
+                AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
+                    block, {input});
+            untagged =
+                AddNewNodeNoInputConversionAtBlockEnd<CheckedFloat64ToInt32>(
+                    block, {untagged});
+          }
+          break;
+        case ValueRepresentation::kShiftedInt53:
+          if (!eager_deopt_frame_) {
+            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
+                              NodeType::kSmi));
+            untagged =
+                AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiTagShiftedInt53>(
+                    block, {input});
+
+          } else {
+            untagged = AddNewNodeNoInputConversionAtBlockEnd<
+                CheckedNumberToShiftedInt53>(block, {input});
+          }
+          break;
+        case ValueRepresentation::kFloat64:
+        case ValueRepresentation::kHoleyFloat64:
+          if (!eager_deopt_frame_) {
+            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
+                              NodeType::kNumber));
+            untagged =
+                AddNewNodeNoInputConversionAtBlockEnd<UnsafeNumberToFloat64>(
+                    block, {input});
+          } else {
+            DCHECK(!phi->uses_require_31_bit_value());
+            untagged =
+                AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
+                    block, {input});
+          }
+          if (repr == ValueRepresentation::kHoleyFloat64) {
+            untagged = AddNewNodeNoInputConversionAtBlockEnd<
+                ChangeFloat64ToHoleyFloat64>(block, {untagged});
+          }
+          break;
+        case ValueRepresentation::kTagged:
+        case ValueRepresentation::kUint32:
+        case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kRawPtr:
+        case ValueRepresentation::kNone:
+          UNREACHABLE();
+      }
+      phi->change_input(input_index, untagged);
+    } else if (input->Is<SmiConstant>()) {
       switch (repr) {
         case ValueRepresentation::kInt32:
           TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Making Int32 instead of Smi");
@@ -788,7 +875,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                         << ": Keeping untagged Phi input as-is");
       }
     } else if (LoadTaggedField* load = input->TryCast<LoadTaggedField>()) {
-      DCHECK_EQ(load->load_type(), LoadType::kSmi);
+      CHECK_EQ(load->load_type(), LoadType::kSmi);
       ValueNode* untagged_input =
           AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiUntag>(
               phi->predecessor_at(input_index), {load});
@@ -812,92 +899,6 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       }
       TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Untagging smi-load input");
       phi->change_input(input_index, untagged_input);
-    } else if (hoist_untagging[input_index] != HoistType::kNone) {
-      CHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
-      BasicBlock* block;
-      auto GetDeoptFrame = [](BasicBlock* block) {
-        return &block->control_node()
-                    ->Cast<CheckpointedJump>()
-                    ->eager_deopt_info()
-                    ->top_frame();
-      };
-      switch (hoist_untagging[input_index]) {
-        case HoistType::kLoopEntryUnchecked:
-          block = phi->merge_state()->predecessor_at(input_index);
-          eager_deopt_frame_ = nullptr;
-          break;
-        case HoistType::kLoopEntry:
-          block = phi->merge_state()->predecessor_at(input_index);
-          eager_deopt_frame_ = GetDeoptFrame(block);
-          break;
-        case HoistType::kPrologue:
-          block = *graph_->begin();
-          eager_deopt_frame_ = GetDeoptFrame(block);
-          break;
-        case HoistType::kNone:
-          UNREACHABLE();
-      }
-      // Ensure the hoisted value is actually live at the hoist location.
-      CHECK(input->Is<InitialValue>() ||
-            (phi->is_loop_phi() && !phi->is_backedge_offset(input_index)));
-      ValueNode* untagged;
-      switch (repr) {
-        case ValueRepresentation::kInt32:
-          if (!eager_deopt_frame_) {
-            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
-                              NodeType::kSmi));
-            untagged = AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiUntag>(
-                block, {input});
-
-          } else {
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
-                    block, {input});
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<CheckedFloat64ToInt32>(
-                    block, {untagged});
-          }
-          break;
-        case ValueRepresentation::kShiftedInt53:
-          if (!eager_deopt_frame_) {
-            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
-                              NodeType::kSmi));
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiTagShiftedInt53>(
-                    block, {input});
-
-          } else {
-            untagged = AddNewNodeNoInputConversionAtBlockEnd<
-                CheckedNumberToShiftedInt53>(block, {input});
-          }
-          break;
-        case ValueRepresentation::kFloat64:
-        case ValueRepresentation::kHoleyFloat64:
-          if (!eager_deopt_frame_) {
-            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
-                              NodeType::kNumber));
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<UnsafeNumberToFloat64>(
-                    block, {input});
-          } else {
-            DCHECK(!phi->uses_require_31_bit_value());
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
-                    block, {input});
-          }
-          if (repr == ValueRepresentation::kHoleyFloat64) {
-            untagged = AddNewNodeNoInputConversionAtBlockEnd<
-                ChangeFloat64ToHoleyFloat64>(block, {untagged});
-          }
-          break;
-        case ValueRepresentation::kTagged:
-        case ValueRepresentation::kUint32:
-        case ValueRepresentation::kIntPtr:
-        case ValueRepresentation::kRawPtr:
-        case ValueRepresentation::kNone:
-          UNREACHABLE();
-      }
-      phi->change_input(input_index, untagged);
     } else {
       TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Invalid input for untagged phi");
       UNREACHABLE();
