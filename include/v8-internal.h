@@ -1023,6 +1023,14 @@ class Internals {
   static const int kIsolateRootsOffset =
       kContinuationPreservedEmbedderDataOffset + kApiSystemPointerSize;
 
+#if V8_TARGET_ARCH_PPC64
+  static constexpr int kFrameCPSlotCount = 1;
+#else
+  static constexpr int kFrameCPSlotCount = 0;
+#endif
+  static const int kFrameTypeApiCallExit = 18;
+  static const int kFrameTypeApiConstructExit = 19;
+
   // Assert scopes
   static const int kDisallowGarbageCollectionAlign = alignof(uint32_t);
   static const int kDisallowGarbageCollectionSize = sizeof(uint32_t);

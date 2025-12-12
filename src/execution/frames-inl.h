@@ -198,15 +198,18 @@ int ApiCallbackExitFrame::ComputeParametersCount() const {
 
 Tagged<Object> ApiCallbackExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
-  int offset = ApiCallbackExitFrameConstants::kFirstArgumentOffset +
+  int offset = ApiCallbackExitFrameConstants::kFirstJSArgumentOffset +
                i * kSystemPointerSize;
   return Tagged<Object>(base::Memory<Address>(fp() + offset));
 }
 
-bool ApiCallbackExitFrame::IsConstructor() const {
-  Tagged<Object> new_context(base::Memory<Address>(
-      fp() + ApiCallbackExitFrameConstants::kNewTargetOffset));
-  return !IsUndefined(new_context, isolate());
+inline ApiConstructExitFrame::ApiConstructExitFrame(
+    StackFrameIteratorBase* iterator)
+    : ApiCallbackExitFrame(iterator) {}
+
+inline FullObjectSlot ApiConstructExitFrame::new_target_slot() const {
+  return FullObjectSlot(fp() +
+                        ApiConstructExitFrameConstants::kFCINewTargetOffset);
 }
 
 inline ApiAccessorExitFrame::ApiAccessorExitFrame(

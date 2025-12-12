@@ -1171,7 +1171,7 @@ void SetConsoleDelegate(Isolate* v8_isolate, ConsoleDelegate* delegate) {
 ConsoleCallArguments::ConsoleCallArguments(
     const v8::FunctionCallbackInfo<v8::Value>& info)
     : isolate_(info.GetIsolate()),
-      values_(info.values_),
+      values_(info.address_of_first_argument()),
       length_(info.Length()) {}
 
 ConsoleCallArguments::ConsoleCallArguments(

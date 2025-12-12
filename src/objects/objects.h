@@ -912,6 +912,8 @@ class Relocatable {
   static void Iterate(RootVisitor* v, Relocatable* top);
   static char* Iterate(RootVisitor* v, char* t);
 
+  Isolate* isolate() const { return isolate_; }
+
  private:
   Isolate* isolate_;
   Relocatable* prev_;

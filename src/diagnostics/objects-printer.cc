@@ -97,22 +97,29 @@ namespace {
 #define AS_PTR(x) reinterpret_cast<void*>(x)
 #define AS_OBJ(x) Brief(Tagged<Object>(x))
 
-void PrintFunctionCallbackInfo(Address* implicit_args, Address* js_args,
-                               Address length, std::ostream& os) {
+void PrintFunctionCallbackInfo(Address* values, std::ostream& os) {
   using FCA = FunctionCallbackArguments;
 
-  static_assert(FCA::kArgsLength == 6);
-  os << "FunctionCallbackInfo: "  //
-     << "\n - isolate: " << AS_PTR(implicit_args[FCA::kIsolateIndex])
-     << "\n - return_value: " << AS_OBJ(implicit_args[FCA::kReturnValueIndex])
-     << "\n - target: " << AS_OBJ(implicit_args[FCA::kTargetIndex])
-     << "\n - new_target: " << AS_OBJ(implicit_args[FCA::kNewTargetIndex])
+  static_assert(FCA::kApiArgsLength == 4);
+  uint32_t argc = static_cast<uint32_t>(values[FCA::kArgcIndex]);
+  bool is_construct = values[FCA::kFrameTypeIndex] ==
+                      Smi::FromEnum(StackFrame::API_CONSTRUCT_EXIT).ptr();
 
-     << "\n - argc: " << length  //
-     << "\n - receiver: " << AS_OBJ(js_args[0]);
+  os << "FunctionCallbackInfo: "
+     << (is_construct ? "[[Construct]]" : "[[Call]]")
+     << "\n - isolate: " << AS_PTR(values[FCA::kIsolateIndex])
+     << "\n - return_value: " << AS_OBJ(values[FCA::kReturnValueIndex])
+     << "\n - target: " << AS_OBJ(values[FCA::kTargetIndex]);
 
-  constexpr int kMaxArgs = 4;
-  for (int i = 0; i < std::min(static_cast<int>(length), kMaxArgs); i++) {
+  if (is_construct) {
+    os << "\n - new_target: " << AS_OBJ(values[FCA::kNewTargetIndex]);
+  }
+  os << "\n - argc: " << argc
+     << "\n - receiver: " << AS_OBJ(values[FCA::kReceiverIndex]);
+
+  constexpr uint32_t kMaxArgs = 4;
+  Address* js_args = &values[FCA::kFirstJSArgumentIndex];
+  for (uint32_t i = 0; i < std::min(argc, kMaxArgs); i++) {
     os << "\n - arg[" << i << "]: " << AS_OBJ(js_args[i]);
   }
   os << "\n";
@@ -146,16 +153,13 @@ void PrintFunctionCallbackInfo(void* function_callback_info) {
   using FCI = v8::FunctionCallbackInfo<v8::Value>;
   FCI& info = *reinterpret_cast<FCI*>(function_callback_info);
 
-  // |values| points to the first argument after the receiver.
-  Address* js_args = info.values_ - 1;
-
   // Output into debugger's command window if a debugger is attached.
   DbgStdoutStream dbg_os;
-  PrintFunctionCallbackInfo(info.implicit_args_, js_args, info.length_, dbg_os);
+  PrintFunctionCallbackInfo(info.values_, dbg_os);
   dbg_os << std::flush;
 
   StdoutStream os;
-  PrintFunctionCallbackInfo(info.implicit_args_, js_args, info.length_, os);
+  PrintFunctionCallbackInfo(info.values_, os);
   os << std::flush;
 }
 

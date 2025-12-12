@@ -6,6 +6,7 @@
 #define V8_API_API_ARGUMENTS_H_
 
 #include "include/v8-template.h"
+#include "src/base/small-vector.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/execution/isolate.h"
 #include "src/objects/slots.h"
@@ -258,59 +259,93 @@ class PropertyCallbackArguments final
 #endif  // DEBUG
 };
 
-class FunctionCallbackArguments
-    : public CustomArguments<FunctionCallbackInfo<Value> > {
+class FunctionCallbackArguments : public Relocatable {
  public:
   using T = FunctionCallbackInfo<Value>;
   using Super = CustomArguments<T>;
   static constexpr int kArgsLength = T::kArgsLength;
-  static constexpr int kArgsLengthWithReceiver = T::kArgsLengthWithReceiver;
 
-  static constexpr int kUnusedIndex = T::kUnusedIndex;
+  // Frame arguments block, the values are located on stack in the frame.
+  static constexpr int kArgcIndex = T::kArgcIndex;
+  static constexpr int kNewTargetIndex = T::kNewTargetIndex;
+  static constexpr int kFrameSPIndex = T::kFrameSPIndex;
+  static constexpr int kFrameTypeIndex = T::kFrameTypeIndex;
+
+  // Api arguments block, the values are located on stack right above PC.
+  static constexpr int kFirstApiArgumentIndex = T::kFirstApiArgumentIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kReturnValueIndex = T::kReturnValueIndex;
   static constexpr int kContextIndex = T::kContextIndex;
   static constexpr int kTargetIndex = T::kTargetIndex;
-  static constexpr int kNewTargetIndex = T::kNewTargetIndex;
+  static constexpr int kApiArgsLength = T::kApiArgsLength;
 
-  static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsIndex);
+  // JS arguments block, follows Api arguments.
+  static constexpr int kReceiverIndex = T::kReceiverIndex;
+  static constexpr int kFirstJSArgumentIndex = T::kFirstJSArgumentIndex;
 
-  static constexpr int kSize = T::kSize;
-  static constexpr int kImplicitArgsOffset = T::kImplicitArgsOffset;
-  static constexpr int kValuesOffset = T::kValuesOffset;
-  static constexpr int kLengthOffset = T::kLengthOffset;
+  // Helper for converting Api arguments indices to [0..kApiArgsLength) value.
+  static constexpr uint32_t ApiArgIndex(uint32_t index) {
+    DCHECK_GE(index, kFirstApiArgumentIndex);
+    return index - kFirstApiArgumentIndex;
+  }
 
-  // Make sure all FunctionCallbackInfo constants are in sync.
-  static_assert(T::kSize == sizeof(T));
-  static_assert(T::kImplicitArgsOffset == offsetof(T, implicit_args_));
-  static_assert(T::kValuesOffset == offsetof(T, values_));
-  static_assert(T::kLengthOffset == offsetof(T, length_));
+  static constexpr uint32_t ArgOffset(int index) {
+    return index * kSystemPointerSize;
+  }
 
+  // Arguments for [[Call]] operation.
+  template <typename ArgT>
   inline FunctionCallbackArguments(Isolate* isolate,
                                    Tagged<FunctionTemplateInfo> target,
-                                   Tagged<HeapObject> new_target, Address* argv,
-                                   int argc);
+                                   Tagged<Object> receiver,
+                                   const base::Vector<const ArgT> args);
+  // Arguments for [[Construct]] operation.
+  template <typename ArgT>
+  inline FunctionCallbackArguments(Isolate* isolate,
+                                   Tagged<FunctionTemplateInfo> target,
+                                   Tagged<HeapObject> new_target,
+                                   Tagged<Object> receiver,
+                                   const base::Vector<const ArgT> args);
+  inline ~FunctionCallbackArguments();
 
-  /*
-   * The following Call function wraps the calling of all callbacks to handle
-   * calling either the old or the new style callbacks depending on which one
-   * has been registered.
-   * For old callbacks which return an empty handle, the ReturnValue is checked
-   * and used if it's been set to anything inside the callback.
-   * New style callbacks always use the return value.
-   */
-  inline DirectHandle<Object> CallOrConstruct(
-      Tagged<FunctionTemplateInfo> function, bool is_construct);
+  // Performs [[Call]] of [[Construct]] operation for a given function
+  // and new_target.
+  // Exception is supposed to be checked by the caller.
+  // It explicitly returns raw value in order to enforce the caller to create
+  // a handle if necessary.
+  inline Tagged<JSAny> CallOrConstruct(Isolate* isolate,
+                                       Tagged<FunctionTemplateInfo> function,
+                                       bool is_construct);
 
   // Unofficial way of getting target FunctionTemplateInfo from
   // v8::FunctionCallbackInfo<T>.
   template <typename T>
   static Tagged<Object> GetTarget(const FunctionCallbackInfo<T>& info) {
-    return Tagged<Object>(info.implicit_args_[kTargetIndex]);
+    return Tagged<Object>(info.values_[kTargetIndex]);
   }
 
  private:
-  Address* argv_;
-  int const argc_;
+  template <bool is_construct, typename ArgT>
+    requires(std::is_same_v<ArgT, DirectHandle<Object>> ||
+             std::is_same_v<ArgT, Address>)
+  inline void Initialize(Isolate* isolate, Tagged<FunctionTemplateInfo> target,
+                         Tagged<Object> new_target, Tagged<Object> receiver,
+                         const base::Vector<const ArgT> args);
+
+  inline FullObjectSlot slot_at(uint32_t index) const {
+    // Shift index to accommodate for unconditionally allocated "optional" part.
+    index += T::kOptionalArgsLength;
+    // This allows index == values_.size() so "one past the end" slots
+    // can be retrieved for iterating purposes.
+    DCHECK_LE(index, values_.size());
+    // Don't use operator[] because it doesn't allow one past end index.
+    return FullObjectSlot(&values_.data()[index]);
+  }
+
+  inline void IterateInstance(RootVisitor* v) override;
+
+  // This default size is enough for passing up to 4 JS arguments.
+  base::SmallVector<Address, 16> values_;
 };
 
 static_assert(BuiltinArguments::kNumExtraArgs ==

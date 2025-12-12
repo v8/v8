@@ -74,23 +74,90 @@ inline DirectHandle<Object> PropertyCallbackArguments::receiver() const {
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F),                  \
                                    EXCEPTION_CONTEXT, &callback_info);
 
+template <typename ArgT>
 FunctionCallbackArguments::FunctionCallbackArguments(
     Isolate* isolate, Tagged<FunctionTemplateInfo> target,
-    Tagged<HeapObject> new_target, Address* argv, int argc)
-    : Super(isolate), argv_(argv), argc_(argc) {
-  slot_at(T::kTargetIndex).store(target);
-  slot_at(T::kUnusedIndex).store(ReadOnlyRoots(isolate).undefined_value());
-  slot_at(T::kNewTargetIndex).store(new_target);
-  slot_at(T::kIsolateIndex)
-      .store(Tagged<Object>(reinterpret_cast<Address>(isolate)));
-  slot_at(T::kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
-  slot_at(T::kContextIndex).store(isolate->context());
-  DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
+    Tagged<Object> receiver, const base::Vector<const ArgT> args)
+    : Relocatable(isolate) {
+  Initialize<false>(isolate, target, Smi::zero(), receiver, args);
 }
 
-DirectHandle<Object> FunctionCallbackArguments::CallOrConstruct(
-    Tagged<FunctionTemplateInfo> function, bool is_construct) {
-  Isolate* isolate = this->isolate();
+template <typename ArgT>
+FunctionCallbackArguments::FunctionCallbackArguments(
+    Isolate* isolate, Tagged<FunctionTemplateInfo> target,
+    Tagged<HeapObject> new_target, Tagged<Object> receiver,
+    const base::Vector<const ArgT> args)
+    : Relocatable(isolate) {
+  Initialize<true>(isolate, target, new_target, receiver, args);
+}
+
+template <bool is_construct, typename ArgT>
+  requires(std::is_same_v<ArgT, DirectHandle<Object>> ||
+           std::is_same_v<ArgT, Address>)
+void FunctionCallbackArguments::Initialize(
+    Isolate* isolate, Tagged<FunctionTemplateInfo> target,
+    Tagged<Object> new_target, Tagged<Object> receiver,
+    const base::Vector<const ArgT> args) {
+  uint32_t argc = static_cast<uint32_t>(args.size());
+  values_.resize(argc + T::kArgsLength + T::kOptionalArgsLength);
+
+  Address* values = &values_.data()[T::kOptionalArgsLength];
+
+  // Initialize frame part.
+  values[T::kNewTargetIndex] = is_construct ? new_target.ptr() : 0;
+  values[T::kArgcIndex] = argc;
+  values[T::kFrameTypeIndex] =
+      Smi::FromInt(is_construct ? StackFrame::API_CONSTRUCT_EXIT
+                                : StackFrame::API_CALLBACK_EXIT)
+          .ptr();
+
+  if (DEBUG_BOOL) {
+    // These values are not supposed to be looked at.
+    values[T::kFrameSPIndex] = kHandleZapValue;
+    values[T::kFrameConstantPoolIndex] = kHandleZapValue;
+    values[T::kFrameFPIndex] = kHandleZapValue;
+    values[T::kFramePCIndex] = kHandleZapValue;
+  }
+
+  // Initialize Api arguments part.
+  values[T::kTargetIndex] = target.ptr();
+  values[T::kIsolateIndex] = reinterpret_cast<Address>(isolate);
+  values[T::kReturnValueIndex] = ReadOnlyRoots(isolate).undefined_value().ptr();
+  values[T::kContextIndex] = isolate->context().ptr();
+  DCHECK(HAS_SMI_TAG(values[T::kIsolateIndex]));
+
+  // Initialize JS arguments part.
+  values[T::kReceiverIndex] = receiver.ptr();
+  for (uint32_t i = 0; i < argc; ++i) {
+    if constexpr (std::is_same_v<ArgT, Address>) {
+      values[T::kFirstJSArgumentIndex + i] = args[i];
+    } else {
+      values[T::kFirstJSArgumentIndex + i] = (*args[i]).ptr();
+    }
+  }
+}
+
+FunctionCallbackArguments::~FunctionCallbackArguments() {
+  if (DEBUG_BOOL) {
+    // Make sure the result handle located inside this structure is not used
+    // after this object dies.
+    values_.data()[T::kReturnValueIndex] = kHandleZapValue;
+  }
+}
+
+void FunctionCallbackArguments::IterateInstance(RootVisitor* v) {
+  // Visit newTargetSlot which is located in the frame.
+  v->VisitRootPointer(Root::kRelocatable, nullptr, slot_at(T::kNewTargetIndex));
+
+  // Visit all slots above "pc" in this artificial Api callback frame object.
+  v->VisitRootPointers(Root::kRelocatable, nullptr,
+                       slot_at(T::kFirstApiArgumentIndex),
+                       FullObjectSlot(values_.end()));
+}
+
+Tagged<JSAny> FunctionCallbackArguments::CallOrConstruct(
+    Isolate* isolate, Tagged<FunctionTemplateInfo> function,
+    bool is_construct) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =
       reinterpret_cast<v8::FunctionCallback>(function->callback(isolate));
@@ -99,13 +166,19 @@ DirectHandle<Object> FunctionCallbackArguments::CallOrConstruct(
           handle(function, isolate))) {
     return {};
   }
-  FunctionCallbackInfo<v8::Value> info(values_, argv_, argc_);
+  // v8::FunctionCallbackInfo structure might start at different positions in
+  // values_ array depending on whether it's a construct call or not.
+  auto info =
+      reinterpret_cast<FunctionCallbackInfo<v8::Value>*>(slot_at(0).location());
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f),
                                    is_construct ? ExceptionContext::kConstructor
                                                 : ExceptionContext::kOperation,
-                                   &info);
-  f(info);
-  return GetReturnValue<Object>(isolate);
+                                   info);
+  f(*info);
+
+  Tagged<Object> result = *slot_at(T::kReturnValueIndex);
+  DCHECK(Is<JSAny>(result));
+  return Cast<JSAny>(result);
 }
 
 PropertyCallbackArguments::PropertyCallbackArguments(

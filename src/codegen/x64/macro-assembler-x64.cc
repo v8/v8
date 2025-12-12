@@ -189,9 +189,9 @@ Operand MacroAssembler::ExternalReferenceAsOperand(ExternalReference reference,
   return Operand(scratch, 0);
 }
 
-void MacroAssembler::PushAddress(ExternalReference source) {
-  LoadAddress(kScratchRegister, source);
-  Push(kScratchRegister);
+void MacroAssembler::PushAddress(ExternalReference source, Register scratch) {
+  LoadAddress(scratch, source);
+  Push(scratch);
 }
 
 Operand MacroAssembler::RootAsOperand(RootIndex index) {

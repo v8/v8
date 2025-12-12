@@ -116,19 +116,6 @@ class StackHandler {
   V(ENTRY, EntryFrame)                                                    \
   V(CONSTRUCT_ENTRY, ConstructEntryFrame)                                 \
   V(EXIT, ExitFrame)                                                      \
-  IF_WASM(V, WASM, WasmFrame)                                             \
-  IF_WASM(V, WASM_TO_JS, WasmToJsFrame)                                   \
-  IF_WASM(V, JS_TO_WASM, JsToWasmFrame)                                   \
-  IF_WASM(V, WASM_JSPI, WasmJspiFrame)                                    \
-  IF_WASM_DRUMBRAKE(V, WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame) \
-  IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
-  IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
-  /* Can only appear as the first frame of a wasm stack: */               \
-  IF_WASM(V, WASM_STACK_ENTRY, WasmStackEntryFrame)                       \
-  IF_WASM(V, WASM_STACK_EXIT, WasmStackExitFrame)                         \
-  IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
-  IF_WASM(V, WASM_LIFTOFF_SETUP, WasmLiftoffSetupFrame)                   \
-  IF_WASM(V, WASM_SEGMENT_START, WasmSegmentStartFrame)                   \
   V(INTERPRETED, InterpretedFrame)                                        \
   V(BASELINE, BaselineFrame)                                              \
   V(MAGLEV, MaglevFrame)                                                  \
@@ -145,9 +132,23 @@ class StackHandler {
   V(BUILTIN, BuiltinFrame)                                                \
   V(BUILTIN_EXIT, BuiltinExitFrame)                                       \
   V(API_CALLBACK_EXIT, ApiCallbackExitFrame)                              \
+  V(API_CONSTRUCT_EXIT, ApiConstructExitFrame)                            \
   V(API_ACCESSOR_EXIT, ApiAccessorExitFrame)                              \
   V(NATIVE, NativeFrame)                                                  \
-  V(IRREGEXP, IrregexpFrame)
+  V(IRREGEXP, IrregexpFrame)                                              \
+  IF_WASM(V, WASM, WasmFrame)                                             \
+  IF_WASM(V, WASM_TO_JS, WasmToJsFrame)                                   \
+  IF_WASM(V, JS_TO_WASM, JsToWasmFrame)                                   \
+  IF_WASM(V, WASM_JSPI, WasmJspiFrame)                                    \
+  IF_WASM_DRUMBRAKE(V, WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame) \
+  IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
+  IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
+  /* Can only appear as the first frame of a wasm stack: */               \
+  IF_WASM(V, WASM_STACK_ENTRY, WasmStackEntryFrame)                       \
+  IF_WASM(V, WASM_STACK_EXIT, WasmStackExitFrame)                         \
+  IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
+  IF_WASM(V, WASM_LIFTOFF_SETUP, WasmLiftoffSetupFrame)                   \
+  IF_WASM(V, WASM_SEGMENT_START, WasmSegmentStartFrame)
 
 // Abstract base class for all stack frames.
 class StackFrame {
@@ -282,6 +283,7 @@ class StackFrame {
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
   bool is_api_accessor_exit() const { return type() == API_ACCESSOR_EXIT; }
   bool is_api_callback_exit() const { return type() == API_CALLBACK_EXIT; }
+  bool is_api_construct_exit() const { return type() == API_CONSTRUCT_EXIT; }
   bool is_irregexp() const { return type() == IRREGEXP; }
 
   static bool IsJavaScript(Type t) {
@@ -971,6 +973,8 @@ class BuiltinExitFrame : public ExitFrame {
 // called. Their main purpose is to support preprocessing of exceptions thrown
 // from Api functions and as a bonus it allows these functions to appear in
 // stack traces (see v8_flags.experimental_stack_trace_frames).
+// TODO(ishell, http://crbug.com/326505377): Rename the class and frame type
+// to ApiCallExitFrame and API_CALL_EXIT.
 class ApiCallbackExitFrame : public ExitFrame {
  public:
   Type type() const override { return API_CALLBACK_EXIT; }
@@ -988,14 +992,11 @@ class ApiCallbackExitFrame : public ExitFrame {
 
   inline Tagged<Object> context() const override;
 
-  // Check if this frame is a constructor frame invoked through 'new'.
-  inline bool IsConstructor() const;
-
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
   // Summarize Frame
-  FrameSummaries Summarize() const override;
+  FrameSummaries Summarize() const override { return SummarizeApiFrame(false); }
 
   static ApiCallbackExitFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_api_callback_exit());
@@ -1005,6 +1006,10 @@ class ApiCallbackExitFrame : public ExitFrame {
  protected:
   inline explicit ApiCallbackExitFrame(StackFrameIteratorBase* iterator);
 
+  FrameSummaries SummarizeApiFrame(bool is_constructor) const;
+  void PrintApiFrame(StringStream* accumulator, PrintMode mode, int index,
+                     bool is_constructor) const;
+
  private:
   // ApiCallbackExitFrame might contain either FunctionTemplateInfo or
   // JSFunction in the function slot.
@@ -1013,6 +1018,33 @@ class ApiCallbackExitFrame : public ExitFrame {
   inline void set_target(Tagged<HeapObject> function) const;
 
   inline FullObjectSlot target_slot() const;
+
+  friend class StackFrameIteratorBase;
+};
+
+class ApiConstructExitFrame : public ApiCallbackExitFrame {
+ public:
+  Type type() const override { return API_CONSTRUCT_EXIT; }
+
+  // Garbage collection support.
+  void Iterate(RootVisitor* v) const override;
+
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
+  // Summarize Frame
+  FrameSummaries Summarize() const override { return SummarizeApiFrame(true); }
+
+  static ApiConstructExitFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_api_construct_exit());
+    return static_cast<ApiConstructExitFrame*>(frame);
+  }
+
+ protected:
+  inline explicit ApiConstructExitFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  inline FullObjectSlot new_target_slot() const;
 
   friend class StackFrameIteratorBase;
 };

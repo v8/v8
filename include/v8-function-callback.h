@@ -145,41 +145,75 @@ class FunctionCallbackInfo {
   friend class internal::CustomArguments<FunctionCallbackInfo>;
   friend class debug::ConsoleCallArguments;
   friend void internal::PrintFunctionCallbackInfo(void*);
+  using I = internal::Internals;
 
-  // TODO(ishell, http://crbug.com/326505377): in case of non-constructor
-  // call, don't pass kNewTarget and kUnused. Add IsConstructCall flag to
-  // kIsolate field.
-  static constexpr int kUnusedIndex = 0;
-  static constexpr int kIsolateIndex = 1;
-  static constexpr int kContextIndex = 2;
-  static constexpr int kReturnValueIndex = 3;
-  static constexpr int kTargetIndex = 4;
-  static constexpr int kNewTargetIndex = 5;
-  static constexpr int kArgsLength = 6;
+  // Frame block, matches the layout of ApiCallbackExitFrame.
+  // See ApiCallbackExitFrameConstants.
+  enum {
+    //
+    // Optional frame arguments block (exists only for API_CONSTRUCT_EXIT
+    // frame).
 
-  static constexpr int kArgsLengthWithReceiver = kArgsLength + 1;
+    // Frame arguments block.
+    kNewTargetIndex = -1,
 
-  // Codegen constants:
-  static constexpr int kSize = 3 * internal::kApiSystemPointerSize;
-  static constexpr int kImplicitArgsOffset = 0;
-  static constexpr int kValuesOffset =
-      kImplicitArgsOffset + internal::kApiSystemPointerSize;
-  static constexpr int kLengthOffset =
-      kValuesOffset + internal::kApiSystemPointerSize;
+    //
+    // Mandatory part, exists for both API_CALLBACK_EXIT and API_CONSTRUCT_EXIT
+    // frames.
+    //
 
-  static constexpr int kThisValuesIndex = -1;
+    // Frame arguments block.
+    kArgcIndex,
+
+    // Regular ExitFrame structure.
+    kFrameSPIndex,
+    kFrameTypeIndex,
+    kFrameConstantPoolIndex,  // Optional, see I::kFrameCPSlotCount.
+    kFrameFPIndex = kFrameConstantPoolIndex + I::kFrameCPSlotCount,
+    kFramePCIndex,
+
+    // Api arguments block, starts at kFirstArgumentIndex.
+    kFirstApiArgumentIndex,
+    kIsolateIndex = kFirstApiArgumentIndex,
+    kContextIndex,
+    kReturnValueIndex,
+    kTargetIndex,
+
+    // JS args block, starts at kFrameFirstImplicitArgsIndex.
+    kReceiverIndex,
+    kFirstJSArgumentIndex,
+
+    // Mandatory part includes receiver.
+    kArgsLength = kReceiverIndex + 1,
+    // Optional part size (exists only for API_CONSTRUCT_EXIT frame).
+    kOptionalArgsLength = 1,
+
+    // The length of just Api arguments part.
+    kApiArgsLength = kReceiverIndex - kFirstApiArgumentIndex,
+  };
+
+  static_assert(kArgcIndex == 0);
   static_assert(ReturnValue<Value>::kIsolateValueIndex ==
                 kIsolateIndex - kReturnValueIndex);
 
-  V8_INLINE FunctionCallbackInfo(internal::Address* implicit_args,
-                                 internal::Address* values, int length);
+  internal::Address* address_of_first_argument() const {
+    return &values_[kFirstJSArgumentIndex];
+  }
 
-  // TODO(https://crbug.com/326505377): flatten the v8::FunctionCallbackInfo
-  // object to avoid indirect loads through values_ and implicit_args_ and
-  // reduce the number of instructions in the CallApiCallback builtin.
-  internal::Address* implicit_args_;
-  internal::Address* values_;
-  internal::Address length_;
+  V8_INLINE FunctionCallbackInfo() = default;
+
+  // FunctionCallbackInfo object provides a view of the stack area where the
+  // data is stored and thus it's not supposed to be copyable/movable.
+  FunctionCallbackInfo(const FunctionCallbackInfo&) = delete;
+  FunctionCallbackInfo& operator=(const FunctionCallbackInfo&) = delete;
+  FunctionCallbackInfo(FunctionCallbackInfo&&) = delete;
+  FunctionCallbackInfo& operator=(FunctionCallbackInfo&&) = delete;
+
+  // Declare as mutable to let GC modify the contents of the slots even though
+  // it's not possible to change values via this class.
+  // Define the array size as 1 to make it clear that we are going to access
+  // it out-of-bounds from both sides anyway.
+  mutable internal::Address values_[1];
 };
 
 /**
@@ -576,53 +610,51 @@ void ReturnValue<T>::Set(S* whatever) {
 }
 
 template <typename T>
-FunctionCallbackInfo<T>::FunctionCallbackInfo(internal::Address* implicit_args,
-                                              internal::Address* values,
-                                              int length)
-    : implicit_args_(implicit_args), values_(values), length_(length) {}
-
-template <typename T>
 Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
-  // values_ points to the first argument (not the receiver).
   if (i < 0 || Length() <= i) return Undefined(GetIsolate());
-  return Local<Value>::FromSlot(values_ + i);
+  return Local<Value>::FromSlot(&values_[kFirstJSArgumentIndex + i]);
 }
 
 template <typename T>
 Local<Object> FunctionCallbackInfo<T>::This() const {
-  // values_ points to the first argument (not the receiver).
-  return Local<Object>::FromSlot(values_ + kThisValuesIndex);
+  return Local<Object>::FromSlot(&values_[kReceiverIndex]);
 }
 
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::NewTarget() const {
-  return Local<Value>::FromSlot(&implicit_args_[kNewTargetIndex]);
+  if (IsConstructCall()) {
+    // Can't use &values_[kNewTargetIndex] because of "array index -1 is
+    // before the beginning of the array" error.
+    internal::Address* values = &values_[0];
+    return Local<Value>::FromSlot(values + kNewTargetIndex);
+  }
+  return Undefined(GetIsolate());
 }
 
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::Data() const {
-  auto target = Local<v8::Data>::FromSlot(&implicit_args_[kTargetIndex]);
+  auto target = Local<v8::Data>::FromSlot(&values_[kTargetIndex]);
   return api_internal::GetFunctionTemplateData(GetIsolate(), target);
 }
 
 template <typename T>
 Isolate* FunctionCallbackInfo<T>::GetIsolate() const {
-  return *reinterpret_cast<Isolate**>(&implicit_args_[kIsolateIndex]);
+  return reinterpret_cast<Isolate*>(values_[kIsolateIndex]);
 }
 
 template <typename T>
 ReturnValue<T> FunctionCallbackInfo<T>::GetReturnValue() const {
-  return ReturnValue<T>(&implicit_args_[kReturnValueIndex]);
+  return ReturnValue<T>(&values_[kReturnValueIndex]);
 }
 
 template <typename T>
 bool FunctionCallbackInfo<T>::IsConstructCall() const {
-  return !NewTarget()->IsUndefined();
+  return I::SmiValue(values_[kFrameTypeIndex]) == I::kFrameTypeApiConstructExit;
 }
 
 template <typename T>
 int FunctionCallbackInfo<T>::Length() const {
-  return static_cast<int>(length_);
+  return static_cast<int>(values_[kArgcIndex]);
 }
 
 template <typename T>

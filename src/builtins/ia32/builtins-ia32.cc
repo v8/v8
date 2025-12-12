@@ -4371,49 +4371,37 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   using ER = ExternalReference;
   using FC = ApiCallbackExitFrameConstants;
 
-  static_assert(FCA::kArgsLength == 6);
-  static_assert(FCA::kNewTargetIndex == 5);
-  static_assert(FCA::kTargetIndex == 4);
-  static_assert(FCA::kReturnValueIndex == 3);
-  static_assert(FCA::kContextIndex == 2);
-  static_assert(FCA::kIsolateIndex == 1);
-  static_assert(FCA::kUnusedIndex == 0);
+  static_assert(FCA::kApiArgsLength == 4);
+  static_assert(FCA::ApiArgIndex(FCA::kTargetIndex) == 3);
+  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 2);
+  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 1);
+  static_assert(FCA::ApiArgIndex(FCA::kIsolateIndex) == 0);
 
-  // Set up FunctionCallbackInfo's implicit_args on the stack as follows:
+  // Set up FunctionCallbackInfo's Api arguments on the stack as follows:
   //
-  // Current state:
-  //   esp[0]: return address
+  //  Current state            |  Target state
+  // --------------------------+--------------------------------------------
+  //                           |  ...    JS arguments
+  //                           |  sp[5]: receiver        <- kReceiverIndex
+  //                           |  sp[4]: target          <- kTargetIndex
+  //                           |  sp[3]: undefined       <- kReturnValueIndex
+  //  ...    JS arguments      |  sp[2]: context         <- kContextIndex
+  //  sp[1]: receiver          |  sp[1]: isolate         <- kIsolateIndex
+  //  sp[0]: return address    |  sp[0]: return address
   //
-  // Target state:
-  //   esp[0 * kSystemPointerSize]: return address
-  //   esp[1 * kSystemPointerSize]: kUnused  <= FCA::implicit_args_
-  //   esp[2 * kSystemPointerSize]: kIsolate
-  //   esp[3 * kSystemPointerSize]: kContext
-  //   esp[4 * kSystemPointerSize]: undefined (kReturnValue)
-  //   esp[5 * kSystemPointerSize]: kTarget
-  //   esp[6 * kSystemPointerSize]: undefined (kNewTarget)
-  // Existing state:
-  //   esp[7 * kSystemPointerSize]:          <= FCA:::values_
 
   __ StoreRootRelative(IsolateData::topmost_script_having_context_offset(),
                        topmost_script_having_context);
-
-  if (mode == CallApiCallbackMode::kGeneric) {
-    api_function_address = ReassignRegister(topmost_script_having_context);
-  }
 
   // Park argc in xmm0.
   __ movd(xmm0, argc);
 
   __ PopReturnAddressTo(argc);
-  __ PushRoot(RootIndex::kUndefinedValue);  // kNewTarget
-  __ Push(func_templ);                      // kTarget
-  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValue
-  __ Push(kContextRegister);                // kContext
-
-  // TODO(ishell): Consider using LoadAddress+push approach here.
-  __ Push(Immediate(ER::isolate_address()));
-  __ PushRoot(RootIndex::kUndefinedValue);  // kUnused
+  __ LoadAddress(scratch, ER::isolate_address());
+  __ Push(func_templ);                      // kTargetIndex
+  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValueIndex
+  __ Push(kContextRegister);                // kContextIndex
+  __ Push(scratch);                         // kIsolateIndex
 
   // The API function takes v8::FunctionCallbackInfo reference, allocate it
   // in non-GCed space of the exit frame.
@@ -4421,6 +4409,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   static constexpr int kApiArg0Offset = 0 * kSystemPointerSize;
 
   if (mode == CallApiCallbackMode::kGeneric) {
+    api_function_address = ReassignRegister(topmost_script_having_context);
+
     __ mov(api_function_address,
            FieldOperand(func_templ, FunctionTemplateInfo::kCallbackOffset));
   }
@@ -4444,18 +4434,10 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   Operand argc_operand = Operand(ebp, FC::kFCIArgcOffset);
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::FunctionCallbackInfo");
-    // FunctionCallbackInfo::length_.
+    // kArgcIndex
     // TODO(ishell): pass JSParameterCount(argc) to simplify things on the
     // caller end.
     __ mov(argc_operand, argc);
-
-    // FunctionCallbackInfo::implicit_args_.
-    __ lea(scratch, Operand(ebp, FC::kImplicitArgsArrayOffset));
-    __ mov(Operand(ebp, FC::kFCIImplicitArgsOffset), scratch);
-
-    // FunctionCallbackInfo::values_ (points at JS arguments on the stack).
-    __ lea(scratch, Operand(ebp, FC::kFirstArgumentOffset));
-    __ mov(Operand(ebp, FC::kFCIValuesOffset), scratch);
   }
 
   __ RecordComment("v8::FunctionCallback's argument.");
@@ -4467,7 +4449,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   Operand return_value_operand = Operand(ebp, FC::kReturnValueOffset);
   static constexpr int kSlotsToDropOnReturn =
-      FC::kFunctionCallbackInfoArgsLength + kJSArgcReceiverSlots;
+      FC::kFunctionCallbackInfoApiArgsLength + kJSArgcReceiverSlots;
 
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;

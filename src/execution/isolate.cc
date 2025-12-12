@@ -1364,6 +1364,7 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
     StackFrame* frame = it.frame();
     switch (frame->type()) {
       case StackFrame::API_CALLBACK_EXIT:
+      case StackFrame::API_CONSTRUCT_EXIT:
       case StackFrame::BUILTIN_EXIT:
       case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION:
       case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
@@ -5047,7 +5048,8 @@ void Isolate::NotifyExceptionPropagationCallback() {
   DCHECK(!it.done());
   StackFrame::Type frame_type = it.frame()->type();
   switch (frame_type) {
-    case StackFrame::API_CALLBACK_EXIT: {
+    case StackFrame::API_CALLBACK_EXIT:
+    case StackFrame::API_CONSTRUCT_EXIT: {
       ApiCallbackExitFrame* frame = ApiCallbackExitFrame::cast(it.frame());
       DirectHandle<JSReceiver> receiver(Cast<JSReceiver>(frame->receiver()),
                                         this);
@@ -5055,8 +5057,9 @@ void Isolate::NotifyExceptionPropagationCallback() {
           frame->GetFunctionTemplateInfo();
 
       v8::ExceptionContext callback_kind =
-          frame->IsConstructor() ? v8::ExceptionContext::kConstructor
-                                 : v8::ExceptionContext::kOperation;
+          frame_type == StackFrame::API_CONSTRUCT_EXIT
+              ? v8::ExceptionContext::kConstructor
+              : v8::ExceptionContext::kOperation;
       ReportExceptionFunctionCallback(receiver, function_template_info,
                                       callback_kind);
       return;
