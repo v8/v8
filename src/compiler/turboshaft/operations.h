@@ -2517,23 +2517,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
                   RegisterRepresentation to, Kind kind)
       : Base(input), kind(kind), from(from), to(to) {}
 
-  void Validate(const Graph& graph) const {
-    if (kind == Kind::kSmi) {
-      DCHECK((from.IsWord() && to.IsTaggedOrCompressed()) ||
-             (from.IsTaggedOrCompressed() && to.IsWord()));
-      DCHECK_IMPLIES(from == RegisterRepresentation::Word64() ||
-                         to == RegisterRepresentation::Word64(),
-                     Is64());
-    } else {
-      // TODO(nicohartmann@): Without implicit truncation, the first case might
-      // not be correct anymore.
-      DCHECK((from.IsWord() && to == RegisterRepresentation::Tagged()) ||
-             (from == RegisterRepresentation::Tagged() &&
-              to == RegisterRepresentation::WordPtr()) ||
-             (from == RegisterRepresentation::Compressed() &&
-              to == RegisterRepresentation::Word32()));
-    }
-  }
+  V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
   auto options() const { return std::tuple{from, to, kind}; }
 };
 std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind assumption);

@@ -749,6 +749,36 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
+void TaggedBitcastOp::Validate(const Graph& graph) const {
+  if (kind == Kind::kSmi) {
+    DCHECK((from.IsWord() && to.IsTaggedOrCompressed()) ||
+           (from.IsTaggedOrCompressed() && to.IsWord()));
+    DCHECK_IMPLIES(from == RegisterRepresentation::Word64() ||
+                       to == RegisterRepresentation::Word64(),
+                   Is64());
+  } else {
+    // TODO(nicohartmann@): Without implicit truncation, the first case might
+    // not be correct anymore.
+    DCHECK((from.IsWord() && to == RegisterRepresentation::Tagged()) ||
+           (from == RegisterRepresentation::Tagged() &&
+            to == RegisterRepresentation::WordPtr()) ||
+           (from == RegisterRepresentation::Compressed() &&
+            to == RegisterRepresentation::Word32()));
+
+    if (to == RegisterRepresentation::Tagged() ||
+        to == RegisterRepresentation::Compressed()) {
+      // We shouldn't bitcast-to-tagged load results. Instead, we should
+      // correctly load tagged values as RegisterRepresentation::Tagged().
+      // There is one exception to this rule: tagged atomic loads, which aren't
+      // supported by the instruction selector and thus need to be bitcasted to
+      // Tagged. This is safe for load elimination because we don't
+      // load-eliminate atomic loads anyways.
+      DCHECK(!graph.Get(input()).Is<LoadOp>() ||
+             graph.Get(input()).Cast<LoadOp>().kind.is_atomic);
+    }
+  }
+}
+
 void AllocateOp::PrintOptions(std::ostream& os) const {
   os << '[' << type << ", ";
   switch (alignment) {

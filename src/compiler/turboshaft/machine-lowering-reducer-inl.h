@@ -3552,9 +3552,9 @@ class MachineLoweringReducer : public Next {
     return V<None>::Invalid();
   }
 
-  V<Object> REDUCE(LoadMessage)(V<WordPtr> offset) {
-    return __ BitcastWordPtrToTagged(__ template LoadField<WordPtr>(
-        offset, AccessBuilder::ForExternalIntPtr()));
+  V<Object> REDUCE(LoadMessage)(V<WordPtr> addr) {
+    return __ LoadOffHeap(addr,
+                          MemoryRepresentation::UncompressedTaggedPointer());
   }
 
   V<None> REDUCE(StoreMessage)(V<WordPtr> offset, V<Object> object) {
