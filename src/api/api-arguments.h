@@ -15,49 +15,6 @@
 namespace v8 {
 namespace internal {
 
-// Custom arguments replicate a small segment of stack that can be
-// accessed through an Arguments object the same way the actual stack
-// can.
-class CustomArgumentsBase : public Relocatable {
- protected:
-  explicit inline CustomArgumentsBase(Isolate* isolate);
-};
-
-template <typename T>
-class CustomArguments : public CustomArgumentsBase {
- public:
-  static constexpr int kReturnValueIndex = T::kReturnValueIndex;
-  static_assert(T::kSize == sizeof(T));
-
-  ~CustomArguments() override;
-
-  inline void IterateInstance(RootVisitor* v) override {
-    v->VisitRootPointers(Root::kRelocatable, nullptr, slot_at(0),
-                         slot_at(T::kArgsLength));
-  }
-
- protected:
-  explicit inline CustomArguments(Isolate* isolate)
-      : CustomArgumentsBase(isolate) {}
-
-  template <typename V>
-  Handle<V> GetReturnValue(Isolate* isolate) const;
-
-  inline Isolate* isolate() const {
-    return reinterpret_cast<Isolate*>((*slot_at(T::kIsolateIndex)).ptr());
-  }
-
-  inline FullObjectSlot slot_at(int index) const {
-    // This allows index == T::kArgsLength so "one past the end" slots
-    // can be retrieved for iterating purposes.
-    DCHECK_LE(static_cast<unsigned>(index),
-              static_cast<unsigned>(T::kArgsLength));
-    return FullObjectSlot(values_ + index);
-  }
-
-  Address values_[T::kArgsLength];
-};
-
 // This class also serves as a side effects detection scope (JavaScript code
 // execution). It is used for ensuring correctness of the interceptor callback
 // implementations. The idea is that the interceptor callback that does not
@@ -66,8 +23,7 @@ class CustomArguments : public CustomArgumentsBase {
 // result or by throwing an exception) then the AcceptSideEffects() method
 // must be called to "accept" the side effects that have happened during the
 // lifetime of the PropertyCallbackArguments object.
-class PropertyCallbackArguments final
-    : public CustomArguments<PropertyCallbackInfo<Value> > {
+class PropertyCallbackArguments final : public Relocatable {
  public:
   using T = PropertyCallbackInfo<Value>;
   using Super = CustomArguments<T>;
@@ -77,6 +33,7 @@ class PropertyCallbackArguments final
   static constexpr int kUnusedIndex = T::kUnusedIndex;
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kReturnValueIndex = T::kReturnValueIndex;
   static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
   static constexpr int kPropertyKeyIndex = T::kPropertyKeyIndex;
 
@@ -103,11 +60,13 @@ class PropertyCallbackArguments final
   // Returns the result of [[Get]] operation or throws an exception.
   // In case of exception empty handle is returned.
   // TODO(ishell, 328490288): stop returning empty handles.
-  inline DirectHandle<JSAny> CallAccessorGetter(DirectHandle<AccessorInfo> info,
+  inline DirectHandle<JSAny> CallAccessorGetter(Isolate* isolate,
+                                                DirectHandle<AccessorInfo> info,
                                                 DirectHandle<Name> name);
   // Returns the result of [[Set]] operation or throws an exception.
   V8_WARN_UNUSED_RESULT
-  inline bool CallAccessorSetter(DirectHandle<AccessorInfo> info,
+  inline bool CallAccessorSetter(Isolate* isolate,
+                                 DirectHandle<AccessorInfo> info,
                                  DirectHandle<Name> name,
                                  DirectHandle<Object> value);
 
@@ -117,30 +76,34 @@ class PropertyCallbackArguments final
   // Empty handle means that the request was not intercepted.
   // Pending exception handling should be done by the caller.
   inline DirectHandle<Object> CallNamedQuery(
-      DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name);
   inline DirectHandle<JSAny> CallNamedGetter(
-      DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name);
 
   // Calls Setter/Definer/Deleter callback and returns whether the request
   // was intercepted.
   // Pending exception handling and interpretation of the result should be
   // done by the caller using GetBooleanReturnValue(..).
   inline v8::Intercepted CallNamedSetter(
-      DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name,
-      DirectHandle<Object> value);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name, DirectHandle<Object> value);
   inline v8::Intercepted CallNamedDefiner(
-      DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name,
-      const v8::PropertyDescriptor& desc);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name, const v8::PropertyDescriptor& desc);
   inline v8::Intercepted CallNamedDeleter(
-      DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name);
 
   // Empty handle means that the request was not intercepted.
   // Pending exception handling should be done by the caller.
   inline Handle<JSAny> CallNamedDescriptor(
-      DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name);
   // Returns JSArray-like object with property names or undefined.
   inline DirectHandle<JSObjectOrUndefined> CallNamedEnumerator(
-      DirectHandle<InterceptorInfo> interceptor);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor);
 
   // -------------------------------------------------------------------------
   // Indexed Interceptor Callbacks
@@ -148,30 +111,34 @@ class PropertyCallbackArguments final
   // Empty handle means that the request was not intercepted.
   // Pending exception handling should be done by the caller.
   inline DirectHandle<Object> CallIndexedQuery(
-      DirectHandle<InterceptorInfo> interceptor, uint32_t index);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index);
   inline DirectHandle<JSAny> CallIndexedGetter(
-      DirectHandle<InterceptorInfo> interceptor, uint32_t index);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index);
 
   // Calls Setter/Definer/Deleter callback and returns whether the request
   // was intercepted.
   // Pending exception handling and interpretation of the result should be
   // done by the caller using GetBooleanReturnValue(..).
   inline v8::Intercepted CallIndexedSetter(
-      DirectHandle<InterceptorInfo> interceptor, uint32_t index,
-      DirectHandle<Object> value);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index, DirectHandle<Object> value);
   inline v8::Intercepted CallIndexedDefiner(
-      DirectHandle<InterceptorInfo> interceptor, uint32_t index,
-      const v8::PropertyDescriptor& desc);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index, const v8::PropertyDescriptor& desc);
   inline v8::Intercepted CallIndexedDeleter(
-      DirectHandle<InterceptorInfo> interceptor, uint32_t index);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index);
 
   // Empty handle means that the request was not intercepted.
   // Pending exception handling should be done by the caller.
   inline Handle<JSAny> CallIndexedDescriptor(
-      DirectHandle<InterceptorInfo> interceptor, uint32_t index);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index);
   // Returns JSArray-like object with property names or undefined.
   inline DirectHandle<JSObjectOrUndefined> CallIndexedEnumerator(
-      DirectHandle<InterceptorInfo> interceptor);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor);
 
   // Accept potential JavaScript side effects that might occur during life
   // time of this object.
@@ -187,7 +154,8 @@ class PropertyCallbackArguments final
   // the Setter/Definer operation is ignored and thus we don't need to process
   // the actual return value.
   inline Maybe<InterceptorResult> GetBooleanReturnValue(
-      v8::Intercepted intercepted, const char* callback_kind_for_error_message,
+      Isolate* isolate, v8::Intercepted intercepted,
+      const char* callback_kind_for_error_message,
       bool ignore_return_value = false);
 
   // TODO(ishell): cleanup this hack by embedding the PropertyCallbackInfo
@@ -243,9 +211,27 @@ class PropertyCallbackArguments final
  private:
   // Returns JSArray-like object with property names or undefined.
   inline DirectHandle<JSObjectOrUndefined> CallPropertyEnumerator(
-      DirectHandle<InterceptorInfo> interceptor);
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor);
 
   inline DirectHandle<Object> receiver() const;
+
+  inline void IterateInstance(RootVisitor* v) override {
+    v->VisitRootPointers(Root::kRelocatable, nullptr, slot_at(0),
+                         slot_at(T::kArgsLength));
+  }
+
+  template <typename V>
+  Handle<V> GetReturnValue() const;
+
+  inline FullObjectSlot slot_at(int index) const {
+    // This allows index == T::kArgsLength so "one past the end" slots
+    // can be retrieved for iterating purposes.
+    DCHECK_LE(static_cast<unsigned>(index),
+              static_cast<unsigned>(T::kArgsLength));
+    return FullObjectSlot(values_ + index);
+  }
+
+  Address values_[T::kArgsLength];
 
   // This field is used for propagating index value from CallIndexedXXX()
   // to ExceptionPropagationCallback.
