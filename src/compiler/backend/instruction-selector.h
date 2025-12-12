@@ -1460,7 +1460,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     // Get raw shuffle indices.
     if constexpr (simd_size == kSimd128Size) {
       static_assert(shuffle_size == kSimd128Size ||
-                    shuffle_size == kSimd128HalfSize);
+                    shuffle_size == kSimd128HalfSize ||
+                    shuffle_size == kSimd128QuarterSize);
       DCHECK(view.isSimd128());
       memcpy(shuffle, view.data(), shuffle_size);
     } else if constexpr (simd_size == kSimd256Size) {

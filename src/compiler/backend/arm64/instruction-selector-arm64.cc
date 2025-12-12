@@ -5972,11 +5972,13 @@ void InstructionSelector::VisitI8x2Shuffle(OpIndex node) {
 void InstructionSelector::VisitI8x4Shuffle(OpIndex node) {
   Arm64OperandGenerator g(this);
   auto view = this->simd_shuffle_view(node);
-  OpIndex input0 = view.input(0);
-  OpIndex input1 = view.input(1);
+  bool is_swizzle;
   constexpr size_t kShuffleBytes = 4;
   std::array<uint8_t, kShuffleBytes> shuffle;
-  std::copy(view.data(), view.data() + kShuffleBytes, shuffle.begin());
+  CanonicalizeShuffle<kSimd128Size, kSimd128QuarterSize>(view, shuffle.data(),
+                                                         &is_swizzle);
+  OpIndex input0 = view.input(0);
+  OpIndex input1 = view.input(1);
   std::array<uint8_t, 2> shuffle16x2;
   uint8_t shuffle32x1;
 

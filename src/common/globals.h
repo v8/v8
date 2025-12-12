@@ -702,6 +702,9 @@ constexpr int kSimd128Size = 16;
 // Half of 128 bit SIMD value size.
 constexpr int kSimd128HalfSize = kSimd128Size / 2;
 
+// Quarter of 128 bit SIMD value size.
+constexpr int kSimd128QuarterSize = kSimd128Size / 4;
+
 // 256 bit SIMD value size.
 constexpr int kSimd256Size = 32;
 
