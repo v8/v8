@@ -55,6 +55,7 @@ struct WasmCompilationResult;
 class WasmEngine;
 template <typename CacheKey>
 class WasmWrapperCache;
+class WasmWrapperHandle;
 struct WasmModule;
 enum class WellKnownImport : uint8_t;
 
@@ -962,6 +963,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   DelayedCounterUpdates* counter_updates() { return &counter_updates_; }
 
+  void RegisterStackEntryWrapper(std::shared_ptr<WasmWrapperHandle> wrapper) {
+    stack_entry_wrappers_.insert(std::move(wrapper));
+  }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -1172,6 +1177,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // update counters in an isolate. Store them here instead and publish them the
   // next time we get hold of an isolate.
   DelayedCounterUpdates counter_updates_;
+
+  // The stack wrappers are compiled lazily and shared across modules, but the
+  // cache itself only holds weak pointers. Keep strong pointers in the module
+  // to keep them alive.
+  std::unordered_set<std::shared_ptr<WasmWrapperHandle>> stack_entry_wrappers_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

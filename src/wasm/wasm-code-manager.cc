@@ -2908,7 +2908,7 @@ NamesProvider* NativeModule::GetNamesProvider() {
 }
 
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 496);
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 536);
   size_t result = sizeof(NativeModule);
   result += module_->EstimateCurrentMemoryConsumption();
 
@@ -2963,6 +2963,12 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
 
   result += counter_updates_.EstimateCurrentMemoryConsumption() -
             sizeof(counter_updates_);
+
+  result += ContentSize(stack_entry_wrappers_);
+  for (const std::shared_ptr<WasmWrapperHandle>& wrapper :
+       stack_entry_wrappers_) {
+    result += wrapper->code()->EstimateCurrentMemoryConsumption();
+  }
 
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("NativeModule wire bytes: %zu\n", wire_bytes_size);
