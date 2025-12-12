@@ -975,19 +975,22 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   Register limit = byte_length;
 
   int element_size = compiler::ExternalArrayElementSize(element_type_);
-  Label ok;
+
   if (element_size > 1) {
     limit = temps.Acquire();
     __ SubWord(limit, byte_length, Operand(element_size - 1));
-    __ MacroAssembler::Branch(&ok, ge, limit, Operand(zero_reg),
+    Label limit_not_zero;
+    __ MacroAssembler::Branch(&limit_not_zero, ge, limit, Operand(zero_reg),
                               Label::Distance::kNear);
     __ EmitEagerDeopt(this, DeoptimizeReason::kOutOfBounds);
+    __ bind(&limit_not_zero);
   }
-  __ MacroAssembler::Branch(&ok, ult, index, Operand(limit),
+  Label index_no_oob;
+  __ MacroAssembler::Branch(&index_no_oob, ult, index, Operand(limit),
                             Label::Distance::kNear);
   __ EmitEagerDeopt(this, DeoptimizeReason::kOutOfBounds);
 
-  __ bind(&ok);
+  __ bind(&index_no_oob);
 }
 
 
