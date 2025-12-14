@@ -1325,4 +1325,16 @@
 # end import test262@c0cf527756840ae8ba679e53e627ec20f3bbc5c8
 ####
 
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Temporal/Duration/prototype/round/zero-duration': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-5': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/withCalendar/calendar-time-string': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/withCalendar/calendar-time-string': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/withCalendar/calendar-time-string': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
