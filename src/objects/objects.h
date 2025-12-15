@@ -352,6 +352,8 @@ class Object : public AllStatic {
       Isolate* isolate, DirectHandle<JSAny> object,
       DirectHandle<JSAny> callable);
 
+  static MaybeHandle<Object> InstantiateIfLazyClosure(
+      LookupIterator* it, DirectHandle<Object> value);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   GetProperty(LookupIterator* it, bool is_global_reference = false);
 

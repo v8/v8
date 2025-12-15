@@ -27,6 +27,8 @@
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-details.h"
+#include "src/objects/shared-function-info-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 
 namespace v8 {
@@ -2901,6 +2903,20 @@ void AccessorAssembler::GenericElementLoad(
   Return(UndefinedConstant());
 }
 
+void AccessorAssembler::GotoIfLazyClosure(
+    TNode<JSAnyOrSharedFunctionInfo> value, Label* if_true) {
+  Label not_lazy_closure(this);
+  TNode<Uint8T> has_lazy_closures =
+      Load<Uint8T>(IsolateField(IsolateFieldId::kHasLazyClosures));
+  GotoIfNot(has_lazy_closures, &not_lazy_closure);
+  GotoIf(TaggedIsSmi(value), &not_lazy_closure);
+
+  TNode<HeapObject> heap_object = CAST(value);
+  GotoIf(IsSharedFunctionInfo(heap_object), if_true);
+  Goto(&not_lazy_closure);
+  BIND(&not_lazy_closure);
+}
+
 void AccessorAssembler::GenericPropertyLoad(
     TNode<JSAnyNotSmi> lookup_start_object, TNode<Map> lookup_start_object_map,
     TNode<Int32T> lookup_start_object_instance_type, const LoadICParameters* p,
@@ -3008,9 +3024,12 @@ void AccessorAssembler::GenericPropertyLoad(
     ExpectedReceiverMode expected_receiver_mode =
         p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;
 
-    TNode<Object> value = CallGetterIfAccessor(
+    TNode<JSAnyOrSharedFunctionInfo> value = CAST(CallGetterIfAccessor(
         var_value.value(), CAST(lookup_start_object), var_details.value(),
-        p->context(), p->receiver(), expected_receiver_mode, p->name(), slow);
+        p->context(), p->receiver(), expected_receiver_mode, p->name(), slow));
+
+    GotoIfLazyClosure(value, slow);
+
     Return(value);
   }
 
@@ -3052,6 +3071,8 @@ void AccessorAssembler::GenericPropertyLoad(
       Goto(slow);
 
       BIND(&return_value);
+
+      GotoIfLazyClosure(CAST(var_value.value()), slow);
       Return(var_value.value());
     }
 

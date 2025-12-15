@@ -552,6 +552,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                           TNode<Int32T> lookup_start_object_instance_type,
                           TNode<IntPtrT> index, Label* slow);
 
+  void GotoIfLazyClosure(TNode<JSAnyOrSharedFunctionInfo> value,
+                         Label* if_true);
+
   enum UseStubCache { kUseStubCache, kDontUseStubCache };
   void GenericPropertyLoad(TNode<JSAnyNotSmi> lookup_start_object,
                            TNode<Map> lookup_start_object_map,

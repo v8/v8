@@ -389,6 +389,17 @@ DirectHandle<PrototypeInfo> Factory::NewPrototypeInfo() {
   return direct_handle(result, isolate());
 }
 
+DirectHandle<PrototypeSharedClosureInfo> Factory::NewPrototypeSharedClosureInfo(
+    DirectHandle<Context> context,
+    DirectHandle<ClosureFeedbackCellArray> feedback_array) {
+  auto result = NewStructInternal<PrototypeSharedClosureInfo>(
+      PROTOTYPE_SHARED_CLOSURE_INFO_TYPE, AllocationType::kOld);
+  DisallowGarbageCollection no_gc;
+  result->set_context(*context);
+  result->set_closure_feedback_cell_array(*feedback_array);
+  return direct_handle(result, isolate());
+}
+
 DirectHandle<EnumCache> Factory::NewEnumCache(DirectHandle<FixedArray> keys,
                                               DirectHandle<FixedArray> indices,
                                               AllocationType allocation) {

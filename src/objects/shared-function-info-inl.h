@@ -541,8 +541,6 @@ void SharedFunctionInfo::set_function_map_index(int index) {
             kRelaxedStore);
 }
 
-void SharedFunctionInfo::clear_padding() { set_padding(0); }
-
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
   int map_index =
       Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());

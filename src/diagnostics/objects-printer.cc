@@ -2777,6 +2777,14 @@ void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoPrint(
+    std::ostream& os) {
+  PrintHeader(os, "PrototypeSharedClosureInfo");
+  os << "\n - context: " << Brief(context());
+  os << "\n - closure feedback cell array: "
+     << Brief(closure_feedback_cell_array());
+}
+
 void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {
   PrintHeader(os, "PrototypeInfo");
   os << "\n - module namespace: " << Brief(module_namespace());
@@ -2786,6 +2794,8 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {
   os << "\n - should_be_fast_map: " << should_be_fast_map();
   os << "\n - prototype_chain_enum_cache: "
      << Brief(prototype_chain_enum_cache());
+  os << "\n - prototype_shared_closure_info: "
+     << Brief(prototype_shared_closure_info());
   for (int i = 0; i < PrototypeInfo::kCachedHandlerCount; i++) {
     os << "\n - cached_handler[" << i << "]: " << Brief(cached_handler(i));
   }
@@ -4454,6 +4464,7 @@ void TransitionArray::PrintInternal(std::ostream& os) {
 void TransitionsAccessor::PrintTransitions(std::ostream& os) {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       return;

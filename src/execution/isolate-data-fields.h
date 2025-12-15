@@ -41,6 +41,7 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(ExecutionMode, kUInt8Size, execution_mode)                                 \
   V(StackIsIterable, kUInt8Size, stack_is_iterable)                            \
   V(ErrorMessageParam, kUInt8Size, error_message_param)                        \
+  V(HasLazyClosures, kUInt8Size, has_lazy_closures)                            \
   /* This padding aligns next field to kSystemPointerSize bytes. */            \
   PADDING_FIELD(kSystemPointerSize, V, TablesAlignmentPadding,                 \
                 tables_alignment_padding)                                      \

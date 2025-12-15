@@ -805,7 +805,9 @@ void Map::MapVerify(Isolate* isolate) {
           IsSharedArrayElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
-    CHECK(prototype_info() == Smi::zero() || IsPrototypeInfo(prototype_info()));
+    CHECK(prototype_info() == Smi::zero() ||
+          IsPrototypeInfo(prototype_info()) ||
+          IsPrototypeSharedClosureInfo(prototype_info()));
   }
 }
 
@@ -2495,6 +2497,12 @@ void SyntheticModule::SyntheticModuleVerify(Isolate* isolate) {
   for (int i = 0; i < export_names()->length(); i++) {
     CHECK(IsString(export_names()->get(i)));
   }
+}
+
+void PrototypeSharedClosureInfo::PrototypeSharedClosureInfoVerify(
+    Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::PrototypeSharedClosureInfoVerify(*this,
+                                                                  isolate);
 }
 
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {

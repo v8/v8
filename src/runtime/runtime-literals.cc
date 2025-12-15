@@ -570,6 +570,60 @@ MaybeDirectHandle<JSObject> CreateLiteral(Isolate* isolate,
   return copy;
 }
 
+DirectHandle<Object> InstantiateIfSharedFunctionInfo(
+    DirectHandle<Context> context, Isolate* isolate,
+    DirectHandle<JSObject> js_proto, DirectHandle<Object> value,
+    DirectHandle<ClosureFeedbackCellArray> feedback_cell_array, int start_slot,
+    int& current_slot) {
+  DirectHandle<SharedFunctionInfo> shared;
+  if (!TryCast<SharedFunctionInfo>(value, &shared)) {
+    return value;
+  }
+
+  if (!v8_flags.proto_assign_seq_lazy_func_opt ||
+      !base::IsInRange(current_slot, 0, kMaxUInt16)) {
+    DirectHandle<FeedbackCell> feedback_cell(
+        feedback_cell_array->get(current_slot), isolate);
+    value = Factory::JSFunctionBuilder{isolate, shared, context}
+                .set_feedback_cell(feedback_cell)
+                .set_allocation_type(AllocationType::kYoung)
+                .Build();
+    ++current_slot;
+    return value;
+  }
+
+  Tagged<Map> proto_map = js_proto->map();
+  if (Tagged<PrototypeSharedClosureInfo> closure_info;
+      proto_map->TryGetPrototypeSharedClosureInfo(&closure_info)) {
+    // We already have closure infos on this prototype, this means we
+    // already called SetPrototypeProperties on it and some closures were
+    // set up. We can only take the lazy closure path if the context
+    // is the same.
+    if (closure_info->context() == *context) {
+      // fast path
+      shared->set_feedback_slot(current_slot);
+    } else {
+      // not lazy allocation
+      DirectHandle<FeedbackCell> feedback_cell(
+          feedback_cell_array->get(current_slot), isolate);
+      value = Factory::JSFunctionBuilder{isolate, shared, context}
+                  .set_feedback_cell(feedback_cell)
+                  .set_allocation_type(AllocationType::kYoung)
+                  .Build();
+    }
+  } else {
+    // We do not have closure_info
+    DCHECK_EQ(current_slot, start_slot);
+    auto val = *isolate->factory()->NewPrototypeSharedClosureInfo(
+        context, feedback_cell_array);
+
+    proto_map->SetPrototypeSharedClosureInfo(val);
+    shared->set_feedback_slot(current_slot);
+  }
+  ++current_slot;
+  return value;
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
@@ -583,24 +637,6 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ObjectLiteralHelper>(
                    isolate, maybe_vector, literals_index, description, flags));
-}
-
-static DirectHandle<Object> InstantiateIfSharedFunctionInfo(
-    DirectHandle<Context> context, Isolate* isolate, DirectHandle<Object> value,
-    DirectHandle<ClosureFeedbackCellArray> feedback_cell_array,
-    int& current_slot) {
-  if (DirectHandle<SharedFunctionInfo> shared;
-      TryCast<SharedFunctionInfo>(value, &shared)) {
-    DirectHandle<FeedbackCell> feedback_cell(
-        feedback_cell_array->get(current_slot), isolate);
-    value = Factory::JSFunctionBuilder{isolate, shared, context}
-                .set_feedback_cell(feedback_cell)
-                .set_allocation_type(AllocationType::kYoung)
-                .Build();
-    ++current_slot;
-  }
-
-  return value;
 }
 
 static MaybeDirectHandle<Object> SetPrototypePropertiesSlow(
@@ -623,8 +659,15 @@ static MaybeDirectHandle<Object> SetPrototypePropertiesSlow(
     DirectHandle<Object> value(object_boilerplate_description->value(index),
                                isolate);
 
-    value = InstantiateIfSharedFunctionInfo(context, isolate, value,
-                                            feedback_cell_array, current_slot);
+    if (DirectHandle<SharedFunctionInfo> shared;
+        TryCast<SharedFunctionInfo>(value, &shared)) {
+      DirectHandle<FeedbackCell> feedback_cell(
+          feedback_cell_array->get(current_slot++), isolate);
+      value = Factory::JSFunctionBuilder{isolate, shared, context}
+                  .set_feedback_cell(feedback_cell)
+                  .set_allocation_type(AllocationType::kYoung)
+                  .Build();
+    }
 
     RETURN_ON_EXCEPTION(
         isolate, Runtime::SetObjectProperty(isolate, Cast<JSAny>(proto), key,
@@ -681,6 +724,7 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
   DirectHandle<ClosureFeedbackCellArray> feedback_cell_array =
       args.at<ClosureFeedbackCellArray>(2);
   int current_slot = args.smi_value_at(3);
+  int start_slot = current_slot;
 
   // Proxy and any non-function not welcome
   if (!IsJSFunction(*obj)) {
@@ -748,8 +792,9 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
       DirectHandle<Object> value(object_boilerplate_description->value(index),
                                  isolate);
 
-      value = InstantiateIfSharedFunctionInfo(
-          context, isolate, value, feedback_cell_array, current_slot);
+      value = InstantiateIfSharedFunctionInfo(context, isolate, js_proto, value,
+                                              feedback_cell_array, start_slot,
+                                              current_slot);
 
       DirectHandle<String> name = Cast<String>(key);
       DCHECK(!name->IsArrayIndex());
@@ -786,8 +831,10 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
                          feedback_cell_array, current_slot, index));
       }
       DCHECK(!IsTheHole(*value));
-      value = InstantiateIfSharedFunctionInfo(
-          context, isolate, value, feedback_cell_array, current_slot);
+
+      value = InstantiateIfSharedFunctionInfo(context, isolate, js_proto, value,
+                                              feedback_cell_array, start_slot,
+                                              current_slot);
 
       if (it_state == LookupIterator::DATA &&
           it.HolderIsReceiverOrHiddenPrototype()) {

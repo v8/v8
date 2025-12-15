@@ -189,6 +189,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Create a new PrototypeInfo struct.
   DirectHandle<PrototypeInfo> NewPrototypeInfo();
+  DirectHandle<PrototypeSharedClosureInfo> NewPrototypeSharedClosureInfo(
+      DirectHandle<Context> context,
+      DirectHandle<ClosureFeedbackCellArray> feedback_array);
 
   // Create a new EnumCache struct.
   DirectHandle<EnumCache> NewEnumCache(

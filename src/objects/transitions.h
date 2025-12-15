@@ -233,6 +233,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
     kMigrationTarget,
     kWeakRef,
     kFullTransitionArray,
+    kPrototypeSharedClosureInfo,
   };
 
   inline Encoding encoding() { return encoding_; }

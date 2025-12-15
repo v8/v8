@@ -3925,6 +3925,14 @@ DEFINE_UINT(proto_assign_seq_opt_count, 2,
             "prototype object for replacing it with a single byte code")
 DEFINE_NEG_IMPLICATION(proto_assign_seq_opt_count == 0, proto_assign_seq_opt)
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    proto_assign_seq_lazy_func_opt,
+    "Functions bulk assigned to prototype via SetPrototypeProperties "
+    "will remain in SharedFunctionInfo (Rather than JSFunction) State "
+    "until first access")
+DEFINE_WEAK_IMPLICATION(experimental_fuzzing, proto_assign_seq_lazy_func_opt)
+DEFINE_IMPLICATION(proto_assign_seq_lazy_func_opt, proto_assign_seq_opt)
+
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
 #endif

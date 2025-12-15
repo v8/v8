@@ -5796,6 +5796,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   isolate_data_.stress_deopt_count_ = v8_flags.deopt_every_n_times;
 
+  isolate_data_.has_lazy_closures_ = v8_flags.proto_assign_seq_lazy_func_opt;
+
   if (use_shared_space_isolate && !is_shared_space_isolate() &&
       use_shared_space_isolate->heap()
           ->incremental_marking()

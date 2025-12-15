@@ -330,6 +330,9 @@ class IsolateData final {
   // case of an error.
   uint8_t error_message_param_;
 
+  // Whether we are using SetPrototypeProperties together with LazyClosures.
+  uint8_t has_lazy_closures_ = 0;
+
   // Ensure the following tables are kSystemPointerSize-byte aligned.
   V8_NO_UNIQUE_ADDRESS uint8_t
       tables_alignment_padding_[kTablesAlignmentPaddingSize];
