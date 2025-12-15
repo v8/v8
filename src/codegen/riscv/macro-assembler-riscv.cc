@@ -7869,11 +7869,11 @@ void MacroAssembler::DecompressTagged(const Register& destination,
                                       const Register& source) {
   ASM_CODE_COMMENT(this);
   if (CpuFeatures::IsSupported(ZBA)) {
-    ZeroExtendWord(destination, source);
+    adduw(destination, source, kPtrComprCageBaseRegister);
   } else {
-    And(destination, source, Operand(0xFFFFFFFF));
+    ZeroExtendWord(destination, source);
+    AddWord(destination, kPtrComprCageBaseRegister, Operand(destination));
   }
-  AddWord(destination, kPtrComprCageBaseRegister, Operand(destination));
 }
 
 void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {
