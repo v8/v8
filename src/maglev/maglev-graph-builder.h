@@ -1367,7 +1367,8 @@ class MaglevGraphBuilder {
                                       LoadType length_type = LoadType::kSmi);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
-  ReduceResult BuildLoadElements(ValueNode* object);
+  ReduceResult BuildLoadElements(
+      ValueNode* object, std::optional<ElementsKind> kind = std::nullopt);
 
   ReduceResult BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
   ReduceResult BuildLoadJSFunctionContext(ValueNode* closure);

@@ -5098,6 +5098,17 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
     GET_VALUE_OR_ABORT(
         load_source,
         BuildLoadTaggedField(load_source, JSReceiver::kPropertiesOrHashOffset));
+    if (is_turbolev()) {
+      // We record a map hint for Turbolev so that LateEscapeAnalysis knows that
+      // we just loaded a property array, which means that it can't alias with
+      // anything that isn't a property array itself.
+      // TODO(dmercadier): also record from which object this property array
+      // came from, since 2 property array maps for objects with different maps
+      // cannot alias.
+      RETURN_IF_ABORT(AddNewNode<AssumeMap>(
+          {load_source},
+          compiler::ZoneRefSet<Map>(broker()->property_array_map())));
+    }
   }
 
   // Do the load.
@@ -5873,7 +5884,8 @@ ReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
   return AddNewNode<CheckInt32Condition>({lhs, rhs}, condition, reason);
 }
 
-ReduceResult MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::BuildLoadElements(
+    ValueNode* object, std::optional<ElementsKind> kind) {
   ValueNode* known_elements = known_node_aspects().TryFindLoadedProperty(
       object, PropertyKey::Elements());
   if (known_elements) {
@@ -5889,6 +5901,19 @@ ReduceResult MaglevGraphBuilder::BuildLoadElements(ValueNode* object) {
                      BuildLoadTaggedField(object, JSObject::kElementsOffset));
   RecordKnownProperty(object, PropertyKey::Elements(), elements, false,
                       compiler::AccessMode::kLoad);
+  if (is_turbolev() && kind.has_value()) {
+    // We record a map hint for Turbolev so that LateEscapeAnalysis knows that
+    // we just loaded a FixedArray array, which means that it can't alias with
+    // anything that isn't a property array itself.
+    // TODO(dmercadier): also record from which object this elements array came
+    // from, since 2 elements arrays for objects with different maps cannot
+    // alias.
+    RETURN_IF_ABORT(AddNewNode<AssumeMap>(
+        {elements},
+        compiler::ZoneRefSet<Map>(IsDoubleElementsKind(kind.value())
+                                      ? broker()->fixed_double_array_map()
+                                      : broker()->fixed_array_map())));
+  }
   return elements;
 }
 
@@ -6148,7 +6173,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
   DCHECK(is_jsarray || HasOnlyJSObjectMaps(maps));
 
   ValueNode* elements_array;
-  GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(object));
+  GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(object, elements_kind));
   ValueNode* index;
   GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
   ValueNode* length;
@@ -6284,7 +6309,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
 
   // Get the elements array.
   ValueNode* elements_array;
-  GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(object));
+  GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(object, elements_kind));
   GET_VALUE_OR_ABORT(value, ConvertForStoring(value, elements_kind));
   ValueNode* index = nullptr;
 
@@ -8917,7 +8942,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
   // element = array.elements[index]
   // ```
   ValueNode* elements;
-  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver));
+  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver, elements_kind));
   ValueNode* element;
   if (elements_kind == PACKED_DOUBLE_ELEMENTS) {
     GET_VALUE_OR_ABORT(element,
@@ -9254,7 +9279,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypeAt(
   }
 
   ValueNode* elements;
-  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver));
+  GET_VALUE_OR_ABORT(elements, BuildLoadElements(receiver, elements_kind));
 
   return Select(
       [&](BranchBuilder& builder) {
