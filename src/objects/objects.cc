@@ -4555,8 +4555,6 @@ const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
       return "maybe tenure";
     case kTenure:
       return "tenure";
-    case kZombie:
-      return "zombie";
     default:
       UNREACHABLE();
   }

@@ -3307,11 +3307,7 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {
 void AllocationMemento::AllocationMementoPrint(std::ostream& os) {
   PrintHeader(os, "AllocationMemento");
   os << "\n - allocation site: ";
-  if (IsValid()) {
-    GetAllocationSite()->AllocationSitePrint(os);
-  } else {
-    os << "<invalid>\n";
-  }
+  GetAllocationSite()->AllocationSitePrint(os);
 }
 
 void ScriptOrModule::ScriptOrModulePrint(std::ostream& os) {

@@ -2416,10 +2416,13 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     Scavenge();
   }
 
-  // We don't want growing or shrinking of the current cycle to affect
-  // pretenuring decisions. The numbers collected in the GC will be for the
-  // capacity that was set before the GC.
-  pretenuring_handler_.ProcessPretenuringFeedback(new_space_capacity_before_gc);
+  if (IsYoungGenerationCollector(collector)) {
+    // We don't want growing or shrinking of the current cycle to affect
+    // pretenuring decisions. The numbers collected in the GC will be for the
+    // capacity that was set before the GC.
+    pretenuring_handler_.ProcessPretenuringFeedback(
+        new_space_capacity_before_gc);
+  }
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ShrinkOldGenerationAllocationLimitIfNotConfigured();

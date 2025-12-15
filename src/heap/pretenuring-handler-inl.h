@@ -139,7 +139,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
              memento_address +
                      ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento)) <=
                  top);
-      if ((memento_address != top) && memento_candidate->IsValid()) {
+      if (memento_address != top) {
         return memento_candidate;
       }
       return {};

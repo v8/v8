@@ -2745,8 +2745,9 @@ TEST(OptimizedPretenuringAllocationFolding) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
     return;
+  }
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   ManualGCScope manual_gc_scope;
@@ -2763,7 +2764,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
                  "  return elements[number_elements-1]"
                  "};"
                  "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc();"
+                 "f(); gc({type: 'minor'});"
                  "f(); f();"
                  "%%OptimizeFunctionOnNextCall(f);"
                  "f();",
@@ -2796,7 +2797,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation) {
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
     return;
   }
   v8::HandleScope scope(CcTest::isolate());
@@ -2814,7 +2815,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
                  "  return elements[number_elements - 1];"
                  "};"
                  "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc();"
+                 "f(); gc({type: 'minor'});"
                  "f(); f();"
                  "%%OptimizeFunctionOnNextCall(f);"
                  "f();",
@@ -2836,7 +2837,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation) {
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
     return;
   }
   v8::HandleScope scope(CcTest::isolate());
@@ -2857,7 +2858,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
       "  return elements[number_elements-1];"
       "};"
       "%%PrepareFunctionForOptimization(f);"
-      "f(); gc(); gc();"
+      "f(); gc({type: 'minor'}); gc({type: 'minor'});"
       "f(); f();"
       "%%OptimizeFunctionOnNextCall(f);"
       "f();",
@@ -2880,8 +2881,9 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
     return;
+  }
   v8::HandleScope scope(CcTest::isolate());
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
@@ -2897,7 +2899,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
                  "  return elements[number_elements - 1];"
                  "};"
                  "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc();"
+                 "f(); gc({type: 'minor'});"
                  "f(); f();"
                  "%%OptimizeFunctionOnNextCall(f);"
                  "f();",
@@ -2927,7 +2929,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode)
     return;
   v8::HandleScope scope(CcTest::isolate());
   ManualGCScope manual_gc_scope;
@@ -2944,7 +2946,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
                  "  return elements[i - 1];"
                  "};"
                  "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc();"
+                 "f(); gc({type: 'minor'});"
                  "f(); f();"
                  "%%OptimizeFunctionOnNextCall(f);"
                  "f();",
@@ -2967,8 +2969,9 @@ TEST(OptimizedPretenuringDoubleArrayLiterals) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
     return;
+  }
   v8::HandleScope scope(CcTest::isolate());
   ManualGCScope manual_gc_scope;
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
@@ -2984,7 +2987,7 @@ TEST(OptimizedPretenuringDoubleArrayLiterals) {
                  "  return elements[number_elements - 1];"
                  "};"
                  "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc();"
+                 "f(); gc({type: 'minor'});"
                  "f(); f();"
                  "%%OptimizeFunctionOnNextCall(f);"
                  "f();",
@@ -3006,8 +3009,9 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
     return;
+  }
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   ManualGCScope manual_gc_scope;
@@ -3024,7 +3028,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
                  "  return elements[number_elements - 1];"
                  "};"
                  "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc();"
+                 "f(); gc({type: 'minor'});"
                  "f(); f();"
                  "%%OptimizeFunctionOnNextCall(f);"
                  "f();",
@@ -3057,8 +3061,9 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
     return;
+  }
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   ManualGCScope manual_gc_scope;
@@ -3075,7 +3080,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
                  "  return elements[number_elements - 1];"
                  "};"
                  "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc();"
+                 "f(); gc({type: 'minor'});"
                  "f(); f();"
                  "%%OptimizeFunctionOnNextCall(f);"
                  "f();",
@@ -3108,8 +3113,9 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   if (!CcTest::i_isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation || v8_flags.scavenger_chaos_mode) {
     return;
+  }
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   ManualGCScope manual_gc_scope;
@@ -3126,7 +3132,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
                  "  return elements[number_elements - 1];"
                  "};"
                  "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc();"
+                 "f(); gc({type: 'minor'});"
                  "f(); f();"
                  "%%OptimizeFunctionOnNextCall(f);"
                  "f();",

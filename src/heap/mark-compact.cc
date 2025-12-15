@@ -61,8 +61,6 @@
 #include "src/heap/page-metadata-inl.h"
 #include "src/heap/page-metadata.h"
 #include "src/heap/parallel-work-item.h"
-#include "src/heap/pretenuring-handler-inl.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/remembered-set.h"
@@ -1271,22 +1269,6 @@ class MarkCompactWeakObjectRetainer final : public WeakObjectRetainer {
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_,
                                             heap_object)) {
       return object;
-    } else if (IsAllocationSite(heap_object) &&
-               !Cast<AllocationSite>(object)->IsZombie()) {
-      // "dead" AllocationSites need to live long enough for a traversal of new
-      // space. These sites get a one-time reprieve.
-
-      Tagged<Object> nested = object;
-      while (IsAllocationSite(nested)) {
-        Tagged<AllocationSite> current_site = Cast<AllocationSite>(nested);
-        // MarkZombie will override the nested_site, read it first before
-        // marking
-        nested = current_site->nested_site();
-        current_site->MarkZombie();
-        marking_state_->TryMarkAndAccountLiveBytes(current_site);
-      }
-
-      return object;
     } else {
       return Smi::zero();
     }
@@ -1760,14 +1742,10 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
  public:
-  explicit EvacuateNewSpaceVisitor(
-      Heap* heap, EvacuationAllocator* local_allocator,
-      RecordMigratedSlotVisitor* record_visitor,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
+  EvacuateNewSpaceVisitor(Heap* heap, EvacuationAllocator* local_allocator,
+                          RecordMigratedSlotVisitor* record_visitor)
       : EvacuateVisitorBase(heap, local_allocator, record_visitor),
         promoted_size_(0),
-        pretenuring_handler_(heap_->pretenuring_handler()),
-        local_pretenuring_feedback_(local_pretenuring_feedback),
         is_incremental_marking_(heap->incremental_marking()->IsMarking()),
         shortcut_strings_(!heap_->IsGCWithStack() ||
                           v8_flags.shortcut_strings_with_stack) {
@@ -1780,9 +1758,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     if (TryEvacuateWithoutCopy(object)) return true;
     Tagged<HeapObject> target_object;
 
-    PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object,
-                                             size.value(),
-                                             local_pretenuring_feedback_);
 
     if (!TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
       heap_->FatalProcessOutOfMemory(
@@ -1848,8 +1823,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   }
 
   intptr_t promoted_size_;
-  PretenuringHandler* const pretenuring_handler_;
-  PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback_;
   bool is_incremental_marking_;
   const bool shortcut_strings_;
 };
@@ -1857,13 +1830,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
  public:
   explicit EvacuateNewToOldSpacePageVisitor(
-      Heap* heap, RecordMigratedSlotVisitor* record_visitor,
-      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
-      : heap_(heap),
-        record_visitor_(record_visitor),
-        moved_bytes_(0),
-        pretenuring_handler_(heap_->pretenuring_handler()),
-        local_pretenuring_feedback_(local_pretenuring_feedback) {}
+      Heap* heap, RecordMigratedSlotVisitor* record_visitor)
+      : record_visitor_(record_visitor), moved_bytes_(0) {}
 
   static void Move(PageMetadata* page) {
     page->set_will_be_promoted(true);
@@ -1877,9 +1845,6 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
 
   inline bool Visit(Tagged<HeapObject> object,
                     SafeHeapObjectSize size) override {
-    PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object,
-                                             size.value(),
-                                             local_pretenuring_feedback_);
     DCHECK(!TrustedHeapLayout::InCodeSpace(object));
     record_visitor_->Visit(object->map(), object, size.value());
     return true;
@@ -1889,11 +1854,8 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
   void account_moved_bytes(intptr_t bytes) { moved_bytes_ += bytes; }
 
  private:
-  Heap* heap_;
   RecordMigratedSlotVisitor* record_visitor_;
   intptr_t moved_bytes_;
-  PretenuringHandler* const pretenuring_handler_;
-  PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback_;
 };
 
 class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
@@ -4507,16 +4469,11 @@ class Evacuator final : public Malloced {
 
   explicit Evacuator(Heap* heap)
       : heap_(heap),
-        local_pretenuring_feedback_(
-            PretenuringHandler::kInitialFeedbackCapacity),
         local_allocator_(heap_,
                          CompactionSpaceKind::kCompactionSpaceForMarkCompact),
         record_visitor_(heap_),
-        new_space_visitor_(heap_, &local_allocator_, &record_visitor_,
-                           &local_pretenuring_feedback_),
-        new_to_old_page_visitor_(heap_, &record_visitor_,
-                                 &local_pretenuring_feedback_),
-
+        new_space_visitor_(heap_, &local_allocator_, &record_visitor_),
+        new_to_old_page_visitor_(heap_, &record_visitor_),
         old_space_visitor_(heap_, &local_allocator_, &record_visitor_),
         duration_(0.0),
         bytes_compacted_(0) {}
@@ -4544,8 +4501,6 @@ class Evacuator final : public Malloced {
   }
 
   Heap* heap_;
-
-  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
 
   // Locally cached collector data.
   EvacuationAllocator local_allocator_;
@@ -4595,8 +4550,6 @@ void Evacuator::Finalize() {
   heap_->IncrementYoungSurvivorsCounter(
       new_space_visitor_.promoted_size() +
       new_to_old_page_visitor_.moved_bytes());
-  heap_->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
-      local_pretenuring_feedback_);
 }
 
 class LiveObjectVisitor final : AllStatic {
