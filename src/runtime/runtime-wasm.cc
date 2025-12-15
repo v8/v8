@@ -2672,8 +2672,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   std::shared_ptr<wasm::WasmWrapperHandle> wrapper =
       wasm::GetWasmStackEntryWrapperCache()->GetCompiled(isolate, key);
   stack->jmpbuf()->pc = wrapper->code()->instruction_start();
-  trusted_instance_data->native_module()->RegisterStackEntryWrapper(
-      std::move(wrapper));
   stack->set_func_ref(*func_ref);
   wasm::StackMemory* stack_ptr = stack.get();
   isolate->wasm_stacks().emplace_back(std::move(stack));
