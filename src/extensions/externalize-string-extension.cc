@@ -4,35 +4,55 @@
 
 #include "src/extensions/externalize-string-extension.h"
 
+#include <vector>
+
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/init/isolate-group.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/string.h"
+#include "src/sandbox/external-strings-cage.h"
 
 namespace v8 {
 namespace internal {
 
-template <typename Char, typename Base>
+template <typename CharT, typename Base>
 class SimpleStringResource : public Base {
  public:
-  // Takes ownership of |data|.
-  SimpleStringResource(Char* data, size_t length)
-      : data_(data),
-        length_(length) {}
+  explicit SimpleStringResource(size_t length)
+      : storage_(length, GetAllocator()) {}
 
-  ~SimpleStringResource() override { delete[] data_; }
+  ~SimpleStringResource() override = default;
 
-  const Char* data() const override { return data_; }
+  const CharT* data() const override { return storage_.data(); }
+  CharT* data() { return storage_.data(); }
 
-  size_t length() const override { return length_; }
+  size_t length() const override { return storage_.size(); }
 
  private:
-  Char* const data_;
-  const size_t length_;
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  using Allocator = ExternalStringsCage::Allocator<CharT>;
+#else   // V8_ENABLE_MEMORY_CORRUPTION_API
+  using Allocator = std::allocator<CharT>;
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+
+  static Allocator GetAllocator() {
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+    return IsolateGroup::current()
+        ->external_strings_cage()
+        ->GetAllocator<CharT>();
+#else   // V8_ENABLE_MEMORY_CORRUPTION_API
+    return Allocator();
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+  }
+
+  std::vector<CharT, Allocator> storage_;
 };
 
 using SimpleOneByteStringResource =
@@ -123,17 +143,16 @@ void ExternalizeStringExtension::Externalize(
   }
   uint32_t length = string->length();
   if (externalize_as_one_byte) {
-    uint8_t* data = new uint8_t[length];
-    String::WriteToFlat(*string, data, 0, length);
     SimpleOneByteStringResource* resource =
-        new SimpleOneByteStringResource(reinterpret_cast<char*>(data), length);
+        new SimpleOneByteStringResource(length);
+    String::WriteToFlat(*string, reinterpret_cast<uint8_t*>(resource->data()),
+                        0, length);
     result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   } else {
-    base::uc16* data = new base::uc16[length];
-    String::WriteToFlat(*string, data, 0, length);
     SimpleTwoByteStringResource* resource =
-        new SimpleTwoByteStringResource(data, length);
+        new SimpleTwoByteStringResource(length);
+    String::WriteToFlat(*string, resource->data(), 0, length);
     result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   }

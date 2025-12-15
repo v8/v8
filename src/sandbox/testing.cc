@@ -10,6 +10,7 @@
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
+#include "src/extensions/externalize-string-extension.h"
 #include "src/heap/factory.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/instance-type.h"
@@ -48,6 +49,8 @@ SandboxTesting::Mode SandboxTesting::mode_ = SandboxTesting::Mode::kDisabled;
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {
+
+base::AddressRegion g_external_strings_cage_region;
 
 // Sandbox.base
 void SandboxGetBase(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -684,6 +687,15 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   Handle<String> name =
       isolate->factory()->NewStringFromAsciiChecked("Sandbox");
   JSObject::AddProperty(isolate, global, name, sandbox, DONT_ENUM);
+
+  // Remember the address range belonging to the external strings cage, to be
+  // used for crash filters.
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  g_external_strings_cage_region =
+      i_isolate->isolate_group()->external_strings_cage()->reservation_region();
+  fprintf(stderr, "External strings cage bounds: [%p,%p)\n",
+          reinterpret_cast<void*>(g_external_strings_cage_region.begin()),
+          reinterpret_cast<void*>(g_external_strings_cage_region.end()));
 }
 
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
@@ -741,6 +753,19 @@ void UninstallCrashFilter() {
 #ifdef V8_USE_ANY_SANITIZER
   __sanitizer_set_death_callback(nullptr);
 #endif  // V8_USE_ANY_SANITIZER
+}
+
+bool IsNonWriteCrash(void* context) {
+#ifdef V8_HOST_ARCH_X64
+  ucontext_t* ctx = reinterpret_cast<ucontext_t*>(context);
+  // Matches X86_PF_WRITE in x86_pf_error_code.
+  static constexpr greg_t kWriteAccessBit = 1;
+  const bool write_access =
+      ctx->uc_mcontext.gregs[REG_ERR] & (1 << kWriteAccessBit);
+  return !write_access;
+#else   // V8_HOST_ARCH_X64
+  return false;  // we don't know for sure
+#endif  // V8_HOST_ARCH_X64
 }
 
 void CrashFilter(int signal, siginfo_t* info, void* context) {
@@ -868,6 +893,15 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
         "violation). Exiting process...\n");
   }
 
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  if (g_external_strings_cage_region.contains(faultaddr) &&
+      IsNonWriteCrash(context)) {
+    FilterCrash(
+        "Caught harmless ASan fault (read access inside external strings "
+        "cage). Exiting process ...\n");
+  }
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+
   // Otherwise it's a sandbox violation, so restore the original signal
   // handlers, then return from this handler. The faulting instruction will be
   // re-executed and will again trigger the access violation, but now the
@@ -876,18 +910,11 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
 
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
 
-#ifdef V8_HOST_ARCH_X64
-  ucontext_t* ctx = reinterpret_cast<ucontext_t*>(context);
-  // Matches X86_PF_WRITE in x86_pf_error_code.
-  static constexpr greg_t kWriteAccessBit = 1;
-  const bool write_access =
-      ctx->uc_mcontext.gregs[REG_ERR] & (1 << kWriteAccessBit);
-  if (!write_access) {
+  if (IsNonWriteCrash(context)) {
     PrintToStderr(
         "The sandbox violation was a *read* access which is technically not a "
         "sandbox violation. This requires manual investigation.\n");
   }
-#endif  // V8_HOST_ARCH_X64
 }
 
 #ifdef V8_USE_ANY_SANITIZER
@@ -907,6 +934,15 @@ void SanitizerFaultHandler() {
           "Caught harmless ASan fault (inside sandbox address space). Exiting "
           "process...\n");
     }
+
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+    if (g_external_strings_cage_region.contains(faultaddr) &&
+        __asan_get_report_access_type() == 0 /* READ */) {
+      FilterCrash(
+          "Caught harmless ASan fault (read access inside external strings "
+          "cage). Exiting process ...\n");
+    }
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
   }
 #endif  // V8_USE_ADDRESS_SANITIZER
 
