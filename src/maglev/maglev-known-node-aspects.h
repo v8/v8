@@ -701,6 +701,8 @@ class KnownNodeAspects {
     }
   }
 
+  void PrintLoadedProperties();
+
   explicit KnownNodeAspects(Zone* zone)
       : loaded_constant_properties_(zone),
         loaded_properties_(zone),

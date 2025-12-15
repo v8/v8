@@ -495,6 +495,32 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
   return aliased_slots_;
 }
 
+void KnownNodeAspects::PrintLoadedProperties() {
+  std::cout << "Constant properties:\n";
+  for (auto [key, map] : loaded_constant_properties_) {
+    std::cout << "  - " << key << ": { ";
+    bool is_first = true;
+    for (auto [object, value] : map) {
+      if (!is_first) std::cout << ", ";
+      is_first = false;
+      std::cout << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
+    }
+    std::cout << " }\n";
+  }
+
+  std::cout << "Non-constant properties:\n";
+  for (auto [key, map] : loaded_properties_) {
+    std::cout << "  - " << key << ": { ";
+    bool is_first = true;
+    for (auto [object, value] : map) {
+      if (!is_first) std::cout << ", ";
+      is_first = false;
+      std::cout << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
+    }
+    std::cout << " }\n";
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

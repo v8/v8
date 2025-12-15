@@ -16726,6 +16726,7 @@ BasicBlock* MaglevGraphBuilder::CreateEdgeSplitBlock(
                   is_tracing_enabled())) {
     std::cout << "== New empty block ==" << std::endl;
     PrintVirtualObjects();
+    known_node_aspects().PrintLoadedProperties();
   }
   DCHECK_NULL(current_block());
   set_current_block(zone()->New<BasicBlock>(nullptr, zone()));
@@ -16981,6 +16982,7 @@ ReduceResult MaglevGraphBuilder::VisitSingleBytecode() {
                 << compilation_unit()->shared_function_info().object()
                 << "==" << std::endl;
       PrintVirtualObjects();
+      known_node_aspects().PrintLoadedProperties();
     }
 
     if (V8_UNLIKELY(merge_state->is_exception_handler())) {
@@ -17622,6 +17624,7 @@ void MaglevGraphBuilder::StartFallthroughBlock(int next_block_offset,
                 << *compilation_unit_->shared_function_info().object()
                 << "==" << std::endl;
       PrintVirtualObjects();
+      known_node_aspects().PrintLoadedProperties();
     }
     StartNewBlock(next_block_offset, predecessor);
   } else {
