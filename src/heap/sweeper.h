@@ -351,10 +351,13 @@ bool Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIterationImpl(
   // Check again that iteration is not yet finished.
   if (!sweeper_->IsIteratingPromotedPages()) return true;
   if (should_yield_callback()) {
+    TRACE_GC_NOTE(
+        "Sweeper::ContributeAndWaitForPromotedPagesIteration Preempted");
     return false;
   }
   sweeper_->promoted_pages_iteration_notification_variable_.Wait(
       &sweeper_->promoted_pages_iteration_notification_mutex_);
+  TRACE_GC_NOTE("Sweeper::ContributeAndWaitForPromotedPagesIteration Finished");
   return true;
 }
 
@@ -363,9 +366,13 @@ bool Sweeper::LocalSweeper::ParallelIteratePromotedPagesImpl(
     ShouldYieldCallback should_yield_callback) {
   while (!should_yield_callback()) {
     MutablePageMetadata* chunk = sweeper_->GetPromotedPageSafe();
-    if (chunk == nullptr) return true;
+    if (chunk == nullptr) {
+      TRACE_GC_NOTE("Sweeper::ParallelIteratePromotedPages Finished");
+      return true;
+    }
     ParallelIteratePromotedPage(chunk);
   }
+  TRACE_GC_NOTE("Sweeper::ParallelIteratePromotedPages Preempted");
   return false;
 }
 

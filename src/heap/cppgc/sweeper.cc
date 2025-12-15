@@ -817,10 +817,12 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
     while (auto page = state.unswept_pages.Pop()) {
       Traverse(**page);
       if (delegate->ShouldYield()) {
+        StatsCollector::Note("Sweeping preempted");
         return false;
       }
     }
     current_sweeping_state_ = nullptr;
+    StatsCollector::Note("Sweeping finished");
     return true;
   }
 

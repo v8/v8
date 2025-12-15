@@ -473,6 +473,10 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       }
     }
 
+    if (done) {
+      TRACE_GC_NOTE("ConcurrentMarking::RunMajor Finished");
+    }
+
     CHECK(local_weak_objects.current_ephemerons_local.IsLocalEmpty());
 
     local_marking_worklists.Publish();
@@ -565,6 +569,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
       }
     }
   } while (remembered_sets.ProcessNextItem(&visitor));
+  TRACE_GC_NOTE("ConcurrentMarking::RunMinor Finished");
   if (minor_marking_state_->MarkerDone()) {
     // This is the last active marker and it ran out of work. Request GC
     // finalization.
