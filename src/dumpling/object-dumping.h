@@ -13,6 +13,8 @@ namespace v8::internal {
 
 void DifferentialFuzzingPrint(Tagged<Object> obj, std::ostream& os);
 
+void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, std::ostream& os);
+
 }  // namespace v8::internal
 
 #endif  // V8_DUMPLING_OBJECT_DUMPING_H_
