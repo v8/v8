@@ -5224,6 +5224,9 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionFeedbackCell(
   if (auto fast_closure = closure->TryCast<FastCreateClosure>()) {
     return GetConstant(fast_closure->feedback_cell());
   }
+  if (auto slow_closure = closure->TryCast<CreateClosure>()) {
+    return GetConstant(slow_closure->feedback_cell());
+  }
   return BuildLoadTaggedField(closure, JSFunction::kFeedbackCellOffset);
 }
 
@@ -5232,6 +5235,12 @@ ReduceResult MaglevGraphBuilder::BuildLoadJSFunctionContext(
   DCHECK(NodeTypeIs(GetType(closure), NodeType::kJSFunction));
   if (auto constant = TryGetConstant<JSFunction>(closure)) {
     return GetConstant(constant->context(broker()));
+  }
+  if (auto fast_closure = closure->TryCast<FastCreateClosure>()) {
+    return fast_closure->ContextInput().node();
+  }
+  if (auto slow_closure = closure->TryCast<CreateClosure>()) {
+    return slow_closure->ContextInput().node();
   }
   return BuildLoadTaggedField(closure, JSFunction::kContextOffset,
                               LoadType::kContext);

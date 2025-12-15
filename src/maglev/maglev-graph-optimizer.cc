@@ -1228,6 +1228,17 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
     if (auto input = node->input_node(0)->TryCast<FastCreateClosure>()) {
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
     }
+    if (auto input = node->input_node(0)->TryCast<CreateClosure>()) {
+      return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
+    }
+  }
+  if (node->offset() == JSFunction::kContextOffset) {
+    if (auto input = node->input_node(0)->TryCast<FastCreateClosure>()) {
+      return ReplaceWith(input->ContextInput().node());
+    }
+    if (auto input = node->input_node(0)->TryCast<CreateClosure>()) {
+      return ReplaceWith(input->ContextInput().node());
+    }
   }
   if (!node->property_key().is_none()) {
     REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
