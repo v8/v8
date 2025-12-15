@@ -189,6 +189,15 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_fuzzilli_imports_compile_rel",
+    cq_properties = CQ.OPTIONAL,
+    cq_branch_properties = CQ.OPTIONAL,
+    executable = "recipe:v8/compilator",
+    properties = {"default_targets": ["d8"]},
+    dimensions = {"os": "Ubuntu-22.04"},
+)
+
+try_builder(
     name = "v8_linux64_shared_compile_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
