@@ -455,6 +455,7 @@ void ArrayBufferSweeper::SweepingState::SweepingJob::Sweep(
       break;
   }
   if (is_finished) {
+    TRACE_GC_NOTE("ArrayBufferSweeper Finished");
     state_.SetDone();
   } else {
     TRACE_GC_NOTE("ArrayBufferSweeper Preempted");
