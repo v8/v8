@@ -435,8 +435,9 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
                                                   CanonicalTypeIndex id) {
   if (!id.valid()) return;
   Heap* heap = isolate->heap();
-  // {2 * (id + 1)} needs to fit in an int.
-  CHECK_LE(id.index, kMaxInt / 2 - 1);
+  // This invocation's {id} may be the next invocation's {old_length}, and
+  // the {old_length * 3} computation below must not overflow.
+  static_assert(kMaxCanonicalTypes <= kMaxInt / 3 - 1);
   // Canonical types are zero-indexed.
   const int length = id.index + 1;
   // The fast path is non-handlified.
