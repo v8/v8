@@ -8573,13 +8573,10 @@ VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
   }
 #endif  // DEBUG
 
-  // Initialize.
-  // TODO(jgruber): We may want to initialize with some invalid value instead
-  // (nullptr?) since callers should fully initialize objects.
-  ForEachSlot([&](ValueNode*& node, vobj::Field desc) -> bool {
-    set_by_index(desc.slot_index, InitialFieldValue(builder, desc.type));
-    return true;
-  });
+  // Initialize to nullptr; we check against this in BuildInlinedAllocation to
+  // verify that all slots have been initialized by the caller.
+  static_assert(kUninitializedSlotValue == nullptr);
+  memset(slots_.data(), 0, slot_count * sizeof(slots_[0]));
 }
 
 compiler::MapRef VirtualObject::map_from_slot(
@@ -8594,27 +8591,6 @@ compiler::OptionalMapRef VirtualObject::TryGetMapFromSlot(
       get(HeapObject::kMapOffset)->TryGetConstant(broker);
   if (!maybe_constant.has_value()) return {};
   return maybe_constant->AsMap();
-}
-
-// static
-ValueNode* VirtualObject::InitialFieldValue(MaglevGraphBuilder* builder,
-                                            vobj::FieldType type) {
-  switch (type) {
-    case vobj::FieldType::kTagged:
-      return builder->GetRootConstant(RootIndex::kOnePointerFillerMap);
-    case vobj::FieldType::kTrustedPointer:
-#ifdef V8_ENABLE_SANDBOX
-      return builder->GetUint32Constant(kNullTrustedPointerHandle);
-#else
-      return builder->GetSmiConstant(0);
-#endif
-    case vobj::FieldType::kInt32:
-      return builder->GetInt32Constant(0);
-    case vobj::FieldType::kFloat64:
-      return builder->GetFloat64Constant(0.);
-    case vobj::FieldType::kNone:
-      UNREACHABLE();
-  }
 }
 
 }  // namespace maglev

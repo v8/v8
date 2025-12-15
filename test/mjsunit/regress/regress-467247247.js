@@ -4,24 +4,14 @@
 //
 // Flags: --allow-natives-syntax
 
-class C extends Object {
-  constructor() {
-    for (let i = 0; i < 5; i++) {
-      if (!i) {
-        super();
-      }
-    }
-  }
-}
+class C extends Object { constructor() { super(); } }
 function opt_me() {
   return Reflect.construct(C, [], WeakMap);
 }
 
+%PrepareFunctionForOptimization(C.prototype.constructor);
 opt_me();
-opt_me();
-opt_me();
-opt_me();
-opt_me();
+%OptimizeMaglevOnNextCall(C.prototype.constructor);
 let obj = opt_me();
 
 assertThrows(() => obj.set({}, 123), TypeError);

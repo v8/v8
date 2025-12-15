@@ -14063,13 +14063,13 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     index++;
   }
 
-  // Fill slack at the end of the boilerplate object with filler maps.
+  // Fill inobject_properties with undefined.
   for (; index < inobject_properties; ++index) {
     DCHECK(!V8_MAP_PACKING_BOOL);
     // TODO(wenyuzhao): Fix incorrect MachineType when V8_MAP_PACKING is
     // enabled.
     int offset = boilerplate_map.GetInObjectPropertyOffset(index);
-    fast_literal->set(offset, GetRootConstant(RootIndex::kOnePointerFillerMap));
+    fast_literal->set(offset, GetRootConstant(RootIndex::kUndefinedValue));
   }
 
   DCHECK_EQ(JSObject::kElementsOffset, JSArray::kElementsOffset);
@@ -14191,6 +14191,15 @@ VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
             GetRootConstant(RootIndex::kEmptyFixedArray));
   vobj->set(JSObject::kElementsOffset,
             GetRootConstant(RootIndex::kEmptyFixedArray));
+
+  // Initialize all in-object property slots to undefined.
+  if (map.GetInObjectProperties() > 0) {
+    ValueNode* undefined = GetRootConstant(RootIndex::kUndefinedValue);
+    for (int i = 0; i < map.GetInObjectProperties(); i++) {
+      vobj->set(map.GetInObjectPropertyOffset(i), undefined);
+    }
+  }
+
   return vobj;
 }
 
@@ -14270,6 +14279,12 @@ VirtualObject* MaglevGraphBuilder::CreateJSConstructor(
             GetRootConstant(RootIndex::kEmptyFixedArray));
   vobj->set(JSObject::kElementsOffset,
             GetRootConstant(RootIndex::kEmptyFixedArray));
+  if (prediction.inobject_property_count() != 0) {
+    ValueNode* undefined = GetRootConstant(RootIndex::kUndefinedValue);
+    for (int i = 0; i < prediction.inobject_property_count(); i++) {
+      vobj->set(map.GetInObjectPropertyOffset(i), undefined);
+    }
+  }
   return vobj;
 }
 
@@ -14565,6 +14580,7 @@ ReduceResult MaglevGraphBuilder::BuildInlinedAllocation(
   SmallZoneVector<ValueAndDesc, 8> values(zone());
   bool result =
       vobject->ForEachSlot([&](ValueNode* node, vobj::Field desc) -> bool {
+        CHECK_NE(node, VirtualObject::kUninitializedSlotValue);
         if (node->Is<VirtualObject>()) {
           VirtualObject* nested = node->Cast<VirtualObject>();
           ReduceResult result = BuildInlinedAllocation(nested, allocation_type);

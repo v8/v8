@@ -6091,6 +6091,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     return vobj::Field{i, offset, object_layout_->body_field_type};
   }
 
+  static constexpr ValueNode* kUninitializedSlotValue = nullptr;
+
  private:
   friend class NodeBase;  // For this ctor:
   explicit VirtualObject(uint64_t bitfield, compiler::OptionalMapRef map,
@@ -6112,9 +6114,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     SBXCHECK_LT(i, slot_count());
     slots_[i] = value;
   }
-
-  static ValueNode* InitialFieldValue(MaglevGraphBuilder* builder,
-                                      vobj::FieldType type);
 
   // If set, duplicates the map constant stored in slots_.
   // TODO(jgruber): Consider removing this; note removal is slightly
