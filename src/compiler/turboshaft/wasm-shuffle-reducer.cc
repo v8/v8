@@ -172,6 +172,8 @@ void DemandedElementAnalysis::Revisit() {
       }
     }
   }
+  to_revisit_.clear();
+  revisit_limit_reached_ = false;
 }
 
 void WasmShuffleAnalyzer::Run() {

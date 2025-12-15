@@ -47,7 +47,7 @@ class DemandedElementAnalysis {
   static constexpr uint16_t k8x4Low = 0xF;
   static constexpr uint16_t k8x2Low = 0x3;
   static constexpr uint16_t k8x1Low = 0x1;
-  static constexpr int kMaxNumOperations = 50;
+  static constexpr int kMaxNumOperations = 150;
 
   // TODO(sparker): Add floating-point conversions:
   // - PromoteLow
