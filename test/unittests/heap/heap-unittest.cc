@@ -1364,90 +1364,6 @@ TEST_F(HeapTest,
       [this](Tagged<String> object) { InvokeMajorGC(); });
 }
 
-namespace {
-using v8::CrashKey;
-using v8::CrashKeySize;
-using v8::OOMDetails;
-
-class CrashKeyStore {
- public:
-  explicit CrashKeyStore(Isolate* isolate) : isolate_(isolate) {
-    InstallCallbacks();
-  }
-
-  CrashKeyStore(const CrashKeyStore&) = delete;
-  CrashKeyStore& operator=(const CrashKeyStore&) = delete;
-
-  ~CrashKeyStore() { isolate_->SetCrashKeyStringCallbacks({}, {}); }
-
-  const std::string& ValueForKey(const std::string& name) const {
-    auto it = entries_.find(name);
-    CHECK(it != entries_.end());
-    CHECK_NOT_NULL(it->second.get());
-    return it->second->value;
-  }
-
-  bool HasKey(const std::string& name) const {
-    return entries_.find(name) != entries_.end();
-  }
-
-  size_t size() const { return entries_.size(); }
-
-  std::unordered_set<std::string> KeyNames() const {
-    std::unordered_set<std::string> names;
-    names.reserve(entries_.size());
-    for (const auto& [name, unused] : entries_) {
-      static_cast<void>(unused);
-      names.insert(name);
-    }
-    return names;
-  }
-
- private:
-  struct Entry {
-    CrashKeySize size;
-    std::string value;
-  };
-
-  void InstallCallbacks() {
-    isolate_->SetCrashKeyStringCallbacks(
-        [this](const char key[], CrashKeySize size) {
-          return AllocateKey(key, size);
-        },
-        [this](CrashKey crash_key, const std::string_view value) {
-          SetValue(crash_key, value);
-        });
-  }
-
-  CrashKey AllocateKey(const char key[], CrashKeySize size) {
-    auto [it, inserted] = entries_.emplace(key, nullptr);
-    if (inserted || it->second == nullptr) {
-      it->second = std::make_unique<Entry>();
-    }
-    Entry* entry_ptr = it->second.get();
-    entry_ptr->size = size;
-    entry_ptr->value.clear();
-    return static_cast<CrashKey>(entry_ptr);
-  }
-
-  void SetValue(CrashKey crash_key, const std::string_view value) {
-    auto* entry = static_cast<Entry*>(crash_key);
-    bool found = false;
-    for (const auto& [name, entry_holder] : entries_) {
-      if (entry_holder.get() == entry) {
-        found = true;
-        break;
-      }
-    }
-    CHECK(found);
-    entry->value.assign(value.begin(), value.end());
-  }
-
-  Isolate* isolate_;
-  std::unordered_map<std::string, std::unique_ptr<Entry>> entries_;
-};
-}  // anonymous namespace
-
 TEST_F(HeapTest, ReportStatsAsCrashKeys) {
   CrashKeyStore crash_key_store(i_isolate());
 
@@ -1616,11 +1532,11 @@ CrashKeyStore* g_crash_key_store_for_oom = nullptr;
 
 void FatalMemoryErrorCallbackForTest(const char* location,
                                      const OOMDetails& details) {
-  static_cast<void>(location);
-  static_cast<void>(details);
   CHECK_NOT_NULL(g_crash_key_store_for_oom);
-  CHECK_GT(g_crash_key_store_for_oom->size(), 0u);
-  g_crash_key_store_for_oom = nullptr;
+  // Update this number when adding/removing crash keys.
+  CHECK_EQ(g_crash_key_store_for_oom->size(), 41u);
+  CHECK(g_crash_key_store_for_oom->HasKey("v8-oom-stack"));
+  base::OS::PrintError("Reached end of test.\n");
   std::abort();
 }
 }  // anonymous namespace
@@ -1628,12 +1544,10 @@ void FatalMemoryErrorCallbackForTest(const char* location,
 TEST_F(HeapTest, CheckCrashKeysAreReportedInOOM) {
   CrashKeyStore crash_key_store(i_isolate());
   g_crash_key_store_for_oom = &crash_key_store;
+  v8_isolate()->SetOOMErrorHandler(FatalMemoryErrorCallbackForTest);
   EXPECT_DEATH_IF_SUPPORTED(
-      {
-        v8::V8::SetFatalMemoryErrorCallback(FatalMemoryErrorCallbackForTest);
-        heap()->FatalProcessOutOfMemory("CheckCrashKeysAreReportedInOOM");
-      },
-      "");
+      { heap()->FatalProcessOutOfMemory("CheckCrashKeysAreReportedInOOM"); },
+      "Reached end of test.");
 }
 
 }  // namespace internal

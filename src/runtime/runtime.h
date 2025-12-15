@@ -564,6 +564,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(DebugPrintPtr, 1, 1)                                                 \
   F(DebugPrintWord, 5, 1)                                                \
   F(DebugTrace, 0, 1)                                                    \
+  F(DebugTraceMinimal, 0, 1)                                             \
   F(DeoptimizeFunction, 1, 1)                                            \
   F(DisableOptimizationFinalization, 0, 1)                               \
   F(DisallowCodegenFromStrings, 1, 1)                                    \

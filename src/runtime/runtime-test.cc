@@ -1529,6 +1529,12 @@ RUNTIME_FUNCTION(Runtime_DebugTrace) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugTraceMinimal) {
+  SealHandleScope shs(isolate);
+  isolate->PrintMinimalStack(stdout);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 // This will not allocate (flatten the string), but it may run
 // very slowly for very deeply nested ConsStrings.  For debugging use only.
 RUNTIME_FUNCTION(Runtime_GlobalPrint) {

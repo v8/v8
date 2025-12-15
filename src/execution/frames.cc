@@ -2798,11 +2798,10 @@ void FrameSummary::JavaScriptFrameSummary::EnsureSourcePositionsAvailable() {
 }
 
 bool FrameSummary::JavaScriptFrameSummary::AreSourcePositionsAvailable() const {
-  return !v8_flags.enable_lazy_source_positions ||
-         function()
-             ->shared()
-             ->GetBytecodeArray(isolate())
-             ->HasSourcePositionTable();
+  if (!v8_flags.enable_lazy_source_positions) return true;
+  Tagged<SharedFunctionInfo> sfi = function()->shared();
+  return sfi->HasBytecodeArray() &&
+         sfi->GetBytecodeArray(isolate())->HasSourcePositionTable();
 }
 
 bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {

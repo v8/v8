@@ -103,6 +103,7 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
@@ -1834,6 +1835,108 @@ void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
     accumulator->PrintMentionedObjectCache(this);
   }
   accumulator->Add("=====================\n\n");
+}
+
+namespace {
+
+class MinimalStackPrinter {
+ public:
+  MinimalStackPrinter() = default;
+
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
+  bool Visit(FrameSummary& summary) {
+    if (summary.IsJavaScript()) {
+      const FrameSummary::JavaScriptFrameSummary& js_summary =
+          summary.AsJavaScript();
+      Tagged<String> name = js_summary.function()->shared()->Name();
+      if (name->length() == 0) {
+        out_ << "<none>";
+      } else {
+        Append(name);
+      }
+
+      PrintScript(js_summary.script());
+
+      if (js_summary.AreSourcePositionsAvailable()) {
+        int offset = summary.AsJavaScript().SourcePosition();
+        out_ << ":" << offset;
+      }
+
+      out_ << "\n";
+#if V8_ENABLE_WEBASSEMBLY
+    } else if (summary.IsWasm()) {
+      const FrameSummary::WasmFrameSummary& wasm_summary = summary.AsWasm();
+      PrintWasmFrame(wasm_summary.function_index(), wasm_summary.script(),
+                     wasm_summary.SourcePosition());
+    } else if (summary.IsWasmInlined()) {
+      const FrameSummary::WasmInlinedFrameSummary& wasm_inlined_summary =
+          summary.AsWasmInlined();
+      PrintWasmFrame(wasm_inlined_summary.function_index(),
+                     wasm_inlined_summary.script(),
+                     wasm_inlined_summary.SourcePosition());
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
+
+    return true;
+  }
+
+  void PrintWasmFrame(int function_index, Handle<Object> script,
+                      int source_position) {
+    out_ << "wasm[" << function_index << "]";
+
+    PrintScript(script);
+
+    out_ << ":" << source_position;
+    out_ << "\n";
+  }
+
+  void PrintScript(Handle<Object> script) {
+    if (IsScript(*script)) {
+      Tagged<Object> name_or_url = Cast<Script>(script)->GetNameOrSourceURL();
+      if (IsString(name_or_url)) {
+        out_ << " in ";
+        Append(Cast<String>(name_or_url));
+      }
+    }
+  }
+
+  void Append(Tagged<String> value) {
+    auto buffer = value->ToCString();
+    out_ << buffer.get();
+  }
+
+  std::string Build() { return out_.str(); }
+
+ private:
+  std::stringstream out_;
+};
+
+}  // namespace
+
+std::string Isolate::BuildMinimalStack() {
+  DisallowGarbageCollection no_gc;
+  HandleScope scope(this);
+
+  MinimalStackPrinter printer;
+  VisitStack(this, &printer);
+  return printer.Build();
+}
+
+void Isolate::PrintMinimalStack(FILE* out) {
+  std::string stack = BuildMinimalStack();
+  std::fputs(stack.c_str(), out);
+}
+
+void Isolate::ReportStackAsCrashKey() {
+  if (!HasCrashKeyStringCallbacks()) {
+    return;
+  }
+
+  std::string stack = BuildMinimalStack();
+  AddCrashKeyString("v8-oom-stack", CrashKeySize::Size1024, stack);
 }
 
 void Isolate::SetFailedAccessCheckCallback(

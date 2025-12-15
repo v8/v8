@@ -951,6 +951,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void PrintStack(StringStream* accumulator,
                   PrintStackMode mode = kPrintStackVerbose);
   void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);
+
+  // Prints minimal stack trace without allocating on the V8 heap (native
+  // allocations are allowed). Used for printing the JS stack on OOM errors.
+  void PrintMinimalStack(FILE* out);
+  std::string BuildMinimalStack();
+
+  // Reports the minimal stack trace as a crash key. Used for OOM errors.
+  void ReportStackAsCrashKey();
+
   DirectHandle<String> StackTraceString();
   // Stores a stack trace in a stack-allocated temporary buffer which will
   // end up in the minidump for debugging purposes.
