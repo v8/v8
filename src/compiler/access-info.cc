@@ -1378,14 +1378,17 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessorInHolder(
           TryCast<JSFunction>(maybe_getter, &getter)) {
         if (getter->shared()->HasBuiltinId() &&
             getter->shared()->builtin_id() ==
-                Builtin::kTypedArrayPrototypeLength &&
-            broker_->dependencies()->DependOnArrayBufferDetachingProtector()) {
-          dependencies()->DependOnStablePrototypeChain(
-              receiver_map, kStartAtPrototype, holder);
-          // TODO(388844115): If we cannot depend on the detaching protector,
-          // add a different kind of TypedArrayLength operator which checks for
-          // detached before reading the byte_length.
-          return PropertyAccessInfo::TypedArrayLength(zone(), receiver_map);
+                Builtin::kTypedArrayPrototypeLength) {
+          if (v8_flags.turbolev ||
+              broker_->dependencies()
+                  ->DependOnArrayBufferDetachingProtector()) {
+            // Maglev and Turbolev will add the ArrayBufferDetachingProtector
+            // dependency themselves and handle the case where they cannot do
+            // so. Turbofan doesn't.
+            dependencies()->DependOnStablePrototypeChain(
+                receiver_map, kStartAtPrototype, holder);
+            return PropertyAccessInfo::TypedArrayLength(zone(), receiver_map);
+          }
         }
       }
     }

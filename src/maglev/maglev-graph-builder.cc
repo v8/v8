@@ -5427,6 +5427,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
         // instead of implementing special handling for it.
         return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
       }
+      if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+        RETURN_IF_ABORT(AddNewNode<CheckTypedArrayValid>(
+            {lookup_start_object}, TypedArrayAccessMode::kRead));
+      }
       return BuildLoadTypedArrayLength(lookup_start_object,
                                        access_info.elements_kind());
     }
