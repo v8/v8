@@ -5,6 +5,7 @@
 #include "src/wasm/canonical-types.h"
 
 #include "src/base/hashing.h"
+#include "src/base/string-format.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
@@ -38,7 +39,11 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
   // Compute the first canonical index in the recgroup in the case that it does
   // not already exist.
   if (V8_UNLIKELY(size > kMaxCanonicalTypes - canonical_supertypes_.size())) {
-    V8::FatalProcessOutOfMemory(nullptr, "too many canonicalized types");
+    auto oom_detail = base::FormattedString{}
+                      << "Previously: " << canonical_supertypes_.size()
+                      << ", adding: " << size;
+    V8::FatalProcessOutOfMemory(nullptr, "too many canonicalized types",
+                                {.detail = oom_detail.PrintToArray().data()});
   }
   CanonicalTypeIndex first_new_canonical_index{
       static_cast<uint32_t>(canonical_supertypes_.size())};
@@ -96,7 +101,11 @@ void TypeCanonicalizer::AddRecursiveSingletonGroup(WasmModule* module) {
   uint32_t type_index = static_cast<uint32_t>(module->types.size() - 1);
   base::MutexGuard guard(&mutex_);
   if (V8_UNLIKELY(canonical_supertypes_.size() == kMaxCanonicalTypes)) {
-    V8::FatalProcessOutOfMemory(nullptr, "too many canonicalized types");
+    auto oom_detail = base::FormattedString{}
+                      << "Previously: " << canonical_supertypes_.size()
+                      << ", adding: 1 (singleton)";
+    V8::FatalProcessOutOfMemory(nullptr, "too many canonicalized types",
+                                {.detail = oom_detail.PrintToArray().data()});
   }
   CanonicalTypeIndex new_canonical_index{
       static_cast<uint32_t>(canonical_supertypes_.size())};
@@ -149,7 +158,11 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
                           CanonicalTypeIndex{kNoSuperType}, kFinal, kNotShared};
   base::MutexGuard guard(&mutex_);
   if (V8_UNLIKELY(canonical_supertypes_.size() == kMaxCanonicalTypes)) {
-    V8::FatalProcessOutOfMemory(nullptr, "too many canonicalized types");
+    auto oom_detail = base::FormattedString{}
+                      << "Previously: " << canonical_supertypes_.size()
+                      << ", adding: 1 (functionsig)";
+    V8::FatalProcessOutOfMemory(nullptr, "too many canonicalized types",
+                                {.detail = oom_detail.PrintToArray().data()});
   }
 
   // Fast path lookup before canonicalizing (== copying into the
