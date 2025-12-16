@@ -1490,6 +1490,7 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
                           &var_value, next_holder, if_bailout,
                           kExpectingJSReceiver);
         BIND(&if_found);
+        GotoIfLazyClosure(CAST(var_value.value()), if_bailout);
         Return(var_value.value());
       };
 

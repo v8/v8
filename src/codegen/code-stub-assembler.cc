@@ -8722,6 +8722,20 @@ void CodeStubAssembler::GotoIfLargeBigInt(TNode<BigInt> bigint,
   Bind(&false_label);
 }
 
+void CodeStubAssembler::GotoIfLazyClosure(
+    TNode<JSAnyOrSharedFunctionInfo> value, Label* if_true) {
+  Label not_lazy_closure(this);
+  TNode<Uint8T> has_lazy_closures =
+      Load<Uint8T>(IsolateField(IsolateFieldId::kHasLazyClosures));
+  GotoIfNot(has_lazy_closures, &not_lazy_closure);
+  GotoIf(TaggedIsSmi(value), &not_lazy_closure);
+
+  TNode<HeapObject> heap_object = CAST(value);
+  GotoIf(IsSharedFunctionInfo(heap_object), if_true);
+  Goto(&not_lazy_closure);
+  BIND(&not_lazy_closure);
+}
+
 TNode<BoolT> CodeStubAssembler::IsPrimitiveInstanceType(
     TNode<Int32T> instance_type) {
   return Int32LessThanOrEqual(instance_type,

@@ -630,6 +630,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // BigInt operations.
   void GotoIfLargeBigInt(TNode<BigInt> bigint, Label* true_label);
+  void GotoIfLazyClosure(TNode<JSAnyOrSharedFunctionInfo> value,
+                         Label* if_true);
 
   TNode<Word32T> NormalizeShift32OperandIfNecessary(TNode<Word32T> right32);
   TNode<Number> BitwiseOp(TNode<Word32T> left32, TNode<Word32T> right32,
