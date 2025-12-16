@@ -708,9 +708,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         "Parameter is only for tagged types. Use UncheckedParameter instead.");
     std::stringstream message;
     message << "Parameter " << value;
-    if (loc.FileName()) {
-      message << " at " << loc.FileName() << ":" << loc.Line();
-    }
+    if (loc) message << " at " << loc.FileName() << ":" << loc.Line();
     size_t buf_size = message.str().size() + 1;
     char* message_dup = zone()->AllocateArray<char>(buf_size);
     snprintf(message_dup, buf_size, "%s", message.str().c_str());
@@ -769,9 +767,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     if (!v8_flags.code_comments) return;
     std::ostringstream s;
     USE(s << message.message, (s << std::forward<Args>(args))...);
-    if (message.loc.FileName()) {
-      s << " - " << message.loc.ToString();
-    }
+    if (message.loc) s << " - " << message.loc.ToString();
     EmitComment(std::move(s).str());
   }
 

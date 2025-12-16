@@ -4614,9 +4614,7 @@ class AssemblerOpInterface : public Next {
     if (!v8_flags.code_comments) return;
     std::ostringstream s;
     USE(s << message.message, (s << std::forward<Args>(args))...);
-    if (message.loc.FileName()) {
-      s << " - " << message.loc.ToString();
-    }
+    if (message.loc) s << " - " << message.loc.ToString();
     Comment(std::move(s).str());
   }
 

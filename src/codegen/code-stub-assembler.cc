@@ -156,7 +156,7 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
 
   BIND(&not_ok);
   std::vector<FileAndLine> file_and_line = GetMacroSourcePositionStack();
-  if (loc.FileName()) {
+  if (loc) {
     file_and_line.push_back({loc.FileName(), static_cast<size_t>(loc.Line())});
   }
   FailAssert(message, file_and_line, extra_nodes);
