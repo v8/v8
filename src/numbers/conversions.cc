@@ -1540,7 +1540,7 @@ std::optional<double> TryStringToDouble(LocalIsolate* isolate,
   }
 
   auto buffer = std::make_unique<base::uc16[]>(max_length_for_conversion);
-  SharedStringAccessGuardIfNeeded access_guard(isolate, *object);
+  SharedStringAccessGuardIfNeeded access_guard(isolate);
   String::WriteToFlat(*object, buffer.get(), 0, length, access_guard);
   base::Vector<const base::uc16> v(buffer.get(), length);
   return StringToDouble(v, ALLOW_NON_DECIMAL_PREFIX);
@@ -1557,13 +1557,13 @@ std::optional<double> TryStringToInt(LocalIsolate* isolate,
 
   if (String::IsOneByteRepresentationUnderneath(*object)) {
     uint8_t buffer[kMaxLengthForConversion];
-    SharedStringAccessGuardIfNeeded access_guard(isolate, *object);
+    SharedStringAccessGuardIfNeeded access_guard(isolate);
     String::WriteToFlat(*object, buffer, 0, length, access_guard);
     NumberParseIntHelper helper(buffer, radix, length);
     return helper.GetResult();
   } else {
     base::uc16 buffer[kMaxLengthForConversion];
-    SharedStringAccessGuardIfNeeded access_guard(isolate, *object);
+    SharedStringAccessGuardIfNeeded access_guard(isolate);
     String::WriteToFlat(*object, buffer, 0, length, access_guard);
     NumberParseIntHelper helper(buffer, radix, length);
     return helper.GetResult();

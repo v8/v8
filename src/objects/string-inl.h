@@ -51,6 +51,14 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   // called from the main thread.
   explicit SharedStringAccessGuardIfNeeded(Isolate* isolate) {}
 
+  // Creates a MutexGuard for the string access if it was called
+  // from a background thread.
+  explicit SharedStringAccessGuardIfNeeded(LocalIsolate* local_isolate) {
+    if (IsNeeded(local_isolate)) {
+      mutex_guard.emplace(local_isolate->internalized_string_access());
+    }
+  }
+
   // Slow version which gets the isolate from the String.
   explicit SharedStringAccessGuardIfNeeded(Tagged<String> str) {
     Isolate* isolate = GetIsolateIfNeeded(str);
@@ -59,13 +67,9 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
     }
   }
 
-  // Creates a MutexGuard for the string access if it was called
-  // from a background thread and one of `strs` requires a mutex.
-  template <typename... Args>
-  SharedStringAccessGuardIfNeeded(LocalIsolate* local_isolate, Args... strs)
-    requires(std::is_convertible_v<Args, Tagged<String>> && ...)
-  {
-    if (IsNeeded(local_isolate) && (IsNeeded(strs, false) || ...)) {
+  SharedStringAccessGuardIfNeeded(Tagged<String> str,
+                                  LocalIsolate* local_isolate) {
+    if (IsNeeded(str, local_isolate)) {
       mutex_guard.emplace(local_isolate->internalized_string_access());
     }
   }
@@ -98,12 +102,6 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
       return false;
     }
 
-    if (str->IsShared()) {
-      // Don't acquire lock for shared strings. They can only be
-      // internalized/externalized during GC pauses.
-      return false;
-    }
-
     return true;
   }
 
@@ -126,7 +124,6 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
     if (!IsNeeded(str)) return nullptr;
 
     DCHECK(!ReadOnlyHeap::Contains(str));
-    DCHECK(!str->IsShared());
     Isolate* isolate = Isolate::Current();
     // For strings in the shared space we need the shared space isolate instead
     // of the current isolate.
@@ -733,7 +730,7 @@ bool String::IsEqualTo(base::Vector<const Char> str) const {
 template <String::EqualityType kEqType, typename Char>
 bool String::IsEqualTo(base::Vector<const Char> str,
                        LocalIsolate* isolate) const {
-  SharedStringAccessGuardIfNeeded access_guard(isolate, this);
+  SharedStringAccessGuardIfNeeded access_guard(isolate);
   return IsEqualToImpl<kEqType>(str, access_guard);
 }
 
@@ -1118,7 +1115,7 @@ uint16_t String::Get(uint32_t index, Isolate* isolate) const {
 }
 
 uint16_t String::Get(uint32_t index, LocalIsolate* local_isolate) const {
-  SharedStringAccessGuardIfNeeded scope(local_isolate, this);
+  SharedStringAccessGuardIfNeeded scope(local_isolate);
   return GetImpl(index, scope);
 }
 

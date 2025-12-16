@@ -1105,7 +1105,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (IsJSTypedArrayMap(*map.object()) && name.IsString()) {
       StringRef name_str = name.AsString();
       SharedStringAccessGuardIfNeeded access_guard(
-          broker()->local_isolate_or_isolate(), *name_str.object());
+          *name_str.object(), broker()->local_isolate_or_isolate());
       if (IsSpecialIndex(*name_str.object(), access_guard)) return Invalid();
     }
 

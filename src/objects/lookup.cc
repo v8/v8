@@ -1656,7 +1656,7 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
 
   uint16_t charcode;
   {
-    SharedStringAccessGuardIfNeeded access_guard(local_isolate, string);
+    SharedStringAccessGuardIfNeeded access_guard(local_isolate);
     charcode = string->Get(static_cast<int>(index), access_guard);
   }
 
