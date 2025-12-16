@@ -5479,7 +5479,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  compiler::HeapObjectRef object() { return object_; }
+  compiler::HeapObjectRef object() const { return object_; }
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister) const;
   DirectHandle<Object> DoReify(LocalIsolate* isolate) const;

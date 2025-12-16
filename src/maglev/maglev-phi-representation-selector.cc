@@ -534,6 +534,377 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
 
 }  // namespace
 
+#define TRACE_INPUT_LABEL \
+  "    @ Input " << input_index << " (" << PrintNodeLabel(input) << ")"
+
+void MaglevPhiRepresentationSelector::UntagInputWithHoistedUntagging(
+    Phi* phi, ValueRepresentation repr, int input_index, ValueNode* input,
+    HoistType hoist_type) {
+  CHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
+  BasicBlock* block;
+  auto GetDeoptFrame = [](BasicBlock* block) {
+    return &block->control_node()
+                ->Cast<CheckpointedJump>()
+                ->eager_deopt_info()
+                ->top_frame();
+  };
+  switch (hoist_type) {
+    case HoistType::kLoopEntryUnchecked:
+      block = phi->merge_state()->predecessor_at(input_index);
+      eager_deopt_frame_ = nullptr;
+      break;
+    case HoistType::kLoopEntry:
+      block = phi->merge_state()->predecessor_at(input_index);
+      eager_deopt_frame_ = GetDeoptFrame(block);
+      break;
+    case HoistType::kPrologue:
+      block = *graph_->begin();
+      eager_deopt_frame_ = GetDeoptFrame(block);
+      break;
+    case HoistType::kNone:
+      UNREACHABLE();
+  }
+  // Ensure the hoisted value is actually live at the hoist location.
+  CHECK(input->Is<InitialValue>() ||
+        (phi->is_loop_phi() && !phi->is_backedge_offset(input_index)));
+  ValueNode* untagged;
+  switch (repr) {
+    case ValueRepresentation::kInt32:
+      if (!eager_deopt_frame_) {
+        DCHECK(
+            NodeTypeIs(input->GetStaticType(graph_->broker()), NodeType::kSmi));
+        untagged = AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiUntag>(
+            block, {input});
+
+      } else {
+        untagged =
+            AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
+                block, {input});
+        untagged = AddNewNodeNoInputConversionAtBlockEnd<CheckedFloat64ToInt32>(
+            block, {untagged});
+      }
+      break;
+    case ValueRepresentation::kShiftedInt53:
+      if (!eager_deopt_frame_) {
+        DCHECK(
+            NodeTypeIs(input->GetStaticType(graph_->broker()), NodeType::kSmi));
+        untagged =
+            AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiTagShiftedInt53>(
+                block, {input});
+
+      } else {
+        untagged =
+            AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToShiftedInt53>(
+                block, {input});
+      }
+      break;
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64:
+      if (!eager_deopt_frame_) {
+        DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
+                          NodeType::kNumber));
+        untagged = AddNewNodeNoInputConversionAtBlockEnd<UnsafeNumberToFloat64>(
+            block, {input});
+      } else {
+        DCHECK(!phi->uses_require_31_bit_value());
+        untagged =
+            AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
+                block, {input});
+      }
+      if (repr == ValueRepresentation::kHoleyFloat64) {
+        untagged =
+            AddNewNodeNoInputConversionAtBlockEnd<ChangeFloat64ToHoleyFloat64>(
+                block, {untagged});
+      }
+      break;
+    case ValueRepresentation::kTagged:
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+  phi->change_input(input_index, untagged);
+}
+
+void MaglevPhiRepresentationSelector::UntagSmiConstantInput(
+    Phi* phi, ValueRepresentation repr, int input_index,
+    const SmiConstant* smi_constant) {
+  const ValueNode* input = smi_constant->Cast<ValueNode>();  // For easy tracing
+  switch (repr) {
+    case ValueRepresentation::kInt32:
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Making Int32 instead of Smi");
+      phi->change_input(
+          input_index, graph_->GetInt32Constant(smi_constant->value().value()));
+      break;
+    case ValueRepresentation::kShiftedInt53:
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                      << ": Making ShiftedInt53 instead of Smi");
+      phi->change_input(input_index,
+                        graph_->GetShiftedInt53Constant(
+                            ShiftedInt53(smi_constant->value().value())));
+      break;
+    case ValueRepresentation::kFloat64:
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Making Float64 instead of Smi");
+      phi->change_input(input_index, graph_->GetFloat64Constant(
+                                         smi_constant->value().value()));
+      break;
+    case ValueRepresentation::kHoleyFloat64:
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                      << ": Making HoleyFloat64 instead of Smi");
+      phi->change_input(
+          input_index,
+          graph_->GetHoleyFloat64Constant(
+              Float64{static_cast<double>(smi_constant->value().value())}));
+      break;
+    case ValueRepresentation::kUint32:
+      UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
+}
+
+void MaglevPhiRepresentationSelector::UntagConstantInput(
+    Phi* phi, ValueRepresentation repr, int input_index,
+    const Constant* constant) {
+  const ValueNode* input = constant->Cast<ValueNode>();  // For easy tracing
+  DCHECK(constant->object().IsHeapNumber());
+  if (repr == ValueRepresentation::kFloat64) {
+    TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                    << ": Making Float64 instead of Constant");
+    phi->change_input(
+        input_index,
+        graph_->GetFloat64Constant(constant->object().AsHeapNumber().value()));
+  } else if (repr == ValueRepresentation::kHoleyFloat64) {
+    TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                    << ": Making HoleyFloat64 instead of Constant");
+    Float64 f64 = Float64::FromBits(
+        base::double_to_uint64(constant->object().AsHeapNumber().value()));
+    // We need to silence hole and undefined patterns as their
+    // interpretation will now change.
+    if (f64.is_undefined_or_hole_nan()) f64 = f64.to_quiet_nan();
+    phi->change_input(input_index, graph_->GetHoleyFloat64Constant(f64));
+  } else if (repr == ValueRepresentation::kShiftedInt53) {
+    TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                    << ": Making ShiftedInt53 instead of Constant");
+    double value = constant->object().AsHeapNumber().value();
+    DCHECK(IsSafeInteger(value));
+    phi->change_input(input_index,
+                      graph_->GetShiftedInt53Constant(ShiftedInt53(value)));
+  } else {
+    TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Making Int32 instead of Constant");
+    DCHECK_EQ(repr, ValueRepresentation::kInt32);
+    double value = constant->object().AsHeapNumber().value();
+    DCHECK(IsInt32Double(value));
+    phi->change_input(input_index,
+                      graph_->GetInt32Constant(static_cast<int>(value)));
+  }
+}
+
+void MaglevPhiRepresentationSelector::UntagConversionInput(
+    Phi* phi, ValueRepresentation repr, int input_index, ValueNode* input) {
+  DCHECK(input->is_conversion() || input->Is<ReturnedValue>());
+  // Unwrapping the conversion.
+  DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
+  // Needs to insert a new conversion.
+  ValueNode* bypassed_input = input->input(0).node()->UnwrapIdentities();
+  ValueRepresentation from_repr = bypassed_input->value_representation();
+  ValueNode* new_input;
+  if (from_repr == repr) {
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    if (input->Is<HoleyFloat64ToTagged>()) {
+      DCHECK_EQ(from_repr, ValueRepresentation::kHoleyFloat64);
+      // HoleyFloat64ToTagged conversion does convert holes to undefined, so
+      // we need to preserve this behavior even if we eliminate that node.
+      new_input = GetReplacementForPhiInputConversion<
+          HoleyFloat64ConvertHoleToUndefined>(bypassed_input, phi, input_index);
+    } else {
+#endif
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
+      new_input = bypassed_input;
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    }
+#endif
+  } else {
+    Opcode conv_opcode =
+        GetOpcodeForConversion(from_repr, repr, /*truncating*/ false);
+    switch (conv_opcode) {
+      case Opcode::kChangeInt32ToFloat64: {
+        new_input = GetReplacementForPhiInputConversion<ChangeInt32ToFloat64>(
+            bypassed_input, phi, input_index);
+        break;
+      }
+      case Opcode::kChangeInt32ToHoleyFloat64: {
+        new_input =
+            GetReplacementForPhiInputConversion<ChangeInt32ToHoleyFloat64>(
+                bypassed_input, phi, input_index);
+        break;
+      }
+      case Opcode::kChangeShiftedInt53ToFloat64: {
+        new_input =
+            GetReplacementForPhiInputConversion<ChangeShiftedInt53ToFloat64>(
+                bypassed_input, phi, input_index);
+        break;
+      }
+      case Opcode::kChangeShiftedInt53ToHoleyFloat64: {
+        new_input = GetReplacementForPhiInputConversion<
+            ChangeShiftedInt53ToHoleyFloat64>(bypassed_input, phi, input_index);
+        break;
+      }
+      case Opcode::kChangeUint32ToFloat64: {
+        new_input = GetReplacementForPhiInputConversion<ChangeUint32ToFloat64>(
+            bypassed_input, phi, input_index);
+        break;
+      }
+      case Opcode::kChangeUint32ToHoleyFloat64: {
+        new_input =
+            GetReplacementForPhiInputConversion<ChangeUint32ToHoleyFloat64>(
+                bypassed_input, phi, input_index);
+        break;
+      }
+      case Opcode::kChangeFloat64ToHoleyFloat64: {
+        new_input =
+            GetReplacementForPhiInputConversion<ChangeFloat64ToHoleyFloat64>(
+                bypassed_input, phi, input_index);
+        break;
+      }
+      case Opcode::kIdentity:
+        TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
+        new_input = bypassed_input;
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  phi->change_input(input_index, new_input);
+}
+
+void MaglevPhiRepresentationSelector::UntagPhiInput(Phi* phi,
+                                                    ValueRepresentation repr,
+                                                    int input_index,
+                                                    Phi* input_phi) {
+  const ValueNode* input = input_phi->Cast<ValueNode>();  // For easy tracing
+  ValueRepresentation from_repr = input_phi->value_representation();
+  if (from_repr == ValueRepresentation::kTagged) {
+    // We allow speculative untagging of the backedge for loop phis from
+    // loops that have been peeled.
+    // This can lead to deopt loops (eg, if after the last iteration of a
+    // loop, a loop Phi has a specific representation that it never has in
+    // the loop), but this case should (hopefully) be rare.
+
+    // We know that we are on the backedge input of a peeled loop, because
+    // if it wasn't the case, then Process(Phi*) would not have decided to
+    // untag this Phi, and this function would not have been called (because
+    // except for backedges of peeled loops, tagged inputs prevent phi
+    // untagging).
+    DCHECK(phi->merge_state()->is_loop_with_peeled_iteration());
+    DCHECK(phi->is_backedge_offset(input_index));
+
+    eager_deopt_frame_ = phi->merge_state()->backedge_deopt_frame();
+    switch (repr) {
+      case ValueRepresentation::kInt32: {
+        phi->change_input(
+            input_index, AddNewNodeNoInputConversionAtBlockEnd<CheckedSmiUntag>(
+                             phi->predecessor_at(input_index), {input_phi}));
+        break;
+      }
+      case ValueRepresentation::kShiftedInt53: {
+        phi->change_input(
+            input_index,
+            AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToShiftedInt53>(
+                phi->predecessor_at(input_index), {input_phi}));
+        break;
+      }
+      case ValueRepresentation::kFloat64: {
+        phi->change_input(
+            input_index,
+            AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
+                phi->predecessor_at(input_index), {input_phi}));
+        break;
+      }
+      case ValueRepresentation::kHoleyFloat64: {
+        phi->change_input(
+            input_index,
+            AddNewNodeNoInputConversionAtBlockEnd<
+                CheckedNumberOrOddballToHoleyFloat64>(
+                phi->predecessor_at(input_index), {input_phi},
+                TaggedToFloat64ConversionType::kNumberOrUndefined));
+        break;
+      }
+      case ValueRepresentation::kTagged:
+      case ValueRepresentation::kIntPtr:
+      case ValueRepresentation::kUint32:
+      case ValueRepresentation::kRawPtr:
+      case ValueRepresentation::kNone:
+        UNREACHABLE();
+    }
+    TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Eagerly untagging Phi on backedge");
+  } else if (from_repr != repr && from_repr == ValueRepresentation::kInt32) {
+    // We allow widening of Int32 inputs to Float64, which can lead to the
+    // current Phi having a Float64 representation but having some Int32
+    // inputs, which will require an Int32ToFloat64 conversion.
+    if (repr == ValueRepresentation::kFloat64) {
+      phi->change_input(
+          input_index,
+          AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToFloat64>(
+              phi->predecessor_at(input_index), {input_phi}));
+      TRACE_UNTAGGING(TRACE_INPUT_LABEL
+                      << ": Converting phi input with a ChangeInt32ToFloat64");
+    } else {
+      DCHECK_EQ(repr, ValueRepresentation::kHoleyFloat64);
+      phi->change_input(
+          input_index,
+          AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToHoleyFloat64>(
+              phi->predecessor_at(input_index), {input_phi}));
+      TRACE_UNTAGGING(
+          TRACE_INPUT_LABEL
+          << ": Converting phi input with a ChangeInt32ToHoleyFloat64");
+    }
+  } else if (from_repr != repr) {
+    DCHECK(from_repr == ValueRepresentation::kFloat64 &&
+           repr == ValueRepresentation::kHoleyFloat64);
+    phi->change_input(
+        input_index,
+        AddNewNodeNoInputConversionAtBlockEnd<ChangeFloat64ToHoleyFloat64>(
+            phi->predecessor_at(input_index), {input_phi}));
+    TRACE_UNTAGGING(
+        TRACE_INPUT_LABEL
+        << ": Converting phi input with a ChangeFloat64ToHoleyFloat64");
+  } else {
+    TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Keeping untagged Phi input as-is");
+  }
+}
+
+void MaglevPhiRepresentationSelector::UntagLoadTaggedFieldInput(
+    Phi* phi, ValueRepresentation repr, int input_index,
+    LoadTaggedField* load) {
+  const ValueNode* input = load->Cast<ValueNode>();  // For easy tracing
+  CHECK_EQ(load->load_type(), LoadType::kSmi);
+  ValueNode* untagged_input =
+      AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiUntag>(
+          phi->predecessor_at(input_index), {load});
+  switch (repr) {
+    case ValueRepresentation::kInt32:
+      break;
+    case ValueRepresentation::kFloat64:
+      untagged_input =
+          AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToFloat64>(
+              phi->predecessor_at(input_index), {untagged_input});
+      break;
+    case ValueRepresentation::kHoleyFloat64:
+      untagged_input =
+          AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToHoleyFloat64>(
+              phi->predecessor_at(input_index), {untagged_input});
+      break;
+    case ValueRepresentation::kShiftedInt53:
+      UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
+  TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Untagging smi-load input");
+  phi->change_input(input_index, untagged_input);
+}
+
 void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
     Phi* phi, ValueRepresentation repr, const HoistTypeList& hoist_untagging) {
   // We currently only support Int32, Float64, and HoleyFloat64 untagged phis.
@@ -545,360 +916,20 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
 
   for (int input_index = 0; input_index < phi->input_count(); input_index++) {
     ValueNode* input = phi->input(input_index).node();
-#define TRACE_INPUT_LABEL \
-  "    @ Input " << input_index << " (" << PrintNodeLabel(input) << ")"
 
     if (hoist_untagging[input_index] != HoistType::kNone) {
-      CHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
-      BasicBlock* block;
-      auto GetDeoptFrame = [](BasicBlock* block) {
-        return &block->control_node()
-                    ->Cast<CheckpointedJump>()
-                    ->eager_deopt_info()
-                    ->top_frame();
-      };
-      switch (hoist_untagging[input_index]) {
-        case HoistType::kLoopEntryUnchecked:
-          block = phi->merge_state()->predecessor_at(input_index);
-          eager_deopt_frame_ = nullptr;
-          break;
-        case HoistType::kLoopEntry:
-          block = phi->merge_state()->predecessor_at(input_index);
-          eager_deopt_frame_ = GetDeoptFrame(block);
-          break;
-        case HoistType::kPrologue:
-          block = *graph_->begin();
-          eager_deopt_frame_ = GetDeoptFrame(block);
-          break;
-        case HoistType::kNone:
-          UNREACHABLE();
-      }
-      // Ensure the hoisted value is actually live at the hoist location.
-      CHECK(input->Is<InitialValue>() ||
-            (phi->is_loop_phi() && !phi->is_backedge_offset(input_index)));
-      ValueNode* untagged;
-      switch (repr) {
-        case ValueRepresentation::kInt32:
-          if (!eager_deopt_frame_) {
-            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
-                              NodeType::kSmi));
-            untagged = AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiUntag>(
-                block, {input});
-
-          } else {
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
-                    block, {input});
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<CheckedFloat64ToInt32>(
-                    block, {untagged});
-          }
-          break;
-        case ValueRepresentation::kShiftedInt53:
-          if (!eager_deopt_frame_) {
-            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
-                              NodeType::kSmi));
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiTagShiftedInt53>(
-                    block, {input});
-
-          } else {
-            untagged = AddNewNodeNoInputConversionAtBlockEnd<
-                CheckedNumberToShiftedInt53>(block, {input});
-          }
-          break;
-        case ValueRepresentation::kFloat64:
-        case ValueRepresentation::kHoleyFloat64:
-          if (!eager_deopt_frame_) {
-            DCHECK(NodeTypeIs(input->GetStaticType(graph_->broker()),
-                              NodeType::kNumber));
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<UnsafeNumberToFloat64>(
-                    block, {input});
-          } else {
-            DCHECK(!phi->uses_require_31_bit_value());
-            untagged =
-                AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
-                    block, {input});
-          }
-          if (repr == ValueRepresentation::kHoleyFloat64) {
-            untagged = AddNewNodeNoInputConversionAtBlockEnd<
-                ChangeFloat64ToHoleyFloat64>(block, {untagged});
-          }
-          break;
-        case ValueRepresentation::kTagged:
-        case ValueRepresentation::kUint32:
-        case ValueRepresentation::kIntPtr:
-        case ValueRepresentation::kRawPtr:
-        case ValueRepresentation::kNone:
-          UNREACHABLE();
-      }
-      phi->change_input(input_index, untagged);
+      UntagInputWithHoistedUntagging(phi, repr, input_index, input,
+                                     hoist_untagging[input_index]);
     } else if (input->Is<SmiConstant>()) {
-      switch (repr) {
-        case ValueRepresentation::kInt32:
-          TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Making Int32 instead of Smi");
-          phi->change_input(input_index,
-                            graph_->GetInt32Constant(
-                                input->Cast<SmiConstant>()->value().value()));
-          break;
-        case ValueRepresentation::kShiftedInt53:
-          TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                          << ": Making ShiftedInt53 instead of Smi");
-          phi->change_input(input_index,
-                            graph_->GetShiftedInt53Constant(ShiftedInt53(
-                                input->Cast<SmiConstant>()->value().value())));
-          break;
-        case ValueRepresentation::kFloat64:
-          TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                          << ": Making Float64 instead of Smi");
-          phi->change_input(input_index,
-                            graph_->GetFloat64Constant(
-                                input->Cast<SmiConstant>()->value().value()));
-          break;
-        case ValueRepresentation::kHoleyFloat64:
-          TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                          << ": Making HoleyFloat64 instead of Smi");
-          phi->change_input(
-              input_index,
-              graph_->GetHoleyFloat64Constant(Float64{static_cast<double>(
-                  input->Cast<SmiConstant>()->value().value())}));
-          break;
-        case ValueRepresentation::kUint32:
-          UNIMPLEMENTED();
-        default:
-          UNREACHABLE();
-      }
+      UntagSmiConstantInput(phi, repr, input_index, input->Cast<SmiConstant>());
     } else if (Constant* constant = input->TryCast<Constant>()) {
-      DCHECK(constant->object().IsHeapNumber());
-      if (repr == ValueRepresentation::kFloat64) {
-        TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                        << ": Making Float64 instead of Constant");
-        phi->change_input(input_index,
-                          graph_->GetFloat64Constant(
-                              constant->object().AsHeapNumber().value()));
-      } else if (repr == ValueRepresentation::kHoleyFloat64) {
-        TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                        << ": Making HoleyFloat64 instead of Constant");
-        Float64 f64 = Float64::FromBits(
-            base::double_to_uint64(constant->object().AsHeapNumber().value()));
-        // We need to silence hole and undefined patterns as their
-        // interpretation will now change.
-        if (f64.is_undefined_or_hole_nan()) f64 = f64.to_quiet_nan();
-        phi->change_input(input_index, graph_->GetHoleyFloat64Constant(f64));
-      } else if (repr == ValueRepresentation::kShiftedInt53) {
-        TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                        << ": Making ShiftedInt53 instead of Constant");
-        double value = constant->object().AsHeapNumber().value();
-        DCHECK(IsSafeInteger(value));
-        phi->change_input(input_index,
-                          graph_->GetShiftedInt53Constant(ShiftedInt53(value)));
-      } else {
-        TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                        << ": Making Int32 instead of Constant");
-        DCHECK_EQ(repr, ValueRepresentation::kInt32);
-        double value = constant->object().AsHeapNumber().value();
-        DCHECK(IsInt32Double(value));
-        phi->change_input(input_index,
-                          graph_->GetInt32Constant(static_cast<int>(value)));
-      }
+      UntagConstantInput(phi, repr, input_index, constant);
     } else if (input->is_conversion() || input->Is<ReturnedValue>()) {
-      // Unwrapping the conversion.
-      DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
-      // Needs to insert a new conversion.
-      ValueNode* bypassed_input = input->input(0).node()->UnwrapIdentities();
-      ValueRepresentation from_repr = bypassed_input->value_representation();
-      ValueNode* new_input;
-      if (from_repr == repr) {
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-        if (input->Is<HoleyFloat64ToTagged>()) {
-          DCHECK_EQ(from_repr, ValueRepresentation::kHoleyFloat64);
-          // HoleyFloat64ToTagged conversion does convert holes to undefined, so
-          // we need to preserve this behavior even if we eliminate that node.
-          new_input = GetReplacementForPhiInputConversion<
-              HoleyFloat64ConvertHoleToUndefined>(bypassed_input, phi,
-                                                  input_index);
-        } else {
-#endif
-          TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
-          new_input = bypassed_input;
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-        }
-#endif
-      } else {
-        Opcode conv_opcode =
-            GetOpcodeForConversion(from_repr, repr, /*truncating*/ false);
-        switch (conv_opcode) {
-          case Opcode::kChangeInt32ToFloat64: {
-            new_input =
-                GetReplacementForPhiInputConversion<ChangeInt32ToFloat64>(
-                    bypassed_input, phi, input_index);
-            break;
-          }
-          case Opcode::kChangeInt32ToHoleyFloat64: {
-            new_input =
-                GetReplacementForPhiInputConversion<ChangeInt32ToHoleyFloat64>(
-                    bypassed_input, phi, input_index);
-            break;
-          }
-          case Opcode::kChangeShiftedInt53ToFloat64: {
-            new_input = GetReplacementForPhiInputConversion<
-                ChangeShiftedInt53ToFloat64>(bypassed_input, phi, input_index);
-            break;
-          }
-          case Opcode::kChangeShiftedInt53ToHoleyFloat64: {
-            new_input = GetReplacementForPhiInputConversion<
-                ChangeShiftedInt53ToHoleyFloat64>(bypassed_input, phi,
-                                                  input_index);
-            break;
-          }
-          case Opcode::kChangeUint32ToFloat64: {
-            new_input =
-                GetReplacementForPhiInputConversion<ChangeUint32ToFloat64>(
-                    bypassed_input, phi, input_index);
-            break;
-          }
-          case Opcode::kChangeUint32ToHoleyFloat64: {
-            new_input =
-                GetReplacementForPhiInputConversion<ChangeUint32ToHoleyFloat64>(
-                    bypassed_input, phi, input_index);
-            break;
-          }
-          case Opcode::kChangeFloat64ToHoleyFloat64: {
-            new_input = GetReplacementForPhiInputConversion<
-                ChangeFloat64ToHoleyFloat64>(bypassed_input, phi, input_index);
-            break;
-          }
-          case Opcode::kIdentity:
-            TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
-            new_input = bypassed_input;
-            break;
-          default:
-            UNREACHABLE();
-        }
-      }
-      phi->change_input(input_index, new_input);
+      UntagConversionInput(phi, repr, input_index, input);
     } else if (Phi* input_phi = input->TryCast<Phi>()) {
-      ValueRepresentation from_repr = input_phi->value_representation();
-      if (from_repr == ValueRepresentation::kTagged) {
-        // We allow speculative untagging of the backedge for loop phis from
-        // loops that have been peeled.
-        // This can lead to deopt loops (eg, if after the last iteration of a
-        // loop, a loop Phi has a specific representation that it never has in
-        // the loop), but this case should (hopefully) be rare.
-
-        // We know that we are on the backedge input of a peeled loop, because
-        // if it wasn't the case, then Process(Phi*) would not have decided to
-        // untag this Phi, and this function would not have been called (because
-        // except for backedges of peeled loops, tagged inputs prevent phi
-        // untagging).
-        DCHECK(phi->merge_state()->is_loop_with_peeled_iteration());
-        DCHECK(phi->is_backedge_offset(input_index));
-
-        eager_deopt_frame_ = phi->merge_state()->backedge_deopt_frame();
-        switch (repr) {
-          case ValueRepresentation::kInt32: {
-            phi->change_input(
-                input_index,
-                AddNewNodeNoInputConversionAtBlockEnd<CheckedSmiUntag>(
-                    phi->predecessor_at(input_index), {input_phi}));
-            break;
-          }
-          case ValueRepresentation::kShiftedInt53: {
-            phi->change_input(
-                input_index,
-                AddNewNodeNoInputConversionAtBlockEnd<
-                    CheckedNumberToShiftedInt53>(
-                    phi->predecessor_at(input_index), {input_phi}));
-            break;
-          }
-          case ValueRepresentation::kFloat64: {
-            phi->change_input(
-                input_index,
-                AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
-                    phi->predecessor_at(input_index), {input_phi}));
-            break;
-          }
-          case ValueRepresentation::kHoleyFloat64: {
-            phi->change_input(
-                input_index,
-                AddNewNodeNoInputConversionAtBlockEnd<
-                    CheckedNumberOrOddballToHoleyFloat64>(
-                    phi->predecessor_at(input_index), {input_phi},
-                    TaggedToFloat64ConversionType::kNumberOrUndefined));
-            break;
-          }
-          case ValueRepresentation::kTagged:
-          case ValueRepresentation::kIntPtr:
-          case ValueRepresentation::kUint32:
-          case ValueRepresentation::kRawPtr:
-          case ValueRepresentation::kNone:
-            UNREACHABLE();
-        }
-        TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                        << ": Eagerly untagging Phi on backedge");
-      } else if (from_repr != repr &&
-                 from_repr == ValueRepresentation::kInt32) {
-        // We allow widening of Int32 inputs to Float64, which can lead to the
-        // current Phi having a Float64 representation but having some Int32
-        // inputs, which will require an Int32ToFloat64 conversion.
-        if (repr == ValueRepresentation::kFloat64) {
-          phi->change_input(
-              input_index,
-              AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToFloat64>(
-                  phi->predecessor_at(input_index), {input_phi}));
-          TRACE_UNTAGGING(
-              TRACE_INPUT_LABEL
-              << ": Converting phi input with a ChangeInt32ToFloat64");
-        } else {
-          DCHECK_EQ(repr, ValueRepresentation::kHoleyFloat64);
-          phi->change_input(
-              input_index,
-              AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToHoleyFloat64>(
-                  phi->predecessor_at(input_index), {input_phi}));
-          TRACE_UNTAGGING(
-              TRACE_INPUT_LABEL
-              << ": Converting phi input with a ChangeInt32ToHoleyFloat64");
-        }
-      } else if (from_repr != repr) {
-        DCHECK(from_repr == ValueRepresentation::kFloat64 &&
-               repr == ValueRepresentation::kHoleyFloat64);
-        phi->change_input(
-            input_index,
-            AddNewNodeNoInputConversionAtBlockEnd<ChangeFloat64ToHoleyFloat64>(
-                phi->predecessor_at(input_index), {input_phi}));
-        TRACE_UNTAGGING(
-            TRACE_INPUT_LABEL
-            << ": Converting phi input with a ChangeFloat64ToHoleyFloat64");
-      } else {
-        TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                        << ": Keeping untagged Phi input as-is");
-      }
+      UntagPhiInput(phi, repr, input_index, input_phi);
     } else if (LoadTaggedField* load = input->TryCast<LoadTaggedField>()) {
-      CHECK_EQ(load->load_type(), LoadType::kSmi);
-      ValueNode* untagged_input =
-          AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiUntag>(
-              phi->predecessor_at(input_index), {load});
-      switch (repr) {
-        case ValueRepresentation::kInt32:
-          break;
-        case ValueRepresentation::kFloat64:
-          untagged_input =
-              AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToFloat64>(
-                  phi->predecessor_at(input_index), {untagged_input});
-          break;
-        case ValueRepresentation::kHoleyFloat64:
-          untagged_input =
-              AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToHoleyFloat64>(
-                  phi->predecessor_at(input_index), {untagged_input});
-          break;
-        case ValueRepresentation::kShiftedInt53:
-          UNIMPLEMENTED();
-        default:
-          UNREACHABLE();
-      }
-      TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Untagging smi-load input");
-      phi->change_input(input_index, untagged_input);
+      UntagLoadTaggedFieldInput(phi, repr, input_index, load);
     } else {
       TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Invalid input for untagged phi");
       UNREACHABLE();
