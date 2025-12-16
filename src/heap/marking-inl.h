@@ -11,7 +11,7 @@
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/memory-chunk-layout.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/spaces.h"
 
@@ -290,11 +290,11 @@ MarkBit MarkBit::From(const Isolate* isolate, Tagged<HeapObject> heap_object) {
 // static
 std::optional<MarkingHelper::WorklistTarget> MarkingHelper::ShouldMarkObject(
     Heap* heap, Tagged<HeapObject> object) {
-  const auto* chunk = MemoryChunk::FromHeapObject(object);
-  const auto flags = chunk->GetFlags();
-  if (flags & MemoryChunk::READ_ONLY_HEAP) {
+  if (HeapLayout::InReadOnlySpace(object)) {
     return {};
   }
+  const auto* chunk = MemoryChunk::FromHeapObject(object);
+  const auto flags = chunk->GetFlags();
   if (v8_flags.black_allocated_pages &&
       V8_UNLIKELY(flags & MemoryChunk::BLACK_ALLOCATED)) {
     DCHECK(!(flags & MemoryChunk::kIsInYoungGenerationMask));
@@ -316,11 +316,11 @@ std::optional<MarkingHelper::WorklistTarget> MarkingHelper::ShouldMarkObject(
 // static
 MarkingHelper::LivenessMode MarkingHelper::GetLivenessMode(
     const Heap* heap, Tagged<HeapObject> object) {
-  const auto* chunk = MemoryChunk::FromHeapObject(object);
-  const auto flags = chunk->GetFlags();
-  if (flags & MemoryChunk::READ_ONLY_HEAP) {
+  if (HeapLayout::InReadOnlySpace(object)) {
     return MarkingHelper::LivenessMode::kAlwaysLive;
   }
+  const auto* chunk = MemoryChunk::FromHeapObject(object);
+  const auto flags = chunk->GetFlags();
   if (v8_flags.black_allocated_pages &&
       (flags & MemoryChunk::BLACK_ALLOCATED)) {
     return MarkingHelper::LivenessMode::kAlwaysLive;

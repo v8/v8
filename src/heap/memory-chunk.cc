@@ -107,6 +107,11 @@ uint32_t MemoryChunk::MetadataTableIndex(Address chunk_address) {
 }
 
 bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // With contiguous read-only space the fact that memory is read-only is based
+  // on its address and there's no way to corrupt that.
+  return InReadOnlySpace();
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // For the sandbox only flags from writable pages can be corrupted so we can
   // use the flag check as a fast path in this case.
   // It also helps making TSAN happy, since it doesn't like the way we
@@ -119,6 +124,7 @@ bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
       static_cast<const ReadOnlyPageMetadata*>(Metadata())->ChunkAddress(),
       address());
   return true;
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }
 
 #endif  // V8_ENABLE_SANDBOX
@@ -173,13 +179,6 @@ void MemoryChunk::SynchronizedLoad() const {
           metadata_pointer_table[metadata_index].metadata_slot())));
 #endif
   metadata->SynchronizedHeapLoad();
-}
-
-bool MemoryChunk::InReadOnlySpace() const {
-  // This is needed because TSAN does not process the memory fence
-  // emitted after page initialization.
-  SynchronizedLoad();
-  return IsFlagSet(READ_ONLY_HEAP);
 }
 
 #endif  // THREAD_SANITIZER

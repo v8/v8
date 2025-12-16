@@ -81,6 +81,20 @@ bool MemoryChunk::IsEvacuationCandidate() const {
   return IsFlagSet(EVACUATION_CANDIDATE);
 }
 
+V8_INLINE bool MemoryChunk::InReadOnlySpace() const {
+  // This is needed because TSAN does not process the memory fence
+  // emitted after page initialization.
+  SynchronizedLoad();
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  const bool ro_via_address =
+      (reinterpret_cast<uintptr_t>(this) & kContiguousReadOnlySpaceMask) == 0;
+  DCHECK_IMPLIES(ro_via_address, Metadata()->IsReadOnlyPageMetadata());
+  return ro_via_address;
+#else  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  return IsFlagSet(READ_ONLY_HEAP);
+#endif
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_HEAP_MEMORY_CHUNK_INL_H_

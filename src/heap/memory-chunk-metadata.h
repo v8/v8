@@ -74,18 +74,13 @@ class MemoryChunkMetadata {
     return owner()->identity();
   }
 
-  bool IsWritable() const {
-    const bool is_sealed_ro = IsSealedReadOnlySpaceField::decode(flags_);
-#ifdef DEBUG
-    DCHECK_IMPLIES(is_sealed_ro, Chunk()->InReadOnlySpace());
-    DCHECK_IMPLIES(is_sealed_ro, heap_ == nullptr);
-    DCHECK_IMPLIES(is_sealed_ro, owner_ == nullptr);
-#endif  // DEBUG
-    return !is_sealed_ro;
+  inline bool IsWritable() const;
+
+  bool IsReadOnlyPageMetadata() const {
+    return IsReadOnlyPageField::decode(flags_);
   }
 
-  bool IsMutablePageMetadata() const { return owner_identity() != RO_SPACE; }
-  bool IsReadOnlyPageMetadata() const { return owner_identity() == RO_SPACE; }
+  bool IsMutablePageMetadata() const { return !IsReadOnlyPageMetadata(); }
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();
@@ -252,6 +247,11 @@ class MemoryChunkMetadata {
     flags_ = IsSealedReadOnlySpaceField::update(flags_, true);
   }
 
+  void set_is_read_only_page() {
+    DCHECK(!IsReadOnlyPageField::decode(flags_));
+    flags_ = IsReadOnlyPageField::update(flags_, true);
+  }
+
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
 
@@ -333,6 +333,8 @@ class MemoryChunkMetadata {
   using IsWritableSharedSpaceField = IsTrustedField::Next<bool, 1>;
   // The memory chunk belongs to a sealed read-only space.
   using IsSealedReadOnlySpaceField = IsWritableSharedSpaceField::Next<bool, 1>;
+  // The memory chunk belongs to a read-only space.
+  using IsReadOnlyPageField = IsSealedReadOnlySpaceField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() {
     return offsetof(MemoryChunkMetadata, heap_);

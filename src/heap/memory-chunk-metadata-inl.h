@@ -43,6 +43,16 @@ void MemoryChunkMetadata::UpdateHighWaterMark(Address mark) {
   }
 }
 
+bool MemoryChunkMetadata::IsWritable() const {
+  const bool is_sealed_ro = IsSealedReadOnlySpaceField::decode(flags_);
+#ifdef DEBUG
+  DCHECK_IMPLIES(is_sealed_ro, Chunk()->InReadOnlySpace());
+  DCHECK_IMPLIES(is_sealed_ro, heap_ == nullptr);
+  DCHECK_IMPLIES(is_sealed_ro, owner_ == nullptr);
+#endif  // DEBUG
+  return !is_sealed_ro;
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_HEAP_MEMORY_CHUNK_METADATA_INL_H_

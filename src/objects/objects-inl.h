@@ -441,9 +441,8 @@ constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
   // could alias with low addresses.
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
-  static_assert(kLastStaticRootPage <=
-                V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
-  return obj < kLastStaticRootPage;
+  static_assert(kLastStaticRootPage <= kContiguousReadOnlyReservationSize);
+  return obj < kContiguousReadOnlyReservationSize;
 #else
   return false;
 #endif

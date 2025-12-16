@@ -439,21 +439,36 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase<Assembler> {
           }
           if (v8_flags.experimental_wasm_shared && type.is_shared()) {
             Label<Object> done(&Asm());
-            IF_NOT (__ IsSmi(input)) {
-              V<WordPtr> flags = __ LoadPageFlags(V<HeapObject>::Cast(input));
-              V<WordPtr> shared_or_read_only = __ WordPtrBitwiseAnd(
-                  flags,
-                  static_cast<uintptr_t>(MemoryChunk::IN_WRITABLE_SHARED_SPACE |
-                                         MemoryChunk::READ_ONLY_HEAP));
-              IF (UNLIKELY(__ WordPtrEqual(shared_or_read_only, 0))) {
-                // If it isn't shared, yet, use the runtime function.
-                std::initializer_list<const OpIndex> inputs = {
-                    input, __ IntPtrConstant(IntToSmi(
-                               static_cast<int>(type.raw_bit_field())))};
-                GOTO(done, __ WasmCallRuntime(__ phase_zone(),
-                                              Runtime::kWasmJSToWasmObject,
-                                              inputs, context));
-              }
+            IF (__ IsSmi(input)) {
+              GOTO(done, input);
+            }
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+            // Bail out for read-only objects.
+            V<Word32> lower32 = __ TruncateWordPtrToWord32(
+                __ BitcastTaggedToWordPtr(V<HeapObject>::Cast(input)));
+            IF (__ Uint32LessThan(lower32,
+                                  __ Word32Constant(static_cast<uint32_t>(
+                                      kContiguousReadOnlyReservationSize)))) {
+              GOTO(done, input);
+            }
+            // Bail out for already-shared objects.
+            V<WordPtr> flags = __ LoadPageFlags(V<HeapObject>::Cast(input));
+            V<WordPtr> page_flags = __ WordPtrBitwiseAnd(
+                flags, static_cast<uintptr_t>(MemoryChunk::kInSharedHeap));
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+            V<WordPtr> flags = __ LoadPageFlags(V<HeapObject>::Cast(input));
+            V<WordPtr> page_flags = __ WordPtrBitwiseAnd(
+                flags, static_cast<uintptr_t>(
+                           MemoryChunk::kIsReadOnlyOrSharedHeapMask));
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+            IF (UNLIKELY(__ WordPtrEqual(page_flags, 0))) {
+              // If it isn't shared, yet, use the runtime function.
+              std::initializer_list<const OpIndex> inputs = {
+                  input, __ IntPtrConstant(
+                             IntToSmi(static_cast<int>(type.raw_bit_field())))};
+              GOTO(done, __ WasmCallRuntime(__ phase_zone(),
+                                            Runtime::kWasmJSToWasmObject,
+                                            inputs, context));
             }
             GOTO(done, input);
             BIND(done, result);

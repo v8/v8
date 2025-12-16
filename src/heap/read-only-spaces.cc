@@ -149,10 +149,14 @@ ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
                           Executability::NOT_EXECUTABLE) {
   allocated_bytes_ = 0;
   set_never_evacuate();
+  set_is_read_only_page();
 }
 
 MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {
-  MemoryChunk::MainThreadFlags flags = MemoryChunk::READ_ONLY_HEAP;
+  MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
+#if !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  flags |= MemoryChunk::READ_ONLY_HEAP;
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
   if constexpr (v8_flags.sticky_mark_bits.value()) {
     flags |= MemoryChunk::STICKY_MARK_BIT_CONTAINS_ONLY_OLD;

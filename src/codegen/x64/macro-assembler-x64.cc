@@ -1225,9 +1225,8 @@ void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
   // could alias with low addresses.
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
-  static_assert(kLastStaticRootPage <=
-                V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
-  JumpIfUnsignedLessThan(value, kLastStaticRootPage, dest);
+  static_assert(kLastStaticRootPage <= kContiguousReadOnlyReservationSize);
+  JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, dest);
 #endif  // V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }
 
@@ -1294,8 +1293,12 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     movq(kScratchDoubleReg, slot_address);
     Register scratch0 = slot_address;
     CheckMarkBit(object, kScratchRegister, scratch0, carry, &done);
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+    JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, &done);
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
     CheckPageFlag(value, kScratchRegister, MemoryChunk::kIsInReadOnlyHeapMask,
                   not_zero, &done, Label::kFar);
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
     CheckMarkBit(value, kScratchRegister, scratch0, carry, &done);
     movq(slot_address, kScratchDoubleReg);
     bind(&stub_call);
@@ -4851,9 +4854,13 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
        Operand(kRootRegister, IsolateData::last_young_allocation_offset()));
   j(Condition::equal, ok);
 
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, ok);
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // Write barier can also be removed if value is in read-only space.
   CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, not_zero,
                 ok);
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
   Label not_ok;
 

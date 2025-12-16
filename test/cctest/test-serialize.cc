@@ -6620,6 +6620,7 @@ UNINITIALIZED_TEST(NoStackFrameCacheSerialization) {
 namespace {
 void CheckObjectsAreInSharedHeap(Isolate* isolate) {
   Heap* heap = isolate->heap();
+  SetCurrentIsolateScope isolate_scope(isolate);
   SetCurrentLocalHeapScope local_heap_scope(isolate);
   HeapObjectIterator iterator(heap);
   DisallowGarbageCollection no_gc;

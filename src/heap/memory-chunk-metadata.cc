@@ -57,10 +57,8 @@ MemoryChunkMetadata::~MemoryChunkMetadata() {
 
 #ifdef THREAD_SANITIZER
 void MemoryChunkMetadata::SynchronizedHeapLoad() const {
-  CHECK(reinterpret_cast<Heap*>(
-            base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(&(
-                const_cast<MemoryChunkMetadata*>(this)->heap_)))) != nullptr ||
-        Chunk()->IsFlagSet(MemoryChunk::READ_ONLY_HEAP));
+  base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
+      &(const_cast<MemoryChunkMetadata*>(this)->heap_)));
 }
 
 void MemoryChunkMetadata::SynchronizedHeapStore() {

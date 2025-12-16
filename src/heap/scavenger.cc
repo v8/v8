@@ -1285,9 +1285,7 @@ ScavengerCollector::QuarantinedPageSweeper::JobTask::JobTask(
 
 void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
     JobDelegate* delegate) {
-#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   SetCurrentIsolateScope current_isolate_scope(heap_->isolate());
-#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   DCHECK_IMPLIES(
       delegate->IsJoiningThread(),
       heap_->IsMainThread() ||

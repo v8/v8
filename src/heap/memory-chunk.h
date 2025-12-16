@@ -73,27 +73,29 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // Indicates whether incremental marking is currently enabled.
     INCREMENTAL_MARKING = 1u << 5,
 
+    // Chunk was allocated during major incremental marking. Only contains old
+    // objects.
+    BLACK_ALLOCATED = 1u << 6,
+
+    // The chunk represents a large chunk of non-uniform size.
+    LARGE_PAGE = 1u << 7,
+
+    // The chunk was selected as evacuation candidate, meaning that objects on
+    // this chunk are being relocated.
+    EVACUATION_CANDIDATE = 1u << 8,
+
+    // The chunk is in the the new space of the young generation and already
+    // survived at least one garbage collection cycle.
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 9,
+
+#if !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
     // Chunk belongs to the read-only heap and does not participate in garbage
     // collection.
     //
     // Note that read-only chunks have no owner so this is required for checking
     // space identity for these chunks.
-    READ_ONLY_HEAP = 1u << 6,
-
-    // Chunk was allocated during major incremental marking. Only contains old
-    // objects.
-    BLACK_ALLOCATED = 1u << 7,
-
-    // The chunk represents a large chunk of non-uniform size.
-    LARGE_PAGE = 1u << 8,
-
-    // The chunk was selected as evacuation candidate, meaning that objects on
-    // this chunk are being relocated.
-    EVACUATION_CANDIDATE = 1u << 9,
-
-    // The chunk is in the the new space of the young generation and already
-    // survived at least one garbage collection cycle.
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 10,
+    READ_ONLY_HEAP = 1u << 10,
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
     // Sticky markbits only: Used to mark chunks belonging to spaces that do not
@@ -117,13 +119,19 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       EVACUATION_CANDIDATE;
   static constexpr MainThreadFlags kIsInYoungGenerationMask =
       MainThreadFlags(FROM_PAGE) | MainThreadFlags(TO_PAGE);
-  static constexpr MainThreadFlags kIsInReadOnlyHeapMask = READ_ONLY_HEAP;
   static constexpr MainThreadFlags kIsLargePageMask = LARGE_PAGE;
   static constexpr MainThreadFlags kInSharedHeap = IN_WRITABLE_SHARED_SPACE;
   static constexpr MainThreadFlags kIncrementalMarking = INCREMENTAL_MARKING;
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);
+
+#if !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  static constexpr MainThreadFlags kIsInReadOnlyHeapMask = READ_ONLY_HEAP;
+  static constexpr MainThreadFlags kIsReadOnlyOrSharedHeapMask =
+      MainThreadFlags(READ_ONLY_HEAP) |
+      MainThreadFlags(IN_WRITABLE_SHARED_SPACE);
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
   static constexpr MainThreadFlags kIsOnlyOldOrMajorGCInProgressMask =
@@ -207,10 +215,11 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
 #ifdef THREAD_SANITIZER
   void SynchronizedLoad() const;
-  bool InReadOnlySpace() const;
 #else
-  V8_INLINE bool InReadOnlySpace() const { return IsFlagSet(READ_ONLY_HEAP); }
+  void SynchronizedLoad() const {}
 #endif
+
+  V8_INLINE bool InReadOnlySpace() const;
 
 #ifdef V8_ENABLE_SANDBOX
   // Flags are stored in the page header and are not safe to rely on for sandbox

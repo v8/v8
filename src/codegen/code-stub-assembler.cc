@@ -19988,54 +19988,44 @@ void CodeStubAssembler::SharedValueBarrier(
   // The fast paths should be kept in sync with Object::Share.
 
   TNode<Object> value = var_shared_value->value();
-  Label check_in_shared_heap(this), slow(this), skip_barrier(this), done(this);
+  Label done(this);
 
   // Fast path: Smis are trivially shared.
   GotoIf(TaggedIsSmi(value), &done);
+
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // Fast path: RO values.
+  TNode<Word32T> object_as_word32 =
+      TruncateIntPtrToInt32(BitcastTaggedToWord(value));
+  GotoIf(Uint32LessThan(object_as_word32,
+                        Int32Constant(kContiguousReadOnlyReservationSize)),
+         &done);
+  // Fast path: Values are already shared.
   TNode<IntPtrT> page_flags = LoadMemoryChunkFlags(CAST(value));
   GotoIf(WordNotEqual(
-             WordAnd(page_flags, IntPtrConstant(MemoryChunk::READ_ONLY_HEAP)),
+             WordAnd(page_flags, IntPtrConstant(MemoryChunk::kInSharedHeap)),
              IntPtrConstant(0)),
-         &skip_barrier);
-
-  // Fast path: Check if the HeapObject is already shared.
-  TNode<Uint16T> value_instance_type =
-      LoadMapInstanceType(LoadMap(CAST(value)));
-  GotoIf(IsSharedStringInstanceType(value_instance_type), &skip_barrier);
-  GotoIf(IsAlwaysSharedSpaceJSObjectInstanceType(value_instance_type),
-         &skip_barrier);
-  GotoIf(IsHeapNumberInstanceType(value_instance_type), &check_in_shared_heap);
-  Goto(&slow);
-
-  BIND(&check_in_shared_heap);
-  {
-    Branch(WordNotEqual(
-               WordAnd(page_flags,
-                       IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-               IntPtrConstant(0)),
-           &skip_barrier, &slow);
-  }
+         &done);
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // Fast path: Bail out of RO values and already shared values.
+  TNode<IntPtrT> page_flags = LoadMemoryChunkFlags(CAST(value));
+  GotoIf(WordNotEqual(
+             WordAnd(page_flags,
+                     IntPtrConstant(MemoryChunk::kIsReadOnlyOrSharedHeapMask)),
+             IntPtrConstant(0)),
+         &done);
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
   // Slow path: Call out to runtime to share primitives and to throw on
   // non-shared JS objects.
-  BIND(&slow);
-  {
-    *var_shared_value =
-        CallRuntime(Runtime::kSharedValueBarrierSlow, context, value);
-    Goto(&skip_barrier);
-  }
-
-  BIND(&skip_barrier);
-  {
-    CSA_DCHECK(
-        this,
-        WordNotEqual(
-            WordAnd(LoadMemoryChunkFlags(CAST(var_shared_value->value())),
-                    IntPtrConstant(MemoryChunk::READ_ONLY_HEAP |
-                                   MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-            IntPtrConstant(0)));
-    Goto(&done);
-  }
+  *var_shared_value =
+      CallRuntime(Runtime::kSharedValueBarrierSlow, context, value);
+  CSA_DCHECK(this,
+             WordNotEqual(
+                 WordAnd(LoadMemoryChunkFlags(CAST(var_shared_value->value())),
+                         IntPtrConstant(MemoryChunk::kInSharedHeap)),
+                 IntPtrConstant(0)));
+  Goto(&done);
 
   BIND(&done);
 }

@@ -242,12 +242,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   }
 
   MarkingBitmap* marking_bitmap() {
-    DCHECK(!Chunk()->InReadOnlySpace());
+    DCHECK(!IsReadOnlyPageMetadata());
     return &marking_bitmap_;
   }
 
   const MarkingBitmap* marking_bitmap() const {
-    DCHECK(!Chunk()->InReadOnlySpace());
+    DCHECK(!IsReadOnlyPageMetadata());
     return &marking_bitmap_;
   }
 

@@ -11,7 +11,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/large-page-metadata.h"
 #include "src/heap/memory-allocator.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/memory-chunk-inl.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/tasks/cancelable-task.h"
 
