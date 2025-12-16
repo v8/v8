@@ -3165,6 +3165,8 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate_, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
 
+    SimpleInstallFunction(isolate(), regexp_fun, "escape",
+                          Builtin::kRegExpEscape, 1, kAdapt);
     {
       // Setup %RegExpPrototype%.
       DirectHandle<JSObject> prototype(
@@ -5894,15 +5896,6 @@ void Genesis::InitializeGlobal_js_float16array() {
 
   InstallWithIntrinsicDefaultProto(isolate_, fun,
                                    Context::FLOAT16_ARRAY_FUN_INDEX);
-}
-
-void Genesis::InitializeGlobal_js_regexp_escape() {
-  if (!v8_flags.js_regexp_escape) return;
-
-  DirectHandle<JSFunction> regexp_fun(native_context()->regexp_function(),
-                                      isolate());
-  SimpleInstallFunction(isolate(), regexp_fun, "escape", Builtin::kRegExpEscape,
-                        1, kAdapt);
 }
 
 void Genesis::InitializeGlobal_js_defer_import_eval() {}
