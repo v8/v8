@@ -117,14 +117,6 @@ SimdShuffle::CanonicalShuffle TryMatchCanonicalImpl(
        CanonicalShuffle::kS8x8DeinterleaveEvenOdd},
       {{3, 7, 11, 15, 19, 23, 27, 31},
        CanonicalShuffle::kS8x8DeinterleaveOddOdd},
-      {expandHalf<4>({0, 4, 8, 12}),
-       CanonicalShuffle::kS16x4DeinterleaveEvenEven},
-      {expandHalf<4>({1, 5, 9, 13}),
-       CanonicalShuffle::kS16x4DeinterleaveOddEven},
-      {expandHalf<4>({2, 6, 10, 14}),
-       CanonicalShuffle::kS16x4DeinterleaveEvenOdd},
-      {expandHalf<4>({3, 7, 11, 15}),
-       CanonicalShuffle::kS16x4DeinterleaveOddOdd},
   });
   for (const auto& [lanes, canonical] : canonical_shuffle_list) {
     if (std::equal(lanes.begin(), lanes.begin() + N, shuffle.begin())) {

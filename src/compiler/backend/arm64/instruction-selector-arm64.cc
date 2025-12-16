@@ -5910,15 +5910,6 @@ std::optional<ShufflePair> TryMapCanonicalShuffleToShufflePair(
                           kArm64S128UnzipRight, 8),
       CANONICAL_TO_INSTRS(kS8x8DeinterleaveOddOdd, kArm64S128UnzipRight, 8,
                           kArm64S128UnzipRight, 8),
-      // 16x4 Arm64 instructions selected using special 8x8 patterns
-      CANONICAL_TO_INSTRS(kS16x4DeinterleaveEvenEven, kArm64S128UnzipLeft, 16,
-                          kArm64S128UnzipLeft, 16),
-      CANONICAL_TO_INSTRS(kS16x4DeinterleaveOddEven, kArm64S128UnzipRight, 16,
-                          kArm64S128UnzipLeft, 16),
-      CANONICAL_TO_INSTRS(kS16x4DeinterleaveEvenOdd, kArm64S128UnzipLeft, 16,
-                          kArm64S128UnzipRight, 16),
-      CANONICAL_TO_INSTRS(kS16x4DeinterleaveOddOdd, kArm64S128UnzipRight, 16,
-                          kArm64S128UnzipRight, 16),
   });
 #undef CANONICAL_TO_INSTRS
 

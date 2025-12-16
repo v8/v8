@@ -290,22 +290,6 @@ const shuffle_8x8_tests = [
     name: "8x8DeinterleaveOddOdd",
     shuffle: [3, 7, 11, 15, 19, 23, 27, 31],
   },
-  {
-    name: "16x4DeinterleaveEvenEven",
-    shuffle: [0, 1, 8, 9, 16, 17, 24, 25],
-  },
-  {
-    name: "16x4DeinterleaveOddEven",
-    shuffle: [2, 3, 10, 11, 18, 19, 26, 27],
-  },
-  {
-    name: "16x4DeinterleaveEvenOdd",
-    shuffle: [4, 5, 12, 13, 20, 21, 28, 29],
-  },
-  {
-    name: "16x4DeinterleaveOddOdd",
-    shuffle: [6, 7, 14, 15, 22, 23, 30, 31],
-  },
 ];
 
 (function Shuffle8x8TestAll() {
