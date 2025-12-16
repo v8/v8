@@ -13,7 +13,6 @@
 #include <iomanip>
 #include <iterator>
 #include <string>
-#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -533,32 +532,17 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 class ExternalOwningOneByteStringResource
     : public String::ExternalOneByteStringResource {
  public:
-  explicit ExternalOwningOneByteStringResource(std::string_view chars)
-      : storage_(chars.begin(), chars.end(), GetAllocator()) {}
-
-  ~ExternalOwningOneByteStringResource() override = default;
-
-  const char* data() const override { return storage_.data(); }
-  size_t length() const override { return storage_.size(); }
+  ExternalOwningOneByteStringResource() = default;
+  ExternalOwningOneByteStringResource(
+      std::unique_ptr<base::OS::MemoryMappedFile> file)
+      : file_(std::move(file)) {}
+  const char* data() const override {
+    return static_cast<char*>(file_->memory());
+  }
+  size_t length() const override { return file_->size(); }
 
  private:
-#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-  using Allocator = i::ExternalStringsCage::Allocator<char>;
-#else   // V8_ENABLE_MEMORY_CORRUPTION_API
-  using Allocator = std::allocator<char>;
-#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
-
-  static Allocator GetAllocator() {
-#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-    return i::IsolateGroup::current()
-        ->external_strings_cage()
-        ->GetAllocator<char>();
-#else   // V8_ENABLE_MEMORY_CORRUPTION_API
-    return Allocator();
-#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
-  }
-
-  const std::vector<char, Allocator> storage_;
+  std::unique_ptr<base::OS::MemoryMappedFile> file_;
 };
 
 // static variables:
@@ -5276,7 +5260,7 @@ MaybeLocal<String> Shell::ReadFile(Isolate* isolate, const char* name,
   char* chars = static_cast<char*>(file->memory());
   if (i::v8_flags.use_external_strings && i::String::IsAscii(chars, size)) {
     String::ExternalOneByteStringResource* resource =
-        new ExternalOwningOneByteStringResource(std::string_view(chars, size));
+        new ExternalOwningOneByteStringResource(std::move(file));
     return String::NewExternalOneByte(isolate, resource);
   }
   return String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size);

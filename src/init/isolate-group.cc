@@ -26,10 +26,6 @@
 #include <partition_alloc/partition_alloc.h>
 #endif
 
-#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-#include "src/sandbox/external-strings-cage.h"
-#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
-
 namespace v8 {
 namespace internal {
 
@@ -211,13 +207,6 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   }
 
   js_dispatch_table()->Initialize();
-
-#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-  if (!external_strings_cage_.Initialize()) {
-    V8::FatalProcessOutOfMemory(
-        nullptr, "Failed to reserve virtual memory for ExternalStringsCage");
-  }
-#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 }
 #elif defined(V8_COMPRESS_POINTERS)
 void IsolateGroup::Initialize(bool process_wide) {
