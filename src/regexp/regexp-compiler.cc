@@ -2978,11 +2978,20 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
 // max_lookahead (inclusive) measured from the current position.  If the
 // character at max_lookahead offset is not one of these characters, then we
 // can safely skip forwards by the number of characters in the range.
+// For example for the pattern /..abcd.../ our range will be 2-5 inclusive
+// (four characters) and the characters [abcd] will be in the allow-
+// match set.  If we find a 'z' at offset 5 we know we can't match at the
+// current position or at the next three, so we can skip forwards 4 positions.
+//
 // nibble_table is only used for SIMD variants and encodes the same information
 // as boolean_skip_table but in only 128 bits. It contains 16 bytes where the
 // index into the table represent low nibbles of a character, and the stored
 // byte is a bitset representing matching high nibbles. E.g. to store the
-// character 'b' (0x62) in the nibble table, we set the 6th bit in row 2.
+// character 'b' (0x62) in the nibble table, we set the 6th bit in row 2.  We
+// use it for the case where the range is only one character wide, eg the
+// regexp /..[a-d]../.  In this case finding a letter in the e-z range means
+// we can move forward one but we compensate for this by processing 16
+// characters at a time.
 int BoyerMooreLookahead::GetSkipTable(
     int min_lookahead, int max_lookahead,
     DirectHandle<ByteArray> boolean_skip_table,

@@ -700,8 +700,8 @@ void RegExpMacroAssemblerARM64::EmitSkipUntilBitInTableSimdHelper(
   // Check if high nibble is set in row.
   // bitmask = 1 << (hi_nibbles & 0x7)
   //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
-  // Note: The hi_nibbles & 0x7 part is implicitly executed, as tbl sets
-  // the result byte to zero if the lookup index is out of range.
+  // Note: The hi_nibbles & 0x7 part is implicitly executed, because the
+  // input table contains two repeats of the 0x80402010'08040201 pattern.
   VRegister bitmask = v7;
   __ Tbl(bitmask.V16B(), hi_nibble_lookup_mask.V16B(), hi_nibbles.V16B());
 
@@ -802,6 +802,7 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
 bool RegExpMacroAssemblerARM64::SkipUntilBitInTableUseSimd(int advance_by) {
   // We only use SIMD instead of the scalar version if we advance by 1 byte
   // in each iteration. For higher values the scalar version performs better.
+  // We only implemented the SIMD version in one-byte mode.
   return v8_flags.regexp_simd && advance_by * char_size() == 1;
 }
 

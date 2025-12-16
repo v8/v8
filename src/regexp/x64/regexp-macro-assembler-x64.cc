@@ -658,9 +658,12 @@ void RegExpMacroAssemblerX64::EmitSkipUntilBitInTableSimdHelper(
 
   // Check if high nibble is set in row.
   // bitmask = 1 << (hi_nibbles & 0x7)
-  //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
-  // Note: The hi_nibbles & 0x7 part is implicitly executed, as pshufb sets
-  // the result byte to zero if bit 7 is set in the source byte.
+  //         = hi_nibble_lookup_mask[hi_nibbles] & 0x7
+  // Note: The hi_nibbles & 0x7 part is implicitly executed, because the
+  // input table contains two repeats of the 0x80402010'08040201 pattern.
+  // The pshufb instruction also sets the output to zero if bit 7 is set
+  // in the input, but that never happens because of the andps with the
+  // nibble mask above.
   XMMRegister bitmask = ReassignRegister(lo_nibbles);
   __ Pshufb(bitmask, hi_nibble_lookup_mask, hi_nibbles);
 
@@ -697,8 +700,7 @@ void RegExpMacroAssemblerX64::EmitSkipUntilBitInTableSimdHelper(
   } else {
     // The fallback sequence is:
     // r11 = r11 & (r11 - 1)
-    __ movl(rax, r11);
-    __ decl(rax);
+    __ leal(rax, Operand(r11, -1));
     __ andl(r11, rax);
   }
   __ j(not_zero, &process_next_bit);
@@ -764,6 +766,7 @@ bool RegExpMacroAssemblerX64::SkipUntilBitInTableUseSimd(int advance_by) {
   // In addition we only use SIMD instead of the scalar version if we advance by
   // 1 byte in each iteration. For higher values the scalar version performs
   // better.
+  // We only implemented the SIMD version in one-byte mode.
   return v8_flags.regexp_simd && advance_by * char_size() == 1 &&
          CpuFeatures::IsSupported(SSSE3);
 }

@@ -564,8 +564,8 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
     // Check if high nibble is set in row.
     // bitmask = 1 << (hi_nibbles & 0x7)
     //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
-    // Note: The hi_nibbles & 0x7 part is implicitly executed, as tbl sets
-    // the result byte to zero if the lookup index is out of range.
+    // Note: The hi_nibbles & 0x7 part is implicitly executed, because the
+    // lookup table repeats the 0x80402010'08040201 pattern.
     VRegister bitmask = v7;
     __ vrgather_vv(bitmask, hi_nibble_lookup_mask, hi_nibbles);
 
@@ -629,6 +629,7 @@ void RegExpMacroAssemblerRISCV::SkipUntilBitInTable(
 bool RegExpMacroAssemblerRISCV::SkipUntilBitInTableUseSimd(int advance_by) {
   // We only use SIMD instead of the scalar version if we advance by 1 byte
   // in each iteration. For higher values the scalar version performs better.
+  // We only implemented SIMD instead of the scalar version for latin1 strings.
   return v8_flags.regexp_simd && advance_by * char_size() == 1 &&
          CpuFeatures::IsSupported(RISCV_SIMD);
 }
