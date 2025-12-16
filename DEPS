@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a22f0c95398607bc7cf40ed59f7c3f9512e8fdcd',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fd0d98a7c19f8d9b814accc495a0677a2943320c',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '0b82a1d7bd15ca14932202544e76dbe395a8a41a',
   'buildtools/linux64': {
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c34ff739405e6bae6915e073ce590d685c6ce8ea',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '276d76ecbd54e05ef902c23eb3a322bffcd9fa8f',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
   'third_party/fp16/src':
@@ -314,9 +314,9 @@ deps = {
   'third_party/libpfm4/src':
     Var('chromium_url') + '/external/git.code.sf.net/p/perfmon2/libpfm4.git' + '@' + '964baf9d35d5f88d8422f96d8a82c672042e7064',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '0f7574d6db9574379943aeb8d6946cab6e594cb3',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'f4b329c171f133c4cbad4819773eaf889a9f64cc',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '6d7c6beccd3783f6c44451eec062e996b5838a6d',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'ef2b68dfb26432a652b2b3ba9fc9f491f45535c9',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'e1d5d5b42c228fca8dbd3080f612050446868e80',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '15643f46c55643e32c4fe04bfa830347a3176562',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
