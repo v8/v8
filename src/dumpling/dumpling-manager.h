@@ -47,6 +47,8 @@ class DumplingManager {
 
   std::optional<std::string> DumpBytecodeOffset(int bytecode_offset);
 
+  std::optional<std::string> DumpFunctionId(int function_id);
+
   std::optional<std::string> DumpArgCount(int arg_count);
 
   std::optional<std::string> DumpRegCount(int reg_count);

@@ -42,6 +42,9 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
 
   MaybePrint("b:", DumpBytecodeOffset(bytecode_offset), dumpling_os_);
 
+  int function_id = function->shared()->StartPosition();
+  MaybePrint("f:", DumpFunctionId(function_id), dumpling_os_);
+
   int param_count = bytecode_array->parameter_count() - 1;
   MaybePrint("n:", DumpArgCount(param_count), dumpling_os_);
   int register_count = bytecode_array->register_count();
@@ -128,6 +131,10 @@ std::optional<std::string> DumplingManager::DumpReg(unsigned int index,
     dumpling_last_frame_.regs.resize(index + 1);
   }
   return DumpValuePlain(reg, dumpling_last_frame_.regs[index]);
+}
+
+std::optional<std::string> DumplingManager::DumpFunctionId(int function_id) {
+  return DumpValue(function_id, dumpling_last_frame_.function_id);
 }
 
 DumplingManager::DumplingManager()
