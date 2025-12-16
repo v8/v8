@@ -484,8 +484,12 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'mjsunit'},
-      {'name': 'test262', 'shards': 2},
+      {
+        'name': 'test262',
+        'variant': 'default',
+        'shards': 2,
+        'test_args': ['--exit-after-n-failures=0'],
+      },
     ],
   },
   'v8_linux64_fuzzilli_rel': {
