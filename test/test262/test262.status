@@ -282,12 +282,6 @@
   'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-dangi': [SKIP],
   'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-hebrew': [SKIP],
 
-  # Rounding window
-  # Fix: https://github.com/boa-dev/temporal/pull/636
-  # This is a recent spec change, and we might let it slip for the initial release.
-  'built-ins/Temporal/Duration/prototype/round/rounding-window': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/rounding-window': [FAIL],
-
   # toLocaleString with just an era setting should format as default
   # b/463427743
   'intl402/Temporal/Instant/prototype/toLocaleString/era': [FAIL],
@@ -1325,16 +1319,4 @@
 # end import test262@c0cf527756840ae8ba679e53e627ec20f3bbc5c8
 ####
 
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/Temporal/Duration/prototype/round/zero-duration': [SKIP],
-  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-5': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/withCalendar/calendar-time-string': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/withCalendar/calendar-time-string': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/withCalendar/calendar-time-string': [SKIP],
-}],
-# End roll-watcher patch
-####
 ]
