@@ -106,14 +106,16 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 #elif defined(V8_TARGET_ARCH_RISCV64)
     return kAllocatableGeneralRegisters - kMaglevExtraScratchRegister -
            kMaglevFlagsRegister;
+#elif defined(V8_TARGET_ARCH_LOONG64)
+    return kAllocatableGeneralRegisters - kMaglevFlagsRegister;
 #else
     return kAllocatableGeneralRegisters;
 #endif
   }
 
-#if defined(V8_TARGET_ARCH_RISCV64)
+#if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_LOONG64)
   static constexpr Register GetFlagsRegister() { return kMaglevFlagsRegister; }
-#endif  // V8_TARGET_ARCH_RISCV64
+#endif  // V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
 
   static constexpr DoubleRegList GetAllocatableDoubleRegisters() {
     return kAllocatableDoubleRegisters;
@@ -171,6 +173,11 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                      Label::Distance true_distance, bool fallthrough_when_true,
                      Label* if_false, Label::Distance false_distance,
                      bool fallthrough_when_false);
+#if defined(V8_TARGET_ARCH_LOONG64)
+  void Branch(Register r1, const Operand& r2, Condition condition,
+              Label* if_true, bool fallthrough_when_true, Label* if_false,
+              bool fallthrough_when_false);
+#endif
 
   Register FromAnyToRegister(ConstInput input, Register scratch);
 
@@ -361,7 +368,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   inline void MoveHeapNumber(Register dst, double value);
 
-#ifdef V8_TARGET_ARCH_RISCV64
+#if defined(V8_TARGET_ARCH_RISCV64)
   inline Condition CheckSmi(Register src);
   // Abort execution if argument is not a Map, enabled via
   // --debug-code.
@@ -375,6 +382,16 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   void Assert(Condition cond, AbortReason reason);
   void IsObjectType(Register heap_object, Register scratch1, Register scratch2,
                     InstanceType type);
+#elif defined(V8_TARGET_ARCH_LOONG64)
+  inline Condition CheckSmi(Register src);
+  void Assert(Condition cond, AbortReason reason);
+
+  void Cmp(const Register& rj, const Operand& operand);
+  void Cmp(const Register& rj, const uint32_t imm);
+  void CmpTagged(const Register& rj, const Operand& operand);
+  void CompareRoot(const Register& obj, RootIndex index,
+                   ComparisonMode mode = ComparisonMode::kDefault);
+  void CompareTaggedRoot(const Register& obj, RootIndex index);
 #endif
 
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);

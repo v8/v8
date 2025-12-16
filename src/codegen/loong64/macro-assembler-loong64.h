@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/loong64/assembler-loong64.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
@@ -49,6 +50,10 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
                                    Register reg4 = no_reg,
                                    Register reg5 = no_reg,
                                    Register reg6 = no_reg);
+
+// TODO(victorgomes): Move definition to macro-assembler.h, once all other
+// platforms are updated.
+enum class StackLimitKind { kInterruptStackLimit, kRealStackLimit };
 
 // -----------------------------------------------------------------------------
 // Static helper functions.
@@ -108,8 +113,23 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Assert(Condition cc, AbortReason reason, Register rj,
               Operand rk) NOOP_UNLESS_DEBUG_CODE;
 
+  // Abort execution if argument is not a Map, enabled via --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
+
   void AssertJSAny(Register object, Register map_tmp, Register tmp,
                    AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
+
+  // Abort execution if argument is not smi nor in the main pointer
+  // compression cage, enabled via --debug-code.
+  void AssertSmiOrHeapObjectInMainCompressionCage(Register object)
+      NOOP_UNLESS_DEBUG_CODE;
+
+  void AssertInRange(Register heap_object, Tagged_t lower_limit,
+                     Tagged_t higher_limit,
+                     AbortReason reason) NOOP_UNLESS_DEBUG_CODE;
+
+  // Like Assert(), but always enabled.
+  // void Check(Condition cond, AbortReason reason);
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason, Register rj, Operand rk);
@@ -297,8 +317,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Ld_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
   void St_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
+  // Caution: if {value} is a 32-bit negative int, it should be sign-extended
+  // to 64-bit before calling this function.
+  void Switch(Register scratch, Register value, int case_value_base,
+              Label** labels, int num_labels);
+
   void Push(Handle<HeapObject> handle);
   void Push(Tagged<Smi> smi);
+  void Push(Tagged<TaggedIndex> index);
 
   void Push(Register src) {
     Add_d(sp, sp, Operand(-kSystemPointerSize));
@@ -435,6 +461,50 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void MultiPopFPU(DoubleRegList regs);
 
+  // These PushAll/PopAll respect the order of the registers in the stack from
+  // low index to high.
+  inline void PushAll(RegList registers) {
+    if (registers.is_empty()) return;
+    ASM_CODE_COMMENT(this);
+    // TODO(victorgomes): pushes/pops registers in the opposite order
+    // as expected by Maglev frame. Consider massaging Maglev to accept this
+    // order instead.
+    int16_t num_to_push = registers.Count();
+    int16_t stack_offset = num_to_push * kSystemPointerSize;
+
+    Sub_d(sp, sp, Operand(stack_offset));
+    for (int16_t i = 0; i < kNumRegisters; i++) {
+      if ((registers.bits() & (1 << i)) != 0) {
+        stack_offset -= kSystemPointerSize;
+        St_d(Register::from_code(i), MemOperand(sp, stack_offset));
+      }
+    }
+  }
+
+  inline void PopAll(RegList registers) {
+    if (registers.is_empty()) return;
+    int16_t stack_offset = 0;
+    for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
+      if ((registers.bits() & (1 << i)) != 0) {
+        Ld_d(Register::from_code(i), MemOperand(sp, stack_offset));
+        stack_offset += kSystemPointerSize;
+      }
+    }
+    addi_d(sp, sp, stack_offset);
+  }
+
+  inline void PushAll(DoubleRegList registers,
+                      int stack_slot_size = kDoubleSize) {
+    DCHECK_EQ(stack_slot_size, kDoubleSize);
+    MultiPushFPU(registers);
+  }
+
+  inline void PopAll(DoubleRegList registers,
+                     int stack_slot_size = kDoubleSize) {
+    DCHECK_EQ(stack_slot_size, kDoubleSize);
+    MultiPopFPU(registers);
+  }
+
 #define DEFINE_INSTRUCTION(instr)                          \
   void instr(Register rd, Register rj, const Operand& rk); \
   void instr(Register rd, Register rj, Register rk) {      \
@@ -533,17 +603,27 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
 
   // On LoongArch64, we should sign-extend 32-bit values.
-  void SmiToInt32(Register smi) {
+  void SmiToInt32(Register smi) { SmiToInt32(smi, smi); }
+  void SmiToInt32(Register dst, Register smi) {
     if (v8_flags.enable_slow_asserts) {
       AssertSmi(smi);
     }
     DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
-    SmiUntag(smi, smi);
+    SmiUntag(dst, smi);
   }
 
   // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
-  void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
+  void AssertNotSmi(Register object,
+                    AbortReason reason = AbortReason::kOperandIsASmi)
+      NOOP_UNLESS_DEBUG_CODE;
+  void AssertSmi(Register object,
+                 AbortReason reason = AbortReason::kOperandIsNotASmi)
+      NOOP_UNLESS_DEBUG_CODE;
+
+  // Abort execution if a 64 bit register containing a 32 bit payload does
+  // not have zeros in the top 32 bits, enabled via --debug-code.
+  void AssertZeroExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE;
+  void AssertSignExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE;
 
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
@@ -591,6 +671,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void CheckPageFlag(Register object, int mask, Condition cc,
                      Label* condition_met);
+
+  void CheckPageFlag(const Register& object, Register scratch, int mask,
+                     Condition cc, Label* condition_met) {
+    CheckPageFlag(object, mask, cc, condition_met);
+  }
 #undef COND_ARGS
 
   // Performs a truncating conversion of a floating point number as used by
@@ -752,6 +837,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadRoot(Register destination, RootIndex index, Condition cond,
                 Register src1, const Operand& src2);
   void LoadTaggedRoot(Register destination, RootIndex index);
+  void LoadCompressedRoot(Register destination, RootIndex index);
 
   void LoadMap(Register destination, Register object);
   void LoadCompressedMap(Register dst, Register object);
@@ -873,6 +959,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Loads a field containing any tagged value and decompresses it if necessary.
   void LoadTaggedField(Register destination, const MemOperand& field_operand,
                        int* trap_pc = NULL);
+
+  // Loads a field containing any tagged value but never decompresses it.
+  void LoadTaggedFieldWithoutDecompressing(const Register& destination,
+                                           const MemOperand& field_operand);
 
   // Loads a field containing a tagged signed value and decompresses it if
   // necessary.
@@ -1026,6 +1116,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void TestCodeIsMarkedForDeoptimizationAndJump(Register code_data_container,
                                                 Register scratch,
                                                 Condition cond, Label* target);
+  void JumpIfCodeIsTurbofanned(Register code, Register scratch,
+                               Label* if_marked_for_deoptimization);
   Operand ClearedValue() const;
 
   void PushRoot(RootIndex index) {
@@ -1066,6 +1158,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // comparison.
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
+  void JumpIfNotInRange(Register value, unsigned lower_limit,
+                        unsigned higher_limit, Label* on_not_in_range);
 
   void JumpIfObjectType(Label* target, Condition cc, Register object,
                         InstanceType instance_type, Register scratch = no_reg);
@@ -1248,8 +1342,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // -------------------------------------------------------------------------
   // Stack limit utilities
-
-  enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
   void LoadStackLimit(Register destination, StackLimitKind kind);
   void StackOverflowCheck(Register num_args, Register scratch1,
                           Register scratch2, Label* stack_overflow);
@@ -1301,7 +1393,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
 
-
   template <typename Field>
   void DecodeField(Register dst, Register src) {
     Bstrpick_d(dst, src, Field::kShift + Field::kSize - 1, Field::kShift);
@@ -1311,6 +1402,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecodeField(Register reg) {
     DecodeField<Field>(reg, reg);
   }
+
+  // Falls through and sets scratch_and_result to 0 on failure, jumps to
+  // on_result on success.
+  void TryLoadOptimizedOsrCode(Register scratch_and_result,
+                               CodeKind min_opt_level, Register feedback_vector,
+                               FeedbackSlot slot, Label* on_result,
+                               Label::Distance distance);
 
  protected:
   inline Register GetRkAsRegisterHelper(const Operand& rk,

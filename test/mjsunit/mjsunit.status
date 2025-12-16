@@ -1443,9 +1443,6 @@
   # qNaN encoding with x86 architectures
   'wasm/float-constant-folding': [SKIP],
 
-  # Loong64 port doesn't support maglev yet.
-  'turbolev/*': [SKIP],
-
   # Flush to zero is not supported yet.
   'd8/flush-denormals-flag': [SKIP],
   'd8/flush-denormals-helper': [SKIP],

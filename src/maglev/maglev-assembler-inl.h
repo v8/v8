@@ -31,6 +31,8 @@
 #include "src/maglev/s390/maglev-assembler-s390-inl.h"
 #elif V8_TARGET_ARCH_PPC64
 #include "src/maglev/ppc/maglev-assembler-ppc-inl.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/maglev/loong64/maglev-assembler-loong64-inl.h"
 #else
 #error "Maglev does not supported this architecture."
 #endif
@@ -313,7 +315,7 @@ inline void MaglevAssembler::StoreContextCellSmiValue(Register cell,
                                  value);
 }
 
-#if !defined(V8_TARGET_ARCH_RISCV64)
+#if !defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_LOONG64)
 
 inline void MaglevAssembler::CompareInstanceTypeAndJumpIf(
     Register map, InstanceType type, Condition cond, Label* target,
