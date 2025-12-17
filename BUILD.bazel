@@ -2509,6 +2509,8 @@ filegroup(
         "src/sandbox/code-sandboxing-mode.h",
         "src/sandbox/compactible-external-entity-table-inl.h",
         "src/sandbox/compactible-external-entity-table.h",
+        "src/sandbox/external-strings-cage.cc",
+        "src/sandbox/external-strings-cage.h",
         "src/sandbox/isolate.h",
         "src/sandbox/isolate-inl.h",
         "src/sandbox/indirect-pointer.h",
