@@ -2788,6 +2788,9 @@
 ['variant == stress_maglev_tracing', {
   # Hangs with trace flags.
   'switch': [SKIP],
+
+  # Slow with trace flags.
+  'regress/regress-1146013': [PASS, SLOW],
 }], # variant == stress_maglev_tracing
 
 ##############################################################################
