@@ -146,6 +146,7 @@ Type::bitset Type::BitsetLub() const {
 // MapRef and get rid of the HeapObjectType class.
 template <typename MapRefLike>
 Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
+  // LINT.IfChange(bitset_type_lub)
   switch (map.instance_type()) {
     case CONS_TWO_BYTE_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
@@ -427,6 +428,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     default:
       UNREACHABLE();
   }
+  // LINT.ThenChange()
   UNREACHABLE();
 }
 

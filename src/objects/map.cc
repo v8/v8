@@ -64,6 +64,7 @@ std::optional<Tagged<JSFunction>> Map::GetConstructorFunction(
   return {};
 }
 
+// LINT.IfChange(get_visitor_id)
 VisitorId Map::GetVisitorId(Tagged<Map> map) {
   static_assert(kVisitorIdCount <= 256);
 
@@ -492,6 +493,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
   FATAL("Instance type %s (code %d) not mapped to VisitorId.", name.c_str(),
         instance_type);
 }
+// LINT.ThenChange()
 
 // static
 MaybeObjectDirectHandle Map::WrapFieldType(DirectHandle<FieldType> type) {

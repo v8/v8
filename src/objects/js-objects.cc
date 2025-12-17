@@ -2507,6 +2507,7 @@ static const char* NonAPIInstanceTypeToString(InstanceType instance_type) {
   UNREACHABLE();
 }
 
+// LINT.IfChange(get_header_size)
 int JSObject::GetHeaderSize(InstanceType type,
                             bool function_has_prototype_slot) {
   switch (type) {
@@ -2713,6 +2714,7 @@ int JSObject::GetHeaderSize(InstanceType type,
     }
   }
 }
+// LINT.ThenChange()
 
 MaybeHandle<JSAny> JSObject::GetPropertyWithFailedAccessCheck(
     LookupIterator* it) {
