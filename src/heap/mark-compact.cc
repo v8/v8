@@ -2858,7 +2858,24 @@ class FullStringForwardingTableCleaner final
     // Mark the forwarded string to keep it alive.
     if (MarkingHelper::GetLivenessMode(heap_, forward_string) !=
         MarkingHelper::LivenessMode::kAlwaysLive) {
-      marking_state_->TryMarkAndAccountLiveBytes(forward_string);
+      if (marking_state_->TryMarkAndAccountLiveBytes(forward_string)) {
+        // If we just marked the forwarded string, it wasn't kept alive by
+        // anything but this entry in the forwarding table.
+        // This could mean that previous entries in the table with
+        // `original_string` equal to the current `forward_string` might have
+        // been considered dead. This is in general not a problem, but we need
+        // to reset the hash to not be a forwarding index anymore.
+        // I.e. An internalized string gets externalized (creating an entry A in
+        // the forwarding table with the external resource), followed by
+        // internalization of a shared string with the same content (creating an
+        // entry B in the forwarding table with the internalized string of A
+        // being the forwarded string of B).
+        // If the string in A is only live due to B, we dispose the external
+        // resource in A. When we later iterate entry B, we mark the forwarded
+        // string (the string in entry A) as alive, which now still has the
+        // forwarding index as it's hash (as it was considered dead previously).
+        forward_string->set_raw_hash_field(record->raw_hash(isolate_));
+      }
     }
     // Transition the original string to a ThinString and override the
     // forwarding index with the correct hash.
