@@ -111,11 +111,6 @@
   # Tests that require Simd enabled.
   'wasm-trace-memory': [SKIP],
   'wasm-trace-memory64': [SKIP],
-
-  # RISCV don't enable CanUseGenericJsToWasmWrapper
-  # see issues/469801435, when enable CanUseGenericJsToWasmWrapper
-  # enable this case
-  'wasm-debug-trace-minimal': [SKIP]
 }], # arch == mips64el or arch == riscv64 or arch == loong64
 
 ##############################################################################
