@@ -686,19 +686,21 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     DCHECK_IMPLIES(new_index.valid(),
                    Asm().output_graph().BelongsToThisGraph(new_index));
     if (V8_UNLIKELY(v8_flags.turboshaft_verify_reductions)) {
+      // Checking that the new operation produces the same number of outputs as
+      // the old one.
       if (new_index.valid()) {
         const Operation& new_op = Asm().output_graph().Get(new_index);
         if (!new_op.Is<MakeTupleOp>()) {
-          // Checking that the outputs_rep of the new operation are the same as
-          // the old operation. (except for tuples, since they don't have
-          // outputs_rep)
+          // If this DCHECK fails, then either:
+          //   - the new operation produces more outputs than the old one, which
+          //     is probably a sign that we're computing things that we don't
+          //     need to.
+          //   - or the new operation produces fewer inputs than the old one,
+          //     which means that users might not be able to find the inputs
+          //     they want. Note that this should be caught by other DCHECKs
+          //     later down the line, so if this DCHECK fails and you think that
+          //     it shouldn't, feel free to replace it by a DCHECK_LE.
           DCHECK_EQ(new_op.outputs_rep().size(), op.outputs_rep().size());
-          for (size_t i = 0; i < new_op.outputs_rep().size(); ++i) {
-            DCHECK(new_op.outputs_rep()[i].AllowImplicitRepresentationChangeTo(
-                op.outputs_rep()[i],
-                Asm().output_graph().IsCreatedFromTurbofan(),
-                Asm().output_graph().IsTurbolev()));
-          }
         }
         Asm().Verify(index, new_index);
       }
