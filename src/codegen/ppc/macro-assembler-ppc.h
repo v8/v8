@@ -950,6 +950,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void JumpIfEqual(Register x, int32_t y, Label* dest);
   void JumpIfLessThan(Register x, int32_t y, Label* dest);
+  void JumpIfUnsignedLessThan(Register x, int32_t y, Label* dest);
 
   // Caution: if {reg} is a 32-bit negative int, it should be sign-extended to
   // 64-bit before calling this function.
