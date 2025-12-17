@@ -3286,32 +3286,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I32x4BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
-    case kArm64I8x16Addv: {
-      __ Addv(i.OutputSimd128Register().B(), i.InputSimd128Register(0).V16B());
+    case kArm64IAddv: {
+      uint32_t lane_size = LaneSizeField::decode(opcode);
+      VectorFormat dst_f = ScalarFormatFromLaneSize(lane_size);
+      VectorFormat src_f = VectorFormatFillQ(lane_size);
+      __ Addv(i.OutputSimd128Register().Format(dst_f),
+              i.InputSimd128Register(0).Format(src_f));
       break;
     }
-    case kArm64I16x8Addv: {
-      __ Addv(i.OutputSimd128Register().H(), i.InputSimd128Register(0).V8H());
-      break;
-    }
-    case kArm64I32x4Addv: {
-      __ Addv(i.OutputSimd128Register().S(), i.InputSimd128Register(0).V4S());
-      break;
-    }
-    case kArm64I64x2AddPair: {
+    case kArm64IAddpScalar: {
       __ Addp(i.OutputSimd128Register().D(), i.InputSimd128Register(0).V2D());
       break;
     }
-    case kArm64F32x4AddReducePairwise: {
-      UseScratchRegisterScope scope(masm());
-      VRegister tmp = scope.AcquireV(kFormat4S);
-      __ Faddp(tmp.V4S(), i.InputSimd128Register(0).V4S(),
-               i.InputSimd128Register(0).V4S());
-      __ Faddp(i.OutputSimd128Register().S(), tmp.V2S());
+    case kArm64FAddp: {
+      uint32_t lane_size = LaneSizeField::decode(opcode);
+      VectorFormat f = VectorFormatFillQ(lane_size);
+      __ Faddp(i.OutputSimd128Register().Format(f),
+               i.InputSimd128Register(0).Format(f),
+               i.InputSimd128Register(1).Format(f));
       break;
     }
-    case kArm64F64x2AddPair: {
-      __ Faddp(i.OutputSimd128Register().D(), i.InputSimd128Register(0).V2D());
+    case kArm64FAddpScalar: {
+      uint32_t lane_size = LaneSizeField::decode(opcode);
+      if (lane_size == 64) {
+        __ Faddp(i.OutputSimd128Register().D(),
+                 i.InputSimd128Register(0).V2D());
+      } else if (lane_size == 32) {
+        __ Faddp(i.OutputSimd128Register().S(),
+                 i.InputSimd128Register(0).V2S());
+      } else {
+        UNIMPLEMENTED();
+      }
       break;
     }
     case kArm64I32x4DotI16x8S: {

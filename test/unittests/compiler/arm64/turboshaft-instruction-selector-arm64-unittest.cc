@@ -2724,8 +2724,11 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
     V<Simd128> reduce = m.I8x16AddReduce(m.Parameter(0));
     m.Return(reduce);
     Stream s = m.Build();
-    EXPECT_EQ(kArm64I8x16Addv, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64IAddv, s[0]->arch_opcode());
+    EXPECT_EQ(8, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   {
@@ -2733,8 +2736,11 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
     V<Simd128> reduce = m.I16x8AddReduce(m.Parameter(0));
     m.Return(reduce);
     Stream s = m.Build();
-    EXPECT_EQ(kArm64I16x8Addv, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64IAddv, s[0]->arch_opcode());
+    EXPECT_EQ(16, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   {
@@ -2742,8 +2748,11 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
     V<Simd128> reduce = m.I32x4AddReduce(m.Parameter(0));
     m.Return(reduce);
     Stream s = m.Build();
-    EXPECT_EQ(kArm64I32x4Addv, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64IAddv, s[0]->arch_opcode());
+    EXPECT_EQ(32, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   {
@@ -2751,8 +2760,10 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
     V<Simd128> reduce = m.I64x2AddReduce(m.Parameter(0));
     m.Return(reduce);
     Stream s = m.Build();
-    EXPECT_EQ(kArm64I64x2AddPair, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64IAddpScalar, s[0]->arch_opcode());
     EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   {
@@ -2760,17 +2771,29 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
     V<Simd128> reduce = m.F32x4AddReduce(m.Parameter(0));
     m.Return(reduce);
     Stream s = m.Build();
-    EXPECT_EQ(kArm64F32x4AddReducePairwise, s[0]->arch_opcode());
-    EXPECT_EQ(1U, s[0]->InputCount());
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64FAddp, s[0]->arch_opcode());
+    EXPECT_EQ(32, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kArm64FAddpScalar, s[1]->arch_opcode());
+    EXPECT_EQ(32, LaneSizeField::decode(s[1]->opcode()));
+    EXPECT_EQ(1U, s[1]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ(1U, s[1]->OutputCount());
   }
   {
     StreamBuilder m(this, MachineType::Float64(), MachineType::Simd128());
     V<Simd128> reduce = m.F64x2AddReduce(m.Parameter(0));
     m.Return(reduce);
     Stream s = m.Build();
-    EXPECT_EQ(kArm64F64x2AddPair, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64FAddpScalar, s[0]->arch_opcode());
+    EXPECT_EQ(64, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }

@@ -5711,13 +5711,22 @@ void VisitSimdReduce(InstructionSelector* selector, OpIndex node,
     VisitSimdReduce(this, node, Opcode);                           \
   }
 
-VISIT_SIMD_REDUCE(I8x16, kArm64I8x16Addv)
-VISIT_SIMD_REDUCE(I16x8, kArm64I16x8Addv)
-VISIT_SIMD_REDUCE(I32x4, kArm64I32x4Addv)
-VISIT_SIMD_REDUCE(I64x2, kArm64I64x2AddPair)
-VISIT_SIMD_REDUCE(F32x4, kArm64F32x4AddReducePairwise)
-VISIT_SIMD_REDUCE(F64x2, kArm64F64x2AddPair)
+VISIT_SIMD_REDUCE(I8x16, kArm64IAddv | LaneSizeField::encode(8))
+VISIT_SIMD_REDUCE(I16x8, kArm64IAddv | LaneSizeField::encode(16))
+VISIT_SIMD_REDUCE(I32x4, kArm64IAddv | LaneSizeField::encode(32))
+VISIT_SIMD_REDUCE(I64x2, kArm64IAddpScalar)
+VISIT_SIMD_REDUCE(F64x2, kArm64FAddpScalar | LaneSizeField::encode(64))
 #undef VISIT_SIMD_REDUCE
+
+void InstructionSelector::VisitF32x4AddReduce(OpIndex node) {
+  Arm64OperandGenerator g(this);
+  InstructionOperand temp = g.TempSimd128Register();
+  OpIndex input = this->Get(node).input(0);
+  Emit(kArm64FAddp | LaneSizeField::encode(32), temp, g.UseRegister(input),
+       g.UseRegister(input));
+  Emit(kArm64FAddpScalar | LaneSizeField::encode(32), g.DefineAsRegister(node),
+       temp);
+}
 
 namespace {
 bool isSimdZero(InstructionSelector* selector, OpIndex node) {
