@@ -2828,11 +2828,10 @@ void VisitFloatBinop(InstructionSelector* selector, OpIndex node,
 void VisitFloatUnop(InstructionSelector* selector, OpIndex node, OpIndex input,
                     InstructionCode opcode) {
   X64OperandGenerator g(selector);
-  if (selector->IsSupported(AVX)) {
-    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(input));
-  } else {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(input));
-  }
+  InstructionOperand dst = selector->IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  selector->Emit(opcode, dst, g.UseRegister(input));
 }
 
 }  // namespace
@@ -5968,8 +5967,10 @@ void InstructionSelector::VisitI16x8DotI8x16I7x16S(OpIndex node) {
   X64OperandGenerator g(this);
   const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
   DCHECK_EQ(op.input_count, 2);
-  Emit(kX64I16x8DotI8x16I7x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(op.left()), g.UseRegister(op.right()));
+  InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)
+                                            : g.DefineSameAsInput(node, 1);
+  Emit(kX64I16x8DotI8x16I7x16S, dst, g.UseRegister(op.left()),
+       g.UseRegister(op.right()));
 }
 
 void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {

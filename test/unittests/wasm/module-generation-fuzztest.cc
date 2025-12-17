@@ -112,12 +112,27 @@ inline auto wire_bytes_domain() {
       .WithMaxSize(512);
 }
 
+std::vector<std::tuple<int, int, std::vector<uint8_t>, bool>> SimdSeeds() {
+  auto VectorFromCstr = []<size_t N>(const char (&str)[N]) {
+    return std::vector<uint8_t>{std::begin(str), std::end(str) - 1};
+  };
+  // Regression test for https://crbug.com/469286969.
+  std::tuple<int, int, std::vector<uint8_t>, bool> regress_469286969{
+      1, 0,
+      VectorFromCstr("F\250\250\250\250\250\250\250\350\250\341\250\037\037\037"
+                     "\347\203\347\347\347\347\347\347\347\347\347\347\347\347"
+                     "\250N\037\037u\037\037\250\250\276\276\276\276\250"),
+      false};
+  return {regress_469286969};
+}
+
 V8_FUZZ_TEST_F(ModuleGenerationTest, TestAll)
     .WithDomains(tier_mask_domain(), debug_mask_domain(), wire_bytes_domain());
 
 V8_FUZZ_TEST_F(ModuleGenerationTest, TestSimd)
     .WithDomains(tier_mask_domain(), debug_mask_domain(), wire_bytes_domain(),
-                 fuzztest::Arbitrary<bool>());
+                 fuzztest::Arbitrary<bool>())
+    .WithSeeds(SimdSeeds());
 
 V8_FUZZ_TEST_F(ModuleGenerationTest, TestGC)
     .WithDomains(tier_mask_domain(), debug_mask_domain(), wire_bytes_domain());
