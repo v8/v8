@@ -3792,7 +3792,7 @@ DirectHandle<Object> WasmToJSObject(Isolate* isolate,
 // LINT.IfChange
 static_assert(WasmArray::kHeaderSize % kDoubleSize ==
               (kTaggedSize != kDoubleSize ? 4 : 0));
-// LINT.ThenChange(src/objects/objects-inl.h, src/builtins/wasm.tq)
+// LINT.ThenChange(/src/objects/objects-inl.h, /src/builtins/wasm.tq)
 
 }  // namespace wasm
 

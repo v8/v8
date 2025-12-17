@@ -1423,7 +1423,7 @@ void CodeStubAssembler::CheckObjectComparisonAllowed(TNode<AnyTaggedT> a,
                             Uint32Constant(kExecutableAndTrustedMask))));
   Goto(&done);
   Bind(&done);
-  // LINT.ThenChange(src/objects/tagged-impl.cc:CheckObjectComparisonAllowed)
+  // LINT.ThenChange(/src/objects/tagged-impl.cc:CheckObjectComparisonAllowed)
 }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 

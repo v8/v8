@@ -175,8 +175,9 @@ class ExceptionHandlerInfo;
   V(SmiConstant)                    \
   V(TaggedIndexConstant)            \
   V(TrustedConstant)
-// LINT.ThenChange(maglev-graph-processor.h:maglev_constant_nodes,
-//  maglev-regalloc.cc:maglev_constant_nodes)
+// clang-format off
+// LINT.ThenChange(/src/maglev/maglev-graph-processor.h:maglev_constant_nodes, /src/maglev/maglev-regalloc.cc:maglev_constant_nodes)
+// clang-format on
 
 #define INLINE_BUILTIN_NODE_LIST(V)              \
   V(BuiltinStringFromCharCode)                   \

@@ -151,7 +151,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // - AssemblerOpInterface::MemoryChunkFromAddress
     return a & ~kAlignmentMask;
     // clang-format off
-    // LINT.ThenChange(src/codegen/code-stub-assembler.cc, src/codegen/ia32/macro-assembler-ia32.cc, src/codegen/x64/macro-assembler-x64.cc, src/compiler/turboshaft/assembler.h)
+    // LINT.ThenChange(/src/codegen/code-stub-assembler.cc, /src/codegen/ia32/macro-assembler-ia32.cc, /src/codegen/x64/macro-assembler-x64.cc, /src/compiler/turboshaft/assembler.h)
     // clang-format on
   }
 

@@ -1482,9 +1482,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   __ bind(&is_baseline);
   {
-
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
+
 #endif  // !V8_JITLESS
 
   __ bind(&compile_lazy);
@@ -4769,7 +4769,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       ((1 + FC::getExtraSlotsCountFrom<ExitFrameConstants>()) % 2) *
           kSystemPointerSize;
   MemOperand argc_operand = ExitFrameStackSlotOperand(kArgcOffsetFromSP);
-  // LINT.ThenChange(src/maglev/maglev-ir.cc:Workaround_347741609)
+  // LINT.ThenChange(/src/maglev/maglev-ir.cc:Workaround_347741609)
   if (v8_flags.debug_code) {
     // Ensure sp-based calculation of FC::kArgcIndex's slot address matches the
     // fp-based one.

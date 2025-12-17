@@ -6644,7 +6644,7 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
       ((1 + FC::getExtraSlotsCountFrom<ExitFrameConstants>()) % 2) *
           kSystemPointerSize;
   MemOperand argc_operand = ExitFrameStackSlotOperand(kArgcOffsetFromSP);
-  // LINT.ThenChange(src/builtins/arm64/builtins-arm64.cc:Workaround_347741609)
+  // LINT.ThenChange(/src/builtins/arm64/builtins-arm64.cc:Workaround_347741609)
 #else
   // We don't enable this workaround for other configurations because
   // a) it's not possible to convert fp-based encoding to sp-based one:
