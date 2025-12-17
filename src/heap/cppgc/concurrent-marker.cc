@@ -120,7 +120,6 @@ void ConcurrentMarkingTask::ProcessWorklists(
               DynamicallyTraceMarkedObject<AccessMode::kAtomic>(
                   concurrent_marking_visitor, *header);
             })) {
-      StatsCollector::Note("Marking preempted");
       return;
     }
     if (!DrainWorklistWithYielding<
@@ -139,7 +138,6 @@ void ConcurrentMarkingTask::ProcessWorklists(
               item.callback(&concurrent_marking_visitor,
                             item.base_object_payload);
             })) {
-      StatsCollector::Note("Marking preempted");
       return;
     }
     if (!DrainWorklistWithYielding<
@@ -154,7 +152,6 @@ void ConcurrentMarkingTask::ProcessWorklists(
               DynamicallyTraceMarkedObject<AccessMode::kAtomic>(
                   concurrent_marking_visitor, *header);
             })) {
-      StatsCollector::Note("Marking preempted");
       return;
     }
     if (!DrainWorklistWithYielding<
@@ -168,12 +165,10 @@ void ConcurrentMarkingTask::ProcessWorklists(
                   item.key, item.value, item.value_desc,
                   concurrent_marking_visitor);
             })) {
-      StatsCollector::Note("Marking preempted");
       return;
     }
   } while (
       !concurrent_marking_state.marking_worklist().IsLocalAndGlobalEmpty());
-  StatsCollector::Note("Marking finished");
 }
 
 }  // namespace

@@ -1348,7 +1348,6 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
     }
     next_page_iterator_++;
   }
-  TRACE_GC_NOTE("Quarantined page sweeping finished");
   is_done_.store(true, std::memory_order_relaxed);
   pinned_object_per_page_.clear();
   pinned_objects_.clear();
