@@ -143,11 +143,6 @@ class JSArrayBuffer
   // Frees the associated ArrayBufferExtension and returns its backing store.
   std::shared_ptr<BackingStore> RemoveExtension();
 
-  // Marks ArrayBufferExtension
-  void MarkExtension();
-  void YoungMarkExtension();
-  void YoungMarkExtensionPromoted();
-
   //
   // Serializer/deserializer support.
   //
@@ -235,11 +230,26 @@ class ArrayBufferExtension final
   void Unmark() { marked_.store(false, std::memory_order_relaxed); }
   bool IsMarked() const { return marked_.load(std::memory_order_relaxed); }
 
-  void YoungMark() { set_young_gc_state(GcState::Copied); }
-  void YoungMarkPromoted() { set_young_gc_state(GcState::Promoted); }
-  void YoungUnmark() { set_young_gc_state(GcState::Dead); }
-  bool IsYoungMarked() const { return young_gc_state() != GcState::Dead; }
-  bool IsYoungPromoted() const { return young_gc_state() == GcState::Promoted; }
+  void YoungMark() {
+    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+    set_young_gc_state(GcState::Copied);
+  }
+  void YoungMarkPromoted() {
+    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+    set_young_gc_state(GcState::Promoted);
+  }
+  void YoungUnmark() {
+    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+    set_young_gc_state(GcState::Dead);
+  }
+  bool IsYoungMarked() const {
+    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+    return young_gc_state() != GcState::Dead;
+  }
+  bool IsYoungPromoted() const {
+    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+    return young_gc_state() == GcState::Promoted;
+  }
 
   std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
   void set_backing_store(std::shared_ptr<BackingStore> backing_store) {

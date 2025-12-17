@@ -79,6 +79,8 @@ void WriteBarrier::MarkingSlowFromCppHeapWrappable(
 
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   table.Mark(space, handle, slot.address());
+  SBXCHECK_EQ(table.Get(handle, kAnyCppHeapPointer),
+              reinterpret_cast<Address>(object));
 #endif  // V8_COMPRESS_POINTERS
 
   if (heap->cpp_heap() && object) {
