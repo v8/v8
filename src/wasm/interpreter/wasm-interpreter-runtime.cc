@@ -1928,6 +1928,27 @@ void WasmInterpreterRuntime::ExecuteCallRef(
   DirectHandle<Object> object_implicit_arg{internal->implicit_arg(), isolate_};
 
   const FunctionSig* signature = module_->signature({sig_index});
+  bool hasWasmInstance = IsWasmTrustedInstanceData(*object_implicit_arg);
+  if (hasWasmInstance) {
+    if (TrustedCast<WasmTrustedInstanceData>(object_implicit_arg)
+            ->instance_object() == *instance_object_) {
+      // InternalCall
+      uint32_t function_index = internal->function_index();
+      if (is_tail_call) {
+        PrepareTailCall(current_code, function_index, stack_pos,
+                        return_slot_offset);
+      } else {
+        ExecuteFunction(current_code, function_index, stack_pos,
+                        ref_stack_fp_offset, slot_offset, return_slot_offset);
+        if (state() == WasmInterpreterThread::State::TRAPPED ||
+            state() == WasmInterpreterThread::State::STOPPED ||
+            state() == WasmInterpreterThread::State::EH_UNWINDING) {
+          RedirectCodeToUnwindHandler(current_code);
+        }
+      }
+      return;
+    }
+  }
 
   // ExternalCall
   HandleScope handle_scope(isolate_);  // Avoid leaking handles.
@@ -1942,10 +1963,8 @@ void WasmInterpreterRuntime::ExecuteCallRef(
       current_frame_.ref_array_current_sp_ + ref_stack_fp_offset,
       ref_stack_fp_offset);
 
-  if (IsWasmTrustedInstanceData(*object_implicit_arg)) {
+  if (hasWasmInstance) {
     uint32_t function_index = internal->function_index();
-    // TODO(wzq2253675767@gmail.com): Call Wasm function in a different
-    // instance.
     ExternalCallResult result = CallExternalWasmFunction(
         function_index, object_implicit_arg, signature,
         sp + slot_offset / kSlotSize, return_slot_offset, ref_stack_fp_offset);
@@ -2332,9 +2351,7 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalWasmFunction(
     // cross-instance calls in the interpreter without recursively adding C++
     // stack frames.
 
-    // TODO(paolosev@microsoft.com) - Is it possible to short-circuit this in
-    // the case where we are calling a function in the same Wasm instance,
-    // with a simple call to WasmInterpreterRuntime::ExecuteFunction()?
+    DCHECK(*target_instance != *instance_object_);
     bool success = WasmInterpreterObject::RunInterpreter(
         isolate_, frame_pointer, target_instance, target_function_index, fp);
     if (success) {

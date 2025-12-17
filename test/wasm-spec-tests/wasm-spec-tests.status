@@ -101,7 +101,6 @@
   'instance': [SKIP],
   'proposals/*': [SKIP],
   'ref_null': [SKIP],
-  'return_call_ref': [SKIP],
   'exceptions/throw': [SKIP],
   'exceptions/throw_ref': [SKIP],
   'exceptions/try_table': [SKIP],

@@ -5956,8 +5956,6 @@ class Handlers : public HandlersBase {
                                           rets_refs, args_refs,
                                           ref_stack_fp_offset);
 
-    // TODO(paolosev@microsoft.com) - This calls adds a new C++ stack frame,
-    // which is not ideal in a tail-call.
     wasm_runtime->ExecuteCallRef(code, func_ref, sig_index, stack_pos, sp, 0, 0,
                                  return_slot_offset, true);
 
