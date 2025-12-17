@@ -9976,6 +9976,45 @@ TEST(RunWasmTurbofan_OffsetAddIndexMayOverflowRevec) {
   }
 }
 
+TEST(RunWasmTurbofan_StoreContantIndexRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmF32);
+  uint8_t temp4 = r.AllocateLocal(kWasmF32);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone(),
+                                  TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                  ExpectedResult::kFail);
+    // Load a F32x8 vector, calculate the Abs and store the result to memory.
+    // Expect revectoriztion fails due to unequal constant store indices.
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_ZERO)),
+         WASM_SIMD_STORE_MEM_OFFSET(
+             offset - 1, WASM_I32V(33),
+             WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp2))),
+         WASM_SIMD_STORE_MEM(
+             WASM_I32V(32),
+             WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp1))),
+         WASM_LOCAL_SET(temp3, WASM_SIMD_F32x4_EXTRACT_LANE(
+                                   1, WASM_SIMD_LOAD_MEM(WASM_I32V(32)))),
+         WASM_LOCAL_SET(
+             temp4, WASM_SIMD_F32x4_EXTRACT_LANE(
+                        2, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_I32V(32)))),
+         WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp3),
+                    WASM_LOCAL_GET(temp4))});
+  }
+  r.builder().WriteMemory(&memory[1], -1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_EQ(3.0f, r.Call());
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S

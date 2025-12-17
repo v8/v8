@@ -155,7 +155,7 @@ class StoreLoadInfo {
           set_invalid();
           return;
         }
-        offset_ += const_op->word32();
+        indexc_ = static_cast<uint64_t>(const_op->word32());
         index_ = nullptr;
       }
       // Try to match memory64 with constant index.
@@ -166,7 +166,7 @@ class StoreLoadInfo {
         set_invalid();
         return;
       }
-      offset_ += const_op->word64();
+      indexc_ = const_op->word64();
       index_ = nullptr;
     }
   }
@@ -175,6 +175,13 @@ class StoreLoadInfo {
     DCHECK(is_valid() && rhs.is_valid());
     if (base_ != rhs.base_) return {};
     if (index_ != rhs.index_) return {};
+    // Normally consecutive loads and stores will share or have identical
+    // constant index. It's rare we need to fold the constant index into offset
+    // to calculate the diff. To support it, we need to update the offsets when
+    // reduce loads or stores as we cannot quaranteer the lower 128-bit access
+    // will always be reduced firstly. We can consider this when it's really
+    // necessary.
+    if (!index_ && indexc_ != rhs.indexc_) return {};
 
     if constexpr (std::is_same_v<Op, Simd128LoadTransformOp>) {
       if (op_->load_kind != rhs.op_->load_kind) return {};
@@ -195,6 +202,7 @@ class StoreLoadInfo {
   bool is_valid() const { return op_ != nullptr; }
 
   const Operation* index() const { return index_; }
+  uint64_t indexc_ = 0;
   uint64_t offset() const { return offset_; }
   const Op* op() const { return op_; }
 
