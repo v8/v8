@@ -16,6 +16,7 @@
 
 #include "include/v8-primitive.h"
 #include "include/v8-source-location.h"
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
@@ -4275,10 +4276,9 @@ class AssemblerOpInterface : public Next {
                   SourceLocation loc) {
     std::stringstream stream;
     if (message) stream << message;
-    for (auto it = files_and_lines.rbegin(); it != files_and_lines.rend();
-         ++it) {
-      if (it->first != nullptr) {
-        stream << " [" << it->first << ":" << it->second << "]";
+    for (const auto& [file, line] : base::Reversed(files_and_lines)) {
+      if (file != nullptr) {
+        stream << " [" << file << ":" << line << "]";
 #ifndef DEBUG
         // To limit the size of these strings in release builds, we include only
         // the innermost macro's file name and line number.

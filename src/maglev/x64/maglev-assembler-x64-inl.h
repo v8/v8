@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "src/base/iterator.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/x64/assembler-x64.h"
@@ -190,8 +191,8 @@ template <typename T, typename... Args>
 inline void PushIteratorReverse(MaglevAssembler* masm,
                                 base::iterator_range<T> range, Args... args) {
   PushAllHelper<Args...>::PushReverse(masm, args...);
-  for (auto iter = range.rbegin(), end = range.rend(); iter != end; ++iter) {
-    masm->Push(*iter);
+  for (const auto& item : base::Reversed(range)) {
+    masm->Push(item);
   }
 }
 

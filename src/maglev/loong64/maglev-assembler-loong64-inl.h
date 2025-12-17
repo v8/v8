@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_LOONG64_MAGLEV_ASSEMBLER_LOONG64_INL_H_
 #define V8_MAGLEV_LOONG64_MAGLEV_ASSEMBLER_LOONG64_INL_H_
 
+#include "src/base/iterator.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
@@ -224,8 +225,8 @@ template <typename T, typename... Args>
 inline void PushIteratorReverse(MaglevAssembler* masm,
                                 base::iterator_range<T> range, Args... args) {
   PushAllHelper<Args...>::PushReverse(masm, args...);
-  for (auto iter = range.rbegin(), end = range.rend(); iter != end; ++iter) {
-    masm->Push(*iter);
+  for (const auto& item : base::Reversed(range)) {
+    masm->Push(item);
   }
 }
 

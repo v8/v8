@@ -3270,8 +3270,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
     }
     __ CallCFunction(fn, num_args);
   }
-  for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
-    __ Pop(*it);
+  for (auto reg : base::Reversed(keep)) {
+    __ Pop(reg);
   }
 }
 

@@ -4,6 +4,7 @@
 
 #include "test/cctest/heap/heap-utils.h"
 
+#include "src/base/iterator.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -202,8 +203,8 @@ void FillPageInPagedSpace(PageMetadata* page,
               sizes_in_category.push_back(node_size);
             });
       });
-  for (auto it = remaining_sizes.rbegin(); it != remaining_sizes.rend(); ++it) {
-    std::vector<int> sizes_in_category = *it;
+  for (const std::vector<int>& sizes_in_category :
+       base::Reversed(remaining_sizes)) {
     for (int size : sizes_in_category) {
       DCHECK_LE(size, kMaxRegularHeapObjectSize);
       int array_length = FixedArrayLenFromSize(size);

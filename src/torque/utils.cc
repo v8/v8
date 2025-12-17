@@ -11,6 +11,7 @@
 #include <string>
 
 #include "src/base/bits.h"
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/torque/ast.h"
 #include "src/torque/constants.h"
@@ -358,8 +359,8 @@ NamespaceScope::NamespaceScope(std::ostream& os,
   }
 }
 NamespaceScope::~NamespaceScope() {
-  for (auto i = d_.rbegin(); i != d_.rend(); ++i) {
-    os_ << "}  // namespace " << *i << "\n";
+  for (const std::string& ns : base::Reversed(d_)) {
+    os_ << "}  // namespace " << ns << "\n";
   }
 }
 

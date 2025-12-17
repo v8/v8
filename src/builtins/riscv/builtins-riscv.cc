@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-arguments.h"
+#include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
@@ -3139,8 +3140,7 @@ static void RestoreVectorRegisters(MacroAssembler* masm,
   // 'VU.SetSimd128'. Instead we manually set the vector length to 16 entries
   // of 8 bits each.
   __ VU.set(16, E8, m1);
-  for (auto it = reg_list.rbegin(); it != reg_list.rend(); ++it) {
-    VRegister vector_reg = *it;
+  for (VRegister vector_reg : base::Reversed(reg_list)) {
     __ vl(vector_reg, sp, 0, E8);
     __ AddWord(sp, sp, Operand(kSimd128Size));
   }
@@ -3795,8 +3795,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
     __ PrepareCallCFunction(num_args, tmp);
     __ CallCFunction(fn, num_args);
   }
-  for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
-    __ Pop(*it);
+  for (auto reg : base::Reversed(keep)) {
+    __ Pop(reg);
   }
 }
 

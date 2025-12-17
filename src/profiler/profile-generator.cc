@@ -9,6 +9,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/hashing.h"
+#include "src/base/iterator.h"
 #include "src/base/lazy-instance.h"
 #include "src/codegen/source-position.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -479,10 +480,10 @@ ProfileNode* ProfileTree::AddPathFromEnd(const std::vector<CodeEntry*>& path,
                                          LineAndColumn pos, bool update_stats) {
   ProfileNode* node = root_;
   CodeEntry* last_entry = nullptr;
-  for (auto it = path.rbegin(); it != path.rend(); ++it) {
-    if (*it == nullptr) continue;
-    last_entry = *it;
-    node = node->FindOrAddChild(*it, LineAndColumn{});
+  for (CodeEntry* entry : base::Reversed(path)) {
+    if (entry == nullptr) continue;
+    last_entry = entry;
+    node = node->FindOrAddChild(entry, LineAndColumn{});
   }
   if (last_entry && last_entry->has_deopt_info()) {
     node->CollectDeoptInfo(last_entry);
@@ -502,12 +503,12 @@ ProfileNode* ProfileTree::AddPathFromEnd(const ProfileStackTrace& path,
   ProfileNode* node = root_;
   CodeEntry* last_entry = nullptr;
   LineAndColumn parent_pos = {};
-  for (auto it = path.rbegin(); it != path.rend(); ++it) {
-    if (it->code_entry == nullptr) continue;
-    last_entry = it->code_entry;
-    node = node->FindOrAddChild(it->code_entry, parent_pos);
-    parent_pos = mode == ProfilingMode::kCallerLineNumbers ? it->line_and_column
-                                                           : LineAndColumn{};
+  for (const auto& [entry, frame_pos] : base::Reversed(path)) {
+    if (entry == nullptr) continue;
+    last_entry = entry;
+    node = node->FindOrAddChild(entry, parent_pos);
+    parent_pos =
+        mode == ProfilingMode::kCallerLineNumbers ? frame_pos : LineAndColumn{};
   }
   if (last_entry && last_entry->has_deopt_info()) {
     node->CollectDeoptInfo(last_entry);

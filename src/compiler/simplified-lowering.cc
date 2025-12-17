@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "include/v8-fast-api-calls.h"
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
@@ -724,14 +725,13 @@ class RepresentationSelector {
     DCHECK(revisit_queue_.empty());
 
     // Process nodes in reverse post order, with End as the root.
-    for (auto it = traversal_nodes_.crbegin(); it != traversal_nodes_.crend();
-         ++it) {
-      PropagateTruncation(*it);
+    for (Node* node : base::Reversed(traversal_nodes_)) {
+      PropagateTruncation(node);
 
       while (!revisit_queue_.empty()) {
-        Node* node = revisit_queue_.front();
+        Node* revisited_node = revisit_queue_.front();
         revisit_queue_.pop();
-        PropagateTruncation(node);
+        PropagateTruncation(revisited_node);
       }
     }
   }

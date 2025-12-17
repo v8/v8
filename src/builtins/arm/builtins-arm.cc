@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/api/api-arguments.h"
+#include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
@@ -2936,8 +2937,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
     __ CallCFunction(fn, num_args);
   }
 
-  for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
-    __ Pop(*it);
+  for (auto reg : base::Reversed(keep)) {
+    __ Pop(reg);
   }
 }
 

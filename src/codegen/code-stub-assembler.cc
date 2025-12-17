@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "include/v8-internal.h"
+#include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-stub-assembler-inl.h"
@@ -217,9 +218,9 @@ void CodeStubAssembler::FailAssert(
   DCHECK_NOT_NULL(message);
   base::EmbeddedVector<char, 1024> chars;
   std::stringstream stream;
-  for (auto it = files_and_lines.rbegin(); it != files_and_lines.rend(); ++it) {
-    if (it->first != nullptr) {
-      stream << " [" << it->first << ":" << it->second << "]";
+  for (const auto& [file, line] : base::Reversed(files_and_lines)) {
+    if (file != nullptr) {
+      stream << " [" << file << ":" << line << "]";
 #ifndef DEBUG
       // To limit the size of these strings in release builds, we include only
       // the innermost macro's file name and line number.

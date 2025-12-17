@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-evaluate.h"
 
+#include "src/base/iterator.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
@@ -249,9 +250,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       IsNativeContext(*evaluation_context_)
           ? DirectHandle<ScopeInfo>::null()
           : direct_handle(evaluation_context_->scope_info(), isolate);
-  for (auto rit = context_chain_.rbegin(); rit != context_chain_.rend();
-       rit++) {
-    ContextChainElement element = *rit;
+  bool first = true;
+  for (ContextChainElement element : base::Reversed(context_chain_)) {
     scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
     scope_info->SetIsDebugEvaluateScope();
 
@@ -259,7 +259,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     // itself, we don't need (and don't have) a blocklist.
     const bool paused_scope_is_script_scope =
         scope_iterator_.Done() || scope_iterator_.InInnerScope();
-    if (rit == context_chain_.rbegin() && !paused_scope_is_script_scope) {
+    if (first && !paused_scope_is_script_scope) {
       // The DebugEvaluateContext we create for the closure scope is the only
       // DebugEvaluateContext with a block list. This means we'll retrieve
       // the existing block list from the paused function scope
@@ -273,6 +273,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
                                         Cast<StringSet>(block_list));
     }
+    first = false;
 
     evaluation_context_ = factory->NewDebugEvaluateContext(
         evaluation_context_, scope_info, element.materialized_object,

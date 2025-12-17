@@ -8,6 +8,7 @@
 #include <array>
 #include <optional>
 
+#include "src/base/iterator.h"
 #include "src/base/small-vector.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/wasm/function-body-decoder.h"
@@ -572,8 +573,8 @@ class BodyGen {
     //   Resetting locals in each iteration can create interesting loop-phis.
     // TODO(evih): Iterate through existing locals and try to reuse them instead
     // of creating new locals.
-    for (auto it = param_types.rbegin(); it != param_types.rend(); it++) {
-      uint32_t local = builder_->AddLocal(*it);
+    for (ValueType type : base::Reversed(param_types)) {
+      uint32_t local = builder_->AddLocal(type);
       builder_->EmitSetLocal(local);
     }
 
@@ -4210,9 +4211,8 @@ class BodyGen {
 
     if (return_types.size() == 0 || param_types.size() == 0 ||
         !primitive(return_types[0])) {
-      for (auto iter = param_types.rbegin(); iter != param_types.rend();
-           ++iter) {
-        Consume(*iter);
+      for (ValueType type : base::Reversed(param_types)) {
+        Consume(type);
       }
       Generate(return_types, data);
       return;

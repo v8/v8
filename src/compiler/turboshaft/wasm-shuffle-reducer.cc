@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/wasm-shuffle-reducer.h"
 
+#include "src/base/iterator.h"
 #include "src/wasm/simd-shuffle.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -184,8 +185,8 @@ void WasmShuffleAnalyzer::Run() {
     TRACE("BLOCK %d\n", block_index.id());
     const Block& block = input_graph().Get(block_index);
     auto idx_range = input_graph().OperationIndices(block);
-    for (auto it = idx_range.rbegin(); it != idx_range.rend(); ++it) {
-      const Operation& op = input_graph().Get(*it);
+    for (OpIndex op_idx : base::Reversed(idx_range)) {
+      const Operation& op = input_graph().Get(op_idx);
       Process(op);
     }
     demanded_element_analysis.Revisit();

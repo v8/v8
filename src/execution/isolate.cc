@@ -26,6 +26,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/fpu.h"
 #include "src/base/hashmap.h"
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
@@ -1390,15 +1391,14 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
           visitor->SetPrevFrameAsConstructCall();
         }
         skipped_last_frame = true;
-        for (auto summary = summaries.frames.rbegin();
-             summary != summaries.frames.rend(); ++summary) {
+        for (auto& summary : base::Reversed(summaries.frames)) {
           // Skip frames from other origins when asked to do so.
           if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
-              !summary->native_context()->HasSameSecurityTokenAs(
+              !summary.native_context()->HasSameSecurityTokenAs(
                   isolate->context())) {
             continue;
           }
-          if (!visitor->Visit(*summary)) return;
+          if (!visitor->Visit(summary)) return;
           skipped_last_frame = false;
         }
         break;
@@ -7235,8 +7235,7 @@ void Isolate::OnPromiseThen(DirectHandle<JSPromise> promise) {
        frame_it.Advance()) {
     std::vector<Handle<SharedFunctionInfo>> infos;
     frame_it.frame()->GetFunctions(&infos);
-    for (auto it = infos.rbegin(); it != infos.rend(); ++it) {
-      DirectHandle<SharedFunctionInfo> info = *it;
+    for (DirectHandle<SharedFunctionInfo> info : base::Reversed(infos)) {
       if (info->HasBuiltinId()) {
         // We should not report PromiseThen and PromiseCatch which is called
         // indirectly, e.g. Promise.all calls Promise.then internally.

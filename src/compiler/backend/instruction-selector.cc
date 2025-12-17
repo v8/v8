@@ -134,8 +134,8 @@ std::optional<BailoutReason> InstructionSelector::SelectInstructions() {
   }
 
   // Visit each basic block in post order.
-  for (auto i = blocks.rbegin(); i != blocks.rend(); ++i) {
-    VisitBlock(*i);
+  for (const Block* block : base::Reversed(blocks)) {
+    VisitBlock(block);
     if (instruction_selection_failed())
       return BailoutReason::kTurbofanCodeGenerationFailed;
   }

@@ -12,6 +12,7 @@
 #include "include/v8-function.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
+#include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/base/numbers/double.h"
 #include "src/codegen/compiler.h"
@@ -1055,8 +1056,8 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
        frame_it.Advance()) {
     std::vector<Tagged<SharedFunctionInfo>> infos;
     frame_it.frame()->GetFunctions(&infos);
-    for (auto infos_it = infos.rbegin(); infos_it != infos.rend(); ++infos_it) {
-      CHECK_UNLESS_FUZZING(*infos_it != sfi);
+    for (Tagged<SharedFunctionInfo> info : base::Reversed(infos)) {
+      CHECK_UNLESS_FUZZING(info != sfi);
     }
   }
 

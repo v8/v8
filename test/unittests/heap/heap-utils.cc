@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/base/iterator.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -118,8 +119,8 @@ void FillPageInPagedSpace(PageMetadata* page,
               sizes_in_category.push_back(node_size);
             });
       });
-  for (auto it = remaining_sizes.rbegin(); it != remaining_sizes.rend(); ++it) {
-    std::vector<int> sizes_in_category = *it;
+  for (const std::vector<int>& sizes_in_category :
+       base::Reversed(remaining_sizes)) {
     for (int size : sizes_in_category) {
       DCHECK_LE(size, kMaxRegularHeapObjectSize);
       int array_length = FixedArrayLenFromSize(size);

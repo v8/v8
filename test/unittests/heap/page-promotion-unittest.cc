@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/iterator.h"
 #include "src/execution/isolate.h"
 #include "src/heap/marking-state-inl.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -19,9 +20,9 @@ class PagePromotionTest : public TestWithHeapInternalsAndContext {};
 
 PageMetadata* FindPageInNewSpace(
     const std::vector<Handle<FixedArray>>& handles) {
-  for (auto rit = handles.rbegin(); rit != handles.rend(); ++rit) {
+  for (Handle<FixedArray> handle : base::Reversed(handles)) {
     // One deref gets the Handle, the second deref gets the FixedArray.
-    PageMetadata* candidate = PageMetadata::FromHeapObject(**rit);
+    PageMetadata* candidate = PageMetadata::FromHeapObject(*handle);
     if (candidate->Chunk()->InNewSpace() &&
         candidate->heap()->new_space()->IsPromotionCandidate(candidate))
       return candidate;
