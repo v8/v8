@@ -5253,9 +5253,10 @@ MaybeLocal<String> Shell::ReadFile(Isolate* isolate, const char* name,
     return MaybeLocal<String>();
   }
   size_t full_file_size = file->size();
-  if (full_file_size > size_t{i::kMaxInt}) {
+  if (full_file_size > size_t{String::kMaxLength}) {
     FATAL("Input file too large (%zu bytes)", full_file_size);
   }
+  static_assert(String::kMaxLength <= i::kMaxInt);
   int size = static_cast<int>(full_file_size);
   char* chars = static_cast<char*>(file->memory());
   if (i::v8_flags.use_external_strings && i::String::IsAscii(chars, size)) {

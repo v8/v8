@@ -7337,7 +7337,8 @@ namespace {
 
 inline int StringLength(const char* string) {
   size_t len = strlen(string);
-  CHECK_GE(i::kMaxInt, len);
+  CHECK_GE(String::kMaxLength, len);
+  static_assert(String::kMaxLength <= i::kMaxInt);
   return static_cast<int>(len);
 }
 
@@ -7348,7 +7349,8 @@ inline int StringLength(const uint8_t* string) {
 inline int StringLength(const uint16_t* string) {
   size_t length = 0;
   while (string[length] != '\0') length++;
-  CHECK_GE(i::kMaxInt, length);
+  CHECK_GE(String::kMaxLength, length);
+  static_assert(String::kMaxLength <= i::kMaxInt);
   return static_cast<int>(length);
 }
 
