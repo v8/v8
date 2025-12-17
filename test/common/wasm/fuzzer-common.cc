@@ -498,8 +498,7 @@ ExecutionResult ExecuteReferenceRun(Isolate* isolate,
                                     int exported_main_function_index,
                                     int32_t max_executed_instructions) {
   // The reference module uses a special compilation mode of Liftoff for
-  // termination and nondeterminism detected, and that would be undone by
-  // flushing that code.
+  // termination detection, and that would be undone by flushing that code.
   FlagScope<bool> no_liftoff_code_flushing(&v8_flags.flush_liftoff_code, false);
 
   int32_t max_steps = max_executed_instructions;
@@ -1302,9 +1301,6 @@ int SyncCompileAndExecuteAgainstReference(
   // around inlining). We switch it to synchronous mode to avoid the
   // nondeterminism of background jobs finishing at random times.
   FlagScope<bool> sync_tier_up(&v8_flags.wasm_sync_tier_up, true);
-  // Reference runs use extra compile settings (like non-determinism detection),
-  // which could be replaced by new liftoff code without this option.
-  FlagScope<bool> no_liftoff_code_flushing(&v8_flags.flush_liftoff_code, false);
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeDirectHandle<WasmModuleObject> compiled_module =
