@@ -702,6 +702,7 @@ void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
   PrintToStderr(reason);
+  PrintToStderr(" Exiting process...\n");
   // In sandbox fuzzing mode, we want to exit with a non-zero status to
   // indicate to the fuzzer that the sample "failed" (ran into an unrecoverable
   // error) and should probably not be mutated further. Otherwise, we exit with
@@ -717,7 +718,7 @@ void PrintToStderr(const char* output) {
 // the process terminated normally, in the latter case the original signal
 // handler is restored and the signal delivered again.
 struct sigaction g_old_sigabrt_handler, g_old_sigtrap_handler,
-    g_old_sigbus_handler, g_old_sigsegv_handler;
+    g_old_sigbus_handler, g_old_sigill_handler, g_old_sigsegv_handler;
 
 void UninstallCrashFilter() {
   // NOTE: This code MUST be async-signal safe.
@@ -733,6 +734,7 @@ void UninstallCrashFilter() {
   sigaction(SIGABRT, &g_old_sigabrt_handler, nullptr);
   sigaction(SIGTRAP, &g_old_sigtrap_handler, nullptr);
   sigaction(SIGBUS, &g_old_sigbus_handler, nullptr);
+  sigaction(SIGILL, &g_old_sigill_handler, nullptr);
   sigaction(SIGSEGV, &g_old_sigsegv_handler, nullptr);
 
   // We should also uninstall the sanitizer death callback as our crash filter
@@ -747,131 +749,166 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
 
-  if (signal == SIGABRT) {
-    // SIGABRT typically indicates a failed CHECK or similar, which is harmless.
-    FilterCrash("Caught harmless signal (SIGABRT). Exiting process...\n");
-  }
-
-  if (signal == SIGTRAP) {
-    // Similarly, SIGTRAP may for example indicate UNREACHABLE code.
-    FilterCrash("Caught harmless signal (SIGTRAP). Exiting process...\n");
-  }
-
   Address faultaddr = reinterpret_cast<Address>(info->si_addr);
 
-  if (Sandbox::current()->Contains(faultaddr)) {
-    FilterCrash(
-        "Caught harmless memory access violation (inside sandbox address "
-        "space). Exiting process...\n");
-  }
-
-  if (info->si_code == SI_KERNEL && faultaddr == 0) {
-    // This combination appears to indicate a crash at a non-canonical address
-    // on Linux. Crashes at non-canonical addresses are for example caused by
-    // failed external pointer type checks. Memory accesses that _always_ land
-    // at a non-canonical address are not exploitable and so these are filtered
-    // out here. However, testcases need to be written with this in mind and
-    // must cause crashes at valid addresses.
-    FilterCrash(
-        "Caught harmless memory access violation (non-canonical address). "
-        "Exiting process...\n");
-  }
-
-  if (faultaddr >= 0x8000'0000'0000'0000ULL) {
-    // On Linux, it appears that the kernel will still report valid (i.e.
-    // canonical) kernel space addresses via the si_addr field, so we need to
-    // handle these separately. We've already filtered out non-canonical
-    // addresses above, so here we can just test if the most-significant bit of
-    // the address is set, and if so assume that it's a kernel address.
-    FilterCrash(
-        "Caught harmless memory access violation (kernel space address). "
-        "Exiting process...\n");
-  }
-
-  if (faultaddr < 0x1000) {
-    // Nullptr dereferences are harmless as nothing can be mapped there. We use
-    // the typical page size (which is also the default value of mmap_min_addr
-    // on Linux) to determine what counts as a nullptr dereference here.
-    FilterCrash(
-        "Caught harmless memory access violation (nullptr dereference). "
-        "Exiting process...\n");
-  }
-
-  if (faultaddr < 4ULL * GB) {
-    // Currently we also ignore access violations in the first 4GB of the
-    // virtual address space. See crbug.com/1470641 for more details.
-    FilterCrash(
-        "Caught harmless memory access violation (first 4GB of virtual address "
-        "space). Exiting process...\n");
-  }
-
-  // Stack overflow detection.
-  //
-  // On Linux, we generally have two types of stacks:
-  //  1. The main thread's stack, allocated by the kernel, and
-  //  2. The stacks of any other thread, allocated by the application
-  //
-  // These stacks differ in some ways, and that affects the way stack overflows
-  // (caused e.g. by unbounded recursion) materialize: for (1) the kernel will
-  // use a "gap" region below the stack segment, i.e. an unmapped area into
-  // which the kernel itself will not place any mappings and into which the
-  // stack cannot grow. A stack overflow therefore crashes with a SEGV_MAPERR.
-  // On the other hand, for (2) the application is responsible for allocating
-  // the stack and therefore also for allocating any guard regions around it.
-  // As these guard regions must be regular mappings (with PROT_NONE), a stack
-  // overflow will crash with a SEGV_ACCERR.
-  //
-  // It's relatively hard to reliably and accurately detect stack overflow, so
-  // here we use a simple heuristic: did we crash on any kind of access
-  // violation on an address just below the current thread's stack region. This
-  // may cause both false positives (e.g. an access not through the stack
-  // pointer register that happens to also land just below the stack) and false
-  // negatives (e.g. a stack overflow on the main thread that "jumps over" the
-  // first page of the gap region), but is probably good enough in practice.
-  pthread_attr_t attr;
-  int pthread_error = pthread_getattr_np(pthread_self(), &attr);
-  if (!pthread_error) {
-    uintptr_t stack_base;
-    size_t stack_size;
-    pthread_error = pthread_attr_getstack(
-        &attr, reinterpret_cast<void**>(&stack_base), &stack_size);
-    // The main thread's stack on Linux typically has a fairly large gap region
-    // (1MB by default), but other thread's stacks usually have smaller guard
-    // regions so here we're conservative and assume that the guard region
-    // consists only of a single page.
-    const size_t kMinStackGuardRegionSize = sysconf(_SC_PAGESIZE);
-    uintptr_t stack_guard_region_start = stack_base - kMinStackGuardRegionSize;
-    uintptr_t stack_guard_region_end = stack_base;
-    if (!pthread_error && stack_guard_region_start <= faultaddr &&
-        faultaddr < stack_guard_region_end) {
-      FilterCrash("Caught harmless stack overflow. Exiting process...\n");
+  switch (signal) {
+    case SIGABRT:
+      // SIGABRT often indicates a failed CHECK or similar, which is harmless.
+      FilterCrash("Caught harmless signal (SIGABRT).");
+    case SIGTRAP:
+      // Similarly, SIGTRAP may for example indicate UNREACHABLE code.
+      FilterCrash("Caught harmless signal (SIGTRAP).");
+    case SIGILL: {
+      // In the case of SIGILL, faultaddr will point to the faulting
+      // instruction.
+      //
+      // In general, SIGILL can be caused by either:
+      // * A release-mode assertion fail (e.g. __builtin_unreachable()) for
+      //   which the compiler generates a `ud2` instruction. This is harmless.
+      // * A bug causing us to execute random invalid machine code. This is bad.
+      //
+      // Here we try to detect which of these cases happened by looking at the
+      // faulting instruction. This is a little sketchy as the read could fail.
+      // However, the CPU has just attempted to execute the instruction, so it
+      // _should_ be readable. If we ever see segfaults here, we could change it
+      // to a "safe" read by e.g. using pipes and the read/write syscalls.
+#ifdef V8_HOST_ARCH_X64
+      uint16_t* code = reinterpret_cast<uint16_t*>(faultaddr);
+      // "ud2" is 0x0f 0x0b (0x0b0f due to little-endian).
+      if (*code == 0x0b0f) {
+        FilterCrash("Caught harmless signal (SIGILL caused by ud2).");
+      }
+#else
+      PrintToStderr(
+          "Cannot check for harmless SIGILL on this architecture. Please "
+          "implement support for it.\n");
+#endif  // V8_HOST_ARCH_X64
+      break;
     }
+    case SIGBUS:
+    case SIGSEGV: {
+      if (Sandbox::current()->Contains(faultaddr)) {
+        FilterCrash(
+            "Caught harmless memory access violation (inside sandbox).");
+      }
+
+      if (info->si_code == SI_KERNEL && faultaddr == 0) {
+        // This combination appears to indicate a crash at a non-canonical
+        // address on Linux. Crashes at non-canonical addresses are for example
+        // caused by failed external pointer type checks. Memory accesses that
+        // _always_ land at a non-canonical address are not exploitable and so
+        // these are filtered out here. However, testcases need to be written
+        // with this in mind and must cause crashes at valid addresses.
+        FilterCrash(
+            "Caught harmless memory access violation (non-canonical address).");
+      }
+
+      if (faultaddr >= 0x8000'0000'0000'0000ULL) {
+        // On Linux, it appears that the kernel will still report valid (i.e.
+        // canonical) kernel space addresses via the si_addr field, so we need
+        // to handle these separately. We've already filtered out non-canonical
+        // addresses above, so here we can just test if the most-significant bit
+        // of the address is set, and if so assume that it's a kernel address.
+        FilterCrash(
+            "Caught harmless memory access violation (kernel space address).");
+      }
+
+      if (faultaddr < 0x1000) {
+        // Nullptr dereferences are harmless as nothing can be mapped there. We
+        // use the typical page size (which is also the default value of
+        // mmap_min_addr on Linux) to determine what counts as a nullptr
+        // dereference here.
+        FilterCrash(
+            "Caught harmless memory access violation (nullptr dereference).");
+      }
+
+      if (faultaddr < 4ULL * GB) {
+        // Currently we also ignore access violations in the first 4GB of the
+        // virtual address space. See crbug.com/1470641 for more details.
+        FilterCrash(
+            "Caught harmless memory access violation (first 4GB of virtual "
+            "address space).");
+      }
+
+      // Stack overflow detection.
+      //
+      // On Linux, we generally have two types of stacks:
+      //  1. The main thread's stack, allocated by the kernel, and
+      //  2. The stacks of any other thread, allocated by the application
+      //
+      // These stacks differ in some ways, and that affects the way stack
+      // overflows (caused e.g. by unbounded recursion) materialize: for (1) the
+      // kernel will use a "gap" region below the stack segment, i.e. an
+      // unmapped area into which the kernel itself will not place any mappings
+      // and into which the stack cannot grow. A stack overflow therefore
+      // crashes with a SEGV_MAPERR. On the other hand, for (2) the application
+      // is responsible for allocating the stack and therefore also for
+      // allocating any guard regions around it. As these guard regions must be
+      // regular mappings (with PROT_NONE), a stack overflow will crash with a
+      // SEGV_ACCERR.
+      //
+      // It's relatively hard to reliably and accurately detect stack overflow,
+      // so here we use a simple heuristic: did we crash on any kind of access
+      // violation on an address just below the current thread's stack region.
+      // This may cause both false positives (e.g. an access not through the
+      // stack pointer register that happens to also land just below the stack)
+      // and false negatives (e.g. a stack overflow on the main thread that
+      // "jumps over" the first page of the gap region), but is probably good
+      // enough in practice.
+      pthread_attr_t attr;
+      int pthread_error = pthread_getattr_np(pthread_self(), &attr);
+      if (!pthread_error) {
+        uintptr_t stack_base;
+        size_t stack_size;
+        pthread_error = pthread_attr_getstack(
+            &attr, reinterpret_cast<void**>(&stack_base), &stack_size);
+        // The main thread's stack on Linux typically has a fairly large gap
+        // region (1MB by default), but other thread's stacks usually have
+        // smaller guard regions so here we're conservative and assume that the
+        // guard region consists only of a single page.
+        const size_t kMinStackGuardRegionSize = sysconf(_SC_PAGESIZE);
+        uintptr_t stack_guard_region_start =
+            stack_base - kMinStackGuardRegionSize;
+        uintptr_t stack_guard_region_end = stack_base;
+        if (!pthread_error && stack_guard_region_start <= faultaddr &&
+            faultaddr < stack_guard_region_end) {
+          FilterCrash("Caught harmless stack overflow.");
+        }
+      }
+
+      if (signal == SIGSEGV && info->si_code == SEGV_ACCERR) {
+        // This indicates an access to a valid mapping but with insufficient
+        // permissions, for example accessing a region mapped with PROT_NONE, or
+        // writing to a read-only mapping.
+        //
+        // The sandbox relies on such accesses crashing in a safe way in some
+        // cases. For example, the accesses into the various pointer tables are
+        // not bounds checked, but instead it is guaranteed that an
+        // out-of-bounds access will hit a PROT_NONE mapping.
+        //
+        // Memory accesses that _always_ cause such a permission violation are
+        // not exploitable and the crashes are therefore filtered out here.
+        // However, testcases need to be written with this behavior in mind and
+        // should typically try to access non-existing memory to demonstrate the
+        // ability to escape from the sandbox.
+        FilterCrash(
+            "Caught harmless memory access violation (memory permission "
+            "violation).");
+      }
+
+      break;
+    }
+    default:
+      // This might happen if we add support for more signals, so report this
+      // as a sandbox violation so it gets looked into.
+      PrintToStderr("Unhandled signal");
+      break;
   }
 
-  if (info->si_code == SEGV_ACCERR) {
-    // This indicates an access to a valid mapping but with insufficient
-    // permissions, for example accessing a region mapped with PROT_NONE, or
-    // writing to a read-only mapping.
-    //
-    // The sandbox relies on such accesses crashing in a safe way in some
-    // cases. For example, the accesses into the various pointer tables are not
-    // bounds checked, but instead it is guaranteed that an out-of-bounds
-    // access will hit a PROT_NONE mapping.
-    //
-    // Memory accesses that _always_ cause such a permission violation are not
-    // exploitable and the crashes are therefore filtered out here. However,
-    // testcases need to be written with this behavior in mind and should
-    // typically try to access non-existing memory to demonstrate the ability
-    // to escape from the sandbox.
-    FilterCrash(
-        "Caught harmless memory access violation (memory permission "
-        "violation). Exiting process...\n");
-  }
-
-  // Otherwise it's a sandbox violation, so restore the original signal
-  // handlers, then return from this handler. The faulting instruction will be
-  // re-executed and will again trigger the access violation, but now the
-  // signal will be handled by the original signal handler.
+  // If we get here, we've detected a sandbox violation. Restore the original
+  // signal handlers, then return from this handler. The faulting instruction
+  // will be re-executed and will again trigger the access violation, but now
+  // the signal will be handled by the original signal handler.
   UninstallCrashFilter();
 
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
@@ -899,13 +936,11 @@ void SanitizerFaultHandler() {
     if (faultaddr == kNullAddress) {
       FilterCrash(
           "Caught ASan fault without a fault address. Ignoring it as we cannot "
-          "check if it is a sandbox violation. Exiting process...\n");
+          "check if it is a sandbox violation.");
     }
 
     if (Sandbox::current()->Contains(faultaddr)) {
-      FilterCrash(
-          "Caught harmless ASan fault (inside sandbox address space). Exiting "
-          "process...\n");
+      FilterCrash("Caught harmless ASan fault (inside sandbox).");
     }
   }
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -939,6 +974,7 @@ void InstallCrashFilter() {
   success &= (sigaction(SIGABRT, &action, &g_old_sigabrt_handler) == 0);
   success &= (sigaction(SIGTRAP, &action, &g_old_sigtrap_handler) == 0);
   success &= (sigaction(SIGBUS, &action, &g_old_sigbus_handler) == 0);
+  success &= (sigaction(SIGILL, &action, &g_old_sigill_handler) == 0);
   success &= (sigaction(SIGSEGV, &action, &g_old_sigsegv_handler) == 0);
   CHECK(success);
 

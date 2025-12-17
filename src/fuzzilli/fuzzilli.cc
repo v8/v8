@@ -129,6 +129,23 @@ void FuzzilliExtension::Fuzzilli(const FunctionCallbackInfo<Value>& info) {
         abort_with_sandbox_violation();
         break;
       }
+      case 10: {  // SIGILL triggered by ud2
+#ifdef V8_HOST_ARCH_X64
+        __asm__ volatile("ud2\n");
+#else
+        FATAL("unsupported architecture");
+#endif
+        break;
+      }
+      case 11: {  // SIGILL triggered by non-ud2 invalid instruction
+#ifdef V8_HOST_ARCH_X64
+        // This instruction (0xFF 0xFF) is invalid on x64.
+        __asm__ volatile(".byte 0xFF, 0xFF\n");
+#else
+        FATAL("unsupported architecture");
+#endif
+        break;
+      }
       default:
         break;
     }
