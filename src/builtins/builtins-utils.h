@@ -58,11 +58,16 @@ class BuiltinArguments : public JavaScriptArguments {
   static constexpr int kNewTargetIndex = 0;
   static constexpr int kTargetIndex = 1;
   static constexpr int kArgcIndex = 2;
-  // TODO(ishell): this padding is required only on arm64.
-  static constexpr int kPaddingIndex = 3;
 
+  // This padding is required only on arm64 to keep the SP 16-byte aligned.
+  static constexpr int kOptionalPaddingIndex = 3;
+#if V8_TARGET_ARCH_ARM64
   static constexpr int kNumExtraArgs = 4;
-  static constexpr int kNumExtraArgsWithReceiver = 5;
+#else
+  static constexpr int kNumExtraArgs = 3;
+#endif  // V8_TARGET_ARCH_ARM64
+
+  static constexpr int kNumExtraArgsWithReceiver = kNumExtraArgs + 1;
 
   static constexpr int kArgsIndex = kNumExtraArgs;
   static constexpr int kReceiverIndex = kArgsIndex;
@@ -91,9 +96,8 @@ static_assert(BuiltinArguments::kTargetIndex ==
               BuiltinExitFrameConstants::kTargetIndex);
 static_assert(BuiltinArguments::kArgcIndex ==
               BuiltinExitFrameConstants::kArgcIndex);
-static_assert(BuiltinArguments::kPaddingIndex ==
-              BuiltinExitFrameConstants::kPaddingIndex);
-
+static_assert(BuiltinArguments::kOptionalPaddingIndex ==
+              BuiltinExitFrameConstants::kOptionalPaddingIndex);
 static_assert(BuiltinArguments::kNumExtraArgs ==
               BuiltinExitFrameConstants::kNumExtraArgs);
 static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==

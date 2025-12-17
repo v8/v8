@@ -1297,9 +1297,12 @@ void CppBuiltinsAdaptorAssembler::GenerateAdaptor(int formal_parameter_count) {
 
   // Update arguments count for CEntry to contain the number of arguments
   // including the receiver and the extra arguments.
+  // Use UniqueInt32Constant instead of Int32Constant here in order to ensure
+  // that the graph structure does not depend on the actual kNumExtraArgs value
+  // (Int32Constant uses cached nodes).
   TNode<Int32T> argc =
       Int32Add(pushed_argc.value(),
-               Int32Constant(BuiltinExitFrameConstants::kNumExtraArgs));
+               UniqueInt32Constant(BuiltinExitFrameConstants::kNumExtraArgs));
 
   const bool builtin_exit_frame = true;
   const bool switch_to_central_stack = false;
@@ -1309,17 +1312,17 @@ void CppBuiltinsAdaptorAssembler::GenerateAdaptor(int formal_parameter_count) {
   static_assert(BuiltinArguments::kNewTargetIndex == 0);
   static_assert(BuiltinArguments::kTargetIndex == 1);
   static_assert(BuiltinArguments::kArgcIndex == 2);
-  static_assert(BuiltinArguments::kPaddingIndex == 3);
+  // Code generator will take care of pushing padding on arm64.
+  static_assert(BuiltinArguments::kOptionalPaddingIndex == 3);
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
   TailCallBuiltin(centry, context,   // standard arguments for TailCallBuiltin
                   argc, c_function,  // register arguments
                   // additional stack arguments
-                  new_target,          // sp[0]
-                  target,              // sp[1]
-                  SmiFromInt32(argc),  // sp[2]
-                  TheHoleConstant());  // sp[3]
+                  new_target,           // sp[0]
+                  target,               // sp[1]
+                  SmiFromInt32(argc));  // sp[2]
 }
 
 TF_BUILTIN(AdaptorWithBuiltinExitFrame0, CppBuiltinsAdaptorAssembler) {

@@ -6506,14 +6506,28 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
         static_assert(BuiltinArguments::kNewTargetIndex == 0);
         static_assert(BuiltinArguments::kTargetIndex == 1);
         static_assert(BuiltinArguments::kArgcIndex == 2);
-        static_assert(BuiltinArguments::kPaddingIndex == 3);
+#if V8_TARGET_ARCH_ARM64
+        // Make sure we insert required stack-alignment padding between extra
+        // arguments and JS arguments.
+        static_assert(BuiltinArguments::kNumExtraArgs == 4);
+        static_assert(BuiltinArguments::kOptionalPaddingIndex == 3);
+        // Just use an existing value as padding in order to avoid generation
+        // of unnecessary instructions.
+        Node* padding_value = argc;
+#else
+        // No padding required.
+        static_assert(BuiltinArguments::kNumExtraArgs == 3);
+#endif  // V8_TARGET_ARCH_ARM64
+
         if_false1 = efalse1 = vfalse1 = graph()->NewNode(
             common()->Call(call_descriptor), stub_code,
             // Extra CPP builtin arguments.
             jsgraph()->UndefinedConstant(),  // new.target
             target,                          // target
             argc,                            // argc
-            jsgraph()->PaddingConstant(),    // padding
+#if V8_TARGET_ARCH_ARM64
+            padding_value,
+#endif
             // JS arguments.
             receiver,
             // CEntry arguments.

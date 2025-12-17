@@ -2320,14 +2320,12 @@ class CEntryForCPPBuiltinDescriptor
                     kCFunction,                     // register argument
                     kNewTargetCopy,                 // sp[0]
                     kTargetCopy,                    // sp[1]
-                    kArgcSmi,                       // sp[2]
-                    kPadding)                       // sp[3] (just padding)
+                    kArgcSmi)                       // sp[2]
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kArity
                          MachineType::Pointer(),    // kCFunction
                          MachineType::AnyTagged(),  // kNewTargetCopy
                          MachineType::AnyTagged(),  // kTargetCopy
-                         MachineType::AnyTagged(),  // kArgcSmi
-                         MachineType::AnyTagged())  // kPadding
+                         MachineType::AnyTagged())  // kArgcSmi
   DECLARE_DESCRIPTOR(CEntryForCPPBuiltinDescriptor)
 
   static constexpr auto registers();
