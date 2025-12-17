@@ -246,6 +246,12 @@ V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  // Libfuzzer allows to specify a limit on the input size, which is set to 500
+  // bytes. Centipede ignores this though, so check explicitly against a
+  // slightly larger limit.
+  // Returning -1 tells the fuzzer to drop this input.
+  if (size > 512) return -1;
+
   FuzzIt({data, size});
   return 0;
 }
