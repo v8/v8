@@ -544,7 +544,7 @@ constexpr auto AllocateDescriptor::registers() {
 }
 
 // static
-constexpr auto CEntry1ArgvOnStackDescriptor::registers() {
+constexpr auto CEntryForCPPBuiltinDescriptor::registers() {
   return RegisterArray(kRuntimeCallArgCountRegister,
                        kRuntimeCallFunctionRegister);
 }

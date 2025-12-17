@@ -99,7 +99,6 @@ CallDescriptor* GetContinuationResumeDescriptor(Zone* zone) {
       kCalleeSaveFPRegisters,             // callee-saved fp regs
       CallDescriptor::kNoFlags,           // flags
       "wasm-resume",                      // debug name
-      StackArgumentOrder::kDefault,       // order of the arguments in the stack
       RegList{},                          // allocatable registers
       0,                                  // return slot count
       0);                                 // signature hash
@@ -167,7 +166,6 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
       kCalleeSaveFPRegisters,             // callee-saved fp regs
       flags,                              // flags
       "wasm-call",                        // debug name
-      StackArgumentOrder::kDefault,       // order of the arguments in the stack
       RegList{},                          // allocatable registers
       return_slots,                       // return slot count
       signature_hash);

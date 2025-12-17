@@ -857,7 +857,7 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<JSAny> function,
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The first argument parameter (the receiver) is implied to be undefined.
     TailCallBuiltinThenBytecodeDispatch(builtin, context, function, arg_count,
-                                        args..., UndefinedConstant());
+                                        UndefinedConstant(), args...);
   } else {
     TailCallBuiltinThenBytecodeDispatch(builtin, context, function, arg_count,
                                         args...);

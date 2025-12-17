@@ -6507,11 +6507,17 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
         static_assert(BuiltinArguments::kTargetIndex == 1);
         static_assert(BuiltinArguments::kArgcIndex == 2);
         static_assert(BuiltinArguments::kPaddingIndex == 3);
-        if_false1 = efalse1 = vfalse1 =
-            graph()->NewNode(common()->Call(call_descriptor), stub_code,
-                             receiver, jsgraph()->PaddingConstant(), argc,
-                             target, jsgraph()->UndefinedConstant(), entry,
-                             argc, context, frame_state, efalse1, if_false1);
+        if_false1 = efalse1 = vfalse1 = graph()->NewNode(
+            common()->Call(call_descriptor), stub_code,
+            // Extra CPP builtin arguments.
+            jsgraph()->UndefinedConstant(),  // new.target
+            target,                          // target
+            argc,                            // argc
+            jsgraph()->PaddingConstant(),    // padding
+            // JS arguments.
+            receiver,
+            // CEntry arguments.
+            entry, argc, context, frame_state, efalse1, if_false1);
       }
 
       if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);

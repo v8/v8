@@ -64,7 +64,7 @@ namespace internal {
   V(CallWithSpread_Baseline)                         \
   V(CallWithSpread_WithFeedback)                     \
   V(CEntryDummy)                                     \
-  V(CEntry1ArgvOnStack)                              \
+  V(CEntryForCPPBuiltin)                             \
   V(CloneObjectBaseline)                             \
   V(CloneObjectWithVector)                           \
   V(Compare)                                         \
@@ -179,12 +179,20 @@ namespace internal {
   TORQUE_BUILTIN_LIST_TFC(V)
 
 enum class StackArgumentOrder {
-  kDefault,  // Arguments in the stack are pushed in the default/stub order (the
-             // first argument is pushed first).
-  kJS,  // Arguments in the stack are pushed in the same order as the one used
-        // by JS-to-JS function calls. This should be used if calling a
-        // JSFunction or if the builtin is expected to be called directly from a
-        // JSFunction. This order is reversed compared to kDefault.
+  // The first argument has the highest address on the stack.
+  kHighToLow,
+  // The first argument has the lowest address on the stack.
+  kLowToHigh,
+
+  // This is the historically default order of arguments for assembly builtins
+  // and runtime functions. Convenient for calling runtime functions from hand
+  // written assembly code.
+  kDefault = kHighToLow,
+
+  // The order of stack arguments used by JavaScript calling convention.
+  // This should be used if calling a JSFunction or if the builtin is
+  // expected to be called directly from a JSFunction.
+  kJS = kLowToHigh,
 };
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -2301,24 +2309,26 @@ class CreateFromSlowBoilerplateHelperDescriptor
   DECLARE_DESCRIPTOR(CreateFromSlowBoilerplateHelperDescriptor)
 };
 
-class CEntry1ArgvOnStackDescriptor
-    : public StaticCallInterfaceDescriptor<CEntry1ArgvOnStackDescriptor> {
+class CEntryForCPPBuiltinDescriptor
+    : public StaticCallInterfaceDescriptor<CEntryForCPPBuiltinDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS(kArity,          // register argument
-                    kCFunction,      // register argument
-                    kPadding,        // stack argument 1 (just padding)
-                    kArgcSmi,        // stack argument 2
-                    kTargetCopy,     // stack argument 3
-                    kNewTargetCopy)  // stack argument 4
+
+  static constexpr auto kStackArgumentOrder = StackArgumentOrder::kJS;
+  DEFINE_PARAMETERS(kArity,                         // register argument
+                    kCFunction,                     // register argument
+                    kNewTargetCopy,                 // sp[0]
+                    kTargetCopy,                    // sp[1]
+                    kArgcSmi,                       // sp[2]
+                    kPadding)                       // sp[3] (just padding)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kArity
                          MachineType::Pointer(),    // kCFunction
-                         MachineType::AnyTagged(),  // kPadding
-                         MachineType::AnyTagged(),  // kArgcSmi
+                         MachineType::AnyTagged(),  // kNewTargetCopy
                          MachineType::AnyTagged(),  // kTargetCopy
-                         MachineType::AnyTagged())  // kNewTargetCopy
-  DECLARE_DESCRIPTOR(CEntry1ArgvOnStackDescriptor)
+                         MachineType::AnyTagged(),  // kArgcSmi
+                         MachineType::AnyTagged())  // kPadding
+  DECLARE_DESCRIPTOR(CEntryForCPPBuiltinDescriptor)
 
   static constexpr auto registers();
 };
