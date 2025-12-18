@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <iterator>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -71,6 +72,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/profile-generator.h"
 #include "src/snapshot/snapshot.h"
+#include "src/strings/owning-external-string-resource.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/perfetto-sdk.h"
 #include "src/utils/ostreams.h"
@@ -528,22 +530,6 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 }
 
 }  // namespace tracing
-
-class ExternalOwningOneByteStringResource
-    : public String::ExternalOneByteStringResource {
- public:
-  ExternalOwningOneByteStringResource() = default;
-  ExternalOwningOneByteStringResource(
-      std::unique_ptr<base::OS::MemoryMappedFile> file)
-      : file_(std::move(file)) {}
-  const char* data() const override {
-    return static_cast<char*>(file_->memory());
-  }
-  size_t length() const override { return file_->size(); }
-
- private:
-  std::unique_ptr<base::OS::MemoryMappedFile> file_;
-};
 
 // static variables:
 CounterMap* Shell::counter_map_;
@@ -5261,7 +5247,8 @@ MaybeLocal<String> Shell::ReadFile(Isolate* isolate, const char* name,
   char* chars = static_cast<char*>(file->memory());
   if (i::v8_flags.use_external_strings && i::String::IsAscii(chars, size)) {
     String::ExternalOneByteStringResource* resource =
-        new ExternalOwningOneByteStringResource(std::move(file));
+        new i::OwningExternalOneByteStringResource(
+            std::string_view(chars, size));
     return String::NewExternalOneByte(isolate, resource);
   }
   return String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size);
