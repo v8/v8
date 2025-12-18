@@ -1489,6 +1489,18 @@ void InstructionSelector::VisitChangeUint32ToUint64(OpIndex node) {
     Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
     return;
   }
+  if (this->Get(value).opcode == Opcode::kChange) {
+    const ChangeOp& change = this->Get(value).Cast<ChangeOp>();
+    OpIndex change_input = change.input();
+    // ToUint64(ToUint32(fp32)) wll drop Nan boxing
+    // So riscv use kRiscvBitcastDL to change fp32 into Uint64, which can keep
+    // Nan Box.See issues/469801435.
+    if (change.Is<Opmask::kChangeFloat32ToUint32>()) {
+      Emit(kRiscvBitcastDL, g.DefineAsRegister(node),
+           g.UseRegister(change_input));
+      return;
+    }
+  }
   Emit(kRiscvZeroExtendWord, g.DefineAsRegister(node), g.UseRegister(value));
 }
 

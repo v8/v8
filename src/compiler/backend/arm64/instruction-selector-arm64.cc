@@ -2993,6 +2993,14 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
           op.Cast<LoadOp>().loaded_rep.ToRegisterRepresentation();
       return rep == RegisterRepresentation::Word32();
     }
+    case Opcode::kChange: {
+      const ChangeOp& change = op.Cast<ChangeOp>();
+      // Fmov w0,s0 will clear the high 32bit of x0
+      if (change.Is<Opmask::kChangeFloat32ToUint32>()) {
+        return true;
+      }
+      return false;
+    }
     default:
       return false;
   }

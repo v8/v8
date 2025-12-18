@@ -115,6 +115,7 @@ namespace v8::internal::compiler::turboshaft {
 
 #define UNOP_LIST(V)          \
   SIMD_UNOP_LIST(V)           \
+  V(BitcastFloat32ToWord32)   \
   V(ChangeFloat32ToFloat64)   \
   V(TruncateFloat64ToFloat32) \
   V(ChangeInt32ToInt64)       \
