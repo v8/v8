@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4eb5eb253976fca955d89238b2028b6ff9d38e7c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7be271d796d1a36ab8514b90a42863ef06ed7a4b',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '157f41f4fcbaad7c002d52a7880b45c58c7c0c95',
   'buildtools/linux64': {
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '98a02f1bd428557d23ca3d984b959266cf22562b',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '8043f14d7f0cd794c7a4cb228ac5a233631c4f92',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '2caa6ae88fd4eca3fb7e7e975fc9d841ca42defa',
   'third_party/re2/src':
