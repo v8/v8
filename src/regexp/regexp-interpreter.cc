@@ -403,20 +403,19 @@ bool IndexIsInBounds(int index, int length) {
   BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);
 #endif  // DEBUG
 
-#define INIT(Name, ...)                                                    \
-  constexpr RegExpBytecode current_bc = RegExpBytecode::k##Name;           \
-  using Operands = RegExpBytecodeOperands<current_bc>;                     \
-  __VA_OPT__(auto argument_tuple = std::apply(                             \
-                 [&](auto... ops) {                                        \
-                   return std::make_tuple(                                 \
-                       Operands::template Get<ops.value>(pc, no_gc)...);   \
-                 },                                                        \
-                 Operands::GetOperandsTuple());                            \
-             auto [__VA_ARGS__] = argument_tuple;)                         \
-  static_assert(                                                           \
-      (IS_VA_EMPTY(__VA_ARGS__)) == (Operands::kCountWithoutPadding == 0), \
-      "Number of arguments to VISIT doesn't match the bytecodes "          \
-      "operands count")
+#define INIT(Name, ...)                                                     \
+  constexpr RegExpBytecode current_bc = RegExpBytecode::k##Name;            \
+  using Operands = RegExpBytecodeOperands<current_bc>;                      \
+  __VA_OPT__(auto argument_tuple = std::apply(                              \
+                 [&](auto... ops) {                                         \
+                   return std::make_tuple(                                  \
+                       Operands::template Get<ops.value>(pc, no_gc)...);    \
+                 },                                                         \
+                 Operands::GetOperandsTuple());                             \
+             auto [__VA_ARGS__] = argument_tuple;)                          \
+  static_assert((IS_VA_EMPTY(__VA_ARGS__)) == (Operands::kCount == 0),      \
+                "Number of arguments to VISIT doesn't match the bytecodes " \
+                "operands count")
 
 namespace {
 

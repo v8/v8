@@ -89,14 +89,13 @@ auto RegExpCodeGenerator::GetArgumentValuesAsTuple() {
       RegExpBytecodeOperands<RegExpBytecode::k##Name>;                       \
   __VA_OPT__(auto argument_tuple = GetArgumentValuesAsTuple<Operands>();     \
              static_assert(std::tuple_size_v<decltype(argument_tuple)> ==    \
-                               Operands::kCountWithoutPadding,               \
+                               Operands::kCount,                             \
                            "Number of arguments to VISIT doesn't match the " \
                            "bytecodes operands count");                      \
              auto [__VA_ARGS__] = argument_tuple;)                           \
-  static_assert(                                                             \
-      (IS_VA_EMPTY(__VA_ARGS__)) == (Operands::kCountWithoutPadding == 0),   \
-      "Number of arguments to VISIT doesn't match the bytecodes "            \
-      "operands count")
+  static_assert((IS_VA_EMPTY(__VA_ARGS__)) == (Operands::kCount == 0),       \
+                "Number of arguments to VISIT doesn't match the bytecodes "  \
+                "operands count")
 
 // These weird looking macros are required for clang-format and cpplint to not
 // interfere/complain about our logic of opening/closing blocks in our macros.

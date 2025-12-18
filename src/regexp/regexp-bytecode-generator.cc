@@ -46,7 +46,7 @@ RegExpBytecodeGenerator::Implementation() {
 template <RegExpBytecode bytecode, typename... Args>
 void RegExpBytecodeGenerator::Emit(Args... args) {
   using Operands = RegExpBytecodeOperands<bytecode>;
-  static_assert(sizeof...(Args) == Operands::kCountWithoutPadding,
+  static_assert(sizeof...(Args) == Operands::kCount,
                 "Wrong number of operands");
 
   auto arguments_tuple = std::make_tuple(args...);
@@ -152,12 +152,6 @@ void RegExpBytecodeGenerator::PopRegister(int register_index) {
 
 void RegExpBytecodeGenerator::PushRegister(int register_index,
                                            StackCheckFlag check_stack_limit) {
-  // TODO(433891213): check_stack_limit was previously emitted as 32-bit,
-  // which normally would cause issues on big-endian. However only the
-  // interpreter and peephole optimization still use the old bytecode format and
-  //   - the interpreter ignores this operand anyways.
-  //   - peephole optimization is not enabled on big-endian platforms.
-  // So this is not an issue.
   Emit<RegExpBytecode::kPushRegister>(register_index, check_stack_limit);
 }
 

@@ -40,13 +40,8 @@ namespace internal {
 
 // Special operand types that don't have a direct mapping to a C-type.
 // Getters/Setters for these types need to be specialized manually.
-#define SPECIAL_BYTECODE_OPERAND_TYPE_LIST(V)                              \
-  V(BitTable, 16, 1)                                                       \
-  /* TODO(433891213): padding is only required for backwards compatibility \
-  with the old layout. It can be removed after everything is using the new \
-  layout. */                                                               \
-  V(Padding1, 1, 1)                                                        \
-  V(Padding2, 2, 2)
+// Format: V(Name, Size in bytes, Alignment in bytes)
+#define SPECIAL_BYTECODE_OPERAND_TYPE_LIST(V) V(BitTable, 16, 1)
 
 #define BYTECODE_OPERAND_TYPE_LIST(V)        \
   BASIC_BYTECODE_OPERAND_TYPE_LIST(V)        \
@@ -81,16 +76,15 @@ using ReBcOpType = RegExpBytecodeOperandType;
   V(SetRegister, (register_index, value),                                      \
     (ReBcOpType::kRegister, ReBcOpType::kInt32))                               \
   /* Clear registers in the range from_register to to_register (inclusive) */  \
-  V(ClearRegisters, (padding, from_register, to_register),                     \
-    (ReBcOpType::kPadding2, ReBcOpType::kRegister, ReBcOpType::kRegister))     \
+  V(ClearRegisters, (from_register, to_register),                              \
+    (ReBcOpType::kRegister, ReBcOpType::kRegister))                            \
   V(AdvanceRegister, (register_index, by),                                     \
     (ReBcOpType::kRegister, ReBcOpType::kOffset32))                            \
   V(PopCurrentPosition, (), ())                                                \
   /* TODO(pthier): PushRegister fits into 4 byte once the restrictions due */  \
   /* to the old layout are lifted                                          */  \
-  V(PushRegister, (register_index, padding, stack_check),                      \
-    (ReBcOpType::kRegister, ReBcOpType::kPadding1,                             \
-     ReBcOpType::kStackCheckFlag))                                             \
+  V(PushRegister, (register_index, stack_check),                               \
+    (ReBcOpType::kRegister, ReBcOpType::kStackCheckFlag))                      \
   V(PopRegister, (register_index), (ReBcOpType::kRegister))                    \
   V(Fail, (), ())                                                              \
   V(Succeed, (), ())                                                           \
@@ -123,12 +117,10 @@ using ReBcOpType = RegExpBytecodeOperandType;
   V(CheckNotCharacterAfterMinusAnd, (character, minus, mask, on_not_equal),    \
     (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kChar,                  \
      ReBcOpType::kJumpTarget))                                                 \
-  V(CheckCharacterInRange, (padding, from, to, on_in_range),                   \
-    (ReBcOpType::kPadding2, ReBcOpType::kChar, ReBcOpType::kChar,              \
-     ReBcOpType::kJumpTarget))                                                 \
-  V(CheckCharacterNotInRange, (padding, from, to, on_not_in_range),            \
-    (ReBcOpType::kPadding2, ReBcOpType::kChar, ReBcOpType::kChar,              \
-     ReBcOpType::kJumpTarget))                                                 \
+  V(CheckCharacterInRange, (from, to, on_in_range),                            \
+    (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget))           \
+  V(CheckCharacterNotInRange, (from, to, on_not_in_range),                     \
+    (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget))           \
   V(CheckCharacterLT, (limit, on_less),                                        \
     (ReBcOpType::kChar, ReBcOpType::kJumpTarget))                              \
   V(CheckCharacterGT, (limit, on_greater),                                     \
@@ -240,10 +232,9 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* LoadCurrentCharacter, CheckCharacter, CheckCharacter and               */ \
   /* AdvanceCpAndGoto                                                       */ \
   V(SkipUntilCharOrChar,                                                       \
-    (cp_offset, advance_by, padding, char1, char2, on_match, on_no_match),     \
-    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kPadding2,          \
-     ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget,            \
-     ReBcOpType::kJumpTarget))                                                 \
+    (cp_offset, advance_by, char1, char2, on_match, on_no_match),              \
+    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
+     ReBcOpType::kChar, ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget))     \
   /* Combination of:                                                        */ \
   /* LoadCurrentCharacter, CheckCharacterGT, CheckBitInTable, GoTo and      */ \
   /* AdvanceCpAndGoto                                                       */ \
