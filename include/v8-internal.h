@@ -1028,8 +1028,18 @@ class Internals {
 #else
   static constexpr int kFrameCPSlotCount = 0;
 #endif
+
+#if V8_TARGET_ARCH_ARM64
+  // The padding required to keep SP 16-byte aligned.
+  static constexpr int kSPAlignmentSlotCount = 1;
+#else
+  static constexpr int kSPAlignmentSlotCount = 0;
+#endif
+
   static const int kFrameTypeApiCallExit = 18;
   static const int kFrameTypeApiConstructExit = 19;
+  static const int kFrameTypeApiNamedAccessorExit = 20;
+  static const int kFrameTypeApiIndexedAccessorExit = 21;
 
   // Assert scopes
   static const int kDisallowGarbageCollectionAlign = alignof(uint32_t);

@@ -6574,19 +6574,19 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
 
   static_assert(FCA::kApiArgsLength == 4);
   static_assert(FCA::ApiArgIndex(FCA::kTargetIndex) == 3);
-  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 2);
-  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 1);
+  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 2);
+  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 1);
   static_assert(FCA::ApiArgIndex(FCA::kIsolateIndex) == 0);
 
-  // Set up FunctionCallbackInfo's Api arguments on the stack as follows:
+  // Set up v8::FunctionCallbackInfo's Api arguments on the stack as follows:
   //
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...    JS arguments
   //                           |  sp[4]: receiver        <- kReceiverIndex
   //                           |  sp[3]: target          <- kTargetIndex
-  //                           |  sp[2]: undefined       <- kReturnValueIndex
-  //  ...    JS arguments      |  sp[1]: context         <- kContextIndex
+  //                           |  sp[2]: context         <- kContextIndex
+  //  ...    JS arguments      |  sp[1]: undefined       <- kReturnValueIndex
   //  sp[0]: receiver          |  sp[0]: isolate         <- kIsolateIndex
   //
 
@@ -6600,8 +6600,8 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
   __ Move(scratch, ER::isolate_address());
   __ Push(function_template_info_.object(),  // kTargetIndex
-          undef,                             // kReturnValue
           kContextRegister,                  // kContextIndex
+          undef,                             // kReturnValue
           scratch);                          // kIsolateIndex
 
   Register api_function_address =

@@ -5119,15 +5119,17 @@ void Isolate::NotifyExceptionPropagationCallback() {
 
         DirectHandle<Object> holder =
             Utils::OpenDirectHandle(*callback_info->HolderV2());
-        DirectHandle<Object> maybe_name =
-            PropertyCallbackArguments::GetPropertyKeyHandle(*callback_info);
-        DirectHandle<Name> name =
-            IsSmi(*maybe_name)
-                ? factory()->SizeToString(
-                      PropertyCallbackArguments::GetPropertyIndex(
-                          *callback_info))
-                : Cast<Name>(maybe_name);
         DCHECK(IsJSReceiver(*holder));
+
+        using PCA = PropertyCallbackArguments;
+        DirectHandle<Name> name;
+        if (PCA::IsNamed(*callback_info)) {
+          name = PCA::GetPropertyName(*callback_info);
+        } else {
+          uint32_t index = PCA::GetPropertyIndex(*callback_info);
+          // TODO(ishell): consider just querying the cache without updating it.
+          name = factory()->SizeToString(index);
+        }
 
         // Currently we call only ApiGetters from JS code.
         ReportExceptionPropertyCallback(Cast<JSReceiver>(holder), name, kind);
@@ -5167,8 +5169,9 @@ void Isolate::NotifyExceptionPropagationCallback() {
                                       callback_kind);
       return;
     }
-    case StackFrame::API_ACCESSOR_EXIT: {
-      ApiAccessorExitFrame* frame = ApiAccessorExitFrame::cast(it.frame());
+    case StackFrame::API_NAMED_ACCESSOR_EXIT: {
+      ApiNamedAccessorExitFrame* frame =
+          ApiNamedAccessorExitFrame::cast(it.frame());
 
       DirectHandle<Object> holder(frame->holder(), this);
       DirectHandle<Name> name(frame->property_name(), this);
@@ -5179,6 +5182,9 @@ void Isolate::NotifyExceptionPropagationCallback() {
                                       v8::ExceptionContext::kAttributeGet);
       return;
     }
+    case StackFrame::API_INDEXED_ACCESSOR_EXIT:
+      // These frames are not created yet.
+      UNREACHABLE();
     case StackFrame::TURBOFAN_JS:
       // This must be a fast Api call.
       CHECK(it.frame()->InFastCCall());

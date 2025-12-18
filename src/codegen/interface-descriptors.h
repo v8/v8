@@ -2381,14 +2381,18 @@ class ApiGetterDescriptor
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS(kReceiver, kHolder, kCallback)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
+
+  static constexpr auto kStackArgumentOrder = StackArgumentOrder::kLowToHigh;
+  DEFINE_PARAMETERS(kCallback,
+                    // stack arguments
+                    kHolder,    // sp[0]
+                    kReceiver)  // sp[1]
+
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kCallback
                          MachineType::AnyTagged(),  // kHolder
-                         MachineType::AnyTagged())  // kCallback
+                         MachineType::AnyTagged())  // kReceiver
   DECLARE_DESCRIPTOR(ApiGetterDescriptor)
 
-  static constexpr inline Register ReceiverRegister();
-  static constexpr inline Register HolderRegister();
   static constexpr inline Register CallbackRegister();
 
   static constexpr auto registers();

@@ -360,10 +360,6 @@ constexpr RegList IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(
   saved_registers.set(IndirectPointerTagRegister());
   return saved_registers;
 }
-// static
-constexpr Register ApiGetterDescriptor::ReceiverRegister() {
-  return LoadDescriptor::ReceiverRegister();
-}
 
 // static
 constexpr Register LoadGlobalNoFeedbackDescriptor::ICKindRegister() {
@@ -723,8 +719,7 @@ constexpr auto CallApiCallbackGenericDescriptor::registers() {
 
 // static
 constexpr auto ApiGetterDescriptor::registers() {
-  return RegisterArray(ReceiverRegister(), HolderRegister(),
-                       CallbackRegister());
+  return RegisterArray(CallbackRegister());
 }
 
 // static

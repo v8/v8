@@ -128,19 +128,29 @@ void PrintFunctionCallbackInfo(Address* values, std::ostream& os) {
 void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
   using PCA = internal::PropertyCallbackArguments;
 
-  static_assert(PCA::kArgsLength == 8);
-  os << "PropertyCallbackInfo: "  //
+  static_assert(PCA::kFullArgsLength == 12 || PCA::kFullArgsLength == 13);
+  bool is_named = args[PCA::kFrameTypeIndex] ==
+                  Smi::FromEnum(StackFrame::API_NAMED_ACCESSOR_EXIT).ptr();
+
+  os << "PropertyCallbackInfo: " << (is_named ? "(named)" : "(indexed)")
      << "\n - isolate: " << AS_PTR(args[PCA::kIsolateIndex])
      << "\n - return_value: " << AS_OBJ(args[PCA::kReturnValueIndex])
-     << "\n - should_throw: " << AS_OBJ(args[PCA::kShouldThrowOnErrorIndex])
      << "\n - holder: " << AS_OBJ(args[PCA::kHolderIndex])
      << "\n - callback_info: " << AS_OBJ(args[PCA::kCallbackInfoIndex])
-     << "\n - property_key: " << AS_OBJ(args[PCA::kPropertyKeyIndex])
      << "\n - receiver: " << AS_OBJ(args[PCA::kThisIndex]);
 
-  // In case it's a setter call there will be additional |value| parameter,
-  // print it as a raw pointer to avoid crashing.
-  os << "\n - value?: " << AS_PTR(args[PCA::kArgsLength]);
+  if (is_named) {
+    os << "\n - property_name: " << AS_OBJ(args[PCA::kPropertyKeyIndex]);
+  } else {
+    os << "\n - property_index: " << args[PCA::kPropertyKeyIndex];
+  }
+
+  // In case it's a setter/definer/deleter call there will be additional
+  // |should_throw_on_error| and |value| parameters, print them as a raw
+  // pointer to avoid crashing. |value| parameter is initialized only for
+  // calls through builtin.
+  os << "\n - should_throw?: " << AS_PTR(args[PCA::kShouldThrowOnErrorIndex])
+     << "\n - value?: " << AS_PTR(args[PCA::kValueIndex]);
   os << "\n";
 }
 

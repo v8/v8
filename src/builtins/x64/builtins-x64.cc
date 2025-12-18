@@ -4503,19 +4503,19 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   static_assert(FCA::kApiArgsLength == 4);
   static_assert(FCA::ApiArgIndex(FCA::kTargetIndex) == 3);
-  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 2);
-  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 1);
+  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 2);
+  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 1);
   static_assert(FCA::ApiArgIndex(FCA::kIsolateIndex) == 0);
 
-  // Set up FunctionCallbackInfo's Api arguments on the stack as follows:
+  // Set up v8::FunctionCallbackInfo's Api arguments on the stack as follows:
   //
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...    JS arguments
   //                           |  sp[5]: receiver        <- kReceiverIndex
   //                           |  sp[4]: target          <- kTargetIndex
-  //                           |  sp[3]: undefined       <- kReturnValueIndex
-  //  ...    JS arguments      |  sp[2]: context         <- kContextIndex
+  //                           |  sp[3]: context         <- kContextIndex
+  //  ...    JS arguments      |  sp[2]: undefined       <- kReturnValueIndex
   //  sp[1]: receiver          |  sp[1]: isolate         <- kIsolateIndex
   //  sp[0]: return address    |  sp[0]: return address
   //
@@ -4524,12 +4524,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                        topmost_script_having_context);
 
   __ PopReturnAddressTo(scratch);
-  __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-  __ Push(func_templ);        // kTargetIndex
-  __ Push(kScratchRegister);  // kReturnValueIndex
-  __ Push(kContextRegister);  // kContextIndex
   __ LoadAddress(kScratchRegister, ER::isolate_address());
-  __ Push(kScratchRegister);  // kIsolateIndex
+  __ Push(func_templ);                      // kTargetIndex
+  __ Push(kContextRegister);                // kContextIndex
+  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValueIndex
+  __ Push(kScratchRegister);                // kIsolateIndex
   __ PushReturnAddressFrom(scratch);
 
   if (mode == CallApiCallbackMode::kGeneric) {
@@ -4576,69 +4575,50 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rsi                 : context
-  //  -- rdx                 : receiver
-  //  -- rcx                 : holder
   //  -- rbx                 : accessor info
-  //  -- rsp[0]              : return address
+  //  -- sp[2]               : receiver
+  //  -- sp[1]               : holder
+  //  -- sp[0]               : return address
   // -----------------------------------
 
   Register name_arg = kCArgRegs[0];
   Register property_callback_info_arg = kCArgRegs[1];
 
   Register api_function_address = r8;
-  Register receiver = ApiGetterDescriptor::ReceiverRegister();
-  Register holder = ApiGetterDescriptor::HolderRegister();
   Register callback = ApiGetterDescriptor::CallbackRegister();
   Register scratch = rax;
 
-  DCHECK(!AreAliased(receiver, holder, callback, scratch));
+  DCHECK(!AreAliased(name_arg, property_callback_info_arg, callback, scratch));
 
-  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
-  // name below the exit frame to make GC aware of them.
   using PCA = PropertyCallbackArguments;
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
 
-  static_assert(PCA::kPropertyKeyIndex == 0);
-  static_assert(PCA::kShouldThrowOnErrorIndex == 1);
-  static_assert(PCA::kHolderIndex == 2);
-  static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kUnusedIndex == 4);
-  static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kCallbackInfoIndex == 6);
-  static_assert(PCA::kThisIndex == 7);
-  static_assert(PCA::kArgsLength == 8);
+  static_assert(PCA::kGetterApiArgsLength == 5);
+  static_assert(PCA::ApiArgIndex(PCA::kThisIndex) == 4);
+  static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
+  static_assert(PCA::ApiArgIndex(PCA::kCallbackInfoIndex) == 2);
+  static_assert(PCA::ApiArgIndex(PCA::kReturnValueIndex) == 1);
+  static_assert(PCA::ApiArgIndex(PCA::kIsolateIndex) == 0);
 
-  // Set up v8::PropertyCallbackInfo's (PCI) args_ on the stack as follows:
-  // Current state:
-  //   rsp[0]: return address
+  // Set up v8::PropertyCallbackInfo's arguments on the stack as follows:
   //
-  // Target state:
-  //   rsp[0 * kSystemPointerSize]: return address
-  //   rsp[1 * kSystemPointerSize]: name                      <= PCI::args_
-  //   rsp[2 * kSystemPointerSize]: kShouldThrowOnErrorIndex
-  //   rsp[3 * kSystemPointerSize]: kHolderIndex
-  //   rsp[4 * kSystemPointerSize]: kIsolateIndex
-  //   rsp[5 * kSystemPointerSize]: kUnusedIndex
-  //   rsp[6 * kSystemPointerSize]: kReturnValueIndex
-  //   rsp[7 * kSystemPointerSize]: kCallbackInfoIndex
-  //   rsp[8 * kSystemPointerSize]: kThisIndex / receiver
+  //  Current state            |  Target state
+  // --------------------------+--------------------------------------------
+  //                           |  ...
+  //                           |  sp[5]: receiver        <- kThisIndex
+  //                           |  sp[4]: holder          <- kHolderIndex
+  //  ...                      |  sp[3]: callback info   <- kCallbackInfoIndex
+  //  sp[2]: receiver          |  sp[2]: undefined       <- kReturnValueIndex
+  //  sp[1]: holder            |  sp[1]: isolate         <- kIsolateIndex
+  //  sp[0]: return address    |  sp[0]: return address
+  //
 
   __ PopReturnAddressTo(scratch);
-  __ Push(receiver);
-  __ Push(callback);
-  __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-  __ Push(kScratchRegister);  // return value
-  __ Push(Smi::zero());       // holderV2 value
   __ LoadAddress(kScratchRegister, ER::isolate_address());
-  __ Push(kScratchRegister);  // kIsolateIndex
-  __ Push(holder);
-  __ Push(Smi::FromInt(kDontThrow));  // should_throw_on_error -> kDontThrow
-
-  // Register name = ReassignRegister(receiver);
-  __ LoadTaggedField(name_arg,
-                     FieldOperand(callback, AccessorInfo::kNameOffset));
-  __ Push(name_arg);
+  __ Push(callback);                        // kCallbackInfoIndex
+  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValueIndex
+  __ Push(kScratchRegister);                // kIsolateIndex
 
   __ RecordComment("Load api_function_address");
   __ LoadExternalPointerField(
@@ -4647,14 +4627,22 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   __ PushReturnAddressFrom(scratch);
   __ EnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
-                    StackFrame::API_ACCESSOR_EXIT, api_function_address);
+                    StackFrame::API_NAMED_ACCESSOR_EXIT, api_function_address);
 
-  __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
-  // The context register (rsi) might overlap with property_callback_info_arg
-  // but the context value has been saved in EnterExitFrame and thus it could
-  // be used to pass arguments.
-  // property_callback_info_arg = v8::PropertyCallbackInfo&
-  __ leaq(property_callback_info_arg, Operand(rbp, FC::kArgsArrayOffset));
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Initialize v8::PropertyCallbackInfo");
+    __ LoadTaggedField(name_arg,
+                       FieldOperand(callback, AccessorInfo::kNameOffset));
+    // kPropertyKeyIndex
+    __ movq(Operand(rbp, FC::kPropertyKeyOffset), name_arg);
+
+    // The context register (rsi) might overlap with property_callback_info_arg
+    // but the context value has been saved in EnterExitFrame and thus it could
+    // be used to pass arguments.
+    // property_callback_info_arg = v8::PropertyCallbackInfo&
+    __ leaq(property_callback_info_arg,
+            Operand(rbp, FC::kPropertyCallbackInfoOffset));
+  }
 
   DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name_arg,
                      callback, scratch));
@@ -4674,7 +4662,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   Operand return_value_operand = Operand(rbp, FC::kReturnValueOffset);
   static constexpr int kSlotsToDropOnReturn =
-      FC::kPropertyCallbackInfoArgsLength;
+      FC::kPropertyCallbackInfoGetterApiArgsLength;
   Operand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;

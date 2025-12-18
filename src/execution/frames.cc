@@ -60,6 +60,10 @@ static_assert(Internals::kFrameTypeApiCallExit ==
               StackFrame::API_CALLBACK_EXIT);
 static_assert(Internals::kFrameTypeApiConstructExit ==
               StackFrame::API_CONSTRUCT_EXIT);
+static_assert(Internals::kFrameTypeApiNamedAccessorExit ==
+              StackFrame::API_NAMED_ACCESSOR_EXIT);
+static_assert(Internals::kFrameTypeApiIndexedAccessorExit ==
+              StackFrame::API_INDEXED_ACCESSOR_EXIT);
 
 ReturnAddressLocationResolver StackFrame::return_address_location_resolver_ =
     nullptr;
@@ -744,7 +748,9 @@ void StackFrameIteratorForProfiler::Advance() {
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
     if (frame_->is_exit() || frame_->is_builtin_exit() ||
-        frame_->is_api_accessor_exit() || frame_->is_api_callback_exit()) {
+        frame_->is_api_named_accessor_exit() ||
+        frame_->is_api_indexed_accessor_exit() ||
+        frame_->is_api_callback_exit()) {
       // Some of the EXIT frames may have ExternalCallbackScope allocated on
       // top of them. In that case the scope corresponds to the first EXIT
       // frame beneath it. There may be other EXIT frames on top of the
@@ -853,7 +859,8 @@ StackFrame::Type ComputeBuiltinFrameType(Tagged<GcSafeCode> code) {
 StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
   DCHECK_LE(static_cast<uintptr_t>(candidate), StackFrame::NUMBER_OF_TYPES);
   switch (candidate) {
-    case StackFrame::API_ACCESSOR_EXIT:
+    case StackFrame::API_NAMED_ACCESSOR_EXIT:
+    case StackFrame::API_INDEXED_ACCESSOR_EXIT:
     case StackFrame::API_CALLBACK_EXIT:
     case StackFrame::API_CONSTRUCT_EXIT:
     case StackFrame::BUILTIN_CONTINUATION:
@@ -1186,7 +1193,8 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
   switch (frame_type) {
     case BUILTIN_EXIT:
-    case API_ACCESSOR_EXIT:
+    case API_NAMED_ACCESSOR_EXIT:
+    case API_INDEXED_ACCESSOR_EXIT:
     case API_CALLBACK_EXIT:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXIT:
@@ -1286,37 +1294,37 @@ bool BuiltinExitFrame::IsConstructor() const {
 
 // Ensure layout of v8::FunctionCallbackInfo is in sync with
 // ApiCallbackExitFrameConstants/ApiConstructExitFrameConstants.
-namespace ensure_layout {
+namespace ensure_FunctionCallbackInfo_layout {
 // Check ApiCallbackExitFrameConstants/ApiConstructExitFrameConstants constants
 // through the latter since it inherits from the former.
 static_assert(std::is_base_of_v<ApiCallbackExitFrameConstants,
                                 ApiConstructExitFrameConstants>);
 using FC = ApiConstructExitFrameConstants;
 using FCA = FunctionCallbackArguments;
+static constexpr uint32_t ArgOffset(int index) {
+  return index * kSystemPointerSize;
+}
 constexpr int FCIOffset(int fp_relative_offset) {
   return fp_relative_offset - FC::kFunctionCallbackInfoOffset;
 }
 static_assert(FC::kFunctionCallbackInfoApiArgsLength == FCA::kApiArgsLength);
 
-static_assert(FCA::ArgOffset(FCA::kArgcIndex) == FCIOffset(FC::kFCIArgcOffset));
-static_assert(FCA::ArgOffset(FCA::kNewTargetIndex) ==
+static_assert(ArgOffset(FCA::kArgcIndex) == FCIOffset(FC::kFCIArgcOffset));
+static_assert(ArgOffset(FCA::kNewTargetIndex) ==
               FCIOffset(FC::kFCINewTargetOffset));
-static_assert(FCA::ArgOffset(FCA::kFrameSPIndex) == FCIOffset(FC::kSPOffset));
-static_assert(FCA::ArgOffset(FCA::kFrameTypeIndex) ==
+static_assert(ArgOffset(FCA::kFrameSPIndex) == FCIOffset(FC::kSPOffset));
+static_assert(ArgOffset(FCA::kFrameTypeIndex) ==
               FCIOffset(FC::kFrameTypeOffset));
 
-static_assert(FCA::ArgOffset(FCA::kContextIndex) ==
-              FCIOffset(FC::kContextOffset));
-static_assert(FCA::ArgOffset(FCA::kTargetIndex) ==
-              FCIOffset(FC::kTargetOffset));
-static_assert(FCA::ArgOffset(FCA::kReturnValueIndex) ==
+static_assert(ArgOffset(FCA::kContextIndex) == FCIOffset(FC::kContextOffset));
+static_assert(ArgOffset(FCA::kTargetIndex) == FCIOffset(FC::kTargetOffset));
+static_assert(ArgOffset(FCA::kReturnValueIndex) ==
               FCIOffset(FC::kReturnValueOffset));
-static_assert(FCA::ArgOffset(FCA::kReceiverIndex) ==
-              FCIOffset(FC::kReceiverOffset));
-static_assert(FCA::ArgOffset(FCA::kFirstJSArgumentIndex) ==
+static_assert(ArgOffset(FCA::kReceiverIndex) == FCIOffset(FC::kReceiverOffset));
+static_assert(ArgOffset(FCA::kFirstJSArgumentIndex) ==
               FCIOffset(FC::kFirstJSArgumentOffset));
 
-}  // namespace ensure_layout
+}  // namespace ensure_FunctionCallbackInfo_layout
 
 DirectHandle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
   Tagged<HeapObject> maybe_function = target();
@@ -1390,23 +1398,34 @@ void ApiConstructExitFrame::Iterate(RootVisitor* v) const {
 
 // Ensure layout of v8::PropertyCallbackInfo is in sync with
 // ApiAccessorExitFrameConstants.
-static_assert(
-    ApiAccessorExitFrameConstants::kPropertyCallbackInfoPropertyKeyIndex ==
-    PropertyCallbackArguments::kPropertyKeyIndex);
-static_assert(
-    ApiAccessorExitFrameConstants::kPropertyCallbackInfoReturnValueIndex ==
-    PropertyCallbackArguments::kReturnValueIndex);
-static_assert(
-    ApiAccessorExitFrameConstants::kPropertyCallbackInfoReceiverIndex ==
-    PropertyCallbackArguments::kThisIndex);
-static_assert(ApiAccessorExitFrameConstants::kPropertyCallbackInfoHolderIndex ==
-              PropertyCallbackArguments::kHolderIndex);
-static_assert(ApiAccessorExitFrameConstants::kPropertyCallbackInfoArgsLength ==
-              PropertyCallbackArguments::kArgsLength);
+namespace ensure_PropertyCallbackInfo_layout {
+using FC = ApiAccessorExitFrameConstants;
+using PCA = PropertyCallbackArguments;
+static constexpr uint32_t ArgOffset(int index) {
+  return index * kSystemPointerSize;
+}
+constexpr int PCIOffset(int fp_relative_offset) {
+  return fp_relative_offset - FC::kPropertyCallbackInfoOffset;
+}
+static_assert(ArgOffset(PCA::kPropertyKeyIndex) ==
+              PCIOffset(FC::kPropertyKeyOffset));
+static_assert(ArgOffset(PCA::kReturnValueIndex) ==
+              PCIOffset(FC::kReturnValueOffset));
+static_assert(ArgOffset(PCA::kThisIndex) == PCIOffset(FC::kReceiverOffset));
+static_assert(ArgOffset(PCA::kHolderIndex) == PCIOffset(FC::kHolderOffset));
+static_assert(FC::kPropertyCallbackInfoGetterApiArgsLength ==
+              PCA::kGetterApiArgsLength);
+static_assert(FC::kPropertyCallbackInfoSetterApiArgsLength ==
+              PCA::kSetterApiArgsLength);
+
+}  // namespace ensure_PropertyCallbackInfo_layout
 
 FrameSummaries ApiAccessorExitFrame::Summarize() const {
-  // This frame is not supposed to appear in exception stack traces.
-  DCHECK(IsName(property_name()));
+  // Theses kinds of frames are not supposed to appear in exception stack
+  // traces.
+  DCHECK_IMPLIES(
+      is_api_named_accessor_exit(),
+      IsName(ApiNamedAccessorExitFrame::cast(this)->property_name()));
   DCHECK(IsJSReceiver(receiver()));
   DCHECK(IsJSReceiver(holder()));
   return FrameSummaries();
@@ -1505,8 +1524,8 @@ void ApiConstructExitFrame::Print(StringStream* accumulator, PrintMode mode,
   return PrintApiFrame(accumulator, mode, index, true);
 }
 
-void ApiAccessorExitFrame::Print(StringStream* accumulator, PrintMode mode,
-                                 int index) const {
+void ApiNamedAccessorExitFrame::Print(StringStream* accumulator, PrintMode mode,
+                                      int index) const {
   DisallowGarbageCollection no_gc;
 
   PrintIndex(accumulator, mode, index);
@@ -1516,6 +1535,12 @@ void ApiAccessorExitFrame::Print(StringStream* accumulator, PrintMode mode,
   Tagged<Object> receiver = this->receiver();
   Tagged<Object> holder = this->holder();
   accumulator->Add("(this=%o, holder=%o, name=%o)\n", receiver, holder, name);
+}
+
+void ApiIndexedAccessorExitFrame::Print(StringStream* accumulator,
+                                        PrintMode mode, int index) const {
+  // These frames are not created yet.
+  UNREACHABLE();
 }
 
 Address CommonFrame::GetExpressionAddress(int n) const {

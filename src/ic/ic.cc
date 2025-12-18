@@ -4190,8 +4190,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 #endif
 
   {
-    PropertyCallbackArguments arguments(isolate, *receiver, *holder,
-                                        Just(kDontThrow));
+    PropertyCallbackArguments arguments(isolate, *receiver, *holder);
 
     DirectHandle<Object> result =
         arguments.CallNamedGetter(isolate, interceptor, name);
@@ -4322,8 +4321,7 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
 
   DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                             isolate);
-  PropertyCallbackArguments arguments(isolate, *receiver, *receiver,
-                                      Just(kDontThrow));
+  PropertyCallbackArguments arguments(isolate, *receiver, *receiver);
   DirectHandle<Object> result =
       arguments.CallIndexedGetter(isolate, interceptor, index);
   // An exception was thrown in the interceptor. Propagate.
@@ -4369,8 +4367,7 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
   {
     DirectHandle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                               isolate);
-    PropertyCallbackArguments arguments(isolate, *receiver, *receiver,
-                                        Just(kDontThrow));
+    PropertyCallbackArguments arguments(isolate, *receiver, *receiver);
 
     if (interceptor->has_query()) {
       DirectHandle<Object> result =

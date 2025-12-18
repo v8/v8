@@ -770,8 +770,7 @@ KeyAccumulator::FilterForEnumerableProperties(
 Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
     DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
     DirectHandle<InterceptorInfo> interceptor, IndexedOrNamed type) {
-  PropertyCallbackArguments args(isolate_, *receiver, GetHolderForApi(*object),
-                                 Just(kDontThrow));
+  PropertyCallbackArguments args(isolate_, *receiver, GetHolderForApi(*object));
 
   DCHECK_EQ(interceptor->is_named(), type == kNamed);
   if (!interceptor->has_enumerator()) {

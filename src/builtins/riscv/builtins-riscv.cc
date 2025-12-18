@@ -4668,7 +4668,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
-                    StackFrame::API_ACCESSOR_EXIT);
+                    StackFrame::API_NAMED_ACCESSOR_EXIT);
   __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
   // property_callback_info_arg = v8::PropertyCallbackInfo&
   __ AddWord(property_callback_info_arg, fp, Operand(FC::kArgsArrayOffset));

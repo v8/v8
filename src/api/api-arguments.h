@@ -27,15 +27,31 @@ class PropertyCallbackArguments final : public Relocatable {
  public:
   using T = PropertyCallbackInfo<Value>;
   using Super = CustomArguments<T>;
-  static constexpr int kArgsLength = T::kArgsLength;
+  static constexpr int kMandatoryArgsLength = T::kMandatoryArgsLength;
+  static constexpr int kFullArgsLength = T::kFullArgsLength;
+  static constexpr int kMandatoryApiArgsLength = T::kMandatoryApiArgsLength;
+  static constexpr int kFullApiArgsLength = T::kFullApiArgsLength;
+
+  static constexpr int kGetterApiArgsLength = T::kMandatoryApiArgsLength;
+  static constexpr int kSetterApiArgsLength = T::kFullApiArgsLength;
+
+  static constexpr int kFrameTypeIndex = T::kFrameTypeIndex;
   static constexpr int kThisIndex = T::kThisIndex;
-  static constexpr int kCallbackInfoIndex = T::kCallbackInfoIndex;
   static constexpr int kUnusedIndex = T::kUnusedIndex;
+  static constexpr int kCallbackInfoIndex = T::kCallbackInfoIndex;
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kReturnValueIndex = T::kReturnValueIndex;
   static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
   static constexpr int kPropertyKeyIndex = T::kPropertyKeyIndex;
+  static constexpr int kValueIndex = T::kValueIndex;
+
+  // Helper for converting Api arguments indices to [0..kFullApiArgsLength)
+  // value.
+  static constexpr uint32_t ApiArgIndex(uint32_t index) {
+    DCHECK_GE(index, T::kFirstApiArgumentIndex);
+    return index - T::kFirstApiArgumentIndex;
+  }
 
   // This constructor leaves kPropertyKeyIndex, kReturnValueIndex and
   // kCallbackInfoIndex slots uninitialized in order to let them be
@@ -43,7 +59,9 @@ class PropertyCallbackArguments final : public Relocatable {
   // As a consequence, there must be no GC call between this constructor and
   // CallXXX(..). In debug mode these slots are zapped, so GC should be able
   // to detect misuse of this object.
-  inline PropertyCallbackArguments(Isolate* isolate, Tagged<Object> self,
+  inline PropertyCallbackArguments(Isolate* isolate, Tagged<Object> receiver,
+                                   Tagged<JSObject> holder);
+  inline PropertyCallbackArguments(Isolate* isolate, Tagged<Object> receiver,
                                    Tagged<JSObject> holder,
                                    Maybe<ShouldThrow> should_throw);
   inline ~PropertyCallbackArguments();
@@ -171,7 +189,7 @@ class PropertyCallbackArguments final : public Relocatable {
     return GetPropertyCallbackInfo<Value>().ShouldThrowOnError();
   }
 
-  // Unofficial way of getting AccessorInfo from v8::PropertyCallbackInfo<T>.
+  // Returns AccessorInfo stored in v8::PropertyCallbackInfo<T>.
   template <typename T>
   static DirectHandle<AccessorInfo> GetAccessorInfo(
       const PropertyCallbackInfo<T>& info) {
@@ -179,70 +197,74 @@ class PropertyCallbackArguments final : public Relocatable {
         DirectHandle<Object>::FromSlot(&info.args_[kCallbackInfoIndex]));
   }
 
-  // Unofficial way of getting property key from v8::PropertyCallbackInfo<T>.
+  // Returns whether given v8::PropertyCallbackInfo<T> object is named/indexed.
   template <typename T>
-  static Tagged<Object> GetPropertyKey(const PropertyCallbackInfo<T>& info) {
-    return Tagged<Object>(info.args_[kPropertyKeyIndex]);
-  }
-  template <typename T>
-  static DirectHandle<Object> GetPropertyKeyHandle(
-      const PropertyCallbackInfo<T>& info) {
-    return DirectHandle<Object>::FromSlot(&info.args_[kPropertyKeyIndex]);
+  static bool IsNamed(const PropertyCallbackInfo<T>& info) {
+    return info.IsNamed();
   }
 
-  // Returns index value passed to CallIndexedXXX(). This works as long as
-  // all the calls to indexed interceptor callbacks are done via
-  // PropertyCallbackArguments.
+  // Returns property name stored in v8::PropertyCallbackInfo<T> (for named
+  // accessors/interceptors).
+  template <typename T>
+  static DirectHandle<Name> GetPropertyName(
+      const PropertyCallbackInfo<T>& info) {
+    DCHECK(info.IsNamed());
+    return Cast<Name>(
+        DirectHandle<Object>::FromSlot(&info.args_[kPropertyKeyIndex]));
+  }
+
+  // Returns property index stored in v8::PropertyCallbackInfo<T> (for indexed
+  // interceptors).
   template <typename T>
   static uint32_t GetPropertyIndex(const PropertyCallbackInfo<T>& info) {
-    // Currently all indexed interceptor callbacks are called via
-    // PropertyCallbackArguments, so it's guaranteed that
-    // v8::PropertyCallbackInfo<T>::args_ array IS the
-    // PropertyCallbackArguments::values_ array. As a result we can restore
-    // pointer to PropertyCallbackArguments object from the former.
-    Address ptr = reinterpret_cast<Address>(&info.args_) -
-                  offsetof(PropertyCallbackArguments, values_);
-    auto pca = reinterpret_cast<const PropertyCallbackArguments*>(ptr);
-    return pca->index_;
+    DCHECK(!info.IsNamed());
+    return static_cast<uint32_t>(info.args_[kPropertyKeyIndex]);
   }
+
+  // Returns true if it's an arguments object for named callback, otherwise
+  // it's one for an indexed callback.
+  inline bool is_named() const;
+
+  // Set property key and a respective frame type (named vs. indexed).
+  inline void set_property_key(Tagged<Name> name);
+  inline void set_property_key(uint32_t index);
 
   inline DirectHandle<JSObject> holder() const;
 
  private:
+  inline void Initialize(Isolate* isolate, Tagged<Object> self,
+                         Tagged<JSObject> holder);
   // Returns JSArray-like object with property names or undefined.
   inline DirectHandle<JSObjectOrUndefined> CallPropertyEnumerator(
       Isolate* isolate, DirectHandle<InterceptorInfo> interceptor);
 
   inline DirectHandle<Object> receiver() const;
 
-  inline void IterateInstance(RootVisitor* v) override {
-    v->VisitRootPointers(Root::kRelocatable, nullptr, slot_at(0),
-                         slot_at(T::kArgsLength));
-  }
+  void IterateInstance(RootVisitor* v) override;
 
   template <typename V>
   Handle<V> GetReturnValue() const;
 
   inline FullObjectSlot slot_at(int index) const {
-    // This allows index == T::kArgsLength so "one past the end" slots
+    // This allows index == kFullArgsLength so "one past the end" slots
     // can be retrieved for iterating purposes.
     DCHECK_LE(static_cast<unsigned>(index),
-              static_cast<unsigned>(T::kArgsLength));
+              static_cast<unsigned>(kFullArgsLength));
     return FullObjectSlot(values_ + index);
   }
 
-  Address values_[T::kArgsLength];
-
-  // This field is used for propagating index value from CallIndexedXXX()
-  // to ExceptionPropagationCallback.
-  uint32_t index_ = kMaxUInt32;
-
 #ifdef DEBUG
+  // Used for checking that the way this object was constructed matches the
+  // following CallXxx(..).
+  const bool is_setter_definer_deleter_;
+
   // This stores current value of Isolate::javascript_execution_counter().
   // It's used for detecting whether JavaScript code was executed between
   // PropertyCallbackArguments's constructor and destructor.
-  uint32_t javascript_execution_counter_;
+  uint32_t javascript_execution_counter_ = 0;
 #endif  // DEBUG
+
+  Address values_[kFullArgsLength];
 };
 
 class FunctionCallbackArguments : public Relocatable {
@@ -258,7 +280,6 @@ class FunctionCallbackArguments : public Relocatable {
   static constexpr int kFrameTypeIndex = T::kFrameTypeIndex;
 
   // Api arguments block, the values are located on stack right above PC.
-  static constexpr int kFirstApiArgumentIndex = T::kFirstApiArgumentIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kReturnValueIndex = T::kReturnValueIndex;
   static constexpr int kContextIndex = T::kContextIndex;
@@ -271,12 +292,8 @@ class FunctionCallbackArguments : public Relocatable {
 
   // Helper for converting Api arguments indices to [0..kApiArgsLength) value.
   static constexpr uint32_t ApiArgIndex(uint32_t index) {
-    DCHECK_GE(index, kFirstApiArgumentIndex);
-    return index - kFirstApiArgumentIndex;
-  }
-
-  static constexpr uint32_t ArgOffset(int index) {
-    return index * kSystemPointerSize;
+    DCHECK_GE(index, T::kFirstApiArgumentIndex);
+    return index - T::kFirstApiArgumentIndex;
   }
 
   // Arguments for [[Call]] operation.
@@ -328,7 +345,7 @@ class FunctionCallbackArguments : public Relocatable {
     return FullObjectSlot(&values_.data()[index]);
   }
 
-  inline void IterateInstance(RootVisitor* v) override;
+  void IterateInstance(RootVisitor* v) override;
 
   // This default size is enough for passing up to 4 JS arguments.
   base::SmallVector<Address, 16> values_;

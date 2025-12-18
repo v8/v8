@@ -133,7 +133,8 @@ class StackHandler {
   V(BUILTIN_EXIT, BuiltinExitFrame)                                       \
   V(API_CALLBACK_EXIT, ApiCallbackExitFrame)                              \
   V(API_CONSTRUCT_EXIT, ApiConstructExitFrame)                            \
-  V(API_ACCESSOR_EXIT, ApiAccessorExitFrame)                              \
+  V(API_NAMED_ACCESSOR_EXIT, ApiNamedAccessorExitFrame)                   \
+  V(API_INDEXED_ACCESSOR_EXIT, ApiIndexedAccessorExitFrame)               \
   V(NATIVE, NativeFrame)                                                  \
   V(IRREGEXP, IrregexpFrame)                                              \
   IF_WASM(V, WASM, WasmFrame)                                             \
@@ -281,7 +282,12 @@ class StackFrame {
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_fast_construct() const { return type() == FAST_CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
-  bool is_api_accessor_exit() const { return type() == API_ACCESSOR_EXIT; }
+  bool is_api_named_accessor_exit() const {
+    return type() == API_NAMED_ACCESSOR_EXIT;
+  }
+  bool is_api_indexed_accessor_exit() const {
+    return type() == API_INDEXED_ACCESSOR_EXIT;
+  }
   bool is_api_callback_exit() const { return type() == API_CALLBACK_EXIT; }
   bool is_api_construct_exit() const { return type() == API_CONSTRUCT_EXIT; }
   bool is_irregexp() const { return type() == IRREGEXP; }
@@ -1055,32 +1061,71 @@ class ApiConstructExitFrame : public ApiCallbackExitFrame {
 // preprocessing of exceptions thrown from these callbacks.
 class ApiAccessorExitFrame : public ExitFrame {
  public:
-  Type type() const override { return API_ACCESSOR_EXIT; }
-
-  inline Tagged<Name> property_name() const;
-
   inline Tagged<Object> receiver() const;
   inline Tagged<Object> holder() const;
-
-  void Print(StringStream* accumulator, PrintMode mode,
-             int index) const override;
 
   // Summarize Frame
   FrameSummaries Summarize() const override;
 
   static ApiAccessorExitFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_api_accessor_exit());
+    DCHECK(frame->is_api_named_accessor_exit() ||
+           frame->is_api_indexed_accessor_exit());
     return static_cast<ApiAccessorExitFrame*>(frame);
   }
 
  protected:
   inline explicit ApiAccessorExitFrame(StackFrameIteratorBase* iterator);
 
- private:
-  inline FullObjectSlot property_name_slot() const;
+  inline FullObjectSlot property_key_slot() const;
   inline FullObjectSlot receiver_slot() const;
   inline FullObjectSlot holder_slot() const;
 
+  friend class StackFrameIteratorBase;
+};
+
+// Exit frame used for calling named Api accessor/interceptor callbacks.
+class ApiNamedAccessorExitFrame : public ApiAccessorExitFrame {
+ public:
+  Type type() const override { return API_NAMED_ACCESSOR_EXIT; }
+
+  inline Tagged<Name> property_name() const;
+
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
+  static ApiNamedAccessorExitFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_api_named_accessor_exit());
+    return static_cast<ApiNamedAccessorExitFrame*>(frame);
+  }
+  static const ApiNamedAccessorExitFrame* cast(const StackFrame* frame) {
+    DCHECK(frame->is_api_named_accessor_exit());
+    return static_cast<const ApiNamedAccessorExitFrame*>(frame);
+  }
+
+ protected:
+  inline explicit ApiNamedAccessorExitFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+// Exit frame used for calling indexed Api interceptor callbacks.
+class ApiIndexedAccessorExitFrame : public ApiAccessorExitFrame {
+ public:
+  Type type() const override { return API_INDEXED_ACCESSOR_EXIT; }
+
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
+  static ApiIndexedAccessorExitFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_api_indexed_accessor_exit());
+    return static_cast<ApiIndexedAccessorExitFrame*>(frame);
+  }
+
+ protected:
+  inline explicit ApiIndexedAccessorExitFrame(StackFrameIteratorBase* iterator);
+
+ private:
   friend class StackFrameIteratorBase;
 };
 

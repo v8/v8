@@ -106,7 +106,7 @@ class ReturnValue {
   V8_INLINE explicit ReturnValue(internal::Address* slot);
 
   // See FunctionCallbackInfo.
-  static constexpr int kIsolateValueIndex = -2;
+  static constexpr int kIsolateValueIndex = -1;
 
   internal::Address* value_;
 };
@@ -175,8 +175,8 @@ class FunctionCallbackInfo {
     // Api arguments block, starts at kFirstArgumentIndex.
     kFirstApiArgumentIndex,
     kIsolateIndex = kFirstApiArgumentIndex,
-    kContextIndex,
     kReturnValueIndex,
+    kContextIndex,
     kTargetIndex,
 
     // JS args block, starts at kFrameFirstImplicitArgsIndex.
@@ -324,23 +324,79 @@ class PropertyCallbackInfo {
   friend class internal::PropertyCallbackArguments;
   friend class internal::CustomArguments<PropertyCallbackInfo>;
   friend void internal::PrintPropertyCallbackInfo(void*);
+  using I = internal::Internals;
 
-  static constexpr int kPropertyKeyIndex = 0;
-  static constexpr int kShouldThrowOnErrorIndex = 1;
-  static constexpr int kHolderIndex = 2;
-  static constexpr int kIsolateIndex = 3;
-  // TODO(http://crbug.com/333672197): drop this parameter.
-  static constexpr int kUnusedIndex = 4;
-  static constexpr int kReturnValueIndex = 5;
-  static constexpr int kCallbackInfoIndex = 6;
-  static constexpr int kThisIndex = 7;
-  static constexpr int kArgsLength = 8;
+  // ShouldThrowOnError() can return true only for setter/definer/deleter
+  // callbacks which match [[Set]]/[[DefineOwnProperty]]/[[Delete]]
+  // operations. We detect these operations by return value type - they
+  // all return boolean value, even though setter/deleter callbacks are
+  // still using v8::PropertyCallbackInfo<void>.
+  // TODO(https://crbug.com/348660658): cleanup this, once the callbacks are
+  // migrated to a new return type.
+  static constexpr bool HasShouldThrowOnError() {
+    return std::is_same_v<T, v8::Boolean> || std::is_same_v<T, void>;
+  }
 
-  static constexpr int kSize = kArgsLength * internal::kApiSystemPointerSize;
+  // Indicates whether this is a named accessor/interceptor callback call
+  // or an indexed one.
+  V8_INLINE bool IsNamed() const;
+
+  // Frame block, matches the layout of ApiAccessorExitFrame.
+  // See ApiAccessorExitFrameConstants.
+  enum {
+    // Frame arguments block.
+    kPropertyKeyIndex,
+
+    // Regular ExitFrame structure.
+    kFrameSPIndex,
+    kFrameTypeIndex,
+    kFrameConstantPoolIndex,  // Optional, see I::kFrameCPSlotCount.
+    kFrameFPIndex = kFrameConstantPoolIndex + I::kFrameCPSlotCount,
+    kFramePCIndex,
+
+    // Other arguments block, starts at kFirstArgumentIndex.
+    kFirstApiArgumentIndex,
+    kIsolateIndex = kFirstApiArgumentIndex,
+    kReturnValueIndex,
+    kCallbackInfoIndex,
+    // TODO(http://crbug.com/455600234): drop this once This() is removed.
+    kUnusedIndex,  // Optional, see I::kSPAlignmentSlotCount.
+    kHolderIndex = kUnusedIndex + I::kSPAlignmentSlotCount,
+    // TODO(http://crbug.com/455600234): drop this once This() is removed.
+    kThisIndex,
+
+    //
+    // Optional part, used only by setter/definer/deleter callbacks.
+    //
+    kFirstOptionalArgument,
+    kShouldThrowOnErrorIndex = kFirstOptionalArgument,
+
+    // Used as value handle storage when called via CallApiSetter builtin.
+    kValueIndex,
+
+    kFullArgsLength,
+    kMandatoryArgsLength = kFirstOptionalArgument,
+    kOptionalArgsLength = kFullArgsLength - kFirstOptionalArgument,
+
+    // Various lengths of just Api arguments part.
+    kMandatoryApiArgsLength = kMandatoryArgsLength - kFirstApiArgumentIndex,
+    kFullApiArgsLength = kFullArgsLength - kFirstApiArgumentIndex,
+  };
+
+  // PropertyCallbackInfo object provides a view of the stack area where the
+  // data is stored and thus it's not supposed to be copyable/movable.
+  PropertyCallbackInfo(const PropertyCallbackInfo&) = delete;
+  PropertyCallbackInfo& operator=(const PropertyCallbackInfo&) = delete;
+  PropertyCallbackInfo(PropertyCallbackInfo&&) = delete;
+  PropertyCallbackInfo& operator=(PropertyCallbackInfo&&) = delete;
 
   PropertyCallbackInfo() = default;
 
-  mutable internal::Address args_[kArgsLength];
+  // Declare as mutable to let GC modify the contents of the slots even though
+  // it's not possible to change values via this class.
+  // Define the array size as 1 to make it clear that we are going to access
+  // it out-of-bounds anyway.
+  mutable internal::Address args_[1];
 };
 
 using FunctionCallback = void (*)(const FunctionCallbackInfo<Value>& info);
@@ -658,13 +714,18 @@ int FunctionCallbackInfo<T>::Length() const {
 }
 
 template <typename T>
+bool PropertyCallbackInfo<T>::IsNamed() const {
+  return I::SmiValue(args_[kFrameTypeIndex]) ==
+         I::kFrameTypeApiNamedAccessorExit;
+}
+
+template <typename T>
 Isolate* PropertyCallbackInfo<T>::GetIsolate() const {
   return *reinterpret_cast<Isolate**>(&args_[kIsolateIndex]);
 }
 
 template <typename T>
 Local<Value> PropertyCallbackInfo<T>::Data() const {
-  using I = internal::Internals;
   internal::Address callback_info = args_[kCallbackInfoIndex];
   internal::Address data =
       I::ReadTaggedPointerField(callback_info, I::kCallbackInfoDataOffset);
@@ -688,7 +749,7 @@ ReturnValue<T> PropertyCallbackInfo<T>::GetReturnValue() const {
 
 template <typename T>
 bool PropertyCallbackInfo<T>::ShouldThrowOnError() const {
-  using I = internal::Internals;
+  if constexpr (!HasShouldThrowOnError()) return false;
   if (args_[kShouldThrowOnErrorIndex] !=
       I::IntegralToSmi(I::kInferShouldThrowMode)) {
     return args_[kShouldThrowOnErrorIndex] != I::IntegralToSmi(I::kDontThrow);

@@ -4460,15 +4460,15 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 1);
   static_assert(FCA::ApiArgIndex(FCA::kIsolateIndex) == 0);
 
-  // Set up FunctionCallbackInfo's Api arguments on the stack as follows:
+  // Set up v8::FunctionCallbackInfo's Api arguments on the stack as follows:
   //
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...    JS arguments
   //                           |  sp[4]: receiver        <- kReceiverIndex
   //                           |  sp[3]: target          <- kTargetIndex
-  //                           |  sp[2]: undefined       <- kReturnValueIndex
-  //  ...    JS arguments      |  sp[1]: context         <- kContextIndex
+  //                           |  sp[2]: context         <- kContextIndex
+  //  ...    JS arguments      |  sp[1]: undefined       <- kReturnValueIndex
   //  sp[0]: receiver          |  sp[0]: isolate         <- kIsolateIndex
   //
 
@@ -4478,8 +4478,10 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ Move(scratch, ER::isolate_address());
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
 
-  __ Push(func_templ, undef,  // kTarget, kReturnValueIndex
-          cp, scratch);       // kContextIndex, kIsolateIndex
+  __ Push(func_templ,  // kTargetIndex
+          cp,          // kContextIndex
+          undef,       // kReturnValueIndex
+          scratch);    // kIsolateIndex
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   if (mode == CallApiCallbackMode::kGeneric) {
@@ -4586,7 +4588,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
-                    StackFrame::API_ACCESSOR_EXIT);
+                    StackFrame::API_NAMED_ACCESSOR_EXIT);
 
   __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
   // property_callback_info_arg = v8::PropertyCallbackInfo&

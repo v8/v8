@@ -1595,8 +1595,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
                                  Object::ConvertReceiver(isolate, receiver));
     }
 
-    PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
-                                   Just(kDontThrow));
+    PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi());
     DirectHandle<JSAny> result = args.CallAccessorGetter(isolate, info, name);
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     Handle<JSAny> reboxed_result(*result, isolate);

@@ -395,7 +395,7 @@ void AccessorAssembler::HandleLoadCallbackProperty(
       CAST(LoadDescriptorValue(LoadMap(holder), descriptor));
 
   exit_point->ReturnCallBuiltin(Builtin::kCallApiGetter, p->context(),
-                                p->receiver(), holder, accessor_info);
+                                accessor_info, holder, p->receiver());
 }
 
 void AccessorAssembler::HandleLoadAccessor(

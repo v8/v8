@@ -4373,19 +4373,19 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   static_assert(FCA::kApiArgsLength == 4);
   static_assert(FCA::ApiArgIndex(FCA::kTargetIndex) == 3);
-  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 2);
-  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 1);
+  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 2);
+  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 1);
   static_assert(FCA::ApiArgIndex(FCA::kIsolateIndex) == 0);
 
-  // Set up FunctionCallbackInfo's Api arguments on the stack as follows:
+  // Set up v8::FunctionCallbackInfo's Api arguments on the stack as follows:
   //
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...    JS arguments
   //                           |  sp[5]: receiver        <- kReceiverIndex
   //                           |  sp[4]: target          <- kTargetIndex
-  //                           |  sp[3]: undefined       <- kReturnValueIndex
-  //  ...    JS arguments      |  sp[2]: context         <- kContextIndex
+  //                           |  sp[3]: context         <- kContextIndex
+  //  ...    JS arguments      |  sp[2]: undefined       <- kReturnValueIndex
   //  sp[1]: receiver          |  sp[1]: isolate         <- kIsolateIndex
   //  sp[0]: return address    |  sp[0]: return address
   //
@@ -4399,8 +4399,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   __ PopReturnAddressTo(argc);
   __ LoadAddress(scratch, ER::isolate_address());
   __ Push(func_templ);                      // kTargetIndex
-  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValueIndex
   __ Push(kContextRegister);                // kContextIndex
+  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValueIndex
   __ Push(scratch);                         // kIsolateIndex
 
   // The API function takes v8::FunctionCallbackInfo reference, allocate it
@@ -4461,63 +4461,47 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- esi                 : context
-  //  -- edx                 : receiver
-  //  -- ecx                 : holder
   //  -- eax                 : accessor info
-  //  -- esp[0]              : return address
+  //  -- sp[2]               : receiver
+  //  -- sp[1]               : holder
+  //  -- sp[0]               : return address
   // -----------------------------------
 
-  Register receiver = ApiGetterDescriptor::ReceiverRegister();
-  Register holder = ApiGetterDescriptor::HolderRegister();
   Register callback = ApiGetterDescriptor::CallbackRegister();
+  Register isolate_reg = edx;
+  Register name = ecx;
   Register scratch = edi;
-  DCHECK(!AreAliased(receiver, holder, callback, scratch));
+  DCHECK(!AreAliased(callback, isolate_reg, name, scratch));
 
-  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
-  // name below the exit frame to make GC aware of them.
   using PCA = PropertyCallbackArguments;
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
 
-  static_assert(PCA::kPropertyKeyIndex == 0);
-  static_assert(PCA::kShouldThrowOnErrorIndex == 1);
-  static_assert(PCA::kHolderIndex == 2);
-  static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kUnusedIndex == 4);
-  static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kCallbackInfoIndex == 6);
-  static_assert(PCA::kThisIndex == 7);
-  static_assert(PCA::kArgsLength == 8);
+  static_assert(PCA::kGetterApiArgsLength == 5);
+  static_assert(PCA::ApiArgIndex(PCA::kThisIndex) == 4);
+  static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
+  static_assert(PCA::ApiArgIndex(PCA::kCallbackInfoIndex) == 2);
+  static_assert(PCA::ApiArgIndex(PCA::kReturnValueIndex) == 1);
+  static_assert(PCA::ApiArgIndex(PCA::kIsolateIndex) == 0);
 
-  // Set up v8::PropertyCallbackInfo's (PCI) args_ on the stack as follows:
-  // Current state:
-  //   esp[0]: return address
+  // Set up v8::PropertyCallbackInfo's arguments on the stack as follows:
   //
-  // Target state:
-  //   esp[0 * kSystemPointerSize]: return address
-  //   esp[1 * kSystemPointerSize]: name                      <= PCI::args_
-  //   esp[2 * kSystemPointerSize]: kShouldThrowOnErrorIndex
-  //   esp[3 * kSystemPointerSize]: kHolderIndex
-  //   esp[4 * kSystemPointerSize]: kIsolateIndex
-  //   esp[5 * kSystemPointerSize]: kUnusedIndex
-  //   esp[6 * kSystemPointerSize]: kReturnValueIndex
-  //   esp[7 * kSystemPointerSize]: kCallbackInfoIndex
-  //   esp[8 * kSystemPointerSize]: kThisIndex / receiver
+  //  Current state            |  Target state
+  // --------------------------+--------------------------------------------
+  //                           |  ...
+  //                           |  sp[5]: receiver        <- kThisIndex
+  //                           |  sp[4]: holder          <- kHolderIndex
+  //  ...                      |  sp[3]: callback info   <- kCallbackInfoIndex
+  //  sp[2]: receiver          |  sp[2]: undefined       <- kReturnValueIndex
+  //  sp[1]: holder            |  sp[1]: isolate         <- kIsolateIndex
+  //  sp[0]: return address    |  sp[0]: return address
+  //
 
   __ PopReturnAddressTo(scratch);
-  __ push(receiver);                        // kThisIndex
-  __ push(callback);                        // kCallbackInfoIndex
-  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValue
-  __ Push(Smi::zero());                     // kHolderV2
-  Register isolate_reg = ReassignRegister(receiver);
   __ LoadAddress(isolate_reg, ER::isolate_address());
-  __ push(isolate_reg);
-  __ push(holder);
-  __ Push(Smi::FromInt(kDontThrow));  // should_throw_on_error -> kDontThrow
-
-  Register name = ReassignRegister(holder);
-  __ mov(name, FieldOperand(callback, AccessorInfo::kNameOffset));
-  __ push(name);
+  __ push(callback);                        // kCallbackInfoIndex
+  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValueIndex
+  __ push(isolate_reg);                     // kIsolateIndex
   __ PushReturnAddressFrom(scratch);
 
   // The API function takes a name local handle and v8::PropertyCallbackInfo
@@ -4532,15 +4516,22 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
          FieldOperand(callback, AccessorInfo::kGetterOffset));
 
   __ EnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>() + kApiArgc,
-                    StackFrame::API_ACCESSOR_EXIT, api_function_address);
+                    StackFrame::API_NAMED_ACCESSOR_EXIT, api_function_address);
   if (v8_flags.debug_code) {
     __ mov(esi, Immediate(base::bit_cast<int32_t>(kZapValue)));
   }
 
-  __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
-  // property_callback_info_arg = v8::PropertyCallbackInfo&
   Register property_callback_info_arg = ReassignRegister(scratch);
-  __ lea(property_callback_info_arg, Operand(ebp, FC::kArgsArrayOffset));
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Initialize v8::PropertyCallbackInfo");
+    __ mov(name, FieldOperand(callback, AccessorInfo::kNameOffset));
+    // kPropertyKeyIndex
+    __ mov(Operand(ebp, FC::kPropertyKeyOffset), name);
+
+    // property_callback_info_arg = v8::PropertyCallbackInfo&
+    __ lea(property_callback_info_arg,
+           Operand(ebp, FC::kPropertyCallbackInfoOffset));
+  }
 
   DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name,
                      callback));
@@ -4563,7 +4554,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   Operand return_value_operand = Operand(ebp, FC::kReturnValueOffset);
   static constexpr int kSlotsToDropOnReturn =
-      FC::kPropertyCallbackInfoArgsLength;
+      FC::kPropertyCallbackInfoGetterApiArgsLength;
   Operand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;
