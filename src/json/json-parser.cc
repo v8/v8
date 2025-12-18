@@ -1653,6 +1653,11 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
           if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
           continue;
         }
+        // Before accessing the descriptor array, make sure that it wasn't
+        // shrunk during a potential GC after the previous range check.
+        if (V8_UNLIKELY(idx.as_int() >= descriptors->number_of_descriptors())) {
+          break;
+        }
         // Check if the key is fast iterable.
         // Some of the checks below are not relevant for the parser, but are
         // requirements for fast iterable keys in general (e.g. for
