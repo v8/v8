@@ -771,7 +771,7 @@ inline void MaglevAssembler::OrInt32(Register reg, int mask) {
 }
 
 inline void MaglevAssembler::AndInt32(Register reg, Register other) {
-  add_w(reg, reg, other);
+  and_(reg, reg, other);
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, Register other) {
@@ -1359,8 +1359,9 @@ void MaglevAssembler::JumpIfUndefinedNan(DoubleRegister value, Register scratch,
           [](MaglevAssembler* masm, DoubleRegister value, Register scratch,
              ZoneLabelRef is_undefined, ZoneLabelRef is_not_undefined) {
             masm->movfrh2gr_s(scratch, value);
-            masm->CompareInt32AndJumpIf(scratch, kUndefinedNanUpper32, kEqual,
-                                        *is_undefined);
+            masm->MacroAssembler::Branch(
+                *is_undefined, kEqual, scratch,
+                Operand(static_cast<int32_t>(kUndefinedNanUpper32)));
             masm->Jump(*is_not_undefined);
           },
           value, scratch, is_undefined, is_not_undefined));

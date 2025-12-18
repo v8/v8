@@ -374,25 +374,30 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     using StringTypeRange = InstanceTypeChecker::kUniqueMapRangeOfStringType;
     // Check the string map ranges in dense increasing order, to avoid needing
     // to subtract away the lower bound.
+    // Map is sign-extended.
     static_assert(StringTypeRange::kSeqString.first == 0);
-    CompareInt32AndJumpIf(map, StringTypeRange::kSeqString.second,
-                          kUnsignedLessThanEqual, &seq_string, Label::kNear);
+    MacroAssembler::Branch(
+        &seq_string, kUnsignedLessThanEqual, map,
+        Operand(static_cast<int32_t>(StringTypeRange::kSeqString.second)));
 
     static_assert(StringTypeRange::kSeqString.second + Map::kSize ==
                   StringTypeRange::kExternalString.first);
-    CompareInt32AndJumpIf(map, StringTypeRange::kExternalString.second,
-                          kUnsignedLessThanEqual, deferred_runtime_call);
+    MacroAssembler::Branch(
+        deferred_runtime_call, kUnsignedLessThanEqual, map,
+        Operand(static_cast<int32_t>(StringTypeRange::kExternalString.second)));
     // TODO(victorgomes): Add fast path for external strings.
 
     static_assert(StringTypeRange::kExternalString.second + Map::kSize ==
                   StringTypeRange::kConsString.first);
-    CompareInt32AndJumpIf(map, StringTypeRange::kConsString.second,
-                          kUnsignedLessThanEqual, &cons_string, Label::kNear);
+    MacroAssembler::Branch(
+        &cons_string, kUnsignedLessThanEqual, map,
+        Operand(static_cast<int32_t>(StringTypeRange::kConsString.second)));
 
     static_assert(StringTypeRange::kConsString.second + Map::kSize ==
                   StringTypeRange::kSlicedString.first);
-    CompareInt32AndJumpIf(map, StringTypeRange::kSlicedString.second,
-                          kUnsignedLessThanEqual, &sliced_string, Label::kNear);
+    MacroAssembler::Branch(
+        &sliced_string, kUnsignedLessThanEqual, map,
+        Operand(static_cast<int32_t>(StringTypeRange::kSlicedString.second)));
 
     static_assert(StringTypeRange::kSlicedString.second + Map::kSize ==
                   StringTypeRange::kThinString.first);
