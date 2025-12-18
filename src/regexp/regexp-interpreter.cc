@@ -6,6 +6,8 @@
 
 #include "src/regexp/regexp-interpreter.h"
 
+#include <limits>
+
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
@@ -519,7 +521,7 @@ IrregexpInterpreter::Result RawMatch(
   constexpr int kPaddedBytecodeCount =
       base::bits::RoundUpToPowerOfTwo32(RegExpBytecodes::kCount);
   constexpr int kBytecodeMask = kPaddedBytecodeCount - 1;
-  static_assert(1 << BYTECODE_SHIFT > kBytecodeMask);
+  static_assert(std::numeric_limits<uint8_t>::max() >= kBytecodeMask);
 
   // We have to make sure that no OOB access to the dispatch table is possible
   // and all values are valid label addresses. Otherwise jumps to arbitrary

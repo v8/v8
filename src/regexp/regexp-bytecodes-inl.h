@@ -29,6 +29,7 @@ struct RegExpOperandTypeTraits;
     static constexpr bool kIsBasic = true;                                  \
     static constexpr kCType kMinValue = std::numeric_limits<kCType>::min(); \
     static constexpr kCType kMaxValue = std::numeric_limits<kCType>::max(); \
+    static constexpr size_t kAlignment = kSize;                             \
   };
 BASIC_BYTECODE_OPERAND_TYPE_LIST(DECLARE_BASIC_OPERAND_TYPE_TRAITS)
 #undef DECLARE_OPERAND_TYPE_TRAITS
@@ -47,16 +48,19 @@ BASIC_BYTECODE_OPERAND_TYPE_LIST(DECLARE_BASIC_OPERAND_TYPE_TRAITS)
                   MaxValue <= std::numeric_limits<kCType>::max());      \
     static constexpr kCType kMinValue = MinValue;                       \
     static constexpr kCType kMaxValue = MaxValue;                       \
+    static constexpr size_t kAlignment = kSize;                         \
   };
 BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(
     DECLARE_BASIC_OPERAND_TYPE_LIMITS_TRAITS)
 #undef DECLARE_OPERAND_TYPE_LIMITS_TRAITS
 
-#define DECLARE_SPECIAL_OPERAND_TYPE_TRAITS(Name, Size)                \
+#define DECLARE_SPECIAL_OPERAND_TYPE_TRAITS(Name, Size, Alignment)     \
   template <>                                                          \
   struct RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name> { \
     static constexpr uint8_t kSize = Size;                             \
     static constexpr bool kIsBasic = false;                            \
+    static constexpr size_t kAlignment = Alignment;                    \
+    static_assert(IsAligned(kSize, kAlignment));                       \
   };
 SPECIAL_BYTECODE_OPERAND_TYPE_LIST(DECLARE_SPECIAL_OPERAND_TYPE_TRAITS)
 #undef DECLARE_OPERAND_TYPE_TRAITS
@@ -64,16 +68,14 @@ SPECIAL_BYTECODE_OPERAND_TYPE_LIST(DECLARE_SPECIAL_OPERAND_TYPE_TRAITS)
 namespace detail {
 
 // Calculates packed offsets for each Bytecode operand.
-// The first operand can be packed together with the bytecode at an unaligned
-// offset 1. All other operands are aligned to their own size if
-// they are "basic" types.
+// All operands are aligned to their own size.
 template <RegExpBytecodeOperandType... operand_types>
-consteval auto CalculatePackedOffsets() {
+consteval auto CalculateAlignedOffsets() {
   constexpr int N = sizeof...(operand_types);
   constexpr std::array<uint8_t, N> kOperandSizes = {
       RegExpOperandTypeTraits<operand_types>::kSize...};
-  constexpr std::array<bool, N> kIsBasic = {
-      RegExpOperandTypeTraits<operand_types>::kIsBasic...};
+  constexpr std::array<uint8_t, N> kOperandAlignments = {
+      RegExpOperandTypeTraits<operand_types>::kAlignment...};
 
   std::array<int, N> offsets{};
   int first_offset = sizeof(RegExpBytecode);
@@ -81,13 +83,9 @@ consteval auto CalculatePackedOffsets() {
 
   for (size_t i = 0; i < N; ++i) {
     uint8_t operand_size = kOperandSizes[i];
+    size_t operand_alignment = kOperandAlignments[i];
 
-    // An operand is only allowed to be unaligned, if it's packed with the
-    // bytecode. All subsequent basic operands must be aligned to their own
-    // size.
-    if (offset > first_offset && kIsBasic[i]) {
-      offset = RoundUp(offset, operand_size);
-    }
+    offset = RoundUp(offset, operand_alignment);
 
     // If the operand doesn't fit into the current 4-byte block, start a new
     // 4-byte block.
@@ -109,8 +107,10 @@ struct RegExpBytecodeOperandsTraits {
       kOperandTypes = {ops...};
   static constexpr std::array<uint8_t, kOperandCount> kOperandSizes = {
       RegExpOperandTypeTraits<ops>::kSize...};
+  static constexpr std::array<uint8_t, kOperandCount> kOperandAlignments = {
+      RegExpOperandTypeTraits<ops>::kAlignment...};
   static constexpr std::array<int, kOperandCount> kOperandOffsets =
-      CalculatePackedOffsets<ops...>();
+      CalculateAlignedOffsets<ops...>();
   static constexpr int kSize = RoundUp<kBytecodeAlignment>(
       kOperandCount == 0 ? sizeof(RegExpBytecode)
                          : kOperandOffsets.back() + kOperandSizes.back());
@@ -131,6 +131,7 @@ REGEXP_BYTECODE_LIST(DECLARE_OPERAND_NAMES)
 template <RegExpBytecode bc, RegExpBytecodeOperandType... OpTypes>
 class RegExpBytecodeOperandsBase {
  public:
+  static constexpr RegExpBytecode kBytecode = bc;
   using Operand = RegExpBytecodeOperandNames<bc>::Operand;
   using Traits = RegExpBytecodeOperandsTraits<OpTypes...>;
   static constexpr int kCount = Traits::kOperandCount;
@@ -205,48 +206,16 @@ class RegExpBytecodeOperandsBase {
     });
   }
 
- private:
-  template <RegExpBytecodeOperandType OperandType>
-    requires(RegExpOperandTypeTraits<OperandType>::kIsBasic)
-  static auto GetAligned(const uint8_t* pc, int offset) {
-    DCHECK_EQ(RegExpBytecodes::FromPtr(pc), bc);
-    DCHECK_NE(offset, 1);
-    using CType = RegExpOperandTypeTraits<OperandType>::kCType;
-    DCHECK(IsAligned(offset, sizeof(CType)));
-    return *reinterpret_cast<const CType*>(pc + offset);
-  }
-
-  // TODO(pthier): We can remove unaligned packing once we have fully switched
-  // to the new bytecode layout. This is for backwards-compatibility with the
-  // old layout only.
-  template <RegExpBytecodeOperandType OperandType>
-    requires(RegExpOperandTypeTraits<OperandType>::kIsBasic)
-  static auto GetPacked(const uint8_t* pc, int offset) {
-    DCHECK_EQ(RegExpBytecodes::FromPtr(pc), bc);
-    // Only packing of 1-byte and 2-byte values with the bytecode is supported.
-    DCHECK_EQ(offset, 1);
-    constexpr int size = RegExpOperandTypeTraits<OperandType>::kSize;
-    static_assert(size <= 2);
-    using CType = RegExpOperandTypeTraits<OperandType>::kCType;
-    DCHECK_IMPLIES(size > 1, !IsAligned(offset, sizeof(CType)));
-    int32_t packed_value = *reinterpret_cast<const int32_t*>(pc);
-    return static_cast<CType>(packed_value >> BYTECODE_SHIFT);
-  }
-
  public:
   template <Operand op>
     requires(RegExpOperandTypeTraits<Type(op)>::kIsBasic)
   static auto Get(const uint8_t* pc, const DisallowGarbageCollection& no_gc) {
+    DCHECK_EQ(RegExpBytecodes::FromPtr(pc), bc);
     constexpr RegExpBytecodeOperandType OperandType = Type(op);
     constexpr int offset = Offset(op);
-    // TODO(pthier): We can remove unaligned packing once we have fully switched
-    // to the new bytecode layout. This is for backwards-compatibility with the
-    // old layout only.
-    if constexpr (offset == 1) {
-      return GetPacked<OperandType>(pc, offset);
-    } else {
-      return GetAligned<OperandType>(pc, offset);
-    }
+    using CType = RegExpOperandTypeTraits<OperandType>::kCType;
+    DCHECK(IsAligned(offset, sizeof(CType)));
+    return *reinterpret_cast<const CType*>(pc + offset);
   }
 
   template <Operand op>

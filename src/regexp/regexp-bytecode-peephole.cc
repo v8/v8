@@ -40,6 +40,7 @@ class BytecodeArgument {
 struct OpInfo {
   uint16_t offset;
   RegExpBytecodeOperandType type;
+  constexpr int size() const { return RegExpBytecodes::Size(type); }
 
   // Usage:
   //   OpInfo::Get<RegExpBytecodeOperands<BYTECODE>,
@@ -55,12 +56,6 @@ struct OpInfo {
   }
 };
 static_assert(sizeof(OpInfo) <= kSystemPointerSize);  // Passed by value.
-
-constexpr uint8_t OperandSizeMaybePacked(OpInfo op_info) {
-  // Handle the packed size quirk (offset 1 => size 3) for now.
-  // TODO(jgruber): Remove once packing is gone.
-  return (op_info.offset == 1) ? 3 : RegExpBytecodes::Size(op_info.type);
-}
 
 class BytecodeArgumentMapping : public BytecodeArgument {
  public:
@@ -88,7 +83,7 @@ class BytecodeArgumentMapping : public BytecodeArgument {
   }
   int new_length() const {
     DCHECK_EQ(type(), Type::kDefault);
-    return OperandSizeMaybePacked(value_.op_info);
+    return value_.op_info.size();
   }
   SpecialType special_type() const {
     DCHECK_EQ(type(), Type::kSpecial);
@@ -376,7 +371,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::ReplaceWith(
 BytecodeSequenceNode& BytecodeSequenceNode::MapArgument(
     OpInfo to_op_info, int from_bytecode_sequence_index, OpInfo from_op_info) {
   int src_offset = from_op_info.offset;
-  int src_size = OperandSizeMaybePacked(from_op_info);
+  int src_size = from_op_info.size();
 
 #ifdef DEBUG
   DCHECK(IsSequence());
@@ -388,7 +383,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::MapArgument(
     // TODO(jgruber): It'd be more precise to distinguish between special and
     // basic operand types, but we currently don't expose that information
     // except through templates.
-    int dst_size = OperandSizeMaybePacked(to_op_info);
+    int dst_size = to_op_info.size();
     int alignment = std::min(dst_size, kBytecodeAlignment);
     // TODO(jgruber): Should be EQ once we also have layout information for
     // kSpecial mappings.
@@ -418,7 +413,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::EmitOffsetAfterSequence() {
 
 BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsOffset(
     OpInfo op_info, int check_byte_offset) {
-  int size = OperandSizeMaybePacked(op_info);
+  int size = op_info.size();
   int offset = op_info.offset;
 
   DCHECK_LT(offset, RegExpBytecodes::Size(bytecode_.value()));
@@ -435,8 +430,8 @@ BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsOffset(
 BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsValueAtOffset(
     OpInfo this_op_info, int other_bytecode_index_in_sequence,
     OpInfo other_op_info) {
-  int size_1 = OperandSizeMaybePacked(this_op_info);
-  int size_2 = OperandSizeMaybePacked(other_op_info);
+  int size_1 = this_op_info.size();
+  int size_2 = other_op_info.size();
 
   DCHECK_LT(this_op_info.offset, RegExpBytecodes::Size(bytecode_.value()));
   DCHECK_LE(other_bytecode_index_in_sequence, index_in_sequence_);
@@ -458,7 +453,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsValueAtOffset(
 
 BytecodeSequenceNode& BytecodeSequenceNode::IgnoreArgument(
     int bytecode_index_in_sequence, OpInfo op_info) {
-  int size = OperandSizeMaybePacked(op_info);
+  int size = op_info.size();
   int offset = op_info.offset;
 
   DCHECK(IsSequence());
@@ -919,20 +914,18 @@ void RegExpBytecodePeephole::EmitOptimization(
       ZoneLinkedList<uint32_t>(zone());
 
   RegExpBytecode bc = last_node.OptimizedBytecode();
-  EmitValue<uint32_t>(RegExpBytecodes::ToByte(bc));
+  EmitValue<uint8_t>(RegExpBytecodes::ToByte(bc));
 
   for (size_t arg = 0; arg < last_node.ArgumentSize(); arg++) {
     BytecodeArgumentMapping arg_map = last_node.ArgumentMapping(arg);
     if (arg_map.type() == BytecodeArgumentMapping::Type::kDefault) {
-      // Handle implicit padding. Only for un-packed args since there's special
-      // logic involved in EmitArgument, and they're aligned anyways.
-      if (arg_map.new_offset() != 1) {
-        int expected_pc = optimized_start_pc + arg_map.new_offset();
-        while (pc() < expected_pc) {
-          EmitValue<uint8_t>(0);
-        }
-        DCHECK_EQ(pc(), expected_pc);
+      // Handle implicit padding.
+      int expected_pc = optimized_start_pc + arg_map.new_offset();
+      DCHECK_LE(pc(), expected_pc);
+      while (pc() < expected_pc) {
+        EmitValue<uint8_t>(0);
       }
+      DCHECK_EQ(pc(), expected_pc);
 
       int arg_pos = start_pc + arg_map.offset();
       // If we map any jump source we mark the old source for deletion and

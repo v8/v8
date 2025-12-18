@@ -135,12 +135,10 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   auto GetCheckedBasicOperandValue(T value);
   template <RegExpBytecodeOperandType OperandType, typename T>
   void EmitOperand(T value, int offset);
-  template <RegExpBytecodeOperandType OperandType, typename T>
-  void EmitPackedOperand(RegExpBytecode bc, T value);
 
   template <typename T>
   inline void Emit(T value, int offset);
-  inline void EmitBytecode(RegExpBytecode bc, uint32_t packed_arg = 0);
+  inline void EmitBytecode(RegExpBytecode bc);
   void EmitSkipTable(DirectHandle<ByteArray> table);
   // Bytecode buffer.
   int length();

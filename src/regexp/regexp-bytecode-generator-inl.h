@@ -27,16 +27,14 @@ void RegExpBytecodeGenerator::Emit(T value, int offset) {
 #endif
 }
 
-void RegExpBytecodeGenerator::EmitBytecode(RegExpBytecode bc,
-                                           uint32_t packed_arg) {
+void RegExpBytecodeGenerator::EmitBytecode(RegExpBytecode bc) {
   DCHECK_EQ(pc_, end_of_bc_);
   DCHECK_EQ(pc_within_bc_, end_of_bc_);
-  uint32_t word = (packed_arg << BYTECODE_SHIFT) | RegExpBytecodes::ToByte(bc);
 #ifdef DEBUG
   end_of_bc_ = pc_ + RegExpBytecodes::Size(bc);
   pc_within_bc_ = pc_;
 #endif
-  Emit(word, 0);
+  Emit(RegExpBytecodes::ToByte(bc), 0);
 }
 
 void RegExpBytecodeGenerator::EnsureCapacity(size_t size) {

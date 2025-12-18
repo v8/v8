@@ -13,11 +13,6 @@
 namespace v8 {
 namespace internal {
 
-// The first argument is packed in with the byte code in one word.
-// We only support packing of up to 2 bytes.
-const unsigned int MAX_FIRST_ARG = 0xffffu;
-const int BYTECODE_SHIFT = 8;
-
 // Basic operand types that have a direct mapping to a C-type.
 // Getters/Setters for these are fully auto-generated.
 // Format: V(Name, C type)
@@ -46,12 +41,12 @@ const int BYTECODE_SHIFT = 8;
 // Special operand types that don't have a direct mapping to a C-type.
 // Getters/Setters for these types need to be specialized manually.
 #define SPECIAL_BYTECODE_OPERAND_TYPE_LIST(V)                              \
-  V(BitTable, 16)                                                          \
+  V(BitTable, 16, 1)                                                       \
   /* TODO(433891213): padding is only required for backwards compatibility \
   with the old layout. It can be removed after everything is using the new \
   layout. */                                                               \
-  V(Padding1, 1)                                                           \
-  V(Padding2, 2)
+  V(Padding1, 1, 1)                                                        \
+  V(Padding2, 2, 2)
 
 #define BYTECODE_OPERAND_TYPE_LIST(V)        \
   BASIC_BYTECODE_OPERAND_TYPE_LIST(V)        \
@@ -215,7 +210,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* LoadCurrentCharacter, CheckBitInTable and AdvanceCpAndGoto             */ \
   V(SkipUntilBitInTable,                                                       \
     (cp_offset, advance_by, table, on_match, on_no_match),                     \
-    (ReBcOpType::kOffset, ReBcOpType::kOffset32, ReBcOpType::kBitTable,        \
+    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kBitTable,          \
      ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget))                        \
   /* Combination of:                                                        */ \
   /* CheckPosition, LoadCurrentCharacterUnchecked, CheckCharacterAfterAnd   */ \
@@ -226,7 +221,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
     (cp_offset, advance_by, character, mask, eats_at_least, on_match,          \
      on_no_match),                                                             \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
-     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
+     ReBcOpType::kUint32, ReBcOpType::kOffset, ReBcOpType::kJumpTarget,        \
      ReBcOpType::kJumpTarget))                                                 \
   /* Combination of:                                                        */ \
   /* LoadCurrentCharacter, CheckCharacter and AdvanceCpAndGoto */              \
@@ -239,7 +234,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   V(SkipUntilCharPosChecked,                                                   \
     (cp_offset, advance_by, character, eats_at_least, on_match, on_no_match),  \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
-     ReBcOpType::kUint32, ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget))   \
+     ReBcOpType::kOffset, ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget))   \
   /* TODO(pthier): eats_at_least should be Offset instead of Uint32         */ \
   /* Combination of:                                                        */ \
   /* LoadCurrentCharacter, CheckCharacter, CheckCharacter and               */ \
@@ -281,7 +276,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
      bc2_cp_offset, bc3_characters, bc3_mask, bc4_by, bc5_cp_offset,           \
      bc6_characters, bc6_mask, bc6_on_equal, bc7_characters, bc7_mask,         \
      bc7_on_equal, bc8_characters, bc8_mask, fallthrough_jump_target),         \
-    (ReBcOpType::kOffset, ReBcOpType::kOffset32, ReBcOpType::kBitTable,        \
+    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kBitTable,          \
      ReBcOpType::kOffset, ReBcOpType::kJumpTarget, ReBcOpType::kOffset,        \
      ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kOffset,            \
      ReBcOpType::kOffset, ReBcOpType::kUint32, ReBcOpType::kUint32,            \
@@ -323,14 +318,12 @@ class RegExpBytecodes final : public AllStatic {
     return static_cast<RegExpBytecode>(byte);
   }
   // Extract the bytecode from the given `ptr`, which must point at the
-  // word32-aligned region containing the bytecode (and maybe packed
-  // arguments). Endian-ness independent.
+  // word32-aligned region containing the bytecode. Endian-ness independent.
   static constexpr RegExpBytecode FromPtr(const void* ptr) {
     if (!std::is_constant_evaluated()) {
       DCHECK(IsAligned(reinterpret_cast<Address>(ptr), kBytecodeAlignment));
     }
-    // Load the uint32_t value and implicitly cast to uint8_t.
-    return FromByte(*static_cast<const uint32_t*>(ptr));
+    return FromByte(*static_cast<const uint8_t*>(ptr));
   }
 
   // Calls |f| templatized by RegExpBytecode. This allows the usage of the

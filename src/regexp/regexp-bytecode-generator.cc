@@ -16,6 +16,10 @@
 namespace v8 {
 namespace internal {
 
+// Used to decide whether we use the `Char` or `4Chars` variant of a bytecode.
+static constexpr int kMaxSingleCharValue =
+    RegExpOperandTypeTraits<RegExpBytecodeOperandType::kChar>::kMaxValue;
+
 RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone,
                                                  Mode mode)
     : RegExpMacroAssembler(isolate, zone, mode),
@@ -47,26 +51,12 @@ void RegExpBytecodeGenerator::Emit(Args... args) {
 
   auto arguments_tuple = std::make_tuple(args...);
   EnsureCapacity(Operands::kTotalSize);
-  if constexpr (Operands::kCount == 0) {
-    // No operands, just emit the bytecode.
-    EmitBytecode(bytecode);
-  }
+  EmitBytecode(bytecode);
   Operands::ForEachOperandWithIndex([&]<auto op, size_t index>() {
     constexpr RegExpBytecodeOperandType type = Operands::Type(op);
     constexpr int offset = Operands::Offset(op);
     auto value = std::get<index>(arguments_tuple);
-    // Special treatment for the first operand, as it might get packed with the
-    // bytecode.
-    if constexpr (index == 0) {
-      if constexpr (offset == 1) {
-        EmitPackedOperand<type>(bytecode, value);
-      } else {
-        EmitBytecode(bytecode);
-        EmitOperand<type>(value, offset);
-      }
-    } else {
-      EmitOperand<type>(value, offset);
-    }
+    EmitOperand<type>(value, offset);
   });
   EMIT_PADDING(Operands::kTotalSize);
   DCHECK_EQ(pc_within_bc_, end_of_bc_);
@@ -109,14 +99,6 @@ auto RegExpBytecodeGenerator::GetCheckedBasicOperandValue(T value) {
 template <RegExpBytecodeOperandType OperandType, typename T>
 void RegExpBytecodeGenerator::EmitOperand(T value, int offset) {
   Emit(GetCheckedBasicOperandValue<OperandType>(value), offset);
-}
-
-template <RegExpBytecodeOperandType OperandType, typename T>
-void RegExpBytecodeGenerator::EmitPackedOperand(RegExpBytecode bytecode,
-                                                T value) {
-  using Traits = RegExpOperandTypeTraits<OperandType>;
-  static_assert(Traits::kSize <= 2);
-  EmitBytecode(bytecode, GetCheckedBasicOperandValue<OperandType>(value));
 }
 
 template <>
@@ -321,7 +303,7 @@ void RegExpBytecodeGenerator::CheckCharacterGT(base::uc16 limit,
 }
 
 void RegExpBytecodeGenerator::CheckCharacter(uint32_t c, Label* on_equal) {
-  if (c > MAX_FIRST_ARG) {
+  if (c > kMaxSingleCharValue) {
     Emit<RegExpBytecode::kCheck4Chars>(c, on_equal);
   } else {
     Emit<RegExpBytecode::kCheckCharacter>(c, on_equal);
@@ -339,7 +321,7 @@ void RegExpBytecodeGenerator::CheckNotAtStart(int cp_offset,
 
 void RegExpBytecodeGenerator::CheckNotCharacter(uint32_t c,
                                                 Label* on_not_equal) {
-  if (c > MAX_FIRST_ARG) {
+  if (c > kMaxSingleCharValue) {
     Emit<RegExpBytecode::kCheckNot4Chars>(c, on_not_equal);
   } else {
     Emit<RegExpBytecode::kCheckNotCharacter>(c, on_not_equal);
@@ -348,10 +330,10 @@ void RegExpBytecodeGenerator::CheckNotCharacter(uint32_t c,
 
 void RegExpBytecodeGenerator::CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
                                                      Label* on_equal) {
-  // TOOD(pthier): This is super hacky. We could still check for 4 characters
+  // TODO(pthier): This is super hacky. We could still check for 4 characters
   // (with the last 2 being 0 after masking them), but not emit AndCheck4Chars.
   // This is rather confusing and should be changed.
-  if (c > MAX_FIRST_ARG) {
+  if (c > kMaxSingleCharValue) {
     Emit<RegExpBytecode::kAndCheck4Chars>(c, mask, on_equal);
   } else {
     Emit<RegExpBytecode::kCheckCharacterAfterAnd>(c, mask, on_equal);
@@ -361,10 +343,10 @@ void RegExpBytecodeGenerator::CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
 void RegExpBytecodeGenerator::CheckNotCharacterAfterAnd(uint32_t c,
                                                         uint32_t mask,
                                                         Label* on_not_equal) {
-  // TOOD(pthier): This is super hacky. We could still check for 4 characters
+  // TODO(pthier): This is super hacky. We could still check for 4 characters
   // (with the last 2 being 0 after masking them), but not emit AndCheck4Chars.
   // This is rather confusing and should be changed.
-  if (c > MAX_FIRST_ARG) {
+  if (c > kMaxSingleCharValue) {
     Emit<RegExpBytecode::kAndCheckNot4Chars>(c, mask, on_not_equal);
   } else {
     Emit<RegExpBytecode::kCheckNotCharacterAfterAnd>(c, mask, on_not_equal);
