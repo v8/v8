@@ -54,7 +54,14 @@ class IsolateSafepoint final {
   std::optional<IsolateSafepointScope> ReachSafepointWithoutTriggeringGC();
 
  private:
-  using RunningLocalHeaps = base::SmallVector<LocalHeap*, 4>;
+  struct RunningLocalHeap {
+    LocalHeap* local_heap;
+#if V8_OS_DARWIN
+    pthread_override_t qos_override;
+#endif
+  };
+
+  using RunningLocalHeaps = base::SmallVector<RunningLocalHeap, 4>;
 
   class Barrier {
     base::Mutex mutex_;
