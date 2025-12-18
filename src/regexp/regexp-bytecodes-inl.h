@@ -63,10 +63,6 @@ SPECIAL_BYTECODE_OPERAND_TYPE_LIST(DECLARE_SPECIAL_OPERAND_TYPE_TRAITS)
 
 namespace detail {
 
-// Bytecode is 4-byte aligned.
-// We can pack operands if multiple operands fit into 4 bytes.
-static constexpr int kBytecodeAlignment = 4;
-
 // Calculates packed offsets for each Bytecode operand.
 // The first operand can be packed together with the bytecode at an unaligned
 // offset 1. All other operands are aligned to their own size if
@@ -315,6 +311,12 @@ static constexpr uint8_t kBytecodeSizes[] = {
     REGEXP_BYTECODE_LIST(DECLARE_BYTECODE_SIZES)};
 #undef DECLARE_BYTECODE_SIZES
 
+#define DECLARE_OPERAND_TYPE_SIZE(Name, ...) \
+  RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name>::kSize,
+static constexpr uint8_t kOperandTypeSizes[] = {
+    BYTECODE_OPERAND_TYPE_LIST(DECLARE_OPERAND_TYPE_SIZE)};
+#undef DECLARE_OPERAND_TYPE_SIZE
+
 }  // namespace detail
 
 // static
@@ -351,6 +353,11 @@ constexpr uint8_t RegExpBytecodes::Size(RegExpBytecode bytecode) {
 constexpr uint8_t RegExpBytecodes::Size(uint8_t bytecode) {
   DCHECK_LT(bytecode, kCount);
   return detail::kBytecodeSizes[bytecode];
+}
+
+// static
+constexpr uint8_t RegExpBytecodes::Size(RegExpBytecodeOperandType type) {
+  return detail::kOperandTypeSizes[static_cast<int>(type)];
 }
 
 }  // namespace internal

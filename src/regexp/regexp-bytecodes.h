@@ -277,18 +277,17 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* This pattern is common for finding a match from an alternative, e.g.:  */ \
   /* /<script|<style|<link/i.                                               */ \
   V(SkipUntilOneOfMasked3,                                                     \
-    (bc0_cp_offset, bc0_advance_by, bc0_table, bc1_cp_offset,                  \
-     bc1_cp_offset_padding, bc1_on_failure, bc2_cp_offset,                     \
-     bc2_cp_offset_padding, bc3_characters, bc3_mask, bc4_by, bc5_cp_offset,   \
+    (bc0_cp_offset, bc0_advance_by, bc0_table, bc1_cp_offset, bc1_on_failure,  \
+     bc2_cp_offset, bc3_characters, bc3_mask, bc4_by, bc5_cp_offset,           \
      bc6_characters, bc6_mask, bc6_on_equal, bc7_characters, bc7_mask,         \
      bc7_on_equal, bc8_characters, bc8_mask, fallthrough_jump_target),         \
     (ReBcOpType::kOffset, ReBcOpType::kOffset32, ReBcOpType::kBitTable,        \
-     ReBcOpType::kOffset, ReBcOpType::kPadding2, ReBcOpType::kJumpTarget,      \
-     ReBcOpType::kOffset, ReBcOpType::kPadding2, ReBcOpType::kUint32,          \
-     ReBcOpType::kUint32, ReBcOpType::kOffset, ReBcOpType::kOffset,            \
-     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
-     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
-     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))
+     ReBcOpType::kOffset, ReBcOpType::kJumpTarget, ReBcOpType::kOffset,        \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kOffset,            \
+     ReBcOpType::kOffset, ReBcOpType::kUint32, ReBcOpType::kUint32,            \
+     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
+     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
+     ReBcOpType::kJumpTarget))
 
 #define REGEXP_BYTECODE_LIST(V) \
   INVALID_BYTECODE_LIST(V)      \
@@ -305,6 +304,10 @@ enum class RegExpBytecode : uint8_t {
   // evaluate to the same value as the last real bytecode.
   kLast = -1 REGEXP_BYTECODE_LIST(COUNT_BYTECODE)
 };
+
+// Bytecode is 4-byte aligned.
+// We can pack operands if multiple operands fit into 4 bytes.
+static constexpr int kBytecodeAlignment = 4;
 
 template <RegExpBytecode bc>
 class RegExpBytecodeOperands;
@@ -324,7 +327,7 @@ class RegExpBytecodes final : public AllStatic {
   // arguments). Endian-ness independent.
   static constexpr RegExpBytecode FromPtr(const void* ptr) {
     if (!std::is_constant_evaluated()) {
-      DCHECK(IsAligned(reinterpret_cast<Address>(ptr), kUInt32Size));
+      DCHECK(IsAligned(reinterpret_cast<Address>(ptr), kBytecodeAlignment));
     }
     // Load the uint32_t value and implicitly cast to uint8_t.
     return FromByte(*static_cast<const uint32_t*>(ptr));
@@ -343,6 +346,7 @@ class RegExpBytecodes final : public AllStatic {
 
   static constexpr uint8_t Size(RegExpBytecode bytecode);
   static constexpr uint8_t Size(uint8_t bytecode);
+  static constexpr uint8_t Size(RegExpBytecodeOperandType type);
 };
 
 void RegExpBytecodeDisassembleSingle(const uint8_t* code_base,
