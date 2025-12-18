@@ -5,6 +5,8 @@
 #include "src/regexp/regexp-bytecode-generator.h"
 
 #include <limits>
+#include <tuple>
+#include <type_traits>
 
 #include "src/ast/ast.h"
 #include "src/objects/fixed-array-inl.h"
@@ -20,19 +22,60 @@ namespace internal {
 static constexpr int kMaxSingleCharValue =
     RegExpOperandTypeTraits<RegExpBytecodeOperandType::kChar>::kMaxValue;
 
+// TODO(jgruber): Move all Writer methods before Generator methods.
+
+RegExpBytecodeWriter::RegExpBytecodeWriter(Zone* zone)
+    : buffer_(kInitialBufferSize, zone),
+      pc_(0),
+      jump_edges_(zone)
+#ifdef DEBUG
+      ,
+      end_of_bc_(0),
+      pc_within_bc_(0)
+#endif
+{
+}
+
+void RegExpBytecodeWriter::ExpandBuffer() {
+  // TODO(jgruber): The growth strategy could be smarter for large sizes.
+  // TODO(jgruber): It's not necessary to default-initialize new elements.
+  buffer_.resize(buffer_.size() * 2);
+}
+
+void RegExpBytecodeWriter::EmitRawBytecodeStream(const uint8_t* data, int len) {
+  EnsureCapacity(len);
+  // Must start at a bytecode boundary.
+  DCHECK_EQ(pc_within_bc_, end_of_bc_);
+  // We cannot check whether we also end at a boundary since we don't know what
+  // data contains. Let's at least verify alignment.
+  // TODO(jgruber): We could use RegExpBytecodeIterator to verify in DEBUG.
+  DCHECK(IsAligned(len, kBytecodeAlignment));
+  MemCopy(buffer_.data() + pc_, data, len);
+  // End at a bytecode boundary, update bookkeeping.
+  pc_ += len;
+#ifdef DEBUG
+  pc_within_bc_ = pc_;
+  end_of_bc_ = pc_;
+#endif
+}
+
+void RegExpBytecodeWriter::Finalize(RegExpBytecode bc) {
+  int size = RegExpBytecodes::Size(bc);
+  EMIT_PADDING(size);
+  pc_ += size;
+#ifdef DEBUG
+  DCHECK_EQ(pc_within_bc_, end_of_bc_);
+  pc_within_bc_ = pc_;
+  end_of_bc_ = pc_;
+#endif
+}
+
 RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone,
                                                  Mode mode)
     : RegExpMacroAssembler(isolate, zone, mode),
-      buffer_(kInitialBufferSize, zone),
-      pc_(0),
-#ifdef DEBUG
-      end_of_bc_(0),
-      pc_within_bc_(0),
-#endif
+      RegExpBytecodeWriter(zone),
       advance_current_end_(kInvalidPC),
-      jump_edges_(zone),
-      isolate_(isolate) {
-}
+      isolate_(isolate) {}
 
 RegExpBytecodeGenerator::~RegExpBytecodeGenerator() {
   if (backtrack_.is_linked()) backtrack_.Unuse();
@@ -44,13 +87,12 @@ RegExpBytecodeGenerator::Implementation() {
 }
 
 template <RegExpBytecode bytecode, typename... Args>
-void RegExpBytecodeGenerator::Emit(Args... args) {
+void RegExpBytecodeWriter::Emit(Args... args) {
   using Operands = RegExpBytecodeOperands<bytecode>;
   static_assert(sizeof...(Args) == Operands::kCount,
                 "Wrong number of operands");
 
   auto arguments_tuple = std::make_tuple(args...);
-  EnsureCapacity(Operands::kTotalSize);
   EmitBytecode(bytecode);
   Operands::ForEachOperandWithIndex([&]<auto op, size_t index>() {
     constexpr RegExpBytecodeOperandType type = Operands::Type(op);
@@ -58,9 +100,7 @@ void RegExpBytecodeGenerator::Emit(Args... args) {
     auto value = std::get<index>(arguments_tuple);
     EmitOperand<type>(value, offset);
   });
-  EMIT_PADDING(Operands::kTotalSize);
-  DCHECK_EQ(pc_within_bc_, end_of_bc_);
-  pc_ += Operands::kTotalSize;
+  Finalize(bytecode);
 }
 
 namespace {
@@ -81,7 +121,7 @@ struct get_underlying_or_self<T> {
 }  // namespace
 
 template <RegExpBytecodeOperandType OperandType, typename T>
-auto RegExpBytecodeGenerator::GetCheckedBasicOperandValue(T value) {
+auto RegExpBytecodeWriter::GetCheckedBasicOperandValue(T value) {
   static_assert(RegExpOperandTypeTraits<OperandType>::kIsBasic);
   using Traits = RegExpOperandTypeTraits<OperandType>;
   using EnumOrCType = Traits::kCType;
@@ -97,15 +137,29 @@ auto RegExpBytecodeGenerator::GetCheckedBasicOperandValue(T value) {
 }
 
 template <RegExpBytecodeOperandType OperandType, typename T>
-void RegExpBytecodeGenerator::EmitOperand(T value, int offset) {
+void RegExpBytecodeWriter::EmitOperand(T value, int offset) {
   Emit(GetCheckedBasicOperandValue<OperandType>(value), offset);
 }
 
+template <typename T>
+void RegExpBytecodeWriter::EmitOperand(RegExpBytecodeOperandType type, T value,
+                                       int offset) {
+  switch (type) {
+#define CASE(Name, ...)                    \
+  case RegExpBytecodeOperandType::k##Name: \
+    return EmitOperand<ReBcOpType::k##Name>(value, offset);
+    BYTECODE_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
 template <>
-void RegExpBytecodeGenerator::EmitOperand<ReBcOpType::kJumpTarget>(Label* label,
-                                                                   int offset) {
+void RegExpBytecodeWriter::EmitOperand<ReBcOpType::kJumpTarget>(Label* label,
+                                                                int offset) {
+  DCHECK_NOT_NULL(label);
   const int current_pc = pc_ + offset;
-  if (label == nullptr) label = &backtrack_;
   int pos = 0;
   if (label->is_bound()) {
     pos = label->pos();
@@ -120,15 +174,42 @@ void RegExpBytecodeGenerator::EmitOperand<ReBcOpType::kJumpTarget>(Label* label,
 }
 
 template <>
-void RegExpBytecodeGenerator::EmitOperand<ReBcOpType::kBitTable>(
+void RegExpBytecodeWriter::EmitOperand<ReBcOpType::kBitTable>(
     Handle<ByteArray> table, int offset) {
-  for (int i = 0; i < kTableSize; i += kBitsPerByte) {
+  for (int i = 0; i < RegExpMacroAssembler::kTableSize; i += kBitsPerByte) {
     uint8_t byte = 0;
     for (int j = 0; j < kBitsPerByte; j++) {
       if (table->get(i + j) != 0) byte |= 1 << j;
     }
     Emit(byte, offset + i / kBitsPerByte);
   }
+}
+
+template <>
+void RegExpBytecodeWriter::EmitOperand<ReBcOpType::kBitTable>(
+    const uint8_t* src, int offset) {
+  // The emitted table operand is 16 bytes long.
+  static_assert(RegExpMacroAssembler::kTableSize / kBitsPerByte == 16);
+  const uint32_t* cursor = reinterpret_cast<const uint32_t*>(src);
+  static constexpr int kWordCount =
+      (RegExpMacroAssembler::kTableSize / (kBitsPerByte * kInt32Size));
+  for (int i = 0; i < kWordCount; i++) {
+    Emit(cursor[i], offset + i * kInt32Size);
+  }
+}
+
+template <RegExpBytecode bytecode, typename... Args>
+void RegExpBytecodeGenerator::Emit(Args... args) {
+  // Converts nullptr labels into our internal backtrack_ label.
+  auto fix_label = [this](auto arg) {
+    if constexpr (std::is_convertible_v<decltype(arg), Label*>) {
+      Label* l = static_cast<Label*>(arg);
+      return l ? l : &backtrack_;
+    } else {
+      return arg;
+    }
+  };
+  RegExpBytecodeWriter::Emit<bytecode>(fix_label(args)...);
 }
 
 void RegExpBytecodeGenerator::Bind(Label* l) {
@@ -139,7 +220,7 @@ void RegExpBytecodeGenerator::Bind(Label* l) {
     while (pos != 0) {
       int fixup = pos;
       pos = *reinterpret_cast<int32_t*>(buffer_.data() + fixup);
-      *reinterpret_cast<uint32_t*>(buffer_.data() + fixup) = pc_;
+      OverwriteValue<uint32_t>(fixup, pc_);
       jump_edges_.emplace(fixup, pc_);
     }
   }
@@ -488,23 +569,25 @@ DirectHandle<HeapObject> RegExpBytecodeGenerator::GetCode(
         isolate_, zone(), source, buffer_.data(), length(), jump_edges_);
   } else {
     array = isolate_->factory()->NewTrustedByteArray(length());
-    Copy(array->begin());
+    CopyBufferTo(array->begin());
   }
 
   return array;
 }
 
-int RegExpBytecodeGenerator::length() { return pc_; }
-
-void RegExpBytecodeGenerator::Copy(uint8_t* a) {
+void RegExpBytecodeWriter::CopyBufferTo(uint8_t* a) const {
   MemCopy(a, buffer_.data(), length());
 }
 
-void RegExpBytecodeGenerator::ExpandBuffer() {
-  // TODO(jgruber): The growth strategy could be smarter for large sizes.
-  // TODO(jgruber): It's not necessary to default-initialize new elements.
-  buffer_.resize(buffer_.size() * 2);
-}
+// Instantiate template methods.
+#define CASE(Name, ...)                                                    \
+  template V8_EXPORT_PRIVATE void                                          \
+  RegExpBytecodeWriter::EmitOperand<RegExpBytecodeOperandType::k##Name>(   \
+      RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name>::kCType, \
+      int);
+BASIC_BYTECODE_OPERAND_TYPE_LIST(CASE)
+BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(CASE)
+#undef CASE
 
 }  // namespace internal
 }  // namespace v8

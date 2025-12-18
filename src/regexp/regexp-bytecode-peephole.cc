@@ -9,6 +9,8 @@
 
 #include "src/flags/flags.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/regexp/regexp-bytecode-generator-inl.h"
+#include "src/regexp/regexp-bytecode-generator.h"
 #include "src/regexp/regexp-bytecodes-inl.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/utils/memcopy.h"
@@ -29,9 +31,10 @@ class BytecodeArgument {
   int length() const { return length_; }
 
  private:
-  // TODO(jgruber): This should store {offset,type} as well. Consider changing
-  // offset_ to be relative to the current bytecode instead of the start of the
-  // bytecode array.
+  // TODO(jgruber): This should store {offset,type} as well.
+  // TODO(jgruber): Consider changing offset_ to be relative to the current
+  // bytecode instead of the start of the bytecode sequence that is being
+  // optimized. It is confusing that src/dst offsets have different semantics.
   int offset_;
   int length_;
 };
@@ -59,43 +62,26 @@ static_assert(sizeof(OpInfo) <= kSystemPointerSize);  // Passed by value.
 
 class BytecodeArgumentMapping : public BytecodeArgument {
  public:
-  enum class Type : uint8_t { kDefault, kSpecial };
-  enum class SpecialType : uint8_t { kOffsetAfterSequence };
+  enum class Type : uint8_t { kDefault, kOffsetAfterSequence };
 
   BytecodeArgumentMapping(int offset, int length, OpInfo op_info)
       : BytecodeArgument(offset, length),
         type_(Type::kDefault),
-        value_{.op_info = op_info} {}
+        op_info_(op_info) {}
 
-  explicit BytecodeArgumentMapping(SpecialType special_type)
-      : BytecodeArgument(-1, -1),
-        type_(Type::kSpecial),
-        value_{.special_type = special_type} {}
+  BytecodeArgumentMapping(Type type, OpInfo op_info)
+      : BytecodeArgument(-1, -1), type_(type), op_info_(op_info) {
+    DCHECK_NE(type, Type::kDefault);
+  }
 
   Type type() const { return type_; }
-  int new_offset() const {
-    DCHECK_EQ(type(), Type::kDefault);
-    return value_.op_info.offset;
-  }
-  RegExpBytecodeOperandType new_operand_type() const {
-    DCHECK_EQ(type(), Type::kDefault);
-    return value_.op_info.type;
-  }
-  int new_length() const {
-    DCHECK_EQ(type(), Type::kDefault);
-    return value_.op_info.size();
-  }
-  SpecialType special_type() const {
-    DCHECK_EQ(type(), Type::kSpecial);
-    return value_.special_type;
-  }
+  int new_offset() const { return op_info_.offset; }
+  RegExpBytecodeOperandType new_operand_type() const { return op_info_.type; }
+  int new_length() const { return op_info_.size(); }
 
  private:
   Type type_;
-  union {
-    OpInfo op_info;
-    SpecialType special_type;
-  } value_;
+  OpInfo op_info_;
 };
 
 struct BytecodeArgumentCheck : public BytecodeArgument {
@@ -145,7 +131,9 @@ class BytecodeSequenceNode {
   // after the sequence if they were jump targets from bytecodes outside the
   // sequence. The emitted offset is after these potentially preserved
   // bytecodes.
-  BytecodeSequenceNode& EmitOffsetAfterSequence();
+  BytecodeSequenceNode& EmitOffsetAfterSequence(OpInfo op_info);
+  // Verifies that we've created mappings in the order they are specified.
+  bool BytecodeArgumentMappingCreatedInOrder(OpInfo op_info);
   // Adds a check to the sequence node making it only a valid sequence when the
   // argument of the current bytecode at the specified offset matches the offset
   // to check against.
@@ -270,19 +258,16 @@ class RegExpBytecodePeephole {
   // Update a single jump.
   void FixJump(int jump_source, int jump_destination);
   void AddSentinelFixups(int pos);
-  template <typename T>
-  void EmitValue(T value);
-  template <typename T>
-  void OverwriteValue(int offset, T value);
-  void CopyRangeToOutput(const uint8_t* orig_bytecode, int start, int length);
-  void SetRange(uint8_t value, int count);
   void EmitArgument(int start_pc, const uint8_t* bytecode,
                     BytecodeArgumentMapping arg);
   int pc() const;
   Zone* zone() const;
 
-  ZoneVector<uint8_t> optimized_bytecode_buffer_;
+  RegExpBytecodeWriter writer_;
   BytecodeSequenceNode* sequences_;
+  // TODO(jgruber): We should also replace all of these raw offsets with
+  // OpInfo. That should allow us to not expose the "raw" Emit publicly in the
+  // Writer.
   // Jumps used in old bytecode.
   // Key: Jump source (offset where destination is stored in old bytecode)
   // Value: Destination
@@ -373,42 +358,40 @@ BytecodeSequenceNode& BytecodeSequenceNode::MapArgument(
   int src_offset = from_op_info.offset;
   int src_size = from_op_info.size();
 
-#ifdef DEBUG
-  DCHECK(IsSequence());
   DCHECK_LE(from_bytecode_sequence_index, index_in_sequence_);
-  for (int i = static_cast<int>(argument_mapping_->size()) - 1; i >= 0; i--) {
-    const BytecodeArgumentMapping& m = argument_mapping_->at(i);
-    if (m.type() != BytecodeArgumentMapping::Type::kDefault) continue;
-    int offset_after_last = m.new_offset() + m.new_length();
-    // TODO(jgruber): It'd be more precise to distinguish between special and
-    // basic operand types, but we currently don't expose that information
-    // except through templates.
-    int dst_size = to_op_info.size();
-    int alignment = std::min(dst_size, kBytecodeAlignment);
-    // TODO(jgruber): Should be EQ once we also have layout information for
-    // kSpecial mappings.
-    DCHECK_LE(RoundUp(offset_after_last, alignment), to_op_info.offset);
-    break;
-  }
-#endif  // DEBUG
+  DCHECK(BytecodeArgumentMappingCreatedInOrder(to_op_info));
 
   BytecodeSequenceNode& ref_node =
       GetNodeByIndexInSequence(from_bytecode_sequence_index);
   DCHECK_LT(src_offset, RegExpBytecodes::Size(ref_node.bytecode_.value()));
 
-  int absolute_offset = ref_node.start_offset_ + src_offset;
-  argument_mapping_->push_back(
-      BytecodeArgumentMapping{absolute_offset, src_size, to_op_info});
+  int offset_from_start_of_sequence = ref_node.start_offset_ + src_offset;
+  argument_mapping_->push_back(BytecodeArgumentMapping{
+      offset_from_start_of_sequence, src_size, to_op_info});
   return *this;
 }
 
-BytecodeSequenceNode& BytecodeSequenceNode::EmitOffsetAfterSequence() {
-  DCHECK(IsSequence());
-  // TODO(jgruber): Add dst layout info and check emission order as in
-  // MapArgument.
+BytecodeSequenceNode& BytecodeSequenceNode::EmitOffsetAfterSequence(
+    OpInfo op_info) {
+  DCHECK(BytecodeArgumentMappingCreatedInOrder(op_info));
   argument_mapping_->push_back(BytecodeArgumentMapping{
-      BytecodeArgumentMapping::SpecialType::kOffsetAfterSequence});
+      BytecodeArgumentMapping::Type::kOffsetAfterSequence, op_info});
   return *this;
+}
+
+bool BytecodeSequenceNode::BytecodeArgumentMappingCreatedInOrder(
+    OpInfo op_info) {
+  DCHECK(IsSequence());
+  if (argument_mapping_->empty()) return true;
+
+  const BytecodeArgumentMapping& m = argument_mapping_->back();
+  int offset_after_last = m.new_offset() + m.new_length();
+  // TODO(jgruber): It'd be more precise to distinguish between special and
+  // basic operand types, but we currently don't expose that information
+  // except through templates.
+  int dst_size = op_info.size();
+  int alignment = std::min(dst_size, kBytecodeAlignment);
+  return RoundUp(offset_after_last, alignment) == op_info.offset;
 }
 
 BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsOffset(
@@ -419,10 +402,10 @@ BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsOffset(
   DCHECK_LT(offset, RegExpBytecodes::Size(bytecode_.value()));
   DCHECK(size == 1 || size == 2 || size == 4);
 
-  int absolute_offset = start_offset_ + offset;
+  int offset_from_start_of_sequence = start_offset_ + offset;
 
-  argument_check_->push_back(
-      BytecodeArgumentCheck{absolute_offset, size, check_byte_offset});
+  argument_check_->push_back(BytecodeArgumentCheck{
+      offset_from_start_of_sequence, size, check_byte_offset});
 
   return *this;
 }
@@ -442,11 +425,13 @@ BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsValueAtOffset(
   DCHECK_LT(other_op_info.offset,
             RegExpBytecodes::Size(ref_node.bytecode_.value()));
 
-  int absolute_offset = start_offset_ + this_op_info.offset;
-  int other_absolute_offset = ref_node.start_offset_ + other_op_info.offset;
+  int offset_from_start_of_sequence = start_offset_ + this_op_info.offset;
+  int other_offset_from_start_of_sequence =
+      ref_node.start_offset_ + other_op_info.offset;
 
-  argument_check_->push_back(BytecodeArgumentCheck{
-      absolute_offset, size_1, other_absolute_offset, size_2});
+  argument_check_->push_back(
+      BytecodeArgumentCheck{offset_from_start_of_sequence, size_1,
+                            other_offset_from_start_of_sequence, size_2});
 
   return *this;
 }
@@ -463,9 +448,10 @@ BytecodeSequenceNode& BytecodeSequenceNode::IgnoreArgument(
       GetNodeByIndexInSequence(bytecode_index_in_sequence);
   DCHECK_LT(offset, RegExpBytecodes::Size(ref_node.bytecode_.value()));
 
-  int absolute_offset = ref_node.start_offset_ + offset;
+  int offset_from_start_of_sequence = ref_node.start_offset_ + offset;
 
-  argument_ignored_->push_back(BytecodeArgument{absolute_offset, size});
+  argument_ignored_->push_back(
+      BytecodeArgument{offset_from_start_of_sequence, size});
 
   return *this;
 }
@@ -557,7 +543,7 @@ Zone* BytecodeSequenceNode::zone() const { return zone_; }
 RegExpBytecodePeephole::RegExpBytecodePeephole(
     Zone* zone, size_t buffer_size,
     const ZoneUnorderedMap<int, int>& jump_edges)
-    : optimized_bytecode_buffer_(zone),
+    : writer_(zone),
       sequences_(zone->New<BytecodeSequenceNode>(std::nullopt, zone)),
       jump_edges_(zone),
       jump_edges_mapped_(zone),
@@ -565,7 +551,7 @@ RegExpBytecodePeephole::RegExpBytecodePeephole(
       jump_source_fixups_(zone),
       jump_destination_fixups_(zone),
       zone_(zone) {
-  optimized_bytecode_buffer_.reserve(buffer_size);
+  writer_.buffer().reserve(buffer_size);
   PrepareJumpStructures(jump_edges);
   DefineStandardSequences();
   // Sentinel fixups at beginning of bytecode (position -1) so we don't have to
@@ -739,7 +725,7 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
         .MapArgument(T(chars2), 5, I(B::kAndCheckNot4Chars, characters))
         .MapArgument(T(mask2), 5, I(B::kAndCheckNot4Chars, mask))
         .MapArgument(T(on_match1), 4, I(B::kAndCheck4Chars, on_equal))
-        .EmitOffsetAfterSequence()
+        .EmitOffsetAfterSequence(T(on_match2))
         .MapArgument(T(on_failure), 0, I(B::kCheckPosition, on_failure))
         .IgnoreArgument(3, I(B::kAdvanceCpAndGoto, on_goto))
         .IgnoreArgument(2, I(B::kAndCheck4Chars, on_equal));
@@ -829,7 +815,7 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
         .MapArgument(T(bc8_characters), 8, I(B::kAndCheckNot4Chars, characters))
         .MapArgument(T(bc8_mask), 8, I(B::kAndCheckNot4Chars, mask))
         .IgnoreArgument(8, I(B::kAndCheckNot4Chars, on_not_equal))
-        .EmitOffsetAfterSequence();
+        .EmitOffsetAfterSequence(T(fallthrough_jump_target));
   }
 
 #undef I
@@ -847,7 +833,7 @@ bool RegExpBytecodePeephole::OptimizeBytecode(const uint8_t* bytecode,
       did_optimize = true;
     } else {
       int bc_len = RegExpBytecodes::Size(bytecode[old_pc]);
-      CopyRangeToOutput(bytecode, old_pc, bc_len);
+      writer_.EmitRawBytecodeStream(bytecode + old_pc, bc_len);
       old_pc += bc_len;
     }
   }
@@ -860,7 +846,7 @@ bool RegExpBytecodePeephole::OptimizeBytecode(const uint8_t* bytecode,
 }
 
 void RegExpBytecodePeephole::CopyOptimizedBytecode(uint8_t* to_address) const {
-  MemCopy(to_address, &(*optimized_bytecode_buffer_.begin()), Length());
+  MemCopy(to_address, writer_.buffer().begin(), Length());
 }
 
 int RegExpBytecodePeephole::Length() const { return pc(); }
@@ -907,26 +893,17 @@ void RegExpBytecodePeephole::EmitOptimization(
   // of this method. We don't delete them immediately as we might need the
   // information when we have to preserve bytecodes at the end.
   // TODO(pthier): Replace with a stack-allocated data structure.
-  ZoneLinkedList<int> delete_jumps = ZoneLinkedList<int>(zone());
+  ZoneLinkedList<int> delete_jumps(zone());
   // List of offsets in the optimized sequence that need to be patched to the
   // offset value right after the optimized sequence.
-  ZoneLinkedList<uint32_t> after_sequence_offsets =
-      ZoneLinkedList<uint32_t>(zone());
+  ZoneLinkedList<uint32_t> after_sequence_offsets(zone());
 
-  RegExpBytecode bc = last_node.OptimizedBytecode();
-  EmitValue<uint8_t>(RegExpBytecodes::ToByte(bc));
+  const RegExpBytecode bc = last_node.OptimizedBytecode();
+  writer_.EmitBytecode(bc);
 
-  for (size_t arg = 0; arg < last_node.ArgumentSize(); arg++) {
-    BytecodeArgumentMapping arg_map = last_node.ArgumentMapping(arg);
+  for (size_t arg_idx = 0; arg_idx < last_node.ArgumentSize(); arg_idx++) {
+    BytecodeArgumentMapping arg_map = last_node.ArgumentMapping(arg_idx);
     if (arg_map.type() == BytecodeArgumentMapping::Type::kDefault) {
-      // Handle implicit padding.
-      int expected_pc = optimized_start_pc + arg_map.new_offset();
-      DCHECK_LE(pc(), expected_pc);
-      while (pc() < expected_pc) {
-        EmitValue<uint8_t>(0);
-      }
-      DCHECK_EQ(pc(), expected_pc);
-
       int arg_pos = start_pc + arg_map.offset();
       // If we map any jump source we mark the old source for deletion and
       // insert a new jump.
@@ -935,7 +912,8 @@ void RegExpBytecodePeephole::EmitOptimization(
         int jump_source = jump_edge_iter->first;
         int jump_destination = jump_edge_iter->second;
         // Add new jump edge add current position.
-        jump_edges_mapped_.emplace(Length(), jump_destination);
+        jump_edges_mapped_.emplace(optimized_start_pc + arg_map.new_offset(),
+                                   jump_destination);
         // Mark old jump edge for deletion.
         delete_jumps.push_back(jump_source);
         // Decrement usage count of jump destination.
@@ -948,24 +926,17 @@ void RegExpBytecodePeephole::EmitOptimization(
       // to destinations inside the sequence.
       EmitArgument(start_pc, bytecode, arg_map);
     } else {
-      DCHECK_EQ(arg_map.type(), BytecodeArgumentMapping::Type::kSpecial);
-      using enum BytecodeArgumentMapping::SpecialType;
-      switch (arg_map.special_type()) {
-        case kOffsetAfterSequence:
-          after_sequence_offsets.push_back(pc());
-          // Reserve space to overwrite later with the pc after this sequence.
-          EmitValue<uint32_t>(0);
-          break;
-      }
+      DCHECK_EQ(arg_map.type(),
+                BytecodeArgumentMapping::Type::kOffsetAfterSequence);
+      after_sequence_offsets.push_back(optimized_start_pc +
+                                       arg_map.new_offset());
+      // Reserve space to overwrite later with the pc after this sequence.
+      writer_.Emit<uint32_t>(0, arg_map.new_offset());
     }
   }
 
   // Final alignment.
-  int aligned_end = RoundUp<kBytecodeAlignment>(pc());
-  while (pc() < aligned_end) {
-    EmitValue<uint8_t>(0);
-  }
-  DCHECK_EQ(pc(), aligned_end);
+  writer_.Finalize(bc);
 
   DCHECK_EQ(pc(), optimized_start_pc +
                       RegExpBytecodes::Size(last_node.OptimizedBytecode()));
@@ -1038,7 +1009,7 @@ void RegExpBytecodePeephole::EmitOptimization(
     // Jumps to the sequence we preserved need absolute fixup as they could
     // occur before or after the sequence.
     SetJumpDestinationFixup(pc() - preserve_from, preserve_from);
-    CopyRangeToOutput(bytecode, preserve_from, preserve_length);
+    writer_.EmitRawBytecodeStream(bytecode + preserve_from, preserve_length);
   } else {
     AddJumpDestinationFixup(fixup_length, start_pc + 1);
     // Jumps after the end of the old sequence need fixup.
@@ -1053,8 +1024,8 @@ void RegExpBytecodePeephole::EmitOptimization(
   }
 
   for (uint32_t offset : after_sequence_offsets) {
-    DCHECK_EQ(optimized_bytecode_buffer_[offset], 0);
-    OverwriteValue<uint32_t>(offset, pc());
+    DCHECK_EQ(writer_.buffer()[offset], 0);
+    writer_.OverwriteValue<uint32_t>(offset, pc());
   }
 }
 
@@ -1136,13 +1107,13 @@ void RegExpBytecodePeephole::FixJump(int jump_source, int jump_destination) {
 #ifdef DEBUG
   // TODO(pthier): This check could be better if we track the bytecodes
   // actually used and check if we jump to one of them.
-  uint8_t jump_bc = optimized_bytecode_buffer_[fixed_jump_destination];
+  uint8_t jump_bc = writer_.buffer()[fixed_jump_destination];
   DCHECK_GT(jump_bc, 0);
   DCHECK_LT(jump_bc, RegExpBytecodes::kCount);
 #endif
 
   if (jump_destination != fixed_jump_destination) {
-    OverwriteValue<uint32_t>(jump_source, fixed_jump_destination);
+    writer_.OverwriteValue<uint32_t>(jump_source, fixed_jump_destination);
   }
 }
 
@@ -1151,110 +1122,35 @@ void RegExpBytecodePeephole::AddSentinelFixups(int pos) {
   jump_destination_fixups_.emplace(pos, 0);
 }
 
-template <typename T>
-void RegExpBytecodePeephole::EmitValue(T value) {
-  DCHECK(optimized_bytecode_buffer_.begin() + pc() ==
-         optimized_bytecode_buffer_.end());
-  uint8_t* value_byte_iter = reinterpret_cast<uint8_t*>(&value);
-  optimized_bytecode_buffer_.insert(optimized_bytecode_buffer_.end(),
-                                    value_byte_iter,
-                                    value_byte_iter + sizeof(T));
-}
-
-template <typename T>
-void RegExpBytecodePeephole::OverwriteValue(int offset, T value) {
-  uint8_t* value_byte_iter = reinterpret_cast<uint8_t*>(&value);
-  uint8_t* value_byte_iter_end = value_byte_iter + sizeof(T);
-  while (value_byte_iter < value_byte_iter_end) {
-    optimized_bytecode_buffer_[offset++] = *value_byte_iter++;
-  }
-}
-
-void RegExpBytecodePeephole::CopyRangeToOutput(const uint8_t* orig_bytecode,
-                                               int start, int length) {
-  DCHECK(optimized_bytecode_buffer_.begin() + pc() ==
-         optimized_bytecode_buffer_.end());
-  optimized_bytecode_buffer_.insert(optimized_bytecode_buffer_.end(),
-                                    orig_bytecode + start,
-                                    orig_bytecode + start + length);
-}
-
-void RegExpBytecodePeephole::SetRange(uint8_t value, int count) {
-  DCHECK(optimized_bytecode_buffer_.begin() + pc() ==
-         optimized_bytecode_buffer_.end());
-  optimized_bytecode_buffer_.insert(optimized_bytecode_buffer_.end(), count,
-                                    value);
-}
-
 void RegExpBytecodePeephole::EmitArgument(int start_pc, const uint8_t* bytecode,
                                           BytecodeArgumentMapping arg) {
-  // TODO(jgruber): value bounds checks based on the new_operand_type. GetValue
-  // and EmitValue should know about the type. This space will still change
-  // though as part of the RegExpBytecodeWriter refactor.
-  int arg_pos = start_pc + arg.offset();
-  switch (arg.length()) {
-    case 1:
-      DCHECK_EQ(arg.new_length(), arg.length());
-      EmitValue(GetValue<uint8_t>(bytecode, arg_pos));
-      break;
-    case 2:
-      DCHECK_EQ(arg.new_length(), arg.length());
-      EmitValue(GetValue<uint16_t>(bytecode, arg_pos));
-      break;
-    case 3: {
-      // Length 3 only occurs in 'packed' arguments where the lowermost byte is
-      // the current bytecode, and the remaining 3 bytes are the packed value.
-      //
-      // We load 4 bytes from position - 1 and shift out the bytecode.
-#ifdef V8_TARGET_BIG_ENDIAN
-      UNIMPLEMENTED();
-#else
-      int32_t val = GetValue<int32_t>(bytecode, arg_pos - 1) >> kBitsPerByte;
+  const RegExpBytecodeOperandType type = arg.new_operand_type();
 
-      switch (arg.new_length()) {
-        case 2:
-          EmitValue<uint16_t>(val);
-          break;
-        case 3: {
-          // Pack with previously emitted value.
-          auto prev_val =
-              GetValue<int32_t>(&(*optimized_bytecode_buffer_.begin()),
-                                Length() - sizeof(uint32_t));
-          DCHECK_EQ(prev_val & 0xFFFFFF00, 0);
-          OverwriteValue<uint32_t>(
-              pc() - sizeof(uint32_t),
-              (static_cast<uint32_t>(val) << 8) | (prev_val & 0xFF));
-          break;
-        }
-        case 4:
-          EmitValue<uint32_t>(val);
-          break;
-      }
-      break;
-#endif  // V8_TARGET_BIG_ENDIAN
-    }
-    case 4:
-      DCHECK_EQ(arg.new_length(), arg.length());
-      EmitValue(GetValue<uint32_t>(bytecode, arg_pos));
-      break;
-    case 8:
-      DCHECK_EQ(arg.new_length(), arg.length());
-      EmitValue(GetValue<uint64_t>(bytecode, arg_pos));
-      break;
+  switch (type) {
+#define CASE(Name, ...)                                                        \
+  case RegExpBytecodeOperandType::k##Name: {                                   \
+    DCHECK_LE(arg.length(), kInt32Size);                                       \
+    using CType =                                                              \
+        RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name>::kCType;   \
+    CType value = static_cast<CType>(                                          \
+        GetArgumentValue(bytecode, start_pc + arg.offset(), arg.length()));    \
+    writer_.EmitOperand<RegExpBytecodeOperandType::k##Name>(value,             \
+                                                            arg.new_offset()); \
+  } break;
+    BASIC_BYTECODE_OPERAND_TYPE_LIST(CASE)
+    BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(CASE)
+#undef CASE
+    case RegExpBytecodeOperandType::kBitTable: {
+      DCHECK_EQ(arg.length(), 16);
+      writer_.EmitOperand<RegExpBytecodeOperandType::kBitTable>(
+          bytecode + start_pc + arg.offset(), arg.new_offset());
+    } break;
     default:
-      CopyRangeToOutput(bytecode, arg_pos,
-                        std::min(arg.length(), arg.new_length()));
-      if (arg.length() < arg.new_length()) {
-        SetRange(0x00, arg.new_length() - arg.length());
-      }
-      break;
+      UNREACHABLE();
   }
 }
 
-int RegExpBytecodePeephole::pc() const {
-  DCHECK_LE(optimized_bytecode_buffer_.size(), std::numeric_limits<int>::max());
-  return static_cast<int>(optimized_bytecode_buffer_.size());
-}
+int RegExpBytecodePeephole::pc() const { return writer_.pc(); }
 
 Zone* RegExpBytecodePeephole::zone() const { return zone_; }
 

@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 template <typename T>
-void RegExpBytecodeGenerator::Emit(T value, int offset) {
+void RegExpBytecodeWriter::Emit(T value, int offset) {
   const int new_pc_within_bc = pc_ + offset;
   DCHECK(base::IsInRange(new_pc_within_bc, pc_within_bc_, end_of_bc_));
   DCHECK_LE(new_pc_within_bc + sizeof(T), buffer_.size());
@@ -27,23 +27,33 @@ void RegExpBytecodeGenerator::Emit(T value, int offset) {
 #endif
 }
 
-void RegExpBytecodeGenerator::EmitBytecode(RegExpBytecode bc) {
+template <typename T>
+void RegExpBytecodeWriter::OverwriteValue(int offset, T value) {
+  // TODO(jgruber): Consider specializing this function; there should be very
+  // few uses (updating jump offsets).
+  DCHECK(IsAligned(offset, sizeof(T)));
+  DCHECK_LE(offset + sizeof(T), buffer_.size());
+  *reinterpret_cast<T*>(buffer_.data() + offset) = value;
+}
+
+void RegExpBytecodeWriter::EmitBytecode(RegExpBytecode bc) {
   DCHECK_EQ(pc_, end_of_bc_);
   DCHECK_EQ(pc_within_bc_, end_of_bc_);
 #ifdef DEBUG
   end_of_bc_ = pc_ + RegExpBytecodes::Size(bc);
   pc_within_bc_ = pc_;
 #endif
+  EnsureCapacity(RegExpBytecodes::Size(bc));
   Emit(RegExpBytecodes::ToByte(bc), 0);
 }
 
-void RegExpBytecodeGenerator::EnsureCapacity(size_t size) {
+void RegExpBytecodeWriter::EnsureCapacity(size_t size) {
   if (V8_UNLIKELY(pc_ + size > buffer_.size())) {
     ExpandBuffer();
   }
 }
 
-void RegExpBytecodeGenerator::ResetPc(int new_pc) {
+void RegExpBytecodeWriter::ResetPc(int new_pc) {
   // Resetting is only allowed at the beginning of a bytecode.
   DCHECK_EQ(pc_, pc_within_bc_);
   DCHECK_LE(new_pc, pc_);
@@ -55,7 +65,7 @@ void RegExpBytecodeGenerator::ResetPc(int new_pc) {
 }
 
 #ifdef DEBUG
-void RegExpBytecodeGenerator::EmitPadding(int offset) {
+void RegExpBytecodeWriter::EmitPadding(int offset) {
   const int padding_to = pc_ + offset;
   DCHECK_LE(padding_to, buffer_.size());
   DCHECK_LE(padding_to, end_of_bc_);

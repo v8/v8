@@ -13,8 +13,87 @@
 namespace v8 {
 namespace internal {
 
+class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
+ public:
+  explicit RegExpBytecodeWriter(Zone* zone);
+  virtual ~RegExpBytecodeWriter() = default;
+
+  // Helpers for peephole optimization.
+  template <typename T>
+  void OverwriteValue(int offset, T value);
+  // MUST start and end at a bytecode boundary.
+  void EmitRawBytecodeStream(const uint8_t* data, int length);
+  void Finalize(RegExpBytecode bc);
+
+  // Bytecode buffer access.
+  // TODO(jgruber): Remove access to details, at least the non-const accessors.
+  int pc() const { return pc_; }
+  ZoneVector<uint8_t>& buffer() { return buffer_; }
+  const ZoneVector<uint8_t>& buffer() const { return buffer_; }
+
+  // Code and bitmap emission.
+  template <typename T>
+  inline void Emit(T value, int offset);
+  inline void EmitBytecode(RegExpBytecode bc);
+  inline void ResetPc(int new_pc);
+
+  // Templated code emission.
+  template <RegExpBytecode bytecode, typename... Args>
+  void Emit(Args... args);
+  template <RegExpBytecodeOperandType OperandType, typename T>
+  void EmitOperand(T value, int offset);
+  template <RegExpBytecodeOperandType OperandType, typename T>
+  auto GetCheckedBasicOperandValue(T value);
+
+  // Runtime versions.
+  template <typename T>
+  void EmitOperand(RegExpBytecodeOperandType type, T value, int offset);
+
+  int length() const { return pc_; }
+  void CopyBufferTo(uint8_t* a) const;
+
+#ifdef DEBUG
+  // Emit padding from start (inclusive) to end (exclusive)
+  inline void EmitPadding(int offset);
+#define EMIT_PADDING(offset) EmitPadding(offset)
+#else
+#define EMIT_PADDING(offset) ((void)0)
+#endif
+
+ protected:
+  // The buffer into which code and relocation info are generated.
+  static constexpr int kInitialBufferSize = 1024;
+  ZoneVector<uint8_t> buffer_;
+
+  // The program counter. Always points at the beginning of a bytecode while
+  // we generate the ByteArray. Points to the end when we are done.
+  int pc_;
+
+  // Stores jump edges emitted for the bytecode (used by
+  // RegExpBytecodePeepholeOptimization).
+  // Key: jump source (offset in buffer_ where jump destination is stored).
+  // Value: jump destination (offset in buffer_ to jump to).
+  ZoneUnorderedMap<int, int> jump_edges_;
+
+#ifdef DEBUG
+  // End of the bytecode we are currently emitting (exclusive). Absolute value
+  // greater than `pc_`.
+  int end_of_bc_;
+  // Position (absolute) within the current bytecode. This value is updated with
+  // every operand and is guaranteed to be between `pc_` and `end_of_bc_`.
+  int pc_within_bc_;
+#endif
+
+ private:
+  // TODO(jgruber): Reasonable protected/private organisation once the dust has
+  // settled.
+  inline void EnsureCapacity(size_t size);
+  void ExpandBuffer();
+};
+
 // An assembler/generator for the Irregexp byte code.
-class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
+class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler,
+                                                  public RegExpBytecodeWriter {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -128,63 +207,20 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
                                    RegExpFlags flags) override;
 
  private:
-  // Code and bitmap emission.
   template <RegExpBytecode bytecode, typename... Args>
   void Emit(Args... args);
-  template <RegExpBytecodeOperandType OperandType, typename T>
-  auto GetCheckedBasicOperandValue(T value);
-  template <RegExpBytecodeOperandType OperandType, typename T>
-  void EmitOperand(T value, int offset);
+  using RegExpBytecodeWriter::Emit;
 
-  template <typename T>
-  inline void Emit(T value, int offset);
-  inline void EmitBytecode(RegExpBytecode bc);
   void EmitSkipTable(DirectHandle<ByteArray> table);
-  // Bytecode buffer.
-  int length();
-  void Copy(uint8_t* a);
-  inline void EnsureCapacity(size_t size);
-  void ExpandBuffer();
-  inline void ResetPc(int new_pc);
-
-#ifdef DEBUG
-  // Emit padding from start (inclusive) to end (exclusive)
-  inline void EmitPadding(int offset);
-#define EMIT_PADDING(offset) EmitPadding(offset)
-#else
-#define EMIT_PADDING(offset) ((void)0)
-#endif
-  // The buffer into which code and relocation info are generated.
-  static constexpr int kInitialBufferSize = 1024;
-  ZoneVector<uint8_t> buffer_;
-
-  // The program counter. Always points at the beginning of a bytecode while
-  // we generate the ByteArray. Points to the end when we are done.
-  int pc_;
-#ifdef DEBUG
-  // End of the bytecode we are currently emitting (exclusive). Absolute value
-  // greater than `pc_`.
-  int end_of_bc_;
-  // Position (absolute) within the current bytecode. This value is updated with
-  // every operand and is guaranteed to be between `pc_` and `end_of_bc_`.
-  int pc_within_bc_;
-#endif
 
   Label backtrack_;
 
+  static const int kInvalidPC = -1;
   int advance_current_start_;
   int advance_current_offset_;
   int advance_current_end_;
 
-  // Stores jump edges emitted for the bytecode (used by
-  // RegExpBytecodePeepholeOptimization).
-  // Key: jump source (offset in buffer_ where jump destination is stored).
-  // Value: jump destination (offset in buffer_ to jump to).
-  ZoneUnorderedMap<int, int> jump_edges_;
-
   Isolate* isolate_;
-
-  static const int kInvalidPC = -1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpBytecodeGenerator);
 };
