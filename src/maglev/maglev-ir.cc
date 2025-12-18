@@ -7955,6 +7955,18 @@ void HandleNoHeapWritesInterrupt::GenerateCode(MaglevAssembler* masm,
 // Print params
 // ---
 
+std::ostream& operator<<(std::ostream& os, CheckType check_type) {
+  switch (check_type) {
+    case CheckType::kOmitHeapObjectCheck:
+      os << "no heapobj check";
+      break;
+    case CheckType::kCheckHeapObject:
+      os << "check heapobj";
+      break;
+  }
+  return os;
+}
+
 void SmiConstant::PrintParams(std::ostream& os) const {
   os << "(" << value() << ")";
 }
@@ -8121,7 +8133,7 @@ void CheckMaps::PrintParams(std::ostream& os) const {
     }
     os << *map.object();
   }
-  os << ")";
+  os << ", " << check_type() << ")";
 }
 
 void CheckMapsWithAlreadyLoadedMap::PrintParams(std::ostream& os) const {

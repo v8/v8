@@ -4897,6 +4897,9 @@ class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
 };
 
 enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };
+
+std::ostream& operator<<(std::ostream& os, CheckType check_type);
+
 class ToBoolean : public FixedInputValueNodeT<1, ToBoolean> {
  public:
   explicit ToBoolean(uint64_t bitfield, CheckType check_type)
