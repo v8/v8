@@ -2044,7 +2044,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
     // During loading we might overshoot the limit by a large amount. Ensure
     // allocation limits are at least at or above current sizes to not finalize
     // incremental marking prematurely.
-    RecomputeLimitsAfterLoadingIfNeeded();
+    EnsureAllocationLimitAboveCurrentSize();
   }
 
   if (isolate()->is_shared_space_isolate()) {
@@ -3205,6 +3205,41 @@ void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
   // Reset using_initial_limit() to prevent the sweeper from overwriting this
   // limit right after this operation.
   set_using_initial_limit(true);
+}
+
+void Heap::EnsureAllocationLimitAboveCurrentSize() {
+  if (OldGenerationSpaceAvailable() > 0 && GlobalMemoryAvailable() > 0) {
+    return;
+  }
+
+  base::MutexGuard guard(old_space()->mutex());
+  size_t new_old_generation_allocation_limit =
+      std::max(static_cast<size_t>(OldGenerationAllocationLimitConsumedBytes()),
+               old_generation_allocation_limit());
+  new_old_generation_allocation_limit =
+      std::clamp(new_old_generation_allocation_limit, min_old_generation_size(),
+                 max_old_generation_size());
+
+  size_t current_global_bytes = GlobalConsumedBytes();
+  if (!v8_flags.external_memory_accounted_in_global_limit) {
+    // TODO(chromium:42203776): Without that flag external memory is added in
+    // OldGenerationAllocationLimitConsumedBytes() but not in
+    // GlobalConsumedBytes(). This can lead to cases where the allocation limit
+    // for the old generation is higher than for global memory. We fix this here
+    // by manually adding it.
+    current_global_bytes += AllocatedExternalMemorySinceMarkCompact();
+  }
+  size_t new_global_allocation_limit =
+      std::max(current_global_bytes, global_allocation_limit());
+  new_global_allocation_limit =
+      std::clamp(new_global_allocation_limit, min_global_memory_size_,
+                 max_global_memory_size_);
+  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
+                                           new_global_allocation_limit);
+  CHECK_LE(OldGenerationAllocationLimitConsumedBytes(),
+           old_generation_allocation_limit());
+  CHECK_LE(GlobalConsumedBytes(), global_allocation_limit());
+  set_using_initial_limit(false);
 }
 
 namespace {

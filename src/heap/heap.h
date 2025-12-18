@@ -1973,6 +1973,10 @@ class Heap final {
   // memory is left before hitting the allocation limit.
   void EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining);
 
+  // Extends the allocation limits (only if necessary) such that they are at
+  // least at or above the current consumed bytes.
+  void EnsureAllocationLimitAboveCurrentSize();
+
   double ComputeMutatorUtilization(const char* tag, double mutator_speed,
                                    std::optional<double> gc_speed);
   bool HasLowYoungGenerationAllocationRate();
