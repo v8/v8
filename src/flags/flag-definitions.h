@@ -2443,7 +2443,7 @@ DEFINE_NEG_NEG_IMPLICATION(concurrent_sweeping,
 DEFINE_BOOL(parallel_compaction, true, "use parallel compaction")
 DEFINE_BOOL(parallel_pointer_update, true,
             "use parallel pointer update during compaction")
-DEFINE_BOOL(parallel_weak_ref_clearing, true,
+DEFINE_BOOL(parallel_gc_clearing, true,
             "use parallel threads to clear weak refs in the atomic pause.")
 DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
             "trigger out-of-memory failure to avoid GC storm near heap limit")
@@ -2459,6 +2459,8 @@ DEFINE_FLOAT(ineffective_gc_mutator_utilization_threshold, 0.4,
              "failure near heap limit.")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
+DEFINE_BOOL(print_gc_clearing_dependency_graph, false,
+            "print clearing dependency graph in dot format")
 DEFINE_BOOL(trace_stress_marking, false, "trace stress marking progress")
 DEFINE_BOOL(trace_stress_scavenge, false, "trace stress scavenge progress")
 DEFINE_BOOL(track_gc_object_stats, false,
@@ -3894,7 +3896,7 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_compaction)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_marking)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_pointer_update)
-DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_weak_ref_clearing)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_gc_clearing)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)
