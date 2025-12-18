@@ -692,9 +692,13 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
     Branch(ok, eq, scratch, Operand(scratch1));
   }
 
-  // The write barrier can also be removed if the value is in read-only space.
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, ok);
+#else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  // Write barier can also be removed if value is in read-only space.
   CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, not_equal,
                 ok);
+#endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
   Label not_ok;
 
