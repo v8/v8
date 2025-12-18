@@ -1763,9 +1763,8 @@ void Heap::CollectGarbage(
     RecomputeLimits(collector);
   });
 
-  if ((collector == GarbageCollector::MARK_COMPACTOR) &&
-      ShouldOptimizeForLoadTime()) {
-    update_allocation_limits_after_loading_ = true;
+  if (IsLoadingInitialized() && !IsLoading()) {
+    NotifyLoadingEnded(LeaveHeapState::kReachedTimeout);
   }
 
   // Epilogue callbacks. These callbacks may trigger GC themselves and thus
@@ -2041,10 +2040,11 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
 
   incremental_marking()->Start(collector, gc_reason, reason);
 
-  if (collector == GarbageCollector::MARK_COMPACTOR) {
-    DCHECK(incremental_marking()->IsMajorMarking());
+  if (collector == GarbageCollector::MARK_COMPACTOR && IsLoadingInitialized()) {
+    // During loading we might overshoot the limit by a large amount. Ensure
+    // allocation limits are at least at or above current sizes to not finalize
+    // incremental marking prematurely.
     RecomputeLimitsAfterLoadingIfNeeded();
-    DCHECK(!update_allocation_limits_after_loading_);
   }
 
   if (isolate()->is_shared_space_isolate()) {
@@ -2740,15 +2740,10 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
 }
 
 void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
-  if (!update_allocation_limits_after_loading_) {
-    return;
-  }
-
   if ((OldGenerationSpaceAvailable() > 0) && (GlobalMemoryAvailable() > 0)) {
     // Only recompute limits if memory accumulated during loading may lead to
     // atomic GC. If there is still room to allocate, keep the current limits.
     DCHECK(!AllocationLimitOvershotByLargeMargin());
-    update_allocation_limits_after_loading_ = false;
     return;
   }
 
@@ -2760,8 +2755,6 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
     // pause.
     return;
   }
-
-  update_allocation_limits_after_loading_ = false;
 
   UpdateOldGenerationAllocationCounter();
   old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
@@ -5646,6 +5639,11 @@ bool Heap::IsLoading() const {
          MonotonicallyIncreasingTimeInMs() < load_start_time + kMaxLoadTimeMs;
 }
 
+bool Heap::IsLoadingInitialized() const {
+  return load_start_time_ms_.load(std::memory_order_relaxed) !=
+         kLoadTimeNotLoading;
+}
+
 // This predicate is called when an old generation space cannot allocated from
 // the free list and is about to add a new page. Returning false will cause a
 // major GC. It happens when the old generation allocation limit is reached and
@@ -7801,19 +7799,23 @@ void Heap::NotifyLoadingStarted() {
   }
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "IsLoading",
                     loading_track_);
-  update_allocation_limits_after_loading_ = true;
   double now_ms = MonotonicallyIncreasingTimeInMs();
   DCHECK_NE(now_ms, kLoadTimeNotLoading);
   load_start_time_ms_.store(now_ms, std::memory_order_relaxed);
 }
 
-void Heap::NotifyLoadingEnded() {
+void Heap::NotifyLoadingEnded(LeaveHeapState context) {
   load_start_time_ms_.store(kLoadTimeNotLoading, std::memory_order_relaxed);
-  RecomputeLimitsAfterLoadingIfNeeded();
-  if (auto* job = incremental_marking()->incremental_marking_job()) {
-    // The task will start incremental marking (if needed not already started)
-    // and advance marking if incremental marking is active.
-    job->ScheduleTask();
+  if (context == LeaveHeapState::kNotify) {
+    RecomputeLimitsAfterLoadingIfNeeded();
+    if (auto* job = incremental_marking()->incremental_marking_job()) {
+      // The task will start incremental marking (if needed not already started)
+      // and advance marking if incremental marking is active.
+      job->ScheduleTask();
+    }
+  } else {
+    DCHECK_EQ(context, LeaveHeapState::kReachedTimeout);
+    // Nothing to do here because we only trigger this from a GC.
   }
   TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
 }

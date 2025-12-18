@@ -178,6 +178,11 @@ class StrongRootsEntry final {
   friend class Heap;
 };
 
+enum class LeaveHeapState {
+  kNotify,
+  kReachedTimeout,
+};
+
 // An alias for std::unordered_map<Tagged<HeapObject>, T> which also
 // sets proper Hash and KeyEqual functions.
 template <typename T>
@@ -2084,9 +2089,12 @@ class Heap final {
   static const int kMaxLoadTimeMs = 7000;
 
   V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
+
   V8_EXPORT_PRIVATE bool IsLoading() const;
+  bool IsLoadingInitialized() const;
+
   void NotifyLoadingStarted();
-  void NotifyLoadingEnded();
+  void NotifyLoadingEnded(LeaveHeapState context = LeaveHeapState::kNotify);
 
   size_t old_generation_allocation_limit() const {
     return old_generation_allocation_limit_.load(std::memory_order_relaxed);
@@ -2577,11 +2585,6 @@ class Heap final {
 
   // Time that the embedder started loading resources, or kLoadTimeNotLoading.
   std::atomic<double> load_start_time_ms_{kLoadTimeNotLoading};
-
-  // Full GC may trigger during loading due to overshooting allocation limits.
-  // In such cases we may want to update the limits again once loading is
-  // actually finished.
-  bool update_allocation_limits_after_loading_ = false;
 
   // On-stack address used for selective consevative stack scanning. No value
   // means that selective conservative stack scanning is not enabled.
