@@ -65,8 +65,6 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
   if (!is_main_thread()) {
     heap_allocator_.Setup();
     SetUpMarkingBarrier();
-    boostable_priority_ =
-        V8::GetCurrentPlatform()->CreateBoostablePriorityScope();
   }
 
   heap_->safepoint()->AddLocalHeap(this, [this] {
@@ -137,18 +135,6 @@ void LocalHeap::SetUpMainThread() {
   heap_allocator_.Setup();
   SetUpMarkingBarrier();
   SetUpSharedMarking();
-}
-
-void LocalHeap::BoostPriority() {
-  if (boostable_priority_) {
-    boostable_priority_->BoostPriority();
-  }
-}
-
-void LocalHeap::ResetPriority() {
-  if (boostable_priority_) {
-    boostable_priority_->Reset();
-  }
 }
 
 void LocalHeap::SetUpMarkingBarrier() {
