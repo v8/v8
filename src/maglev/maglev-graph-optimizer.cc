@@ -548,6 +548,14 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
     }
     return ProcessResult::kRemove;
   }
+  if constexpr (std::is_same_v<NodeT, CheckMaps> ||
+                std::is_same_v<NodeT, CheckMapsWithMigration> ||
+                std::is_same_v<NodeT, CheckMapsWithMigrationAndDeopt>) {
+    NodeInfo* known_info =
+        known_node_aspects().GetOrCreateInfoFor(broker(), object);
+    node->set_check_type(reducer_.GetCheckType(known_info->type()));
+  }
+
   merger.UpdateKnownNodeAspects(object, known_node_aspects());
   return ProcessResult::kContinue;
 }

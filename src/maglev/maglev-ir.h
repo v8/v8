@@ -6975,6 +6975,9 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
 
   const compiler::ZoneRefSet<Map>& maps() const { return maps_; }
   CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+  void set_check_type(CheckType check_type) {
+    set_bitfield(CheckTypeBitField::update(bitfield(), check_type));
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -7009,6 +7012,9 @@ class CheckMapsWithMigrationAndDeopt
 
   const compiler::ZoneRefSet<Map>& maps() const { return maps_; }
   CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+  void set_check_type(CheckType check_type) {
+    set_bitfield(CheckTypeBitField::update(bitfield(), check_type));
+  }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -7404,6 +7410,9 @@ class CheckMapsWithMigration
   const compiler::ZoneRefSet<Map>& maps() const { return maps_; }
 
   CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+  void set_check_type(CheckType check_type) {
+    set_bitfield(CheckTypeBitField::update(bitfield(), check_type));
+  }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();

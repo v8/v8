@@ -269,6 +269,12 @@ class MaglevReducer {
     DCHECK(new_nodes_at_end_.empty());
   }
 
+  static enum CheckType GetCheckType(NodeType type) {
+    return NodeTypeIs(type, NodeType::kAnyHeapObject)
+               ? CheckType::kOmitHeapObjectCheck
+               : CheckType::kCheckHeapObject;
+  }
+
   // Add a new node with a dynamic set of inputs which are initialized by the
   // `post_create_input_initializer` function before the node is added to the
   // graph.

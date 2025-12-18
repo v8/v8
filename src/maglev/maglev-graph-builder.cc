@@ -1771,14 +1771,6 @@ ReduceResult MaglevGraphBuilder::GetSmiValue(
   return GetSmiValue(value, record_use_repr_hint);
 }
 
-namespace {
-CheckType GetCheckType(NodeType type) {
-  return NodeTypeIs(type, NodeType::kAnyHeapObject)
-             ? CheckType::kOmitHeapObjectCheck
-             : CheckType::kCheckHeapObject;
-}
-}  // namespace
-
 ReduceResult MaglevGraphBuilder::GetInternalizedString(
     interpreter::Register reg) {
   ValueNode* node = current_interpreter_frame_.get(reg);
