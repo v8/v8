@@ -11,9 +11,10 @@
 
 namespace v8::internal {
 
+std::string DifferentialFuzzingPrint(Tagged<Object> obj, int depth);
+
 void DifferentialFuzzingPrint(Tagged<Object> obj, std::ostream& os);
 
-void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, std::ostream& os);
 
 }  // namespace v8::internal
 

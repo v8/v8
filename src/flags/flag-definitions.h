@@ -2916,6 +2916,7 @@ DEFINE_BOOL(interpreter_dumping, false,
 DEFINE_NEG_IMPLICATION(interpreter_dumping, enable_lazy_source_positions)
 DEFINE_STRING(dump_out_filename, "/tmp/output_dump.txt",
               "File to save the frame dumps to")
+DEFINE_INT(dumpling_depth, 3, "depth used in dumpling")
 // Dumpling flags end.
 #endif  // V8_DUMPLING
 
