@@ -832,19 +832,30 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
       }
       DCHECK(!IsTheHole(*value));
 
-      value = InstantiateIfSharedFunctionInfo(context, isolate, js_proto, value,
-                                              feedback_cell_array, start_slot,
-                                              current_slot);
-
       if (it_state == LookupIterator::DATA &&
           it.HolderIsReceiverOrHiddenPrototype()) {
+        DirectHandle<SharedFunctionInfo> shared;
+        if (TryCast<SharedFunctionInfo>(value, &shared)) {
+          // If we were to set an existing property to a SharedFunctionInfo,
+          // there would be the risk of it being returned from IC without being
+          // instantiated.
+          DirectHandle<FeedbackCell> feedback_cell(
+              feedback_cell_array->get(current_slot), isolate);
+          value = Factory::JSFunctionBuilder{isolate, shared, context}
+                      .set_feedback_cell(feedback_cell)
+                      .set_allocation_type(AllocationType::kYoung)
+                      .Build();
+          current_slot++;
+        }
         Object::SetDataProperty(&it, value).Check();
       } else {
+        value = InstantiateIfSharedFunctionInfo(context, isolate, js_proto,
+                                                value, feedback_cell_array,
+                                                start_slot, current_slot);
         Object::TransitionAndWriteDataProperty(
             &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed)
             .Check();
       }
-
       result = value;
     }
   }
