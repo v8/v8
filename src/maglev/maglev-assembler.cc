@@ -197,9 +197,16 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
                 StaticReadOnlyRoot::kTrueValue);
   CompareInt32AndJumpIf(value, StaticReadOnlyRoot::kTrueValue,
                         kUnsignedLessThan, *is_false);
+#if defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_RISCV64)
+  // LOONG64 and RISCV64 do not support condition flags, and
+  // kMaglevFlagsRegister is not set in CompareInt32AndJumpIf.
+  CompareInt32AndJumpIf(value, StaticReadOnlyRoot::kTrueValue, kEqual,
+                        *is_true);
+#else
   // Reuse the condition flags from the above int32 compare to also check for
   // the true value itself.
   JumpIf(kEqual, *is_true);
+#endif
 #else
   // Check if {{value}} is false.
   JumpIfRoot(value, RootIndex::kFalseValue, *is_false);
