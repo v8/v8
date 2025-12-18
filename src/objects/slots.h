@@ -311,15 +311,42 @@ class ExternalPointerSlot
     : public SlotBase<ExternalPointerSlot, ExternalPointer_t,
                       kTaggedSize /* slot alignment */> {
  public:
+  ExternalPointerSlot()
+      : SlotBase(kNullAddress)
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        tag_range_()
+#endif
+  {
+  }
+
   ExternalPointerSlot(Address ptr, ExternalPointerTag tag_range)
-      : SlotBase(ptr), tag_range_(tag_range) {}
+      : SlotBase(ptr)
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        tag_range_(tag_range)
+#endif
+  {
+  }
 
   ExternalPointerSlot(Address ptr, ExternalPointerTagRange tag_range)
-      : SlotBase(ptr), tag_range_(tag_range) {}
+      : SlotBase(ptr)
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        tag_range_(tag_range)
+#endif
+  {
+  }
 
   template <ExternalPointerTag tag>
   explicit ExternalPointerSlot(ExternalPointerMember<tag>* member)
-      : SlotBase(member->storage_address()), tag_range_(tag) {}
+      : SlotBase(member->storage_address())
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        tag_range_(tag)
+#endif
+  {
+  }
 
   inline void init_lazily_initialized();
 
@@ -371,6 +398,7 @@ class ExternalPointerSlot
   inline uint32_t GetContentAsIndexAfterDeserialization(
       const DisallowGarbageCollection& no_gc);
 
+#ifdef V8_COMPRESS_POINTERS
   bool ExactTagIsKnown() const { return tag_range_.Size() == 1; }
 
   ExternalPointerTag exact_tag() const {
@@ -379,6 +407,15 @@ class ExternalPointerSlot
   }
 
   ExternalPointerTagRange tag_range() const { return tag_range_; }
+#else
+  bool ExactTagIsKnown() const { return true; }
+
+  ExternalPointerTag exact_tag() const { return kExternalPointerNullTag; }
+
+  ExternalPointerTagRange tag_range() const {
+    return ExternalPointerTagRange();
+  }
+#endif  // V8_COMPRESS_POINTERS
 
  private:
 #ifdef V8_COMPRESS_POINTERS
@@ -386,10 +423,10 @@ class ExternalPointerSlot
     DCHECK(HasExternalPointerHandle());
     return reinterpret_cast<ExternalPointerHandle*>(address());
   }
-#endif  // V8_COMPRESS_POINTERS
 
   // The tag range associated with this slot.
   ExternalPointerTagRange tag_range_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 // Similar to ExternalPointerSlot with the difference that it refers to an
@@ -399,27 +436,29 @@ class CppHeapPointerSlot
     : public SlotBase<CppHeapPointerSlot, CppHeapPointer_t,
                       /*SlotDataAlignment=*/sizeof(CppHeapPointer_t)> {
  public:
-  explicit CppHeapPointerSlot(Address ptr) : SlotBase(ptr) {}
+  CppHeapPointerSlot() : SlotBase(kNullAddress) {}
 
-  inline void init() const;
+  CppHeapPointerSlot(Address ptr) : SlotBase(ptr) {}
 
 #ifdef V8_COMPRESS_POINTERS
 
   // When V8 runs with pointer compression, the slots here store a handle to an
-  // entry in a dedicated CppHeapPointerTable that is only used for CppHeap
+  // entry in a dedicated ExternalPointerTable that is only used for CppHeap
   // references. These methods allow access to the underlying handle while the
   // load/store methods below resolve the handle to the real pointer. Handles
   // should generally be accessed atomically as they may be accessed from other
   // threads, for example GC marking threads.
   inline CppHeapPointerHandle Relaxed_LoadHandle() const;
+  inline void Relaxed_StoreHandle(CppHeapPointerHandle handle) const;
   inline void Release_StoreHandle(CppHeapPointerHandle handle) const;
 
-#else
-
-  inline void store(Address value) const;
-  inline Address load() const;
-
 #endif  // V8_COMPRESS_POINTERS
+
+  inline Address try_load(IsolateForPointerCompression isolate,
+                          CppHeapPointerTagRange tag_range) const;
+  inline void store(IsolateForPointerCompression isolate, Address value,
+                    CppHeapPointerTag tag) const;
+  inline void init() const;
 };
 
 // An IndirectPointerSlot instance describes a 32-bit field ("slot") containing

@@ -32,7 +32,7 @@ V8_INLINE Address ReadCppHeapPointerField(
   CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
   return isolate.GetCppHeapPointerTable().Get(handle, tag_range);
 #else   // !V8_COMPRESS_POINTERS
-  return slot.load();
+  return slot.try_load(isolate, tag_range);
 #endif  // !V8_COMPRESS_POINTERS
 }
 
@@ -49,7 +49,7 @@ V8_INLINE Address ReadCppHeapPointerField(Address field_address,
   CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
   return isolate.GetCppHeapPointerTable().Get(handle, tag_range);
 #else   // !V8_COMPRESS_POINTERS
-  return slot.load();
+  return slot.try_load(isolate, tag_range);
 #endif  // !V8_COMPRESS_POINTERS
 }
 
@@ -71,7 +71,7 @@ V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
     table.Set(handle, value, tag);
   }
 #else   // !V8_COMPRESS_POINTERS
-  slot.store(value);
+  slot.store(isolate, value, tag);
 #endif  // !V8_COMPRESS_POINTERS
 }
 

@@ -513,10 +513,7 @@ class PromotedPageRecordMigratedSlotVisitor final
   V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
                                       Tagged<JSArrayBuffer> object,
                                       MaybeObjectSize maybe_object_size) {
-    ArrayBufferExtension* extension = object->extension();
-    if (extension) {
-      extension->YoungMarkPromoted();
-    }
+    object->YoungMarkExtensionPromoted();
     return NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
         VisitJSArrayBuffer(map, object, maybe_object_size);
   }
