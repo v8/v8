@@ -133,7 +133,7 @@ void FuzzilliExtension::Fuzzilli(const FunctionCallbackInfo<Value>& info) {
 #ifdef V8_HOST_ARCH_X64
         __asm__ volatile("ud2\n");
 #else
-        FATAL("unsupported architecture");
+        fprintf(stderr, "Unsupported architecture for crash SIGILL crash\n");
 #endif
         break;
       }
@@ -142,7 +142,7 @@ void FuzzilliExtension::Fuzzilli(const FunctionCallbackInfo<Value>& info) {
         // This instruction (0xFF 0xFF) is invalid on x64.
         __asm__ volatile(".byte 0xFF, 0xFF\n");
 #else
-        FATAL("unsupported architecture");
+        fprintf(stderr, "Unsupported architecture for crash SIGILL crash\n");
 #endif
         break;
       }
