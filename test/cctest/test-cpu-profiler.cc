@@ -75,20 +75,6 @@ namespace test_cpu_profiler {
 constexpr v8::EmbedderDataTypeTag kFastApiReceiverTag = 1;
 
 // Helper methods
-
-static void CollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::CpuProfiler::CollectSample(info.GetIsolate());
-}
-
-void InstallCollectSampleFunction(v8::Local<v8::Context> env) {
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(CcTest::isolate(), CollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(env).ToLocalChecked();
-  func->SetName(v8_str("CollectSample"));
-  env->Global()->Set(env, v8_str("CollectSample"), func).FromJust();
-}
-
 static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
                                            const char* name) {
   return v8::Local<v8::Function>::Cast(
@@ -760,10 +746,18 @@ static const char* cpu_profiler_test_source =
     "%NeverOptimizeFunction(baz);\n"
     "%NeverOptimizeFunction(foo);\n"
     "%NeverOptimizeFunction(start);\n"
-    "function loop() {\n"
-    "  CollectSample();\n"
+    "function loop(timeout) {\n"
+    "  this.mmm = 0;\n"
+    "  var start = Date.now();\n"
+    "  do {\n"
+    "    var n = 1000;\n"
+    "    while(n > 1) {\n"
+    "      n--;\n"
+    "      this.mmm += n * n * n;\n"
+    "    }\n"
+    "  } while (Date.now() - start < timeout);\n"
     "}\n"
-    "function delay() { loop(); }\n"
+    "function delay() { loop(10); }\n"
     "function bar() { delay(); }\n"
     "function baz() { delay(); }\n"
     "function foo() {\n"
@@ -772,8 +766,11 @@ static const char* cpu_profiler_test_source =
     "  delay();\n"
     "  baz();\n"
     "}\n"
-    "function start() {\n"
-    "  foo();\n"
+    "function start(duration) {\n"
+    "  var start = Date.now();\n"
+    "  do {\n"
+    "    foo();\n"
+    "  } while (Date.now() - start < duration);\n"
     "}\n";
 
 // Check that the profile tree for the script above will look like the
@@ -794,16 +791,22 @@ static const char* cpu_profiler_test_source =
 //     2     2    (program) [-1]
 //     6     6    (garbage collector) [-1]
 TEST(CollectCpuProfile) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (v8_flags.concurrent_sparkplug) return;
+
   v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
-  InstallCollectSampleFunction(env.local());
   CompileRun(cpu_profiler_test_source);
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
 
+  int32_t profiling_interval_ms = 200;
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env.isolate(), profiling_interval_ms)};
   ProfilerHelper helper(env.local());
-  v8::CpuProfile* profile = helper.Run(function, nullptr, 0);
+  v8::CpuProfile* profile = helper.Run(function, args, arraysize(args), 1000);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
@@ -821,29 +824,38 @@ TEST(CollectCpuProfile) {
 }
 
 TEST(CollectCpuProfileCallerLineNumbers) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (v8_flags.concurrent_sparkplug) return;
+
   v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
-  InstallCollectSampleFunction(env.local());
   CompileRun(cpu_profiler_test_source);
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
 
+  int32_t profiling_interval_ms = 200;
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env.isolate(), profiling_interval_ms)};
   ProfilerHelper helper(env.local());
-  v8::CpuProfile* profile = helper.Run(
-      function, {}, 0, 0, 0, v8::CpuProfilingMode::kCallerLineNumbers, 0);
+  helper.Run(function, args, arraysize(args), 1000, 0,
+             v8::CpuProfilingMode::kCallerLineNumbers, 0);
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), 1000, 0,
+                 v8::CpuProfilingMode::kCallerLineNumbers, 0);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
-  const v8::CpuProfileNode* start_node = GetChild(root, {"start", 19});
-  const v8::CpuProfileNode* foo_node = GetChild(start_node, {"foo", 20});
+  const v8::CpuProfileNode* start_node = GetChild(root, {"start", 27});
+  const v8::CpuProfileNode* foo_node = GetChild(start_node, {"foo", 30});
 
-  NameLinePair bar_branch[] = {{"bar", 15}, {"delay", 11}, {"loop", 10}};
+  NameLinePair bar_branch[] = {{"bar", 23}, {"delay", 19}, {"loop", 18}};
   CheckBranch(foo_node, bar_branch, arraysize(bar_branch));
-  NameLinePair baz_branch[] = {{"baz", 17}, {"delay", 12}, {"loop", 10}};
+  NameLinePair baz_branch[] = {{"baz", 25}, {"delay", 20}, {"loop", 18}};
   CheckBranch(foo_node, baz_branch, arraysize(baz_branch));
-  NameLinePair delay_at22_branch[] = {{"delay", 16}, {"loop", 10}};
+  NameLinePair delay_at22_branch[] = {{"delay", 22}, {"loop", 18}};
   CheckBranch(foo_node, delay_at22_branch, arraysize(delay_at22_branch));
-  NameLinePair delay_at24_branch[] = {{"delay", 14}, {"loop", 10}};
+  NameLinePair delay_at24_branch[] = {{"delay", 24}, {"loop", 18}};
   CheckBranch(foo_node, delay_at24_branch, arraysize(delay_at24_branch));
 
   profile->Delete();
@@ -900,30 +912,22 @@ TEST(HotDeoptNoFrameEntry) {
   profile->Delete();
 }
 
-TEST(CollectCpuProfileSamplesOrder) {
+TEST(CollectCpuProfileSamples) {
   v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
-  // Don't use the native CollectSample helper to avoid subtle sample ordering
-  // issues when combining them with the ones from the sampling-thread.
-  CompileRun(R"(
-    function CollectSample() {
-      const timeout = 10;
-      const start = Date.now();
-      do {
-        var duration = Date.now() - start;
-      } while (duration < timeout);
-      return duration;
-    }
-  )");
   CompileRun(cpu_profiler_test_source);
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
 
+  int32_t profiling_interval_ms = 200;
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env.isolate(), profiling_interval_ms)};
   ProfilerHelper helper(env.local());
-  v8::CpuProfile* profile = helper.Run(function, {}, 0, 100, 0);
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), 1000, 0);
 
-  CHECK_LE(100, profile->GetSamplesCount());
+  CHECK_LE(200, profile->GetSamplesCount());
   uint64_t end_time = profile->GetEndTime();
   uint64_t current_time = profile->GetStartTime();
   CHECK_LE(current_time, end_time);
@@ -998,31 +1002,38 @@ constexpr v8::ExternalPointerTypeTag kTestApiCallbacksTag = 19;
 
 class TestApiCallbacks {
  public:
-  TestApiCallbacks() : is_warming_up_(false) {}
+  explicit TestApiCallbacks(int min_duration_ms)
+      : min_duration_ms_(min_duration_ms), is_warming_up_(false) {}
 
   static void Getter(v8::Local<v8::Name> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
     TestApiCallbacks* data = FromInfo(info);
-    data->CollectSample(info.GetIsolate());
+    data->Wait();
   }
 
   static void Setter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
                      const v8::PropertyCallbackInfo<void>& info) {
     TestApiCallbacks* data = FromInfo(info);
-    data->CollectSample(info.GetIsolate());
+    data->Wait();
   }
 
   static void Callback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     TestApiCallbacks* data = FromInfo(info);
-    data->CollectSample(info.GetIsolate());
+    data->Wait();
   }
 
   void set_warming_up(bool value) { is_warming_up_ = value; }
 
  private:
-  void CollectSample(v8::Isolate* isolate) {
+  void Wait() {
     if (is_warming_up_) return;
-    v8::CpuProfiler::CollectSample(isolate);
+    v8::Platform* platform = v8::internal::V8::GetCurrentPlatform();
+    int64_t start = platform->CurrentClockTimeMilliseconds();
+    int64_t duration = 0;
+    while (duration < min_duration_ms_) {
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
+      duration = platform->CurrentClockTimeMilliseconds() - start;
+    }
   }
 
   template <typename T>
@@ -1031,6 +1042,7 @@ class TestApiCallbacks {
     return reinterpret_cast<TestApiCallbacks*>(data);
   }
 
+  int min_duration_ms_;
   bool is_warming_up_;
 };
 
@@ -1048,7 +1060,7 @@ TEST(NativeAccessorUninitializedIC) {
   v8::Local<v8::ObjectTemplate> instance_template =
       func_template->InstanceTemplate();
 
-  TestApiCallbacks accessors;
+  TestApiCallbacks accessors(100);
   v8::Local<v8::External> data =
       v8::External::New(isolate, &accessors, kTestApiCallbacksTag);
   instance_template->SetNativeDataProperty(v8_str("foo"),
@@ -1089,7 +1101,7 @@ TEST(NativeAccessorMonomorphicIC) {
   v8::Local<v8::ObjectTemplate> instance_template =
       func_template->InstanceTemplate();
 
-  TestApiCallbacks accessors;
+  TestApiCallbacks accessors(1);
   v8::Local<v8::External> data =
       v8::External::New(isolate, &accessors, kTestApiCallbacksTag);
   instance_template->SetNativeDataProperty(v8_str("foo"),
@@ -1141,7 +1153,7 @@ TEST(NativeMethodUninitializedIC) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
-  TestApiCallbacks callbacks;
+  TestApiCallbacks callbacks(100);
   v8::Local<v8::External> data =
       v8::External::New(isolate, &callbacks, kTestApiCallbacksTag);
 
@@ -1183,7 +1195,7 @@ TEST(NativeMethodMonomorphicIC) {
   v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
-  TestApiCallbacks callbacks;
+  TestApiCallbacks callbacks(1);
   v8::Local<v8::External> data =
       v8::External::New(isolate, &callbacks, kTestApiCallbacksTag);
 
@@ -1472,11 +1484,13 @@ static const char* function_apply_test_source =
     "%NeverOptimizeFunction(bar);\n"
     "%NeverOptimizeFunction(test);\n"
     "%NeverOptimizeFunction(start);\n"
-    "function bar() {\n"
-    "  CollectSample();\n"
+    "function bar(n) {\n"
+    "  var s = 0;\n"
+    "  for (var i = 0; i < n; i++) s += i * i * i;\n"
+    "  return s;\n"
     "}\n"
     "function test() {\n"
-    "  bar.apply(this);\n"
+    "  bar.apply(this, [1000]);\n"
     "}\n"
     "function start(duration) {\n"
     "  var start = Date.now();\n"
@@ -1495,16 +1509,21 @@ static const char* function_apply_test_source =
 //     2     2        bar [-1] #16 6
 //    10    10    (program) [-1] #0 2
 TEST(FunctionApplySample) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::v8_flags.concurrent_sparkplug) return;
+
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
-  InstallCollectSampleFunction(env.local());
   CompileRun(function_apply_test_source);
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
 
   ProfilerHelper helper(env.local());
-  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 0);
+  int32_t duration_ms = 100;
+  v8::Local<v8::Value> args[] = {v8::Integer::New(env.isolate(), duration_ms)};
+  v8::CpuProfile* profile = helper.Run(function, args, arraysize(args), 1000);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
@@ -1749,8 +1768,21 @@ TEST(JsNative1JsNative2JsSample) {
 
 static const char* js_force_collect_sample_source =
     "function start() {\n"
-    "  CollectSample();\n"
+    "  CallCollectSample();\n"
     "}";
+
+static void CallCollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::CpuProfiler::CollectSample(info.GetIsolate());
+}
+
+void InstallCollectSampleFunction(v8::Local<v8::Context> env) {
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(CcTest::isolate(), CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  env->Global()->Set(env, v8_str("CallCollectSample"), func).FromJust();
+}
 
 TEST(CollectSampleAPI) {
   v8::HandleScope scope(CcTest::isolate());
@@ -1767,7 +1799,7 @@ TEST(CollectSampleAPI) {
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
   CHECK_LE(1, start_node->GetChildrenCount());
-  GetChild(env, start_node, "CollectSample");
+  GetChild(env, start_node, "CallCollectSample");
 
   profile->Delete();
 }
@@ -1904,12 +1936,13 @@ static const char* inlining_top_level_test_source =
     "function action(n = 100) {\n"
     "  var s = 0;\n"
     "  for (var i = 0; i < n; ++i) s += i*i*i;\n"
-    "  collectSample();\n"
     "  return s;\n"
     "}\n"
-    "function proxy() { return action(10); }\n"
+    "function proxy() { return action(100); }\n"
     "function start() {\n"
-    "  proxy();\n"
+    "  var n = 100;\n"
+    "  while (--n)\n"
+    "    proxy();\n"
     "}"
     "%PrepareFunctionForOptimization(action);\n"
     "%PrepareFunctionForOptimization(proxy);\n"
@@ -1945,7 +1978,8 @@ TEST(InliningTopLevel) {
   CompileRun(inlining_top_level_test_source);
   v8::Local<v8::Function> function = GetFunction(env, "start");
 
-  v8::CpuProfile* profile = helper.Run(function, nullptr, 0);
+  static const unsigned min_samples = 100;
+  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, min_samples);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
@@ -2173,7 +2207,7 @@ static const char* cross_script_source_c = R"(
     }
     %NeverOptimizeFunction(action);
     function action(n) {
-      CollectSample();
+      CallCollectSample();
       return n;
     }
   )";
@@ -2211,6 +2245,10 @@ static const char* cross_script_source_f = R"(
   )";
 
 TEST(CrossScriptInliningCallerLineNumbers2) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::v8_flags.concurrent_sparkplug) return;
+
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -3206,15 +3244,27 @@ TEST(Issue763073) {
 static const char* js_collect_sample_api_source =
     "%NeverOptimizeFunction(start);\n"
     "function start() {\n"
-    "  CollectSample();\n"
+    "  CallStaticCollectSample();\n"
     "}";
+
+static void CallStaticCollectSample(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::CpuProfiler::CollectSample(info.GetIsolate());
+}
 
 TEST(StaticCollectSampleAPI) {
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
-  InstallCollectSampleFunction(env.local());
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env.isolate(), CallStaticCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallStaticCollectSample"));
+  env->Global()
+      ->Set(env.local(), v8_str("CallStaticCollectSample"), func)
+      .FromJust();
 
   CompileRun(js_collect_sample_api_source);
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
@@ -3224,7 +3274,7 @@ TEST(StaticCollectSampleAPI) {
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
-  GetChild(env.local(), start_node, "CollectSample");
+  GetChild(env.local(), start_node, "CallStaticCollectSample");
 
   profile->Delete();
 }
@@ -3693,7 +3743,7 @@ const char* naming_test_source = R"(
   (function testAssignmentPropertyNamedFunction() {
     let object = {};
     object.propNamed = function () {
-      CollectSample();
+      CallCollectSample();
     };
     object.propNamed();
   })();
@@ -3992,7 +4042,7 @@ TEST(Bug9151StaleCodeEntries) {
   // Log a function compilation (executed once to force a compilation).
   CompileRun(R"(
       function start() {
-        CollectSample();
+        CallCollectSample();
       }
       start();
   )");
@@ -4008,7 +4058,7 @@ TEST(Bug9151StaleCodeEntries) {
   auto* start = FindChild(env.local(), toplevel, "start");
   CHECK(start);
 
-  auto* callback = FindChild(env.local(), start, "CollectSample");
+  auto* callback = FindChild(env.local(), start, "CallCollectSample");
   CHECK(callback);
 }
 
@@ -4025,11 +4075,11 @@ TEST(ContextIsolation) {
   ProfilerHelper helper(execution_env.local());
   CompileRun(R"(
     function optimized() {
-      CollectSample();
+      CallCollectSample();
     }
 
     function unoptimized() {
-      CollectSample();
+      CallCollectSample();
     }
 
     function start() {
@@ -4045,7 +4095,7 @@ TEST(ContextIsolation) {
       unoptimized();
 
       // Test callback
-      CollectSample();
+      CallCollectSample();
     }
   )");
   v8::Local<v8::Function> function =
@@ -4063,7 +4113,7 @@ TEST(ContextIsolation) {
       FindChild(start_node, "unoptimized");
   CHECK(unoptimized_node);
   const v8::CpuProfileNode* callback_node =
-      FindChild(start_node, "CollectSample");
+      FindChild(start_node, "CallCollectSample");
   CHECK(callback_node);
 
   {
@@ -4124,11 +4174,11 @@ TEST(EmbedderContextIsolation) {
     ProfilerHelper helper(execution_env.local());
     CompileRun(R"(
       function optimized() {
-        CollectSample();
+        CallCollectSample();
       }
 
       function unoptimized() {
-        CollectSample();
+        CallCollectSample();
       }
 
       function start() {
@@ -4144,7 +4194,7 @@ TEST(EmbedderContextIsolation) {
         unoptimized();
 
         // Test callback
-        CollectSample();
+        CallCollectSample();
       }
     )");
     v8::Local<v8::Function> function =
@@ -4178,11 +4228,11 @@ TEST(EmbedderStatePropagate) {
     ProfilerHelper helper(execution_env.local());
     CompileRun(R"(
       function optimized() {
-        CollectSample();
+        CallCollectSample();
       }
 
       function unoptimized() {
-        CollectSample();
+        CallCollectSample();
       }
 
       function start() {
@@ -4198,7 +4248,7 @@ TEST(EmbedderStatePropagate) {
         unoptimized();
 
         // Test callback
-        CollectSample();
+        CallCollectSample();
       }
     )");
     v8::Local<v8::Function> function =
@@ -4274,7 +4324,7 @@ TEST(EmbedderStatePropagateNativeContextMove) {
     CompileRun(R"(
       function start() {
         ForceNativeContextMove();
-        CollectSample();
+        CallCollectSample();
       }
     )");
     v8::Local<v8::Function> function =
@@ -4327,7 +4377,7 @@ TEST(ContextFilterMovedNativeContext) {
     CompileRun(R"(
       function start() {
         ForceNativeContextMove();
-        CollectSample();
+        CallCollectSample();
       }
     )");
     v8::Local<v8::Function> function = GetFunction(env.local(), "start");
@@ -4339,10 +4389,10 @@ TEST(ContextFilterMovedNativeContext) {
     const v8::CpuProfileNode* start_node = FindChild(root, "start");
     CHECK(start_node);
 
-    // Verify that after moving the native context, CollectSample is still
+    // Verify that after moving the native context, CallCollectSample is still
     // recorded.
     const v8::CpuProfileNode* callback_node =
-        FindChild(start_node, "CollectSample");
+        FindChild(start_node, "CallCollectSample");
     CHECK(callback_node);
   }
 }
