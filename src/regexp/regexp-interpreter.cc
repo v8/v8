@@ -889,14 +889,6 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(CheckNotRegsEqual, reg1, reg2, on_not_equal) {
-      if (registers[reg1] == registers[reg2]) {
-        ADVANCE();
-      } else {
-        SET_PC_FROM_OFFSET(on_not_equal);
-      }
-      DISPATCH();
-    }
     BYTECODE(CheckNotBackRef, start_reg, on_not_equal) {
       int from = registers[start_reg];
       int len = registers[start_reg + 1] - from;
