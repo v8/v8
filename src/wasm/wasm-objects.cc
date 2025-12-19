@@ -1093,9 +1093,13 @@ DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
   void* old_data_pointer = old_buffer->backing_store();
   size_t old_byte_length = old_buffer->byte_length();
 #endif
-  JSArrayBuffer::Detach(old_buffer, true).Check();
-  DirectHandle<JSArrayBuffer> new_buffer =
-      isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
+  DirectHandle<JSArrayBuffer> new_buffer;
+  {
+    SuspendExternalMemoryLimitsUpdates suspend_scope(isolate->heap());
+    JSArrayBuffer::Detach(old_buffer, true).Check();
+    new_buffer =
+        isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
+  }
 #ifdef DEBUG
   bool data_pointer_unchanged = new_buffer->backing_store() == old_data_pointer;
   bool byte_length_unchanged = new_buffer->byte_length() == old_byte_length;

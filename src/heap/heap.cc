@@ -1463,7 +1463,8 @@ void Heap::HandleExternalMemoryInterrupt() {
   }
   if (v8_flags.external_memory_accounted_in_global_limit) {
     // Under `external_memory_accounted_in_global_limit`, external interrupt
-    // only triggers a check to allocation limits.
+    // only triggers a check to allocation limits. This limit is intentionally
+    // updated regardless of `is_external_memory_limit_updates_suspended_`.
     external_memory_.UpdateLimitForInterrupt(current);
     StartIncrementalMarkingIfAllocationLimitIsReached(
         main_thread_local_heap(), GCFlagsForIncrementalMarking(),
@@ -2759,7 +2760,9 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
   UpdateOldGenerationAllocationCounter();
   old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
   old_generation_wasted_at_last_gc_ = OldGenerationWastedBytes();
-  external_memory_.UpdateLowSinceMarkCompact(external_memory_.total());
+  if (V8_LIKELY(!is_external_memory_limit_updates_suspended_)) {
+    external_memory_.UpdateLowSinceMarkCompact(external_memory_.total());
+  }
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   set_using_initial_limit(false);
 
@@ -2821,6 +2824,8 @@ void Heap::MarkCompact() {
       static_cast<size_t>(promoted_objects_size_);
   old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
   old_generation_wasted_at_last_gc_ = OldGenerationWastedBytes();
+  // The GC may call `UpdateLowSinceMarkCompact` even when
+  // `is_external_memory_limit_updates_suspended_` is true.
   external_memory_.UpdateLowSinceMarkCompact(external_memory_.total());
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   // Limits can now be computed based on estimate from MARK_COMPACT.
@@ -7208,9 +7213,11 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
 
 uint64_t Heap::UpdateExternalMemory(int64_t delta) {
   uint64_t amount = external_memory_.UpdateAmount(delta);
-  uint64_t low_since_mark_compact = external_memory_.low_since_mark_compact();
-  if (amount < low_since_mark_compact) {
-    external_memory_.UpdateLowSinceMarkCompact(amount);
+  if (V8_LIKELY(!is_external_memory_limit_updates_suspended_)) {
+    uint64_t low_since_mark_compact = external_memory_.low_since_mark_compact();
+    if (amount < low_since_mark_compact) {
+      external_memory_.UpdateLowSinceMarkCompact(amount);
+    }
   }
   return amount;
 }
@@ -8000,6 +8007,24 @@ ConservativePinningScope::ConservativePinningScope(Heap* heap) : heap_(heap) {
 ConservativePinningScope::~ConservativePinningScope() {
   DCHECK(heap_->selective_stack_scan_start_address_.has_value());
   heap_->selective_stack_scan_start_address_.reset();
+}
+
+SuspendExternalMemoryLimitsUpdates::SuspendExternalMemoryLimitsUpdates(
+    Heap* heap)
+    : heap_(heap) {
+  DCHECK(!heap_->is_external_memory_limit_updates_suspended_);
+  heap_->is_external_memory_limit_updates_suspended_ = true;
+}
+
+SuspendExternalMemoryLimitsUpdates::~SuspendExternalMemoryLimitsUpdates() {
+  DCHECK(heap_->is_external_memory_limit_updates_suspended_);
+  heap_->is_external_memory_limit_updates_suspended_ = false;
+  uint64_t current_external_memory = heap_->external_memory();
+  uint64_t low_since_mark_compact =
+      heap_->external_memory_.low_since_mark_compact();
+  if (current_external_memory < low_since_mark_compact) {
+    heap_->external_memory_.UpdateLowSinceMarkCompact(current_external_memory);
+  }
 }
 
 #include "src/objects/object-macros-undef.h"

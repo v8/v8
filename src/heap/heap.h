@@ -2574,6 +2574,8 @@ class Heap final {
 
   bool is_finalization_registry_cleanup_task_posted_ = false;
 
+  bool is_external_memory_limit_updates_suspended_ = false;
+
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
@@ -2658,6 +2660,7 @@ class Heap final {
   friend class StressConcurrentAllocationObserver;
   friend class Space;
   friend class SpaceWithLinearArea;
+  friend class SuspendExternalMemoryLimitsUpdates;
   friend class Sweeper;
   friend class UnifiedHeapMarkingState;
   friend class heap::TestMemoryAllocatorScope;
@@ -3008,6 +3011,25 @@ class ClearStaleLeftTrimmedPointerVisitor : public RootVisitor {
 #if V8_COMPRESS_POINTERS
   const PtrComprCageBase cage_base_;
 #endif  // V8_COMPRESS_POINTERS
+};
+
+// Use this scope to postpone update to external memory limits (e.g. hard limit,
+// soft limit, interrupt limit). Updates during GC are not postponed. This scope
+// should be as short lived as possible. These scopes should never be nested.
+//
+// This scope should be used when "moving" memory around in a way that is
+// expected to temporarily reduce external memory but not retain this reduction.
+// For example when detaching and reattaching an array buffer will temporarily
+// decrease external memory followed shortly by readding it. Without this scope,
+// the temporary reduction will result in lower external memory limits and
+// trigger GCs.
+class V8_NODISCARD SuspendExternalMemoryLimitsUpdates final {
+ public:
+  explicit SuspendExternalMemoryLimitsUpdates(Heap* heap);
+  ~SuspendExternalMemoryLimitsUpdates();
+
+ private:
+  Heap* const heap_;
 };
 
 }  // namespace internal
