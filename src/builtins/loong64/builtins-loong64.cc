@@ -4294,8 +4294,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   static_assert(FCA::kApiArgsLength == 4);
   static_assert(FCA::ApiArgIndex(FCA::kTargetIndex) == 3);
-  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 2);
-  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 1);
+  static_assert(FCA::ApiArgIndex(FCA::kContextIndex) == 2);
+  static_assert(FCA::ApiArgIndex(FCA::kReturnValueIndex) == 1);
   static_assert(FCA::ApiArgIndex(FCA::kIsolateIndex) == 0);
 
   // Set up v8::FunctionCallbackInfo's Api arguments on the stack as follows:
@@ -4368,65 +4368,52 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- cp                  : context
-  //  -- a1                  : receiver
   //  -- a3                  : accessor info
-  //  -- a0                  : holder
+  //  -- sp[1]               : receiver
+  //  -- sp[0]               : holder
   // -----------------------------------
 
   Register name_arg = kCArgRegs[0];
   Register property_callback_info_arg = kCArgRegs[1];
 
   Register api_function_address = a2;
-  Register receiver = ApiGetterDescriptor::ReceiverRegister();
-  Register holder = ApiGetterDescriptor::HolderRegister();
   Register callback = ApiGetterDescriptor::CallbackRegister();
   Register scratch = a4;
   Register undef = a5;
   Register scratch2 = a6;
 
-  DCHECK(!AreAliased(receiver, holder, callback, scratch, undef, scratch2));
+  DCHECK(!AreAliased(name_arg, property_callback_info_arg, callback, scratch,
+                     undef, scratch2));
 
-  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
-  // name below the exit frame to make GC aware of them.
   using PCA = PropertyCallbackArguments;
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
 
-  static_assert(PCA::kPropertyKeyIndex == 0);
-  static_assert(PCA::kShouldThrowOnErrorIndex == 1);
-  static_assert(PCA::kHolderIndex == 2);
-  static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kUnusedIndex == 4);
-  static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kCallbackInfoIndex == 6);
-  static_assert(PCA::kThisIndex == 7);
-  static_assert(PCA::kArgsLength == 8);
+  static_assert(PCA::kGetterApiArgsLength == 5);
+  static_assert(PCA::ApiArgIndex(PCA::kThisIndex) == 4);
+  static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
+  static_assert(PCA::ApiArgIndex(PCA::kCallbackInfoIndex) == 2);
+  static_assert(PCA::ApiArgIndex(PCA::kReturnValueIndex) == 1);
+  static_assert(PCA::ApiArgIndex(PCA::kIsolateIndex) == 0);
 
-  // Set up v8::PropertyCallbackInfo's (PCI) args_ on the stack as follows:
-  // Target state:
-  //   sp[0 * kSystemPointerSize]: name                       <= PCI:args_
-  //   sp[1 * kSystemPointerSize]: kShouldThrowOnErrorIndex
-  //   sp[2 * kSystemPointerSize]: kHolderIndex
-  //   sp[3 * kSystemPointerSize]: kIsolateIndex
-  //   sp[4 * kSystemPointerSize]: kUnusedIndex
-  //   sp[5 * kSystemPointerSize]: kReturnValueIndex
-  //   sp[6 * kSystemPointerSize]: kCallbackInfoIndex
-  //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
+  // Set up v8::PropertyCallbackInfo's arguments on the stack as follows:
+  //
+  //  Current state            |  Target state
+  // --------------------------+--------------------------------------------
+  //                           |  ...
+  //                           |  sp[4]: receiver        <- kThisIndex
+  //                           |  sp[3]: holder          <- kHolderIndex
+  //  ...                      |  sp[2]: callback info   <- kCallbackInfoIndex
+  //  sp[1]: receiver          |  sp[1]: undefined       <- kReturnValueIndex
+  //  sp[0]: holder            |  sp[0]: isolate         <- kIsolateIndex
+  //
 
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
   __ li(scratch2, ER::isolate_address());
-  Register holderV2 = zero_reg;
-  __ Push(receiver, callback,  // kThisIndex, kCallbackInfoIndex
-          undef, holderV2);    // kReturnValueIndex, kUnusedIndex
-  __ Push(scratch2, holder);  // kIsolateIndex, kHolderIndex
 
-  // |name_arg| clashes with |holder|, so we need to push holder first.
-  __ LoadTaggedField(name_arg,
-                     FieldMemOperand(callback, AccessorInfo::kNameOffset));
-  static_assert(kDontThrow == 0);
-  Register should_throw_on_error =
-      zero_reg;  // should_throw_on_error -> kDontThrow
-  __ Push(should_throw_on_error, name_arg);
+  __ Push(callback,   // kCallbackInfoIndex
+          undef,      // kReturnValueIndex
+          scratch2);  // kIsolateIndex
 
   __ RecordComment("Load api_function_address");
   __ LoadExternalPointerField(
@@ -4438,9 +4425,17 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ EnterExitFrame(scratch, FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
                     StackFrame::API_NAMED_ACCESSOR_EXIT);
 
-  __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
-  // property_callback_info_arg = v8::PropertyCallbackInfo&
-  __ Add_d(property_callback_info_arg, fp, Operand(FC::kArgsArrayOffset));
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Initialize v8::PropertyCallbackInfo");
+    __ LoadTaggedField(name_arg,
+                       FieldMemOperand(callback, AccessorInfo::kNameOffset));
+    // kPropertyKeyIndex
+    __ St_d(name_arg, MemOperand(fp, FC::kPropertyKeyOffset));
+
+    // property_callback_info_arg = v8::PropertyCallbackInfo&
+    __ Add_d(property_callback_info_arg, fp,
+             Operand(FC::kPropertyCallbackInfoOffset));
+  }
 
   DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name_arg,
                      callback, scratch, scratch2));
@@ -4459,7 +4454,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   MemOperand return_value_operand = MemOperand(fp, FC::kReturnValueOffset);
   static constexpr int kSlotsToDropOnReturn =
-      FC::kPropertyCallbackInfoArgsLength;
+      FC::kPropertyCallbackInfoGetterApiArgsLength;
   MemOperand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;
