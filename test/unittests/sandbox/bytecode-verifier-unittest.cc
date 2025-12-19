@@ -550,6 +550,28 @@ TEST_F(BytecodeVerifierTest, InvalidFinalInstruction) {
       "Bytecode does not end with a control-flow terminating instruction");
 }
 
+TEST_F(BytecodeVerifierTest, WritingToSpecialRegister) {
+  Isolate* isolate = i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<TrustedFixedArray> constant_pool = factory->NewTrustedFixedArray(0);
+  Handle<TrustedByteArray> handler_table = factory->NewTrustedByteArray(0);
+
+  uint8_t closure_reg_operand = static_cast<uint8_t>(
+      interpreter::Register::function_closure().ToOperand());
+
+  std::vector<uint8_t> kRawBytes = {
+      static_cast<uint8_t>(interpreter::Bytecode::kLdaZero),
+      static_cast<uint8_t>(interpreter::Bytecode::kStar), closure_reg_operand,
+      static_cast<uint8_t>(interpreter::Bytecode::kReturn)};
+
+  Handle<BytecodeArray> bc =
+      MakeBytecodeArray(isolate, kRawBytes, constant_pool, handler_table);
+
+  ASSERT_DEATH_IF_SUPPORTED(VerifyFull(isolate, bc),
+                            "Invalid write to special register");
+}
+
 }  // namespace internal
 }  // namespace v8
 

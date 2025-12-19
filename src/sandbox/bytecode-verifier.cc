@@ -94,7 +94,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
   // invariants, for example that various IDs embedded in the bytecode are
   // valid, but that is mostly for fuzzer cleanliness.
 
-  auto VerifyRegister = [&](interpreter::Register reg) {
+  auto VerifyRegister = [&](interpreter::Register reg, bool is_output) {
     if (reg.is_parameter()) {
       int param_index = reg.ToParameterIndex();
       int parameter_count = bytecode->parameter_count();
@@ -105,6 +105,15 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
         // (is_bytecode_array()) or the bytecode offset (is_bytecode_offset()).
         if (!reg.is_current_context() && !reg.is_function_closure()) {
           FailVerification("Parameter index out of bounds");
+        } else if (is_output) {
+          // However, we should not write to these special registers as they
+          // are not "real" parameters. This would be fine if we were only
+          // executing the bytecode (these objects are inside the sandbox, so
+          // it doesn't matter if they or pointers to them get corrupted), but
+          // for example our compilers sometimes assume that writes only go to
+          // "normal" parameters or registers and would otherwise crash in
+          // potentially unsafe ways. See e.g. https://crbug.com/467843950.
+          FailVerification("Invalid write to special register");
         }
       }
     } else {
@@ -116,7 +125,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
   interpreter::Register incoming_new_target_or_generator =
       bytecode->incoming_new_target_or_generator_register();
   if (incoming_new_target_or_generator.is_valid()) {
-    VerifyRegister(incoming_new_target_or_generator);
+    VerifyRegister(incoming_new_target_or_generator, false);
   }
 
   unsigned constant_pool_length = bytecode->constant_pool()->length();
@@ -162,13 +171,15 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
         case interpreter::OperandType::kRegOutTriple:
         case interpreter::OperandType::kRegList:
         case interpreter::OperandType::kRegOutList: {
+          bool is_output =
+              interpreter::Bytecodes::IsRegisterOutputOperandType(operand_type);
           int count = iterator.GetRegisterOperandRange(i);
           if (count > 0) {
             interpreter::Register start = iterator.GetRegisterOperand(i);
-            VerifyRegister(start);
+            VerifyRegister(start, is_output);
             if (count > 1) {
               interpreter::Register end(start.index() + count - 1);
-              VerifyRegister(end);
+              VerifyRegister(end, is_output);
               Check(start.is_parameter() == end.is_parameter(),
                     "Register range crosses parameter/local boundary");
             }
@@ -213,7 +224,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
 
     if (interpreter::Bytecodes::WritesImplicitRegister(current_bytecode)) {
       interpreter::Register reg = iterator.GetStarTargetRegister();
-      VerifyRegister(reg);
+      VerifyRegister(reg, true);
     }
   }
 
