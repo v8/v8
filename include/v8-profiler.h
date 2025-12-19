@@ -1132,7 +1132,7 @@ class V8_EXPORT HeapProfiler {
     /**
      * The resolver used by the snapshot generator to get names for V8 objects.
      */
-    V8_DEPRECATE_SOON("Use context_name_resolver callback instead.")
+    V8_DEPRECATED("Use context_name_resolver callback instead.")
     ObjectNameResolver* global_object_name_resolver = nullptr;
     /**
      * The resolver used by the snapshot generator to get names for v8::Context
@@ -1170,7 +1170,7 @@ class V8_EXPORT HeapProfiler {
    *
    * \returns the snapshot.
    */
-  V8_DEPRECATE_SOON("Use overload with ContextNameResolver* resolver instead.")
+  V8_DEPRECATED("Use overload with ContextNameResolver* resolver instead.")
   const HeapSnapshot* TakeHeapSnapshot(
       ActivityControl* control, ObjectNameResolver* global_object_name_resolver,
       bool hide_internals = true, bool capture_numeric_value = false);
