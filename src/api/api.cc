@@ -12456,6 +12456,13 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
                                                             max_length);
 }
 
+std::string SourceLocation::ToString() const {
+  if (!*this) return {};
+  return (std::ostringstream{} << loc_.function_name() << '@'
+                               << loc_.file_name() << ':' << loc_.line())
+      .str();
+}
+
 }  // namespace v8
 
 #ifdef ENABLE_SLOW_DCHECKS

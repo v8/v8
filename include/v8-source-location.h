@@ -7,7 +7,6 @@
 
 #include <cstddef>
 #include <source_location>
-#include <sstream>
 #include <string>
 
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -71,12 +70,7 @@ class V8_EXPORT SourceLocation final {
    *
    * \returns a human-readable string representing source location information.
    */
-  std::string ToString() const {
-    if (!*this) return {};
-    return (std::ostringstream{} << loc_.function_name() << '@'
-                                 << loc_.file_name() << ':' << loc_.line())
-        .str();
-  }
+  std::string ToString() const;
 
   /**
    * Checks whether this object is initialized.
