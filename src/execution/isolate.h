@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <list>
 #include <memory>
@@ -955,7 +956,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Prints minimal stack trace without allocating on the V8 heap (native
   // allocations are allowed). Used for printing the JS stack on OOM errors.
   void PrintMinimalStack(FILE* out);
-  std::string BuildMinimalStack();
+  std::string BuildMinimalStack(size_t max_length = SIZE_MAX);
 
   // Reports the minimal stack trace as a crash key. Used for OOM errors.
   void ReportStackAsCrashKey();

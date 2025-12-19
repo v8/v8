@@ -1841,7 +1841,7 @@ namespace {
 
 class MinimalStackPrinter {
  public:
-  MinimalStackPrinter() = default;
+  explicit MinimalStackPrinter(size_t max_length) : max_length_(max_length) {}
 
   void SetPrevFrameAsConstructCall() {
     // Nothing to do.
@@ -1880,7 +1880,8 @@ class MinimalStackPrinter {
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
 
-    return true;
+    // Stop iterating when we emitted too many characters.
+    return HasMoreSpace();
   }
 
   void PrintWasmFrame(int function_index, Handle<Object> script,
@@ -1910,18 +1911,29 @@ class MinimalStackPrinter {
 
   std::string Build() { return out_.str(); }
 
+  bool HasMoreSpace() {
+    size_t current = out_.tellp();
+    return current < max_length_;
+  }
+
  private:
   std::stringstream out_;
+  const size_t max_length_;
 };
 
 }  // namespace
 
-std::string Isolate::BuildMinimalStack() {
+std::string Isolate::BuildMinimalStack(size_t max_length) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(this);
 
-  MinimalStackPrinter printer;
-  VisitStack(this, &printer);
+  static constexpr v8::StackTrace::StackTraceOptions stackTraceOptions =
+      static_cast<v8::StackTrace::StackTraceOptions>(
+          v8::StackTrace::kDetailed |
+          v8::StackTrace::kExposeFramesAcrossSecurityOrigins);
+
+  MinimalStackPrinter printer(max_length);
+  VisitStack(this, &printer, stackTraceOptions);
   return printer.Build();
 }
 
@@ -1935,7 +1947,8 @@ void Isolate::ReportStackAsCrashKey() {
     return;
   }
 
-  std::string stack = BuildMinimalStack();
+  constexpr size_t kMaximumStackLengthBytes = 1024;
+  std::string stack = BuildMinimalStack(kMaximumStackLengthBytes);
   AddCrashKeyString("v8-oom-stack", CrashKeySize::Size1024, stack);
 }
 
