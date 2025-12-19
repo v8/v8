@@ -385,9 +385,9 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_linked, store_conditional)       \
   do {                                                                         \
     Label exchange;                                                            \
-    __ sync();                                                                 \
-    __ bind(&exchange);                                                        \
     __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    __ bind(&exchange);                                                        \
+    __ sync();                                                                 \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
     __ mov(i.TempRegister(1), i.InputRegister(2));                             \
     __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
