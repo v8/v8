@@ -5939,21 +5939,63 @@ std::optional<ShufflePair> TryMapCanonicalShuffleToShufflePair(
   return {};
 }
 
-int32_t GetLaneMask(int32_t lane_count) { return lane_count * 2 - 1; }
+template <int32_t lane_size>
+constexpr int32_t GetLaneCount() {
+  return kVRegSizeInBits / lane_size;
+}
+
+template <int32_t lane_size>
+OpIndex GetInput(OpIndex input0, OpIndex input1, int32_t lane) {
+  int32_t lane_count = GetLaneCount<lane_size>();
+  return (lane < lane_count) ? input0 : input1;
+}
+
+template <int32_t lane_size>
+int32_t AdjustLane(int32_t lane) {
+  constexpr int32_t lane_count = GetLaneCount<lane_size>();
+  constexpr int32_t max_input0_lane = lane_count - 1;
+  return lane & max_input0_lane;
+}
 
 template <int32_t lane_size>
 void EmitShuffle1(InstructionSelector* selector, OpIndex node, OpIndex input0,
                   OpIndex input1, uint32_t shuffle) {
-  int32_t lane_count = 128 / lane_size;
-  int32_t max_input0_lane = lane_count - 1;
-  int32_t lane_mask = GetLaneMask(lane_count);
-  int32_t lane = shuffle & lane_mask;
-  OpIndex input = (lane > max_input0_lane) ? input1 : input0;
-  lane &= max_input0_lane;
+  OpIndex input = GetInput<lane_size>(input0, input1, shuffle);
+  int32_t lane = AdjustLane<lane_size>(shuffle);
   Arm64OperandGenerator g(selector);
+  // We only need to define one lane, as the rest are undefined, so just use a
+  // dup (as it should be faster than a lane mov).
   selector->Emit(kArm64S128Dup | LaneSizeField::encode(lane_size),
                  g.DefineAsRegister(node), g.UseRegister(input),
                  g.UseImmediate(lane));
+}
+
+template <int32_t lane_size>
+void EmitShuffle2(InstructionSelector* selector, OpIndex node, OpIndex input0,
+                  OpIndex input1, std::array<uint8_t, 2> shuffle) {
+  Arm64OperandGenerator g(selector);
+  // TODO(sparker): Recognise when we're shuffling the same lane, or adjacent
+  // lanes.
+
+  // We only need to define two lanes.
+  InstructionOperand temp = g.TempSimd128Register();
+  {
+    // So, as with Shuffle1, just dup one lane.
+    int32_t lane = shuffle[0];
+    OpIndex input = GetInput<lane_size>(input0, input1, lane);
+    lane = AdjustLane<lane_size>(lane);
+    selector->Emit(kArm64S128Dup | LaneSizeField::encode(lane_size), temp,
+                   g.UseRegister(input), g.UseImmediate(lane));
+  }
+  {
+    // Then overwrite the other with a lane mov.
+    int32_t lane = shuffle[1];
+    OpIndex input = GetInput<lane_size>(input0, input1, lane);
+    lane = AdjustLane<lane_size>(lane);
+    selector->Emit(kArm64S128MoveLane | LaneSizeField::encode(lane_size),
+                   g.DefineSameAsFirst(node), temp, g.UseRegister(input),
+                   g.UseImmediate(lane), g.UseImmediate(1));
+  }
 }
 
 }  // namespace
@@ -5981,9 +6023,7 @@ void InstructionSelector::VisitI8x2Shuffle(OpIndex node) {
     EmitShuffle1<16>(this, node, input0, input1, shuffle16x1);
     return;
   } else {
-    Emit(kArm64S8x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1),
-         g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle)));
+    EmitShuffle2<8>(this, node, input0, input1, shuffle);
   }
 }
 
@@ -6041,9 +6081,7 @@ void InstructionSelector::VisitI8x4Shuffle(OpIndex node) {
     return;
   } else if (wasm::SimdShuffle::TryMatch16x2Shuffle(shuffle.data(),
                                                     shuffle16x2.data())) {
-    Emit(kArm64S16x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1),
-         g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle16x2)));
+    EmitShuffle2<16>(this, node, input0, input1, shuffle16x2);
   } else {
     InstructionOperand src0, src1;
     ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
@@ -6096,9 +6134,7 @@ void InstructionSelector::VisitI8x8Shuffle(OpIndex node) {
       Emit(kArm64S128Dup | LaneSizeField::encode(32), g.DefineAsRegister(node),
            g.UseRegister(input0), g.UseImmediate(index));
     } else {
-      Emit(kArm64S32x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-           g.UseRegister(input1),
-           g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle32x2)));
+      EmitShuffle2<32>(this, node, input0, input1, shuffle32x2);
     }
     return;
   }
@@ -6177,9 +6213,7 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
       Emit(kArm64S128Dup | LaneSizeField::encode(64), g.DefineAsRegister(node),
            g.UseRegister(input0), g.UseImmediate(index));
     } else {
-      Emit(kArm64S64x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-           g.UseRegister(input1),
-           g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle64x2)));
+      EmitShuffle2<64>(this, node, input0, input1, shuffle64x2);
     }
     return;
   }
