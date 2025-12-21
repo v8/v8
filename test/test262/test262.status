@@ -1319,4 +1319,16 @@
 # end import test262@c0cf527756840ae8ba679e53e627ec20f3bbc5c8
 ####
 
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/Temporal/Instant/prototype/toLocaleString/hourcycle': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/hourcycle': [SKIP],
+  'intl402/Temporal/PlainTime/prototype/toLocaleString/datestyle-and-timestyle': [SKIP],
+  'intl402/Temporal/PlainTime/prototype/toLocaleString/hourcycle': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/hourcycle': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
