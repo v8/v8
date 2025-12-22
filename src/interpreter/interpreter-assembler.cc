@@ -851,7 +851,7 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<JSAny> function,
   DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
-  Builtin builtin = Builtins::Call();
+  Builtin builtin = Builtins::Call(receiver_mode);
 
   arg_count = JSParameterCount(arg_count);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
