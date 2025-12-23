@@ -35,7 +35,10 @@ function TestImmutableBuffer(createSourceBuffer, description) {
   // 6. Test DataView set throws
   const dv = new DataView(immutable);
   assertThrows(() => dv.setUint8(0, 1), TypeError);
-
+  assertThrows(() => dv.setUint8(0, 255), TypeError);
+  assertThrows(() => dv.setInt8(0, -1), TypeError);
+  assertThrows(() => dv.setUint16(0, 0x1234), TypeError);
+  assertThrows(() => dv.setFloat64(0, 3.14), TypeError);
   // 7. Test TypedArray set throws
   const ta = new Uint8Array(immutable);
 
@@ -147,7 +150,7 @@ TestImmutableBuffer(() => new ArrayBuffer(10, {maxByteLength: 20}), "Resizable A
 })();
 
 // Test sliceToImmutable order of checks
-(function testSliceToImmutableResizeSideEffects() {
+(function testSliceToImmutableDetachAndResizeOrder() {
   const rab = new ArrayBuffer(10, {maxByteLength: 20});
   const resize = {
     valueOf: function() {
@@ -402,4 +405,15 @@ for (const ctor of taClasses) {
       assertDoesNotThrow(call);
     }
   }
+})();
+
+(function testTransferToImmutableNonGeneric() {
+  assertThrows(
+      () => ArrayBuffer.prototype.transferToImmutable.call({}),
+      TypeError);
+
+  assertThrows(
+      () => ArrayBuffer.prototype.transferToImmutable.call(
+          new SharedArrayBuffer(10)),
+      TypeError);
 })();
