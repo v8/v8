@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '9a3d1520c232c65d97f669129b9d5c95a461c1d5',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '7285d71a98f2a7913842211bcc94cffe11eafdb1',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '70ea0f92adf039378f8f957910e497b66176e00f',
   'third_party/re2/src':
@@ -510,7 +510,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '24494b071e019a2baea4355d9870ffc5fc0bbafe',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '23b15565ec04b9b15a929cbf7f2b2b0d96d0cc16',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '566423ba1746a900bc6f09ab4091ea3ba38314b6',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -562,7 +562,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '069077c0ac7b45a71c22eea01bb6c3e13e6047a1',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '9706f1cfd268bc926a2cb4092e04e59ddb801b7b',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
