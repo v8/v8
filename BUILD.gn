@@ -1004,6 +1004,8 @@ external_v8_defines = [
   "V8_TARGET_OS_MACOS",
   "V8_TARGET_OS_WIN",
   "V8_TARGET_OS_CHROMEOS",
+  "V8_TARGET_ARCH_ARM64",
+  "V8_TARGET_ARCH_PPC64",
 ]
 
 enabled_external_v8_defines = [
@@ -1084,6 +1086,18 @@ if (target_os == "android") {
 } else if (target_os == "chromeos") {
   enabled_external_v8_defines += [ "V8_HAVE_TARGET_OS" ]
   enabled_external_v8_defines += [ "V8_TARGET_OS_CHROMEOS" ]
+}
+
+# Some V8_TARGET_ARCH_ defines that affect Api constants (see usages of
+# V8_TARGET_ARCH_* in v8-internal.h).
+# The target architecture may differ from host one e.g. in mksnapshot or in
+# msan builds.
+# TODO(ishell): support all target archs and add V8_HAVE_TARGET_ARCH similar
+# to V8_TARGET_OS_* and V8_HAVE_TARGET_OS defines.
+if (v8_target_cpu == "arm64") {
+  enabled_external_v8_defines += [ "V8_TARGET_ARCH_ARM64" ]
+} else if (v8_target_cpu == "ppc64") {
+  enabled_external_v8_defines += [ "V8_TARGET_ARCH_PPC64" ]
 }
 
 disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
