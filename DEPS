@@ -134,9 +134,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a41197ca560809f3e4994ce864e06059b505bbd8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '726ac7741fe428eff5da63e0374c66f7f25788b8',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b93cffff206dfdd78591e20aa7216e3074f14b29',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'da307d169964b96ada0bb8deb76aeea3afb635d5',
   'buildtools/linux64': {
     'packages': [
       {
@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a4432a77891c90f48dda114a16809cfee7010826',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '530794d005fbf950d43d739f4cc7de0e09474d80',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -306,7 +306,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '7048ba4f2970006d93059070e64745588043db5d',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'e00073aa58a41660c212f88fd81468668bd51da6',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '8f11bb1d4438d0239d0dfc1bd9456a9f31629dda',
   'third_party/libpfm4':
@@ -316,7 +316,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'f4b329c171f133c4cbad4819773eaf889a9f64cc',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'aafc91c0bac6f9fb5c5796053933e789823ad755',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '87edf87aa2cb8dfd1c5c819f7c0b9fb974389c5a',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -510,7 +510,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '24494b071e019a2baea4355d9870ffc5fc0bbafe',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '566423ba1746a900bc6f09ab4091ea3ba38314b6',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '08b350011f2248977f1d1db8b13d563502caf795',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
