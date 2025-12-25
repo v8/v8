@@ -29,6 +29,7 @@
 
 #include <iostream>
 
+#include "src/base/float16.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -36,6 +37,7 @@
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/utils/utils.h"
 #include "test/common/value-helper.h"
 #include "test/unittests/assembler/test-helper-riscv64.h"
@@ -646,6 +648,39 @@ UTEST_CONV_F_FROM_I(fcvt_d_l, int64_t, double, (-0x1234'5678'0000'0001LL),
 UTEST_CONV_F_FROM_I(fcvt_d_lu, uint64_t, double,
                     std::numeric_limits<uint64_t>::max(),
                     (double)(std::numeric_limits<uint64_t>::max()))
+
+// --RVZFH Standard Extension --
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_flh_fsh) {
+  auto fn = [](MacroAssembler& assm) {
+    __ fsh(fa0, a0, 0);
+    __ flh(fa0, a0, 0);
+  };
+  GenAndRunTestForLoadStore<uint16_t>(
+      Float16::FromFloat32(-2345.678f).get_bits(), fn);
+}
+
+const std::vector<std::pair<double, uint16_t>> fp16_test_values() {
+  std::pair<double, uint16_t> kValues[] = {
+      std::make_pair(2.980232238769532e-8,
+                     DoubleToFloat16(5.960464477539063e-8f)),
+      std::make_pair(1.1, DoubleToFloat16(1.1)),
+      std::make_pair(0.00006103515625, DoubleToFloat16(0.00006103515625)),
+      std::make_pair(static_cast<double>(2051), DoubleToFloat16(2051.0))};
+  return std::vector<std::pair<double, uint16_t>>(&kValues[0],
+                                                  &kValues[arraysize(kValues)]);
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fcvthd) {
+  auto value = fp16_test_values();
+  for (auto i = value.begin(); i != value.end(); ++i) {
+    auto fn = [](MacroAssembler& assm) {
+      __ fcvt_h_d(fa1, fa0);
+      __ fmv_x_h(a0, fa1);
+    };
+    auto res = GenAndRunTest<uint16_t, double>(i->first, fn);
+    CHECK_EQ(i->second, res);
+  }
+}
 
 // -- RV64C Standard Extension --
 UTEST_R1_FORM_WITH_RES_C(c_mv, int64_t, int64_t, 0x0f5600ab123400,

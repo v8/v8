@@ -179,7 +179,7 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
 
 template <typename T>
 void GenAndRunTestForLoadStore(T value, Func test_generator) {
-  DCHECK(sizeof(T) == 4 || sizeof(T) == 8);
+  DCHECK(sizeof(T) == 4 || sizeof(T) == 8 || sizeof(T) == 2);
 
   using INT_T =
       std::conditional_t<std::is_integral_v<T>, T,
@@ -194,6 +194,8 @@ void GenAndRunTestForLoadStore(T value, Func test_generator) {
     assm.fmv_w_x(fa0, a1);
   } else if (std::is_same_v<double, T>) {
     assm.fmv_d_x(fa0, a1);
+  } else if (std::is_same_v<uint16_t, T>) {
+    assm.fmv_h_x(fa0, a1);
   }
 
   test_generator(assm);
@@ -207,6 +209,8 @@ void GenAndRunTestForLoadStore(T value, Func test_generator) {
       assm.RV_li(t5, 0xffffffff00000000);
       assm.xor_(a0, a0, t5);
     }
+  } else if (std::is_same_v<uint16_t, T>) {
+    assm.fmv_x_h(a0, fa0);
   }
   assm.jr(ra);
 

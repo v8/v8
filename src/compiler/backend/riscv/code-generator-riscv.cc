@@ -1891,6 +1891,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #endif
+    case kRiscvFloat64ToFloat16RawBits: {
+      DoubleRegister tmp_dst = i.TempDoubleRegister(0);
+      __ fcvt_h_d(tmp_dst, i.InputDoubleRegister(0));
+      __ fmv_x_h(i.OutputRegister(), tmp_dst);
+      break;
+    }
+    case kRiscvFloat16RawBitsToFloat64: {
+      DoubleRegister tmp_src = i.TempDoubleRegister(0);
+      __ fmv_h_x(tmp_src, i.InputRegister(0));
+      __ fcvt_d_h(i.OutputDoubleRegister(), tmp_src);
+      break;
+    }
     case kRiscvCvtDUw: {
       __ Cvt_d_uw(i.OutputDoubleRegister(), i.InputRegister(0));
       break;

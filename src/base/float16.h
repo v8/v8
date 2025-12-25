@@ -27,6 +27,10 @@ class Float16 {
     return Float16(fp16_ieee_from_fp32_value(f32));
   }
 
+  static Float16 FromBits(uint16_t bits) { return Float16(bits); }
+
+  uint16_t get_bits() const { return bits_; }
+
   float ToFloat32() const { return fp16_ieee_to_fp32_value(bits_); }
 
  private:

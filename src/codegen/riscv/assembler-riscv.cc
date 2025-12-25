@@ -88,6 +88,7 @@ static unsigned SimulatorFeatures() {
   answer |= 1u << ZICOND;
   answer |= 1u << ZICFISS;
   answer |= 1u << FPU;
+  answer |= 1u << ZFH;
   return answer;
 }
 #endif

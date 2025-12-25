@@ -50,6 +50,7 @@
 #define V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
 
 // globals.h defines USE_SIMULATOR.
+#include "src/base/float16.h"
 #include "src/common/globals.h"
 
 template <typename T>
@@ -108,6 +109,7 @@ using sfreg_t = int64_t;
 #error "Cannot detect Riscv's bitwidth"
 #endif
 
+#define sext16(x) ((sreg_t)(int16_t)(x))
 #define sext32(x) ((sreg_t)(int32_t)(x))
 #define zext32(x) ((reg_t)(uint32_t)(x))
 
@@ -223,12 +225,17 @@ inline Float64 fsgnj64(Float64 rs1, Float64 rs2, bool n, bool x) {
   }
   return Float64::FromBits(res.u);
 }
+
+inline bool is_boxed_float16(int64_t v) {
+  return (uint16_t)((v >> 16) + 1) == 0;
+}
 inline bool is_boxed_float(int64_t v) { return (uint32_t)((v >> 32) + 1) == 0; }
 inline int64_t box_float(float v) {
   return (0xFFFFFFFF00000000 | base::bit_cast<int32_t>(v));
 }
 
 inline uint64_t box_float(uint32_t v) { return (0xFFFFFFFF00000000 | v); }
+inline uint64_t box_float16(uint16_t v) { return (0xFFFFFFFFFFFF0000 | v); }
 
 // -----------------------------------------------------------------------------
 // Utility functions
@@ -427,19 +434,22 @@ class Simulator : public SimulatorBase {
   double get_double_from_register_pair(int reg);
 
   // Same for FPURegisters.
-  void set_fpu_register(int fpureg, int64_t value);
   void set_fpu_register_word(int fpureg, int32_t value);
   void set_fpu_register_hi_word(int fpureg, int32_t value);
-  void set_fpu_register_float(int fpureg, float value);
-  void set_fpu_register_float(int fpureg, Float32 value);
-  void set_fpu_register_double(int fpureg, double value);
-  void set_fpu_register_double(int fpureg, Float64 value);
+
+  void set_fpu_register(int fpureg, int64_t value);
+  void set_fpu_register(int fpureg, uint16_t value);
+  void set_fpu_register(int fpureg, float value);
+  void set_fpu_register(int fpureg, Float32 value);
+  void set_fpu_register(int fpureg, double value);
+  void set_fpu_register(int fpureg, Float64 value);
 
   int64_t get_fpu_register(int fpureg) const;
   int32_t get_fpu_register_word(int fpureg) const;
   int32_t get_fpu_register_signed_word(int fpureg) const;
   int32_t get_fpu_register_hi_word(int fpureg) const;
   float get_fpu_register_float(int fpureg) const;
+  uint16_t get_fpu_register_Float16(int fpureg, bool check_nanbox = true) const;
   Float32 get_fpu_register_Float32(int fpureg, bool check_nanbox = true) const;
   double get_fpu_register_double(int fpureg) const;
   Float64 get_fpu_register_Float64(int fpureg) const;
@@ -800,20 +810,25 @@ class Simulator : public SimulatorBase {
     if (trace) TraceRegWr(get_register(rd_reg()), WORD);
 #endif
   }
+
+  inline void set_frd(Float16 value, bool trace = true) {
+    set_fpu_register(rd_reg(), value.get_bits());
+    if (trace) TraceRegWr(get_fpu_register_word(rd_reg()), FLOAT);
+  }
   inline void set_frd(float value, bool trace = true) {
-    set_fpu_register_float(rd_reg(), value);
+    set_fpu_register(rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register_word(rd_reg()), FLOAT);
   }
   inline void set_frd(Float32 value, bool trace = true) {
-    set_fpu_register_float(rd_reg(), value);
+    set_fpu_register(rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register_word(rd_reg()), FLOAT);
   }
   inline void set_drd(double value, bool trace = true) {
-    set_fpu_register_double(rd_reg(), value);
+    set_fpu_register(rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rd_reg()), DOUBLE);
   }
   inline void set_drd(Float64 value, bool trace = true) {
-    set_fpu_register_double(rd_reg(), value);
+    set_fpu_register(rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rd_reg()), DOUBLE);
   }
   inline void set_rvc_rd(sreg_t value, bool trace = true) {
@@ -841,15 +856,15 @@ class Simulator : public SimulatorBase {
 #endif
   }
   inline void set_rvc_drd(double value, bool trace = true) {
-    set_fpu_register_double(rvc_rd_reg(), value);
+    set_fpu_register(rvc_rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rd_reg()), DOUBLE);
   }
   inline void set_rvc_drd(Float64 value, bool trace = true) {
-    set_fpu_register_double(rvc_rd_reg(), value);
+    set_fpu_register(rvc_rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rd_reg()), DOUBLE);
   }
   inline void set_rvc_frd(Float32 value, bool trace = true) {
-    set_fpu_register_float(rvc_rd_reg(), value);
+    set_fpu_register(rvc_rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rd_reg()), DOUBLE);
   }
   inline void set_rvc_rs2s(sreg_t value, bool trace = true) {
@@ -861,16 +876,16 @@ class Simulator : public SimulatorBase {
 #endif
   }
   inline void set_rvc_drs2s(double value, bool trace = true) {
-    set_fpu_register_double(rvc_rs2s_reg(), value);
+    set_fpu_register(rvc_rs2s_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rs2s_reg()), DOUBLE);
   }
   inline void set_rvc_drs2s(Float64 value, bool trace = true) {
-    set_fpu_register_double(rvc_rs2s_reg(), value);
+    set_fpu_register(rvc_rs2s_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rs2s_reg()), DOUBLE);
   }
 
   inline void set_rvc_frs2s(Float32 value, bool trace = true) {
-    set_fpu_register_float(rvc_rs2s_reg(), value);
+    set_fpu_register(rvc_rs2s_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rs2s_reg()), FLOAT);
   }
   inline int16_t shamt6() const { return (imm12() & 0x3F); }
@@ -1076,15 +1091,15 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline float CanonicalizeFloatToDoubleOperation(Func fn, float frs) {
+  inline double CanonicalizeFloatToDoubleOperation(Func fn, float frs) {
     double alu_out = fn(frs);
-    if (std::isnan(alu_out) || std::isnan(frs1()))
+    if (std::isnan(alu_out) || std::isnan(frs))
       alu_out = std::numeric_limits<double>::quiet_NaN();
     return alu_out;
   }
 
   template <typename Func>
-  inline float CanonicalizeFloatToDoubleOperation(Func fn) {
+  inline double CanonicalizeFloatToDoubleOperation(Func fn) {
     double alu_out = fn(frs1());
     if (std::isnan(alu_out) || std::isnan(frs1()))
       alu_out = std::numeric_limits<double>::quiet_NaN();

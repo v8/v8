@@ -59,6 +59,7 @@
 #include "src/diagnostics/disasm.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/combined-heap.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -2497,23 +2498,28 @@ void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
   *phiword = value;
 }
 
-void Simulator::set_fpu_register_float(int fpureg, float value) {
+void Simulator::set_fpu_register(int fpureg, uint16_t value) {
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  FPUregisters_[fpureg] = box_float16(value);
+}
+
+void Simulator::set_fpu_register(int fpureg, float value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   FPUregisters_[fpureg] = box_float(value);
 }
 
-void Simulator::set_fpu_register_float(int fpureg, Float32 value) {
+void Simulator::set_fpu_register(int fpureg, Float32 value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   Float64 t = Float64::FromBits(box_float(value.get_bits()));
   memcpy(&FPUregisters_[fpureg], &t, 8);
 }
 
-void Simulator::set_fpu_register_double(int fpureg, double value) {
+void Simulator::set_fpu_register(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   FPUregisters_[fpureg] = base::bit_cast<int64_t>(value);
 }
 
-void Simulator::set_fpu_register_double(int fpureg, Float64 value) {
+void Simulator::set_fpu_register(int fpureg, Float64 value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   memcpy(&FPUregisters_[fpureg], &value, 8);
 }
@@ -2570,6 +2576,15 @@ float Simulator::get_fpu_register_float(int fpureg) const {
 
 // Fix NaN boxing error according to
 // https://github.com/riscv/riscv-isa-manual/blob/main/src/d-st-ext.adoc#nan-boxing-of-narrower-values"
+uint16_t Simulator::get_fpu_register_Float16(int fpureg,
+                                             bool check_nanbox) const {
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  if (check_nanbox && !is_boxed_float16(FPUregisters_[fpureg])) {
+    return uint16_t(0x7e00);
+  }
+  return uint16_t(FPUregisters_[fpureg] & 0xFFFF);
+}
+
 Float32 Simulator::get_fpu_register_Float32(int fpureg,
                                             bool check_nanbox) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
@@ -2607,7 +2622,7 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
 
 // The return value is in fa0.
 void Simulator::SetFpResult(const double& result) {
-  set_fpu_register_double(fa0, result);
+  set_fpu_register(fa0, result);
 }
 
 // helper functions to read/write/set/clear CRC values/bits
@@ -3267,9 +3282,9 @@ void Simulator::CallAnyCTypeFunction(Address target_address,
 #undef GEN_MAX_PARAM_COUNT
   if (signature.IsReturnFloat()) {
     if (signature.IsReturnFloat64()) {
-      set_fpu_register_double(FP_RETURN_REGISTER, result.double_value);
+      set_fpu_register(FP_RETURN_REGISTER, result.double_value);
     } else {
-      set_fpu_register_float(FP_RETURN_REGISTER, result.float_value);
+      set_fpu_register(FP_RETURN_REGISTER, result.float_value);
     }
   } else {
     set_register(RETURN_REGISTER, result.int64_value);
@@ -4633,6 +4648,24 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
+    case RO_FMV_X_H: {  // RO_FCLASS_H
+      if (instr_.Rs2Value() != 0b00000) {
+        UNSUPPORTED();
+      }
+      switch (instr_.Funct3Value()) {
+        case 0b000:  // RO_FMV_X_H
+          // RO_FMV_X_H
+          set_rd(sext16(get_fpu_register_Float16(rs1_reg())));
+          break;
+        case 0b001: {  // RO_FCLASS_H
+          UNSUPPORTED();
+        }
+        default: {
+          UNSUPPORTED();
+        }
+      }
+      break;
+    }
     case RO_FMV_X_W: {  // RO_FCLASS_S
       switch (instr_.Funct3Value()) {
         case 0b000: {
@@ -4697,6 +4730,16 @@ void Simulator::DecodeRVRFPType() {
         default: {
           UNSUPPORTED();
         }
+      }
+      break;
+    }
+    case RO_FMV_H_X: {
+      if (instr_.Funct3Value() == 0b000) {
+        // since FMV preserves source bit-pattern, no need to canonize
+        Float16 result = Float16::FromBits((uint16_t)rs1());
+        set_frd(result);
+      } else {
+        UNSUPPORTED();
       }
       break;
     }
@@ -4834,6 +4877,10 @@ void Simulator::DecodeRVRFPType() {
       if (instr_.Rs2Value() == 0b00000) {
         auto fn = [](float frs) { return static_cast<double>(frs); };
         set_drd(CanonicalizeFloatToDoubleOperation(fn));
+      } else if (instr_.Rs2Value() == 0b00010) {  // RO_FCVT_D_H
+        auto fn = [](float frs) { return static_cast<double>(frs); };
+        Float16 src = Float16::FromBits(get_fpu_register_Float16(rs1_reg()));
+        set_drd(CanonicalizeFloatToDoubleOperation(fn, src.ToFloat32()));
       } else {
         UNSUPPORTED();
       }
@@ -4945,6 +4992,25 @@ void Simulator::DecodeRVRFPType() {
       break;
     }
 #endif /* V8_TARGET_ARCH_RISCV64 */
+    case RO_FCVT_S_H: {
+      if (instr_.Rs2Value() == 0b00010) {
+        Float16 src = Float16::FromBits(get_fpu_register_Float16(rs1_reg()));
+        set_frd(src.ToFloat32());
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FCVT_H_S: {
+      if (instr_.Rs2Value() == 0b00000) {  // fcvt.h.s
+        set_frd(Float16::FromFloat32(frs1()));
+      } else if (instr_.Rs2Value() == 0b00001) {  // fcvt.h.d
+        set_frd(Float16::FromBits(DoubleToFloat16(drs1())));
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    }
     default: {
       UNSUPPORTED();
     }
@@ -5635,6 +5701,15 @@ void Simulator::DecodeRVIType() {
       break;
     }
     // TODO(riscv): use F Extension macro block
+    case RO_FLH: {
+      sreg_t addr = rs1() + imm12();
+      if (!ProbeMemory(addr, sizeof(uint16_t))) return;
+      Float16 val = Float16::Read(addr);
+      set_frd(val, false);
+      TraceMemRdFloat(addr, Float32(val.ToFloat32()),
+                      get_fpu_register(frd_reg()));
+      break;
+    }
     case RO_FLW: {
       sreg_t addr = rs1() + imm12();
       if (!ProbeMemory(addr, sizeof(float))) return;
@@ -5688,6 +5763,13 @@ void Simulator::DecodeRVSType() {
       break;
 #endif /*V8_TARGET_ARCH_RISCV64*/
     // TODO(riscv): use F Extension macro block
+    case RO_FSH: {
+      if (!ProbeMemory(rs1() + s_imm12(), sizeof(uint16_t))) return;
+      WriteMem<uint16_t>(rs1() + s_imm12(),
+                         get_fpu_register_Float16(rs2_reg(), false),
+                         instr_.instr());
+      break;
+    }
     case RO_FSW: {
       if (!ProbeMemory(rs1() + s_imm12(), sizeof(float))) return;
       WriteMem<Float32>(rs1() + s_imm12(),
@@ -8631,8 +8713,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 #endif  // V8_TARGET_ARCH_RISCV64
 
 double Simulator::CallFP(Address entry, double d0, double d1) {
-  set_fpu_register_double(fa0, d0);
-  set_fpu_register_double(fa1, d1);
+  set_fpu_register(fa0, d0);
+  set_fpu_register(fa1, d1);
   CallInternal(entry);
   return get_fpu_register_double(fa0);
 }

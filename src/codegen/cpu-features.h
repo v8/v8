@@ -99,6 +99,7 @@ enum CpuFeature {
   ZBA,
   ZBB,
   ZBS,
+  ZFH,
   ZICOND,
   ZICFISS,
 #endif
