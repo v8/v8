@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'c6560eb97899b82a2869b7af638cab5063b48b79',
+  'partition_alloc_version': '8bfdd5d9316a1883935190b61280c4765bfa14c4',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -136,7 +136,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '726ac7741fe428eff5da63e0374c66f7f25788b8',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c603d823d75e866247fb1c69094fda3dc4c34dbe',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8f7ec316d620c8b5e51679775e125c9c190ce4ce',
   'buildtools/linux64': {
     'packages': [
       {
@@ -306,7 +306,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '9d1abf977e3d2ce03f6cc22513412408a932d9ac',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '3efc6002b4bf6ab330e66a9bbf68c6e24e05daaa',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '8f11bb1d4438d0239d0dfc1bd9456a9f31629dda',
   'third_party/libpfm4':
@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'cdfaa2ff774935eb6658e5238de5f2123a89b321',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'edb95c1965c7382cab79f0065957c8c9de8b615d',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '70ea0f92adf039378f8f957910e497b66176e00f',
   'third_party/re2/src':
