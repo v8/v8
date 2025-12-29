@@ -1571,7 +1571,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ jmp(&finish_param_conversion);
 
   __ bind(&param_kWasmF32);
-  __ Movss(xmm0,
+  __ Movsd(xmm0,
            MemOperand(packed_args, current_param_slot_offset, times_1, 0));
   __ Call(BUILTIN_CODE(masm->isolate(), WasmFloat32ToNumber),
           RelocInfo::CODE_TARGET);
@@ -1847,7 +1847,8 @@ void EmitLoadInstruction(MacroAssembler* masm, Register memory_start,
                          FloatType float_type) {
   switch (float_type) {
     case kFloat32:
-      __ movss(result, Operand(memory_start, memory_offset, times_1, 0));
+      __ movss(xmm0, Operand(memory_start, memory_offset, times_1, 0));
+      __ cvtss2sd(result, xmm0);
       break;
     case kFloat64:
       __ movsd(result, Operand(memory_start, memory_offset, times_1, 0));
@@ -2582,6 +2583,9 @@ class WasmInterpreterHandlerBuiltins {
     Register wasm_runtime = r8;
 
     XMMRegister value = xmm4;
+    if (float_type == kFloat32) {
+      __ cvtsd2ss(value, xmm4);
+    }
 
     Register memory_offset = r10;
     emitter::EmitLoadMemoryOffset(masm, memory_offset,
