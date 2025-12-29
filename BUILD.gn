@@ -1094,9 +1094,9 @@ if (target_os == "android") {
 # msan builds.
 # TODO(ishell): support all target archs and add V8_HAVE_TARGET_ARCH similar
 # to V8_TARGET_OS_* and V8_HAVE_TARGET_OS defines.
-if (v8_target_cpu == "arm64") {
+if (v8_current_cpu == "arm64") {
   enabled_external_v8_defines += [ "V8_TARGET_ARCH_ARM64" ]
-} else if (v8_target_cpu == "ppc64") {
+} else if (v8_current_cpu == "ppc64") {
   enabled_external_v8_defines += [ "V8_TARGET_ARCH_PPC64" ]
 }
 
