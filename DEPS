@@ -510,7 +510,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '24494b071e019a2baea4355d9870ffc5fc0bbafe',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '11c334daf0f6863bcf55db9d93ff8f2fd360891b',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '41f18dd7a6aefbb149511998bb5e7bfb4601ae34',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -562,7 +562,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '9706f1cfd268bc926a2cb4092e04e59ddb801b7b',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '1597226b825a16493de66c1732171efe89b271d9',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
