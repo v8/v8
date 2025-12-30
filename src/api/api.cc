@@ -7470,9 +7470,10 @@ Local<String> v8::String::Concat(Isolate* v8_isolate, Local<String> left,
 MaybeLocal<String> v8::String::NewExternalTwoByte(
     Isolate* v8_isolate, v8::String::ExternalStringResource* resource) {
   CHECK(resource && resource->data());
-  // TODO(dcarney): throw a context free exception.
-  if (resource->length() > static_cast<size_t>(i::String::kMaxLength)) {
-    return {};
+    if (resource->length() > static_cast<size_t>(i::String::kMaxLength)) {
+      v8_isolate->ThrowException(Exception::RangeError(
+          String::NewFromUtf8Literal(v8_isolate, "String length exceeds maximum allowed.")));
+      return {};
   }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
@@ -7495,9 +7496,10 @@ MaybeLocal<String> v8::String::NewExternalTwoByte(
 MaybeLocal<String> v8::String::NewExternalOneByte(
     Isolate* v8_isolate, v8::String::ExternalOneByteStringResource* resource) {
   CHECK_NOT_NULL(resource);
-  // TODO(dcarney): throw a context free exception.
-  if (resource->length() > static_cast<size_t>(i::String::kMaxLength)) {
-    return {};
+    if (resource->length() > static_cast<size_t>(i::String::kMaxLength)) {
+      v8_isolate->ThrowException(Exception::RangeError(
+          String::NewFromUtf8Literal(v8_isolate, "String length exceeds maximum allowed.")));
+      return {};
   }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
