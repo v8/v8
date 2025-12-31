@@ -610,7 +610,7 @@ void ReadOnlySpace::InitializePageForDeserialization(
   page->high_water_mark_ = page->Offset(top_);
 }
 
-void ReadOnlySpace::FinalizeSpaceForDeserialization() {
+void ReadOnlySpace::FinalizeSpaceForDeserialization(int sfi_id) {
   // The ReadOnlyRoots table is now initialized. Create fillers, shrink pages,
   // and update accounting stats.
   for (ReadOnlyPageMetadata* page : pages_) {
@@ -620,6 +620,7 @@ void ReadOnlySpace::FinalizeSpaceForDeserialization() {
     accounting_stats_.IncreaseCapacity(page->area_size());
     accounting_stats_.IncreaseAllocatedBytes(page->allocated_bytes(), page);
   }
+  heap()->isolate()->InitializeNextUniqueSfiId(sfi_id);
 }
 
 }  // namespace internal

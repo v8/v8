@@ -240,7 +240,7 @@ class ReadOnlySpace : public BaseSpace {
   size_t AllocateNextPageAt(Address pos);
   void InitializePageForDeserialization(ReadOnlyPageMetadata* page,
                                         size_t area_size_in_bytes);
-  void FinalizeSpaceForDeserialization();
+  void FinalizeSpaceForDeserialization(int sfi_id);
 
   void EnsureSpaceForAllocation(int size_in_bytes);
   void FreeLinearAllocationArea();

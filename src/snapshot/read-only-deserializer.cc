@@ -49,7 +49,7 @@ class ReadOnlyHeapImageDeserializer final {
           DeserializeReadOnlyRootsTable();
           break;
         case Bytecode::kFinalizeReadOnlySpace:
-          ro_space()->FinalizeSpaceForDeserialization();
+          ro_space()->FinalizeSpaceForDeserialization(source_->GetUint30());
           return;
       }
     }
@@ -216,8 +216,7 @@ class ObjectPostProcessor final {
   V(InterceptorInfo)              \
   V(JSExternalObject)             \
   V(FunctionTemplateInfo)         \
-  V(Code)                         \
-  V(SharedFunctionInfo)
+  V(Code)
 
   V8_INLINE void PostProcessIfNeeded(Tagged<HeapObject> o,
                                      InstanceType instance_type) {
@@ -392,10 +391,6 @@ class ObjectPostProcessor final {
 #if V8_ENABLE_GEARBOX
     UpdateGearboxPlaceholderBuiltin(o);
 #endif
-  }
-  void PostProcessSharedFunctionInfo(Tagged<SharedFunctionInfo> o) {
-    // Reset the id to avoid collisions - it must be unique in this isolate.
-    o->set_unique_id(isolate_->GetAndIncNextUniqueSfiId());
   }
 
   Isolate* const isolate_;

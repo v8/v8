@@ -400,6 +400,7 @@ class ReadOnlyHeapImageSerializer {
 
     EmitReadOnlyRootsTable();
     sink_->Put(Bytecode::kFinalizeReadOnlySpace, "space end");
+    sink_->PutUint30(isolate_->next_unique_sfi_id(), "shared function info ID");
   }
 
   uint32_t IndexOf(const ReadOnlyPageMetadata* page) {
@@ -573,6 +574,7 @@ void ReadOnlySerializer::Serialize() {
       CountAllocation(o->map(), o->Size(), SnapshotSpace::kReadOnlyHeap);
     }
   }
+  Pad();
 }
 
 }  // namespace internal

@@ -4392,7 +4392,8 @@ void Isolate::Free(Isolate* isolate) {
 
 void Isolate::SetUpFromReadOnlyArtifacts(ReadOnlyArtifacts* artifacts) {
   DCHECK_NOT_NULL(artifacts);
-  InitializeNextUniqueSfiId(artifacts->initial_next_unique_sfi_id());
+  int id = artifacts->initial_next_unique_sfi_id();
+  InitializeNextUniqueSfiId(id);
   DCHECK_NOT_NULL(artifacts->read_only_heap());
   DCHECK_IMPLIES(read_only_heap_ != nullptr,
                  read_only_heap_ == artifacts->read_only_heap());

@@ -1818,6 +1818,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return next_unique_sfi_id_.fetch_add(1, std::memory_order_relaxed);
   }
 
+  void InitializeNextUniqueSfiId(uint32_t id) {
+    uint32_t expected = 0;  // Called at most once per Isolate on startup.
+    bool successfully_exchanged = next_unique_sfi_id_.compare_exchange_strong(
+        expected, id, std::memory_order_relaxed, std::memory_order_relaxed);
+    CHECK(successfully_exchanged);
+  }
+
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   void SetHasContextPromiseHooks(bool context_promise_hook) {
     promise_hook_flags_ = PromiseHookFields::HasContextPromiseHook::update(
@@ -2759,12 +2766,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::atomic<int> next_optimization_id_ = 0;
 
-  void InitializeNextUniqueSfiId(uint32_t id) {
-    uint32_t expected = 0;  // Called at most once per Isolate on startup.
-    bool successfully_exchanged = next_unique_sfi_id_.compare_exchange_strong(
-        expected, id, std::memory_order_relaxed, std::memory_order_relaxed);
-    CHECK(successfully_exchanged);
-  }
   std::atomic<uint32_t> next_unique_sfi_id_;
 
   unsigned next_module_async_evaluation_ordinal_;
