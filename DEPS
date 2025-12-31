@@ -496,7 +496,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '87c48a41e765c1aac933b08ba43b124aed74d092',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'a8194d59e0766406c7e233bb84c2c1c87f8dfdd1',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '70ea0f92adf039378f8f957910e497b66176e00f',
   'third_party/re2/src':
