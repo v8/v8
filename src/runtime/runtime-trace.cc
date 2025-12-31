@@ -247,7 +247,10 @@ RUNTIME_FUNCTION(Runtime_DumpExecutionFrame) {
   bool is_sparkplug = frame->is_baseline();
   bool is_interpreter = !is_sparkplug;
 
-  CHECK(!is_sparkplug && is_interpreter && v8_flags.interpreter_dumping);
+  if ((is_sparkplug && !v8_flags.sparkplug_dumping) ||
+      (is_interpreter && !v8_flags.interpreter_dumping)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   Handle<BytecodeArray> bytecode_array = CheckedCast<BytecodeArray>(args.at(0));
   int bytecode_offset = args.smi_value_at(1);
@@ -261,7 +264,8 @@ RUNTIME_FUNCTION(Runtime_DumpExecutionFrame) {
   if (offset == bytecode_iterator.current_offset()) {
     int function_local_bytecode_offset = bytecode_iterator.current_offset();
     DCHECK_GE(function_local_bytecode_offset, 0);
-    DumpFrameType frame_dump_type = kInterpreterFrame;
+    DumpFrameType frame_dump_type =
+        is_sparkplug ? kSparkplugFrame : kInterpreterFrame;
     isolate->dumpling_manager()->DoPrint(
         frame, function, function_local_bytecode_offset, frame_dump_type,
         bytecode_array, accumulator);

@@ -533,6 +533,12 @@ void BaselineCompiler::VisitSingleBytecode() {
 
   VerifyFrame();
 
+#ifdef V8_DUMPLING
+  if (v8_flags.sparkplug_dumping) {
+    EmitTraceBytecodeRuntimeCall(Runtime::kDumpExecutionFrame);
+  }
+#endif
+
 #ifdef V8_TRACE_UNOPTIMIZED
   TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
@@ -605,13 +611,26 @@ void BaselineCompiler::TraceBytecode(Runtime::FunctionId function_id) {
                           function_id == Runtime::kTraceUnoptimizedBytecodeEntry
                               ? "Trace bytecode entry"
                               : "Trace bytecode exit");
+  EmitTraceBytecodeRuntimeCall(function_id);
+}
+#endif  // V8_TRACE_UNOPTIMIZED
+
+#if defined(V8_TRACE_UNOPTIMIZED) || defined(V8_DUMPLING)
+void BaselineCompiler::EmitTraceBytecodeRuntimeCall(
+    Runtime::FunctionId function_id) {
+#ifdef V8_TRACE_UNOPTIMIZED
+  if (!v8_flags.trace_baseline_exec) return;
+#endif  // V8_TRACE_UNOPTIMIZED
+#ifdef V8_DUMPLING
+  if (!v8_flags.sparkplug_dumping) return;
+#endif  // V8_DUMPLING
   SaveAccumulatorScope accumulator_scope(this, &basm_);
   CallRuntime(function_id, bytecode_,
               Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
                            iterator().current_offset()),
               kInterpreterAccumulatorRegister);
 }
-#endif
+#endif  // V8_TRACE_UNOPTIMIZED || V8_DUMPLING
 
 #define DECLARE_VISITOR(name, ...) void Visit##name();
 BYTECODE_LIST(DECLARE_VISITOR, DECLARE_VISITOR)
@@ -684,6 +703,10 @@ constexpr static bool RuntimeFunctionMayDeopt(Runtime::FunctionId function) {
 #ifdef V8_TRACE_UNOPTIMIZED
     case Runtime::kTraceUnoptimizedBytecodeEntry:
     case Runtime::kTraceUnoptimizedBytecodeExit:
+      return false;
+#endif
+#ifdef V8_DUMPLING
+    case Runtime::kDumpExecutionFrame:
       return false;
 #endif
     default:

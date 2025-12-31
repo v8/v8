@@ -36,6 +36,9 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
     case DumpFrameType::kInterpreterFrame:
       dumpling_os_ << "---I" << '\n';
       break;
+    case DumpFrameType::kSparkplugFrame:
+      dumpling_os_ << "---S" << '\n';
+      break;
     default:
       UNREACHABLE();
   }
@@ -167,7 +170,7 @@ DumplingManager::~DumplingManager() {
 }
 
 bool DumplingManager::AnyDumplingFlagsSet() const {
-  return v8_flags.interpreter_dumping;
+  return v8_flags.interpreter_dumping || v8_flags.sparkplug_dumping;
 }
 
 void DumplingManager::RecordDumpPosition(int function_id, int bytecode_offset) {

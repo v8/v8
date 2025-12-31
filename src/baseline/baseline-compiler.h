@@ -156,6 +156,10 @@ class BaselineCompiler {
   void TraceBytecode(Runtime::FunctionId function_id);
 #endif
 
+#if defined(V8_TRACE_UNOPTIMIZED) || defined(V8_DUMPLING)
+  void EmitTraceBytecodeRuntimeCall(Runtime::FunctionId function_id);
+#endif
+
   // Single bytecode visitors.
 #define DECLARE_VISITOR(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISITOR, DECLARE_VISITOR)

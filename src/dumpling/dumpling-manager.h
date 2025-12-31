@@ -14,6 +14,7 @@ namespace v8::internal {
 
 typedef enum DumpFrameType {
   kInterpreterFrame = 0,
+  kSparkplugFrame = 1,
 } DumpFrameType;
 
 class DumplingManager {
