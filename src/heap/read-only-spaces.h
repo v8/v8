@@ -186,7 +186,7 @@ class ReadOnlySpace : public BaseSpace {
 
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free space nodes that were already created.
-  void RepairFreeSpacesAfterDeserialization();
+  void RepairFreeSpacesBeforeSerialization();
 
   size_t Size() const override { return accounting_stats_.Size(); }
   V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const override;

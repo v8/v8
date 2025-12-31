@@ -116,6 +116,10 @@ void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
       Heap::SweepingForcedFinalizationMode::kV8Only,
       CompleteSweepingReason::kReadOnly);
 
+  // Fix the free space maps, for free spaces that were created before the map
+  // existed.
+  read_only_space()->RepairFreeSpacesBeforeSerialization();
+
   InitFromIsolate(isolate);
 
 #ifdef VERIFY_HEAP

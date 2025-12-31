@@ -162,8 +162,6 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   HandleScope scope(isolate());
 
   ReadOnlyHeapImageDeserializer::Deserialize(isolate(), source());
-  ReadOnlyHeap* ro_heap = isolate()->read_only_heap();
-  ro_heap->read_only_space()->RepairFreeSpacesAfterDeserialization();
   PostProcessNewObjects();
 
   ReadOnlyRoots roots(isolate());

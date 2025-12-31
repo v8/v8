@@ -188,7 +188,7 @@ void ReadOnlySpace::SetPermissionsForPages(MemoryAllocator* memory_allocator,
 // on the heap.  If there was already a free list then the elements on it
 // were created with the wrong FreeSpaceMap (normally nullptr), so we need to
 // fix them.
-void ReadOnlySpace::RepairFreeSpacesAfterDeserialization() {
+void ReadOnlySpace::RepairFreeSpacesBeforeSerialization() {
   MemoryChunkMetadata::UpdateHighWaterMark(top_);
   // Each page may have a small free space that is not tracked by a free list.
   // Those free spaces still contain null as their map pointer.
