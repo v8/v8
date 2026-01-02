@@ -172,11 +172,37 @@ ProcessResult MaglevGraphOptimizer::ReplaceWith(
   return ProcessResult::kContinue;
 }
 
+namespace {
+// This `UnwrapIdentitiesAndPhis` helper is like `ValueNode::UnwrapIdentities`
+// except that it also removes Phis that have a single input (and are not
+// exception phis or resumable loop phis).
+// TODO(dmercadier): Remove this helper if https://crrev.com/c/7117478 ever
+// lands.
+ValueNode* UnwrapIdentitiesAndPhis(ValueNode* node) {
+  ValueNode* prev = nullptr;
+  while (prev != node) {
+    prev = node;
+    node = node->UnwrapIdentities();
+    if (Phi* phi = node->TryCast<Phi>()) {
+      // We skip resumable loop phis since their single input could actually be
+      // defined within the loop itself.
+      if (phi->input_count() == 1 && !phi->is_exception_phi() &&
+          !(phi->is_loop_phi() && phi->merge_state()->is_resumable_loop())) {
+        // This is a Phi with a single input ==> replacing with the input
+        // itself.
+        node = phi->input_node(0);
+      }
+    }
+  }
+  return node;
+}
+}  // namespace
+
 void MaglevGraphOptimizer::UnwrapInputs() {
   for (int i = 0; i < current_node()->input_count(); i++) {
     ValueNode* input = current_node()->input(i).node();
     if (!input) continue;
-    current_node()->change_input(i, input->UnwrapIdentities());
+    current_node()->change_input(i, UnwrapIdentitiesAndPhis(input));
   }
 }
 
