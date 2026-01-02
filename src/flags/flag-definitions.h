@@ -1745,9 +1745,9 @@ DEFINE_BOOL(
 
 DEFINE_BOOL(turboshaft_verify_load_elimination, false,
             "insert runtime checks to verify Late Load Elimination")
-DEFINE_EXPERIMENTAL_FEATURE(turboshaft_verify_load_store_taggedness,
-                            "insert runtime checks to verify the "
-                            "representation of loaded/stored values")
+DEFINE_BOOL(turboshaft_verify_load_store_taggedness, false,
+            "insert runtime checks to verify the representation of "
+            "loaded/stored values")
 DEFINE_IMPLICATION(turboshaft_verify_load_elimination,
                    deduplicate_heap_number_requests)
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
