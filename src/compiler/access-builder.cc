@@ -414,6 +414,26 @@ FieldAccess AccessBuilder::ForJSAsyncFunctionObjectPromise() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSAsyncFunctionObjectAwaitResolveClosure() {
+  FieldAccess access = {
+      kTaggedBase,       JSAsyncFunctionObject::kAwaitResolveClosureOffset,
+      Handle<Name>(),    OptionalMapRef(),
+      Type::Any(),       MachineType::AnyTagged(),
+      kFullWriteBarrier, "JSAsyncFunctionObjectAwaitResolveClosure"};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSAsyncFunctionObjectAwaitRejectClosure() {
+  FieldAccess access = {
+      kTaggedBase,       JSAsyncFunctionObject::kAwaitRejectClosureOffset,
+      Handle<Name>(),    OptionalMapRef(),
+      Type::Any(),       MachineType::AnyTagged(),
+      kFullWriteBarrier, "JSAsyncFunctionObjectAwaitRejectClosure"};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectQueue() {
   FieldAccess access = {
       kTaggedBase,         JSAsyncGeneratorObject::kQueueOffset,

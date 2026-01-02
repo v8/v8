@@ -824,6 +824,12 @@ Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
   a.Store(AccessBuilder::ForJSGeneratorObjectParametersAndRegisters(),
           parameters_and_registers);
   a.Store(AccessBuilder::ForJSAsyncFunctionObjectPromise(), promise);
+  // Initialize await closure fields to undefined. Closures are lazily
+  // allocated on first await in AwaitWithReusableClosures.
+  a.Store(AccessBuilder::ForJSAsyncFunctionObjectAwaitResolveClosure(),
+          jsgraph()->UndefinedConstant());
+  a.Store(AccessBuilder::ForJSAsyncFunctionObjectAwaitRejectClosure(),
+          jsgraph()->UndefinedConstant());
   a.FinishAndChange(node);
   return Changed(node);
 }

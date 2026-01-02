@@ -144,6 +144,12 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSAsyncFunctionObject::promise() field.
   static FieldAccess ForJSAsyncFunctionObjectPromise();
 
+  // Provides access to JSAsyncFunctionObject::await_resolve_closure() field.
+  static FieldAccess ForJSAsyncFunctionObjectAwaitResolveClosure();
+
+  // Provides access to JSAsyncFunctionObject::await_reject_closure() field.
+  static FieldAccess ForJSAsyncFunctionObjectAwaitRejectClosure();
+
   // Provides access to JSAsyncGeneratorObject::queue() field.
   static FieldAccess ForJSAsyncGeneratorObjectQueue();
 
