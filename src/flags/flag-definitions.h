@@ -2921,6 +2921,11 @@ DEFINE_NEG_IMPLICATION(interpreter_dumping, enable_lazy_source_positions)
 DEFINE_STRING(dump_out_filename, "/tmp/output_dump.txt",
               "File to save the frame dumps to")
 DEFINE_INT(dumpling_depth, 3, "depth used in dumpling")
+DEFINE_STRING(dump_positions_filename, "/tmp/dump_positions.txt",
+              "File to save dump positions to")
+DEFINE_BOOL(generate_dump_positions, false, "write dump positions to a file")
+DEFINE_BOOL(load_dump_positions, false, "load dump positions from a file")
+DEFINE_NEG_IMPLICATION(generate_dump_positions, load_dump_positions)
 // Dumpling flags end.
 #endif  // V8_DUMPLING
 

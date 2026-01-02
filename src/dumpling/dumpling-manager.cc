@@ -40,9 +40,20 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
       UNREACHABLE();
   }
 
+  int function_id = function->shared()->StartPosition();
+  if (v8_flags.generate_dump_positions) {
+    RecordDumpPosition(function_id, bytecode_offset);
+  }
+  if (v8_flags.load_dump_positions) {
+    auto per_function_positions = dump_positions_.find(function_id);
+    if (per_function_positions == dump_positions_.end() ||
+        !per_function_positions->second.contains(bytecode_offset)) {
+      return;
+    }
+  }
+
   MaybePrint("b:", DumpBytecodeOffset(bytecode_offset), dumpling_os_);
 
-  int function_id = function->shared()->StartPosition();
   MaybePrint("f:", DumpFunctionId(function_id), dumpling_os_);
 
   int param_count = bytecode_array->parameter_count() - 1;
@@ -75,6 +86,10 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
 
 std::string DumplingManager::GetDumpOutFilename() const {
   return std::string(v8_flags.dump_out_filename);
+}
+
+std::string DumplingManager::GetDumpPositionsFilename() const {
+  return std::string(v8_flags.dump_positions_filename);
 }
 
 template <typename T>
@@ -138,12 +153,58 @@ std::optional<std::string> DumplingManager::DumpFunctionId(int function_id) {
 }
 
 DumplingManager::DumplingManager()
-    : dumpling_os_(GetDumpOutFilename(), std::ofstream::out) {}
+    : dumpling_os_(GetDumpOutFilename(), std::ofstream::out) {
+  if (v8_flags.load_dump_positions) {
+    LoadDumpPositionsFromFile();
+  }
+}
 
-DumplingManager::~DumplingManager() { dumpling_os_.close(); }
+DumplingManager::~DumplingManager() {
+  if (v8_flags.generate_dump_positions) {
+    WriteDumpPositionsToFile();
+  }
+  dumpling_os_.close();
+}
 
 bool DumplingManager::AnyDumplingFlagsSet() const {
   return v8_flags.interpreter_dumping;
+}
+
+void DumplingManager::RecordDumpPosition(int function_id, int bytecode_offset) {
+  dump_positions_[function_id].insert(bytecode_offset);
+}
+
+// Writes dump positions in the following format
+// function_id_1 bytecode_offset_1_1 bytecode_offset_1_2 bytecode_offset_1_3,
+// function_id_2 bytecode_offset_2_1 bytecode_offset_2_2 ...
+// ...
+void DumplingManager::WriteDumpPositionsToFile() {
+  std::ofstream positions_os(GetDumpPositionsFilename(), std::ofstream::out);
+
+  for (const auto& [function_id, positions] : dump_positions_) {
+    positions_os << function_id;
+    for (int position : positions) {
+      positions_os << " " << position;
+    }
+    positions_os << "\n";
+  }
+}
+
+void DumplingManager::LoadDumpPositionsFromFile() {
+  std::ifstream positions_is(GetDumpPositionsFilename());
+
+  DCHECK(positions_is.is_open());
+
+  int function_id;
+  while (positions_is >> function_id) {
+    auto& positions_set = dump_positions_[function_id];
+    int position;
+    while (positions_is.peek() == ' ') {
+      CHECK(positions_is >> position);
+      positions_set.insert(position);
+    }
+    CHECK(positions_is.peek() == '\n' || positions_is.eof());
+  }
 }
 
 }  // namespace v8::internal

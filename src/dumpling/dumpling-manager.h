@@ -39,6 +39,8 @@ class DumplingManager {
 
   std::string GetDumpOutFilename() const;
 
+  std::string GetDumpPositionsFilename() const;
+
   template <typename T>
   std::optional<std::string> DumpValuePlain(T value, T& last_value);
 
@@ -59,6 +61,15 @@ class DumplingManager {
 
   std::optional<std::string> DumpAcc(std::string acc);
 
+  void RecordDumpPosition(int function_id, int bytecode_offset);
+
+  // We write dump positions to file on dumpling manager destruction because we
+  // deduplicate dump positions in a map to not spam the file contents with
+  // many dupes.
+  void WriteDumpPositionsToFile();
+
+  void LoadDumpPositionsFromFile();
+
   bool isolate_dumping_disabled_ = false;
   struct DumplingLastFrame {
     int bytecode_offset;
@@ -77,6 +88,8 @@ class DumplingManager {
                                             -1};
 
   std::ofstream dumpling_os_;
+
+  std::unordered_map<int, std::unordered_set<int> > dump_positions_;
 };
 
 }  // namespace v8::internal
