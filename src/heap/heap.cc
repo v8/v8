@@ -1556,7 +1556,7 @@ void Heap::SetOldGenerationAndGlobalMaximumSize(size_t max_old_generation_size,
   max_old_generation_size_.store(max_old_generation_size,
                                  std::memory_order_relaxed);
   max_global_memory_size_ =
-      v8_flags.external_memory_accounted_in_global_limit
+      v8_flags.ineffective_gc_includes_global
           ? MaximumGlobalMemorySizeFromV8Size(max_old_generation_size,
                                               physical_memory)
           : GlobalMemorySizeFromV8Size(max_old_generation_size);
