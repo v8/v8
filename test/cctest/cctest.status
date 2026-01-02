@@ -257,6 +257,9 @@
   'test-run-wasm/RunWasmLiftoff_I32Binop_Ior': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_LeU': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_LtU': [PASS, HEAVY],
+
+  # Slow tests.
+  'test-run-wasm/RunWasmTurbofan_Float32*': [PASS, SLOW],
 }],  # 'asan or tsan'
 
 ##############################################################################
