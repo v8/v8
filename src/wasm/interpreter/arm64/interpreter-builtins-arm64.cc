@@ -1024,8 +1024,9 @@ void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
            MemOperand(fp, WasmInterpreterCWasmEntryConstants::kSPFPOffset));
   }
 
-  __ Ldr(x10, __ AsMemOperand(IsolateFieldId::kCEntryFP));  // x10 = C entry FP.
-
+  __ Mov(x11,
+         ExternalReference::Create(IsolateFieldId::kCEntryFP, masm->isolate()));
+  __ Ldr(x10, MemOperand(x11));  // x10 = C entry FP.
   __ Str(x10,
          MemOperand(fp, WasmInterpreterCWasmEntryConstants::kCEntryFPOffset));
 
