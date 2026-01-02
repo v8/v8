@@ -9060,10 +9060,10 @@ struct Simd256Extract128LaneOp
     return MaybeRepVector<RegisterRepresentation::Simd256()>();
   }
 
-  Simd256Extract128LaneOp(OpIndex input, uint8_t lane)
+  Simd256Extract128LaneOp(V<Simd256> input, uint8_t lane)
       : Base(input), lane(lane) {}
 
-  OpIndex input() const { return Base::input(0); }
+  V<Simd256> input() const { return Base::input<Simd256>(0); }
 
   void Validate(const Graph& graph) const {
 #if DEBUG

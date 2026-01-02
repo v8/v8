@@ -2257,6 +2257,31 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 #endif  // V8_TARGET_ARCH_ARM64
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+
+  V<Simd128> REDUCE(Simd256Extract128Lane)(V<Simd256> input, uint8_t lane) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSimd256Extract128Lane(input, lane);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    const Simd256ConstantOp* constant_input =
+        __ Get(input).template TryCast<Simd256ConstantOp>();
+    if (!constant_input) goto no_change;
+
+    switch (lane) {
+      case 0:
+        return __ Simd128Constant(constant_input->value);
+      case 1:
+        return __ Simd128Constant(&constant_input->value[kSimd256Size / 2]);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:

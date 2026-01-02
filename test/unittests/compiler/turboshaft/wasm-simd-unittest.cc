@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/vector.h"
+#include "src/common/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
@@ -181,6 +182,54 @@ TEST_F(WasmSimdTest, AlmostPairwiseF32x4AddReduce) {
   // There's an additional addition.
   ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+
+TEST_F(WasmSimdTest, Simd256Extract128Lane_ConstantFolding) {
+  auto test = CreateFromGraph(0, [](auto& Asm) {
+    const uint8_t cst[kSimd256Size] = {
+        0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+    V<Simd256> simd256_cst = __ Simd256Constant(cst);
+
+    V<Simd128> low = __ Simd256Extract128Lane(simd256_cst, 0);
+    DCHECK(__ output_graph().Get(low).template Is<Simd256Extract128LaneOp>());
+    Asm.Capture(low, "low");
+
+    V<Simd128> high = __ Simd256Extract128Lane(simd256_cst, 1);
+    DCHECK(__ output_graph().Get(high).template Is<Simd256Extract128LaneOp>());
+    Asm.Capture(high, "high");
+
+    __ Return(__ Simd128Binop(high, low, Simd128BinopOp::Kind::kF16x8Add));
+  });
+
+  // Running MachineOptimizationReduce to optimize the Extract.
+  test.Run<MachineOptimizationReducer>();
+  // Running an empty phase to remove the unused operations.
+  test.Run<>();
+
+  // The Simd256Constant and the Extract should have been eliminated.
+  ASSERT_EQ(test.CountOp(Opcode::kSimd256Constant), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd256Extract128Lane), 0u);
+
+  // Testing that `low` and `high` have the right value.
+  const uint8_t expected_low[kSimd128Size] = {0, 1, 2,  3,  4,  5,  6,  7,
+                                              8, 9, 10, 11, 12, 13, 14, 15};
+  const uint8_t expected_high[kSimd128Size] = {16, 17, 18, 19, 20, 21, 22, 23,
+                                               24, 25, 26, 27, 28, 29, 30, 31};
+
+  const uint8_t* actual_low =
+      test.GetCapture("low").GetAs<Simd128ConstantOp>()->value;
+  const uint8_t* actual_high =
+      test.GetCapture("high").GetAs<Simd128ConstantOp>()->value;
+
+  for (int i = 0; i < kSimd128Size; i++) {
+    ASSERT_EQ(expected_low[i], actual_low[i]);
+    ASSERT_EQ(expected_high[i], actual_high[i]);
+  }
+}
+
+#endif
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
