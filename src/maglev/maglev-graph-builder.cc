@@ -6200,8 +6200,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
       bool is_holey_and_treat_hole_as_undefined =
           is_holey && CanTreatHoleAsUndefined(maps) &&
           LoadModeHandlesHoles(load_mode);
-      bool is_smi = IsSmiElementsKind(elements_kind) &&
-                    !is_holey_and_treat_hole_as_undefined;
+      bool is_smi = elements_kind == PACKED_SMI_ELEMENTS;
       GET_VALUE_OR_ABORT(result,
                          BuildLoadFixedArrayElement(
                              elements_array, index,
@@ -6211,6 +6210,17 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
           GET_VALUE_OR_ABORT(result, BuildConvertHoleToUndefined(result));
         } else {
           RETURN_IF_ABORT(BuildCheckNotHole(result));
+          if (IsSmiElementsKind(elements_kind)) {
+            // After the hole-check, we're guaranteed to have a Smi.
+            // TODO(dmercadier): EnsureType doesn't work nicely with the
+            // MaglevOptimizer (because the MaglevOptimizer won't insert an
+            // EnsureType and thus won't realize that we have a Smi). It would
+            // be better to add a new SmiOrHole LoadType, which would be refined
+            // to just Smi after we insert a hole check. This isn't trivial
+            // because the Maglev type system currently doesn't have a "Hole"
+            // type.
+            EnsureType(result, NodeType::kSmi);
+          }
         }
       }
     }
