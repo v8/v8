@@ -2292,7 +2292,9 @@ ProcessResult MaglevGraphOptimizer::VisitInt32Compare(
 ProcessResult MaglevGraphOptimizer::VisitInt32ToBoolean(
     Int32ToBoolean* node, const ProcessingState& state) {
   if (auto cst = reducer_.TryGetInt32Constant(node->input_node(0))) {
-    return ReplaceWith(reducer_.GetBooleanConstant(cst.value() != 0));
+    bool value = cst.value() != 0;
+    return ReplaceWith(
+        reducer_.GetBooleanConstant(node->flip() ? !value : value));
   }
   return ProcessResult::kContinue;
 }
@@ -2395,7 +2397,8 @@ ProcessResult MaglevGraphOptimizer::VisitFloat64ToBoolean(
           TaggedToFloat64ConversionType::kNumberOrOddball)) {
     double value = cst.value().get_scalar();
     bool boolean_value = value != 0.0 && !std::isnan(value);
-    return ReplaceWith(reducer_.GetBooleanConstant(boolean_value));
+    return ReplaceWith(reducer_.GetBooleanConstant(
+        node->flip() ? !boolean_value : boolean_value));
   }
   return ProcessResult::kContinue;
 }
