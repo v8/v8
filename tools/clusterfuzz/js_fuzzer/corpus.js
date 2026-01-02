@@ -109,6 +109,10 @@ class Corpus extends sourceHelpers.BaseCorpus {
     return this;
   }
 
+  isEmpty() {
+    return this.softSkippedFiles.length + this.permittedFiles.length == 0;
+  }
+
   /**
    * Enable subclasses to decide on more skipped files.
    */
