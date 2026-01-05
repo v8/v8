@@ -376,37 +376,3 @@ instance = builder.instantiate( {m: {
   instance.exports.call_stack.value = [instance.exports.suspend_tag0];
   assertEquals(0, instance.exports.resume_next_with_two_handlers_same_tag());
 })();
-
-(function TestResumeSuspendReturn() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let cont_index = builder.addCont(kSig_v_i);
-  let tag_index = builder.addTag(kSig_i_v);
-  let suspend_if = builder.addFunction('suspend_if', kSig_v_i)
-      .addBody([
-          kExprLocalGet, 0,
-          kExprIf, kWasmVoid,
-            kExprSuspend, tag_index,
-            kExprDrop,
-          kExprEnd,
-      ]).exportFunc();
-  const kSuspended = 0;
-  const kReturned = 1;
-  builder.addFunction("main", kSig_i_i)
-      .addBody([
-          kExprBlock, kWasmRef, cont_index,
-            kExprLocalGet, 0,
-            kExprRefFunc, suspend_if.index,
-            kExprContNew, cont_index,
-            kExprResume, cont_index, 1, kOnSuspend, tag_index, 0,
-            kExprI32Const, kReturned,
-            kExprReturn,
-          kExprEnd,
-          kExprDrop,
-          kExprI32Const, kSuspended,
-      ]).exportFunc();
-  assertTrue(WebAssembly.validate(builder.toBuffer()));
-  // let instance = builder.instantiate();
-  // assertEquals(kReturned, instance.exports.main(0));
-  // assertEquals(kSuspended, instance.exports.main(1));
-})();
