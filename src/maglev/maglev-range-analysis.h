@@ -136,6 +136,10 @@ class NodeRanges {
   }
 
   void NarrowUpdate(BasicBlock* block, ValueNode* node, Range narrowed_range) {
+    if (IsConstantNode(node->opcode())) {
+      // Don't narrow update constants.
+      return;
+    }
     auto* map = ranges_[block->id()];
     DCHECK_NOT_NULL(map);
     auto it = map->find(node);
