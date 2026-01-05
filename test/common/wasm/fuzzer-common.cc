@@ -14,6 +14,10 @@
 #include <variant>
 #include <vector>
 
+#if V8_OS_LINUX || V8_OS_DARWIN
+#include <sys/mman.h>  // For `mincore`.
+#endif                 // V8_OS_LINUX || V8_OS_DARWIN
+
 #include "include/v8-context.h"
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
@@ -683,6 +687,51 @@ bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
   return global_mismatches == 0;
 }
 
+#if V8_OS_LINUX || V8_OS_DARWIN
+// Compares two memory regions efficiently by skipping non-resident pages.
+// Processes memory in batches to minimize metadata overhead.
+bool sparse_memory_equal(uint8_t* addr1, uint8_t* addr2, size_t total_length) {
+  const size_t page_size = i::CommitPageSize();
+  // TODO(clemensb): Add batching if necessary. 16GB is 4M pages of 4kB, hence
+  // the two vectors below are <= 4MB, which is OK.
+  static_assert(kMaxMemory64Size <= uint64_t{16} * GB);
+  DCHECK_GE(kMaxMemory64Size, total_length);
+  const size_t num_pages = total_length / page_size;
+  DCHECK_EQ(total_length, num_pages * page_size);
+
+#ifdef V8_OS_DARWIN
+  using mincore_dst_type = char;
+#else
+  using mincore_dst_type = unsigned char;
+#endif  // V8_OS_DARWIN
+  // Allocate storage for the two residency vectors.
+  auto storage =
+      base::OwnedVector<mincore_dst_type>::NewForOverwrite(2 * num_pages);
+  mincore_dst_type* vec1 = storage.data();
+  mincore_dst_type* vec2 = vec1 + num_pages;
+
+  // Fetch residency status for both address ranges.
+  if (mincore(addr1, total_length, vec1) != 0 ||
+      mincore(addr2, total_length, vec2) != 0) {
+    FATAL("mincore failed: %s", strerror(errno));
+  }
+
+  for (size_t i = 0; i < num_pages; ++i) {
+    bool p1_res = vec1[i] & 1;
+    bool p2_res = vec2[i] & 1;
+
+    // Compare pages if at least one is resident.
+    if (!p1_res && !p2_res) continue;
+    if (std::memcmp(addr1 + (i * page_size), addr2 + (i * page_size),
+                    page_size) != 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+#endif  // V8_OS_LINUX || V8_OS_DARWIN
+
 bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
                    Tagged<WasmTrustedInstanceData> instance_data,
                    Tagged<WasmTrustedInstanceData> ref_instance_data,
@@ -718,9 +767,13 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     uint8_t* data = static_cast<uint8_t*>(buffer->backing_store());
     uint8_t* ref_data = static_cast<uint8_t*>(ref_buffer->backing_store());
 
-    if (memcmp(ref_data, data, memory_size) == 0) {
-      continue;
-    }
+#if V8_OS_LINUX || V8_OS_DARWIN
+    const bool memory_equal = sparse_memory_equal(ref_data, data, memory_size);
+#else
+    const bool memory_equal = std::memcmp(ref_data, data, memory_size) == 0;
+#endif  // V8_OS_LINUX || V8_OS_DARWIN
+
+    if (memory_equal) continue;
 
     memory_mismatches++;
 
