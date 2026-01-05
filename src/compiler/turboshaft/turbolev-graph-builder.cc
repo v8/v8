@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/turbolev-graph-builder.h"
 
+#include <format>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -5483,6 +5484,14 @@ class GraphBuildingNodeProcessor {
     GOTO(end);
 
     BIND(abort);
+    if (v8_flags.turboshaft_enable_debug_features) {
+      __ DebugPrint(
+          std::format(
+              "n{}: AssertRangeInt32: expected range [{}, {}], got value ",
+              maglev::GetCurrentGraphLabeller()->NodeId(node),
+              *node->range().min(), *node->range().max()),
+          value);
+    }
     __ RuntimeAbort(AbortReason::kUnexpectedValue);
 
     BIND(end);
@@ -5507,6 +5516,15 @@ class GraphBuildingNodeProcessor {
     GOTO(end);
 
     BIND(abort);
+    if (v8_flags.turboshaft_enable_debug_features) {
+      __ DebugPrint(
+          std::format(
+              "n{}: AssertRangeFloat64: expected range [{}, {}], got value ",
+              maglev::GetCurrentGraphLabeller()->NodeId(node),
+              node->range().min() ? *node->range().min() : -INFINITY,
+              node->range().max() ? *node->range().max() : +INFINITY),
+          value);
+    }
     __ RuntimeAbort(AbortReason::kUnexpectedValue);
 
     BIND(end);
