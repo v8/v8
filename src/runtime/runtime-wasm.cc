@@ -1439,11 +1439,11 @@ class PrototypesSetup : public wasm::Decoder {
 
       uint32_t num_methods = consume_u32v("number of methods");
       if (!ok()) break;
-      // This is usually a no-op, but lets us call {property_dictionary()}
-      // unconditionally afterwards.
       ToDictionaryMode(prototype, num_methods);
-      DirectHandle<NameDictionary> dictionary(prototype->property_dictionary(),
-                                              isolate_);
+      DirectHandle<NameDictionary> dictionary;
+      if (fast_path) {
+        dictionary = handle(prototype->property_dictionary(), isolate_);
+      }
       base::Vector<const char> last_name;
       DirectHandle<JSFunction> getter;
       DirectHandle<JSFunction> setter;
@@ -1476,10 +1476,12 @@ class PrototypesSetup : public wasm::Decoder {
         // for storing their names.
 
         if (fast_path) {
+          bool bailout = MayBeArrayIndex(method.name);
           // If we have pending accessors, and we're moving on to something
           // else, install them now.
           if ((!getter.is_null() || !setter.is_null()) &&
-              (method.name != last_name || method.kind == Method::kMethod)) {
+              (method.name != last_name || method.kind == Method::kMethod ||
+               bailout)) {
             DirectHandle<String> name =
                 isolate_->factory()->InternalizeUtf8String(last_name);
             if (!FastPath_AddAccessorProperty(prototype, dictionary, name,
@@ -1490,6 +1492,15 @@ class PrototypesSetup : public wasm::Decoder {
             }
             getter = {};
             setter = {};
+          }
+          if (bailout) {
+            fast_path = false;
+            prototype->SetProperties(*dictionary);
+            if (!InstallMethod(prototype, method, function)) {
+              DCHECK(isolate()->has_exception());
+              return ReadOnlyRoots(isolate()).exception();
+            }
+            continue;
           }
           if (method.kind == Method::kMethod) {
             DirectHandle<String> name =
@@ -1616,8 +1627,9 @@ class PrototypesSetup : public wasm::Decoder {
   // Adding multiple properties is more efficient when the prototype
   // object is in dictionary mode. ICs will transition it back to
   // "fast" (but slow to modify) properties.
-  void ToDictionaryMode(DirectHandle<JSReceiver> object, int num_properties) {
-    if (!IsJSObject(*object) || !object->HasFastProperties()) return;
+  void ToDictionaryMode(DirectHandle<JSObject> object, int num_properties) {
+    if (!object->HasFastProperties()) return;
+    if (IsJSGlobalProxy(*object)) return;
     JSObject::NormalizeProperties(isolate_, Cast<JSObject>(object),
                                   KEEP_INOBJECT_PROPERTIES, num_properties,
                                   "Wasm prototype setup");
@@ -1718,6 +1730,15 @@ class PrototypesSetup : public wasm::Decoder {
       if (map->NumberOfOwnDescriptors() != 0) return false;
     }
     return true;
+  }
+
+  bool MayBeArrayIndex(base::Vector<const char> name) {
+    // The fast path can't handle elements (i.e. names that are string
+    // representations of array indices). To save time, we approximate
+    // detection of such names by only looking at the first character.
+    if (name.size() == 0) return false;
+    char first = name.at(0);
+    return first >= '0' && first <= '9';
   }
 
   // This is not fully generic: it doesn't need to handle overwriting arbitrary
