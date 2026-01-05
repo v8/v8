@@ -80,8 +80,8 @@ class ExternalStringsCage final {
 
  private:
   size_t GetAllocSize(size_t string_size) const;
-  void* AllocateRaw(size_t size);
-  void Free(void* ptr, size_t size);
+  V8_EXPORT_PRIVATE void* AllocateRaw(size_t size);
+  V8_EXPORT_PRIVATE void Free(void* ptr, size_t size);
 
   const size_t page_size_;
   VirtualMemoryCage vm_cage_;
