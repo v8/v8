@@ -98,29 +98,73 @@ class MaglevPhiRepresentationSelector {
   }
 
  private:
-  enum class HoistType : uint8_t {
+  enum class UntaggingKind : uint8_t {
     kNone,
-    kLoopEntry,
-    kLoopEntryUnchecked,
-    kPrologue,
+
+    // SmiConstants can trivially be turned into Int32Constant or
+    // Float64Constant.
+    kSmiConstant,
+
+    // HeapNumberConstants can be turned into Float64Constant and sometimes
+    // Int32Constants as well.
+    kHeapNumberConstant,
+
+    // Untagged inputs can be retrieved by taking the input of a conversion
+    // nodes.
+    kConversion,
+
+    // Already untagged phis are by definition untagged.
+    kUntaggedPhi,
+
+    // Nodes with static untaggable type (like kSmi or kNumber) can be untagged
+    // by inserting unchecked conversion nodes in the corresponding
+    // predecessors.
+    kKnownSmi,
+    kKnownNumber,
+
+    // TODO(dmercadier): this is a temporary kind that should be removed and
+    // kPredecessorUncheckedSmi/kPredecessorUncheckedNumber should be used
+    // instead.
+    kLoadTaggedField,
+
+    // Note that the following cases can currently lead to deopt loops (but we
+    // accept that since in general they do improve performance).
+    //
+    // We allow speculative untagging of backedge phis in loops with a peeled
+    // iteration (if the forward edge (which is actually the peeled backedge) is
+    // itself untaggable: we take this as a strong signal that the backedge can
+    // be untagged without deopting).
+    kSpeculativePhiBackedge,
+
+    // Speculatively untagging loop phi input (in predecessor) without any
+    // specific knowledge that this makes sense (except for the fact that the
+    // other inputs should look untaggable and the use hints should also look
+    // compatible with untagging).
+    kSpeculativeAny,
+
+    // InitialValues in OSR graphs can be speculatively untagged, in which case
+    // the untagging goes into the prologue.
+    kSpeculativeOSRValue,
   };
-  using HoistTypeList = base::SmallVector<HoistType, 8>;
+  using UntaggingKindList = base::SmallVector<UntaggingKind, 8>;
 
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.
   void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
-                          const HoistTypeList& hoist_untagging);
+                          const UntaggingKindList& untagging_kinds);
   void UntagInputWithHoistedUntagging(Phi* phi, ValueRepresentation repr,
                                       int input_index, ValueNode* input,
-                                      HoistType hoist_type);
+                                      UntaggingKind untagging_kind);
   void UntagSmiConstantInput(Phi* phi, ValueRepresentation repr,
                              int input_index, const SmiConstant* input);
   void UntagConstantInput(Phi* phi, ValueRepresentation repr, int input_index,
                           const Constant* input);
   void UntagConversionInput(Phi* phi, ValueRepresentation repr, int input_index,
                             ValueNode* input);
-  void UntagPhiInput(Phi* phi, ValueRepresentation repr, int input_index,
-                     Phi* input_phi);
+  void UntagUntaggedPhiInput(Phi* phi, ValueRepresentation repr,
+                             int input_index, Phi* input_phi);
+  void UntagBackedgePhiInput(Phi* phi, ValueRepresentation repr,
+                             int input_index, Phi* input_phi);
   void UntagLoadTaggedFieldInput(Phi* phi, ValueRepresentation repr,
                                  int input_index, LoadTaggedField* load);
   template <class NodeT>
