@@ -828,9 +828,9 @@ void MacroAssembler::MultiPopV128(DoubleRegList dregs, Register scratch,
 void MacroAssembler::MultiPushF64OrV128(DoubleRegList dregs, Register scratch,
                                         Register location) {
 #if V8_ENABLE_WEBASSEMBLY
-  bool generating_bultins =
+  bool generating_builtins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-  if (generating_bultins) {
+  if (generating_builtins) {
     Label push_doubles, simd_pushed;
     Move(r1, ExternalReference::supports_wasm_simd_128_address());
     LoadU8(r1, MemOperand(r1));
@@ -862,9 +862,9 @@ void MacroAssembler::MultiPushF64OrV128(DoubleRegList dregs, Register scratch,
 void MacroAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register scratch,
                                        Register location) {
 #if V8_ENABLE_WEBASSEMBLY
-  bool generating_bultins =
+  bool generating_builtins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-  if (generating_bultins) {
+  if (generating_builtins) {
     Label pop_doubles, simd_popped;
     Move(r1, ExternalReference::supports_wasm_simd_128_address());
     LoadU8(r1, MemOperand(r1));

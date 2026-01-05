@@ -86,8 +86,10 @@ class Deserializer : public SerializerDeserializer {
       const {
     return {new_allocation_sites_.data(), new_allocation_sites_.size()};
   }
-  base::Vector<const DirectHandle<InstructionStream>> new_code_objects() const {
-    return {new_code_objects_.data(), new_code_objects_.size()};
+  base::Vector<const DirectHandle<InstructionStream>>
+  new_instruction_stream_objects() const {
+    return {new_instruction_stream_objects_.data(),
+            new_instruction_stream_objects_.size()};
   }
   base::Vector<const DirectHandle<Map>> new_maps() const {
     return {new_maps_.data(), new_maps_.size()};
@@ -286,7 +288,7 @@ class Deserializer : public SerializerDeserializer {
   HotObjectsList hot_objects_;
   DirectHandleVector<Map> new_maps_;
   DirectHandleVector<AllocationSite> new_allocation_sites_;
-  DirectHandleVector<InstructionStream> new_code_objects_;
+  DirectHandleVector<InstructionStream> new_instruction_stream_objects_;
   DirectHandleVector<AccessorInfo> accessor_infos_;
   DirectHandleVector<InterceptorInfo> interceptor_infos_;
   DirectHandleVector<FunctionTemplateInfo> function_template_infos_;

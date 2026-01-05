@@ -380,7 +380,7 @@ class ObjectPostProcessor final {
     DCHECK(o->is_builtin());
     DCHECK(!o->has_instruction_stream());
     Builtin builtin = o->builtin_id();
-    // Mark disabled bultins as such (RO space serializer resets this flag).
+    // Mark disabled builtins as such (RO space serializer resets this flag).
     DCHECK(!o->is_disabled_builtin());
     if (Builtins::IsDisabled(builtin)) {
       o->set_is_disabled_builtin(true);

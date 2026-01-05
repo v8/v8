@@ -327,7 +327,7 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
       magic_number_(magic_number),
       new_maps_(isolate),
       new_allocation_sites_(isolate),
-      new_code_objects_(isolate),
+      new_instruction_stream_objects_(isolate),
       accessor_infos_(isolate),
       interceptor_infos_(isolate),
       function_template_infos_(isolate),
@@ -657,7 +657,8 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
     // Hence we only remember each individual code object when deserializing
     // user code.
     if (deserializing_user_code()) {
-      new_code_objects_.push_back(TrustedCast<InstructionStream>(obj));
+      new_instruction_stream_objects_.push_back(
+          TrustedCast<InstructionStream>(obj));
     }
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
     Tagged<Code> code = TrustedCast<Code>(raw_obj);
