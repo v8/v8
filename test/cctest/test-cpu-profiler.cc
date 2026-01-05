@@ -4588,7 +4588,10 @@ TEST(NoProfilingProtectorCPUProfiler) {
       isolate,
       [](const v8::FunctionCallbackInfo<v8::Value>& info) {
         CHECK(i::ValidateCallbackInfo(info));
-        CallCollectSample(info);
+        // Artificially slow down the callback with a predictable amount of
+        // time. This ensures the test has a relatively stable run time on
+        // various platforms and protects it from flakyness.
+        v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
       },
       v8::Local<v8::Value>(), v8::Local<v8::Signature>(), 1,
       v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasSideEffect);
@@ -4632,7 +4635,7 @@ TEST(NoProfilingProtectorCPUProfiler) {
   // Api functions profiling.
   CompileRun("%OptimizeFunctionOnNextCall(foo); foo(55);");
 
-  unsigned external_samples = 10;
+  unsigned external_samples = 1000;
   v8::CpuProfile* profile =
       helper.Run(function, args, arraysize(args), 0, external_samples);
 
@@ -4653,12 +4656,12 @@ TEST(NoProfilingProtectorCPUProfiler) {
   // Check that at least 80% of the samples in foo hit the fast callback.
   CHECK_LE(foo_ticks, api_func_ticks * 0.2);
   // The following constant in the CHECK is because above we expect at least
-  // 10 samples with EXTERNAL type (see external_samples). Since the only
+  // 1000 samples with EXTERNAL type (see external_samples). Since the only
   // thing that generates those kind of samples is the fast callback, then
-  // we're supposed to have close to 10 ticks in its node. Since the CPU
+  // we're supposed to have close to 1000 ticks in its node. Since the CPU
   // profiler is nondeterministic, we've allowed for some slack, otherwise
-  // this could be 10 instead of 8.
-  CHECK_GE(api_func_ticks, 8);
+  // this could be 1000 instead of 800.
+  CHECK_GE(api_func_ticks, 800);
 
   profile->Delete();
 #endif  // !defined(V8_LITE_MODE) &&

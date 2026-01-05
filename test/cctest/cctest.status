@@ -100,6 +100,7 @@
   'test-api/FastApiCalls': [PASS, SLOW],
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [PASS, SLOW],
+  'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap/TestInternalWeakLists': [PASS, SLOW],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
@@ -305,6 +306,9 @@
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+
+  # https://issues.chromium.org/issues/407932138
+  'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [SKIP],
 }],  # 'full_debug'
 
 ##############################################################################
