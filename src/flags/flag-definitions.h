@@ -2170,14 +2170,14 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(trace_wasm_revectorize, false, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64
 DEFINE_BOOL(wasm_memory64_trap_handling, true,
             "Use trap handling for Wasm memory64 bounds checks")
 #else
 DEFINE_BOOL_READONLY(wasm_memory64_trap_handling, false,
                      "Use trap handling for Wasm memory64 bounds checks (not "
                      "supported for this architecture)")
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64
 
 #ifdef V8_ENABLE_DRUMBRAKE
 // DrumBrake flags.
