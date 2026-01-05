@@ -1395,6 +1395,10 @@ class PrototypesSetup : public wasm::Decoder {
 
       if (has_constructor == 1) {
         DirectHandle<WasmExportedFunction> constructor = NextFunction();
+        if (constructor.is_null()) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
         uint32_t ctor_name_length = consume_u32v("constructor name length");
         if (!ok()) break;
         const char* ctor_name_start = reinterpret_cast<const char*>(pc());
@@ -1581,6 +1585,12 @@ class PrototypesSetup : public wasm::Decoder {
     DirectHandle<Object> maybe_func = NextFunctionInternal();
     if (maybe_func.is_null()) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
+      return {};
+    }
+    // TODO(jkummerow): Can we tighten the spec to require non-nullable arrays?
+    if (!IsWasmFuncRef(*maybe_func)) {
+      DCHECK(IsWasmNull(*maybe_func));
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapNullFunc);
       return {};
     }
     DirectHandle<WasmFuncRef> funcref = Cast<WasmFuncRef>(maybe_func);
