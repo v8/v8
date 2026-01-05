@@ -789,7 +789,7 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
       //
       // In general, SIGILL can be caused by either:
       // * A release-mode assertion fail (e.g. __builtin_unreachable()) for
-      //   which the compiler generates a `ud2` instruction. This is harmless.
+      //   which the compiler generates a `udX` instruction. This is harmless.
       // * A bug causing us to execute random invalid machine code. This is bad.
       //
       // Here we try to detect which of these cases happened by looking at the
@@ -798,9 +798,17 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
       // _should_ be readable. If we ever see segfaults here, we could change it
       // to a "safe" read by e.g. using pipes and the read/write syscalls.
 #ifdef V8_HOST_ARCH_X64
-      uint16_t* code = reinterpret_cast<uint16_t*>(faultaddr);
-      // "ud2" is 0x0f 0x0b (0x0b0f due to little-endian).
-      if (*code == 0x0b0f) {
+      uint8_t* code = reinterpret_cast<uint8_t*>(faultaddr);
+      // "ud1" is 0x0f 0xb9 [...].
+      if (code[0] == 0x0f && code[1] == 0xb9) {
+        FilterCrash("Caught harmless signal (SIGILL caused by ud1).");
+      }
+      // "ud1" with any prefix (e.g. 0x67) is [Prefix] 0x0f 0xb9 [...].
+      if (code[1] == 0x0f && code[2] == 0xb9) {
+        FilterCrash("Caught harmless signal (SIGILL caused by ud1).");
+      }
+      // "ud2" is 0x0f 0x0b.
+      if (code[0] == 0x0f && code[1] == 0x0b) {
         FilterCrash("Caught harmless signal (SIGILL caused by ud2).");
       }
 #else
