@@ -107,6 +107,12 @@ void V8::InitializePlatform(v8::Platform* platform) {
   CHECK_NOT_NULL(platform);
   platform_ = platform;
   v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
+#if defined(V8_USE_PERFETTO)
+  // TrackEvent must be registered before TracingCategoryObserver::SetUp().
+  if (perfetto::Tracing::IsInitialized()) {
+    TrackEvent::Register();
+  }
+#endif
   v8::tracing::TracingCategoryObserver::SetUp();
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
   if (v8_flags.enable_etw_stack_walking ||
@@ -228,11 +234,8 @@ void V8::Initialize() {
 #endif  // V8_ENABLE_SANDBOX
 
 #if defined(V8_USE_PERFETTO)
-  if (perfetto::Tracing::IsInitialized()) {
-    TrackEvent::Register();
-    if (v8_flags.perfetto_code_logger) {
-      v8::internal::CodeDataSource::Register();
-    }
+  if (perfetto::Tracing::IsInitialized() && v8_flags.perfetto_code_logger) {
+    v8::internal::CodeDataSource::Register();
   }
 #endif
   IsolateGroup::InitializeOncePerProcess();
