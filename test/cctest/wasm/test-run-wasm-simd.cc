@@ -6398,7 +6398,7 @@ TEST(RunWasmTurbofan_S256Load64SplatMemory64) {
                                        base::AddWithWraparound);
 }
 
-template <typename S, typename T>
+template <typename S, typename T, bool reordered = false>
 void RunLoadExtendRevecTest(WasmOpcode op) {
   if (!CpuFeatures::IsSupported(AVX2)) return;
 
@@ -6426,11 +6426,30 @@ void RunLoadExtendRevecTest(WasmOpcode op) {
                                       WASM_LOCAL_GET(temp2)),                 \
            WASM_ONE});
 
+#define BUILD_REORDERED_LOADEXTEND(get_op, index)                             \
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);                                 \
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);                                 \
+                                                                              \
+  r.Build({WASM_LOCAL_SET(                                                    \
+               temp2, WASM_SIMD_LOAD_OP_OFFSET(op, get_op(index), offset_s)), \
+           WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_OP(op, get_op(index))),       \
+                                                                              \
+           /* Store the result to the 16-th byte, which is lanes-th element   \
+              (size S) of memory. */                                          \
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_I32V(16),                  \
+                                      WASM_LOCAL_GET(temp2)),                 \
+           WASM_SIMD_STORE_MEM(WASM_I32V(16), WASM_LOCAL_GET(temp1)),         \
+           WASM_ONE});
+
   {
     WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
     TSSimd256VerifyScope ts_scope(r.zone());
     S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
-    BUILD_LOADEXTEND(WASM_I32V, mem_index)
+    if constexpr (reordered) {
+      BUILD_REORDERED_LOADEXTEND(WASM_I32V, mem_index)
+    } else {
+      BUILD_LOADEXTEND(WASM_I32V, mem_index)
+    }
 
     for (S x : compiler::ValueHelper::GetVector<S>()) {
       for (int i = 0; i < lanes_s; i++) {
@@ -6448,7 +6467,11 @@ void RunLoadExtendRevecTest(WasmOpcode op) {
     WasmRunner<int32_t, uint32_t> r(TestExecutionTier::kTurbofan);
     TSSimd256VerifyScope ts_scope(r.zone());
     r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
-    BUILD_LOADEXTEND(WASM_LOCAL_GET, 0)
+    if constexpr (reordered) {
+      BUILD_REORDERED_LOADEXTEND(WASM_LOCAL_GET, 0)
+    } else {
+      BUILD_LOADEXTEND(WASM_LOCAL_GET, 0)
+    }
 
     // Load extends load 8 bytes, so should trap from -7.
     for (uint32_t load_offset = kWasmPageSize - 7; load_offset < kWasmPageSize;
@@ -6456,6 +6479,8 @@ void RunLoadExtendRevecTest(WasmOpcode op) {
       CHECK_TRAP(r.Call(load_offset));
     }
   }
+#undef BUILD_REORDERED_LOADEXTEND
+#undef BUILD_LOADEXTEND
 }
 
 TEST(S128Load8x8U) {
@@ -6480,6 +6505,11 @@ TEST(S128Load32x2U) {
 
 TEST(S128Load32x2S) {
   RunLoadExtendRevecTest<int32_t, int64_t>(kExprS128Load32x2S);
+}
+
+// Use Load8x8U for reorder test.
+TEST(S128Load8x8UReorder) {
+  RunLoadExtendRevecTest<uint8_t, uint16_t, true>(kExprS128Load8x8U);
 }
 
 TEST(RunWasmTurbofan_I8x32Splat) {

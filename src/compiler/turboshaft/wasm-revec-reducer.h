@@ -242,6 +242,14 @@ class NodeGroup {
   OpIndex indexes_[kSize];
 };
 
+// Returns true if all of the nodes in node_group are identical.
+// Splat opcode in WASM SIMD is used to create a vector with identical lanes.
+template <typename T>
+bool IsSplat(const T& node_group) {
+  DCHECK_EQ(node_group.size(), 2);
+  return node_group[1] == node_group[0];
+}
+
 class ForcePackNode;
 class ShufflePackNode;
 class BundlePackNode;
@@ -741,10 +749,31 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     V<Simd256> og_index = pnode->RevectorizedNode();
     // Skip revectorized node.
     if (!og_index.valid()) {
-      V<WordPtr> base = __ MapToNewGraph(load_transform.base());
+      OpIndex base = __ MapToNewGraph(load_transform.base());
       V<WordPtr> index = __ MapToNewGraph(load_transform.index());
       int offset = load_transform.offset;
       DCHECK_EQ(load_transform.offset, 0);
+
+      if (!IsSplat(pnode->nodes()) && pnode->nodes()[0] != ig_index) {
+        // Needs to update offset and base to align with node0.
+        const Simd128LoadTransformOp& op0 =
+            __ input_graph()
+                .Get(pnode -> nodes()[0])
+                .template Cast<Simd128LoadTransformOp>();
+        const WordBinopOp& add_op0 =
+            __ input_graph().Get(op0.base()).template Cast<WordBinopOp>();
+        DCHECK(add_op0.kind == WordBinopOp::Kind::kAdd &&
+               add_op0.rep == WordRepresentation::Word64());
+        const ConstantOp& offset0 =
+            __ input_graph().Get(add_op0.right()).template Cast<ConstantOp>();
+        V<WordPtr> og_offset0 = __ WordPtrConstant(offset0.word64());
+        const WordBinopOp& add_op =
+            __ output_graph().Get(base).template Cast<WordBinopOp>();
+        DCHECK(add_op.kind == WordBinopOp::Kind::kAdd &&
+               add_op.rep == WordRepresentation::Word64());
+        base = __ WordBinop(add_op.left(), og_offset0, WordBinopOp::Kind::kAdd,
+                            WordRepresentation::Word64());
+      }
 
       og_index = __ Simd256LoadTransform(
           base, index, load_transform.load_kind,

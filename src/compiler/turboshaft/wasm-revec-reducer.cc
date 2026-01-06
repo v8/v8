@@ -227,14 +227,6 @@ struct StoreInfoCompare {
 
 using StoreInfoSet = ZoneSet<StoreLoadInfo<StoreOp>, StoreInfoCompare>;
 
-// Returns true if all of the nodes in node_group are identical.
-// Splat opcode in WASM SIMD is used to create a vector with identical lanes.
-template <typename T>
-bool IsSplat(const T& node_group) {
-  DCHECK_EQ(node_group.size(), 2);
-  return node_group[1] == node_group[0];
-}
-
 void PackNode::Print(Graph* graph) const {
   Operation& op = graph->Get(nodes_[0]);
   TRACE("%s(#%d, #%d)\n", GetSimdOpcodeName(op).c_str(), nodes_[0].id(),
@@ -1082,7 +1074,9 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           TRACE("Simd128LoadTransform: LoadSplat\n");
           if (IsSplat(node_group) ||
               (stride.has_value() && stride.value() == 0)) {
-            return NewPackNode(node_group);
+            DCHECK_EQ(node_group.size(), 2);
+            NodeGroup new_group = {node0, node0};
+            return NewPackNode(new_group);
           }
           return NewForcePackNode(node_group, ForcePackNode::kGeneral,
                                   recursion_depth);
