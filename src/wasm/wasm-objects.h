@@ -437,7 +437,7 @@ class WasmGlobalObject
 
   DECL_ACCESSORS(untagged_buffer, Tagged<JSArrayBuffer>)
   DECL_ACCESSORS(tagged_buffer, Tagged<FixedArray>)
-  DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
+  DECL_PRIMITIVE_ACCESSORS(unsafe_type, wasm::ValueType)
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
 
   // Dispatched behavior.
@@ -449,14 +449,14 @@ class WasmGlobalObject
       MaybeDirectHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
 
-  inline int type_size() const;
+  inline int unsafe_type_size() const;
 
-  inline int32_t GetI32();
-  inline int64_t GetI64();
-  inline float GetF32();
-  inline double GetF64();
-  inline uint8_t* GetS128RawBytes();
-  inline DirectHandle<Object> GetRef();
+  inline int32_t GetI32() const;
+  inline int64_t GetI64() const;
+  inline float GetF32() const;
+  inline double GetF64() const;
+  inline uint8_t* GetS128RawBytes() const;
+  inline DirectHandle<Object> GetRef() const;
 
   inline void SetI32(int32_t value);
   inline void SetI64(int64_t value);

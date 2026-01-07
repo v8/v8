@@ -3212,7 +3212,7 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {
 
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmGlobalObject");
-  if (type().is_ref()) {
+  if (unsafe_type().is_ref()) {
     os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   } else {
     os << "\n - untagged_buffer: " << Brief(untagged_buffer());
@@ -3220,7 +3220,7 @@ void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {
   os << "\n - offset: " << offset();
   os << "\n - raw_type: " << raw_type();
   os << "\n - is_mutable: " << is_mutable();
-  os << "\n - type: " << type();
+  os << "\n - type: " << unsafe_type();
   os << "\n - is_mutable: " << is_mutable();
   os << "\n";
 }

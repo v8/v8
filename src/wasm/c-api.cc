@@ -2026,7 +2026,7 @@ WASM_EXPORT auto Global::make(Store* store_abs, const GlobalType* type,
 
 WASM_EXPORT auto Global::type() const -> own<GlobalType> {
   i::DirectHandle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
-  ValKind kind = V8ValueTypeToWasm(v8_global->type());
+  ValKind kind = V8ValueTypeToWasm(v8_global->unsafe_type());
   Mutability mutability =
       v8_global->is_mutable() ? Mutability::VAR : Mutability::CONST;
   return GlobalType::make(ValType::make(kind), mutability);
@@ -2037,7 +2037,7 @@ WASM_EXPORT auto Global::get() const -> Val {
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   i::DirectHandle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
-  switch (v8_global->type().kind()) {
+  switch (v8_global->unsafe_type().kind()) {
     case i::wasm::kI32:
       return Val(v8_global->GetI32());
     case i::wasm::kI64:
@@ -2094,9 +2094,10 @@ WASM_EXPORT void Global::set(const Val& val) {
       i::Isolate* isolate = impl(this)->store()->i_isolate();
       auto external = WasmRefToV8(impl(this)->store()->i_isolate(), val.ref());
       const char* error_message;
-      auto internal = i::wasm::JSToWasmObject(isolate, nullptr, external,
-                                              v8_global->type(), &error_message)
-                          .ToHandleChecked();
+      auto internal =
+          i::wasm::JSToWasmObject(isolate, nullptr, external,
+                                  v8_global->unsafe_type(), &error_message)
+              .ToHandleChecked();
       v8_global->SetRef(internal);
       return;
     }

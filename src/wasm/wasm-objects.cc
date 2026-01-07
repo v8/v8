@@ -1451,7 +1451,7 @@ MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
     } else {
       global_obj->clear_trusted_data();
     }
-    global_obj->set_type(type);
+    global_obj->set_unsafe_type(type);
     global_obj->set_offset(offset);
     global_obj->set_is_mutable(is_mutable);
   }
@@ -3760,13 +3760,17 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
 MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                          const WasmModule* module,
                                          DirectHandle<Object> value,
-                                         ValueType expected,
+                                         ValueType unsafe_expected_type,
                                          const char** error_message) {
   CanonicalValueType canonical;
-  if (expected.has_index()) {
-    canonical = module->canonical_type(expected);
+  if (unsafe_expected_type.has_index()) {
+    SBXCHECK(module->has_type(unsafe_expected_type.ref_index()));
+    canonical = module->canonical_type(unsafe_expected_type);
   } else {
-    canonical = CanonicalValueType{expected};
+    // Some code paths did check this before, but to be on the safe side we
+    // check again here.
+    SBXCHECK(unsafe_expected_type.is_valid());
+    canonical = CanonicalValueType{unsafe_expected_type};
   }
   return JSToWasmObject(isolate, value, canonical, error_message);
 }

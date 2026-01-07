@@ -331,7 +331,7 @@ DirectHandle<JSObject> GetTypeForFunction(Isolate* isolate,
 }
 
 DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
-                                        ValueType type) {
+                                        ValueType unsafe_type) {
   Factory* factory = isolate->factory();
 
   DirectHandle<JSFunction> object_function = isolate->object_function();
@@ -342,7 +342,7 @@ DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
   JSObject::AddProperty(isolate, object, mutable_string,
                         factory->ToBoolean(is_mutable), NONE);
   JSObject::AddProperty(isolate, object, value_string,
-                        ToValueTypeString(isolate, type), NONE);
+                        ToValueTypeString(isolate, unsafe_type), NONE);
 
   return object;
 }

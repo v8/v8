@@ -2097,7 +2097,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data =
       trusted_data(global.shared);
 
-  wasm::ValueType actual_type = global_object->type();
+  wasm::ValueType actual_type = global_object->unsafe_type();
+  SBXCHECK(actual_type.is_valid());
   const WasmModule* source_module = nullptr;
   if (global_object->has_trusted_data()) {
     source_module = global_object->trusted_data(isolate_)->module();

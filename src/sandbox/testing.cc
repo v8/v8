@@ -1202,6 +1202,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         WasmTableObject::kRawTypeOffset;
     fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
         WasmResumeData::kTrustedSuspenderOffset;
+    fields[WASM_GLOBAL_OBJECT_TYPE]["raw_type"] =
+        WasmGlobalObject::kRawTypeOffset;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;

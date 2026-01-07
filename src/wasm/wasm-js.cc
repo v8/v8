@@ -2703,9 +2703,10 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 namespace {
 V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
     v8::ReturnValue<v8::Value>& return_value, i::DirectHandle<i::Object> value,
-    i::wasm::ValueType type, i::Isolate* isolate, ErrorThrower* thrower) {
-  if (type.is_abstract_ref()) {
-    switch (type.generic_kind()) {
+    i::wasm::ValueType unsafe_type, i::Isolate* isolate,
+    ErrorThrower* thrower) {
+  if (unsafe_type.is_abstract_ref()) {
+    switch (unsafe_type.generic_kind()) {
       case i::wasm::GenericKind::kStringViewIter:
       case i::wasm::GenericKind::kStringViewWtf8:
       case i::wasm::GenericKind::kStringViewWtf16:
@@ -2713,7 +2714,7 @@ V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
       case i::wasm::GenericKind::kNoExn:
       case i::wasm::GenericKind::kCont:
       case i::wasm::GenericKind::kNoCont:
-        thrower->TypeError("invalid type %s", type.name().c_str());
+        thrower->TypeError("invalid type %s", unsafe_type.name().c_str());
         return false;
       default:
         break;
@@ -3125,7 +3126,7 @@ void WebAssemblyGlobalGetValueCommon(WasmJSApiScope& js_api_scope) {
 
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
 
-  i::wasm::ValueType receiver_type = receiver->type();
+  i::wasm::ValueType receiver_type = receiver->unsafe_type();
   switch (receiver_type.kind()) {
     case i::wasm::kI32:
       return_value.Set(receiver->GetI32());
@@ -3192,7 +3193,8 @@ void WebAssemblyGlobalSetValueImpl(
   }
 
   Local<Context> context = isolate->GetCurrentContext();
-  switch (receiver->type().kind()) {
+  i::wasm::ValueType unsafe_type = receiver->unsafe_type();
+  switch (unsafe_type.kind()) {
     case i::wasm::kI32: {
       int32_t i32_value = 0;
       if (!info[0]->Int32Value(context).To(&i32_value)) {
@@ -3236,7 +3238,7 @@ void WebAssemblyGlobalSetValueImpl(
               : nullptr;
       i::DirectHandle<i::Object> value = Utils::OpenDirectHandle(*info[0]);
       const char* error_message;
-      if (!i::wasm::JSToWasmObject(i_isolate, module, value, receiver->type(),
+      if (!i::wasm::JSToWasmObject(i_isolate, module, value, unsafe_type,
                                    &error_message)
                .ToHandle(&value)) {
         thrower.TypeError("%s", error_message);
@@ -3262,7 +3264,7 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   EXTRACT_THIS(global, WasmGlobalObject);
 
   auto type = i::wasm::GetTypeForGlobal(i_isolate, global->is_mutable(),
-                                        global->type());
+                                        global->unsafe_type());
   info.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
