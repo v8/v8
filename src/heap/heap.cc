@@ -1578,14 +1578,6 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
                                          std::memory_order_relaxed);
   global_allocation_limit_.store(new_global_allocation_limit,
                                  std::memory_order_relaxed);
-  if (v8_flags.trace_gc_nvp) [[unlikely]] {
-    isolate()->PrintWithTimestamp(
-        "action=SetOldGenerationAndGlobalAllocationLimit "
-        "old_generation_allocation_limit=%zu global_allocation_limit=%zu "
-        "reason=%s\n",
-        new_old_generation_allocation_limit, new_global_allocation_limit,
-        reason);
-  }
 }
 
 void Heap::ResetOldGenerationAndGlobalAllocationLimit() {
