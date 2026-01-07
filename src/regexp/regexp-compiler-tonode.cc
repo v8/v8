@@ -2010,9 +2010,10 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   bool needs_capture_clearing = !capture_registers.is_empty() && max != 1;
   Zone* zone = compiler->zone();
 
+  bool want_unroll = compiler->optimize() && v8_flags.regexp_unroll;
   if (body_can_be_empty) {
     body_start_reg = compiler->AllocateRegister();
-  } else if (compiler->optimize() && !needs_capture_clearing) {
+  } else if (want_unroll && !needs_capture_clearing) {
     // Only unroll if there are no captures and the body can't be
     // empty.
     {

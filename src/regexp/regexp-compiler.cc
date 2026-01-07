@@ -3397,7 +3397,10 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(
   // not be atoms, they can be any reasonably limited character class or
   // small alternation.
   BoyerMooreLookahead* bm = bm_info(false);
-  if (bm == nullptr) {
+  // The --no-regexp-quick-check is for testing.  It disables the compiler's
+  // clever optimizations that attempt to eliminate match positions. This
+  // way the regular regexp machinery gets more exercise and test coverage.
+  if (bm == nullptr && v8_flags.regexp_quick_check) {
     eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast(false));
     if (eats_at_least >= 1) {
       bm = zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
@@ -3424,6 +3427,9 @@ EmitResult ChoiceNode::EmitChoices(RegExpCompiler* compiler,
 
   int new_flush_budget = trace->flush_budget() / choice_count;
 
+  bool quick_check_flags =
+      v8_flags.regexp_optimization && v8_flags.regexp_quick_check;
+
   for (int i = first_choice; i < choice_count; i++) {
     compiler->set_flags(flags);
     bool is_last = i == choice_count - 1;
@@ -3446,8 +3452,7 @@ EmitResult ChoiceNode::EmitChoices(RegExpCompiler* compiler,
     }
     alt_gen->expects_preload = preload->preload_is_current_;
     bool generate_full_check_inline = false;
-    if (v8_flags.regexp_optimization &&
-        try_to_emit_quick_check_for_alternative(i == 0) &&
+    if (quick_check_flags && try_to_emit_quick_check_for_alternative(i == 0) &&
         alternative.node()->EmitQuickCheck(
             compiler, trace, &new_trace, preload->preload_has_checked_bounds_,
             &alt_gen->possible_success, &alt_gen->quick_check_details,
