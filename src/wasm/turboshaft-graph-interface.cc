@@ -3966,10 +3966,10 @@ class TurboshaftGraphBuildingInterface
             CheckForException::kCatchInThisFrame);
 
     // Unpack tag returns.
-    IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
-      DCHECK_EQ(returns[index].type, sig->GetParam(index));
+    IterateWasmFXArgBuffer(sig->returns(), [&](size_t index, int offset) {
+      DCHECK_EQ(returns[index].type, sig->GetReturn(index));
       returns[index].op = this->Asm().LoadOffHeap(
-          arg_buffer, offset, MemoryRepresentationFor(sig->GetParam(index)));
+          arg_buffer, offset, MemoryRepresentationFor(sig->GetReturn(index)));
     });
   }
 
