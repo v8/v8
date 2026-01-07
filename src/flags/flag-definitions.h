@@ -2452,7 +2452,7 @@ DEFINE_BOOL(ineffective_gc_includes_global, false,
 DEFINE_BOOL(ineffective_gcs_forces_last_resort, false,
             "force a last resort GC when we're near heap limit")
 DEFINE_FLOAT(
-    ineffective_gc_size_threshold, 0.8,
+    ineffective_gc_size_threshold, 0.95,
     "Threshold on heap size to trigger out-of-memory failure near heap limit.")
 DEFINE_FLOAT(ineffective_gc_mutator_utilization_threshold, 0.4,
              "Threshold on mutator utilization to trigger out-of-memory "
