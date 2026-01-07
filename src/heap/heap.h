@@ -221,7 +221,8 @@ DEFINE_OPERATORS_FOR_FLAGS(GCFlags)
 enum class CompleteSweepingReason {
   kCollectCodeStatistics,
   kHeapObjectIterator,
-  kStartMarking,
+  kStartMinorMarking,
+  kStartMajorMarking,
   kMinorGC,
   kMajorGC,
   kHeapSnapshot,
@@ -237,8 +238,10 @@ constexpr const char* ToString(CompleteSweepingReason reason) {
       return "collect code statistics";
     case CompleteSweepingReason::kHeapObjectIterator:
       return "heap object iterator";
-    case CompleteSweepingReason::kStartMarking:
-      return "start marking";
+    case CompleteSweepingReason::kStartMajorMarking:
+      return "start major marking";
+    case CompleteSweepingReason::kStartMinorMarking:
+      return "start minor marking";
     case CompleteSweepingReason::kMinorGC:
       return "minor gc";
     case CompleteSweepingReason::kMajorGC:
@@ -1716,11 +1719,15 @@ class Heap final {
     return sweeper_->major_sweeping_in_progress();
   }
 
+  // Used on Minor GCs to finish sweeping for Major GCs if the sweeper tasks
+  // have run out of work. Finishes sweeping using EnsureSweepingCompleted() -
+  // but this should be a no-op as all sweeping is already done.
   void FinishSweepingIfOutOfWork(CompleteSweepingReason reason);
 
   enum class SweepingForcedFinalizationMode { kUnifiedHeap, kV8Only };
 
-  // Ensures that sweeping is finished.
+  // Ensures that sweeping is finished. This generally entails sweeping heap
+  // pages not yet swept.
   //
   // Note: Can only be called safely from main thread.
   V8_EXPORT_PRIVATE void EnsureSweepingCompleted(

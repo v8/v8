@@ -2011,11 +2011,11 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
       });
 
   if (IsYoungGenerationCollector(collector)) {
-    CompleteSweepingYoung(CompleteSweepingReason::kStartMarking);
+    CompleteSweepingYoung(CompleteSweepingReason::kStartMinorMarking);
   } else {
     // Sweeping needs to be completed such that markbits are all cleared before
     // starting marking again.
-    CompleteSweepingFull(CompleteSweepingReason::kStartMarking);
+    CompleteSweepingFull(CompleteSweepingReason::kStartMajorMarking);
   }
 
   std::optional<SafepointScope> safepoint_scope;
@@ -7718,6 +7718,22 @@ void Heap::FinishSweepingIfOutOfWork(CompleteSweepingReason reason) {
     DCHECK_IMPLIES(!delay_sweeper_tasks_for_testing_,
                    !sweeper()->HasUnsweptPagesForMajorSweeping());
     EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only, reason);
+    if (v8_flags.external_memory_accounted_in_global_limit &&
+        !using_initial_limit()) {
+      // Ensure that we don't update limits when starting incremental marking.
+      // Shrinking limits there could lead to finalizing incremental marking
+      // prematurely.
+      DCHECK_NE(reason, CompleteSweepingReason::kStartMajorMarking);
+      DCHECK_NE(reason, CompleteSweepingReason::kMajorGC);
+      // Make sure we don't increase heap limits here.
+      LimitBounds bounds = LimitBounds::AtMostCurrentLimits(this);
+      // But don't go below the soft limits for starting incremental marking.
+      const size_t new_space_capacity = NewSpaceCapacity();
+      bounds.AtLeast(
+          OldGenerationAllocationLimitConsumedBytes() + new_space_capacity,
+          GlobalConsumedBytes() + new_space_capacity);
+      UpdateAllocationLimits(bounds);
+    }
   }
   if (cpp_heap()) {
     // Ensure that sweeping is also completed for the C++ managed heap, if one
@@ -7793,19 +7809,6 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode,
   DCHECK_IMPLIES(
       mode == SweepingForcedFinalizationMode::kUnifiedHeap || !cpp_heap(),
       !tracer()->IsSweepingInProgress());
-
-  if (v8_flags.external_memory_accounted_in_global_limit &&
-      !using_initial_limit() &&
-      reason != CompleteSweepingReason::kStartMarking) {
-    // Make sure we don't increase heap limits here.
-    LimitBounds bounds = LimitBounds::AtMostCurrentLimits(this);
-    // But don't go below the soft limits for starting incremental marking.
-    const size_t new_space_capacity = NewSpaceCapacity();
-    bounds.AtLeast(
-        OldGenerationAllocationLimitConsumedBytes() + new_space_capacity,
-        GlobalConsumedBytes() + new_space_capacity);
-    UpdateAllocationLimits(bounds);
-  }
 }
 
 void Heap::EnsureQuarantinedPagesSweepingCompleted() {
