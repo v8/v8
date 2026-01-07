@@ -2148,8 +2148,7 @@ uint32_t GetEncodedSize(i::DirectHandle<i::WasmTagObject> tag_object) {
 }
 
 V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
-    v8::Isolate* isolate,
-    i::DirectHandle<i::PodArray<i::wasm::ValueType>> signature,
+    v8::Isolate* isolate, const i::wasm::CanonicalSig* signature,
     i::DirectHandle<i::WasmTagObject> tag_object, const Local<Value>& arg,
     ErrorThrower* thrower, i::DirectHandle<i::FixedArray> values_out) {
   Local<Context> context = isolate->GetCurrentContext();
@@ -2165,15 +2164,18 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
     thrower->TypeError("Exception values argument has no length");
     return false;
   }
-  if (length != static_cast<uint32_t>(signature->length())) {
+  if (length != signature->parameter_count()) {
     thrower->TypeError(
         "Number of exception values does not match signature length");
     return false;
   }
-  for (int i = 0; i < signature->length(); ++i) {
+  for (size_t param_idx = 0; param_idx < signature->parameter_count();
+       ++param_idx) {
+    static_assert(i::wasm::kV8MaxWasmFunctionParams <= i::kMaxInt);
+    int param_idx_i = static_cast<int>(param_idx);
     Local<Value> value;
-    if (!values->Get(context, i).ToLocal(&value)) return false;
-    i::wasm::ValueType type = signature->get(i);
+    if (!values->Get(context, param_idx_i).ToLocal(&value)) return false;
+    i::wasm::CanonicalValueType type = signature->GetParam(param_idx);
     switch (type.kind()) {
       case i::wasm::kI32: {
         int32_t i32 = 0;
@@ -2206,20 +2208,7 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
         const char* error_message;
         i::DirectHandle<i::Object> value_handle =
             Utils::OpenDirectHandle(*value);
-        i::wasm::CanonicalValueType canonical_type = i::wasm::kWasmBottom;
-        if (type.has_index()) {
-          // Canonicalize the type using the tag's original module.
-          // Indexed types are guaranteed to come from an instance.
-          DCHECK(tag_object->has_trusted_data());
-          i::Tagged<i::WasmTrustedInstanceData> wtid =
-              tag_object->trusted_data(i_isolate);
-          const i::wasm::WasmModule* module = wtid->module();
-          canonical_type =
-              type.Canonicalize(module->canonical_type_id(type.ref_index()));
-        } else {
-          canonical_type = i::wasm::CanonicalValueType{type};
-        }
-        if (!i::wasm::JSToWasmObject(i_isolate, value_handle, canonical_type,
+        if (!i::wasm::JSToWasmObject(i_isolate, value_handle, type,
                                      &error_message)
                  .ToHandle(&value_handle)) {
           thrower->TypeError("%s", error_message);
@@ -2245,6 +2234,7 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
 
 }  // namespace
 
+// WebAssembly.Exception
 void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.Exception()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
@@ -2286,9 +2276,7 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::DirectHandle<i::FixedArray> values =
       i::Cast<i::FixedArray>(i::WasmExceptionPackage::GetExceptionValues(
           i_isolate, runtime_exception));
-  i::DirectHandle<i::PodArray<i::wasm::ValueType>> signature(
-      tag_object->serialized_signature(), i_isolate);
-  if (!EncodeExceptionValues(isolate, signature, tag_object, info[1], &thrower,
+  if (!EncodeExceptionValues(isolate, sig, tag_object, info[1], &thrower,
                              values)) {
     return js_api_scope.AssertException();
   }
