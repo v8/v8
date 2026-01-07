@@ -73,6 +73,9 @@ class ExternalStringsCage final {
         static_cast<T*>(AllocateRaw(size * sizeof(T))), Deleter<T>(this, size));
   }
 
+  // Makes the memory pages read-only.
+  V8_EXPORT_PRIVATE void Seal(void* ptr, size_t size);
+
   base::AddressRegion reservation_region() const {
     CHECK(vm_cage_.IsReserved());
     return vm_cage_.region();

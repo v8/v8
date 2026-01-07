@@ -39,6 +39,7 @@ class OwningExternalStringResourceImpl : public Base {
       std::basic_string_view<StdCharT> source)
       : length_(source.size()), storage_(CreateUninitializedStorage(length_)) {
     source.copy(storage_.get(), length_);
+    SealIfSupported();
   }
 
   explicit OwningExternalStringResourceImpl(Tagged<String> source)
@@ -47,6 +48,7 @@ class OwningExternalStringResourceImpl : public Base {
     String::WriteToFlat(source,
                         reinterpret_cast<FlatStringCharT*>(storage_.get()), 0,
                         static_cast<uint32_t>(length_));
+    SealIfSupported();
   }
 
   OwningExternalStringResourceImpl(const OwningExternalStringResourceImpl&) =
@@ -72,6 +74,13 @@ class OwningExternalStringResourceImpl : public Base {
         length);
 #else   // V8_ENABLE_MEMORY_CORRUPTION_API
     return std::make_unique_for_overwrite<CharT[]>(length);
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+  }
+
+  void SealIfSupported() {
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+    IsolateGroup::current()->external_strings_cage()->Seal(storage_.get(),
+                                                           length_);
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
   }
 

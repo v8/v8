@@ -48,6 +48,13 @@ bool ExternalStringsCage::Initialize() {
   return true;
 }
 
+void ExternalStringsCage::Seal(void* ptr, size_t size) {
+  size_t alloc_size = GetAllocSize(size);
+  vm_cage_.page_allocator()->SetPermissions(ptr, alloc_size,
+                                            PageAllocator::kRead);
+  // TODO(crbug/360048056): Also use the seal syscall when it's supported.
+}
+
 size_t ExternalStringsCage::GetAllocSize(size_t string_size) const {
   CHECK_LE(string_size, kMaxContentsSize);
   // Allocate whole pages as we're relying on BoundedPageAllocator (e.g.,
