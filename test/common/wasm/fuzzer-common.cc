@@ -540,22 +540,28 @@ ExecutionResult ExecuteReferenceRun(Isolate* isolate,
             .ToHandle(&main_function));
 
   struct OomCallbackData {
-    Isolate* isolate;
+    Isolate* const isolate;
+    int32_t* const max_steps;
     bool heap_limit_reached{false};
     size_t initial_limit{0};
   };
-  OomCallbackData oom_callback_data{isolate};
+  OomCallbackData oom_callback_data{isolate, &max_steps};
   auto heap_limit_callback = [](void* raw_data, size_t current_limit,
                                 size_t initial_limit) -> size_t {
     OomCallbackData* data = reinterpret_cast<OomCallbackData*>(raw_data);
     if (data->heap_limit_reached) return initial_limit;
     data->heap_limit_reached = true;
-    // We can not throw an exception directly at this point, so request
-    // termination on the next stack check.
-    data->isolate->stack_guard()->RequestTerminateExecution();
     data->initial_limit = initial_limit;
-    // Return a generously raised limit to maximize the chance to make it to the
-    // next interrupt check point, where execution will terminate.
+    // We can not throw an exception directly at this point, so we try to stop
+    // execution as soon as possible by
+    // 1) requesting termination (on the next stack check, or checked in runtime
+    //    functions), and
+    // 2) resetting max_steps to 0, which will make the reference run stop on
+    //    the next instruction.
+    data->isolate->stack_guard()->RequestTerminateExecution();
+    *data->max_steps = 0;
+    // Return a generously raised limit to maximize the chance to finish
+    // executing until one of the two conditions created above is detected.
     return initial_limit * 4;
   };
   isolate->heap()->AddNearHeapLimitCallback(heap_limit_callback,
