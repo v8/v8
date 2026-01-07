@@ -725,12 +725,8 @@ void PrintToStderr(const char* output) {
   _exit(status);
 }
 
-// Signal handler checking whether a memory access violation happened inside or
-// outside of the sandbox address space. If inside, the signal is ignored and
-// the process terminated normally, in the latter case the original signal
-// handler is restored and the signal delivered again.
-struct sigaction g_old_sigabrt_handler, g_old_sigtrap_handler,
-    g_old_sigbus_handler, g_old_sigill_handler, g_old_sigsegv_handler;
+struct sigaction g_old_handlers[NSIG];
+constexpr int kSignalsToHandle[] = {SIGABRT, SIGTRAP, SIGBUS, SIGILL, SIGSEGV};
 
 void UninstallCrashFilter() {
   // NOTE: This code MUST be async-signal safe.
@@ -743,11 +739,9 @@ void UninstallCrashFilter() {
   // Should any of the sigaction calls below ever fail, the default signal
   // handler will be invoked (due to SA_RESETHAND) and will terminate the
   // process, so there's no need to attempt to handle that condition.
-  sigaction(SIGABRT, &g_old_sigabrt_handler, nullptr);
-  sigaction(SIGTRAP, &g_old_sigtrap_handler, nullptr);
-  sigaction(SIGBUS, &g_old_sigbus_handler, nullptr);
-  sigaction(SIGILL, &g_old_sigill_handler, nullptr);
-  sigaction(SIGSEGV, &g_old_sigsegv_handler, nullptr);
+  for (int signal : kSignalsToHandle) {
+    sigaction(signal, &g_old_handlers[signal], nullptr);
+  }
 
   // We should also uninstall the sanitizer death callback as our crash filter
   // may hand a crash over to sanitizers, which should then not enter our crash
@@ -770,9 +764,30 @@ bool IsNonWriteCrash(void* context) {
 #endif  // V8_HOST_ARCH_X64
 }
 
+void ForwardToOldHandler(int signal, siginfo_t* info, void* context) {
+  if (g_old_handlers[signal].sa_flags & SA_SIGINFO) {
+    g_old_handlers[signal].sa_sigaction(signal, info, context);
+  } else {
+    auto handler = g_old_handlers[signal].sa_handler;
+    if (handler != SIG_DFL && handler != SIG_IGN) {
+      handler(signal);
+    } else {
+      // In this case we simply return, let the faulting instruction re-trigger
+      // the crash, and then let the kernel handle the signal appropriately.
+      return;
+    }
+  }
+}
+
+// Signal handler to check if a crash represents a sandbox violation or is a
+// safe crash (e.g. because an access violation happened inside the sandbox).
 void CrashFilter(int signal, siginfo_t* info, void* context) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
+
+#if V8_HAS_PKU_SUPPORT
+  base::MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler();
+#endif  // V8_HAS_PKU_SUPPORT
 
   Address faultaddr = reinterpret_cast<Address>(info->si_addr);
 
@@ -947,12 +962,7 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
       break;
   }
 
-  // If we get here, we've detected a sandbox violation. Restore the original
-  // signal handlers, then return from this handler. The faulting instruction
-  // will be re-executed and will again trigger the access violation, but now
-  // the signal will be handled by the original signal handler.
-  UninstallCrashFilter();
-
+  // If we get here, we've detected a sandbox violation.
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
 
   if (IsNonWriteCrash(context)) {
@@ -960,6 +970,24 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
         "The sandbox violation was a *read* access which is technically not a "
         "sandbox violation. This requires manual investigation.\n");
   }
+
+  // Restore the original signal handlers now so we don't get invoked again.
+  // For example, the next signal handler in the chain (e.g. the ASAN handler)
+  // might decide to terminate the process with abort() and so we must not be
+  // catching (and ignoring) SIGABRT from now on.
+  UninstallCrashFilter();
+
+  // Forward to the previous handler. We could also just return now and let the
+  // application crash again (assuming we return to the same, crashing
+  // instruction). However, that doesn't work in combination with sandbox
+  // hardware support: ASAN's crash handler will not know about the PKEY
+  // permissions and that it must be doing something equivalent to
+  // SetDefaultPermissionsForAllKeysInSignalHandler() so it would quickly crash
+  // when e.g. trying to unwind the crashing thread's stack.
+  ForwardToOldHandler(signal, info, context);
+
+  // The old handler might itself decide to return to the faulting instruction
+  // (after uninstalling itself), so we need to allow for that.
 }
 
 #ifdef V8_USE_ANY_SANITIZER
@@ -1015,11 +1043,9 @@ void InstallCrashFilter() {
   sigemptyset(&action.sa_mask);
 
   bool success = true;
-  success &= (sigaction(SIGABRT, &action, &g_old_sigabrt_handler) == 0);
-  success &= (sigaction(SIGTRAP, &action, &g_old_sigtrap_handler) == 0);
-  success &= (sigaction(SIGBUS, &action, &g_old_sigbus_handler) == 0);
-  success &= (sigaction(SIGILL, &action, &g_old_sigill_handler) == 0);
-  success &= (sigaction(SIGSEGV, &action, &g_old_sigsegv_handler) == 0);
+  for (int signal : kSignalsToHandle) {
+    success &= (sigaction(signal, &action, &g_old_handlers[signal]) == 0);
+  }
   CHECK(success);
 
 #ifdef V8_USE_ANY_SANITIZER
