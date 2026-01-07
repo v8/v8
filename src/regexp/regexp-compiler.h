@@ -61,26 +61,48 @@ inline bool NeedsUnicodeCaseEquivalents(RegExpFlags flags) {
 // input stream.
 class QuickCheckDetails {
  public:
-  QuickCheckDetails()
-      : characters_(0), mask_(0), value_(0), cannot_match_(false) {}
+  QuickCheckDetails() : characters_(0), mask_(0), value_(0) {}
   explicit QuickCheckDetails(int characters)
-      : characters_(characters), mask_(0), value_(0), cannot_match_(false) {}
+      : characters_(characters), mask_(0), value_(0) {
+    DCHECK_LE(characters, kMaxPositions);
+  }
   bool Rationalize(bool one_byte);
   // Merge in the information from another branch of an alternation.
   void Merge(QuickCheckDetails* other, int from_index);
   // Advance the current position by some amount.
   void Advance(int by, bool one_byte);
   void Clear();
-  bool cannot_match() { return cannot_match_; }
-  void set_cannot_match() { cannot_match_ = true; }
+  bool cannot_match() const {
+    for (int i = 0; i < characters(); i++) {
+      if (positions_[i].cannot_match) return true;
+    }
+    return false;
+  }
+  void set_cannot_match_from(int index) {
+    DCHECK_GE(index, 0);
+    for (int i = index; i < characters(); i++) {
+      positions_[i].cannot_match = true;
+    }
+  }
   struct Position {
-    Position() : mask(0), value(0), determines_perfectly(false) {}
+    Position()
+        : mask(0), value(0), determines_perfectly(false), cannot_match(false) {}
+    void Clear() {
+      mask = 0;
+      value = 0;
+      determines_perfectly = false;
+      cannot_match = false;
+    }
     base::uc32 mask;
     base::uc32 value;
     bool determines_perfectly;
+    bool cannot_match;
   };
   int characters() const { return characters_; }
-  void set_characters(int characters) { characters_ = characters; }
+  void set_characters(int characters) {
+    DCHECK(0 <= characters && characters <= kMaxPositions);
+    characters_ = characters;
+  }
   Position* positions(int index) {
     DCHECK_LE(0, index);
     DCHECK_GT(characters_, index);
@@ -95,16 +117,14 @@ class QuickCheckDetails {
   uint32_t value() { return value_; }
 
  private:
+  static constexpr int kMaxPositions = 4;
   // How many characters do we have quick check information from.  This is
   // the same for all branches of a choice node.
   int characters_;
-  Position positions_[4];
+  Position positions_[kMaxPositions];
   // These values are the condensate of the above array after Rationalize().
   uint32_t mask_;
   uint32_t value_;
-  // If set to true, there is no way this quick check can match at all.
-  // E.g., if it requires to be at the start of the input, and isn't.
-  bool cannot_match_;
 };
 
 // Improve the speed that we scan for an initial point where a non-anchored

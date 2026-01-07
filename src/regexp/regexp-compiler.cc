@@ -736,6 +736,13 @@ ActionNode* ActionNode::ModifyFlags(RegExpFlags flags, RegExpNode* on_success) {
   return result;
 }
 
+ActionNode* ActionNode::EatsAtLeast(int characters, RegExpNode* on_success) {
+  ActionNode* result =
+      on_success->zone()->New<ActionNode>(EATS_AT_LEAST, on_success);
+  result->data_.u_eats_at_least.characters = characters;
+  return result;
+}
+
 #define DEFINE_ACCEPT(Type) \
   void Type##Node::Accept(NodeVisitor* visitor) { visitor->Visit##Type(this); }
 FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
@@ -1445,15 +1452,12 @@ void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
 
 void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                       RegExpCompiler* compiler, int filled_in,
-                                      bool not_at_start) {
-  if (action_type_ == SET_REGISTER_FOR_LOOP) {
-    on_success()->GetQuickCheckDetailsFromLoopEntry(details, compiler,
-                                                    filled_in, not_at_start);
-  } else if (action_type_ == BEGIN_POSITIVE_SUBMATCH) {
+                                      bool not_at_start, int budget) {
+  if (action_type_ == BEGIN_POSITIVE_SUBMATCH) {
     // We use the node after the lookaround to fill in the eats_at_least info
     // so we have to use the same node to fill in the QuickCheck info.
-    success_node()->on_success()->GetQuickCheckDetails(details, compiler,
-                                                       filled_in, not_at_start);
+    success_node()->on_success()->GetQuickCheckDetails(
+        details, compiler, filled_in, not_at_start, budget - 1);
   } else if (action_type() != POSITIVE_SUBMATCH_SUCCESS) {
     // We don't use the node after a positive submatch success because it
     // rewinds the position.  Since we returned 0 as the eats_at_least value
@@ -1467,7 +1471,7 @@ void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
       compiler->set_flags(flags());
     }
     on_success()->GetQuickCheckDetails(details, compiler, filled_in,
-                                       not_at_start);
+                                       not_at_start, budget - 1);
     if (old_flags.has_value()) {
       compiler->set_flags(*old_flags);
     }
@@ -1484,9 +1488,10 @@ void AssertionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
 
 void NegativeLookaroundChoiceNode::GetQuickCheckDetails(
     QuickCheckDetails* details, RegExpCompiler* compiler, int filled_in,
-    bool not_at_start) {
+    bool not_at_start, int budget) {
   RegExpNode* node = continue_node();
-  return node->GetQuickCheckDetails(details, compiler, filled_in, not_at_start);
+  return node->GetQuickCheckDetails(details, compiler, filled_in, not_at_start,
+                                    budget - 1);
 }
 
 namespace {
@@ -1526,69 +1531,6 @@ uint32_t RegExpNode::EatsAtLeast(bool not_at_start) {
                       : eats_at_least_.from_possibly_start;
 }
 
-EatsAtLeastInfo RegExpNode::EatsAtLeastFromLoopEntry() {
-  // SET_REGISTER_FOR_LOOP is only used to initialize loop counters, and it
-  // implies that the following node must be a LoopChoiceNode. If we need to
-  // set registers to constant values for other reasons, we could introduce a
-  // new action type SET_REGISTER that doesn't imply anything about its
-  // successor.
-  UNREACHABLE();
-}
-
-void RegExpNode::GetQuickCheckDetailsFromLoopEntry(QuickCheckDetails* details,
-                                                   RegExpCompiler* compiler,
-                                                   int characters_filled_in,
-                                                   bool not_at_start) {
-  // See comment in RegExpNode::EatsAtLeastFromLoopEntry.
-  UNREACHABLE();
-}
-
-EatsAtLeastInfo LoopChoiceNode::EatsAtLeastFromLoopEntry() {
-  DCHECK_EQ(alternatives_->length(), 2);  // There's just loop and continue.
-
-  if (read_backward()) {
-    // The eats_at_least value is not used if reading backward. The
-    // EatsAtLeastPropagator should've zeroed it as well.
-    DCHECK_EQ(eats_at_least_info()->from_possibly_start, 0);
-    DCHECK_EQ(eats_at_least_info()->from_not_start, 0);
-    return {};
-  }
-
-  // Figure out how much the loop body itself eats, not including anything in
-  // the continuation case. In general, the nodes in the loop body should report
-  // that they eat at least the number eaten by the continuation node, since any
-  // successful match in the loop body must also include the continuation node.
-  // However, in some cases involving positive lookaround, the loop body under-
-  // reports its appetite, so use saturated math here to avoid negative numbers.
-  // For this to work correctly, we explicitly need to use signed integers here.
-  uint8_t loop_body_from_not_start = base::saturated_cast<uint8_t>(
-      static_cast<int>(loop_node_->EatsAtLeast(true)) -
-      static_cast<int>(continue_node_->EatsAtLeast(true)));
-  uint8_t loop_body_from_possibly_start = base::saturated_cast<uint8_t>(
-      static_cast<int>(loop_node_->EatsAtLeast(false)) -
-      static_cast<int>(continue_node_->EatsAtLeast(true)));
-
-  // Limit the number of loop iterations to avoid overflow in subsequent steps.
-  int loop_iterations = base::saturated_cast<uint8_t>(min_loop_iterations());
-
-  EatsAtLeastInfo result;
-  result.from_not_start =
-      base::saturated_cast<uint8_t>(loop_iterations * loop_body_from_not_start +
-                                    continue_node_->EatsAtLeast(true));
-  if (loop_iterations > 0 && loop_body_from_possibly_start > 0) {
-    // First loop iteration eats at least one, so all subsequent iterations
-    // and the after-loop chunk are guaranteed to not be at the start.
-    result.from_possibly_start = base::saturated_cast<uint8_t>(
-        loop_body_from_possibly_start +
-        (loop_iterations - 1) * loop_body_from_not_start +
-        continue_node_->EatsAtLeast(true));
-  } else {
-    // Loop body might eat nothing, so only continue node contributes.
-    result.from_possibly_start = continue_node_->EatsAtLeast(false);
-  }
-  return result;
-}
-
 bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
                                 Trace* bounds_check_trace, Trace* trace,
                                 bool preload_has_checked_bounds,
@@ -1599,7 +1541,8 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
   DCHECK_NOT_NULL(predecessor);
   if (details->characters() == 0) return false;
   GetQuickCheckDetails(details, compiler, 0,
-                       trace->at_start() == Trace::FALSE_VALUE);
+                       trace->at_start() == Trace::FALSE_VALUE,
+                       kRecursionBudget);
   if (details->cannot_match()) return false;
   if (!details->Rationalize(compiler->one_byte())) return false;
   DCHECK(details->characters() == 1 ||
@@ -1672,8 +1615,8 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
 // generating a quick check.
 void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in,
-                                    bool not_at_start) {
+                                    int characters_filled_in, bool not_at_start,
+                                    int budget) {
   // Do not collect any quick check details if the text node reads backward,
   // since it reads in the opposite direction than we use for quick checks.
   if (read_backward()) return;
@@ -1696,7 +1639,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           if (length == 0) {
             // This can happen because all case variants are non-Latin1, but we
             // know the input is Latin1.
-            details->set_cannot_match();
+            details->set_cannot_match_from(characters_filled_in);
             pos->determines_perfectly = false;
             return;
           }
@@ -1731,7 +1674,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           // determine definitely whether we have a match at this character
           // position.
           if (c > char_mask) {
-            details->set_cannot_match();
+            details->set_cannot_match_from(characters_filled_in);
             pos->determines_perfectly = false;
             return;
           }
@@ -1765,7 +1708,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         while (ranges->at(first_range).from() > char_mask) {
           first_range++;
           if (first_range == ranges->length()) {
-            details->set_cannot_match();
+            details->set_cannot_match_from(characters_filled_in);
             pos->determines_perfectly = false;
             return;
           }
@@ -1814,15 +1757,13 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   DCHECK(characters_filled_in != details->characters());
   if (!details->cannot_match()) {
     on_success()->GetQuickCheckDetails(details, compiler, characters_filled_in,
-                                       true);
+                                       true, budget - 1);
   }
 }
 
 void QuickCheckDetails::Clear() {
   for (int i = 0; i < characters_; i++) {
-    positions_[i].mask = 0;
-    positions_[i].value = 0;
-    positions_[i].determines_perfectly = false;
+    positions_[i].Clear();
   }
   characters_ = 0;
 }
@@ -1839,9 +1780,7 @@ void QuickCheckDetails::Advance(int by, bool one_byte) {
     positions_[i] = positions_[by + i];
   }
   for (int i = characters_ - by; i < characters_; i++) {
-    positions_[i].mask = 0;
-    positions_[i].value = 0;
-    positions_[i].determines_perfectly = false;
+    positions_[i].Clear();
   }
   characters_ -= by;
   // We could change mask_ and value_ here but we would never advance unless
@@ -1851,28 +1790,25 @@ void QuickCheckDetails::Advance(int by, bool one_byte) {
 
 void QuickCheckDetails::Merge(QuickCheckDetails* other, int from_index) {
   DCHECK(characters_ == other->characters_);
-  if (other->cannot_match_) {
-    return;
-  }
-  if (cannot_match_) {
-    *this = *other;
-    return;
-  }
   for (int i = from_index; i < characters_; i++) {
     QuickCheckDetails::Position* pos = positions(i);
     QuickCheckDetails::Position* other_pos = other->positions(i);
-    if (pos->mask != other_pos->mask || pos->value != other_pos->value ||
-        !other_pos->determines_perfectly) {
-      // Our mask-compare operation will be approximate unless we have the
-      // exact same operation on both sides of the alternation.
-      pos->determines_perfectly = false;
+    if (pos->cannot_match) {
+      *pos = *other_pos;
+    } else if (!other_pos->cannot_match) {
+      if (pos->mask != other_pos->mask || pos->value != other_pos->value ||
+          !other_pos->determines_perfectly) {
+        // Our mask-compare operation will be approximate unless we have the
+        // exact same operation on both sides of the alternation.
+        pos->determines_perfectly = false;
+      }
+      pos->mask &= other_pos->mask;
+      pos->value &= pos->mask;
+      other_pos->value &= pos->mask;
+      uint32_t differing_bits = (pos->value ^ other_pos->value);
+      pos->mask &= ~differing_bits;
+      pos->value &= pos->mask;
     }
-    pos->mask &= other_pos->mask;
-    pos->value &= pos->mask;
-    other_pos->value &= pos->mask;
-    uint32_t differing_bits = (pos->value ^ other_pos->value);
-    pos->mask &= ~differing_bits;
-    pos->value &= pos->mask;
   }
 }
 
@@ -1886,39 +1822,6 @@ class VisitMarker {
 
  private:
   NodeInfo* info_;
-};
-
-// Temporarily sets traversed_loop_initialization_node_.
-class LoopInitializationMarker {
- public:
-  explicit LoopInitializationMarker(LoopChoiceNode* node) : node_(node) {
-    DCHECK(!node_->traversed_loop_initialization_node_);
-    node_->traversed_loop_initialization_node_ = true;
-  }
-  ~LoopInitializationMarker() {
-    DCHECK(node_->traversed_loop_initialization_node_);
-    node_->traversed_loop_initialization_node_ = false;
-  }
-  LoopInitializationMarker(const LoopInitializationMarker&) = delete;
-  LoopInitializationMarker& operator=(const LoopInitializationMarker&) = delete;
-
- private:
-  LoopChoiceNode* node_;
-};
-
-// Temporarily decrements min_loop_iterations_.
-class IterationDecrementer {
- public:
-  explicit IterationDecrementer(LoopChoiceNode* node) : node_(node) {
-    DCHECK_GT(node_->min_loop_iterations_, 0);
-    --node_->min_loop_iterations_;
-  }
-  ~IterationDecrementer() { ++node_->min_loop_iterations_; }
-  IterationDecrementer(const IterationDecrementer&) = delete;
-  IterationDecrementer& operator=(const IterationDecrementer&) = delete;
-
- private:
-  LoopChoiceNode* node_;
 };
 
 RegExpNode* SeqRegExpNode::FilterOneByte(int depth, RegExpCompiler* compiler) {
@@ -2111,50 +2014,12 @@ RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(
 void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                           RegExpCompiler* compiler,
                                           int characters_filled_in,
-                                          bool not_at_start) {
-  if (body_can_be_zero_length_ || info()->visited) return;
+                                          bool not_at_start, int budget) {
+  if (body_can_be_zero_length_ || budget <= 0) return;
   not_at_start = not_at_start || this->not_at_start();
   DCHECK_EQ(alternatives_->length(), 2);  // There's just loop and continue.
-  if (traversed_loop_initialization_node_ && min_loop_iterations_ > 0 &&
-      loop_node_->EatsAtLeast(not_at_start) >
-          continue_node_->EatsAtLeast(true)) {
-    // Loop body is guaranteed to execute at least once, and consume characters
-    // when it does, meaning the only possible quick checks from this point
-    // begin with the loop body. We may recursively visit this LoopChoiceNode,
-    // but we temporarily decrease its minimum iteration counter so we know when
-    // to check the continue case.
-    IterationDecrementer next_iteration(this);
-    loop_node_->GetQuickCheckDetails(details, compiler, characters_filled_in,
-                                     not_at_start);
-  } else {
-    // Might not consume anything in the loop body, so treat it like a normal
-    // ChoiceNode (and don't recursively visit this node again).
-    VisitMarker marker(info());
-    ChoiceNode::GetQuickCheckDetails(details, compiler, characters_filled_in,
-                                     not_at_start);
-  }
-}
-
-void LoopChoiceNode::GetQuickCheckDetailsFromLoopEntry(
-    QuickCheckDetails* details, RegExpCompiler* compiler,
-    int characters_filled_in, bool not_at_start) {
-  if (traversed_loop_initialization_node_) {
-    // We already entered this loop once, exited via its continuation node, and
-    // followed an outer loop's back-edge to before the loop entry point. We
-    // could try to reset the minimum iteration count to its starting value at
-    // this point, but that seems like more trouble than it's worth. It's safe
-    // to keep going with the current (possibly reduced) minimum iteration
-    // count.
-    GetQuickCheckDetails(details, compiler, characters_filled_in, not_at_start);
-  } else {
-    // We are entering a loop via its counter initialization action, meaning we
-    // are guaranteed to run the loop body at least some minimum number of times
-    // before running the continuation node. Set a flag so that this node knows
-    // (now and any times we visit it again recursively) that it was entered
-    // from the top.
-    LoopInitializationMarker marker(this);
-    GetQuickCheckDetails(details, compiler, characters_filled_in, not_at_start);
-  }
+  ChoiceNode::GetQuickCheckDetails(details, compiler, characters_filled_in,
+                                   not_at_start, budget);
 }
 
 void LoopChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
@@ -2171,17 +2036,18 @@ void LoopChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
 void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                       RegExpCompiler* compiler,
                                       int characters_filled_in,
-                                      bool not_at_start) {
+                                      bool not_at_start, int budget) {
   not_at_start = (not_at_start || not_at_start_);
   int choice_count = alternatives_->length();
   DCHECK_LT(0, choice_count);
+  budget /= choice_count;
   alternatives_->at(0).node()->GetQuickCheckDetails(
-      details, compiler, characters_filled_in, not_at_start);
+      details, compiler, characters_filled_in, not_at_start, budget);
   for (int i = 1; i < choice_count; i++) {
     QuickCheckDetails new_details(details->characters());
     RegExpNode* node = alternatives_->at(i).node();
     node->GetQuickCheckDetails(&new_details, compiler, characters_filled_in,
-                               not_at_start);
+                               not_at_start, budget);
     // Here we merge the quick match details of the two branches.
     details->Merge(&new_details, characters_filled_in);
   }
@@ -2335,13 +2201,25 @@ EmitResult AssertionNode::BacktrackIfPrevious(
 
 void AssertionNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                          RegExpCompiler* compiler,
-                                         int filled_in, bool not_at_start) {
+                                         int filled_in, bool not_at_start,
+                                         int budget) {
   if (assertion_type_ == AT_START && not_at_start) {
-    details->set_cannot_match();
+    details->set_cannot_match_from(filled_in);
+    return;
+  }
+  if (assertion_type_ == AT_END) {
+    details->set_cannot_match_from(filled_in);
     return;
   }
   return on_success()->GetQuickCheckDetails(details, compiler, filled_in,
-                                            not_at_start);
+                                            not_at_start, budget - 1);
+}
+
+void EndNode::GetQuickCheckDetails(QuickCheckDetails* details,
+                                   RegExpCompiler* compiler,
+                                   int characters_filled_in, bool not_at_start,
+                                   int budget) {
+  details->set_cannot_match_from(characters_filled_in);
 }
 
 EmitResult AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
@@ -3563,6 +3441,9 @@ EmitResult ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       RETURN_IF_ERROR(on_success()->Emit(compiler, &new_trace));
       break;
     }
+    case EATS_AT_LEAST:
+      RETURN_IF_ERROR(on_success()->Emit(compiler, trace));
+      break;  // Doesn't actually do anything.
     // We don't yet have the ability to defer these.
     case BEGIN_POSITIVE_SUBMATCH:
     case BEGIN_NEGATIVE_SUBMATCH:
@@ -3783,14 +3664,12 @@ class EatsAtLeastPropagator : public AllStatic {
         // success because it rewinds input.
         DCHECK(that->eats_at_least_info()->IsZero());
         break;
-      case ActionNode::SET_REGISTER_FOR_LOOP:
-        // SET_REGISTER_FOR_LOOP indicates a loop entry point, which means the
-        // loop body will run at least the minimum number of times before the
-        // continuation case can run.
-        that->set_eats_at_least_info(
-            that->on_success()->EatsAtLeastFromLoopEntry());
+      case ActionNode::EATS_AT_LEAST: {
+        EatsAtLeastInfo eats = *that->on_success()->eats_at_least_info();
+        eats.SetMax(that->stored_eats_at_least());
+        that->set_eats_at_least_info(eats);
         break;
-      case ActionNode::BEGIN_NEGATIVE_SUBMATCH:
+      }
       default:
         // Otherwise, the current node eats at least as much as its successor.
         // Note: we can propagate eats_at_least data for BEGIN_NEGATIVE_SUBMATCH

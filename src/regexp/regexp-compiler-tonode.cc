@@ -466,7 +466,8 @@ RegExpNode* RegExpClassRanges::ToNodeImpl(RegExpCompiler* compiler,
   ZoneList<CharacterRange>* ranges = this->ranges(zone);
 
   const bool needs_case_folding =
-      NeedsUnicodeCaseEquivalents(compiler->flags()) && !is_case_folded();
+      NeedsUnicodeCaseEquivalents(compiler->flags()) &&
+      !no_case_folding_needed();
   if (needs_case_folding) {
     CharacterRange::AddUnicodeCaseEquivalents(ranges, zone);
   }
@@ -559,9 +560,10 @@ RegExpNode* RegExpClassSetOperand::ToNodeImpl(RegExpCompiler* compiler,
     // (e.g. before building complements).
     // It is therefore the parsers responsibility to case fold (sub-) ranges
     // before creating ClassSetOperands.
-    alternatives->Add(zone->template New<RegExpClassRanges>(
-                          zone, ranges(), RegExpClassRanges::IS_CASE_FOLDED),
-                      zone);
+    alternatives->Add(
+        zone->template New<RegExpClassRanges>(
+            zone, ranges(), RegExpClassRanges::NO_CASE_FOLDING_NEEDED),
+        zone);
   }
   if (empty_string != nullptr) {
     alternatives->Add(empty_string, zone);
@@ -2065,7 +2067,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   int reg_ctr = needs_counter ? compiler->AllocateRegister()
                               : RegExpCompiler::kNoRegister;
   LoopChoiceNode* center = zone->New<LoopChoiceNode>(
-      body->min_match() == 0, compiler->read_backward(), min, zone);
+      body->min_match() == 0, compiler->read_backward(), zone);
   if (not_at_start && !compiler->read_backward()) center->set_not_at_start();
   RegExpNode* loop_return =
       needs_counter ? static_cast<RegExpNode*>(
@@ -2104,11 +2106,16 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
     center->AddContinueAlternative(rest_alt);
     center->AddLoopAlternative(body_alt);
   }
-  if (needs_counter) {
-    return ActionNode::SetRegisterForLoop(reg_ctr, 0, center);
-  } else {
-    return center;
+  RegExpNode* result = center;
+  if (min > 0 && body->min_match() > 0 && !compiler->read_backward()) {
+    uint8_t eats = base::saturated_cast<uint8_t>(
+        std::min(256, min) * std::min(256, body->min_match()));
+    result = ActionNode::EatsAtLeast(eats, result);
   }
+  if (needs_counter) {
+    result = ActionNode::SetRegisterForLoop(reg_ctr, 0, result);
+  }
+  return result;
 }
 
 }  // namespace internal
