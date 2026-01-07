@@ -4754,7 +4754,7 @@ void AccessorAssembler::GenerateLoadICConstantFromPrototypeBaseline() {
     }
     BIND(&is_not_smi);
     {
-      TNode<Object> result = GetHeapObjectAssumeWeak(constant);
+      TNode<Object> result = GetHeapObjectAssumeWeak(constant, &miss);
       direct_exit.Return(result);
     }
   }
