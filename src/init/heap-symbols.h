@@ -1068,6 +1068,7 @@
   F(MC_CLEAR_JOIN_JOB)                           \
   F(MC_CLEAR_JS_WEAK_REFERENCES)                 \
   F(MC_CLEAR_MAPS)                               \
+  F(MC_CLEAR_SHARED_STRUCT_TYPE_REGISTRY)        \
   F(MC_CLEAR_SLOTS_BUFFER)                       \
   F(MC_CLEAR_STRING_TABLE)                       \
   F(MC_CLEAR_WEAK_COLLECTIONS)                   \
