@@ -18,6 +18,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/lookup-inl.h"
+#include "src/objects/object-list-macros.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/runtime/runtime-utils.h"
@@ -88,25 +89,6 @@ class FrameFinder {
  private:
   StackFrameIterator frame_iterator_;
 };
-
-Tagged<WasmTrustedInstanceData> GetWasmInstanceDataOnStackTop(
-    Isolate* isolate) {
-  Address fp = Isolate::c_entry_fp(isolate->thread_local_top());
-  fp = Memory<Address>(fp + ExitFrameConstants::kCallerFPOffset);
-#ifdef DEBUG
-  intptr_t marker =
-      Memory<intptr_t>(fp + CommonFrameConstants::kContextOrFrameTypeOffset);
-  DCHECK(StackFrame::MarkerToType(marker) == StackFrame::WASM ||
-         StackFrame::MarkerToType(marker) == StackFrame::WASM_SEGMENT_START);
-#endif
-  Tagged<Object> trusted_instance_data(
-      Memory<Address>(fp + WasmFrameConstants::kWasmInstanceDataOffset));
-  return TrustedCast<WasmTrustedInstanceData>(trusted_instance_data);
-}
-
-Tagged<Context> GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
-  return GetWasmInstanceDataOnStackTop(isolate)->native_context();
-}
 
 Tagged<Object> ThrowWasmError(
     Isolate* isolate, MessageTemplate message,
@@ -334,8 +316,10 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Tagged<Context> context = GetNativeContextFromWasmInstanceOnStackTop(isolate);
+  DCHECK_EQ(3, args.length());
+  Tagged<WasmTrustedInstanceData> trusted_instance_data =
+      TrustedCast<WasmTrustedInstanceData>(args[2]);
+  Tagged<Context> context = trusted_instance_data->native_context();
   isolate->set_context(context);
   DirectHandle<WasmExceptionTag> tag(Cast<WasmExceptionTag>(args[0]), isolate);
   DirectHandle<FixedArray> values(Cast<FixedArray>(args[1]), isolate);

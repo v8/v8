@@ -3469,12 +3469,13 @@ class TurboshaftGraphBuildingInterface
     block->merge_block = NewBlockWithPhis(decoder, block->br_merge());
   }
 
-  void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
-             const Value arg_values[]) {
+  V<FixedArray> EncodeExceptionArray(FullDecoder* decoder,
+                                     const TagIndexImmediate& imm,
+                                     const Value args[]) {
     size_t count = imm.tag->sig->parameter_count();
     SmallZoneVector<OpIndex, 16> values(count, decoder->zone_);
     for (size_t index = 0; index < count; index++) {
-      values[index] = arg_values[index].op;
+      values[index] = args[index].op;
     }
 
     uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(imm.tag);
@@ -3547,6 +3548,12 @@ class TurboshaftGraphBuildingInterface
           UNREACHABLE();
       }
     }
+    return values_array;
+  }
+
+  void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
+             const Value arg_values[]) {
+    V<FixedArray> values_array = EncodeExceptionArray(decoder, imm, arg_values);
 
     // TODO(14616): Support shared tags.
     V<FixedArray> instance_tags =
@@ -3556,7 +3563,8 @@ class TurboshaftGraphBuildingInterface
         __ LoadFixedArrayElement(instance_tags, imm.index));
 
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmThrow>(
-        decoder, {tag, values_array}, CheckForException::kCatchInThisFrame);
+        decoder, {tag, values_array, trusted_instance_data(false)},
+        CheckForException::kCatchInThisFrame);
     __ Unreachable();
   }
 
@@ -3824,9 +3832,12 @@ class TurboshaftGraphBuildingInterface
     UNIMPLEMENTED();
   }
 
-  void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
-              base::Vector<HandlerCase> handlers, const Value& cont_ref,
-              const Value args[], Value returns[]) {
+  // Implements "resume" or "resume_throw" depending on the optional {exc_imm}
+  // argument.
+  void ResumeHelper(FullDecoder* decoder, const ContIndexImmediate& imm,
+                    base::Vector<HandlerCase> handlers, const Value& cont_ref,
+                    const Value args[], Value returns[],
+                    std::optional<TagIndexImmediate> exc_imm) {
     __ TrapIf(__ IsNull(cont_ref.op, cont_ref.type),
               TrapId::kTrapNullDereference);
     V<WordPtr> stack = __ LoadExternalPointerFromObject(
@@ -3858,17 +3869,43 @@ class TurboshaftGraphBuildingInterface
                                offset);
     });
 
-    asm_.set_effect_handlers_for_next_call(asm_handlers);
-    OpIndex result_buffer =
-        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
-                                    HandleEffects::kYes>(
-            decoder, {stack, arg_buffer}, CheckForException::kCatchInThisFrame);
+    OpIndex result_buffer;
+    if (!exc_imm.has_value()) {
+      // Regular resume.
+      asm_.set_effect_handlers_for_next_call(asm_handlers);
+      result_buffer =
+          CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResume,
+                                      HandleEffects::kYes>(
+              decoder, {stack, arg_buffer},
+              CheckForException::kCatchInThisFrame);
+    } else {
+      // resume_throw.
+      V<FixedArray> array = EncodeExceptionArray(decoder, *exc_imm, args);
+      V<FixedArray> instance_tags =
+          LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
+                                        MemoryRepresentation::TaggedPointer());
+      V<WasmTagObject> tag = V<WasmTagObject>::Cast(
+          __ LoadFixedArrayElement(instance_tags, exc_imm->index));
+      asm_.set_effect_handlers_for_next_call(asm_handlers);
+      result_buffer =
+          CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXResumeThrow,
+                                      HandleEffects::kYes>(
+              decoder, {stack, tag, array, trusted_instance_data(false)},
+              CheckForException::kCatchInThisFrame);
+    }
+
     IterateWasmFXArgBuffer(sig->returns(), [&](size_t index, int offset) {
       DCHECK_EQ(returns[index].type, sig->GetReturn(index));
       returns[index].op =
           __ LoadOffHeap(result_buffer, offset,
                          MemoryRepresentationFor(sig->GetReturn(index)));
     });
+  }
+
+  void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
+              base::Vector<HandlerCase> handlers, const Value& cont_ref,
+              const Value args[], Value returns[]) {
+    ResumeHelper(decoder, imm, handlers, cont_ref, args, returns, {});
   }
 
   void ResumeHandler(FullDecoder* decoder,
@@ -3906,9 +3943,9 @@ class TurboshaftGraphBuildingInterface
   void ResumeThrow(FullDecoder* decoder,
                    const wasm::ContIndexImmediate& cont_imm,
                    const TagIndexImmediate& exc_imm,
-                   base::Vector<wasm::HandlerCase> handlers, const Value& cont,
-                   const Value args[], const Value returns[]) {
-    UNIMPLEMENTED();
+                   base::Vector<wasm::HandlerCase> handlers,
+                   const Value& cont_ref, const Value args[], Value returns[]) {
+    ResumeHelper(decoder, cont_imm, handlers, cont_ref, args, returns, exc_imm);
   }
 
   void ResumeThrowRef(FullDecoder* decoder,

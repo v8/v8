@@ -29,7 +29,8 @@ extern runtime TrapHandlerThrowWasmError(Context): never;
 extern runtime WasmThrowTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrowDataViewDetachedError(Context, Smi): never;
-extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
+extern runtime WasmThrow(Context, Object, FixedArray, WasmTrustedInstanceData):
+    JSAny;
 extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmTrustedInstanceData): JSAny;
 extern runtime WasmStackGuard(Context, Smi): JSAny;
@@ -448,8 +449,10 @@ builtin WasmLiftoffDeoptFinish(): Undefined {
   tail runtime::WasmLiftoffDeoptFinish(kNoContext, trustedData);
 }
 
-builtin WasmThrow(tag: Object, values: FixedArray): JSAny {
-  tail runtime::WasmThrow(LoadContextFromFrame(), tag, values);
+builtin WasmThrow(
+    tag: Object, values: FixedArray,
+    instanceData: WasmTrustedInstanceData): JSAny {
+  tail runtime::WasmThrow(LoadContextFromFrame(), tag, values, instanceData);
 }
 
 builtin WasmRethrow(exception: Object): JSAny {

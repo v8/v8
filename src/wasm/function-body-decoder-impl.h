@@ -4806,9 +4806,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                        cont, args.data(), returns);
     if (V8_LIKELY(current_code_reachable_and_ok_)) {
       MarkMightThrow();
-      for (const HandlerCase& handler : handlers) {
-        if (handler.kind == kOnSuspend) {
-          Control* target = control_at(handler.maybe_depth.br.depth);
+      for (size_t i = 0; i < handlers.size(); ++i) {
+        if (handlers[i].kind == kOnSuspend) {
+          Value* tag_params =
+              PushValueTypes(handlers[i].tag.tag->sig->parameters());
+          Value* suspend_cont =
+              Push(ValueType::Ref(cont_imm.index, false, RefTypeKind::kCont));
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeHandler, handlers, i,
+                                             suspend_cont, tag_params);
+          Drop(1 +
+               static_cast<int>(handlers[i].tag.tag->sig->parameter_count()));
+          Control* target = control_at(handlers[i].maybe_depth.br.depth);
           target->br_merge()->reached = true;
         }
       }
@@ -4870,6 +4878,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value* returns = PushReturns(sig);
 
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Suspend, imm, args.data(), returns);
+    MarkMightThrow();
 
     return 1 + imm.length;
   }

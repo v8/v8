@@ -1206,7 +1206,8 @@ struct BuiltinCallDescriptor {
 
   struct WasmThrow : public Descriptor<WasmThrow> {
     static constexpr auto kFunction = Builtin::kWasmThrow;
-    using arguments_t = std::tuple<V<Object>, V<FixedArray>>;
+    using arguments_t =
+        std::tuple<V<Object>, V<FixedArray>, V<WasmTrustedInstanceData>>;
     using results_t = std::tuple<OpIndex>;
 
     static constexpr bool kNeedsFrameState = false;
@@ -1727,6 +1728,20 @@ struct BuiltinCallDescriptor {
     static constexpr auto kFunction = Builtin::kWasmFXResume;
     // Target stack and arg buffer.
     using arguments_t = std::tuple<V<WordPtr>, V<WordPtr>>;
+    // Return values buffer.
+    using results_t = std::tuple<V<WordPtr>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct WasmFXResumeThrow : public Descriptor<WasmFXResumeThrow> {
+    static constexpr auto kFunction = Builtin::kWasmFXResumeThrow;
+    // Target stack, tag, exception array and instance.
+    using arguments_t = std::tuple<V<WordPtr>, V<WasmTagObject>, V<FixedArray>,
+                                   V<WasmTrustedInstanceData>>;
     // Return values buffer.
     using results_t = std::tuple<V<WordPtr>>;
 

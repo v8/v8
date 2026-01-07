@@ -161,6 +161,7 @@ namespace internal {
   V(Void)                                            \
   IF_WASM(V, WasmAllocateShared)                     \
   IF_WASM(V, WasmFXResume)                           \
+  IF_WASM(V, WasmFXResumeThrow)                      \
   IF_WASM(V, WasmFXSuspend)                          \
   IF_WASM(V, WasmFXReturn)                           \
   V(WasmDummy)                                       \
@@ -929,6 +930,25 @@ class WasmFXResumeDescriptor final
   DECLARE_DESCRIPTOR(WasmFXResumeDescriptor)
 
   static constexpr int kMaxRegisterParams = 2;
+  static constexpr inline auto registers();
+};
+
+class WasmFXResumeThrowDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFXResumeThrowDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kTargetStack, kTag, kException,
+                                          kInstance)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::IntPtr(),         // Return: result buffer.
+      MachineType::IntPtr(),         // Param 0: target stack.
+      MachineType::TaggedPointer(),  // Param 1: tag.
+      MachineType::TaggedPointer(),  // Param 2: array.
+      MachineType::TaggedPointer())  // Param 3: instance.
+  DECLARE_DESCRIPTOR(WasmFXResumeThrowDescriptor)
+
+  static constexpr int kMaxRegisterParams = 4;
   static constexpr inline auto registers();
 };
 
