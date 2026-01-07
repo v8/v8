@@ -241,6 +241,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Used to make SetupMainThread() available to unit tests.
   void SetUpMainThreadForTesting();
 
+  void BoostPriority();
+  void ResetPriority();
+
   // Execute the callback while the local heap is parked. All threads must
   // always park via these methods, not directly with `ParkedScope`.
   // The callback must be a callable object, expecting either no parameters or a
@@ -419,6 +422,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<LocalHandles> handles_;
   std::unique_ptr<PersistentHandles> persistent_handles_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
+  std::unique_ptr<ScopedBoostablePriority> boostable_priority_;
 
   GCCallbacksInSafepoint gc_epilogue_callbacks_;
   base::SmallVector<GCRootsProvider*, 4> roots_providers_;
