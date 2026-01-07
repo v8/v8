@@ -61,7 +61,17 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitCppHeapPointer(
   // The table is not reclaimed in the young generation, so we only need to mark
   // through to the C++ pointer.
 
-  if (auto cpp_heap_pointer = slot.try_load(isolate_, kAnyCppHeapPointer)) {
+#ifdef V8_COMPRESS_POINTERS
+  const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  if (handle == kNullExternalPointerHandle) {
+    return;
+  }
+  const CppHeapPointerTable& table = isolate_->cpp_heap_pointer_table();
+  Address cpp_heap_pointer = table.Get(handle, kAnyCppHeapPointer);
+#else   // !V8_COMPRESS_POINTERS
+  Address cpp_heap_pointer = slot.load();
+#endif  // !V8_COMPRESS_POINTERS
+  if (cpp_heap_pointer) {
     marking_worklists_local_.cpp_marking_state()->MarkAndPush(
         reinterpret_cast<void*>(cpp_heap_pointer));
   }
