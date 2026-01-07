@@ -79,7 +79,7 @@ try_builder(
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.OPTIONAL,
     executable = "recipe:v8/bazel",
-    dimensions = {"host_class": "bazel", "os": "Ubuntu-22.04", "cpu": "x86-64"},
+    dimensions = {"host_class": "bazel", "os": "Ubuntu", "cpu": "x86-64"},
     execution_timeout = 3600,
 )
 
