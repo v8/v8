@@ -10,6 +10,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>  // For move
 #include <vector>
 
@@ -184,6 +185,11 @@
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/diagnostics/etw-jit-win.h"
 #endif  // V8_ENABLE_ETW_STACK_WALKING
+
+#if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+#include "src/strings/owning-external-string-resource.h"
+#endif  // defined(V8_ENABLE_SANDBOX) &&
+        // defined(V8_ENABLE_MEMORY_CORRUPTION_API)
 
 namespace v8 {
 
@@ -480,19 +486,39 @@ void RegisteredExtension::UnregisterAll() {
 }
 
 namespace {
+
+#if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+
+// An implementation that holds all extension resources as copies in the
+// ExternalStringsCage; for use in testing/fuzzing memory_corruption_api enabled
+// builds to avoid filing issues for OOB reads due to corruptions of lengths
+// stored on heap.
+class ExtensionResource : public i::OwningExternalOneByteStringResource {
+ public:
+  using i::OwningExternalOneByteStringResource::
+      OwningExternalOneByteStringResource;
+  void Dispose() override {
+    // Don't delete here - our lifetime is managed by the Extension object.
+  }
+};
+
+#else  // defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+
+// An implementation that simply wraps the specified view.
 class ExtensionResource : public String::ExternalOneByteStringResource {
  public:
-  ExtensionResource() : data_(nullptr), length_(0) {}
-  ExtensionResource(const char* data, size_t length)
-      : data_(data), length_(length) {}
-  const char* data() const override { return data_; }
-  size_t length() const override { return length_; }
+  explicit ExtensionResource(std::string_view string) : string_(string) {}
+  const char* data() const override { return string_.data(); }
+  size_t length() const override { return string_.length(); }
   void Dispose() override {}
 
  private:
-  const char* data_;
-  size_t length_;
+  const std::string_view string_;
 };
+
+#endif  // defined(V8_ENABLE_SANDBOX) &&
+        // defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+
 }  // anonymous namespace
 
 void RegisterExtension(std::unique_ptr<Extension> extension) {
@@ -502,14 +528,16 @@ void RegisterExtension(std::unique_ptr<Extension> extension) {
 Extension::Extension(const char* name, const char* source, int dep_count,
                      const char** deps, int source_length)
     : name_(name),
-      source_length_(source_length >= 0
-                         ? source_length
-                         : (source ? static_cast<int>(strlen(source)) : 0)),
       dep_count_(dep_count),
       deps_(deps),
       auto_enable_(false) {
-  source_ = new ExtensionResource(source, source_length_);
-  CHECK(source != nullptr || source_length_ == 0);
+  CHECK_IMPLIES(source == nullptr, source_length <= 0);
+  std::string_view source_view;
+  if (source) {
+    source_view = source_length >= 0 ? std::string_view(source, source_length)
+                                     : std::string_view(source);
+  }
+  source_ = new ExtensionResource(source_view);
 }
 
 void ResourceConstraints::ConfigureDefaultsFromHeapSize(

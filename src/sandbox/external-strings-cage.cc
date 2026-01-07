@@ -56,6 +56,7 @@ void ExternalStringsCage::Seal(void* ptr, size_t size) {
 }
 
 size_t ExternalStringsCage::GetAllocSize(size_t string_size) const {
+  CHECK_GT(string_size, 0);
   CHECK_LE(string_size, kMaxContentsSize);
   // Allocate whole pages as we're relying on BoundedPageAllocator (e.g.,
   // PartitionAlloc would allow smaller granularity, but at the moment it's not
@@ -65,6 +66,7 @@ size_t ExternalStringsCage::GetAllocSize(size_t string_size) const {
 }
 
 void* ExternalStringsCage::AllocateRaw(size_t size) {
+  if (!size) return nullptr;
   size_t alloc_size = GetAllocSize(size);
   void* ptr = vm_cage_.page_allocator()->AllocatePages(
       nullptr, alloc_size, page_size_, PageAllocator::kReadWrite);
@@ -83,6 +85,10 @@ void* ExternalStringsCage::AllocateRaw(size_t size) {
 }
 
 void ExternalStringsCage::Free(void* ptr, size_t size) {
+  if (!ptr) {
+    CHECK_EQ(size, 0);
+    return;
+  }
   size_t alloc_size = GetAllocSize(size);
 #if defined(V8_USE_ADDRESS_SANITIZER)
   // Unpoison the memory before giving it back (as it may be reused later).

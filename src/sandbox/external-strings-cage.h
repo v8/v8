@@ -13,6 +13,7 @@
 #include "src/base/address-region.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/utils/allocation.h"
 
 namespace v8::internal {
@@ -28,7 +29,7 @@ namespace v8::internal {
 //
 // Note: There's an additional memory overhead per each string, since we append
 // a redzone and occupy whole pages for a string at the moment.
-class ExternalStringsCage final {
+class V8_EXPORT_PRIVATE ExternalStringsCage final {
  public:
   // The maximum total length of strings (and additional redzones) that the cage
   // can fit. Chosen to fit a maximum UTF-16 string of length 2^32 and some
@@ -66,6 +67,8 @@ class ExternalStringsCage final {
 
   bool Initialize();
 
+  // Allocates a buffer for a string of `size` characters with the `T` type.
+  // Returns null if `size` is zero.
   template <typename T>
   std::unique_ptr<T[], Deleter<T>> Allocate(size_t size) {
     CHECK_LE(size, kMaxContentsSize / sizeof(T));
