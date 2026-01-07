@@ -930,7 +930,7 @@ Tagged<JSObject> LookupIterator::GetHolderForApi() const {
 bool LookupIterator::HolderIsReceiver() const {
   DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY ||
-         state_ == TYPED_ARRAY_INDEX_NOT_FOUND);
+         state_ == TYPED_ARRAY_INDEX_NOT_FOUND || state_ == MODULE_NAMESPACE);
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   return *receiver_ == *holder_;
@@ -938,7 +938,8 @@ bool LookupIterator::HolderIsReceiver() const {
 
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
-  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
+  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY ||
+         state_ == MODULE_NAMESPACE);
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   if (*receiver_ == *holder_) return true;
@@ -1329,6 +1330,9 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       if (IsJSProxyMap(map)) {
         if (is_element || !name_->IsAnyPrivate()) return JSPROXY;
       }
+      if (IsJSModuleNamespaceMap(map)) {
+        if (is_element || !name_->IsAnyPrivate()) return MODULE_NAMESPACE;
+      }
 #if V8_ENABLE_WEBASSEMBLY
       if (IsWasmObjectMap(map)) return WASM_OBJECT;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1362,6 +1366,8 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
             return ACCESSOR;
         }
       }
+      [[fallthrough]];
+    case MODULE_NAMESPACE:
       return LookupInRegularHolder<is_element>(map, holder);
     case ACCESSOR:
     case DATA:

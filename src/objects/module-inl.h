@@ -24,6 +24,7 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Module)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSDeferredModuleNamespace)
 
 Tagged<Object> ScriptOrModule::resource_name() const {
   return resource_name_.load();

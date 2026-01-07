@@ -177,6 +177,7 @@ namespace internal {
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \
   V(JSModuleNamespace)                          \
+  V(JSDeferredModuleNamespace)                  \
   V(JSObject)                                   \
   V(JSAPIObjectWithEmbedderSlots)               \
   V(JSObjectWithEmbedderSlots)                  \

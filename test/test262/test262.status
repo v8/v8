@@ -786,32 +786,10 @@
 # End roll-watcher patch
 ####
 
-
-
 ####
 # import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
 [ALWAYS, {
-  'language/import/import-defer/deferred-namespace-object/exotic-object-behavior': [SKIP],
   'language/import/import-defer/deferred-namespace-object/identity': [SKIP],
-  'language/import/import-defer/errors/get-other-while-dep-evaluating-async/main': [SKIP],
-  'language/import/import-defer/errors/get-other-while-dep-evaluating/main': [SKIP],
-  'language/import/import-defer/errors/get-other-while-evaluating-async/main': [SKIP],
-  'language/import/import-defer/errors/get-other-while-evaluating/main': [SKIP],
-  'language/import/import-defer/errors/get-self-while-defer-evaluating/main': [SKIP],
-  'language/import/import-defer/errors/get-self-while-evaluating': [SKIP],
-  'language/import/import-defer/errors/get-self-while-evaluating-async/main': [SKIP],
-  'language/import/import-defer/errors/module-throws/defer-import-after-evaluation': [SKIP],
-  'language/import/import-defer/errors/module-throws/third-party-evaluation-after-defer-import': [SKIP],
-  'language/import/import-defer/errors/module-throws/trigger-evaluation': [SKIP],
-  'language/import/import-defer/evaluation-sync/import-defer-does-not-evaluate': [SKIP],
-  'language/import/import-defer/evaluation-sync/module-imported-defer-and-eager': [SKIP],
-  'language/import/import-defer/evaluation-top-level-await/flattening-order/main': [SKIP],
-  'language/import/import-defer/evaluation-top-level-await/import-defer-async-module/main': [SKIP],
-  'language/import/import-defer/evaluation-top-level-await/import-defer-transitive-async-module/main': [SKIP],
-  'language/import/import-defer/evaluation-top-level-await/sync-dependency-of-deferred-async-module/main': [SKIP],
-  'language/import/import-defer/syntax/import-attributes': [SKIP],
-  'language/import/import-defer/syntax/valid-default-binding-named-defer': [SKIP],
-  'language/import/import-defer/syntax/valid-defer-namespace': [SKIP],
 }],
 # end import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
 ####
@@ -819,8 +797,6 @@
 ####
 # import test262@d49db639a89df9cc2b6c02554beb41acaec95c38
 [ALWAYS, {
-  'language/import/import-defer/deferred-namespace-object/to-string-tag': [FAIL],
-
   'staging/sm/class/superCallOrder': [FAIL],
   'staging/sm/class/superPropOrdering': [FAIL],
   'staging/sm/DataView/detach-after-construction': [FAIL],
@@ -878,52 +854,6 @@
 }],
 # End roll-watcher patch
 ####
-
-####
-# import test262@e7a84b0a090ca86cc05f2e90116115c8c2a7c059
-[ALWAYS, {
-  'language/import/import-defer/evaluation-triggers/ignore-exported-then-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-exported-then-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-exported-then-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-exported-then-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-exported-then-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-getPrototypeOf': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-isExtensible': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-preventExtensions': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-setPrototypeOf': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-set-string-exported': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-set-string-not-exported': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-ownPropertyKey-names': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-ownPropertyKeys': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-ownPropertyKeys-symbols': [SKIP],
-}],
-# end import test262@e7a84b0a090ca86cc05f2e90116115c8c2a7c059
-###
 
 ####
 # import test262@bc5c14176e2b11a78859571eb693f028c8822458
@@ -1275,23 +1205,15 @@
 
 
 ####
-# import test262@c0cf527756840ae8ba679e53e627ec20f3bbc5c8
+# Roll-watcher patch
 [ALWAYS, {
-  'language/import/import-defer/evaluation-triggers/ignore-exported-then-get-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/ignore-exported-then-hasProperty-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-get-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-hasProperty-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/ignore-private-name-access': [SKIP],
-  'language/import/import-defer/evaluation-triggers/ignore-symbol-other-get-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/ignore-symbol-other-hasProperty-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-get-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-hasProperty-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/trigger-exported-string-get-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/trigger-exported-string-hasProperty-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-get-in-prototype': [SKIP],
-  'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-hasProperty-in-prototype': [SKIP],
+  'built-ins/Temporal/Duration/prototype/round/zero-duration': [SKIP],
+  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-5': [SKIP],
+  'intl402/Temporal/PlainDate/prototype/withCalendar/calendar-time-string': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/withCalendar/calendar-time-string': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/withCalendar/calendar-time-string': [SKIP],
 }],
-# end import test262@c0cf527756840ae8ba679e53e627ec20f3bbc5c8
+# End roll-watcher patch
 ####
 
 

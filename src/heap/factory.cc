@@ -3479,6 +3479,21 @@ DirectHandle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
   return module_namespace;
 }
 
+DirectHandle<JSDeferredModuleNamespace>
+Factory::NewJSDeferredModuleNamespace() {
+  DirectHandle<Map> map = isolate()->js_deferred_module_namespace_map();
+  DirectHandle<JSDeferredModuleNamespace> deferred_namespace(
+      Cast<JSDeferredModuleNamespace>(NewJSObjectFromMap(
+          map, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
+          NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper)));
+  FieldIndex index = FieldIndex::ForDescriptor(
+      *map, InternalIndex(JSDeferredModuleNamespace::kToStringTagFieldIndex));
+  deferred_namespace->FastPropertyAtPut(
+      index, read_only_roots().Deferred_Module_string(), SKIP_WRITE_BARRIER);
+
+  return deferred_namespace;
+}
+
 DirectHandle<JSWrappedFunction> Factory::NewJSWrappedFunction(
     DirectHandle<NativeContext> creation_context, DirectHandle<Object> target) {
   DCHECK(IsCallable(*target));
@@ -3562,6 +3577,8 @@ DirectHandle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_regular_imports(*regular_imports);
   module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module->set_module_namespace(roots.undefined_value(), SKIP_WRITE_BARRIER);
+  module->set_deferred_module_namespace(roots.undefined_value(),
+                                        SKIP_WRITE_BARRIER);
   module->set_requested_modules(*requested_modules);
   module->set_status(Module::kUnlinked);
   module->set_exception(roots.the_hole_value(), SKIP_WRITE_BARRIER);
@@ -3595,6 +3612,8 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   DisallowGarbageCollection no_gc;
   module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module->set_module_namespace(roots.undefined_value(), SKIP_WRITE_BARRIER);
+  module->set_deferred_module_namespace(roots.undefined_value(),
+                                        SKIP_WRITE_BARRIER);
   module->set_status(Module::kUnlinked);
   module->set_exception(roots.the_hole_value(), SKIP_WRITE_BARRIER);
   module->set_top_level_capability(roots.undefined_value(), SKIP_WRITE_BARRIER);

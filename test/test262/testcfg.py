@@ -72,6 +72,7 @@ FEATURE_FLAGS = {
     'Intl.Locale': '--js-intl-locale-variants',
     'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',
     'immutable-arraybuffer': '--js-immutable-arraybuffer',
+    'import-defer': '--js-defer-import-eval',
 }
 
 SKIPPED_FEATURES = set([])

@@ -158,7 +158,19 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
       case LookupIterator::DATA:
       case LookupIterator::NOT_FOUND:
         return ReadOnlyRoots(isolate).undefined_value();
-
+      case LookupIterator::MODULE_NAMESPACE: {
+        // We need to trigger evaluation due to [[GetOwnProperty]].
+        // https://tc39.es/ecma262/#sec-object.prototype.__lookupGetter__
+        // https://tc39.es/ecma262/#sec-object.prototype.__lookupSetter__
+        if (JSDeferredModuleNamespace::TriggersEvaluation(&it)) {
+          DirectHandle<JSDeferredModuleNamespace> holder =
+              it.GetHolder<JSDeferredModuleNamespace>();
+          JSDeferredModuleNamespace::EvaluateModuleSync(isolate, holder);
+          RETURN_FAILURE_IF_EXCEPTION(isolate);
+          return ReadOnlyRoots(isolate).undefined_value();
+        }
+        continue;
+      }
       case LookupIterator::ACCESSOR: {
         DirectHandle<Object> maybe_pair = it.GetAccessors();
         if (IsAccessorPair(*maybe_pair)) {

@@ -264,6 +264,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
+    case JS_DEFERRED_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_REG_EXP_TYPE:

@@ -126,6 +126,15 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         // TypedArray out-of-bounds access.
         return Just(false);
+      case LookupIterator::MODULE_NAMESPACE: {
+        if (JSDeferredModuleNamespace::TriggersEvaluation(it)) {
+          DirectHandle<JSDeferredModuleNamespace> holder =
+              it->GetHolder<JSDeferredModuleNamespace>();
+          JSDeferredModuleNamespace::EvaluateModuleSync(it->isolate(), holder);
+          RETURN_EXCEPTION_IF_EXCEPTION(it->isolate());
+        }
+        continue;
+      }
       case LookupIterator::ACCESSOR:
       case LookupIterator::DATA:
         return Just(true);
@@ -202,6 +211,15 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
         return it->GetDataValue(allocation_policy);
       case LookupIterator::NOT_FOUND:
         return it->isolate()->factory()->undefined_value();
+      case LookupIterator::MODULE_NAMESPACE: {
+        DirectHandle<JSModuleNamespace> ns = it->GetHolder<JSModuleNamespace>();
+        if (IsJSDeferredModuleNamespace(*ns) &&
+            JSDeferredModuleNamespace::TriggersEvaluation(it)) {
+          it->NotFound();
+          return it->isolate()->factory()->undefined_value();
+        }
+        continue;
+      }
     }
     UNREACHABLE();
   }
@@ -230,6 +248,7 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
       Cast<String>(Cast<Symbol>(it->GetName())->description()), isolate);
   for (;; it->Next()) {
     switch (it->state()) {
+      case LookupIterator::MODULE_NAMESPACE:
       case LookupIterator::TRANSITION:
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::JSPROXY:
@@ -763,6 +782,15 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
         return JSObject::GetPropertyAttributesWithFailedAccessCheck(it);
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         return Just(ABSENT);
+      case LookupIterator::MODULE_NAMESPACE: {
+        if (JSDeferredModuleNamespace::TriggersEvaluation(it)) {
+          DirectHandle<JSDeferredModuleNamespace> holder =
+              it->GetHolder<JSDeferredModuleNamespace>();
+          JSDeferredModuleNamespace::EvaluateModuleSync(it->isolate(), holder);
+          RETURN_EXCEPTION_IF_EXCEPTION(it->isolate());
+        }
+        continue;
+      }
       case LookupIterator::ACCESSOR:
         if (IsJSModuleNamespace(*it->GetHolder<Object>())) {
           return JSModuleNamespace::GetPropertyAttributes(it);
@@ -1011,6 +1039,15 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
       }
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         return Just(true);
+      case LookupIterator::MODULE_NAMESPACE: {
+        if (JSDeferredModuleNamespace::TriggersEvaluation(it)) {
+          DirectHandle<JSDeferredModuleNamespace> holder =
+              it->GetHolder<JSDeferredModuleNamespace>();
+          JSDeferredModuleNamespace::EvaluateModuleSync(it->isolate(), holder);
+          RETURN_EXCEPTION_IF_EXCEPTION(it->isolate());
+        }
+        continue;
+      }
       case LookupIterator::DATA:
       case LookupIterator::ACCESSOR: {
         DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
@@ -1845,6 +1882,7 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
     case LookupIterator::WASM_OBJECT:
       RETURN_FAILURE(isolate, kThrowOnError,
                      NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+    case LookupIterator::MODULE_NAMESPACE:
     case LookupIterator::DATA:
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::ACCESSOR:
@@ -2622,6 +2660,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSIteratorConcatHelper::kHeaderSize;
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
+    case JS_DEFERRED_MODULE_NAMESPACE_TYPE:
+      return JSDeferredModuleNamespace::kHeaderSize;
     case JS_SHARED_ARRAY_TYPE:
       return JSSharedArray::kHeaderSize;
     case JS_SHARED_STRUCT_TYPE:
@@ -3722,6 +3762,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
       case LookupIterator::JSPROXY:
       case LookupIterator::TRANSITION:
       case LookupIterator::STRING_LOOKUP_START_OBJECT:
+      case LookupIterator::MODULE_NAMESPACE:
         UNREACHABLE();
       case LookupIterator::WASM_OBJECT:
         continue;  // {AddDataProperty} will throw if no other case is hit.

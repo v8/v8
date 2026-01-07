@@ -224,6 +224,15 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
         // ICs know how to perform access checks on global proxies.
         if (!IsAccessCheckNeeded(*it->GetHolder<JSObject>())) continue;
         return;
+      case LookupIterator::MODULE_NAMESPACE: {
+        if (JSDeferredModuleNamespace::TriggersEvaluation(it)) {
+          return;
+        }
+        // Once a deferred module is evaluated, we will fallback to perform IC
+        // as an ordinary module namespace. This way it can be either ACCESSOR
+        // or NOT_FOUND state.
+        continue;
+      }
       case LookupIterator::ACCESSOR:
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       case LookupIterator::DATA:
@@ -882,6 +891,18 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     // HasProperty trap for global loads. The ProxyGetProperty builtin doesn't
     // handle this case.
     handler = MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
+  } else if (lookup->state() == LookupIterator::MODULE_NAMESPACE) {
+    // We only hit this state for a non-evaluated deferred module state and we
+    // keep trying to cache later. Once this deferred module gets evaluated
+    // (likely this call), the access for this namespace object can be NOT_FOUND
+    // or ACCESSOR, which will allow them to be cached as ordinary module
+    // namespace access.
+#ifdef DEBUG
+    DirectHandle<JSModuleNamespace> ns = lookup->GetHolder<JSModuleNamespace>();
+    DCHECK(IsJSDeferredModuleNamespace(*ns));
+    DCHECK_NE(ns->module()->status(), Module::kEvaluated);
+#endif
+    return;
   } else {
     if (IsLoadGlobalIC()) {
       if (lookup->TryLookupCachedProperty()) {
@@ -1219,6 +1240,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
           isolate(), map, holder_proxy, *smi_handler));
     }
 
+    case LookupIterator::MODULE_NAMESPACE:
     case LookupIterator::WASM_OBJECT:
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
@@ -1732,6 +1754,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
         continue;  // Continue to the prototype, if present.
       case LookupIterator::JSPROXY:
         return true;
+      case LookupIterator::MODULE_NAMESPACE:
+        return false;
       case LookupIterator::INTERCEPTOR: {
         DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
         Tagged<InterceptorInfo> info = holder->GetNamedInterceptor();
@@ -1907,6 +1931,7 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
     // while the object is already prepared for TRANSITION.
     case LookupIterator::TRANSITION: {
       switch (original_state) {
+        case LookupIterator::MODULE_NAMESPACE:
         case LookupIterator::JSPROXY:
         case LookupIterator::WASM_OBJECT:
         case LookupIterator::TRANSITION:
@@ -1926,6 +1951,7 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
                                          EnforceDefineSemantics::kDefine);
       }
     }
+    case LookupIterator::MODULE_NAMESPACE:
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::DATA:
@@ -2368,6 +2394,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           isolate(), lookup_start_object_map(), holder, receiver));
     }
 
+    case LookupIterator::MODULE_NAMESPACE:
     case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
@@ -4073,6 +4100,7 @@ bool MaybeCanCloneObjectForObjectAssign(DirectHandle<JSReceiver> source,
         }
         continue;
 
+      case LookupIterator::MODULE_NAMESPACE:
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::TRANSITION:
       case LookupIterator::ACCESS_CHECK:

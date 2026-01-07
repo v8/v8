@@ -33,6 +33,7 @@
 #include "src/numbers/math-random.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
+#include "src/objects/module.h"
 #include "src/objects/object-type.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"

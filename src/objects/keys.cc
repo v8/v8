@@ -1203,6 +1203,14 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSReceiver> receiver,
     }
     return Just(false);
   }
+  if (IsJSDeferredModuleNamespace(*object)) [[unlikely]] {
+    DirectHandle<JSDeferredModuleNamespace> ns =
+        Cast<JSDeferredModuleNamespace>(object);
+    if (ns->module()->status() != Module::kEvaluated) {
+      JSDeferredModuleNamespace::EvaluateModuleSync(isolate_, ns);
+      RETURN_EXCEPTION_IF_EXCEPTION(isolate_);
+    }
+  }
   if (filter_ & PRIVATE_NAMES_ONLY) {
     RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectPrivateNames(receiver, object));
     return Just(true);

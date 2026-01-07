@@ -266,8 +266,8 @@ MaybeHandle<Cell> SourceTextModule::ResolveImport(
       cell->set_value(module->requested_modules()->get(module_request_index));
       return cell;
     }
+    case ModuleImportPhase::kDefer:
     case ModuleImportPhase::kEvaluation: {
-      DCHECK_EQ(module_request->phase(), ModuleImportPhase::kEvaluation);
       Handle<Module> requested_module(
           Cast<Module>(module->requested_modules()->get(module_request_index)),
           isolate);
@@ -364,6 +364,7 @@ bool SourceTextModule::PrepareInstantiate(
     DirectHandle<FixedArray> import_attributes(
         module_request->import_attributes(), isolate);
     switch (module_request->phase()) {
+      case ModuleImportPhase::kDefer:
       case ModuleImportPhase::kEvaluation: {
         v8::Local<v8::Module> api_requested_module;
         if (callbacks.module_callback != nullptr) {
@@ -424,7 +425,7 @@ bool SourceTextModule::PrepareInstantiate(
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
-    if (module_request->phase() != ModuleImportPhase::kEvaluation) {
+    if (module_request->phase() == ModuleImportPhase::kSource) {
       continue;
     }
     DirectHandle<Module> requested_module(
@@ -600,7 +601,7 @@ bool SourceTextModule::FinishInstantiate(
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
-    if (module_request->phase() != ModuleImportPhase::kEvaluation) {
+    if (module_request->phase() == ModuleImportPhase::kSource) {
       continue;
     }
     Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
@@ -809,14 +810,16 @@ void SourceTextModule::GatherAvailableAncestors(
 
 DirectHandle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
-    int module_request) {
-  DCHECK_EQ(Cast<ModuleRequest>(
-                module->info()->module_requests()->get(module_request))
-                ->phase(),
-            ModuleImportPhase::kEvaluation);
+    int module_request_index) {
+  Tagged<ModuleRequest> module_request = Cast<ModuleRequest>(
+      module->info()->module_requests()->get(module_request_index));
+  DCHECK_NE(module_request->phase(), ModuleImportPhase::kSource);
+
   Handle<Module> requested_module(
-      Cast<Module>(module->requested_modules()->get(module_request)), isolate);
-  return Module::GetModuleNamespace(isolate, requested_module);
+      Cast<Module>(module->requested_modules()->get(module_request_index)),
+      isolate);
+  return Module::GetModuleNamespace(isolate, requested_module,
+                                    module_request->phase());
 }
 
 MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
@@ -1244,16 +1247,36 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
     requested_modules = direct_handle(raw_module->requested_modules(), isolate);
   }
 
-  // 11. For each ModuleRequest Record required of module.[[RequestedModules]],
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  // There's an evaluation set to perform optimized check if a module is already
+  // in eveluation_list. It's encessary to keep evaluation order as it's seen to
+  // be spec compliant.
+  UnorderedModuleSet evaluation_set(&zone);
+  ZoneVector<Handle<Module>> eveluation_list(&zone);
+  UnorderedModuleSet seen_modules(&zone);
   for (int i = 0, length = requested_modules->length(); i < length; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
-    if (module_request->phase() != ModuleImportPhase::kEvaluation) {
+
+    if (module_request->phase() == ModuleImportPhase::kSource) {
       continue;
     }
-    // b. If requiredModule.[[Phase]] is evaluation, then
+
     Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
                                     isolate);
+    if (module_request->phase() == ModuleImportPhase::kDefer) {
+      GatherAsynchronousTransitiveDependencies(isolate, requested_module,
+                                               &evaluation_set,
+                                               &eveluation_list, &seen_modules);
+    } else if (evaluation_set.insert(requested_module).second) {
+      eveluation_list.push_back(requested_module);
+    }
+  }
+
+  // 11. For each ModuleRequest Record required of module.[[RequestedModules]],
+  for (size_t i = 0, length = eveluation_list.size(); i < length; ++i) {
+    // b. If requiredModule.[[Phase]] is evaluation, then
+    Handle<Module> requested_module = eveluation_list[i];
     // c. If requiredModule is a Cyclic Module Record, then
     if (IsSourceTextModule(*requested_module)) {
       // b. Set index to ? InnerModuleEvaluation(requiredModule, stack, index).
@@ -1368,6 +1391,97 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
 
   CHECK(MaybeTransitionComponent(isolate, module, stack, kEvaluated));
   return result;
+}
+
+// https://tc39.es/proposal-defer-import-eval/#sec-GatherAsynchronousTransitiveDependencies
+void SourceTextModule::GatherAsynchronousTransitiveDependencies(
+    Isolate* isolate, Handle<Module> module, UnorderedModuleSet* evaluation_set,
+    ZoneVector<Handle<Module>>* evaluation_list, UnorderedModuleSet* seen_set) {
+  if (!seen_set->insert(module).second) {
+    return;
+  }
+
+  if (!IsSourceTextModule(*module)) {
+    return;
+  }
+
+  Handle<SourceTextModule> source_text_module = Cast<SourceTextModule>(module);
+  if (source_text_module->status() == kEvaluating ||
+      module->status() == kEvaluatingAsync || module->status() == kEvaluated) {
+    return;
+  }
+
+  if (source_text_module->has_toplevel_await()) {
+    if (evaluation_set->insert(source_text_module).second) {
+      evaluation_list->push_back(source_text_module);
+    }
+    return;
+  }
+
+  DirectHandle<FixedArray> module_requests(
+      source_text_module->info()->module_requests(), isolate);
+  DirectHandle<FixedArray> requested_modules(
+      source_text_module->requested_modules(), isolate);
+  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+    DirectHandle<ModuleRequest> module_request(
+        Cast<ModuleRequest>(module_requests->get(i)), isolate);
+
+    // Only process evaluation phase modules (skip source phase)
+    if (module_request->phase() == ModuleImportPhase::kSource) {
+      continue;
+    }
+
+    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
+                                    isolate);
+
+    GatherAsynchronousTransitiveDependencies(
+        isolate, requested_module, evaluation_set, evaluation_list, seen_set);
+  }
+}
+
+// https://tc39.es/proposal-defer-import-eval/#sec-ReadyForSyncExecution
+bool SourceTextModule::ReadyForSyncExecution(Isolate* isolate,
+                                             Handle<Module> module,
+                                             UnorderedModuleSet* seen) {
+  if (!seen->insert(module).second) {
+    return true;
+  }
+
+  if (!IsSourceTextModule(*module)) {
+    return true;
+  }
+
+  Handle<SourceTextModule> source_text_module = Cast<SourceTextModule>(module);
+  if (source_text_module->status() == kEvaluated) {
+    return true;
+  }
+
+  if (source_text_module->status() == kEvaluating ||
+      source_text_module->status() == kEvaluatingAsync) {
+    return false;
+  }
+
+  if (source_text_module->has_toplevel_await()) {
+    return false;
+  }
+
+  DirectHandle<FixedArray> module_requests(
+      source_text_module->info()->module_requests(), isolate);
+  DirectHandle<FixedArray> requested_modules(
+      source_text_module->requested_modules(), isolate);
+  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+    DirectHandle<ModuleRequest> module_request(
+        Cast<ModuleRequest>(module_requests->get(i)), isolate);
+    if (module_request->phase() == ModuleImportPhase::kSource) {
+      continue;
+    }
+    Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
+                                    isolate);
+    if (!ReadyForSyncExecution(isolate, requested_module, seen)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void SourceTextModule::Reset(Isolate* isolate,

@@ -189,6 +189,7 @@ namespace internal {
   T(NonStringImportAttributeValue, "Import attribute value must be a string")  \
   T(NoSetterInCallback, "Cannot set property % of % which has only a getter")  \
   T(NotAnIterator, "% is not an iterator")                                     \
+  T(NotReadyForSyncExec, "Deferred module is not ready for sync execution")    \
   T(PromiseNewTargetUndefined,                                                 \
     "Promise constructor cannot be invoked without 'new'")                     \
   T(NotConstructor, "% is not a constructor")                                  \

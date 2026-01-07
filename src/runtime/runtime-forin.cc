@@ -75,6 +75,15 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
           return it.GetName();
         }
       }
+      case LookupIterator::MODULE_NAMESPACE: {
+#ifdef DEBUG
+        DirectHandle<JSModuleNamespace> ns = it.GetHolder<JSModuleNamespace>();
+        if (IsJSDeferredModuleNamespace(*ns)) {
+          DCHECK_EQ(ns->module()->status(), Module::kEvaluated);
+        }
+#endif
+        continue;
+      }
       case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::WASM_OBJECT:

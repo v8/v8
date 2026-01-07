@@ -1706,6 +1706,7 @@ MaybeDirectHandle<Object> InstanceBuilder::LookupImportAsm(
       }
       return value;
     }
+    case LookupIterator::MODULE_NAMESPACE:
     case LookupIterator::STRING_LOOKUP_START_OBJECT:
       UNREACHABLE();
   }
