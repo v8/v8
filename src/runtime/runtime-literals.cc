@@ -613,7 +613,6 @@ DirectHandle<Object> InstantiateIfSharedFunctionInfo(
     }
   } else {
     // We do not have closure_info
-    DCHECK_EQ(current_slot, start_slot);
     auto val = *isolate->factory()->NewPrototypeSharedClosureInfo(
         context, feedback_cell_array);
 

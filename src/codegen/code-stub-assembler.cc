@@ -11719,10 +11719,12 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
               TVARIABLE(Object, var_value);
               Label value_ready(this), slow_load(this, Label::kDeferred);
 
-              var_value = CallGetterIfAccessor(
-                  value_or_accessor, object, var_details.value(), context,
-                  object, kExpectingJSReceiver, next_key, &slow_load,
-                  kCallJSGetterUseCachedName);
+              var_value = TNode<Object>(
+                  CodeStubAssembler::
+                      CallGetterIfAccessorAndBailoutOnLazyClosures(
+                          value_or_accessor, object, var_details.value(),
+                          context, object, kExpectingJSReceiver, next_key,
+                          &slow_load, kCallJSGetterUseCachedName));
               Goto(&value_ready);
 
               BIND(&slow_load);
@@ -12218,19 +12220,27 @@ template void CodeStubAssembler::LoadPropertyFromDictionary(
     TNode<SwissNameDictionary> dictionary, TNode<IntPtrT> name_index,
     TVariable<Uint32T>* var_details, TVariable<Object>* var_value);
 
-TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
+TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
     TNode<Object> value, std::optional<TNode<JSReceiver>> holder,
     TNode<Uint32T> details, TNode<Context> context, TNode<JSAny> receiver,
     ExpectedReceiverMode expected_receiver_mode, TNode<Object> name,
     Label* if_bailout, GetOwnPropertyMode mode) {
   TVARIABLE(Object, var_value, value);
-  Label done(this), if_accessor_info(this, Label::kDeferred);
+  Label done(this), if_accessor_info(this, Label::kDeferred), if_data(this),
+      if_not_data(this);
 
   TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
-  GotoIf(
+  Branch(
       Word32Equal(kind, Int32Constant(static_cast<int>(PropertyKind::kData))),
-      &done);
+      &if_data, &if_not_data);
 
+  BIND(&if_data);
+  {
+    GotoIfLazyClosure(CAST(value), if_bailout);
+    Goto(&done);
+  }
+
+  BIND(&if_not_data);
   // Accessor case.
   GotoIfNot(IsAccessorPair(CAST(value)), &if_accessor_info);
 
@@ -12456,7 +12466,7 @@ void CodeStubAssembler::TryGetOwnProperty(
     if (var_raw_value) {
       *var_raw_value = *var_value;
     }
-    TNode<Object> value = CallGetterIfAccessor(
+    TNode<Object> value = CallGetterIfAccessorAndBailoutOnLazyClosures(
         var_value->value(), object, var_details->value(), context, receiver,
         expected_receiver_mode, unique_name, if_bailout, mode);
     *var_value = value;

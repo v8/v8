@@ -689,7 +689,10 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
           InternalIndex entry = dictionary->FindEntry(isolate, *key);
           if (entry.is_found() &&
               (dictionary->DetailsAt(entry).kind() == PropertyKind::kData)) {
-            return dictionary->ValueAt(entry);
+            Tagged<Object> val = dictionary->ValueAt(entry);
+            if (!IsSharedFunctionInfo(val)) {
+              return val;
+            }
           }
         } else {
           Tagged<NameDictionary> dictionary =
@@ -697,7 +700,10 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
           InternalIndex entry = dictionary->FindEntry(isolate, key);
           if ((entry.is_found()) &&
               (dictionary->DetailsAt(entry).kind() == PropertyKind::kData)) {
-            return dictionary->ValueAt(entry);
+            Tagged<Object> val = dictionary->ValueAt(entry);
+            if (!IsSharedFunctionInfo(val)) {
+              return val;
+            }
           }
         }
       }

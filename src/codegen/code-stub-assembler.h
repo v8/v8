@@ -3603,7 +3603,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          Label* if_found, Label* if_not_found,
                          Label* if_bailout);
 
-  // Operating mode for TryGetOwnProperty and CallGetterIfAccessor
+  // Operating mode for TryGetOwnProperty and
+  // CallGetterIfAccessorAndBailoutOnLazyClosures
   enum GetOwnPropertyMode {
     // kCallJSGetterDontUseCachedName is used when we want to get the result of
     // the getter call, and don't use cached_name_property when the getter is
@@ -3619,7 +3620,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     // descriptor
     kReturnAccessorPair
   };
-  // Receiver handling mode for TryGetOwnProperty and CallGetterIfAccessor.
+  // Receiver handling mode for TryGetOwnProperty and
+  // CallGetterIfAccessorAndBailoutOnLazyClosures.
   enum ExpectedReceiverMode {
     // The receiver is guaranteed to be JSReceiver, no conversion is necessary
     // in case a function callback template has to be called.
@@ -4676,7 +4678,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // or an accessor pair, as specified by |details|. |holder| is a JSReceiver
   // or empty std::nullopt if holder is not available.
   // Returns either the original value, or the result of the getter call.
-  TNode<Object> CallGetterIfAccessor(
+  TNode<Object> CallGetterIfAccessorAndBailoutOnLazyClosures(
       TNode<Object> value, std::optional<TNode<JSReceiver>> holder,
       TNode<Uint32T> details, TNode<Context> context, TNode<JSAny> receiver,
       ExpectedReceiverMode expected_receiver_mode, TNode<Object> name,

@@ -851,7 +851,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       ExpectedReceiverMode expected_receiver_mode =
           p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;
 
-      TNode<Object> value = CallGetterIfAccessor(
+      TNode<Object> value = CallGetterIfAccessorAndBailoutOnLazyClosures(
           var_value.value(), CAST(holder), var_details.value(), p->context(),
           p->receiver(), expected_receiver_mode, p->name(), miss);
       exit_point->Return(value);
@@ -940,7 +940,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     ExpectedReceiverMode expected_receiver_mode =
         p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;
 
-    exit_point->Return(CallGetterIfAccessor(
+    exit_point->Return(CallGetterIfAccessorAndBailoutOnLazyClosures(
         value, std::nullopt, details, p->context(), p->receiver(),
         expected_receiver_mode, p->name(), miss));
   }
@@ -1255,7 +1255,7 @@ void AccessorAssembler::HandleLoadICProtoHandler(
           ExpectedReceiverMode expected_receiver_mode =
               p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;
 
-          TNode<Object> value = CallGetterIfAccessor(
+          TNode<Object> value = CallGetterIfAccessorAndBailoutOnLazyClosures(
               var_value.value(), CAST(var_holder->value()), var_details.value(),
               p->context(), p->receiver(), expected_receiver_mode, p->name(),
               miss);
@@ -3010,9 +3010,11 @@ void AccessorAssembler::GenericPropertyLoad(
     ExpectedReceiverMode expected_receiver_mode =
         p->IsLoadSuperIC() ? kExpectingAnyReceiver : kExpectingJSReceiver;
 
-    TNode<JSAnyOrSharedFunctionInfo> value = CAST(CallGetterIfAccessor(
-        var_value.value(), CAST(lookup_start_object), var_details.value(),
-        p->context(), p->receiver(), expected_receiver_mode, p->name(), slow));
+    TNode<JSAnyOrSharedFunctionInfo> value =
+        CAST(CallGetterIfAccessorAndBailoutOnLazyClosures(
+            var_value.value(), CAST(lookup_start_object), var_details.value(),
+            p->context(), p->receiver(), expected_receiver_mode, p->name(),
+            slow));
 
     GotoIfLazyClosure(value, slow);
 
