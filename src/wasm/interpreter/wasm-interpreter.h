@@ -13,6 +13,8 @@
 #include <memory>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/small-vector.h"
@@ -144,9 +146,9 @@ class WasmEHData {
  protected:
   BlockIndex GetTryBranchOf(BlockIndex catch_block_index) const;
 
-  std::unordered_map<CodeOffset, BlockIndex> code_trycatch_map_;
-  std::unordered_map<BlockIndex, TryBlock> try_blocks_;
-  std::unordered_map<BlockIndex, CatchBlock> catch_blocks_;
+  absl::flat_hash_map<CodeOffset, BlockIndex> code_trycatch_map_;
+  absl::flat_hash_map<BlockIndex, TryBlock> try_blocks_;
+  absl::flat_hash_map<BlockIndex, CatchBlock> catch_blocks_;
 };
 
 class WasmEHDataGenerator : public WasmEHData {
@@ -395,7 +397,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThreadMap {
   void NotifyIsolateDisposal(Isolate* isolate);
 
  private:
-  typedef std::unordered_map<int, std::unique_ptr<WasmInterpreterThread>>
+  typedef absl::flat_hash_map<int, std::unique_ptr<WasmInterpreterThread>>
       ThreadInterpreterMap;
   ThreadInterpreterMap map_;
   base::Mutex mutex_;
@@ -1997,15 +1999,15 @@ class WasmBytecodeGenerator {
 
   std::vector<uint8_t> const_slots_values_;
   uint32_t const_slot_offset_;
-  std::unordered_map<int32_t, uint32_t> i32_const_cache_;
-  std::unordered_map<int64_t, uint32_t> i64_const_cache_;
-  std::unordered_map<float, uint32_t> f32_const_cache_;
-  std::unordered_map<double, uint32_t> f64_const_cache_;
+  absl::flat_hash_map<int32_t, uint32_t> i32_const_cache_;
+  absl::flat_hash_map<int64_t, uint32_t> i64_const_cache_;
+  absl::flat_hash_map<float, uint32_t> f32_const_cache_;
+  absl::flat_hash_map<double, uint32_t> f64_const_cache_;
 
   struct Simd128Hash {
     size_t operator()(const Simd128& s128) const;
   };
-  std::unordered_map<Simd128, uint32_t, Simd128Hash> s128_const_cache_;
+  absl::flat_hash_map<Simd128, uint32_t, Simd128Hash> s128_const_cache_;
 
   std::vector<Simd128> simd_immediates_;
   uint32_t slot_offset_;  // TODO(paolosev@microsoft.com): manage holes
@@ -2195,7 +2197,7 @@ class InterpreterTracer final : public Malloced {
   int isolate_id_;
   base::EmbeddedVector<char, 128> filename_;
   FILE* file_;
-  std::unordered_set<int> traced_functions_;
+  absl::flat_hash_set<int> traced_functions_;
   int current_chunk_index_;
   int64_t write_count_;
 
