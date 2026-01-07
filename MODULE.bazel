@@ -15,6 +15,9 @@ pip.parse(
     hub_name = "v8_python_deps",
     python_version = "3.11",
     requirements_lock = "//:bazel/requirements.txt",
-    extra_pip_args = ["--require-hashes"],
+    extra_pip_args = [
+        "--require-hashes",
+        "--index-url=https://pypi.org/simple",
+    ],
 )
 use_repo(pip, "v8_python_deps")
