@@ -3193,6 +3193,9 @@ v8_source_set("v8_initializers") {
       } else if (v8_current_cpu == "arm64") {
         sources +=
             [ "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc" ]
+      } else if (v8_current_cpu == "riscv64") {
+        sources +=
+            [ "src/wasm/interpreter/riscv/interpreter-builtins-riscv.cc" ]
       }
     }
   }
