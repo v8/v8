@@ -2330,8 +2330,8 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
   // 3) ReThrow from v8::TryCatch: The message from a previous throw still
   //    exists and we preserve it instead of creating a new message.
   bool requires_message = try_catch_handler() == nullptr ||
-                          try_catch_handler()->is_verbose_ ||
-                          try_catch_handler()->capture_message_;
+                          try_catch_handler()->IsVerbose() ||
+                          try_catch_handler()->capture_message();
   bool rethrowing_message = thread_local_top()->rethrowing_message_;
 
   thread_local_top()->rethrowing_message_ = false;
@@ -3325,7 +3325,7 @@ void Isolate::ReportPendingMessages(bool report) {
 
   bool should_report_exception;
   if (top_handler == ExceptionHandlerType::kExternalTryCatch) {
-    should_report_exception = try_catch_handler()->is_verbose_;
+    should_report_exception = try_catch_handler()->IsVerbose();
   } else {
     should_report_exception = true;
   }
@@ -5035,7 +5035,7 @@ void Isolate::SetTerminationOnExternalTryCatch() {
   DCHECK_IMPLIES(v8_flags.strict_termination_checks,
                  is_execution_terminating());
   if (try_catch_handler() == nullptr) return;
-  try_catch_handler()->can_continue_ = false;
+  try_catch_handler()->set_can_continue(false);
   try_catch_handler()->exception_ = reinterpret_cast<void*>(
       ReadOnlyRoots(heap()).termination_exception().ptr());
 }
@@ -5054,7 +5054,7 @@ bool Isolate::PropagateExceptionToExternalTryCatch(
     v8::TryCatch* handler = try_catch_handler();
     DCHECK(IsJSMessageObject(pending_message()) ||
            IsTheHole(pending_message(), this));
-    handler->can_continue_ = true;
+    handler->set_can_continue(true);
     handler->exception_ = reinterpret_cast<void*>(exception.ptr());
     // Propagate to the external try-catch only if we got an actual message.
     if (!has_pending_message()) return true;
