@@ -3533,6 +3533,44 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ blr();
 }
 
+void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register target_stack = WasmFXResumeThrowDescriptor::GetRegisterParameter(0);
+  // The target stack may not have a frame yet. In that case, do not switch
+  // stacks and throw the exception immediately instead.
+  Register scratch = r7;
+  DCHECK(!AreAliased(scratch, target_stack));
+  __ LoadU64(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
+  __ CmpSmiLiteral(scratch, Smi::FromInt(0), r0);
+  Label throw_;
+  __ beq(&throw_);
+  Register tag = WasmFXResumeThrowDescriptor::GetRegisterParameter(1);
+  Register array = WasmFXResumeThrowDescriptor::GetRegisterParameter(2);
+  Register trusted_instance_data =
+      WasmFXResumeThrowDescriptor::GetRegisterParameter(3);
+  Label return_;
+  SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
+               target_stack, &return_, no_reg,
+               {target_stack, tag, array, trusted_instance_data});
+  // Switch to the target stack without restoring the PC.
+  scratch = r8;
+  DCHECK(!AreAliased(scratch, target_stack));
+  LoadJumpBuffer(masm, target_stack, false, scratch);
+  __ bind(&throw_);
+  // Forward the exception to kThrow.
+  __ Push(tag);
+  __ Push(array);
+  __ Push(trusted_instance_data);
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmThrow);
+  __ Trap();
+  __ bind(&return_);
+  // Return the arg buffer.
+  __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ blr();
+}
+
 void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
