@@ -59,6 +59,10 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
 
   MaybePrint("f:", DumpFunctionId(function_id), dumpling_os_);
 
+  std::stringstream check_acc;
+  DifferentialFuzzingPrint(*accumulator, check_acc);
+  MaybePrint("x:", DumpAcc(check_acc.str()), dumpling_os_);
+
   int param_count = bytecode_array->parameter_count() - 1;
   MaybePrint("n:", DumpArgCount(param_count), dumpling_os_);
   int register_count = bytecode_array->register_count();
@@ -79,10 +83,6 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
     std::string label = "r" + std::to_string(i) + ":";
     MaybePrint(label, DumpReg(i, check_reg.str()), dumpling_os_);
   }
-
-  std::stringstream check_acc;
-  DifferentialFuzzingPrint(*accumulator, check_acc);
-  MaybePrint("x:", DumpAcc(check_acc.str()), dumpling_os_);
 
   dumpling_os_ << "\n";
 }
