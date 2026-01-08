@@ -359,9 +359,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     // check and allow more untagging.
     bool needs_hoisting =
         std::ranges::any_of(untagging_kinds, [](UntaggingKind t) {
-          return t != UntaggingKind::kKnownSmi &&
-                 t != UntaggingKind::kKnownNumber &&
-                 t != UntaggingKind::kSpeculativeAny &&
+          return t != UntaggingKind::kSpeculativeAny &&
                  t != UntaggingKind::kSpeculativeOSRValue;
         });
     if (needs_hoisting) {
