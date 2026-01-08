@@ -87,7 +87,7 @@ V8_INLINE bool MemoryChunk::InReadOnlySpace() const {
 #if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   const bool ro_via_address =
       (reinterpret_cast<uintptr_t>(this) & kContiguousReadOnlySpaceMask) == 0;
-  DCHECK_IMPLIES(ro_via_address, Metadata()->IsReadOnlyPageMetadata());
+  DCHECK_IMPLIES(ro_via_address, Metadata()->IsReadOnlyPage());
   return ro_via_address;
 #else  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   return IsFlagSet(READ_ONLY_HEAP);

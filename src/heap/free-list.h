@@ -286,7 +286,7 @@ class FreeList {
   friend class FreeListCategory;
   friend class PageMetadata;
   friend class MutablePageMetadata;
-  friend class ReadOnlyPageMetadata;
+  friend class ReadOnlyPage;
   friend class MapSpace;
 };
 

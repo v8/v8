@@ -22,6 +22,10 @@ class ReadStringVisitor;
 
 class BaseSpace;
 
+// Base class for all pages of any size or type on the heap.
+//
+// For the purpose of the V8 sandbox the a page always resides in trusted
+// memory.
 class BasePage {
  public:
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
@@ -75,11 +79,9 @@ class BasePage {
 
   inline bool IsWritable() const;
 
-  bool IsReadOnlyPageMetadata() const {
-    return IsReadOnlyPageField::decode(flags_);
-  }
+  bool IsReadOnlyPage() const { return IsReadOnlyPageField::decode(flags_); }
 
-  bool IsMutablePageMetadata() const { return !IsReadOnlyPageMetadata(); }
+  bool IsMutablePageMetadata() const { return !IsReadOnlyPage(); }
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();

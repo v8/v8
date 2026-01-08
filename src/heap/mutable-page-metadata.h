@@ -240,12 +240,12 @@ class MutablePageMetadata : public BasePage {
   }
 
   MarkingBitmap* marking_bitmap() {
-    DCHECK(!IsReadOnlyPageMetadata());
+    DCHECK(!IsReadOnlyPage());
     return &marking_bitmap_;
   }
 
   const MarkingBitmap* marking_bitmap() const {
-    DCHECK(!IsReadOnlyPageMetadata());
+    DCHECK(!IsReadOnlyPage());
     return &marking_bitmap_;
   }
 

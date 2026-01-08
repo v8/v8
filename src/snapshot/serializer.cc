@@ -1473,7 +1473,7 @@ bool Serializer::SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
   DCHECK(!read_only_space->writable());
-  for (ReadOnlyPageMetadata* page : read_only_space->pages()) {
+  for (ReadOnlyPage* page : read_only_space->pages()) {
     if (chunk == page) break;
     ++chunk_index;
   }

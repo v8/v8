@@ -34,7 +34,7 @@ class LargePageMetadata;
 class BasePage;
 class MutablePageMetadata;
 class PageMetadata;
-class ReadOnlyPageMetadata;
+class ReadOnlyPage;
 template <typename T>
 class Tagged;
 class TestDebugHelper;

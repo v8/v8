@@ -31,7 +31,7 @@ class TestMemoryAllocatorScope;
 class Heap;
 class Isolate;
 class MemoryPool;
-class ReadOnlyPageMetadata;
+class ReadOnlyPage;
 
 // `MemoryAllocator` provides infrastructure to allocate and release pages of
 // different kinds. It sits between higher level V8 spaces and
@@ -103,15 +103,15 @@ class MemoryAllocator final {
   bool ResizeLargePage(LargePageMetadata* page, size_t old_object_size,
                        size_t new_object_size);
 
-  ReadOnlyPageMetadata* AllocateReadOnlyPage(ReadOnlySpace* space,
-                                             Address hint = kNullAddress);
+  ReadOnlyPage* AllocateReadOnlyPage(ReadOnlySpace* space,
+                                     Address hint = kNullAddress);
 
   std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping> RemapSharedPage(
       ::v8::PageAllocator::SharedMemory* shared_memory, Address new_address);
 
   V8_EXPORT_PRIVATE void Free(MemoryAllocator::FreeMode mode,
                               MutablePageMetadata* page_metadata);
-  void FreeReadOnlyPage(ReadOnlyPageMetadata* chunk);
+  void FreeReadOnlyPage(ReadOnlyPage* chunk);
 
   void ReleaseDelayedPages();
 
@@ -155,7 +155,7 @@ class MemoryAllocator final {
   void PartialFreeMemory(BasePage* chunk, Address start_free,
                          size_t bytes_to_free, Address new_area_end);
 
-  void UnregisterReadOnlyPage(ReadOnlyPageMetadata* page);
+  void UnregisterReadOnlyPage(ReadOnlyPage* page);
 
   // Page allocator instance for allocating non-executable pages.
   // Guaranteed to be a valid pointer.
@@ -320,7 +320,7 @@ class MemoryAllocator final {
   void UnregisterSharedMemoryChunk(BasePage* chunk);
   void UnregisterMemoryChunk(BasePage* chunk);
 
-  void RegisterReadOnlyMemory(ReadOnlyPageMetadata* page);
+  void RegisterReadOnlyMemory(ReadOnlyPage* page);
 
 #ifdef DEBUG
   void RegisterExecutableMemoryChunk(MutablePageMetadata* chunk);

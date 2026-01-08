@@ -83,7 +83,7 @@ void IsolateGroup::BasePageTableEntry::SetMetadata(BasePage* metadata,
   // Read-only and shared pages can be accessed from any isolate, mark the entry
   // with the sentinel.
   if (metadata &&
-      (metadata->IsReadOnlyPageMetadata() || metadata->is_writable_shared())) {
+      (metadata->IsReadOnlyPage() || metadata->is_writable_shared())) {
     isolate_ =
         reinterpret_cast<Isolate*>(kReadOnlyOrSharedEntryIsolateSentinel);
     return;

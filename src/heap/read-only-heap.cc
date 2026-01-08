@@ -250,14 +250,13 @@ Tagged<HeapObject> ReadOnlyHeapObjectIterator::Next() {
 }
 
 ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(
-    const ReadOnlyPageMetadata* page,
-    SkipFreeSpaceOrFiller skip_free_space_or_filler)
+    const ReadOnlyPage* page, SkipFreeSpaceOrFiller skip_free_space_or_filler)
     : ReadOnlyPageObjectIterator(
           page, page == nullptr ? kNullAddress : page->GetAreaStart(),
           skip_free_space_or_filler) {}
 
 ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(
-    const ReadOnlyPageMetadata* page, Address current_addr,
+    const ReadOnlyPage* page, Address current_addr,
     SkipFreeSpaceOrFiller skip_free_space_or_filler)
     : page_(page),
       current_addr_(current_addr),
@@ -288,7 +287,7 @@ Tagged<HeapObject> ReadOnlyPageObjectIterator::Next() {
   }
 }
 
-void ReadOnlyPageObjectIterator::Reset(const ReadOnlyPageMetadata* page) {
+void ReadOnlyPageObjectIterator::Reset(const ReadOnlyPage* page) {
   page_ = page;
   current_addr_ = page->GetAreaStart();
 }

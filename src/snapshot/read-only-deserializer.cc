@@ -78,7 +78,7 @@ class ReadOnlyHeapImageDeserializer final {
 
   void DeserializeSegment() {
     uint32_t page_index = source_->GetUint30();
-    ReadOnlyPageMetadata* page = PageAt(page_index);
+    ReadOnlyPage* page = PageAt(page_index);
 
     // Copy over raw contents.
     Address start = page->area_start() + source_->GetUint30();
@@ -100,7 +100,7 @@ class ReadOnlyHeapImageDeserializer final {
   }
 
   Address Decode(ro::EncodedTagged encoded) const {
-    ReadOnlyPageMetadata* page = PageAt(encoded.page_index);
+    ReadOnlyPage* page = PageAt(encoded.page_index);
     return page->OffsetToAddress(encoded.offset * kTaggedSize);
   }
 
@@ -122,7 +122,7 @@ class ReadOnlyHeapImageDeserializer final {
     }
   }
 
-  ReadOnlyPageMetadata* PageAt(size_t index) const {
+  ReadOnlyPage* PageAt(size_t index) const {
     DCHECK_LT(index, ro_space()->pages().size());
     return ro_space()->pages()[index];
   }

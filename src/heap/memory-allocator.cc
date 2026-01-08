@@ -310,12 +310,12 @@ void MemoryAllocator::UnregisterMutableMemoryChunk(MutablePageMetadata* page) {
   UnregisterMemoryChunk(page);
 }
 
-void MemoryAllocator::UnregisterReadOnlyPage(ReadOnlyPageMetadata* page) {
+void MemoryAllocator::UnregisterReadOnlyPage(ReadOnlyPage* page) {
   DCHECK(!page->is_executable());
   UnregisterMemoryChunk(page);
 }
 
-void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPageMetadata* chunk) {
+void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
   DCHECK(!chunk->is_pre_freed());
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
 
@@ -466,8 +466,8 @@ PageMetadata* MemoryAllocator::AllocatePage(
   return metadata;
 }
 
-ReadOnlyPageMetadata* MemoryAllocator::AllocateReadOnlyPage(
-    ReadOnlySpace* space, Address hint) {
+ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(ReadOnlySpace* space,
+                                                    Address hint) {
   DCHECK_EQ(space->identity(), RO_SPACE);
   size_t size = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE);
   std::optional<MemoryChunkAllocationResult> chunk_info =
@@ -477,7 +477,7 @@ ReadOnlyPageMetadata* MemoryAllocator::AllocateReadOnlyPage(
     return nullptr;
   }
   CHECK_NULL(chunk_info->optional_metadata);
-  ReadOnlyPageMetadata* metadata = new ReadOnlyPageMetadata(
+  ReadOnlyPage* metadata = new ReadOnlyPage(
       isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
       chunk_info->area_end, std::move(chunk_info->reservation));
 

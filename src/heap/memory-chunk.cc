@@ -120,9 +120,8 @@ bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
   if (!InReadOnlySpace()) {
     return false;
   }
-  SBXCHECK_EQ(
-      static_cast<const ReadOnlyPageMetadata*>(Metadata())->ChunkAddress(),
-      address());
+  SBXCHECK_EQ(static_cast<const ReadOnlyPage*>(Metadata())->ChunkAddress(),
+              address());
   return true;
 #endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }

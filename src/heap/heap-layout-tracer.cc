@@ -89,7 +89,7 @@ void HeapLayoutTracer::PrintHeapLayout(std::ostream& os, Heap* heap) {
     PrintMemoryChunk(os, *chunk, ToString(chunk->owner()->identity()));
   }
 
-  for (ReadOnlyPageMetadata* page : heap->read_only_space()->pages()) {
+  for (ReadOnlyPage* page : heap->read_only_space()->pages()) {
     PrintMemoryChunk(os, *page, "ro_space");
   }
 }

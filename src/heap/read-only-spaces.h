@@ -28,11 +28,12 @@ class ReadOnlyHeap;
 class SharedReadOnlySpace;
 class SnapshotByteSource;
 
-class ReadOnlyPageMetadata : public BasePage {
+// Read-only page that can be sealed to protect from any writes after
+// initialization.
+class ReadOnlyPage final : public BasePage {
  public:
-  ReadOnlyPageMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
-                       Address area_start, Address area_end,
-                       VirtualMemory reservation);
+  ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
+               Address area_start, Address area_end, VirtualMemory reservation);
   MemoryChunk::MainThreadFlags InitialFlags() const;
 
   // Clears any pointers in the header that point out of the page that would
@@ -78,7 +79,7 @@ class ReadOnlyArtifacts final {
 
   // Initialize the ReadOnlyArtifacts from an Isolate that has just been created
   // either by serialization or by creating the objects directly.
-  void Initialize(Isolate* isolate, std::vector<ReadOnlyPageMetadata*>&& pages,
+  void Initialize(Isolate* isolate, std::vector<ReadOnlyPage*>&& pages,
                   const AllocationStats& stats);
 
   // This replaces the ReadOnlySpace in the given Heap with a newly constructed
@@ -89,7 +90,7 @@ class ReadOnlyArtifacts final {
 
   void VerifyHeapAndSpaceRelationships(Isolate* isolate);
 
-  std::vector<ReadOnlyPageMetadata*>& pages() { return pages_; }
+  std::vector<ReadOnlyPage*>& pages() { return pages_; }
 
   const AllocationStats& accounting_stats() const { return stats_; }
 
@@ -132,7 +133,7 @@ class ReadOnlyArtifacts final {
  private:
   friend class ReadOnlyHeap;
 
-  std::vector<ReadOnlyPageMetadata*> pages_;
+  std::vector<ReadOnlyPage*> pages_;
   AllocationStats stats_;
   std::unique_ptr<SharedReadOnlySpace> shared_read_only_space_;
   std::unique_ptr<ReadOnlyHeap> read_only_heap_;
@@ -191,7 +192,7 @@ class ReadOnlySpace : public BaseSpace {
   size_t Size() const override { return accounting_stats_.Size(); }
   V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const override;
 
-  const std::vector<ReadOnlyPageMetadata*>& pages() const { return pages_; }
+  const std::vector<ReadOnlyPage*>& pages() const { return pages_; }
   Address top() const { return top_; }
   Address limit() const { return limit_; }
   size_t Capacity() const { return accounting_stats_.Capacity(); }
@@ -223,7 +224,7 @@ class ReadOnlySpace : public BaseSpace {
   // Accounting information for this space.
   AllocationStats accounting_stats_;
 
-  std::vector<ReadOnlyPageMetadata*> pages_;
+  std::vector<ReadOnlyPage*> pages_;
 
   Address top_ = kNullAddress;
   Address limit_ = kNullAddress;
@@ -238,7 +239,7 @@ class ReadOnlySpace : public BaseSpace {
   // Return the index within pages_ of the newly allocated page.
   size_t AllocateNextPage();
   size_t AllocateNextPageAt(Address pos);
-  void InitializePageForDeserialization(ReadOnlyPageMetadata* page,
+  void InitializePageForDeserialization(ReadOnlyPage* page,
                                         size_t area_size_in_bytes);
   void FinalizeSpaceForDeserialization(int sfi_id);
 
@@ -270,12 +271,12 @@ class SharedReadOnlySpace : public ReadOnlySpace {
 
 namespace base {
 // Define special hash function for page pointers, to be used with std data
-// structures, e.g. std::unordered_set<ReadOnlyPageMetadata*,
-// base::hash<ReadOnlyPageMetadata*>
+// structures, e.g. std::unordered_set<ReadOnlyPage*,
+// base::hash<ReadOnlyPage*>
 template <>
-struct hash<i::ReadOnlyPageMetadata*> : hash<i::BasePage*> {};
+struct hash<i::ReadOnlyPage*> : hash<i::BasePage*> {};
 template <>
-struct hash<const i::ReadOnlyPageMetadata*> : hash<const i::BasePage*> {};
+struct hash<const i::ReadOnlyPage*> : hash<const i::BasePage*> {};
 }  // namespace base
 
 }  // namespace v8
