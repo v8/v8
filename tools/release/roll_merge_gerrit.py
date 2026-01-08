@@ -179,9 +179,7 @@ def main(sys_args=None):
   print("Updating commit message...")
   original_commit = gerrit_util.GetChangeCommit(GERRIT_HOST, revision)
   commit_msg = f"""\
-    Merge: {original_commit['subject']}
-
-    Version {version_string}
+    Merge: {original_commit['subject']} (Version {version_string})
 
     (Cherry-pick from commit {original_commit['commit']})
 
