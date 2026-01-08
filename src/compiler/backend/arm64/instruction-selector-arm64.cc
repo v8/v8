@@ -6236,8 +6236,17 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
            g.UseRegister(input0), g.UseImmediate(index));
     } else if (wasm::SimdShuffle::TryMatch32x4OneLaneSwizzle(shuffle32x4.data(),
                                                              &from, &to)) {
-      Emit(kArm64S32x4OneLaneSwizzle, g.DefineAsRegister(node),
-           g.UseRegister(input0), g.TempImmediate(from), g.TempImmediate(to));
+      if (CanCover(node, input0)) {
+        Emit(kArm64S128MoveLane | LaneSizeField::encode(32),
+             g.DefineSameAsFirst(node), g.UseUniqueRegister(input0),
+             g.UseRegister(input0), g.UseImmediate(from), g.UseImmediate(to));
+      } else {
+        InstructionOperand temp = g.TempSimd128Register();
+        Emit(kArm64S128MoveReg, temp, g.UseRegister(input0));
+        Emit(kArm64S128MoveLane | LaneSizeField::encode(32),
+             g.DefineSameAsFirst(node), temp, g.UseRegister(input0),
+             g.UseImmediate(from), g.UseImmediate(to));
+      }
     } else if (canonical == CanonicalShuffle::kIdentity) {
       // Bypass normal shuffle code generation in this case.
       // EmitIdentity

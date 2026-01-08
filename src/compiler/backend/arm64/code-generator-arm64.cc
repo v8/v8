@@ -3761,15 +3761,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cset(i.OutputRegister32(), ne);
       break;
     }
-    case kArm64S32x4OneLaneSwizzle: {
-      Simd128Register dst = i.OutputSimd128Register().V4S(),
-                      src = i.InputSimd128Register(0).V4S();
-      int from = i.InputInt32(1);
-      int to = i.InputInt32(2);
-      if (dst != src) {
-        __ Mov(dst, src);
-      }
-      __ Mov(dst, to, src, from);
+    case kArm64S128MoveReg: {
+      Simd128Register dst = i.OutputSimd128Register().V16B(),
+                      src = i.InputSimd128Register(0).V16B();
+      DCHECK_NE(dst, src);
+      __ Mov(dst, src);
       break;
     }
     case kArm64S128MoveLane: {

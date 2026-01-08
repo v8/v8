@@ -181,8 +181,8 @@ bool SimdShuffle::TryMatch32x4OneLaneSwizzle(const uint8_t* shuffle32x4,
                                              uint8_t* from_lane,
                                              uint8_t* to_lane) {
   constexpr uint32_t patterns[12]{
-      0x30200000,  // 0 -> 1
-      0x30000100,  // 0 -> 2
+      0x03020000,  // 0 -> 1
+      0x03000100,  // 0 -> 2
       0x00020100,  // 0 -> 3
       0x03020101,  // 1 -> 0
       0x03010100,  // 1 -> 2
