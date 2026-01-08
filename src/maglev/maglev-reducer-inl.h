@@ -1164,9 +1164,15 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       }
       return alternative.set_float64(float64);
     }
-    case ValueRepresentation::kShiftedInt53:
+    case ValueRepresentation::kShiftedInt53: {
+      if (use_rep == UseRepresentation::kHoleyFloat64) {
+        return alternative.set_holey_float64(
+            AddNewNodeNoInputConversion<ChangeShiftedInt53ToHoleyFloat64>(
+                {value}));
+      }
       return alternative.set_float64(
           AddNewNodeNoInputConversion<ChangeShiftedInt53ToFloat64>({value}));
+    }
     case ValueRepresentation::kNone:
     case ValueRepresentation::kRawPtr:
       UNREACHABLE();
