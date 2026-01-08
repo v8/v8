@@ -2041,7 +2041,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
 
   incremental_marking()->Start(collector, gc_reason, reason);
 
-  if (collector == GarbageCollector::MARK_COMPACTOR) {
+  if (collector == GarbageCollector::MARK_COMPACTOR && IsLoadingInitialized()) {
     // During loading we might overshoot the limit by a large amount. Ensure
     // allocation limits are at least at or above current sizes to not finalize
     // incremental marking prematurely.
@@ -7854,6 +7854,7 @@ void Heap::NotifyLoadingStarted() {
 void Heap::NotifyLoadingEnded(LeaveHeapState context) {
   load_start_time_ms_.store(kLoadTimeNotLoading, std::memory_order_relaxed);
   if (context == LeaveHeapState::kNotify) {
+    RecomputeLimitsAfterLoadingIfNeeded();
     if (auto* job = incremental_marking()->incremental_marking_job()) {
       // The task will start incremental marking (if needed not already started)
       // and advance marking if incremental marking is active.
