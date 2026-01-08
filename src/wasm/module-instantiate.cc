@@ -1171,8 +1171,9 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
     auto maximum_pages =
         static_cast<int>(RoundUp(buffer->byte_length(), wasm::kWasmPageSize) /
                          wasm::kWasmPageSize);
-    DirectHandle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
-        isolate_, buffer, maximum_pages, AddressType::kI32);
+    DirectHandle<WasmMemoryObject> memory_object =
+        WasmMemoryObject::New(isolate_, buffer, buffer->GetBackingStore(),
+                              maximum_pages, AddressType::kI32);
     constexpr int kMemoryIndexZero = 0;
     trusted_data_->memory_objects()->set(kMemoryIndexZero, *memory_object);
   } else {
@@ -2385,9 +2386,18 @@ bool InstanceBuilder::ProcessImportedMemories(
     uint32_t memory_index = import.index;
     auto memory_object = Cast<WasmMemoryObject>(value);
 
-    DirectHandle<JSArrayBuffer> buffer{memory_object->array_buffer(), isolate_};
+    std::shared_ptr<BackingStore> backing_store =
+        memory_object->backing_store();
+#ifdef DEBUG
+    if (Tagged<JSArrayBuffer> buffer;
+        TryCast(memory_object->array_buffer(), &buffer)) {
+      DCHECK_EQ(backing_store, buffer->GetBackingStore());
+      DCHECK_EQ(backing_store->byte_length(), buffer->GetByteLength());
+      DCHECK_EQ(backing_store->is_shared(), buffer->is_shared());
+    }
+#endif  // DEBUG
     uint32_t imported_cur_pages =
-        static_cast<uint32_t>(buffer->GetByteLength() / kWasmPageSize);
+        static_cast<uint32_t>(backing_store->byte_length() / kWasmPageSize);
     const WasmMemory* memory = &module_->memories[memory_index];
     if (memory->address_type != memory_object->address_type()) {
       thrower_->LinkError("cannot import %s memory as %s",
@@ -2421,12 +2431,12 @@ bool InstanceBuilder::ProcessImportedMemories(
         return false;
       }
     }
-    if (memory->is_shared != buffer->is_shared()) {
+    if (memory->is_shared != backing_store->is_shared()) {
       thrower_->LinkError(
           "%s: mismatch in shared state of memory, declared = %d, imported = "
           "%d",
           ImportName(import_index).c_str(), memory->is_shared,
-          buffer->is_shared());
+          backing_store->is_shared());
       return false;
     }
 

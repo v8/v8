@@ -98,6 +98,10 @@ WasmModuleObject::shared_native_module() const {
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, instances, Tagged<WeakArrayList>, kInstancesOffset)
 
+const std::shared_ptr<BackingStore>& WasmMemoryObject::backing_store() const {
+  return managed_backing_store()->get();
+}
+
 // WasmGlobalObject
 ACCESSORS(WasmGlobalObject, untagged_buffer, Tagged<JSArrayBuffer>,
           kUntaggedBufferOffset)

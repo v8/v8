@@ -16,6 +16,9 @@ type ManagedWasmNativeModule extends Foreign
 @useParentTypeChecker
 type TrustedManagedWasmJSFunctionOffheapData extends TrustedForeign
     constexpr 'TrustedManaged<WasmJSFunctionData::OffheapData>';
+@useParentTypeChecker
+type ManagedBackingStore extends Foreign
+    constexpr 'Managed<BackingStore>';
 
 type RawFunctionSigPtr extends RawPtr constexpr 'const wasm::CanonicalSig*';
 
@@ -231,12 +234,16 @@ extern class WasmTableObject extends JSObject {
 }
 
 extern class WasmMemoryObject extends JSObject {
-  array_buffer: JSArrayBuffer;
+  // Either a JSArrayBuffer or undefined if a new JSArrayBuffer needs to be
+  // allocated on the next access.
+  array_buffer: JSArrayBuffer|Undefined;
+  // A Managed<BackingStore> to allocate a new JSArrayBuffer from on demand.
+  managed_backing_store: ManagedBackingStore;
   maximum_pages: Smi;
   instances: WeakArrayList;
   address_type: AddressType;  // 1 byte.
-  needs_new_buffer: uint8;    // 1 byte, used as bool.
   // TODO(clemensb): Support fixed-sized arrays in torque.
+  padding_for_flags_0: uint8;
   padding_for_flags_1: uint16;
   @if(TAGGED_SIZE_8_BYTES) padding_for_flags_2: uint32;
 }

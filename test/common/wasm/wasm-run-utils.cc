@@ -146,6 +146,11 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
       WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared,
                             address_type)
           .ToHandleChecked();
+  // For asm.js make sure that always the ArrayBuffer exists (like in
+  // production).
+  if (is_asmjs_module(test_module_.get())) {
+    WasmMemoryObject::GetArrayBuffer(isolate_, memory_object);
+  }
   DirectHandle<FixedArray> memory_objects =
       isolate_->factory()->NewFixedArray(1);
   memory_objects->set(0, *memory_object);
@@ -155,7 +160,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   DirectHandle<TrustedFixedAddressArray> memory_bases_and_sizes =
       TrustedFixedAddressArray::New(isolate_, 2);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
-      memory_object->array_buffer()->backing_store());
+      memory_object->backing_store()->buffer_start());
   memory_bases_and_sizes->set_sandboxed_pointer(
       0, reinterpret_cast<Address>(mem_start));
   memory_bases_and_sizes->set(1, size);

@@ -712,8 +712,8 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   const Address address =
       reinterpret_cast<Address>(frame->trusted_instance_data()
                                     ->memory_object(info->mem_index)
-                                    ->array_buffer()
-                                    ->backing_store()) +
+                                    ->backing_store()
+                                    ->buffer_start()) +
       info->offset;
 
   wasm::MemoryTraceEntry trace_entry = {

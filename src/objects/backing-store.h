@@ -44,6 +44,8 @@ struct SharedWasmMemoryData;
 // and the destructor frees the memory (and page allocation if necessary).
 class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
  public:
+  static constexpr ExternalPointerTag kManagedTag = kBackingStoreTag;
+
   ~BackingStore();
 
   // Allocate an array buffer backing store using the default method,

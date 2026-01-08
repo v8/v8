@@ -8746,9 +8746,9 @@ MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 
 Local<ArrayBuffer> v8::WasmMemoryObject::Buffer() {
 #if V8_ENABLE_WEBASSEMBLY
-  auto obj = Utils::OpenDirectHandle(this);
+  i::DirectHandle<i::WasmMemoryObject> obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
-  return Utils::ToLocal(i::direct_handle(obj->array_buffer(), i_isolate));
+  return Utils::ToLocal(i::WasmMemoryObject::GetArrayBuffer(i_isolate, obj));
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY

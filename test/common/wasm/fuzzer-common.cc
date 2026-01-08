@@ -751,11 +751,11 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     Tagged<WasmMemoryObject> ref_memory =
         ref_instance_data->memory_object(memory_index);
 
-    auto buffer = memory->array_buffer();
-    auto ref_buffer = ref_memory->array_buffer();
+    std::shared_ptr<BackingStore> store = memory->backing_store();
+    std::shared_ptr<BackingStore> ref_store = ref_memory->backing_store();
 
-    size_t memory_size = buffer->byte_length();
-    size_t ref_memory_size = ref_buffer->byte_length();
+    size_t memory_size = store->byte_length();
+    size_t ref_memory_size = ref_store->byte_length();
 
     if (ref_memory_size != memory_size) {
       memory_mismatches++;
@@ -770,8 +770,8 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
       continue;
     }
 
-    uint8_t* data = static_cast<uint8_t*>(buffer->backing_store());
-    uint8_t* ref_data = static_cast<uint8_t*>(ref_buffer->backing_store());
+    uint8_t* data = static_cast<uint8_t*>(store->buffer_start());
+    uint8_t* ref_data = static_cast<uint8_t*>(ref_store->buffer_start());
 
 #if V8_OS_LINUX || V8_OS_DARWIN
     const bool memory_equal = sparse_memory_equal(ref_data, data, memory_size);

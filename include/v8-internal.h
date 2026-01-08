@@ -636,6 +636,7 @@ enum ExternalPointerTag : uint16_t {
   kWasmFuncDataTag,
   kWasmManagedDataTag,
   kWasmNativeModuleTag,
+  kBackingStoreTag,
   kIcuBreakIteratorTag,
   kIcuUnicodeStringTag,
   kIcuListFormatterTag,

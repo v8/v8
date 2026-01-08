@@ -1745,17 +1745,9 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return js_api_scope.AssertException();
   }
 
-  if (shared == i::SharedFlag::kShared) {
-    i::DirectHandle<i::JSArrayBuffer> buffer(memory_obj->array_buffer(),
-                                             i_isolate);
-    Maybe<bool> result =
-        buffer->SetIntegrityLevel(i_isolate, buffer, i::FROZEN, i::kDontThrow);
-    if (!result.FromJust()) {
-      thrower.TypeError(
-          "Status of setting SetIntegrityLevel of buffer is false.");
-      return;
-    }
-  }
+  // The JSArrayBuffer will be allocated lazily later.
+  DCHECK(IsUndefined(memory_obj->array_buffer(), i_isolate));
+
   info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(memory_obj)));
 }
 
@@ -2852,10 +2844,15 @@ void WebAssemblyMemoryGrowImpl(
   if (!maybe_delta_pages) return js_api_scope.AssertException();
   uint64_t delta_pages = *maybe_delta_pages;
 
-  i::DirectHandle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(),
-                                               i_isolate);
+  std::shared_ptr<i::BackingStore> backing_store = receiver->backing_store();
+#ifdef DEBUG
+  if (i::Tagged<i::JSArrayBuffer> buffer;
+      TryCast(receiver->array_buffer(), &buffer)) {
+    DCHECK_EQ(buffer->GetBackingStore(), backing_store);
+  }
+#endif  // DEBUG
 
-  uint64_t old_pages = old_buffer->GetByteLength() / i::wasm::kWasmPageSize;
+  uint64_t old_pages = backing_store->byte_length() / i::wasm::kWasmPageSize;
   uint64_t max_pages = receiver->maximum_pages();
 
   if (delta_pages > max_pages - old_pages) {
@@ -2881,14 +2878,8 @@ void WebAssemblyMemoryGetBufferImpl(
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
-  i::DirectHandle<i::JSArrayBuffer> buffer(receiver->array_buffer(), i_isolate);
-  if (receiver->needs_new_buffer()) {
-    i::ResizableFlag resizable = buffer->is_resizable_by_js()
-                                     ? i::ResizableFlag::kResizable
-                                     : i::ResizableFlag::kNotResizable;
-    buffer = i::WasmMemoryObject::RefreshSharedBuffer(i_isolate, receiver,
-                                                      buffer, resizable);
-  }
+  i::DirectHandle<i::JSArrayBuffer> buffer =
+      i::WasmMemoryObject::GetArrayBuffer(i_isolate, receiver);
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
@@ -2899,11 +2890,8 @@ void WebAssemblyMemoryToFixedLengthBufferImpl(
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
-  i::DirectHandle<i::JSArrayBuffer> buffer(receiver->array_buffer(), i_isolate);
-  if (buffer->is_resizable_by_js() || receiver->needs_new_buffer()) {
-    buffer =
-        i::WasmMemoryObject::ToFixedLengthBuffer(i_isolate, receiver, buffer);
-  }
+  i::DirectHandle<i::JSArrayBuffer> buffer =
+      i::WasmMemoryObject::ToFixedLengthBuffer(i_isolate, receiver);
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
@@ -2915,15 +2903,13 @@ void WebAssemblyMemoryToResizableBufferImpl(
   EXTRACT_THIS(receiver, WasmMemoryObject);
   i_isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmResizableBuffers);
 
-  i::DirectHandle<i::JSArrayBuffer> buffer(receiver->array_buffer(), i_isolate);
-  if (!buffer->is_resizable_by_js() || receiver->needs_new_buffer()) {
-    if (!receiver->has_maximum_pages()) {
-      thrower.TypeError("Memory must have a maximum");
-      return;
-    }
-    buffer =
-        i::WasmMemoryObject::ToResizableBuffer(i_isolate, receiver, buffer);
+  if (!receiver->has_maximum_pages()) {
+    thrower.TypeError("Memory must have a maximum");
+    return;
   }
+
+  i::DirectHandle<i::JSArrayBuffer> buffer =
+      i::WasmMemoryObject::ToResizableBuffer(i_isolate, receiver);
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
@@ -2933,8 +2919,8 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(memory, WasmMemoryObject);
 
-  i::DirectHandle<i::JSArrayBuffer> buffer(memory->array_buffer(), i_isolate);
-  size_t curr_size = buffer->GetByteLength() / i::wasm::kWasmPageSize;
+  std::shared_ptr<i::BackingStore> backing_store = memory->backing_store();
+  size_t curr_size = backing_store->byte_length() / i::wasm::kWasmPageSize;
   DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
   uint32_t min_size = static_cast<uint32_t>(curr_size);
   std::optional<uint32_t> max_size;
@@ -2943,7 +2929,7 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
     DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
     max_size.emplace(static_cast<uint32_t>(max_size64));
   }
-  bool shared = buffer->is_shared();
+  bool shared = backing_store->is_shared();
   auto type = i::wasm::GetTypeForMemory(i_isolate, min_size, max_size, shared,
                                         memory->address_type());
   info.GetReturnValue().Set(Utils::ToLocal(type));

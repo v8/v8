@@ -1213,18 +1213,18 @@ Maybe<bool> ValueSerializer::WriteWasmModule(
 
 Maybe<bool> ValueSerializer::WriteWasmMemory(
     DirectHandle<WasmMemoryObject> object) {
-  if (!object->array_buffer()->is_shared()) {
+  DirectHandle<JSArrayBuffer> shared_ab =
+      WasmMemoryObject::GetArrayBuffer(isolate_, object);
+  if (!shared_ab->is_shared()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
   }
 
-  GlobalBackingStoreRegistry::Register(
-      object->array_buffer()->GetBackingStore());
+  GlobalBackingStoreRegistry::Register(shared_ab->GetBackingStore());
 
   WriteTag(SerializationTag::kWasmMemoryTransfer);
   WriteZigZag<int32_t>(object->maximum_pages());
   WriteByte(object->is_memory64() ? 1 : 0);
-  return WriteJSReceiver(
-      DirectHandle<JSReceiver>(object->array_buffer(), isolate_));
+  return WriteJSReceiver(shared_ab);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2466,8 +2466,8 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   DirectHandle<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(buffer_object);
   if (!buffer->is_shared()) return {};
 
-  DirectHandle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, buffer, maximum_pages, address_type);
+  DirectHandle<WasmMemoryObject> result = WasmMemoryObject::New(
+      isolate_, buffer, buffer->GetBackingStore(), maximum_pages, address_type);
 
   AddObjectWithID(id, result);
   return result;

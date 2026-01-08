@@ -2304,7 +2304,7 @@ WASM_EXPORT auto Memory::make(Store* store_abs, const MemoryType* type)
 WASM_EXPORT auto Memory::type() const -> own<MemoryType> {
   PtrComprCageAccessScope ptr_compr_cage_access_scope(impl(this)->isolate());
   i::DirectHandle<i::WasmMemoryObject> memory = impl(this)->v8_object();
-  uint32_t min = static_cast<uint32_t>(memory->array_buffer()->byte_length() /
+  uint32_t min = static_cast<uint32_t>(memory->backing_store()->byte_length() /
                                        i::wasm::kWasmPageSize);
   uint32_t max =
       memory->has_maximum_pages() ? memory->maximum_pages() : 0xFFFFFFFFu;
@@ -2316,14 +2316,14 @@ WASM_EXPORT auto Memory::data() const -> byte_t* {
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   return reinterpret_cast<byte_t*>(
-      impl(this)->v8_object()->array_buffer()->backing_store());
+      impl(this)->v8_object()->backing_store()->buffer_start());
 }
 
 WASM_EXPORT auto Memory::data_size() const -> size_t {
   i::Isolate* isolate = impl(this)->isolate();
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
-  return impl(this)->v8_object()->array_buffer()->byte_length();
+  return impl(this)->v8_object()->backing_store()->byte_length();
 }
 
 WASM_EXPORT auto Memory::size() const -> pages_t {
@@ -2331,7 +2331,7 @@ WASM_EXPORT auto Memory::size() const -> pages_t {
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   return static_cast<pages_t>(
-      impl(this)->v8_object()->array_buffer()->byte_length() /
+      impl(this)->v8_object()->backing_store()->byte_length() /
       i::wasm::kWasmPageSize);
 }
 
