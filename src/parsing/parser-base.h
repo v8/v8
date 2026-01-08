@@ -1299,7 +1299,7 @@ class ParserBase {
       // receiver_scope. Mark through the ExpressionScope for now.
       expression_scope()->RecordThisUse();
     } else {
-      closure_scope->set_has_this_reference();
+      closure_scope->set_has_this_reference(true);
       var->ForceContextAllocation();
     }
   }

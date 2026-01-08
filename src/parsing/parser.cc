@@ -3724,7 +3724,7 @@ void Parser::SetAsmModule() {
   // incremented after parsing is done.
   ++use_counts_[v8::Isolate::kUseAsm];
   DCHECK(scope()->is_declaration_scope());
-  scope()->AsDeclarationScope()->set_is_asm_module();
+  scope()->AsDeclarationScope()->set_is_asm_module(true);
   info_->set_contains_asm_module(true);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
