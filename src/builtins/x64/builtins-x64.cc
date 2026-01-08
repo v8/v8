@@ -3947,7 +3947,7 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   Register target_stack = WasmFXResumeThrowDescriptor::GetRegisterParameter(0);
   // The target stack may not have a frame yet. In that case, do not switch
   // stacks and throw the exception immediately instead.
-  __ Cmp(Operand(target_stack, wasm::kStackFpOffset), Smi::FromInt(0));
+  __ cmpq(Operand(target_stack, wasm::kStackFpOffset), Immediate(kNullAddress));
   Label throw_;
   __ j(equal, &throw_);
   Register tag = WasmFXResumeThrowDescriptor::GetRegisterParameter(1);

@@ -3316,7 +3316,7 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   // stacks and throw the exception immediately instead.
   Register scratch = r4;
   __ ldr(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
-  __ cmp(scratch, Operand(Smi::FromInt(0)));
+  __ cmp(scratch, Operand(kNullAddress));
   Label throw_;
   __ b(eq, &throw_);
   Register tag = WasmFXResumeThrowDescriptor::GetRegisterParameter(1);
@@ -3330,7 +3330,7 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   // Switch to the target stack without restoring the PC.
   LoadJumpBuffer(masm, target_stack, false, r5);
   __ bind(&throw_);
-  // Forward the exception to kThrow.
+  // Throw the exception.
   __ Push(tag);
   __ Push(array);
   __ Push(trusted_instance_data);
