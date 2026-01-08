@@ -210,6 +210,27 @@ builder.addFunction("resume_next_with_two_handlers_same_tag", kSig_i_v)
         kExprEnd,
         kExprUnreachable,
     ]).exportFunc();
+let loop_sig = builder.addType(makeSig([wasmRefNullType(cont_index)], [wasmRefNullType(cont_index)]));
+builder.addFunction("handler_is_loop", kSig_i_v)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+        kExprRefFunc, suspend_tag0.index,
+        kExprContNew, cont_index,
+        kExprLoop, loop_sig,
+          // The suspension is handled by the loop, so this should be
+          // executed twice:
+          kExprLocalGet, 0,
+          kExprI32Const, 1,
+          kExprI32Add,
+          kExprLocalSet, 0,
+          kExprResume, cont_index, 1,
+            kOnSuspend, tag0_index, 0,
+          // The second time, the continuation returns normally.
+          kExprLocalGet, 0,
+          kExprReturn,
+        kExprEnd,
+        kExprUnreachable,
+    ]).exportFunc();
 let instance;
 instance = builder.instantiate( {m: {
   gc,
@@ -375,4 +396,9 @@ instance = builder.instantiate( {m: {
   // If the same tag is used multiple times, use the first occurrence.
   instance.exports.call_stack.value = [instance.exports.suspend_tag0];
   assertEquals(0, instance.exports.resume_next_with_two_handlers_same_tag());
+})();
+
+(function TestLoopHandler() {
+  print(arguments.callee.name);
+  assertEquals(2, instance.exports.handler_is_loop());
 })();
