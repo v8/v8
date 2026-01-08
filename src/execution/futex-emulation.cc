@@ -42,6 +42,11 @@ class FutexWaitList {
     return static_cast<uint8_t*>(array_buffer->backing_store()) + addr;
   }
 
+  static void* ToWaitLocation(BackingStore* backing_store, size_t addr) {
+    DCHECK_LT(addr, backing_store->byte_length());
+    return static_cast<uint8_t*>(backing_store->buffer_start()) + addr;
+  }
+
   // Deletes "node" and returns the next node of its list.
   static FutexWaitListNode* DeleteAsyncWaiterNode(FutexWaitListNode* node) {
     DCHECK(node->IsAsync());
@@ -300,18 +305,22 @@ Tagged<Object> FutexEmulation::WaitJs64(
   return WaitJsTranslateReturn(isolate, res);
 }
 
-Tagged<Object> FutexEmulation::WaitWasm32(
-    Isolate* isolate, DirectHandle<JSArrayBuffer> array_buffer, size_t addr,
-    int32_t value, int64_t rel_timeout_ns) {
-  return Wait<int32_t>(isolate, WaitMode::kSync, array_buffer, addr, value,
-                       rel_timeout_ns >= 0, rel_timeout_ns, CallType::kIsWasm);
+Tagged<Object> FutexEmulation::WaitWasm32(Isolate* isolate,
+                                          BackingStore* backing_store,
+                                          size_t addr, int32_t value,
+                                          int64_t rel_timeout_ns) {
+  void* wait_location = FutexWaitList::ToWaitLocation(backing_store, addr);
+  return WaitSync<int32_t>(isolate, wait_location, value, rel_timeout_ns >= 0,
+                           rel_timeout_ns, CallType::kIsWasm);
 }
 
-Tagged<Object> FutexEmulation::WaitWasm64(
-    Isolate* isolate, DirectHandle<JSArrayBuffer> array_buffer, size_t addr,
-    int64_t value, int64_t rel_timeout_ns) {
-  return Wait<int64_t>(isolate, WaitMode::kSync, array_buffer, addr, value,
-                       rel_timeout_ns >= 0, rel_timeout_ns, CallType::kIsWasm);
+Tagged<Object> FutexEmulation::WaitWasm64(Isolate* isolate,
+                                          BackingStore* backing_store,
+                                          size_t addr, int64_t value,
+                                          int64_t rel_timeout_ns) {
+  void* wait_location = FutexWaitList::ToWaitLocation(backing_store, addr);
+  return WaitSync<int64_t>(isolate, wait_location, value, rel_timeout_ns >= 0,
+                           rel_timeout_ns, CallType::kIsWasm);
 }
 
 template <typename T>
@@ -337,29 +346,21 @@ Tagged<Object> FutexEmulation::Wait(Isolate* isolate, WaitMode mode,
       rel_timeout_ns = static_cast<int64_t>(timeout_ns);
     }
   }
-  return Wait(isolate, mode, array_buffer, addr, value, use_timeout,
-              rel_timeout_ns);
-}
 
-template <typename T>
-Tagged<Object> FutexEmulation::Wait(Isolate* isolate, WaitMode mode,
-                                    DirectHandle<JSArrayBuffer> array_buffer,
-                                    size_t addr, T value, bool use_timeout,
-                                    int64_t rel_timeout_ns,
-                                    CallType call_type) {
   if (mode == WaitMode::kSync) {
-    return WaitSync(isolate, array_buffer, addr, value, use_timeout,
-                    rel_timeout_ns, call_type);
+    return WaitSync(isolate, FutexWaitList::ToWaitLocation(*array_buffer, addr),
+                    value, use_timeout, rel_timeout_ns, CallType::kIsWasm);
   }
   DCHECK_EQ(mode, WaitMode::kAsync);
   return WaitAsync(isolate, array_buffer, addr, value, use_timeout,
-                   rel_timeout_ns, call_type);
+                   rel_timeout_ns, CallType::kIsWasm);
 }
 
 template <typename T>
-Tagged<Object> FutexEmulation::WaitSync(
-    Isolate* isolate, DirectHandle<JSArrayBuffer> array_buffer, size_t addr,
-    T value, bool use_timeout, int64_t rel_timeout_ns, CallType call_type) {
+Tagged<Object> FutexEmulation::WaitSync(Isolate* isolate, void* wait_location,
+                                        T value, bool use_timeout,
+                                        int64_t rel_timeout_ns,
+                                        CallType call_type) {
   VMState<ATOMICS_WAIT> state(isolate);
   base::TimeDelta rel_timeout =
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
@@ -368,7 +369,6 @@ Tagged<Object> FutexEmulation::WaitSync(
 
   FutexWaitList* wait_list = GetWaitList();
   FutexWaitListNode* node = isolate->futex_wait_list_node();
-  void* wait_location = FutexWaitList::ToWaitLocation(*array_buffer, addr);
 
   base::TimeTicks timeout_time;
   if (use_timeout) {
