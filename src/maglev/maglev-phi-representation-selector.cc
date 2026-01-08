@@ -351,24 +351,6 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
                                ValueRepresentation::kHoleyFloat64};
   }
 
-  // When hoisting we must ensure that we don't turn a tagged flowing into
-  // CheckedSmiUntag into a float64. This would cause us to loose the smi check
-  // which in turn can invalidate assumptions on aliasing values.
-  if (node->uses_require_31_bit_value()) {
-    // TODO(dmercadier): this seems too broad. We might be able to relax this
-    // check and allow more untagging.
-    bool needs_hoisting =
-        std::ranges::any_of(untagging_kinds, [](UntaggingKind t) {
-          return t != UntaggingKind::kSpeculativeAny &&
-                 t != UntaggingKind::kSpeculativeOSRValue;
-        });
-    if (needs_hoisting) {
-      TRACE_UNTAGGING("  => Leaving tagged [depends on smi check]");
-      EnsurePhiInputsTagged(node);
-      return default_result;
-    }
-  }
-
   auto intersection = possible_inputs & allowed_inputs_for_uses;
 
   TRACE_UNTAGGING("  + intersection reprs: " << intersection);
@@ -629,7 +611,6 @@ void MaglevPhiRepresentationSelector::UntagInputWithHoistedUntagging(
         untagged = AddNewNodeNoInputConversionAtBlockEnd<UnsafeNumberToFloat64>(
             block, {input});
       } else {
-        DCHECK(!phi->uses_require_31_bit_value());
         untagged =
             AddNewNodeNoInputConversionAtBlockEnd<CheckedNumberToFloat64>(
                 block, {input});
