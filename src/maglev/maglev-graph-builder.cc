@@ -16399,6 +16399,8 @@ ReduceResult MaglevGraphBuilder::VisitSuspendGenerator() {
   // <suspend_id>
   ValueNode* generator = LoadRegister(0);
   ValueNode* context = GetContext();
+  last_suspend_scope_info_ = graph()->TryGetScopeInfo(context);
+
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   uint32_t suspend_id = iterator_.GetUnsignedImmediateOperand(3);
 
@@ -16493,6 +16495,8 @@ ReduceResult MaglevGraphBuilder::VisitResumeGenerator() {
       }
     }
   }
+  graph()->record_scope_info(GetContext(), last_suspend_scope_info_);
+  last_suspend_scope_info_ = {};
   return SetAccumulator(BuildLoadTaggedField(
       generator, JSGeneratorObject::kInputOrDebugPosOffset));
 }

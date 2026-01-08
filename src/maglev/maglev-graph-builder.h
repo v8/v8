@@ -2050,6 +2050,8 @@ class MaglevGraphBuilder {
   LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
   LazyDeoptResultLocationScope* lazy_deopt_result_location_scope_ = nullptr;
 
+  compiler::OptionalScopeInfoRef last_suspend_scope_info_ = {};
+
   struct HandlerTableEntry {
     int end;
     int handler;

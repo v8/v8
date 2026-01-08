@@ -78,7 +78,7 @@ compiler::OptionalScopeInfoRef Graph::TryGetScopeInfo(ValueNode* context) {
   compiler::OptionalScopeInfoRef res;
   if (auto context_const = context->TryCast<Constant>()) {
     res = context_const->object().AsContext().scope_info(broker());
-    DCHECK(res->HasContext());
+    if (!res->HasContext()) return {};
   } else if (auto load = context->TryCast<LoadContextSlotNoCells>()) {
     compiler::OptionalScopeInfoRef cur =
         TryGetScopeInfoForContextLoad(load->input(0).node(), load->offset());
