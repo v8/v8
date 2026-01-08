@@ -421,13 +421,25 @@ ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
   return ReduceResult::DoneWithAbort();
 }
 
-ProcessResult MaglevGraphOptimizer::EmitAbort(AbortReason reason) {
+ReduceResult MaglevGraphOptimizer::EmitThrow(Throw::Function function,
+                                             ValueNode* input) {
+  bool has_input;
+  if (input == nullptr) {
+    has_input = false;
+    // To avoid a nullptr input, we use Smi(0) as dummy input.
+    input = reducer_.GetSmiConstant(0);
+  } else {
+    has_input = true;
+  }
+
   BasicBlock* block = reducer_.current_block();
   ControlNode* control = block->reset_control_node();
+  block->set_deferred(true);
   block->RemovePredecessorFollowing(control);
-  ReduceResult result = reducer_.AddNewControlNode<Abort>({}, reason);
+  ReduceResult result =
+      reducer_.AddNewControlNode<Throw>({input}, function, has_input);
   CHECK(!result.IsDoneWithAbort());
-  return ProcessResult::kTruncateBlock;
+  return ReduceResult::DoneWithAbort();
 }
 
 template <typename NodeT>
@@ -903,16 +915,8 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
     ThrowReferenceErrorIfHole* node, const ProcessingState& state) {
   switch (node->ValueInput().node()->IsTheHole()) {
     case Tribool::kTrue: {
-      ValueNode* throw_input = reducer_.GetConstant(node->name());
-      Throw* throw_node = node->OverwriteWith<Throw>();
-      throw_node->UpdateBitfield(Throw::kThrowAccessedUninitializedVariable,
-                                 /*has_input*/ true);
-      throw_node->change_input(0, throw_input);
-      // TODO(victorgomes): Ideally we should emit abort and truncate the graph
-      // here, however, if this node is the only reference to the catch
-      // block, KNA processor will not visit the newly added node above, we
-      // would have no references to catch block and we would then remove it.
-      return ProcessResult::kContinue;
+      return ThrowAndTruncate(Throw::kThrowAccessedUninitializedVariable,
+                              node->ValueInput().node());
     }
     case Tribool::kFalse:
       // Not the hole; removing.
@@ -926,12 +930,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
     ThrowSuperNotCalledIfHole* node, const ProcessingState& state) {
   switch (node->ValueInput().node()->IsTheHole()) {
     case Tribool::kTrue: {
-      Throw* throw_node = node->OverwriteWith<Throw>();
-      throw_node->UpdateBitfield(Throw::kThrowSuperNotCalled,
-                                 /*has_input*/ false);
-      // TODO(victorgomes): Ideally we should emit abort here,
-      // see VisitThrowReferenceErrorIfHole.
-      return ProcessResult::kContinue;
+      return ThrowAndTruncate(Throw::kThrowSuperNotCalled);
     }
     case Tribool::kFalse:
       // Not the hole; removing.
@@ -949,12 +948,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
       // It is the hole; removing.
       return ProcessResult::kRemove;
     case Tribool::kFalse: {
-      Throw* throw_node = node->OverwriteWith<Throw>();
-      throw_node->UpdateBitfield(Throw::kThrowSuperAlreadyCalledError,
-                                 /*has_input*/ false);
-      // TODO(victorgomes): Ideally we should emit abort here,
-      // see VisitThrowReferenceErrorIfHole.
-      return ProcessResult::kContinue;
+      return ThrowAndTruncate(Throw::kThrowSuperAlreadyCalledError);
     }
     case Tribool::kMaybe:
       return ProcessResult::kContinue;
@@ -2696,6 +2690,12 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfRootConstant(
 ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     BranchIfToBooleanTrue* node, const ProcessingState& state) {
   if (IsConstantNode(node->input_node(0)->opcode())) {
+    // Holes shouldn't flow up to here: there should be either a ThrowXXXIfHole
+    // or a CheckNotHole before, which should have been constant-folded into
+    // unconditional deopt/throw if their input is a hole.
+    DCHECK_IMPLIES(node->input_node(0)->Is<Constant>(),
+                   !node->input_node(0)->Cast<Constant>()->IsTheHole());
+
     bool condition =
         FromConstantToBool(reducer_.local_isolate(), node->input_node(0));
     FoldBranch(state.block(), node, condition);

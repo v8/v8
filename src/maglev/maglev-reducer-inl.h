@@ -171,8 +171,8 @@ ReduceResult MaglevReducer<BaseT>::AddNewControlNode(
   RETURN_IF_ABORT(SetNodeInputs(control_node, inputs));
   AttachEagerDeoptInfo(control_node);
   AttachDeoptCheckpoint(control_node);
-  static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
-  static_assert(!ControlNodeT::kProperties.can_throw());
+  AttachLazyDeoptInfo(control_node);
+  AttachExceptionHandlerInfo(control_node);
   static_assert(!ControlNodeT::kProperties.can_write());
   control_node->set_owner(current_block());
   current_block()->set_control_node(control_node);

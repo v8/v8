@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <limits>
 #include <optional>
+#include <type_traits>
 #include <utility>
 
 #include "src/base/bits.h"
@@ -17121,6 +17122,8 @@ template <typename NodeT, typename Function, typename... Args>
 ReduceResult MaglevGraphBuilder::AddNewNode(
     size_t input_count, Function&& post_create_input_initializer,
     Args&&... args) {
+  static_assert(!std::is_base_of_v<ControlNode, NodeT>,
+                "Use FinishBlock instead of AddNewNode to add control nodes");
   return reducer_.AddNewNode<NodeT>(
       input_count, std::forward<Function>(post_create_input_initializer),
       std::forward<Args>(args)...);
@@ -17130,12 +17133,16 @@ ReduceResult MaglevGraphBuilder::AddNewNode(
 template <typename NodeT, typename... Args>
 ReduceResult MaglevGraphBuilder::AddNewNode(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  static_assert(!std::is_base_of_v<ControlNode, NodeT>,
+                "Use FinishBlock instead of AddNewNode to add control nodes");
   return reducer_.AddNewNode<NodeT>(inputs, std::forward<Args>(args)...);
 }
 
 template <typename NodeT, typename... Args>
 NodeT* MaglevGraphBuilder::AddNewNodeNoInputConversion(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  static_assert(!std::is_base_of_v<ControlNode, NodeT>,
+                "Use FinishBlock instead of AddNewNode to add control nodes");
   return reducer_.AddNewNodeNoInputConversion<NodeT>(
       inputs, std::forward<Args>(args)...);
 }
@@ -17387,8 +17394,7 @@ ReduceResult MaglevGraphBuilder::BuildThrow(Throw::Function function,
   } else {
     has_input = true;
   }
-  RETURN_IF_ABORT(AddNewNode<Throw>({input}, function, has_input));
-  FinishBlockNoAbort<Abort>({}, AbortReason::kUnexpectedReturnFromThrow);
+  FinishBlockNoAbort<Throw>({input}, function, has_input);
   return ReduceResult::DoneWithAbort();
 }
 
@@ -17528,7 +17534,7 @@ void MaglevGraphBuilder::StoreRegisterPair(
                  value->lazy_deopt_info()->IsResultRegister(target1));
 }
 
-void MaglevGraphBuilder::AttachExceptionHandlerInfo(Node* node) {
+void MaglevGraphBuilder::AttachExceptionHandlerInfo(NodeBase* node) {
   CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
   if (catch_block.ref) {
     if (!catch_block.exception_handler_was_used) {

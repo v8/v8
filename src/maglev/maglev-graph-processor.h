@@ -457,6 +457,7 @@ class NodeMultiProcessor<Processor, Processors...>
       case ProcessResult::kRevisit:
       case ProcessResult::kAbort:
       case ProcessResult::kRemove:
+        return res;
       case ProcessResult::kTruncateBlock:
         return res;
       case ProcessResult::kHoist:

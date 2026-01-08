@@ -436,7 +436,6 @@ class ExceptionHandlerInfo;
   V(Dead)                                     \
   V(DebugBreak)                               \
   V(MajorGCForCompilerTesting)                \
-  V(Throw)                                    \
   V(FunctionEntryStackCheck)                  \
   V(GeneratorStore)                           \
   V(TryOnStackReplacement)                    \
@@ -507,7 +506,8 @@ class ExceptionHandlerInfo;
 #define TERMINAL_CONTROL_NODE_LIST(V) \
   V(Abort)                            \
   V(Return)                           \
-  V(Deopt)
+  V(Deopt)                            \
+  V(Throw)
 
 #define CONTROL_NODE_LIST(V)       \
   TERMINAL_CONTROL_NODE_LIST(V)    \
@@ -581,6 +581,9 @@ static constexpr Opcode kLastControlNodeOpcode =
     std::max({CONTROL_NODE_LIST(V) kFirstOpcode});
 #undef V
 
+constexpr bool IsNode(Opcode opcode) {
+  return kFirstNodeOpcode <= opcode && opcode <= kLastNodeOpcode;
+}
 constexpr bool IsValueNode(Opcode opcode) {
   return kFirstValueNodeOpcode <= opcode && opcode <= kLastValueNodeOpcode;
 }
@@ -2896,6 +2899,10 @@ constexpr bool NodeBase::Is() const {
 }
 
 // Specialized sub-hierarchy type checks.
+template <>
+constexpr bool NodeBase::Is<Node>() const {
+  return IsNode(opcode());
+}
 template <>
 constexpr bool NodeBase::Is<ValueNode>() const {
   return IsValueNode(opcode());
@@ -5476,9 +5483,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
     return Object::BooleanValue(*object_.object(), local_isolate);
   }
 
-  bool IsTheHole(compiler::JSHeapBroker* broker) const {
-    return object_.IsTheHole();
-  }
+  bool IsTheHole() const { return object_.IsTheHole(); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -7583,83 +7588,6 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
       ReasonField::Next<AssertCondition, base::bits::WhichPowerOfTwo<size_t>(
                                              base::bits::RoundUpToPowerOfTwo32(
                                                  kNumAssertConditions))>;
-};
-
-class Throw : public FixedInputNodeT<1, Throw> {
- public:
-  // Throw does not do a deferred call, but we mark as such because we often
-  // overwrite ThrowXXXIfYYY to Throw.
-  static constexpr OpProperties kProperties =
-      OpProperties::CanThrow() | OpProperties::Call() |
-      OpProperties::DeferredCall() | OpProperties::NotIdempotent();
-
-#define THROW_FUNCTIONS_LIST(V)          \
-  V(kThrow)                              \
-  V(kReThrow)                            \
-  V(kThrowAccessedUninitializedVariable) \
-  V(kThrowSuperNotCalled)                \
-  V(kThrowSuperAlreadyCalledError)       \
-  V(kThrowIteratorError)                 \
-  V(kThrowSymbolIteratorInvalid)         \
-  V(kThrowConstructorNonCallableError)   \
-  V(kThrowRangeError)                    \
-  V(kThrowConstructorReturnedNonObject)
-
-  enum Function : uint8_t {
-#define DECLARE_FUNCTION(Name) Name,
-    THROW_FUNCTIONS_LIST(DECLARE_FUNCTION)
-#undef DECLARE_FUNCTION
-  };
-
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  explicit Throw(uint64_t bitfield, Function function, bool has_input)
-      : Base(HasInputBitField::update(
-            FunctionBitField::update(bitfield, function), has_input)) {}
-
-  int MaxCallStackArgs() const;
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&) const;
-  void MarkTaggedInputsAsDecompressing();
-
-  Function function() const { return FunctionBitField::decode(bitfield()); }
-
-  Runtime::FunctionId runtime_function() const {
-    switch (function()) {
-#define CASE(Name)            \
-  case Throw::Function::Name: \
-    return Runtime::Name;
-      THROW_FUNCTIONS_LIST(CASE)
-#undef CASE
-    }
-  }
-
-  bool has_input() const { return HasInputBitField::decode(bitfield()); }
-  Input ValueInput() {
-    DCHECK(has_input());
-    return input(0);
-  }
-
-  void VerifyInputs() const {}
-
-  auto options() const { return std::tuple{function(), has_input()}; }
-
-  void UpdateBitfield(Function function, bool has_input) {
-    set_bitfield(FunctionBitField::update(bitfield(), function));
-    set_bitfield(HasInputBitField::update(bitfield(), has_input));
-  }
-
- private:
-  static constexpr int kNumberOfBitsForFunction = 4;
-#define COUNT(Name) +1
-  static constexpr int kNumberOfFunctions = 0 THROW_FUNCTIONS_LIST(COUNT);
-#undef COUNT
-  static_assert(kNumberOfFunctions < 1 << kNumberOfBitsForFunction);
-  using FunctionBitField = NextBitField<Function, kNumberOfBitsForFunction>;
-
-  using HasInputBitField = FunctionBitField::Next<bool, 1>;
 };
 
 // AssumeMap is a hint for Turboshaft's LateLoadElimination: it tells it that
@@ -11044,6 +10972,76 @@ class Deopt : public TerminalControlNodeT<0, Deopt> {
   void PrintParams(std::ostream&) const;
 
   DEOPTIMIZE_REASON_FIELD
+};
+
+class Throw : public TerminalControlNodeT<1, Throw> {
+ public:
+  static constexpr OpProperties kProperties = OpProperties::CanThrow() |
+                                              OpProperties::Call() |
+                                              OpProperties::NotIdempotent();
+
+#define THROW_FUNCTIONS_LIST(V)          \
+  V(kThrow)                              \
+  V(kReThrow)                            \
+  V(kThrowAccessedUninitializedVariable) \
+  V(kThrowSuperNotCalled)                \
+  V(kThrowSuperAlreadyCalledError)       \
+  V(kThrowIteratorError)                 \
+  V(kThrowSymbolIteratorInvalid)         \
+  V(kThrowConstructorNonCallableError)   \
+  V(kThrowRangeError)                    \
+  V(kThrowConstructorReturnedNonObject)
+
+  enum Function : uint8_t {
+#define DECLARE_FUNCTION(Name) Name,
+    THROW_FUNCTIONS_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
+  };
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  explicit Throw(uint64_t bitfield, Function function, bool has_input)
+      : Base(HasInputBitField::update(
+            FunctionBitField::update(bitfield, function), has_input)) {}
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+  void MarkTaggedInputsAsDecompressing();
+
+  Function function() const { return FunctionBitField::decode(bitfield()); }
+
+  Runtime::FunctionId runtime_function() const {
+    switch (function()) {
+#define CASE(Name)            \
+  case Throw::Function::Name: \
+    return Runtime::Name;
+      THROW_FUNCTIONS_LIST(CASE)
+#undef CASE
+    }
+  }
+
+  bool has_input() const { return HasInputBitField::decode(bitfield()); }
+  Input ValueInput() {
+    DCHECK(has_input());
+    return input(0);
+  }
+
+  void VerifyInputs() const {}
+
+  auto options() const { return std::tuple{function(), has_input()}; }
+
+ private:
+  static constexpr int kNumberOfBitsForFunction = 4;
+#define COUNT(Name) +1
+  static constexpr int kNumberOfFunctions = 0 THROW_FUNCTIONS_LIST(COUNT);
+#undef COUNT
+  static_assert(kNumberOfFunctions < 1 << kNumberOfBitsForFunction);
+  using FunctionBitField = NextBitField<Function, kNumberOfBitsForFunction>;
+
+  using HasInputBitField = FunctionBitField::Next<bool, 1>;
 };
 
 class Switch : public FixedInputNodeTMixin<1, ConditionalControlNode, Switch> {

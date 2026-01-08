@@ -1678,6 +1678,14 @@ class GraphBuildingNodeProcessor {
             TSCallDescriptor::Create(call_descriptor, CanThrow::kYes,
                                      lazy_deopt_on_throw, graph_zone()));
 
+    // Throw is a block terminator in Maglev but not in Turboshaft (because it's
+    // hard to make it one in Turboshaft because it's not a Machine-level
+    // operation), so we insert an Unreachable to end the current block here.
+    static_assert(std::is_base_of_v<maglev::ControlNode, maglev::Throw>,
+                  "Remove the following Unreachable if Throw isn't a block "
+                  "terminator in Maglev anymore.");
+    __ Unreachable();
+
     return maglev::ProcessResult::kContinue;
   }
 

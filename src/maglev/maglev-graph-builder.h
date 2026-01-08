@@ -310,7 +310,7 @@ class MaglevGraphBuilder {
 
   std::pair<interpreter::Register, int> GetResultLocationAndSize() const;
 
-  void AttachExceptionHandlerInfo(Node* node);
+  void AttachExceptionHandlerInfo(NodeBase* node);
 
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node);

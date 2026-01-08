@@ -90,16 +90,22 @@ class RecomputeKnownNodeAspectsProcessor {
   void PostProcessBasicBlock(BasicBlock* block) {}
   void PostPhiProcessing() {}
 
+  template <typename NodeT>
+  void ProcessThrowingNode(NodeT* node) {
+    static_assert(NodeT::kProperties.can_throw());
+    ExceptionHandlerInfo* info = node->exception_handler_info();
+    if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
+      BasicBlock* exception_handler =
+          node->exception_handler_info()->catch_block();
+      reachable_exception_handlers_.insert(exception_handler);
+      Merge(exception_handler);
+    }
+  }
+
   template <IsNodeT NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if constexpr (NodeT::kProperties.can_throw()) {
-      ExceptionHandlerInfo* info = node->exception_handler_info();
-      if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
-        BasicBlock* exception_handler =
-            node->exception_handler_info()->catch_block();
-        reachable_exception_handlers_.insert(exception_handler);
-        Merge(exception_handler);
-      }
+      ProcessThrowingNode(node);
     }
     MarkPossibleSideEffect(node);
     return ProcessNode(node);
@@ -132,6 +138,14 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult Process(JumpLoop* node, const ProcessingState& state) {
+#ifdef DEBUG
+    known_node_aspects_ = nullptr;
+#endif  // DEBUG
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(Throw* node, const ProcessingState& state) {
+    ProcessThrowingNode(node);
 #ifdef DEBUG
     known_node_aspects_ = nullptr;
 #endif  // DEBUG

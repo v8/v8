@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-node-info.h"
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
@@ -851,6 +852,20 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevPrintingVisitor::Process(NodeBase* node,
+                                             const ProcessingState& state) {
+  if (node->Is<ControlNode>()) {
+    return Process(node->Cast<ControlNode>(), state);
+  }
+  if (node->Is<Phi>()) {
+    return Process(node->Cast<Phi>(), state);
+  }
+  if (node->Is<Node>()) {
+    return Process(node->Cast<Node>(), state);
+  }
+  UNREACHABLE();
+}
+
 ProcessResult MaglevPrintingVisitor::Process(Node* node,
                                              const ProcessingState& state) {
   MaglevGraphLabeller::Provenance provenance =
@@ -1027,6 +1042,9 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
 #endif
     }
   }
+
+  MaybePrintLazyDeoptOrExceptionHandler(os_, targets_, control_node,
+                                        max_node_id_);
 
   PrintVerticalArrows(os_, targets_);
   if (has_fallthrough) {

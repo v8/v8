@@ -745,7 +745,8 @@ GET_NODE_RESULT_REGISTER_T(DoubleRegister, AssignedDoubleRegister)
 }  // namespace
 #endif  // DEBUG
 
-void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
+void StraightForwardRegisterAllocator::AllocateNode(NodeBase* node) {
+  DCHECK(node->Is<Node>() || node->Is<Throw>());
   // We shouldn't be visiting any gap moves during allocation, we should only
   // have inserted gap moves in past visits.
   DCHECK(!node->Is<GapMove>());
@@ -811,13 +812,19 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     printing_visitor_->os() << "\n";
   }
 
-  // Result register should not be in temporaries.
-  DCHECK_IMPLIES(GetNodeResultRegister(node) != Register::no_reg(),
-                 !node->regalloc_info()->general_temporaries().has(
-                     GetNodeResultRegister(node)));
-  DCHECK_IMPLIES(GetNodeResultDoubleRegister(node) != DoubleRegister::no_reg(),
-                 !node->regalloc_info()->double_temporaries().has(
-                     GetNodeResultDoubleRegister(node)));
+#ifdef DEBUG
+  if (node->Is<ValueNode>()) {
+    // Result register should not be in temporaries.
+    ValueNode* as_value_node = node->Cast<ValueNode>();
+    DCHECK_IMPLIES(GetNodeResultRegister(as_value_node) != Register::no_reg(),
+                   !node->regalloc_info()->general_temporaries().has(
+                       GetNodeResultRegister(as_value_node)));
+    DCHECK_IMPLIES(
+        GetNodeResultDoubleRegister(as_value_node) != DoubleRegister::no_reg(),
+        !node->regalloc_info()->double_temporaries().has(
+            GetNodeResultDoubleRegister(as_value_node)));
+  }
+#endif
 
   // All the temporaries should be free by the end.
   DCHECK_EQ(
@@ -1067,8 +1074,9 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
   current_node_ = node;
 
-  // Control nodes can't lazy deopt at the moment.
-  DCHECK(!node->properties().can_lazy_deopt());
+  // Only Throw can lazy deopt and throw so far.
+  DCHECK_EQ(node->properties().can_lazy_deopt(), node->Is<Throw>());
+  DCHECK_EQ(node->properties().can_throw(), node->Is<Throw>());
 
   if (node->Is<Abort>()) {
     // Do nothing.
@@ -1100,6 +1108,8 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     if (v8_flags.trace_maglev_regalloc) {
       printing_visitor_->Process(node, GetCurrentState());
     }
+  } else if (node->Is<Throw>()) {
+    AllocateNode(node);
   } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
     // No temporaries.
     DCHECK(node->regalloc_info()->general_temporaries().is_empty());
