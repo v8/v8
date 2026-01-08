@@ -2162,20 +2162,19 @@ temporal_rs::TimeZone SystemTimeZoneIdentifier() {
 temporal_rs::TimeZone SystemTimeZoneIdentifier() { return UTCTimeZone(); }
 #endif  //  V8_INTL_SUPPORT
 
-// We don't have nanosecond precision counters, so it's pointless to perform
-// numeric conversions back and forth.
-//
 // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
-// https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochmilliseconds
-int64_t SystemUTCEpochMilliseconds() {
+temporal_rs::I128Nanoseconds SystemUTCEpochNanoseconds() {
   double ms =
       V8::GetCurrentPlatform()->CurrentClockTimeMillisecondsHighResolution();
 
-  auto min = static_cast<double>(std::numeric_limits<int64_t>::min());
-  auto max = static_cast<double>(std::numeric_limits<int64_t>::max());
-  double clamped = std::clamp(ms, min, max);
+  double intPart;
+  double fracPart = std::modf(ms, &intPart);
 
-  return static_cast<int64_t>(clamped);
+  absl::int128 ns = absl::int128(static_cast<int64_t>(intPart)) * 1'000'000;
+  ns += static_cast<int64_t>(std::round(fracPart * 1'000'000));
+
+  return temporal_rs::I128Nanoseconds{.high = absl::Uint128High64(ns),
+                                      .low = absl::Uint128Low64(ns)};
 }
 
 // Gets a ZonedDateTime in the ISO calendar representing system time, using
@@ -2205,7 +2204,7 @@ Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
   }
 
   // 3. Let ns be SystemUTCEpochNanoseconds().
-  auto ms = SystemUTCEpochMilliseconds();
+  auto ns = SystemUTCEpochNanoseconds();
 
   // 4. Return ! CreateTemporalZonedDateTime(ns, timeZone, "iso8601").
   // TODO(manishearth) we can avoid the multiple layers of allocation here
@@ -2213,8 +2212,7 @@ Maybe<std::unique_ptr<temporal_rs::ZonedDateTime>> GenericTemporalNowISO(
   std::unique_ptr<temporal_rs::Instant> instant;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, instant,
-      ExtractRustResult(isolate,
-                        temporal_rs::Instant::from_epoch_milliseconds(ms)));
+      ExtractRustResult(isolate, temporal_rs::Instant::try_new(ns)));
   std::unique_ptr<temporal_rs::ZonedDateTime> zdt;
   MOVE_RETURN_ON_EXCEPTION(
       isolate, zdt,
@@ -6551,9 +6549,9 @@ MaybeDirectHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
 
 // https://tc39.es/proposal-temporal/#sec-temporal.now.instant
 MaybeDirectHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
-  auto ms = temporal::SystemUTCEpochMilliseconds();
+  auto ns = temporal::SystemUTCEpochNanoseconds();
   return ConstructRustWrappingType<JSTemporalInstant>(
-      isolate, temporal_rs::Instant::from_epoch_milliseconds(ms));
+      isolate, temporal_rs::Instant::try_new(ns));
 }
 
 // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
