@@ -208,10 +208,36 @@ builtin WasmTaggedNonSmiToInt32(implicit context: Context)(
 }
 
 builtin WasmTaggedToFloat64(implicit context: Context)(val: JSAny): float64 {
+  // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every single
+  // bit can be observable when the float64 is reinterpret casted to an
+  // integral type. Hence, differences in NaN bit patterns are detected by
+  // differential fuzzing, in particular the difference between the shipped
+  // NaN pattern produced from undefined and the new pattern used for the
+  // undefined double experiment. In order to silence these false positives,
+  // we temporarily fall back to the old pattern. This should be removed
+  // when the feature is shipped.
+  @if(V8_ENABLE_UNDEFINED_DOUBLE) {
+    if (val == Undefined) {
+      return kCppQuietNaN64;
+    }
+  }
   return ChangeTaggedToFloat64(val);
 }
 
 builtin WasmTaggedToFloat32(implicit context: Context)(val: JSAny): float32 {
+  // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every single
+  // bit can be observable when the float32 is reinterpret casted to an
+  // integral type. Hence, differences in NaN bit patterns are detected by
+  // differential fuzzing, in particular the difference between the shipped
+  // NaN pattern produced from undefined and the new pattern used for the
+  // undefined double experiment. In order to silence these false positives,
+  // we temporarily fall back to the old pattern. This should be removed
+  // when the feature is shipped.
+  @if(V8_ENABLE_UNDEFINED_DOUBLE) {
+    if (val == Undefined) {
+      return kCppQuietNaN32;
+    }
+  }
   return TruncateFloat64ToFloat32(ChangeTaggedToFloat64(val));
 }
 
