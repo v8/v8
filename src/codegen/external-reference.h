@@ -501,16 +501,16 @@ enum class IsolateFieldId : uint8_t;
   V(sandbox_base_address, "Sandbox::base()")                 \
   V(sandbox_end_address, "Sandbox::end()")                   \
   V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()") \
-  V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()")
+  V(memory_chunk_metadata_table_address, "BasePage::Table()")
 #else
-#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                               \
-  V(sandbox_base_address, "Sandbox::base()")                             \
-  V(sandbox_end_address, "Sandbox::end()")                               \
-  V(sandboxed_mode_pkey_mask_address,                                    \
-    "SandboxHardwareSupport::sandboxed_mode_pkey_mask()")                \
-  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")             \
-  V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()") \
-  V(global_code_pointer_table_base_address,                              \
+#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                    \
+  V(sandbox_base_address, "Sandbox::base()")                  \
+  V(sandbox_end_address, "Sandbox::end()")                    \
+  V(sandboxed_mode_pkey_mask_address,                         \
+    "SandboxHardwareSupport::sandboxed_mode_pkey_mask()")     \
+  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")  \
+  V(memory_chunk_metadata_table_address, "BasePage::Table()") \
+  V(global_code_pointer_table_base_address,                   \
     "IsolateGroup::current()->code_pointer_table()")
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #else

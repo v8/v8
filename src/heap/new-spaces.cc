@@ -68,7 +68,7 @@ SemiSpace::~SemiSpace() {
 
 bool SemiSpace::ContainsSlow(Address address) const {
   for (const PageMetadata* page : *this) {
-    if (page == MemoryChunkMetadata::FromAddress(heap()->isolate(), address)) {
+    if (page == BasePage::FromAddress(heap()->isolate(), address)) {
       return true;
     }
   }
@@ -625,7 +625,7 @@ std::unique_ptr<ObjectIterator> SemiSpaceNewSpace::GetObjectIterator(
 bool SemiSpaceNewSpace::Contains(Tagged<HeapObject> object) const {
   // Don't delegate to SemiSpace to avoid the repeated metadata lookup.
   const auto* owner =
-      MemoryChunkMetadata::FromHeapObject(heap()->isolate(), object)->owner();
+      BasePage::FromHeapObject(heap()->isolate(), object)->owner();
   return owner == &to_space_ || owner == &from_space_;
 }
 

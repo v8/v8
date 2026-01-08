@@ -90,8 +90,7 @@ bool HeapObjectWillBeOld(const Heap* heap, Tagged<HeapObject> object) {
     return true;
   }
   if (HeapLayout::IsSelfForwarded(object) &&
-      MemoryChunkMetadata::FromHeapObject(heap->isolate(), object)
-          ->will_be_promoted()) {
+      BasePage::FromHeapObject(heap->isolate(), object)->will_be_promoted()) {
     DCHECK(Heap::InFromPage(object));
     return true;
   }
@@ -943,10 +942,9 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     CHECK(first_word.IsForwardingAddress());
     Tagged<HeapObject> dest = first_word.ToForwardingAddress(heap_object);
     if (heap_object == dest) {
-      DCHECK(
-          HeapLayout::InAnyLargeSpace(heap_object) ||
-          MemoryChunkMetadata::FromHeapObject(Isolate::Current(), heap_object)
-              ->is_quarantined());
+      DCHECK(HeapLayout::InAnyLargeSpace(heap_object) ||
+             BasePage::FromHeapObject(Isolate::Current(), heap_object)
+                 ->is_quarantined());
       return;
     }
     UpdateHeapObjectReferenceSlot(FullHeapObjectSlot(p), dest);
@@ -2055,7 +2053,7 @@ SlotCallbackResult RememberedSetEntryNeeded(Heap* heap, THeapObjectSlot slot) {
   const bool should_keep_slot =
       Heap::InToPage(heap_object) ||
       (Heap::InFromPage(heap_object) &&
-       !MemoryChunkMetadata::FromHeapObject(heap->isolate(), heap_object)
+       !BasePage::FromHeapObject(heap->isolate(), heap_object)
             ->will_be_promoted());
   return should_keep_slot ? KEEP_SLOT : REMOVE_SLOT;
 }
@@ -2257,8 +2255,7 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
     // copied, it is unfortunately not safe to access `dest` to check whether it
     // is pinned or not.
 #ifdef DEBUG
-    const auto* metadata =
-        MemoryChunkMetadata::FromHeapObject(heap()->isolate(), dest);
+    const auto* metadata = BasePage::FromHeapObject(heap()->isolate(), dest);
     DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
                    Heap::InToPage(dest) || metadata->is_large() ||
                        metadata->is_quarantined());
@@ -2291,13 +2288,13 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
 
     SlotCallbackResult result =
         ScavengeObject(THeapObjectSlot(slot), heap_object);
-    DCHECK_IMPLIES(result == REMOVE_SLOT,
-                   !HeapLayout::InYoungGeneration((*slot).GetHeapObject()) ||
-                       MemoryChunk::FromHeapObject((*slot).GetHeapObject())
-                           ->IsLargePage() ||
-                       MemoryChunkMetadata::FromHeapObject(
-                           heap->isolate(), (*slot).GetHeapObject())
-                           ->will_be_promoted());
+    DCHECK_IMPLIES(
+        result == REMOVE_SLOT,
+        !HeapLayout::InYoungGeneration((*slot).GetHeapObject()) ||
+            MemoryChunk::FromHeapObject((*slot).GetHeapObject())
+                ->IsLargePage() ||
+            BasePage::FromHeapObject(heap->isolate(), (*slot).GetHeapObject())
+                ->will_be_promoted());
     return result;
   } else if (Heap::InToPage(object)) {
     // Already updated slot. This can happen e.g. when a slot is found in both
@@ -2619,8 +2616,8 @@ void Scavenger::PinAndPushObject(MutablePageMetadata* metadata,
 void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map,
                                  SafeHeapObjectSize object_size) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
-  DCHECK(!MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object)
-              ->will_be_promoted());
+  DCHECK(
+      !BasePage::FromHeapObject(heap_->isolate(), object)->will_be_promoted());
   DCHECK_EQ(object_size.value(), object->SafeSizeFromMap(map).value());
   local_copied_list_.Push({object, map, object_size});
   copied_size_ += object_size.value();
@@ -2630,8 +2627,8 @@ void Scavenger::PushPinnedPromotedObject(Tagged<HeapObject> object,
                                          Tagged<Map> map,
                                          SafeHeapObjectSize object_size) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
-  DCHECK(MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object)
-             ->will_be_promoted());
+  DCHECK(
+      BasePage::FromHeapObject(heap_->isolate(), object)->will_be_promoted());
   DCHECK_EQ(object_size.value(), object->SafeSizeFromMap(map).value());
   local_promoted_list_.Push({object, map, object_size});
   promoted_size_ += object_size.value();

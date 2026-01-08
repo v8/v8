@@ -289,7 +289,7 @@ void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
   DCHECK_IMPLIES(!supports_extending_lab(), end == extended_end);
 
   if (IsLabValid()) {
-    MemoryChunkMetadata::UpdateHighWaterMark(top());
+    BasePage::UpdateHighWaterMark(top());
   }
 
   // This is going to overestimate a bit of the total allocated bytes, since the
@@ -336,7 +336,7 @@ void MainAllocator::FreeLinearAllocationArea() {
   Verify();
 #endif  // DEBUG
 
-  MemoryChunkMetadata::UpdateHighWaterMark(top());
+  BasePage::UpdateHighWaterMark(top());
   allocator_policy_->FreeLinearAllocationArea();
 }
 

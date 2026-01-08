@@ -9,8 +9,8 @@
 
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/init/isolate-group.h"

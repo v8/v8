@@ -10,11 +10,11 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/heap/base-page.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/list.h"
 #include "src/heap/marking-progress-tracker.h"
 #include "src/heap/marking.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/slot-set.h"
 #include "src/sandbox/check.h"
 
@@ -45,7 +45,7 @@ enum RememberedSetType {
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accommodate
 // any heap object.
-class MutablePageMetadata : public MemoryChunkMetadata {
+class MutablePageMetadata : public BasePage {
  public:
   // |kDone|: The page state when sweeping is complete or sweeping must not be
   //   performed on that page. Sweeper threads that are done with their work
@@ -76,12 +76,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   V8_INLINE static MutablePageMetadata* FromHeapObject(const Isolate* i,
                                                        Tagged<HeapObject> o);
 
-  static MutablePageMetadata* cast(MemoryChunkMetadata* metadata) {
+  static MutablePageMetadata* cast(BasePage* metadata) {
     SBXCHECK(metadata->IsMutablePageMetadata());
     return static_cast<MutablePageMetadata*>(metadata);
   }
 
-  static const MutablePageMetadata* cast(const MemoryChunkMetadata* metadata) {
+  static const MutablePageMetadata* cast(const BasePage* metadata) {
     SBXCHECK(metadata->IsMutablePageMetadata());
     return static_cast<const MutablePageMetadata*>(metadata);
   }
@@ -201,9 +201,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return marking_progress_tracker_;
   }
 
-  Space* owner() const {
-    return reinterpret_cast<Space*>(MemoryChunkMetadata::owner());
-  }
+  Space* owner() const { return reinterpret_cast<Space*>(BasePage::owner()); }
 
   heap::ListNode<MutablePageMetadata>& list_node() { return list_node_; }
   const heap::ListNode<MutablePageMetadata>& list_node() const {
@@ -230,7 +228,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   size_t AgeInNewSpace() const { return age_in_new_space_; }
 
   void ResetAllocationStatistics() {
-    MemoryChunkMetadata::ResetAllocationStatistics();
+    BasePage::ResetAllocationStatistics();
     allocated_lab_size_ = 0;
   }
 
@@ -398,10 +396,9 @@ namespace base {
 // structures, e.g. std::unordered_set<MutablePageMetadata*,
 // base::hash<MutablePageMetadata*>
 template <>
-struct hash<i::MutablePageMetadata*> : hash<i::MemoryChunkMetadata*> {};
+struct hash<i::MutablePageMetadata*> : hash<i::BasePage*> {};
 template <>
-struct hash<const i::MutablePageMetadata*>
-    : hash<const i::MemoryChunkMetadata*> {};
+struct hash<const i::MutablePageMetadata*> : hash<const i::BasePage*> {};
 }  // namespace base
 
 }  // namespace v8

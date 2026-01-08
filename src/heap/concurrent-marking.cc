@@ -14,6 +14,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
+#include "src/heap/base-page.h"
 #include "src/heap/base/cached-unordered-map.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -30,7 +31,6 @@
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
@@ -453,8 +453,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           }
           const auto visited_size = visitor.Visit(map, object);
           visitor.IncrementLiveBytesCached(
-              MutablePageMetadata::cast(MemoryChunkMetadata::FromHeapObject(
-                  heap_->isolate(), object)),
+              MutablePageMetadata::cast(
+                  BasePage::FromHeapObject(heap_->isolate(), object)),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
           if (is_per_context_mode) {
             native_context_stats.IncrementSize(

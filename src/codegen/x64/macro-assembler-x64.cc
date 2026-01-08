@@ -4911,7 +4911,7 @@ void MacroAssembler::CheckMarkBit(Register object, Register scratch0,
 #endif  // !V8_ENABLE_SANDBOX
   if (v8_flags.slow_debug_code) {
     Push(object);
-    movq(scratch1, Operand(scratch0, MemoryChunkMetadata::AreaStartOffset()));
+    movq(scratch1, Operand(scratch0, BasePage::AreaStartOffset()));
     MemoryChunkHeaderFromObject(scratch1, scratch1);
     MemoryChunkHeaderFromObject(object, object);
     cmpq(object, scratch1);

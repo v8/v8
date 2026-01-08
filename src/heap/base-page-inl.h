@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_MEMORY_CHUNK_METADATA_INL_H_
-#define V8_HEAP_MEMORY_CHUNK_METADATA_INL_H_
+#ifndef V8_HEAP_BASE_PAGE_INL_H_
+#define V8_HEAP_BASE_PAGE_INL_H_
 
-#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/base-page.h"
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/memory-chunk-inl.h"
@@ -13,19 +13,17 @@
 namespace v8::internal {
 
 // static
-MemoryChunkMetadata* MemoryChunkMetadata::FromAddress(const Isolate* i,
-                                                      Address a) {
+BasePage* BasePage::FromAddress(const Isolate* i, Address a) {
   return MemoryChunk::FromAddress(a)->Metadata(i);
 }
 
 // static
-MemoryChunkMetadata* MemoryChunkMetadata::FromHeapObject(const Isolate* i,
-                                                         Tagged<HeapObject> o) {
+BasePage* BasePage::FromHeapObject(const Isolate* i, Tagged<HeapObject> o) {
   return FromAddress(i, o.ptr());
 }
 
 // static
-void MemoryChunkMetadata::UpdateHighWaterMark(Address mark) {
+void BasePage::UpdateHighWaterMark(Address mark) {
   if (mark == kNullAddress) {
     return;
   }
@@ -33,8 +31,7 @@ void MemoryChunkMetadata::UpdateHighWaterMark(Address mark) {
   // top points to the next address after the chunk, which effectively belongs
   // to another chunk. See the comment to
   // PageMetadata::FromAllocationAreaAddress.
-  MemoryChunkMetadata* chunk =
-      MemoryChunkMetadata::FromAddress(Isolate::Current(), mark - 1);
+  BasePage* chunk = BasePage::FromAddress(Isolate::Current(), mark - 1);
   intptr_t new_mark = static_cast<intptr_t>(mark - chunk->ChunkAddress());
   intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);
   while ((new_mark > old_mark) &&
@@ -43,7 +40,7 @@ void MemoryChunkMetadata::UpdateHighWaterMark(Address mark) {
   }
 }
 
-bool MemoryChunkMetadata::IsWritable() const {
+bool BasePage::IsWritable() const {
   const bool is_sealed_ro = IsSealedReadOnlySpaceField::decode(flags_);
 #ifdef DEBUG
   DCHECK_IMPLIES(is_sealed_ro, Chunk()->InReadOnlySpace());
@@ -55,4 +52,4 @@ bool MemoryChunkMetadata::IsWritable() const {
 
 }  // namespace v8::internal
 
-#endif  // V8_HEAP_MEMORY_CHUNK_METADATA_INL_H_
+#endif  // V8_HEAP_BASE_PAGE_INL_H_

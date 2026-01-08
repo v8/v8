@@ -14,11 +14,11 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-result.h"
 #include "src/heap/allocation-stats.h"
+#include "src/heap/base-page.h"
 #include "src/heap/base-space.h"
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk-metadata.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +28,7 @@ class ReadOnlyHeap;
 class SharedReadOnlySpace;
 class SnapshotByteSource;
 
-class ReadOnlyPageMetadata : public MemoryChunkMetadata {
+class ReadOnlyPageMetadata : public BasePage {
  public:
   ReadOnlyPageMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
                        Address area_start, Address area_end,
@@ -197,7 +197,7 @@ class ReadOnlySpace : public BaseSpace {
   size_t Capacity() const { return accounting_stats_.Capacity(); }
 
   // Returns the index within pages_. The chunk must be part of this space.
-  size_t IndexOf(const MemoryChunkMetadata* chunk) const;
+  size_t IndexOf(const BasePage* chunk) const;
 
   bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
@@ -273,10 +273,9 @@ namespace base {
 // structures, e.g. std::unordered_set<ReadOnlyPageMetadata*,
 // base::hash<ReadOnlyPageMetadata*>
 template <>
-struct hash<i::ReadOnlyPageMetadata*> : hash<i::MemoryChunkMetadata*> {};
+struct hash<i::ReadOnlyPageMetadata*> : hash<i::BasePage*> {};
 template <>
-struct hash<const i::ReadOnlyPageMetadata*>
-    : hash<const i::MemoryChunkMetadata*> {};
+struct hash<const i::ReadOnlyPageMetadata*> : hash<const i::BasePage*> {};
 }  // namespace base
 
 }  // namespace v8

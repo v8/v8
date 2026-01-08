@@ -270,8 +270,7 @@ Heap* Heap::FromWritableHeapObject(Tagged<HeapObject> obj) {
   // TODO(leszeks): It's probably not right to use the current Isolate to infer
   // the current heap from an object, rather than reading the heap from the
   // current isolate directly.
-  MemoryChunkMetadata* chunk =
-      MemoryChunkMetadata::FromHeapObject(Isolate::Current(), obj);
+  BasePage* chunk = BasePage::FromHeapObject(Isolate::Current(), obj);
   // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
   // find a heap. The exception is when the ReadOnlySpace is writeable, during
   // bootstrapping, so explicitly allow this case.

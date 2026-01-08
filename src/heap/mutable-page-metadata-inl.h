@@ -8,7 +8,7 @@
 #include "src/heap/mutable-page-metadata.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/heap/memory-chunk-metadata-inl.h"
+#include "src/heap/base-page-inl.h"
 #include "src/heap/spaces-inl.h"
 #include "src/sandbox/hardware-support.h"
 
@@ -18,13 +18,13 @@ namespace internal {
 // static
 MutablePageMetadata* MutablePageMetadata::FromAddress(const Isolate* i,
                                                       Address a) {
-  return cast(MemoryChunkMetadata::FromAddress(i, a));
+  return cast(BasePage::FromAddress(i, a));
 }
 
 // static
 MutablePageMetadata* MutablePageMetadata::FromHeapObject(const Isolate* i,
                                                          Tagged<HeapObject> o) {
-  return cast(MemoryChunkMetadata::FromHeapObject(i, o));
+  return cast(BasePage::FromHeapObject(i, o));
 }
 
 template <AccessMode mode>

@@ -3932,9 +3932,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Equivalent to MemoryChunk::FromAddress().
   TNode<IntPtrT> MemoryChunkFromAddress(TNode<IntPtrT> address);
   // Equivalent to MemoryChunk::Metadata().
-  TNode<IntPtrT> MemoryChunkMetadataFromMemoryChunk(TNode<IntPtrT> address);
-  // Equivalent to MemoryChunkMetadata::FromAddress().
-  TNode<IntPtrT> MemoryChunkMetadataFromAddress(TNode<IntPtrT> address);
+  TNode<IntPtrT> BasePageFromMemoryChunk(TNode<IntPtrT> address);
+  // Equivalent to BasePage::FromAddress().
+  TNode<IntPtrT> BasePageFromAddress(TNode<IntPtrT> address);
 
   // Store a weak in-place reference into the FeedbackVector.
   TNode<MaybeObject> StoreWeakReferenceInFeedbackVector(

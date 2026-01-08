@@ -295,8 +295,7 @@ int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
 
 // static
 bool WriteBarrier::PageFlagsAreConsistent(Tagged<HeapObject> object) {
-  MemoryChunkMetadata* metadata =
-      MemoryChunkMetadata::FromHeapObject(Isolate::Current(), object);
+  BasePage* metadata = BasePage::FromHeapObject(Isolate::Current(), object);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
 
   if (!v8_flags.sticky_mark_bits) {

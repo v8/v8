@@ -56,8 +56,7 @@ void HeapLayoutTracer::GCEpiloguePrintHeapLayout(v8::Isolate* isolate,
 }
 
 // static
-void HeapLayoutTracer::PrintMemoryChunk(std::ostream& os,
-                                        const MemoryChunkMetadata& chunk,
+void HeapLayoutTracer::PrintMemoryChunk(std::ostream& os, const BasePage& chunk,
                                         const char* owner_name) {
   os << "{owner:" << owner_name << ","
      << "address:" << &chunk << ","

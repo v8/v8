@@ -89,7 +89,7 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
         reinterpret_cast<void*>(host->address()),
         reinterpret_cast<void*>(slot.address()),
         reinterpret_cast<void*>(
-            MemoryChunkMetadata::FromHeapObject(heap_->isolate(), heap_object)
+            BasePage::FromHeapObject(heap_->isolate(), heap_object)
                 ->owner()
                 ->identity()));
   }

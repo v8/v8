@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class MemoryChunkMetadata;
+class BasePage;
 class MutablePageMetadata;
 
 template <typename ConcreteState, AccessMode access_mode>

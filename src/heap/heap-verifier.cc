@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/base-page.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/heap-layout-inl.h"
@@ -23,7 +24,6 @@
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
@@ -277,8 +277,8 @@ class HeapVerification final : public SpaceVerificationVisitor {
  private:
   void VerifySpace(BaseSpace* space);
 
-  void VerifyPage(const MemoryChunkMetadata* chunk) final;
-  void VerifyPageDone(const MemoryChunkMetadata* chunk) final;
+  void VerifyPage(const BasePage* chunk) final;
+  void VerifyPageDone(const BasePage* chunk) final;
 
   void VerifyObject(Tagged<HeapObject> object) final;
   void VerifyObjectMap(Tagged<HeapObject> object);
@@ -320,7 +320,7 @@ class HeapVerification final : public SpaceVerificationVisitor {
   Isolate* const isolate_;
   const PtrComprCageBase cage_base_;
   std::optional<AllocationSpace> current_space_identity_;
-  std::optional<const MemoryChunkMetadata*> current_chunk_;
+  std::optional<const BasePage*> current_chunk_;
 };
 
 void HeapVerification::Verify() {
@@ -403,7 +403,7 @@ void HeapVerification::VerifySpace(BaseSpace* space) {
   current_space_identity_.reset();
 }
 
-void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
+void HeapVerification::VerifyPage(const BasePage* chunk_metadata) {
   const MemoryChunk* chunk = chunk_metadata->Chunk();
 
   CHECK(!current_chunk_.has_value());
@@ -423,14 +423,13 @@ void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
   current_chunk_ = chunk_metadata;
 }
 
-void HeapVerification::VerifyPageDone(const MemoryChunkMetadata* chunk) {
+void HeapVerification::VerifyPageDone(const BasePage* chunk) {
   CHECK_EQ(chunk, *current_chunk_);
   current_chunk_.reset();
 }
 
 void HeapVerification::VerifyObject(Tagged<HeapObject> object) {
-  CHECK_EQ(MemoryChunkMetadata::FromHeapObject(isolate(), object),
-           *current_chunk_);
+  CHECK_EQ(BasePage::FromHeapObject(isolate(), object), *current_chunk_);
 
   // Verify object map.
   VerifyObjectMap(object);

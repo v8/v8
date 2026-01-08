@@ -10,11 +10,11 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/common/globals.h"
+#include "src/heap/base-page.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
@@ -27,8 +27,8 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
                                          VirtualMemory reservation,
                                          PageSize page_size,
                                          Executability executability)
-    : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation), executability) {
+    : BasePage(heap, space, chunk_size, area_start, area_end,
+               std::move(reservation), executability) {
   DCHECK_NE(space->identity(), RO_SPACE);
 
   if (page_size == PageSize::kRegular) {

@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/common/globals.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/objects/cell.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/script.h"

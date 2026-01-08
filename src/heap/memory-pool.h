@@ -15,7 +15,7 @@ namespace v8::internal {
 class CancelableTaskManager;
 class Isolate;
 class LargePageMetadata;
-class MemoryChunkMetadata;
+class BasePage;
 class MutablePageMetadata;
 class PageMetadata;
 

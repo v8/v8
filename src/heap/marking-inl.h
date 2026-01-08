@@ -10,9 +10,9 @@
 
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/spaces.h"
 
 namespace v8::internal {

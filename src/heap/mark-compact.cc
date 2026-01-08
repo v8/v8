@@ -28,6 +28,7 @@
 #include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/base-page.h"
 #include "src/heap/base/basic-slot-set.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/ephemeron-remembered-set.h"
@@ -52,7 +53,6 @@
 #include "src/heap/marking.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
@@ -1492,9 +1492,8 @@ class RecordMigratedSlotVisitor
       return;
     }
 
-    MemoryChunkMetadata* host_page = host_chunk->Metadata(heap_->isolate());
-    const MemoryChunkMetadata* value_page =
-        value_chunk->Metadata(heap_->isolate());
+    BasePage* host_page = host_chunk->Metadata(heap_->isolate());
+    const BasePage* value_page = value_chunk->Metadata(heap_->isolate());
     if (value_page->is_writable_shared() && !host_page->is_writable_shared()) {
       if (value_page->is_trusted() && host_page->is_trusted()) {
         RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<

@@ -242,9 +242,9 @@ static void SandboxIsWritableImpl(
     return;
   }
 
-  MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(
+  auto* page = BasePage::FromHeapObject(
       reinterpret_cast<Isolate*>(info.GetIsolate()), obj);
-  bool is_writable = chunk->IsWritable();
+  bool is_writable = page->IsWritable();
   info.GetReturnValue().Set(is_writable);
 }
 

@@ -9,11 +9,11 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/allocation-result.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/large-page-metadata.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/page-metadata.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-object.h"
@@ -588,8 +588,7 @@ bool HeapAllocator::IsMostRecentYoungAllocation(Address object_address) {
            object_address < new_space_allocator_->top();
   } else {
     // Otherwise the last young allocation has to be a large object.
-    MemoryChunkMetadata* chunk =
-        MemoryChunkMetadata::FromAddress(heap_->isolate(), last);
+    BasePage* chunk = BasePage::FromAddress(heap_->isolate(), last);
     CHECK(chunk->is_large());
     CHECK_EQ(chunk->owner_identity(), NEW_LO_SPACE);
     // No allocation folding with large objects, so object_address has to match

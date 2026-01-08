@@ -220,8 +220,7 @@ struct ReadOnlySegmentForSerialization {
 
 ro::EncodedTagged Encode(Isolate* isolate, Tagged<HeapObject> o) {
   Address o_address = o.address();
-  MemoryChunkMetadata* chunk =
-      MemoryChunkMetadata::FromAddress(isolate, o_address);
+  BasePage* chunk = BasePage::FromAddress(isolate, o_address);
 
   ReadOnlySpace* ro_space = isolate->read_only_heap()->read_only_space();
   int index = static_cast<int>(ro_space->IndexOf(chunk));

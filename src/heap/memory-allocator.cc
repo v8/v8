@@ -12,10 +12,10 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-page-metadata.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-pool.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/read-only-spaces.h"
@@ -236,8 +236,7 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
   };
 }
 
-void MemoryAllocator::PartialFreeMemory(MemoryChunkMetadata* chunk,
-                                        Address start_free,
+void MemoryAllocator::PartialFreeMemory(BasePage* chunk, Address start_free,
                                         size_t bytes_to_free,
                                         Address new_area_end) {
   VirtualMemory* reservation = chunk->reserved_memory();
@@ -269,7 +268,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunkMetadata* chunk,
   size_ -= released_bytes;
 }
 
-void MemoryAllocator::UnregisterSharedMemoryChunk(MemoryChunkMetadata* chunk) {
+void MemoryAllocator::UnregisterSharedMemoryChunk(BasePage* chunk) {
   VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
       reservation->IsReserved() ? reservation->size() : chunk->size();
@@ -277,8 +276,7 @@ void MemoryAllocator::UnregisterSharedMemoryChunk(MemoryChunkMetadata* chunk) {
   size_ -= size;
 }
 
-void MemoryAllocator::UnregisterMemoryChunk(
-    MemoryChunkMetadata* chunk_metadata) {
+void MemoryAllocator::UnregisterMemoryChunk(BasePage* chunk_metadata) {
   MemoryChunk* chunk = chunk_metadata->Chunk();
   DCHECK(!chunk_metadata->is_unregistered());
   VirtualMemory* reservation = chunk_metadata->reserved_memory();
@@ -735,8 +733,7 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddressInSafepoint(
   return nullptr;
 }
 
-void MemoryAllocator::RecordMemoryChunkCreated(
-    const MemoryChunkMetadata* metadata) {
+void MemoryAllocator::RecordMemoryChunkCreated(const BasePage* metadata) {
   base::MutexGuard guard(&chunks_mutex_);
   if (metadata->is_large()) {
     auto result = large_pages_.insert(metadata->Chunk());
@@ -749,8 +746,7 @@ void MemoryAllocator::RecordMemoryChunkCreated(
   }
 }
 
-void MemoryAllocator::RecordMemoryChunkDestroyed(
-    const MemoryChunkMetadata* metadata) {
+void MemoryAllocator::RecordMemoryChunkDestroyed(const BasePage* metadata) {
   base::MutexGuard guard(&chunks_mutex_);
   if (metadata->is_large()) {
     auto size = large_pages_.erase(metadata->Chunk());

@@ -15,8 +15,8 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/heap/base-page.h"
 #include "src/heap/large-page-metadata.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/spaces.h"
 #include "src/tasks/cancelable-task.h"
@@ -152,7 +152,7 @@ class MemoryAllocator final {
   // internally memory is freed from |start_free| to the end of the reservation.
   // Additional memory beyond the page is not accounted though, so
   // |bytes_to_free| is computed by the caller.
-  void PartialFreeMemory(MemoryChunkMetadata* chunk, Address start_free,
+  void PartialFreeMemory(BasePage* chunk, Address start_free,
                          size_t bytes_to_free, Address new_area_end);
 
   void UnregisterReadOnlyPage(ReadOnlyPageMetadata* page);
@@ -311,14 +311,14 @@ class MemoryAllocator final {
                                   Executability executable);
 
   // Insert and remove normal and large pages that are owned by this allocator.
-  void RecordMemoryChunkCreated(const MemoryChunkMetadata* metadata);
-  void RecordMemoryChunkDestroyed(const MemoryChunkMetadata* metadata);
+  void RecordMemoryChunkCreated(const BasePage* metadata);
+  void RecordMemoryChunkDestroyed(const BasePage* metadata);
 
   // Performs all necessary bookkeeping to free the memory, but does not free
   // it.
   void UnregisterMutableMemoryChunk(MutablePageMetadata* chunk);
-  void UnregisterSharedMemoryChunk(MemoryChunkMetadata* chunk);
-  void UnregisterMemoryChunk(MemoryChunkMetadata* chunk);
+  void UnregisterSharedMemoryChunk(BasePage* chunk);
+  void UnregisterMemoryChunk(BasePage* chunk);
 
   void RegisterReadOnlyMemory(ReadOnlyPageMetadata* page);
 

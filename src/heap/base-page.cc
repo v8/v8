@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/base-page.h"
 
 #include <cstdlib>
 
@@ -13,11 +13,9 @@
 
 namespace v8::internal {
 
-MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
-                                         size_t chunk_size, Address area_start,
-                                         Address area_end,
-                                         VirtualMemory reservation,
-                                         Executability executability)
+BasePage::BasePage(Heap* heap, BaseSpace* space, size_t chunk_size,
+                   Address area_start, Address area_end,
+                   VirtualMemory reservation, Executability executability)
     : reservation_(std::move(reservation)),
       allocated_bytes_(area_end - area_start),
       high_water_mark_(area_start -
@@ -49,19 +47,19 @@ MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
       flags_, IsAnyWritableSharedSpace(owner()->identity()));
 }
 
-MemoryChunkMetadata::~MemoryChunkMetadata() {
+BasePage::~BasePage() {
 #ifdef V8_ENABLE_SANDBOX
   MemoryChunk::ClearMetadataPointer(this);
 #endif  // V8_ENABLE_SANDBOX
 }
 
 #ifdef THREAD_SANITIZER
-void MemoryChunkMetadata::SynchronizedHeapLoad() const {
+void BasePage::SynchronizedHeapLoad() const {
   base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
-      &(const_cast<MemoryChunkMetadata*>(this)->heap_)));
+      &(const_cast<BasePage*>(this)->heap_)));
 }
 
-void MemoryChunkMetadata::SynchronizedHeapStore() {
+void BasePage::SynchronizedHeapStore() {
   // Since TSAN does not process memory fences, we use the following annotation
   // to tell TSAN that there is no data race when emitting a
   // InitializationMemoryFence. Note that the other thread still needs to
@@ -72,7 +70,7 @@ void MemoryChunkMetadata::SynchronizedHeapStore() {
 #endif
 
 #ifdef DEBUG
-bool MemoryChunkMetadata::is_trusted() const {
+bool BasePage::is_trusted() const {
   const bool is_trusted = IsTrustedField::decode(flags_);
   const bool is_trusted_owner = owner()
                                     ? IsAnyTrustedSpace(owner()->identity()) ||

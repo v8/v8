@@ -222,7 +222,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
     if (visited_size) {
       IncrementLiveBytesCached(
           MutablePageMetadata::cast(
-              MemoryChunkMetadata::FromHeapObject(isolate_, heap_object)),
+              BasePage::FromHeapObject(isolate_, heap_object)),
           ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
     return true;

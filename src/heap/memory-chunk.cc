@@ -40,7 +40,7 @@ constexpr MemoryChunk::MainThreadFlags MemoryChunk::kIsLargePageMask;
 constexpr MemoryChunk::MainThreadFlags
     MemoryChunk::kSkipEvacuationSlotsRecordingMask;
 
-MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
+MemoryChunk::MemoryChunk(MainThreadFlags flags, BasePage* metadata)
     : untrusted_main_thread_flags_(flags)
 #ifndef V8_ENABLE_SANDBOX
       ,
@@ -49,7 +49,7 @@ MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
 {
 #ifdef V8_ENABLE_SANDBOX
   auto metadata_index = MetadataTableIndex(address());
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  IsolateGroup::BasePageTableEntry* metadata_pointer_table =
       MetadataTableAddress();
   DCHECK_IMPLIES(metadata_pointer_table[metadata_index].metadata() != nullptr,
                  metadata_pointer_table[metadata_index].metadata() == metadata);
@@ -61,11 +61,11 @@ MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
 
 #ifdef V8_ENABLE_SANDBOX
 // static
-void MemoryChunk::ClearMetadataPointer(MemoryChunkMetadata* metadata) {
+void MemoryChunk::ClearMetadataPointer(BasePage* metadata) {
   uint32_t metadata_index = MetadataTableIndex(metadata->ChunkAddress());
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  IsolateGroup::BasePageTableEntry* metadata_pointer_table =
       MetadataTableAddress();
-  IsolateGroup::MemoryChunkMetadataTableEntry& chunk_metadata =
+  IsolateGroup::BasePageTableEntry& chunk_metadata =
       metadata_pointer_table[metadata_index];
   if (chunk_metadata.metadata() == nullptr) {
     DCHECK_EQ(chunk_metadata.isolate(), nullptr);
@@ -116,7 +116,7 @@ bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
   // use the flag check as a fast path in this case.
   // It also helps making TSAN happy, since it doesn't like the way we
   // initialize the MemoryChunks.
-  // (See MemoryChunkMetadata::SynchronizedHeapLoad).
+  // (See BasePage::SynchronizedHeapLoad).
   if (!InReadOnlySpace()) {
     return false;
   }
@@ -142,7 +142,7 @@ void MemoryChunk::InitializationMemoryFence() {
   base::Release_Store(reinterpret_cast<base::AtomicWord*>(&metadata_),
                       reinterpret_cast<base::AtomicWord>(metadata_));
 #else
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  IsolateGroup::BasePageTableEntry* metadata_pointer_table =
       MetadataTableAddress();
   static_assert(sizeof(base::AtomicWord) ==
                 sizeof(metadata_pointer_table[0].metadata()));
@@ -162,11 +162,11 @@ void MemoryChunk::InitializationMemoryFence() {
 
 void MemoryChunk::SynchronizedLoad() const {
 #ifndef V8_ENABLE_SANDBOX
-  MemoryChunkMetadata* metadata = reinterpret_cast<MemoryChunkMetadata*>(
+  BasePage* metadata = reinterpret_cast<BasePage*>(
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
           &(const_cast<MemoryChunk*>(this)->metadata_))));
 #else
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  IsolateGroup::BasePageTableEntry* metadata_pointer_table =
       MetadataTableAddress();
   static_assert(sizeof(base::AtomicWord) ==
                 sizeof(metadata_pointer_table[0].metadata()));
@@ -174,7 +174,7 @@ void MemoryChunk::SynchronizedLoad() const {
   uint32_t metadata_index =
       base::Acquire_Load(reinterpret_cast<base::Atomic32*>(
           &(const_cast<MemoryChunk*>(this)->metadata_index_)));
-  MemoryChunkMetadata* metadata = reinterpret_cast<MemoryChunkMetadata*>(
+  BasePage* metadata = reinterpret_cast<BasePage*>(
       base::Acquire_Load(reinterpret_cast<base::AtomicWord*>(
           metadata_pointer_table[metadata_index].metadata_slot())));
 #endif

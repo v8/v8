@@ -17,7 +17,7 @@ include_rules = [
   "-src/flags/flags-impl.h",
   "-src/heap",
   "+src/heap/memory-chunk-constants.h",
-  "+src/heap/memory-chunk-metadata.h",
+  "+src/heap/base-page.h",
   "+src/heap/code-range.h",
   "+src/heap/read-only-spaces.h",
   "+src/heap/trusted-range.h",

@@ -6338,7 +6338,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   DirectHandle<FixedArray> array_small =
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  MemoryChunkMetadata* metadata = chunk->Metadata(isolate);
+  BasePage* metadata = chunk->Metadata(isolate);
   CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
   CHECK(metadata->is_large());
   CHECK(chunk->IsToPage());
@@ -6371,7 +6371,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   DirectHandle<FixedArray> array_small =
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  MemoryChunkMetadata* metadata = chunk->Metadata(isolate);
+  BasePage* metadata = chunk->Metadata(isolate);
   CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
   CHECK(metadata->is_large());
   CHECK(chunk->IsToPage());

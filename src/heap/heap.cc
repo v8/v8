@@ -45,6 +45,7 @@
 #include "src/handles/traced-handles.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/base-page.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/base/worklist.h"
@@ -80,7 +81,6 @@
 #include "src/heap/marking-state.h"
 #include "src/heap/memory-balancer.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/memory-pool.h"
 #include "src/heap/memory-reducer.h"
@@ -3391,7 +3391,7 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
 }
 
 bool Heap::IsImmovable(Tagged<HeapObject> object) {
-  const MemoryChunkMetadata* metadata =
+  const BasePage* metadata =
       MemoryChunk::FromHeapObject(object)->Metadata(isolate());
   return metadata->never_evacuate() || metadata->is_large();
 }
@@ -6970,8 +6970,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     DCHECK(!IsFreeSpaceOrFiller(object));
     // If the bucket corresponding to the object's chunk does not exist, or the
     // object is not found in the bucket, return true.
-    MemoryChunkMetadata* chunk =
-        MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object);
+    BasePage* chunk = BasePage::FromHeapObject(heap_->isolate(), object);
     if (reachable_.count(chunk) == 0) return true;
     return reachable_[chunk]->count(object) == 0;
   }
@@ -6982,8 +6981,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   bool MarkAsReachable(Tagged<HeapObject> object) {
     // If the bucket corresponding to the object's chunk does not exist, then
     // create an empty bucket.
-    MemoryChunkMetadata* chunk =
-        MemoryChunkMetadata::FromHeapObject(heap_->isolate(), object);
+    BasePage* chunk = BasePage::FromHeapObject(heap_->isolate(), object);
     if (reachable_.count(chunk) == 0) {
       reachable_[chunk] = std::make_unique<BucketType>();
     }
@@ -7086,8 +7084,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   Heap* heap_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
-  std::unordered_map<MemoryChunkMetadata*, std::unique_ptr<BucketType>,
-                     base::hash<MemoryChunkMetadata*>>
+  std::unordered_map<BasePage*, std::unique_ptr<BucketType>,
+                     base::hash<BasePage*>>
       reachable_;
 };
 
@@ -7948,7 +7946,7 @@ CodePageMemoryModificationScopeForDebugging::
 }
 
 CodePageMemoryModificationScopeForDebugging::
-    CodePageMemoryModificationScopeForDebugging(MemoryChunkMetadata* chunk)
+    CodePageMemoryModificationScopeForDebugging(BasePage* chunk)
     : rwx_write_scope_("Write access for zapping.") {
 #if !defined(DEBUG) && !defined(VERIFY_HEAP) && !defined(USE_SIMULATOR)
   UNREACHABLE();
@@ -7972,7 +7970,7 @@ CodePageMemoryModificationScopeForDebugging::
 }
 
 CodePageMemoryModificationScopeForDebugging::
-    CodePageMemoryModificationScopeForDebugging(MemoryChunkMetadata* chunk) {
+    CodePageMemoryModificationScopeForDebugging(BasePage* page) {
 #if !defined(DEBUG) && !defined(VERIFY_HEAP) && !defined(USE_SIMULATOR)
   UNREACHABLE();
 #endif

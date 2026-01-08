@@ -1469,8 +1469,7 @@ bool Serializer::SerializeReadOnlyObjectReference(Tagged<HeapObject> obj,
   // create a back reference that encodes the page number as the chunk_index and
   // the offset within the page as the chunk_offset.
   Address address = obj.address();
-  MemoryChunkMetadata* chunk =
-      MemoryChunkMetadata::FromAddress(isolate(), address);
+  BasePage* chunk = BasePage::FromAddress(isolate(), address);
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
   DCHECK(!read_only_space->writable());

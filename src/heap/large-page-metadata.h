@@ -22,7 +22,7 @@ class LargePageMetadata : public MutablePageMetadata {
     return static_cast<LargePageMetadata*>(metadata);
   }
 
-  static LargePageMetadata* cast(MemoryChunkMetadata* metadata) {
+  static LargePageMetadata* cast(BasePage* metadata) {
     return cast(MutablePageMetadata::cast(metadata));
   }
 
@@ -58,10 +58,9 @@ namespace base {
 // structures, e.g. std::unordered_set<LargePageMetadata*,
 // base::hash<LargePageMetadata*>
 template <>
-struct hash<i::LargePageMetadata*> : hash<i::MemoryChunkMetadata*> {};
+struct hash<i::LargePageMetadata*> : hash<i::BasePage*> {};
 template <>
-struct hash<const i::LargePageMetadata*> : hash<const i::MemoryChunkMetadata*> {
-};
+struct hash<const i::LargePageMetadata*> : hash<const i::BasePage*> {};
 }  // namespace base
 
 }  // namespace v8

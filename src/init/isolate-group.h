@@ -44,7 +44,7 @@ namespace internal {
 class MemoryPool;
 
 #ifdef V8_ENABLE_SANDBOX
-class MemoryChunkMetadata;
+class BasePage;
 class Sandbox;
 
 class SandboxedArrayBufferAllocatorBase {
@@ -155,7 +155,7 @@ class SnapshotData;
 class V8_EXPORT_PRIVATE IsolateGroup final {
  public:
 #ifdef V8_ENABLE_SANDBOX
-  class MemoryChunkMetadataTableEntry {
+  class BasePageTableEntry {
    public:
     void CheckIfMetadataAccessibleFromIsolate(const Isolate* isolate) const {
       if (isolate_ ==
@@ -169,23 +169,22 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
       CHECK_EQ(isolate_, isolate);
     }
 
-    void SetMetadata(MemoryChunkMetadata* metadata, Isolate* isolate);
+    void SetMetadata(BasePage* metadata, Isolate* isolate);
 
     const Isolate* isolate() const { return isolate_; }
-    MemoryChunkMetadata* metadata() const { return metadata_; }
+    BasePage* metadata() const { return metadata_; }
 
-    MemoryChunkMetadata** metadata_slot() { return &metadata_; }
+    BasePage** metadata_slot() { return &metadata_; }
 
    private:
     // This indicates that the metadata entry can be read from any isolates
     // (in essence, for the read-only or shared pages).
     static constexpr uintptr_t kReadOnlyOrSharedEntryIsolateSentinel = -1;
 
-    MemoryChunkMetadata* metadata_ = nullptr;
+    BasePage* metadata_ = nullptr;
     Isolate* isolate_ = nullptr;
   };
-  static_assert(sizeof(MemoryChunkMetadataTableEntry) ==
-                2 * kSystemPointerSize);
+  static_assert(sizeof(BasePageTableEntry) == 2 * kSystemPointerSize);
 #endif  // V8_ENABLE_SANDBOX
 
   // InitializeOncePerProcess should be called early on to initialize the
@@ -299,7 +298,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   CodePointerTable* code_pointer_table() { return &code_pointer_table_; }
 
-  MemoryChunkMetadataTableEntry* metadata_pointer_table() {
+  BasePageTableEntry* metadata_pointer_table() {
     return metadata_pointer_table_;
   }
 
@@ -431,7 +430,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox_ = nullptr;
   CodePointerTable code_pointer_table_;
-  MemoryChunkMetadataTableEntry metadata_pointer_table_
+  BasePageTableEntry metadata_pointer_table_
       [MemoryChunkConstants::kMetadataPointerTableSize]{};
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
   ExternalStringsCage external_strings_cage_;

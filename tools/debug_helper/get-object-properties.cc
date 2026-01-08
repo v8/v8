@@ -373,11 +373,11 @@ class ReadStringVisitor : public TqObjectVisitor {
       uint32_t metadata_index = GetOrFinish(ReadValue<uint32_t>(
           memory_chunk + MemoryChunk::MetadataIndexOffset()));
       auto metadata_entry =
-          GetOrFinish(ReadValue<IsolateGroup::MemoryChunkMetadataTableEntry>(
+          GetOrFinish(ReadValue<IsolateGroup::BasePageTableEntry>(
               heap_addresses_.metadata_pointer_table, metadata_index));
       Address heap = GetOrFinish(ReadValue<Address>(
           reinterpret_cast<uintptr_t>(metadata_entry.metadata()) +
-          MemoryChunkMetadata::HeapOffset()));
+          BasePage::HeapOffset()));
       // Get the Isolate pointer from the Heap object. The Heap class has a
       // field "Isolate* isolate_" that points to the owning Isolate. The offset
       // of this field is provided by the debugger (from PDB symbols). If the

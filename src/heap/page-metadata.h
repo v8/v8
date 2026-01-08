@@ -36,7 +36,7 @@ class PageMetadata : public MutablePageMetadata {
                                              Address addr);
   V8_INLINE static PageMetadata* FromHeapObject(Tagged<HeapObject> o);
 
-  static PageMetadata* cast(MemoryChunkMetadata* metadata) {
+  static PageMetadata* cast(BasePage* metadata) {
     return cast(MutablePageMetadata::cast(metadata));
   }
 
@@ -138,9 +138,9 @@ namespace base {
 // Define special hash function for page pointers, to be used with std data
 // structures, e.g. std::unordered_set<PageMetadata*, base::hash<PageMetadata*>
 template <>
-struct hash<i::PageMetadata*> : hash<i::MemoryChunkMetadata*> {};
+struct hash<i::PageMetadata*> : hash<i::BasePage*> {};
 template <>
-struct hash<const i::PageMetadata*> : hash<const i::MemoryChunkMetadata*> {};
+struct hash<const i::PageMetadata*> : hash<const i::BasePage*> {};
 }  // namespace base
 
 }  // namespace v8

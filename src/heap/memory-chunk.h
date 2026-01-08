@@ -31,7 +31,7 @@ class CodeStubAssembler;
 class ExternalReference;
 class Heap;
 class LargePageMetadata;
-class MemoryChunkMetadata;
+class BasePage;
 class MutablePageMetadata;
 class PageMetadata;
 class ReadOnlyPageMetadata;
@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   // Memory chunk flags that for sandbox builds can be corrupted. Users of these
   // flags need to assume that the flags are inconsistent. In practice, only
   // flags that are required for fast paths should be kept here. All other flags
-  // should be placed on the trusted counterparts, e.g. `MemoryChunkMetadata`.
+  // should be placed on the trusted counterparts, e.g. `BasePage`.
   //
   // TODO(429538831): Replace the flags in here with their trusted counterparts
   // as much as performance allows.
@@ -139,7 +139,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS);
 #endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
 
-  MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata);
+  MemoryChunk(MainThreadFlags flags, BasePage* metadata);
 
   V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 
@@ -164,14 +164,14 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return FromAddress(object.ptr());
   }
 
-  V8_INLINE MemoryChunkMetadata* Metadata(const Isolate* isolate);
-  V8_INLINE const MemoryChunkMetadata* Metadata(const Isolate* isolate) const;
+  V8_INLINE BasePage* Metadata(const Isolate* isolate);
+  V8_INLINE const BasePage* Metadata(const Isolate* isolate) const;
 
-  V8_INLINE MemoryChunkMetadata* Metadata();
-  V8_INLINE const MemoryChunkMetadata* Metadata() const;
+  V8_INLINE BasePage* Metadata();
+  V8_INLINE const BasePage* Metadata() const;
 
-  V8_INLINE MemoryChunkMetadata* MetadataNoIsolateCheck();
-  V8_INLINE const MemoryChunkMetadata* MetadataNoIsolateCheck() const;
+  V8_INLINE BasePage* MetadataNoIsolateCheck();
+  V8_INLINE const BasePage* MetadataNoIsolateCheck() const;
 
   V8_INLINE bool IsMarking() const { return IsFlagSet(INCREMENTAL_MARKING); }
 
@@ -293,7 +293,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 #endif
 
 #ifdef V8_ENABLE_SANDBOX
-  static void ClearMetadataPointer(MemoryChunkMetadata* metadata);
+  static void ClearMetadataPointer(BasePage* metadata);
 #endif
 
  private:
@@ -322,8 +322,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
   static uint32_t MetadataTableIndex(Address chunk_address);
 
-  V8_INLINE static IsolateGroup::MemoryChunkMetadataTableEntry*
-  MetadataTableAddress() {
+  V8_INLINE static IsolateGroup::BasePageTableEntry* MetadataTableAddress() {
     return IsolateGroup::current()->metadata_pointer_table();
   }
 
@@ -342,9 +341,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 #endif  // !V8_ENABLE_SANDBOX
 
   template <bool check_isolate>
-  MemoryChunkMetadata* MetadataImpl(const Isolate* isolate);
+  BasePage* MetadataImpl(const Isolate* isolate);
   template <bool check_isolate>
-  const MemoryChunkMetadata* MetadataImpl(const Isolate* isolate) const;
+  const BasePage* MetadataImpl(const Isolate* isolate) const;
 
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.
@@ -357,7 +356,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 #ifdef V8_ENABLE_SANDBOX
   uint32_t metadata_index_;
 #else
-  MemoryChunkMetadata* metadata_;
+  BasePage* metadata_;
 #endif
 
   // For main_thread_flags_.
@@ -370,7 +369,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   friend class compiler::turboshaft::AssemblerOpInterface;
   // For IsFlagSet().
   friend class IsolateGroup;
-  friend class MemoryChunkMetadata;
+  friend class BasePage;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::MainThreadFlags)

@@ -162,8 +162,7 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
                 i_client_isolate->factory()->NewFixedArray(
                     kMaxRegularHeapObjectSize / kTaggedSize,
                     AllocationType::kSharedOld);
-            CHECK(MemoryChunkMetadata::FromHeapObject(i_client_isolate,
-                                                      *fixed_array)
+            CHECK(BasePage::FromHeapObject(i_client_isolate, *fixed_array)
                       ->is_large());
           }
 
@@ -212,8 +211,7 @@ class SharedTrustedLargeObjectSpaceAllocationThread final
             DirectHandle<TrustedByteArray> fixed_array =
                 i_client_isolate->factory()->NewTrustedByteArray(
                     kMaxRegularHeapObjectSize, AllocationType::kSharedTrusted);
-            CHECK(MemoryChunkMetadata::FromHeapObject(i_client_isolate,
-                                                      *fixed_array)
+            CHECK(BasePage::FromHeapObject(i_client_isolate, *fixed_array)
                       ->is_large());
           }
 

@@ -84,7 +84,7 @@ class TestMemoryAllocatorScope;
 class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BackingStore;
-class MemoryChunkMetadata;
+class BasePage;
 class Boolean;
 class CodeLargeObjectSpace;
 class CodeRange;
@@ -2815,8 +2815,7 @@ class CodePageMemoryModificationScopeForDebugging {
   // access the page header. Hence, use the VirtualMemory for tracking instead.
   explicit CodePageMemoryModificationScopeForDebugging(
       Heap* heap, VirtualMemory* reservation, base::AddressRegion region);
-  explicit CodePageMemoryModificationScopeForDebugging(
-      MemoryChunkMetadata* chunk);
+  explicit CodePageMemoryModificationScopeForDebugging(BasePage* chunk);
   ~CodePageMemoryModificationScopeForDebugging();
 
  private:

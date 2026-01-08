@@ -10,10 +10,10 @@
 
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-layout.h"
 #include "src/heap/marking-inl.h"
 #include "src/heap/marking.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged.h"
@@ -78,7 +78,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
   }
   // This code can run from the shared heap isolate and the slot may point
   // into a client heap isolate, so ignore the isolate check.
-  const MemoryChunkMetadata* chunk_metadata = chunk->MetadataNoIsolateCheck();
+  const BasePage* chunk_metadata = chunk->MetadataNoIsolateCheck();
   DCHECK(chunk_metadata->Contains(maybe_inner_ptr));
 
   if (!ConcreteVisitor::FilterPage(chunk)) {
