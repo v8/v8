@@ -545,7 +545,7 @@ deps = {
       },
     ],
   },
-  'third_party/siso': {
+  'third_party/siso/cipd': {
     'packages': [
       {
         'package': 'build/siso/${{platform}}',
