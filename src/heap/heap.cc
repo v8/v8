@@ -2036,7 +2036,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
 
   incremental_marking()->Start(collector, gc_reason, reason);
 
-  if (collector == GarbageCollector::MARK_COMPACTOR && IsLoadingInitialized()) {
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
     // During loading we might overshoot the limit by a large amount. Ensure
     // allocation limits are at least at or above current sizes to not finalize
     // incremental marking prematurely.
@@ -2735,35 +2735,6 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
   }
 }
 
-void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
-  if ((OldGenerationSpaceAvailable() > 0) && (GlobalMemoryAvailable() > 0)) {
-    // Only recompute limits if memory accumulated during loading may lead to
-    // atomic GC. If there is still room to allocate, keep the current limits.
-    DCHECK(!AllocationLimitOvershotByLargeMargin());
-    return;
-  }
-
-  if (!incremental_marking()->IsMajorMarking()) {
-    // Incremental marking should have started already but was delayed. Don't
-    // update the limits yet to not delay starting incremental marking any
-    // further. Limits will be updated on incremental marking start, with the
-    // intention to give more slack and avoid an immediate large finalization
-    // pause.
-    return;
-  }
-
-  UpdateOldGenerationAllocationCounter();
-  old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
-  old_generation_wasted_at_last_gc_ = OldGenerationWastedBytes();
-  if (V8_LIKELY(!is_external_memory_limit_updates_suspended_)) {
-    external_memory_.UpdateLowSinceMarkCompact(external_memory_.total());
-  }
-  embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
-  set_using_initial_limit(false);
-
-  UpdateAllocationLimits(LimitBounds::AtLeastCurrentLimits(this));
-}
-
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
                                    GCTracer::Scope::ScopeId scope_id) {
   if (gc_prologue_callbacks_.IsEmpty()) return;
@@ -3213,9 +3184,16 @@ void Heap::EnsureAllocationLimitAboveCurrentSize() {
   }
 
   base::MutexGuard guard(old_space()->mutex());
-  size_t new_old_generation_allocation_limit =
-      std::max(static_cast<size_t>(OldGenerationAllocationLimitConsumedBytes()),
-               old_generation_allocation_limit());
+  // At least with ArrayBufferExtensions, external memory could overflow size_t
+  // on 32-bit. Use a saturated cast here to defend against this.
+  size_t new_old_generation_allocation_limit = std::max(
+      base::saturated_cast<size_t>(OldGenerationAllocationLimitConsumedBytes()),
+      old_generation_allocation_limit());
+  // We need to clamp the new limit between the allowed minimum and maximum
+  // value. We do not currently cap allocated external memory, so either the old
+  // or global bytes counter (depending on
+  // v8_flags.external_memory_accounted_in_global_limit) could legitimately be
+  // larger than the maximum allowed limit.
   new_old_generation_allocation_limit =
       std::clamp(new_old_generation_allocation_limit, min_old_generation_size(),
                  max_old_generation_size());
@@ -3236,9 +3214,7 @@ void Heap::EnsureAllocationLimitAboveCurrentSize() {
                  max_global_memory_size_);
   SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
                                            new_global_allocation_limit);
-  CHECK_LE(OldGenerationAllocationLimitConsumedBytes(),
-           old_generation_allocation_limit());
-  CHECK_LE(GlobalConsumedBytes(), global_allocation_limit());
+  CHECK_LE(OldGenerationConsumedBytes(), old_generation_allocation_limit());
   set_using_initial_limit(false);
 }
 
@@ -7899,7 +7875,6 @@ void Heap::NotifyLoadingStarted() { loading_state_.NotifyStarted(this); }
 void Heap::NotifyLoadingEnded(LeaveHeapState context) {
   loading_state_.NotifyEnded(this);
   if (context == LeaveHeapState::kNotify) {
-    RecomputeLimitsAfterLoadingIfNeeded();
     if (auto* job = incremental_marking()->incremental_marking_job()) {
       // The task will start incremental marking (if needed not already started)
       // and advance marking if incremental marking is active.

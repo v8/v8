@@ -2188,7 +2188,6 @@ class Heap final {
   size_t GlobalMemoryAvailable();
 
   void RecomputeLimits(GarbageCollector collector);
-  void RecomputeLimitsAfterLoadingIfNeeded();
 
   struct LimitsComputationResult {
     size_t old_generation_allocation_limit;
