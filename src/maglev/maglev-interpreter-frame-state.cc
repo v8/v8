@@ -887,11 +887,9 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   }
 
   NodeType merged_type = merged->GetStaticType(builder->broker());
-
+  NodeType type = IntersectType(
+      merged_type, AlternativeType(per_predecessor_alternatives->first()));
   bool is_tagged = merged->is_tagged();
-  NodeType type = merged_type != NodeType::kUnknown
-                      ? merged_type
-                      : AlternativeType(per_predecessor_alternatives->first());
   int i = 0;
   for (const Alternatives* alt : *per_predecessor_alternatives) {
     ValueNode* tagged = is_tagged ? merged : alt->tagged_alternative();
@@ -901,9 +899,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
                                  predecessors_[i]);
     }
     result->set_input(i, tagged);
-    type = UnionType(type, merged_type != NodeType::kUnknown
-                               ? merged_type
-                               : AlternativeType(alt));
+    type = UnionType(type, IntersectType(merged_type, AlternativeType(alt)));
     i++;
   }
   DCHECK_EQ(i, predecessors_so_far_);
