@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "src/api/api-inl.h"
@@ -919,11 +920,11 @@ MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
   std::vector<std::string> requested_locales;
   if (!CanonicalizeLocaleList(isolate, locales, true).To(&requested_locales))
     return {};
-  std::string requested_locale = requested_locales.empty()
-                                     ? isolate->DefaultLocale()
-                                     : requested_locales[0];
+  std::string_view requested_locale = requested_locales.empty()
+                                          ? isolate->DefaultLocale()
+                                          : requested_locales[0];
   size_t dash = requested_locale.find('-');
-  if (dash != std::string::npos) {
+  if (dash != std::string_view::npos) {
     requested_locale = requested_locale.substr(0, dash);
   }
 
@@ -948,7 +949,8 @@ MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
   // Greek (el) does not require any adjustment.
   if (V8_UNLIKELY((requested_locale == "tr") || (requested_locale == "el") ||
                   (requested_locale == "lt") || (requested_locale == "az"))) {
-    return LocaleConvertCase(isolate, s, to_upper, requested_locale.c_str());
+    return LocaleConvertCase(isolate, s, to_upper,
+                             std::string(requested_locale).c_str());
   } else {
     if (to_upper) {
       return ConvertToUpper(isolate, s);
