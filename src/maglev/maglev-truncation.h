@@ -260,8 +260,8 @@ class TruncationProcessor {
   void PostProcessNode(ControlNode*);
 
   int NonInt32InputCount(ValueNode* node);
-  ValueNode* GetUnwrappedInput(ValueNode* node, int index);
-  void UnwrapInputs(ValueNode* node);
+  ValueNode* GetTruncatedInt32Input(ValueNode* node, int index);
+  void EnsureTruncatedInt32Inputs(ValueNode* node);
   void ConvertInputsToFloat64(ValueNode* node);
 
   ProcessResult ProcessTruncatedConversion(ValueNode* node);
@@ -272,7 +272,7 @@ class TruncationProcessor {
     switch (NonInt32InputCount(node)) {
       case 0:
         // All inputs are Int32, truncate node.
-        UnwrapInputs(node);
+        EnsureTruncatedInt32Inputs(node);
         node->OverwriteWith<NodeT>();
         break;
       case 1:
@@ -310,13 +310,13 @@ class TruncationProcessor {
     if (IsCommutativeNode(Node::opcode_of<NodeT>)) {
       std::optional<int32_t> left = node->TryGetInt32ConstantInput(0);
       if (left && left == Int32Identity(Node::opcode_of<NodeT>)) {
-        node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 1));
+        node->OverwriteWithIdentityTo(node->input_node(1));
         return ProcessResult::kRemove;
       }
     }
     std::optional<int32_t> right = node->TryGetInt32ConstantInput(1);
     if (right && right == Int32Identity(Node::opcode_of<NodeT>)) {
-      node->OverwriteWithIdentityTo(GetUnwrappedInput(node, 0));
+      node->OverwriteWithIdentityTo(node->input_node(0));
       return ProcessResult::kRemove;
     }
     return ProcessResult::kContinue;
