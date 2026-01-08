@@ -311,42 +311,15 @@ class ExternalPointerSlot
     : public SlotBase<ExternalPointerSlot, ExternalPointer_t,
                       kTaggedSize /* slot alignment */> {
  public:
-  ExternalPointerSlot()
-      : SlotBase(kNullAddress)
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_range_()
-#endif
-  {
-  }
-
   ExternalPointerSlot(Address ptr, ExternalPointerTag tag_range)
-      : SlotBase(ptr)
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_range_(tag_range)
-#endif
-  {
-  }
+      : SlotBase(ptr), tag_range_(tag_range) {}
 
   ExternalPointerSlot(Address ptr, ExternalPointerTagRange tag_range)
-      : SlotBase(ptr)
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_range_(tag_range)
-#endif
-  {
-  }
+      : SlotBase(ptr), tag_range_(tag_range) {}
 
   template <ExternalPointerTag tag>
   explicit ExternalPointerSlot(ExternalPointerMember<tag>* member)
-      : SlotBase(member->storage_address())
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_range_(tag)
-#endif
-  {
-  }
+      : SlotBase(member->storage_address()), tag_range_(tag) {}
 
   inline void init_lazily_initialized();
 
@@ -398,7 +371,6 @@ class ExternalPointerSlot
   inline uint32_t GetContentAsIndexAfterDeserialization(
       const DisallowGarbageCollection& no_gc);
 
-#ifdef V8_COMPRESS_POINTERS
   bool ExactTagIsKnown() const { return tag_range_.Size() == 1; }
 
   ExternalPointerTag exact_tag() const {
@@ -407,15 +379,6 @@ class ExternalPointerSlot
   }
 
   ExternalPointerTagRange tag_range() const { return tag_range_; }
-#else
-  bool ExactTagIsKnown() const { return true; }
-
-  ExternalPointerTag exact_tag() const { return kExternalPointerNullTag; }
-
-  ExternalPointerTagRange tag_range() const {
-    return ExternalPointerTagRange();
-  }
-#endif  // V8_COMPRESS_POINTERS
 
  private:
 #ifdef V8_COMPRESS_POINTERS
@@ -423,10 +386,10 @@ class ExternalPointerSlot
     DCHECK(HasExternalPointerHandle());
     return reinterpret_cast<ExternalPointerHandle*>(address());
   }
+#endif  // V8_COMPRESS_POINTERS
 
   // The tag range associated with this slot.
   ExternalPointerTagRange tag_range_;
-#endif  // V8_COMPRESS_POINTERS
 };
 
 // Similar to ExternalPointerSlot with the difference that it refers to an

@@ -236,35 +236,51 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
 #ifdef V8_COMPRESS_POINTERS
   DCHECK(!slot.tag_range().IsEmpty());
-  if (slot.HasExternalPointerHandle()) {
-    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-    ExternalPointerTable* table;
-    ExternalPointerTable::Space* space;
-    if (IsSharedExternalPointerType(slot.tag_range())) {
-      table = shared_external_pointer_table_;
-      space = shared_external_pointer_space_;
-    } else {
-      table = external_pointer_table_;
-      if (v8_flags.sticky_mark_bits) {
-        // Everything is considered old during major GC.
-        DCHECK(!HeapLayout::InYoungGeneration(host));
-        if (handle == kNullExternalPointerHandle) return;
-        // The object may either be in young or old EPT.
-        if (table->Contains(heap_->young_external_pointer_space(), handle)) {
-          space = heap_->young_external_pointer_space();
-        } else {
-          DCHECK(table->Contains(heap_->old_external_pointer_space(), handle));
-          space = heap_->old_external_pointer_space();
-        }
-      } else {
-        space = HeapLayout::InYoungGeneration(host)
-                    ? heap_->young_external_pointer_space()
-                    : heap_->old_external_pointer_space();
-      }
-    }
-    table->Mark(space, handle, slot.address());
+  if (!slot.HasExternalPointerHandle()) {
+    return;
   }
-#endif  // V8_COMPRESS_POINTERS
+  const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  ExternalPointerTable* table;
+  ExternalPointerTable::Space* space;
+  if (IsSharedExternalPointerType(slot.tag_range())) {
+    table = shared_external_pointer_table_;
+    space = shared_external_pointer_space_;
+  } else {
+    table = external_pointer_table_;
+    if constexpr (v8_flags.sticky_mark_bits.value()) {
+      // Everything is considered old during major GC.
+      DCHECK(!HeapLayout::InYoungGeneration(host));
+      if (handle == kNullExternalPointerHandle) return;
+      // The object may either be in young or old EPT.
+      if (table->Contains(heap_->young_external_pointer_space(), handle)) {
+        space = heap_->young_external_pointer_space();
+      } else {
+        DCHECK(table->Contains(heap_->old_external_pointer_space(), handle));
+        space = heap_->old_external_pointer_space();
+      }
+    } else {
+      space = HeapLayout::InYoungGeneration(host)
+                  ? heap_->young_external_pointer_space()
+                  : heap_->old_external_pointer_space();
+    }
+  }
+  table->Mark(space, handle, slot.address());
+  if (slot.tag_range() != kArrayBufferExtensionTag) {
+    return;
+  }
+  Address maybe_extension = table->Get(handle, slot.tag_range());
+#else   // !V8_COMPRESS_POINTERS
+  if (slot.tag_range() != kArrayBufferExtensionTag) {
+    return;
+  }
+  Address maybe_extension = slot.load(heap_->isolate());
+#endif  // !V8_COMPRESS_POINTERS
+  if (maybe_extension) {
+    ArrayBufferExtension* extension =
+        reinterpret_cast<ArrayBufferExtension*>(maybe_extension);
+    extension->InitializationBarrier();
+    extension->Mark();
+  }
 }
 
 template <typename ConcreteVisitor>
@@ -658,18 +674,6 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
                  progress_tracker.IsEnabled()
              ? VisitFixedArrayWithProgressTracker(map, object, progress_tracker)
              : Base::VisitFixedArray(map, object, maybe_object_size);
-}
-
-// ===========================================================================
-// Custom visitation =========================================================
-// ===========================================================================
-
-template <typename ConcreteVisitor>
-size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
-    Tagged<Map> map, Tagged<JSArrayBuffer> object,
-    MaybeObjectSize maybe_object_size) {
-  object->MarkExtension();
-  return Base::VisitJSArrayBuffer(map, object, maybe_object_size);
 }
 
 // ===========================================================================

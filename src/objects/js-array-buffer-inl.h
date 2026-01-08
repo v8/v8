@@ -109,16 +109,13 @@ void JSArrayBuffer::init_extension() {
 
 ArrayBufferExtension* JSArrayBuffer::extension() const {
 #if V8_COMPRESS_POINTERS
-  // We need Acquire semantics here when loading the entry, see below.
-  // Consider adding respective external pointer accessors if non-relaxed
-  // ordering semantics are ever needed in other places as well.
   Isolate* isolate = Isolate::Current();
   ExternalPointerHandle handle =
-      base::AsAtomic32::Acquire_Load(extension_handle_location());
+      base::AsAtomic32::Relaxed_Load(extension_handle_location());
   return reinterpret_cast<ArrayBufferExtension*>(
       isolate->external_pointer_table().Get(handle, kArrayBufferExtensionTag));
 #else
-  return base::AsAtomicPointer::Acquire_Load(extension_location());
+  return base::AsAtomicPointer::Relaxed_Load(extension_location());
 #endif  // V8_COMPRESS_POINTERS
 }
 
@@ -128,23 +125,21 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
   // pointer fields in the no-sandbox-ptr-compression config, replace this code
   // here and above with the respective external pointer accessors.
   IsolateForPointerCompression isolate = Isolate::Current();
-  const ExternalPointerTag tag = kArrayBufferExtensionTag;
+  constexpr ExternalPointerTag tag = kArrayBufferExtensionTag;
   Address value = reinterpret_cast<Address>(extension);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
-
   ExternalPointerHandle current_handle =
       base::AsAtomic32::Relaxed_Load(extension_handle_location());
   if (current_handle == kNullExternalPointerHandle) {
-    // We need Release semantics here, see above.
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
         isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
-    base::AsAtomic32::Release_Store(extension_handle_location(), handle);
+    base::AsAtomic32::Relaxed_Store(extension_handle_location(), handle);
     EXTERNAL_POINTER_WRITE_BARRIER(*this, kExtensionOffset, tag);
   } else {
     table.Set(current_handle, value, tag);
   }
 #else
-  base::AsAtomicPointer::Release_Store(extension_location(), extension);
+  base::AsAtomicPointer::Relaxed_Store(extension_location(), extension);
 #endif  // V8_COMPRESS_POINTERS
   WriteBarrier::ForArrayBufferExtension(*this, extension);
 }

@@ -485,6 +485,7 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepListFull(
   size_t swept_extensions = 0;
 
   while (current) {
+    current->InitializationBarrier();
     DCHECK_EQ(list.age_, current->age());
     if ((swept_extensions++ & (kYieldCheckInterval - 1)) == 0) {
       if (delegate->ShouldYield()) break;
@@ -529,6 +530,7 @@ bool ArrayBufferSweeper::SweepingState::SweepingJob::SweepYoung(
   size_t swept_extensions = 0;
 
   while (current) {
+    current->InitializationBarrier();
     DCHECK_EQ(ArrayBufferExtension::Age::kYoung, current->age());
     if ((swept_extensions++ & (kYieldCheckInterval - 1)) == 0) {
       if (delegate->ShouldYield()) break;

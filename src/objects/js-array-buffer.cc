@@ -277,28 +277,6 @@ std::shared_ptr<BackingStore> JSArrayBuffer::RemoveExtension() {
   return result;
 }
 
-void JSArrayBuffer::MarkExtension() {
-  ArrayBufferExtension* extension = this->extension();
-  if (extension) {
-    extension->Mark();
-  }
-}
-
-void JSArrayBuffer::YoungMarkExtension() {
-  ArrayBufferExtension* extension = this->extension();
-  if (extension) {
-    DCHECK_EQ(ArrayBufferExtension::Age::kYoung, extension->age());
-    extension->YoungMark();
-  }
-}
-
-void JSArrayBuffer::YoungMarkExtensionPromoted() {
-  ArrayBufferExtension* extension = this->extension();
-  if (extension) {
-    extension->YoungMarkPromoted();
-  }
-}
-
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
   DirectHandle<JSTypedArray> self(*this, isolate);
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(self->GetElementsKind()));

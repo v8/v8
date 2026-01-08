@@ -78,14 +78,6 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitCppHeapPointer(
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
-size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSArrayBuffer(
-    Tagged<Map> map, Tagged<JSArrayBuffer> object,
-    MaybeObjectSize maybe_object_size) {
-  object->YoungMarkExtension();
-  return Base::VisitJSArrayBuffer(map, object, maybe_object_size);
-}
-
-template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename T, typename TBodyDescriptor>
 size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
     Tagged<Map> map, Tagged<T> object, MaybeObjectSize maybe_object_size) {
@@ -131,6 +123,14 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
     ExternalPointerTable& table = isolate_->external_pointer_table();
     auto* space = isolate_->heap()->young_external_pointer_space();
     table.Mark(space, handle, slot.address());
+    if (slot.tag_range() == kArrayBufferExtensionTag) {
+      if (ArrayBufferExtension* extension =
+              reinterpret_cast<ArrayBufferExtension*>(
+                  table.Get(handle, kArrayBufferExtensionTag))) {
+        extension->InitializationBarrier();
+        extension->YoungMark();
+      }
+    }
   }
 
   // Add to the remset whether the handle is null or not, as the slot could be
