@@ -1159,7 +1159,8 @@ std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
     AsyncCompileJob* job) {
   base::MutexGuard guard(&mutex_);
   auto item = async_compile_jobs_.find(job);
-  DCHECK(item != async_compile_jobs_.end());
+  // TODO(https://crbug.com/466449860): Demote to DCHECK once issue is fixed.
+  CHECK_NE(async_compile_jobs_.end(), item);
   std::unique_ptr<AsyncCompileJob> result = std::move(item->second);
   async_compile_jobs_.erase(item);
   return result;
