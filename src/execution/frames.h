@@ -1090,6 +1090,9 @@ class ApiNamedAccessorExitFrame : public ApiAccessorExitFrame {
 
   inline Tagged<Name> property_name() const;
 
+  // GC support.
+  void Iterate(RootVisitor* v) const override;
+
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 

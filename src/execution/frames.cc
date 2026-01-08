@@ -1163,6 +1163,11 @@ void ExitFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, constant_pool_address(), GcSafeLookupCode());
 }
 
+void ApiNamedAccessorExitFrame::Iterate(RootVisitor* v) const {
+  v->VisitRootPointer(Root::kStackRoots, nullptr, property_key_slot());
+  ApiAccessorExitFrame::Iterate(v);
+}
+
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   if (fp == 0) return NO_FRAME_TYPE;
   StackFrame::Type type = ComputeFrameType(fp);
