@@ -5,8 +5,12 @@
 #include "src/regexp/regexp-bytecode-peephole.h"
 
 #include <limits>
+#include <memory>
 #include <optional>
+#include <unordered_map>
+#include <vector>
 
+#include "src/base/lazy-instance.h"
 #include "src/flags/flags.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
@@ -105,7 +109,7 @@ struct BytecodeArgumentCheck : public BytecodeArgument {
 // Trie-Node for storing bytecode sequences we want to optimize.
 class BytecodeSequenceNode {
  public:
-  BytecodeSequenceNode(std::optional<RegExpBytecode> bytecode, Zone* zone);
+  explicit BytecodeSequenceNode(std::optional<RegExpBytecode> bytecode);
   // Adds a new node as child of the current node if it isn't a child already.
   BytecodeSequenceNode& FollowedBy(RegExpBytecode bytecode);
   // Marks the end of a sequence and sets optimized bytecode to replace all
@@ -165,7 +169,7 @@ class BytecodeSequenceNode {
   // Checks if the current node is valid for the sequence. I.e. all conditions
   // set by IfArgumentEqualsOffset and IfArgumentEquals are fulfilled by this
   // node for the actual bytecode sequence.
-  bool CheckArguments(const uint8_t* bytecode, int pc);
+  bool CheckArguments(const uint8_t* bytecode, int pc) const;
   // Returns whether this node marks the end of a valid sequence (i.e. can be
   // replaced with an optimized bytecode).
   bool IsSequence() const;
@@ -187,30 +191,40 @@ class BytecodeSequenceNode {
   // Returns an iterator to begin of ignored arguments.
   // Invoking this method is only allowed on nodes that mark the end of a valid
   // sequence (i.e. if IsSequence())
-  ZoneLinkedList<BytecodeArgument>::iterator ArgumentIgnoredBegin() const;
+  std::vector<BytecodeArgument>::const_iterator ArgumentIgnoredBegin() const;
   // Returns an iterator to end of ignored arguments.
   // Invoking this method is only allowed on nodes that mark the end of a valid
   // sequence (i.e. if IsSequence())
-  ZoneLinkedList<BytecodeArgument>::iterator ArgumentIgnoredEnd() const;
+  std::vector<BytecodeArgument>::const_iterator ArgumentIgnoredEnd() const;
   // Returns whether the current node has ignored argument or not.
   bool HasIgnoredArguments() const;
 
  private:
   // Returns a node in the sequence specified by its index within the sequence.
   BytecodeSequenceNode& GetNodeByIndexInSequence(int index_in_sequence);
-  Zone* zone() const;
 
   std::optional<RegExpBytecode> bytecode_;
   std::optional<RegExpBytecode> bytecode_replacement_;
   int index_in_sequence_;
   int start_offset_;
   BytecodeSequenceNode* parent_;
-  ZoneUnorderedMap<RegExpBytecode, BytecodeSequenceNode*> children_;
-  ZoneVector<BytecodeArgumentMapping>* argument_mapping_;
-  ZoneLinkedList<BytecodeArgumentCheck>* argument_check_;
-  ZoneLinkedList<BytecodeArgument>* argument_ignored_;
+  std::unordered_map<RegExpBytecode, std::unique_ptr<BytecodeSequenceNode>>
+      children_;
+  std::vector<BytecodeArgumentMapping> argument_mapping_;
+  std::vector<BytecodeArgumentCheck> argument_check_;
+  std::vector<BytecodeArgument> argument_ignored_;
+};
 
-  Zone* zone_;
+class RegExpBytecodePeepholeSequences {
+ public:
+  RegExpBytecodePeepholeSequences();
+  const BytecodeSequenceNode* sequences() const { return &sequences_; }
+
+ private:
+  void DefineStandardSequences();
+  BytecodeSequenceNode& CreateSequence(RegExpBytecode bytecode);
+
+  BytecodeSequenceNode sequences_;
 };
 
 class RegExpBytecodePeephole {
@@ -226,10 +240,6 @@ class RegExpBytecodePeephole {
   RegExpBytecodePeephole(Zone* zone, const RegExpBytecodeWriter* src_writer,
                          RegExpBytecodeWriter* dst_writer);
 
-  // Sets up all sequences that are going to be used.
-  void DefineStandardSequences();
-  // Starts a new bytecode sequence.
-  BytecodeSequenceNode& CreateSequence(RegExpBytecode bytecode);
   // Checks for optimization candidates at pc and emits optimized bytecode to
   // the internal buffer. Returns the length of replaced bytecodes in bytes.
   int TryOptimizeSequence(const uint8_t* bytecode, int bytecode_length,
@@ -254,7 +264,6 @@ class RegExpBytecodePeephole {
 
   RegExpBytecodeWriter* const dst_writer_;
   const RegExpBytecodeWriter* const src_writer_;
-  BytecodeSequenceNode* sequences_;
 
   // TODO(jgruber): We should also replace all of these raw offsets with
   // OpInfo. That should allow us to not expose the "raw" Emit publicly in the
@@ -299,23 +308,17 @@ int32_t GetArgumentValue(const uint8_t* bytecode, int offset, int length) {
 }
 
 BytecodeSequenceNode::BytecodeSequenceNode(
-    std::optional<RegExpBytecode> bytecode, Zone* zone)
+    std::optional<RegExpBytecode> bytecode)
     : bytecode_(bytecode),
       bytecode_replacement_(std::nullopt),
       index_in_sequence_(0),
       start_offset_(0),
-      parent_(nullptr),
-      children_(ZoneUnorderedMap<RegExpBytecode, BytecodeSequenceNode*>(zone)),
-      argument_mapping_(zone->New<ZoneVector<BytecodeArgumentMapping>>(zone)),
-      argument_check_(zone->New<ZoneLinkedList<BytecodeArgumentCheck>>(zone)),
-      argument_ignored_(zone->New<ZoneLinkedList<BytecodeArgument>>(zone)),
-      zone_(zone) {}
+      parent_(nullptr) {}
 
 BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(
     RegExpBytecode bytecode) {
   if (children_.find(bytecode) == children_.end()) {
-    BytecodeSequenceNode* new_node =
-        zone()->New<BytecodeSequenceNode>(bytecode, zone());
+    auto new_node = std::make_unique<BytecodeSequenceNode>(bytecode);
     // If node is not the first in the sequence, set offsets and parent.
     if (bytecode_.has_value()) {
       new_node->start_offset_ =
@@ -323,7 +326,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(
       new_node->index_in_sequence_ = index_in_sequence_ + 1;
       new_node->parent_ = this;
     }
-    children_[bytecode] = new_node;
+    children_[bytecode] = std::move(new_node);
   }
 
   return *children_[bytecode];
@@ -349,7 +352,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::MapArgument(
   DCHECK_LT(src_offset, RegExpBytecodes::Size(ref_node.bytecode_.value()));
 
   int offset_from_start_of_sequence = ref_node.start_offset_ + src_offset;
-  argument_mapping_->push_back(BytecodeArgumentMapping{
+  argument_mapping_.push_back(BytecodeArgumentMapping{
       offset_from_start_of_sequence, src_size, to_op_info});
   return *this;
 }
@@ -357,7 +360,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::MapArgument(
 BytecodeSequenceNode& BytecodeSequenceNode::EmitOffsetAfterSequence(
     OpInfo op_info) {
   DCHECK(BytecodeArgumentMappingCreatedInOrder(op_info));
-  argument_mapping_->push_back(BytecodeArgumentMapping{
+  argument_mapping_.push_back(BytecodeArgumentMapping{
       BytecodeArgumentMapping::Type::kOffsetAfterSequence, op_info});
   return *this;
 }
@@ -365,9 +368,9 @@ BytecodeSequenceNode& BytecodeSequenceNode::EmitOffsetAfterSequence(
 bool BytecodeSequenceNode::BytecodeArgumentMappingCreatedInOrder(
     OpInfo op_info) {
   DCHECK(IsSequence());
-  if (argument_mapping_->empty()) return true;
+  if (argument_mapping_.empty()) return true;
 
-  const BytecodeArgumentMapping& m = argument_mapping_->back();
+  const BytecodeArgumentMapping& m = argument_mapping_.back();
   int offset_after_last = m.new_offset() + m.new_length();
   // TODO(jgruber): It'd be more precise to distinguish between special and
   // basic operand types, but we currently don't expose that information
@@ -387,8 +390,8 @@ BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsOffset(
 
   int offset_from_start_of_sequence = start_offset_ + offset;
 
-  argument_check_->push_back(BytecodeArgumentCheck{
-      offset_from_start_of_sequence, size, check_byte_offset});
+  argument_check_.push_back(BytecodeArgumentCheck{offset_from_start_of_sequence,
+                                                  size, check_byte_offset});
 
   return *this;
 }
@@ -412,7 +415,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsValueAtOffset(
   int other_offset_from_start_of_sequence =
       ref_node.start_offset_ + other_op_info.offset;
 
-  argument_check_->push_back(
+  argument_check_.push_back(
       BytecodeArgumentCheck{offset_from_start_of_sequence, size_1,
                             other_offset_from_start_of_sequence, size_2});
 
@@ -433,16 +436,17 @@ BytecodeSequenceNode& BytecodeSequenceNode::IgnoreArgument(
 
   int offset_from_start_of_sequence = ref_node.start_offset_ + offset;
 
-  argument_ignored_->push_back(
+  argument_ignored_.push_back(
       BytecodeArgument{offset_from_start_of_sequence, size});
 
   return *this;
 }
 
-bool BytecodeSequenceNode::CheckArguments(const uint8_t* bytecode, int pc) {
+bool BytecodeSequenceNode::CheckArguments(const uint8_t* bytecode,
+                                          int pc) const {
   bool is_valid = true;
-  for (auto check_iter = argument_check_->begin();
-       check_iter != argument_check_->end() && is_valid; check_iter++) {
+  for (auto check_iter = argument_check_.begin();
+       check_iter != argument_check_.end() && is_valid; check_iter++) {
     auto value = GetArgumentValue(bytecode, pc + check_iter->offset(),
                                   check_iter->length());
     if (check_iter->type == BytecodeArgumentCheck::kCheckAddress) {
@@ -474,39 +478,36 @@ BytecodeSequenceNode* BytecodeSequenceNode::Find(
     RegExpBytecode bytecode) const {
   auto found = children_.find(bytecode);
   if (found == children_.end()) return nullptr;
-  return found->second;
+  return found->second.get();
 }
 
 size_t BytecodeSequenceNode::ArgumentSize() const {
   DCHECK(IsSequence());
-  return argument_mapping_->size();
+  return argument_mapping_.size();
 }
 
 BytecodeArgumentMapping BytecodeSequenceNode::ArgumentMapping(
     size_t index) const {
   DCHECK(IsSequence());
-  DCHECK(argument_mapping_ != nullptr);
-  DCHECK_LT(index, argument_mapping_->size());
+  DCHECK_LT(index, argument_mapping_.size());
 
-  return argument_mapping_->at(index);
+  return argument_mapping_.at(index);
 }
 
-ZoneLinkedList<BytecodeArgument>::iterator
+std::vector<BytecodeArgument>::const_iterator
 BytecodeSequenceNode::ArgumentIgnoredBegin() const {
   DCHECK(IsSequence());
-  DCHECK(argument_ignored_ != nullptr);
-  return argument_ignored_->begin();
+  return argument_ignored_.begin();
 }
 
-ZoneLinkedList<BytecodeArgument>::iterator
+std::vector<BytecodeArgument>::const_iterator
 BytecodeSequenceNode::ArgumentIgnoredEnd() const {
   DCHECK(IsSequence());
-  DCHECK(argument_ignored_ != nullptr);
-  return argument_ignored_->end();
+  return argument_ignored_.end();
 }
 
 bool BytecodeSequenceNode::HasIgnoredArguments() const {
-  return argument_ignored_ != nullptr;
+  return !argument_ignored_.empty();
 }
 
 BytecodeSequenceNode& BytecodeSequenceNode::GetNodeByIndexInSequence(
@@ -521,14 +522,21 @@ BytecodeSequenceNode& BytecodeSequenceNode::GetNodeByIndexInSequence(
   }
 }
 
-Zone* BytecodeSequenceNode::zone() const { return zone_; }
+RegExpBytecodePeepholeSequences::RegExpBytecodePeepholeSequences()
+    : sequences_(std::nullopt) {
+  DefineStandardSequences();
+}
+
+BytecodeSequenceNode& RegExpBytecodePeepholeSequences::CreateSequence(
+    RegExpBytecode bytecode) {
+  return sequences_.FollowedBy(bytecode);
+}
 
 RegExpBytecodePeephole::RegExpBytecodePeephole(
     Zone* zone, const RegExpBytecodeWriter* src_writer,
     RegExpBytecodeWriter* dst_writer)
     : dst_writer_(dst_writer),
       src_writer_(src_writer),
-      sequences_(zone->New<BytecodeSequenceNode>(std::nullopt, zone)),
       jump_usage_counts_(zone),
       jump_destination_fixups_(zone),
       zone_(zone),
@@ -539,7 +547,6 @@ RegExpBytecodePeephole::RegExpBytecodePeephole(
     int jump_destination = jump_edge.second;
     jump_usage_counts_[jump_destination]++;
   }
-  DefineStandardSequences();
   // Sentinel fixups at beginning of bytecode (position -1) so we don't have to
   // check for end of iterator inside the fixup loop.
   // In general fixups are deltas of original offsets of jump
@@ -553,7 +560,7 @@ RegExpBytecodePeephole::RegExpBytecodePeephole(
   jump_destination_fixups_.emplace(static_cast<int>(src_writer_->length()), 0);
 }
 
-void RegExpBytecodePeephole::DefineStandardSequences() {
+void RegExpBytecodePeepholeSequences::DefineStandardSequences() {
   using B = RegExpBytecode;
 #define I(BYTECODE, OPERAND)                    \
   OpInfo::Get<RegExpBytecodeOperands<BYTECODE>, \
@@ -847,18 +854,14 @@ bool RegExpBytecodePeephole::OptimizeBytecode(
   return did_optimize;
 }
 
-BytecodeSequenceNode& RegExpBytecodePeephole::CreateSequence(
-    RegExpBytecode bytecode) {
-  DCHECK(sequences_ != nullptr);
-
-  return sequences_->FollowedBy(bytecode);
-}
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(RegExpBytecodePeepholeSequences,
+                                GetStandardSequences)
 
 int RegExpBytecodePeephole::TryOptimizeSequence(const uint8_t* bytecode,
                                                 int bytecode_length,
                                                 int start_pc) {
-  BytecodeSequenceNode* seq_node = sequences_;
-  BytecodeSequenceNode* valid_seq_end = nullptr;
+  const BytecodeSequenceNode* seq_node = GetStandardSequences()->sequences();
+  const BytecodeSequenceNode* valid_seq_end = nullptr;
 
   int current_pc = start_pc;
 
