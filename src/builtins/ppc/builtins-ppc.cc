@@ -3541,7 +3541,7 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   Register scratch = r7;
   DCHECK(!AreAliased(scratch, target_stack));
   __ LoadU64(scratch, MemOperand(target_stack, wasm::kStackFpOffset));
-  __ CmpSmiLiteral(scratch, Smi::FromInt(0), r0);
+  __ CmpU64(scratch, Operand(kNullAddress), r0);
   Label throw_;
   __ beq(&throw_);
   Register tag = WasmFXResumeThrowDescriptor::GetRegisterParameter(1);
@@ -3557,7 +3557,7 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   DCHECK(!AreAliased(scratch, target_stack));
   LoadJumpBuffer(masm, target_stack, false, scratch);
   __ bind(&throw_);
-  // Forward the exception to kThrow.
+  // Throw the exception.
   __ Push(tag);
   __ Push(array);
   __ Push(trusted_instance_data);
