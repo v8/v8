@@ -753,6 +753,10 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
 
   void RaiseException(Isolate* isolate, MessageTemplate message);
 
+  void AddWasmGCAllocation(size_t bytes) { wasmgc_allocated_bytes_ += bytes; }
+  size_t wasmgc_allocated_bytes() const { return wasmgc_allocated_bytes_; }
+  void ResetWasmGCAllocationCounter() { wasmgc_allocated_bytes_ = 0; }
+
  private:
   void Finish() { state_ = State::FINISHED; }
 
@@ -792,6 +796,10 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   // caller.
   Handle<FixedArray> reference_stack_;
   size_t current_ref_stack_size_;
+
+  // Tracks wasmgc allocations (structs/arrays). Only non-zero if wasmgc is
+  // used. This allows skipping GC checks entirely for non-wasmgc Wasm apps.
+  size_t wasmgc_allocated_bytes_ = 0;
 
   WasmExecutionTimer execution_timer_;
 };

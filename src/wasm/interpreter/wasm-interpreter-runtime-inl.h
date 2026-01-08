@@ -13,6 +13,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/execution/arguments-inl.h"
+#include "src/heap/incremental-marking.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -156,6 +157,26 @@ inline DirectHandle<Object> WasmInterpreterRuntime::GetWasmArrayRefElement(
 inline bool WasmInterpreterRuntime::WasmStackCheck(
     const uint8_t* current_bytecode, const uint8_t*& code) {
   StackLimitCheck stack_check(isolate_);
+
+  // Counter for periodic GC checks during wasmgc execution.
+  // The interpreter's allocation pattern causes V8's GC heuristics to inflate
+  // limits, preventing major GC from triggering. We periodically check if
+  // old_space is getting large and trigger GC if needed.
+  // This check is skipped entirely if no wasmgc allocations have been made.
+  // Configure via --drumbrake-gc-check-interval and --drumbrake-gc-threshold.
+  static thread_local int stack_check_gc_counter_ = 0;
+
+  if (V8_UNLIKELY(current_thread_->wasmgc_allocated_bytes()) > 0) {
+    if (++stack_check_gc_counter_ >= v8_flags.drumbrake_gc_check_interval) {
+      stack_check_gc_counter_ = 0;
+      if (isolate_->heap()->OldGenerationSizeOfObjects() >
+          v8_flags.drumbrake_gc_threshold) {
+        isolate_->heap()->CollectGarbage(
+            OLD_SPACE, GarbageCollectionReason::kAllocationLimit);
+        current_thread_->ResetWasmGCAllocationCounter();
+      }
+    }
+  }
 
   current_frame_.current_bytecode_ = current_bytecode;
   current_thread_->SetCurrentFrame(current_frame_);
