@@ -1549,6 +1549,19 @@ class V8_EXPORT Isolate {
   void SetIsLoading(bool is_loading);
 
   /**
+   * Optional notification to tell V8 whether the embedder is currently
+   * handling user input. If the embedder uses this notification, it should
+   * call SetIsInputHandling(true) when input handling starts, and
+   * SetIsInputHandling(false) when it ends.
+   * Calling SetIsInputHandling(true) while handling input, or calling
+   * SetIsInputHandling(false) while not handling input, both have no effect.
+   * V8 uses these notifications to guide heuristics.
+   * This is an unfinished experimental feature. Semantics and implementation
+   * may change frequently.
+   */
+  void SetIsInputHandling(bool is_input_handling);
+
+  /**
    * Optional notification to tell V8 whether the embedder is currently frozen.
    * V8 uses these notifications to guide heuristics.
    * This is an unfinished experimental feature. Semantics and implementation

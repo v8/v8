@@ -10658,6 +10658,11 @@ void Isolate::SetIsLoading(bool is_loading) {
   i_isolate->SetIsLoading(is_loading);
 }
 
+void Isolate::SetIsInputHandling(bool is_input_handling) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->SetIsInputHandling(is_input_handling);
+}
+
 void Isolate::Freeze(bool is_frozen) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->Freeze(is_frozen);

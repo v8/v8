@@ -7536,6 +7536,14 @@ void Isolate::SetIsLoading(bool is_loading) {
   }
 }
 
+void Isolate::SetIsInputHandling(bool is_input_handling) {
+  if (is_input_handling) {
+    heap()->NotifyInputHandlingStarted();
+  } else {
+    heap()->NotifyInputHandlingEnded();
+  }
+}
+
 void Isolate::SetPriority(v8::Isolate::Priority priority) {
   priority_ = priority;
   heap()->tracer()->UpdateCurrentEventPriority(priority_);

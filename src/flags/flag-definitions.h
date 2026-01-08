@@ -2602,6 +2602,11 @@ DEFINE_BOOL(trace_flush_code, false, "trace bytecode flushing")
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
+DEFINE_INT(fixed_margin_for_input_handling, 64,
+           "how much we are allowed to overshoot the heap limit by during "
+           "input mode, in MiB.")
+DEFINE_BOOL(optimize_for_input_handling, false,
+            "whether to use input hints to optimize for responsiveness.")
 DEFINE_BOOL(stress_per_context_marking_worklist, false,
             "Use per-context worklist for marking")
 DEFINE_BOOL(stress_incremental_marking, false,

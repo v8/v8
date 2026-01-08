@@ -294,7 +294,6 @@ Heap::Heap()
       tracing_track_(perfetto::NamedTrack::FromPointer(
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
                          .disable_sibling_merge()),
-      loading_track_("Loading", 0, tracing_track_),
       gc_tracing_category_enabled_(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACE_DISABLED_BY_DEFAULT("v8.gc"))) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
@@ -1758,6 +1757,10 @@ void Heap::CollectGarbage(
 
   if (IsLoadingInitialized() && !IsLoading()) {
     NotifyLoadingEnded(LeaveHeapState::kReachedTimeout);
+  }
+
+  if (IsInputHandlingInitialized() && !IsInputHandling()) {
+    NotifyInputHandlingEnded(LeaveHeapState::kReachedTimeout);
   }
 
   // Epilogue callbacks. These callbacks may trigger GC themselves and thus
@@ -5663,19 +5666,74 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
   return v8_overshoot >= v8_margin || global_overshoot >= global_margin;
 }
 
+namespace {
+uint64_t GetFixedMarginForInputHandlingBytes() {
+  DCHECK(v8_flags.optimize_for_input_handling);
+  const int fixed_margin = std::clamp(
+      static_cast<int>(v8_flags.fixed_margin_for_input_handling), 0, 64);
+  return fixed_margin * MB;
+}
+}  // namespace
+
+bool Heap::AllocationLimitOvershotByFixedMargin(
+    const uint64_t overshoot_margin) const {
+  uint64_t size_now = OldGenerationConsumedBytes();
+  if (incremental_marking()->IsMajorMarking()) {
+    // No interleaved GCs, so we count young gen as part of old gen.
+    size_now += YoungGenerationConsumedBytes();
+  }
+
+  const size_t old_gen_limit = old_generation_allocation_limit();
+
+  if (size_now > old_gen_limit + overshoot_margin) return true;
+
+  const size_t global_limit = global_allocation_limit();
+  const size_t global_size = GlobalConsumedBytes();
+  if (global_size > global_limit + overshoot_margin) return true;
+
+  return false;
+}
+
 bool Heap::ShouldOptimizeForLoadTime() const {
   return IsLoading() && !AllocationLimitOvershotByLargeMargin();
 }
 
-bool Heap::IsLoading() const {
-  double load_start_time = load_start_time_ms_.load(std::memory_order_relaxed);
-  return load_start_time != kLoadTimeNotLoading &&
-         MonotonicallyIncreasingTimeInMs() < load_start_time + kMaxLoadTimeMs;
+bool Heap::ShouldOptimizeForInputHandlingResponsiveness() const {
+  if (!v8_flags.optimize_for_input_handling) {
+    return false;
+  }
+  // TODO(crbug.com/444705203): The current implementation of input mode tracks
+  // our state, regardless of if the flag is enabled or not. This is to allow us
+  // to add metrics. If we end up not needing this for metrics, consider
+  // simplifying the state here.
+  return IsInputHandling() && !(AllocationLimitOvershotByFixedMargin(
+                                    GetFixedMarginForInputHandlingBytes()) ||
+                                AllocationLimitOvershotByLargeMargin());
+}
+
+bool Heap::GCHintState::IsInitialized() const {
+  const double start_time = start_time_ms_.load(std::memory_order_relaxed);
+  return start_time != kInactive;
+}
+
+bool Heap::GCHintState::IsActive(const Heap* heap) const {
+  const double start_time = start_time_ms_.load(std::memory_order_relaxed);
+  return start_time != kInactive &&
+         heap->MonotonicallyIncreasingTimeInMs() < start_time + max_time();
+}
+
+bool Heap::IsLoading() const { return loading_state_.IsActive(this); }
+
+bool Heap::IsInputHandling() const {
+  return input_handling_state_.IsActive(this);
 }
 
 bool Heap::IsLoadingInitialized() const {
-  return load_start_time_ms_.load(std::memory_order_relaxed) !=
-         kLoadTimeNotLoading;
+  return loading_state_.IsInitialized();
+}
+
+bool Heap::IsInputHandlingInitialized() const {
+  return input_handling_state_.IsInitialized();
 }
 
 // This predicate is called when an old generation space cannot allocated from
@@ -5724,6 +5782,8 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
   }
 
   if (ShouldOptimizeForLoadTime()) return true;
+
+  if (ShouldOptimizeForInputHandlingResponsiveness()) return true;
 
   if (incremental_marking()->IsMajorMarking() &&
       AllocationLimitOvershotByLargeMargin()) {
@@ -5931,6 +5991,10 @@ Heap::IncrementalMarkingLimitReached() {
   if (ShouldOptimizeForLoadTime()) {
     return std::make_pair(IncrementalMarkingLimit::kNoLimit,
                           "optimize for load time");
+  }
+  if (ShouldOptimizeForInputHandlingResponsiveness()) {
+    return std::make_pair(IncrementalMarkingLimit::kNoLimit,
+                          "optimize for input handling responsiveness");
   }
   if (old_generation_space_available == 0) {
     return std::make_pair(IncrementalMarkingLimit::kHardLimit,
@@ -7830,19 +7894,10 @@ void Heap::EnsureYoungSweepingCompleted() {
   tracer()->NotifyYoungSweepingCompletedAndStopCycleIfFinished();
 }
 
-void Heap::NotifyLoadingStarted() {
-  if (IsLoading()) {
-    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
-  }
-  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "IsLoading",
-                    loading_track_);
-  double now_ms = MonotonicallyIncreasingTimeInMs();
-  DCHECK_NE(now_ms, kLoadTimeNotLoading);
-  load_start_time_ms_.store(now_ms, std::memory_order_relaxed);
-}
+void Heap::NotifyLoadingStarted() { loading_state_.NotifyStarted(this); }
 
 void Heap::NotifyLoadingEnded(LeaveHeapState context) {
-  load_start_time_ms_.store(kLoadTimeNotLoading, std::memory_order_relaxed);
+  loading_state_.NotifyEnded(this);
   if (context == LeaveHeapState::kNotify) {
     RecomputeLimitsAfterLoadingIfNeeded();
     if (auto* job = incremental_marking()->incremental_marking_job()) {
@@ -7854,7 +7909,45 @@ void Heap::NotifyLoadingEnded(LeaveHeapState context) {
     DCHECK_EQ(context, LeaveHeapState::kReachedTimeout);
     // Nothing to do here because we only trigger this from a GC.
   }
-  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
+}
+
+void Heap::NotifyInputHandlingStarted() {
+  if (IsInputHandling()) return;
+  input_handling_state_.NotifyStarted(this);
+}
+
+void Heap::NotifyInputHandlingEnded(LeaveHeapState context) {
+  input_handling_state_.NotifyEnded(this);
+  // TODO(crbug.com/444705203): Merge this function with |NotifyLoadingEnded|
+  // once the feature flag is removed.
+  if (!v8_flags.optimize_for_input_handling) {
+    return;
+  }
+  if (context == LeaveHeapState::kNotify) {
+    if (auto* job = incremental_marking()->incremental_marking_job()) {
+      // The task will start incremental marking (if needed not already
+      // started) and advance marking if incremental marking is active.
+      job->ScheduleTask();
+    }
+  } else {
+    DCHECK_EQ(context, LeaveHeapState::kReachedTimeout);
+    // Nothing to do here because we only trigger this from a GC.
+  }
+}
+
+void Heap::GCHintState::NotifyStarted(Heap* heap) {
+  if (IsActive(heap)) {
+    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), track_);
+  }
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), tag_, track_);
+  double now_ms = heap->MonotonicallyIncreasingTimeInMs();
+  DCHECK_NE(now_ms, kInactive);
+  start_time_ms_.store(now_ms, std::memory_order_relaxed);
+}
+
+void Heap::GCHintState::NotifyEnded(Heap* heap) {
+  start_time_ms_.store(kInactive, std::memory_order_relaxed);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), track_);
 }
 
 int Heap::NextScriptId() {
