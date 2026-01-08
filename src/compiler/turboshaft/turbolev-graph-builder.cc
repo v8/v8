@@ -4923,6 +4923,21 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  template <Either<maglev::CheckedFloat64ToSmiSizedInt32,
+                   maglev::CheckedHoleyFloat64ToSmiSizedInt32>
+                T>
+  maglev::ProcessResult Process(T* node, const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    V<Word32> as_word32 = __ ChangeFloat64ToInt32OrDeopt(
+        Map(node->ValueInput()), frame_state,
+        CheckForMinusZeroMode::kCheckForMinusZero,
+        node->eager_deopt_info()->feedback_to_update());
+    DeoptIfInt32IsNotSmi(as_word32, frame_state,
+                         node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, as_word32);
+    return maglev::ProcessResult::kContinue;
+  }
+
   template <
       Either<maglev::UnsafeFloat64ToInt32, maglev::UnsafeHoleyFloat64ToInt32> T>
   maglev::ProcessResult Process(T* node, const maglev::ProcessingState& state) {

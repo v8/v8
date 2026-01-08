@@ -1028,14 +1028,39 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     return ProcessResult::kContinue;
   }
 
-  if (from_repr == to_repr) {
-    if (from_repr == ValueRepresentation::kInt32) {
-      if (phi->uses_require_31_bit_value() &&
-          old_untagging->Is<CheckedSmiUntag>()) {
+  if (phi->uses_require_31_bit_value() &&
+      old_untagging->Is<CheckedSmiUntag>()) {
+    // CheckedSmiUntag serves a dual-purpose: it untags a Smi but it also
+    // ensures that this value is a Smi (and is therefore in Smi range). We need
+    // to make sure to preserve both of these aspects.
+    DCHECK_EQ(to_repr, ValueRepresentation::kInt32);
+    switch (from_repr) {
+      case ValueRepresentation::kInt32:
         old_untagging->OverwriteWith<CheckedSmiSizedInt32>();
-        return ProcessResult::kContinue;
-      }
+        break;
+      case ValueRepresentation::kFloat64:
+        old_untagging->OverwriteWith<CheckedFloat64ToSmiSizedInt32>();
+        break;
+      case ValueRepresentation::kHoleyFloat64:
+        old_untagging->OverwriteWith<CheckedHoleyFloat64ToSmiSizedInt32>();
+        break;
+      case ValueRepresentation::kShiftedInt53:
+        UNIMPLEMENTED();
+      case ValueRepresentation::kUint32:
+      case ValueRepresentation::kIntPtr:
+      case ValueRepresentation::kRawPtr:
+      case ValueRepresentation::kTagged:
+      case ValueRepresentation::kNone:
+        UNREACHABLE();
     }
+    return ProcessResult::kContinue;
+  }
+
+  if (from_repr == to_repr) {
+    // CheckedSmiUntag needs special handling, cf above.
+    DCHECK(!(phi->uses_require_31_bit_value() &&
+             old_untagging->Is<CheckedSmiUntag>()));
+
     old_untagging->OverwriteWith<Identity>();
     // All uses (except deopt frame ones) of this identity node will by bypassed
     // in UpdateNonUntaggingNodeInputs. The node does not need to be in the

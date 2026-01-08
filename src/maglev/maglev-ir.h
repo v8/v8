@@ -197,53 +197,55 @@ class ExceptionHandlerInfo;
   V(TurbofanStaticAssert)               \
   V(AssumeMap)
 
-#define CONVERSION_NODE_LIST(V)        \
-  V(ChangeInt32ToFloat64)              \
-  V(ChangeInt32ToHoleyFloat64)         \
-  V(ChangeIntPtrToFloat64)             \
-  V(ChangeUint32ToFloat64)             \
-  V(ChangeUint32ToHoleyFloat64)        \
-  V(ChangeFloat64ToHoleyFloat64)       \
-  V(CheckedFloat64ToInt32)             \
-  V(CheckedHoleyFloat64ToInt32)        \
-  V(CheckedHoleyFloat64ToFloat64)      \
-  V(CheckedInt32ToUint32)              \
-  V(CheckedIntPtrToInt32)              \
-  V(CheckedObjectToIndex)              \
-  V(CheckedNumberToInt32)              \
-  V(CheckedNumberToFloat64)            \
-  V(CheckedSmiSizedInt32)              \
-  V(CheckedSmiTagFloat64)              \
-  V(CheckedSmiTagHoleyFloat64)         \
-  V(CheckedSmiTagInt32)                \
-  V(CheckedSmiTagIntPtr)               \
-  V(CheckedSmiTagUint32)               \
-  V(CheckedSmiUntag)                   \
-  V(CheckedUint32ToInt32)              \
-  V(Float64ToTagged)                   \
-  V(HoleyFloat64ToTagged)              \
-  V(Int32ToNumber)                     \
-  V(IntPtrToNumber)                    \
-  V(Uint32ToNumber)                    \
-  V(UnsafeFloat64ToInt32)              \
-  V(UnsafeHoleyFloat64ToInt32)         \
-  V(UnsafeInt32ToUint32)               \
-  V(UnsafeNumberToFloat64)             \
-  V(UnsafeSmiTagInt32)                 \
-  V(UnsafeSmiTagIntPtr)                \
-  V(UnsafeSmiTagUint32)                \
-  V(UnsafeSmiUntag)                    \
-  V(CheckedShiftedInt53ToUint32)       \
-  V(CheckedIntPtrToShiftedInt53)       \
-  V(CheckedHoleyFloat64ToShiftedInt53) \
-  V(UnsafeSmiTagShiftedInt53)          \
-  V(CheckedNumberToShiftedInt53)       \
-  V(ShiftedInt53ToNumber)              \
-  V(CheckedShiftedInt53ToInt32)        \
-  V(ChangeInt32ToShiftedInt53)         \
-  V(ChangeUint32ToShiftedInt53)        \
-  V(ChangeShiftedInt53ToFloat64)       \
-  V(ChangeShiftedInt53ToHoleyFloat64)  \
+#define CONVERSION_NODE_LIST(V)         \
+  V(ChangeInt32ToFloat64)               \
+  V(ChangeInt32ToHoleyFloat64)          \
+  V(ChangeIntPtrToFloat64)              \
+  V(ChangeUint32ToFloat64)              \
+  V(ChangeUint32ToHoleyFloat64)         \
+  V(ChangeFloat64ToHoleyFloat64)        \
+  V(CheckedFloat64ToInt32)              \
+  V(CheckedFloat64ToSmiSizedInt32)      \
+  V(CheckedHoleyFloat64ToSmiSizedInt32) \
+  V(CheckedHoleyFloat64ToInt32)         \
+  V(CheckedHoleyFloat64ToFloat64)       \
+  V(CheckedInt32ToUint32)               \
+  V(CheckedIntPtrToInt32)               \
+  V(CheckedObjectToIndex)               \
+  V(CheckedNumberToInt32)               \
+  V(CheckedNumberToFloat64)             \
+  V(CheckedSmiSizedInt32)               \
+  V(CheckedSmiTagFloat64)               \
+  V(CheckedSmiTagHoleyFloat64)          \
+  V(CheckedSmiTagInt32)                 \
+  V(CheckedSmiTagIntPtr)                \
+  V(CheckedSmiTagUint32)                \
+  V(CheckedSmiUntag)                    \
+  V(CheckedUint32ToInt32)               \
+  V(Float64ToTagged)                    \
+  V(HoleyFloat64ToTagged)               \
+  V(Int32ToNumber)                      \
+  V(IntPtrToNumber)                     \
+  V(Uint32ToNumber)                     \
+  V(UnsafeFloat64ToInt32)               \
+  V(UnsafeHoleyFloat64ToInt32)          \
+  V(UnsafeInt32ToUint32)                \
+  V(UnsafeNumberToFloat64)              \
+  V(UnsafeSmiTagInt32)                  \
+  V(UnsafeSmiTagIntPtr)                 \
+  V(UnsafeSmiTagUint32)                 \
+  V(UnsafeSmiUntag)                     \
+  V(CheckedShiftedInt53ToUint32)        \
+  V(CheckedIntPtrToShiftedInt53)        \
+  V(CheckedHoleyFloat64ToShiftedInt53)  \
+  V(UnsafeSmiTagShiftedInt53)           \
+  V(CheckedNumberToShiftedInt53)        \
+  V(ShiftedInt53ToNumber)               \
+  V(CheckedShiftedInt53ToInt32)         \
+  V(ChangeInt32ToShiftedInt53)          \
+  V(ChangeUint32ToShiftedInt53)         \
+  V(ChangeShiftedInt53ToFloat64)        \
+  V(ChangeShiftedInt53ToHoleyFloat64)   \
   V(CheckedSmiTagShiftedInt53)
 
 #define VALUE_NODE_LIST(V)                                            \
@@ -4517,6 +4519,9 @@ DEFINE_PURE_CONV(UnsafeNumberToFloat64, Tagged, Float64, Number)
 
 DEFINE_CHECKED_CONV(CheckedFloat64ToInt32, Float64, Int32, Number)
 DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToInt32, HoleyFloat64, Int32, Number)
+DEFINE_CHECKED_CONV(CheckedFloat64ToSmiSizedInt32, Float64, Int32, Smi)
+DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToSmiSizedInt32, HoleyFloat64, Int32,
+                    Smi)
 DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToShiftedInt53, HoleyFloat64,
                     ShiftedInt53, Number)
 DEFINE_CHECKED_CONV(CheckedHoleyFloat64ToFloat64, HoleyFloat64, Float64, Number)

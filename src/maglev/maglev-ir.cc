@@ -6052,6 +6052,30 @@ void CheckedHoleyFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
 }
 
+void CheckedFloat64ToSmiSizedInt32::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineAsRegister(this);
+}
+void CheckedFloat64ToSmiSizedInt32::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
+  Register res = ToRegister(result());
+  __ TryTruncateDoubleToInt32(res, ToDoubleRegister(ValueInput()), fail);
+  __ CheckInt32IsSmi(res, fail);
+}
+
+void CheckedHoleyFloat64ToSmiSizedInt32::SetValueLocationConstraints() {
+  UseRegister(ValueInput());
+  DefineAsRegister(this);
+}
+void CheckedHoleyFloat64ToSmiSizedInt32::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
+  Register res = ToRegister(result());
+  __ TryTruncateDoubleToInt32(res, ToDoubleRegister(ValueInput()), fail);
+  __ CheckInt32IsSmi(res, fail);
+}
+
 void UnsafeFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineAsRegister(this);
