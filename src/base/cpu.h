@@ -93,6 +93,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_bmi2() const { return has_bmi2_; }
   bool has_lzcnt() const { return has_lzcnt_; }
   bool has_popcnt() const { return has_popcnt_; }
+  bool has_apx_f() const { return has_apx_f_; }
   bool is_atom() const { return is_atom_; }
   bool has_intel_jcc_erratum() const { return has_intel_jcc_erratum_; }
   bool has_cetss() const { return has_cetss_; }
@@ -187,6 +188,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_bmi2_;
   bool has_lzcnt_;
   bool has_popcnt_;
+  bool has_apx_f_;
   bool has_idiva_;
   bool has_neon_;
   bool has_thumb2_;
