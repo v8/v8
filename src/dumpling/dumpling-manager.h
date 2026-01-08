@@ -35,6 +35,9 @@ class DumplingManager {
                Handle<BytecodeArray> bytecode_array,
                Handle<Object> accumulator);
 
+  // We need to clean files and caches.
+  void PrepareForNextREPRLCycle();
+
  private:
   bool AnyDumplingFlagsSet() const;
 
@@ -71,6 +74,8 @@ class DumplingManager {
 
   void LoadDumpPositionsFromFile();
 
+  void ResetLastFrame();
+
   bool isolate_dumping_disabled_ = false;
   struct DumplingLastFrame {
     int bytecode_offset;
@@ -82,11 +87,7 @@ class DumplingManager {
     int function_id;
   };
 
-  // initialize struct and reserve 64 elements in args
-  DumplingLastFrame dumpling_last_frame_ = {-1, "invalid_acc",
-                                            -1, std::vector<std::string>(64),
-                                            -1, std::vector<std::string>(128),
-                                            -1};
+  DumplingLastFrame dumpling_last_frame_;
 
   std::ofstream dumpling_os_;
 

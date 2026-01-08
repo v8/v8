@@ -5498,6 +5498,14 @@ bool SourceGroup::Execute(Isolate* isolate) {
         String::NewFromUtf8(isolate, "fuzzcode.js", NewStringType::kNormal)
             .ToLocalChecked();
 
+#ifdef V8_DUMPLING
+    v8::internal::Isolate* internal_isolate =
+        reinterpret_cast<v8::internal::Isolate*>(isolate);
+    if (internal_isolate->dumpling_manager()->IsDumpingEnabled()) {
+      internal_isolate->dumpling_manager()->PrepareForNextREPRLCycle();
+    }
+#endif  // V8_DUMPLING
+
     size_t script_size;
     CHECK_EQ(read(REPRL_CRFD, &script_size, 8), 8);
     char* buffer = new char[script_size + 1];

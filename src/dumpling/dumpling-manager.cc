@@ -157,6 +157,7 @@ std::optional<std::string> DumplingManager::DumpFunctionId(int function_id) {
 
 DumplingManager::DumplingManager()
     : dumpling_os_(GetDumpOutFilename(), std::ofstream::out) {
+  ResetLastFrame();
   if (v8_flags.load_dump_positions) {
     LoadDumpPositionsFromFile();
   }
@@ -208,6 +209,20 @@ void DumplingManager::LoadDumpPositionsFromFile() {
     }
     CHECK(positions_is.peek() == '\n' || positions_is.eof());
   }
+}
+
+void DumplingManager::ResetLastFrame() {
+  dumpling_last_frame_ = {-1, "invalid_acc",
+                          -1, std::vector<std::string>(64),
+                          -1, std::vector<std::string>(128),
+                          -1};
+}
+
+void DumplingManager::PrepareForNextREPRLCycle() {
+  ResetLastFrame();
+  dump_positions_.clear();
+  // this will truncate the file
+  dumpling_os_.open(GetDumpOutFilename());
 }
 
 }  // namespace v8::internal
