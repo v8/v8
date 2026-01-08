@@ -20,9 +20,11 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
 
   // Helpers for peephole optimization.
   template <typename T>
-  void OverwriteValue(int offset, T value);
+  void OverwriteValue(T value, int absolute_offset);
   // MUST start and end at a bytecode boundary.
   void EmitRawBytecodeStream(const uint8_t* data, int length);
+  void EmitRawBytecodeStream(const RegExpBytecodeWriter* src_writer,
+                             int src_offset, int length);
   void Finalize(RegExpBytecode bc);
 
   // Bytecode buffer access.
@@ -35,7 +37,11 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
   template <typename T>
   inline void Emit(T value, int offset);
   inline void EmitBytecode(RegExpBytecode bc);
+
+  // Update bookkeeping at bytecode boundaries.
   inline void ResetPc(int new_pc);
+  // Reset all state.
+  void Reset();
 
   // Templated code emission.
   template <RegExpBytecode bytecode, typename... Args>
@@ -52,6 +58,11 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
   int length() const { return pc_; }
   void CopyBufferTo(uint8_t* a) const;
 
+  ZoneMap<int, int>& jump_edges() { return jump_edges_; }
+  const ZoneMap<int, int>& jump_edges() const { return jump_edges_; }
+
+  void PatchJump(int target, int absolute_offset);
+
 #ifdef DEBUG
   // Emit padding from start (inclusive) to end (exclusive)
   inline void EmitPadding(int offset);
@@ -62,18 +73,20 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
 
  protected:
   // The buffer into which code and relocation info are generated.
-  static constexpr int kInitialBufferSize = 1024;
+  static constexpr int kInitialBufferSizeInBytes = 1 * KB;
+  static constexpr size_t kMaxBufferGrowthInBytes = 1 * MB;
   ZoneVector<uint8_t> buffer_;
 
   // The program counter. Always points at the beginning of a bytecode while
   // we generate the ByteArray. Points to the end when we are done.
   int pc_;
 
+ private:
   // Stores jump edges emitted for the bytecode (used by
   // RegExpBytecodePeepholeOptimization).
   // Key: jump source (offset in buffer_ where jump destination is stored).
   // Value: jump destination (offset in buffer_ to jump to).
-  ZoneUnorderedMap<int, int> jump_edges_;
+  ZoneMap<int, int> jump_edges_;
 
 #ifdef DEBUG
   // End of the bytecode we are currently emitting (exclusive). Absolute value
@@ -84,11 +97,10 @@ class V8_EXPORT_PRIVATE RegExpBytecodeWriter {
   int pc_within_bc_;
 #endif
 
- private:
   // TODO(jgruber): Reasonable protected/private organisation once the dust has
   // settled.
   inline void EnsureCapacity(size_t size);
-  void ExpandBuffer();
+  void ExpandBuffer(size_t new_size);
 };
 
 // An assembler/generator for the Irregexp byte code.
@@ -214,11 +226,6 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler,
   void EmitSkipTable(DirectHandle<ByteArray> table);
 
   Label backtrack_;
-
-  static const int kInvalidPC = -1;
-  int advance_current_start_;
-  int advance_current_offset_;
-  int advance_current_end_;
 
   Isolate* isolate_;
 

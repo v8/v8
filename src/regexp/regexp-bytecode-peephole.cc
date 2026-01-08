@@ -215,19 +215,17 @@ class BytecodeSequenceNode {
 
 class RegExpBytecodePeephole {
  public:
-  RegExpBytecodePeephole(Zone* zone, size_t buffer_size,
-                         const ZoneUnorderedMap<int, int>& jump_edges);
-
   // Parses bytecode and fills the internal buffer with the potentially
   // optimized bytecode. Returns true when optimizations were performed, false
   // otherwise.
-  bool OptimizeBytecode(const uint8_t* bytecode, int length);
-  // Copies the internal bytecode buffer to another buffer. The caller is
-  // responsible for allocating/freeing the memory.
-  void CopyOptimizedBytecode(uint8_t* to_address) const;
-  int Length() const;
+  static bool OptimizeBytecode(Zone* zone,
+                               const RegExpBytecodeWriter* src_writer,
+                               RegExpBytecodeWriter* dst_writer);
 
  private:
+  RegExpBytecodePeephole(Zone* zone, const RegExpBytecodeWriter* src_writer,
+                         RegExpBytecodeWriter* dst_writer);
+
   // Sets up all sequences that are going to be used.
   void DefineStandardSequences();
   // Starts a new bytecode sequence.
@@ -241,49 +239,30 @@ class RegExpBytecodePeephole {
   // BytecodeSequenceNode of the matching sequence found.
   void EmitOptimization(int start_pc, const uint8_t* bytecode,
                         const BytecodeSequenceNode& last_node);
-  // Adds a relative jump source fixup at pos.
-  // Jump source fixups are used to find offsets in the new bytecode that
-  // contain jump sources.
-  void AddJumpSourceFixup(int fixup, int pos);
   // Adds a relative jump destination fixup at pos.
   // Jump destination fixups are used to find offsets in the new bytecode that
   // can be jumped to.
   void AddJumpDestinationFixup(int fixup, int pos);
   // Sets an absolute jump destination fixup at pos.
   void SetJumpDestinationFixup(int fixup, int pos);
-  // Prepare internal structures used to fixup jumps.
-  void PrepareJumpStructures(const ZoneUnorderedMap<int, int>& jump_edges);
   // Updates all jump targets in the new bytecode.
   void FixJumps();
-  // Update a single jump.
-  void FixJump(int jump_source, int jump_destination);
-  void AddSentinelFixups(int pos);
   void EmitArgument(int start_pc, const uint8_t* bytecode,
                     BytecodeArgumentMapping arg);
   int pc() const;
   Zone* zone() const;
 
-  RegExpBytecodeWriter writer_;
+  RegExpBytecodeWriter* const dst_writer_;
+  const RegExpBytecodeWriter* const src_writer_;
   BytecodeSequenceNode* sequences_;
+
   // TODO(jgruber): We should also replace all of these raw offsets with
   // OpInfo. That should allow us to not expose the "raw" Emit publicly in the
   // Writer.
-  // Jumps used in old bytecode.
-  // Key: Jump source (offset where destination is stored in old bytecode)
-  // Value: Destination
-  ZoneMap<int, int> jump_edges_;
-  // Jumps used in new bytecode.
-  // Key: Jump source (offset where destination is stored in new bytecode)
-  // Value: Destination
-  ZoneMap<int, int> jump_edges_mapped_;
   // Number of times a jump destination is used within the bytecode.
   // Key: Jump destination (offset in old bytecode).
   // Value: Number of times jump destination is used.
   ZoneMap<int, int> jump_usage_counts_;
-  // Maps offsets in old bytecode to fixups of sources (delta to new bytecode).
-  // Key: Offset in old bytecode from where the fixup is valid.
-  // Value: Delta to map jump source from old bytecode to new bytecode in bytes.
-  ZoneMap<int, int> jump_source_fixups_;
   // Maps offsets in old bytecode to fixups of destinations (delta to new
   // bytecode).
   // Key: Offset in old bytecode from where the fixup is valid.
@@ -291,7 +270,11 @@ class RegExpBytecodePeephole {
   // bytes.
   ZoneMap<int, int> jump_destination_fixups_;
 
-  Zone* zone_;
+  Zone* const zone_;
+
+  // Points at the first pc in src_writer that has not yet been emitted. Used
+  // for batch copying unchanged regions of the incoming bytecodes.
+  int next_src_pc_to_emit_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpBytecodePeephole);
 };
@@ -541,18 +524,21 @@ BytecodeSequenceNode& BytecodeSequenceNode::GetNodeByIndexInSequence(
 Zone* BytecodeSequenceNode::zone() const { return zone_; }
 
 RegExpBytecodePeephole::RegExpBytecodePeephole(
-    Zone* zone, size_t buffer_size,
-    const ZoneUnorderedMap<int, int>& jump_edges)
-    : writer_(zone),
+    Zone* zone, const RegExpBytecodeWriter* src_writer,
+    RegExpBytecodeWriter* dst_writer)
+    : dst_writer_(dst_writer),
+      src_writer_(src_writer),
       sequences_(zone->New<BytecodeSequenceNode>(std::nullopt, zone)),
-      jump_edges_(zone),
-      jump_edges_mapped_(zone),
       jump_usage_counts_(zone),
-      jump_source_fixups_(zone),
       jump_destination_fixups_(zone),
-      zone_(zone) {
-  writer_.buffer().reserve(buffer_size);
-  PrepareJumpStructures(jump_edges);
+      zone_(zone),
+      next_src_pc_to_emit_(0) {
+  dst_writer_->buffer().reserve(src_writer_->length());
+  // Prepare jump usage counts.
+  for (auto jump_edge : src_writer_->jump_edges()) {
+    int jump_destination = jump_edge.second;
+    jump_usage_counts_[jump_destination]++;
+  }
   DefineStandardSequences();
   // Sentinel fixups at beginning of bytecode (position -1) so we don't have to
   // check for end of iterator inside the fixup loop.
@@ -560,11 +546,11 @@ RegExpBytecodePeephole::RegExpBytecodePeephole(
   // sources/destinations (in the old bytecode) to find them in the new
   // bytecode. All jump targets are fixed after the new bytecode is fully
   // emitted in the internal buffer.
-  AddSentinelFixups(-1);
+  jump_destination_fixups_.emplace(-1, 0);
   // Sentinel fixups at end of (old) bytecode so we don't have to check for
   // end of iterator inside the fixup loop.
-  DCHECK_LE(buffer_size, std::numeric_limits<int>::max());
-  AddSentinelFixups(static_cast<int>(buffer_size));
+  DCHECK_LE(src_writer_->length(), std::numeric_limits<int>::max());
+  jump_destination_fixups_.emplace(static_cast<int>(src_writer_->length()), 0);
 }
 
 void RegExpBytecodePeephole::DefineStandardSequences() {
@@ -576,6 +562,15 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
 
   // Commonly used sequences can be found by creating regexp bytecode traces
   // (--trace-regexp-bytecodes) and using v8/tools/regexp-sequences.py.
+
+  {
+    static constexpr auto Target = B::kAdvanceCpAndGoto;
+    CreateSequence(B::kAdvanceCurrentPosition)
+        .FollowedBy(B::kGoTo)
+        .ReplaceWith(Target)
+        .MapArgument(T(by), 0, I(B::kAdvanceCurrentPosition, by))
+        .MapArgument(T(on_goto), 1, I(B::kGoTo, label));
+  }
 
   {
     static constexpr auto Target = B::kSkipUntilBitInTable;
@@ -730,11 +725,6 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
         .IgnoreArgument(3, I(B::kAdvanceCpAndGoto, on_goto))
         .IgnoreArgument(2, I(B::kAndCheck4Chars, on_equal));
   }
-  // TODO(jgruber): kSkipUntilBitInTable is itself both a
-  // peephole-generated bc, AND a standard bytecode. Either we run to a fixed
-  // point, or we need to be careful around ordering (and specify the seq based
-  // on basic bytecodes).
-  //
   // The original bytecode sequence for kSkipUntilOneOfMasked3 is:
   //
   // sequence offset name
@@ -821,35 +811,41 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
 #undef I
 #undef T
 }
-bool RegExpBytecodePeephole::OptimizeBytecode(const uint8_t* bytecode,
-                                              int length) {
+bool RegExpBytecodePeephole::OptimizeBytecode(
+    Zone* zone, const RegExpBytecodeWriter* src_writer,
+    RegExpBytecodeWriter* dst_writer) {
+  RegExpBytecodePeephole p(zone, src_writer, dst_writer);
+
+  const uint8_t* bytecode = src_writer->buffer().data();
+  int length = src_writer->length();
+
   int old_pc = 0;
   bool did_optimize = false;
 
   while (old_pc < length) {
-    int replaced_len = TryOptimizeSequence(bytecode, length, old_pc);
+    int replaced_len = p.TryOptimizeSequence(bytecode, length, old_pc);
     if (replaced_len > 0) {
       old_pc += replaced_len;
       did_optimize = true;
     } else {
       int bc_len = RegExpBytecodes::Size(bytecode[old_pc]);
-      writer_.EmitRawBytecodeStream(bytecode + old_pc, bc_len);
       old_pc += bc_len;
     }
   }
 
   if (did_optimize) {
-    FixJumps();
+    // If we optimized anything, we must flush the remaining unoptimized bytes.
+    // If we didn't optimize anything, we leave the dst_writer empty and the
+    // caller will continue using src_writer (effectively a no-op pass).
+    if (old_pc > p.next_src_pc_to_emit_) {
+      dst_writer->EmitRawBytecodeStream(src_writer, p.next_src_pc_to_emit_,
+                                        old_pc - p.next_src_pc_to_emit_);
+    }
+    p.FixJumps();
   }
 
   return did_optimize;
 }
-
-void RegExpBytecodePeephole::CopyOptimizedBytecode(uint8_t* to_address) const {
-  MemCopy(to_address, writer_.buffer().begin(), Length());
-}
-
-int RegExpBytecodePeephole::Length() const { return pc(); }
 
 BytecodeSequenceNode& RegExpBytecodePeephole::CreateSequence(
     RegExpBytecode bytecode) {
@@ -888,42 +884,44 @@ int RegExpBytecodePeephole::TryOptimizeSequence(const uint8_t* bytecode,
 void RegExpBytecodePeephole::EmitOptimization(
     int start_pc, const uint8_t* bytecode,
     const BytecodeSequenceNode& last_node) {
+  // Flush any sequence of bytecodes which we haven't emitted yet.
+  if (start_pc > next_src_pc_to_emit_) {
+    dst_writer_->EmitRawBytecodeStream(src_writer_, next_src_pc_to_emit_,
+                                       start_pc - next_src_pc_to_emit_);
+  }
+  const int sequence_length = last_node.SequenceLength();
+  next_src_pc_to_emit_ = start_pc + sequence_length;
+
+  // Update usage counts for all jumps originating in the sequence we are about
+  // to replace. Counts for the target locations are decremented here. Emitting
+  // kJumpTarget below will again increment for newly emitted destinations.
+  auto edge_it = src_writer_->jump_edges().lower_bound(start_pc);
+  while (edge_it != src_writer_->jump_edges().end() &&
+         edge_it->first < start_pc + sequence_length) {
+    int target = edge_it->second;
+    auto count_it = jump_usage_counts_.find(target);
+    DCHECK_NE(count_it, jump_usage_counts_.end());
+    count_it->second--;
+    edge_it++;
+  }
+
   int optimized_start_pc = pc();
-  // Jump sources that are mapped or marked as unused will be deleted at the end
-  // of this method. We don't delete them immediately as we might need the
-  // information when we have to preserve bytecodes at the end.
-  // TODO(pthier): Replace with a stack-allocated data structure.
-  ZoneLinkedList<int> delete_jumps(zone());
   // List of offsets in the optimized sequence that need to be patched to the
   // offset value right after the optimized sequence.
   ZoneLinkedList<uint32_t> after_sequence_offsets(zone());
 
   const RegExpBytecode bc = last_node.OptimizedBytecode();
-  writer_.EmitBytecode(bc);
+  dst_writer_->EmitBytecode(bc);
 
   for (size_t arg_idx = 0; arg_idx < last_node.ArgumentSize(); arg_idx++) {
     BytecodeArgumentMapping arg_map = last_node.ArgumentMapping(arg_idx);
     if (arg_map.type() == BytecodeArgumentMapping::Type::kDefault) {
-      int arg_pos = start_pc + arg_map.offset();
-      // If we map any jump source we mark the old source for deletion and
-      // insert a new jump.
-      auto jump_edge_iter = jump_edges_.find(arg_pos);
-      if (jump_edge_iter != jump_edges_.end()) {
-        int jump_source = jump_edge_iter->first;
-        int jump_destination = jump_edge_iter->second;
-        // Add new jump edge add current position.
-        jump_edges_mapped_.emplace(optimized_start_pc + arg_map.new_offset(),
-                                   jump_destination);
-        // Mark old jump edge for deletion.
-        delete_jumps.push_back(jump_source);
-        // Decrement usage count of jump destination.
-        auto jump_count_iter = jump_usage_counts_.find(jump_destination);
-        DCHECK(jump_count_iter != jump_usage_counts_.end());
-        int& usage_count = jump_count_iter->second;
-        --usage_count;
+      if (arg_map.new_operand_type() ==
+          RegExpBytecodeOperandType::kJumpTarget) {
+        int target = GetArgumentValue(bytecode, start_pc + arg_map.offset(),
+                                      arg_map.length());
+        jump_usage_counts_[target]++;
       }
-      // TODO(pthier): DCHECK that mapped arguments are never sources of jumps
-      // to destinations inside the sequence.
       EmitArgument(start_pc, bytecode, arg_map);
     } else {
       DCHECK_EQ(arg_map.type(),
@@ -931,36 +929,15 @@ void RegExpBytecodePeephole::EmitOptimization(
       after_sequence_offsets.push_back(optimized_start_pc +
                                        arg_map.new_offset());
       // Reserve space to overwrite later with the pc after this sequence.
-      writer_.Emit<uint32_t>(0, arg_map.new_offset());
+      dst_writer_->Emit<uint32_t>(0, arg_map.new_offset());
     }
   }
 
   // Final alignment.
-  writer_.Finalize(bc);
+  dst_writer_->Finalize(bc);
+  DCHECK_EQ(pc(), optimized_start_pc + RegExpBytecodes::Size(bc));
 
-  DCHECK_EQ(pc(), optimized_start_pc +
-                      RegExpBytecodes::Size(last_node.OptimizedBytecode()));
-
-  // Remove jumps from arguments we ignore.
-  if (last_node.HasIgnoredArguments()) {
-    for (auto ignored_arg = last_node.ArgumentIgnoredBegin();
-         ignored_arg != last_node.ArgumentIgnoredEnd(); ignored_arg++) {
-      auto jump_edge_iter = jump_edges_.find(start_pc + ignored_arg->offset());
-      if (jump_edge_iter != jump_edges_.end()) {
-        int jump_source = jump_edge_iter->first;
-        int jump_destination = jump_edge_iter->second;
-        // Mark old jump edge for deletion.
-        delete_jumps.push_back(jump_source);
-        // Decrement usage count of jump destination.
-        auto jump_count_iter = jump_usage_counts_.find(jump_destination);
-        DCHECK(jump_count_iter != jump_usage_counts_.end());
-        int& usage_count = jump_count_iter->second;
-        --usage_count;
-      }
-    }
-  }
-
-  int fixup_length = RegExpBytecodes::Size(bc) - last_node.SequenceLength();
+  int fixup_length = RegExpBytecodes::Size(bc) - sequence_length;
 
   // Check if there are any jumps inside the old sequence.
   // If so we have to keep the bytecodes that are jumped to around.
@@ -975,18 +952,17 @@ void RegExpBytecodePeephole::EmitOptimization(
     jump_candidate_count = jump_destination_candidate->second;
   }
 
-  int preserve_from = start_pc + last_node.SequenceLength();
+  int preserve_from = start_pc + sequence_length;
   if (jump_destination_candidate != jump_usage_counts_.end() &&
-      jump_candidate_destination < start_pc + last_node.SequenceLength()) {
+      jump_candidate_destination < start_pc + sequence_length) {
     preserve_from = jump_candidate_destination;
     // Check if any jump in the sequence we are preserving has a jump
     // destination inside the optimized sequence before the current position we
     // want to preserve. If so we have to preserve all bytecodes starting at
     // this jump destination.
-    for (auto jump_iter = jump_edges_.lower_bound(preserve_from);
-         jump_iter != jump_edges_.end() &&
-         jump_iter->first /* jump source */ <
-             start_pc + last_node.SequenceLength();
+    for (auto jump_iter = src_writer_->jump_edges().lower_bound(preserve_from);
+         jump_iter != src_writer_->jump_edges().end() &&
+         jump_iter->first /* jump source */ < start_pc + sequence_length;
          ++jump_iter) {
       int jump_destination = jump_iter->second;
       if (jump_destination > start_pc && jump_destination < preserve_from) {
@@ -997,11 +973,8 @@ void RegExpBytecodePeephole::EmitOptimization(
     // We preserve everything to the end of the sequence. This is conservative
     // since it would be enough to preserve all bytecodes up to an unconditional
     // jump.
-    int preserve_length = start_pc + last_node.SequenceLength() - preserve_from;
+    int preserve_length = start_pc + sequence_length - preserve_from;
     fixup_length += preserve_length;
-    // Jumps after the start of the preserved sequence need fixup.
-    AddJumpSourceFixup(fixup_length,
-                       start_pc + last_node.SequenceLength() - preserve_length);
     // All jump targets after the start of the optimized sequence need to be
     // fixed relative to the length of the optimized sequence including
     // bytecodes we preserved.
@@ -1009,33 +982,16 @@ void RegExpBytecodePeephole::EmitOptimization(
     // Jumps to the sequence we preserved need absolute fixup as they could
     // occur before or after the sequence.
     SetJumpDestinationFixup(pc() - preserve_from, preserve_from);
-    writer_.EmitRawBytecodeStream(bytecode + preserve_from, preserve_length);
+    dst_writer_->EmitRawBytecodeStream(src_writer_, preserve_from,
+                                       preserve_length);
   } else {
     AddJumpDestinationFixup(fixup_length, start_pc + 1);
-    // Jumps after the end of the old sequence need fixup.
-    AddJumpSourceFixup(fixup_length, start_pc + last_node.SequenceLength());
-  }
-
-  // Delete jumps we definitely don't need anymore
-  for (int del : delete_jumps) {
-    if (del < preserve_from) {
-      jump_edges_.erase(del);
-    }
   }
 
   for (uint32_t offset : after_sequence_offsets) {
-    DCHECK_EQ(writer_.buffer()[offset], 0);
-    writer_.OverwriteValue<uint32_t>(offset, pc());
+    DCHECK_EQ(dst_writer_->buffer()[offset], 0);
+    dst_writer_->OverwriteValue<uint32_t>(pc(), offset);
   }
-}
-
-void RegExpBytecodePeephole::AddJumpSourceFixup(int fixup, int pos) {
-  auto previous_fixup = jump_source_fixups_.lower_bound(pos);
-  DCHECK(previous_fixup != jump_source_fixups_.end());
-  DCHECK(previous_fixup != jump_source_fixups_.begin());
-
-  int previous_fixup_value = (--previous_fixup)->second;
-  jump_source_fixups_[pos] = previous_fixup_value + fixup;
 }
 
 void RegExpBytecodePeephole::AddJumpDestinationFixup(int fixup, int pos) {
@@ -1057,69 +1013,23 @@ void RegExpBytecodePeephole::SetJumpDestinationFixup(int fixup, int pos) {
   jump_destination_fixups_.emplace(pos + 1, previous_fixup_value);
 }
 
-void RegExpBytecodePeephole::PrepareJumpStructures(
-    const ZoneUnorderedMap<int, int>& jump_edges) {
-  for (auto jump_edge : jump_edges) {
-    int jump_source = jump_edge.first;
-    int jump_destination = jump_edge.second;
-
-    jump_edges_.emplace(jump_source, jump_destination);
-    jump_usage_counts_[jump_destination]++;
-  }
-}
-
 void RegExpBytecodePeephole::FixJumps() {
-  int position_fixup = 0;
-  // Next position where fixup changes.
-  auto next_source_fixup = jump_source_fixups_.lower_bound(0);
-  int next_source_fixup_offset = next_source_fixup->first;
-  int next_source_fixup_value = next_source_fixup->second;
-
-  for (auto jump_edge : jump_edges_) {
+  for (auto jump_edge : dst_writer_->jump_edges()) {
     int jump_source = jump_edge.first;
     int jump_destination = jump_edge.second;
-    while (jump_source >= next_source_fixup_offset) {
-      position_fixup = next_source_fixup_value;
-      ++next_source_fixup;
-      next_source_fixup_offset = next_source_fixup->first;
-      next_source_fixup_value = next_source_fixup->second;
+    int fixed_jump_destination =
+        jump_destination +
+        (--jump_destination_fixups_.upper_bound(jump_destination))->second;
+    DCHECK_LT(fixed_jump_destination, pc());
+    // TODO(pthier): This check could be better if we track the bytecodes
+    // actually used and check if we jump to one of them.
+    DCHECK(RegExpBytecodes::IsValidJumpTarget(
+        dst_writer_->buffer()[fixed_jump_destination]));
+
+    if (jump_destination != fixed_jump_destination) {
+      dst_writer_->PatchJump(fixed_jump_destination, jump_source);
     }
-    jump_source += position_fixup;
-
-    FixJump(jump_source, jump_destination);
   }
-
-  // Mapped jump edges don't need source fixups, as the position already is an
-  // offset in the new bytecode.
-  for (auto jump_edge : jump_edges_mapped_) {
-    int jump_source = jump_edge.first;
-    int jump_destination = jump_edge.second;
-
-    FixJump(jump_source, jump_destination);
-  }
-}
-
-void RegExpBytecodePeephole::FixJump(int jump_source, int jump_destination) {
-  int fixed_jump_destination =
-      jump_destination +
-      (--jump_destination_fixups_.upper_bound(jump_destination))->second;
-  DCHECK_LT(fixed_jump_destination, Length());
-#ifdef DEBUG
-  // TODO(pthier): This check could be better if we track the bytecodes
-  // actually used and check if we jump to one of them.
-  uint8_t jump_bc = writer_.buffer()[fixed_jump_destination];
-  DCHECK_GT(jump_bc, 0);
-  DCHECK_LT(jump_bc, RegExpBytecodes::kCount);
-#endif
-
-  if (jump_destination != fixed_jump_destination) {
-    writer_.OverwriteValue<uint32_t>(jump_source, fixed_jump_destination);
-  }
-}
-
-void RegExpBytecodePeephole::AddSentinelFixups(int pos) {
-  jump_source_fixups_.emplace(pos, 0);
-  jump_destination_fixups_.emplace(pos, 0);
 }
 
 void RegExpBytecodePeephole::EmitArgument(int start_pc, const uint8_t* bytecode,
@@ -1127,22 +1037,22 @@ void RegExpBytecodePeephole::EmitArgument(int start_pc, const uint8_t* bytecode,
   const RegExpBytecodeOperandType type = arg.new_operand_type();
 
   switch (type) {
-#define CASE(Name, ...)                                                        \
-  case RegExpBytecodeOperandType::k##Name: {                                   \
-    DCHECK_LE(arg.length(), kInt32Size);                                       \
-    using CType =                                                              \
-        RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name>::kCType;   \
-    CType value = static_cast<CType>(                                          \
-        GetArgumentValue(bytecode, start_pc + arg.offset(), arg.length()));    \
-    writer_.EmitOperand<RegExpBytecodeOperandType::k##Name>(value,             \
-                                                            arg.new_offset()); \
+#define CASE(Name, ...)                                                      \
+  case RegExpBytecodeOperandType::k##Name: {                                 \
+    DCHECK_LE(arg.length(), kInt32Size);                                     \
+    using CType =                                                            \
+        RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name>::kCType; \
+    CType value = static_cast<CType>(                                        \
+        GetArgumentValue(bytecode, start_pc + arg.offset(), arg.length()));  \
+    dst_writer_->EmitOperand<RegExpBytecodeOperandType::k##Name>(            \
+        value, arg.new_offset());                                            \
   } break;
     BASIC_BYTECODE_OPERAND_TYPE_LIST(CASE)
     BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(CASE)
 #undef CASE
     case RegExpBytecodeOperandType::kBitTable: {
       DCHECK_EQ(arg.length(), 16);
-      writer_.EmitOperand<RegExpBytecodeOperandType::kBitTable>(
+      dst_writer_->EmitOperand<RegExpBytecodeOperandType::kBitTable>(
           bytecode + start_pc + arg.offset(), arg.new_offset());
     } break;
     default:
@@ -1150,7 +1060,7 @@ void RegExpBytecodePeephole::EmitArgument(int start_pc, const uint8_t* bytecode,
   }
 }
 
-int RegExpBytecodePeephole::pc() const { return writer_.pc(); }
+int RegExpBytecodePeephole::pc() const { return dst_writer_->pc(); }
 
 Zone* RegExpBytecodePeephole::zone() const { return zone_; }
 
@@ -1160,19 +1070,47 @@ Zone* RegExpBytecodePeephole::zone() const { return zone_; }
 DirectHandle<TrustedByteArray>
 RegExpBytecodePeepholeOptimization::OptimizeBytecode(
     Isolate* isolate, Zone* zone, DirectHandle<String> source,
-    const uint8_t* bytecode, int length,
-    const ZoneUnorderedMap<int, int>& jump_edges) {
-  RegExpBytecodePeephole peephole(zone, length, jump_edges);
-  bool did_optimize = peephole.OptimizeBytecode(bytecode, length);
-  DirectHandle<TrustedByteArray> array =
-      isolate->factory()->NewTrustedByteArray(peephole.Length());
-  peephole.CopyOptimizedBytecode(array->begin());
+    RegExpBytecodeWriter* src_writer) {
+  RegExpBytecodeWriter second_writer(zone);
+  RegExpBytecodeWriter* dst_writer = &second_writer;
 
-  if (did_optimize && v8_flags.trace_regexp_peephole_optimization) {
+  // Preserve the original bytecode for tracing if needed.
+  ZoneVector<uint8_t> original_bytecode(zone);
+  if (v8_flags.trace_regexp_peephole_optimization) {
+    original_bytecode = src_writer->buffer();
+  }
+
+  // Run the peephole optimizer until we've reached a fixed point. All relevant
+  // data structures ping-pong between src and dst_writer.
+  bool any_pass_optimized = false;
+  for (;;) {
+    dst_writer->Reset();
+    // TODO(jgruber): This currently recreates standard definitions for each
+    // pass. These should be global instead (or at the very least, once per
+    // compilation).
+    bool this_pass_optimized =
+        RegExpBytecodePeephole::OptimizeBytecode(zone, src_writer, dst_writer);
+    if (!this_pass_optimized) break;
+    any_pass_optimized = true;
+    std::swap(dst_writer, src_writer);
+  }
+
+  // The result is in the src_writer (not in dst, since the last pass did not
+  // change anything).
+  const uint8_t* optimized_bytecode = src_writer->buffer().data();
+  int optimized_length = src_writer->length();
+
+  DirectHandle<TrustedByteArray> array =
+      isolate->factory()->NewTrustedByteArray(optimized_length);
+  MemCopy(array->begin(), optimized_bytecode, optimized_length);
+
+  if (any_pass_optimized && v8_flags.trace_regexp_peephole_optimization) {
     PrintF("Original Bytecode:\n");
-    RegExpBytecodeDisassemble(bytecode, length, source->ToCString().get());
+    RegExpBytecodeDisassemble(original_bytecode.data(),
+                              static_cast<int>(original_bytecode.size()),
+                              source->ToCString().get());
     PrintF("Optimized Bytecode:\n");
-    RegExpBytecodeDisassemble(array->begin(), peephole.Length(),
+    RegExpBytecodeDisassemble(array->begin(), optimized_length,
                               source->ToCString().get());
   }
 

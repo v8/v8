@@ -28,12 +28,12 @@ void RegExpBytecodeWriter::Emit(T value, int offset) {
 }
 
 template <typename T>
-void RegExpBytecodeWriter::OverwriteValue(int offset, T value) {
+void RegExpBytecodeWriter::OverwriteValue(T value, int absolute_offset) {
   // TODO(jgruber): Consider specializing this function; there should be very
   // few uses (updating jump offsets).
-  DCHECK(IsAligned(offset, sizeof(T)));
-  DCHECK_LE(offset + sizeof(T), buffer_.size());
-  *reinterpret_cast<T*>(buffer_.data() + offset) = value;
+  DCHECK(IsAligned(absolute_offset, sizeof(T)));
+  DCHECK_LE(absolute_offset + sizeof(T), buffer_.size());
+  *reinterpret_cast<T*>(buffer_.data() + absolute_offset) = value;
 }
 
 void RegExpBytecodeWriter::EmitBytecode(RegExpBytecode bc) {
@@ -47,10 +47,21 @@ void RegExpBytecodeWriter::EmitBytecode(RegExpBytecode bc) {
   Emit(RegExpBytecodes::ToByte(bc), 0);
 }
 
-void RegExpBytecodeWriter::EnsureCapacity(size_t size) {
-  if (V8_UNLIKELY(pc_ + size > buffer_.size())) {
-    ExpandBuffer();
+void RegExpBytecodeWriter::EnsureCapacity(size_t size_delta) {
+  const size_t required_size = pc_ + size_delta;
+  size_t size = buffer_.size();
+  if (V8_LIKELY(size >= required_size)) return;
+  if (required_size < kInitialBufferSizeInBytes) {
+    size = kInitialBufferSizeInBytes;
+  } else if (required_size <= kMaxBufferGrowthInBytes) {
+    // We use a doubling strategy until hitting the limit.
+    size = base::bits::RoundUpToPowerOfTwo(required_size);
+  } else {
+    // .. and kMaxBufferGrowthInBytes chunks afterwards.
+    size = RoundUp<kMaxBufferGrowthInBytes>(required_size);
   }
+  ExpandBuffer(size);
+  DCHECK_LE(required_size, buffer_.size());
 }
 
 void RegExpBytecodeWriter::ResetPc(int new_pc) {

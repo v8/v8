@@ -302,7 +302,7 @@ class RegExpBytecodes final : public AllStatic {
     return static_cast<uint8_t>(bc);
   }
   static constexpr RegExpBytecode FromByte(uint8_t byte) {
-    DCHECK_LT(byte, kCount);
+    DCHECK(IsValid(byte));
     return static_cast<RegExpBytecode>(byte);
   }
   // Extract the bytecode from the given `ptr`, which must point at the
@@ -312,6 +312,10 @@ class RegExpBytecodes final : public AllStatic {
       DCHECK(IsAligned(reinterpret_cast<Address>(ptr), kBytecodeAlignment));
     }
     return FromByte(*static_cast<const uint8_t*>(ptr));
+  }
+  static constexpr bool IsValid(uint8_t byte) { return byte < kCount; }
+  static constexpr bool IsValidJumpTarget(uint8_t byte) {
+    return IsValid(byte) && FromByte(byte) != RegExpBytecode::kBreak;
   }
 
   // Calls |f| templatized by RegExpBytecode. This allows the usage of the

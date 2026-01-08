@@ -25,7 +25,7 @@ static constexpr int kMaxSingleCharValue =
 // TODO(jgruber): Move all Writer methods before Generator methods.
 
 RegExpBytecodeWriter::RegExpBytecodeWriter(Zone* zone)
-    : buffer_(kInitialBufferSize, zone),
+    : buffer_(zone),
       pc_(0),
       jump_edges_(zone)
 #ifdef DEBUG
@@ -36,10 +36,15 @@ RegExpBytecodeWriter::RegExpBytecodeWriter(Zone* zone)
 {
 }
 
-void RegExpBytecodeWriter::ExpandBuffer() {
-  // TODO(jgruber): The growth strategy could be smarter for large sizes.
+void RegExpBytecodeWriter::ExpandBuffer(size_t new_size) {
   // TODO(jgruber): It's not necessary to default-initialize new elements.
-  buffer_.resize(buffer_.size() * 2);
+  buffer_.resize(new_size);
+}
+
+void RegExpBytecodeWriter::Reset() {
+  // We keep the buffer_ storage; the next pass will overwrite its contents.
+  jump_edges_.clear();
+  ResetPc(0);
 }
 
 void RegExpBytecodeWriter::EmitRawBytecodeStream(const uint8_t* data, int len) {
@@ -59,6 +64,26 @@ void RegExpBytecodeWriter::EmitRawBytecodeStream(const uint8_t* data, int len) {
 #endif
 }
 
+void RegExpBytecodeWriter::EmitRawBytecodeStream(
+    const RegExpBytecodeWriter* src_writer, int src_offset, int length) {
+  const int start_pc = pc_;
+
+  EmitRawBytecodeStream(src_writer->buffer().data() + src_offset, length);
+
+  // Copy jumps in range.
+  const auto& src_edges = src_writer->jump_edges();
+  auto jump_iter = src_edges.lower_bound(src_offset);
+  // Iterate over all jumps that start in the copied range.
+  while (jump_iter != src_edges.end() &&
+         jump_iter->first < src_offset + length) {
+    int old_source = jump_iter->first;
+    int old_target = jump_iter->second;
+    int new_source = start_pc + (old_source - src_offset);
+    jump_edges_.emplace(new_source, old_target);
+    jump_iter++;
+  }
+}
+
 void RegExpBytecodeWriter::Finalize(RegExpBytecode bc) {
   int size = RegExpBytecodes::Size(bc);
   EMIT_PADDING(size);
@@ -74,7 +99,6 @@ RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone,
                                                  Mode mode)
     : RegExpMacroAssembler(isolate, zone, mode),
       RegExpBytecodeWriter(zone),
-      advance_current_end_(kInvalidPC),
       isolate_(isolate) {}
 
 RegExpBytecodeGenerator::~RegExpBytecodeGenerator() {
@@ -138,7 +162,16 @@ auto RegExpBytecodeWriter::GetCheckedBasicOperandValue(T value) {
 
 template <RegExpBytecodeOperandType OperandType, typename T>
 void RegExpBytecodeWriter::EmitOperand(T value, int offset) {
+  if constexpr (OperandType == RegExpBytecodeOperandType::kJumpTarget) {
+    jump_edges_.emplace(pc_ + offset, static_cast<int>(value));
+  }
   Emit(GetCheckedBasicOperandValue<OperandType>(value), offset);
+}
+
+void RegExpBytecodeWriter::PatchJump(int target, int absolute_offset) {
+  DCHECK(jump_edges_.contains(absolute_offset));
+  OverwriteValue<uint32_t>(target, absolute_offset);
+  jump_edges_[absolute_offset] = target;
 }
 
 template <typename T>
@@ -213,15 +246,14 @@ void RegExpBytecodeGenerator::Emit(Args... args) {
 }
 
 void RegExpBytecodeGenerator::Bind(Label* l) {
-  advance_current_end_ = kInvalidPC;
   DCHECK(!l->is_bound());
   if (l->is_linked()) {
     int pos = l->pos();
     while (pos != 0) {
       int fixup = pos;
       pos = *reinterpret_cast<int32_t*>(buffer_.data() + fixup);
-      OverwriteValue<uint32_t>(fixup, pc_);
-      jump_edges_.emplace(fixup, pc_);
+      OverwriteValue<uint32_t>(pc_, fixup);
+      jump_edges().emplace(fixup, pc_);
     }
   }
   l->bind_to(pc_);
@@ -287,16 +319,7 @@ void RegExpBytecodeGenerator::Backtrack() {
 }
 
 void RegExpBytecodeGenerator::GoTo(Label* label) {
-  if (advance_current_end_ == pc_) {
-    // Combine advance current and goto.
-    // TODO(pthier): Let peephole-optimization handle this case instead.
-    ResetPc(advance_current_start_);
-    Emit<RegExpBytecode::kAdvanceCpAndGoto>(advance_current_offset_, label);
-    advance_current_end_ = kInvalidPC;
-  } else {
-    // Regular goto.
-    Emit<RegExpBytecode::kGoTo>(label);
-  }
+  Emit<RegExpBytecode::kGoTo>(label);
 }
 
 void RegExpBytecodeGenerator::PushBacktrack(Label* label) {
@@ -311,10 +334,7 @@ bool RegExpBytecodeGenerator::Succeed() {
 void RegExpBytecodeGenerator::Fail() { Emit<RegExpBytecode::kFail>(); }
 
 void RegExpBytecodeGenerator::AdvanceCurrentPosition(int by) {
-  advance_current_start_ = pc_;
-  advance_current_offset_ = by;
   Emit<RegExpBytecode::kAdvanceCurrentPosition>(by);
-  advance_current_end_ = pc_;
 }
 
 void RegExpBytecodeGenerator::CheckFixedLengthLoop(
@@ -566,7 +586,7 @@ DirectHandle<HeapObject> RegExpBytecodeGenerator::GetCode(
   DirectHandle<TrustedByteArray> array;
   if (v8_flags.regexp_peephole_optimization) {
     array = RegExpBytecodePeepholeOptimization::OptimizeBytecode(
-        isolate_, zone(), source, buffer_.data(), length(), jump_edges_);
+        isolate_, zone(), source, this);
   } else {
     array = isolate_->factory()->NewTrustedByteArray(length());
     CopyBufferTo(array->begin());
