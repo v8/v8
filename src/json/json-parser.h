@@ -407,7 +407,8 @@ class JsonParser final {
   template <DescriptorArray::FastIterableState fast_iterable_state>
   V8_INLINE bool ParseJsonObjectProperties(JsonContinuation* cont,
                                            MessageTemplate first_token_msg,
-                                           Handle<DescriptorArray> descriptors);
+                                           Handle<DescriptorArray> descriptors,
+                                           uint16_t nof_descriptors);
   V8_INLINE bool ParseJsonPropertyValue(const JsonString& key);
   V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length);
   V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length,

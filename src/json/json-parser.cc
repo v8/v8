@@ -1595,7 +1595,7 @@ template <typename Char>
 template <DescriptorArray::FastIterableState fast_iterable_state>
 bool JsonParser<Char>::ParseJsonObjectProperties(
     JsonContinuation* cont, MessageTemplate first_token_msg,
-    Handle<DescriptorArray> descriptors) {
+    Handle<DescriptorArray> descriptors, uint16_t nof_descriptors) {
   using FastIterableState = DescriptorArray::FastIterableState;
   if constexpr (fast_iterable_state == FastIterableState::kJsonSlow) {
     do {
@@ -1606,8 +1606,9 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
       if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
     } while (Check<JsonToken::COMMA>());
   } else {
-    DCHECK_GT(descriptors->number_of_descriptors(), 0);
+    DCHECK_GT(nof_descriptors, 0);
     InternalIndex idx{0};
+    InternalIndex descriptors_end = InternalIndex{nof_descriptors};
     do {
       EXPECT_NEXT_RETURN_ON_ERROR(JsonToken::STRING, first_token_msg, false);
       first_token_msg =
@@ -1639,7 +1640,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
             if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
             if (Check<JsonToken::COMMA>()) {
               return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-                  cont, first_token_msg, {});
+                  cont, first_token_msg, {}, nof_descriptors);
             }
             return true;
           }
@@ -1653,11 +1654,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
           if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
           continue;
         }
-        // Before accessing the descriptor array, make sure that it wasn't
-        // shrunk during a potential GC after the previous range check.
-        if (V8_UNLIKELY(idx.as_int() >= descriptors->number_of_descriptors())) {
-          break;
-        }
+        DCHECK_LT(idx, InternalIndex(descriptors->number_of_descriptors()));
         // Check if the key is fast iterable.
         // Some of the checks below are not relevant for the parser, but are
         // requirements for fast iterable keys in general (e.g. for
@@ -1707,15 +1704,14 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
         if (V8_UNLIKELY(is_slow || !key_match)) {
           if (Check<JsonToken::COMMA>()) {
             return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-                cont, first_token_msg, {});
+                cont, first_token_msg, {}, nof_descriptors);
           }
           // No more properties to scan, we are done.
           return true;
         }
         ++idx;
       }
-    } while (idx < InternalIndex(descriptors->number_of_descriptors()) &&
-             Check<JsonToken::COMMA>());
+    } while (idx < descriptors_end && Check<JsonToken::COMMA>());
     if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
       if (idx == InternalIndex(descriptors->number_of_descriptors())) {
         descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
@@ -1725,7 +1721,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
     // Additional, unknown properties. Scan them slow.
     if (Check<JsonToken::COMMA>()) {
       return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-          cont, first_token_msg, descriptors);
+          cont, first_token_msg, descriptors, nof_descriptors);
     }
   }
 
@@ -1755,28 +1751,31 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonObject(Handle<Map> feedback) {
   if (!feedback.is_null()) {
     Handle<DescriptorArray> descriptors =
         handle(feedback->instance_descriptors(), isolate_);
-    if (*descriptors == ReadOnlyRoots(isolate_).empty_descriptor_array()) {
+    uint16_t nof_descriptors = feedback->NumberOfOwnDescriptors();
+    if (nof_descriptors == 0) {
+      // Empty descriptor array is technically fast iterable, but the fast
+      // iteration expects at least 1 property.
       success = ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-          &cont, first_token_msg, {});
+          &cont, first_token_msg, {}, nof_descriptors);
     } else {
       switch (descriptors->fast_iterable()) {
         case FastIterableState::kJsonFast:
           success = ParseJsonObjectProperties<FastIterableState::kJsonFast>(
-              &cont, first_token_msg, descriptors);
+              &cont, first_token_msg, descriptors, nof_descriptors);
           break;
         case FastIterableState::kJsonSlow:
           success = ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-              &cont, first_token_msg, {});
+              &cont, first_token_msg, {}, nof_descriptors);
           break;
         case FastIterableState::kUnknown:
           success = ParseJsonObjectProperties<FastIterableState::kUnknown>(
-              &cont, first_token_msg, descriptors);
+              &cont, first_token_msg, descriptors, nof_descriptors);
           break;
       }
     }
   } else {
     success = ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
-        &cont, first_token_msg, {});
+        &cont, first_token_msg, {}, 0 /* unused */);
   }
   if (V8_UNLIKELY(!success)) {
     return {};
