@@ -61,8 +61,7 @@ class MarkingVerifierBase : public ObjectVisitorWithCageBases,
   void VisitMapPointer(Tagged<HeapObject> object) override;
 
   void VerifyRoots();
-  void VerifyMarkingOnPage(const PageMetadata* page, Address start,
-                           Address end);
+  void VerifyMarkingOnPage(const NormalPage* page, Address start, Address end);
   void VerifyMarking(NewSpace* new_space);
   void VerifyMarking(PagedSpaceBase* paged_space);
   void VerifyMarking(LargeObjectSpace* lo_space);

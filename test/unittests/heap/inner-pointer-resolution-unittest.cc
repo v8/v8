@@ -800,11 +800,11 @@ TEST_F(InnerPointerResolutionHeapTest, LargePageAfterEnd) {
 
   // The end of the page area is expected not to coincide with the beginning of
   // the next page.
-  EXPECT_FALSE(PageMetadata::IsAlignedToPageSize(page->area_end()));
+  EXPECT_FALSE(NormalPage::IsAlignedToPageSize(page->area_end()));
 
   // Inner pointer resolution after the end of the pare area should work.
   Address inner_ptr = page->area_end() + kTaggedSize;
-  EXPECT_FALSE(PageMetadata::IsAlignedToPageSize(inner_ptr));
+  EXPECT_FALSE(NormalPage::IsAlignedToPageSize(inner_ptr));
   EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr));
 
   // Deallocate the page.

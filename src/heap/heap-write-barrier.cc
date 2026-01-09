@@ -437,7 +437,7 @@ void ForRangeImpl(Heap* heap, MemoryChunk* source_chunk,
 
   MarkingBarrier* marking_barrier = nullptr;
   static constexpr Tagged_t kPageMask =
-      ~static_cast<Tagged_t>(PageMetadata::kPageSize - 1);
+      ~static_cast<Tagged_t>(NormalPage::kPageSize - 1);
   Tagged_t cached_uninteresting_page =
       static_cast<Tagged_t>(heap->read_only_space()->FirstPageAddress()) &
       kPageMask;
@@ -574,7 +574,7 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
   if (mode == SKIP_WRITE_BARRIER) {
     if (value->is_builtin()) {
       // Builtins are immortal and immovable, so no write barrier needed.
-      PageMetadata* page = PageMetadata::FromHeapObject(value);
+      NormalPage* page = NormalPage::FromHeapObject(value);
       DCHECK(page->never_evacuate());
       return true;
     }

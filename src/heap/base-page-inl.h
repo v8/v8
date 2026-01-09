@@ -30,7 +30,7 @@ void BasePage::UpdateHighWaterMark(Address mark) {
   // Need to subtract one from the mark because when a chunk is full the
   // top points to the next address after the chunk, which effectively belongs
   // to another chunk. See the comment to
-  // PageMetadata::FromAllocationAreaAddress.
+  // NormalPage::FromAllocationAreaAddress.
   BasePage* chunk = BasePage::FromAddress(Isolate::Current(), mark - 1);
   intptr_t new_mark = static_cast<intptr_t>(mark - chunk->ChunkAddress());
   intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);

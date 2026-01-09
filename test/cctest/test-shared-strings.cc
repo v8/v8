@@ -850,7 +850,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
       // old space.
       heap::InvokeMajorGC(heap);
       heap::ForceEvacuationCandidate(
-          i::PageMetadata::FromHeapObject(*one_byte_seq));
+          i::NormalPage::FromHeapObject(*one_byte_seq));
 
       one_byte_seq_global.Reset(isolate, v8::Utils::ToLocal(one_byte_seq));
     }
@@ -1096,8 +1096,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
       CHECK(!RememberedSet<OLD_TO_NEW>::Contains(
           MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
 
-      heap::ForceEvacuationCandidate(
-          PageMetadata::FromHeapObject(*one_byte_seq));
+      heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*one_byte_seq));
       one_byte_seq_global.Reset(isolate, v8::Utils::ToLocal(one_byte_seq));
     }
     {
@@ -2307,7 +2306,7 @@ UNINITIALIZED_TEST(
 
   // Start an incremental shared GC such that shared_string resides on an
   // evacuation candidate.
-  heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*shared_string));
+  heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*shared_string));
   i::IncrementalMarking* marking = shared_heap->incremental_marking();
   CHECK(marking->IsStopped());
   {

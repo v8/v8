@@ -2490,13 +2490,13 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
 
   // Create a string on an evacuation candidate in old space.
   DirectHandle<String> moving_object;
-  PageMetadata* ec_page;
+  NormalPage* ec_page;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
     heap::SimulateFullSpace(heap->old_space());
     moving_object = isolate->factory()->InternalizeString(
         isolate->factory()->NewStringFromAsciiChecked("happy_hippo"));
-    ec_page = PageMetadata::FromHeapObject(*moving_object);
+    ec_page = NormalPage::FromHeapObject(*moving_object);
   }
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);

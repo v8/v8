@@ -17,7 +17,7 @@ class CFunctionInfo;
 namespace internal {
 
 class Isolate;
-class PageMetadata;
+class NormalPage;
 class SCTableReference;
 class StatsCounter;
 enum class IsolateFieldId : uint8_t;

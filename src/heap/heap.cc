@@ -297,7 +297,7 @@ Heap::Heap()
       gc_tracing_category_enabled_(TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACE_DISABLED_BY_DEFAULT("v8.gc"))) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
-  DCHECK_EQ(0, max_old_generation_size() & (PageMetadata::kPageSize - 1));
+  DCHECK_EQ(0, max_old_generation_size() & (NormalPage::kPageSize - 1));
 
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) {
@@ -345,7 +345,7 @@ size_t Heap::YoungGenerationSizeFromHeapSize(uint64_t physical_memory,
   semi_space =
       RoundUp(std::clamp<size_t>(semi_space, 2 * MB,
                                  DefaultMaxSemiSpaceSize(physical_memory)),
-              PageMetadata::kPageSize);
+              NormalPage::kPageSize);
   return YoungGenerationSizeFromSemiSpaceSize(semi_space);
 }
 
@@ -358,7 +358,7 @@ size_t Heap::OldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
     old_generation = std::clamp<uint64_t>(
         old_generation, DefaultMinHeapSize(physical_memory),
         MaxOldGenerationSizeFromPhysicalMemory(physical_memory));
-    return RoundUp(old_generation, PageMetadata::kPageSize);
+    return RoundUp(old_generation, NormalPage::kPageSize);
   }
   uint64_t old_generation = physical_memory /
                             kPhysicalMemoryToOldGenerationRatio *
@@ -370,7 +370,7 @@ size_t Heap::OldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
   old_generation =
       std::max({old_generation,
                 static_cast<uint64_t>(DefaultMinHeapSize(physical_memory))});
-  old_generation = RoundUp(old_generation, PageMetadata::kPageSize);
+  old_generation = RoundUp(old_generation, NormalPage::kPageSize);
 
   return static_cast<size_t>(old_generation);
 }
@@ -398,7 +398,7 @@ size_t Heap::MinYoungGenerationSize() {
 size_t Heap::MinOldGenerationSize() {
   size_t paged_space_count =
       LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
-  return paged_space_count * PageMetadata::kPageSize;
+  return paged_space_count * NormalPage::kPageSize;
 }
 
 // static
@@ -581,7 +581,7 @@ bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) const {
       new_space()->Capacity() + new_lo_space()->Size() +
       (v8_flags.minor_ms ? 0
                          : semi_space_new_space()->QuarantinedPageCount() *
-                               PageMetadata::kPageSize);
+                               NormalPage::kPageSize);
 
   // Over-estimate the new space size using capacity to allow some slack.
   return CanExpandOldGeneration(size + new_space_capacity);
@@ -798,7 +798,7 @@ void Heap::PrintShortHeapStatistics() {
                (this->CommittedMemory() + ro_space->CommittedMemory()) / KB);
   const size_t chunks = memory_allocator()->GetPooledChunksCount();
   PrintIsolate(isolate_, "Pool buffering %4zu chunk(s) of committed: %7zu KB\n",
-               chunks, (chunks * PageMetadata::kPageSize) / KB);
+               chunks, (chunks * NormalPage::kPageSize) / KB);
   PrintIsolate(isolate_,
                "External memory reported:                  %7" PRId64 " KB\n",
                external_memory() / KB);
@@ -835,7 +835,7 @@ void Heap::PrintFreeListsStats() {
   // This loops computes freelists lengths and sum.
   // If v8_flags.trace_gc_freelists_verbose is enabled, it also prints
   // the stats of each FreeListCategory of each Page.
-  for (PageMetadata* page : *old_space()) {
+  for (NormalPage* page : *old_space()) {
     std::ostringstream out_str;
 
     if (v8_flags.trace_gc_freelists_verbose) {
@@ -2599,7 +2599,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   // SweepingDone() is always true for large pages.
   DCHECK(!mutable_page->is_large());
 
-  PageMetadata* page = PageMetadata::cast(mutable_page);
+  NormalPage* page = NormalPage::cast(mutable_page);
   sweeper()->EnsurePageIsSwept(page);
 }
 
@@ -3576,7 +3576,7 @@ void Heap::RightTrimArray(Tagged<Array> object, uint32_t new_capacity_raw,
       // This is an optimization. The sweeper will release black fillers anyway.
       if (incremental_marking()->black_allocation() &&
           marking_state()->IsMarked(filler)) {
-        PageMetadata* page = PageMetadata::FromAddress(new_end);
+        NormalPage* page = NormalPage::FromAddress(new_end);
         page->marking_bitmap()->ClearRange<AccessMode::ATOMIC>(
             MarkingBitmap::AddressToIndex(new_end),
             MarkingBitmap::LimitAddressToIndex(new_end + bytes_to_trim));
@@ -3892,7 +3892,7 @@ void Heap::ActivateMemoryReducerIfNeededOnMainThread() {
   // - there was no mark compact since the start.
   // - the committed memory can be potentially reduced.
   // 2 pages for the old, code, and map space + 1 page for new space.
-  const int kMinCommittedMemory = 7 * PageMetadata::kPageSize;
+  const int kMinCommittedMemory = 7 * NormalPage::kPageSize;
   if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory &&
       isolate()->is_backgrounded()) {
     memory_reducer_->NotifyPossibleGarbage();
@@ -3926,8 +3926,7 @@ namespace {
 size_t ComputeReducedNewSpaceSize(NewSpace* new_space) {
   size_t new_capacity =
       std::max(new_space->MinimumCapacity(), 2 * new_space->Size());
-  size_t rounded_new_capacity =
-      ::RoundUp(new_capacity, PageMetadata::kPageSize);
+  size_t rounded_new_capacity = ::RoundUp(new_capacity, NormalPage::kPageSize);
   DCHECK_LE(new_space->TotalCapacity(), new_space->MaximumCapacity());
   return std::min(new_space->TotalCapacity(), rounded_new_capacity);
 }
@@ -3973,7 +3972,7 @@ void Heap::ExpandNewSpaceSize() {
       new_space_->TotalCapacity();
   const size_t chosen_capacity =
       std::min(suggested_capacity, new_space_->MaximumCapacity());
-  DCHECK(IsAligned(chosen_capacity, PageMetadata::kPageSize));
+  DCHECK(IsAligned(chosen_capacity, NormalPage::kPageSize));
 
   if (chosen_capacity > new_space_->TotalCapacity()) {
     new_space_->Grow(chosen_capacity);
@@ -5034,14 +5033,14 @@ size_t Heap::DefaultInitialOldGenerationSize(uint64_t physical_memory) {
 
 // static
 size_t Heap::DefaultMinSemiSpaceSize() {
-  return RoundUp(512 * KB, PageMetadata::kPageSize);
+  return RoundUp(512 * KB, NormalPage::kPageSize);
 }
 
 // static
 size_t Heap::DefaultMaxSemiSpaceSize(uint64_t physical_memory) {
   if (v8_flags.minor_ms) {
     static constexpr size_t kMinorMsMaxCapacity = 72 * MB;
-    return RoundUp(kMinorMsMaxCapacity, PageMetadata::kPageSize);
+    return RoundUp(kMinorMsMaxCapacity, NormalPage::kPageSize);
   }
 
   // Compute default max semi space size for Scavenger.
@@ -5055,7 +5054,7 @@ size_t Heap::DefaultMaxSemiSpaceSize(uint64_t physical_memory) {
   }
 #endif
 
-  return RoundUp(max_semi_space_size, PageMetadata::kPageSize);
+  return RoundUp(max_semi_space_size, NormalPage::kPageSize);
 }
 
 // static
@@ -5134,7 +5133,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     max_semi_space_size_ =
         std::max(max_semi_space_size_, DefaultMinSemiSpaceSize());
     max_semi_space_size_ =
-        RoundDown<PageMetadata::kPageSize>(max_semi_space_size_);
+        RoundDown<NormalPage::kPageSize>(max_semi_space_size_);
     static constexpr size_t max_possible_heap_size =
 #ifdef V8_COMPRESS_POINTERS
         kPtrComprCageReservationSize;
@@ -5174,7 +5173,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
                  AllocatorLimitOnMaxOldGenerationSize(
                      constraints.physical_memory_size_in_bytes()));
     max_old_generation_size =
-        RoundDown<PageMetadata::kPageSize>(max_old_generation_size);
+        RoundDown<NormalPage::kPageSize>(max_old_generation_size);
 
     SetOldGenerationAndGlobalMaximumSize(
         max_old_generation_size, constraints.physical_memory_size_in_bytes());
@@ -5199,7 +5198,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     }
     min_semi_space_size_ = std::min(min_semi_space_size_, max_semi_space_size_);
     min_semi_space_size_ =
-        RoundDown<PageMetadata::kPageSize>(min_semi_space_size_);
+        RoundDown<NormalPage::kPageSize>(min_semi_space_size_);
   }
 
   // Initialize initial_semispace_size_.
@@ -5223,7 +5222,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     initial_semispace_size_ =
         std::max(initial_semispace_size_, min_semi_space_size_);
     initial_semispace_size_ =
-        RoundDown<PageMetadata::kPageSize>(initial_semispace_size_);
+        RoundDown<NormalPage::kPageSize>(initial_semispace_size_);
   }
 
   DCHECK_LE(min_semi_space_size_, initial_semispace_size_);
@@ -5270,7 +5269,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
   initial_old_generation_size_ =
       std::min(initial_old_generation_size_, max_old_generation_size() / 2);
   initial_old_generation_size_ =
-      RoundDown<PageMetadata::kPageSize>(initial_old_generation_size_);
+      RoundDown<NormalPage::kPageSize>(initial_old_generation_size_);
   if (initial_size_overwritten_ && !preconfigured_old_generation_size_) {
     // If the embedder pre-configures the initial old generation size,
     // then allow V8 to skip full GCs below that threshold.
@@ -6435,7 +6434,7 @@ void Heap::NotifyDeserializationComplete() {
   PagedSpaceIterator spaces(this);
   for (PagedSpace* s = spaces.Next(); s != nullptr; s = spaces.Next()) {
     // All pages right after bootstrapping must be marked as never-evacuate.
-    for (PageMetadata* p : *s) {
+    for (NormalPage* p : *s) {
       DCHECK(p->never_evacuate());
     }
   }
@@ -6908,7 +6907,7 @@ int Heap::InsertIntoRememberedSetFromCode(MutablePage* chunk,
 #ifdef DEBUG
 void Heap::VerifySlotRangeHasNoRecordedSlots(Address start, Address end) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  PageMetadata* page = PageMetadata::FromAddress(start);
+  NormalPage* page = NormalPage::FromAddress(start);
   RememberedSet<OLD_TO_NEW>::CheckNoneInRange(page, start, end);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::CheckNoneInRange(page, start, end);
   RememberedSet<OLD_TO_SHARED>::CheckNoneInRange(page, start, end);
@@ -6955,7 +6954,7 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   if (!chunk->InYoungGeneration())
 #endif
   {
-    PageMetadata* page = PageMetadata::cast(chunk->Metadata());
+    NormalPage* page = NormalPage::cast(chunk->Metadata());
     // This method will be invoked on objects in shared space for
     // internalization and string forwarding during GC.
     DCHECK(page->owner_identity() == OLD_SPACE ||
@@ -7226,9 +7225,9 @@ void Heap::ExternalStringTable::TearDown() {
 void Heap::RememberUnmappedPage(Address page, bool compacted) {
   // Tag the page pointer to make it findable in the dump file.
   if (compacted) {
-    page ^= 0xC1EAD & (PageMetadata::kPageSize - 1);  // Cleared.
+    page ^= 0xC1EAD & (NormalPage::kPageSize - 1);  // Cleared.
   } else {
-    page ^= 0x1D1ED & (PageMetadata::kPageSize - 1);  // I died.
+    page ^= 0x1D1ED & (NormalPage::kPageSize - 1);  // I died.
   }
   remembered_unmapped_pages_[remembered_unmapped_pages_index_] = page;
   remembered_unmapped_pages_index_++;

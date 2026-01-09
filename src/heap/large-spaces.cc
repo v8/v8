@@ -301,7 +301,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
     // Each chunk contains an object that starts at the large object page's
     // object area start.
     Tagged<HeapObject> object = chunk->GetObject();
-    PageMetadata* page = PageMetadata::FromHeapObject(object);
+    NormalPage* page = NormalPage::FromHeapObject(object);
     CHECK(object.address() == page->area_start());
 
     // Only certain types may be in the large object space:

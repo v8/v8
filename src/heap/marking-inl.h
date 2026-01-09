@@ -197,7 +197,7 @@ constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
 }
 
 // static
-inline Address MarkingBitmap::FindPreviousValidObject(const PageMetadata* page,
+inline Address MarkingBitmap::FindPreviousValidObject(const NormalPage* page,
                                                       Address maybe_inner_ptr) {
   DCHECK(page->Contains(maybe_inner_ptr));
   const auto* bitmap = page->marking_bitmap();

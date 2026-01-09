@@ -231,7 +231,7 @@ TEST(MemoryAllocator) {
   OldSpace faked_space(heap);
   CHECK(!faked_space.first_page());
   CHECK(!faked_space.last_page());
-  PageMetadata* first_page = memory_allocator->AllocatePage(
+  NormalPage* first_page = memory_allocator->AllocatePage(
       MemoryAllocator::AllocationMode::kRegular,
       static_cast<PagedSpace*>(&faked_space), NOT_EXECUTABLE);
 
@@ -239,24 +239,24 @@ TEST(MemoryAllocator) {
   CHECK(first_page->next_page() == nullptr);
   total_pages++;
 
-  for (PageMetadata* p = first_page; p != nullptr; p = p->next_page()) {
+  for (NormalPage* p = first_page; p != nullptr; p = p->next_page()) {
     CHECK(p->owner() == &faked_space);
   }
 
   // Again, we should get n or n - 1 pages.
-  PageMetadata* other = memory_allocator->AllocatePage(
+  NormalPage* other = memory_allocator->AllocatePage(
       MemoryAllocator::AllocationMode::kRegular,
       static_cast<PagedSpace*>(&faked_space), NOT_EXECUTABLE);
   total_pages++;
   faked_space.memory_chunk_list().PushBack(other);
   int page_count = 0;
-  for (PageMetadata* p = first_page; p != nullptr; p = p->next_page()) {
+  for (NormalPage* p = first_page; p != nullptr; p = p->next_page()) {
     CHECK(p->owner() == &faked_space);
     page_count++;
   }
   CHECK(total_pages == page_count);
 
-  PageMetadata* second_page = first_page->next_page();
+  NormalPage* second_page = first_page->next_page();
   CHECK_NOT_NULL(second_page);
 
   // OldSpace's destructor will tear down the space and free up all pages.
@@ -417,7 +417,7 @@ TEST(OldLargeObjectSpace) {
   Heap* heap = isolate->heap();
 
   auto lo = std::make_unique<OldLargeObjectSpace>(heap);
-  const int lo_size = PageMetadata::kPageSize;
+  const int lo_size = NormalPage::kPageSize;
 
   HandleScope handle_scope(isolate);
   Tagged<Map> map = ReadOnlyRoots(isolate).fixed_double_array_map();
@@ -652,7 +652,7 @@ TEST(NoMemoryForNewPage) {
   TestMemoryAllocatorScope test_allocator_scope(isolate, 0, &failing_allocator);
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
   OldSpace faked_space(heap);
-  PageMetadata* page = memory_allocator->AllocatePage(
+  NormalPage* page = memory_allocator->AllocatePage(
       MemoryAllocator::AllocationMode::kRegular,
       static_cast<PagedSpace*>(&faked_space), NOT_EXECUTABLE);
 

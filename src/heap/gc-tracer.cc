@@ -895,7 +895,7 @@ void GCTracer::Print() const {
       static_cast<double>(current_.end_object_size) / MB,
       static_cast<double>(current_.end_memory_size) / MB,
       static_cast<double>(heap_->memory_allocator()->GetPooledChunksCount() *
-                          PageMetadata::kPageSize) /
+                          NormalPage::kPageSize) /
           MB,
       duration.InMillisecondsF(), total_external_time, incremental_buffer,
       AverageMarkCompactMutatorUtilization(),

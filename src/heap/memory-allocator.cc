@@ -39,7 +39,7 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate,
           IsolateGroup::current()->read_only_page_allocator()),
       code_page_allocator_(code_page_allocator),
       trusted_page_allocator_(trusted_page_allocator),
-      capacity_(RoundUp(capacity, PageMetadata::kPageSize)),
+      capacity_(RoundUp(capacity, NormalPage::kPageSize)),
       pool_(page_pool) {
   DCHECK_NOT_NULL(data_page_allocator_);
   DCHECK_NOT_NULL(read_only_page_allocator_);
@@ -368,7 +368,7 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
               static_cast<LargePage*>(page_metadata));
         } else {
           delayed_then_pooled_pages_.push_back(
-              static_cast<PageMetadata*>(page_metadata));
+              static_cast<NormalPage*>(page_metadata));
         }
         break;
       }
@@ -420,7 +420,7 @@ void MemoryAllocator::ReleaseDelayedPages() {
   delayed_then_pooled_large_pages_.clear();
 }
 
-PageMetadata* MemoryAllocator::AllocatePage(
+NormalPage* MemoryAllocator::AllocatePage(
     MemoryAllocator::AllocationMode alloc_mode, Space* space,
     Executability executable) {
   const size_t size =
@@ -438,12 +438,12 @@ PageMetadata* MemoryAllocator::AllocatePage(
     return nullptr;
   }
 
-  PageMetadata* metadata;
+  NormalPage* metadata;
   MemoryChunk::MainThreadFlags trusted_flags;
   if (!chunk_info->optional_metadata) {
-    chunk_info->optional_metadata = malloc(sizeof(PageMetadata));
+    chunk_info->optional_metadata = malloc(sizeof(NormalPage));
   }
-  metadata = new (chunk_info->optional_metadata) PageMetadata(
+  metadata = new (chunk_info->optional_metadata) NormalPage(
       isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
       chunk_info->area_end, std::move(chunk_info->reservation), executable,
       &trusted_flags);
@@ -589,7 +589,7 @@ MemoryAllocator::AllocateUninitializedPageFromDelayedOrPool(Space* space) {
     base::MutexGuard guard(chunks_mutex_);
     if (!delayed_then_pooled_pages_.empty()) {
       DCHECK(memory_pool());
-      PageMetadata* metadata = delayed_then_pooled_pages_.back();
+      NormalPage* metadata = delayed_then_pooled_pages_.back();
       delayed_then_pooled_pages_.pop_back();
       maybe_result = memory_pool()->CreatePooledPage(metadata).ToResult();
     }
@@ -706,7 +706,7 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddressInSafepoint(
   if (auto normal_page_it = normal_pages_.find(chunk);
       normal_page_it != normal_pages_.end()) {
     // The chunk is a normal page.
-    // auto* normal_page = PageMetadata::cast(chunk);
+    // auto* normal_page = NormalPage::cast(chunk);
     DCHECK_LE((*normal_page_it)->address(), addr);
     // This code can run from the shared heap isolate and the slot may point
     // into a client heap isolate, so ignore the isolate check.
@@ -764,7 +764,7 @@ void MemoryAllocator::DeleteMemoryChunk(MutablePage* metadata) {
     if (metadata->is_large()) {
       static_cast<LargePage*>(metadata)->~LargePage();
     } else {
-      static_cast<PageMetadata*>(metadata)->~PageMetadata();
+      static_cast<NormalPage*>(metadata)->~NormalPage();
     }
   }
   free(metadata);

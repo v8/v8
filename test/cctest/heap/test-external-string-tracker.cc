@@ -112,7 +112,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
     v8::internal::DirectHandle<v8::internal::String> esh =
         v8::Utils::OpenDirectHandle(*es);
 
-    PageMetadata* page_before_gc = PageMetadata::FromHeapObject(*esh);
+    NormalPage* page_before_gc = NormalPage::FromHeapObject(*esh);
     heap::ForceEvacuationCandidate(page_before_gc);
 
     heap::InvokeMajorGC(heap);

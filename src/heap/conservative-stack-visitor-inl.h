@@ -99,7 +99,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
   }
 
   // Otherwise, we have a pointer inside a normal page.
-  const PageMetadata* page = static_cast<const PageMetadata*>(chunk_metadata);
+  const NormalPage* page = static_cast<const NormalPage*>(chunk_metadata);
   // Try to find the address of a previous valid object on this page.
   Address base_ptr =
       MarkingBitmap::FindPreviousValidObject(page, maybe_inner_ptr);

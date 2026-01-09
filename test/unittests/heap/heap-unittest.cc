@@ -562,7 +562,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
   for (auto it = paged_new_space->begin();
        it != paged_new_space->end() &&
        (paged_new_space->ShouldReleaseEmptyPage());) {
-    PageMetadata* page = *it++;
+    NormalPage* page = *it++;
     if (page->allocated_bytes() == 0) {
       paged_new_space->paged_space()->RemovePageFromSpace(page);
       heap->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
@@ -578,7 +578,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
     }
   }
   paged_new_space->FinishShrinking();
-  for (PageMetadata* page : *paged_new_space) {
+  for (NormalPage* page : *paged_new_space) {
     // We reset the number of live bytes to zero, as is expected after a GC.
     page->SetLiveBytes(0);
   }
@@ -932,7 +932,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   Isolate* iso = isolate();
   ManualGCScope manual_gc_scope(iso);
 
-  auto in_free_list = [](PageMetadata* page, Address address) {
+  auto in_free_list = [](NormalPage* page, Address address) {
     bool found = false;
     page->ForAllFreeListCategories(
         [address, &found](FreeListCategory* category) {
@@ -957,7 +957,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   const Address lab_top = heap->allocator()->old_space_allocator()->top();
   ASSERT_EQ(lab_top, next);
 
-  auto* page = PageMetadata::FromAddress(next);
+  auto* page = NormalPage::FromAddress(next);
   const size_t wasted_before_incremental_marking_start = page->wasted_memory();
 
   heap->StartIncrementalMarking(
@@ -983,7 +983,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   next = arr->address() + arr->Size();
 
   // Expect the page to be black.
-  page = PageMetadata::FromHeapObject(*arr);
+  page = NormalPage::FromHeapObject(*arr);
   EXPECT_TRUE(page->Chunk()->IsBlackAllocatedPage());
 
   // Invoke GC.

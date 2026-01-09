@@ -92,7 +92,7 @@ class MemoryAllocator final {
   // Allocates a Page from the allocator. `AllocationMode` is used to indicate
   // whether pooled allocation, which only works for pages of size
   // `kRegularPageSize`.
-  V8_EXPORT_PRIVATE PageMetadata* AllocatePage(
+  V8_EXPORT_PRIVATE NormalPage* AllocatePage(
       MemoryAllocator::AllocationMode alloc_mode, Space* space,
       Executability executable);
 
@@ -305,8 +305,8 @@ class MemoryAllocator final {
   // This function and GetChunkId() are provided for the mark-compact
   // collector to rebuild page headers in the from space, which is
   // used as a marking stack and its page headers are destroyed.
-  PageMetadata* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
-                                       PagedSpace* space);
+  NormalPage* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
+                                     PagedSpace* space);
 
   void UpdateAllocatedSpaceLimits(Address low, Address high,
                                   Executability executable);
@@ -398,7 +398,7 @@ class MemoryAllocator final {
   //
   // Set of regular pages that are delayed then pool. Delayed pages can be
   // immediately reused for allocations.
-  std::vector<PageMetadata*> delayed_then_pooled_pages_;
+  std::vector<NormalPage*> delayed_then_pooled_pages_;
   // Set of large delayed then pooled pages. Delayed pages cannot be reused (not
   // implemented).
   std::vector<LargePage*> delayed_then_pooled_large_pages_;

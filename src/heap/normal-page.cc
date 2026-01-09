@@ -2,20 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/page-metadata-inl.h"
+#include "src/heap/normal-page-inl.h"
 #include "src/heap/paged-spaces.h"
 
 namespace v8::internal {
 
-PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
-                           Address area_start, Address area_end,
-                           VirtualMemory reservation,
-                           Executability executability,
-                           MemoryChunk::MainThreadFlags* trusted_flags)
+NormalPage::NormalPage(Heap* heap, BaseSpace* space, size_t size,
+                       Address area_start, Address area_end,
+                       VirtualMemory reservation, Executability executability,
+                       MemoryChunk::MainThreadFlags* trusted_flags)
     : MutablePage(heap, space, size, area_start, area_end,
                   std::move(reservation), PageSize::kRegular, executability) {
   DCHECK(!is_large());
@@ -23,7 +22,7 @@ PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
   *trusted_flags = trusted_main_thread_flags_;
 }
 
-void PageMetadata::AllocateFreeListCategories() {
+void NormalPage::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
   categories_ =
       new FreeListCategory*[owner()->free_list()->number_of_categories()]();
@@ -34,14 +33,14 @@ void PageMetadata::AllocateFreeListCategories() {
   }
 }
 
-void PageMetadata::InitializeFreeListCategories() {
+void NormalPage::InitializeFreeListCategories() {
   for (int i = kFirstCategory; i <= owner()->free_list()->last_category();
        i++) {
     categories_[i]->Initialize(static_cast<FreeListCategoryType>(i));
   }
 }
 
-void PageMetadata::ReleaseFreeListCategories() {
+void NormalPage::ReleaseFreeListCategories() {
   if (categories_ != nullptr) {
     for (int i = kFirstCategory; i <= owner()->free_list()->last_category();
          i++) {
@@ -55,8 +54,8 @@ void PageMetadata::ReleaseFreeListCategories() {
   }
 }
 
-PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page,
-                                            FreeMode free_mode) {
+NormalPage* NormalPage::ConvertNewToOld(NormalPage* old_page,
+                                        FreeMode free_mode) {
   DCHECK(old_page);
   DCHECK(old_page->Chunk()->InNewSpace());
   old_page->ResetAgeInNewSpace();
@@ -66,19 +65,19 @@ PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page,
   DCHECK_NE(old_space->identity(), SHARED_SPACE);
   old_page->SetOldGenerationPageFlags(
       old_page->heap()->incremental_marking()->marking_mode());
-  PageMetadata* new_page = old_space->InitializePage(old_page);
+  NormalPage* new_page = old_space->InitializePage(old_page);
   old_space->AddPromotedPage(new_page, free_mode);
   return new_page;
 }
 
-size_t PageMetadata::AvailableInFreeList() {
+size_t NormalPage::AvailableInFreeList() {
   size_t sum = 0;
   ForAllFreeListCategories(
       [&sum](FreeListCategory* category) { sum += category->available(); });
   return sum;
 }
 
-void PageMetadata::MarkNeverAllocateForTesting() {
+void NormalPage::MarkNeverAllocateForTesting() {
   DCHECK(this->owner_identity() != NEW_SPACE);
   DCHECK(!never_allocate_on_chunk());
   set_never_allocate_on_chunk(true);
@@ -86,14 +85,14 @@ void PageMetadata::MarkNeverAllocateForTesting() {
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
-void PageMetadata::CreateBlackArea(Address start, Address end) {
+void NormalPage::CreateBlackArea(Address start, Address end) {
   DCHECK(!v8_flags.black_allocated_pages);
   DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(v8_flags.sticky_mark_bits ||
          heap()->incremental_marking()->black_allocation());
-  DCHECK_EQ(PageMetadata::FromAddress(start), this);
+  DCHECK_EQ(NormalPage::FromAddress(start), this);
   DCHECK_LT(start, end);
-  DCHECK_EQ(PageMetadata::FromAddress(end - 1), this);
+  DCHECK_EQ(NormalPage::FromAddress(end - 1), this);
   marking_bitmap()->SetRange<AccessMode::ATOMIC>(
       MarkingBitmap::AddressToIndex(start),
       MarkingBitmap::LimitAddressToIndex(end));
@@ -101,14 +100,14 @@ void PageMetadata::CreateBlackArea(Address start, Address end) {
   owner()->NotifyBlackAreaCreated(end - start);
 }
 
-void PageMetadata::DestroyBlackArea(Address start, Address end) {
+void NormalPage::DestroyBlackArea(Address start, Address end) {
   DCHECK(!v8_flags.black_allocated_pages);
   DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(v8_flags.sticky_mark_bits ||
          heap()->incremental_marking()->black_allocation());
-  DCHECK_EQ(PageMetadata::FromAddress(start), this);
+  DCHECK_EQ(NormalPage::FromAddress(start), this);
   DCHECK_LT(start, end);
-  DCHECK_EQ(PageMetadata::FromAddress(end - 1), this);
+  DCHECK_EQ(NormalPage::FromAddress(end - 1), this);
   marking_bitmap()->ClearRange<AccessMode::ATOMIC>(
       MarkingBitmap::AddressToIndex(start),
       MarkingBitmap::LimitAddressToIndex(end));
@@ -116,7 +115,7 @@ void PageMetadata::DestroyBlackArea(Address start, Address end) {
   owner()->NotifyBlackAreaDestroyed(end - start);
 }
 
-void PageMetadata::MarkEvacuationCandidate() {
+void NormalPage::MarkEvacuationCandidate() {
   DCHECK(!never_evacuate());
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
   DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
@@ -125,7 +124,7 @@ void PageMetadata::MarkEvacuationCandidate() {
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
 }
 
-void PageMetadata::ClearEvacuationCandidate() {
+void NormalPage::ClearEvacuationCandidate() {
   CHECK(evacuation_was_aborted());
   set_evacuation_was_aborted(false);
   set_is_evacuation_candidate(false);
@@ -133,7 +132,7 @@ void PageMetadata::ClearEvacuationCandidate() {
   InitializeFreeListCategories();
 }
 
-void PageMetadata::AbortEvacuation() {
+void NormalPage::AbortEvacuation() {
   DCHECK(!evacuation_was_aborted());
   set_evacuation_was_aborted(true);
 }

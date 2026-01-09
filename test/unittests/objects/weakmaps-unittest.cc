@@ -273,7 +273,7 @@ TEST_F(WeakMapsTest, Regress2060a) {
   DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Start second old-space page so that values land on evacuation candidate.
-  PageMetadata* first_page = heap->old_space()->first_page();
+  NormalPage* first_page = heap->old_space()->first_page();
   SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
@@ -313,7 +313,7 @@ TEST_F(WeakMapsTest, Regress2060b) {
       factory->NewFunctionForTesting(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
-  PageMetadata* first_page = heap->old_space()->first_page();
+  NormalPage* first_page = heap->old_space()->first_page();
   SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.

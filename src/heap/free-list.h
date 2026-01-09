@@ -30,7 +30,7 @@ class Isolate;
 class LargeObjectSpace;
 class LargePage;
 class LinearAllocationArea;
-class PageMetadata;
+class NormalPage;
 class PagedSpace;
 class SemiSpace;
 
@@ -162,7 +162,7 @@ class FreeList {
       AllocationOrigin origin) = 0;
 
   // Returns a page containing an entry for a given type, or nullptr otherwise.
-  V8_EXPORT_PRIVATE virtual PageMetadata* GetPageForSize(
+  V8_EXPORT_PRIVATE virtual NormalPage* GetPageForSize(
       size_t size_in_bytes) = 0;
 
   virtual void Reset();
@@ -193,7 +193,7 @@ class FreeList {
   // Used after booting the VM.
   void RepairLists(Heap* heap);
 
-  V8_EXPORT_PRIVATE void EvictFreeListItems(PageMetadata* page);
+  V8_EXPORT_PRIVATE void EvictFreeListItems(NormalPage* page);
 
   int number_of_categories() { return number_of_categories_; }
   FreeListCategoryType last_category() { return last_category_; }
@@ -269,7 +269,7 @@ class FreeList {
     return categories_[type];
   }
 
-  inline PageMetadata* GetPageForCategoryType(FreeListCategoryType type);
+  inline NormalPage* GetPageForCategoryType(FreeListCategoryType type);
 
   const int number_of_categories_ = 0;
   const FreeListCategoryType last_category_ = 0;
@@ -285,7 +285,7 @@ class FreeList {
 
   friend class FreeListCategory;
   friend class MutablePage;
-  friend class PageMetadata;
+  friend class NormalPage;
   friend class ReadOnlyPage;
   friend class MapSpace;
 };
@@ -298,7 +298,7 @@ class FreeList {
 // consumption should be lower (since fragmentation should be lower).
 class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
  public:
-  PageMetadata* GetPageForSize(size_t size_in_bytes) override;
+  NormalPage* GetPageForSize(size_t size_in_bytes) override;
 
   FreeListMany();
   ~FreeListMany() override;

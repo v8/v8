@@ -68,17 +68,17 @@ void HeapLayoutTracer::PrintMemoryChunk(std::ostream& os, const BasePage& chunk,
 // static
 void HeapLayoutTracer::PrintHeapLayout(std::ostream& os, Heap* heap) {
   if (v8_flags.minor_ms) {
-    for (const PageMetadata* page : *heap->paged_new_space()) {
+    for (const NormalPage* page : *heap->paged_new_space()) {
       PrintMemoryChunk(os, *page, "new_space");
     }
   } else {
     const SemiSpaceNewSpace* semi_space_new_space =
         SemiSpaceNewSpace::From(heap->new_space());
-    for (const PageMetadata* page : semi_space_new_space->to_space()) {
+    for (const NormalPage* page : semi_space_new_space->to_space()) {
       PrintMemoryChunk(os, *page, "to_space");
     }
 
-    for (const PageMetadata* page : semi_space_new_space->from_space()) {
+    for (const NormalPage* page : semi_space_new_space->from_space()) {
       PrintMemoryChunk(os, *page, "from_space");
     }
   }

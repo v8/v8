@@ -375,7 +375,7 @@ TEST_F(PoolTest, UnmapOnTeardown) {
   // Then wait for the task to finish, if scheduled.
   pool()->CancelAndWaitForTaskToFinishForTesting();
 
-  PageMetadata* page =
+  NormalPage* page =
       allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
                                 static_cast<PagedSpace*>(heap()->old_space()),
                                 Executability::NOT_EXECUTABLE);

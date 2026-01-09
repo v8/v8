@@ -9,7 +9,7 @@
 #include "src/heap/free-list-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/mutable-page-inl.h"
-#include "src/heap/page-metadata-inl.h"
+#include "src/heap/normal-page-inl.h"
 #include "src/objects/free-space-inl.h"
 
 namespace v8 {
@@ -184,7 +184,7 @@ size_t FreeList::Free(const Isolate* isolate,
                       const WritableFreeSpace& free_space, FreeMode mode) {
   Address start = free_space.Address();
   size_t size_in_bytes = free_space.Size();
-  PageMetadata* page = PageMetadata::FromAddress(isolate, start);
+  NormalPage* page = NormalPage::FromAddress(isolate, start);
   page->DecreaseAllocatedBytes(size_in_bytes);
 
   // Blocks have to be a minimum size to hold free list items.
@@ -215,10 +215,10 @@ FreeListMany::FreeListMany() : FreeList(kNumberOfCategories, kMinBlockSize) {
 
 FreeListMany::~FreeListMany() { delete[] categories_; }
 
-PageMetadata* FreeListMany::GetPageForSize(size_t size_in_bytes) {
+NormalPage* FreeListMany::GetPageForSize(size_t size_in_bytes) {
   FreeListCategoryType minimum_category =
       SelectFreeListCategoryType(size_in_bytes);
-  PageMetadata* page = nullptr;
+  NormalPage* page = nullptr;
   for (int cat = minimum_category + 1; !page && cat <= last_category_; cat++) {
     page = GetPageForCategoryType(cat);
   }
@@ -246,7 +246,7 @@ Tagged<FreeSpace> FreeListMany::Allocate(const Heap* heap, size_t size_in_bytes,
   }
 
   if (!node.is_null()) {
-    PageMetadata::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
+    NormalPage::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
   }
 
   VerifyAvailable();
@@ -302,7 +302,7 @@ size_t FreeListManyCached::Free(const Isolate* isolate,
                                 FreeMode mode) {
   Address start = free_space.Address();
   size_t size_in_bytes = free_space.Size();
-  PageMetadata* page = PageMetadata::FromAddress(isolate, start);
+  NormalPage* page = NormalPage::FromAddress(isolate, start);
   page->DecreaseAllocatedBytes(size_in_bytes);
 
   // Blocks have to be a minimum size to hold free list items.
@@ -361,7 +361,7 @@ Tagged<FreeSpace> FreeListManyCached::Allocate(const Heap* heap,
 #endif
 
   if (!node.is_null()) {
-    PageMetadata::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
+    NormalPage::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
   }
 
   VerifyAvailable();
@@ -423,7 +423,7 @@ Tagged<FreeSpace> FreeListManyCachedFastPathBase::Allocate(
 
   if (!node.is_null()) {
     if (categories_[type] == nullptr) UpdateCacheAfterRemoval(type);
-    PageMetadata::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
+    NormalPage::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
   }
 
 #ifdef DEBUG
@@ -481,7 +481,7 @@ void FreeList::ResetForNonBlackAllocatedPages() {
   available_ = 0;
 }
 
-void FreeList::EvictFreeListItems(PageMetadata* page) {
+void FreeList::EvictFreeListItems(NormalPage* page) {
   size_t sum = 0;
   page->ForAllFreeListCategories([this, &sum](FreeListCategory* category) {
     sum += category->available();
@@ -556,7 +556,7 @@ size_t FreeListCategory::SumFreeList() {
     // We can't use "cur->map()" here because both cur's map and the
     // root can be null during bootstrapping.
     DCHECK(
-        cur->map_slot().contains_map_value(PageMetadata::FromHeapObject(cur)
+        cur->map_slot().contains_map_value(NormalPage::FromHeapObject(cur)
                                                ->heap()
                                                ->isolate()
                                                ->root(RootIndex::kFreeSpaceMap)

@@ -61,7 +61,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   MainAllocator allocator(heap, compaction_space, MainAllocator::kInGC);
   EXPECT_TRUE(compaction_space != nullptr);
 
-  for (PageMetadata* p : *old_space) {
+  for (NormalPage* p : *old_space) {
     // Unlink free lists from the main space to avoid reusing the memory for
     // compaction spaces.
     old_space->free_list()->EvictFreeListItems(p);
@@ -101,7 +101,7 @@ TEST_F(SpacesTest, WriteBarriers) {
   OldSpace* old_space = heap->old_space();
   EXPECT_TRUE(old_space != nullptr);
 
-  for (PageMetadata* p : *old_space) {
+  for (NormalPage* p : *old_space) {
     // Unlink free lists from the main space to avoid reusing the memory for
     // compaction spaces.
     old_space->free_list()->EvictFreeListItems(p);

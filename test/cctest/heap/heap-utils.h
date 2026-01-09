@@ -56,7 +56,7 @@ void CollectSharedGarbage(Heap* heap);
 
 void EmptyNewSpaceUsingGC(Heap* heap);
 
-void ForceEvacuationCandidate(PageMetadata* page);
+void ForceEvacuationCandidate(NormalPage* page);
 
 void GrowNewSpace(Heap* heap);
 

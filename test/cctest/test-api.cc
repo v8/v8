@@ -14623,10 +14623,10 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
       foos[i].Reset(isolate, v8::Utils::ToLocal(foo));
 
       i::PagedSpace* foo_owning_space = reinterpret_cast<i::PagedSpace*>(
-          i::PageMetadata::FromHeapObject(foo->abstract_code(i_isolate))
+          i::NormalPage::FromHeapObject(foo->abstract_code(i_isolate))
               ->owner());
       i::PagedSpace* bar_owning_space = reinterpret_cast<i::PagedSpace*>(
-          i::PageMetadata::FromHeapObject(bar->abstract_code(i_isolate))
+          i::NormalPage::FromHeapObject(bar->abstract_code(i_isolate))
               ->owner());
 
       CHECK_EQ(foo_owning_space, bar_owning_space);

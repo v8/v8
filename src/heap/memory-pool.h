@@ -17,7 +17,7 @@ class Isolate;
 class LargePage;
 class BasePage;
 class MutablePage;
-class PageMetadata;
+class NormalPage;
 
 // PooledPage converts a metadata object into a pooled entry. The metadata entry
 // should be considered invalid after invoking `Create()`. PooledPage takes over
@@ -54,7 +54,7 @@ class PooledPage final {
 
   // Bottlenecks for converting metadata objects into the pooled page
   // counterpart.
-  static PooledPage Create(PageMetadata* metadata, Epoch epoch);
+  static PooledPage Create(NormalPage* metadata, Epoch epoch);
   static PooledPage Create(LargePage* metadata, Epoch epoch);
 
   PooledPage(void* uninitialized_metadata, VirtualMemory reservation,
@@ -82,7 +82,7 @@ class MemoryPool final {
   MemoryPool& operator=(const MemoryPool&) = delete;
 
   // Creates a pooled page with current epoch.
-  PooledPage CreatePooledPage(PageMetadata* metadata);
+  PooledPage CreatePooledPage(NormalPage* metadata);
 
   // Adds page to the pool.
   void Add(Isolate* isolate, MutablePage* chunk);

@@ -33,8 +33,8 @@ PageIteratorImpl<PageType> PageIteratorImpl<PageType>::operator++(int) {
   return tmp;
 }
 
-PageRange::PageRange(PageMetadata* page) : PageRange(page, page->next_page()) {}
-ConstPageRange::ConstPageRange(const PageMetadata* page)
+PageRange::PageRange(NormalPage* page) : PageRange(page, page->next_page()) {}
+ConstPageRange::ConstPageRange(const NormalPage* page)
     : ConstPageRange(page, page->next_page()) {}
 
 OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)

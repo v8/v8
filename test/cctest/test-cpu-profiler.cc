@@ -47,7 +47,7 @@
 #include "src/execution/protectors-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/spaces.h"
 #include "src/init/v8.h"
 #include "src/libsampler/sampler.h"
@@ -4258,7 +4258,7 @@ TEST(EmbedderStatePropagateNativeContextMove) {
 
     i::Address initial_address =
         CcTest::i_isolate()->current_embedder_state()->native_context_address();
-    CHECK(!PageMetadata::FromAddress(initial_address)->never_evacuate());
+    CHECK(!NormalPage::FromAddress(initial_address)->never_evacuate());
 
     // Install a function that triggers the native context to be moved.
     v8::Local<v8::FunctionTemplate> move_func_template =
@@ -4267,8 +4267,8 @@ TEST(EmbedderStatePropagateNativeContextMove) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
-              i::heap::ForceEvacuationCandidate(i::PageMetadata::FromHeapObject(
-                  isolate->raw_native_context()));
+              i::heap::ForceEvacuationCandidate(
+                  i::NormalPage::FromHeapObject(isolate->raw_native_context()));
               heap::InvokeMajorGC(isolate->heap());
             });
     v8::Local<v8::Function> move_func =
@@ -4321,8 +4321,8 @@ TEST(ContextFilterMovedNativeContext) {
             env.isolate(), [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
-              i::heap::ForceEvacuationCandidate(i::PageMetadata::FromHeapObject(
-                  isolate->raw_native_context()));
+              i::heap::ForceEvacuationCandidate(
+                  i::NormalPage::FromHeapObject(isolate->raw_native_context()));
               heap::InvokeMajorGC(isolate->heap());
             });
     v8::Local<v8::Function> move_func =

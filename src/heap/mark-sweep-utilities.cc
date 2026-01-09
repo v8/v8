@@ -37,7 +37,7 @@ void MarkingVerifierBase::VerifyRoots() {
                                       base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 }
 
-void MarkingVerifierBase::VerifyMarkingOnPage(const PageMetadata* page,
+void MarkingVerifierBase::VerifyMarkingOnPage(const NormalPage* page,
                                               Address start, Address end) {
   Address next_object_must_be_here_or_later = start;
 
@@ -71,13 +71,13 @@ void MarkingVerifierBase::VerifyMarking(NewSpace* space) {
     return;
   }
 
-  for (PageMetadata* page : *space) {
+  for (NormalPage* page : *space) {
     VerifyMarkingOnPage(page, page->area_start(), page->area_end());
   }
 }
 
 void MarkingVerifierBase::VerifyMarking(PagedSpaceBase* space) {
-  for (PageMetadata* p : *space) {
+  for (NormalPage* p : *space) {
     VerifyMarkingOnPage(p, p->area_start(), p->area_end());
   }
 }

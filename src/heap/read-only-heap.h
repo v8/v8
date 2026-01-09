@@ -23,7 +23,7 @@ class SharedMemoryStatistics;
 namespace internal {
 
 class Isolate;
-class PageMetadata;
+class NormalPage;
 class ReadOnlyArtifacts;
 class ReadOnlyPage;
 class ReadOnlySpace;

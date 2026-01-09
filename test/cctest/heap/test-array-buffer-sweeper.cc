@@ -153,7 +153,7 @@ TEST(ArrayBuffer_Compaction) {
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
 
   Global<v8::ArrayBuffer> ab1_global;
-  PageMetadata* page_before_gc;
+  NormalPage* page_before_gc;
   {
     v8::HandleScope handle_scope(isolate);
     Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
@@ -161,7 +161,7 @@ TEST(ArrayBuffer_Compaction) {
     CHECK(IsTracked(heap, *buf1));
     heap::InvokeAtomicMajorGC(heap);
 
-    page_before_gc = PageMetadata::FromHeapObject(*buf1);
+    page_before_gc = NormalPage::FromHeapObject(*buf1);
     heap::ForceEvacuationCandidate(page_before_gc);
     CHECK(IsTracked(heap, *buf1));
     ab1_global.Reset(isolate, ab1);
@@ -177,7 +177,7 @@ TEST(ArrayBuffer_Compaction) {
     v8::HandleScope scope(isolate);
     IndirectHandle<JSArrayBuffer> buf1 =
         v8::Utils::OpenHandle(*ab1_global.Get(isolate));
-    PageMetadata* page_after_gc = PageMetadata::FromHeapObject(*buf1);
+    NormalPage* page_after_gc = NormalPage::FromHeapObject(*buf1);
     CHECK(IsTracked(heap, *buf1));
 
     CHECK_NE(page_before_gc, page_after_gc);
@@ -314,7 +314,7 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
   // Test allocates JSArrayBuffer on different pages before triggering a
   // full GC that performs the semispace copy. If parallelized, this test
   // ensures proper synchronization in TSAN configurations.
-  v8_flags.min_semi_space_size = std::max(2 * PageMetadata::kPageSize / MB, 1);
+  v8_flags.min_semi_space_size = std::max(2 * NormalPage::kPageSize / MB, 1);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -334,8 +334,8 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     heap::FillCurrentPage(heap->new_space());
     Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, 100);
     DirectHandle<JSArrayBuffer> buf2 = v8::Utils::OpenDirectHandle(*ab2);
-    CHECK_NE(PageMetadata::FromHeapObject(*buf1),
-             PageMetadata::FromHeapObject(*buf2));
+    CHECK_NE(NormalPage::FromHeapObject(*buf1),
+             NormalPage::FromHeapObject(*buf2));
     heap::InvokeAtomicMajorGC(heap);
   }
   isolate->Dispose();
@@ -411,7 +411,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
     CHECK(IsTracked(heap, *buf1));
     heap::InvokeAtomicMajorGC(heap);
 
-    PageMetadata* page_before_gc = PageMetadata::FromHeapObject(*buf1);
+    NormalPage* page_before_gc = NormalPage::FromHeapObject(*buf1);
     heap::ForceEvacuationCandidate(page_before_gc);
     CHECK(IsTracked(heap, *buf1));
 

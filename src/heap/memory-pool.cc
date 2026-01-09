@@ -24,11 +24,11 @@ PooledPage::PooledPage(void* uninitialized_metadata, VirtualMemory reservation,
       epoch_(epoch) {}
 
 // static
-PooledPage PooledPage::Create(PageMetadata* metadata, Epoch epoch) {
+PooledPage PooledPage::Create(NormalPage* metadata, Epoch epoch) {
   // This method is called only on the main thread and only during the
   // atomic pause so a lock is not needed.
   DCHECK_NOT_NULL(metadata);
-  DCHECK_EQ(metadata->size(), PageMetadata::kPageSize);
+  DCHECK_EQ(metadata->size(), NormalPage::kPageSize);
   DCHECK(!metadata->is_large());
   DCHECK(!metadata->is_trusted());
   DCHECK(!metadata->is_executable());
@@ -47,7 +47,7 @@ PooledPage PooledPage::Create(PageMetadata* metadata, Epoch epoch) {
   // Destroy the chunk and the metadata object but do not release the underlying
   // memory as that is going to be pooled.
   chunk->~MemoryChunk();
-  metadata->~PageMetadata();
+  metadata->~NormalPage();
 
   return PooledPage(metadata, std::move(chunk_reservation), epoch);
 }
@@ -333,7 +333,7 @@ size_t MemoryPool::LargePagePoolImpl::ComputeTotalSize() const {
 
 void MemoryPool::LargePagePoolImpl::TearDown() { CHECK(pages_.empty()); }
 
-PooledPage MemoryPool::CreatePooledPage(PageMetadata* metadata) {
+PooledPage MemoryPool::CreatePooledPage(NormalPage* metadata) {
   return PooledPage::Create(metadata,
                             current_epoch_.load(std::memory_order_relaxed));
 }
@@ -402,7 +402,7 @@ void MemoryPool::Add(Isolate* isolate, MutablePage* page) {
   DCHECK_NOT_NULL(isolate);
   page_pool_.PutLocal(
       isolate,
-      PooledPage::Create(static_cast<PageMetadata*>(page),
+      PooledPage::Create(static_cast<NormalPage*>(page),
                          current_epoch_.load(std::memory_order_relaxed)));
   PostDelayedReleaseTaskIfNeeded(isolate);
 }

@@ -277,7 +277,7 @@ void ReadOnlySpace::Verify(Isolate* isolate,
 
     visitor->VerifyPage(page);
 
-    if (top_ && page == PageMetadata::FromAllocationAreaAddress(top_)) {
+    if (top_ && page == NormalPage::FromAllocationAreaAddress(top_)) {
       allocation_pointer_found_in_space = true;
     }
     ReadOnlySpaceObjectIterator it(isolate->heap(), this, page);

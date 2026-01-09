@@ -15,7 +15,7 @@
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/transitions.h"
@@ -43,7 +43,7 @@ void MarkCompactCollector::MarkRootObject(
     auto* metadata = MutablePage::cast(chunk->Metadata());
     if (chunk->IsEvacuationCandidate()) {
       DCHECK(!chunk->InYoungGeneration());
-      ReportAbortedEvacuationCandidateDueToFlags(PageMetadata::cast(metadata));
+      ReportAbortedEvacuationCandidateDueToFlags(NormalPage::cast(metadata));
     } else if (chunk->InYoungGeneration() && !chunk->IsLargePage()) {
       DCHECK(chunk->IsToPage());
       if (!metadata->is_quarantined()) {

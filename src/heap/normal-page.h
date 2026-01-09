@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_PAGE_METADATA_H_
-#define V8_HEAP_PAGE_METADATA_H_
+#ifndef V8_HEAP_NORMAL_PAGE_H_
+#define V8_HEAP_NORMAL_PAGE_H_
 
 #include "src/heap/base-space.h"
 #include "src/heap/free-list.h"
@@ -19,37 +19,37 @@ class Heap;
 // A page is a memory chunk of a size 256K. Large object pages may be larger.
 //
 // The only way to get a page pointer is by calling factory methods:
-//   PageMetadata* p = PageMetadata::FromAddress(addr); or
-//   PageMetadata* p = PageMetadata::FromAllocationAreaAddress(address);
-class PageMetadata : public MutablePage {
+//   NormalPage* p = NormalPage::FromAddress(addr); or
+//   NormalPage* p = NormalPage::FromAllocationAreaAddress(address);
+class NormalPage : public MutablePage {
  public:
-  PageMetadata(Heap* heap, BaseSpace* space, size_t size, Address area_start,
-               Address area_end, VirtualMemory reservation,
-               Executability executability,
-               MemoryChunk::MainThreadFlags* trusted_flags);
+  NormalPage(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+             Address area_end, VirtualMemory reservation,
+             Executability executability,
+             MemoryChunk::MainThreadFlags* trusted_flags);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize]. This only works if the object is
   // in fact in a page.
-  V8_INLINE static PageMetadata* FromAddress(Address addr);
-  V8_INLINE static PageMetadata* FromAddress(const Isolate* isolate,
-                                             Address addr);
-  V8_INLINE static PageMetadata* FromHeapObject(Tagged<HeapObject> o);
+  V8_INLINE static NormalPage* FromAddress(Address addr);
+  V8_INLINE static NormalPage* FromAddress(const Isolate* isolate,
+                                           Address addr);
+  V8_INLINE static NormalPage* FromHeapObject(Tagged<HeapObject> o);
 
-  static PageMetadata* cast(BasePage* metadata) {
+  static NormalPage* cast(BasePage* metadata) {
     return cast(MutablePage::cast(metadata));
   }
 
-  static PageMetadata* cast(MutablePage* metadata) {
+  static NormalPage* cast(MutablePage* metadata) {
     DCHECK_IMPLIES(metadata, !metadata->is_large());
-    return static_cast<PageMetadata*>(metadata);
+    return static_cast<NormalPage*>(metadata);
   }
 
   // Returns the page containing the address provided. The address can
   // potentially point righter after the page. To be also safe for tagged values
   // we subtract a hole word. The valid address ranges from
   // [page_addr + area_start_ .. page_addr + kPageSize + kTaggedSize].
-  V8_INLINE static PageMetadata* FromAllocationAreaAddress(Address address);
+  V8_INLINE static NormalPage* FromAllocationAreaAddress(Address address);
 
   // Checks if address1 and address2 are on the same new space page.
   static bool OnSamePage(Address address1, Address address2) {
@@ -62,26 +62,25 @@ class PageMetadata : public MutablePage {
     return MemoryChunk::IsAligned(addr);
   }
 
-  static PageMetadata* ConvertNewToOld(PageMetadata* old_page,
-                                       FreeMode free_mode);
+  static NormalPage* ConvertNewToOld(NormalPage* old_page, FreeMode free_mode);
 
   V8_EXPORT_PRIVATE void MarkNeverAllocateForTesting();
   void MarkEvacuationCandidate();
   void ClearEvacuationCandidate();
   void AbortEvacuation();
 
-  PageMetadata* next_page() {
-    return static_cast<PageMetadata*>(list_node_.next());
+  NormalPage* next_page() {
+    return static_cast<NormalPage*>(list_node_.next());
   }
-  PageMetadata* prev_page() {
-    return static_cast<PageMetadata*>(list_node_.prev());
+  NormalPage* prev_page() {
+    return static_cast<NormalPage*>(list_node_.prev());
   }
 
-  const PageMetadata* next_page() const {
-    return static_cast<const PageMetadata*>(list_node_.next());
+  const NormalPage* next_page() const {
+    return static_cast<const NormalPage*>(list_node_.next());
   }
-  const PageMetadata* prev_page() const {
-    return static_cast<const PageMetadata*>(list_node_.prev());
+  const NormalPage* prev_page() const {
+    return static_cast<const NormalPage*>(list_node_.prev());
   }
 
   template <typename Callback>
@@ -136,13 +135,13 @@ class PageMetadata : public MutablePage {
 
 namespace base {
 // Define special hash function for page pointers, to be used with std data
-// structures, e.g. std::unordered_set<PageMetadata*, base::hash<PageMetadata*>
+// structures, e.g. std::unordered_set<NormalPage*, base::hash<NormalPage*>
 template <>
-struct hash<i::PageMetadata*> : hash<i::BasePage*> {};
+struct hash<i::NormalPage*> : hash<i::BasePage*> {};
 template <>
-struct hash<const i::PageMetadata*> : hash<const i::BasePage*> {};
+struct hash<const i::NormalPage*> : hash<const i::BasePage*> {};
 }  // namespace base
 
 }  // namespace v8
 
-#endif  // V8_HEAP_PAGE_METADATA_H_
+#endif  // V8_HEAP_NORMAL_PAGE_H_

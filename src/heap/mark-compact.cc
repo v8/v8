@@ -58,9 +58,9 @@
 #include "src/heap/memory-measurement.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/normal-page-inl.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/object-stats.h"
-#include "src/heap/page-metadata-inl.h"
-#include "src/heap/page-metadata.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
@@ -256,7 +256,7 @@ int NumberOfAvailableCores() {
 int NumberOfParallelCompactionTasks(Heap* heap) {
   int tasks = v8_flags.parallel_compaction ? NumberOfAvailableCores() : 1;
   if (!heap->CanPromoteYoungAndExpandOldGeneration(
-          static_cast<size_t>(tasks * PageMetadata::kPageSize))) {
+          static_cast<size_t>(tasks * NormalPage::kPageSize))) {
     // Optimize for memory usage near the heap limit.
     tasks = 1;
   }
@@ -323,7 +323,7 @@ void MarkCompactCollector::TearDown() {
   }
 }
 
-void MarkCompactCollector::AddEvacuationCandidate(PageMetadata* p) {
+void MarkCompactCollector::AddEvacuationCandidate(NormalPage* p) {
   DCHECK(!p->never_evacuate());
   DCHECK(!p->Chunk()->IsBlackAllocatedPage());
 
@@ -544,7 +544,7 @@ void MarkCompactCollector::CollectGarbage() {
 #ifdef VERIFY_HEAP
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpaceBase* space) {
-  for (PageMetadata* p : *space) {
+  for (NormalPage* p : *space) {
     CHECK(p->marking_bitmap()->IsClean());
     CHECK_EQ(0, p->live_bytes());
   }
@@ -556,7 +556,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
     VerifyMarkbitsAreClean(PagedNewSpace::From(space)->paged_space());
     return;
   }
-  for (PageMetadata* p : *space) {
+  for (NormalPage* p : *space) {
     CHECK(p->marking_bitmap()->IsClean());
     CHECK_EQ(0, p->live_bytes());
   }
@@ -668,12 +668,12 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   }
 
   // Pairs of (live_bytes_in_page, page).
-  using LiveBytesPagePair = std::pair<size_t, PageMetadata*>;
+  using LiveBytesPagePair = std::pair<size_t, NormalPage*>;
   std::vector<LiveBytesPagePair> pages;
   pages.reserve(number_of_pages);
 
   DCHECK(!sweeper_->sweeping_in_progress());
-  for (PageMetadata* p : *space) {
+  for (NormalPage* p : *space) {
     MemoryChunk* chunk = p->Chunk();
     if (p->never_evacuate() || !p->CanAllocateOnChunk()) {
       continue;
@@ -709,7 +709,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   const bool reduce_memory = heap_->ShouldReduceMemory();
   if (v8_flags.manual_evacuation_candidates_selection) {
     for (size_t i = 0; i < pages.size(); i++) {
-      PageMetadata* p = pages[i].second;
+      NormalPage* p = pages[i].second;
       if (p->is_forced_evacuation_candidate_for_testing()) {
         candidate_count++;
         total_live_bytes += pages[i].first;
@@ -729,7 +729,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     }
   } else if (v8_flags.stress_compaction) {
     for (size_t i = 0; i < pages.size(); i++) {
-      PageMetadata* p = pages[i].second;
+      NormalPage* p = pages[i].second;
       candidate_count++;
       total_live_bytes += pages[i].first;
       AddEvacuationCandidate(p);
@@ -888,7 +888,7 @@ void MarkCompactCollector::Finish() {
     if (!empty_new_space_pages_to_be_swept_.empty()) {
       GCTracer::Scope sweep_scope(
           heap_->tracer(), GCTracer::Scope::MC_SWEEP_NEW, ThreadKind::kMain);
-      for (PageMetadata* p : empty_new_space_pages_to_be_swept_) {
+      for (NormalPage* p : empty_new_space_pages_to_be_swept_) {
         // Sweeping empty pages already relinks them to the freelist.
         sweeper_->SweepEmptyNewSpacePage(p);
       }
@@ -1830,7 +1830,7 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
       Heap* heap, RecordMigratedSlotVisitor* record_visitor)
       : record_visitor_(record_visitor), moved_bytes_(0) {}
 
-  static void Move(PageMetadata* page) {
+  static void Move(NormalPage* page) {
     page->set_will_be_promoted(true);
     page->heap()->new_space()->PromotePageToOldSpace(
         page, v8_flags.minor_ms ? FreeMode::kDoNotLinkCategory
@@ -1864,9 +1864,8 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
   inline bool Visit(Tagged<HeapObject> object,
                     SafeHeapObjectSize size) override {
     Tagged<HeapObject> target_object;
-    if (TryEvacuateObject(
-            PageMetadata::FromHeapObject(object)->owner_identity(), object,
-            size, &target_object)) {
+    if (TryEvacuateObject(NormalPage::FromHeapObject(object)->owner_identity(),
+                          object, size, &target_object)) {
       DCHECK(object->map_word(heap_->isolate(), kRelaxedLoad)
                  .IsForwardingAddress());
       return true;
@@ -2022,7 +2021,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
 
   if (auto* new_space = client_heap->new_space()) {
     DCHECK(!client_heap->allocator()->new_space_allocator()->IsLabValid());
-    for (PageMetadata* page : *new_space) {
+    for (NormalPage* page : *new_space) {
       for (Tagged<HeapObject> obj : HeapObjectRange(page)) {
         visitor.Visit(obj);
       }
@@ -4509,7 +4508,7 @@ void MarkCompactCollector::EvacuatePrologue() {
     DCHECK(new_space_evacuation_pages_.empty());
     std::copy_if(new_space->begin(), new_space->end(),
                  std::back_inserter(new_space_evacuation_pages_),
-                 [](PageMetadata* p) { return p->live_bytes() > 0; });
+                 [](NormalPage* p) { return p->live_bytes() > 0; });
     if (!v8_flags.minor_ms) {
       SemiSpaceNewSpace::From(new_space)->SwapSemiSpaces();
     }
@@ -4540,7 +4539,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
 
   // Release evacuation candidates that were successfully processed and re-add
   // aborted pages to the sweeper.
-  for (PageMetadata* page : old_space_evacuation_pages_) {
+  for (NormalPage* page : old_space_evacuation_pages_) {
     DCHECK(page->is_evacuation_candidate());
     if (page->evacuation_was_aborted()) {
       // Fix up page flags and re-add aborted pages back to the sweeper.
@@ -4686,18 +4685,18 @@ class LiveObjectVisitor final : AllStatic {
   // false, also sets `failed_object` to the object for which the visitor
   // returned false.
   template <class Visitor>
-  static bool VisitMarkedObjects(PageMetadata* page, Visitor* visitor,
+  static bool VisitMarkedObjects(NormalPage* page, Visitor* visitor,
                                  Tagged<HeapObject>* failed_object);
 
   // Visits marked objects using `bool Visitor::Visit(HeapObject object, size_t
   // size)` as long as the return value is true. Assumes that the return value
   // is always true (success).
   template <class Visitor>
-  static void VisitMarkedObjectsNoFail(PageMetadata* page, Visitor* visitor);
+  static void VisitMarkedObjectsNoFail(NormalPage* page, Visitor* visitor);
 };
 
 template <class Visitor>
-bool LiveObjectVisitor::VisitMarkedObjects(PageMetadata* page, Visitor* visitor,
+bool LiveObjectVisitor::VisitMarkedObjects(NormalPage* page, Visitor* visitor,
                                            Tagged<HeapObject>* failed_object) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "LiveObjectVisitor::VisitMarkedObjects");
@@ -4711,7 +4710,7 @@ bool LiveObjectVisitor::VisitMarkedObjects(PageMetadata* page, Visitor* visitor,
 }
 
 template <class Visitor>
-void LiveObjectVisitor::VisitMarkedObjectsNoFail(PageMetadata* page,
+void LiveObjectVisitor::VisitMarkedObjectsNoFail(NormalPage* page,
                                                  Visitor* visitor) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "LiveObjectVisitor::VisitMarkedObjectsNoFail");
@@ -4733,7 +4732,7 @@ bool Evacuator::RawEvacuatePage(MutablePage* page) {
 #if DEBUG
       new_space_visitor_.DisableAbortEvacuationAtAddress(page);
 #endif  // DEBUG
-      LiveObjectVisitor::VisitMarkedObjectsNoFail(PageMetadata::cast(page),
+      LiveObjectVisitor::VisitMarkedObjectsNoFail(NormalPage::cast(page),
                                                   &new_space_visitor_);
       page->ClearLiveness();
       break;
@@ -4745,7 +4744,7 @@ bool Evacuator::RawEvacuatePage(MutablePage* page) {
         USE(success);
         DCHECK(success);
       } else {
-        LiveObjectVisitor::VisitMarkedObjectsNoFail(PageMetadata::cast(page),
+        LiveObjectVisitor::VisitMarkedObjectsNoFail(NormalPage::cast(page),
                                                     &new_to_old_page_visitor_);
       }
       new_to_old_page_visitor_.account_moved_bytes(page->live_bytes());
@@ -4756,14 +4755,14 @@ bool Evacuator::RawEvacuatePage(MutablePage* page) {
 #endif  // DEBUG
       Tagged<HeapObject> failed_object;
       if (LiveObjectVisitor::VisitMarkedObjects(
-              PageMetadata::cast(page), &old_space_visitor_, &failed_object)) {
+              NormalPage::cast(page), &old_space_visitor_, &failed_object)) {
         page->ClearLiveness();
       } else {
         // Aborted compaction page. Actual processing happens on the main
         // thread for simplicity reasons.
         heap_->mark_compact_collector()
             ->ReportAbortedEvacuationCandidateDueToOOM(
-                failed_object.address(), static_cast<PageMetadata*>(page));
+                failed_object.address(), static_cast<NormalPage*>(page));
         return false;
       }
       break;
@@ -4822,7 +4821,7 @@ class PageEvacuationJob : public v8::JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    const size_t kItemsPerWorker = std::max(1, MB / PageMetadata::kPageSize);
+    const size_t kItemsPerWorker = std::max(1, MB / NormalPage::kPageSize);
     // Ceiling division to ensure enough workers for all
     // |remaining_evacuation_items_|
     size_t wanted_num_workers =
@@ -4891,7 +4890,7 @@ intptr_t NewSpacePageEvacuationThreshold() {
          MemoryChunkLayout::AllocatableMemoryInDataPage() / 100;
 }
 
-bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
+bool ShouldMovePage(NormalPage* p, intptr_t live_bytes,
                     MemoryReductionMode memory_reduction_mode) {
   Heap* heap = p->heap();
   DCHECK(!p->never_evacuate());
@@ -4990,7 +4989,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       return;
     }
     collector_->ReportAbortedEvacuationCandidateDueToFlags(
-        PageMetadata::cast(page));
+        NormalPage::cast(page));
   }
 
   MarkCompactCollector* const collector_;
@@ -5031,7 +5030,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   // before old space evacuation.
   bool force_page_promotion =
       heap_->IsGCWithStack() && !v8_flags.compact_with_stack;
-  for (PageMetadata* page : new_space_evacuation_pages_) {
+  for (NormalPage* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = page->live_bytes();
     DCHECK_LT(0, live_bytes_on_page);
     live_bytes += live_bytes_on_page;
@@ -5049,13 +5048,12 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
-  for (PageMetadata* page :
-       aborted_evacuation_candidates_due_to_running_code_) {
+  for (NormalPage* page : aborted_evacuation_candidates_due_to_running_code_) {
     ReportAbortedEvacuationCandidateDueToFlags(page);
   }
 
   if (heap_->IsGCWithStack() && !v8_flags.compact_with_stack) {
-    for (PageMetadata* page : old_space_evacuation_pages_) {
+    for (NormalPage* page : old_space_evacuation_pages_) {
       ReportAbortedEvacuationCandidateDueToFlags(page);
     }
   }
@@ -5065,14 +5063,14 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     // when stress testing.
     const double kFraction = 0.05;
 
-    for (PageMetadata* page : old_space_evacuation_pages_) {
+    for (NormalPage* page : old_space_evacuation_pages_) {
       if (heap_->isolate()->fuzzer_rng()->NextDouble() < kFraction) {
         ReportAbortedEvacuationCandidateDueToFlags(page);
       }
     }
   }
 
-  for (PageMetadata* page : old_space_evacuation_pages_) {
+  for (NormalPage* page : old_space_evacuation_pages_) {
     if (page->evacuation_was_aborted()) {
       continue;
     }
@@ -5160,7 +5158,7 @@ void MarkCompactCollector::Evacuate() {
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
 
-    for (PageMetadata* p : new_space_evacuation_pages_) {
+    for (NormalPage* p : new_space_evacuation_pages_) {
       AllocationSpace owner_identity = p->owner_identity();
       USE(owner_identity);
       if (p->will_be_promoted()) {
@@ -5890,14 +5888,14 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
-    Address failed_start, PageMetadata* page) {
+    Address failed_start, NormalPage* page) {
   base::MutexGuard guard(&mutex_);
   aborted_evacuation_candidates_due_to_oom_.push_back(
       std::make_pair(failed_start, page));
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
-    PageMetadata* page) {
+    NormalPage* page) {
   if (page->evacuation_was_aborted()) {
     // There could be multiple references leading to pages that should be
     // aborted.
@@ -5908,13 +5906,13 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToRunningCode(
-    PageMetadata* page) {
+    NormalPage* page) {
   aborted_evacuation_candidates_due_to_running_code_.insert(page);
 }
 
 namespace {
 
-void ReRecordPage(Heap* heap, Address failed_start, PageMetadata* page) {
+void ReRecordPage(Heap* heap, Address failed_start, NormalPage* page) {
   DCHECK(page->evacuation_was_aborted());
 
   // Aborted compaction page. We have to record slots here, since we
@@ -5953,7 +5951,7 @@ size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
   // Actually abort evacuation on pages that ran into OOM during parallel
   // compaction.
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
-    PageMetadata* page = start_and_page.second;
+    NormalPage* page = start_and_page.second;
     DCHECK(!page->evacuation_was_aborted());
     page->AbortEvacuation();
   }
@@ -5972,7 +5970,7 @@ size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
       aborted_evacuation_candidates_due_to_oom_.size() +
       aborted_evacuation_candidates_due_to_flags_.size();
   size_t aborted_pages_verified = 0;
-  for (PageMetadata* page : old_space_evacuation_pages_) {
+  for (NormalPage* page : old_space_evacuation_pages_) {
     DCHECK(page->is_evacuation_candidate());
     if (page->evacuation_was_aborted()) {
       // Pages are handled later when the non-aborted ones are released.
@@ -5988,7 +5986,7 @@ size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
 }
 
 void MarkCompactCollector::ReleasePage(PagedSpaceBase* space,
-                                       PageMetadata* page) {
+                                       NormalPage* page) {
   space->RemovePageFromSpace(page);
 
   switch (space->identity()) {
@@ -6024,7 +6022,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
 
   DCHECK(empty_new_space_pages_to_be_swept_.empty());
   for (auto it = paged_space->begin(); it != paged_space->end();) {
-    PageMetadata* p = *(it++);
+    NormalPage* p = *(it++);
     DCHECK(p->SweepingDone());
     DCHECK(!p->Chunk()->IsBlackAllocatedPage());
 
@@ -6048,8 +6046,8 @@ void MarkCompactCollector::StartSweepNewSpace() {
   }
 }
 
-void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(
-    PagedSpace* space, PageMetadata* page) {
+void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(PagedSpace* space,
+                                                            NormalPage* page) {
   DCHECK(page->Chunk()->IsBlackAllocatedPage());
   DCHECK_EQ(page->live_bytes(), 0);
   DCHECK_GE(page->allocated_bytes(), 0);
@@ -6074,7 +6072,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
   // Loop needs to support deletion if live bytes == 0 for a page.
   for (auto it = space->begin(); it != space->end();) {
-    PageMetadata* p = *(it++);
+    NormalPage* p = *(it++);
     DCHECK(p->SweepingDone());
 
     if (p->Chunk()->IsEvacuationCandidate()) {
@@ -6263,7 +6261,7 @@ void RootMarkingVisitor::VisitRunningCode(
         TrustedCast<InstructionStream>(istream_or_smi_zero);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(istream);
     if (chunk->IsEvacuationCandidate()) {
-      PageMetadata* page = PageMetadata::cast(chunk->Metadata());
+      NormalPage* page = NormalPage::cast(chunk->Metadata());
       collector_->ReportAbortedEvacuationCandidateDueToRunningCode(page);
     }
 

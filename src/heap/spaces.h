@@ -21,7 +21,7 @@
 #include "src/heap/main-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/mutable-page.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/slot-set.h"
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"
@@ -97,7 +97,7 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
     return memory_chunk_list_;
   }
 
-  virtual PageMetadata* InitializePage(MutablePage* chunk) { UNREACHABLE(); }
+  virtual NormalPage* InitializePage(MutablePage* chunk) { UNREACHABLE(); }
 
   virtual void NotifyBlackAreaCreated(size_t size) {}
   virtual void NotifyBlackAreaDestroyed(size_t size) {}
@@ -157,39 +157,38 @@ class PageIteratorImpl
   PageType* p_;
 };
 
-using PageIterator = PageIteratorImpl<PageMetadata>;
-using ConstPageIterator = PageIteratorImpl<const PageMetadata>;
+using PageIterator = PageIteratorImpl<NormalPage>;
+using ConstPageIterator = PageIteratorImpl<const NormalPage>;
 using LargePageIterator = PageIteratorImpl<LargePage>;
 using ConstLargePageIterator = PageIteratorImpl<const LargePage>;
 
 class PageRange {
  public:
   using iterator = PageIterator;
-  PageRange(PageMetadata* begin, PageMetadata* end)
-      : begin_(begin), end_(end) {}
-  inline explicit PageRange(PageMetadata* page);
+  PageRange(NormalPage* begin, NormalPage* end) : begin_(begin), end_(end) {}
+  inline explicit PageRange(NormalPage* page);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
 
  private:
-  PageMetadata* begin_;
-  PageMetadata* end_;
+  NormalPage* begin_;
+  NormalPage* end_;
 };
 
 class ConstPageRange {
  public:
   using iterator = ConstPageIterator;
-  ConstPageRange(const PageMetadata* begin, const PageMetadata* end)
+  ConstPageRange(const NormalPage* begin, const NormalPage* end)
       : begin_(begin), end_(end) {}
-  inline explicit ConstPageRange(const PageMetadata* page);
+  inline explicit ConstPageRange(const NormalPage* page);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
 
  private:
-  const PageMetadata* begin_;
-  const PageMetadata* end_;
+  const NormalPage* begin_;
+  const NormalPage* end_;
 };
 
 class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {

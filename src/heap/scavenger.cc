@@ -39,7 +39,7 @@
 #include "src/heap/mutable-page-inl.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/pretenuring-handler.h"
@@ -876,8 +876,7 @@ class ScavengerCollector::QuarantinedPageSweeper {
                                               size_t size, bool should_zap);
 
     size_t SweepPage(FreeSpaceHandler free_space_handler, MemoryChunk* chunk,
-                     PageMetadata* page,
-                     ObjectsAndSizes& pinned_objects_on_page);
+                     NormalPage* page, ObjectsAndSizes& pinned_objects_on_page);
     void CreateFillerFreeHandler(Address address, size_t size);
 
     Heap* const heap_;
@@ -988,13 +987,13 @@ class YoungGenerationConservativeStackVisitor
     DCHECK(std::all_of(
         isolate_->heap()->semi_space_new_space()->to_space().begin(),
         isolate_->heap()->semi_space_new_space()->to_space().end(),
-        [](const PageMetadata* page) {
+        [](const NormalPage* page) {
           return page->marking_bitmap()->IsClean();
         }));
     DCHECK(std::all_of(
         isolate_->heap()->semi_space_new_space()->from_space().begin(),
         isolate_->heap()->semi_space_new_space()->from_space().end(),
-        [](const PageMetadata* page) {
+        [](const NormalPage* page) {
           return page->marking_bitmap()->IsClean();
         }));
   }
@@ -1003,10 +1002,10 @@ class YoungGenerationConservativeStackVisitor
     DCHECK(std::all_of(
         isolate_->heap()->semi_space_new_space()->to_space().begin(),
         isolate_->heap()->semi_space_new_space()->to_space().end(),
-        [](const PageMetadata* page) {
+        [](const NormalPage* page) {
           return page->marking_bitmap()->IsClean();
         }));
-    for (PageMetadata* page :
+    for (NormalPage* page :
          isolate_->heap()->semi_space_new_space()->from_space()) {
       page->marking_bitmap()->Clear<AccessMode::NON_ATOMIC>();
     }
@@ -1043,7 +1042,7 @@ class YoungGenerationConservativeStackVisitor
     DCHECK_EQ(object_size, object->Size());
     Address object_address = object->address();
     if (object_address + object_size <
-        PageMetadata::FromHeapObject(object)->area_end()) {
+        NormalPage::FromHeapObject(object)->area_end()) {
       MarkingBitmap::MarkBitFromAddress(bitmap, object_address + object_size)
           .Set<AccessMode::NON_ATOMIC>();
     }
@@ -1235,9 +1234,9 @@ void RestorePinnedObjects(SemiSpaceNewSpace& new_space,
 }
 
 void QuarantinePinnedPages(SemiSpaceNewSpace& new_space) {
-  PageMetadata* next_page = new_space.from_space().first_page();
+  NormalPage* next_page = new_space.from_space().first_page();
   while (next_page) {
-    PageMetadata* current_page = next_page;
+    NormalPage* current_page = next_page;
     next_page = current_page->next_page();
 #ifdef DEBUG
     MemoryChunk* chunk = current_page->Chunk();
@@ -1318,8 +1317,8 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
       return;
     }
     MemoryChunk* chunk = next_page_iterator_->first;
-    PageMetadata* page =
-        static_cast<PageMetadata*>(chunk->Metadata(heap_->isolate()));
+    NormalPage* page =
+        static_cast<NormalPage*>(chunk->Metadata(heap_->isolate()));
     DCHECK(!chunk->IsFromPage());
     if (chunk->IsToPage()) {
       SweepPage(CreateFillerFreeSpaceHandler, chunk, page,
@@ -1364,14 +1363,14 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::
   }
   DCHECK_EQ(
       OLD_SPACE,
-      PageMetadata::FromAddress(heap->isolate(), address)->owner()->identity());
-  DCHECK(PageMetadata::FromAddress(heap->isolate(), address)->SweepingDone());
+      NormalPage::FromAddress(heap->isolate(), address)->owner()->identity());
+  DCHECK(NormalPage::FromAddress(heap->isolate(), address)->SweepingDone());
   OldSpace* const old_space = heap->old_space();
   old_space->FreeDuringSweep(address, size);
 }
 
 size_t ScavengerCollector::QuarantinedPageSweeper::JobTask::SweepPage(
-    FreeSpaceHandler free_space_handler, MemoryChunk* chunk, PageMetadata* page,
+    FreeSpaceHandler free_space_handler, MemoryChunk* chunk, NormalPage* page,
     ObjectsAndSizes& pinned_objects_on_page) {
   DCHECK_EQ(page, chunk->Metadata(heap_->isolate()));
   DCHECK(!pinned_objects_on_page.empty());
@@ -1551,7 +1550,7 @@ int NumberOfScavengeTasks(Heap* heap) {
   int tasks = std::max(
       1, std::min({num_scavenge_tasks, kMaxScavengerTasks, num_cores}));
   if (!heap->CanPromoteYoungAndExpandOldGeneration(
-          static_cast<size_t>(tasks * PageMetadata::kPageSize))) {
+          static_cast<size_t>(tasks * NormalPage::kPageSize))) {
     // Optimize for memory usage near the heap limit.
     tasks = 1;
   }

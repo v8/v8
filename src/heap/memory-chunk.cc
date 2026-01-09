@@ -7,7 +7,7 @@
 #include "src/common/code-memory-access-inl.h"
 #include "src/heap/base-space.h"
 #include "src/heap/large-page.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/trusted-range.h"
 

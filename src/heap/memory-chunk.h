@@ -33,7 +33,7 @@ class Heap;
 class LargePage;
 class BasePage;
 class MutablePage;
-class PageMetadata;
+class NormalPage;
 class ReadOnlyPage;
 template <typename T>
 class Tagged;

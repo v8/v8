@@ -14,7 +14,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/large-page.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/utils.h"
@@ -232,7 +232,7 @@ bool HeapAllocator::TryResizeLargeObject(Tagged<HeapObject> object,
     return false;
   }
 
-  PageMetadata* page = PageMetadata::FromHeapObject(object);
+  NormalPage* page = NormalPage::FromHeapObject(object);
   Space* space = page->owner();
   if (space->identity() != NEW_LO_SPACE && space->identity() != LO_SPACE) {
     return false;

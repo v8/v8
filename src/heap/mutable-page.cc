@@ -198,7 +198,7 @@ void MutablePage::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseTypedSlotSet(OLD_TO_SHARED);
 
   if (!is_large()) {
-    PageMetadata* page = static_cast<PageMetadata*>(this);
+    NormalPage* page = static_cast<NormalPage*>(this);
     page->ReleaseFreeListCategories();
   }
 }
