@@ -1046,6 +1046,8 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceBuiltin(
       compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
+  MaybeReduceResult TryReduceAsyncFunctionEnter(ValueNode* closure,
+                                                ValueNode* reducer);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
   bool IsTheHoleConstant(ValueNode* node);
   ReduceResult BuildCallKnownJSFunction(
@@ -1147,6 +1149,8 @@ class MaglevGraphBuilder {
 
   MaybeReduceResult TryBuildAndAllocateJSGeneratorObject(ValueNode* closure,
                                                          ValueNode* receiver);
+  MaybeReduceResult TryBuildAndAllocateJSAsyncFunctionObject(
+      ValueNode* closure, ValueNode* receiver, VirtualObject* promise);
 
   ReduceResult BuildGenericConstruct(
       ValueNode* target, ValueNode* new_target, ValueNode* context,
@@ -1558,11 +1562,17 @@ class MaglevGraphBuilder {
                                          ValueNode* closure,
                                          ValueNode* receiver,
                                          ValueNode* register_file);
+  VirtualObject* CreateJSAsyncFunctionObject(ValueNode* context,
+                                             ValueNode* closure,
+                                             ValueNode* receiver,
+                                             ValueNode* register_file,
+                                             ValueNode* promise);
   VirtualObject* CreateJSIteratorResult(compiler::MapRef map, ValueNode* value,
                                         ValueNode* done);
   VirtualObject* CreateJSStringIterator(compiler::MapRef map,
                                         ValueNode* string);
   VirtualObject* CreateJSStringWrapper(ValueNode* value);
+  VirtualObject* CreateJSPromiseObject();
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
       AllocationType allocation_type, VirtualObject* value);

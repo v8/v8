@@ -6242,6 +6242,36 @@ struct VirtualJSAsyncGeneratorObjectShape : VirtualJSGeneratorObjectShape {
   static_assert(kHeaderSize == T::kHeaderSize);
 };
 
+struct VirtualJSAsyncFunctionObjectShape : VirtualJSObjectShape {
+  using T = JSAsyncFunctionObject;
+#define FIELD_LIST(V)                                                        \
+  V(function, T::kFunctionOffset, vobj::FieldType::kTagged)                  \
+  V(context, T::kContextOffset, vobj::FieldType::kTagged)                    \
+  V(receiver, T::kReceiverOffset, vobj::FieldType::kTagged)                  \
+  V(input_or_debug_pos, T::kInputOrDebugPosOffset, vobj::FieldType::kTagged) \
+  V(resume_mode, T::kResumeModeOffset, vobj::FieldType::kTagged)             \
+  V(continuation, T::kContinuationOffset, vobj::FieldType::kTagged)          \
+  V(parameters_and_registers, T::kParametersAndRegistersOffset,              \
+    vobj::FieldType::kTagged)                                                \
+  V(promise, T::kPromiseOffset, vobj::FieldType::kTagged)                    \
+  V(await_resolve_closure, T::kAwaitResolveClosureOffset,                    \
+    vobj::FieldType::kTagged)                                                \
+  V(await_reject_closure, T::kAwaitRejectClosureOffset,                      \
+    vobj::FieldType::kTagged)
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
+#undef FIELD_LIST
+};
+
+struct VirtualJSPromiseObjectShape : VirtualJSObjectShape {
+  using T = JSPromise;
+#define FIELD_LIST(V)                                 \
+  V(reactions_or_result, T::kReactionsOrResultOffset, \
+    vobj::FieldType::kTagged)                         \
+  V(flags, T::kFlagsOffset, vobj::FieldType::kTagged) \
+  DEF_SHAPE(VirtualJSObjectShape, FIELD_LIST);
+#undef FIELD_LIST
+};
+
 struct VirtualFixedArrayShape : VirtualHeapObjectShape {
   // The instance size is determined by array length, and array elements are
   // tagged.

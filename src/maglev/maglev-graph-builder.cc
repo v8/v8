@@ -69,6 +69,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
@@ -12574,15 +12575,46 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwait(
   return ReduceResult::Done();
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionEnter(
+    ValueNode* closure, ValueNode* receiver) {
+  if (!broker()->dependencies()->DependOnPromiseHookProtector()) return {};
+
+  // We check that we'll be able to allocate the register file here at the start
+  // rather than later so that we don't allocate the promise object for nothing.
+  int register_count = bytecode().parameter_count_without_receiver() +
+                       bytecode().register_count();
+  bool can_allocate_array =
+      FixedArray::SizeFor(register_count) <= kMaxRegularHeapObjectSize;
+  if (!can_allocate_array) return {};
+
+  // Creating the Promise object.
+  VirtualObject* promise = CreateJSPromiseObject();
+
+  // Creating the AsyncFunction object.
+  // Create the register file.
+  auto undefined = GetRootConstant(RootIndex::kUndefinedValue);
+  base::SmallVector<ValueNode*, 16> values(register_count, undefined);
+  VirtualObject* register_file = CreateFixedArray(base::VectorOf(values));
+  VirtualObject* async_function = CreateJSAsyncFunctionObject(
+      GetContext(), closure, receiver, register_file, promise);
+
+  return BuildInlinedAllocation(async_function, AllocationType::kYoung);
+}
+
 ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionEnter(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
-  ValueNode* tagged_arg_0;
-  GET_VALUE_OR_ABORT(tagged_arg_0, GetTaggedValue(args[0]));
-  ValueNode* tagged_arg_1;
-  GET_VALUE_OR_ABORT(tagged_arg_1, GetTaggedValue(args[1]));
-  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionEnter>(
-      {tagged_arg_0, tagged_arg_1}));
+
+  ValueNode* closure;
+  GET_VALUE_OR_ABORT(closure, GetTaggedValue(args[0]));
+  ValueNode* receiver;
+  GET_VALUE_OR_ABORT(receiver, GetTaggedValue(args[1]));
+
+  PROCESS_AND_RETURN_IF_DONE(TryReduceAsyncFunctionEnter(closure, receiver),
+                             SetAccumulator);
+
+  SetAccumulator(
+      BuildCallBuiltin<Builtin::kAsyncFunctionEnter>({closure, receiver}));
   return ReduceResult::Done();
 }
 
@@ -14512,6 +14544,71 @@ VirtualObject* MaglevGraphBuilder::CreateJSGeneratorObject(
     vobj->set(JSAsyncGeneratorObject::kQueueOffset,
               GetRootConstant(RootIndex::kUndefinedValue));
     vobj->set(JSAsyncGeneratorObject::kIsAwaitingOffset, GetInt32Constant(0));
+  }
+  return vobj;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSAsyncFunctionObject(
+    ValueNode* context, ValueNode* closure, ValueNode* receiver,
+    ValueNode* register_file, ValueNode* promise) {
+  compiler::MapRef map =
+      broker()->target_native_context().async_function_object_map(broker());
+  const vobj::ObjectLayout* object_layout =
+      &VirtualJSAsyncFunctionObjectShape::kObjectLayout;
+
+  constexpr int slot_count = JSAsyncFunctionObject::kHeaderSize / kTaggedSize;
+  static_assert(slot_count == 13,
+                "If the number of slots in JSAsyncFunctionObject changes, then "
+                "the additional slots need to be initialized below");
+
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, object_layout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSAsyncFunctionObject::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSAsyncFunctionObject::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSAsyncFunctionObject::kContextOffset, context);
+  vobj->set(JSAsyncFunctionObject::kFunctionOffset, closure);
+  vobj->set(JSAsyncFunctionObject::kReceiverOffset, receiver);
+  vobj->set(JSAsyncFunctionObject::kInputOrDebugPosOffset,
+            GetRootConstant(RootIndex::kUndefinedValue));
+  vobj->set(JSAsyncFunctionObject::kResumeModeOffset,
+            GetInt32Constant(JSGeneratorObject::kNext));
+  vobj->set(JSAsyncFunctionObject::kContinuationOffset,
+            GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
+  vobj->set(JSAsyncFunctionObject::kParametersAndRegistersOffset,
+            register_file);
+  vobj->set(JSAsyncFunctionObject::kPromiseOffset, promise);
+  vobj->set(JSAsyncFunctionObject::kAwaitResolveClosureOffset,
+            GetRootConstant(RootIndex::kUndefinedValue));
+  vobj->set(JSAsyncFunctionObject::kAwaitRejectClosureOffset,
+            GetRootConstant(RootIndex::kUndefinedValue));
+
+  return vobj;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSPromiseObject() {
+  compiler::MapRef promise_map =
+      broker()->target_native_context().promise_function(broker()).initial_map(
+          broker());
+  int instance_size = promise_map.instance_size();
+  int slot_count = instance_size / kTaggedSize;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this,
+      &VirtualJSPromiseObjectShape::kObjectLayout, promise_map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(promise_map));
+  vobj->set(JSPromise::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSPromise::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSPromise::kReactionsOrResultOffset, GetSmiConstant(0));
+  static_assert(v8::Promise::kPending == 0);
+  vobj->set(JSPromise::kFlagsOffset, GetSmiConstant(0));
+  static_assert(JSPromise::kHeaderSize == 5 * kTaggedSize);
+  for (int offset = JSPromise::kHeaderSize;
+       offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
+    vobj->set(offset, GetSmiConstant(0));
   }
   return vobj;
 }
