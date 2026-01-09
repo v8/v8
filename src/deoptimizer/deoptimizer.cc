@@ -792,8 +792,7 @@ int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
   switch (translated_frame->kind()) {
     case TranslatedFrame::kUnoptimizedFunction: {
       int bytecode_offset = translated_frame->bytecode_offset().ToInt();
-      HandlerTable table(
-          translated_frame->raw_shared_info()->GetBytecodeArray(isolate));
+      HandlerTable table(translated_frame->raw_bytecode_array());
       int handler_index = table.LookupHandlerIndexForRange(bytecode_offset);
       if (handler_index == HandlerTable::kNoHandlerFound) return handler_index;
       *data_out = table.GetRangeData(handler_index);
