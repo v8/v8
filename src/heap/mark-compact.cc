@@ -14,7 +14,6 @@
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
-#include "src/base/small-vector.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/common/assert-scope.h"
@@ -2653,180 +2652,84 @@ void MarkCompactCollector::MarkLiveObjects() {
 
 namespace {
 
-class ParallelItem;
-
-using ParallelItemFunction = std::function<void(ParallelItem*, JobDelegate*)>;
-using ParallelItemList = base::SmallVector<ParallelItem*, 4>;
-
-class ParallelItem {
- public:
-  explicit ParallelItem(const char* name, ParallelItemFunction action,
-                        ParallelItemList dependencies)
-      : name_(name),
-        predecessors_(std::move(dependencies)),
-        trace_id_(reinterpret_cast<uint64_t>(this)),
-        action_(std::move(action)) {
-    for (auto item : predecessors_) {
-      item->add_successor(this);
-    }
-  }
-
-  ParallelItem(const ParallelItem&) = delete;
-  ParallelItem& operator=(const ParallelItem&) = delete;
-
-  void Run(JobDelegate* delegate) { action_(this, delegate); }
-
-  const ParallelItemList& successors() const { return successors_; }
-  const ParallelItemList& predecessors() const { return predecessors_; }
-
-  bool is_done() const { return is_done_; }
-  void SetDone() { is_done_ = true; }
-
-  const char* name() { return name_; }
-
-  void add_successor(ParallelItem* item) { successors_.push_back(item); }
-
-  bool AllPredecessorFinished() {
-    ++finished_predecessors;
-    return finished_predecessors == predecessors_.size();
-  }
-
-  uint64_t trace_id() const { return trace_id_; }
-
- private:
-  const char* name_;
-  ParallelItemList successors_;
-  ParallelItemList predecessors_;
-  size_t finished_predecessors = 0;
-  const uint64_t trace_id_;
-  ParallelItemFunction action_;
-  bool is_done_ = false;
-};
-
 class ParallelClearingJob final : public v8::JobTask {
  public:
+  class ClearingItem {
+   public:
+    virtual ~ClearingItem() = default;
+    virtual void Run(JobDelegate* delegate) = 0;
+  };
+
   explicit ParallelClearingJob(MarkCompactCollector* collector)
       : collector_(collector) {}
-  ~ParallelClearingJob() override { CheckAllItemsDone(); }
+  ~ParallelClearingJob() override = default;
   ParallelClearingJob(const ParallelClearingJob&) = delete;
   ParallelClearingJob& operator=(const ParallelClearingJob&) = delete;
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-    ParallelItem* item;
-
+    std::unique_ptr<ClearingItem> item;
     {
-      base::MutexGuard guard(&ready_items_mutex_);
-      if (ready_items_.empty()) return;
-      item = std::move(ready_items_.back());
-      CHECK(!item->is_done());
-      ready_items_.pop_back();
-
-      for (ParallelItem* dependency : item->predecessors()) {
-        CHECK(dependency->is_done());
-      }
+      base::MutexGuard guard(&items_mutex_);
+      item = std::move(items_.back());
+      items_.pop_back();
     }
-
-    SetCurrentIsolateScope isolate_scope(collector_->heap()->isolate());
     item->Run(delegate);
-
-    bool added_to_ready = false;
-
-    {
-      base::MutexGuard guard(&ready_items_mutex_);
-      item->SetDone();
-
-      for (ParallelItem* dependent_item : item->successors()) {
-        if (dependent_item->AllPredecessorFinished()) {
-          ready_items_.push_back(dependent_item);
-          added_to_ready = true;
-        }
-      }
-    }
-
-    if (added_to_ready) {
-      delegate->NotifyConcurrencyIncrease();
-    }
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    base::MutexGuard guard(&ready_items_mutex_);
-    const size_t wanted = ready_items_.size() + worker_count;
-    if (!v8_flags.parallel_gc_clearing ||
+    base::MutexGuard guard(&items_mutex_);
+    if (!v8_flags.parallel_weak_ref_clearing ||
         !collector_->UseBackgroundThreadsInCycle()) {
-      return std::min<size_t>(wanted, 1);
+      return std::min<size_t>(items_.size(), 1);
     }
-    return wanted;
+    return items_.size();
   }
 
-  ParallelItem* Enqueue(std::unique_ptr<ParallelItem> item) {
-    if (item->predecessors().empty()) {
-      ready_items_.push_back(item.get());
-    }
-
-    ParallelItem* result = item.get();
-    all_items_.push_back(std::move(item));
-    return result;
-  }
-
-  void CheckAllItemsDone() {
-    CHECK(ready_items_.empty());
-    for (auto& item : all_items_) {
-      CHECK(item->is_done());
-    }
-  }
-
-  void DumpGraph() {
-    PrintF("digraph clearing_dependency_graph {\n");
-    for (const auto& item : all_items_) {
-      PrintF("  \"%p\" [label=\"%s\"];\n", item.get(), item->name());
-      for (const auto& dependent : item->successors()) {
-        PrintF("  \"%p\" -> \"%p\";\n", item.get(), dependent);
-      }
-    }
-    PrintF("}\n");
+  void Add(std::unique_ptr<ClearingItem> item) {
+    items_.push_back(std::move(item));
   }
 
  private:
   MarkCompactCollector* collector_;
-  mutable base::Mutex ready_items_mutex_;
-  std::vector<ParallelItem*> ready_items_;
-  std::vector<std::unique_ptr<ParallelItem>> all_items_;
+  mutable base::Mutex items_mutex_;
+  std::vector<std::unique_ptr<ClearingItem>> items_;
 };
 
-class ParallelItemBuilder {
+class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
  public:
-  explicit ParallelItemBuilder(const char* name, ParallelItemFunction action)
-      : name_(name), action_(action) {}
+  explicit ClearStringTableJobItem(Isolate* isolate)
+      : isolate_(isolate),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  isolate->heap()->tracer()->CurrentEpoch()) {}
 
-  ParallelItemBuilder(const ParallelItemBuilder&) = delete;
-  ParallelItemBuilder(ParallelItemBuilder&&) = delete;
+  void Run(JobDelegate* delegate) final {
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(isolate_);
 
-  ParallelItemBuilder& DependsOn(ParallelItem* dependency,
-                                 bool enable_if = true) {
-    if (!dependency || !enable_if) return *this;
-    dependencies_.push_back(dependency);
-    return *this;
+    if (isolate_->OwnsStringTables()) {
+      TRACE_GC1_WITH_FLOW(isolate_->heap()->tracer(),
+                          GCTracer::Scope::MC_CLEAR_STRING_TABLE, delegate,
+                          trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+      // Prune the string table removing all strings only pointed to by the
+      // string table.  Cannot use string_table() here because the string
+      // table is marked.
+      StringTable* string_table = isolate_->string_table();
+      InternalizedStringTableCleaner internalized_visitor(isolate_->heap());
+      string_table->DropOldData();
+      string_table->IterateElements(&internalized_visitor);
+      string_table->NotifyElementsRemoved(
+          internalized_visitor.PointersRemoved());
+    }
   }
 
-  ParallelItem* Enqueue(const std::unique_ptr<ParallelClearingJob>& job) {
-    auto item = std::make_unique<ParallelItem>(name_, std::move(action_),
-                                               std::move(dependencies_));
-    ParallelItem* ptr = item.get();
-    job->Enqueue(std::move(item));
-    return ptr;
-  }
+  uint64_t trace_id() const { return trace_id_; }
 
  private:
-  const char* name_;
-  ParallelItemFunction action_;
-  ParallelItemList dependencies_;
+  Isolate* const isolate_;
+  const uint64_t trace_id_;
 };
-
-ParallelItemBuilder MakeParallelItem(const char* name,
-                                     ParallelItemFunction action) {
-  return ParallelItemBuilder(name, action);
-}
 
 }  // namespace
 
@@ -3023,23 +2926,103 @@ class SharedStructTypeRegistryCleaner final : public RootVisitor {
   int elements_removed_ = 0;
 };
 
+class ClearSharedStructTypeRegistryJobItem final
+    : public ParallelClearingJob::ClearingItem {
+ public:
+  explicit ClearSharedStructTypeRegistryJobItem(Isolate* isolate)
+      : isolate_(isolate) {
+    DCHECK(isolate->is_shared_space_isolate());
+    DCHECK_NOT_NULL(isolate->shared_struct_type_registry());
+  }
+
+  void Run(JobDelegate* delegate) final {
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(isolate_);
+
+    auto* registry = isolate_->shared_struct_type_registry();
+    SharedStructTypeRegistryCleaner cleaner(isolate_->heap());
+    registry->IterateElements(isolate_, &cleaner);
+    registry->NotifyElementsRemoved(cleaner.ElementsRemoved());
+  }
+
+ private:
+  Isolate* const isolate_;
+};
+
 }  // namespace
+
+class MarkCompactCollector::ClearTrivialWeakRefJobItem final
+    : public ParallelClearingJob::ClearingItem {
+ public:
+  explicit ClearTrivialWeakRefJobItem(MarkCompactCollector* collector)
+      : collector_(collector),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  collector->heap()->tracer()->CurrentEpoch()) {}
+
+  void Run(JobDelegate* delegate) final {
+    Heap* heap = collector_->heap();
+
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(heap->isolate());
+
+    TRACE_GC1_WITH_FLOW(heap->tracer(),
+                        GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL,
+                        delegate, trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+    collector_->ClearTrivialWeakReferences();
+    collector_->ClearTrustedWeakReferences();
+  }
+
+  uint64_t trace_id() const { return trace_id_; }
+
+ private:
+  MarkCompactCollector* collector_;
+  const uint64_t trace_id_;
+};
+
+class MarkCompactCollector::FilterNonTrivialWeakRefJobItem final
+    : public ParallelClearingJob::ClearingItem {
+ public:
+  explicit FilterNonTrivialWeakRefJobItem(MarkCompactCollector* collector)
+      : collector_(collector),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  collector->heap()->tracer()->CurrentEpoch()) {}
+
+  void Run(JobDelegate* delegate) final {
+    Heap* heap = collector_->heap();
+
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(heap->isolate());
+
+    TRACE_GC1_WITH_FLOW(
+        heap->tracer(),
+        GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL, delegate,
+        trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+    collector_->FilterNonTrivialWeakReferences();
+  }
+
+  uint64_t trace_id() const { return trace_id_; }
+
+ private:
+  MarkCompactCollector* collector_;
+  const uint64_t trace_id_;
+};
 
 void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR);
 
-  auto parallel_clearing_job = std::make_unique<ParallelClearingJob>(this);
   Isolate* const isolate = heap_->isolate();
-
   if (isolate->OwnsStringTables()) {
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::MC_CLEAR_STRING_FORWARDING_TABLE);
     // Clear string forwarding table. Live strings are transitioned to
     // ThinStrings/ExternalStrings in the cleanup process, if this is a GC
     // without stack.
-    // Clearing the string forwarding table must happen before clearing
-    // the string table, as entries in the forwarding table can keep
-    // internalized strings alive.
+    // Clearing the string forwarding table must happen before clearing the
+    // string table, as entries in the forwarding table can keep internalized
+    // strings alive.
     FullStringForwardingTableCleaner forwarding_table_cleaner(heap_);
     if (!heap_->IsGCWithStack() ||
         v8_flags.transition_strings_during_gc_with_stack) {
@@ -3060,330 +3043,238 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     }
   }
 
-  if (isolate->OwnsStringTables()) {
-    auto item =
-        MakeParallelItem("ClearStringTable", [this, isolate](
-                                                 ParallelItem* item,
-                                                 JobDelegate* delegate) {
-          DCHECK(isolate->OwnsStringTables());
-
-          TRACE_GC1_WITH_FLOW(heap()->tracer(),
-                              GCTracer::Scope::MC_CLEAR_STRING_TABLE, delegate,
-                              item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
-          // Prune the string table removing all strings only pointed to by
-          // the string table.  Cannot use string_table() here because the
-          // string table is marked.
-          StringTable* string_table = isolate->string_table();
-          InternalizedStringTableCleaner internalized_visitor(heap());
-          string_table->DropOldData();
-          string_table->IterateElements(&internalized_visitor);
-          string_table->NotifyElementsRemoved(
-              internalized_visitor.PointersRemoved());
-        }).Enqueue(parallel_clearing_job);
-    TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", item->trace_id(),
+  std::unique_ptr<JobHandle> clear_string_table_job_handle;
+  {
+    auto job = std::make_unique<ParallelClearingJob>(this);
+    auto job_item = std::make_unique<ClearStringTableJobItem>(isolate);
+    const uint64_t trace_id = job_item->trace_id();
+    job->Add(std::move(job_item));
+    TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", trace_id,
                             TRACE_EVENT_FLAG_FLOW_OUT);
+    if (isolate->is_shared_space_isolate() &&
+        isolate->shared_struct_type_registry()) {
+      auto registry_job_item =
+          std::make_unique<ClearSharedStructTypeRegistryJobItem>(isolate);
+      job->Add(std::move(registry_job_item));
+    }
+    clear_string_table_job_handle = V8::GetCurrentPlatform()->CreateJob(
+        TaskPriority::kUserBlocking, std::move(job));
+  }
+  if (v8_flags.parallel_weak_ref_clearing && UseBackgroundThreadsInCycle()) {
+    clear_string_table_job_handle->NotifyConcurrencyIncrease();
   }
 
-  if (isolate->is_shared_space_isolate() &&
-      isolate->shared_struct_type_registry()) {
-    auto item =
-        MakeParallelItem(
-            "ClearSharedStructTypeRegistry",
-            [this, isolate](ParallelItem* item, JobDelegate* delegate) {
-              TRACE_GC1_WITH_FLOW(
-                  heap()->tracer(),
-                  GCTracer::Scope::MC_CLEAR_SHARED_STRUCT_TYPE_REGISTRY,
-                  delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
-              auto* registry = isolate->shared_struct_type_registry();
-              SharedStructTypeRegistryCleaner cleaner(heap());
-              registry->IterateElements(isolate, &cleaner);
-              registry->NotifyElementsRemoved(cleaner.ElementsRemoved());
-            })
-            .Enqueue(parallel_clearing_job);
-    TRACE_GC_NOTE_WITH_FLOW("ClearSharedStructTypeRegistryJob started",
-                            item->trace_id(), TRACE_EVENT_FLAG_FLOW_OUT);
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_EXTERNAL_STRING_TABLE);
+    ExternalStringTableCleanerVisitor external_visitor(heap_);
+    heap_->external_string_table_.Iterate(&external_visitor);
+    heap_->external_string_table_.CleanUp();
   }
 
-  auto clear_external_string_table =
-      MakeParallelItem("ClearExternalStringTable", [this](
-                                                       ParallelItem*,
-                                                       JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(),
-                  GCTracer::Scope::MC_CLEAR_EXTERNAL_STRING_TABLE, delegate);
-        ExternalStringTableCleanerVisitor external_visitor(heap_);
-        heap_->external_string_table_.Iterate(&external_visitor);
-        heap_->external_string_table_.CleanUp();
-      }).Enqueue(parallel_clearing_job);
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_GLOBAL_HANDLES);
+    // We depend on `IterateWeakRootsForPhantomHandles()` being called before
+    // `ProcessOldCodeCandidates()` in order to identify flushed bytecode in the
+    // CPU profiler.
+    isolate->global_handles()->IterateWeakRootsForPhantomHandles(
+        &IsUnmarkedHeapObject);
+    isolate->traced_handles()->ResetDeadNodes(&IsUnmarkedHeapObject);
 
-  auto clear_weak_global_handles =
-      MakeParallelItem("ClearWeakGlobalHandles", [this, isolate](
-                                                     ParallelItem*,
-                                                     JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(),
-                  GCTracer::Scope::MC_CLEAR_WEAK_GLOBAL_HANDLES, delegate);
-        isolate->global_handles()->IterateWeakRootsForPhantomHandles(
-            &IsUnmarkedHeapObject);
-        isolate->traced_handles()->ResetDeadNodes(&IsUnmarkedHeapObject);
+    if (isolate->is_shared_space_isolate()) {
+      isolate->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+        client->global_handles()->IterateWeakRootsForPhantomHandles(
+            &IsUnmarkedSharedHeapObject);
+        // No need to reset traced handles since they are always strong.
+      });
+    }
+  }
 
-        if (isolate->is_shared_space_isolate()) {
-          isolate->global_safepoint()->IterateClientIsolates(
-              [](Isolate* client) {
-                client->global_handles()->IterateWeakRootsForPhantomHandles(
-                    &IsUnmarkedSharedHeapObject);
-                // No need to reset traced handles since they are always strong.
-              });
-        }
-      }).Enqueue(parallel_clearing_job);
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_FLUSHABLE_BYTECODE);
+    ProcessOldCodeCandidates();
+  }
 
-  auto process_old_code_candidates_item =
-      MakeParallelItem("ProcessOldCodeCandidates",
-                       [this](ParallelItem*, JobDelegate* delegate) {
-                         TRACE_GC1(heap_->tracer(),
-                                   GCTracer::Scope::MC_CLEAR_FLUSHABLE_BYTECODE,
-                                   delegate);
-                         ProcessOldCodeCandidates();
-                       })
-          // We depend on `IterateWeakRootsForPhantomHandles()` being called
-          // before `ProcessOldCodeCandidates()` in order to identify flushed
-          // bytecode in the CPU profiler.
-          .DependsOn(clear_weak_global_handles)
-          .Enqueue(parallel_clearing_job);
+  {
+    // This method may be called from within a DisallowDeoptimizations scope.
+    // Temporarily allow deopts for marking code for deopt. This is not doing
+    // the deopt yet and the actual deopts will be bailed out on later if the
+    // current safepoint is not safe for deopts.
+    // TODO(357636610): Reconsider whether the DisallowDeoptimization scopes are
+    // truly needed.
+    AllowDeoptimization allow_deoptimization(heap_->isolate());
+    MarkDependentCodeForDeoptimization();
+  }
 
-  auto mark_dependent_code_for_deopt =
-      MakeParallelItem(
-          "MarkDependentCodeForDeoptimization",
-          [this](ParallelItem*, JobDelegate* delegate) {
-            // This method may be called from within a DisallowDeoptimizations
-            // scope. Temporarily allow deopts for marking code for deopt. This
-            // is not doing the deopt yet and the actual deopts will be bailed
-            // out on later if the current safepoint is not safe for deopts.
-            // TODO(357636610): Reconsider whether the DisallowDeoptimization
-            // scopes are truly needed.
-            AllowDeoptimization allow_deoptimization(heap_->isolate());
-            MarkDependentCodeForDeoptimization();
-          })
-          .Enqueue(parallel_clearing_job);
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE);
+    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+    Tagged<Code> compile_lazy =
+        heap_->isolate()->builtins()->code(Builtin::kCompileLazy);
+    jdt->Sweep(heap_->js_dispatch_table_space(), isolate->counters(),
+               [&](JSDispatchEntry& entry) {
+                 Tagged<Code> code = entry.GetCode();
+                 if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
+                         heap_, marking_state_, code)) {
+                   // Baseline flushing: if the Code object is no longer alive,
+                   // it must have been flushed and so we replace it with the
+                   // CompileLazy builtin. Once we use leaptiering on all
+                   // platforms, we can probably simplify the other code related
+                   // to baseline flushing.
 
-  MakeParallelItem(
-      "SweepJSDispatchTable",
-      [this](ParallelItem*, JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE,
-                  delegate);
-        JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-        Tagged<Code> compile_lazy =
-            heap_->isolate()->builtins()->code(Builtin::kCompileLazy);
-        jdt->Sweep(heap_->js_dispatch_table_space(),
-                   heap_->isolate()->counters(), [&](JSDispatchEntry& entry) {
-                     Tagged<Code> code = entry.GetCode();
-                     if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-                             heap_, marking_state_, code)) {
-                       // Baseline flushing: if the Code object is no longer
-                       // alive, it must have been flushed and so we replace it
-                       // with the CompileLazy builtin. Once we use leaptiering
-                       // on all platforms, we can probably simplify the other
-                       // code related to baseline flushing.
-
-                       // Currently, we can also see optimized code here. This
-                       // happens when a FeedbackCell for which no JSFunctions
-                       // remain references optimized code. However, in that
-                       // case we probably do want to delete the optimized code,
-                       // so that is working as intended. It does mean, however,
-                       // that we cannot DCHECK here that we only see baseline
-                       // code.
-                       DCHECK(code->kind() == CodeKind::FOR_TESTING_JS ||
-                              code->kind() == CodeKind::BASELINE ||
-                              code->kind() == CodeKind::MAGLEV ||
-                              code->kind() == CodeKind::TURBOFAN_JS ||
-                              code->is_interpreter_trampoline_builtin());
-                       entry.SetCodeAndEntrypointPointer(
-                           compile_lazy.ptr(),
-                           compile_lazy->instruction_start());
-                     }
-                   });
-      })
-      // MarkDependentCodeForDeoptimization updates dispatch table entries.
-      .DependsOn(mark_dependent_code_for_deopt)
-      .Enqueue(parallel_clearing_job);
+                   // Currently, we can also see optimized code here. This
+                   // happens when a FeedbackCell for which no JSFunctions
+                   // remain references optimized code. However, in that case we
+                   // probably do want to delete the optimized code, so that is
+                   // working as intended. It does mean, however, that we cannot
+                   // DCHECK here that we only see baseline code.
+                   DCHECK(code->kind() == CodeKind::FOR_TESTING_JS ||
+                          code->kind() == CodeKind::BASELINE ||
+                          code->kind() == CodeKind::MAGLEV ||
+                          code->kind() == CodeKind::TURBOFAN_JS ||
+                          code->is_interpreter_trampoline_builtin());
+                   entry.SetCodeAndEntrypointPointer(
+                       compile_lazy.ptr(), compile_lazy->instruction_start());
+                 }
+               });
+  }
 
   // TODO(olivf, 42204201): If we make the bytecode accessible from the dispatch
   // table this could also be implemented during JSDispatchTable::Sweep.
-  MakeParallelItem("ClearFlushedJsFunctions", [this](ParallelItem*,
-                                                     JobDelegate* delegate) {
-    TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_FLUSHED_JS_FUNCTIONS,
-              delegate);
-    ClearFlushedJsFunctions();
-  }).Enqueue(parallel_clearing_job);
-
-  auto process_all_weak_references =
-      MakeParallelItem("ProcessAllWeakReferences", [this](
-                                                       ParallelItem*,
-                                                       JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_LISTS,
-                  delegate);
-        // Process the weak references.
-        MarkCompactWeakObjectRetainer mark_compact_object_retainer(
-            this, marking_state_);
-        heap_->ProcessAllWeakReferences(&mark_compact_object_retainer);
-      }).Enqueue(parallel_clearing_job);
-
-  auto clear_maps_items =
-      MakeParallelItem("ClearMaps", [this](ParallelItem*,
-                                           JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_MAPS, delegate);
-        // ClearFullMapTransitions must be called before weak references are
-        // cleared.
-        ClearFullMapTransitions();
-        // Weaken recorded strong DescriptorArray objects. This phase can
-        // potentially move everywhere after `ClearFullMapTransitions()`.
-        WeakenStrongDescriptorArrays();
-      }).Enqueue(parallel_clearing_job);
-
   {
-    auto item = MakeParallelItem(
-                    "ClearTrivialWeakRefs",
-                    [this](ParallelItem* item, JobDelegate* delegate) {
-                      TRACE_GC1_WITH_FLOW(
-                          heap()->tracer(),
-                          GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL,
-                          delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
-                      ClearTrivialWeakReferences();
-                      ClearTrustedWeakReferences();
-                    })
-                    // Do not run before these items finished, these may change
-                    // the value of weak references.
-                    .DependsOn(process_old_code_candidates_item)
-                    .DependsOn(process_all_weak_references)
-                    .DependsOn(clear_maps_items)
-                    .Enqueue(parallel_clearing_job);
-    ;
-    TRACE_GC_NOTE_WITH_FLOW("ClearTrivialWeakRefJob started", item->trace_id(),
-                            TRACE_EVENT_FLAG_FLOW_OUT);
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_FLUSHED_JS_FUNCTIONS);
+    ClearFlushedJsFunctions();
   }
 
-  auto filter_non_trivial_weak_ref_job_item =
-      MakeParallelItem(
-          "FilterNonTrivialWeakRefs",
-          [this](ParallelItem* item, JobDelegate* delegate) {
-            TRACE_GC1_WITH_FLOW(
-                heap()->tracer(),
-                GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL,
-                delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
-            FilterNonTrivialWeakReferences();
-          })
-          // Do not run before these items finished, these may change the value
-          // of weak references.
-          .DependsOn(process_old_code_candidates_item)
-          .DependsOn(process_all_weak_references)
-          .DependsOn(clear_maps_items)
-          .Enqueue(parallel_clearing_job);
-  TRACE_GC_NOTE_WITH_FLOW("FilterNonTrivialWeakRefJob started",
-                          filter_non_trivial_weak_ref_job_item->trace_id(),
-                          TRACE_EVENT_FLAG_FLOW_OUT);
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_LISTS);
+    // Process the weak references.
+    MarkCompactWeakObjectRetainer mark_compact_object_retainer(this,
+                                                               marking_state_);
+    heap_->ProcessAllWeakReferences(&mark_compact_object_retainer);
+  }
+
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_MAPS);
+    // ClearFullMapTransitions must be called before weak references are
+    // cleared.
+    ClearFullMapTransitions();
+    // Weaken recorded strong DescriptorArray objects. This phase can
+    // potentially move everywhere after `ClearFullMapTransitions()`.
+    WeakenStrongDescriptorArrays();
+  }
+
+  // Start two parallel jobs: one for clearing trivial weak references and one
+  // for filtering out non-trivial weak references that will not be cleared.
+  // Both jobs read the values of weak references and the corresponding
+  // mark bits. They cannot start before the following methods have finished,
+  // because these may change the values of weak references and/or mark more
+  // objects, thus creating data races:
+  //   - ProcessOldCodeCandidates
+  //   - ProcessAllWeakReferences
+  //   - ClearFullMapTransitions
+  //   - WeakenStrongDescriptorArrays
+  // The two jobs could be merged but it's convenient to keep them separate,
+  // as they are joined at different times. The filtering job must be joined
+  // before proceeding to the actual clearing of non-trivial weak references,
+  // whereas the job for clearing trivial weak references can be joined at the
+  // end of this method.
+  std::unique_ptr<JobHandle> clear_trivial_weakrefs_job_handle;
+  {
+    auto job = std::make_unique<ParallelClearingJob>(this);
+    auto job_item = std::make_unique<ClearTrivialWeakRefJobItem>(this);
+    const uint64_t trace_id = job_item->trace_id();
+    job->Add(std::move(job_item));
+    TRACE_GC_NOTE_WITH_FLOW("ClearTrivialWeakRefJob started", trace_id,
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+    clear_trivial_weakrefs_job_handle = V8::GetCurrentPlatform()->CreateJob(
+        TaskPriority::kUserBlocking, std::move(job));
+  }
+  std::unique_ptr<JobHandle> filter_non_trivial_weakrefs_job_handle;
+  {
+    auto job = std::make_unique<ParallelClearingJob>(this);
+    auto job_item = std::make_unique<FilterNonTrivialWeakRefJobItem>(this);
+    const uint64_t trace_id = job_item->trace_id();
+    job->Add(std::move(job_item));
+    TRACE_GC_NOTE_WITH_FLOW("FilterNonTrivialWeakRefJob started", trace_id,
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+    filter_non_trivial_weakrefs_job_handle =
+        V8::GetCurrentPlatform()->CreateJob(TaskPriority::kUserBlocking,
+                                            std::move(job));
+  }
+  if (v8_flags.parallel_weak_ref_clearing && UseBackgroundThreadsInCycle()) {
+    clear_trivial_weakrefs_job_handle->NotifyConcurrencyIncrease();
+    filter_non_trivial_weakrefs_job_handle->NotifyConcurrencyIncrease();
+  }
 
 #ifdef V8_COMPRESS_POINTERS
-  MakeParallelItem(
-      "SweepExternalPointerTable",
-      [this](ParallelItem*, JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(),
-                  GCTracer::Scope::MC_SWEEP_EXTERNAL_POINTER_TABLE, delegate);
-        Isolate* isolate = heap_->isolate();
-        // External pointer table sweeping needs to happen before evacuating
-        // live objects as it may perform table compaction, which requires
-        // objects to still be at the same location as during marking.
-        //
-        // Note we explicitly do NOT run SweepAndCompact on
-        // read_only_external_pointer_space since these entries are all immortal
-        // by definition.
-        isolate->external_pointer_table().EvacuateAndSweepAndCompact(
-            isolate->heap()->old_external_pointer_space(),
-            isolate->heap()->young_external_pointer_space(),
-            isolate->counters());
-        isolate->heap()->young_external_pointer_space()->AssertEmpty();
-        if (isolate->owns_shareable_data()) {
-          isolate->shared_external_pointer_table().SweepAndCompact(
-              isolate->shared_external_pointer_space(), isolate->counters());
-        }
-        isolate->cpp_heap_pointer_table().SweepAndCompact(
-            isolate->heap()->cpp_heap_pointer_space(), isolate->counters());
-      })
-      // The external string table needs to be processed first. Dropping
-      // external strings also updates their entries in the external pointer
-      // table.
-      .DependsOn(clear_external_string_table)
-      // CollectPhantomCallbackData() accesses the external pointer table for
-      // embedder fields.
-      .DependsOn(clear_weak_global_handles)
-      .Enqueue(parallel_clearing_job);
-#else
-  USE(clear_external_string_table);
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_EXTERNAL_POINTER_TABLE);
+    // External pointer table sweeping needs to happen before evacuating live
+    // objects as it may perform table compaction, which requires objects to
+    // still be at the same location as during marking.
+    //
+    // Note we explicitly do NOT run SweepAndCompact on
+    // read_only_external_pointer_space since these entries are all immortal by
+    // definition.
+    isolate->external_pointer_table().EvacuateAndSweepAndCompact(
+        isolate->heap()->old_external_pointer_space(),
+        isolate->heap()->young_external_pointer_space(), isolate->counters());
+    isolate->heap()->young_external_pointer_space()->AssertEmpty();
+    if (isolate->owns_shareable_data()) {
+      isolate->shared_external_pointer_table().SweepAndCompact(
+          isolate->shared_external_pointer_space(), isolate->counters());
+    }
+    isolate->cpp_heap_pointer_table().SweepAndCompact(
+        isolate->heap()->cpp_heap_pointer_space(), isolate->counters());
+  }
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-  MakeParallelItem(
-      "SweepTrustedPointerTable",
-      [this](ParallelItem*, JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(),
-                  GCTracer::Scope::MC_SWEEP_TRUSTED_POINTER_TABLE, delegate);
-        Isolate* isolate = heap_->isolate();
-        isolate->trusted_pointer_table().Sweep(heap_->trusted_pointer_space(),
-                                               isolate->counters());
-        if (isolate->owns_shareable_data()) {
-          isolate->shared_trusted_pointer_table().Sweep(
-              isolate->shared_trusted_pointer_space(), isolate->counters());
-        }
-      })
-      // Flushing old SFIs modifies trusted pointer table.
-      .DependsOn(process_old_code_candidates_item)
-      .Enqueue(parallel_clearing_job);
-
-  MakeParallelItem(
-      "SweepCodePointerTable",
-      [this](ParallelItem*, JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_SWEEP_CODE_POINTER_TABLE,
-                  delegate);
-        IsolateGroup::current()->code_pointer_table()->Sweep(
-            heap_->code_pointer_space(), heap_->isolate()->counters());
-      })
-      // Flushing old SFIs modifies code pointer table.
-      .DependsOn(process_old_code_candidates_item)
-      .Enqueue(parallel_clearing_job);
-#endif  // V8_ENABLE_SANDBOX
-
-#ifdef V8_ENABLE_WEBASSEMBLY
-  MakeParallelItem("SweepWasmCodePointerTable", [this](ParallelItem*,
-                                                       JobDelegate* delegate) {
-    TRACE_GC1(heap_->tracer(),
-              GCTracer::Scope::MC_SWEEP_WASM_CODE_POINTER_TABLE, delegate);
-    wasm::GetProcessWideWasmCodePointerTable()->SweepSegments();
-  }).Enqueue(parallel_clearing_job);
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  MakeParallelItem("ClearNonTrivialWeakRefs",
-                   [this](ParallelItem*, JobDelegate* delegate) {
-                     TRACE_GC1(heap_->tracer(),
-                               GCTracer::Scope::MC_WEAKNESS_HANDLING, delegate);
-                     ClearNonTrivialWeakReferences(delegate);
-                     ClearWeakCollections(delegate);
-                     ProcessJSWeakRefs(delegate);
-                   })
-      // ClearNonTrivialWeakReferences() processes
-      // weak_references_non_trivial_unmarked which gets filled by
-      // FilterNonTrivialWeakReferences().
-      .DependsOn(filter_non_trivial_weak_ref_job_item)
-      .Enqueue(parallel_clearing_job);
-
-  if (v8_flags.print_gc_clearing_dependency_graph) [[unlikely]] {
-    parallel_clearing_job->DumpGraph();
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_TRUSTED_POINTER_TABLE);
+    isolate->trusted_pointer_table().Sweep(heap_->trusted_pointer_space(),
+                                           isolate->counters());
+    if (isolate->owns_shareable_data()) {
+      isolate->shared_trusted_pointer_table().Sweep(
+          isolate->shared_trusted_pointer_space(), isolate->counters());
+    }
   }
 
   {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JOIN_JOB);
-    auto job = V8::GetCurrentPlatform()->CreateJob(
-        TaskPriority::kUserBlocking, std::move(parallel_clearing_job));
-    job->Join();
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_CODE_POINTER_TABLE);
+    IsolateGroup::current()->code_pointer_table()->Sweep(
+        heap_->code_pointer_space(), isolate->counters());
+  }
+#endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  {
+    TRACE_GC(heap_->tracer(),
+             GCTracer::Scope::MC_SWEEP_WASM_CODE_POINTER_TABLE);
+    wasm::GetProcessWideWasmCodePointerTable()->SweepSegments();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  {
+    TRACE_GC(heap_->tracer(),
+             GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_JOIN_FILTER_JOB);
+    filter_non_trivial_weakrefs_job_handle->Join();
+  }
+
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_WEAKNESS_HANDLING);
+    ClearNonTrivialWeakReferences();
+    ClearWeakCollections();
+    ProcessJSWeakRefs();
   }
 
   PROFILE(heap_->isolate(), WeakCodeClearEvent());
+
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JOIN_JOB);
+    clear_string_table_job_handle->Join();
+    clear_trivial_weakrefs_job_handle->Join();
+  }
 
   if (v8_flags.sticky_mark_bits) {
     // TODO(333906585): Consider adjusting the dchecks that happen on clearing
@@ -3981,9 +3872,8 @@ void MarkCompactCollector::TrimEnumCache(Tagged<Map> map,
   heap_->RightTrimArray(indices, live_enum, indices_length);
 }
 
-void MarkCompactCollector::ClearWeakCollections(JobDelegate* delegate) {
-  TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS,
-            delegate);
+void MarkCompactCollector::ClearWeakCollections() {
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS);
   Tagged<EphemeronHashTable> table;
   while (local_weak_objects()->ephemeron_hash_tables_local.Pop(&table)) {
     for (InternalIndex i : table->IterateEntries()) {
@@ -4079,10 +3969,9 @@ void MarkCompactCollector::FilterNonTrivialWeakReferences() {
   }
 }
 
-void MarkCompactCollector::ClearNonTrivialWeakReferences(
-    JobDelegate* delegate) {
-  TRACE_GC1(heap_->tracer(),
-            GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL, delegate);
+void MarkCompactCollector::ClearNonTrivialWeakReferences() {
+  TRACE_GC(heap_->tracer(),
+           GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL);
   HeapObjectAndSlot slot;
   Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue();
   while (local_weak_objects()->weak_references_non_trivial_unmarked_local.Pop(
@@ -4103,17 +3992,15 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences(
   }
 }
 
-void MarkCompactCollector::ProcessJSWeakRefs(JobDelegate* delegate) {
-  TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JS_WEAK_REFERENCES,
-            delegate);
+void MarkCompactCollector::ProcessJSWeakRefs() {
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JS_WEAK_REFERENCES);
   Tagged<JSWeakRef> weak_ref;
   Isolate* const isolate = heap_->isolate();
   while (local_weak_objects()->js_weak_refs_local.Pop(&weak_ref)) {
     Tagged<HeapObject> target = Cast<HeapObject>(weak_ref->target());
     if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
             heap_, non_atomic_marking_state_, target)) {
-      weak_ref->set_target(ReadOnlyRoots(isolate).undefined_value(),
-                           SKIP_WRITE_BARRIER);
+      weak_ref->set_target(ReadOnlyRoots(isolate).undefined_value());
     } else {
       // The value of the JSWeakRef is alive.
       ObjectSlot slot = weak_ref->RawField(JSWeakRef::kTargetOffset);

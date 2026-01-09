@@ -4181,15 +4181,13 @@ void Heap::NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
   DCHECK(!HeapLayout::InAnyLargeSpace(object));
   if (new_size == old_size) return;
 
-  const LocalHeap* current = LocalHeap::TryGetCurrent();
-  DCHECK_IMPLIES(!current, gc_state() == MARK_COMPACT);
-  const bool is_non_main_thread = current && !current->is_main_thread();
-  DCHECK_IMPLIES(is_non_main_thread,
+  const bool is_main_thread = LocalHeap::Current()->is_main_thread();
+
+  DCHECK_IMPLIES(!is_main_thread,
                  clear_recorded_slots == ClearRecordedSlots::kNo);
 
-  const auto verify_no_slots_recorded = !is_non_main_thread
-                                            ? VerifyNoSlotsRecorded::kYes
-                                            : VerifyNoSlotsRecorded::kNo;
+  const auto verify_no_slots_recorded =
+      is_main_thread ? VerifyNoSlotsRecorded::kYes : VerifyNoSlotsRecorded::kNo;
 
   const auto clear_memory_mode = ClearFreedMemoryMode::kDontClearFreedMemory;
 
@@ -7282,7 +7280,7 @@ void Heap::UpdateStrongRoots(StrongRootsEntry* entry, FullObjectSlot start,
 void Heap::UnregisterStrongRoots(StrongRootsEntry* entry) {
   // We're either on the main thread, or in a background thread with an active
   // local heap.
-  DCHECK(gc_state() == MARK_COMPACT || LocalHeap::Current()->IsRunning());
+  DCHECK(LocalHeap::Current()->IsRunning());
 
   base::MutexGuard guard(&strong_roots_mutex_);
 
