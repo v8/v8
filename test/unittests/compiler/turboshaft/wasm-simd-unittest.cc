@@ -183,6 +183,56 @@ TEST_F(WasmSimdTest, AlmostPairwiseF32x4AddReduce) {
   ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
 }
 
+TEST_F(WasmSimdTest, SingleExtMulI8Dot) {
+  std::array converts = {
+      Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
+      Simd128UnaryOp::Kind::kI16x8SConvertI8x16High,
+      Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low,
+      Simd128UnaryOp::Kind::kI16x8UConvertI8x16High,
+  };
+
+  for (Simd128UnaryOp::Kind unop_kind : converts) {
+    auto test = CreateFromGraph(1, [&unop_kind](auto& Asm) {
+      constexpr auto SplatKind = Simd128SplatOp::Kind::kI8x16;
+      V<Simd128> input = __ Simd128Splat(__ Word32Constant(16), SplatKind);
+      V<Simd128> left = __ Simd128Unary(input, unop_kind);
+      V<Simd128> right = __ Simd128Unary(input, unop_kind);
+      __ Return(
+          __ Simd128Binop(left, right, Simd128BinopOp::Kind::kI32x4DotI16x8S));
+    });
+
+    test.Run<MachineOptimizationReducer>();
+    test.Run<DeadCodeEliminationReducer>();
+
+    ASSERT_EQ(test.CountOp(Opcode::kSimd128Unary), 1u);
+    ASSERT_EQ(test.CountOp(Opcode::kSimd128Binop), 1u);
+  }
+}
+
+TEST_F(WasmSimdTest, AddPairwiseMulI8Dot) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    constexpr auto SplatKind = Simd128SplatOp::Kind::kI8x16;
+    V<Simd128> input = __ Simd128Splat(__ Word32Constant(16), SplatKind);
+    V<Simd128> left =
+        __ Simd128Unary(input, Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low);
+    V<Simd128> right =
+        __ Simd128Unary(input, Simd128UnaryOp::Kind::kI16x8UConvertI8x16High);
+    __ Return(
+        __ Simd128Binop(left, right, Simd128BinopOp::Kind::kI32x4DotI16x8S));
+  });
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Unary), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Binop), 3u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Unary), 2u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Binop), 1u);
+#endif
+}
+
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
 TEST_F(WasmSimdTest, Simd256Extract128Lane_ConstantFolding) {

@@ -8136,7 +8136,8 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   V(F16x8Eq)                                       \
   V(F16x8Ne)                                       \
   V(F16x8Lt)                                       \
-  V(F16x8Le)
+  V(F16x8Le)                                       \
+  V(I32x4AddPairwise)
 
 #define FOREACH_SIMD_128_BINARY_OPCODE(V)     \
   FOREACH_SIMD_128_BINARY_MANDATORY_OPCODE(V) \
@@ -8172,6 +8173,8 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
       case Kind::kF32x4Mul:
 
       case Kind::kS128Xor:
+
+      case Kind::kI32x4AddPairwise:
         return true;
       default:
         return false;

@@ -249,6 +249,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I16x8DotI8x16S:
     case kArm64I32x4DotI8x16AddS:
     case kArm64IAddv:
+    case kArm64IAddp:
     case kArm64IAddpScalar:
     case kArm64FAddp:
     case kArm64FAddpScalar:

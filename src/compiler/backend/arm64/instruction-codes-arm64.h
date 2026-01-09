@@ -138,6 +138,7 @@ namespace compiler {
   V(Arm64I16x8DotI8x16S)                \
   V(Arm64I32x4DotI8x16AddS)             \
   V(Arm64IAddv)                         \
+  V(Arm64IAddp)                         \
   V(Arm64IAddpScalar)                   \
   V(Arm64FAddp)                         \
   V(Arm64FAddpScalar)                   \

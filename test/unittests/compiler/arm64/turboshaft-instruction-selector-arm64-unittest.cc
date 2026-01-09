@@ -2798,6 +2798,21 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, I32x4AddPairwise) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> reduce = m.I32x4AddPairwise(m.Parameter(0), m.Parameter(1));
+  m.Return(reduce);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64IAddp, s[0]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeField::decode(s[0]->opcode()));
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
 namespace {
 
 struct SIMDMulDPInst {

@@ -2072,6 +2072,75 @@ class MachineOptimizationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  V<Any> REDUCE(Simd128Binop)(V<Simd128> left, V<Simd128> right,
+                              Simd128BinopOp::Kind kind) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSimd128Binop(left, right, kind);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    if (kind != Simd128BinopOp::Kind::kI32x4DotI16x8S) goto no_change;
+
+    // Check to see whether we're really performing the operation on
+    // i8x8 inputs.
+    auto GetExtMul =
+        [this](OpIndex input) -> std::optional<Simd128BinopOp::Kind> {
+      using unop_extmul_pair =
+          std::pair<Simd128UnaryOp::Kind, Simd128BinopOp::Kind>;
+      std::array extend_muls = to_array<unop_extmul_pair>({
+          {Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
+           Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S},
+          {Simd128UnaryOp::Kind::kI16x8SConvertI8x16High,
+           Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S},
+          {Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low,
+           Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16U},
+          {Simd128UnaryOp::Kind::kI16x8UConvertI8x16High,
+           Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16U},
+      });
+
+      if (const Simd128UnaryOp* unop =
+              matcher_.TryCast<Simd128UnaryOp>(input)) {
+        for (const auto [unop_kind, extmul_kind] : extend_muls) {
+          if (unop->kind == unop_kind) {
+            return extmul_kind;
+          }
+        }
+      }
+      return {};
+    };
+
+    if (std::optional<Simd128BinopOp::Kind> left_extmul = GetExtMul(left)) {
+      if (std::optional<Simd128BinopOp::Kind> right_extmul = GetExtMul(right)) {
+        OpIndex left_conv = matcher_.Get(left).input(0);
+        OpIndex right_conv = matcher_.Get(right).input(0);
+        if (left_extmul.value() == right_extmul.value()) {
+          // If both inputs are being extended in the same way, we can just use
+          // one extmul and one extadd_pairwise, instead.
+          Simd128BinopOp::Kind extmul_kind = left_extmul.value();
+          Simd128UnaryOp::Kind extadd_kind =
+              extmul_kind == Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S ||
+                      extmul_kind ==
+                          Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S
+                  ? Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S
+                  : Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8U;
+          return __ Simd128Unary(
+              __ Simd128Binop(left_conv, right_conv, extmul_kind), extadd_kind);
+#ifdef V8_TARGET_ARCH_ARM64
+        } else {
+          // Otherwise, just break the dot into its constituent parts.
+          OpIndex mul_low = __ Simd128Binop(
+              left, right, Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S);
+          OpIndex mul_high = __ Simd128Binop(
+              left, right, Simd128BinopOp::Kind::kI32x4ExtMulHighI16x8S);
+          return __ Simd128Binop(mul_low, mul_high,
+                                 Simd128BinopOp::Kind::kI32x4AddPairwise);
+#endif  // V8_TARGET_ARCH_ARM64
+        }
+      }
+    }
+
+    goto no_change;
+  }
 #ifdef V8_TARGET_ARCH_ARM64
   V<Any> REDUCE(Simd128ExtractLane)(V<Simd128> input,
                                     Simd128ExtractLaneOp::Kind kind,

@@ -5736,6 +5736,12 @@ void InstructionSelector::VisitF32x4AddReduce(OpIndex node) {
        temp);
 }
 
+void InstructionSelector::VisitI32x4AddPairwise(OpIndex node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64IAddp | LaneSizeField::encode(32), g.DefineAsRegister(node),
+       g.UseRegister(Get(node).input(0)), g.UseRegister(Get(node).input(1)));
+}
+
 namespace {
 bool isSimdZero(InstructionSelector* selector, OpIndex node) {
   const Operation& op = selector->Get(node);

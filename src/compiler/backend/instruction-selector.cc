@@ -1979,6 +1979,8 @@ IF_WASM(VISIT_UNSUPPORTED_OP, I8x8Shuffle)
 
 IF_WASM(VISIT_UNSUPPORTED_OP, MemoryCopy)
 IF_WASM(VISIT_UNSUPPORTED_OP, MemoryFill)
+
+IF_WASM(VISIT_UNSUPPORTED_OP, I32x4AddPairwise)
 #endif  // !V8_TARGET_ARCH_ARM64
 
 void InstructionSelector::VisitParameter(OpIndex node) {

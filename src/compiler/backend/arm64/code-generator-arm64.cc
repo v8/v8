@@ -3258,6 +3258,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(0).Format(src_f));
       break;
     }
+    case kArm64IAddp: {
+      uint32_t lane_size = LaneSizeField::decode(opcode);
+      DCHECK_NE(lane_size, 64);
+      VectorFormat f = VectorFormatFillQ(lane_size);
+      __ Addp(i.OutputSimd128Register().Format(f),
+              i.InputSimd128Register(0).Format(f),
+              i.InputSimd128Register(1).Format(f));
+      break;
+    }
     case kArm64IAddpScalar: {
       __ Addp(i.OutputSimd128Register().D(), i.InputSimd128Register(0).V2D());
       break;
