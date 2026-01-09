@@ -1124,6 +1124,13 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
                               recursion_depth);
     }
 
+    case Opcode::kSimd128LaneMemory: {
+      return NewForcePackNode(
+          node_group,
+          node0 == node1 ? ForcePackNode::kSplat : ForcePackNode::kGeneral,
+          recursion_depth);
+    }
+
     case Opcode::kStore: {
       TRACE("Added a vector of stores.\n");
       // input: base, value, [index]

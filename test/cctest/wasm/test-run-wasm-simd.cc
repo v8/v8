@@ -7188,6 +7188,75 @@ TEST(RunWasmTurbofan_ForcePackLoadExtend) {
   }
 }
 
+TEST(RunWasmTurbofan_ForcePackLoadLane) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  // Use Load32Lane for the force packing test.
+  {
+    WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+    int32_t* memory = r.builder().AddMemoryElems<int32_t>(kWasmPageSize / 4);
+    uint8_t param1 = 0;
+    uint8_t param2 = 1;
+    uint8_t temp1 = r.AllocateLocal(kWasmS128);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    uint8_t temp3 = r.AllocateLocal(kWasmS128);
+
+#define WASM_SIMD_LOAD_LANE32(index, val, lane)                               \
+  index, val, WASM_SIMD_OP(kExprS128Load32Lane), ZERO_ALIGNMENT, ZERO_OFFSET, \
+      lane
+    {
+      TSSimd256VerifyScope ts_scope(
+          r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                        compiler::turboshaft::Opcode::kSimdPack128To256>);
+      //  Load lanes from a[0] and temp1 at lane 0 and 2 respectively.
+      //  Calculate the data by Not and Abs and stores the results to b[0:3] and
+      //  b[4:7] which are continuous. By force-packing the two load lanes, we
+      //  still revectorize all the operations.
+      //    simd128 *a, *b;
+      //    simd128 temp1 = splat(33);
+      //    simd128 temp2 = abs(!loadlane(a, temp1, 0));
+      //    simd128 temp3 = abs(!loadlane(a, temp1, 2));
+      //    *b = temp2;
+      //    *(b+1) = temp3;
+      r.Build(
+          {WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_I32V(33))),
+           WASM_LOCAL_SET(
+               temp2,
+               WASM_SIMD_UNOP(kExprI32x4Abs,
+                              WASM_SIMD_UNOP(kExprS128Not,
+                                             WASM_SIMD_LOAD_LANE32(
+                                                 WASM_LOCAL_GET(param1),
+                                                 WASM_LOCAL_GET(temp1), 0)))),
+           WASM_LOCAL_SET(
+               temp3,
+               WASM_SIMD_UNOP(kExprI32x4Abs,
+                              WASM_SIMD_UNOP(kExprS128Not,
+                                             WASM_SIMD_LOAD_LANE32(
+                                                 WASM_LOCAL_GET(param1),
+                                                 WASM_LOCAL_GET(temp1), 2)))),
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp2)),
+           WASM_SIMD_STORE_MEM_OFFSET(16, WASM_LOCAL_GET(param2),
+                                      WASM_LOCAL_GET(temp3)),
+           WASM_ONE});
+    }
+    FOR_INT32_INPUTS(x) {
+      r.builder().WriteMemory(&memory[0], x);
+      r.Call(0, 4);
+      int32_t expected = std::abs(~x);
+      CHECK_EQ(expected, memory[1]);
+      CHECK_EQ(expected, memory[7]);
+    }
+
+    // Test for OOB.
+    // Load lane load 4 bytes.
+    for (uint32_t index = kWasmPageSize - 3; index < kWasmPageSize; ++index) {
+      CHECK_TRAP(r.Call(index, index + 4));
+    }
+  }
+#undef WASM_SIMD_LOAD_LANE32
+}
+
 namespace {
 
 bool IsLowHalfExtensionOp(WasmOpcode opcode) {
