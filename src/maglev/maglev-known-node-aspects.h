@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/contexts.h"
 
 namespace v8 {
 namespace internal {
@@ -642,13 +643,19 @@ class KnownNodeAspects {
   // Returns true if value was added to the cache, or false if the value updated
   // the cache.
   bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value) {
-    auto it = loaded_context_slots_.find({context, offset});
-    if (it == loaded_context_slots_.end()) {
-      loaded_context_slots_.insert({{context, offset}, value});
-      return true;
+    auto& target_map =
+        (offset == Context::OffsetOfElementAt(Context::PREVIOUS_INDEX))
+            ? loaded_context_constants_
+            : loaded_context_slots_;
+
+    auto [it, inserted] = target_map.insert({{context, offset}, value});
+
+    if (!inserted) {
+      it->second = value;
+      return false;
     }
-    it->second = value;
-    return false;
+
+    return true;
   }
   bool HasContextCacheValue(ValueNode* context, int offset,
                             ContextSlotMutability slot_mutability) {

@@ -9004,14 +9004,17 @@ enum class StoreTaggedMode : uint8_t {
   kDefault,
   kDefaultToContext,
   kInitializing,
+  kInitializingToContext,
   kTransitioning,
 };
 inline bool IsInitializingOrTransitioning(StoreTaggedMode mode) {
   return mode == StoreTaggedMode::kInitializing ||
-         mode == StoreTaggedMode::kTransitioning;
+         mode == StoreTaggedMode::kTransitioning ||
+         mode == StoreTaggedMode::kInitializingToContext;
 }
 inline bool IsDefaultStoreToContext(StoreTaggedMode mode) {
-  return mode == StoreTaggedMode::kDefaultToContext;
+  return mode == StoreTaggedMode::kDefaultToContext ||
+         mode == StoreTaggedMode::kInitializingToContext;
 }
 
 class StoreTaggedFieldNoWriteBarrier

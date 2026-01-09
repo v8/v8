@@ -4508,13 +4508,15 @@ ReduceResult MaglevGraphBuilder::ConvertForField(
 void MaglevGraphBuilder::BuildInitializeStore(vobj::Field desc,
                                               InlinedAllocation* object,
                                               AllocationType allocation_type,
-                                              ValueNode* value) {
+                                              ValueNode* value,
+                                              StoreTaggedMode store_mode) {
   DCHECK_EQ(value->Is<TrustedConstant>(),
             desc.type == vobj::FieldType::kTrustedPointer);
 
   switch (desc.type) {
     case vobj::FieldType::kTagged:
-      BuildInitializeStore_Tagged(desc, object, allocation_type, value);
+      BuildInitializeStore_Tagged(desc, object, allocation_type, value,
+                                  store_mode);
       break;
     case vobj::FieldType::kTrustedPointer:
       BuildInitializeStore_TrustedPointer(desc, object, allocation_type, value);
@@ -4532,7 +4534,7 @@ void MaglevGraphBuilder::BuildInitializeStore(vobj::Field desc,
 
 void MaglevGraphBuilder::BuildInitializeStore_Tagged(
     vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
-    ValueNode* value) {
+    ValueNode* value, StoreTaggedMode store_mode) {
   DCHECK_EQ(desc.type, vobj::FieldType::kTagged);
 
   // Intercept stores of constant map objects here.
@@ -4560,8 +4562,8 @@ void MaglevGraphBuilder::BuildInitializeStore_Tagged(
 
   // Since `value` is tagged, BuildStoreTaggedField doesn't need to do
   // input conversions and won't abort.
-  ReduceResult result = BuildStoreTaggedField(object, value, desc.offset,
-                                              StoreTaggedMode::kInitializing);
+  ReduceResult result =
+      BuildStoreTaggedField(object, value, desc.offset, store_mode);
   CHECK(!result.IsDoneWithAbort());
 }
 
@@ -14646,9 +14648,13 @@ ReduceResult MaglevGraphBuilder::BuildInlinedAllocation(
   allocation =
       ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
   AddNonEscapingUses(allocation, static_cast<int>(values.size()));
+  StoreTaggedMode store_mode =
+      vobject->has_static_map() && vobject->map()->IsContextMap()
+          ? StoreTaggedMode::kInitializingToContext
+          : StoreTaggedMode::kInitializing;
   for (uint32_t i = 0; i < values.size(); i++) {
     const auto [value, desc] = values[i];
-    BuildInitializeStore(desc, allocation, allocation_type, value);
+    BuildInitializeStore(desc, allocation, allocation_type, value, store_mode);
   }
   if (is_loop_effect_tracking()) {
     loop_effects_->allocations.insert(allocation);
