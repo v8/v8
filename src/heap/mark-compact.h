@@ -24,7 +24,7 @@ namespace internal {
 // Forward declarations.
 class HeapObjectVisitor;
 class LargeObjectSpace;
-class LargePageMetadata;
+class LargePage;
 class MainMarkingVisitor;
 class MarkCompactCollector;
 class RecordMigratedSlotVisitor;
@@ -439,7 +439,7 @@ class MarkCompactCollector final {
   std::vector<std::pair<Address, PageMetadata*>>
       aborted_evacuation_candidates_due_to_oom_;
   std::vector<PageMetadata*> aborted_evacuation_candidates_due_to_flags_;
-  std::vector<LargePageMetadata*> promoted_large_pages_;
+  std::vector<LargePage*> promoted_large_pages_;
   absl::flat_hash_set<PageMetadata*>
       aborted_evacuation_candidates_due_to_running_code_;
 

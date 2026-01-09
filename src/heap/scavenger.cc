@@ -31,7 +31,7 @@
 #include "src/heap/heap-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/index-generator.h"
-#include "src/heap/large-page-metadata-inl.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk-layout.h"
@@ -1572,8 +1572,7 @@ void HandleSurvivingNewLargeObjects(
       // to meta-data like size during page promotion.
       object->set_map_word(map, kRelaxedStore);
 
-      LargePageMetadata* page =
-          LargePageMetadata::FromHeapObject(heap->isolate(), object);
+      LargePage* page = LargePage::FromHeapObject(heap->isolate(), object);
       SBXCHECK(page->is_large());
       SBXCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
       heap->lo_space()->PromoteNewLargeObject(page);

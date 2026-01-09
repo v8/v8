@@ -79,7 +79,7 @@ class InnerPointerResolutionTest
   int CreateLargePage(size_t size) {
     OldLargeObjectSpace* lo_space = heap()->lo_space();
     EXPECT_NE(nullptr, lo_space);
-    LargePageMetadata* page = allocator()->AllocateLargePage(
+    LargePage* page = allocator()->AllocateLargePage(
         lo_space, size, NOT_EXECUTABLE, AllocationHint());
     EXPECT_NE(nullptr, page);
     int page_id = next_page_id_++;
@@ -794,8 +794,8 @@ TEST_F(InnerPointerResolutionHeapTest, LargePageAfterEnd) {
   OldLargeObjectSpace* lo_space = heap()->lo_space();
   EXPECT_NE(nullptr, lo_space);
   const int size = 3 * (1 << kPageSizeBits) / 2;
-  LargePageMetadata* page = allocator->AllocateLargePage(
-      lo_space, size, NOT_EXECUTABLE, AllocationHint());
+  LargePage* page = allocator->AllocateLargePage(lo_space, size, NOT_EXECUTABLE,
+                                                 AllocationHint());
   EXPECT_NE(nullptr, page);
 
   // The end of the page area is expected not to coincide with the beginning of

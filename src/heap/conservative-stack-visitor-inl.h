@@ -90,7 +90,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
     // This could be simplified if we could guarantee that there are no free
     // space or filler objects in large pages. A few cctests violate this now.
     Tagged<HeapObject> obj(
-        static_cast<const LargePageMetadata*>(chunk_metadata)->GetObject());
+        static_cast<const LargePage*>(chunk_metadata)->GetObject());
     MapWord map_word = obj->map_word(cage_base, kRelaxedLoad);
     return (!ConcreteVisitor::FilterLargeObject(obj, map_word) ||
             InstanceTypeChecker::IsFreeSpaceOrFiller(map_word.ToMap()))

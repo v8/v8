@@ -28,7 +28,7 @@ namespace internal {
 class MutablePage;
 class NonAtomicMarkingState;
 class PageMetadata;
-class LargePageMetadata;
+class LargePage;
 class PagedSpaceBase;
 class Space;
 

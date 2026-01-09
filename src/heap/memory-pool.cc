@@ -9,7 +9,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
-#include "src/heap/large-page-metadata.h"
+#include "src/heap/large-page.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/mutable-page.h"
@@ -53,7 +53,7 @@ PooledPage PooledPage::Create(PageMetadata* metadata, Epoch epoch) {
 }
 
 // static
-PooledPage PooledPage::Create(LargePageMetadata* metadata, Epoch epoch) {
+PooledPage PooledPage::Create(LargePage* metadata, Epoch epoch) {
   DCHECK_NOT_NULL(metadata);
   DCHECK(metadata->is_large());
   // Ensure that ReleaseAllAllocatedMemory() was called on the page.
@@ -68,7 +68,7 @@ PooledPage PooledPage::Create(LargePageMetadata* metadata, Epoch epoch) {
   // Destroy the chunk and the metadata object but do not release the underlying
   // memory as that is going to be pooled.
   chunk->~MemoryChunk();
-  metadata->~LargePageMetadata();
+  metadata->~LargePage();
 
   return PooledPage(metadata, std::move(chunk_reservation), epoch);
 }
@@ -236,7 +236,7 @@ MemoryPool::PoolReleaseStats MemoryPool::PoolImpl<PoolEntry>::ReleaseUpTo(
   return {freed, pool_emptied};
 }
 
-bool MemoryPool::LargePagePoolImpl::Add(std::vector<LargePageMetadata*>& pages,
+bool MemoryPool::LargePagePoolImpl::Add(std::vector<LargePage*>& pages,
                                         Epoch epoch) {
   bool added_to_pool = false;
   base::MutexGuard guard(&mutex_);
@@ -244,17 +244,17 @@ bool MemoryPool::LargePagePoolImpl::Add(std::vector<LargePageMetadata*>& pages,
 
   const size_t max_total_size = v8_flags.max_large_page_pool_size * MB;
 
-  std::erase_if(pages, [this, &added_to_pool, epoch,
-                        max_total_size](LargePageMetadata* page) {
-    if (total_size_ + page->size() > max_total_size) {
-      return false;
-    }
+  std::erase_if(pages,
+                [this, &added_to_pool, epoch, max_total_size](LargePage* page) {
+                  if (total_size_ + page->size() > max_total_size) {
+                    return false;
+                  }
 
-    total_size_ += page->size();
-    pages_.emplace_back(PooledPage::Create(page, epoch));
-    added_to_pool = true;
-    return true;
-  });
+                  total_size_ += page->size();
+                  pages_.emplace_back(PooledPage::Create(page, epoch));
+                  added_to_pool = true;
+                  return true;
+                });
 
   DCHECK_EQ(total_size_, ComputeTotalSize());
   return added_to_pool;
@@ -416,8 +416,7 @@ std::optional<PooledPage::Result> MemoryPool::Remove(Isolate* isolate) {
   return result->ToResult();
 }
 
-void MemoryPool::AddLarge(Isolate* isolate,
-                          std::vector<LargePageMetadata*>& pages) {
+void MemoryPool::AddLarge(Isolate* isolate, std::vector<LargePage*>& pages) {
   large_pool_.Add(pages, current_epoch_.load(std::memory_order_relaxed));
   PostDelayedReleaseTaskIfNeeded(isolate);
 }

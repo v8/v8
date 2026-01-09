@@ -28,7 +28,7 @@ class AllocationObserver;
 class FreeList;
 class Isolate;
 class LargeObjectSpace;
-class LargePageMetadata;
+class LargePage;
 class LinearAllocationArea;
 class PageMetadata;
 class PagedSpace;

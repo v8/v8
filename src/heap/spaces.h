@@ -41,7 +41,7 @@ class FreeList;
 class Heap;
 class Isolate;
 class LargeObjectSpace;
-class LargePageMetadata;
+class LargePage;
 class ObjectIterator;
 class PagedSpaceBase;
 class SemiSpace;
@@ -159,8 +159,8 @@ class PageIteratorImpl
 
 using PageIterator = PageIteratorImpl<PageMetadata>;
 using ConstPageIterator = PageIteratorImpl<const PageMetadata>;
-using LargePageIterator = PageIteratorImpl<LargePageMetadata>;
-using ConstLargePageIterator = PageIteratorImpl<const LargePageMetadata>;
+using LargePageIterator = PageIteratorImpl<LargePage>;
+using ConstLargePageIterator = PageIteratorImpl<const LargePage>;
 
 class PageRange {
  public:

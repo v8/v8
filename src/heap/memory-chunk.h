@@ -30,7 +30,7 @@ class AssemblerOpInterface;
 class CodeStubAssembler;
 class ExternalReference;
 class Heap;
-class LargePageMetadata;
+class LargePage;
 class BasePage;
 class MutablePage;
 class PageMetadata;

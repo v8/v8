@@ -862,7 +862,7 @@ void ShrinkPagesToObjectSizes(Heap* heap, OldLargeObjectSpace* space) {
   size_t surviving_object_size = 0;
   PtrComprCageBase cage_base(heap->isolate());
   for (auto it = space->begin(); it != space->end();) {
-    LargePageMetadata* current = *(it++);
+    LargePage* current = *(it++);
     Tagged<HeapObject> object = current->GetObject();
     const size_t object_size = static_cast<size_t>(object->Size(cage_base));
     space->ShrinkPageToObjectSize(current, object, object_size);
@@ -4739,7 +4739,7 @@ bool Evacuator::RawEvacuatePage(MutablePage* page) {
       break;
     case kPageNewToOld:
       if (page->is_large()) {
-        auto object = LargePageMetadata::cast(page)->GetObject();
+        auto object = LargePage::cast(page)->GetObject();
         bool success = new_to_old_page_visitor_.Visit(
             object, SafeHeapObjectSize(static_cast<uint32_t>(object->Size())));
         USE(success);
@@ -5084,7 +5084,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   // Promote young generation large objects.
   if (auto* new_lo_space = heap_->new_lo_space()) {
     for (auto it = new_lo_space->begin(); it != new_lo_space->end();) {
-      LargePageMetadata* current = *(it++);
+      LargePage* current = *(it++);
       Tagged<HeapObject> object = current->GetObject();
       // The black-allocated flag was already cleared in SweepLargeSpace().
       DCHECK_IMPLIES(v8_flags.black_allocated_pages,
@@ -5182,7 +5182,7 @@ void MarkCompactCollector::Evacuate() {
     }
     new_space_evacuation_pages_.clear();
 
-    for (LargePageMetadata* p : promoted_large_pages_) {
+    for (LargePage* p : promoted_large_pages_) {
       DCHECK(p->will_be_promoted());
       p->set_will_be_promoted(false);
       Tagged<HeapObject> object = p->GetObject();
@@ -6151,7 +6151,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     free_mode = MemoryAllocator::FreeMode::kImmediately;
   }
   for (auto it = space->begin(); it != space->end();) {
-    LargePageMetadata* current = *(it++);
+    LargePage* current = *(it++);
     DCHECK(!current->Chunk()->IsBlackAllocatedPage());
     Tagged<HeapObject> object = current->GetObject();
     if (!marking_state_->IsMarked(object)) {

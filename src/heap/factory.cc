@@ -27,7 +27,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/large-page-metadata-inl.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/read-only-heap.h"
@@ -467,7 +467,7 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
   if (!allocation.To(&result)) return MaybeHandle<FixedArray>();
   if ((size > heap->MaxRegularHeapObjectSize(allocation_type)) &&
       v8_flags.use_marking_progress_bar) {
-    LargePageMetadata::FromHeapObject(isolate(), result)
+    LargePage::FromHeapObject(isolate(), result)
         ->marking_progress_tracker()
         .Enable(size);
   }

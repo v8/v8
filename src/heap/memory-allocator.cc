@@ -15,7 +15,7 @@
 #include "src/heap/base-page.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/large-page-metadata.h"
+#include "src/heap/large-page.h"
 #include "src/heap/memory-pool.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/read-only-spaces.h"
@@ -365,7 +365,7 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
       if (memory_pool()) {
         if (page_metadata->is_large()) {
           delayed_then_pooled_large_pages_.push_back(
-              static_cast<LargePageMetadata*>(page_metadata));
+              static_cast<LargePage*>(page_metadata));
         } else {
           delayed_then_pooled_pages_.push_back(
               static_cast<PageMetadata*>(page_metadata));
@@ -501,10 +501,10 @@ bool IsPagePoolSupportedForLargeSpace(LargeObjectSpace* space) {
 }
 }  // namespace
 
-LargePageMetadata* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
-                                                      size_t object_size,
-                                                      Executability executable,
-                                                      AllocationHint hint) {
+LargePage* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
+                                              size_t object_size,
+                                              Executability executable,
+                                              AllocationHint hint) {
   std::optional<MemoryChunkAllocationResult> chunk_info;
 
   if (IsPagePoolSupportedForLargeSpace(space)) {
@@ -520,15 +520,15 @@ LargePageMetadata* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
     return nullptr;
   }
 
-  LargePageMetadata* metadata;
+  LargePage* metadata;
   MemoryChunk::MainThreadFlags trusted_flags;
   if (!chunk_info->optional_metadata) {
-    chunk_info->optional_metadata = malloc(sizeof(LargePageMetadata));
+    chunk_info->optional_metadata = malloc(sizeof(LargePage));
   }
-  metadata = new (chunk_info->optional_metadata) LargePageMetadata(
-      isolate_->heap(), space, chunk_info->size, chunk_info->area_start,
-      chunk_info->area_end, std::move(chunk_info->reservation), executable,
-      &trusted_flags);
+  metadata = new (chunk_info->optional_metadata)
+      LargePage(isolate_->heap(), space, chunk_info->size,
+                chunk_info->area_start, chunk_info->area_end,
+                std::move(chunk_info->reservation), executable, &trusted_flags);
   if (executable) {
     RwxMemoryWriteScope scope("Initialize a new MemoryChunk.");
     new (chunk_info->chunk) MemoryChunk(trusted_flags, metadata);
@@ -543,8 +543,7 @@ LargePageMetadata* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
   return metadata;
 }
 
-bool MemoryAllocator::ResizeLargePage(LargePageMetadata* page,
-                                      size_t old_object_size,
+bool MemoryAllocator::ResizeLargePage(LargePage* page, size_t old_object_size,
                                       size_t new_object_size) {
   const size_t old_reservation_size = page->reservation_.size();
   const size_t old_page_end = page->reservation_.end();
@@ -763,7 +762,7 @@ void MemoryAllocator::DeleteMemoryChunk(MutablePage* metadata) {
   {
     DiscardSealedMemoryScope discard_scope("Deleting a memory chunk");
     if (metadata->is_large()) {
-      static_cast<LargePageMetadata*>(metadata)->~LargePageMetadata();
+      static_cast<LargePage*>(metadata)->~LargePage();
     } else {
       static_cast<PageMetadata*>(metadata)->~PageMetadata();
     }

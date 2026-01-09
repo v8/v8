@@ -659,7 +659,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(MutablePage* page) {
     const bool is_large_page = page->is_large();
     if (is_large_page) {
       DCHECK_EQ(LO_SPACE, page->owner_identity());
-      record_visitor.Process(LargePageMetadata::cast(page)->GetObject());
+      record_visitor.Process(LargePage::cast(page)->GetObject());
       page->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
     } else {
       DCHECK_EQ(OLD_SPACE, page->owner_identity());

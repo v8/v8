@@ -14,7 +14,7 @@ namespace v8::internal {
 
 class CancelableTaskManager;
 class Isolate;
-class LargePageMetadata;
+class LargePage;
 class BasePage;
 class MutablePage;
 class PageMetadata;
@@ -55,7 +55,7 @@ class PooledPage final {
   // Bottlenecks for converting metadata objects into the pooled page
   // counterpart.
   static PooledPage Create(PageMetadata* metadata, Epoch epoch);
-  static PooledPage Create(LargePageMetadata* metadata, Epoch epoch);
+  static PooledPage Create(LargePage* metadata, Epoch epoch);
 
   PooledPage(void* uninitialized_metadata, VirtualMemory reservation,
              Epoch epoch);
@@ -92,7 +92,7 @@ class MemoryPool final {
   // 3. Steal from another isolate.
   std::optional<PooledPage::Result> Remove(Isolate* isolate);
 
-  void AddLarge(Isolate* isolate, std::vector<LargePageMetadata*>& pages);
+  void AddLarge(Isolate* isolate, std::vector<LargePage*>& pages);
   // Tries to get a large page from the pool with at least `chunk_size` usable
   // bytes.
   std::optional<PooledPage::Result> RemoveLarge(Isolate* isolate,
@@ -174,7 +174,7 @@ class MemoryPool final {
    public:
     ~LargePagePoolImpl() { DCHECK(pages_.empty()); }
 
-    bool Add(std::vector<LargePageMetadata*>& pages, Epoch epoch);
+    bool Add(std::vector<LargePage*>& pages, Epoch epoch);
     std::optional<PooledPage::Result> Remove(Isolate* isolate,
                                              size_t chunk_size);
     void ReleaseAll();

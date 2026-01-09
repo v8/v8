@@ -1029,7 +1029,7 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
   OldLargeObjectSpace* old_lo_space = heap_->lo_space();
 
   for (auto it = new_lo_space->begin(); it != new_lo_space->end();) {
-    LargePageMetadata* current = *it;
+    LargePage* current = *it;
     it++;
 
     Tagged<HeapObject> object = current->GetObject();

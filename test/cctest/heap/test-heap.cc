@@ -52,7 +52,7 @@
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/large-page-metadata-inl.h"
+#include "src/heap/large-page-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -5953,8 +5953,7 @@ TEST(Regress598319) {
 
   CHECK_EQ(arr.get()->length(), kNumberOfObjects);
   CHECK(heap->lo_space()->Contains(arr.get()));
-  LargePageMetadata* page =
-      LargePageMetadata::FromHeapObject(isolate, arr.get());
+  LargePage* page = LargePage::FromHeapObject(isolate, arr.get());
   CHECK_NOT_NULL(page);
 
   // GC to cleanup state

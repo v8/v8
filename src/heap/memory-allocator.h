@@ -16,7 +16,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/heap/base-page.h"
-#include "src/heap/large-page-metadata.h"
+#include "src/heap/large-page.h"
 #include "src/heap/mutable-page.h"
 #include "src/heap/spaces.h"
 #include "src/tasks/cancelable-task.h"
@@ -96,11 +96,12 @@ class MemoryAllocator final {
       MemoryAllocator::AllocationMode alloc_mode, Space* space,
       Executability executable);
 
-  V8_EXPORT_PRIVATE LargePageMetadata* AllocateLargePage(
-      LargeObjectSpace* space, size_t object_size, Executability executable,
-      AllocationHint hint);
+  V8_EXPORT_PRIVATE LargePage* AllocateLargePage(LargeObjectSpace* space,
+                                                 size_t object_size,
+                                                 Executability executable,
+                                                 AllocationHint hint);
 
-  bool ResizeLargePage(LargePageMetadata* page, size_t old_object_size,
+  bool ResizeLargePage(LargePage* page, size_t old_object_size,
                        size_t new_object_size);
 
   ReadOnlyPage* AllocateReadOnlyPage(ReadOnlySpace* space,
@@ -400,7 +401,7 @@ class MemoryAllocator final {
   std::vector<PageMetadata*> delayed_then_pooled_pages_;
   // Set of large delayed then pooled pages. Delayed pages cannot be reused (not
   // implemented).
-  std::vector<LargePageMetadata*> delayed_then_pooled_large_pages_;
+  std::vector<LargePage*> delayed_then_pooled_large_pages_;
   // Set of delayed then released pages. No reuse is possible here.
   std::vector<MutablePage*> delayed_then_released_pages_;
 

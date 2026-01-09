@@ -12,7 +12,7 @@
 #include "src/heap/base-page.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/large-page-metadata.h"
+#include "src/heap/large-page.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/page-metadata.h"
 #include "src/logging/counters.h"
@@ -241,7 +241,7 @@ bool HeapAllocator::TryResizeLargeObject(Tagged<HeapObject> object,
   DCHECK_EQ(page->area_size(), old_object_size);
   CHECK_GT(new_object_size, old_object_size);
   if (!heap_->memory_allocator()->ResizeLargePage(
-          LargePageMetadata::cast(page), old_object_size, new_object_size)) {
+          LargePage::cast(page), old_object_size, new_object_size)) {
     if (V8_UNLIKELY(v8_flags.trace_resize_large_object)) {
       heap_->isolate()->PrintWithTimestamp(
           "resizing large object failed: allocation could not be extended\n");
