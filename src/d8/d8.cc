@@ -88,6 +88,7 @@
 #endif  // V8_ENABLE_MAGLEV
 
 #ifdef V8_ENABLE_PARTITION_ALLOC
+#include <partition_alloc/partition_root.h>
 #include <partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h>
 #endif  // V8_ENABLE_PARTITION_ALLOC
 
@@ -7062,11 +7063,15 @@ void ConfigurePartitionAllocIfEnabled() {
   static constexpr size_t kThreadCacheLargeSizeThreshold = 1 << 15;
   ::partition_alloc::ThreadCache::SetLargestCachedSize(
       kThreadCacheLargeSizeThreshold);
-#if defined(V8_OS_DARWIN) || defined(V8_OS_WIN)
-  allocator_shim::AdjustDefaultAllocatorForForeground();
-#endif  // defined(V8_OS_DARWIN) || defined(V8_OS_WIN)
+  // Adjust slot span ring size to 1024. Keep it aligned with constants in
+  // partition_alloc_constants.h
+  static constexpr int kForegroundMaxEmptySlotSpansDirtyBytesShift = 2;
+  static constexpr int kSlotSpanRingSize = 1 << 10;
+  allocator_shim::internal::PartitionAllocMalloc::Allocator()
+      ->AdjustSlotSpanRing(kSlotSpanRingSize,
+                           kForegroundMaxEmptySlotSpansDirtyBytesShift);
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-#endif
+#endif  // defined(V8_ENABLE_PARTITION_ALLOC)
 }
 
 }  // namespace
