@@ -9770,10 +9770,10 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     case kExprBrOnCast: {
       const BranchOnCastData& br_on_cast_data = instr.optional.br_on_cast_data;
       const int32_t target_branch_index =
-          GetTargetBranch(br_on_cast_data.label_depth);
-      bool null_succeeds = br_on_cast_data.res_is_null;
+          GetTargetBranch(br_on_cast_data.label_depth());
+      bool null_succeeds = br_on_cast_data.res_is_null();
       const ValueType target_type = ValueType::RefMaybeNull(
-          HeapType::FromBits(br_on_cast_data.target_type_bit_fields),
+          HeapType::FromBits(br_on_cast_data.target_type_bit_fields()),
           null_succeeds ? kNullable : kNonNullable);
 
       const ValueType obj_type = slots_[stack_.back()].value_type;
@@ -9790,17 +9790,17 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           RefPop();  // pop condition
           EmitRefValueType(obj_type.raw_bit_field());
           RefPush(target_type);  // re-push condition value with a new HeapType.
-          EmitBranchOffset(br_on_cast_data.label_depth);
+          EmitBranchOffset(br_on_cast_data.label_depth());
         } else {
           EMIT_INSTR_HANDLER(s2s_Branch);
-          EmitBranchOffset(br_on_cast_data.label_depth);
+          EmitBranchOffset(br_on_cast_data.label_depth());
         }
       } else if (V8_LIKELY(!TypeCheckAlwaysFails(
                      obj_type, target_type.heap_type(), null_succeeds))) {
         EMIT_INSTR_HANDLER(s2s_BranchOnCast);
         EmitI32Const(null_succeeds);
         HeapType br_on_cast_data_target_type(
-            HeapType::FromBits(br_on_cast_data.target_type_bit_fields));
+            HeapType::FromBits(br_on_cast_data.target_type_bit_fields()));
         EmitI32Const(br_on_cast_data_target_type.has_index()
                          ? br_on_cast_data_target_type.raw_bit_field()
                          : target_type.heap_type().raw_bit_field());
@@ -9812,7 +9812,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         Emit(&no_branch_code_offset, sizeof(no_branch_code_offset));
         StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrOnCast);
         EMIT_INSTR_HANDLER(s2s_Branch);
-        EmitBranchOffset(br_on_cast_data.label_depth);
+        EmitBranchOffset(br_on_cast_data.label_depth());
         // Patch the 'if-false' offset with the correct jump offset.
         int32_t delta = CurrentCodePos() - no_branch_code_offset;
         base::WriteUnalignedValue<uint32_t>(
@@ -9824,10 +9824,10 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     case kExprBrOnCastFail: {
       const BranchOnCastData& br_on_cast_data = instr.optional.br_on_cast_data;
       int32_t target_branch_index =
-          GetTargetBranch(br_on_cast_data.label_depth);
+          GetTargetBranch(br_on_cast_data.label_depth());
       bool null_succeeds = br_on_cast_data.res_is_null;
       HeapType br_on_cast_data_target_type =
-          HeapType::FromBits(br_on_cast_data.target_type_bit_fields);
+          HeapType::FromBits(br_on_cast_data.target_type_bit_fields());
       const ValueType target_type =
           ValueType::RefMaybeNull(br_on_cast_data_target_type,
                                   null_succeeds ? kNullable : kNonNullable);
@@ -9841,7 +9841,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                                            null_succeeds))) {
         StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrOnCast);
         EMIT_INSTR_HANDLER(s2s_Branch);
-        EmitBranchOffset(br_on_cast_data.label_depth);
+        EmitBranchOffset(br_on_cast_data.label_depth());
       } else if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(
                      obj_type, target_type.heap_type()))) {
         // The branch can still be taken on null.
@@ -9852,7 +9852,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           RefPop();  // pop condition
           EmitRefValueType(obj_type.raw_bit_field());
           RefPush(target_type);  // re-push condition value with a new HeapType.
-          EmitBranchOffset(br_on_cast_data.label_depth);
+          EmitBranchOffset(br_on_cast_data.label_depth());
         } else {
           // Fallthrough.
         }
@@ -9870,7 +9870,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         Emit(&no_branch_code_offset, sizeof(no_branch_code_offset));
         StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrOnCast);
         EMIT_INSTR_HANDLER(s2s_Branch);
-        EmitBranchOffset(br_on_cast_data.label_depth);
+        EmitBranchOffset(br_on_cast_data.label_depth());
         // Patch the 'if-false' offset with the correct jump offset.
         int32_t delta = CurrentCodePos() - no_branch_code_offset;
         base::WriteUnalignedValue<uint32_t>(

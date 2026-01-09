@@ -1276,11 +1276,28 @@ enum ExternalCallResult {
 
 constexpr uint32_t kBranchOnCastDataTargetTypeBitSize = 30;
 struct BranchOnCastData {
-  uint32_t label_depth;
-  uint32_t src_is_null : 1;  //  BrOnCastFlags
-  uint32_t res_is_null : 1;  //  BrOnCastFlags
-  uint32_t target_type_bit_fields
-      : kBranchOnCastDataTargetTypeBitSize;  //  HeapType bit_fields
+  BranchOnCastData(uint32_t label_depth, bool src_is_null, bool res_is_null,
+                   uint32_t target_type_bit_fields)
+      : label_depth_(label_depth),
+        flags_(SrcIsNullField::encode(src_is_null) |
+               ResIsNullField::encode(src_is_null) |
+               TargetTypeField::encode(src_is_null)) {}
+
+  uint32_t label_depth() const { return label_depth_; }
+  bool src_is_null() const { return SrcIsNullField::decode(flags_); }
+  bool res_is_null() const { return ResIsNullField::decode(flags_); }
+  uint32_t target_type_bit_fields() const {
+    return TargetTypeField::decode(flags_);
+  }
+
+ private:
+  uint32_t label_depth_;
+  uint32_t flags_;
+
+  using SrcIsNullField = base::BitField<bool, 0, 1>;
+  using ResIsNullField = SrcIsNullField::Next<bool, 1>;
+  using TargetTypeField =
+      ResIsNullField::Next<uint32_t, kBranchOnCastDataTargetTypeBitSize>;
 };
 
 struct WasmInstruction {
