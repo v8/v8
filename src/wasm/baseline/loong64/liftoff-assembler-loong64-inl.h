@@ -3617,6 +3617,11 @@ bool LiftoffAssembler::emit_f16x8_qfms(LiftoffRegister dst,
 
 bool LiftoffAssembler::supports_f16_mem_access() { return false; }
 
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
+                                             Label* trap_label) {
+  Branch(trap_label, kUnsignedGreaterThanEqual, index, Operand(max_index));
+}
+
 void LiftoffAssembler::emit_inc_i32_at(Address address) {
   UseScratchRegisterScope temps(this);
   Register counter_addr = temps.Acquire();
