@@ -319,8 +319,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64ISubSatU:
     case kArm64Bcax:
     case kArm64Eor3:
-    case kArm64Cpy:
-    case kArm64Set:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArm64TestAndBranch32:
     case kArm64TestAndBranch:
@@ -382,6 +380,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64DsbIsb:
 #if V8_ENABLE_WEBASSEMBLY
     case kArm64StoreLane:
+    case kArm64Cpy:
+    case kArm64Set:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return kHasSideEffect;
 
