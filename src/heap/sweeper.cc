@@ -30,7 +30,7 @@
 #include "src/heap/marking-state.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces.h"
@@ -463,7 +463,7 @@ namespace {
 class PromotedPageRecordMigratedSlotVisitor final
     : public NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor> {
  public:
-  explicit PromotedPageRecordMigratedSlotVisitor(MutablePageMetadata* host_page)
+  explicit PromotedPageRecordMigratedSlotVisitor(MutablePage* host_page)
       : NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>(
             host_page->heap()->isolate()),
         host_chunk_(host_page->Chunk()),
@@ -568,9 +568,9 @@ class PromotedPageRecordMigratedSlotVisitor final
   V8_INLINE void VerifyHost(Tagged<HeapObject> host) {
     DCHECK(!HeapLayout::InWritableSharedSpace(host));
     DCHECK(!HeapLayout::InYoungGeneration(host));
-    DCHECK(!MutablePageMetadata::FromHeapObject(Isolate::Current(), host)
-                ->SweepingDone());
-    DCHECK_EQ(MutablePageMetadata::FromHeapObject(Isolate::Current(), host),
+    DCHECK(
+        !MutablePage::FromHeapObject(Isolate::Current(), host)->SweepingDone());
+    DCHECK_EQ(MutablePage::FromHeapObject(Isolate::Current(), host),
               host_page_);
   }
 
@@ -607,7 +607,7 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
   MemoryChunk* const host_chunk_;
-  MutablePageMetadata* const host_page_;
+  MutablePage* const host_page_;
   EphemeronRememberedSet* ephemeron_remembered_set_;
 };
 
@@ -644,8 +644,7 @@ void ZapDeadObjectsInRange(Heap* heap, Address dead_start, Address dead_end,
 
 }  // namespace
 
-void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
-    MutablePageMetadata* page) {
+void Sweeper::LocalSweeper::ParallelIteratePromotedPage(MutablePage* page) {
   DCHECK(v8_flags.minor_ms);
   DCHECK(!page->Chunk()->IsBlackAllocatedPage());
   DCHECK_NOT_NULL(page);
@@ -799,7 +798,7 @@ void ZapDeadObjectsOnPage(Heap* heap, PageMetadata* p) {
   ZapDeadObjectsInRange(heap, dead_start, p->area_end(), zapping_mode);
 }
 
-void ClearPromotedPages(Heap* heap, std::vector<MutablePageMetadata*> pages) {
+void ClearPromotedPages(Heap* heap, std::vector<MutablePage*> pages) {
   DCHECK(v8_flags.minor_ms);
   for (auto* page : pages) {
     DCHECK(!page->SweepingDone());
@@ -821,7 +820,7 @@ void Sweeper::StartMinorSweeperTasks() {
   DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER,
             heap_->tracer()->GetCurrentCollector());
   DCHECK(!promoted_page_iteration_in_progress_);
-  std::vector<MutablePageMetadata*> promoted_pages_for_clearing;
+  std::vector<MutablePage*> promoted_pages_for_clearing;
   if (promoted_pages_for_iteration_count_ > 0) {
     if (ShouldUpdateRememberedSets(heap_)) {
       promoted_page_iteration_in_progress_.store(true,
@@ -1265,7 +1264,7 @@ void Sweeper::ContributeAndWaitForPromotedPagesIteration() {
   main_thread_local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
 }
 
-void Sweeper::NotifyPromotedPageIterationFinished(MutablePageMetadata* chunk) {
+void Sweeper::NotifyPromotedPageIterationFinished(MutablePage* chunk) {
   if (++iterated_promoted_pages_count_ == promoted_pages_for_iteration_count_) {
     NotifyPromotedPagesIterationFinished();
   }
@@ -1378,7 +1377,7 @@ bool Sweeper::TryRemoveSweepingPageSafe(AllocationSpace space,
   return true;
 }
 
-bool Sweeper::TryRemovePromotedPageSafe(MutablePageMetadata* chunk) {
+bool Sweeper::TryRemovePromotedPageSafe(MutablePage* chunk) {
   base::MutexGuard guard(&mutex_);
   auto position =
       std::find(sweeping_list_for_promoted_page_iteration_.begin(),
@@ -1421,7 +1420,7 @@ void Sweeper::AddPageImpl(AllocationSpace space, PageMetadata* page) {
       true, std::memory_order_release);
 }
 
-void Sweeper::AddPromotedPage(MutablePageMetadata* chunk) {
+void Sweeper::AddPromotedPage(MutablePage* chunk) {
   DCHECK(heap_->IsMainThread());
   DCHECK(chunk->owner_identity() == OLD_SPACE ||
          chunk->owner_identity() == LO_SPACE);
@@ -1513,9 +1512,9 @@ PageMetadata* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
   return page;
 }
 
-MutablePageMetadata* Sweeper::GetPromotedPageSafe() {
+MutablePage* Sweeper::GetPromotedPageSafe() {
   base::MutexGuard guard(&mutex_);
-  MutablePageMetadata* chunk = nullptr;
+  MutablePage* chunk = nullptr;
   if (!sweeping_list_for_promoted_page_iteration_.empty()) {
     chunk = sweeping_list_for_promoted_page_iteration_.back();
     sweeping_list_for_promoted_page_iteration_.pop_back();

@@ -35,7 +35,7 @@
 #include "src/heap/marking-worklist.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/minor-mark-sweep-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/pretenuring-handler.h"
@@ -73,7 +73,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
       : MarkingVerifierBase(heap),
         marking_state_(heap->non_atomic_marking_state()) {}
 
-  const MarkingBitmap* bitmap(const MutablePageMetadata* chunk) override {
+  const MarkingBitmap* bitmap(const MutablePage* chunk) override {
     return chunk->marking_bitmap();
   }
 
@@ -182,7 +182,7 @@ YoungGenerationRememberedSetsMarkingWorklist::CollectItems(Heap* heap) {
   int max_remembered_set_count = EstimateMaxNumberOfRemeberedSets(heap);
   items.reserve(max_remembered_set_count);
   OldGenerationMemoryChunkIterator::ForAll(
-      heap, [&items](MutablePageMetadata* chunk) {
+      heap, [&items](MutablePage* chunk) {
         SlotSet* slot_set = chunk->ExtractSlotSet<OLD_TO_NEW>();
         SlotSet* background_slot_set =
             chunk->ExtractSlotSet<OLD_TO_NEW_BACKGROUND>();
@@ -793,7 +793,7 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
       if (visited_size) {
         main_marking_visitor_->IncrementLiveBytesCached(
-            MutablePageMetadata::FromHeapObject(heap_->isolate(), heap_object),
+            MutablePage::FromHeapObject(heap_->isolate(), heap_object),
             ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
       }
     }
@@ -895,7 +895,7 @@ bool ShouldMovePage(PageMetadata* p, intptr_t live_bytes,
 }  // namespace
 
 void MinorMarkSweepCollector::EvacuateExternalPointerReferences(
-    MutablePageMetadata* p) {
+    MutablePage* p) {
 #ifdef V8_COMPRESS_POINTERS
   using BasicSlotSet = ::heap::base::BasicSlotSet<kTaggedSize>;
   BasicSlotSet* slots = p->slot_set<SURVIVOR_TO_EXTERNAL_POINTER>();

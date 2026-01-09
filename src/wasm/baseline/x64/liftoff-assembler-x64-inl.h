@@ -15,7 +15,7 @@
 #include "src/codegen/x64/register-x64.h"
 #include "src/compiler/linkage.h"
 #include "src/flags/flags.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/baseline/parallel-move.h"

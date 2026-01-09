@@ -32,7 +32,7 @@
 #include "src/heap/marking-visitor.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/safepoint.h"
 #include "src/init/v8.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -111,7 +111,7 @@ void IncrementalMarking::MarkBlackBackground(Tagged<HeapObject> obj,
                                              int object_size) {
   CHECK(marking_state()->TryMark(obj));
   base::MutexGuard guard(&background_live_bytes_mutex_);
-  background_live_bytes_[MutablePageMetadata::FromHeapObject(isolate(), obj)] +=
+  background_live_bytes_[MutablePage::FromHeapObject(isolate(), obj)] +=
       static_cast<intptr_t>(object_size);
 }
 
@@ -537,7 +537,7 @@ bool IncrementalMarking::Stop() {
 
   // Merge live bytes counters of background threads
   for (const auto& pair : background_live_bytes_) {
-    MutablePageMetadata* memory_chunk = pair.first;
+    MutablePage* memory_chunk = pair.first;
     intptr_t live_bytes = pair.second;
     if (live_bytes) {
       memory_chunk->IncrementLiveBytesAtomically(live_bytes);

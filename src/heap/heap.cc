@@ -86,7 +86,7 @@
 #include "src/heap/memory-reducer.h"
 #include "src/heap/minor-gc-job.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page-metadata-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/object-stats.h"
@@ -213,7 +213,7 @@ class Heap::AllocationTrackerForDebugging final
     Address object_address = object.address();
     MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
     AllocationSpace allocation_space =
-        MutablePageMetadata::cast(memory_chunk->Metadata())->owner_identity();
+        MutablePage::cast(memory_chunk->Metadata())->owner_identity();
 
     static_assert(kSpaceTagSize + kPageSizeBits <= 32);
     uint32_t value =
@@ -2591,8 +2591,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
     return;
   }
 
-  MutablePageMetadata* mutable_page =
-      MutablePageMetadata::cast(chunk->Metadata());
+  MutablePage* mutable_page = MutablePage::cast(chunk->Metadata());
   if (mutable_page->SweepingDone()) {
     return;
   }
@@ -2858,12 +2857,11 @@ void Heap::UpdateExternalString(Tagged<String> string, size_t old_payload,
 void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
   std::set<Tagged<String>> visited_map;
-  std::map<MutablePageMetadata*, size_t> size_map;
+  std::map<MutablePage*, size_t> size_map;
 
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<String> obj = Cast<String>(Tagged<Object>(old_strings_[i]));
-    MutablePageMetadata* mc =
-        MutablePageMetadata::FromHeapObject(heap_->isolate(), obj);
+    MutablePage* mc = MutablePage::FromHeapObject(heap_->isolate(), obj);
     DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                    !mc->Chunk()->InYoungGeneration());
     DCHECK(!HeapLayout::InYoungGeneration(obj));
@@ -3269,8 +3267,7 @@ void VerifyNoNeedToClearSlots(Address start, Address end) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(start);
   if (chunk->InReadOnlySpace()) return;
   if (!v8_flags.sticky_mark_bits && chunk->InYoungGeneration()) return;
-  MutablePageMetadata* mutable_page =
-      MutablePageMetadata::cast(chunk->Metadata());
+  MutablePage* mutable_page = MutablePage::cast(chunk->Metadata());
   BaseSpace* space = mutable_page->owner();
   space->heap()->VerifySlotRangeHasNoRecordedSlots(start, end);
 }
@@ -3362,7 +3359,7 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
 
   // Concurrent sweeper does not support moving object starts. It assumes that
   // markbits (black regions) and object starts are matching up.
-  if (!MutablePageMetadata::FromHeapObject(isolate(), object)->SweepingDone()) {
+  if (!MutablePage::FromHeapObject(isolate(), object)->SweepingDone()) {
     return false;
   }
 
@@ -4096,8 +4093,7 @@ void Heap::NotifyObjectLayoutChange(
     int new_size) {
   if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes) {
     const bool may_contain_recorded_slots = MayContainRecordedSlots(object);
-    MutablePageMetadata* const page =
-        MutablePageMetadata::FromHeapObject(isolate(), object);
+    MutablePage* const page = MutablePage::FromHeapObject(isolate(), object);
     // Do not remove the recorded slot in the map word as this one can never be
     // invalidated.
     const Address clear_range_start = object.address() + kTaggedSize;
@@ -6142,7 +6138,7 @@ class StressConcurrentAllocationTask : public CancelableTask {
     const int kSmallObjectSize = 10 * kTaggedSize;
     const int kMediumObjectSize = 8 * KB;
     const int kLargeObjectSize =
-        static_cast<int>(MutablePageMetadata::kPageSize -
+        static_cast<int>(MutablePage::kPageSize -
                          MemoryChunkLayout::ObjectStartOffsetInDataPage());
 
     for (int i = 0; i < kNumIterations; i++) {
@@ -6470,8 +6466,7 @@ void Heap::NotifyBootstrapComplete() {
 }
 
 void Heap::NotifyOldGenerationExpansion(
-    LocalHeap* local_heap, AllocationSpace space,
-    MutablePageMetadata* chunk_metadata,
+    LocalHeap* local_heap, AllocationSpace space, MutablePage* chunk_metadata,
     OldGenerationExpansionNotificationOrigin notification_origin) {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!deserialization_complete()) {
@@ -6901,7 +6896,7 @@ void Heap::CheckHandleCount() {
 }
 
 // static
-int Heap::InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
+int Heap::InsertIntoRememberedSetFromCode(MutablePage* chunk,
                                           size_t slot_offset) {
   // This is called during runtime by a builtin, therefore it is run in the main
   // thread.
@@ -7528,8 +7523,7 @@ bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> object,
     return false;
   }
   InstanceType type = map->instance_type();
-  MutablePageMetadata* chunk =
-      MutablePageMetadata::FromHeapObject(isolate(), object);
+  MutablePage* chunk = MutablePage::FromHeapObject(isolate(), object);
   AllocationSpace src = chunk->owner_identity();
   switch (src) {
     case NEW_SPACE:

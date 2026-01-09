@@ -84,7 +84,7 @@ void HeapLayoutTracer::PrintHeapLayout(std::ostream& os, Heap* heap) {
   }
 
   OldGenerationMemoryChunkIterator it(heap);
-  MutablePageMetadata* chunk;
+  MutablePage* chunk;
   while ((chunk = it.next()) != nullptr) {
     PrintMemoryChunk(os, *chunk, ToString(chunk->owner()->identity()));
   }

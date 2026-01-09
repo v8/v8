@@ -16,9 +16,8 @@ PageMetadata::PageMetadata(Heap* heap, BaseSpace* space, size_t size,
                            VirtualMemory reservation,
                            Executability executability,
                            MemoryChunk::MainThreadFlags* trusted_flags)
-    : MutablePageMetadata(heap, space, size, area_start, area_end,
-                          std::move(reservation), PageSize::kRegular,
-                          executability) {
+    : MutablePage(heap, space, size, area_start, area_end,
+                  std::move(reservation), PageSize::kRegular, executability) {
   DCHECK(!is_large());
   trusted_main_thread_flags_ = ComputeInitialFlags(executability);
   *trusted_flags = trusted_main_thread_flags_;

@@ -11,7 +11,7 @@
 #include "src/codegen/arm/register-arm.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/baseline/parallel-move-inl.h"

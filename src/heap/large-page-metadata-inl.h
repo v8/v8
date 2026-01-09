@@ -8,7 +8,7 @@
 #include "src/heap/large-page-metadata.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/heap/mutable-page-metadata-inl.h"
+#include "src/heap/mutable-page-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -16,7 +16,7 @@ namespace internal {
 // static
 LargePageMetadata* LargePageMetadata::FromHeapObject(Isolate* i,
                                                      Tagged<HeapObject> o) {
-  return cast(MutablePageMetadata::FromHeapObject(i, o));
+  return cast(MutablePage::FromHeapObject(i, o));
 }
 
 }  // namespace internal

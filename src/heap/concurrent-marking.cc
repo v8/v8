@@ -36,7 +36,7 @@
 #include "src/heap/memory-measurement.h"
 #include "src/heap/minor-mark-sweep-inl.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/weak-object-worklists.h"
@@ -55,12 +55,12 @@ namespace v8 {
 namespace internal {
 
 // This class caches page live bytes during concurrent marking. This
-// avoids costly CAS operations on MutablePageMetadata::live_byte_count_ for
+// avoids costly CAS operations on MutablePage::live_byte_count_ for
 // each traced object.
 //
 // Page live bytes are cached in a fixed-size hash map. In the case of
 // collisions the existing entry is simply written back to
-// MutablePageMetadata::live_byte_count_ with a CAS. Afterwards it can be
+// MutablePage::live_byte_count_ with a CAS. Afterwards it can be
 // replaced with the new entry.
 class MemoryChunkLiveBytesMap {
  public:
@@ -69,9 +69,9 @@ class MemoryChunkLiveBytesMap {
   MemoryChunkLiveBytesMap(const MemoryChunkLiveBytesMap&) = delete;
   MemoryChunkLiveBytesMap& operator=(const MemoryChunkLiveBytesMap&) = delete;
 
-  void Increment(MutablePageMetadata* page, intptr_t live);
+  void Increment(MutablePage* page, intptr_t live);
   void FlushAndClear();
-  void Erase(MutablePageMetadata* page);
+  void Erase(MutablePage* page);
 
 #if DEBUG
   void AssertEmpty();
@@ -79,14 +79,14 @@ class MemoryChunkLiveBytesMap {
 
  private:
   struct Entry {
-    MutablePageMetadata* page;
+    MutablePage* page;
     intptr_t live_bytes;
   };
 
   static constexpr size_t kTableSize = 32;
 
-  Entry& lookup_entry(MutablePageMetadata* page) {
-    size_t hash = std::hash<MutablePageMetadata*>{}(page);
+  Entry& lookup_entry(MutablePage* page) {
+    size_t hash = std::hash<MutablePage*>{}(page);
     static_assert(base::bits::IsPowerOfTwo(kTableSize));
     return map_[hash % kTableSize];
   }
@@ -94,8 +94,7 @@ class MemoryChunkLiveBytesMap {
   std::array<Entry, kTableSize> map_ = {};
 };
 
-void MemoryChunkLiveBytesMap::Increment(MutablePageMetadata* page,
-                                        intptr_t bytes) {
+void MemoryChunkLiveBytesMap::Increment(MutablePage* page, intptr_t bytes) {
   Entry& entry = lookup_entry(page);
   if (entry.page == page) {
     entry.live_bytes += bytes;
@@ -111,7 +110,7 @@ void MemoryChunkLiveBytesMap::Increment(MutablePageMetadata* page,
   }
 }
 
-void MemoryChunkLiveBytesMap::Erase(MutablePageMetadata* page) {
+void MemoryChunkLiveBytesMap::Erase(MutablePage* page) {
   Entry& entry = lookup_entry(page);
   if (entry.page == page) {
     entry.page = nullptr;
@@ -139,8 +138,7 @@ void MemoryChunkLiveBytesMap::AssertEmpty() {
 #endif  // DEBUG
 
 using MemoryChunkTypedSlotsMap =
-    ::heap::base::CachedUnorderedMap<MutablePageMetadata*,
-                                     std::unique_ptr<TypedSlots>>;
+    ::heap::base::CachedUnorderedMap<MutablePage*, std::unique_ptr<TypedSlots>>;
 
 class ConcurrentMarkingVisitor final
     : public FullMarkingVisitorBase<ConcurrentMarkingVisitor> {
@@ -186,7 +184,7 @@ class ConcurrentMarkingVisitor final
     MarkCompactCollector::RecordSlot<TSlot, kRecordYoung>(object, slot, target);
   }
 
-  void IncrementLiveBytesCached(MutablePageMetadata* chunk, intptr_t by) {
+  void IncrementLiveBytesCached(MutablePage* chunk, intptr_t by) {
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                    IsAligned(by, kObjectAlignment8GbHeap));
     memory_chunk_live_bytes_map_->Increment(chunk, by);
@@ -453,7 +451,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           }
           const auto visited_size = visitor.Visit(map, object);
           visitor.IncrementLiveBytesCached(
-              MutablePageMetadata::cast(
+              MutablePage::cast(
                   BasePage::FromHeapObject(heap_->isolate(), object)),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
           if (is_per_context_mode) {
@@ -551,7 +549,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
         if (visited_size) {
           current_marked_bytes += visited_size;
           visitor.IncrementLiveBytesCached(
-              MutablePageMetadata::FromHeapObject(isolate, heap_object),
+              MutablePage::FromHeapObject(isolate, heap_object),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
         }
       }

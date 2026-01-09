@@ -107,7 +107,7 @@ class LinearAllocationArea;
 class LocalHeap;
 class MemoryAllocator;
 class MemoryBalancer;
-class MutablePageMetadata;
+class MutablePage;
 class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkSweepCollector;
@@ -539,7 +539,7 @@ class Heap final {
   };
 
   void NotifyOldGenerationExpansion(
-      LocalHeap* local_heap, AllocationSpace space, MutablePageMetadata* chunk,
+      LocalHeap* local_heap, AllocationSpace space, MutablePage* chunk,
       OldGenerationExpansionNotificationOrigin =
           OldGenerationExpansionNotificationOrigin::kFromSameHeap);
 
@@ -1176,7 +1176,7 @@ class Heap final {
   uint8_t* IsMinorMarkingFlagAddress();
 
   void ClearRecordedSlotRange(Address start, Address end);
-  static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
+  static int InsertIntoRememberedSetFromCode(MutablePage* chunk,
                                              size_t slot_offset);
 
   static void VerifySkippedWriteBarrier(Address object, Address value);

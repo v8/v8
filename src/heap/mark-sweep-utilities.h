@@ -28,7 +28,7 @@ class MarkingVerifierBase : public ObjectVisitorWithCageBases,
  protected:
   explicit MarkingVerifierBase(Heap* heap);
 
-  virtual const MarkingBitmap* bitmap(const MutablePageMetadata* chunk) = 0;
+  virtual const MarkingBitmap* bitmap(const MutablePage* chunk) = 0;
 
   virtual void VerifyMap(Tagged<Map> map) = 0;
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;

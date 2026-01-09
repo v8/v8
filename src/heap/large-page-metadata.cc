@@ -7,7 +7,7 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/remembered-set.h"
 
 namespace v8 {
@@ -19,9 +19,8 @@ LargePageMetadata::LargePageMetadata(
     Heap* heap, BaseSpace* space, size_t chunk_size, Address area_start,
     Address area_end, VirtualMemory reservation, Executability executable,
     MemoryChunk::MainThreadFlags* trusted_flags)
-    : MutablePageMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation), PageSize::kLarge,
-                          executable) {
+    : MutablePage(heap, space, chunk_size, area_start, area_end,
+                  std::move(reservation), PageSize::kLarge, executable) {
   static_assert(LargePageMetadata::kMaxCodePageSize <=
                 TypedSlotSet::kMaxOffset);
 
@@ -35,8 +34,7 @@ LargePageMetadata::LargePageMetadata(
   DCHECK(is_large());
 
   trusted_main_thread_flags_ =
-      MutablePageMetadata::ComputeInitialFlags(executable) |
-      MemoryChunk::LARGE_PAGE;
+      MutablePage::ComputeInitialFlags(executable) | MemoryChunk::LARGE_PAGE;
   *trusted_flags = trusted_main_thread_flags_;
 }
 

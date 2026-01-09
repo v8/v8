@@ -12,7 +12,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"

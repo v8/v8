@@ -5,25 +5,25 @@
 #ifndef V8_HEAP_LARGE_PAGE_METADATA_H_
 #define V8_HEAP_LARGE_PAGE_METADATA_H_
 
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 
 namespace v8 {
 namespace internal {
 
-class LargePageMetadata : public MutablePageMetadata {
+class LargePageMetadata : public MutablePage {
  public:
   // A limit to guarantee that we do not overflow typed slot offset in the old
   // to old remembered set. Note that this limit is higher than what assembler
   // already imposes on x64 and ia32 architectures.
   static constexpr int kMaxCodePageSize = 512 * MB;
 
-  static LargePageMetadata* cast(MutablePageMetadata* metadata) {
+  static LargePageMetadata* cast(MutablePage* metadata) {
     DCHECK_IMPLIES(metadata, metadata->is_large());
     return static_cast<LargePageMetadata*>(metadata);
   }
 
   static LargePageMetadata* cast(BasePage* metadata) {
-    return cast(MutablePageMetadata::cast(metadata));
+    return cast(MutablePage::cast(metadata));
   }
 
   V8_INLINE static LargePageMetadata* FromHeapObject(Isolate* i,

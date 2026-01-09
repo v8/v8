@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_MUTABLE_PAGE_METADATA_H_
-#define V8_HEAP_MUTABLE_PAGE_METADATA_H_
+#ifndef V8_HEAP_MUTABLE_PAGE_H_
+#define V8_HEAP_MUTABLE_PAGE_H_
 
 #include <atomic>
 
@@ -41,11 +41,8 @@ enum RememberedSetType {
   NUMBER_OF_REMEMBERED_SET_TYPES
 };
 
-// MutablePageMetadata represents a memory region owned by a specific space.
-// It is divided into the header and the body. Chunk start is always
-// 1MB aligned. Start of the body is aligned so it can accommodate
-// any heap object.
-class MutablePageMetadata : public BasePage {
+// A mutable page that represents a memory region owned by a specific space.
+class MutablePage : public BasePage {
  public:
   // |kDone|: The page state when sweeping is complete or sweeping must not be
   //   performed on that page. Sweeper threads that are done with their work
@@ -69,21 +66,20 @@ class MutablePageMetadata : public BasePage {
   }
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromAddress(const Isolate* i,
-                                                    Address a);
+  V8_INLINE static MutablePage* FromAddress(const Isolate* i, Address a);
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromHeapObject(const Isolate* i,
-                                                       Tagged<HeapObject> o);
+  V8_INLINE static MutablePage* FromHeapObject(const Isolate* i,
+                                               Tagged<HeapObject> o);
 
-  static MutablePageMetadata* cast(BasePage* metadata) {
-    SBXCHECK(metadata->IsMutablePageMetadata());
-    return static_cast<MutablePageMetadata*>(metadata);
+  static MutablePage* cast(BasePage* metadata) {
+    SBXCHECK(metadata->IsMutablePage());
+    return static_cast<MutablePage*>(metadata);
   }
 
-  static const MutablePageMetadata* cast(const BasePage* metadata) {
-    SBXCHECK(metadata->IsMutablePageMetadata());
-    return static_cast<const MutablePageMetadata*>(metadata);
+  static const MutablePage* cast(const BasePage* metadata) {
+    SBXCHECK(metadata->IsMutablePage());
+    return static_cast<const MutablePage*>(metadata);
   }
 
   static MemoryChunk::MainThreadFlags OldGenerationPageFlags(
@@ -137,8 +133,7 @@ class MutablePageMetadata : public BasePage {
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   const SlotSet* slot_set() const {
-    return const_cast<MutablePageMetadata*>(this)
-        ->slot_set<type, access_mode>();
+    return const_cast<MutablePage*>(this)->slot_set<type, access_mode>();
   }
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
@@ -150,8 +145,7 @@ class MutablePageMetadata : public BasePage {
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   const TypedSlotSet* typed_slot_set() const {
-    return const_cast<MutablePageMetadata*>(this)
-        ->typed_slot_set<type, access_mode>();
+    return const_cast<MutablePage*>(this)->typed_slot_set<type, access_mode>();
   }
 
   template <RememberedSetType type>
@@ -203,10 +197,8 @@ class MutablePageMetadata : public BasePage {
 
   Space* owner() const { return reinterpret_cast<Space*>(BasePage::owner()); }
 
-  heap::ListNode<MutablePageMetadata>& list_node() { return list_node_; }
-  const heap::ListNode<MutablePageMetadata>& list_node() const {
-    return list_node_;
-  }
+  heap::ListNode<MutablePage>& list_node() { return list_node_; }
+  const heap::ListNode<MutablePage>& list_node() const { return list_node_; }
 
   PossiblyEmptyBuckets* possibly_empty_buckets() {
     return &possibly_empty_buckets_;
@@ -271,10 +263,9 @@ class MutablePageMetadata : public BasePage {
   bool IsLivenessClear() const;
 
  protected:
-  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
-                      Address area_start, Address area_end,
-                      VirtualMemory reservation, PageSize page_size,
-                      Executability executability);
+  MutablePage(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+              Address area_end, VirtualMemory reservation, PageSize page_size,
+              Executability executability);
 
   MemoryChunk::MainThreadFlags ComputeInitialFlags(
       Executability executable) const;
@@ -326,7 +317,7 @@ class MutablePageMetadata : public BasePage {
   std::atomic<ConcurrentSweepingState> concurrent_sweeping_{
       ConcurrentSweepingState::kDone};
 
-  heap::ListNode<MutablePageMetadata> list_node_;
+  heap::ListNode<MutablePage> list_node_;
 
   FreeListCategory** categories_ = nullptr;
 
@@ -365,12 +356,12 @@ class MutablePageMetadata : public BasePage {
   V8_INLINE void ClearFlagsUnlocked(MemoryChunk::MainThreadFlags flags);
 
   static constexpr intptr_t MarkingBitmapOffset() {
-    return offsetof(MutablePageMetadata, marking_bitmap_);
+    return offsetof(MutablePage, marking_bitmap_);
   }
 
   static constexpr intptr_t SlotSetOffset(
       RememberedSetType remembered_set_type) {
-    return offsetof(MutablePageMetadata, slot_set_) +
+    return offsetof(MutablePage, slot_set_) +
            sizeof(void*) * remembered_set_type;
   }
 
@@ -393,14 +384,13 @@ class MutablePageMetadata : public BasePage {
 
 namespace base {
 // Define special hash function for chunk pointers, to be used with std data
-// structures, e.g. std::unordered_set<MutablePageMetadata*,
-// base::hash<MutablePageMetadata*>
+// structures, e.g. std::unordered_set<MutablePage*, base::hash<MutablePage*>
 template <>
-struct hash<i::MutablePageMetadata*> : hash<i::BasePage*> {};
+struct hash<i::MutablePage*> : hash<i::BasePage*> {};
 template <>
-struct hash<const i::MutablePageMetadata*> : hash<const i::BasePage*> {};
+struct hash<const i::MutablePage*> : hash<const i::BasePage*> {};
 }  // namespace base
 
 }  // namespace v8
 
-#endif  // V8_HEAP_MUTABLE_PAGE_METADATA_H_
+#endif  // V8_HEAP_MUTABLE_PAGE_H_

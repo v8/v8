@@ -20,8 +20,8 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/protectors.h"
-#include "src/heap/heap-inl.h"  // For MutablePageMetadata. TODO(jkummerow): Drop.
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/heap-inl.h"  // For MutablePage. TODO(jkummerow): Drop.
+#include "src/heap/mutable-page.h"
 #include "src/logging/counters.h"
 #include "src/numbers/integer-literal-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -20208,8 +20208,8 @@ TNode<BoolT> CodeStubAssembler::IsMarked(TNode<Object> object) {
 void CodeStubAssembler::GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                                    TNode<IntPtrT>* mask) {
   TNode<IntPtrT> page = BasePageFromAddress(object);
-  TNode<IntPtrT> bitmap = IntPtrAdd(
-      page, IntPtrConstant(MutablePageMetadata::MarkingBitmapOffset()));
+  TNode<IntPtrT> bitmap =
+      IntPtrAdd(page, IntPtrConstant(MutablePage::MarkingBitmapOffset()));
 
   {
     // Temp variable to calculate cell offset in bitmap.

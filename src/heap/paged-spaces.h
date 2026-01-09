@@ -22,7 +22,7 @@
 #include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
@@ -199,7 +199,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     accounting_stats_.IncreaseCapacity(bytes);
   }
 
-  PageMetadata* InitializePage(MutablePageMetadata* chunk) override;
+  PageMetadata* InitializePage(MutablePage* chunk) override;
 
   virtual void RemovePageFromSpace(PageMetadata* page);
 
@@ -554,13 +554,13 @@ class OldGenerationMemoryChunkIterator {
   inline explicit OldGenerationMemoryChunkIterator(Heap* heap);
 
   // Return nullptr when the iterator is done.
-  inline MutablePageMetadata* next();
+  inline MutablePage* next();
 
-  // Applies `callback` to all `MutablePageMetadata` returned by the iterator.
+  // Applies `callback` to all `MutablePage` returned by the iterator.
   template <typename Callback>
   static void ForAll(Heap* heap, Callback callback) {
     OldGenerationMemoryChunkIterator it(heap);
-    while (MutablePageMetadata* chunk = it.next()) {
+    while (MutablePage* chunk = it.next()) {
       callback(chunk);
     }
   }

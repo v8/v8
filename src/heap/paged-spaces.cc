@@ -25,7 +25,7 @@
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/mutable-page-metadata-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-heap.h"
@@ -77,7 +77,7 @@ PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
 }
 
 PageMetadata* PagedSpaceBase::InitializePage(
-    MutablePageMetadata* mutable_page_metadata) {
+    MutablePage* mutable_page_metadata) {
   MemoryChunk* chunk = mutable_page_metadata->Chunk();
   PageMetadata* page = PageMetadata::cast(mutable_page_metadata);
   DCHECK_EQ(
@@ -95,7 +95,7 @@ PageMetadata* PagedSpaceBase::InitializePage(
 void PagedSpaceBase::TearDown() {
   const bool is_marking = heap_->isolate()->isolate_data()->is_marking();
   while (!memory_chunk_list_.Empty()) {
-    MutablePageMetadata* chunk = memory_chunk_list_.front();
+    MutablePage* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
     const auto mode = (id_ == NEW_SPACE || id_ == OLD_SPACE)
                           ? MemoryAllocator::FreeMode::kPool

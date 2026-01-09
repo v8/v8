@@ -669,7 +669,7 @@ class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
 };
 
 template <RememberedSetType direction>
-void CollectSlots(MutablePageMetadata* chunk, Address start, Address end,
+void CollectSlots(MutablePage* chunk, Address start, Address end,
                   std::set<Address>* untyped,
                   std::set<std::pair<SlotType, Address>>* typed) {
   RememberedSet<direction>::Iterate(
@@ -750,8 +750,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
     return;
   }
 
-  MutablePageMetadata* chunk =
-      MutablePageMetadata::FromHeapObject(isolate(), object);
+  MutablePage* chunk = MutablePage::FromHeapObject(isolate(), object);
 
   Address start = object.address();
   Address end = start + object->Size(cage_base_);

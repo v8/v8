@@ -17,7 +17,7 @@
 #include "src/common/globals.h"
 #include "src/heap/base-page.h"
 #include "src/heap/large-page-metadata.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/spaces.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/utils/allocation.h"
@@ -77,7 +77,7 @@ class MemoryAllocator final {
     return commit_page_size_bits_;
   }
 
-  static void DeleteMemoryChunk(MutablePageMetadata* metadata);
+  static void DeleteMemoryChunk(MutablePage* metadata);
 
   V8_EXPORT_PRIVATE MemoryAllocator(Isolate* isolate,
                                     v8::PageAllocator* code_page_allocator,
@@ -110,7 +110,7 @@ class MemoryAllocator final {
       ::v8::PageAllocator::SharedMemory* shared_memory, Address new_address);
 
   V8_EXPORT_PRIVATE void Free(MemoryAllocator::FreeMode mode,
-                              MutablePageMetadata* page_metadata);
+                              MutablePage* page_metadata);
   void FreeReadOnlyPage(ReadOnlyPage* chunk);
 
   void ReleaseDelayedPages();
@@ -225,7 +225,7 @@ class MemoryAllocator final {
 #ifdef DEBUG
   // Checks if an allocated MemoryChunk was intended to be used for executable
   // memory.
-  bool IsMemoryChunkExecutable(MutablePageMetadata* chunk) const {
+  bool IsMemoryChunkExecutable(MutablePage* chunk) const {
     base::MutexGuard guard(&executable_memory_mutex_);
     return executable_memory_.find(chunk) != executable_memory_.end();
   }
@@ -286,11 +286,11 @@ class MemoryAllocator final {
   // PreFreeMemory logically frees the object, i.e., it unregisters the
   // memory, logs a delete event and adds the chunk to remembered unmapped
   // pages.
-  void PreFreeMemory(MutablePageMetadata* chunk);
+  void PreFreeMemory(MutablePage* chunk);
 
   // PerformFreeMemory can be called concurrently when PreFree was executed
   // before.
-  void PerformFreeMemory(MutablePageMetadata* chunk);
+  void PerformFreeMemory(MutablePage* chunk);
 
   // See AllocatePage for public interface. Note that currently we only
   // support pools for NOT_EXECUTABLE pages of size MemoryChunk::kPageSize.
@@ -316,15 +316,15 @@ class MemoryAllocator final {
 
   // Performs all necessary bookkeeping to free the memory, but does not free
   // it.
-  void UnregisterMutableMemoryChunk(MutablePageMetadata* chunk);
+  void UnregisterMutableMemoryChunk(MutablePage* chunk);
   void UnregisterSharedMemoryChunk(BasePage* chunk);
   void UnregisterMemoryChunk(BasePage* chunk);
 
   void RegisterReadOnlyMemory(ReadOnlyPage* page);
 
 #ifdef DEBUG
-  void RegisterExecutableMemoryChunk(MutablePageMetadata* chunk);
-  void UnregisterExecutableMemoryChunk(MutablePageMetadata* chunk);
+  void RegisterExecutableMemoryChunk(MutablePage* chunk);
+  void UnregisterExecutableMemoryChunk(MutablePage* chunk);
 #endif  // DEBUG
 
   Isolate* isolate_;
@@ -378,8 +378,7 @@ class MemoryAllocator final {
 #ifdef DEBUG
   // Data structure to remember allocated executable memory chunks.
   // This data structure is used only in DCHECKs.
-  std::unordered_set<MutablePageMetadata*, base::hash<MutablePageMetadata*>>
-      executable_memory_;
+  std::unordered_set<MutablePage*, base::hash<MutablePage*>> executable_memory_;
   mutable base::Mutex executable_memory_mutex_;
 #endif  // DEBUG
 
@@ -403,7 +402,7 @@ class MemoryAllocator final {
   // implemented).
   std::vector<LargePageMetadata*> delayed_then_pooled_large_pages_;
   // Set of delayed then released pages. No reuse is possible here.
-  std::vector<MutablePageMetadata*> delayed_then_released_pages_;
+  std::vector<MutablePage*> delayed_then_released_pages_;
 
   V8_EXPORT_PRIVATE static size_t commit_page_size_;
   V8_EXPORT_PRIVATE static size_t commit_page_size_bits_;

@@ -59,7 +59,7 @@
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-reducer.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/safepoint.h"
@@ -6339,7 +6339,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
   BasePage* metadata = chunk->Metadata(isolate);
-  CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
+  CHECK_EQ(NEW_LO_SPACE, MutablePage::cast(metadata)->owner_identity());
   CHECK(metadata->is_large());
   CHECK(chunk->IsToPage());
 
@@ -6351,8 +6351,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // After the first young generation GC array_small will be in the old
   // generation large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE,
-           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
+  CHECK_EQ(LO_SPACE, MutablePage::cast(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6372,7 +6371,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
   BasePage* metadata = chunk->Metadata(isolate);
-  CHECK_EQ(NEW_LO_SPACE, MutablePageMetadata::cast(metadata)->owner_identity());
+  CHECK_EQ(NEW_LO_SPACE, MutablePage::cast(metadata)->owner_identity());
   CHECK(metadata->is_large());
   CHECK(chunk->IsToPage());
 
@@ -6384,8 +6383,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // After the first full GC array_small will be in the old generation
   // large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE,
-           MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
+  CHECK_EQ(LO_SPACE, MutablePage::cast(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6406,7 +6404,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
           isolate->factory()->NewFixedArray(20000);
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
       CHECK_EQ(NEW_LO_SPACE,
-               MutablePageMetadata::cast(chunk->Metadata())->owner_identity());
+               MutablePage::cast(chunk->Metadata())->owner_identity());
       CHECK(chunk->IsToPage());
     }
   }
@@ -6429,31 +6427,28 @@ TEST(UncommitUnusedLargeObjectMemory) {
   DirectHandle<FixedArray> array =
       isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
-  CHECK_EQ(MutablePageMetadata::cast(chunk->Metadata())->owner_identity(),
-           LO_SPACE);
+  CHECK_EQ(MutablePage::cast(chunk->Metadata())->owner_identity(), LO_SPACE);
 
   intptr_t size_before = array->Size();
   size_t committed_memory_before =
-      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory();
+      MutablePage::cast(chunk->Metadata())->CommittedPhysicalMemory();
 
   array->RightTrim(isolate, 1);
   CHECK(array->Size() < size_before);
 
   heap::InvokeMajorGC(heap);
-  CHECK(
-      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory() <
-      committed_memory_before);
+  CHECK(MutablePage::cast(chunk->Metadata())->CommittedPhysicalMemory() <
+        committed_memory_before);
   size_t shrinked_size = RoundUp(
       (array->address() - chunk->address()) + array->Size(), CommitPageSize());
-  CHECK_EQ(
-      shrinked_size,
-      MutablePageMetadata::cast(chunk->Metadata())->CommittedPhysicalMemory());
+  CHECK_EQ(shrinked_size,
+           MutablePage::cast(chunk->Metadata())->CommittedPhysicalMemory());
 }
 
 template <RememberedSetType direction>
 static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
   size_t count = 0;
-  auto chunk = MutablePageMetadata::FromHeapObject(CcTest::i_isolate(), obj);
+  auto chunk = MutablePage::FromHeapObject(CcTest::i_isolate(), obj);
   RememberedSet<direction>::Iterate(
       chunk,
       [&count](MaybeObjectSlot slot) {
@@ -6621,8 +6616,7 @@ TEST(RememberedSetRemoveRange) {
 
   DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(
       PageMetadata::kPageSize / kTaggedSize, AllocationType::kOld);
-  MutablePageMetadata* chunk =
-      MutablePageMetadata::FromHeapObject(isolate, *array);
+  MutablePage* chunk = MutablePage::FromHeapObject(isolate, *array);
   CHECK_EQ(chunk->owner_identity(), LO_SPACE);
   Address start = array->address();
   // Maps slot to boolean indicator of whether the slot should be in the set.
@@ -7259,17 +7253,17 @@ TEST(CodeObjectRegistry) {
     DirectHandle<InstructionStream> code2 = DummyOptimizedCode(isolate);
     code2_address = code2->address();
 
-    CHECK_EQ(MutablePageMetadata::FromHeapObject(isolate, *code1),
-             MutablePageMetadata::FromHeapObject(isolate, *code2));
-    CHECK(MutablePageMetadata::FromHeapObject(isolate, *code1)
+    CHECK_EQ(MutablePage::FromHeapObject(isolate, *code1),
+             MutablePage::FromHeapObject(isolate, *code2));
+    CHECK(MutablePage::FromHeapObject(isolate, *code1)
               ->Contains(code1->address()));
-    CHECK(MutablePageMetadata::FromHeapObject(isolate, *code2)
+    CHECK(MutablePage::FromHeapObject(isolate, *code2)
               ->Contains(code2->address()));
   }
   heap::InvokeMemoryReducingMajorGCs(heap);
-  CHECK(MutablePageMetadata::FromHeapObject(isolate, *code1)
-            ->Contains(code1->address()));
-  CHECK(MutablePageMetadata::FromAddress(isolate, code2_address)
+  CHECK(
+      MutablePage::FromHeapObject(isolate, *code1)->Contains(code1->address()));
+  CHECK(MutablePage::FromAddress(isolate, code2_address)
             ->Contains(code2_address));
 }
 

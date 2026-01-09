@@ -135,7 +135,7 @@ void MemoryChunk::InitializationMemoryFence() {
   // Since TSAN does not process memory fences, we use the following annotation
   // to tell TSAN that there is no data race when emitting a
   // InitializationMemoryFence. Note that the other thread still needs to
-  // perform MutablePageMetadata::synchronized_heap().
+  // perform MutablePage::synchronized_heap().
   Metadata()->SynchronizedHeapStore();
 #ifndef V8_ENABLE_SANDBOX
   base::Release_Store(reinterpret_cast<base::AtomicWord*>(&metadata_),

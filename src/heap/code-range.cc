@@ -159,7 +159,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     requested = kMinimumCodeRangeSize;
   }
 
-  const size_t kPageSize = MutablePageMetadata::kPageSize;
+  const size_t kPageSize = MutablePage::kPageSize;
   const size_t allocate_page_size = page_allocator->AllocatePageSize();
   CHECK(IsAligned(kPageSize, allocate_page_size));
 

@@ -153,7 +153,7 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
   MemoryChunkIterator chunk_iterator(heap);
 
   while (chunk_iterator.HasNext()) {
-    MutablePageMetadata* chunk = chunk_iterator.Next();
+    MutablePage* chunk = chunk_iterator.Next();
 
     // Old-to-old slot sets must be empty after evacuation.
     DCHECK_NULL((chunk->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
@@ -188,11 +188,10 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
   }
 
   if (v8_flags.sticky_mark_bits) {
-    OldGenerationMemoryChunkIterator::ForAll(
-        heap, [](MutablePageMetadata* chunk) {
-          DCHECK(!chunk->ContainsSlots<OLD_TO_NEW>());
-          DCHECK(!chunk->ContainsSlots<OLD_TO_NEW_BACKGROUND>());
-        });
+    OldGenerationMemoryChunkIterator::ForAll(heap, [](MutablePage* chunk) {
+      DCHECK(!chunk->ContainsSlots<OLD_TO_NEW>());
+      DCHECK(!chunk->ContainsSlots<OLD_TO_NEW_BACKGROUND>());
+    });
   }
 }
 #endif  // DEBUG

@@ -13,7 +13,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/main-allocator-inl.h"
-#include "src/heap/mutable-page-metadata-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 
@@ -40,7 +40,7 @@ ConstPageRange::ConstPageRange(const PageMetadata* page)
 OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
     : heap_(heap), state_(kOldSpace), iterator_(heap->old_space()->begin()) {}
 
-MutablePageMetadata* OldGenerationMemoryChunkIterator::next() {
+MutablePage* OldGenerationMemoryChunkIterator::next() {
   switch (state_) {
     case kOldSpace: {
       PageIterator& iterator = std::get<PageIterator>(iterator_);
@@ -100,8 +100,8 @@ bool MemoryChunkIterator::HasNext() {
   return false;
 }
 
-MutablePageMetadata* MemoryChunkIterator::Next() {
-  MutablePageMetadata* chunk = current_chunk_;
+MutablePage* MemoryChunkIterator::Next() {
+  MutablePage* chunk = current_chunk_;
   current_chunk_ = chunk->list_node().next();
   return chunk;
 }

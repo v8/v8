@@ -15,7 +15,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/instance-type.h"

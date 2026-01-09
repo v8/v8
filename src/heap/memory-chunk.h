@@ -32,7 +32,7 @@ class ExternalReference;
 class Heap;
 class LargePageMetadata;
 class BasePage;
-class MutablePageMetadata;
+class MutablePage;
 class PageMetadata;
 class ReadOnlyPage;
 template <typename T>
@@ -360,7 +360,7 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 #endif
 
   // For main_thread_flags_.
-  friend class MutablePageMetadata;
+  friend class MutablePage;
   // For kMetadataPointerTableSizeMask, FlagsOffset(), MetadataIndexOffset(),
   // MetadataOffset().
   friend class CodeStubAssembler;

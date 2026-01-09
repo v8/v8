@@ -12,7 +12,7 @@
 #include "src/heap/large-page-metadata.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/tasks/cancelable-task.h"
 
 namespace v8::internal {
@@ -398,7 +398,7 @@ size_t MemoryPool::GetSharedCount() const { return page_pool_.SharedSize(); }
 
 size_t MemoryPool::GetTotalCount() const { return page_pool_.Size(); }
 
-void MemoryPool::Add(Isolate* isolate, MutablePageMetadata* page) {
+void MemoryPool::Add(Isolate* isolate, MutablePage* page) {
   DCHECK_NOT_NULL(isolate);
   page_pool_.PutLocal(
       isolate,

@@ -17,7 +17,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/large-page-metadata.h"
 #include "src/heap/memory-pool.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/zapping.h"
 #include "src/logging/log.h"
@@ -116,9 +116,8 @@ Address MemoryAllocator::AllocateAlignedMemory(
   DCHECK_LT(area_size, chunk_size);
 
   PageAllocator::Permission permissions =
-      executable == EXECUTABLE
-          ? MutablePageMetadata::GetCodeModificationPermission()
-          : PageAllocator::kReadWrite;
+      executable == EXECUTABLE ? MutablePage::GetCodeModificationPermission()
+                               : PageAllocator::kReadWrite;
 
   v8::PageAllocator::AllocationHint page_allocation_hint =
       v8::PageAllocator::AllocationHint().WithAddress(address_hint);
@@ -289,8 +288,7 @@ void MemoryAllocator::UnregisterMemoryChunk(BasePage* chunk_metadata) {
     DCHECK_GE(size_executable_, size);
     size_executable_ -= size;
 #ifdef DEBUG
-    UnregisterExecutableMemoryChunk(
-        static_cast<MutablePageMetadata*>(chunk_metadata));
+    UnregisterExecutableMemoryChunk(static_cast<MutablePage*>(chunk_metadata));
 #endif  // DEBUG
 
     ThreadIsolation::UnregisterJitPage(chunk->address(),
@@ -299,14 +297,13 @@ void MemoryAllocator::UnregisterMemoryChunk(BasePage* chunk_metadata) {
   // For non-RO pages we want to set them as UNREGISTERED to allow actually
   // freeing them.
   if (!chunk->InReadOnlySpace()) {
-    // Cannot use MutablePageMetadata::cast() because that relies on having an
+    // Cannot use MutablePage::cast() because that relies on having an
     // owner() which is unsed at this point.
-    reinterpret_cast<MutablePageMetadata*>(chunk_metadata)
-        ->set_is_unregistered();
+    reinterpret_cast<MutablePage*>(chunk_metadata)->set_is_unregistered();
   }
 }
 
-void MemoryAllocator::UnregisterMutableMemoryChunk(MutablePageMetadata* page) {
+void MemoryAllocator::UnregisterMutableMemoryChunk(MutablePage* page) {
   UnregisterMemoryChunk(page);
 }
 
@@ -336,7 +333,7 @@ void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
   delete chunk;
 }
 
-void MemoryAllocator::PreFreeMemory(MutablePageMetadata* chunk_metadata) {
+void MemoryAllocator::PreFreeMemory(MutablePage* chunk_metadata) {
   MemoryChunk* chunk = chunk_metadata->Chunk();
   DCHECK(!chunk_metadata->is_pre_freed());
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk_metadata));
@@ -349,7 +346,7 @@ void MemoryAllocator::PreFreeMemory(MutablePageMetadata* chunk_metadata) {
   chunk_metadata->set_is_pre_freed();
 }
 
-void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk_metadata) {
+void MemoryAllocator::PerformFreeMemory(MutablePage* chunk_metadata) {
   DCHECK(chunk_metadata->is_unregistered());
   DCHECK(chunk_metadata->is_pre_freed());
   DCHECK(!chunk_metadata->Chunk()->InReadOnlySpace());
@@ -358,7 +355,7 @@ void MemoryAllocator::PerformFreeMemory(MutablePageMetadata* chunk_metadata) {
 }
 
 void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
-                           MutablePageMetadata* page_metadata) {
+                           MutablePage* page_metadata) {
   PreFreeMemory(page_metadata);
   switch (mode) {
     case FreeMode::kImmediately:
@@ -388,7 +385,7 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
       // out of the pool again.
       DCHECK(page_metadata->IsLivenessClear());
       DCHECK_EQ(page_metadata->size(),
-                static_cast<size_t>(MutablePageMetadata::kPageSize));
+                static_cast<size_t>(MutablePage::kPageSize));
       DCHECK(!page_metadata->is_executable());
 #endif  // DEBUG
       if (auto* pool = memory_pool()) {
@@ -604,7 +601,7 @@ MemoryAllocator::AllocateUninitializedPageFromDelayedOrPool(Space* space) {
   if (!maybe_result.has_value()) {
     return {};
   }
-  const int size = MutablePageMetadata::kPageSize;
+  const int size = MutablePage::kPageSize;
   const Address start = maybe_result->uninitialized_chunk.begin();
   // Pooled pages are always regular data pages.
   DCHECK_NE(CODE_SPACE, space->identity());
@@ -687,9 +684,8 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
     return vm->RecommitPages(start, chunk_size,
                              PageAllocator::kReadWriteExecute);
   } else {
-    return vm->SetPermissions(
-        start, chunk_size,
-        MutablePageMetadata::GetCodeModificationPermission());
+    return vm->SetPermissions(start, chunk_size,
+                              MutablePage::GetCodeModificationPermission());
   }
 }
 
@@ -760,7 +756,7 @@ void MemoryAllocator::RecordMemoryChunkDestroyed(const BasePage* metadata) {
 }
 
 // static
-void MemoryAllocator::DeleteMemoryChunk(MutablePageMetadata* metadata) {
+void MemoryAllocator::DeleteMemoryChunk(MutablePage* metadata) {
   DCHECK(metadata->reserved_memory()->IsReserved());
   // The Metadata contains a VirtualMemory reservation and the destructor will
   // release the MemoryChunk.
@@ -812,16 +808,14 @@ void MemoryAllocator::UpdateAllocatedSpaceLimits(Address low, Address high,
 }
 
 #ifdef DEBUG
-void MemoryAllocator::RegisterExecutableMemoryChunk(
-    MutablePageMetadata* chunk) {
+void MemoryAllocator::RegisterExecutableMemoryChunk(MutablePage* chunk) {
   base::MutexGuard guard(&executable_memory_mutex_);
   DCHECK(chunk->is_executable());
   DCHECK_EQ(executable_memory_.find(chunk), executable_memory_.end());
   executable_memory_.insert(chunk);
 }
 
-void MemoryAllocator::UnregisterExecutableMemoryChunk(
-    MutablePageMetadata* chunk) {
+void MemoryAllocator::UnregisterExecutableMemoryChunk(MutablePage* chunk) {
   base::MutexGuard guard(&executable_memory_mutex_);
   DCHECK_NE(executable_memory_.find(chunk), executable_memory_.end());
   executable_memory_.erase(chunk);

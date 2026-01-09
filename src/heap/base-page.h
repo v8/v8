@@ -81,7 +81,7 @@ class BasePage {
 
   bool IsReadOnlyPage() const { return IsReadOnlyPageField::decode(flags_); }
 
-  bool IsMutablePageMetadata() const { return !IsReadOnlyPage(); }
+  bool IsMutablePage() const { return !IsReadOnlyPage(); }
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();
@@ -214,7 +214,7 @@ class BasePage {
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
-  // mark-bit initialization. See MutablePageMetadata::Initialize for the
+  // mark-bit initialization. See MutablePage::Initialize for the
   // corresponding release store.
   void SynchronizedHeapLoad() const;
   void SynchronizedHeapStore();
@@ -272,8 +272,7 @@ class BasePage {
   Address area_end_;
 
   // The most accessed fields start at heap_ and end at
-  // MutablePageMetadata::slot_set_. See
-  // MutablePageMetadata::MutablePageMetadata() for details.
+  // MutablePage::slot_set_. See MutablePage::MutablePage() for details.
 
   // The heap this chunk belongs to. May be null for read-only chunks.
   Heap* heap_;

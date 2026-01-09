@@ -9,7 +9,7 @@
 #include "src/common/globals.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
-#include "src/heap/mutable-page-metadata-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/visit-object.h"
 #include "src/objects/allocation-site.h"
@@ -874,7 +874,7 @@ SnapshotSpace GetSnapshotSpace(Isolate* isolate, Tagged<HeapObject> object) {
     return SnapshotSpace::kReadOnlyHeap;
   } else {
     AllocationSpace heap_space =
-        MutablePageMetadata::FromHeapObject(isolate, object)->owner_identity();
+        MutablePage::FromHeapObject(isolate, object)->owner_identity();
     // Large code objects are not supported and cannot be expressed by
     // SnapshotSpace.
     DCHECK_NE(heap_space, CODE_LO_SPACE);

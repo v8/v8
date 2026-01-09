@@ -36,8 +36,8 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/mutable-page-metadata-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page-inl.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/page-metadata.h"
 #include "src/heap/parallel-work-item.h"
@@ -76,8 +76,7 @@ template <RememberedSetType kType>
 void AddToRememberedSet(const Heap* heap, const Tagged<HeapObject> host,
                         Address slot) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
-  MutablePageMetadata* page =
-      MutablePageMetadata::cast(chunk->Metadata(heap->isolate()));
+  MutablePage* page = MutablePage::cast(chunk->Metadata(heap->isolate()));
   RememberedSet<kType>::template Insert<AccessMode::ATOMIC>(
       page, chunk->Offset(slot));
 }
@@ -298,7 +297,7 @@ class Scavenger {
       ::heap::base::Worklist<ScavengedObjectListEntry,
                              kScavengedObjectListSegmentSize>;
 
-  using EmptyChunksList = ::heap::base::Worklist<MutablePageMetadata*, 64>;
+  using EmptyChunksList = ::heap::base::Worklist<MutablePage*, 64>;
 
   Scavenger(Heap* heap, bool is_logging, EmptyChunksList* empty_chunks,
             ScavengedObjectList* copied_list,
@@ -310,7 +309,7 @@ class Scavenger {
 
   // Entry point for scavenging an old generation page. For scavenging single
   // objects see RootScavengingVisitor and ScavengerCopiedObjectVisitor below.
-  void ScavengePage(MutablePageMetadata* page);
+  void ScavengePage(MutablePage* page);
 
   // Processes remaining work (=objects) after single objects have been
   // manually scavenged using ScavengeObject or CheckAndScavengeObject.
@@ -326,8 +325,8 @@ class Scavenger {
   // Returns true if the object is a large young object, and false otherwise.
   bool PromoteIfLargeObject(Tagged<HeapObject> object);
 
-  void PinAndPushObject(MutablePageMetadata* metadata,
-                        Tagged<HeapObject> object, MapWord map_word);
+  void PinAndPushObject(MutablePage* metadata, Tagged<HeapObject> object,
+                        MapWord map_word);
 
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
@@ -343,7 +342,7 @@ class Scavenger {
 
   inline void SynchronizePageAccess(Tagged<MaybeObject> object) const;
 
-  void AddPageToSweeperIfNecessary(MutablePageMetadata* page);
+  void AddPageToSweeperIfNecessary(MutablePage* page);
 
   // Potentially scavenges an object referenced from |slot| if it is
   // indeed a HeapObject and resides in from space.
@@ -352,10 +351,9 @@ class Scavenger {
 
   template <typename TSlot>
   inline void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
-                                                MutablePageMetadata* page,
-                                                TSlot slot);
+                                                MutablePage* page, TSlot slot);
   inline void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
-                                              MutablePageMetadata* page,
+                                              MutablePage* page,
                                               SlotType slot_type,
                                               Address slot_address,
                                               Tagged<MaybeObject> new_target);
@@ -703,8 +701,7 @@ class ScavengerJobTask : public v8::JobTask {
  public:
   ScavengerJobTask(
       Heap* heap, std::vector<std::unique_ptr<Scavenger>>* scavengers,
-      std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-          old_to_new_chunks,
+      std::vector<std::pair<ParallelWorkItem, MutablePage*>> old_to_new_chunks,
       const Scavenger::ScavengedObjectList& copied_list,
       const Scavenger::ScavengedObjectList& promoted_list,
       std::atomic<size_t>& estimate_concurrency);
@@ -721,8 +718,7 @@ class ScavengerJobTask : public v8::JobTask {
   Heap* const heap_;
 
   std::vector<std::unique_ptr<Scavenger>>* scavengers_;
-  std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-      old_to_new_chunks_;
+  std::vector<std::pair<ParallelWorkItem, MutablePage*>> old_to_new_chunks_;
   std::atomic<size_t> remaining_memory_chunks_{0};
   IndexGenerator generator_;
 
@@ -735,8 +731,7 @@ class ScavengerJobTask : public v8::JobTask {
 
 ScavengerJobTask::ScavengerJobTask(
     Heap* heap, std::vector<std::unique_ptr<Scavenger>>* scavengers,
-    std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-        old_to_new_chunks,
+    std::vector<std::pair<ParallelWorkItem, MutablePage*>> old_to_new_chunks,
     const Scavenger::ScavengedObjectList& copied_list,
     const Scavenger::ScavengedObjectList& promoted_list,
     std::atomic<size_t>& estimate_concurrency)
@@ -828,7 +823,7 @@ struct PinnedObjectEntry {
   Address address;
   MapWord map_word;
   SafeHeapObjectSize size;
-  MutablePageMetadata* metadata;
+  MutablePage* metadata;
 };
 using PinnedObjects = std::vector<PinnedObjectEntry>;
 
@@ -1100,8 +1095,8 @@ class ObjectPinningVisitorBase : public RootVisitor {
       return;
     }
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-    MutablePageMetadata* metadata =
-        MutablePageMetadata::cast(chunk->Metadata(heap_->isolate()));
+    MutablePage* metadata =
+        MutablePage::cast(chunk->Metadata(heap_->isolate()));
     DCHECK(!metadata->is_large());
     DCHECK(HeapLayout::InYoungGeneration(object));
     DCHECK(Heap::InFromPage(object));
@@ -1645,8 +1640,7 @@ void ScavengerCollector::CollectGarbage() {
     isolate->traced_handles()->ComputeWeaknessForYoungObjects();
   }
 
-  std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-      old_to_new_chunks;
+  std::vector<std::pair<ParallelWorkItem, MutablePage*>> old_to_new_chunks;
   {
     // Copy roots.
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
@@ -1655,7 +1649,7 @@ void ScavengerCollector::CollectGarbage() {
     // pages could be removed from the old generation for allocation which
     // hides them from the iteration.
     OldGenerationMemoryChunkIterator::ForAll(
-        heap_, [&old_to_new_chunks](MutablePageMetadata* chunk) {
+        heap_, [&old_to_new_chunks](MutablePage* chunk) {
           if (chunk->slot_set<OLD_TO_NEW>() ||
               chunk->typed_slot_set<OLD_TO_NEW>() ||
               chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
@@ -1814,7 +1808,7 @@ void ScavengerCollector::CollectGarbage() {
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
     Scavenger::EmptyChunksList::Local empty_chunks_local(empty_chunks);
-    MutablePageMetadata* chunk;
+    MutablePage* chunk;
     while (empty_chunks_local.Pop(&chunk)) {
       RememberedSet<OLD_TO_NEW>::CheckPossiblyEmptyBuckets(chunk);
       RememberedSet<OLD_TO_NEW_BACKGROUND>::CheckPossiblyEmptyBuckets(chunk);
@@ -1822,7 +1816,7 @@ void ScavengerCollector::CollectGarbage() {
 
 #ifdef DEBUG
     OldGenerationMemoryChunkIterator::ForAll(
-        heap_, [](MutablePageMetadata* chunk) {
+        heap_, [](MutablePage* chunk) {
           if (chunk->slot_set<OLD_TO_NEW>() ||
               chunk->typed_slot_set<OLD_TO_NEW>() ||
               chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
@@ -2018,9 +2012,9 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
     return false;
   }
 
-  DCHECK_EQ(NEW_LO_SPACE,
-            MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
-                ->owner_identity());
+  DCHECK_EQ(
+      NEW_LO_SPACE,
+      MutablePage::FromHeapObject(heap_->isolate(), object)->owner_identity());
   if (object->relaxed_compare_and_swap_map_word_forwarded(MapWord::FromMap(map),
                                                           object)) {
     local_surviving_new_large_objects_.insert({object, map});
@@ -2396,7 +2390,7 @@ bool IsObjectInSlotShared(SlotType slot) {
 #endif  // DEBUG
 }  // namespace
 
-void Scavenger::ScavengePage(MutablePageMetadata* page) {
+void Scavenger::ScavengePage(MutablePage* page) {
   const bool record_old_to_shared_slots = heap_->isolate()->has_shared_space();
 
   MemoryChunk* chunk = page->Chunk();
@@ -2561,7 +2555,7 @@ void Scavenger::AddEphemeronHashTable(Tagged<EphemeronHashTable> table) {
 
 template <typename TSlot>
 void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
-                                                  MutablePageMetadata* page,
+                                                  MutablePage* page,
                                                   TSlot slot) {
   Tagged<MaybeObject> object = *slot;
   Tagged<HeapObject> heap_object;
@@ -2574,7 +2568,7 @@ void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
 }
 
 void Scavenger::CheckOldToNewSlotForSharedTyped(
-    MemoryChunk* chunk, MutablePageMetadata* page, SlotType slot_type,
+    MemoryChunk* chunk, MutablePage* page, SlotType slot_type,
     Address slot_address, Tagged<MaybeObject> new_target) {
   Tagged<HeapObject> heap_object;
 
@@ -2595,7 +2589,7 @@ bool Scavenger::PromoteIfLargeObject(Tagged<HeapObject> object) {
                            Map::ObjectFieldsFrom(map->visitor_id()));
 }
 
-void Scavenger::PinAndPushObject(MutablePageMetadata* metadata,
+void Scavenger::PinAndPushObject(MutablePage* metadata,
                                  Tagged<HeapObject> object, MapWord map_word) {
   DCHECK(metadata->Contains(object->address()));
   DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));

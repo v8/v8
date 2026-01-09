@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 class BasePage;
-class MutablePageMetadata;
+class MutablePage;
 
 template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {

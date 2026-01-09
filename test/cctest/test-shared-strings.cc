@@ -14,7 +14,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -956,8 +956,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
     old_object->set(0, *one_byte_seq);
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_NEW>::Contains(
-        MutablePageMetadata::cast(
-            MutablePageMetadata::cast(old_object_chunk->Metadata())),
+        MutablePage::cast(MutablePage::cast(old_object_chunk->Metadata())),
         slot.address()));
 
     {
@@ -975,8 +974,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePageMetadata::cast(old_object_chunk->Metadata()),
-        slot.address()));
+        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
   }
 }
 
@@ -1021,8 +1019,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     }
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_NEW>::Contains(
-        MutablePageMetadata::cast(old_object_chunk->Metadata()),
-        slot.address()));
+        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
 
     {
       // We need to invoke GC without stack, otherwise no compaction is
@@ -1041,8 +1038,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePageMetadata::cast(old_object_chunk->Metadata()),
-        slot.address()));
+        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
   }
 }
 
@@ -1098,8 +1094,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
       old_object->set(0, *one_byte_seq);
       slot = old_object->RawFieldOfFirstElement();
       CHECK(!RememberedSet<OLD_TO_NEW>::Contains(
-          MutablePageMetadata::cast(old_object_chunk->Metadata()),
-          slot.address()));
+          MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
 
       heap::ForceEvacuationCandidate(
           PageMetadata::FromHeapObject(*one_byte_seq));
@@ -1124,8 +1119,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePageMetadata::cast(old_object_chunk->Metadata()),
-        slot.address()));
+        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
   }
 }
 
@@ -1178,8 +1172,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
     // create an OLD_TO_SHARED slot.
     ObjectSlot slot = young_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePageMetadata::FromHeapObject(i_isolate, *young_object),
-        slot.address()));
+        MutablePage::FromHeapObject(i_isolate, *young_object), slot.address()));
   }
 }
 
@@ -2226,7 +2219,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       // create an OLD_TO_SHARED slot.
       ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-          MutablePageMetadata::FromHeapObject(i_client, *young_object),
+          MutablePage::FromHeapObject(i_client, *young_object),
           slot.address()));
     }
 
@@ -2413,7 +2406,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       // create an OLD_TO_SHARED slot.
       ObjectSlot slot = young_object->RawFieldOfFirstElement();
       CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-          MutablePageMetadata::FromHeapObject(i_client, *young_object),
+          MutablePage::FromHeapObject(i_client, *young_object),
           slot.address()));
     }
 

@@ -14,7 +14,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/logging/counters.h"
@@ -199,10 +199,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<IntPtrT> LoadSlotSet(TNode<IntPtrT> page, Label* slow_path) {
-    TNode<IntPtrT> slot_set = UncheckedCast<IntPtrT>(
-        Load(MachineType::Pointer(), page,
-             IntPtrConstant(MutablePageMetadata::SlotSetOffset(
-                 RememberedSetType::OLD_TO_NEW))));
+    TNode<IntPtrT> slot_set =
+        UncheckedCast<IntPtrT>(Load(MachineType::Pointer(), page,
+                                    IntPtrConstant(MutablePage::SlotSetOffset(
+                                        RememberedSetType::OLD_TO_NEW))));
     GotoIf(WordEqual(slot_set, IntPtrConstant(0)), slow_path);
     return slot_set;
   }

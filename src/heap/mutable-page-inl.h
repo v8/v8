@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_MUTABLE_PAGE_METADATA_INL_H_
-#define V8_HEAP_MUTABLE_PAGE_METADATA_INL_H_
+#ifndef V8_HEAP_MUTABLE_PAGE_INL_H_
+#define V8_HEAP_MUTABLE_PAGE_INL_H_
 
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/base-page-inl.h"
@@ -16,24 +16,23 @@ namespace v8 {
 namespace internal {
 
 // static
-MutablePageMetadata* MutablePageMetadata::FromAddress(const Isolate* i,
-                                                      Address a) {
+MutablePage* MutablePage::FromAddress(const Isolate* i, Address a) {
   return cast(BasePage::FromAddress(i, a));
 }
 
 // static
-MutablePageMetadata* MutablePageMetadata::FromHeapObject(const Isolate* i,
-                                                         Tagged<HeapObject> o) {
+MutablePage* MutablePage::FromHeapObject(const Isolate* i,
+                                         Tagged<HeapObject> o) {
   return cast(BasePage::FromHeapObject(i, o));
 }
 
 template <AccessMode mode>
-void MutablePageMetadata::ClearLiveness() {
+void MutablePage::ClearLiveness() {
   marking_bitmap()->Clear<mode>();
   SetLiveBytes(0);
 }
 
-void MutablePageMetadata::SetMajorGCInProgress() {
+void MutablePage::SetMajorGCInProgress() {
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
   DCHECK(v8_flags.sticky_mark_bits);
   SetFlagUnlocked(MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS);
@@ -42,7 +41,7 @@ void MutablePageMetadata::SetMajorGCInProgress() {
 #endif
 }
 
-void MutablePageMetadata::ResetMajorGCInProgress() {
+void MutablePage::ResetMajorGCInProgress() {
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
   DCHECK(v8_flags.sticky_mark_bits);
   ClearFlagUnlocked(MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS);
@@ -51,25 +50,24 @@ void MutablePageMetadata::ResetMajorGCInProgress() {
 #endif
 }
 
-void MutablePageMetadata::ClearFlagsNonExecutable(
-    MemoryChunk::MainThreadFlags flags) {
+void MutablePage::ClearFlagsNonExecutable(MemoryChunk::MainThreadFlags flags) {
   return ClearFlagsUnlocked(flags);
 }
 
-void MutablePageMetadata::SetFlagsNonExecutable(
-    MemoryChunk::MainThreadFlags flags, MemoryChunk::MainThreadFlags mask) {
+void MutablePage::SetFlagsNonExecutable(MemoryChunk::MainThreadFlags flags,
+                                        MemoryChunk::MainThreadFlags mask) {
   return SetFlagsUnlocked(flags, mask);
 }
 
-void MutablePageMetadata::ClearFlagNonExecutable(MemoryChunk::Flag flag) {
+void MutablePage::ClearFlagNonExecutable(MemoryChunk::Flag flag) {
   return ClearFlagUnlocked(flag);
 }
 
-void MutablePageMetadata::SetFlagNonExecutable(MemoryChunk::Flag flag) {
+void MutablePage::SetFlagNonExecutable(MemoryChunk::Flag flag) {
   return SetFlagUnlocked(flag);
 }
 
-V8_INLINE void MutablePageMetadata::RawSetTrustedAndUntrustedFlags(
+V8_INLINE void MutablePage::RawSetTrustedAndUntrustedFlags(
     MemoryChunk::MainThreadFlags new_flags) {
 #ifdef V8_ENABLE_SANDBOX
   // Must copy out as the SBXCHECK() macros are not allowed to access the
@@ -83,26 +81,25 @@ V8_INLINE void MutablePageMetadata::RawSetTrustedAndUntrustedFlags(
   Chunk()->untrusted_main_thread_flags_ = trusted_main_thread_flags_;
 }
 
-void MutablePageMetadata::SetFlagsUnlocked(MemoryChunk::MainThreadFlags flags,
-                                           MemoryChunk::MainThreadFlags mask) {
+void MutablePage::SetFlagsUnlocked(MemoryChunk::MainThreadFlags flags,
+                                   MemoryChunk::MainThreadFlags mask) {
   RawSetTrustedAndUntrustedFlags((trusted_main_thread_flags_ & ~mask) |
                                  (flags & mask));
 }
 
-void MutablePageMetadata::ClearFlagsUnlocked(
-    MemoryChunk::MainThreadFlags flags) {
+void MutablePage::ClearFlagsUnlocked(MemoryChunk::MainThreadFlags flags) {
   RawSetTrustedAndUntrustedFlags(trusted_main_thread_flags_ & ~flags);
 }
 
-void MutablePageMetadata::SetFlagUnlocked(MemoryChunk::Flag flag) {
+void MutablePage::SetFlagUnlocked(MemoryChunk::Flag flag) {
   RawSetTrustedAndUntrustedFlags(trusted_main_thread_flags_ | flag);
 }
 
-void MutablePageMetadata::ClearFlagUnlocked(MemoryChunk::Flag flag) {
+void MutablePage::ClearFlagUnlocked(MemoryChunk::Flag flag) {
   RawSetTrustedAndUntrustedFlags(trusted_main_thread_flags_.without(flag));
 }
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_MUTABLE_PAGE_METADATA_INL_H_
+#endif  // V8_HEAP_MUTABLE_PAGE_INL_H_

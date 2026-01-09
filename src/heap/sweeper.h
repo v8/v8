@@ -25,7 +25,7 @@
 namespace v8 {
 namespace internal {
 
-class MutablePageMetadata;
+class MutablePage;
 class NonAtomicMarkingState;
 class PageMetadata;
 class LargePageMetadata;
@@ -88,7 +88,7 @@ class Sweeper {
 
     bool ParallelIteratePromotedPages(JobDelegate* delegate);
     bool ParallelIteratePromotedPages();
-    void ParallelIteratePromotedPage(MutablePageMetadata* page);
+    void ParallelIteratePromotedPage(MutablePage* page);
 
     template <typename ShouldYieldCallback>
     bool ContributeAndWaitForPromotedPagesIterationImpl(
@@ -123,7 +123,7 @@ class Sweeper {
 
   void AddPage(AllocationSpace space, PageMetadata* page);
   void AddNewSpacePage(PageMetadata* page);
-  void AddPromotedPage(MutablePageMetadata* chunk);
+  void AddPromotedPage(MutablePage* chunk);
 
   // Returns true if any swept pages can be allocated on.
   bool ParallelSweepSpace(
@@ -249,9 +249,9 @@ class Sweeper {
   size_t ConcurrentMajorSweepingPageCount();
 
   PageMetadata* GetSweepingPageSafe(AllocationSpace space);
-  MutablePageMetadata* GetPromotedPageSafe();
+  MutablePage* GetPromotedPageSafe();
   bool TryRemoveSweepingPageSafe(AllocationSpace space, PageMetadata* page);
-  bool TryRemovePromotedPageSafe(MutablePageMetadata* chunk);
+  bool TryRemovePromotedPageSafe(MutablePage* chunk);
 
   void PrepareToBeSweptPage(AllocationSpace space, PageMetadata* page);
   void PrepareToBeIteratedPromotedPage(PageMetadata* page);
@@ -265,7 +265,7 @@ class Sweeper {
     return space - FIRST_SWEEPABLE_SPACE;
   }
 
-  void NotifyPromotedPageIterationFinished(MutablePageMetadata* chunk);
+  void NotifyPromotedPageIterationFinished(MutablePage* chunk);
   void NotifyPromotedPagesIterationFinished();
 
   void AddSweptPage(PageMetadata* page, AllocationSpace identity);
@@ -326,7 +326,7 @@ class Sweeper {
   SweepingList sweeping_list_[kNumberOfSweepingSpaces];
   std::atomic<bool> has_sweeping_work_[kNumberOfSweepingSpaces]{false};
   std::atomic<bool> has_swept_pages_[kNumberOfSweepingSpaces]{false};
-  std::vector<MutablePageMetadata*> sweeping_list_for_promoted_page_iteration_;
+  std::vector<MutablePage*> sweeping_list_for_promoted_page_iteration_;
   LocalSweeper main_thread_local_sweeper_;
   SweepingState<SweepingScope::kMajor> major_sweeping_state_{this};
   SweepingState<SweepingScope::kMinor> minor_sweeping_state_{this};
@@ -365,7 +365,7 @@ template <typename ShouldYieldCallback>
 bool Sweeper::LocalSweeper::ParallelIteratePromotedPagesImpl(
     ShouldYieldCallback should_yield_callback) {
   while (!should_yield_callback()) {
-    MutablePageMetadata* chunk = sweeper_->GetPromotedPageSafe();
+    MutablePage* chunk = sweeper_->GetPromotedPageSafe();
     if (chunk == nullptr) {
       TRACE_GC_NOTE("Sweeper::ParallelIteratePromotedPages Finished");
       return true;

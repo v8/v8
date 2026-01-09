@@ -13,7 +13,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/main-allocator.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
 #include "test/unittests/test-utils.h"
@@ -125,8 +125,7 @@ TEST_F(SpacesTest, WriteBarriers) {
     EXPECT_EQ(1, compaction_space->CountTotalPages());
 
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-    MutablePageMetadata* metadata =
-        MutablePageMetadata::FromHeapObject(i_isolate(), object);
+    MutablePage* metadata = MutablePage::FromHeapObject(i_isolate(), object);
 
     // Marking states.
     EXPECT_FALSE(chunk->IsMarking());
@@ -154,7 +153,7 @@ TEST_F(SpacesTest, WriteBarriers) {
 
 TEST_F(SpacesTest, CodeRangeAddressReuse) {
   CodeRangeAddressHint hint;
-  const size_t base_alignment = MutablePageMetadata::kPageSize;
+  const size_t base_alignment = MutablePage::kPageSize;
   // Create code ranges.
   Address code_range1 = hint.GetAddressHint(100, base_alignment);
   CHECK(IsAligned(code_range1, base_alignment));

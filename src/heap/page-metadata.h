@@ -7,7 +7,7 @@
 
 #include "src/heap/base-space.h"
 #include "src/heap/free-list.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
@@ -21,7 +21,7 @@ class Heap;
 // The only way to get a page pointer is by calling factory methods:
 //   PageMetadata* p = PageMetadata::FromAddress(addr); or
 //   PageMetadata* p = PageMetadata::FromAllocationAreaAddress(address);
-class PageMetadata : public MutablePageMetadata {
+class PageMetadata : public MutablePage {
  public:
   PageMetadata(Heap* heap, BaseSpace* space, size_t size, Address area_start,
                Address area_end, VirtualMemory reservation,
@@ -37,10 +37,10 @@ class PageMetadata : public MutablePageMetadata {
   V8_INLINE static PageMetadata* FromHeapObject(Tagged<HeapObject> o);
 
   static PageMetadata* cast(BasePage* metadata) {
-    return cast(MutablePageMetadata::cast(metadata));
+    return cast(MutablePage::cast(metadata));
   }
 
-  static PageMetadata* cast(MutablePageMetadata* metadata) {
+  static PageMetadata* cast(MutablePage* metadata) {
     DCHECK_IMPLIES(metadata, !metadata->is_large());
     return static_cast<PageMetadata*>(metadata);
   }

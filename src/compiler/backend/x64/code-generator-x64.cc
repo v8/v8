@@ -26,7 +26,7 @@
 #include "src/compiler/osr.h"
 #include "src/execution/frame-constants.h"
 #include "src/heap/heap-write-barrier.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots-inl.h"

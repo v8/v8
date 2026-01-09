@@ -56,7 +56,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/page-metadata-inl.h"
@@ -130,8 +130,8 @@ class FullMarkingVerifier : public MarkingVerifierBase {
   }
 
  protected:
-  const MarkingBitmap* bitmap(const MutablePageMetadata* chunk) override {
-    return chunk->marking_bitmap();
+  const MarkingBitmap* bitmap(const MutablePage* page) override {
+    return page->marking_bitmap();
   }
 
   bool IsMarked(Tagged<HeapObject> object) override {
@@ -189,8 +189,7 @@ class FullMarkingVerifier : public MarkingVerifierBase {
     Tagged<Object> k = *key_slot;
     if (!HeapLayout::InYoungGeneration(host) &&
         HeapLayout::InYoungGeneration(k)) {
-      MutablePageMetadata* page =
-          MutablePageMetadata::FromHeapObject(heap_->isolate(), host);
+      MutablePage* page = MutablePage::FromHeapObject(heap_->isolate(), host);
       // No slots recorded on evacuation candidates.
       CHECK_IMPLIES(!page->is_evacuation_candidate(),
                     RememberedSet<OLD_TO_NEW_BACKGROUND>::Contains(
@@ -568,8 +567,8 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
   LargeObjectSpaceObjectIterator it(space);
   for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     CHECK(non_atomic_marking_state_->IsUnmarked(obj));
-    CHECK_EQ(0, MutablePageMetadata::FromHeapObject(heap_->isolate(), obj)
-                    ->live_bytes());
+    CHECK_EQ(0,
+             MutablePage::FromHeapObject(heap_->isolate(), obj)->live_bytes());
   }
 }
 
@@ -1133,14 +1132,13 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     if (!HeapLayout::InWritableSharedSpace(heap_object)) return;
     DCHECK(HeapLayout::InWritableSharedSpace(heap_object));
     MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-    MutablePageMetadata* host_page_metadata =
-        MutablePageMetadata::cast(host_chunk->Metadata());
+    MutablePage* host_page = MutablePage::cast(host_chunk->Metadata());
     DCHECK(HeapLayout::InYoungGeneration(host));
     // Temporarily record new-to-shared slots in the old-to-shared remembered
     // set so we don't need to iterate the page again later for updating the
     // references.
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-        host_page_metadata, host_chunk->Offset(slot.address()));
+        host_page, host_chunk->Offset(slot.address()));
     if (MarkingHelper::ShouldMarkObject(collector_->heap(), heap_object)) {
       collector_->MarkRootObject(Root::kClientHeap, heap_object,
                                  MarkingHelper::WorklistTarget::kRegular);
@@ -1452,8 +1450,7 @@ class RecordMigratedSlotVisitor
     MemoryChunk* value_chunk = MemoryChunk::FromAddress(value.ptr());
 
     if (HeapLayout::InYoungGeneration(value)) {
-      MutablePageMetadata* host_page =
-          MutablePageMetadata::cast(host_chunk->Metadata());
+      MutablePage* host_page = MutablePage::cast(host_chunk->Metadata());
       DCHECK_IMPLIES(value_chunk->IsToPage(),
                      v8_flags.minor_ms || value_chunk->Metadata()->is_large());
       DCHECK(host_page->SweepingDone());
@@ -1463,10 +1460,10 @@ class RecordMigratedSlotVisitor
     }
 
     if (value_chunk->IsEvacuationCandidate()) {
-      MutablePageMetadata* host_page =
-          MutablePageMetadata::cast(host_chunk->Metadata(heap_->isolate()));
-      const MutablePageMetadata* value_page =
-          MutablePageMetadata::cast(value_chunk->Metadata(heap_->isolate()));
+      MutablePage* host_page =
+          MutablePage::cast(host_chunk->Metadata(heap_->isolate()));
+      const MutablePage* value_page =
+          MutablePage::cast(value_chunk->Metadata(heap_->isolate()));
       if (value_page->is_executable()) {
         DCHECK(OutsideSandbox(value_chunk->address()));
         RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
@@ -1497,11 +1494,11 @@ class RecordMigratedSlotVisitor
     if (value_page->is_writable_shared() && !host_page->is_writable_shared()) {
       if (value_page->is_trusted() && host_page->is_trusted()) {
         RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
-            AccessMode::NON_ATOMIC>(MutablePageMetadata::cast(host_page),
+            AccessMode::NON_ATOMIC>(MutablePage::cast(host_page),
                                     host_chunk->Offset(slot));
       } else {
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-            MutablePageMetadata::cast(host_page), host_chunk->Offset(slot));
+            MutablePage::cast(host_page), host_chunk->Offset(slot));
       }
     }
   }
@@ -1562,11 +1559,11 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   }
 
 #if DEBUG
-  void DisableAbortEvacuationAtAddress(MutablePageMetadata* chunk) {
-    abort_evacuation_at_address_ = chunk->area_end();
+  void DisableAbortEvacuationAtAddress(MutablePage* page) {
+    abort_evacuation_at_address_ = page->area_end();
   }
 
-  void SetUpAbortEvacuationAtAddress(MutablePageMetadata* chunk) {
+  void SetUpAbortEvacuationAtAddress(MutablePage* page) {
     if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
       // Stress aborting of evacuation by aborting ~5% of evacuation candidates
       // when stress testing.
@@ -1575,13 +1572,13 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       if (rng_->NextDouble() < kFraction) {
         const double abort_evacuation_percentage = rng_->NextDouble();
         abort_evacuation_at_address_ =
-            chunk->area_start() +
-            abort_evacuation_percentage * chunk->area_size();
+            page->area_start() +
+            abort_evacuation_percentage * page->area_size();
         return;
       }
     }
 
-    abort_evacuation_at_address_ = chunk->area_end();
+    abort_evacuation_at_address_ = page->area_end();
   }
 #endif  // DEBUG
 
@@ -1677,12 +1674,12 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
                                 SafeHeapObjectSize size,
                                 Tagged<HeapObject>* target_object) {
 #if DEBUG
-    DCHECK_LE(abort_evacuation_at_address_,
-              MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
-                  ->area_end());
-    DCHECK_GE(abort_evacuation_at_address_,
-              MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
-                  ->area_start());
+    DCHECK_LE(
+        abort_evacuation_at_address_,
+        MutablePage::FromHeapObject(heap_->isolate(), object)->area_end());
+    DCHECK_GE(
+        abort_evacuation_at_address_,
+        MutablePage::FromHeapObject(heap_->isolate(), object)->area_start());
 
     if (V8_UNLIKELY(object.address() >= abort_evacuation_at_address_)) {
       return false;
@@ -2043,15 +2040,15 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
 
   // In the old generation we can simply use the OLD_TO_SHARED remembered set to
   // find all incoming pointers into the shared heap.
-  OldGenerationMemoryChunkIterator chunk_iterator(client_heap);
+  OldGenerationMemoryChunkIterator page_iterator(client_heap);
 
   // Tracking OLD_TO_SHARED requires the write barrier.
   DCHECK(!v8_flags.disable_write_barriers);
 
-  for (MutablePageMetadata* chunk = chunk_iterator.next(); chunk;
-       chunk = chunk_iterator.next()) {
+  for (MutablePage* page = page_iterator.next(); page;
+       page = page_iterator.next()) {
     const auto slot_count = RememberedSet<OLD_TO_SHARED>::Iterate(
-        chunk,
+        page,
         [collector = this, cage_base](MaybeObjectSlot slot) {
           Tagged<MaybeObject> obj = slot.Relaxed_Load(cage_base);
           Tagged<HeapObject> heap_object;
@@ -2073,11 +2070,11 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
         },
         SlotSet::FREE_EMPTY_BUCKETS);
     if (slot_count == 0) {
-      chunk->ReleaseSlotSet(OLD_TO_SHARED);
+      page->ReleaseSlotSet(OLD_TO_SHARED);
     }
 
     const auto typed_slot_count = RememberedSet<OLD_TO_SHARED>::IterateTyped(
-        chunk,
+        page,
         [collector = this, client_heap](SlotType slot_type, Address slot) {
           Tagged<HeapObject> heap_object =
               UpdateTypedSlotHelper::GetTargetObject(client_heap, slot_type,
@@ -2097,12 +2094,12 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
           }
         });
     if (typed_slot_count == 0) {
-      chunk->ReleaseTypedSlotSet(OLD_TO_SHARED);
+      page->ReleaseTypedSlotSet(OLD_TO_SHARED);
     }
 
     const auto protected_slot_count =
         RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Iterate(
-            chunk,
+            page,
             [collector = this](MaybeObjectSlot slot) {
               ProtectedPointerSlot protected_slot(slot.address());
               Tagged<MaybeObject> obj = protected_slot.Relaxed_Load();
@@ -2125,7 +2122,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
             },
             SlotSet::FREE_EMPTY_BUCKETS);
     if (protected_slot_count == 0) {
-      chunk->ReleaseSlotSet(TRUSTED_TO_SHARED_TRUSTED);
+      page->ReleaseSlotSet(TRUSTED_TO_SHARED_TRUSTED);
     }
   }
 
@@ -2335,7 +2332,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     }
     const auto visited_size = marking_visitor_->Visit(map, object);
     if (visited_size) {
-      MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
+      MutablePage::FromHeapObject(heap_->isolate(), object)
           ->IncrementLiveBytesAtomically(
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
@@ -3545,8 +3542,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   Tagged<HeapObject> compiled_data = bytecode_array;
   Address compiled_data_start = compiled_data.address();
   int compiled_data_size = ALIGN_TO_ALLOCATION_ALIGNMENT(compiled_data->Size());
-  MutablePageMetadata* chunk =
-      MutablePageMetadata::FromAddress(heap_->isolate(), compiled_data_start);
+  MutablePage* chunk =
+      MutablePage::FromAddress(heap_->isolate(), compiled_data_start);
 
   // Clear any recorded slots for the compiled data as being invalid.
   RememberedSet<OLD_TO_NEW>::RemoveRange(
@@ -3895,8 +3892,7 @@ void MarkCompactCollector::RightTrimDescriptorArray(
   DCHECK_LE(0, new_nof_all_descriptors);
   Address start = array->GetDescriptorSlot(new_nof_all_descriptors).address();
   Address end = array->GetDescriptorSlot(old_nof_all_descriptors).address();
-  MutablePageMetadata* chunk =
-      MutablePageMetadata::FromHeapObject(heap_->isolate(), array);
+  MutablePage* chunk = MutablePage::FromHeapObject(heap_->isolate(), array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
@@ -4226,8 +4222,8 @@ MarkCompactCollector::ProcessRelocInfo(Tagged<InstructionStream> host,
   }
 
   MemoryChunk* const source_chunk = MemoryChunk::FromHeapObject(host);
-  MutablePageMetadata* const source_page_metadata =
-      MutablePageMetadata::cast(source_chunk->Metadata());
+  MutablePage* const source_page_metadata =
+      MutablePage::cast(source_chunk->Metadata());
   const uintptr_t offset = source_chunk->Offset(addr);
   DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
   result.page_metadata = source_page_metadata;
@@ -4585,7 +4581,7 @@ class Evacuator final : public Malloced {
   }
 
   static inline EvacuationMode ComputeEvacuationMode(
-      const MutablePageMetadata* metadata) {
+      const MutablePage* metadata) {
     // Note: The order of checks is important in this function.
     if (metadata->will_be_promoted()) {
       return kPageNewToOld;
@@ -4607,7 +4603,7 @@ class Evacuator final : public Malloced {
         duration_(0.0),
         bytes_compacted_(0) {}
 
-  void EvacuatePage(MutablePageMetadata* chunk);
+  void EvacuatePage(MutablePage* chunk);
 
   void AddObserver(MigrationObserver* observer) {
     new_space_visitor_.AddObserver(observer);
@@ -4620,7 +4616,7 @@ class Evacuator final : public Malloced {
 
  private:
   // |saved_live_bytes| returns the live bytes of the page that was processed.
-  bool RawEvacuatePage(MutablePageMetadata* chunk);
+  bool RawEvacuatePage(MutablePage* chunk);
 
   inline Heap* heap() { return heap_; }
 
@@ -4646,7 +4642,7 @@ class Evacuator final : public Malloced {
   intptr_t bytes_compacted_;
 };
 
-void Evacuator::EvacuatePage(MutablePageMetadata* page) {
+void Evacuator::EvacuatePage(MutablePage* page) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Evacuator::EvacuatePage");
   DCHECK(page->SweepingDone());
   intptr_t saved_live_bytes = page->live_bytes();
@@ -4726,7 +4722,7 @@ void LiveObjectVisitor::VisitMarkedObjectsNoFail(PageMetadata* page,
   }
 }
 
-bool Evacuator::RawEvacuatePage(MutablePageMetadata* page) {
+bool Evacuator::RawEvacuatePage(MutablePage* page) {
   const EvacuationMode evacuation_mode = ComputeEvacuationMode(page);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "FullEvacuator::RawEvacuatePage", "evacuation_mode",
@@ -4782,8 +4778,7 @@ class PageEvacuationJob : public v8::JobTask {
   PageEvacuationJob(
       Isolate* isolate, MarkCompactCollector* collector,
       std::vector<std::unique_ptr<Evacuator>>* evacuators,
-      std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-          evacuation_items)
+      std::vector<std::pair<ParallelWorkItem, MutablePage*>> evacuation_items)
       : collector_(collector),
         evacuators_(evacuators),
         evacuation_items_(std::move(evacuation_items)),
@@ -4847,8 +4842,7 @@ class PageEvacuationJob : public v8::JobTask {
  private:
   MarkCompactCollector* collector_;
   std::vector<std::unique_ptr<Evacuator>>* evacuators_;
-  std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-      evacuation_items_;
+  std::vector<std::pair<ParallelWorkItem, MutablePage*>> evacuation_items_;
   std::atomic<size_t> remaining_evacuation_items_{0};
   IndexGenerator generator_;
 
@@ -4859,8 +4853,7 @@ class PageEvacuationJob : public v8::JobTask {
 namespace {
 size_t CreateAndExecuteEvacuationTasks(
     Heap* heap, MarkCompactCollector* collector,
-    std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-        evacuation_items) {
+    std::vector<std::pair<ParallelWorkItem, MutablePage*>> evacuation_items) {
   std::optional<ProfilingMigrationObserver> profiling_observer;
   if (heap->isolate()->log_object_relocation()) {
     profiling_observer.emplace(heap);
@@ -4974,7 +4967,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
     if (chunk->InReadOnlySpace()) {
       return;
     }
-    auto* page = MutablePageMetadata::cast(chunk->Metadata());
+    auto* page = MutablePage::cast(chunk->Metadata());
     if (page->is_large()) {
       // Large objects and read only objects are not evacuated and thus don't
       // need to be pinned.
@@ -5029,8 +5022,7 @@ void MarkCompactCollector::PinPreciseRootsIfNeeded() {
 }
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
-  std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-      evacuation_items;
+  std::vector<std::pair<ParallelWorkItem, MutablePage*>> evacuation_items;
   intptr_t live_bytes = 0;
 
   PinPreciseRootsIfNeeded();
@@ -5296,12 +5288,12 @@ namespace {
 
 class RememberedSetUpdatingItem : public UpdatingItem {
  public:
-  explicit RememberedSetUpdatingItem(Heap* heap, MutablePageMetadata* chunk)
+  RememberedSetUpdatingItem(Heap* heap, MutablePage* page)
       : heap_(heap),
         marking_state_(heap_->non_atomic_marking_state()),
-        chunk_(chunk),
+        page_(page),
         record_old_to_shared_slots_(heap->isolate()->has_shared_space() &&
-                                    !chunk->Chunk()->InWritableSharedSpace()) {}
+                                    !page->Chunk()->InWritableSharedSpace()) {}
   ~RememberedSetUpdatingItem() override = default;
 
   void Process() override {
@@ -5314,8 +5306,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
  private:
   template <typename TSlot>
   inline void CheckSlotForOldToSharedUntyped(PtrComprCageBase cage_base,
-                                             MutablePageMetadata* page,
-                                             TSlot slot) {
+                                             MutablePage* page, TSlot slot) {
     Tagged<HeapObject> heap_object;
 
     if (!slot.load(cage_base).GetHeapObject(&heap_object)) {
@@ -5329,7 +5320,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
   inline void CheckSlotForOldToSharedTyped(
-      MutablePageMetadata* page, SlotType slot_type, Address addr,
+      MutablePage* page, SlotType slot_type, Address addr,
       WritableJitAllocation& jit_allocation) {
     Tagged<HeapObject> heap_object =
         UpdateTypedSlotHelper::GetTargetObject(page->heap(), slot_type, addr);
@@ -5388,7 +5379,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
   template <RememberedSetType old_to_new_type>
   void UpdateUntypedOldToNewPointers() {
-    if (!chunk_->slot_set<old_to_new_type, AccessMode::NON_ATOMIC>()) {
+    if (!page_->slot_set<old_to_new_type, AccessMode::NON_ATOMIC>()) {
       return;
     }
 
@@ -5397,13 +5388,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     // is fine since in that case the sweeper has already removed dead invalid
     // objects as well.
     RememberedSet<old_to_new_type>::Iterate(
-        chunk_,
+        page_,
         [this, cage_base](MaybeObjectSlot slot) {
           CheckAndUpdateOldToNewSlot(slot, cage_base);
           // A new space string might have been promoted into the shared heap
           // during GC.
           if (record_old_to_shared_slots_) {
-            CheckSlotForOldToSharedUntyped(cage_base, chunk_, slot);
+            CheckSlotForOldToSharedUntyped(cage_base, page_, slot);
           }
           // Always keep slot since all slots are dropped at once after
           // iteration.
@@ -5412,22 +5403,22 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         SlotSet::KEEP_EMPTY_BUCKETS);
 
     // Full GCs will empty new space, so [old_to_new_type] is empty.
-    chunk_->ReleaseSlotSet(old_to_new_type);
+    page_->ReleaseSlotSet(old_to_new_type);
   }
 
   void UpdateUntypedOldToOldPointers() {
-    if (!chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) {
+    if (!page_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>()) {
       return;
     }
 
     const PtrComprCageBase cage_base = heap_->isolate();
-    if (chunk_->is_executable()) {
+    if (page_->is_executable()) {
       // When updating pointer in an InstructionStream (in particular, the
       // pointer to relocation info), we need to use WriteProtectedSlots that
       // ensure that the code page is unlocked.
-      WritableJitPage jit_page(chunk_->area_start(), chunk_->area_size());
+      WritableJitPage jit_page(page_->area_start(), page_->area_size());
       RememberedSet<OLD_TO_OLD>::Iterate(
-          chunk_,
+          page_,
           [&](MaybeObjectSlot slot) {
             WritableJitAllocation jit_allocation =
                 jit_page.LookupAllocationContaining(slot.address());
@@ -5440,13 +5431,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::KEEP_EMPTY_BUCKETS);
     } else {
       RememberedSet<OLD_TO_OLD>::Iterate(
-          chunk_,
+          page_,
           [&](MaybeObjectSlot slot) {
             UpdateSlot(cage_base, slot);
             // A string might have been promoted into the shared heap during
             // GC.
             if (record_old_to_shared_slots_) {
-              CheckSlotForOldToSharedUntyped(cage_base, chunk_, slot);
+              CheckSlotForOldToSharedUntyped(cage_base, page_, slot);
             }
             // Always keep slot since all slots are dropped at once after
             // iteration.
@@ -5455,11 +5446,11 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::KEEP_EMPTY_BUCKETS);
     }
 
-    chunk_->ReleaseSlotSet(OLD_TO_OLD);
+    page_->ReleaseSlotSet(OLD_TO_OLD);
   }
 
   void UpdateUntypedTrustedToCodePointers() {
-    if (!chunk_->slot_set<TRUSTED_TO_CODE, AccessMode::NON_ATOMIC>()) {
+    if (!page_->slot_set<TRUSTED_TO_CODE, AccessMode::NON_ATOMIC>()) {
       return;
     }
 
@@ -5469,7 +5460,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     // directly modify the TRUSTED_TO_CODE set on such a chunk, or trick the GC
     // into populating it with invalid pointers, both of which may lead to
     // memory corruption inside the (trusted) code space here.
-    SBXCHECK(OutsideSandbox(chunk_->ChunkAddress()));
+    SBXCHECK(OutsideSandbox(page_->ChunkAddress()));
 
     const PtrComprCageBase cage_base = heap_->isolate();
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -5478,7 +5469,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     const PtrComprCageBase code_cage_base = cage_base;
 #endif
     RememberedSet<TRUSTED_TO_CODE>::Iterate(
-        chunk_,
+        page_,
         [cage_base, code_cage_base,
          isolate = IsolateForSandbox{heap_->isolate()}](MaybeObjectSlot slot) {
           DCHECK(IsCode(HeapObject::FromAddress(slot.address() -
@@ -5492,11 +5483,11 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         },
         SlotSet::FREE_EMPTY_BUCKETS);
 
-    chunk_->ReleaseSlotSet(TRUSTED_TO_CODE);
+    page_->ReleaseSlotSet(TRUSTED_TO_CODE);
   }
 
   void UpdateUntypedTrustedToTrustedPointers() {
-    if (!chunk_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) {
+    if (!page_->slot_set<TRUSTED_TO_TRUSTED, AccessMode::NON_ATOMIC>()) {
       return;
     }
 
@@ -5506,19 +5497,19 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     // directly modify the TRUSTED_TO_TRUSTED set on such a chunk, or trick the
     // GC into populating it with invalid pointers, both of which may lead to
     // memory corruption inside the trusted space here.
-    SBXCHECK(OutsideSandbox(chunk_->ChunkAddress()));
+    SBXCHECK(OutsideSandbox(page_->ChunkAddress()));
 
     // TODO(saelo) we can probably drop all the cage_bases here once we no
     // longer need to pass them into our slot implementations.
     const PtrComprCageBase unused_cage_base(kNullAddress);
 
-    if (chunk_->is_executable()) {
+    if (page_->is_executable()) {
       // When updating the InstructionStream -> Code pointer, we need to use
       // WriteProtectedSlots that ensure that the code page is unlocked.
-      WritableJitPage jit_page(chunk_->area_start(), chunk_->area_size());
+      WritableJitPage jit_page(page_->area_start(), page_->area_size());
 
       RememberedSet<TRUSTED_TO_TRUSTED>::Iterate(
-          chunk_,
+          page_,
           [&](MaybeObjectSlot slot) {
             WritableJitAllocation jit_allocation =
                 jit_page.LookupAllocationContaining(slot.address());
@@ -5532,7 +5523,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::FREE_EMPTY_BUCKETS);
     } else {
       RememberedSet<TRUSTED_TO_TRUSTED>::Iterate(
-          chunk_,
+          page_,
           [&](MaybeObjectSlot slot) {
             UpdateSlot(unused_cage_base,
                        ProtectedMaybeObjectSlot(slot.address()));
@@ -5543,24 +5534,24 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::FREE_EMPTY_BUCKETS);
     }
 
-    chunk_->ReleaseSlotSet(TRUSTED_TO_TRUSTED);
+    page_->ReleaseSlotSet(TRUSTED_TO_TRUSTED);
   }
 
   void UpdateTypedPointers() {
-    if (!chunk_->is_executable()) {
-      DCHECK_NULL((chunk_->typed_slot_set<OLD_TO_NEW>()));
-      DCHECK_NULL((chunk_->typed_slot_set<OLD_TO_OLD>()));
+    if (!page_->is_executable()) {
+      DCHECK_NULL((page_->typed_slot_set<OLD_TO_NEW>()));
+      DCHECK_NULL((page_->typed_slot_set<OLD_TO_OLD>()));
       return;
     }
 
     WritableJitPage jit_page = ThreadIsolation::LookupWritableJitPage(
-        chunk_->area_start(), chunk_->area_size());
+        page_->area_start(), page_->area_size());
     UpdateTypedOldToNewPointers(jit_page);
     UpdateTypedOldToOldPointers(jit_page);
   }
 
   void UpdateTypedOldToNewPointers(WritableJitPage& jit_page) {
-    if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() == nullptr)
+    if (page_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() == nullptr)
       return;
     const PtrComprCageBase cage_base = heap_->isolate();
     const auto check_and_update_old_to_new_slot_fn =
@@ -5570,8 +5561,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         };
 
     RememberedSet<OLD_TO_NEW>::IterateTyped(
-        chunk_, [this, &check_and_update_old_to_new_slot_fn, &jit_page](
-                    SlotType slot_type, Address slot) {
+        page_, [this, &check_and_update_old_to_new_slot_fn, &jit_page](
+                   SlotType slot_type, Address slot) {
           WritableJitAllocation jit_allocation =
               jit_page.LookupAllocationContaining(slot);
           UpdateTypedSlotHelper::UpdateTypedSlot(
@@ -5580,7 +5571,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           // A new space string might have been promoted into the shared heap
           // during GC.
           if (record_old_to_shared_slots_) {
-            CheckSlotForOldToSharedTyped(chunk_, slot_type, slot,
+            CheckSlotForOldToSharedTyped(page_, slot_type, slot,
                                          jit_allocation);
           }
           // Always keep slot since all slots are dropped at once after
@@ -5588,17 +5579,17 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           return KEEP_SLOT;
         });
     // Full GCs will empty new space, so OLD_TO_NEW is empty.
-    chunk_->ReleaseTypedSlotSet(OLD_TO_NEW);
+    page_->ReleaseTypedSlotSet(OLD_TO_NEW);
     // OLD_TO_NEW_BACKGROUND typed slots set should always be empty.
-    DCHECK_NULL(chunk_->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
+    DCHECK_NULL(page_->typed_slot_set<OLD_TO_NEW_BACKGROUND>());
   }
 
   void UpdateTypedOldToOldPointers(WritableJitPage& jit_page) {
-    if (chunk_->typed_slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() == nullptr)
+    if (page_->typed_slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() == nullptr)
       return;
     PtrComprCageBase cage_base = heap_->isolate();
     RememberedSet<OLD_TO_OLD>::IterateTyped(
-        chunk_, [this, cage_base, &jit_page](SlotType slot_type, Address slot) {
+        page_, [this, cage_base, &jit_page](SlotType slot_type, Address slot) {
           // Using UpdateStrongSlot is OK here, because there are no weak
           // typed slots.
           WritableJitAllocation jit_allocation =
@@ -5613,17 +5604,17 @@ class RememberedSetUpdatingItem : public UpdatingItem {
               });
           // A string might have been promoted into the shared heap during GC.
           if (record_old_to_shared_slots_) {
-            CheckSlotForOldToSharedTyped(chunk_, slot_type, slot,
+            CheckSlotForOldToSharedTyped(page_, slot_type, slot,
                                          jit_allocation);
           }
           return result;
         });
-    chunk_->ReleaseTypedSlotSet(OLD_TO_OLD);
+    page_->ReleaseTypedSlotSet(OLD_TO_OLD);
   }
 
   Heap* heap_;
   NonAtomicMarkingState* marking_state_;
-  MutablePageMetadata* chunk_;
+  MutablePage* page_;
   const bool record_old_to_shared_slots_;
 };
 
@@ -5631,7 +5622,7 @@ template <typename IterateableSpace>
 void CollectRememberedSetUpdatingItems(
     std::vector<std::unique_ptr<UpdatingItem>>* items,
     IterateableSpace* space) {
-  for (MutablePageMetadata* page : *space) {
+  for (MutablePage* page : *space) {
     // No need to update pointers on evacuation candidates. Evacuated pages will
     // be released after this phase.
     if (page->Chunk()->IsEvacuationCandidate() &&
@@ -5758,7 +5749,7 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
   MemoryChunkIterator chunk_iterator(client->heap());
 
   while (chunk_iterator.HasNext()) {
-    MutablePageMetadata* page = chunk_iterator.Next();
+    MutablePage* page = chunk_iterator.Next();
     MemoryChunk* chunk = page->Chunk();
 
     const auto slot_count = RememberedSet<OLD_TO_SHARED>::Iterate(

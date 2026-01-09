@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 
 #include <new>
 
@@ -15,18 +15,16 @@
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page-metadata-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
 
 namespace v8::internal {
 
-MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
-                                         size_t chunk_size, Address area_start,
-                                         Address area_end,
-                                         VirtualMemory reservation,
-                                         PageSize page_size,
-                                         Executability executability)
+MutablePage::MutablePage(Heap* heap, BaseSpace* space, size_t chunk_size,
+                         Address area_start, Address area_end,
+                         VirtualMemory reservation, PageSize page_size,
+                         Executability executability)
     : BasePage(heap, space, chunk_size, area_start, area_end,
                std::move(reservation), executability) {
   DCHECK_NE(space->identity(), RO_SPACE);
@@ -45,10 +43,9 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
   // so there should be some more optimization potential here.
   // TODO(mlippautz): Replace 64 below with
   // `hardware_destructive_interference_size` once supported.
-  static constexpr auto kOffsetOfFirstFastField =
-      offsetof(MutablePageMetadata, heap_);
+  static constexpr auto kOffsetOfFirstFastField = offsetof(MutablePage, heap_);
   static constexpr auto kOffsetOfLastFastField =
-      offsetof(MutablePageMetadata, slot_set_) +
+      offsetof(MutablePage, slot_set_) +
       sizeof(SlotSet*) * RememberedSetType::OLD_TO_NEW;
   // This assert is merely necessary but not sufficient to guarantee that the
   // fields sit on the same cacheline as the metadata object itself is
@@ -57,7 +54,7 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
 }
 
 // static
-MemoryChunk::MainThreadFlags MutablePageMetadata::OldGenerationPageFlags(
+MemoryChunk::MainThreadFlags MutablePage::OldGenerationPageFlags(
     MarkingMode marking_mode, AllocationSpace space) {
   MemoryChunk::MainThreadFlags flags_to_set = MemoryChunk::NO_FLAGS;
 
@@ -90,7 +87,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::OldGenerationPageFlags(
 }
 
 // static
-MemoryChunk::MainThreadFlags MutablePageMetadata::YoungGenerationPageFlags(
+MemoryChunk::MainThreadFlags MutablePage::YoungGenerationPageFlags(
     MarkingMode marking_mode) {
   MemoryChunk::MainThreadFlags flags =
       MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
@@ -106,7 +103,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::YoungGenerationPageFlags(
   return flags;
 }
 
-MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
+MemoryChunk::MainThreadFlags MutablePage::ComputeInitialFlags(
     Executability executable) const {
   const AllocationSpace space = owner()->identity();
   MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
@@ -141,7 +138,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
   return flags;
 }
 
-void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
+void MutablePage::SetOldGenerationPageFlags(MarkingMode marking_mode) {
   const auto owner = owner_identity();
   MemoryChunk::MainThreadFlags flags_to_set =
       OldGenerationPageFlags(marking_mode, owner);
@@ -164,8 +161,7 @@ void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
   ClearFlagsNonExecutable(flags_to_clear);
 }
 
-void MutablePageMetadata::SetYoungGenerationPageFlags(
-    MarkingMode marking_mode) {
+void MutablePage::SetYoungGenerationPageFlags(MarkingMode marking_mode) {
   const MemoryChunk::MainThreadFlags flags_to_set =
       YoungGenerationPageFlags(marking_mode);
   MemoryChunk::MainThreadFlags flags_to_clear = MemoryChunk::NO_FLAGS;
@@ -178,12 +174,12 @@ void MutablePageMetadata::SetYoungGenerationPageFlags(
   ClearFlagsNonExecutable(flags_to_clear);
 }
 
-size_t MutablePageMetadata::CommittedPhysicalMemory() const {
+size_t MutablePage::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits() || is_large()) return size();
   return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
-void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
+void MutablePage::ReleaseAllocatedMemoryNeededForWritableChunk() {
   DCHECK(SweepingDone());
 
   active_system_pages_.reset();
@@ -207,11 +203,11 @@ void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
   }
 }
 
-void MutablePageMetadata::ReleaseAllAllocatedMemory() {
+void MutablePage::ReleaseAllAllocatedMemory() {
   ReleaseAllocatedMemoryNeededForWritableChunk();
 }
 
-SlotSet* MutablePageMetadata::AllocateSlotSet(RememberedSetType type) {
+SlotSet* MutablePage::AllocateSlotSet(RememberedSetType type) {
   SlotSet* new_slot_set = SlotSet::Allocate(BucketsInSlotSet());
   SlotSet* old_slot_set = base::AsAtomicPointer::AcquireRelease_CompareAndSwap(
       &slot_set_[type], nullptr, new_slot_set);
@@ -223,7 +219,7 @@ SlotSet* MutablePageMetadata::AllocateSlotSet(RememberedSetType type) {
   return new_slot_set;
 }
 
-void MutablePageMetadata::ReleaseSlotSet(RememberedSetType type) {
+void MutablePage::ReleaseSlotSet(RememberedSetType type) {
   SlotSet* slot_set = slot_set_[type];
   if (slot_set) {
     slot_set_[type] = nullptr;
@@ -231,8 +227,7 @@ void MutablePageMetadata::ReleaseSlotSet(RememberedSetType type) {
   }
 }
 
-TypedSlotSet* MutablePageMetadata::AllocateTypedSlotSet(
-    RememberedSetType type) {
+TypedSlotSet* MutablePage::AllocateTypedSlotSet(RememberedSetType type) {
   TypedSlotSet* typed_slot_set = new TypedSlotSet(ChunkAddress());
   TypedSlotSet* old_value = base::AsAtomicPointer::Release_CompareAndSwap(
       &typed_slot_set_[type], nullptr, typed_slot_set);
@@ -244,7 +239,7 @@ TypedSlotSet* MutablePageMetadata::AllocateTypedSlotSet(
   return typed_slot_set;
 }
 
-void MutablePageMetadata::ReleaseTypedSlotSet(RememberedSetType type) {
+void MutablePage::ReleaseTypedSlotSet(RememberedSetType type) {
   TypedSlotSet* typed_slot_set = typed_slot_set_[type];
   if (typed_slot_set) {
     typed_slot_set_[type] = nullptr;
@@ -252,7 +247,7 @@ void MutablePageMetadata::ReleaseTypedSlotSet(RememberedSetType type) {
   }
 }
 
-bool MutablePageMetadata::ContainsAnySlots() const {
+bool MutablePage::ContainsAnySlots() const {
   for (int rs_type = 0; rs_type < NUMBER_OF_REMEMBERED_SET_TYPES; rs_type++) {
     if (slot_set_[rs_type] || typed_slot_set_[rs_type]) {
       return true;
@@ -261,7 +256,7 @@ bool MutablePageMetadata::ContainsAnySlots() const {
   return false;
 }
 
-int MutablePageMetadata::ComputeFreeListsLength() {
+int MutablePage::ComputeFreeListsLength() {
   int length = 0;
   for (int cat = kFirstCategory; cat <= owner()->free_list()->last_category();
        cat++) {
@@ -272,12 +267,12 @@ int MutablePageMetadata::ComputeFreeListsLength() {
   return length;
 }
 
-bool MutablePageMetadata::IsLivenessClear() const {
+bool MutablePage::IsLivenessClear() const {
   CHECK_IMPLIES(marking_bitmap()->IsClean(), live_bytes() == 0);
   return marking_bitmap()->IsClean();
 }
 
-void MutablePageMetadata::SetFlagMaybeExecutable(MemoryChunk::Flag flag) {
+void MutablePage::SetFlagMaybeExecutable(MemoryChunk::Flag flag) {
   if (is_executable()) {
     RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
     SetFlagUnlocked(flag);
@@ -286,7 +281,7 @@ void MutablePageMetadata::SetFlagMaybeExecutable(MemoryChunk::Flag flag) {
   }
 }
 
-void MutablePageMetadata::ClearFlagMaybeExecutable(MemoryChunk::Flag flag) {
+void MutablePage::ClearFlagMaybeExecutable(MemoryChunk::Flag flag) {
   if (is_executable()) {
     RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
     ClearFlagUnlocked(flag);
@@ -295,6 +290,6 @@ void MutablePageMetadata::ClearFlagMaybeExecutable(MemoryChunk::Flag flag) {
   }
 }
 
-void MutablePageMetadata::MarkNeverEvacuate() { set_never_evacuate(); }
+void MutablePage::MarkNeverEvacuate() { set_never_evacuate(); }
 
 }  // namespace v8::internal

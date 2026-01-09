@@ -24,7 +24,7 @@
 #include "src/heap/marking-state.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/page-metadata-inl.h"
 #include "src/heap/page-metadata.h"
 #include "src/heap/paged-spaces.h"
@@ -39,7 +39,7 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-PageMetadata* SemiSpace::InitializePage(MutablePageMetadata* mutable_page) {
+PageMetadata* SemiSpace::InitializePage(MutablePage* mutable_page) {
   bool in_to_space = (id() != kFromSpace);
   MemoryChunk* chunk = mutable_page->Chunk();
   mutable_page->SetFlagNonExecutable(in_to_space ? MemoryChunk::TO_PAGE
@@ -57,7 +57,7 @@ SemiSpace::SemiSpace(Heap* heap, SemiSpaceId semispace)
 SemiSpace::~SemiSpace() {
   const bool is_marking = heap_->isolate()->isolate_data()->is_marking();
   while (!memory_chunk_list_.Empty()) {
-    MutablePageMetadata* page = memory_chunk_list_.front();
+    MutablePage* page = memory_chunk_list_.front();
     memory_chunk_list_.Remove(page);
     if (is_marking) {
       page->ClearLiveness();
@@ -143,7 +143,7 @@ void SemiSpace::RewindPages(int num_pages) {
   AccountUncommitted(num_pages * PageMetadata::kPageSize);
   size_t uncommitted_physical_memory = 0;
   while (num_pages > 0) {
-    MutablePageMetadata* last = last_page();
+    MutablePage* last = last_page();
     CHECK_NOT_NULL(last);
     uncommitted_physical_memory += last->CommittedPhysicalMemory();
     memory_chunk_list_.Remove(last);
@@ -155,7 +155,7 @@ void SemiSpace::RewindPages(int num_pages) {
 
 void SemiSpace::FixPagesFlags() {
   const auto to_space_flags =
-      MutablePageMetadata::YoungGenerationPageFlags(
+      MutablePage::YoungGenerationPageFlags(
           heap()->incremental_marking()->marking_mode()) |
       MemoryChunk::TO_PAGE;
   for (PageMetadata* page : *this) {
@@ -715,8 +715,7 @@ void SemiSpaceNewSpace::RemovePage(PageMetadata* page) {
   from_space().RemovePage(page);
 }
 
-bool SemiSpaceNewSpace::IsPromotionCandidate(
-    const MutablePageMetadata* page) const {
+bool SemiSpaceNewSpace::IsPromotionCandidate(const MutablePage* page) const {
   return !page->Contains(age_mark());
 }
 
@@ -808,7 +807,7 @@ PagedSpaceForNewSpace::PagedSpaceForNewSpace(Heap* heap,
 }
 
 PageMetadata* PagedSpaceForNewSpace::InitializePage(
-    MutablePageMetadata* mutable_page_metadata) {
+    MutablePage* mutable_page_metadata) {
   DCHECK_EQ(identity(), NEW_SPACE);
   MemoryChunk* chunk = mutable_page_metadata->Chunk();
   PageMetadata* page = PageMetadata::cast(mutable_page_metadata);
@@ -898,7 +897,7 @@ bool PagedSpaceForNewSpace::AllocatePage() {
 }
 
 bool PagedSpaceForNewSpace::IsPromotionCandidate(
-    const MutablePageMetadata* page) const {
+    const MutablePage* page) const {
   DCHECK_EQ(this, page->owner());
   if (page == last_lab_page_) return false;
   return page->AllocatedLabSize() <=

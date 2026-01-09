@@ -40,7 +40,7 @@ void MarkCompactCollector::MarkRootObject(
   if (V8_UNLIKELY(in_conservative_stack_scanning_)) {
     DCHECK_EQ(root, Root::kStackRoots);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
-    auto* metadata = MutablePageMetadata::cast(chunk->Metadata());
+    auto* metadata = MutablePage::cast(chunk->Metadata());
     if (chunk->IsEvacuationCandidate()) {
       DCHECK(!chunk->InYoungGeneration());
       ReportAbortedEvacuationCandidateDueToFlags(PageMetadata::cast(metadata));
@@ -78,10 +78,9 @@ void MarkCompactCollector::RecordSlot(MemoryChunk* host_chunk,
   }
 
   const auto* isolate = Isolate::Current();
-  MutablePageMetadata* host_page =
-      MutablePageMetadata::cast(host_chunk->Metadata(isolate));
-  const MutablePageMetadata* value_page =
-      MutablePageMetadata::cast(value_chunk->Metadata(isolate));
+  MutablePage* host_page = MutablePage::cast(host_chunk->Metadata(isolate));
+  const MutablePage* value_page =
+      MutablePage::cast(value_chunk->Metadata(isolate));
 
   if (static_cast<bool>(kRecordYoung) &&
       HeapLayout::InYoungGeneration(value_chunk, value)) {

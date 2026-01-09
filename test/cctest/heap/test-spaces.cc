@@ -42,7 +42,7 @@
 #include "src/heap/main-allocator.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-pool.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/free-space.h"
@@ -134,7 +134,7 @@ static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
   size_t allocatable_memory_area_offset =
       MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity());
 
-  MutablePageMetadata* memory_chunk = memory_allocator->AllocateLargePage(
+  MutablePage* memory_chunk = memory_allocator->AllocateLargePage(
       space, area_size, executable, AllocationHint());
   size_t reserved_size =
       ((executable == EXECUTABLE))
@@ -159,7 +159,7 @@ static unsigned int PseudorandomAreaSize() {
   return lo & 0xFFFFF;
 }
 
-TEST(MutablePageMetadata) {
+TEST(MutablePage) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   IsolateSafepointScope safepoint(heap);

@@ -16,7 +16,7 @@ class CancelableTaskManager;
 class Isolate;
 class LargePageMetadata;
 class BasePage;
-class MutablePageMetadata;
+class MutablePage;
 class PageMetadata;
 
 // PooledPage converts a metadata object into a pooled entry. The metadata entry
@@ -85,7 +85,7 @@ class MemoryPool final {
   PooledPage CreatePooledPage(PageMetadata* metadata);
 
   // Adds page to the pool.
-  void Add(Isolate* isolate, MutablePageMetadata* chunk);
+  void Add(Isolate* isolate, MutablePage* chunk);
   // Tries to get page from the pool. Order of priority for pools:
   // 1. Local pool for the isolate.
   // 2. Shared pool.

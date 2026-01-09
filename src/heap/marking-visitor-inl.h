@@ -652,7 +652,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(
     Tagged<Map> map, Tagged<FixedArray> object,
     MaybeObjectSize maybe_object_size) {
   MarkingProgressTracker& progress_tracker =
-      MutablePageMetadata::FromHeapObject(heap_->isolate(), object)
+      MutablePage::FromHeapObject(heap_->isolate(), object)
           ->marking_progress_tracker();
   return concrete_visitor()->CanUpdateValuesInHeap() &&
                  progress_tracker.IsEnabled()

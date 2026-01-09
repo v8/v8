@@ -120,7 +120,7 @@ class MarkCompactCollector final {
   static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj);
 
   struct RecordRelocSlotInfo {
-    MutablePageMetadata* page_metadata;
+    MutablePage* page_metadata;
     SlotType slot_type;
     uint32_t offset;
   };

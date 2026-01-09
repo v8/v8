@@ -1163,7 +1163,7 @@ class MaybeObjectDirectHandle;
 using MaybeObjectIndirectHandle = MaybeObjectHandle;
 template <typename T>
 class MaybeWeak;
-class MutablePageMetadata;
+class MutablePage;
 class MessageLocation;
 class ModuleScope;
 class Name;

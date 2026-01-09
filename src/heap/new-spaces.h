@@ -29,7 +29,7 @@ namespace v8 {
 namespace internal {
 
 class Heap;
-class MutablePageMetadata;
+class MutablePage;
 class SemiSpaceNewSpace;
 
 enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
@@ -74,7 +74,7 @@ class SemiSpace final : public Space {
   void RemovePage(PageMetadata* page);
   void MovePageToTheEnd(PageMetadata* page);
 
-  PageMetadata* InitializePage(MutablePageMetadata* chunk) final;
+  PageMetadata* InitializePage(MutablePage* chunk) final;
 
   // Returns the current capacity of the semispace.
   size_t current_capacity() const { return current_capacity_; }
@@ -223,7 +223,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   virtual void GarbageCollectionPrologue() {}
   virtual void GarbageCollectionEpilogue() = 0;
 
-  virtual bool IsPromotionCandidate(const MutablePageMetadata* page) const = 0;
+  virtual bool IsPromotionCandidate(const MutablePage* page) const = 0;
 
   virtual void GrowToMaximumCapacityForTesting() = 0;
 
@@ -399,7 +399,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   void ZapUnusedMemory();
 
-  bool IsPromotionCandidate(const MutablePageMetadata* page) const final;
+  bool IsPromotionCandidate(const MutablePage* page) const final;
 
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
 
@@ -524,7 +524,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
     last_lab_page_ = nullptr;
   }
 
-  PageMetadata* InitializePage(MutablePageMetadata* chunk) final;
+  PageMetadata* InitializePage(MutablePage* chunk) final;
 
   size_t AddPage(PageMetadata* page) final;
   void RemovePage(PageMetadata* page) final;
@@ -541,7 +541,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Allocates pages as long as current capacity is below the target capacity.
   void AllocatePageUpToCapacityForTesting();
 
-  bool IsPromotionCandidate(const MutablePageMetadata* page) const;
+  bool IsPromotionCandidate(const MutablePage* page) const;
 
   // Return the available bytes without growing.
   size_t Available() const final;
@@ -682,7 +682,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     paged_space_.GarbageCollectionEpilogue();
   }
 
-  bool IsPromotionCandidate(const MutablePageMetadata* page) const final {
+  bool IsPromotionCandidate(const MutablePage* page) const final {
     return paged_space_.IsPromotionCandidate(page);
   }
 
@@ -696,7 +696,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   void MakeIterable() override { paged_space_.MakeIterable(); }
 
   // All operations on `memory_chunk_list_` should go through `paged_space_`.
-  heap::List<MutablePageMetadata>& memory_chunk_list() final { UNREACHABLE(); }
+  heap::List<MutablePage>& memory_chunk_list() final { UNREACHABLE(); }
 
   bool ShouldReleaseEmptyPage() {
     return paged_space_.ShouldReleaseEmptyPage();

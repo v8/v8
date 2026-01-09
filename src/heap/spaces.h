@@ -20,7 +20,7 @@
 #include "src/heap/list.h"
 #include "src/heap/main-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/page-metadata.h"
 #include "src/heap/slot-set.h"
 #include "src/objects/objects.h"
@@ -83,25 +83,21 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   virtual std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) = 0;
 
-  virtual MutablePageMetadata* first_page() {
-    return memory_chunk_list_.front();
-  }
-  virtual MutablePageMetadata* last_page() { return memory_chunk_list_.back(); }
+  virtual MutablePage* first_page() { return memory_chunk_list_.front(); }
+  virtual MutablePage* last_page() { return memory_chunk_list_.back(); }
 
-  virtual const MutablePageMetadata* first_page() const {
+  virtual const MutablePage* first_page() const {
     return memory_chunk_list_.front();
   }
-  virtual const MutablePageMetadata* last_page() const {
+  virtual const MutablePage* last_page() const {
     return memory_chunk_list_.back();
   }
 
-  virtual heap::List<MutablePageMetadata>& memory_chunk_list() {
+  virtual heap::List<MutablePage>& memory_chunk_list() {
     return memory_chunk_list_;
   }
 
-  virtual PageMetadata* InitializePage(MutablePageMetadata* chunk) {
-    UNREACHABLE();
-  }
+  virtual PageMetadata* InitializePage(MutablePage* chunk) { UNREACHABLE(); }
 
   virtual void NotifyBlackAreaCreated(size_t size) {}
   virtual void NotifyBlackAreaDestroyed(size_t size) {}
@@ -119,7 +115,7 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
  protected:
   // The List manages the pages that belong to the given space.
-  heap::List<MutablePageMetadata> memory_chunk_list_;
+  heap::List<MutablePage> memory_chunk_list_;
   std::unique_ptr<FreeList> free_list_;
 };
 
@@ -227,11 +223,11 @@ class MemoryChunkIterator {
   explicit MemoryChunkIterator(Heap* heap) : space_iterator_(heap) {}
 
   V8_INLINE bool HasNext();
-  V8_INLINE MutablePageMetadata* Next();
+  V8_INLINE MutablePage* Next();
 
  private:
   SpaceIterator space_iterator_;
-  MutablePageMetadata* current_chunk_ = nullptr;
+  MutablePage* current_chunk_ = nullptr;
 };
 
 }  // namespace internal
