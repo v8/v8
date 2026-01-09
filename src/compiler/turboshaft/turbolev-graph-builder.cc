@@ -5498,6 +5498,16 @@ class GraphBuildingNodeProcessor {
     GOTO(end);
 
     BIND(abort);
+#ifdef DEBUG
+    if (v8_flags.turboshaft_enable_debug_features) {
+      __ DebugPrint(
+          std::format(
+              "n{}: AssertRangeInt32: expected range [{}, {}], got value ",
+              maglev::GetCurrentGraphLabeller()->NodeId(node),
+              *node->range().min(), *node->range().max()),
+          value);
+    }
+#endif  // DEBUG
     __ RuntimeAbort(AbortReason::kUnexpectedValue);
 
     BIND(end);
@@ -5522,6 +5532,17 @@ class GraphBuildingNodeProcessor {
     GOTO(end);
 
     BIND(abort);
+#ifdef DEBUG
+    if (v8_flags.turboshaft_enable_debug_features) {
+      __ DebugPrint(
+          std::format(
+              "n{}: AssertRangeFloat64: expected range [{}, {}], got value ",
+              maglev::GetCurrentGraphLabeller()->NodeId(node),
+              node->range().min() ? *node->range().min() : -INFINITY,
+              node->range().max() ? *node->range().max() : +INFINITY),
+          value);
+    }
+#endif  // DEBUG
     __ RuntimeAbort(AbortReason::kUnexpectedValue);
 
     BIND(end);
