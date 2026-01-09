@@ -5607,10 +5607,7 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
   // The number is chosen based on v8.browsing_mobile on Nexus 7v2.
   constexpr size_t kMarginForSmallHeaps = 32u * MB;
 
-  uint64_t size_now = OldGenerationConsumedBytes();
-  if (!v8_flags.external_memory_accounted_in_global_limit) {
-    size_now += AllocatedExternalMemorySinceMarkCompact();
-  }
+  uint64_t size_now = OldGenerationAllocationLimitConsumedBytes();
   if (incremental_marking()->IsMajorMarking()) {
     // No interleaved GCs, so we count young gen as part of old gen.
     size_now += YoungGenerationConsumedBytes();
@@ -5653,7 +5650,7 @@ uint64_t GetFixedMarginForInputHandlingBytes() {
 
 bool Heap::AllocationLimitOvershotByFixedMargin(
     const uint64_t overshoot_margin) const {
-  uint64_t size_now = OldGenerationConsumedBytes();
+  uint64_t size_now = OldGenerationAllocationLimitConsumedBytes();
   if (incremental_marking()->IsMajorMarking()) {
     // No interleaved GCs, so we count young gen as part of old gen.
     size_now += YoungGenerationConsumedBytes();

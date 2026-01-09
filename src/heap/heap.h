@@ -2067,7 +2067,7 @@ class Heap final {
   // GC statistics. ============================================================
   // ===========================================================================
 
-  inline uint64_t OldGenerationAllocationLimitConsumedBytes() {
+  inline uint64_t OldGenerationAllocationLimitConsumedBytes() const {
     uint64_t bytes = OldGenerationConsumedBytes();
     if (!v8_flags.external_memory_accounted_in_global_limit) {
       // TODO(chromium:42203776): When not accounting external memory properly
