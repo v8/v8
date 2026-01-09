@@ -320,7 +320,7 @@ consteval std::array<int, kNumFlags> GetSortedFlagIndices() {
   for (size_t i = 0; i < kNumFlags; ++i) {
     indices[i] = static_cast<int>(i);
   }
-  std::sort(indices.begin(), indices.end(), [](int i, int j) {
+  std::sort(indices.begin(), indices.end(), [&](int i, int j) {
     return FlagHelpers::FlagNamesCmp(kFlagNames[i], kFlagNames[j]) < 0;
   });
   return indices;
