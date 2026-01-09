@@ -2,12 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from itertools import chain
 
 from . import base
 
 
 # Extra flags randomly added to all fuzz tests with numfuzz. List of tuples
-# (probability, flag).
+# (probability, flag). You can space-separate multiple flags in the flag
+# string.
 EXTRA_FLAGS = [
     (0.05, '--always-osr'),
     (0.05, '--always-osr-from-maglev'),
@@ -88,11 +90,13 @@ MAX_DEOPT = 10**9
 ANALYSIS_SUFFIX = 'analysis'
 
 
-def random_extra_flags(rng):
+def random_extra_flags(rng, extra_flags=EXTRA_FLAGS):
   """Returns a random list of flags chosen from the configurations in
   EXTRA_FLAGS.
   """
-  return [flag for prob, flag in EXTRA_FLAGS if rng.random() < prob]
+  return list(chain(
+      *(flags.split(' ')
+        for prob, flags in extra_flags if rng.random() < prob)))
 
 
 def _flag_prefix(flag):
