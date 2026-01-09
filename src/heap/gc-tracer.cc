@@ -349,6 +349,7 @@ void GCTracer::StartCycle(GarbageCollector collector,
       break;
   }
   current_.is_loading = heap_->IsLoading();
+  current_.is_input_handling = heap_->IsInputHandling();
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     current_.old_generation_consumed_baseline =
@@ -1592,6 +1593,7 @@ void GCTracer::ReportFullCycleToRecorder() {
   event.priority = current_.priority;
   event.reduce_memory = current_.reduce_memory;
   event.is_loading = current_.is_loading;
+  event.is_input_handling = current_.is_input_handling;
 
   // Managed C++ heap statistics:
   if (cpp_heap) {

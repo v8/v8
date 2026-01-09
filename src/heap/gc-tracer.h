@@ -216,6 +216,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Currently in loading state.
     bool is_loading = false;
 
+    // Currently in input state.
+    bool is_input_handling = false;
+
     // Size of objects in heap set in constructor.
     size_t start_object_size = 0;
 
