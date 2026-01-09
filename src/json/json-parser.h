@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "include/v8-callbacks.h"
+#include "src/base/bit-field.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/codegen/script-details.h"
@@ -231,20 +232,26 @@ class JsonParser final {
     enum Type : uint8_t { kReturn, kObjectProperty, kArrayElement };
     JsonContinuation(Isolate* isolate, Type type, size_t index)
         : scope(isolate),
-          type_(type),
-          index(static_cast<uint32_t>(index)),
           max_index(0),
-          elements(0) {}
+          elements(0),
+          type_and_index_(TypeField::encode(type) | IndexField::encode(index)) {
+    }
 
-    Type type() const { return static_cast<Type>(type_); }
-    void set_type(Type type) { type_ = static_cast<uint8_t>(type); }
+    Type type() const { return TypeField::decode(type_and_index_); }
+    void set_type(Type type) {
+      type_and_index_ = TypeField::update(type_and_index_, type);
+    }
+
+    size_t index() const { return IndexField::decode(type_and_index_); }
 
     HandleScope scope;
-    // Unfortunately GCC doesn't like packing Type in two bits.
-    uint32_t type_ : 2;
-    uint32_t index : 30;
     uint32_t max_index;
     uint32_t elements;
+
+   private:
+    using TypeField = base::BitField<Type, 0, 2>;
+    using IndexField = TypeField::template Next<size_t, 30>;
+    uint32_t type_and_index_;
   };
 
   JsonParser(Isolate* isolate, Handle<String> source,

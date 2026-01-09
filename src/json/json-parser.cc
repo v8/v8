@@ -1354,7 +1354,7 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
   if (!feedback.is_null() && feedback->is_deprecated()) {
     feedback = Map::Update(isolate_, feedback);
   }
-  size_t start = cont.index;
+  size_t start = cont.index();
   DCHECK_LE(start, property_stack_.size());
   int length = static_cast<int>(property_stack_.size() - start);
   int named_length = length - cont.elements;
@@ -1784,7 +1784,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonObject(Handle<Map> feedback) {
   EXPECT_RETURN_ON_ERROR(JsonToken::RBRACE,
                          MessageTemplate::kJsonParseExpectedCommaOrRBrace, {});
   Handle<Object> result = BuildJsonObject<false>(cont, feedback);
-  property_stack_.resize(cont.index);
+  property_stack_.resize(cont.index());
   return cont.scope.CloseAndEscape(result);
 }
 
@@ -2135,7 +2135,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           Handle<Map> feedback;
           if (cont_stack.size() > 0 &&
               cont_stack.back().type() == JsonContinuation::kArrayElement &&
-              cont_stack.back().index < element_stack_.size() &&
+              cont_stack.back().index() < element_stack_.size() &&
               IsJSObject(*element_stack_.back())) {
             Tagged<Map> maybe_feedback =
                 Cast<JSObject>(*element_stack_.back())->map();
@@ -2151,7 +2151,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               MessageTemplate::kJsonParseExpectedCommaOrRBrace, {});
           // Return the object.
           if constexpr (should_track_json_source) {
-            size_t start = cont.index;
+            size_t start = cont.index();
             int num_properties =
                 static_cast<int>(property_stack_.size() - start);
             Handle<ObjectTwoHashTable> table =
@@ -2171,7 +2171,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                   isolate(), table, key,
                   {property_val_node, property_snapshot});
             }
-            property_val_node_stack.resize(cont.index);
+            property_val_node_stack.resize(cont.index());
             DisallowGarbageCollection no_gc;
             Tagged<ObjectTwoHashTable> raw_table = *table;
             value = cont.scope.CloseAndEscape(value);
@@ -2179,7 +2179,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           } else {
             value = cont.scope.CloseAndEscape(value);
           }
-          property_stack_.resize(cont.index);
+          property_stack_.resize(cont.index());
 
           // Pop the continuation.
           cont = std::move(cont_stack.back());
@@ -2197,13 +2197,13 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
           // Break to start producing the subsequent element value.
           if (V8_LIKELY(Check<JsonToken::COMMA>())) break;
 
-          value = BuildJsonArray(cont.index);
+          value = BuildJsonArray(cont.index());
           EXPECT_RETURN_ON_ERROR(
               JsonToken::RBRACK,
               MessageTemplate::kJsonParseExpectedCommaOrRBrack, {});
           // Return the array.
           if constexpr (should_track_json_source) {
-            size_t start = cont.index;
+            size_t start = cont.index();
             int num_elements = static_cast<int>(element_stack_.size() - start);
             DirectHandle<FixedArray> val_node_and_snapshot_array =
                 factory()->NewFixedArray(num_elements * 2);
@@ -2216,14 +2216,14 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               raw_val_node_and_snapshot_array->set(i * 2 + 1,
                                                    *element_stack_[start + i]);
             }
-            element_val_node_stack.resize(cont.index);
+            element_val_node_stack.resize(cont.index());
             value = cont.scope.CloseAndEscape(value);
             val_node = cont.scope.CloseAndEscape(
                 handle(raw_val_node_and_snapshot_array, isolate_));
           } else {
             value = cont.scope.CloseAndEscape(value);
           }
-          element_stack_.resize(cont.index);
+          element_stack_.resize(cont.index());
           // Pop the continuation.
           cont = std::move(cont_stack.back());
           cont_stack.pop_back();
