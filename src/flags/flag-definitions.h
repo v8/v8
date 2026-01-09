@@ -3253,8 +3253,14 @@ DEFINE_BOOL(regexp_assemble_from_bytecode, false,
             "assemble regexp JIT-code from bytecode")
 DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
 DEFINE_WEAK_IMPLICATION(future, regexp_assemble_from_bytecode)
+#ifdef ENABLE_DISASSEMBLER
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
+#else
+DEFINE_BOOL_READONLY(trace_regexp_peephole_optimization, false,
+                     "trace regexp bytecode peephole optimization (requires "
+                     "v8_enable_disassembler = true)")
+#endif
 DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
 DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")

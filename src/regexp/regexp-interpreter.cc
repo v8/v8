@@ -77,7 +77,7 @@ bool BackRefMatchesNoCase(Isolate* isolate, int from, int current, int len,
   return true;
 }
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
 void MaybeTraceInterpreter(const uint8_t* code_base, const uint8_t* pc,
                            int stack_depth, int current_position,
                            uint32_t current_char, int bytecode_length,
@@ -98,7 +98,7 @@ void MaybeTraceInterpreter(const uint8_t* code_base, const uint8_t* pc,
     RegExpBytecodeDisassembleSingle(code_base, pc);
   }
 }
-#endif  // DEBUG
+#endif  // ENABLE_DISASSEMBLER
 
 template <class Char>
 constexpr int BitsPerChar() {
@@ -390,7 +390,7 @@ bool IndexIsInBounds(int index, int length) {
 #define BYTECODES_START() OPEN_BLOCK
 #define BYTECODES_END() CLOSE_BLOCK
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
 #define BYTECODE(Name, ...)                                              \
   CLOSE_BLOCK                                                            \
   BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);       \
@@ -401,7 +401,7 @@ bool IndexIsInBounds(int index, int length) {
 #define BYTECODE(Name, ...) \
   CLOSE_BLOCK               \
   BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);
-#endif  // DEBUG
+#endif  // ENABLE_DISASSEMBLER
 
 #define INIT(Name, ...)                                                     \
   constexpr RegExpBytecode current_bc = RegExpBytecode::k##Name;            \
@@ -567,7 +567,7 @@ IrregexpInterpreter::Result RawMatch(
 
   uint32_t backtrack_count = 0;
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
   if (v8_flags.trace_regexp_bytecodes) {
     PrintF("\n\nStart bytecode interpreter\n\n");
   }

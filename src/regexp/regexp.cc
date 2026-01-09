@@ -1010,11 +1010,15 @@ std::optional<int> RegExpImpl::IrregexpExec(
     int32_t* result_offsets_vector, uint32_t result_offsets_vector_length) {
   subject = String::Flatten(isolate, subject);
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
   if (v8_flags.trace_regexp_bytecodes && regexp_data->ShouldProduceBytecode()) {
     PrintF("\n\nRegexp match:   /%s/\n\n",
            regexp_data->source()->ToCString().get());
-    PrintF("\n\nSubject string: '%s'\n\n", subject->ToCString().get());
+    static constexpr uint32_t kMaxSubjectStringLength = 64;
+    uint32_t printed_string_length =
+        std::min(subject->length(), kMaxSubjectStringLength);
+    PrintF("\n\nSubject string: '%s'\n\n",
+           subject->ToCString(0, printed_string_length).get());
   }
 #endif
 
