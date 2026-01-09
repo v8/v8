@@ -70,7 +70,8 @@ void Graph::IterateGraphAndSweepDeadBlocks(Function&& is_dead) {
   }
 }
 
-compiler::OptionalScopeInfoRef Graph::TryGetScopeInfo(ValueNode* context) {
+compiler::OptionalScopeInfoRef Graph::TryGetScopeInfo(ValueNode* context,
+                                                      bool for_suspend) {
   auto it = scope_infos_.find(context);
   if (it != scope_infos_.end()) {
     return it->second;
@@ -89,17 +90,20 @@ compiler::OptionalScopeInfoRef Graph::TryGetScopeInfo(ValueNode* context) {
     if (cur.has_value()) res = cur;
   } else if (context->Is<InitialValue>()) {
     // We should only fail to keep track of initial contexts originating from
-    // the OSR prequel.
+    // the OSR prequel; or when we suspend a generator without a nested context.
     // TODO(olivf): Keep track of contexts when analyzing OSR Prequel.
-    DCHECK(is_osr());
+    DCHECK_IMPLIES(!for_suspend, is_osr());
   } else {
     // Any context created within a function must be registered in
     // graph()->scope_infos(). Initial contexts must be registered before
     // BuildBody. We don't track context in generators (yet) and around eval
     // the bytecode compiler creates contexts by calling
     // Runtime::kNewFunctionInfo directly.
-    DCHECK(context->Is<Phi>() || context->Is<GeneratorRestoreRegister>() ||
-           context->Is<RegisterInput>() || context->Is<CallRuntime>());
+    DCHECK(
+        context->Is<Phi>() || context->Is<GeneratorRestoreRegister>() ||
+        context->Is<RegisterInput>() || context->Is<CallRuntime>() ||
+        (context->Is<LoadTaggedField>() &&
+         context->Cast<LoadTaggedField>()->load_type() == LoadType::kContext));
   }
   return scope_infos_[context] = res;
 }

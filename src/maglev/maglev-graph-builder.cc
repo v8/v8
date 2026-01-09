@@ -16516,7 +16516,8 @@ ReduceResult MaglevGraphBuilder::VisitSuspendGenerator() {
   // <suspend_id>
   ValueNode* generator = LoadRegister(0);
   ValueNode* context = GetContext();
-  last_suspend_scope_info_ = graph()->TryGetScopeInfo(context);
+  last_suspend_scope_info_ =
+      graph()->TryGetScopeInfo(context, /* for suspend */ true);
 
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   uint32_t suspend_id = iterator_.GetUnsignedImmediateOperand(3);
