@@ -1583,6 +1583,8 @@ class MaglevGraphBuilder {
   void AddDeoptUse(VirtualObject* alloc);
   void AddNonEscapingUses(InlinedAllocation* allocation, int use_count);
 
+  void AddDeoptUseToScopeData(DeoptFrame::FrameData& data);
+
   std::optional<VirtualObject*> TryGetNonEscapingArgumentsObject(
       ValueNode* value);
 
