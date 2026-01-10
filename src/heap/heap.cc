@@ -2692,6 +2692,8 @@ Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
                  preliminary_old_generation_allocation_limit);
         dict.Add("old_gen_consumed_bytes_at_last_gc",
                  old_gen_consumed_bytes_at_last_gc);
+        dict.Add("old_gen_allocation_limit_consumed_bytes",
+                 OldGenerationAllocationLimitConsumedBytes());
         dict.Add("old_gen_consumed_bytes", OldGenerationConsumedBytes());
         dict.Add("global_gc_speed", embedder_gc_speed.value_or(0));
         dict.Add("global_mutator_speed", embedder_speed);
@@ -3210,6 +3212,24 @@ void Heap::EnsureAllocationLimitAboveCurrentSize() {
   new_global_allocation_limit =
       std::clamp(new_global_allocation_limit, min_global_memory_size_,
                  max_global_memory_size_);
+
+  TRACE_EVENT_INSTANT(
+      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      "V8.GCEnsureAllocationLimitAboveCurrentSize", "value",
+      [&](perfetto::TracedValue ctx) {
+        auto dict = std::move(ctx).WriteDictionary();
+        dict.Add("old_gen_allocation_limit", old_generation_allocation_limit());
+        dict.Add("next_old_gen_allocation_limit",
+                 new_old_generation_allocation_limit);
+        dict.Add("global_allocation_limit", global_allocation_limit());
+        dict.Add("next_global_allocation_limit", new_global_allocation_limit);
+        dict.Add("old_gen_allocation_limit_consumed_bytes",
+                 OldGenerationAllocationLimitConsumedBytes());
+        dict.Add("global_consumed_bytes", GlobalConsumedBytes());
+        dict.Add("external_memory_since_mark_compact",
+                 AllocatedExternalMemorySinceMarkCompact());
+      });
+
   SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
                                            new_global_allocation_limit);
   CHECK_LE(OldGenerationConsumedBytes(), old_generation_allocation_limit());
