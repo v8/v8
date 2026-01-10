@@ -186,7 +186,7 @@ void WasmInterpreterThreadMap::NotifyIsolateDisposal(Isolate* isolate) {
     WasmInterpreterThread* thread = it->second.get();
     if (thread->GetIsolate() == isolate) {
       thread->TerminateExecutionTimers();
-      it = map_.erase(it);
+      map_.erase(it++);
     } else {
       ++it;
     }
