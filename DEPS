@@ -316,7 +316,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'a726f5347e1e423d59f5c2d434b6a29265c43051',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '405c7a1ba2fe76f45236ba51eed1db816ba0a5c9',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '259b6a7101beea301d6dfb96445f03f7d2e13754',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -510,7 +510,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '24494b071e019a2baea4355d9870ffc5fc0bbafe',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '44b989848f8ef226b57b2e1ee96d0ffa65e99795',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'c39a70c914bbac46c52bddb7ee136e04fdf1e687',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
