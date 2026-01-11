@@ -79,7 +79,7 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
   // added for tsan builds.
   void SynchronizedLoad() const {
 #if defined(THREAD_SANITIZER)
-    std::atomic_ref<PageType>(const_cast<PageType&>(type_))
+    (void)std::atomic_ref<PageType>(const_cast<PageType&>(type_))
         .load(std::memory_order_acquire);
 #endif
   }
