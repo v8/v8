@@ -681,6 +681,7 @@
 
   # --experimental-wasm-wasmfx
   'regress/wasm/regress-455832038': [SKIP],
+  'wasm/resume-throw': [SKIP],
   'wasm/stack-switching*': [SKIP],
 
   # --experimental-wasm-growable-stacks
@@ -699,6 +700,7 @@
   'wasm/gc-casts-from-any': [SKIP],
   'wasm/reference-globals-import': [SKIP],
   'wasm/reference-table-js-interop': [SKIP],
+  'wasm/regress-467863659': [SKIP],
   'wasm/stringref*': [SKIP],
   'wasm/stringview-valuestack': [SKIP],
   'wasm/turboshaft/instruction-selection': [SKIP],

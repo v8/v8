@@ -1280,8 +1280,9 @@ struct BranchOnCastData {
                    uint32_t target_type_bit_fields)
       : label_depth_(label_depth),
         flags_(SrcIsNullField::encode(src_is_null) |
-               ResIsNullField::encode(src_is_null) |
-               TargetTypeField::encode(src_is_null)) {}
+               ResIsNullField::encode(res_is_null) |
+               TargetTypeField::encode(target_type_bit_fields)) {}
+  BranchOnCastData() : label_depth_(0), flags_(0) {}
 
   uint32_t label_depth() const { return label_depth_; }
   bool src_is_null() const { return SrcIsNullField::decode(flags_); }
@@ -1302,6 +1303,8 @@ struct BranchOnCastData {
 
 struct WasmInstruction {
   union Optional {
+    Optional() : index(0) {}
+
     uint32_t index;  // global/local/label/memory/table index
     int32_t i32;
     int64_t i64;
