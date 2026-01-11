@@ -1331,4 +1331,21 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/format/temporal-plaindatetime-unsupported-options': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-plaindatetime-unsupported-options': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-plaindatetime-unsupported-options': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-plaindatetime-unsupported-options': [SKIP],
+  'intl402/Temporal/PlainDate/canonicalize-calendar': [SKIP],
+  'intl402/Temporal/PlainDateTime/canonicalize-calendar': [SKIP],
+  'intl402/Temporal/PlainMonthDay/canonicalize-calendar': [SKIP],
+  'intl402/Temporal/PlainYearMonth/canonicalize-calendar': [SKIP],
+  'intl402/Temporal/PlainYearMonth/from/extreme-unsupported-dates': [SKIP],
+  'intl402/Temporal/ZonedDateTime/canonicalize-calendar': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
