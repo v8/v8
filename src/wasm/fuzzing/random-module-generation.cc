@@ -3903,8 +3903,8 @@ class BodyGen {
     if (type.has_index()) {
       if (options_.generate_wasm_gc() &&
           type.ref_index() == string_imports_.array_i8 &&
-          data->get<uint8_t>() < 18) {
-        // ~1/14th chance, fits the number of remaining alternatives (13)
+          data->get<uint8_t>() < 16) {
+        // ~1/16th chance, fits the number of remaining alternatives (15)
         // quite well.
         return string_toutf8array(data);
       }
@@ -4154,7 +4154,7 @@ class BodyGen {
 
     // Split the types in two halves and recursively generate each half.
     // Each half is non empty to ensure termination.
-    size_t split_index = data->get<uint8_t>() % (types.size() - 1) + 1;
+    size_t split_index = types.size() / 2;
     base::Vector<const ValueType> lower_half = types.SubVector(0, split_index);
     base::Vector<const ValueType> upper_half =
         types.SubVector(split_index, types.size());
@@ -4292,8 +4292,8 @@ class ModuleGen {
  public:
   explicit ModuleGen(Zone* zone, WasmModuleGenerationOptions options,
                      WasmModuleBuilder* fn, DataRange* module_range,
-                     uint8_t num_functions, uint8_t num_structs,
-                     uint8_t num_arrays, uint8_t num_signatures)
+                     int num_functions, int num_structs, int num_arrays,
+                     int num_signatures)
       : zone_(zone),
         options_(options),
         builder_(fn),
@@ -4628,7 +4628,7 @@ class ModuleGen {
     }
   }
 
-  void GenerateRandomExceptions(uint8_t num_exceptions) {
+  void GenerateRandomExceptions(int num_exceptions) {
     for (int i = 0; i < num_exceptions; ++i) {
       FunctionSig* sig = GenerateSig(kExceptionSig, num_types_);
       builder_->AddTag(sig);
@@ -4834,10 +4834,10 @@ class ModuleGen {
   const WasmModuleGenerationOptions options_;
   WasmModuleBuilder* const builder_;
   DataRange* const module_range_;
-  const uint8_t num_functions_;
-  const uint8_t num_structs_;
-  const uint8_t num_arrays_;
-  const uint16_t num_types_;
+  const int num_functions_;
+  const int num_structs_;
+  const int num_arrays_;
+  const int num_types_;
   std::vector<ExportData>* imports_ = nullptr;
 };
 
@@ -5131,7 +5131,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   // At least 1 function is needed.
   int max_num_functions = MaxNumOfFunctions();
   CHECK_GE(max_num_functions, 1);
-  uint8_t num_functions = 1 + (module_range.get<uint8_t>() % max_num_functions);
+  int num_functions = 1 + (module_range.get<uint8_t>() % max_num_functions);
 
   // In case of WasmGC expressions:
   // Add struct and array types first so that we get a chance to generate
@@ -5139,8 +5139,8 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   // Currently, `BodyGen` assumes this order for struct/array/signature
   // definitions.
   // Otherwise, for non-WasmGC we can't use structs/arrays.
-  uint8_t num_structs = 0;
-  uint8_t num_arrays = 0;
+  int num_structs = 0;
+  int num_arrays = 0;
   std::vector<ModuleTypeIndex> array_types;
   std::vector<ModuleTypeIndex> struct_types;
 
@@ -5156,7 +5156,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
                  module_range.get<uint8_t>() % kMaxArrays;
   }
 
-  uint8_t num_signatures = num_functions;
+  int num_signatures = num_functions;
   ModuleGen gen_module(zone, options, &builder, &module_range, num_functions,
                        num_structs, num_arrays, num_signatures);
 
