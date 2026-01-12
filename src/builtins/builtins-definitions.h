@@ -14,14 +14,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
-// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
-#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(TSA_MACRO(__VA_ARGS__))
-#else
-// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
-#define IF_TSA(TSA_MACRO, CSA_MACRO, ...) EXPAND(CSA_MACRO(__VA_ARGS__))
-#endif
-
 #if V8_ENABLE_GEARBOX
 #define WITH_GEARBOX(KIND, NAME, ...) \
   KIND(NAME##_Generic, __VA_ARGS__)   \
@@ -1167,7 +1159,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFJ(StringPrototypeSplit, kDontAdaptArgumentsSentinel)                       \
   /* ES6 #sec-string.raw */                                                    \
   CPP(StringRaw, kDontAdaptArgumentsSentinel)                                  \
-  IF_TSA(TFC_TSA, IGNORE_BUILTIN, ToString, ToString)                          \
+  /*SELECT_TSA_LEVEL(IGNORE_BUILTIN, TFC_TSA, IGNORE_BUILTIN, ToString,        \
+   * ToString)*/                                                               \
                                                                                \
   /* Symbol */                                                                 \
   /* ES #sec-symbol-constructor */                                             \
@@ -2302,7 +2295,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, BCH, \
                      ASM)                                                     \
   BUILTIN_LIST_BASE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)                      \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)             \
   BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                            \
   BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                             \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH_TSA, BCH)
@@ -2312,12 +2305,12 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST_TIER0(CPP, TFJ, TFC, TFS, TFH, BCH, ASM) \
   BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)
 
-#define BUILTIN_LIST_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, BCH_TSA, BCH, \
-                           ASM)                                            \
-  BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)                   \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                         \
-  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                          \
+#define BUILTIN_LIST_TIER1(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, \
+                           BCH, ASM)                                           \
+  BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, ASM)               \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)              \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                             \
+  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                              \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH_TSA, BCH)
 
 // The exception thrown in the following builtins are caught

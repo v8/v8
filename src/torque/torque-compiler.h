@@ -21,6 +21,7 @@ struct TorqueCompilerOptions {
   std::string v8_root = "";
   bool collect_language_server_data = false;
   bool collect_kythe_data = false;
+  bool output_tsa = false;
 
   // dcheck(...) are only generated for debug builds. To provide
   // language server support for statements inside dchecks, this flag

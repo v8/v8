@@ -17,6 +17,9 @@
 #include "src/compiler/write-barrier-kind.h"
 #include "src/objects/string.h"
 #include "src/objects/tagged-field.h"
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+#include "torque-generated/src/builtins/builtins-string-tq-tsa.h"
+#endif
 
 namespace v8::internal {
 
@@ -140,6 +143,7 @@ class StringBuiltinsReducer : public Next {
     return result;
   }
 
+#ifndef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
   V<String> ToStringImpl(V<Context> context, V<JSAny> o) {
     ScopedVar<JSAny> result(this, o);
     Label<String> done(this);
@@ -174,6 +178,7 @@ class StringBuiltinsReducer : public Next {
     BIND(done, return_value);
     return return_value;
   }
+#endif  // !V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
 
   void GotoIfForceSlowPath(Label<>& if_true) {
     // TODO(nicohartmann): Provide this.
@@ -503,13 +508,14 @@ class StringBuiltinsReducer : public Next {
         __ LoadFixedArrayElement(dictionary, NameDictionary::kFlagsIndex));
   }
 
-  V<Word32> HasInstanceType(V<HeapObject> heap_object,
-                            InstanceType instance_type) {
+  template <InstanceType instance_type>
+  V<Word32> HasInstanceType(V<HeapObject> heap_object) {
 #if V8_STATIC_ROOTS_BOOL
-    if (std::optional<RootIndex> expected_map =
-            InstanceTypeChecker::UniqueMapOfInstanceType(instance_type)) {
+    constexpr std::optional<RootIndex> expected_map =
+        InstanceTypeChecker::UniqueMapOfInstanceType(instance_type);
+    if constexpr (expected_map.has_value()) {
       V<Map> map = __ LoadMapField(heap_object);
-      return __ TaggedEqual(map, __ LoadRoot(*expected_map));
+      return __ TaggedEqual(map, __ template LoadRoot<*expected_map>());
     }
 #endif
     return __ InstanceTypeEqual(
@@ -517,7 +523,7 @@ class StringBuiltinsReducer : public Next {
   }
 
   V<Word32> IsPropertyDictionary(V<HeapObject> heap_object) {
-    return HasInstanceType(heap_object, PROPERTY_DICTIONARY_TYPE);
+    return HasInstanceType<PROPERTY_DICTIONARY_TYPE>(heap_object);
   }
 
   V<JSAny> GetInterestingProperty(V<Context> context, V<JSReceiver> receiver,
@@ -665,7 +671,13 @@ class StringBuiltinsReducer : public Next {
 };
 
 template <typename Next>
-using StringBuiltinsReducers = StringBuiltinsReducer<Next>;
+using StringBuiltinsReducers = StringBuiltinsReducer<
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+    TorqueGeneratedStringBuiltinsReducer<Next>
+#else
+    Next
+#endif
+    >;
 
 class StringBuiltinsAssemblerTS
     : public TurboshaftBuiltinsAssembler<StringBuiltinsReducers,

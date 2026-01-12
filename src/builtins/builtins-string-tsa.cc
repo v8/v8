@@ -112,11 +112,13 @@ TS_BUILTIN(StringFromCharCode, StringBuiltinsAssemblerTS) {
   }
 }
 
+#ifndef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
 TS_BUILTIN(ToString, StringBuiltinsAssemblerTS) {
   V<Context> context = Parameter<Context>(Descriptor::kContext);
   V<JSAny> o = Parameter<JSAny>(Descriptor::kO);
   Return(ToStringImpl(context, o));
 }
+#endif  // !V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
 
 #endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 

@@ -362,6 +362,11 @@ class TypeswitchBuilder {
                   base::tmp::contains_v<types, Object>;
   }
 
+  template <typename T, typename A>
+  TypeswitchBuilder(assembler_t& assembler, PipelineData* data,
+                    const ScopedVar<T, A>& var)
+      : TypeswitchBuilder(assembler, data, var.Get()) {}
+
   // BeginCase is invoked multiple times by the builder for each case (case_ref
   // here is a unique identification for the specific case). The builder's
   // control_state_ describes what needs to be done for this case.

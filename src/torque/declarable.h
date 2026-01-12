@@ -388,6 +388,10 @@ class Macro : public Callable {
 
   void SetUsed() { used_ = true; }
   bool IsUsed() const { return used_; }
+  void SetSupportsTSA(bool supports_tsa = true) {
+    supports_tsa_ = supports_tsa;
+  }
+  bool SupportsTSA() const { return supports_tsa_; }
 
  protected:
   Macro(Declarable::Kind kind, std::string external_name,
@@ -403,6 +407,7 @@ class Macro : public Callable {
 
  private:
   bool used_;
+  bool supports_tsa_ = false;
 };
 
 class ExternMacro : public Macro {
@@ -498,7 +503,11 @@ class Method : public TorqueMacro {
 class Builtin : public Callable {
  public:
   enum Kind { kStub, kFixedArgsJavaScript, kVarArgsJavaScript };
-  enum class Flag { kNone = 0, kCustomInterfaceDescriptor = 1 << 0 };
+  enum class Flag {
+    kNone = 0,
+    kCustomInterfaceDescriptor = 1 << 0,
+    kSupportsTSA = 1 << 1
+  };
   using Flags = base::Flags<Flag>;
   DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin)
   Kind kind() const { return kind_; }
@@ -515,6 +524,7 @@ class Builtin : public Callable {
   bool HasCustomInterfaceDescriptor() const {
     return flags_ & Flag::kCustomInterfaceDescriptor;
   }
+  bool SupportsTSA() const { return flags_ & Flag::kSupportsTSA; }
 
  private:
   friend class Declarations;

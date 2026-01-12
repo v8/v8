@@ -935,8 +935,7 @@ class BuiltinsReducer : public Next {
 
   void ThrowTypeError(V<Context> context, MessageTemplate message,
                       char const* arg0 = nullptr, char const* arg1 = nullptr) {
-    using ThrowTypeError = runtime::ThrowTypeError;
-    ThrowTypeError::Arguments args;
+    runtime::ThrowTypeError::Arguments args;
     args.template_index = __ SmiConstant(Smi::FromEnum(message));
     if (arg0) {
       args.arg0 = StringConstant(arg0);
@@ -945,17 +944,16 @@ class BuiltinsReducer : public Next {
       }
     }
 
-    __ template CallRuntime<ThrowTypeError>(context, args);
+    __ template CallRuntime<runtime::ThrowTypeError>(context, args);
     __ Unreachable();
   }
 
   void ThrowTypeError(V<Context> context, MessageTemplate message,
                       OptionalV<Object> arg0, OptionalV<Object> arg1,
                       OptionalV<Object> arg2) {
-    using ThrowTypeError = runtime::ThrowTypeError;
     DCHECK_IMPLIES(arg2.has_value(), arg1.has_value());
     DCHECK_IMPLIES(arg1.has_value(), arg0.has_value());
-    __ template CallRuntime<ThrowTypeError>(
+    __ template CallRuntime<runtime::ThrowTypeError>(
         context, {.template_index = __ SmiConstant(Smi::FromEnum(message)),
                   .arg0 = arg0,
                   .arg1 = arg1,

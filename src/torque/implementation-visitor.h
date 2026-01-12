@@ -584,6 +584,10 @@ class ImplementationVisitor {
   const Type* Visit(ExpressionStatement* stmt);
   const Type* Visit(DebugStatement* stmt);
   const Type* Visit(AssertStatement* stmt);
+  const Type* Visit(TypeswitchStatement* stmt) {
+    // This should have been desugared before.
+    UNREACHABLE();
+  }
 
   void BeginGeneratedFiles();
   void EndGeneratedFiles();

@@ -12641,7 +12641,6 @@ TNode<JSAny> CodeStubAssembler::GetInterestingProperty(
   // var_holder's map.
   CSA_DCHECK(this, TaggedEqual(LoadMap((*var_holder).value()),
                                (*var_holder_map).value()));
-  TVARIABLE(Object, var_result, UndefinedConstant());
 
   // Check if all relevant maps (including the prototype maps) don't
   // have any interesting properties (i.e. that none of them have the

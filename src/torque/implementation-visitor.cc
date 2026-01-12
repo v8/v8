@@ -596,6 +596,13 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
   CurrentCallable::Scope current_callable(builtin);
   CurrentReturnValue::Scope current_return_value;
 
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+  if (builtin->SupportsTSA()) {
+    // TSAGenerator has emitted this builtin's implementation.
+    return;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+
   const std::string& name = builtin->ExternalName();
   const Signature& signature = builtin->signature();
   csa_ccfile() << "TF_BUILTIN(" << name << ", CodeStubAssembler) {\n"
@@ -3651,15 +3658,25 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
 
     builtin_definitions
         << "\n"
-           "#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, "
+           "#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, "
            "ASM) "
            "\\\n";
     for (auto& declarable : GlobalContext::AllDeclarables()) {
       Builtin* builtin = Builtin::DynamicCast(declarable.get());
       if (!builtin || builtin->IsExternal()) continue;
       if (builtin->IsStub()) {
-        builtin_definitions << "TFC(" << builtin->ExternalName() << ", "
-                            << builtin->ExternalName();
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+        if (builtin->SupportsTSA()) {
+          builtin_definitions << "TFC_TSA(" << builtin->ExternalName() << ", "
+                              << builtin->ExternalName();
+        } else {
+#endif  // V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+          builtin_definitions << "TFC(" << builtin->ExternalName() << ", "
+                              << builtin->ExternalName();
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+        }
+#endif  // V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+
         if (!builtin->HasCustomInterfaceDescriptor()) {
           std::string descriptor_name = builtin->ExternalName() + "Descriptor";
           bool has_context_parameter =

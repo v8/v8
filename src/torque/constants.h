@@ -141,6 +141,7 @@ static const char* const ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR =
 // builtin.
 static const char* const ANNOTATION_INCREMENT_USE_COUNTER =
     "@incrementUseCounter";
+static const char* const ANNOTATION_SUPPORTS_TSA = "@supportsTSA";
 
 inline bool IsConstexprName(std::string_view name) {
   return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==

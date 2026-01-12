@@ -163,6 +163,8 @@ v8_flag(
     default = True,
 )
 
+v8_flag(name = "v8_enable_experimental_tq_to_tsa")
+
 # Default setting for v8_enable_maglev
 selects.config_setting_group(
     name = "maglev_by_default",
@@ -1297,6 +1299,9 @@ filegroup(
         "src/numbers/integer-literal.h",
         "src/numbers/integer-literal-inl.h",
         "src/torque/ast.h",
+        "src/torque/ast-desugaring.cc",
+        "src/torque/ast-desugaring.h",
+        "src/torque/ast-visitor.h",
         "src/torque/cc-generator.cc",
         "src/torque/cc-generator.h",
         "src/torque/cfg.cc",
@@ -1345,7 +1350,13 @@ filegroup(
         "src/torque/types.h",
         "src/torque/utils.cc",
         "src/torque/utils.h",
-    ],
+    ] + select({
+        ":is_v8_enable_experimental_tq_to_tsa": [
+            "src/torque/tsa-generator.cc",
+            "src/torque/tsa-generator.h",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 filegroup(

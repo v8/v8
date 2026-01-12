@@ -459,6 +459,9 @@ declare_args() {
   # Use the experimental TSA-based definition for some builtins.
   v8_enable_experimental_tsa_builtins = false
 
+  # Use the experimental TSA backend for Torque.
+  v8_enable_experimental_tq_to_tsa = false
+
   # Use the encoding of undefined in double values.
   # Only enabled for fuzzing in V8 Fuzzilli builds
   v8_enable_undefined_double = v8_fuzzilli
@@ -749,6 +752,10 @@ if (v8_enable_webassembly && !v8_target_is_simulator &&
 
 if (v8_enable_webassembly && v8_current_cpu == "arm64") {
   v8_enable_wasm_deinterleaved_mem_ops = true
+}
+
+if (v8_enable_experimental_tq_to_tsa) {
+  v8_enable_experimental_tsa_builtins = true
 }
 
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
@@ -1494,6 +1501,9 @@ config("features") {
   }
   if (v8_enable_experimental_tsa_builtins) {
     defines += [ "V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS" ]
+  }
+  if (v8_enable_experimental_tq_to_tsa) {
+    defines += [ "V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA" ]
   }
   if (v8_enable_undefined_double) {
     defines += [ "V8_ENABLE_UNDEFINED_DOUBLE" ]
@@ -2278,6 +2288,75 @@ if (v8_enable_webassembly) {
   ]
 }
 
+if (v8_enable_experimental_tq_to_tsa) {
+  template("run_torque_to_tsa") {
+    if (target_name == "") {
+      suffix = ""
+    } else {
+      suffix = "_$target_name"
+    }
+
+    toolchain = invoker.toolchain
+
+    action("run_torque_to_tsa" + suffix) {
+      visibility = [
+        ":*",
+        "test/cctest/:*",
+        "tools/debug_helper/:*",
+        "tools/gcmole/:*",
+      ]
+
+      deps = [ ":torque($toolchain)" ]
+
+      if (is_msan) {
+        configs = [
+          "//third_party/instrumented_libs:msan_runtime_libs($host_toolchain)",
+        ]
+        deps += [ "//third_party/instrumented_libs:ld-linux($host_toolchain)" ]
+      }
+
+      script = "tools/run.py"
+
+      sources = torque_files
+
+      destination_folder = "$target_gen_dir/torque-generated$suffix"
+
+      outputs = []
+
+      foreach(file, torque_files) {
+        filetq = string_replace(file, ".tq", "-tq")
+        outputs += [
+          "$destination_folder/$filetq-tsa.cc",
+          "$destination_folder/$filetq-tsa.h",
+        ]
+      }
+
+      args = [
+        "./" + rebase_path(get_label_info(":torque($toolchain)",
+                                          "root_out_dir") + "/torque",
+                           root_build_dir),
+        "-o",
+        rebase_path("$destination_folder", root_build_dir),
+        "-v8-root",
+        rebase_path(".", root_build_dir),
+        "-output-tsa",
+      ]
+      if (v8_annotate_torque_ir) {
+        args += [ "-annotate-ir" ]
+      }
+      if (defined(invoker.args)) {
+        args += invoker.args
+      }
+      args += torque_files
+    }
+  }
+
+  # Default run_torque_to_tsa action
+  run_torque_to_tsa("") {
+    toolchain = v8_generator_toolchain
+  }
+}
+
 # Template for running torque
 # When building with v8_verify_torque_generation_invariance=true we need
 # to be able to run torque for both 32 and 64 bits in the same build
@@ -2442,6 +2521,9 @@ v8_source_set("torque_generated_initializers") {
     ":v8_maybe_temporal",
     ":v8_tracing",
   ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    deps += [ ":run_torque_to_tsa" ]
+  }
 
   public_deps = [
     ":torque_runtime_support",
@@ -2461,6 +2543,12 @@ v8_source_set("torque_generated_initializers") {
       "$target_gen_dir/torque-generated/$filetq-csa.cc",
       "$target_gen_dir/torque-generated/$filetq-csa.h",
     ]
+    if (v8_enable_experimental_tq_to_tsa) {
+      sources += [
+        "$target_gen_dir/torque-generated/$filetq-tsa.cc",
+        "$target_gen_dir/torque-generated/$filetq-tsa.h",
+      ]
+    }
   }
 
   configs = [ ":internal_config" ]
@@ -2489,6 +2577,9 @@ v8_source_set("torque_generated_definitions") {
     ":v8_maybe_temporal",
     ":v8_tracing",
   ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    deps += [ ":run_torque_to_tsa" ]
+  }
 
   public_deps = [
     ":v8_abseil",
@@ -5196,6 +5287,9 @@ v8_header_set("v8_internal_headers") {
     ":v8_maybe_temporal",
     "//third_party/simdutf",
   ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    deps += [ ":run_torque_to_tsa" ]
+  }
 }
 
 v8_compiler_sources = [
@@ -5510,6 +5604,9 @@ v8_source_set("v8_compiler_for_mksnapshot_source_set") {
     ":v8_maybe_icu",
     ":v8_tracing",
   ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    public_deps += [ ":run_torque_to_tsa" ]
+  }
 
   deps = [
     ":v8_base_without_compiler",
@@ -5550,6 +5647,9 @@ v8_source_set("v8_compiler") {
     ":v8_maybe_icu",
     ":v8_tracing",
   ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    public_deps += [ ":run_torque_to_tsa" ]
+  }
 
   deps = [
     ":v8_base_without_compiler",
@@ -6575,6 +6675,9 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_maybe_icu",
     "//third_party/simdutf",
   ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    public_deps += [ ":run_torque_to_tsa" ]
+  }
 
   if (v8_fuzzilli) {
     sources += [
@@ -6677,6 +6780,9 @@ v8_source_set("torque_base") {
   sources = [
     "src/numbers/integer-literal-inl.h",
     "src/numbers/integer-literal.h",
+    "src/torque/ast-desugaring.cc",
+    "src/torque/ast-desugaring.h",
+    "src/torque/ast-visitor.h",
     "src/torque/ast.h",
     "src/torque/cc-generator.cc",
     "src/torque/cc-generator.h",
@@ -6727,6 +6833,13 @@ v8_source_set("torque_base") {
     "src/torque/utils.cc",
     "src/torque/utils.h",
   ]
+
+  if (v8_enable_experimental_tq_to_tsa) {
+    sources += [
+      "src/torque/tsa-generator.cc",
+      "src/torque/tsa-generator.h",
+    ]
+  }
 
   deps = [
     ":v8_flags",
@@ -8407,6 +8520,9 @@ if (v8_enable_webassembly) {
       ":v8_shared_internal_headers",
       ":v8_tracing",
     ]
+    if (v8_enable_experimental_tq_to_tsa) {
+      deps += [ ":run_torque_to_tsa" ]
+    }
 
     public_deps = [
       ":v8_abseil",
@@ -8507,6 +8623,9 @@ group("v8_generated_cc_files") {
     ":run_torque",
     "src/inspector:v8_generated_cc_files",
   ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    deps += [ ":run_torque_to_tsa" ]
+  }
 }
 
 # Protobuf targets, used only when building outside of chromium.

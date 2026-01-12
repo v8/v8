@@ -30,13 +30,6 @@ struct ExpressionWithSource {
   std::string source;
 };
 
-struct TypeswitchCase {
-  SourcePosition pos;
-  std::optional<Identifier*> name;
-  TypeExpression* type;
-  Statement* block;
-};
-
 struct EnumEntry {
   Identifier* name;
   std::optional<TypeExpression*> type;
@@ -51,6 +44,8 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
     build_flags_["V8_ENABLE_UNDEFINED_DOUBLE"] = V8_UNDEFINED_DOUBLE_BOOL;
     build_flags_["V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS"] =
         V8_EXPERIMENTAL_TSA_BUILTINS_BOOL;
+    build_flags_["V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS_WITHOUT_TQ_TO_TSA"] =
+        V8_EXPERIMENTAL_TSA_BUILTINS_BOOL && !V8_EXPERIMENTAL_TQ_TO_TSA_BOOL;
 #ifdef V8_INTL_SUPPORT
     build_flags_["V8_INTL_SUPPORT"] = true;
 #else
@@ -299,8 +294,6 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<GenericParameters>::id =
         ParseResultTypeId::kGenericParameters;
-
-namespace {
 
 bool ProcessIfAnnotation(ParseResultIterator* child_results);
 class AnnotationSet;
@@ -634,7 +627,7 @@ std::optional<ParseResult> MakeIntrinsicDeclaration(
   if (body) {
     declaration = MakeNode<TorqueMacroDeclaration>(
         false, name, std::optional<std::string>{}, args, return_type,
-        LabelAndTypesVector{}, false, body);
+        LabelAndTypesVector{}, false, false, body);
   } else {
     declaration = MakeNode<IntrinsicDeclaration>(name, args, return_type);
   }
@@ -737,10 +730,12 @@ class AnnotationSet {
 
 std::optional<ParseResult> MakeTorqueMacroDeclaration(
     ParseResultIterator* child_results) {
-  AnnotationSet annotations(child_results, {ANNOTATION_EXPORT},
+  AnnotationSet annotations(child_results,
+                            {ANNOTATION_EXPORT, ANNOTATION_SUPPORTS_TSA},
                             {ANNOTATION_IF, ANNOTATION_IFNOT});
   bool enabled = ProcessIfAnnotation(annotations);
   bool export_to_csa = annotations.Contains(ANNOTATION_EXPORT);
+  bool supports_tsa = annotations.Contains(ANNOTATION_SUPPORTS_TSA);
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<std::optional<std::string>>();
   auto name = child_results->NextAs<Identifier*>();
@@ -759,7 +754,7 @@ std::optional<ParseResult> MakeTorqueMacroDeclaration(
   if (enabled) {
     CallableDeclaration* declaration = MakeNode<TorqueMacroDeclaration>(
         transitioning, name, operator_name, args, return_type,
-        std::move(labels), export_to_csa, body);
+        std::move(labels), export_to_csa, supports_tsa, body);
     result = {declaration};
     if (generic_parameters.empty()) {
       if (!body) ReportError("A non-generic declaration needs a body.");
@@ -873,7 +868,7 @@ std::optional<ParseResult> MakeMethodDeclaration(
   auto body = child_results->NextAs<Statement*>();
   Declaration* result = MakeNode<TorqueMacroDeclaration>(
       transitioning, name, operator_name, args, return_type, std::move(labels),
-      false, body);
+      false, false, body);
   return ParseResult{result};
 }
 
@@ -973,13 +968,15 @@ int GetAnnotationValue(const AnnotationSet& annotations, const char* name,
 std::optional<ParseResult> MakeTorqueBuiltinDeclaration(
     ParseResultIterator* child_results) {
   AnnotationSet annotations(
-      child_results, {ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR},
+      child_results,
+      {ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR, ANNOTATION_SUPPORTS_TSA},
       {ANNOTATION_IF, ANNOTATION_IFNOT, ANNOTATION_INCREMENT_USE_COUNTER});
   const bool has_custom_interface_descriptor =
       annotations.Contains(ANNOTATION_CUSTOM_INTERFACE_DESCRIPTOR);
   std::optional<std::string> use_counter_name =
       annotations.GetStringParam(ANNOTATION_INCREMENT_USE_COUNTER);
   const bool enabled = ProcessIfAnnotation(annotations);
+  const bool supports_tsa = annotations.Contains(ANNOTATION_SUPPORTS_TSA);
   auto transitioning = child_results->NextAs<bool>();
   auto javascript_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -995,7 +992,7 @@ std::optional<ParseResult> MakeTorqueBuiltinDeclaration(
   auto body = child_results->NextAs<std::optional<Statement*>>();
   CallableDeclaration* declaration = MakeNode<TorqueBuiltinDeclaration>(
       transitioning, javascript_linkage, name, args, return_type,
-      has_custom_interface_descriptor, use_counter_name, body);
+      has_custom_interface_descriptor, supports_tsa, use_counter_name, body);
   Declaration* result = declaration;
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
@@ -1685,6 +1682,11 @@ std::optional<ParseResult> MakeTypeswitchStatement(
   CurrentSourcePosition::Scope matched_input_current_source_position(
       child_results->matched_input().pos);
 
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+  Statement* result =
+      MakeNode<TypeswitchStatement>(expression, std::move(cases));
+  return ParseResult{result};
+#else
   // typeswitch (expression) case (x1 : T1) {
   //   ...b1
   // } case (x2 : T2) {
@@ -1761,6 +1763,7 @@ std::optional<ParseResult> MakeTypeswitchStatement(
               : cases[i].type;
   }
   return ParseResult{result};
+#endif  // V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
 }
 
 std::optional<ParseResult> MakeTypeswitchCase(
@@ -2956,8 +2959,6 @@ struct TorqueGrammar : Grammar {
                       ProcessTorqueImportDeclaration),
                  Rule({&file, &declaration}, AddGlobalDeclarations), Rule({})};
 };
-
-}  // namespace
 
 void ParseTorque(const std::string& input) {
   BuildFlags::Scope build_flags_scope;

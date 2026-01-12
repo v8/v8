@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include 'src/builtins/builtins-string-gen.h'
+#include 'src/builtins/builtins-string-tsa-inl.h'
 
 namespace string {
 
@@ -11,6 +12,7 @@ extern transitioning runtime ToString(Context, JSAny): String;
 }
 
 // LINT.IfChange
+@supportsTSA
 @export
 transitioning macro ToStringImpl(context: Context, o: JSAny): String {
   let result: JSAny = o;
@@ -42,11 +44,12 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
 // LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
 // LINT.IfChange
-@ifnot(V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS)
+@ifnot(V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS_WITHOUT_TQ_TO_TSA)
+@supportsTSA
 transitioning builtin ToString(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
 }
-@if(V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS)
+@if(V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS_WITHOUT_TQ_TO_TSA)
 extern transitioning builtin ToString(Context, JSAny): String;
 // LINT.ThenChange(/src/builtins/builtins-string-tsa.cc)
 

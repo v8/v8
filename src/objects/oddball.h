@@ -67,6 +67,8 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
   friend class TorqueGeneratedOddballAsserts;
   template <typename>
   friend class StringBuiltinsReducer;
+  template <typename>
+  friend class TorqueGeneratedStringBuiltinsReducer;
 
   UnalignedDoubleMember to_number_raw_;
   TaggedMember<String> to_string_;
