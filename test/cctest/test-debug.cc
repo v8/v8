@@ -41,6 +41,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/microtask-queue.h"
 #include "src/objects/objects-inl.h"
+#include "src/sandbox/sandboxable-thread.h"
 #include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -4147,10 +4148,10 @@ class DebugBreakTriggerTerminate : public v8::debug::DebugDelegate {
   bool terminate_already_fired_ = false;
 };
 
-class TerminationThread : public v8::base::Thread {
+class TerminationThread : public v8::internal::SandboxableThread {
  public:
   explicit TerminationThread(v8::Isolate* isolate)
-      : Thread(Options("terminator")), isolate_(isolate) {}
+      : SandboxableThread(Options("terminator")), isolate_(isolate) {}
 
   void Run() override {
     terminate_requested_semaphore.Wait();
@@ -4161,7 +4162,6 @@ class TerminationThread : public v8::base::Thread {
  private:
   v8::Isolate* isolate_;
 };
-
 
 TEST(DebugBreakOffThreadTerminate) {
   LocalContext env;
@@ -4181,11 +4181,11 @@ TEST(DebugBreakOffThreadTerminate) {
 // V8_EXTERNAL_POINTER_TAG_COUNT.
 constexpr v8::ExternalPointerTypeTag kArchiveRestoreThreadTag = 20;
 
-class ArchiveRestoreThread : public v8::base::Thread,
+class ArchiveRestoreThread : public v8::internal::SandboxableThread,
                              public v8::debug::DebugDelegate {
  public:
   ArchiveRestoreThread(v8::Isolate* isolate, int spawn_count)
-      : Thread(Options("ArchiveRestoreThread")),
+      : SandboxableThread(Options("ArchiveRestoreThread")),
         isolate_(isolate),
         debug_(reinterpret_cast<i::Isolate*>(isolate_)->debug()),
         spawn_count_(spawn_count),
@@ -4193,8 +4193,6 @@ class ArchiveRestoreThread : public v8::base::Thread,
 
   void Run() override {
     {
-      v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
-
       v8::Locker locker(isolate_);
       v8::Isolate::Scope i_scope(isolate_);
 

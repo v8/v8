@@ -8,6 +8,7 @@
 
 #include <pthread.h>  // For SetKeyForCurrentThreadsStack.
 #include <sys/mman.h>  // For {mprotect()} protection macros.
+#include <unistd.h>    // For sysconf.
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
 
 #include "src/base/logging.h"
@@ -161,7 +162,8 @@ void MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler(
   }
 }
 
-bool MemoryProtectionKey::SetKeyForCurrentThreadsStack(int key) {
+bool MemoryProtectionKey::SetKeyForCurrentThreadsStack(int key,
+                                                       void* limit_address) {
   DCHECK_NE(kNoMemoryProtectionKey, key);
 
   pthread_attr_t attr;
@@ -174,6 +176,17 @@ bool MemoryProtectionKey::SetKeyForCurrentThreadsStack(int key) {
   CHECK_EQ(pthread_getattr_np(pthread_self(), &attr), 0);
   CHECK_EQ(pthread_attr_getstack(&attr, &stackaddr, &stacksize), 0);
   CHECK_EQ(pthread_attr_destroy(&attr), 0);
+
+  if (limit_address) {
+    uintptr_t start = reinterpret_cast<uintptr_t>(stackaddr);
+    uintptr_t end = start + stacksize;
+    const size_t kPageSize = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    uintptr_t limit =
+        RoundUp(reinterpret_cast<uintptr_t>(limit_address), kPageSize);
+    CHECK_GT(limit, start);
+    CHECK_LT(limit, end);
+    stacksize = limit - start;
+  }
 
   int flags = PROT_READ | PROT_WRITE;
   bool success = pkey_mprotect(stackaddr, stacksize, flags, key) == 0;

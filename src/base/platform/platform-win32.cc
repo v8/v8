@@ -1741,7 +1741,7 @@ static const HANDLE kNoThread = INVALID_HANDLE_VALUE;
 // convention.
 static unsigned int __stdcall ThreadEntry(void* arg) {
   Thread* thread = reinterpret_cast<Thread*>(arg);
-  thread->NotifyStartedAndRun();
+  thread->NotifyStartedAndDispatch();
   return 0;
 }
 

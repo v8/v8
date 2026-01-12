@@ -13806,8 +13806,6 @@ bool ApiTestFuzzer::NextThread() {
 }
 
 void ApiTestFuzzer::Run() {
-  v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
-
   // Wait until it is our turn.
   gate_.Wait();
   {
@@ -17568,16 +17566,14 @@ static bool TestStackOverflow(v8::Isolate* isolate) {
   return value->IsTrue();
 }
 
-class StackOverflowThread : public v8::base::Thread {
+class StackOverflowThread : public v8::internal::SandboxableThread {
  public:
   explicit StackOverflowThread(int stack_size, int js_stack_size)
-      : Thread(Options("StackOverflowThread", stack_size)),
+      : SandboxableThread(Options("StackOverflowThread", stack_size)),
         js_stack_size_(js_stack_size),
         result_(false) {}
 
   void Run() override {
-    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
-
     uintptr_t stack_top = v8::base::Stack::GetStackStart();
     // Compute isolate stack limit by js stack size.
     uintptr_t stack_base = stack_top - js_stack_size_;
@@ -19394,13 +19390,14 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   return static_cast<int>(value->NumberValue(context.local()).FromJust());
 }
 
-class IsolateThread : public v8::base::Thread {
+class IsolateThread : public v8::internal::SandboxableThread {
  public:
   explicit IsolateThread(int fib_limit)
-      : Thread(Options("IsolateThread")), fib_limit_(fib_limit), result_(0) {}
+      : SandboxableThread(Options("IsolateThread")),
+        fib_limit_(fib_limit),
+        result_(0) {}
 
   void Run() override {
-    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Isolate::CreateParams create_params = CreateTestParams();
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     result_ = CalcFibonacci(isolate, fib_limit_);
@@ -19413,7 +19410,6 @@ class IsolateThread : public v8::base::Thread {
   int fib_limit_;
   int result_;
 };
-
 
 TEST(MultipleIsolatesOnIndividualThreads) {
   IsolateThread thread1(21);

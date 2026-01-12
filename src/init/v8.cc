@@ -333,11 +333,4 @@ void SandboxHardwareSupport::InitializeBeforeThreadCreation() {
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 
-// static
-void SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing() {
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  internal::SandboxHardwareSupport::EnableForCurrentThread();
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-}
-
 }  // namespace v8

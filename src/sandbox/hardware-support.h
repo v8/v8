@@ -48,9 +48,16 @@ class V8_EXPORT_PRIVATE SandboxHardwareSupport {
   // Enable sandbox hardware support for the current thread.
   //
   // Any thread that wishes to use EnterSandbox/ExitSandbox must first call
-  // this function. Internally, this will ensure that the thread's stack memory
-  // is correctly set up for hardware sandboxing.
-  static void EnableForCurrentThread();
+  // this function. Internally, this will apply a pkey to the thread's stack
+  // memory to ensure that the stack remains accessible to sandboxed code.
+  // In the future, we might instead want to use a dedicated "sandboxed" stack,
+  // in which case this method would allocate and set up this stack.
+  //
+  // If limit_address is provided, only stack pages up to and including that
+  // address will be tagged with the pkey, otherwise the full stack will. This
+  // is useful to avoid unrelated data structures allocated at the top of the
+  // stack segment, such as the TLS, being made sandbox-accessible.
+  static void EnableForCurrentThread(void* limit_address = nullptr);
 
   // Register memory outside of the sandbox.
   //

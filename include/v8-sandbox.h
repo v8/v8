@@ -81,16 +81,6 @@ class SandboxHardwareSupport {
    * hardware permissions to the memory that will be inherited on clone.
    */
   V8_EXPORT static void InitializeBeforeThreadCreation();
-
-  /**
-   * Prepares the current thread for executing sandboxed code.
-   *
-   * This must be called on newly created threads before they execute any
-   * sandboxed code (in particular any JavaScript or WebAssembly code). It
-   * should not be invoked on threads that never execute sandboxed code,
-   * although it is fine to do so from a security point of view.
-   */
-  V8_EXPORT static void PrepareCurrentThreadForHardwareSandboxing();
 };
 
 namespace internal {

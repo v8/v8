@@ -5,6 +5,7 @@
 #include "src/heap/trusted-range.h"
 #include "src/sandbox/hardware-support.h"
 #include "src/sandbox/sandbox.h"
+#include "src/sandbox/sandboxable-thread.h"
 #include "test/unittests/test-utils.h"
 
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
@@ -17,7 +18,7 @@ class SandboxHardwareSupportTest : public TestWithPlatform {};
 TEST_F(SandboxHardwareSupportTest, Initialization) {
   if (!base::MemoryProtectionKey::HasMemoryProtectionKeyAPIs() ||
       !base::MemoryProtectionKey::TestKeyAllocation())
-    return;
+    GTEST_SKIP();
 
   // If PKEYs are supported at runtime (and V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   // is enabled at compile-time) we expect hardware sandbox support to work.
@@ -41,7 +42,7 @@ TEST_F(SandboxHardwareSupportTest, SimpleSandboxedCPPCode) {
   CHECK(Sandbox::GetDefault()->is_initialized());
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
                 SandboxHardwareSupport::IsActive());
-  if (!SandboxHardwareSupport::IsActive()) return;
+  if (!SandboxHardwareSupport::IsActive()) GTEST_SKIP();
 
   int* in_sandbox_memory = SandboxAlloc<int>();
   int* out_of_sandbox_memory = new int;
@@ -69,7 +70,7 @@ TEST_F(SandboxHardwareSupportTest, SandboxedCodeNoWriteAccessToTrustedSpace) {
   CHECK(Sandbox::GetDefault()->is_initialized());
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
                 SandboxHardwareSupport::IsActive());
-  if (!SandboxHardwareSupport::IsActive()) return;
+  if (!SandboxHardwareSupport::IsActive()) GTEST_SKIP();
   auto trusted_space_allocator =
       IsolateGroup::current()->GetTrustedPtrComprCage()->page_allocator();
   size_t size = trusted_space_allocator->AllocatePageSize();
@@ -89,16 +90,55 @@ TEST_F(SandboxHardwareSupportTest, SandboxedCodeNoWriteAccessToTrustedSpace) {
   trusted_space_allocator->FreePages(page_in_trusted_space, size);
 }
 
+TEST_F(SandboxHardwareSupportTest, SandboxedCodeCannotWriteToTLS) {
+  // Skip this test if hardware sandboxing support cannot be enabled (likely
+  // because the system doesn't support PKEYs, see the Initialization test).
+  CHECK(Sandbox::GetDefault()->is_initialized());
+  CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
+                SandboxHardwareSupport::IsActive());
+  if (!SandboxHardwareSupport::IsActive()) GTEST_SKIP();
+
+  // Use a volatile pointer to ensure the memory accesses are performed.
+  thread_local int thread_local_value = 0;
+  volatile int* thread_local_ptr = &thread_local_value;
+
+  // TLS memory can be written to from (normal) C++ code...
+  *thread_local_ptr = 42;
+  // ... but not from sandboxed code as it is located on the stack (which is
+  // unprotected for the main thread as we cannot tag TLS) but outside of the
+  // protected stack region.
+  ASSERT_DEATH_IF_SUPPORTED(RUN_SANDBOXED(*thread_local_ptr = 43), "");
+
+  // Now verify the same for a worker thread. This is relevant here because for
+  // worker threads the TLS will be allocated in their stack memory segment (at
+  // the top), and so while the stack itself needs to be accessible, the part
+  // of it containing the TLS must not be. The SandboxableThread class makes
+  // sure that this is correctly configured.
+  class WorkerThread : public SandboxableThread {
+   public:
+    WorkerThread() : SandboxableThread(Options("WorkerThread")) {}
+    void Run() override {
+      volatile int* thread_local_ptr = &thread_local_value;
+      *thread_local_ptr = 42;
+      ASSERT_DEATH_IF_SUPPORTED(RUN_SANDBOXED(*thread_local_ptr = 43), "");
+    }
+  };
+
+  WorkerThread thread;
+  CHECK(thread.Start());
+  thread.Join();
+}
+
 TEST_F(SandboxHardwareSupportTest, DisallowSandboxAccess) {
   // DisallowSandboxAccess is only enforced in DEBUG builds.
-  if (!DEBUG_BOOL) return;
+  if (!DEBUG_BOOL) GTEST_SKIP();
 
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
   CHECK(Sandbox::GetDefault()->is_initialized());
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
                 SandboxHardwareSupport::IsActive());
-  if (!SandboxHardwareSupport::IsActive()) return;
+  if (!SandboxHardwareSupport::IsActive()) GTEST_SKIP();
 
   int* in_sandbox_memory = SandboxAlloc<int>();
   // Use a volatile pointer to ensure the memory accesses are performed.
@@ -150,14 +190,14 @@ TEST_F(SandboxHardwareSupportTest, DisallowSandboxAccess) {
 
 TEST_F(SandboxHardwareSupportTest, AllowSandboxAccess) {
   // DisallowSandboxAccess/AllowSandboxAccess is only enforced in DEBUG builds.
-  if (!DEBUG_BOOL) return;
+  if (!DEBUG_BOOL) GTEST_SKIP();
 
   // Skip this test if hardware sandboxing support cannot be enabled (likely
   // because the system doesn't support PKEYs, see the Initialization test).
   CHECK(Sandbox::GetDefault()->is_initialized());
   CHECK_IMPLIES(v8_flags.force_memory_protection_keys,
                 SandboxHardwareSupport::IsActive());
-  if (!SandboxHardwareSupport::IsActive()) return;
+  if (!SandboxHardwareSupport::IsActive()) GTEST_SKIP();
 
   int* in_sandbox_memory = SandboxAlloc<int>();
   // Use a volatile pointer to ensure the memory accesses are performed.

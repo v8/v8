@@ -5752,8 +5752,6 @@ bool Worker::StartWorkerThread(Isolate* requester,
 }
 
 void Worker::WorkerThread::Run() {
-  v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
-
   // Prevent a lifetime cycle from Worker -> WorkerThread -> Worker.
   // We must clear the worker_ field of the thread, but we keep the
   // worker alive via a stack root until the thread finishes execution

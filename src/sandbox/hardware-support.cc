@@ -47,7 +47,7 @@ bool SandboxHardwareSupport::IsStrict() {
 }
 
 // static
-void SandboxHardwareSupport::EnableForCurrentThread() {
+void SandboxHardwareSupport::EnableForCurrentThread(void* limit_address) {
   if (!IsActive()) return;
 
   // Per-thread setup is only required if the strict sandboxing mode is used.
@@ -77,8 +77,8 @@ void SandboxHardwareSupport::EnableForCurrentThread() {
   // the extension_pkey_ to it here.
   // Note: this is unsafe. For any production use, we'd probably need to use
   // untrusted stacks. See https://crbug.com/428680013.
-  CHECK(
-      base::MemoryProtectionKey::SetKeyForCurrentThreadsStack(extension_pkey_));
+  CHECK(base::MemoryProtectionKey::SetKeyForCurrentThreadsStack(extension_pkey_,
+                                                                limit_address));
 }
 
 void SandboxHardwareSupport::RegisterOutOfSandboxMemory(

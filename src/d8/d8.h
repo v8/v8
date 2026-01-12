@@ -27,6 +27,7 @@
 #include "src/d8/hardware-watchpoints.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/parked-scope.h"
+#include "src/sandbox/sandboxable-thread.h"
 
 namespace v8 {
 
@@ -246,11 +247,12 @@ class Worker : public std::enable_shared_from_this<Worker> {
   void ProcessMessage(std::unique_ptr<SerializationData> data);
   void ProcessMessages();
 
-  class WorkerThread : public base::Thread {
+  class WorkerThread : public internal::SandboxableThread {
    public:
     explicit WorkerThread(std::shared_ptr<Worker> worker,
                           base::Thread::Priority priority)
-        : base::Thread(base::Thread::Options("WorkerThread", priority)),
+        : internal::SandboxableThread(
+              base::Thread::Options("WorkerThread", priority)),
           worker_(std::move(worker)) {}
 
     void Run() override;

@@ -40,6 +40,7 @@
 #include "src/heap/factory.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects.h"
+#include "src/sandbox/sandboxable-thread.h"
 #include "src/zone/accounting-allocator.h"
 
 namespace v8 {
@@ -245,7 +246,7 @@ class CcTest {
 // thread fuzzing test.  In the thread fuzzing test it will
 // pseudorandomly select a successor thread and switch execution
 // to that thread, suspending the current test.
-class ApiTestFuzzer: public v8::base::Thread {
+class ApiTestFuzzer : public v8::internal::SandboxableThread {
  public:
   ~ApiTestFuzzer() override = default;
 
@@ -275,7 +276,7 @@ class ApiTestFuzzer: public v8::base::Thread {
 
  private:
   explicit ApiTestFuzzer(int num)
-      : Thread(Options("ApiTestFuzzer")),
+      : SandboxableThread(Options("ApiTestFuzzer")),
         test_number_(num),
         gate_(0),
         active_(true) {}

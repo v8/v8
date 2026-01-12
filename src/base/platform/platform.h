@@ -629,10 +629,15 @@ class V8_BASE_EXPORT Thread {
   PlatformData* data() { return data_; }
   Priority priority() const { return priority_; }
 
-  void NotifyStartedAndRun() {
+  virtual void NotifyStartedAndDispatch() {
     if (start_semaphore_) start_semaphore_->Signal();
-    Run();
+    Dispatch();
   }
+
+ protected:
+  // The default implementation simply calls Run().
+  // This can be overridden to perform initialization before Run() is called.
+  virtual void Dispatch() { Run(); }
 
  private:
   void set_name(const char* name);

@@ -388,8 +388,7 @@ static void* ThreadEntry(void* arg) {
   { LockGuard<Mutex> lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
   // DCHECK_NE(thread->data()->thread_, kNoThread);
-  thread->NotifyStartedAndRun();
-
+  thread->NotifyStartedAndDispatch();
   return nullptr;
 }
 

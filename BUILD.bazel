@@ -2543,6 +2543,8 @@ filegroup(
         "src/sandbox/hardware-support.h",
         "src/sandbox/sandbox.cc",
         "src/sandbox/sandbox.h",
+        "src/sandbox/sandboxable-thread.cc",
+        "src/sandbox/sandboxable-thread.h",
         "src/sandbox/sandbox-malloc.h",
         "src/sandbox/sandboxed-pointer.h",
         "src/sandbox/sandboxed-pointer-inl.h",

@@ -56,6 +56,7 @@
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/symbolizer.h"
+#include "src/sandbox/sandboxable-thread.h"
 #include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -3460,12 +3461,11 @@ void ProfileSomeCode(v8::Isolate* isolate) {
   profiler->Dispose();
 }
 
-class IsolateThread : public v8::base::Thread {
+class IsolateThread : public v8::internal::SandboxableThread {
  public:
-  IsolateThread() : Thread(Options("IsolateThread")) {}
+  IsolateThread() : SandboxableThread(Options("IsolateThread")) {}
 
   void Run() override {
-    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3521,15 +3521,14 @@ const char* varying_frame_size_script = R"(
     }
   )";
 
-class UnlockingThread : public v8::base::Thread {
+class UnlockingThread : public v8::internal::SandboxableThread {
  public:
   explicit UnlockingThread(v8::Local<v8::Context> env, int32_t threadNumber)
-      : Thread(Options("UnlockingThread")),
+      : SandboxableThread(Options("UnlockingThread")),
         env_(CcTest::isolate(), env),
         threadNumber_(threadNumber) {}
 
   void Run() override {
-    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     v8::Isolate* isolate = CcTest::isolate();
     v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);

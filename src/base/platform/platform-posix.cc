@@ -1290,7 +1290,7 @@ static void* ThreadEntry(void* arg) {
   }
 #endif
   DCHECK_NE(thread->data()->thread_, kNoThread);
-  thread->NotifyStartedAndRun();
+  thread->NotifyStartedAndDispatch();
   return nullptr;
 }
 
