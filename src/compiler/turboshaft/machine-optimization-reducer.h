@@ -2411,6 +2411,13 @@ class MachineOptimizationReducer : public Next {
               }
               return __ Word32Constant(o1.address() == o2.address());
             }
+            if ((TryMatchHeapObject(left) &&
+                 matcher_.Is<Opmask::kSmiConstant>(right)) ||
+                (TryMatchHeapObject(right) &&
+                 matcher_.Is<Opmask::kSmiConstant>(left))) {
+              // Comparing a HeapObject with a Smi always returns false.
+              return __ Word32Constant(0);
+            }
             break;
           }
           default:
