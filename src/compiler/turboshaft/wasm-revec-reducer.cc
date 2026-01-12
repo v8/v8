@@ -1074,9 +1074,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           TRACE("Simd128LoadTransform: LoadSplat\n");
           if (IsSplat(node_group) ||
               (stride.has_value() && stride.value() == 0)) {
-            DCHECK_EQ(node_group.size(), 2);
-            NodeGroup new_group = {node0, node0};
-            return NewPackNode(new_group);
+            return NewPackNode(node_group);
           }
           return NewForcePackNode(node_group, ForcePackNode::kGeneral,
                                   recursion_depth);

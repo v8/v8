@@ -766,13 +766,19 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
                add_op0.rep == WordRepresentation::Word64());
         const ConstantOp& offset0 =
             __ input_graph().Get(add_op0.right()).template Cast<ConstantOp>();
-        V<WordPtr> og_offset0 = __ WordPtrConstant(offset0.word64());
         const WordBinopOp& add_op =
             __ output_graph().Get(base).template Cast<WordBinopOp>();
         DCHECK(add_op.kind == WordBinopOp::Kind::kAdd &&
                add_op.rep == WordRepresentation::Word64());
-        base = __ WordBinop(add_op.left(), og_offset0, WordBinopOp::Kind::kAdd,
-                            WordRepresentation::Word64());
+        const ConstantOp& offset1 =
+            __ output_graph().Get(add_op.right()).template Cast<ConstantOp>();
+
+        if (offset0 != offset1) {
+          V<WordPtr> og_offset0 = __ WordPtrConstant(offset0.word64());
+          base =
+              __ WordBinop(add_op.left(), og_offset0, WordBinopOp::Kind::kAdd,
+                           WordRepresentation::Word64());
+        }
       }
 
       og_index = __ Simd256LoadTransform(

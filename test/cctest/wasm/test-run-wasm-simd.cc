@@ -6398,6 +6398,76 @@ TEST(RunWasmTurbofan_S256Load64SplatMemory64) {
                                        base::AddWithWraparound);
 }
 
+// Use load32splat for the reordered loadsplat test.
+TEST(RunWasmTurbofan_S256ReorderedLoad32Splat) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  constexpr int mem_index = 64;  // LoadSplat from mem index 64 (bytes).
+  constexpr uint8_t offset = 16;
+  int32_t* memory = nullptr;
+#define BUILD_REORDERED_LOADSPLAT                                              \
+  memory = r.builder().template AddMemoryElems<int32_t>(                       \
+      kWasmPageSize / 4, wasm::AddressType::kI32);                             \
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);                                  \
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);                                  \
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);                                  \
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);                                  \
+                                                                               \
+  /* Build fn perform two loadsplats from the same address. The first one will \
+     be used as input of temp4. As temp4 will be stored to the higher 128-bit  \
+     address, the first loadsplat will be identified as the second node in     \
+     PackNode group */                                                         \
+  r.Build(                                                                     \
+      {WASM_LOCAL_SET(                                                         \
+           temp1, WASM_SIMD_LOAD_OP(kExprS128Load32Splat, WASM_LOCAL_GET(0))), \
+       WASM_LOCAL_SET(                                                         \
+           temp2, WASM_SIMD_LOAD_OP(kExprS128Load32Splat, WASM_LOCAL_GET(0))), \
+       WASM_LOCAL_SET(temp3, WASM_SIMD_BINOP(kExprI32x4Add,                    \
+                                             WASM_SIMD_LOAD_MEM(WASM_I32V(0)), \
+                                             WASM_LOCAL_GET(temp2))),          \
+       WASM_LOCAL_SET(temp4, WASM_SIMD_BINOP(kExprI32x4Add,                    \
+                                             WASM_SIMD_LOAD_MEM_OFFSET(        \
+                                                 offset, WASM_I32V(0)),        \
+                                             WASM_LOCAL_GET(temp1))),          \
+                                                                               \
+       WASM_SIMD_STORE_MEM(WASM_I32V(32), WASM_LOCAL_GET(temp3)),              \
+       WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_I32V(32),                       \
+                                  WASM_LOCAL_GET(temp4)),                      \
+       WASM_ONE});
+
+  {
+    WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+    TSSimd256VerifyScope ts_scope(r.zone());
+    BUILD_REORDERED_LOADSPLAT
+
+    r.builder().WriteMemory(&memory[1], 1);
+    r.builder().WriteMemory(&memory[5], 1);
+    for (int32_t x : compiler::ValueHelper::GetVector<int32_t>()) {
+      // 64-th byte in memory is 16th element (int32) of memory.
+      r.builder().WriteMemory(&memory[16], x);
+      r.Call(mem_index);
+      int32_t expected = base::AddWithWraparound(1, x);
+      CHECK_EQ(expected, memory[9]);
+      CHECK_EQ(expected, memory[13]);
+    }
+  }
+
+  // Test for OOB.
+  {
+    WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+    TSSimd256VerifyScope ts_scope(r.zone());
+    BUILD_REORDERED_LOADSPLAT
+
+    // Load splats load 4 bytes.
+    for (uint32_t load_offset = kWasmPageSize - 3; load_offset < kWasmPageSize;
+         ++load_offset) {
+      CHECK_TRAP(r.Call(load_offset));
+    }
+  }
+#undef BUILD_REORDERED_LOADSPLAT
+}
+
 template <typename S, typename T, bool reordered = false>
 void RunLoadExtendRevecTest(WasmOpcode op) {
   if (!CpuFeatures::IsSupported(AVX2)) return;
