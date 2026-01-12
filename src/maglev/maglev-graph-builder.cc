@@ -4725,9 +4725,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
-  DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
-                 !value->is_conversion());
-  if (store_mode != StoreTaggedMode::kInitializing) {
+  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
+  if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
   if (CanElideWriteBarrier(object, value)) {
@@ -4757,10 +4756,9 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
-  DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
-                 !value->is_conversion());
+  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
   DCHECK(CanElideWriteBarrier(object, value));
-  if (store_mode != StoreTaggedMode::kInitializing) {
+  if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
   return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
