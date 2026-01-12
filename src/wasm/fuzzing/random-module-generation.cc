@@ -3853,8 +3853,7 @@ class BodyGen {
     }
 
     constexpr auto alternatives_indexed_type =
-        CreateArray(&BodyGen::new_object,                     //
-                    &BodyGen::get_local_ref,                  //
+        CreateArray(&BodyGen::get_local_ref,                  //
                     &BodyGen::array_get_ref,                  //
                     &BodyGen::array_atomic_get_ref,           //
                     &BodyGen::array_atomic_rmw_xchg_ref,      //
@@ -3867,7 +3866,11 @@ class BodyGen {
                     &BodyGen::ref_cast_desc,                  //
                     &BodyGen::ref_get_desc,                   //
                     &BodyGen::ref_as_non_null,                //
-                    &BodyGen::br_on_cast);                    //
+                    // Note: More expensive operations (in terms of generated
+                    // code) should come last, because we will try the first
+                    // alternatives first when we run out of input bytes.
+                    &BodyGen::new_object,   //
+                    &BodyGen::br_on_cast);  //
 
     constexpr auto alternatives_func_any =
         CreateArray(&BodyGen::table_get,                   //
