@@ -616,14 +616,6 @@ template <typename SeqString>
 class SeqSubStringKey final : public StringTableKey {
  public:
   using Char = typename SeqString::Char;
-// VS 2017 on official builds gives this spurious warning:
-// warning C4789: buffer 'key' of size 16 bytes will be overrun; 4 bytes will
-// be written starting at offset 16
-// https://bugs.chromium.org/p/v8/issues/detail?id=6068
-#if defined(V8_CC_MSVC)
-#pragma warning(push)
-#pragma warning(disable : 4789)
-#endif
   SeqSubStringKey(Isolate* isolate, DirectHandle<SeqString> string, int from,
                   int len, bool convert = false)
       : StringTableKey(0, len),
@@ -641,9 +633,6 @@ class SeqSubStringKey final : public StringTableKey {
     DCHECK_EQ(IsSeqOneByteString(*string_), sizeof(Char) == 1);
     DCHECK_EQ(IsSeqTwoByteString(*string_), sizeof(Char) == 2);
   }
-#if defined(V8_CC_MSVC)
-#pragma warning(pop)
-#endif
 
   bool IsMatch(Isolate* isolate, Tagged<String> string) {
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
