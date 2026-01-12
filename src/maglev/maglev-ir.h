@@ -9037,10 +9037,12 @@ enum class StoreTaggedMode : uint8_t {
   kInitializingToContext,
   kTransitioning,
 };
-inline bool IsInitializingOrTransitioning(StoreTaggedMode mode) {
+inline bool IsInitializing(StoreTaggedMode mode) {
   return mode == StoreTaggedMode::kInitializing ||
-         mode == StoreTaggedMode::kTransitioning ||
          mode == StoreTaggedMode::kInitializingToContext;
+}
+inline bool IsInitializingOrTransitioning(StoreTaggedMode mode) {
+  return IsInitializing(mode) || mode == StoreTaggedMode::kTransitioning;
 }
 inline bool IsDefaultStoreToContext(StoreTaggedMode mode) {
   return mode == StoreTaggedMode::kDefaultToContext ||
