@@ -5061,8 +5061,9 @@ LoadType FieldRepresentationToLoadType(Representation repr) {
   switch (repr.kind()) {
     case Representation::kSmi:
       return LoadType::kSmi;
-    case Representation::kDouble:
     case Representation::kHeapObject:
+      return LoadType::kAnyHeapObject;
+    case Representation::kDouble:
     case Representation::kNone:
     case Representation::kTagged:
     case Representation::kWasmValue:
@@ -5138,11 +5139,10 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
                                 load_source, field_index.offset(), type,
                                 AccessInfoGuaranteedConst(access_info), name));
   // Insert stable field information if present.
+  NodeInfo* known_info = GetOrCreateInfoFor(value);
   if (access_info.field_representation().IsSmi()) {
-    NodeInfo* known_info = GetOrCreateInfoFor(value);
     known_info->IntersectType(NodeType::kSmi);
   } else if (access_info.field_representation().IsHeapObject()) {
-    NodeInfo* known_info = GetOrCreateInfoFor(value);
     if (access_info.field_map().has_value() &&
         access_info.field_map().value().is_stable()) {
       DCHECK(access_info.field_map().value().IsJSReceiverMap());

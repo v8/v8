@@ -8224,6 +8224,7 @@ enum class LoadType {
   kNumber,
   kInternalizedString,
   kContext,
+  kAnyHeapObject,  // Can be a HeapNumber
   kLastLoadType = kContext,
 };
 constexpr int kLoadTypeBitSize =
@@ -8249,6 +8250,9 @@ inline std::ostream& operator<<(std::ostream& os, LoadType type) {
     case LoadType::kContext:
       os << "Context";
       break;
+    case LoadType::kAnyHeapObject:
+      os << "AnyHeapObject";
+      break;
   }
   return os;
 }
@@ -8267,6 +8271,8 @@ constexpr inline NodeType NodeTypeFromLoadType(LoadType type) {
       return NodeType::kInternalizedString;
     case LoadType::kContext:
       return NodeType::kContext;
+    case LoadType::kAnyHeapObject:
+      return NodeType::kAnyHeapObject;
   }
 }
 
