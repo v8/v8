@@ -65,10 +65,13 @@ class MutablePage : public BasePage {
                             : PageAllocator::kReadWriteExecute;
   }
 
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
+  // Only correct if the pointer is in the first kPageSize of the MemoryChunk.
+  // This is not necessarily the case for large objects.
+  V8_INLINE static MutablePage* FromAddress(Address a);
   V8_INLINE static MutablePage* FromAddress(const Isolate* i, Address a);
 
-  // Only works if the object is in the first kPageSize of the MemoryChunk.
+  // Objects pointers always point within the first kPageSize, so these calls
+  // are always correct.
   V8_INLINE static MutablePage* FromHeapObject(const Isolate* i,
                                                Tagged<HeapObject> o);
 

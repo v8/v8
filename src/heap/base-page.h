@@ -28,11 +28,14 @@ class BaseSpace;
 // memory.
 class BasePage {
  public:
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
+  // Only correct if the pointer is in the first kPageSize of the MemoryChunk.
+  // This is not necessarily the case for large objects.
+  V8_INLINE static BasePage* FromAddress(Address a);
   V8_INLINE static BasePage* FromAddress(const Isolate* isolate, Address a);
 
   // Objects pointers always point within the first kPageSize, so these calls
-  // always succeed.
+  // are always correct.
+  V8_INLINE static BasePage* FromHeapObject(Tagged<HeapObject> o);
   V8_INLINE static BasePage* FromHeapObject(const Isolate* i,
                                             Tagged<HeapObject> o);
   V8_INLINE static BasePage* FromHeapObject(const Isolate* i,
@@ -41,6 +44,9 @@ class BasePage {
   V8_INLINE static void UpdateHighWaterMark(Address mark);
 
   ~BasePage();
+
+  bool IsReadOnlyPage() const { return IsReadOnlyPageField::decode(flags_); }
+  bool IsMutablePage() const { return !IsReadOnlyPage(); }
 
   Address ChunkAddress() const { return Chunk()->address(); }
   Address MetadataAddress() const { return reinterpret_cast<Address>(this); }
@@ -78,10 +84,6 @@ class BasePage {
   }
 
   inline bool IsWritable() const;
-
-  bool IsReadOnlyPage() const { return IsReadOnlyPageField::decode(flags_); }
-
-  bool IsMutablePage() const { return !IsReadOnlyPage(); }
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();

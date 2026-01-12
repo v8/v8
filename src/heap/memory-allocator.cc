@@ -275,31 +275,30 @@ void MemoryAllocator::UnregisterSharedMemoryChunk(BasePage* chunk) {
   size_ -= size;
 }
 
-void MemoryAllocator::UnregisterMemoryChunk(BasePage* chunk_metadata) {
-  MemoryChunk* chunk = chunk_metadata->Chunk();
-  DCHECK(!chunk_metadata->is_unregistered());
-  VirtualMemory* reservation = chunk_metadata->reserved_memory();
+void MemoryAllocator::UnregisterMemoryChunk(BasePage* base_page) {
+  MemoryChunk* chunk = base_page->Chunk();
+  DCHECK(!base_page->is_unregistered());
+  VirtualMemory* reservation = base_page->reserved_memory();
   const size_t size =
-      reservation->IsReserved() ? reservation->size() : chunk_metadata->size();
+      reservation->IsReserved() ? reservation->size() : base_page->size();
   DCHECK_GE(size_, static_cast<size_t>(size));
 
   size_ -= size;
-  if (chunk_metadata->is_executable()) {
+  if (base_page->is_executable()) {
     DCHECK_GE(size_executable_, size);
     size_executable_ -= size;
 #ifdef DEBUG
-    UnregisterExecutableMemoryChunk(static_cast<MutablePage*>(chunk_metadata));
+    UnregisterExecutableMemoryChunk(static_cast<MutablePage*>(base_page));
 #endif  // DEBUG
 
-    ThreadIsolation::UnregisterJitPage(chunk->address(),
-                                       chunk_metadata->size());
+    ThreadIsolation::UnregisterJitPage(chunk->address(), base_page->size());
   }
   // For non-RO pages we want to set them as UNREGISTERED to allow actually
   // freeing them.
   if (!chunk->InReadOnlySpace()) {
     // Cannot use MutablePage::cast() because that relies on having an
     // owner() which is unsed at this point.
-    reinterpret_cast<MutablePage*>(chunk_metadata)->set_is_unregistered();
+    reinterpret_cast<MutablePage*>(base_page)->set_is_unregistered();
   }
 }
 

@@ -232,8 +232,8 @@ bool HeapAllocator::TryResizeLargeObject(Tagged<HeapObject> object,
     return false;
   }
 
-  NormalPage* page = NormalPage::FromHeapObject(object);
-  Space* space = page->owner();
+  BasePage* page = BasePage::FromHeapObject(object);
+  BaseSpace* space = page->owner();
   if (space->identity() != NEW_LO_SPACE && space->identity() != LO_SPACE) {
     return false;
   }

@@ -6297,10 +6297,10 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
   // Allocate the large fixed array that will be trimmed later.
   array = isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   CHECK(heap->lo_space()->Contains(*array));
-  CHECK(!NormalPage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
+  CHECK(!BasePage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
 
   heap::InvokeAtomicMajorGC(heap);
-  CHECK(!NormalPage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
+  CHECK(!BasePage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
 }
 
 TEST(Regress618958) {

@@ -294,15 +294,14 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator(
 void LargeObjectSpace::Verify(Isolate* isolate,
                               SpaceVerificationVisitor* visitor) const {
   PtrComprCageBase cage_base(isolate);
-  for (const LargePage* chunk = first_page(); chunk != nullptr;
-       chunk = chunk->next_page()) {
-    visitor->VerifyPage(chunk);
+  for (const LargePage* page = first_page(); page != nullptr;
+       page = page->next_page()) {
+    visitor->VerifyPage(page);
 
-    // Each chunk contains an object that starts at the large object page's
+    // Each page contains an object that starts at the large object page's
     // object area start.
-    Tagged<HeapObject> object = chunk->GetObject();
-    NormalPage* page = NormalPage::FromHeapObject(object);
-    CHECK(object.address() == page->area_start());
+    Tagged<HeapObject> object = page->GetObject();
+    CHECK_EQ(object.address(), BasePage::FromHeapObject(object)->area_start());
 
     // Only certain types may be in the large object space:
 #define V(Name) Is##Name(object, cage_base) ||
@@ -318,7 +317,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
     // Invoke visitor on each object.
     visitor->VerifyObject(object);
 
-    visitor->VerifyPageDone(chunk);
+    visitor->VerifyPageDone(page);
   }
 }
 #endif

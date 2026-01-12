@@ -13,8 +13,18 @@
 namespace v8::internal {
 
 // static
+BasePage* BasePage::FromAddress(Address a) {
+  return MemoryChunk::FromAddress(a)->Metadata();
+}
+
+// static
 BasePage* BasePage::FromAddress(const Isolate* i, Address a) {
   return MemoryChunk::FromAddress(a)->Metadata(i);
+}
+
+// static
+BasePage* BasePage::FromHeapObject(Tagged<HeapObject> o) {
+  return FromAddress(o.ptr());
 }
 
 // static

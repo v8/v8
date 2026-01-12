@@ -78,12 +78,12 @@ Tagged<HeapObject> PagedSpaceObjectIterator::Next() {
 }
 
 bool PagedSpaceBase::Contains(Address addr) const {
-  return NormalPage::FromAddress(heap()->isolate(), addr)->owner() == this;
+  return BasePage::FromAddress(heap()->isolate(), addr)->owner() == this;
 }
 
 bool PagedSpaceBase::Contains(Tagged<Object> o) const {
   if (!IsHeapObject(o)) return false;
-  return NormalPage::FromAddress(heap()->isolate(), o.ptr())->owner() == this;
+  return BasePage::FromAddress(heap()->isolate(), o.ptr())->owner() == this;
 }
 
 template <bool during_sweep>

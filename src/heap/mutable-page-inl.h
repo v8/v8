@@ -16,6 +16,11 @@ namespace v8 {
 namespace internal {
 
 // static
+MutablePage* MutablePage::FromAddress(Address a) {
+  return cast(BasePage::FromAddress(a));
+}
+
+// static
 MutablePage* MutablePage::FromAddress(const Isolate* i, Address a) {
   return cast(BasePage::FromAddress(i, a));
 }
