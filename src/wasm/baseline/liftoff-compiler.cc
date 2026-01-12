@@ -4318,6 +4318,7 @@ class LiftoffCompiler {
 
   void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& value, Value* result_val) {
+    FUZZER_HEAVY_INSTRUCTION;
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
     LiftoffRegister num_pages = pinned.set(__ PopToRegister());
