@@ -10,7 +10,6 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-result.h"
-#include "src/heap/mutable-page.h"
 #include "src/objects/free-space.h"
 #include "src/objects/map.h"
 #include "src/utils/utils.h"
@@ -312,7 +311,7 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
 
   // This is a conservative upper bound. The actual maximum block size takes
   // padding and alignment of data and code pages into account.
-  static constexpr size_t kMaxBlockSize = MutablePage::kPageSize;
+  static constexpr size_t kMaxBlockSize = kRegularPageSize;
   // Largest size for which categories are still precise, and for which we can
   // therefore compute the category in constant time.
   static constexpr size_t kPreciseCategoryMaxSize = 256;

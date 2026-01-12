@@ -15,18 +15,11 @@ namespace internal {
 
 class Heap;
 
-// -----------------------------------------------------------------------------
-// A page is a memory chunk of a size 256K. Large object pages may be larger.
-//
-// The only way to get a page pointer is by calling factory methods:
-//   NormalPage* p = NormalPage::FromAddress(addr); or
-//   NormalPage* p = NormalPage::FromAllocationAreaAddress(address);
-class NormalPage : public MutablePage {
+// A mutable page of `kRegularPageSize` bytes.
+class NormalPage final : public MutablePage {
  public:
-  NormalPage(Heap* heap, BaseSpace* space, size_t size, Address area_start,
-             Address area_end, VirtualMemory reservation,
-             Executability executability,
-             MemoryChunk::MainThreadFlags* trusted_flags);
+  // Page size in bytes. This must be a multiple of the OS page size.
+  static constexpr int kPageSize = kRegularPageSize;
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize]. This only works if the object is
@@ -63,6 +56,11 @@ class NormalPage : public MutablePage {
   }
 
   static NormalPage* ConvertNewToOld(NormalPage* old_page, FreeMode free_mode);
+
+  NormalPage(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+             Address area_end, VirtualMemory reservation,
+             Executability executability,
+             MemoryChunk::MainThreadFlags* trusted_flags);
 
   V8_EXPORT_PRIVATE void MarkNeverAllocateForTesting();
   void MarkEvacuationCandidate();

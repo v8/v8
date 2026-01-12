@@ -12,8 +12,7 @@
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // static
 NormalPage* NormalPage::FromAddress(Address addr) {
@@ -45,7 +44,6 @@ void NormalPage::ForAllFreeListCategories(Callback callback) {
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_NORMAL_PAGE_INL_H_

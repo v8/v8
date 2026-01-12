@@ -10,10 +10,8 @@
 
 #include "src/heap/base-page-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/sandbox/hardware-support.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // static
 MutablePage* MutablePage::FromAddress(Address a) {
@@ -104,7 +102,6 @@ void MutablePage::ClearFlagUnlocked(MemoryChunk::Flag flag) {
   RawSetTrustedAndUntrustedFlags(trusted_main_thread_flags_.without(flag));
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_MUTABLE_PAGE_INL_H_

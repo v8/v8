@@ -41,6 +41,8 @@ class BasePage {
   V8_INLINE static BasePage* FromHeapObject(const Isolate* i,
                                             const HeapObjectLayout* o);
 
+  // Updates the high-water mark of the page that corresponds to `mark`. Can be
+  // passed a limit which points one byte past the current page.
   V8_INLINE static void UpdateHighWaterMark(Address mark);
 
   ~BasePage();
@@ -71,17 +73,13 @@ class BasePage {
     return heap_;
   }
 
-  // Gets the chunk's owner or null if the space has been detached.
+  // Gets the page's owner or null if the page has been detached from relevant
+  // spaces.
   BaseSpace* owner() const { return owner_; }
   void set_owner(BaseSpace* space) { owner_ = space; }
-  // Gets the chunk's allocation space, potentially dealing with a null owner_
-  // (like read-only chunks have).
-  inline AllocationSpace owner_identity() const {
-    if (!owner()) {
-      return RO_SPACE;
-    }
-    return owner()->identity();
-  }
+  // Gets the chunk's allocation space, potentially dealing with a null
+  // `owner()` (like read-only chunks have).
+  inline AllocationSpace owner_identity() const;
 
   inline bool IsWritable() const;
 

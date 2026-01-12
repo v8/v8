@@ -384,7 +384,7 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
       // out of the pool again.
       DCHECK(page_metadata->IsLivenessClear());
       DCHECK_EQ(page_metadata->size(),
-                static_cast<size_t>(MutablePage::kPageSize));
+                static_cast<size_t>(NormalPage::kPageSize));
       DCHECK(!page_metadata->is_executable());
 #endif  // DEBUG
       if (auto* pool = memory_pool()) {
@@ -599,7 +599,7 @@ MemoryAllocator::AllocateUninitializedPageFromDelayedOrPool(Space* space) {
   if (!maybe_result.has_value()) {
     return {};
   }
-  const int size = MutablePage::kPageSize;
+  const int size = NormalPage::kPageSize;
   const Address start = maybe_result->uninitialized_chunk.begin();
   // Pooled pages are always regular data pages.
   DCHECK_NE(CODE_SPACE, space->identity());

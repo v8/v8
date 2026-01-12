@@ -153,7 +153,7 @@ TEST_F(SpacesTest, WriteBarriers) {
 
 TEST_F(SpacesTest, CodeRangeAddressReuse) {
   CodeRangeAddressHint hint;
-  const size_t base_alignment = MutablePage::kPageSize;
+  const size_t base_alignment = NormalPage::kPageSize;
   // Create code ranges.
   Address code_range1 = hint.GetAddressHint(100, base_alignment);
   CHECK(IsAligned(code_range1, base_alignment));

@@ -6155,7 +6155,7 @@ class StressConcurrentAllocationTask : public CancelableTask {
     const int kSmallObjectSize = 10 * kTaggedSize;
     const int kMediumObjectSize = 8 * KB;
     const int kLargeObjectSize =
-        static_cast<int>(MutablePage::kPageSize -
+        static_cast<int>(NormalPage::kPageSize -
                          MemoryChunkLayout::ObjectStartOffsetInDataPage());
 
     for (int i = 0; i < kNumIterations; i++) {

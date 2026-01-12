@@ -60,6 +60,13 @@ bool BasePage::IsWritable() const {
   return !is_sealed_ro;
 }
 
+AllocationSpace BasePage::owner_identity() const {
+  if (!owner()) {
+    return RO_SPACE;
+  }
+  return owner()->identity();
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_HEAP_BASE_PAGE_INL_H_

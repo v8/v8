@@ -44,21 +44,18 @@ enum RememberedSetType {
 // A mutable page that represents a memory region owned by a specific space.
 class MutablePage : public BasePage {
  public:
-  // |kDone|: The page state when sweeping is complete or sweeping must not be
-  //   performed on that page. Sweeper threads that are done with their work
-  //   will set this value and not touch the page anymore.
-  // |kPendingSweeping|: This page is ready for parallel sweeping.
-  // |kPendingIteration|: This page is ready for parallel promoted page
-  // iteration. |kInProgress|: This page is currently swept by a sweeper thread.
   enum class ConcurrentSweepingState : intptr_t {
+    // The page state when sweeping is complete or sweeping must not be
+    // performed on that page. Sweeper threads that are done with their work
+    // will set this value and not touch the page anymore.
     kDone,
+    // This page is ready for parallel sweeping.
     kPendingSweeping,
+    // This page is ready for parallel promoted page.
     kPendingIteration,
+    // This page is currently swept by a sweeper thread.
     kInProgress,
   };
-
-  // Page size in bytes.  This must be a multiple of the OS page size.
-  static const int kPageSize = kRegularPageSize;
 
   static PageAllocator::Permission GetCodeModificationPermission() {
     return v8_flags.jitless ? PageAllocator::kReadWrite
