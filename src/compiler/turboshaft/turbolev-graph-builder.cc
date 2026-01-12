@@ -2466,6 +2466,17 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::FulfillPromise* node,
+                                const maglev::ProcessingState&) {
+    OpIndex arguments[] = {Map(node->PromiseInput()), Map(node->ValueInput()),
+                           native_context()};
+
+    constexpr OptionalV<FrameState> kNoFrameState = {};
+    GENERATE_AND_MAP_BUILTIN_CALL(node, Builtin::kFulfillPromise, kNoFrameState,
+                                  base::VectorOf(arguments));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CheckSmi* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());

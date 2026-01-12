@@ -471,6 +471,7 @@ class ExceptionHandlerInfo;
   V(ThrowIfNotSuperConstructor)               \
   V(TransitionElementsKindOrCheckMap)         \
   V(SetContinuationPreservedEmbedderData)     \
+  V(FulfillPromise)                           \
   GAP_MOVE_NODE_LIST(V)                       \
   TURBOLEV_NON_VALUE_NODE_LIST(V)
 
@@ -10795,6 +10796,27 @@ class SetContinuationPreservedEmbedderData
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
+};
+
+// FulfillPromise is eventually lowered to a builtin call to the
+// Builtin::kFulfillPromise builtin. However, this builtin cannot trigger lazy
+// deopt, which is the reason why FulfillPromise is a separate node and doesn't
+// use the BuiltinCall node: the latter assumes that all builtins can lazy deopt
+// and always records a FrameState, which would be wasteful for FulfillPromise.
+class FulfillPromise : public FixedInputNodeT<2, FulfillPromise> {
+ public:
+  explicit FulfillPromise(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanRead() |
+      OpProperties::CanWrite() | OpProperties::CanAllocate();
+
+  DECLARE_INPUTS(Promise, Value)
+  DECLARE_INPUT_TYPES(Tagged, Tagged)
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
 };
 
 class ControlNode : public NodeBase {

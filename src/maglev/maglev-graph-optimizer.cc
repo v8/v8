@@ -979,6 +979,12 @@ ProcessResult MaglevGraphOptimizer::VisitSetContinuationPreservedEmbedderData(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitFulfillPromise(
+    FulfillPromise* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitTransitionAndStoreArrayElement(
     TransitionAndStoreArrayElement* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
