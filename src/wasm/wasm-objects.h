@@ -1050,8 +1050,9 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
       Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package);
 
   // Determines the size of the array holding all encoded exception values.
-  static uint32_t GetEncodedSize(const wasm::WasmTagSig* tag);
-  static uint32_t GetEncodedSize(const wasm::WasmTag* tag);
+  static uint32_t GetEncodedSize(const wasm::WasmModule* module,
+                                 const wasm::WasmTag* tag);
+  static uint32_t GetEncodedSize(const wasm::CanonicalSig* sig);
 
   // In-object fields.
   enum { kTagIndex, kValuesIndex, kInObjectFieldCount };

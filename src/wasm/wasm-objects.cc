@@ -2402,22 +2402,9 @@ DirectHandle<WasmTagObject> WasmTagObject::New(
     DirectHandle<WasmTrustedInstanceData> trusted_data) {
   DirectHandle<JSFunction> tag_cons(
       isolate->native_context()->wasm_tag_constructor(), isolate);
-
-  // Serialize the signature.
-  DCHECK_EQ(0, sig->return_count());
-  DCHECK_LE(sig->parameter_count(), std::numeric_limits<int>::max());
-  int sig_size = static_cast<int>(sig->parameter_count());
-  DirectHandle<PodArray<wasm::ValueType>> serialized_sig =
-      PodArray<wasm::ValueType>::New(isolate, sig_size, AllocationType::kOld);
-  int index = 0;  // Index into the {PodArray} above.
-  for (wasm::ValueType param : sig->parameters()) {
-    serialized_sig->set(index++, param);
-  }
-
   DirectHandle<JSObject> tag_object =
       isolate->factory()->NewJSObject(tag_cons, AllocationType::kOld);
   DirectHandle<WasmTagObject> tag_wrapper = Cast<WasmTagObject>(tag_object);
-  tag_wrapper->set_serialized_signature(*serialized_sig);
   tag_wrapper->set_canonical_type_index(type_index.index);
   tag_wrapper->set_tag(*tag);
   if (!trusted_data.is_null()) {
@@ -2973,7 +2960,7 @@ namespace {
 
 constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
 
-size_t ComputeEncodedElementSize(wasm::ValueType type) {
+size_t ComputeEncodedElementSize(wasm::CanonicalValueType type) {
   size_t byte_size = type.value_kind_size();
   DCHECK_EQ(byte_size % kBytesPerExceptionValuesArrayElement, 0);
   DCHECK_LE(1, byte_size / kBytesPerExceptionValuesArrayElement);
@@ -2985,12 +2972,16 @@ size_t ComputeEncodedElementSize(wasm::ValueType type) {
 #endif  // DEBUG
 
 // static
-uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTag* tag) {
-  return GetEncodedSize(tag->sig);
+uint32_t WasmExceptionPackage::GetEncodedSize(const WasmModule* module,
+                                              const wasm::WasmTag* tag) {
+  wasm::CanonicalTypeIndex index = module->canonical_sig_id(tag->sig_index);
+  const wasm::CanonicalSig* csig =
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(index);
+  return GetEncodedSize(csig);
 }
 
 // static
-uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTagSig* sig) {
+uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::CanonicalSig* sig) {
   uint32_t encoded_size = 0;
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     switch (sig->GetParam(i).kind()) {

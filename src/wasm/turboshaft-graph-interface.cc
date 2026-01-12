@@ -3478,7 +3478,8 @@ class TurboshaftGraphBuildingInterface
       values[index] = args[index].op;
     }
 
-    uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(imm.tag);
+    uint32_t encoded_size =
+        WasmExceptionPackage::GetEncodedSize(decoder->module_, imm.tag);
 
     V<FixedArray> values_array = CallBuiltinThroughJumptable<
         BuiltinCallDescriptor::WasmAllocateFixedArray>(

@@ -5827,7 +5827,8 @@ class LiftoffCompiler {
     for (ValueType param : sig->parameters()) {
       LoadExceptionValue(param.kind(), values_array, &index, pinned);
     }
-    DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(tag));
+    DCHECK_EQ(index,
+              WasmExceptionPackage::GetEncodedSize(decoder->module_, tag));
   }
 
   void EmitLandingPad(FullDecoder* decoder, int handler_offset) {
@@ -5868,7 +5869,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
 
     // Load the encoded size in a register for the builtin call.
-    int encoded_size = WasmExceptionPackage::GetEncodedSize(imm.tag);
+    int encoded_size =
+        WasmExceptionPackage::GetEncodedSize(decoder->module_, imm.tag);
     LiftoffRegister encoded_size_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(encoded_size_reg, WasmValue::ForUintPtr(encoded_size));

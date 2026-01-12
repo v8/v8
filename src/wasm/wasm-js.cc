@@ -2139,14 +2139,6 @@ void WebAssemblyTagImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 namespace {
 
-uint32_t GetEncodedSize(i::DirectHandle<i::WasmTagObject> tag_object) {
-  auto serialized_sig = tag_object->serialized_signature();
-  i::wasm::WasmTagSig sig{
-      0, static_cast<size_t>(serialized_sig->length()),
-      reinterpret_cast<i::wasm::ValueType*>(serialized_sig->begin())};
-  return i::WasmExceptionPackage::GetEncodedSize(&sig);
-}
-
 V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
     v8::Isolate* isolate, const i::wasm::CanonicalSig* signature,
     i::DirectHandle<i::WasmTagObject> tag_object, const Local<Value>& arg,
@@ -2269,7 +2261,7 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  uint32_t size = GetEncodedSize(tag_object);
+  uint32_t size = i::WasmExceptionPackage::GetEncodedSize(sig);
   i::DirectHandle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);
   // The constructor above should guarantee that the cast below succeeds.
@@ -2691,7 +2683,7 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 namespace {
 V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
     v8::ReturnValue<v8::Value>& return_value, i::DirectHandle<i::Object> value,
-    i::wasm::ValueType unsafe_type, i::Isolate* isolate,
+    i::wasm::ValueTypeBase unsafe_type, i::Isolate* isolate,
     ErrorThrower* thrower) {
   if (unsafe_type.is_abstract_ref()) {
     switch (unsafe_type.generic_kind()) {
@@ -2963,14 +2955,43 @@ void WebAssemblyTagType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(tag, WasmTagObject);
 
-  int n = tag->serialized_signature()->length();
-  std::vector<i::wasm::ValueType> data(n);
-  if (n > 0) {
-    tag->serialized_signature()->copy_out(0, data.data(), n);
+  i::wasm::CanonicalTypeIndex type_index{
+      static_cast<uint32_t>(tag->canonical_type_index())};
+  const i::wasm::CanonicalSig* csig =
+      i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(type_index);
+  const i::wasm::FunctionSig* sig = nullptr;
+  bool has_indexed_types =
+      std::any_of(csig->all().begin(), csig->all().end(),
+                  [](i::wasm::CanonicalValueType c) { return c.has_index(); });
+  // We need the FunctionSig. If the CanonicalSig contains indexed types, we
+  // do a linear lookup of the FunctionSig in the module. Otherwise, the
+  // CanonicalSig can be reinterpret-casted as a FunctionSig.
+  if (has_indexed_types) {
+    DCHECK(tag->has_trusted_data());
+    const i::wasm::WasmModule* module =
+        tag->trusted_data(i::IsolateForSandbox(i_isolate))->module();
+    DCHECK_GE(i::kMaxUInt32, module->isorecursive_canonical_type_ids.size());
+    size_t num_types = module->types.size();
+    DCHECK_EQ(num_types, module->isorecursive_canonical_type_ids.size());
+    for (uint32_t local_id = 0; local_id < num_types; ++local_id) {
+      if (!module->has_signature(i::wasm::ModuleTypeIndex{local_id})) {
+        continue;
+      }
+      i::wasm::CanonicalTypeIndex canonical_id =
+          module->canonical_sig_id(i::wasm::ModuleTypeIndex{local_id});
+      if (canonical_id != csig->index()) {
+        continue;
+      }
+      sig = module->signature(i::wasm::ModuleTypeIndex{local_id});
+      break;
+    }
+    DCHECK_NOT_NULL(sig);
+  } else {
+    // This also handles the case where the tag does not have an instance.
+    sig = reinterpret_cast<const i::wasm::FunctionSig*>(csig);
   }
-  const i::wasm::FunctionSig sig{0, data.size(), data.data()};
   constexpr bool kForException = true;
-  auto type = i::wasm::GetTypeForFunction(i_isolate, &sig, kForException);
+  auto type = i::wasm::GetTypeForFunction(i_isolate, sig, kForException);
   info.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
@@ -3000,10 +3021,13 @@ void WebAssemblyExceptionGetArgImpl(
     return;
   }
 
+  const i::wasm::CanonicalSig* sig =
+      i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
+          i::wasm::CanonicalTypeIndex{
+              static_cast<uint32_t>(tag_object->canonical_type_index())});
   DCHECK(!IsUndefined(*maybe_values));
   auto values = i::Cast<i::FixedArray>(maybe_values);
-  auto signature = tag_object->serialized_signature();
-  if (index >= static_cast<uint32_t>(signature->length())) {
+  if (index >= static_cast<uint32_t>(sig->parameter_count())) {
     thrower.RangeError("Index out of range");
     return;
   }
@@ -3011,7 +3035,7 @@ void WebAssemblyExceptionGetArgImpl(
   uint32_t decode_index = 0;
   // Since the bounds check above passed, the cast to int is safe.
   for (int i = 0; i < static_cast<int>(index); ++i) {
-    switch (signature->get(i).kind()) {
+    switch (sig->GetParam(i).kind()) {
       case i::wasm::kI32:
       case i::wasm::kF32:
         decode_index += 2;
@@ -3038,7 +3062,7 @@ void WebAssemblyExceptionGetArgImpl(
   }
   // Decode the value at {decode_index}.
   Local<Value> result;
-  switch (signature->get(index).kind()) {
+  switch (sig->GetParam(index).kind()) {
     case i::wasm::kI32: {
       uint32_t u32_bits = 0;
       i::DecodeI32ExceptionValue(values, &decode_index, &u32_bits);
@@ -3071,7 +3095,7 @@ void WebAssemblyExceptionGetArgImpl(
     case i::wasm::kRefNull: {
       i::DirectHandle<i::Object> obj(values->get(decode_index), i_isolate);
       ReturnValue<Value> return_value = info.GetReturnValue();
-      if (!WasmObjectToJSReturnValue(return_value, obj, signature->get(index),
+      if (!WasmObjectToJSReturnValue(return_value, obj, sig->GetParam(index),
                                      i_isolate, &thrower)) {
         return js_api_scope.AssertException();
       }
