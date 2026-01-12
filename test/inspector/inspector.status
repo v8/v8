@@ -181,6 +181,7 @@
   'debugger/script-on-after-compile': [SKIP],
   'debugger/set-breakpoint-at-last-line': [SKIP],
   'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
+  'debugger/set-script-source-repl-mode': [SKIP],
   'heap-profiler/collect-garbage' : [SKIP],
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/evaluate-async': [SKIP],

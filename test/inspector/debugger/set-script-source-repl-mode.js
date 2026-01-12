@@ -22,6 +22,10 @@ const changedScript = script.replace('const', 'let');
   });
   const { params: { scriptId } } = await Protocol.Debugger.onceScriptParsed();
 
+  // Run the GC to make sure the script's generator (for the top-level async
+  // function, which is async since this is repl mode) is able to die.
+  await Protocol.HeapProfiler.collectGarbage();
+
   const { result: { status } } = await Protocol.Debugger.setScriptSource({
     scriptId,
     scriptSource: changedScript,

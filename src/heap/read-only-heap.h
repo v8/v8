@@ -29,6 +29,7 @@ class ReadOnlyPage;
 class ReadOnlySpace;
 class SharedReadOnlySpace;
 class SnapshotData;
+class EarlyReadOnlyRoots;
 
 // This class transparently manages read-only space, roots and cache creation
 // and destruction.
@@ -73,7 +74,7 @@ class ReadOnlyHeap final {
   V8_EXPORT_PRIVATE static bool SandboxSafeContains(Tagged<HeapObject> object);
   // Returns the current isolates roots table during initialization as opposed
   // to the shared one in case the latter is not initialized yet.
-  V8_EXPORT_PRIVATE inline static ReadOnlyRoots EarlyGetReadOnlyRoots(
+  V8_EXPORT_PRIVATE inline static EarlyReadOnlyRoots EarlyGetReadOnlyRoots(
       Tagged<HeapObject> object);
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }

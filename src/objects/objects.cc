@@ -5059,7 +5059,7 @@ template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
   DisallowGarbageCollection no_gc;
   WriteBarrierModeScope mode = GetWriteBarrierMode(no_gc);
-  ReadOnlyRoots roots = EarlyGetReadOnlyRoots();
+  EarlyReadOnlyRoots roots = EarlyGetReadOnlyRoots();
   uint32_t capacity = Capacity();
   bool done = false;
   for (int probe = 1; !done; probe++) {
@@ -5094,7 +5094,7 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base) {
     }
   }
   // Wipe deleted entries.
-  Tagged<Object> the_hole = roots.the_hole_value();
+  Tagged<TheHole> the_hole = roots.the_hole_value();
   Tagged<HeapObject> undefined = roots.undefined_value();
   Derived* self = static_cast<Derived*>(this);
   for (InternalIndex current : InternalIndex::Range(capacity)) {

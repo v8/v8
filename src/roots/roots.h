@@ -786,6 +786,13 @@ class ReadOnlyRoots {
   friend ReadOnlyRoots GetReadOnlyRoots();
 };
 
+// Subclass for RORoots loaded specifically early in the snapshot
+// deserializtion.
+class EarlyReadOnlyRoots : public ReadOnlyRoots {
+ public:
+  explicit EarlyReadOnlyRoots(ReadOnlyRoots roots) : ReadOnlyRoots(roots) {}
+};
+
 }  // namespace internal
 }  // namespace v8
 

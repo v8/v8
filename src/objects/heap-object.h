@@ -28,6 +28,7 @@ class ExposedTrustedObject;
 class ObjectVisitor;
 class WritableFreeSpace;
 class WriteBarrierModeScope;
+class EarlyReadOnlyRoots;
 
 // A safe HeapObject size is a uint32_t that's guaranteed to yield in OOB within
 // the sandbox. The alias exists to force appropriate conversions at the
@@ -91,7 +92,7 @@ V8_OBJECT class HeapObjectLayout {
 
   // This is slower that GetReadOnlyRoots, but safe to call during
   // bootstrapping.
-  inline ReadOnlyRoots EarlyGetReadOnlyRoots() const;
+  inline EarlyReadOnlyRoots EarlyGetReadOnlyRoots() const;
 
   // Returns the heap object's size in bytes
   inline int Size() const;
@@ -233,7 +234,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // This is slower than GetReadOnlyRoots, but safe to call during
   // bootstrapping.
-  inline ReadOnlyRoots EarlyGetReadOnlyRoots() const;
+  inline EarlyReadOnlyRoots EarlyGetReadOnlyRoots() const;
 
   // Converts an address to a HeapObject pointer.
   static inline Tagged<HeapObject> FromAddress(Address address) {
