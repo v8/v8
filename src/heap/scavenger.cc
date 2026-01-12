@@ -519,11 +519,6 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     Heap* heap = scavenger_->heap();
     ExternalPointerTable& table = heap->isolate()->external_pointer_table();
-    ArrayBufferExtension* array_buffer_extension =
-        slot.tag_range() == kArrayBufferExtensionTag
-            ? reinterpret_cast<ArrayBufferExtension*>(
-                  table.Get(handle, kArrayBufferExtensionTag))
-            : nullptr;
     if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
       // For survivor objects, mark their EPT entries when they are
       // copied. Scavenger then sweeps the young EPT space at the end of
@@ -539,21 +534,20 @@ class ScavengerObjectVisitorBase : public NewSpaceVisitor<ConcreteVisitor> {
                      heap->old_external_pointer_space(), handle, slot.address(),
                      ExternalPointerTable::EvacuateMarkMode::kTransferMark);
     }
-#else   // !V8_COMPRESS_POINTERS
-    ArrayBufferExtension* array_buffer_extension =
-        slot.tag_range() == kArrayBufferExtensionTag
-            ? reinterpret_cast<ArrayBufferExtension*>(
-                  slot.load(scavenger_->heap()->isolate()))
-            : nullptr;
-#endif  // !V8_COMPRESS_POINTERS
-    if (array_buffer_extension) {
-      array_buffer_extension->InitializationBarrier();
-      if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
-        array_buffer_extension->YoungMark();
-      } else {
-        array_buffer_extension->YoungMarkPromoted();
-      }
+#endif  // V8_COMPRESS_POINTERS
+  }
+
+  V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
+                                      Tagged<JSArrayBuffer> object,
+                                      MaybeObjectSize) {
+    if constexpr (kExpectedObjectAge == ObjectAge::kYoung) {
+      object->YoungMarkExtension();
+    } else {
+      object->YoungMarkExtensionPromoted();
     }
+    int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
+    JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
+    return size;
   }
 
   V8_INLINE size_t VisitJSWeakRef(Tagged<Map> map, Tagged<JSWeakRef> object,
