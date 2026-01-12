@@ -1241,7 +1241,16 @@ ProcessResult MaglevGraphOptimizer::VisitHasInPrototypeChain(
 
 ProcessResult MaglevGraphOptimizer::VisitInitialValue(
     InitialValue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  // Set the type for the `this` register in sloppy mode.
+  const MaglevCompilationUnit* unit =
+      reducer_.graph()->compilation_info()->toplevel_compilation_unit();
+  if (node->source() == interpreter::Register::FromParameterIndex(0) &&
+      is_sloppy(unit->shared_function_info().language_mode())) {
+    DCHECK(unit->shared_function_info().IsUserJavaScript());
+    NodeInfo* node_info =
+        known_node_aspects().GetOrCreateInfoFor(broker(), node);
+    node_info->IntersectType(NodeType::kJSReceiver);
+  }
   return ProcessResult::kContinue;
 }
 
