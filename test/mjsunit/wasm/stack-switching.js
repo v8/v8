@@ -361,7 +361,7 @@ instance = builder.instantiate( {m: {
       instance.exports.suspend_tag0,
   ];
   assertThrows(instance.exports.resume_next_handle_tag0,
-      WebAssembly.SuspendError);
+      WebAssembly.SuspendError, /WasmFX: unhandled suspend/);
 
   // Throw if an intermediate stack contains JS frames.
   instance.exports.call_stack.value = [
@@ -371,12 +371,12 @@ instance = builder.instantiate( {m: {
       instance.exports.suspend_tag0,
   ];
   assertThrows(instance.exports.resume_next_handle_tag0,
-      WebAssembly.SuspendError);
+      WebAssembly.SuspendError, /WasmFX: unhandled suspend/);
 
   instance.exports.call_stack.value = [
       instance.exports.suspend_tag1];
   assertThrows(instance.exports.resume_next_handle_tag0,
-      WebAssembly.SuspendError);
+      WebAssembly.SuspendError, /WasmFX: unhandled suspend/);
 })();
 
 (function TestInvalidContinuation() {

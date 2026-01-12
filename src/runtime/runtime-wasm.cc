@@ -253,7 +253,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
       isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowWasmSuspendError) {
+RUNTIME_FUNCTION(Runtime_ThrowWasmJSPISuspendError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   MessageTemplate message = MessageTemplate::kWasmSuspendJSFrames;
@@ -266,6 +266,15 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmSuspendError) {
     // Throw with a more precise error message.
     message = MessageTemplate::kWasmSuspendError;
   }
+  DirectHandle<JSObject> error_obj =
+      isolate->factory()->NewWasmSuspendError(message);
+  return isolate->Throw(*error_obj);
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowWasmFXSuspendError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  MessageTemplate message = MessageTemplate::kWasmFXSuspendError;
   DirectHandle<JSObject> error_obj =
       isolate->factory()->NewWasmSuspendError(message);
   return isolate->Throw(*error_obj);

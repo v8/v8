@@ -3975,7 +3975,7 @@ class TurboshaftGraphBuildingInterface
                 IsolateData::is_on_central_stack_flag_offset());
     V<Context> native_context = instance_cache_.native_context();
     IF (is_on_central_stack) {
-      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {},
+      __ WasmCallRuntime(__ phase_zone(), Runtime::kThrowWasmFXSuspendError, {},
                          native_context);
       __ Unreachable();
     }

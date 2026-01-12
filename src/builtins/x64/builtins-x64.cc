@@ -4012,7 +4012,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   Label ok;
   __ JumpIf(not_equal, target_stack, 0, &ok);
   // No handler found.
-  __ CallRuntime(Runtime::kThrowWasmSuspendError);
+  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
 
   __ bind(&ok);
   LoadJumpBuffer(masm, target_stack, true);

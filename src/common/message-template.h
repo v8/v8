@@ -728,6 +728,7 @@ namespace internal {
   T(WasmTrapStringOffsetOutOfBounds, "string offset out of bounds")            \
   T(WasmTrapResume, "resuming an invalid continuation")                        \
   T(WasmSuspendError, "trying to suspend without WebAssembly.promising")       \
+  T(WasmFXSuspendError, "WasmFX: unhandled suspend")                           \
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \
   T(WasmSuspendJSFrames, "trying to suspend JS frames")                        \

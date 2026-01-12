@@ -4118,7 +4118,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   Label ok;
   __ Branch(&ok, ne, target_stack, Operand(zero_reg));
   // No handler found.
-  __ CallRuntime(Runtime::kThrowWasmSuspendError);
+  __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
