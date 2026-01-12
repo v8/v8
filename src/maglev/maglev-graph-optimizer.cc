@@ -524,7 +524,10 @@ ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64IsSmi(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckHeapObject(
     CheckHeapObject* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (known_node_aspects().EnsureType(broker(), node->input_node(0),
+                                      NodeType::kAnyHeapObject)) {
+    return ProcessResult::kRemove;
+  }
   return ProcessResult::kContinue;
 }
 
