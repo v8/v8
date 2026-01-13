@@ -571,6 +571,7 @@
   'tools/compiler-trace-flags-wasm': [SKIP],
 
   'compiler/fast-api-calls-wasm': [SKIP],
+  'compiler/fast-api-calls-exception': [SKIP],
 }],  # not has_webassembly or (variant == jitless and not has_wasm_interpreter)
 
 ##############################################################################
