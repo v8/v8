@@ -991,17 +991,43 @@ int OS::GetLastError() {
 //
 
 FILE* OS::FOpen(const char* path, const char* mode) {
-  FILE* file = fopen(path, mode);
-  if (file == nullptr) return nullptr;
+  // Compute flags for `open` from the mode string.
+  // Note: We execute `open` separately to be able to pass `O_NOFOLLOW` so we do
+  // not follow symlinks (potentially in world-writable `/tmp` directory).
+  CHECK(mode[0] == 'r' || mode[0] == 'w' || mode[0] == 'a');
+  int flags = mode[0] == 'r' ? O_RDONLY : (O_WRONLY | O_CREAT);
+  if (mode[0] == 'w') flags |= O_TRUNC;
+  if (mode[0] == 'a') flags |= O_APPEND;
+  flags |= O_NOFOLLOW;
+  for (const char* c = mode + 1; *c != '\0'; ++c) {
+    if (*c == '+') {
+      // Upgrade to O_RDWR.
+      flags = (flags & ~O_ACCMODE) | O_RDWR;
+    } else if (*c == 'x') {
+      flags |= O_EXCL;
+    } else if (*c == 'b') {
+      // Ignore on POSIX.
+    } else {
+      FATAL("Unknown character '%c' in OS::FOpen mode \"%s\"", *c, mode);
+    }
+  }
+
+  int fd = open(path, flags, 0666);
+  if (fd == -1) return nullptr;
+
   struct stat file_stat;
-  if (fstat(fileno(file), &file_stat) != 0) {
-    fclose(file);
+  CHECK_EQ(0, fstat(fd, &file_stat));
+  bool is_regular_file = ((file_stat.st_mode & S_IFREG) != 0);
+  if (!is_regular_file) {
+    close(fd);
     return nullptr;
   }
-  bool is_regular_file = ((file_stat.st_mode & S_IFREG) != 0);
-  if (is_regular_file) return file;
-  fclose(file);
-  return nullptr;
+
+  FILE* file = fdopen(fd, mode);
+  if (file == nullptr && errno == ENOMEM) FatalOOM(OOMType::kProcess, "fdopen");
+  CHECK_NOT_NULL(file);
+  // `file` took ownership of `fd`.
+  return file;
 }
 
 
