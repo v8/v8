@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --inspector-live-edit --no-stress-concurrent-marking
+// Flags: --inspector-live-edit --no-stress-incremental-marking
 
 const {session, contextGroup, Protocol} =
   InspectorTest.start('Check that setScriptSource works with REPL mode');
