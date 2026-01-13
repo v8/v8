@@ -721,9 +721,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
                     static_cast<int>(kLastDeoptimizeKind),
                 "lazy deopts are expected to be emitted last");
   // from_ is the value of the link register after the call to the
-  // deoptimizer, so for the last lazy deopt, from_ points to the first
-  // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
-  // the first deopt with resume entry.
+  // deoptimizer, so for the last eager deopt, from_ points to the first
+  // lazy deopt, so we use <=
   if (from_ <= lazy_deopt_start) {
     DCHECK_EQ(kind, DeoptimizeKind::kEager);
     int offset = static_cast<int>(from_ - kEagerDeoptExitSize - deopt_start);
