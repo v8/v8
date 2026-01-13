@@ -57,6 +57,16 @@ ValueNode* Value(ValueNode* node) { return node; }
     DCHECK(IsFail(result));                 \
   } while (false)
 
+#define REMOVE_AND_RETURN_IF_DONE(result)   \
+  do {                                      \
+    auto res = (result);                    \
+    if (res.IsDoneWithAbort()) {            \
+      return ProcessResult::kTruncateBlock; \
+    } else if (res.IsDone()) {              \
+      return ProcessResult::kRemove;        \
+    }                                       \
+  } while (false)
+
 namespace {
 constexpr ValueRepresentation ValueRepresentationFromUse(
     UseRepresentation repr) {
@@ -451,6 +461,19 @@ ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
   return ProcessResult::kContinue;
 }
 
+MaybeReduceResult MaglevGraphOptimizer::EnsureType(ValueNode* node,
+                                                   NodeType type,
+                                                   DeoptimizeReason reason) {
+  if (IsEmptyNodeType(
+          IntersectType(known_node_aspects().GetType(broker(), node), type))) {
+    return EmitUnconditionalDeopt(reason);
+  }
+  if (!known_node_aspects().EnsureType(broker(), node, type)) {
+    return {};
+  }
+  return ReduceResult::Done();
+}
+
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32(
     AssertInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -524,10 +547,8 @@ ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64IsSmi(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckHeapObject(
     CheckHeapObject* node, const ProcessingState& state) {
-  if (known_node_aspects().EnsureType(broker(), node->input_node(0),
-                                      NodeType::kAnyHeapObject)) {
-    return ProcessResult::kRemove;
-  }
+  REMOVE_AND_RETURN_IF_DONE(EnsureType(
+      node->input_node(0), NodeType::kAnyHeapObject, DeoptimizeReason::kSmi));
   return ProcessResult::kContinue;
 }
 
@@ -725,6 +746,13 @@ ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType(
       return ProcessResult::kRemove;
     }
   }
+
+  if (node->first_instance_type() == FIRST_JS_RECEIVER_TYPE &&
+      node->last_instance_type() == LAST_JS_RECEIVER_TYPE) {
+    REMOVE_AND_RETURN_IF_DONE(EnsureType(input, NodeType::kJSReceiver,
+                                         DeoptimizeReason::kWrongInstanceType));
+  }
+
   return ProcessResult::kContinue;
 }
 

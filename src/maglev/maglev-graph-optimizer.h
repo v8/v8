@@ -162,6 +162,10 @@ class MaglevGraphOptimizer {
   ProcessResult ProcessLoadContextSlot(NodeT* node);
   template <typename NodeT>
   ProcessResult ProcessCheckMaps(NodeT* node, ValueNode* object_map = nullptr);
+
+  MaybeReduceResult EnsureType(
+      ValueNode* node, NodeType type,
+      DeoptimizeReason reason = DeoptimizeReason::kWrongValue);
 };
 
 }  // namespace maglev

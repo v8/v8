@@ -8238,7 +8238,7 @@ void CheckInstanceType::PrintParams(std::ostream& os) const {
   if (first_instance_type_ != last_instance_type_) {
     os << " - " << last_instance_type_;
   }
-  os << ")";
+  os << ", " << check_type() << ")";
 }
 
 void CheckMapsWithMigration::PrintParams(std::ostream& os) const {
@@ -8325,6 +8325,7 @@ void LoadFixedArrayElement::PrintParams(std::ostream& os) const {
   } else {
     os << "(compressed)";
   }
+  os << ", " << load_type();
 }
 
 void StoreFloat64::PrintParams(std::ostream& os) const {
