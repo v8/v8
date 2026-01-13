@@ -86,7 +86,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:1624786919608fb2140226f6468cd8d0b52fe3b5',
+  'siso_version': 'git_revision:038ddf6e901c8f82dfd917b91a4551e233a3e6ae',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -101,7 +101,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
   # and whatever else without interference from each other.
-  'android_sdk_build-tools_version': 'y3EsZLg4bxPmpW0oYsAHylywNyMnIwPS3kh1VbQLAFAC',
+  'android_sdk_build-tools_version': '-jLl4Ibk_WmgTsZaP-ueQwZDhBwkWf5BsQ4UNrkzXF0C',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_emulator_version
   # and whatever else without interference from each other.
@@ -121,7 +121,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_platforms_version
   # and whatever else without interference from each other.
-  'android_sdk_platforms_version': '_YHemUrK49JrE7Mctdf5DDNOHu1VKBx_PTcWnZ-cbOAC',
+  'android_sdk_platforms_version': 'gxwLT70eR_ObwZJzKK8UIS-N549yAocNTmc0JHgO7gUC',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_sources_version
   # and whatever else without interference from each other.
@@ -134,7 +134,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7b0b8d4ae2d926171181a0f6d0ffe9669b566d71',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'daa16e7b523a5a17fc2f82ea327ef1a7f69d692f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4dc32b3f510b330137385e2b3a631ca8e13a8e22',
   'buildtools/linux64': {
@@ -190,7 +190,7 @@ deps = {
   'third_party/android_sdk/public': {
       'packages': [
           {
-              'package': 'chromium/third_party/android_sdk/public/build-tools/36.0.0',
+              'package': 'chromium/third_party/android_sdk/public/build-tools/36.1.0',
               'version': Var('android_sdk_build-tools_version'),
           },
           {
@@ -210,7 +210,7 @@ deps = {
               'version': Var('android_sdk_platform-tools_version'),
           },
           {
-              'package': 'chromium/third_party/android_sdk/public/platforms/android-36',
+              'package': 'chromium/third_party/android_sdk/public/platforms/android-36.1',
               'version': Var('android_sdk_platforms_version'),
           },
           {
@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c9916a593bec75bdaa231475af0e8740f857bf10',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5278e26a99647680a57ba8afd22265c9a0cca9a7',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
