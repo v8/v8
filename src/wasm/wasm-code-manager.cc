@@ -2583,29 +2583,26 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     if (flag_max_bytes < code_vmem_size) code_vmem_size = flag_max_bytes;
   }
 
-  // Try up to two times; getting rid of dead JSArrayBuffer allocations might
-  // require two GCs because the first GC maybe incremental and may have
-  // floating garbage.
-  static constexpr int kAllocationRetries = 2;
   VirtualMemory code_space;
   base::AddressRegion code_space_region;
   if (code_vmem_size != 0) {
-    for (int retries = 0;; ++retries) {
-      code_space = TryAllocate(code_vmem_size);
-      if (code_space.IsReserved()) break;
+    code_space = TryAllocate(code_vmem_size);
+    if (!code_space.IsReserved() && GetCurrentIsolateForGc()) {
       Isolate* isolate_for_gc = GetCurrentIsolateForGc();
-      if (retries == kAllocationRetries || !isolate_for_gc) {
-        auto oom_detail = base::FormattedString{}
-                          << "NewNativeModule cannot allocate code space of "
-                          << code_vmem_size << " bytes";
-        V8::FatalProcessOutOfMemory(
-            nullptr, "Allocate initial wasm code space",
-            {.detail = oom_detail.PrintToArray().data()});
-        UNREACHABLE();
-      }
-      // Run one GC, then try the allocation again.
-      isolate_for_gc->heap()->MemoryPressureNotification(
-          MemoryPressureLevel::kCritical, true);
+      isolate_for_gc->heap()->allocator()->RetryCustomAllocate(
+          [&]() {
+            code_space = TryAllocate(code_vmem_size);
+            return code_space.IsReserved();
+          },
+          internal::AllocationType::kOld);
+    }
+    if (!code_space.IsReserved()) {
+      auto oom_detail = base::FormattedString{}
+                        << "NewNativeModule cannot allocate code space of "
+                        << code_vmem_size << " bytes";
+      V8::FatalProcessOutOfMemory(nullptr, "Allocate initial wasm code space",
+                                  {.detail = oom_detail.PrintToArray().data()});
+      UNREACHABLE();
     }
     code_space_region = code_space.region();
     DCHECK_LE(code_vmem_size, code_space.size());
