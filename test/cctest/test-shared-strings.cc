@@ -956,8 +956,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
     old_object->set(0, *one_byte_seq);
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_NEW>::Contains(
-        MutablePage::cast(MutablePage::cast(old_object_chunk->Metadata())),
-        slot.address()));
+        SbxCast<MutablePage>(old_object_chunk->Metadata()), slot.address()));
 
     {
       // CSS prevents moving the string to shared space.
@@ -974,7 +973,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
+        SbxCast<MutablePage>(old_object_chunk->Metadata()), slot.address()));
   }
 }
 
@@ -1019,7 +1018,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     }
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_NEW>::Contains(
-        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
+        SbxCast<MutablePage>(old_object_chunk->Metadata()), slot.address()));
 
     {
       // We need to invoke GC without stack, otherwise no compaction is
@@ -1038,7 +1037,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
+        SbxCast<MutablePage>(old_object_chunk->Metadata()), slot.address()));
   }
 }
 
@@ -1094,7 +1093,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
       old_object->set(0, *one_byte_seq);
       slot = old_object->RawFieldOfFirstElement();
       CHECK(!RememberedSet<OLD_TO_NEW>::Contains(
-          MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
+          SbxCast<MutablePage>(old_object_chunk->Metadata()), slot.address()));
 
       heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*one_byte_seq));
       one_byte_seq_global.Reset(isolate, v8::Utils::ToLocal(one_byte_seq));
@@ -1118,7 +1117,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
-        MutablePage::cast(old_object_chunk->Metadata()), slot.address()));
+        SbxCast<MutablePage>(old_object_chunk->Metadata()), slot.address()));
   }
 }
 

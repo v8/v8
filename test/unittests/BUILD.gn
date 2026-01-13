@@ -368,6 +368,7 @@ v8_source_set("v8_unittests_sources") {
     "heap/marking-worklist-unittest.cc",
     "heap/memory-reducer-unittest.cc",
     "heap/object-stats-unittest.cc",
+    "heap/page-casting-unittest.cc",
     "heap/page-promotion-unittest.cc",
     "heap/persistent-handles-unittest.cc",
     "heap/pool-unittest.cc",

@@ -72,16 +72,6 @@ class MutablePage : public BasePage {
   V8_INLINE static MutablePage* FromHeapObject(const Isolate* i,
                                                Tagged<HeapObject> o);
 
-  static MutablePage* cast(BasePage* metadata) {
-    SBXCHECK(metadata->IsMutablePage());
-    return static_cast<MutablePage*>(metadata);
-  }
-
-  static const MutablePage* cast(const BasePage* metadata) {
-    SBXCHECK(metadata->IsMutablePage());
-    return static_cast<const MutablePage*>(metadata);
-  }
-
   static MemoryChunk::MainThreadFlags OldGenerationPageFlags(
       MarkingMode marking_mode, AllocationSpace space);
   static MemoryChunk::MainThreadFlags YoungGenerationPageFlags(
@@ -378,6 +368,13 @@ class MutablePage : public BasePage {
   friend class TestWithBitmap;
   // For SlotSetOffset().
   friend class WriteBarrierCodeStubAssembler;
+};
+
+template <>
+struct CastTraits<MutablePage> {
+  static inline bool AllowFrom(const BasePage& page) {
+    return page.IsMutablePage();
+  }
 };
 
 }  // namespace internal

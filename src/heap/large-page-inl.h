@@ -15,7 +15,7 @@ namespace internal {
 
 // static
 LargePage* LargePage::FromHeapObject(Isolate* i, Tagged<HeapObject> o) {
-  return cast(MutablePage::FromHeapObject(i, o));
+  return SbxCast<LargePage>(BasePage::FromHeapObject(i, o));
 }
 
 }  // namespace internal

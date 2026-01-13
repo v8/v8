@@ -95,7 +95,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
   // and bail out.
   if constexpr (mode != FindMementoMode::kForGC) {
     MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
-    NormalPage* object_page = NormalPage::cast(object_chunk->Metadata());
+    NormalPage* object_page = SbxCast<NormalPage>(object_chunk->Metadata());
     if (!object_page->SweepingDone()) {
       return {};
     }

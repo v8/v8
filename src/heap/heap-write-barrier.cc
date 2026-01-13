@@ -114,7 +114,7 @@ void WriteBarrier::SharedHeapBarrierSlow(Tagged<HeapObject> object,
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   DCHECK(!chunk->InWritableSharedSpace());
   RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
-      MutablePage::cast(chunk->Metadata()), chunk->Offset(slot));
+      SbxCast<MutablePage>(chunk->Metadata()), chunk->Offset(slot));
 }
 
 // static
@@ -398,7 +398,7 @@ void WriteBarrier::GenerationalBarrierSlow(Tagged<HeapObject> host,
   const LocalHeap* local_heap = LocalHeap::Current();
   MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
   MutablePage* host_page =
-      MutablePage::cast(host_chunk->Metadata(local_heap->heap()->isolate()));
+      SbxCast<MutablePage>(host_chunk->Metadata(local_heap->heap()->isolate()));
   if (local_heap->is_main_thread()) {
     RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
         host_page, host_chunk->Offset(slot));
@@ -448,7 +448,7 @@ void ForRangeImpl(Heap* heap, MemoryChunk* source_chunk,
 
   MarkCompactCollector* collector = heap->mark_compact_collector();
   MutablePage* source_page_metadata =
-      MutablePage::cast(source_chunk->Metadata());
+      SbxCast<MutablePage>(source_chunk->Metadata());
 
   for (TSlot slot = start_slot; slot < end_slot; ++slot) {
     // If we *only* need the generational or shared WB, we can skip objects
@@ -574,7 +574,7 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
   if (mode == SKIP_WRITE_BARRIER) {
     if (value->is_builtin()) {
       // Builtins are immortal and immovable, so no write barrier needed.
-      NormalPage* page = NormalPage::FromHeapObject(value);
+      BasePage* page = BasePage::FromHeapObject(value);
       DCHECK(page->never_evacuate());
       return true;
     }

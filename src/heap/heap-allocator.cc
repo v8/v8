@@ -232,16 +232,18 @@ bool HeapAllocator::TryResizeLargeObject(Tagged<HeapObject> object,
     return false;
   }
 
-  BasePage* page = BasePage::FromHeapObject(object);
-  BaseSpace* space = page->owner();
-  if (space->identity() != NEW_LO_SPACE && space->identity() != LO_SPACE) {
+  LargePage* page;
+  if (!TryCast<LargePage>(BasePage::FromHeapObject(heap_->isolate(), object),
+                          &page)) {
     return false;
   }
+  DCHECK(page->owner()->identity() == NEW_LO_SPACE ||
+         page->owner()->identity() == LO_SPACE);
   DCHECK(page->is_large());
   DCHECK_EQ(page->area_size(), old_object_size);
   CHECK_GT(new_object_size, old_object_size);
-  if (!heap_->memory_allocator()->ResizeLargePage(
-          LargePage::cast(page), old_object_size, new_object_size)) {
+  if (!heap_->memory_allocator()->ResizeLargePage(page, old_object_size,
+                                                  new_object_size)) {
     if (V8_UNLIKELY(v8_flags.trace_resize_large_object)) {
       heap_->isolate()->PrintWithTimestamp(
           "resizing large object failed: allocation could not be extended\n");

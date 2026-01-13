@@ -44,7 +44,7 @@ NormalPage* SemiSpace::InitializePage(MutablePage* mutable_page) {
   MemoryChunk* chunk = mutable_page->Chunk();
   mutable_page->SetFlagNonExecutable(in_to_space ? MemoryChunk::TO_PAGE
                                                  : MemoryChunk::FROM_PAGE);
-  NormalPage* page = NormalPage::cast(mutable_page);
+  NormalPage* page = SbxCast<NormalPage>(mutable_page);
   page->list_node().Initialize();
   CHECK(page->IsLivenessClear());
   chunk->InitializationMemoryFence();
@@ -810,7 +810,7 @@ NormalPage* PagedSpaceForNewSpace::InitializePage(
     MutablePage* mutable_page_metadata) {
   DCHECK_EQ(identity(), NEW_SPACE);
   MemoryChunk* chunk = mutable_page_metadata->Chunk();
-  NormalPage* page = NormalPage::cast(mutable_page_metadata);
+  NormalPage* page = SbxCast<NormalPage>(mutable_page_metadata);
   DCHECK_EQ(
       MemoryChunkLayout::AllocatableMemoryInMemoryChunk(page->owner_identity()),
       page->area_size());

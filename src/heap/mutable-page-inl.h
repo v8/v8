@@ -15,18 +15,18 @@ namespace v8::internal {
 
 // static
 MutablePage* MutablePage::FromAddress(Address a) {
-  return cast(BasePage::FromAddress(a));
+  return SbxCast<MutablePage>(BasePage::FromAddress(a));
 }
 
 // static
 MutablePage* MutablePage::FromAddress(const Isolate* i, Address a) {
-  return cast(BasePage::FromAddress(i, a));
+  return SbxCast<MutablePage>(BasePage::FromAddress(i, a));
 }
 
 // static
 MutablePage* MutablePage::FromHeapObject(const Isolate* i,
                                          Tagged<HeapObject> o) {
-  return cast(BasePage::FromHeapObject(i, o));
+  return SbxCast<MutablePage>(BasePage::FromHeapObject(i, o));
 }
 
 template <AccessMode mode>

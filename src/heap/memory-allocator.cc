@@ -295,10 +295,8 @@ void MemoryAllocator::UnregisterMemoryChunk(BasePage* base_page) {
   }
   // For non-RO pages we want to set them as UNREGISTERED to allow actually
   // freeing them.
-  if (!chunk->InReadOnlySpace()) {
-    // Cannot use MutablePage::cast() because that relies on having an
-    // owner() which is unsed at this point.
-    reinterpret_cast<MutablePage*>(base_page)->set_is_unregistered();
+  if (MutablePage* page; TryCast<MutablePage>(base_page, &page)) {
+    page->set_is_unregistered();
   }
 }
 
@@ -704,8 +702,6 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddressInSafepoint(
   // Check if it corresponds to a known normal or large page.
   if (auto normal_page_it = normal_pages_.find(chunk);
       normal_page_it != normal_pages_.end()) {
-    // The chunk is a normal page.
-    // auto* normal_page = NormalPage::cast(chunk);
     DCHECK_LE((*normal_page_it)->address(), addr);
     // This code can run from the shared heap isolate and the slot may point
     // into a client heap isolate, so ignore the isolate check.

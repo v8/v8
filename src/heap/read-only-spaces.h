@@ -69,6 +69,13 @@ class ReadOnlyPage final : public BasePage {
   friend class ReadOnlySpace;
 };
 
+template <>
+struct CastTraits<ReadOnlyPage> {
+  static inline bool AllowFrom(const BasePage& page) {
+    return page.IsReadOnlyPage();
+  }
+};
+
 // -----------------------------------------------------------------------------
 // Artifacts used to construct a new SharedReadOnlySpace
 class ReadOnlyArtifacts final {

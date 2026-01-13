@@ -706,9 +706,9 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   EXPECT_EQ(page1, allocator->LookupChunkContainingAddress(inner_ptr1));
   EXPECT_EQ(page2, allocator->LookupChunkContainingAddress(inner_ptr2));
   EXPECT_EQ(AllocationSpace::NEW_SPACE,
-            MutablePage::cast(page1->Metadata())->owner_identity());
+            SbxCast<MutablePage>(page1->Metadata())->owner_identity());
   EXPECT_EQ(AllocationSpace::NEW_SPACE,
-            MutablePage::cast(page2->Metadata())->owner_identity());
+            SbxCast<MutablePage>(page2->Metadata())->owner_identity());
   EXPECT_TRUE(v8_flags.minor_ms || page1->IsFromPage());
   EXPECT_TRUE(v8_flags.minor_ms || page2->IsFromPage());
 
@@ -724,9 +724,9 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   // Garbage collection once more.
   InvokeAtomicMinorGC();
   EXPECT_EQ(AllocationSpace::NEW_SPACE,
-            MutablePage::cast(page1->Metadata())->owner_identity());
+            SbxCast<MutablePage>(page1->Metadata())->owner_identity());
   EXPECT_EQ(AllocationSpace::NEW_SPACE,
-            MutablePage::cast(page2->Metadata())->owner_identity());
+            SbxCast<MutablePage>(page2->Metadata())->owner_identity());
   // The two pages should still be around, in the new space.
   EXPECT_EQ(page1, allocator->LookupChunkContainingAddress(inner_ptr1));
   EXPECT_EQ(page2, allocator->LookupChunkContainingAddress(inner_ptr2));
@@ -768,7 +768,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
     auto page = MemoryChunk::FromHeapObject(obj);
     EXPECT_TRUE(page->Metadata()->is_large());
     EXPECT_EQ(AllocationSpace::NEW_LO_SPACE,
-              MutablePage::cast(page->Metadata())->owner_identity());
+              SbxCast<MutablePage>(page->Metadata())->owner_identity());
     EXPECT_TRUE(v8_flags.minor_ms || page->IsToPage());
 
     // Keep inner pointer.

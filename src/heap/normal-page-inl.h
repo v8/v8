@@ -16,14 +16,12 @@ namespace v8::internal {
 
 // static
 NormalPage* NormalPage::FromAddress(Address addr) {
-  return reinterpret_cast<NormalPage*>(
-      MemoryChunk::FromAddress(addr)->Metadata());
+  return SbxCast<NormalPage>(MemoryChunk::FromAddress(addr)->Metadata());
 }
 
 // static
 NormalPage* NormalPage::FromAddress(const Isolate* isolate, Address addr) {
-  return reinterpret_cast<NormalPage*>(
-      MemoryChunk::FromAddress(addr)->Metadata(isolate));
+  return SbxCast<NormalPage>(MemoryChunk::FromAddress(addr)->Metadata(isolate));
 }
 
 // static

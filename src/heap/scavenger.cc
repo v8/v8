@@ -76,7 +76,7 @@ template <RememberedSetType kType>
 void AddToRememberedSet(const Heap* heap, const Tagged<HeapObject> host,
                         Address slot) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
-  MutablePage* page = MutablePage::cast(chunk->Metadata(heap->isolate()));
+  MutablePage* page = SbxCast<MutablePage>(chunk->Metadata(heap->isolate()));
   RememberedSet<kType>::template Insert<AccessMode::ATOMIC>(
       page, chunk->Offset(slot));
 }
@@ -1101,7 +1101,7 @@ class ObjectPinningVisitorBase : public RootVisitor {
     }
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     MutablePage* metadata =
-        MutablePage::cast(chunk->Metadata(heap_->isolate()));
+        SbxCast<MutablePage>(chunk->Metadata(heap_->isolate()));
     DCHECK(!metadata->is_large());
     DCHECK(HeapLayout::InYoungGeneration(object));
     DCHECK(Heap::InFromPage(object));

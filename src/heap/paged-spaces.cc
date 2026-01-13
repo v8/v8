@@ -78,7 +78,7 @@ PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
 
 NormalPage* PagedSpaceBase::InitializePage(MutablePage* mutable_page_metadata) {
   MemoryChunk* chunk = mutable_page_metadata->Chunk();
-  NormalPage* page = NormalPage::cast(mutable_page_metadata);
+  NormalPage* page = SbxCast<NormalPage>(mutable_page_metadata);
   DCHECK_EQ(
       MemoryChunkLayout::AllocatableMemoryInMemoryChunk(page->owner_identity()),
       page->area_size());

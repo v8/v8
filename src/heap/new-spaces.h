@@ -98,10 +98,10 @@ class SemiSpace final : public Space {
   size_t Available() const final { UNREACHABLE(); }
 
   NormalPage* first_page() final {
-    return NormalPage::cast(memory_chunk_list_.front());
+    return SbxCast<NormalPage>(memory_chunk_list_.front());
   }
   NormalPage* last_page() final {
-    return NormalPage::cast(memory_chunk_list_.back());
+    return SbxCast<NormalPage>(memory_chunk_list_.back());
   }
 
   const NormalPage* first_page() const final {

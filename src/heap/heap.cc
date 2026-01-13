@@ -213,7 +213,7 @@ class Heap::AllocationTrackerForDebugging final
     Address object_address = object.address();
     MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
     AllocationSpace allocation_space =
-        MutablePage::cast(memory_chunk->Metadata())->owner_identity();
+        SbxCast<MutablePage>(memory_chunk->Metadata())->owner_identity();
 
     static_assert(kSpaceTagSize + kPageSizeBits <= 32);
     uint32_t value =
@@ -2594,7 +2594,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
     return;
   }
 
-  MutablePage* mutable_page = MutablePage::cast(chunk->Metadata());
+  MutablePage* mutable_page = SbxCast<MutablePage>(chunk->Metadata());
   if (mutable_page->SweepingDone()) {
     return;
   }
@@ -2602,7 +2602,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   // SweepingDone() is always true for large pages.
   DCHECK(!mutable_page->is_large());
 
-  NormalPage* page = NormalPage::cast(mutable_page);
+  NormalPage* page = SbxCast<NormalPage>(mutable_page);
   sweeper()->EnsurePageIsSwept(page);
 }
 
@@ -3275,7 +3275,7 @@ void VerifyNoNeedToClearSlots(Address start, Address end) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(start);
   if (chunk->InReadOnlySpace()) return;
   if (!v8_flags.sticky_mark_bits && chunk->InYoungGeneration()) return;
-  MutablePage* mutable_page = MutablePage::cast(chunk->Metadata());
+  MutablePage* mutable_page = SbxCast<MutablePage>(chunk->Metadata());
   BaseSpace* space = mutable_page->owner();
   space->heap()->VerifySlotRangeHasNoRecordedSlots(start, end);
 }
@@ -6962,7 +6962,7 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   if (!chunk->InYoungGeneration())
 #endif
   {
-    NormalPage* page = NormalPage::cast(chunk->Metadata());
+    NormalPage* page = SbxCast<NormalPage>(chunk->Metadata());
     // This method will be invoked on objects in shared space for
     // internalization and string forwarding during GC.
     DCHECK(page->owner_identity() == OLD_SPACE ||

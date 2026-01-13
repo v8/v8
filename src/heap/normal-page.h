@@ -29,15 +29,6 @@ class NormalPage final : public MutablePage {
                                            Address addr);
   V8_INLINE static NormalPage* FromHeapObject(Tagged<HeapObject> o);
 
-  static NormalPage* cast(BasePage* metadata) {
-    return cast(MutablePage::cast(metadata));
-  }
-
-  static NormalPage* cast(MutablePage* metadata) {
-    DCHECK_IMPLIES(metadata, !metadata->is_large());
-    return static_cast<NormalPage*>(metadata);
-  }
-
   // Returns the page containing the address provided. The address can
   // potentially point righter after the page. To be also safe for tagged values
   // we subtract a hole word. The valid address ranges from
@@ -127,6 +118,13 @@ class NormalPage final : public MutablePage {
 
  private:
   friend class MemoryAllocator;
+};
+
+template <>
+struct CastTraits<NormalPage> {
+  static inline bool AllowFrom(const BasePage& page) {
+    return page.IsNormalPage();
+  }
 };
 
 }  // namespace internal

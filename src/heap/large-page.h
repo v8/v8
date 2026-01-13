@@ -17,15 +17,6 @@ class LargePage final : public MutablePage {
   // already imposes on x64 and ia32 architectures.
   static constexpr int kMaxCodePageSize = 512 * MB;
 
-  static LargePage* cast(MutablePage* metadata) {
-    DCHECK_IMPLIES(metadata, metadata->is_large());
-    return static_cast<LargePage*>(metadata);
-  }
-
-  static LargePage* cast(BasePage* metadata) {
-    return cast(MutablePage::cast(metadata));
-  }
-
   V8_INLINE static LargePage* FromHeapObject(Isolate* i, Tagged<HeapObject> o);
 
   LargePage(Heap* heap, BaseSpace* space, size_t chunk_size, Address area_start,
@@ -37,7 +28,7 @@ class LargePage final : public MutablePage {
     return HeapObject::FromAddress(area_start());
   }
 
-  LargePage* next_page() { return LargePage::cast(list_node_.next()); }
+  LargePage* next_page() { return SbxCast<LargePage>(list_node_.next()); }
   const LargePage* next_page() const {
     return static_cast<const LargePage*>(list_node_.next());
   }
@@ -46,6 +37,11 @@ class LargePage final : public MutablePage {
 
  private:
   friend class MemoryAllocator;
+};
+
+template <>
+struct CastTraits<LargePage> {
+  static inline bool AllowFrom(const BasePage& page) { return page.is_large(); }
 };
 
 }  // namespace internal

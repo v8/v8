@@ -6338,7 +6338,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
   BasePage* metadata = chunk->Metadata(isolate);
-  CHECK_EQ(NEW_LO_SPACE, MutablePage::cast(metadata)->owner_identity());
+  CHECK_EQ(NEW_LO_SPACE, SbxCast<MutablePage>(metadata)->owner_identity());
   CHECK(metadata->is_large());
   CHECK(chunk->IsToPage());
 
@@ -6350,7 +6350,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // After the first young generation GC array_small will be in the old
   // generation large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, MutablePage::cast(chunk->Metadata())->owner_identity());
+  CHECK_EQ(LO_SPACE, SbxCast<MutablePage>(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6370,7 +6370,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
       isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
   BasePage* metadata = chunk->Metadata(isolate);
-  CHECK_EQ(NEW_LO_SPACE, MutablePage::cast(metadata)->owner_identity());
+  CHECK_EQ(NEW_LO_SPACE, SbxCast<MutablePage>(metadata)->owner_identity());
   CHECK(metadata->is_large());
   CHECK(chunk->IsToPage());
 
@@ -6382,7 +6382,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // After the first full GC array_small will be in the old generation
   // large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, MutablePage::cast(chunk->Metadata())->owner_identity());
+  CHECK_EQ(LO_SPACE, SbxCast<MutablePage>(chunk->Metadata())->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   heap::InvokeMemoryReducingMajorGCs(heap);
@@ -6403,7 +6403,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
           isolate->factory()->NewFixedArray(20000);
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
       CHECK_EQ(NEW_LO_SPACE,
-               MutablePage::cast(chunk->Metadata())->owner_identity());
+               SbxCast<MutablePage>(chunk->Metadata())->owner_identity());
       CHECK(chunk->IsToPage());
     }
   }
@@ -6426,22 +6426,20 @@ TEST(UncommitUnusedLargeObjectMemory) {
   DirectHandle<FixedArray> array =
       isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
-  CHECK_EQ(MutablePage::cast(chunk->Metadata())->owner_identity(), LO_SPACE);
+  MutablePage* page = SbxCast<MutablePage>(chunk->Metadata());
+  CHECK_EQ(page->owner_identity(), LO_SPACE);
 
   intptr_t size_before = array->Size();
-  size_t committed_memory_before =
-      MutablePage::cast(chunk->Metadata())->CommittedPhysicalMemory();
+  size_t committed_memory_before = page->CommittedPhysicalMemory();
 
   array->RightTrim(isolate, 1);
   CHECK(array->Size() < size_before);
 
   heap::InvokeMajorGC(heap);
-  CHECK(MutablePage::cast(chunk->Metadata())->CommittedPhysicalMemory() <
-        committed_memory_before);
+  CHECK(page->CommittedPhysicalMemory() < committed_memory_before);
   size_t shrinked_size = RoundUp(
       (array->address() - chunk->address()) + array->Size(), CommitPageSize());
-  CHECK_EQ(shrinked_size,
-           MutablePage::cast(chunk->Metadata())->CommittedPhysicalMemory());
+  CHECK_EQ(shrinked_size, page->CommittedPhysicalMemory());
 }
 
 template <RememberedSetType direction>

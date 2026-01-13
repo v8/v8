@@ -1132,7 +1132,7 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     if (!HeapLayout::InWritableSharedSpace(heap_object)) return;
     DCHECK(HeapLayout::InWritableSharedSpace(heap_object));
     MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-    MutablePage* host_page = MutablePage::cast(host_chunk->Metadata());
+    MutablePage* host_page = SbxCast<MutablePage>(host_chunk->Metadata());
     DCHECK(HeapLayout::InYoungGeneration(host));
     // Temporarily record new-to-shared slots in the old-to-shared remembered
     // set so we don't need to iterate the page again later for updating the
@@ -1450,7 +1450,7 @@ class RecordMigratedSlotVisitor
     MemoryChunk* value_chunk = MemoryChunk::FromAddress(value.ptr());
 
     if (HeapLayout::InYoungGeneration(value)) {
-      MutablePage* host_page = MutablePage::cast(host_chunk->Metadata());
+      MutablePage* host_page = SbxCast<MutablePage>(host_chunk->Metadata());
       DCHECK_IMPLIES(value_chunk->IsToPage(),
                      v8_flags.minor_ms || value_chunk->Metadata()->is_large());
       DCHECK(host_page->SweepingDone());
@@ -1461,9 +1461,9 @@ class RecordMigratedSlotVisitor
 
     if (value_chunk->IsEvacuationCandidate()) {
       MutablePage* host_page =
-          MutablePage::cast(host_chunk->Metadata(heap_->isolate()));
+          SbxCast<MutablePage>(host_chunk->Metadata(heap_->isolate()));
       const MutablePage* value_page =
-          MutablePage::cast(value_chunk->Metadata(heap_->isolate()));
+          SbxCast<MutablePage>(value_chunk->Metadata(heap_->isolate()));
       if (value_page->is_executable()) {
         DCHECK(OutsideSandbox(value_chunk->address()));
         RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
@@ -1494,11 +1494,11 @@ class RecordMigratedSlotVisitor
     if (value_page->is_writable_shared() && !host_page->is_writable_shared()) {
       if (value_page->is_trusted() && host_page->is_trusted()) {
         RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
-            AccessMode::NON_ATOMIC>(MutablePage::cast(host_page),
+            AccessMode::NON_ATOMIC>(SbxCast<MutablePage>(host_page),
                                     host_chunk->Offset(slot));
       } else {
         RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-            MutablePage::cast(host_page), host_chunk->Offset(slot));
+            SbxCast<MutablePage>(host_page), host_chunk->Offset(slot));
       }
     }
   }
@@ -4233,7 +4233,7 @@ MarkCompactCollector::ProcessRelocInfo(Tagged<InstructionStream> host,
 
   MemoryChunk* const source_chunk = MemoryChunk::FromHeapObject(host);
   MutablePage* const source_page_metadata =
-      MutablePage::cast(source_chunk->Metadata());
+      SbxCast<MutablePage>(source_chunk->Metadata());
   const uintptr_t offset = source_chunk->Offset(addr);
   DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
   result.page_metadata = source_page_metadata;
@@ -4743,19 +4743,19 @@ bool Evacuator::RawEvacuatePage(MutablePage* page) {
 #if DEBUG
       new_space_visitor_.DisableAbortEvacuationAtAddress(page);
 #endif  // DEBUG
-      LiveObjectVisitor::VisitMarkedObjectsNoFail(NormalPage::cast(page),
+      LiveObjectVisitor::VisitMarkedObjectsNoFail(SbxCast<NormalPage>(page),
                                                   &new_space_visitor_);
       page->ClearLiveness();
       break;
     case kPageNewToOld:
       if (page->is_large()) {
-        auto object = LargePage::cast(page)->GetObject();
+        auto object = SbxCast<LargePage>(page)->GetObject();
         bool success = new_to_old_page_visitor_.Visit(
             object, SafeHeapObjectSize(static_cast<uint32_t>(object->Size())));
         USE(success);
         DCHECK(success);
       } else {
-        LiveObjectVisitor::VisitMarkedObjectsNoFail(NormalPage::cast(page),
+        LiveObjectVisitor::VisitMarkedObjectsNoFail(SbxCast<NormalPage>(page),
                                                     &new_to_old_page_visitor_);
       }
       new_to_old_page_visitor_.account_moved_bytes(page->live_bytes());
@@ -4766,7 +4766,7 @@ bool Evacuator::RawEvacuatePage(MutablePage* page) {
 #endif  // DEBUG
       Tagged<HeapObject> failed_object;
       if (LiveObjectVisitor::VisitMarkedObjects(
-              NormalPage::cast(page), &old_space_visitor_, &failed_object)) {
+              SbxCast<NormalPage>(page), &old_space_visitor_, &failed_object)) {
         page->ClearLiveness();
       } else {
         // Aborted compaction page. Actual processing happens on the main
@@ -4977,7 +4977,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
     if (chunk->InReadOnlySpace()) {
       return;
     }
-    auto* page = MutablePage::cast(chunk->Metadata());
+    auto* page = SbxCast<MutablePage>(chunk->Metadata());
     if (page->is_large()) {
       // Large objects and read only objects are not evacuated and thus don't
       // need to be pinned.
@@ -5000,7 +5000,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       return;
     }
     collector_->ReportAbortedEvacuationCandidateDueToFlags(
-        NormalPage::cast(page));
+        SbxCast<NormalPage>(page));
   }
 
   MarkCompactCollector* const collector_;
@@ -6272,7 +6272,7 @@ void RootMarkingVisitor::VisitRunningCode(
         TrustedCast<InstructionStream>(istream_or_smi_zero);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(istream);
     if (chunk->IsEvacuationCandidate()) {
-      NormalPage* page = NormalPage::cast(chunk->Metadata());
+      NormalPage* page = SbxCast<NormalPage>(chunk->Metadata());
       collector_->ReportAbortedEvacuationCandidateDueToRunningCode(page);
     }
 

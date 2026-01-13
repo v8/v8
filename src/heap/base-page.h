@@ -49,6 +49,12 @@ class BasePage {
 
   bool IsReadOnlyPage() const { return IsReadOnlyPageField::decode(flags_); }
   bool IsMutablePage() const { return !IsReadOnlyPage(); }
+  bool IsLargePage() const {
+    const bool large = is_large();
+    DCHECK_IMPLIES(large, IsMutablePage());
+    return large;
+  }
+  bool IsNormalPage() const { return IsMutablePage() && !IsLargePage(); }
 
   Address ChunkAddress() const { return Chunk()->address(); }
   Address MetadataAddress() const { return reinterpret_cast<Address>(this); }
