@@ -660,6 +660,10 @@ class JSObjectRef : public JSReceiverRef {
   bool IsElementsTenured(FixedArrayBaseRef elements);
 
   OptionalMapRef GetObjectCreateMap(JSHeapBroker* broker) const;
+
+  // Check if this object is its creation context's %ArrayPrototype% or
+  // %ObjectPrototype%.
+  bool IsArrayOrObjectPrototype(JSHeapBroker* broker) const;
 };
 
 class JSDataViewRef : public JSObjectRef {
@@ -994,6 +998,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   MapRef FindRootMap(JSHeapBroker* broker) const;
   ObjectRef GetConstructor(JSHeapBroker* broker) const;
+  NativeContextRef native_context(JSHeapBroker* broker) const;
 };
 
 struct HolderLookupResult {

@@ -4910,7 +4910,7 @@ bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
   for (compiler::MapRef receiver_map : receiver_maps) {
     compiler::ObjectRef receiver_prototype = receiver_map.prototype(broker());
     if (!receiver_prototype.IsJSObject() ||
-        !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
+        !receiver_prototype.AsJSObject().IsArrayOrObjectPrototype(broker())) {
       return false;
     }
   }
