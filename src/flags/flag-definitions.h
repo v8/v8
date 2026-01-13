@@ -1504,7 +1504,7 @@ DEFINE_INT(max_inlined_bytecode_size_small_total, 30000,
 DEFINE_FLOAT(
     reserve_inline_budget_scale_factor, 1.2,
     "scale factor of bytecode size used to calculate the inlining budget")
-DEFINE_INT(max_inlined_bytecode_size_small, 27,
+DEFINE_INT(max_inlined_bytecode_size_small, 30,
            "maximum size of bytecode considered for small function inlining")
 DEFINE_INT(max_inlined_bytecode_size_small_with_heapnum_in_out, 75,
            "maximum size of bytecode considered for small function inlining, "
