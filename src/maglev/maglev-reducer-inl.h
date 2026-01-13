@@ -1547,6 +1547,47 @@ ReduceResult MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64OrHoleyFloat64(
 }
 
 template <typename BaseT>
+compiler::OptionalStringRef MaglevReducer<BaseT>::GetStringFromInt32(
+    int32_t value) {
+  switch (value) {
+    case 0:
+      return broker()->zero_string();
+    case 1:
+      return broker()->one_string();
+    case 2:
+      return broker()->two_string();
+    case 3:
+      return broker()->three_string();
+    case 4:
+      return broker()->four_string();
+    case 5:
+      return broker()->five_string();
+    case 6:
+      return broker()->size_string();
+    case 7:
+      return broker()->seven_string();
+    case 8:
+      return broker()->eight_string();
+    case 9:
+      return broker()->nine_string();
+    // TODO(victorgomes): Should we embed the string instead?
+    default:
+      return {};
+  }
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldNumberToString(
+    ValueNode* value) {
+  if (auto cst_value = TryGetInt32Constant(value)) {
+    if (auto cst_string = GetStringFromInt32(*cst_value)) {
+      return GetConstant(*cst_string);
+    }
+  }
+  return {};
+}
+
+template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetNumberConstant(double constant) {
   if (IsSmiDouble(constant)) {
     return GetInt32Constant(FastD2I(constant));

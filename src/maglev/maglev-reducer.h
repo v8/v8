@@ -345,6 +345,10 @@ class MaglevReducer {
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
 
+  compiler::OptionalStringRef GetStringFromInt32(int32_t value);
+
+  MaybeReduceResult TryFoldNumberToString(ValueNode* value);
+
   // Get a tagged representation node whose value is equivalent to the given
   // node.
   ReduceResult GetTaggedValue(ValueNode* value,
