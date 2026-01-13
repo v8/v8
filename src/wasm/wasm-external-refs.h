@@ -204,6 +204,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
                              Address cont_raw);
 void return_stack(Isolate* isolate, wasm::StackMemory* to);
+void retire_stack(Isolate* isolate, wasm::StackMemory* stack);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);

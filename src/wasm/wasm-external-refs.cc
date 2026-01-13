@@ -1081,6 +1081,10 @@ void return_stack(Isolate* isolate, wasm::StackMemory* to) {
   isolate->RetireWasmStack(from);
 }
 
+void retire_stack(Isolate* isolate, wasm::StackMemory* stack) {
+  isolate->RetireWasmStack(stack);
+}
+
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();

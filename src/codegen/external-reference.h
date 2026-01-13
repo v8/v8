@@ -265,6 +265,7 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_resume_wasmfx_stack, "wasm_resume_wasmfx_stack")             \
   IF_WASM(V, wasm_suspend_wasmfx_stack, "wasm_suspend_wasmfx_stack")           \
   IF_WASM(V, wasm_return_stack, "wasm_return_stack")                           \
+  IF_WASM(V, wasm_retire_stack, "wasm_retire_stack")                           \
   IF_WASM(V, wasm_switch_to_the_central_stack,                                 \
           "wasm::switch_to_the_central_stack")                                 \
   IF_WASM(V, wasm_switch_from_the_central_stack,                               \
