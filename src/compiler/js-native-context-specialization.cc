@@ -4336,9 +4336,17 @@ Node* JSNativeContextSpecialization::BuildCheckEqualsName(NameRef name,
                                                           Node* effect,
                                                           Node* control) {
   DCHECK(name.IsUniqueName());
-  Operator const* const op =
-      name.IsSymbol() ? simplified()->CheckEqualsSymbol()
-                      : simplified()->CheckEqualsInternalizedString();
+  Operator const* op;
+  if (name.IsSymbol()) {
+    op = simplified()->CheckEqualsSymbol();
+    // CheckEqualsSymbol is really just a TaggedEqual and will just return false
+    // if {value} is not a Symbol.
+  } else {
+    DCHECK(name.IsString());
+    op = simplified()->CheckEqualsInternalizedString();
+    effect = graph()->NewNode(simplified()->CheckString(FeedbackSource()),
+                              value, effect, control);
+  }
   return graph()->NewNode(op, jsgraph()->ConstantNoHole(name, broker()), value,
                           effect, control);
 }
