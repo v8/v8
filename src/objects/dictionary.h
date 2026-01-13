@@ -45,7 +45,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   inline std::optional<Tagged<Object>> TryValueAt(InternalIndex entry);
 
   // Set the value for entry.
-  inline void ValueAtPut(InternalIndex entry, Tagged<Object> value);
+  inline void ValueAtPut(
+      InternalIndex entry, Tagged<Object> value,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER);
   inline void ValueAtPut(InternalIndex entry, Tagged<Object> value,
                          SeqCstAccessTag);
 

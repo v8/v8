@@ -66,10 +66,11 @@ std::optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
 }
 
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::ValueAtPut(InternalIndex entry,
-                                            Tagged<Object> value) {
+void Dictionary<Derived, Shape>::ValueAtPut(
+    InternalIndex entry, Tagged<Object> value,
+    WriteBarrierMode write_barrier_mode) {
   this->set(DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex,
-            value);
+            value, write_barrier_mode);
 }
 
 template <typename Derived, typename Shape>
