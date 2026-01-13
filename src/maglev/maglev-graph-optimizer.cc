@@ -1107,6 +1107,12 @@ ProcessResult MaglevGraphOptimizer::VisitCallKnownApiFunction(
 ProcessResult MaglevGraphOptimizer::VisitCallKnownJSFunction(
     CallKnownJSFunction* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  if (!node->NewTargetInput().node()->IsUndefinedValue() &&
+      node->shared_function_info().object()->construct_as_builtin()) {
+    // The invariant of such builtin targets is that the return value is a
+    // JSReceiver. Set the type accordingly here.
+    known_node_aspects().EnsureType(broker(), node, NodeType::kJSReceiver);
+  }
   return ProcessResult::kContinue;
 }
 
