@@ -205,7 +205,8 @@ class FutexEmulation : public AllStatic {
   template <typename T>
   static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
                              DirectHandle<JSArrayBuffer> array_buffer,
-                             size_t addr, T value, double rel_timeout_ms);
+                             size_t addr, T value, double rel_timeout_ms,
+                             CallType call_type);
 
   template <typename T>
   static Tagged<Object> WaitSync(Isolate* isolate, void* wait_location, T value,

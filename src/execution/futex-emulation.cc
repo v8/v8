@@ -292,16 +292,16 @@ Tagged<Object> WaitJsTranslateReturn(Isolate* isolate, Tagged<Object> res) {
 Tagged<Object> FutexEmulation::WaitJs32(
     Isolate* isolate, WaitMode mode, DirectHandle<JSArrayBuffer> array_buffer,
     size_t addr, int32_t value, double rel_timeout_ms) {
-  Tagged<Object> res =
-      Wait<int32_t>(isolate, mode, array_buffer, addr, value, rel_timeout_ms);
+  Tagged<Object> res = Wait<int32_t>(isolate, mode, array_buffer, addr, value,
+                                     rel_timeout_ms, CallType::kIsNotWasm);
   return WaitJsTranslateReturn(isolate, res);
 }
 
 Tagged<Object> FutexEmulation::WaitJs64(
     Isolate* isolate, WaitMode mode, DirectHandle<JSArrayBuffer> array_buffer,
     size_t addr, int64_t value, double rel_timeout_ms) {
-  Tagged<Object> res =
-      Wait<int64_t>(isolate, mode, array_buffer, addr, value, rel_timeout_ms);
+  Tagged<Object> res = Wait<int64_t>(isolate, mode, array_buffer, addr, value,
+                                     rel_timeout_ms, CallType::kIsNotWasm);
   return WaitJsTranslateReturn(isolate, res);
 }
 
@@ -326,8 +326,8 @@ Tagged<Object> FutexEmulation::WaitWasm64(Isolate* isolate,
 template <typename T>
 Tagged<Object> FutexEmulation::Wait(Isolate* isolate, WaitMode mode,
                                     DirectHandle<JSArrayBuffer> array_buffer,
-                                    size_t addr, T value,
-                                    double rel_timeout_ms) {
+                                    size_t addr, T value, double rel_timeout_ms,
+                                    CallType call_type) {
   DCHECK_LT(addr, array_buffer->GetByteLength());
 
   bool use_timeout = rel_timeout_ms != V8_INFINITY;
@@ -349,11 +349,11 @@ Tagged<Object> FutexEmulation::Wait(Isolate* isolate, WaitMode mode,
 
   if (mode == WaitMode::kSync) {
     return WaitSync(isolate, FutexWaitList::ToWaitLocation(*array_buffer, addr),
-                    value, use_timeout, rel_timeout_ns, CallType::kIsWasm);
+                    value, use_timeout, rel_timeout_ns, call_type);
   }
   DCHECK_EQ(mode, WaitMode::kAsync);
   return WaitAsync(isolate, array_buffer, addr, value, use_timeout,
-                   rel_timeout_ns, CallType::kIsWasm);
+                   rel_timeout_ns, call_type);
 }
 
 template <typename T>
