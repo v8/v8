@@ -53,6 +53,12 @@
 #include "src/utils/utils.h"
 #include "src/zone/zone.h"
 
+#ifdef V8_INTL_SUPPORT
+#define IF_NOT_INTL(Macro, ...)
+#else
+#define IF_NOT_INTL(Macro, ...) Macro(__VA_ARGS__)
+#endif  // V8_INTL_SUPPORT
+
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
 #define IF_UD(Macro, ...) Macro(__VA_ARGS__)
 #define IF_NOT_UD(Macro, ...)
@@ -10078,6 +10084,170 @@ class CallBuiltin : public VarargsValueNodeT<0, CallBuiltin> {
 
   int ReturnCount() const {
     return Builtins::CallInterfaceDescriptorFor(builtin_).GetReturnCount();
+  }
+
+#define BUILTIN_RETURN_TYPE_MAP(V)                                       \
+  V(DatePrototypeGetMilliseconds, NodeType::kNumber)                     \
+  V(MathRandom, NodeType::kNumber)                                       \
+  V(MathFloor, NodeType::kNumber)                                        \
+  V(MathCeil, NodeType::kNumber)                                         \
+  V(MathRound, NodeType::kNumber)                                        \
+  V(MathTrunc, NodeType::kNumber)                                        \
+  V(MathAbs, NodeType::kNumber)                                          \
+  V(MathExp, NodeType::kNumber)                                          \
+  V(MathAcos, NodeType::kNumber)                                         \
+  V(MathAcosh, NodeType::kNumber)                                        \
+  V(MathAsin, NodeType::kNumber)                                         \
+  V(MathAsinh, NodeType::kNumber)                                        \
+  V(MathAtan, NodeType::kNumber)                                         \
+  V(MathAtanh, NodeType::kNumber)                                        \
+  V(MathCbrt, NodeType::kNumber)                                         \
+  V(MathCos, NodeType::kNumber)                                          \
+  V(MathExpm1, NodeType::kNumber)                                        \
+  V(MathFround, NodeType::kNumber)                                       \
+  V(MathLog, NodeType::kNumber)                                          \
+  V(MathLog1p, NodeType::kNumber)                                        \
+  V(MathLog10, NodeType::kNumber)                                        \
+  V(MathLog2, NodeType::kNumber)                                         \
+  V(MathSin, NodeType::kNumber)                                          \
+  V(MathSqrt, NodeType::kNumber)                                         \
+  V(MathTan, NodeType::kNumber)                                          \
+  V(MathSign, NodeType::kNumber)                                         \
+  V(MathAtan2, NodeType::kNumber)                                        \
+  V(MathPow, NodeType::kNumber)                                          \
+  V(MathMax, NodeType::kNumber)                                          \
+  V(MathMin, NodeType::kNumber)                                          \
+  V(MathHypot, NodeType::kNumber)                                        \
+  V(MathImul, NodeType::kNumber)                                         \
+  V(MathClz32, NodeType::kNumber)                                        \
+  V(NumberConstructor, NodeType::kNumber)                                \
+  V(NumberIsFinite, NodeType::kBoolean)                                  \
+  V(NumberIsInteger, NodeType::kBoolean)                                 \
+  V(NumberIsNaN, NodeType::kBoolean)                                     \
+  V(NumberIsSafeInteger, NodeType::kBoolean)                             \
+  V(NumberParseFloat, NodeType::kNumber)                                 \
+  V(NumberParseInt, NodeType::kNumber)                                   \
+  V(NumberToString, NodeType::kString)                                   \
+  V(SymbolConstructor, NodeType::kSymbol)                                \
+  V(SymbolPrototypeToString, NodeType::kString)                          \
+  V(SymbolPrototypeValueOf, NodeType::kSymbol)                           \
+  V(StringConstructor, NodeType::kString)                                \
+  V(StringPrototypeCharCodeAt, NodeType::kNumber)                        \
+  V(StringCharAt, NodeType::kString)                                     \
+  V(StringPrototypeCodePointAt,                                          \
+    UnionType(NodeType::kNumber, NodeType::kUndefined))                  \
+  V(StringPrototypeConcat, NodeType::kString)                            \
+  V(StringFromCharCode, NodeType::kString)                               \
+  V(StringFromCodePoint, NodeType::kString)                              \
+  V(StringPrototypeIndexOf, NodeType::kSmi)                              \
+  V(StringPrototypeLastIndexOf, NodeType::kSmi)                          \
+  V(StringPrototypeEndsWith, NodeType::kBoolean)                         \
+  V(StringPrototypeIncludes, NodeType::kBoolean)                         \
+  V(StringRaw, NodeType::kString)                                        \
+  V(StringRepeat, NodeType::kString)                                     \
+  V(StringPrototypeSlice, NodeType::kString)                             \
+  V(StringPrototypeStartsWith, NodeType::kBoolean)                       \
+  V(StringPrototypeSubstr, NodeType::kString)                            \
+  V(StringSubstring, NodeType::kString)                                  \
+  V(StringPrototypeToString, NodeType::kString)                          \
+  IF_INTL(V, StringPrototypeToLowerCaseIntl, NodeType::kString)          \
+  IF_INTL(V, StringPrototypeToUpperCaseIntl, NodeType::kString)          \
+  IF_NOT_INTL(V, StringPrototypeToLowerCase, NodeType::kString)          \
+  IF_NOT_INTL(V, StringPrototypeToUpperCase, NodeType::kString)          \
+  V(StringPrototypeTrim, NodeType::kString)                              \
+  V(StringPrototypeTrimEnd, NodeType::kString)                           \
+  V(StringPrototypeTrimStart, NodeType::kString)                         \
+  V(StringPrototypeValueOf, NodeType::kString)                           \
+  V(StringPrototypeIterator, NodeType::kAnyHeapObject)                   \
+  V(StringIteratorPrototypeNext, NodeType::kAnyHeapObject)               \
+  V(ArrayPrototypeEntries, NodeType::kAnyHeapObject)                     \
+  V(ArrayPrototypeKeys, NodeType::kAnyHeapObject)                        \
+  V(ArrayPrototypeValues, NodeType::kAnyHeapObject)                      \
+  V(TypedArrayPrototypeEntries, NodeType::kAnyHeapObject)                \
+  V(TypedArrayPrototypeKeys, NodeType::kAnyHeapObject)                   \
+  V(TypedArrayPrototypeValues, NodeType::kAnyHeapObject)                 \
+  V(ArrayIteratorPrototypeNext, NodeType::kAnyHeapObject)                \
+  V(MapIteratorPrototypeNext, NodeType::kAnyHeapObject)                  \
+  V(SetIteratorPrototypeNext, NodeType::kAnyHeapObject)                  \
+  V(TypedArrayPrototypeToStringTag,                                      \
+    UnionType(NodeType::kInternalizedString, NodeType::kUndefined))      \
+  V(ArrayIsArray, NodeType::kBoolean)                                    \
+  V(ArrayConcat, NodeType::kJSReceiver)                                  \
+  V(ArrayEvery, NodeType::kBoolean)                                      \
+  V(ArrayPrototypeFill, NodeType::kJSReceiver)                           \
+  V(ArrayFilter, NodeType::kJSReceiver)                                  \
+  V(ArrayPrototypeFindIndex, NodeType::kNumber)                          \
+  V(ArrayForEach, NodeType::kUndefined)                                  \
+  V(ArrayIncludes, NodeType::kBoolean)                                   \
+  V(ArrayIndexOf, NodeType::kNumber)                                     \
+  V(ArrayPrototypeJoin, NodeType::kString)                               \
+  V(ArrayPrototypeLastIndexOf, NodeType::kNumber)                        \
+  V(ArrayMap, NodeType::kJSReceiver)                                     \
+  V(ArrayPush, NodeType::kNumber)                                        \
+  V(ArrayPrototypeReverse, NodeType::kJSReceiver)                        \
+  V(ArrayPrototypeSlice, NodeType::kJSReceiver)                          \
+  V(ArraySome, NodeType::kBoolean)                                       \
+  V(ArrayPrototypeSplice, NodeType::kJSReceiver)                         \
+  V(ArrayUnshift, NodeType::kNumber)                                     \
+  V(ArrayBufferIsView, NodeType::kBoolean)                               \
+  V(ObjectAssign, NodeType::kJSReceiver)                                 \
+  V(ObjectCreate, NodeType::kAnyHeapObject)                              \
+  V(ObjectIs, NodeType::kBoolean)                                        \
+  V(ObjectHasOwn, NodeType::kBoolean)                                    \
+  V(ObjectPrototypeHasOwnProperty, NodeType::kBoolean)                   \
+  V(ObjectPrototypeIsPrototypeOf, NodeType::kBoolean)                    \
+  V(ObjectToString, NodeType::kString)                                   \
+  V(PromiseAll, NodeType::kJSReceiver)                                   \
+  V(PromisePrototypeThen, NodeType::kJSReceiver)                         \
+  V(PromiseRace, NodeType::kJSReceiver)                                  \
+  V(PromiseReject, NodeType::kJSReceiver)                                \
+  V(PromiseResolveTrampoline, NodeType::kJSReceiver)                     \
+  V(RegExpPrototypeCompile, NodeType::kAnyHeapObject)                    \
+  V(RegExpPrototypeExec, UnionType(NodeType::kJSArray, NodeType::kNull)) \
+  V(RegExpPrototypeTest, NodeType::kBoolean)                             \
+  V(RegExpPrototypeToString, NodeType::kString)                          \
+  V(FunctionPrototypeBind, NodeType::kCallable)                          \
+  V(FunctionPrototypeHasInstance, NodeType::kBoolean)                    \
+  V(GlobalDecodeURI, NodeType::kString)                                  \
+  V(GlobalDecodeURIComponent, NodeType::kString)                         \
+  V(GlobalEncodeURI, NodeType::kString)                                  \
+  V(GlobalEncodeURIComponent, NodeType::kString)                         \
+  V(GlobalEscape, NodeType::kString)                                     \
+  V(GlobalUnescape, NodeType::kString)                                   \
+  V(GlobalIsFinite, NodeType::kBoolean)                                  \
+  V(GlobalIsNaN, NodeType::kBoolean)                                     \
+  V(MapPrototypeClear, NodeType::kUndefined)                             \
+  V(MapPrototypeForEach, NodeType::kUndefined)                           \
+  V(MapPrototypeDelete, NodeType::kBoolean)                              \
+  V(MapPrototypeHas, NodeType::kBoolean)                                 \
+  V(MapPrototypeEntries, NodeType::kAnyHeapObject)                       \
+  V(MapPrototypeKeys, NodeType::kAnyHeapObject)                          \
+  V(MapPrototypeSet, NodeType::kAnyHeapObject)                           \
+  V(MapPrototypeValues, NodeType::kAnyHeapObject)                        \
+  V(SetPrototypeAdd, NodeType::kAnyHeapObject)                           \
+  V(SetPrototypeEntries, NodeType::kAnyHeapObject)                       \
+  V(SetPrototypeValues, NodeType::kAnyHeapObject)                        \
+  V(SetPrototypeClear, NodeType::kUndefined)                             \
+  V(SetPrototypeForEach, NodeType::kUndefined)                           \
+  V(SetPrototypeDelete, NodeType::kBoolean)                              \
+  V(SetPrototypeHas, NodeType::kBoolean)                                 \
+  V(WeakMapPrototypeDelete, NodeType::kBoolean)                          \
+  V(WeakMapPrototypeHas, NodeType::kBoolean)                             \
+  V(WeakMapPrototypeSet, NodeType::kAnyHeapObject)                       \
+  V(WeakSetPrototypeAdd, NodeType::kAnyHeapObject)                       \
+  V(WeakSetPrototypeDelete, NodeType::kBoolean)                          \
+  V(WeakSetPrototypeHas, NodeType::kBoolean)
+
+  NodeType type() const {
+    switch (builtin_) {
+#define CASE(Name, Type) \
+  case Builtin::k##Name: \
+    return Type;
+      BUILTIN_RETURN_TYPE_MAP(CASE)
+#undef CASE
+      default:
+        return NodeType::kUnknown;
+    }
   }
 
   void VerifyInputs() const;
