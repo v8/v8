@@ -290,7 +290,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
     snprintf(buffer, sizeof buffer, "g%zu", i);
     auto global =
         Cast<WasmGlobalObject>(GetExport(i_isolate, instance, buffer));
-    switch (global->type().kind()) {
+    switch (global->unsafe_type().kind()) {
       case ValueKind::kF32: {
         float global_val = global->GetF32();
         float func_val;
@@ -351,7 +351,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
         CHECK_EQ(IsNullOrWasmNull(*global_val),
                  IsNullOrWasmNull(*function_result));
         if (!IsNullOrWasmNull(*global_val)) {
-          if (IsSubtypeOf(global->type(), kWasmFuncRef,
+          if (IsSubtypeOf(global->unsafe_type(), kWasmFuncRef,
                           module_object->native_module()->module())) {
             // For any function the global should be an internal function
             // whose external function equals the call result. (The call goes

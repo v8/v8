@@ -660,7 +660,7 @@ void WasmInterpreterRuntime::UnpackException(
         UNREACHABLE();
     }
   }
-  DCHECK_EQ(WasmExceptionPackage::GetEncodedSize(&tag), encoded_index);
+  DCHECK_EQ(WasmExceptionPackage::GetEncodedSize(module_, &tag), encoded_index);
 }
 
 namespace {
@@ -679,7 +679,7 @@ WasmInterpreterRuntime::CreateWasmExceptionPackage(uint32_t tag_index) const {
       TrustedCast<WasmExceptionTag>(trusted_data->tags_table()->get(tag_index)),
       isolate_);
   const WasmTag& tag = GetWasmTag(tag_index);
-  uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(&tag);
+  uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(module_, &tag);
   DirectHandle<WasmExceptionPackage> exception_object =
       WasmExceptionPackage::New(isolate_, exception_tag, encoded_size);
   return exception_object;
@@ -873,7 +873,9 @@ int32_t WasmInterpreterRuntime::I32AtomicWait(uint64_t buffer_offset,
   DirectHandle<JSArrayBuffer> array_buffer(
       wasm_trusted_instance_data()->memory_object(memory_index)->array_buffer(),
       isolate_);
-  auto result = FutexEmulation::WaitWasm32(isolate_, array_buffer,
+  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
+  DCHECK_EQ(array_buffer->backing_store(), backing_store->buffer_start());
+  auto result = FutexEmulation::WaitWasm32(isolate_, backing_store.get(),
                                            buffer_offset, val, timeout);
   return result.ToSmi().value();
 }
@@ -891,7 +893,9 @@ int32_t WasmInterpreterRuntime::I64AtomicWait(uint64_t buffer_offset,
   DirectHandle<JSArrayBuffer> array_buffer(
       wasm_trusted_instance_data()->memory_object(memory_index)->array_buffer(),
       isolate_);
-  auto result = FutexEmulation::WaitWasm64(isolate_, array_buffer,
+  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
+  DCHECK_EQ(array_buffer->backing_store(), backing_store->buffer_start());
+  auto result = FutexEmulation::WaitWasm64(isolate_, backing_store.get(),
                                            buffer_offset, val, timeout);
   return result.ToSmi().value();
 }
