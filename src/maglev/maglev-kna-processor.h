@@ -96,7 +96,8 @@ class RecomputeKnownNodeAspectsProcessor {
           NodeType input_type = known_node_aspects_->GetType(broker(), input);
           new_type = UnionType(new_type, input_type);
         }
-        known_node_aspects_->EnsureType(broker(), phi, new_type);
+        known_node_aspects_->GetOrCreateInfoFor(broker(), phi)
+            ->IntersectType(new_type);
       }
     }
 
