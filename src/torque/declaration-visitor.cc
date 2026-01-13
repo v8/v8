@@ -341,7 +341,7 @@ void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {
-  GlobalContext::AddCppInclude(decl->include_path);
+  GlobalContext::AddCppInclude(decl->include_path, decl->include_selector);
 }
 
 void DeclarationVisitor::DeclareSpecializedTypes(

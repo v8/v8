@@ -19,6 +19,7 @@
 #include "src/torque/declarations.h"
 #include "src/torque/earley-parser.h"
 #include "src/torque/global-context.h"
+#include "src/torque/torque-compiler.h"
 #include "src/torque/utils.h"
 
 namespace v8::internal::torque {
@@ -1290,9 +1291,20 @@ std::optional<ParseResult> MakeBitFieldStructDeclaration(
 
 std::optional<ParseResult> MakeCppIncludeDeclaration(
     ParseResultIterator* child_results) {
+  auto include_selector = child_results->NextAs<std::optional<std::string>>();
   auto include_path = child_results->NextAs<std::string>();
+  IncludeSelector selector = IncludeSelector::kAny;
+  if (include_selector) {
+    if (include_selector.value() == "csa") {
+      selector = IncludeSelector::kCSA;
+    } else if (include_selector.value() == "tsa") {
+      selector = IncludeSelector::kTSA;
+    } else {
+      Error("'", include_selector.value(), "' is not a valid include selector");
+    }
+  }
   Declaration* result =
-      MakeNode<CppIncludeDeclaration>(std::move(include_path));
+      MakeNode<CppIncludeDeclaration>(std::move(include_path), selector);
   return ParseResult{result};
 }
 
@@ -1683,10 +1695,12 @@ std::optional<ParseResult> MakeTypeswitchStatement(
       child_results->matched_input().pos);
 
 #ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
-  Statement* result =
-      MakeNode<TypeswitchStatement>(expression, std::move(cases));
-  return ParseResult{result};
-#else
+  if (CurrentCompilerOptions::Get().output_tsa) {
+    Statement* result =
+        MakeNode<TypeswitchStatement>(expression, std::move(cases));
+    return ParseResult{result};
+  }
+#endif
   // typeswitch (expression) case (x1 : T1) {
   //   ...b1
   // } case (x2 : T2) {
@@ -1763,7 +1777,6 @@ std::optional<ParseResult> MakeTypeswitchStatement(
               : cases[i].type;
   }
   return ParseResult{result};
-#endif  // V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
 }
 
 std::optional<ParseResult> MakeTypeswitchCase(
@@ -2937,7 +2950,10 @@ struct TorqueGrammar : Grammar {
             &genericSpecializationTypeList, &parameterListAllowVararg,
             &returnType, optionalLabelList, &block},
            MakeSpecializationDeclaration),
-      Rule({Token("#include"), &externalString},
+      Rule({Token("#include"),
+            Optional<std::string>(
+                Sequence({Token("["), &externalString, Token("]")})),
+            &externalString},
            AsSingletonVector<Declaration*, MakeCppIncludeDeclaration>()),
       Rule({CheckIf(Token("extern")), Token("enum"), &name,
             Optional<TypeExpression*>(Sequence({Token("extends"), &type})),

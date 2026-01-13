@@ -171,7 +171,10 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
           if (const CppIncludeDeclaration* incl =
                   CppIncludeDeclaration::DynamicCast(decl)) {
             if (incl->pos.source == source) {
-              out() << "#include \"" << incl->include_path << "\"\n";
+              if (incl->include_selector == IncludeSelector::kTSA ||
+                  incl->include_selector == IncludeSelector::kAny) {
+                out() << "#include \"" << incl->include_path << "\"\n";
+              }
             }
           }
         }

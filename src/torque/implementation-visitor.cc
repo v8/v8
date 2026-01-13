@@ -92,8 +92,11 @@ void ImplementationVisitor::BeginGeneratedFiles() {
     {
       cpp::File& file = streams.csa_cc;
 
-      for (const std::string& include_path : GlobalContext::CppIncludes()) {
-        file << "#include " << StringLiteralQuote(include_path) << "\n";
+      for (const CppInclude& include : GlobalContext::CppIncludes()) {
+        if (include.csa_selected()) {
+          file << "#include " << StringLiteralQuote(include.include_path)
+               << "\n";
+        }
       }
       file << "#include \"src/codegen/code-stub-assembler-inl.h\"\n";
 
@@ -5475,8 +5478,11 @@ void ImplementationVisitor::GenerateEnumVerifiers(
   std::stringstream cc_contents;
   {
     cc_contents << "#include \"src/compiler/code-assembler.h\"\n";
-    for (const std::string& include_path : GlobalContext::CppIncludes()) {
-      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
+    for (const CppInclude& include : GlobalContext::CppIncludes()) {
+      if (include.csa_selected()) {
+        cc_contents << "#include " << StringLiteralQuote(include.include_path)
+                    << "\n";
+      }
     }
     cc_contents << "\n";
 
@@ -5523,8 +5529,11 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     h_contents << "#include \"src/execution/frames.h\"\n";
     h_contents << "#include \"torque-generated/csa-types.h\"\n";
 
-    for (const std::string& include_path : GlobalContext::CppIncludes()) {
-      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
+    for (const CppInclude& include : GlobalContext::CppIncludes()) {
+      if (include.csa_selected()) {
+        cc_contents << "#include " << StringLiteralQuote(include.include_path)
+                    << "\n";
+      }
     }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
 

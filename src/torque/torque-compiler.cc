@@ -7,8 +7,6 @@
 #include <fstream>
 #include <optional>
 
-#include "src/torque/ast-desugaring.h"
-#include "src/torque/ast-visitor.h"
 #include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declaration-visitor.h"
@@ -54,10 +52,6 @@ void ReadAndParseTorqueFile(const std::string& path) {
 
 void CompileCurrentAst(TorqueCompilerOptions options) {
   std::string output_directory = options.output_directory;
-
-  if (!options.output_tsa) {
-    DesugarAst(CurrentAst::Get());
-  }
 
   GlobalContext::Scope global_context(std::move(CurrentAst::Get()));
   if (options.collect_language_server_data) {

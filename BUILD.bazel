@@ -1299,9 +1299,6 @@ filegroup(
         "src/numbers/integer-literal.h",
         "src/numbers/integer-literal-inl.h",
         "src/torque/ast.h",
-        "src/torque/ast-desugaring.cc",
-        "src/torque/ast-desugaring.h",
-        "src/torque/ast-visitor.h",
         "src/torque/cc-generator.cc",
         "src/torque/cc-generator.h",
         "src/torque/cfg.cc",
@@ -1352,6 +1349,7 @@ filegroup(
         "src/torque/utils.h",
     ] + select({
         ":is_v8_enable_experimental_tq_to_tsa": [
+            "src/torque/ast-visitor.h",
             "src/torque/tsa-generator.cc",
             "src/torque/tsa-generator.h",
         ],

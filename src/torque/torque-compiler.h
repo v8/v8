@@ -41,6 +41,8 @@ struct TorqueCompilerOptions {
   bool strip_v8_root = false;
 };
 
+DECLARE_CONTEXTUAL_VARIABLE(CurrentCompilerOptions, TorqueCompilerOptions);
+
 struct TorqueCompilerResult {
   // Map translating SourceIds to filenames. This field is
   // set on errors, so the SourcePosition of the error can be

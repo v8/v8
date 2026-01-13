@@ -1271,11 +1271,21 @@ struct ClassDeclaration : TypeDeclaration {
   InstanceTypeConstraints instance_type_constraints;
 };
 
+enum class IncludeSelector {
+  kAny,
+  kCSA,
+  kTSA,
+};
+
 struct CppIncludeDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(CppIncludeDeclaration)
-  CppIncludeDeclaration(SourcePosition pos, std::string include_path)
-      : Declaration(kKind, pos), include_path(std::move(include_path)) {}
+  CppIncludeDeclaration(SourcePosition pos, std::string include_path,
+                        IncludeSelector include_selector)
+      : Declaration(kKind, pos),
+        include_path(std::move(include_path)),
+        include_selector(include_selector) {}
   std::string include_path;
+  IncludeSelector include_selector;
 };
 
 #define ENUM_ITEM(name)                \

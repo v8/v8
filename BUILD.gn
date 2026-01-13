@@ -6780,9 +6780,6 @@ v8_source_set("torque_base") {
   sources = [
     "src/numbers/integer-literal-inl.h",
     "src/numbers/integer-literal.h",
-    "src/torque/ast-desugaring.cc",
-    "src/torque/ast-desugaring.h",
-    "src/torque/ast-visitor.h",
     "src/torque/ast.h",
     "src/torque/cc-generator.cc",
     "src/torque/cc-generator.h",
@@ -6836,6 +6833,7 @@ v8_source_set("torque_base") {
 
   if (v8_enable_experimental_tq_to_tsa) {
     sources += [
+      "src/torque/ast-visitor.h",
       "src/torque/tsa-generator.cc",
       "src/torque/tsa-generator.h",
     ]
