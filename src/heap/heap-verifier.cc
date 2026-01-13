@@ -860,7 +860,8 @@ void HeapVerifier::VerifyObjectLayoutChange(Heap* heap,
                                             Tagged<HeapObject> object,
                                             Tagged<Map> new_map) {
   // Object layout changes are currently not supported on background threads.
-  CHECK(LocalHeap::Current()->is_main_thread());
+  CHECK(heap->gc_state() == Heap::MARK_COMPACT ||
+        LocalHeap::Current()->is_main_thread());
 
   if (!v8_flags.verify_heap) return;
 

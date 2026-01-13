@@ -326,7 +326,7 @@ class MarkCompactCollector final {
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
   // The linked list of all encountered weak maps is destroyed.
-  void ClearWeakCollections();
+  void ClearWeakCollections(JobDelegate* delegate);
 
   // Goes through the list of encountered trivial weak references and clears
   // those with dead values. This is performed in a parallel job. In short, a
@@ -352,11 +352,11 @@ class MarkCompactCollector final {
   // dead values. If the value is a dead map and the parent map transitions to
   // the dead map via weak cell, then this function also clears the map
   // transition.
-  void ClearNonTrivialWeakReferences();
+  void ClearNonTrivialWeakReferences(JobDelegate* delegate);
 
   // Goes through the list of encountered JSWeakRefs and WeakCells and clears
   // those with dead values.
-  void ProcessJSWeakRefs();
+  void ProcessJSWeakRefs(JobDelegate* delegate);
 
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
