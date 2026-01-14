@@ -1924,6 +1924,7 @@ class MinimalStackPrinter {
 }  // namespace
 
 std::string Isolate::BuildMinimalStack(size_t max_length) {
+  DCHECK_EQ(thread_id(), ThreadId::Current());
   DisallowGarbageCollection no_gc;
   HandleScope scope(this);
 

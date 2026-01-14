@@ -257,7 +257,9 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
     i_isolate->heap()->RecordStats(&heap_stats);
     i_isolate->heap()->ReportStatsAsCrashKeys(heap_stats);
 
-    i_isolate->ReportStackAsCrashKey();
+    if (i_isolate->thread_id() == ThreadId::Current()) {
+      i_isolate->ReportStackAsCrashKey();
+    }
 
     if (!v8_flags.correctness_fuzzer_suppressions) {
       char* first_newline = strchr(heap_stats.last_few_messages, '\n');
