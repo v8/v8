@@ -234,7 +234,7 @@ class ArrayBufferExtension final
   // The constructor sets a value with release that is read with acquire in this
   // varrier.
   void InitializationBarrier() const {
-    initialized_for_gc_.load(std::memory_order_acquire);
+    std::ignore = initialized_for_gc_.load(std::memory_order_acquire);
   }
 
   void Mark() { marked_.store(true, std::memory_order_relaxed); }
