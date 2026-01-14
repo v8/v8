@@ -206,7 +206,11 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
     PrintMaglevGraph(Phase::phase_name());
   }
-  // TODO(victorgomes): Add should verify and verify graph after each phase.
+#ifdef DEBUG
+  maglev::GraphProcessor<maglev::MaglevGraphVerifier> verifier(
+      compilation_info_.get());
+  verifier.ProcessGraph(graph_);
+#endif
   return result;
 }
 
@@ -229,16 +233,7 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
     Run<PostOptimizerPhase>(ranges);
   }
   Run<PostHocPhase>();
-
-  // TODO(victorgomes): Move this to the runner helper.
-#ifdef DEBUG
-  maglev::GraphProcessor<maglev::MaglevGraphVerifier> verifier(
-      compilation_info_.get());
-  verifier.ProcessGraph(graph_);
-#endif
-
   Run<DeadNodeSweepingPhase>();
-
   return graph_;
 }
 
