@@ -28,6 +28,7 @@
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/store-store-elimination-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
+#include "src/compiler/turboshaft/turbolev-frontend-pipeline.h"
 #include "src/compiler/turboshaft/turbolev-graph-builder.h"
 #include "src/compiler/turboshaft/type-assertions-phase.h"
 #include "src/compiler/turboshaft/typed-optimizations-phase.h"
@@ -154,12 +155,24 @@ class V8_EXPORT_PRIVATE Pipeline {
   bool CreateGraphWithMaglev(Linkage* linkage) {
     UnparkedScopeIfNeeded unparked_scope(data_->broker());
 
-    BeginPhaseKind("V8.TFGraphCreation");
+    // TODO(victorgomes): Should we rename this to V8.TurbolevFrontend instead?
+    PhaseScopeKind scope_kind(data_->pipeline_statistics(),
+                              "V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
-    std::optional<BailoutReason> bailout =
-        Run<turboshaft::TurbolevGraphBuildingPhase>(linkage);
-    EndPhaseKind();
 
+    TurbolevFrontendPipeline frontend(data_, linkage);
+    maglev::MaglevGraphLabellerScope current_thread_graph_labeller(
+        frontend.graph_labeller());
+
+    std::optional<maglev::Graph*> maglev_graph = frontend.Run();
+    if (!maglev_graph.has_value()) {
+      data_->info()->AbortOptimization(
+          BailoutReason::kMaglevGraphBuildingFailed);
+      return false;
+    }
+
+    std::optional<BailoutReason> bailout =
+        Run<turboshaft::TurbolevGraphBuildingPhase>(*maglev_graph);
     if (bailout.has_value()) {
       data_->info()->AbortOptimization(bailout.value());
       return false;

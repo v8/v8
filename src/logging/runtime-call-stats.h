@@ -276,6 +276,14 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SelectInstructions)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifiedLowering)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)            \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurbolevMaglevGraphBuilder)        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurbolevInliner)                   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurbolevTruncation)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurbolevPhiUntagging)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurbolevRangeAnalysis)             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurbolevPostOptimizer)             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurbolevPostHoc)                   \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurbolevDeadNodeSweeping)          \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftBlockInstrumentation)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftBuildGraph)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \

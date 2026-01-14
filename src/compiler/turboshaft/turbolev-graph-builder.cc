@@ -6907,53 +6907,10 @@ void PrintBytecode(PipelineData& data,
   Print(*top_level_unit->feedback().object(), tracing_scope.stream());
 }
 
-std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
-                                                             Zone* temp_zone,
-                                                             Linkage* linkage) {
+std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(
+    PipelineData* data, Zone* temp_zone, maglev::Graph* maglev_graph) {
   JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
-
-  std::unique_ptr<maglev::MaglevCompilationInfo> compilation_info =
-      maglev::MaglevCompilationInfo::NewForTurboshaft(
-          data->isolate(), broker, data->info()->closure(),
-          data->info()->osr_offset(),
-          data->info()->function_context_specializing());
-
-  // We need to be certain that the parameter count reported by our output
-  // Code object matches what the code we compile expects. Otherwise, this
-  // may lead to effectively signature mismatches during function calls. This
-  // CHECK is a defense-in-depth measure to ensure this doesn't happen.
-  SBXCHECK_EQ(compilation_info->toplevel_compilation_unit()->parameter_count(),
-              linkage->GetIncomingDescriptor()->ParameterSlotCount());
-
-  if (V8_UNLIKELY(ShouldPrintMaglevGraph(*data))) {
-    PrintBytecode(*data, compilation_info.get());
-  }
-
-  LocalIsolate* local_isolate = broker->local_isolate_or_isolate();
-  maglev::Graph* maglev_graph = maglev::Graph::New(compilation_info.get());
-
-  // We always create a MaglevGraphLabeller in order to record source positions.
-  // TODO(victorgomes): Investigate support for Turbolev without
-  // MaglevGraphLabeller
-  compilation_info->set_graph_labeller(new maglev::MaglevGraphLabeller());
-  maglev::MaglevGraphLabellerScope current_thread_graph_labeller(
-      compilation_info->graph_labeller());
-
-  maglev::MaglevGraphBuilder maglev_graph_builder(
-      local_isolate, compilation_info->toplevel_compilation_unit(),
-      maglev_graph);
-  if (!maglev_graph_builder.Build()) {
-    return BailoutReason::kMaglevGraphBuildingFailed;
-  }
-
-  if (V8_UNLIKELY(ShouldPrintMaglevGraph(*data))) {
-    PrintMaglevGraph(*data, maglev_graph, "After graph building");
-  }
-
-  if (!RunMaglevOptimizations(*data, compilation_info.get(), maglev_graph)) {
-    return BailoutReason::kMaglevGraphBuildingFailed;
-  }
 
   // TODO(nicohartmann): Should we have source positions here?
   data->InitializeGraphComponent(nullptr, Graph::Origin::kCreatedFromMaglev);
@@ -6961,7 +6918,7 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   std::optional<BailoutReason> bailout;
   maglev::GraphProcessor<NodeProcessorBase> builder(
       data, data->graph(), temp_zone,
-      compilation_info->toplevel_compilation_unit(), &bailout);
+      maglev_graph->compilation_info()->toplevel_compilation_unit(), &bailout);
   builder.ProcessGraph(maglev_graph);
 
   // Copying {inlined_functions} from Maglev to Turboshaft.
