@@ -122,6 +122,11 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   DCHECK_GE(len - count, 0);
 
   size_t element_size = array->element_size();
+  // To prevent `to` and `from` making it out of the guard region by changing
+  // element size after capping, it suffices to check that the current element
+  // size using the original length is still within the max byte length.
+  // As, both `to` and `from` were already capped based on the original length.
+  SBXCHECK_LE(element_size * len, ArrayBuffer::kMaxByteLength);
   to = to * element_size;
   from = from * element_size;
   count = count * element_size;
