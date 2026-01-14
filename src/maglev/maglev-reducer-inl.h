@@ -1563,7 +1563,7 @@ compiler::OptionalStringRef MaglevReducer<BaseT>::GetStringFromInt32(
     case 5:
       return broker()->five_string();
     case 6:
-      return broker()->size_string();
+      return broker()->six_string();
     case 7:
       return broker()->seven_string();
     case 8:
