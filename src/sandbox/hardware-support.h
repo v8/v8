@@ -221,7 +221,7 @@ class V8_NODISCARD V8_ALLOW_UNUSED ExitSandboxScope {
 class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
  public:
 #if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
-  DisallowSandboxAccess();
+  explicit DisallowSandboxAccess(const char* reason);
   ~DisallowSandboxAccess();
 
   // Copying and assigning these scope objects is not allowed as it would not
@@ -232,17 +232,23 @@ class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
  private:
   int pkey_;
   base::MemoryProtectionKey::Permission previous_permission_;
+#else
+  explicit DisallowSandboxAccess(const char* reason) {}
 #endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 };
 
 // Scope object to grant a temporary exception from a DisallowSandboxAccess.
 // This scope object will re-enable access to in-sandbox memory during its
-// lifetime even if one or more DisallowSandboxAccess scopes are currently
-// active. These scopes should be used sparingly and for short durations.
+// lifetime even if one or more DisallowSandboxAccess scopes are active.
+//
+// NOTE: Please use these scopes carefully and consider asking for a review
+// from the security team when adding new uses.
 class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
  public:
 #if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
-  AllowSandboxAccess();
+  // The justification should describe which in-sandbox data is being accessed
+  // and for what purpose, and why that cannot lead to a sandbox violation.
+  explicit AllowSandboxAccess(const char* justification);
   ~AllowSandboxAccess();
 
   // Copying and assigning these scope objects is not allowed as it would not
@@ -253,6 +259,8 @@ class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
  private:
   int pkey_;
   base::MemoryProtectionKey::Permission previous_permission_;
+#else
+  explicit AllowSandboxAccess(const char* justification) {}
 #endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 };
 

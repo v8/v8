@@ -243,7 +243,7 @@ bool SandboxHardwareSupport::TryActivate() {
 }
 
 #ifdef DEBUG
-DisallowSandboxAccess::DisallowSandboxAccess() {
+DisallowSandboxAccess::DisallowSandboxAccess(const char* reason) {
   pkey_ = SandboxHardwareSupport::sandbox_pkey_;
   if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
     return;
@@ -274,7 +274,7 @@ DisallowSandboxAccess::~DisallowSandboxAccess() {
   }
 }
 
-AllowSandboxAccess::AllowSandboxAccess() {
+AllowSandboxAccess::AllowSandboxAccess(const char* justification) {
   pkey_ = SandboxHardwareSupport::sandbox_pkey_;
   if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
     return;

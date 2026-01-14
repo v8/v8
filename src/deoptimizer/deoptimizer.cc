@@ -638,8 +638,11 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_deopt && function.is_null()) {
     // From now on we should not be accessing any in-sandbox data as all deopt
-    // data is trusted and so stored outside the heap.
-    no_sandbox_access_during_wasm_deopt_.emplace();
+    // data is trusted and so stored outside the heap. This way, we can be sure
+    // that (security sensitive) decisions made by the deoptimizer cannot be
+    // influenced by (untrusted) in-sandbox data.
+    no_sandbox_access_during_wasm_deopt_.emplace(
+        "No sandbox access during Wasm deopt");
 
     wasm::WasmCode* code =
         wasm::GetWasmCodeManager()->LookupCode(isolate, from);
@@ -1447,9 +1450,9 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
       wasm::declared_function_index(native_module->module(), code->index());
   {
     // We're running under a DisallowSandboxAccess scope, which also removes
-    // write access into the sandbox. As such, we need to temporarily allow
-    // sandbox access for this store.
-    AllowSandboxAccess sandbox_access_for_write;
+    // write access into the sandbox.
+    AllowSandboxAccess sandbox_access_for_write(
+        "Writing in-sandbox tiering budget. Not reading any untrusted data.");
     wasm_trusted_instance->tiering_budget_array()[declared_func_index].store(
         v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
   }

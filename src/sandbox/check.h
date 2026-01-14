@@ -39,7 +39,7 @@
   do {                                                                    \
     std::optional<v8::internal::DisallowSandboxAccess> no_sandbox_access; \
     if (!std::is_constant_evaluated()) {                                  \
-      no_sandbox_access.emplace();                                        \
+      no_sandbox_access.emplace("No sandbox access during SBXCHECK");     \
     }                                                                     \
     CHECK(condition);                                                     \
   } while (false)
@@ -48,7 +48,7 @@
   do {                                                                    \
     std::optional<v8::internal::DisallowSandboxAccess> no_sandbox_access; \
     if (!std::is_constant_evaluated()) {                                  \
-      no_sandbox_access.emplace();                                        \
+      no_sandbox_access.emplace("No sandbox access during SBXCHECK");     \
     }                                                                     \
     CHECK_##CONDITION(lhs, rhs);                                          \
   } while (false)
