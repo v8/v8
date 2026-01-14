@@ -45,6 +45,44 @@ def _impl(ctx):
 
     features = [
         feature(
+            name = "default_compile_flags",
+            enabled = True,
+            flag_sets = [
+                flag_set(
+                    actions = [
+                        "c-compile",
+                        "c++-compile",
+                        "c++-header-parsing",
+                        "c++-module-compile",
+                        "c++-module-codegen",
+                        "linkstamp-compile",
+                        "assemble",
+                        "preprocess-assemble",
+                    ],
+                    flag_groups = [
+                        flag_group(
+                            flags = [
+                                "--sysroot={WORKSPACE_ROOT}/build/linux/debian_bullseye_amd64-sysroot",
+                                "-nostdinc++",
+                                "-isystem",
+                                "{WORKSPACE_ROOT}/buildtools/third_party/libc++",
+                                "-isystem",
+                                "{WORKSPACE_ROOT}/third_party/libc++/src/include",
+                                "-isystem",
+                                "{WORKSPACE_ROOT}/third_party/libc++abi/src/include",
+                                "-isystem",
+                                "{WORKSPACE_ROOT}/third_party/libc++/src/src",
+                                "-isystem",
+                                "{WORKSPACE_ROOT}/third_party/llvm-libc/src",
+                                "-D_LIBCPP_HARDENING_MODE_DEFAULT=_LIBCPP_HARDENING_MODE_NONE",
+                                "-DLIBC_NAMESPACE=__llvm_libc_cr",
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        feature(
             name = "default_linker_flags",
             enabled = True,
             flag_sets = [
@@ -57,9 +95,10 @@ def _impl(ctx):
                     flag_groups = [
                         flag_group(
                             flags = [
+                                "--sysroot={WORKSPACE_ROOT}/build/linux/debian_bullseye_amd64-sysroot",
                                 "-fuse-ld=lld",
                                 "-lm",
-                                "-lstdc++",
+                                "-lpthread",
                             ],
                         ),
                     ],
@@ -72,9 +111,14 @@ def _impl(ctx):
         ctx = ctx,
         features = features,
         cxx_builtin_include_directories = [
+            "{WORKSPACE_ROOT}/buildtools/third_party/libc++",
+            "{WORKSPACE_ROOT}/third_party/libc++/src/include",
+            "{WORKSPACE_ROOT}/third_party/libc++abi/src/include",
+            "{WORKSPACE_ROOT}/third_party/libc++/src/src",
+            "{WORKSPACE_ROOT}/third_party/llvm-libc/src",
             "{WORKSPACE_ROOT}/third_party/llvm-build/Release+Asserts/lib/clang/22/include",
-            "/usr/include",
-            "/usr/local/include",
+            "{WORKSPACE_ROOT}/build/linux/debian_bullseye_amd64-sysroot/usr/include",
+            "{WORKSPACE_ROOT}/build/linux/debian_bullseye_amd64-sysroot/usr/local/include",
         ],
         toolchain_identifier = "local_clang",
         host_system_name = "local",
@@ -138,3 +182,10 @@ toolchain(
 )
 
 register_toolchains("@llvm_toolchain//:cc_toolchain_k8")
+
+# Define local repository for libc++ from third_party sources
+libcxx_repository = use_repo_rule("//bazel/toolchain:libcxx_repository.bzl", "libcxx_repository")
+
+libcxx_repository(
+    name = "libcxx",
+)
