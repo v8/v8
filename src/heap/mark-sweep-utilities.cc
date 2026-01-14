@@ -122,7 +122,9 @@ void ExternalStringTableCleanerVisitor::VisitRootPointers(
 
 StringForwardingTableCleanerBase::StringForwardingTableCleanerBase(Heap* heap)
     : isolate_(heap->isolate()),
-      marking_state_(heap->non_atomic_marking_state()) {}
+      marking_state_(heap->non_atomic_marking_state()),
+      marking_visitor_(heap->mark_compact_collector()->marking_visitor_.get()) {
+}
 
 void StringForwardingTableCleanerBase::DisposeExternalResource(
     StringForwardingTable::Record* record) {

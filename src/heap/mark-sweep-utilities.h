@@ -19,6 +19,8 @@
 namespace v8 {
 namespace internal {
 
+class MainMarkingVisitor;
+
 #ifdef VERIFY_HEAP
 class MarkingVerifierBase : public ObjectVisitorWithCageBases,
                             public RootVisitor {
@@ -94,6 +96,7 @@ class StringForwardingTableCleanerBase {
 
   Isolate* const isolate_;
   NonAtomicMarkingState* const marking_state_;
+  MainMarkingVisitor* const marking_visitor_;
   std::unordered_set<Address> disposed_resources_;
 };
 

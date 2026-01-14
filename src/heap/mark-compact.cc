@@ -2886,7 +2886,14 @@ class FullStringForwardingTableCleaner final
            MarkingHelper::LivenessMode::kAlwaysLive)) {
         return;
       }
-      marking_state_->TryMarkAndAccountLiveBytes(Cast<HeapObject>(forward));
+      if (marking_state_->TryMarkAndAccountLiveBytes(
+              Cast<HeapObject>(forward))) {
+        // Visit the forward string. This is necessary as
+        // TryMarkAndAccountLiveBytes only marks the forward string itself, but
+        // doesn't visit any of its fields. For i.e. ExternalStrings we need
+        // to mark the EPT entries for the external resources as well.
+        marking_visitor_->Visit(Cast<HeapObject>(forward));
+      }
     } else {
       DisposeExternalResource(record);
       record->set_original_string(StringForwardingTable::deleted_element());
@@ -2951,6 +2958,11 @@ class FullStringForwardingTableCleaner final
     if (MarkingHelper::GetLivenessMode(heap_, forward_string) !=
         MarkingHelper::LivenessMode::kAlwaysLive) {
       if (marking_state_->TryMarkAndAccountLiveBytes(forward_string)) {
+        // Visit the forward string. This is necessary as
+        // TryMarkAndAccountLiveBytes only marks the forward string itself, but
+        // doesn't visit any of its fields. For i.e. ExternalStrings we need
+        // to mark the EPT entries for the external resources as well.
+        marking_visitor_->Visit(Cast<HeapObject>(forward));
         // If we just marked the forwarded string, it wasn't kept alive by
         // anything but this entry in the forwarding table.
         // This could mean that previous entries in the table with
