@@ -1841,6 +1841,10 @@ namespace {
 
 class MinimalStackPrinter {
  public:
+  static constexpr const char* kUnknownName = "<none>";
+  static constexpr const char* kRepeatMarker = "=";
+  static constexpr const char* kEndMarker = "$";
+
   explicit MinimalStackPrinter(size_t max_length) : max_length_(max_length) {}
 
   void SetPrevFrameAsConstructCall() {
@@ -1853,16 +1857,21 @@ class MinimalStackPrinter {
           summary.AsJavaScript();
       Tagged<String> name = js_summary.function()->shared()->Name();
       if (name->length() == 0) {
-        out_ << "<none>";
+        out_ << kUnknownName;
       } else {
         Append(name);
       }
 
-      PrintScript(js_summary.script());
+      Handle<Object> script = js_summary.script();
+      PrintScript(script);
 
-      if (js_summary.AreSourcePositionsAvailable()) {
-        int offset = summary.AsJavaScript().SourcePosition();
-        out_ << ":" << offset;
+      Tagged<Script> s;
+      if (js_summary.AreSourcePositionsAvailable() &&
+          TryCast<Script>(*script, &s)) {
+        int pos = js_summary.SourcePosition();
+        int line = s->GetLineNumber(pos) + 1;
+        int column = s->GetColumnNumber(pos) + 1;
+        out_ << ":" << line << ":" << column;
       }
 
       out_ << "\n";
@@ -1898,18 +1907,24 @@ class MinimalStackPrinter {
     if (IsScript(*script)) {
       Tagged<Object> name_or_url = Cast<Script>(script)->GetNameOrSourceURL();
       if (IsString(name_or_url)) {
-        out_ << " in ";
-        Append(Cast<String>(name_or_url));
+        std::string current_name = Cast<String>(name_or_url)->ToStdString();
+        if (current_name == prev_script_name_) {
+          out_ << " in " << kRepeatMarker;
+        } else {
+          out_ << " in ";
+          out_ << current_name;
+          prev_script_name_ = std::move(current_name);
+        }
       }
     }
   }
 
-  void Append(Tagged<String> value) {
-    auto buffer = value->ToCString();
-    out_ << buffer.get();
-  }
+  void Append(Tagged<String> value) { out_ << value->ToStdString(); }
 
-  std::string Build() { return out_.str(); }
+  std::string Build() {
+    out_ << kEndMarker << "\n";
+    return out_.str();
+  }
 
   bool HasMoreSpace() {
     size_t current = out_.tellp();
@@ -1919,6 +1934,7 @@ class MinimalStackPrinter {
  private:
   std::stringstream out_;
   const size_t max_length_;
+  std::string prev_script_name_;
 };
 
 }  // namespace

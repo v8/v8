@@ -208,9 +208,10 @@ TEST_F(IsolateTest, DebugTraceMinimal) {
   const char* expected_output =
       "<none>\n"
       "f3 in test.js\n"
-      "f2 in test.js\n"
-      "f1 in test.js\n"
-      "<none> in test.js\n";
+      "f2 in =\n"
+      "f1 in =\n"
+      "<none> in =\n"
+      "$\n";
   EXPECT_EQ(output, expected_output);
 }
 
