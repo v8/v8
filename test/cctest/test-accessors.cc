@@ -194,18 +194,11 @@ int x_register[2] = {0, 0};
 v8::Global<v8::Object> x_receiver_global;
 v8::Global<v8::Object> x_holder_global;
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
 template <class Info>
 void XGetter(const Info& info, int offset) {
   ApiTestFuzzer::Fuzz();
   v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
-  CHECK(x_receiver_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.This())
-            .FromJust());
   info.GetReturnValue().Set(v8_num(x_register[offset]));
 }
 
@@ -245,20 +238,12 @@ template <class Info>
 void XSetter(Local<Value> value, const Info& info, int offset) {
   v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
-  CHECK_EQ(info.This(), GetHolder(info));
-  CHECK(x_holder_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.This())
-            .FromJust());
   CHECK(x_holder_global.Get(isolate)
             ->Equals(isolate->GetCurrentContext(), GetHolder(info))
             .FromJust());
   x_register[offset] =
       value->Int32Value(isolate->GetCurrentContext()).FromJust();
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 void XSetter(Local<Name> name, Local<Value> value,
              const v8::PropertyCallbackInfo<void>& info) {
@@ -360,36 +345,25 @@ THREADED_TEST(HandleScopePop) {
   CHECK_EQ(count_before, count_after);
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
 static void CheckAccessorArgsCorrect(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::ValidateCallbackInfo(info);
   CHECK(info.GetIsolate() == CcTest::isolate());
-  CHECK(info.This() == info.HolderV2());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   ApiTestFuzzer::Fuzz();
   CHECK(info.GetIsolate() == CcTest::isolate());
-  CHECK(info.This() == info.HolderV2());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   CHECK(info.GetIsolate() == CcTest::isolate());
   i::heap::InvokeMajorGC(CcTest::heap());
-  CHECK(info.This() == info.HolderV2());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   info.GetReturnValue().Set(17);
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(DirectCall) {
   LocalContext context;
@@ -847,41 +821,6 @@ TEST(PrototypeGetterAccessCheck) {
     CompileRun("f();");
     CHECK(try_catch.HasCaught());
   }
-}
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
-static void CheckReceiver(Local<Name> name,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(info.This()->IsObject());
-}
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
-
-// TODO(https://crbug.com/455600234): remove the test since native data
-// property accessors will not have access to receiver.
-TEST(Regress609134) {
-  LocalContext env;
-  v8::Isolate* isolate = env.isolate();
-  v8::HandleScope scope(isolate);
-  auto fun_templ = v8::FunctionTemplate::New(isolate);
-  fun_templ->InstanceTemplate()->SetNativeDataProperty(v8_str("foo"),
-                                                       CheckReceiver);
-
-  CHECK(env->Global()
-            ->Set(env.local(), v8_str("Fun"),
-                  fun_templ->GetFunction(env.local()).ToLocalChecked())
-            .FromJust());
-
-  CompileRun(
-      "var f = new Fun();"
-      "Number.prototype.__proto__ = f;"
-      "var a = 42;"
-      "for (var i = 0; i<3; i++) { a.foo; }");
 }
 
 TEST(ObjectSetLazyDataProperty) {

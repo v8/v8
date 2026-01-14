@@ -187,10 +187,6 @@ v8::Intercepted InterceptorSetter(Local<Name> generic_name, Local<Value> value,
   return v8::Intercepted::kNo;
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
 v8::Intercepted GenericInterceptorGetter(
     Local<Name> generic_name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -198,24 +194,20 @@ v8::Intercepted GenericInterceptorGetter(
   if (generic_name->IsSymbol()) {
     Local<Value> name = generic_name.As<Symbol>()->Description(isolate);
     if (name->IsUndefined()) return v8::Intercepted::kNo;
-    str = String::Concat(info.GetIsolate(), v8_str("_sym_"), name.As<String>());
+    str = String::Concat(isolate, v8_str("_sym_"), name.As<String>());
   } else {
     Local<String> name = generic_name.As<String>();
-    String::Utf8Value utf8(info.GetIsolate(), name);
+    String::Utf8Value utf8(isolate, name);
     char* name_str = *utf8;
     if (*name_str == '_') return v8::Intercepted::kNo;
-    str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
+    str = String::Concat(isolate, v8_str("_str_"), name);
   }
 
-  Local<Object> self = info.This().As<Object>();
+  Local<Object> self = info.HolderV2();
   info.GetReturnValue().Set(
-      self->Get(info.GetIsolate()->GetCurrentContext(), str).ToLocalChecked());
+      self->Get(isolate->GetCurrentContext(), str).ToLocalChecked());
   return v8::Intercepted::kYes;
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 v8::Intercepted GenericInterceptorSetter(
     Local<Name> generic_name, Local<Value> value,
@@ -234,7 +226,7 @@ v8::Intercepted GenericInterceptorSetter(
     str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
-  Local<Object> self = info.HolderV2().As<Object>();
+  Local<Object> self = info.HolderV2();
   self->Set(info.GetIsolate()->GetCurrentContext(), str, value).FromJust();
   return v8::Intercepted::kYes;
 }
@@ -266,185 +258,105 @@ void AddInterceptor(Local<FunctionTemplate> templ,
       v8::NamedPropertyHandlerConfiguration(getter, setter));
 }
 
-v8::Global<v8::Object> bottom_global;
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
-v8::Intercepted CheckThisIndexedPropertyHandler(
+v8::Intercepted DummyIndexedPropertyGetter(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyHandler));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyIndexedPropertyGetter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  // CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisNamedPropertyHandler(
+v8::Intercepted DummyNamedPropertyGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyHandler));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyNamedPropertyGetter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisIndexedPropertyDefiner(
+v8::Intercepted DummyIndexedPropertyDefiner(
     uint32_t index, const v8::PropertyDescriptor& desc,
     const v8::PropertyCallbackInfo<void>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyDefiner));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyIndexedPropertyDefiner));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisNamedPropertyDefiner(
+v8::Intercepted DummyNamedPropertyDefiner(
     Local<Name> property, const v8::PropertyDescriptor& desc,
     const v8::PropertyCallbackInfo<void>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDefiner));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyNamedPropertyDefiner));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisIndexedPropertySetter(
+v8::Intercepted DummyIndexedPropertySetter(
     uint32_t index, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertySetter));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyIndexedPropertySetter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisNamedPropertySetter(
+v8::Intercepted DummyNamedPropertySetter(
     Local<Name> property, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertySetter));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyNamedPropertySetter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisIndexedPropertyDescriptor(
+v8::Intercepted DummyIndexedPropertyDescriptor(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyDescriptor));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyIndexedPropertyDescriptor));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisNamedPropertyDescriptor(
+v8::Intercepted DummyNamedPropertyDescriptor(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDescriptor));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyNamedPropertyDescriptor));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisIndexedPropertyQuery(
+v8::Intercepted DummyIndexedPropertyQuery(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyQuery));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyIndexedPropertyQuery));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  // CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisNamedPropertyQuery(
+v8::Intercepted DummyNamedPropertyQuery(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyQuery));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyNamedPropertyQuery));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  // CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisIndexedPropertyDeleter(
+v8::Intercepted DummyIndexedPropertyDeleter(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyDeleter));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyIndexedPropertyDeleter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-v8::Intercepted CheckThisNamedPropertyDeleter(
+v8::Intercepted DummyNamedPropertyDeleter(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyDeleter));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyNamedPropertyDeleter));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
-void CheckThisIndexedPropertyEnumerator(
+void DummyIndexedPropertyEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisIndexedPropertyEnumerator));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyIndexedPropertyEnumerator));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  // CHECK_EQ(info.This(), info.HolderV2());
 }
 
-
-void CheckThisNamedPropertyEnumerator(
+void DummyNamedPropertyEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  CheckReturnValue(info, FUNCTION_ADDR(CheckThisNamedPropertyEnumerator));
+  CheckReturnValue(info, FUNCTION_ADDR(DummyNamedPropertyEnumerator));
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
-            .FromJust());
-  // CHECK_EQ(info.This(), info.HolderV2());
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 int echo_named_call_count;
 
@@ -1390,26 +1302,14 @@ THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
       42 * 10);
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
 namespace {
-
-// TODO(https://crbug.com/455600234): update test.
-void SetOnThis(Local<Name> name, Local<Value> value,
-               const v8::PropertyCallbackInfo<void>& info) {
-  info.This()
-      .As<Object>()
+void SetOnHolder(Local<Name> name, Local<Value> value,
+                 const v8::PropertyCallbackInfo<void>& info) {
+  info.HolderV2()
       ->CreateDataProperty(info.GetIsolate()->GetCurrentContext(), name, value)
       .FromJust();
 }
-
 }  // namespace
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -1562,7 +1462,7 @@ THREADED_TEST(InterceptorLoadICInvalidatedCallback) {
   templ_o->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorLoadXICGetter));
   v8::Local<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
-  templ_p->SetNativeDataProperty(v8_str("y"), Return239Callback, SetOnThis);
+  templ_p->SetNativeDataProperty(v8_str("y"), Return239Callback, SetOnHolder);
 
   LocalContext context;
   context->Global()
@@ -1602,7 +1502,7 @@ THREADED_TEST(InterceptorLoadICInvalidatedCallbackViaGlobal) {
   templ_o->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorLoadXICGetter));
   v8::Local<v8::ObjectTemplate> templ_p = ObjectTemplate::New(isolate);
-  templ_p->SetNativeDataProperty(v8_str("y"), Return239Callback, SetOnThis);
+  templ_p->SetNativeDataProperty(v8_str("y"), Return239Callback, SetOnHolder);
 
   LocalContext context;
   context->Global()
@@ -1716,7 +1616,8 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
       "  var f = function(obj) { "
       "    return obj.foo;"
       "  };"
-      "  var obj = { __proto__: this, _str_foo: 42 };"
+      "  this._str_foo = 42;"
+      "  var obj = { __proto__: this };"
       "  for (var i = 0; i < 1500; i++) obj['p' + i] = 0;"
       "  /* Ensure that |obj| is in dictionary mode. */"
       "  if (%HasFastProperties(obj)) return -1;"
@@ -2976,21 +2877,23 @@ THREADED_TEST(PropertyHandlerInPrototype) {
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  // Originally, the interceptor callbacks used to check receiver value passed
+  // to the callbacks, but this functionality was removed, so now the test just
+  // triggers interceptor callbacks which don't handle the requests.
   templ->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      CheckThisIndexedPropertyHandler, CheckThisIndexedPropertySetter,
-      CheckThisIndexedPropertyQuery, CheckThisIndexedPropertyDeleter,
-      CheckThisIndexedPropertyEnumerator));
+      DummyIndexedPropertyGetter, DummyIndexedPropertySetter,
+      DummyIndexedPropertyQuery, DummyIndexedPropertyDeleter,
+      DummyIndexedPropertyEnumerator));
 
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      CheckThisNamedPropertyHandler, CheckThisNamedPropertySetter,
-      CheckThisNamedPropertyQuery, CheckThisNamedPropertyDeleter,
-      CheckThisNamedPropertyEnumerator));
+      DummyNamedPropertyGetter, DummyNamedPropertySetter,
+      DummyNamedPropertyQuery, DummyNamedPropertyDeleter,
+      DummyNamedPropertyEnumerator));
 
   Local<v8::Object> bottom = templ->GetFunction(env.local())
                                  .ToLocalChecked()
                                  ->NewInstance(env.local())
                                  .ToLocalChecked();
-  bottom_global.Reset(isolate, bottom);
   Local<v8::Object> top = templ->GetFunction(env.local())
                               .ToLocalChecked()
                               ->NewInstance(env.local())
@@ -3022,8 +2925,6 @@ THREADED_TEST(PropertyHandlerInPrototype) {
 
   // Enumerators.
   CompileRun("for (var p in obj) ;");
-
-  bottom_global.Reset();
 }
 
 TEST(PropertyHandlerInPrototypeWithDefine) {
@@ -3032,21 +2933,23 @@ TEST(PropertyHandlerInPrototypeWithDefine) {
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  // Originally, the interceptor callbacks used to check receiver value passed
+  // to the callbacks, but this functionality was removed, so now the test just
+  // triggers interceptor callbacks which don't handle the requests.
   templ->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
-      CheckThisIndexedPropertyHandler, CheckThisIndexedPropertySetter,
-      CheckThisIndexedPropertyDescriptor, CheckThisIndexedPropertyDeleter,
-      CheckThisIndexedPropertyEnumerator, CheckThisIndexedPropertyDefiner));
+      DummyIndexedPropertyGetter, DummyIndexedPropertySetter,
+      DummyIndexedPropertyDescriptor, DummyIndexedPropertyDeleter,
+      DummyIndexedPropertyEnumerator, DummyIndexedPropertyDefiner));
 
   templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      CheckThisNamedPropertyHandler, CheckThisNamedPropertySetter,
-      CheckThisNamedPropertyDescriptor, CheckThisNamedPropertyDeleter,
-      CheckThisNamedPropertyEnumerator, CheckThisNamedPropertyDefiner));
+      DummyNamedPropertyGetter, DummyNamedPropertySetter,
+      DummyNamedPropertyDescriptor, DummyNamedPropertyDeleter,
+      DummyNamedPropertyEnumerator, DummyNamedPropertyDefiner));
 
   Local<v8::Object> bottom = templ->GetFunction(env.local())
                                  .ToLocalChecked()
                                  ->NewInstance(env.local())
                                  .ToLocalChecked();
-  bottom_global.Reset(isolate, bottom);
   Local<v8::Object> top = templ->GetFunction(env.local())
                               .ToLocalChecked()
                               ->NewInstance(env.local())
@@ -3082,8 +2985,6 @@ TEST(PropertyHandlerInPrototypeWithDefine) {
   // Indexed and named propertyDescriptor.
   CompileRun("Object.getOwnPropertyDescriptor(obj, 2);");
   CompileRun("Object.getOwnPropertyDescriptor(obj, 'z');");
-
-  bottom_global.Reset();
 }
 
 namespace {
@@ -6817,44 +6718,6 @@ THREADED_TEST(NonMaskingInterceptorGlobalEvalRegression) {
       "eval('obj.x');",
       9);
 }
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-START_ALLOW_USE_DEPRECATED()
-
-namespace {
-v8::Intercepted CheckReceiver(Local<Name> name,
-                              const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(info.This()->IsObject());
-  return v8::Intercepted::kNo;
-}
-}  // namespace
-
-// TODO(https://crbug.com/455600234): remove since this regression test is
-// no longer relevant (the callbacks will not have access to receiver).
-TEST(Regress609134Interceptor) {
-  LocalContext env;
-  v8::Isolate* isolate = env.isolate();
-  v8::HandleScope scope(isolate);
-  auto fun_templ = v8::FunctionTemplate::New(isolate);
-  fun_templ->InstanceTemplate()->SetHandler(
-      v8::NamedPropertyHandlerConfiguration(CheckReceiver));
-
-  CHECK(env->Global()
-            ->Set(env.local(), v8_str("Fun"),
-                  fun_templ->GetFunction(env.local()).ToLocalChecked())
-            .FromJust());
-
-  CompileRun(
-      "var f = new Fun();"
-      "Number.prototype.__proto__ = f;"
-      "var a = 42;"
-      "for (var i = 0; i<3; i++) { a.foo; }");
-}
-
-// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
-// TODO(https://crbug.com/455600234): remove.
-END_ALLOW_USE_DEPRECATED()
 
 namespace {
 
