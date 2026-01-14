@@ -136,11 +136,6 @@ TEST_F(SandboxHardwareSupportTest, DisallowSandboxAccess) {
     DisallowSandboxAccess no_sandbox_access;
     heap_no_sandbox_access = new DisallowSandboxAccess;
     ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
-  }
-  // Heap-allocated DisallowSandboxAccess scope is still active.
-  ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
-  {
-    DisallowSandboxAccess no_sandbox_access;
     delete heap_no_sandbox_access;
     ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
   }
@@ -182,16 +177,36 @@ TEST_F(SandboxHardwareSupportTest, AllowSandboxAccess) {
     ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
   }
 
-  // AllowSandboxAccess scopes cannot be nested. They should only be used for
-  // short sequences of code that read/write some data from/to the sandbox.
+  // AllowSandboxAccess scopes can be nested.
   {
     DisallowSandboxAccess no_sandbox_access;
     {
       AllowSandboxAccess temporary_sandbox_access;
       {
-        ASSERT_DEATH_IF_SUPPORTED(new AllowSandboxAccess(), "");
+        AllowSandboxAccess nested_allow_sandbox_access;
+        value += *in_sandbox_ptr;
       }
+      value += *in_sandbox_ptr;
     }
+  }
+
+  // More elaborate example that involves a mix of stack- and
+  // heap-allocated DisallowSandboxAccess and AllowSandboxAccess objects.
+  {
+    DisallowSandboxAccess no_sandbox_access;
+    AllowSandboxAccess* heap_sandbox_access = new AllowSandboxAccess;
+    value += *in_sandbox_ptr;
+    {
+      AllowSandboxAccess stack_sandbox_access;
+      value += *in_sandbox_ptr;
+      {
+        DisallowSandboxAccess no_sandbox_access_inner;
+        ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
+      }
+      value += *in_sandbox_ptr;
+    }
+    delete heap_sandbox_access;
+    ASSERT_DEATH_IF_SUPPORTED(value += *in_sandbox_ptr, "");
   }
 
   // AllowSandboxAccess scopes can be used even if there is no active
@@ -202,6 +217,56 @@ TEST_F(SandboxHardwareSupportTest, AllowSandboxAccess) {
   EXPECT_EQ(value, 0);
 
   SandboxFree(in_sandbox_memory);
+}
+
+TEST_F(SandboxHardwareSupportTest, InvalidScopeNesting) {
+  // DisallowSandboxAccess/AllowSandboxAccess is only enforced in DEBUG builds.
+  if (!DEBUG_BOOL) return;
+
+  // Skip this test if hardware sandboxing support cannot be enabled.
+  if (!SandboxHardwareSupport::IsActive()) return;
+
+  // Case 1: Inner AllowSandboxAccess outlives outer DisallowSandboxAccess.
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        DisallowSandboxAccess* outer = new DisallowSandboxAccess();
+        AllowSandboxAccess* inner = new AllowSandboxAccess();
+        delete outer;
+        delete inner;
+      },
+      "");
+
+  // Case 2: Inner DisallowSandboxAccess outlives outer AllowSandboxAccess.
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        DisallowSandboxAccess outer_disallow;
+        AllowSandboxAccess* outer = new AllowSandboxAccess();
+        DisallowSandboxAccess* inner = new DisallowSandboxAccess();
+        delete outer;
+        delete inner;
+      },
+      "");
+
+  // Case 3: Inner DisallowSandboxAccess outlives outer DisallowSandboxAccess.
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        DisallowSandboxAccess* outer = new DisallowSandboxAccess();
+        DisallowSandboxAccess* inner = new DisallowSandboxAccess();
+        delete outer;
+        delete inner;
+      },
+      "");
+
+  // Case 4: Inner AllowSandboxAccess outlives outer AllowSandboxAccess.
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        DisallowSandboxAccess no_access;
+        AllowSandboxAccess* outer = new AllowSandboxAccess();
+        AllowSandboxAccess* inner = new AllowSandboxAccess();
+        delete outer;
+        delete inner;
+      },
+      "");
 }
 
 }  // namespace internal

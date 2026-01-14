@@ -6,6 +6,7 @@
 #define V8_SANDBOX_HARDWARE_SUPPORT_H_
 
 #include "include/v8-platform.h"
+#include "src/base/platform/memory-protection-key.h"
 #include "src/common/globals.h"
 #include "src/sandbox/code-sandboxing-mode.h"
 
@@ -215,6 +216,8 @@ class V8_NODISCARD V8_ALLOW_UNUSED ExitSandboxScope {
 // These scopes can be arbitrarily nested and can be allocated both on the
 // stack and on the heap. Sandbox access will be disallowed as long as at least
 // one scope remains active.
+// However, these scopes must retain a strict LIFO ordering, with an inner
+// scope always being destroyed before any of its surrounding scopes.
 class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
  public:
 #if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
@@ -228,16 +231,14 @@ class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED DisallowSandboxAccess {
 
  private:
   int pkey_;
+  base::MemoryProtectionKey::Permission previous_permission_;
 #endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 };
 
 // Scope object to grant a temporary exception from a DisallowSandboxAccess.
 // This scope object will re-enable access to in-sandbox memory during its
 // lifetime even if one or more DisallowSandboxAccess scopes are currently
-// active. However, in contrast to DisallowSandboxAccess these scopes cannot be
-// nested and should only be used sparingly and for short durations. It is also
-// currently not possible to have have another DisallowSandboxAccess inside an
-// AllowSandboxAccess scope, although that could be implemented if needed.
+// active. These scopes should be used sparingly and for short durations.
 class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
  public:
 #if defined(DEBUG) && defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT)
@@ -251,6 +252,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD V8_ALLOW_UNUSED AllowSandboxAccess {
 
  private:
   int pkey_;
+  base::MemoryProtectionKey::Permission previous_permission_;
 #endif  // DEBUG && V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 };
 
