@@ -165,28 +165,6 @@ class V8_EXPORT WasmStreaming final {
    * {Finish} should be called after all received bytes where passed to
    * {OnBytesReceived} to tell V8 that there will be no more bytes. {Finish}
    * must not be called after {Abort} has been called already.
-   * If {can_use_compiled_module} is true and {SetCompiledModuleBytes} was
-   * previously called, the compiled module bytes can be used.
-   * If {can_use_compiled_module} is false, the compiled module bytes previously
-   * set by {SetCompiledModuleBytes} should not be used.
-   */
-  V8_DEPRECATED(
-      "Use the new variant of Finish which takes the caching callback argument")
-  void Finish(bool can_use_compiled_module = true) {
-    ModuleCachingCallback callback;
-    if (can_use_compiled_module && !cached_compiled_module_bytes_.empty()) {
-      callback = [bytes = cached_compiled_module_bytes_](
-                     ModuleCachingInterface& caching_interface) {
-        caching_interface.SetCachedCompiledModuleBytes(bytes);
-      };
-    }
-    Finish(callback);
-  }
-
-  /**
-   * {Finish} should be called after all received bytes where passed to
-   * {OnBytesReceived} to tell V8 that there will be no more bytes. {Finish}
-   * must not be called after {Abort} has been called already.
    * If {SetHasCompiledModuleBytes()} was called before, a {caching_callback}
    * can be passed which can inspect the full received wire bytes and set cached
    * module bytes which will be deserialized then. This callback will happen
@@ -201,25 +179,6 @@ class V8_EXPORT WasmStreaming final {
    * {Abort} must not be called repeatedly, or after {Finish}.
    */
   void Abort(MaybeLocal<Value> exception);
-
-  /**
-   * Passes previously compiled module bytes. This must be called before
-   * {OnBytesReceived}, {Finish}, or {Abort}. Returns true if the module bytes
-   * can be used, false otherwise. The buffer passed via {bytes} and {size}
-   * is owned by the caller. If {SetCompiledModuleBytes} returns true, the
-   * buffer must remain valid until either {Finish} or {Abort} completes.
-   * The compiled module bytes should not be used until {Finish(true)} is
-   * called, because they can be invalidated later by {Finish(false)}.
-   */
-  V8_DEPRECATED(
-      "Use SetHasCompiledModule in combination with the new variant of Finish")
-  bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
-    SetHasCompiledModuleBytes();
-    cached_compiled_module_bytes_ = {bytes, size};
-    // Optimistically return true here, even though we might later find out that
-    // we cannot use the bytes.
-    return true;
-  }
 
   /**
    * Mark that the embedder has (potentially) cached compiled module bytes (i.e.
@@ -254,9 +213,6 @@ class V8_EXPORT WasmStreaming final {
 
  private:
   std::unique_ptr<WasmStreamingImpl> impl_;
-  // Temporarily store the compiled module bytes here until the deprecation (see
-  // methods above) has gone through.
-  MemorySpan<const uint8_t> cached_compiled_module_bytes_;
 };
 
 /**

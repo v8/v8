@@ -78,9 +78,6 @@ class V8_EXPORT FixedArray : public Data {
  public:
   int Length() const;
 
-  V8_DEPRECATED("Use the version without context")
-  Local<Data> Get(Local<Context> context, int i) const { return Get(i); }
-
   Local<Data> Get(int i) const;
 
   V8_INLINE static FixedArray* Cast(Data* data) {
