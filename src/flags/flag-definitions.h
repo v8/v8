@@ -3240,6 +3240,10 @@ DEFINE_BOOL(regexp_unroll, true, "unroll small {} repeats when optimizing")
 DEFINE_BOOL(regexp_quick_check, true,
             "generate quickcheck code when optimizing")
 DEFINE_BOOL(regexp_interpret_all, false, "interpret all regexp code")
+DEFINE_BOOL(regexp_skip_with_boyer_moore, false,
+            "force use of Boyer-Moore strategy")
+DEFINE_BOOL(regexp_skip_with_simd, false, "force use of SIMD strategy")
+DEFINE_BOOL(regexp_skip, true, "allow use of skip instructions")
 #ifdef V8_TARGET_BIG_ENDIAN
 #define REGEXP_PEEPHOLE_OPTIMIZATION_BOOL false
 #else
