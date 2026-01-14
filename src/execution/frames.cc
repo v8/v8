@@ -1415,7 +1415,6 @@ static_assert(ArgOffset(PCA::kPropertyKeyIndex) ==
               PCIOffset(FC::kPropertyKeyOffset));
 static_assert(ArgOffset(PCA::kReturnValueIndex) ==
               PCIOffset(FC::kReturnValueOffset));
-static_assert(ArgOffset(PCA::kThisIndex) == PCIOffset(FC::kReceiverOffset));
 static_assert(ArgOffset(PCA::kHolderIndex) == PCIOffset(FC::kHolderOffset));
 static_assert(FC::kPropertyCallbackInfoGetterApiArgsLength ==
               PCA::kGetterApiArgsLength);
@@ -1430,7 +1429,6 @@ FrameSummaries ApiAccessorExitFrame::Summarize() const {
   DCHECK_IMPLIES(
       is_api_named_accessor_exit(),
       IsName(ApiNamedAccessorExitFrame::cast(this)->property_name()));
-  DCHECK(IsJSReceiver(receiver()));
   DCHECK(IsJSReceiver(holder()));
   return FrameSummaries();
 }
@@ -1536,9 +1534,8 @@ void ApiNamedAccessorExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("api accessor exit frame: ");
 
   Tagged<Name> name = property_name();
-  Tagged<Object> receiver = this->receiver();
   Tagged<Object> holder = this->holder();
-  accumulator->Add("(this=%o, holder=%o, name=%o)\n", receiver, holder, name);
+  accumulator->Add("(holder=%o, name=%o)\n", holder, name);
 }
 
 void ApiIndexedAccessorExitFrame::Print(StringStream* accumulator,

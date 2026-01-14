@@ -221,16 +221,8 @@ inline FullObjectSlot ApiAccessorExitFrame::property_key_slot() const {
                         ApiAccessorExitFrameConstants::kPropertyKeyOffset);
 }
 
-inline FullObjectSlot ApiAccessorExitFrame::receiver_slot() const {
-  return FullObjectSlot(fp() + ApiAccessorExitFrameConstants::kReceiverOffset);
-}
-
 inline FullObjectSlot ApiAccessorExitFrame::holder_slot() const {
   return FullObjectSlot(fp() + ApiAccessorExitFrameConstants::kHolderOffset);
-}
-
-Tagged<Object> ApiAccessorExitFrame::receiver() const {
-  return *receiver_slot();
 }
 
 Tagged<Object> ApiAccessorExitFrame::holder() const { return *holder_slot(); }

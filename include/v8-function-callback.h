@@ -313,11 +313,7 @@ class PropertyCallbackInfo {
     kIsolateIndex = kFirstApiArgumentIndex,
     kReturnValueIndex,
     kCallbackInfoIndex,
-    // TODO(http://crbug.com/455600234): drop this once This() is removed.
-    kUnusedIndex,  // Optional, see I::kSPAlignmentSlotCount.
-    kHolderIndex = kUnusedIndex + I::kSPAlignmentSlotCount,
-    // TODO(http://crbug.com/455600234): drop this once This() is removed.
-    kThisIndex,
+    kHolderIndex,
 
     //
     // Optional part, used only by setter/definer/deleter callbacks.

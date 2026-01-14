@@ -4629,7 +4629,6 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rsi                 : context
   //  -- rbx                 : accessor info
-  //  -- sp[2]               : receiver
   //  -- sp[1]               : holder
   //  -- sp[0]               : return address
   // -----------------------------------
@@ -4638,7 +4637,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register property_callback_info_arg = kCArgRegs[1];
 
   Register api_function_address = r8;
-  Register callback = ApiGetterDescriptor::CallbackRegister();
+  Register callback = CallApiGetterDescriptor::CallbackRegister();
   Register scratch = rax;
 
   DCHECK(!AreAliased(name_arg, property_callback_info_arg, callback, scratch));
@@ -4647,8 +4646,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
 
-  static_assert(PCA::kGetterApiArgsLength == 5);
-  static_assert(PCA::ApiArgIndex(PCA::kThisIndex) == 4);
+  static_assert(PCA::kGetterApiArgsLength == 4);
   static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
   static_assert(PCA::ApiArgIndex(PCA::kCallbackInfoIndex) == 2);
   static_assert(PCA::ApiArgIndex(PCA::kReturnValueIndex) == 1);
@@ -4659,10 +4657,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...
-  //                           |  sp[5]: receiver        <- kThisIndex
   //                           |  sp[4]: holder          <- kHolderIndex
-  //  ...                      |  sp[3]: callback info   <- kCallbackInfoIndex
-  //  sp[2]: receiver          |  sp[2]: undefined       <- kReturnValueIndex
+  //                           |  sp[3]: callback info   <- kCallbackInfoIndex
+  //  ...                      |  sp[2]: undefined       <- kReturnValueIndex
   //  sp[1]: holder            |  sp[1]: isolate         <- kIsolateIndex
   //  sp[0]: return address    |  sp[0]: return address
   //

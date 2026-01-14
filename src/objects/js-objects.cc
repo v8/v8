@@ -1280,12 +1280,7 @@ MaybeHandle<JSAny> GetPropertyWithInterceptorInternal(
   }
 
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
-  DirectHandle<Object> receiver = it->GetReceiver();
-  if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                               Object::ConvertReceiver(isolate, receiver));
-  }
-  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi());
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi());
 
   DirectHandle<JSAny> result;
   if (it->IsElement(*holder)) {
@@ -1313,12 +1308,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
   DCHECK_IMPLIES(!it->IsElement(*holder) && IsSymbol(*it->name()),
                  interceptor->can_intercept_symbols());
-  DirectHandle<Object> receiver = it->GetReceiver();
-  if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                               Object::ConvertReceiver(isolate, receiver));
-  }
-  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi());
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi());
   if (interceptor->has_query()) {
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
@@ -1376,13 +1366,7 @@ Maybe<InterceptorResult> SetPropertyWithInterceptorInternal(
   }
 
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
-  DirectHandle<Object> receiver = it->GetReceiver();
-  if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                               Object::ConvertReceiver(isolate, receiver));
-  }
-  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
-                                 should_throw);
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi(), should_throw);
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
@@ -1406,11 +1390,6 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
   }
 
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
-  DirectHandle<Object> receiver = it->GetReceiver();
-  if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                               Object::ConvertReceiver(isolate, receiver));
-  }
 
   std::unique_ptr<v8::PropertyDescriptor> descriptor(
       new v8::PropertyDescriptor());
@@ -1449,8 +1428,7 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
     descriptor->set_configurable(desc->configurable());
   }
 
-  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
-                                 should_throw);
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi(), should_throw);
 
   v8::Intercepted intercepted =
       it->IsElement(*holder)
@@ -1949,13 +1927,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
   Handle<JSAny> result;
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
 
-  DirectHandle<Object> receiver = it->GetReceiver();
-  if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                               Object::ConvertReceiver(isolate, receiver));
-  }
-
-  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi());
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi());
   if (it->IsElement(*holder)) {
     result =
         args.CallIndexedDescriptor(isolate, interceptor, it->array_index());
@@ -4235,13 +4207,8 @@ Maybe<InterceptorResult> JSObject::DeletePropertyWithInterceptor(
     return Just(InterceptorResult::kNotIntercepted);
   }
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
-  DirectHandle<Object> receiver = it->GetReceiver();
-  if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                               Object::ConvertReceiver(isolate, receiver));
-  }
 
-  PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
+  PropertyCallbackArguments args(isolate, it->GetHolderForApi(),
                                  Just(should_throw));
 
   v8::Intercepted intercepted =

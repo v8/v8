@@ -417,7 +417,7 @@ class V8_EXPORT_PRIVATE Debug {
   void PrepareBuiltinForSideEffectCheck(Isolate* isolate, Builtin id);
 
   bool PerformSideEffectCheckForAccessor(
-      DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> receiver,
+      DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> holder,
       AccessorComponent component);
   bool PerformSideEffectCheckForCallback(Handle<FunctionTemplateInfo> function);
   bool PerformSideEffectCheckForInterceptor(

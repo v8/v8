@@ -395,7 +395,7 @@ void AccessorAssembler::HandleLoadCallbackProperty(
       CAST(LoadDescriptorValue(LoadMap(holder), descriptor));
 
   exit_point->ReturnCallBuiltin(Builtin::kCallApiGetter, p->context(),
-                                accessor_info, holder, p->receiver());
+                                accessor_info, holder);
 }
 
 void AccessorAssembler::HandleLoadAccessor(
@@ -951,8 +951,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     TNode<InterceptorInfo> interceptor_info =
         CAST(LoadHandlerDataField(CAST(handler), 2));
 
-    TNode<JSReceiver> receiver = ConvertReceiver(p->context(), p->receiver());
-
     // Handlers for interceptors are always complex even when holder is a
     // lookup start object because we are interested in caching interceptor
     // info in the data handler.
@@ -971,9 +969,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
         },
         [&] { return holder; });
 
-    exit_point->ReturnCallRuntime(Runtime::kLoadPropertyWithInterceptor,
-                                  p->context(), p->name(), receiver, the_holder,
-                                  interceptor_info, p->slot(), p->vector());
+    exit_point->ReturnCallRuntime(
+        Runtime::kLoadPropertyWithInterceptor, p->context(), p->name(),
+        p->receiver(), the_holder, interceptor_info, p->slot(), p->vector());
   }
   BIND(&slow);
   {

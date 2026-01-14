@@ -4898,16 +4898,15 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- cp                  : context
-  //  -- x3                  : accessor info
-  //  -- sp[1]               : receiver
-  //  -- sp[0]               : holder
+  //  -- sp[1]               : holder
+  //  -- sp[0]               : accessor info
   // -----------------------------------
 
   Register name_arg = kCArgRegs[0];
   Register property_callback_info_arg = kCArgRegs[1];
 
   Register api_function_address = x2;
-  Register callback = ApiGetterDescriptor::CallbackRegister();
+  Register callback = x3;
   Register scratch = x4;
   Register undef = x5;
   Register scratch2 = x6;
@@ -4919,10 +4918,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
 
-  static_assert(PCA::kGetterApiArgsLength == 6);
-  static_assert(PCA::ApiArgIndex(PCA::kThisIndex) == 5);
-  static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 4);
-  static_assert(PCA::ApiArgIndex(PCA::kUnusedIndex) == 3);
+  static_assert(PCA::kGetterApiArgsLength == 4);
+  static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
   static_assert(PCA::ApiArgIndex(PCA::kCallbackInfoIndex) == 2);
   static_assert(PCA::ApiArgIndex(PCA::kReturnValueIndex) == 1);
   static_assert(PCA::ApiArgIndex(PCA::kIsolateIndex) == 0);
@@ -4932,20 +4929,19 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...
-  //                           |  sp[5]: receiver        <- kThisIndex
-  //                           |  sp[4]: holder          <- kHolderIndex
-  //                           |  sp[3]: padding         <- kUnusedIndex
-  //  ...                      |  sp[2]: callback info   <- kCallbackInfoIndex
-  //  sp[1]: receiver          |  sp[1]: undefined       <- kReturnValueIndex
-  //  sp[0]: holder            |  sp[0]: isolate         <- kIsolateIndex
+  //                           |  sp[3]: holder          <- kHolderIndex
+  //                           |  sp[2]: callback info   <- kCallbackInfoIndex
+  //  sp[1]: holder            |  sp[1]: undefined       <- kReturnValueIndex
+  //  sp[0]: callback info     |  sp[0]: isolate         <- kIsolateIndex
   //
+
+  // Load callback info value from the stack.
+  __ Ldr(callback, MemOperand(sp, 0 * kSystemPointerSize));
 
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
   __ Mov(scratch2, ER::isolate_address());
 
-  __ Push(padreg,     // kUnusedIndex
-          callback,   // kCallbackInfoIndex
-          undef,      // kReturnValueIndex,
+  __ Push(undef,      // kReturnValueIndex,
           scratch2);  // kIsolateIndex
 
   __ RecordComment("Load api_function_address");

@@ -28,7 +28,7 @@ namespace internal {
   V(Allocate)                                                   \
   V(CallApiCallbackGeneric)                                     \
   V(CallApiCallbackOptimized)                                   \
-  V(ApiGetter)                                                  \
+  V(CallApiGetter)                                              \
   V(ArrayConstructor)                                           \
   V(ArrayNArgumentsConstructor)                                 \
   V(ArrayNoArgumentConstructor)                                 \
@@ -2386,24 +2386,29 @@ class CallApiCallbackGenericDescriptor
   static constexpr inline auto registers();
 };
 
-class ApiGetterDescriptor
-    : public StaticCallInterfaceDescriptor<ApiGetterDescriptor> {
+class CallApiGetterDescriptor
+    : public StaticCallInterfaceDescriptor<CallApiGetterDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
 
   static constexpr auto kStackArgumentOrder = StackArgumentOrder::kLowToHigh;
-  DEFINE_PARAMETERS(kCallback,
-                    // stack arguments
-                    kHolder,    // sp[0]
-                    kReceiver)  // sp[1]
+  // On arm64 both parameters are passed on the stack to keep it aligned.
+  // We keep passing the callback value in register on non-arm64 architectures
+  // because we need to load the C++ function pointer from it.
+  //
+  //                               |  Non-arm64   |    arm64
+  //                               +--------------+--------------
+  DEFINE_PARAMETERS(kCallback,  // |  reg         |    sp[0]
+                    kHolder)    // |  sp[0]       |    sp[1]
 
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kCallback
-                         MachineType::AnyTagged(),  // kHolder
-                         MachineType::AnyTagged())  // kReceiver
-  DECLARE_DESCRIPTOR(ApiGetterDescriptor)
+                         MachineType::AnyTagged())  // kHolder
+  DECLARE_DESCRIPTOR(CallApiGetterDescriptor)
 
+#if !V8_TARGET_ARCH_ARM64
   static constexpr inline Register CallbackRegister();
+#endif
 
   static constexpr auto registers();
 };

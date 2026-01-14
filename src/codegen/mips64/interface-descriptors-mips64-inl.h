@@ -138,7 +138,7 @@ constexpr Register DefineKeyedOwnDescriptor::FlagsRegister() { return a5; }
 constexpr Register StoreTransitionDescriptor::MapRegister() { return a5; }
 
 // static
-constexpr Register ApiGetterDescriptor::CallbackRegister() { return a3; }
+constexpr Register CallApiGetterDescriptor::CallbackRegister() { return a3; }
 
 // static
 constexpr Register GrowArrayElementsDescriptor::ObjectRegister() { return a0; }

@@ -36,8 +36,6 @@ class PropertyCallbackArguments final : public Relocatable {
   static constexpr int kSetterApiArgsLength = T::kFullApiArgsLength;
 
   static constexpr int kFrameTypeIndex = T::kFrameTypeIndex;
-  static constexpr int kThisIndex = T::kThisIndex;
-  static constexpr int kUnusedIndex = T::kUnusedIndex;
   static constexpr int kCallbackInfoIndex = T::kCallbackInfoIndex;
   static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
@@ -59,10 +57,8 @@ class PropertyCallbackArguments final : public Relocatable {
   // As a consequence, there must be no GC call between this constructor and
   // CallXXX(..). In debug mode these slots are zapped, so GC should be able
   // to detect misuse of this object.
-  inline PropertyCallbackArguments(Isolate* isolate, Tagged<Object> receiver,
-                                   Tagged<JSObject> holder);
-  inline PropertyCallbackArguments(Isolate* isolate, Tagged<Object> receiver,
-                                   Tagged<JSObject> holder,
+  inline PropertyCallbackArguments(Isolate* isolate, Tagged<JSObject> holder);
+  inline PropertyCallbackArguments(Isolate* isolate, Tagged<JSObject> holder,
                                    Maybe<ShouldThrow> should_throw);
   inline ~PropertyCallbackArguments();
 
@@ -232,13 +228,10 @@ class PropertyCallbackArguments final : public Relocatable {
   inline DirectHandle<JSObject> holder() const;
 
  private:
-  inline void Initialize(Isolate* isolate, Tagged<Object> self,
-                         Tagged<JSObject> holder);
+  inline void Initialize(Isolate* isolate, Tagged<JSObject> holder);
   // Returns JSArray-like object with property names or undefined.
   inline DirectHandle<JSObjectOrUndefined> CallPropertyEnumerator(
       Isolate* isolate, DirectHandle<InterceptorInfo> interceptor);
-
-  inline DirectHandle<Object> receiver() const;
 
   void IterateInstance(RootVisitor* v) override;
 

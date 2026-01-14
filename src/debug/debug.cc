@@ -3220,7 +3220,7 @@ void Debug::PrepareBuiltinForSideEffectCheck(Isolate* isolate, Builtin id) {
 }
 
 bool Debug::PerformSideEffectCheckForAccessor(
-    DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> receiver,
+    DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> holder,
     AccessorComponent component) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
@@ -3240,8 +3240,11 @@ bool Debug::PerformSideEffectCheckForAccessor(
       return true;
 
     case SideEffectType::kHasSideEffectToReceiver:
-      DCHECK(!receiver.is_null());
-      if (PerformSideEffectCheckForObject(receiver)) return true;
+      // For the setter case receiver is the holder but for the getter case
+      // the actual receiver is not available. So, for getters we treat this
+      // side effect type as "has side effect to holder".
+      DCHECK(!holder.is_null());
+      if (PerformSideEffectCheckForObject(holder)) return true;
       return false;
 
     case SideEffectType::kHasSideEffect:

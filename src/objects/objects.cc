@@ -1578,13 +1578,6 @@ MaybeDirectHandle<JSPrototype> JSProxy::GetPrototype(
 MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   DirectHandle<Object> structure = it->GetAccessors();
-  DirectHandle<JSAny> receiver = it->GetReceiver();
-  // In case of global IC, the receiver is the global object. Replace by the
-  // global proxy.
-  if (IsJSGlobalObject(*receiver)) {
-    receiver =
-        direct_handle(Cast<JSGlobalObject>(*receiver)->global_proxy(), isolate);
-  }
 
   // We should never get here to initialize a const with the hole value since a
   // const declaration would conflict with the getter.
@@ -1599,16 +1592,11 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
       return isolate->factory()->undefined_value();
     }
 
-    if (info->is_sloppy() && !IsJSReceiver(*receiver)) {
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                                 Object::ConvertReceiver(isolate, receiver));
-    }
-
-    PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi());
+    PropertyCallbackArguments args(isolate, it->GetHolderForApi());
     DirectHandle<JSAny> result = args.CallAccessorGetter(isolate, info, name);
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     Handle<JSAny> reboxed_result(*result, isolate);
-    if (info->replace_on_access() && IsJSReceiver(*receiver)) {
+    if (info->replace_on_access()) {
       RETURN_ON_EXCEPTION(isolate, Accessors::ReplaceAccessorWithDataProperty(
                                        isolate, args.holder(), name, result));
     }
@@ -1623,6 +1611,15 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
 
   // Regular accessor.
   DirectHandle<Object> getter(accessor_pair->getter(), isolate);
+
+  DirectHandle<JSAny> receiver = it->GetReceiver();
+  // In case of global IC, the receiver is the global object. Replace by the
+  // global proxy.
+  if (IsJSGlobalObject(*receiver)) {
+    receiver =
+        direct_handle(Cast<JSGlobalObject>(*receiver)->global_proxy(), isolate);
+  }
+
   if (IsFunctionTemplateInfo(*getter)) {
     DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
     SaveAndSwitchContext save(isolate, holder->GetCreationContext().value());
@@ -1643,13 +1640,6 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
                                             Maybe<ShouldThrow> should_throw) {
   Isolate* isolate = it->isolate();
   DirectHandle<Object> structure = it->GetAccessors();
-  DirectHandle<JSAny> receiver = it->GetReceiver();
-  // In case of global IC, the receiver is the global object. Replace by the
-  // global proxy.
-  if (IsJSGlobalObject(*receiver)) {
-    receiver =
-        direct_handle(Cast<JSGlobalObject>(*receiver)->global_proxy(), isolate);
-  }
 
   // We should never get here to initialize a const with the hole value since a
   // const declaration would conflict with the setter.
@@ -1667,12 +1657,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
       return Just(true);
     }
 
-    if (info->is_sloppy() && !IsJSReceiver(*receiver)) {
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                                 Object::ConvertReceiver(isolate, receiver));
-    }
-
-    PropertyCallbackArguments args(isolate, *receiver, it->GetHolderForApi(),
+    PropertyCallbackArguments args(isolate, it->GetHolderForApi(),
                                    should_throw);
     bool result = args.CallAccessorSetter(isolate, info, name, value);
     RETURN_VALUE_IF_EXCEPTION(isolate, Nothing<bool>());
@@ -1681,7 +1666,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
       // failed to set the property.
       RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                      NewTypeError(MessageTemplate::kStrictCannotSetProperty,
-                                  it->GetName(), receiver));
+                                  it->GetName(), args.holder()));
     }
     return Just(result);
   }
@@ -1689,6 +1674,15 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
   // Regular accessor.
   DirectHandle<Object> setter(Cast<AccessorPair>(*structure)->setter(),
                               isolate);
+
+  DirectHandle<JSAny> receiver = it->GetReceiver();
+  // In case of global IC, the receiver is the global object. Replace by the
+  // global proxy.
+  if (IsJSGlobalObject(*receiver)) {
+    receiver =
+        direct_handle(Cast<JSGlobalObject>(*receiver)->global_proxy(), isolate);
+  }
+
   if (IsFunctionTemplateInfo(*setter)) {
     DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
     SaveAndSwitchContext save(isolate, holder->GetCreationContext().value());

@@ -280,7 +280,7 @@ Maybe<bool> KeyAccumulator::CollectKeys(DirectHandle<JSReceiver> receiver,
       }
     } else {
       DCHECK(IsJSObject(*current));
-      result = CollectOwnKeys(receiver, Cast<JSObject>(current));
+      result = CollectOwnKeys(Cast<JSObject>(current));
     }
     MAYBE_RETURN(result, Nothing<bool>());
     if (!result.FromJust()) break;  // |false| means "stop iterating".
@@ -768,9 +768,9 @@ KeyAccumulator::FilterForEnumerableProperties(
 
 // Returns |true| on success, |nothing| on exception.
 Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
-    DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
-    DirectHandle<InterceptorInfo> interceptor, IndexedOrNamed type) {
-  PropertyCallbackArguments args(isolate_, *receiver, GetHolderForApi(*object));
+    DirectHandle<JSObject> object, DirectHandle<InterceptorInfo> interceptor,
+    IndexedOrNamed type) {
+  PropertyCallbackArguments args(isolate_, GetHolderForApi(*object));
 
   DCHECK_EQ(interceptor->is_named(), type == kNamed);
   if (!interceptor->has_enumerator()) {
@@ -809,8 +809,7 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
 }
 
 Maybe<bool> KeyAccumulator::CollectInterceptorKeys(
-    DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
-    IndexedOrNamed type) {
+    DirectHandle<JSObject> object, IndexedOrNamed type) {
   if (type == kIndexed) {
     if (!object->HasIndexedInterceptor()) return Just(true);
   } else {
@@ -820,17 +819,17 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeys(
       type == kIndexed ? object->GetIndexedInterceptor()
                        : object->GetNamedInterceptor(),
       isolate_);
-  return CollectInterceptorKeysInternal(receiver, object, interceptor, type);
+  return CollectInterceptorKeysInternal(object, interceptor, type);
 }
 
 Maybe<bool> KeyAccumulator::CollectOwnElementIndices(
-    DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object) {
+    DirectHandle<JSObject> object) {
   if (filter_ & SKIP_STRINGS || skip_indices_) return Just(true);
 
   ElementsAccessor* accessor = object->GetElementsAccessor();
   RETURN_NOTHING_IF_NOT_SUCCESSFUL(
       accessor->CollectElementIndices(object, this));
-  return CollectInterceptorKeys(receiver, object, kIndexed);
+  return CollectInterceptorKeys(object, kIndexed);
 }
 
 namespace {
@@ -1047,7 +1046,7 @@ ExceptionStatus CollectKeysFromDictionary(DirectHandle<Dictionary> dictionary,
 }  // namespace
 
 Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(
-    DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object) {
+    DirectHandle<JSObject> object) {
   if (filter_ == ENUMERABLE_STRINGS) {
     DirectHandle<FixedArray> enum_keys;
     if (object->HasFastProperties()) {
@@ -1121,11 +1120,11 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(
     }
   }
   // Add the property keys from the interceptor.
-  return CollectInterceptorKeys(receiver, object, kNamed);
+  return CollectInterceptorKeys(object, kNamed);
 }
 
 ExceptionStatus KeyAccumulator::CollectPrivateNames(
-    DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object) {
+    DirectHandle<JSObject> object) {
   DCHECK_EQ(mode_, KeyCollectionMode::kOwnOnly);
   if (object->HasFastProperties()) {
     int limit = object->map()->NumberOfOwnDescriptors();
@@ -1150,11 +1149,11 @@ ExceptionStatus KeyAccumulator::CollectPrivateNames(
 
 Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
     DirectHandle<AccessCheckInfo> access_check_info,
-    DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object) {
+    DirectHandle<JSObject> object) {
   if (!skip_indices_) {
     MAYBE_RETURN(
         (CollectInterceptorKeysInternal(
-            receiver, object,
+            object,
             direct_handle(
                 Cast<InterceptorInfo>(access_check_info->indexed_interceptor()),
                 isolate_),
@@ -1162,7 +1161,7 @@ Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
         Nothing<bool>());
   }
   MAYBE_RETURN((CollectInterceptorKeysInternal(
-                   receiver, object,
+                   object,
                    direct_handle(Cast<InterceptorInfo>(
                                      access_check_info->named_interceptor()),
                                  isolate_),
@@ -1173,8 +1172,7 @@ Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
 
 // Returns |true| on success, |false| if prototype walking should be stopped,
 // |nothing| if an exception was thrown.
-Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSReceiver> receiver,
-                                           DirectHandle<JSObject> object) {
+Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSObject> object) {
   // Check access rights if required.
   if (IsAccessCheckNeeded(*object) &&
       !isolate_->MayAccess(isolate_->native_context(), object)) {
@@ -1197,8 +1195,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSReceiver> receiver,
     // We always have both kinds of interceptors or none.
     if (!access_check_info.is_null() &&
         access_check_info->named_interceptor() != Tagged<Object>()) {
-      MAYBE_RETURN(CollectAccessCheckInterceptorKeys(access_check_info,
-                                                     receiver, object),
+      MAYBE_RETURN(CollectAccessCheckInterceptorKeys(access_check_info, object),
                    Nothing<bool>());
     }
     return Just(false);
@@ -1212,14 +1209,14 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(DirectHandle<JSReceiver> receiver,
     }
   }
   if (filter_ & PRIVATE_NAMES_ONLY) {
-    RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectPrivateNames(receiver, object));
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectPrivateNames(object));
     return Just(true);
   }
 
   if (may_have_elements_) {
-    MAYBE_RETURN(CollectOwnElementIndices(receiver, object), Nothing<bool>());
+    MAYBE_RETURN(CollectOwnElementIndices(object), Nothing<bool>());
   }
-  MAYBE_RETURN(CollectOwnPropertyNames(receiver, object), Nothing<bool>());
+  MAYBE_RETURN(CollectOwnPropertyNames(object), Nothing<bool>());
   return Just(true);
 }
 

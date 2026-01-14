@@ -128,7 +128,7 @@ void PrintFunctionCallbackInfo(Address* values, std::ostream& os) {
 void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
   using PCA = internal::PropertyCallbackArguments;
 
-  static_assert(PCA::kFullArgsLength == 12 || PCA::kFullArgsLength == 13);
+  static_assert(PCA::kFullArgsLength == 10 || PCA::kFullArgsLength == 11);
   bool is_named = args[PCA::kFrameTypeIndex] ==
                   Smi::FromEnum(StackFrame::API_NAMED_ACCESSOR_EXIT).ptr();
 
@@ -136,8 +136,7 @@ void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
      << "\n - isolate: " << AS_PTR(args[PCA::kIsolateIndex])
      << "\n - return_value: " << AS_OBJ(args[PCA::kReturnValueIndex])
      << "\n - holder: " << AS_OBJ(args[PCA::kHolderIndex])
-     << "\n - callback_info: " << AS_OBJ(args[PCA::kCallbackInfoIndex])
-     << "\n - receiver: " << AS_OBJ(args[PCA::kThisIndex]);
+     << "\n - callback_info: " << AS_OBJ(args[PCA::kCallbackInfoIndex]);
 
   if (is_named) {
     os << "\n - property_name: " << AS_OBJ(args[PCA::kPropertyKeyIndex]);

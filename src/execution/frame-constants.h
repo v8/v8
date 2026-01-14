@@ -714,21 +714,12 @@ class ApiAccessorExitFrameConstants : public ExitFrameConstants {
   // The following constants must be in sync with v8::PropertyCallbackInfo's
   // layout. This is guaraneed by static_asserts elsewhere.
   static constexpr int kPropertyCallbackInfoReturnValueIndex = 1;
-#if V8_TARGET_ARCH_ARM64
-  // This padding is required only on arm64 to keep the SP 16-byte aligned.
-  static constexpr int kPaddingSize = 1;
-#else
-  static constexpr int kPaddingSize = 0;
-#endif  // V8_TARGET_ARCH_ARM64
-  static constexpr int kPropertyCallbackInfoHolderIndex = 3 + kPaddingSize;
-  static constexpr int kPropertyCallbackInfoReceiverIndex = 4 + kPaddingSize;
+  static constexpr int kPropertyCallbackInfoHolderIndex = 3;
 
   // The number of Api arguments pushed on top of PC for getter/setter
   // callbacks.
-  static constexpr int kPropertyCallbackInfoGetterApiArgsLength =
-      5 + kPaddingSize;
-  static constexpr int kPropertyCallbackInfoSetterApiArgsLength =
-      7 + kPaddingSize;
+  static constexpr int kPropertyCallbackInfoGetterApiArgsLength = 4;
+  static constexpr int kPropertyCallbackInfoSetterApiArgsLength = 6;
   // FP-relative.
 
   // Offset of v8::PropertyCallbackInfo<T>::kPropertyKeyIndex slot.
@@ -748,9 +739,6 @@ class ApiAccessorExitFrameConstants : public ExitFrameConstants {
   static constexpr int kReturnValueOffset =
       kArgsArrayOffset +
       kPropertyCallbackInfoReturnValueIndex * kSystemPointerSize;
-  static constexpr int kReceiverOffset =
-      kArgsArrayOffset +
-      kPropertyCallbackInfoReceiverIndex * kSystemPointerSize;
   static constexpr int kHolderOffset =
       kArgsArrayOffset + kPropertyCallbackInfoHolderIndex * kSystemPointerSize;
 };

@@ -50,26 +50,22 @@ DirectHandle<JSObject> PropertyCallbackArguments::holder() const {
   return DirectHandle<JSObject>::FromSlot(slot_at(T::kHolderIndex).location());
 }
 
-DirectHandle<Object> PropertyCallbackArguments::receiver() const {
-  return DirectHandle<Object>::FromSlot(slot_at(T::kThisIndex).location());
-}
-
 #define DCHECK_NAME_COMPATIBLE(interceptor, name) \
   DCHECK(interceptor->is_named());                \
   DCHECK(!name->IsAnyPrivate());                  \
   DCHECK_IMPLIES(IsSymbol(*name), interceptor->can_intercept_symbols());
 
-#define PREPARE_CALLBACK_INFO_ACCESSOR(ISOLATE, F, API_RETURN_TYPE,            \
-                                       ACCESSOR_INFO, RECEIVER, ACCESSOR_KIND, \
-                                       EXCEPTION_CONTEXT)                      \
-  if (ISOLATE->should_check_side_effects() &&                                  \
-      !ISOLATE->debug()->PerformSideEffectCheckForAccessor(                    \
-          ACCESSOR_INFO, RECEIVER, ACCESSOR_KIND)) {                           \
-    return {};                                                                 \
-  }                                                                            \
-  const PropertyCallbackInfo<API_RETURN_TYPE>& callback_info =                 \
-      GetPropertyCallbackInfo<API_RETURN_TYPE>();                              \
-  ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F),                  \
+#define PREPARE_CALLBACK_INFO_ACCESSOR(ISOLATE, F, API_RETURN_TYPE,          \
+                                       ACCESSOR_INFO, HOLDER, ACCESSOR_KIND, \
+                                       EXCEPTION_CONTEXT)                    \
+  if (ISOLATE->should_check_side_effects() &&                                \
+      !ISOLATE->debug()->PerformSideEffectCheckForAccessor(                  \
+          ACCESSOR_INFO, HOLDER, ACCESSOR_KIND)) {                           \
+    return {};                                                               \
+  }                                                                          \
+  const PropertyCallbackInfo<API_RETURN_TYPE>& callback_info =               \
+      GetPropertyCallbackInfo<API_RETURN_TYPE>();                            \
+  ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F),                \
                                    EXCEPTION_CONTEXT, &callback_info);
 
 #define PREPARE_CALLBACK_INFO_INTERCEPTOR(ISOLATE, F, API_RETURN_TYPE,         \
@@ -185,7 +181,6 @@ Tagged<JSAny> FunctionCallbackArguments::CallOrConstruct(
 }
 
 PropertyCallbackArguments::PropertyCallbackArguments(Isolate* isolate,
-                                                     Tagged<Object> receiver,
                                                      Tagged<JSObject> holder)
     : Relocatable(isolate)
 #ifdef DEBUG
@@ -194,12 +189,11 @@ PropertyCallbackArguments::PropertyCallbackArguments(Isolate* isolate,
       javascript_execution_counter_(isolate->javascript_execution_counter())
 #endif  // DEBUG
 {
-  Initialize(isolate, receiver, holder);
+  Initialize(isolate, holder);
 }
 
 PropertyCallbackArguments::PropertyCallbackArguments(
-    Isolate* isolate, Tagged<Object> receiver, Tagged<JSObject> holder,
-    Maybe<ShouldThrow> should_throw)
+    Isolate* isolate, Tagged<JSObject> holder, Maybe<ShouldThrow> should_throw)
     : Relocatable(isolate)
 #ifdef DEBUG
       ,
@@ -207,7 +201,7 @@ PropertyCallbackArguments::PropertyCallbackArguments(
       javascript_execution_counter_(isolate->javascript_execution_counter())
 #endif  // DEBUG
 {
-  Initialize(isolate, receiver, holder);
+  Initialize(isolate, holder);
 
   int value = Internals::kInferShouldThrowMode;
   if (should_throw.IsJust()) {
@@ -217,7 +211,6 @@ PropertyCallbackArguments::PropertyCallbackArguments(
 }
 
 void PropertyCallbackArguments::Initialize(Isolate* isolate,
-                                           Tagged<Object> self,
                                            Tagged<JSObject> holder) {
   if (DEBUG_BOOL) {
     // Zap these fields to ensure that they are initialized by a subsequent
@@ -235,17 +228,8 @@ void PropertyCallbackArguments::Initialize(Isolate* isolate,
     values_[T::kShouldThrowOnErrorIndex] = kZapValue;
   }
   values_[T::kIsolateIndex] = reinterpret_cast<Address>(isolate);
-
-  static_assert(T::kHolderIndex == T::kUnusedIndex ||
-                T::kHolderIndex == (T::kUnusedIndex + 1));
-  if (T::kHolderIndex != T::kUnusedIndex) {
-    // If there's an unused slot, initialize it to zero to let GC safely
-    // visit it.
-    values_[T::kUnusedIndex] = 0;
-  }
   values_[T::kHolderIndex] = holder.ptr();
   DCHECK(!IsJSGlobalObject(*holder));
-  values_[T::kThisIndex] = self.ptr();
 
   // Make sure the Isolate slot is safe to visit by GC (Isolate pointer
   // is guaranteed to be page aligned).
@@ -594,8 +578,8 @@ DirectHandle<JSAny> PropertyCallbackArguments::CallAccessorGetter(
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   AccessorNameGetterCallback f = reinterpret_cast<AccessorNameGetterCallback>(
       accessor_info->getter(isolate));
-  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Value, accessor_info,
-                                 receiver(), ACCESSOR_GETTER,
+  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Value, accessor_info, holder(),
+                                 ACCESSOR_GETTER,
                                  ExceptionContext::kAttributeGet);
   f(v8::Utils::ToLocal(name), callback_info);
   return GetReturnValue<JSAny>();
@@ -624,7 +608,7 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // the result of [[Set]] operation according to JavaScript semantics.
   AccessorNameSetterCallback f = reinterpret_cast<AccessorNameSetterCallback>(
       accessor_info->setter(isolate));
-  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, void, accessor_info, receiver(),
+  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, void, accessor_info, holder(),
                                  ACCESSOR_SETTER,
                                  ExceptionContext::kAttributeSet);
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
