@@ -27,6 +27,13 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
   if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
     return true;
   }
+
+  // This function may be called while a DisallowSandboxAccess scope is active
+  // when comparing pointers to in-sandbox objects (which is allowed even when
+  // sandbox access is forbidden). As it ends up reading in-sandbox data, we
+  // need to temporarily allow sandbox access here.
+  AllowSandboxAccess sandbox_access("Access for object comparison check");
+
   Tagged<HeapObject> obj_a = UncheckedCast<HeapObject>(Tagged<Object>(a));
   Tagged<HeapObject> obj_b = UncheckedCast<HeapObject>(Tagged<Object>(b));
   // This check might fail when we try to compare objects in different pointer

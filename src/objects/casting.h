@@ -153,8 +153,13 @@ template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> TrustedCast(
     Holder<From> value, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
-  DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
-                          V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+  // Casting pointers to in-sandbox objects is allowed even with an active
+  // DisallowSandboxAccess scope (as casting itself doesn't access any memory).
+  // However, in debug builds the DCHECK below will need to access the Map of
+  // the object, so we need to temporarily enable sandbox access. If no
+  // DisallowSandboxAccess scope is active, this is a no-op.
+  DCHECK_WITH_SANDBOX_ACCESS_AND_MSG_AND_LOC(
+      NullOrIs<To>(value), V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   return UncheckedCast<To>(value);
 }
 

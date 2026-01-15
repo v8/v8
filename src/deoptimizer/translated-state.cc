@@ -564,6 +564,9 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
     return *storage_;
   }
 
+  AllowSandboxAccess sandbox_access(
+      "Accessing in-sandbox data for obtaining translated value");
+
   // Otherwise, do a best effort to get the value without allocation.
   switch (kind()) {
     case kTagged: {
@@ -1441,7 +1444,6 @@ int TranslatedState::CreateNextTranslatedValue(
       intptr_t value = registers->GetRegister(input_reg);
       Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
-        AllowSandboxAccess sandbox_access("Temporary access for tracing");
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
         ShortPrint(Tagged<Object>(uncompressed_value), trace_file);
@@ -1647,7 +1649,6 @@ int TranslatedState::CreateNextTranslatedValue(
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
       Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
-        AllowSandboxAccess sandbox_access("Temporary access for tracing");
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
                uncompressed_value, slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
