@@ -32,6 +32,35 @@ namespace maglev {
     }                                                      \
   } while (false)
 
+std::ostream& operator<<(std::ostream& os,
+                         MaglevPhiRepresentationSelector::UntaggingKind kind) {
+  switch (kind) {
+    case MaglevPhiRepresentationSelector::UntaggingKind::kNone:
+      return os << "None";
+    case MaglevPhiRepresentationSelector::UntaggingKind::kSmiConstant:
+      return os << "SmiConstant";
+    case MaglevPhiRepresentationSelector::UntaggingKind::kHeapNumberConstant:
+      return os << "HeapNumberConstant";
+    case MaglevPhiRepresentationSelector::UntaggingKind::kConversion:
+      return os << "Conversion";
+    case MaglevPhiRepresentationSelector::UntaggingKind::kUntaggedPhi:
+      return os << "UntaggedPhi";
+    case MaglevPhiRepresentationSelector::UntaggingKind::kKnownSmi:
+      return os << "KnownSmi";
+    case MaglevPhiRepresentationSelector::UntaggingKind::kKnownNumber:
+      return os << "KnownNumber";
+    case MaglevPhiRepresentationSelector::UntaggingKind::kSelfBackedge:
+      return os << "SelfBackedge";
+    case MaglevPhiRepresentationSelector::UntaggingKind::
+        kSpeculativePhiBackedge:
+      return os << "SpeculativePhiBackedge";
+    case MaglevPhiRepresentationSelector::UntaggingKind::kSpeculativeAny:
+      return os << "SpeculativeAny";
+    case MaglevPhiRepresentationSelector::UntaggingKind::kSpeculativeOSRValue:
+      return os << "SpeculativeOSRValue";
+  }
+}
+
 MaglevPhiRepresentationSelector::MaglevPhiRepresentationSelector(Graph* graph)
     : graph_(graph),
       reducer_(this, graph),
@@ -147,27 +176,52 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       input_reprs.Add(
           unwrapped_conv_input->properties().value_representation());
       untagging_kinds[i] = UntaggingKind::kConversion;
-    } else if (Phi* input_phi = input->TryCast<Phi>()) {
-      if (!input_phi->is_tagged()) {
-        input_reprs.Add(input_phi->value_representation());
-        untagging_kinds[i] = UntaggingKind::kUntaggedPhi;
-      } else {
-        // An untagged phi is an input of the current phi.
-        if (node->is_backedge_offset(i) &&
-            node->merge_state()->is_loop_with_peeled_iteration()) {
+    } else {
+      if (Phi* input_phi = input->TryCast<Phi>()) {
+        if (!input_phi->is_tagged()) {
+          // An untagged phi is an input of the current phi.
+          input_reprs.Add(input_phi->value_representation());
+          untagging_kinds[i] = UntaggingKind::kUntaggedPhi;
+          continue;
+        } else if (node->is_backedge_offset(i) && input_phi == node) {
+          // This is a backedge that is the Phi itself. We can skip it when
+          // deciding to untag or not: if we untag the Phi, the backedge will be
+          // automatically untagged as well.
+          // TODO(dmercadier): if there are only 2 inputs and the backedge
+          // points to the Phi itself, then we should just remove this Phi and
+          // replace it with an Identity to its first input.
+          untagging_kinds[i] = UntaggingKind::kSelfBackedge;
+          break;
+        } else if (node->is_backedge_offset(i) &&
+                   node->merge_state()->is_loop_with_peeled_iteration()) {
           // This is the backedge of a loop that has a peeled iteration. We
-          // ignore it and speculatively assume that it will be the same as the
-          // 1st input.
+          // ignore it and speculatively assume that it will be the same as
+          // the 1st input.
           DCHECK_EQ(node->input_count(), 2);
           DCHECK_EQ(i, 1);
           untagging_kinds[i] = UntaggingKind::kSpeculativePhiBackedge;
           break;
         }
-        has_tagged_phi_input = true;
-        input_reprs.RemoveAll();
-        break;
       }
-    } else {
+
+      // If the node has a known static type, we can easily untag it (at the
+      // code of inserting an untagging node in a predecessor).
+      // TODO(dmercadier): this can lead to untagging multiple times the same
+      // node. We should figure out a way to avoid this. Either by recording
+      // untagged alternatives during graph building somewhere. Or caching the
+      // new untagged nodes when we emit the untagging during phi untagging.
+      auto static_type = input->GetStaticType(graph_->broker());
+      if (NodeTypeIs(static_type, NodeType::kSmi)) {
+        input_reprs.Add(ValueRepresentation::kInt32);
+        untagging_kinds[i] = UntaggingKind::kKnownSmi;
+        continue;
+      }
+      if (NodeTypeIs(static_type, NodeType::kNumber)) {
+        input_reprs.Add(ValueRepresentation::kFloat64);
+        untagging_kinds[i] = UntaggingKind::kKnownNumber;
+        continue;
+      }
+
       // This is the case where we don't have an existing conversion to attach
       // the untagging to. In the general case we give up, however in the
       // special case of the value originating from the loop entry branch, we
@@ -180,27 +234,16 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
         untagging_kinds[i] = UntaggingKind::kSpeculativeOSRValue;
         continue;
       }
-      if (node->is_loop_phi() && !node->is_backedge_offset(i)) {
-        BasicBlock* pred = node->merge_state()->predecessor_at(i);
-        if (CanHoistUntaggingTo(pred)) {
-          auto static_type = input->GetStaticType(graph_->broker());
-          if (NodeTypeIs(static_type, NodeType::kSmi)) {
-            input_reprs.Add(ValueRepresentation::kInt32);
-            untagging_kinds[i] = UntaggingKind::kKnownSmi;
-            continue;
-          }
-          if (NodeTypeIs(static_type, NodeType::kNumber)) {
-            input_reprs.Add(ValueRepresentation::kFloat64);
-            untagging_kinds[i] = UntaggingKind::kKnownNumber;
-            continue;
-          }
 
-          // TODO(olivf): Unless we untag OSR values, speculatively untagging
-          // could end us in deopt loops. To enable this by default we need to
-          // add some feedback to be able to back off. Or, ideally find the
-          // respective checked conversion from within the loop to wire up the
-          // feedback collection.
-          if (v8_flags.maglev_speculative_hoist_phi_untagging) {
+      // TODO(olivf): Unless we untag OSR values, speculatively untagging
+      // could end us in deopt loops. To enable this by default we need to
+      // add some feedback to be able to back off. Or, ideally find the
+      // respective checked conversion from within the loop to wire up the
+      // feedback collection.
+      if (v8_flags.maglev_speculative_hoist_phi_untagging) {
+        if (node->is_loop_phi() && !node->is_backedge_offset(i)) {
+          BasicBlock* pred = node->merge_state()->predecessor_at(i);
+          if (CanHoistUntaggingTo(pred)) {
             // TODO(olivf): Currently there is no hard guarantee that the phi
             // merge state has a checkpointed jump.
             if (pred->control_node()->Is<CheckpointedJump>()) {
@@ -212,19 +255,6 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
         }
       }
 
-      // TODO(dmercadier): we should remove this special case and just in
-      // general consider the static type of the input if everything else fails.
-      // This is what we do above for loop phis, but there are no reasons for
-      // this to be limited to loop phis only.
-      if (LoadTaggedField* load = input->TryCast<LoadTaggedField>()) {
-        // If we're loading a Smi, we can untag it to get a Int32 input.
-        if (load->load_type() == LoadType::kSmi) {
-          input_reprs.Add(ValueRepresentation::kInt32);
-          untagging_kinds[i] = UntaggingKind::kLoadTaggedField;
-          continue;
-        }
-      }
-
       // This input is tagged, didn't require a tagging operation to be
       // tagged and we decided not to hosit; we won't untag {node}.
       // TODO(dmercadier): this is a bit suboptimal, because some nodes start
@@ -233,6 +263,10 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       // explicit conversion, and we thus won't untag {node} even though we
       // could have.
       input_reprs.RemoveAll();
+      if (input->Is<Phi>()) {
+        DCHECK(input->is_tagged());
+        has_tagged_phi_input = true;
+      }
       break;
     }
   }
@@ -252,6 +286,18 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   }
 
   TRACE_UNTAGGING("  + input_reprs: " << input_reprs);
+
+  if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging &&
+                  graph_->is_tracing_enabled())) {
+    StdoutStream{} << "Untagging kinds: {";
+    bool is_first = true;
+    for (int i = 0; i < node->input_count(); i++) {
+      if (!is_first) StdoutStream{} << ", ";
+      is_first = false;
+      StdoutStream{} << untagging_kinds[i];
+    }
+    StdoutStream{} << "}" << std::endl;
+  }
 
   if (use_reprs.contains(UseRepresentation::kTagged) ||
       use_reprs.contains(UseRepresentation::kUint32) || use_reprs.empty()) {
@@ -564,14 +610,11 @@ void MaglevPhiRepresentationSelector::UntagInputWithHoistedUntagging(
     case UntaggingKind::kHeapNumberConstant:
     case UntaggingKind::kConversion:
     case UntaggingKind::kUntaggedPhi:
-    case UntaggingKind::kLoadTaggedField:
+    case UntaggingKind::kSelfBackedge:
     case UntaggingKind::kSpeculativePhiBackedge:
     case UntaggingKind::kNone:
       UNREACHABLE();
   }
-  // Ensure the hoisted value is actually live at the hoist location.
-  CHECK(input->Is<InitialValue>() ||
-        (phi->is_loop_phi() && !phi->is_backedge_offset(input_index)));
   ValueNode* untagged;
   switch (repr) {
     case ValueRepresentation::kInt32:
@@ -892,36 +935,6 @@ void MaglevPhiRepresentationSelector::UntagUntaggedPhiInput(
   }
 }
 
-void MaglevPhiRepresentationSelector::UntagLoadTaggedFieldInput(
-    Phi* phi, ValueRepresentation repr, int input_index,
-    LoadTaggedField* load) {
-  const ValueNode* input = load->Cast<ValueNode>();  // For easy tracing
-  CHECK_EQ(load->load_type(), LoadType::kSmi);
-  ValueNode* untagged_input =
-      AddNewNodeNoInputConversionAtBlockEnd<UnsafeSmiUntag>(
-          phi->predecessor_at(input_index), {load});
-  switch (repr) {
-    case ValueRepresentation::kInt32:
-      break;
-    case ValueRepresentation::kFloat64:
-      untagged_input =
-          AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToFloat64>(
-              phi->predecessor_at(input_index), {untagged_input});
-      break;
-    case ValueRepresentation::kHoleyFloat64:
-      untagged_input =
-          AddNewNodeNoInputConversionAtBlockEnd<ChangeInt32ToHoleyFloat64>(
-              phi->predecessor_at(input_index), {untagged_input});
-      break;
-    case ValueRepresentation::kShiftedInt53:
-      UNIMPLEMENTED();
-    default:
-      UNREACHABLE();
-  }
-  TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Untagging smi-load input");
-  phi->change_input(input_index, untagged_input);
-}
-
 void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
     Phi* phi, ValueRepresentation repr,
     const UntaggingKindList& untagging_kinds) {
@@ -950,12 +963,14 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
       case UntaggingKind::kUntaggedPhi:
         UntagUntaggedPhiInput(phi, repr, input_index, input->Cast<Phi>());
         break;
+      case UntaggingKind::kSelfBackedge:
+        // Nothing to do.
+        DCHECK_EQ(input->value_representation(), repr);
+        DCHECK(input->Is<Phi>());
+        DCHECK(phi->is_backedge_offset(input_index));
+        break;
       case UntaggingKind::kSpeculativePhiBackedge:
         UntagBackedgePhiInput(phi, repr, input_index, input->Cast<Phi>());
-        break;
-      case UntaggingKind::kLoadTaggedField:
-        UntagLoadTaggedFieldInput(phi, repr, input_index,
-                                  input->Cast<LoadTaggedField>());
         break;
       case UntaggingKind::kKnownSmi:
       case UntaggingKind::kKnownNumber:

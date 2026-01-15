@@ -97,7 +97,6 @@ class MaglevPhiRepresentationSelector {
     return eager_deopt_frame_;
   }
 
- private:
   enum class UntaggingKind : uint8_t {
     kNone,
 
@@ -122,10 +121,9 @@ class MaglevPhiRepresentationSelector {
     kKnownSmi,
     kKnownNumber,
 
-    // TODO(dmercadier): this is a temporary kind that should be removed and
-    // kPredecessorUncheckedSmi/kPredecessorUncheckedNumber should be used
-    // instead.
-    kLoadTaggedField,
+    // A backedge that is equal to the Phi itself. Something like
+    // `n10 = Phi(n3, n10)`.
+    kSelfBackedge,
 
     // Note that the following cases can currently lead to deopt loops (but we
     // accept that since in general they do improve performance).
@@ -148,6 +146,7 @@ class MaglevPhiRepresentationSelector {
   };
   using UntaggingKindList = base::SmallVector<UntaggingKind, 8>;
 
+ private:
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.
   void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
@@ -165,8 +164,6 @@ class MaglevPhiRepresentationSelector {
                              int input_index, Phi* input_phi);
   void UntagBackedgePhiInput(Phi* phi, ValueRepresentation repr,
                              int input_index, Phi* input_phi);
-  void UntagLoadTaggedFieldInput(Phi* phi, ValueRepresentation repr,
-                                 int input_index, LoadTaggedField* load);
   template <class NodeT>
   ValueNode* GetReplacementForPhiInputConversion(ValueNode* input, Phi* phi,
                                                  uint32_t input_index);
@@ -310,6 +307,9 @@ class MaglevPhiRepresentationSelector {
 
   DeoptFrame* eager_deopt_frame_ = nullptr;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         MaglevPhiRepresentationSelector::UntaggingKind kind);
 
 }  // namespace maglev
 }  // namespace internal
