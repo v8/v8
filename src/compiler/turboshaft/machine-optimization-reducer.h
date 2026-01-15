@@ -2378,6 +2378,14 @@ class MachineOptimizationReducer : public Next {
                                      right, WordRepresentation(rep), &k2)) {
               return __ Word32Constant(k1 == k2);
             }
+            if (Handle<HeapObject> o1, o2;
+                matcher_.MatchHeapConstant(left, &o1) &&
+                matcher_.MatchHeapConstant(right, &o2)) {
+              UnparkedScopeIfNeeded unparked(broker);
+              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o1));
+              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o2));
+              return __ Word32Constant(o1.address() == o2.address());
+            }
             break;
           }
           case RegisterRepresentation::Float32(): {
@@ -2399,6 +2407,8 @@ class MachineOptimizationReducer : public Next {
                 matcher_.MatchHeapConstant(left, &o1) &&
                 matcher_.MatchHeapConstant(right, &o2)) {
               UnparkedScopeIfNeeded unparked(broker);
+              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o1));
+              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o2));
               if (IsString(*o1) && IsString(*o2)) {
                 // If handles refer to the same object, we can eliminate the
                 // check.
