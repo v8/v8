@@ -592,8 +592,12 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
       return NodeType::kNumberOrOddball;
     case ValueRepresentation::kTagged:
       break;
-    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
+      if (opcode() == Opcode::kIdentity) {
+        return UnwrapIdentities()->GetStaticType(broker);
+      }
+      [[fallthrough]];
+    case ValueRepresentation::kRawPtr:
       UNREACHABLE();
   }
   switch (opcode()) {
