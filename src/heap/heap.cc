@@ -3161,7 +3161,8 @@ void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
   base::MutexGuard guard(old_space()->mutex());
 
   if (OldGenerationSpaceAvailable() > at_least_remaining &&
-      GlobalMemoryAvailable() > at_least_remaining) {
+      GlobalMemoryAvailable() >
+          GlobalMemorySizeFromV8Size(at_least_remaining)) {
     return;
   }
 
