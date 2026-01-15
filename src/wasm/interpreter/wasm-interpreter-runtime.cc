@@ -15,6 +15,7 @@
 #include "src/wasm/interpreter/wasm-interpreter-objects-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime-inl.h"
 #include "src/wasm/wasm-arguments.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"
 
@@ -851,10 +852,11 @@ int32_t WasmInterpreterRuntime::AtomicNotify(uint64_t buffer_offset,
     HandleScope handle_scope(isolate_);
     // TODO(paolosev@microsoft.com): Support multiple memories.
     uint32_t memory_index = 0;
-    DirectHandle<JSArrayBuffer> array_buffer(wasm_trusted_instance_data()
-                                                 ->memory_object(memory_index)
-                                                 ->array_buffer(),
-                                             isolate_);
+    DirectHandle<JSArrayBuffer> array_buffer = WasmMemoryObject::GetArrayBuffer(
+        isolate_,
+        direct_handle(wasm_trusted_instance_data()->memory_object(memory_index),
+                      isolate_));
+
     int result = FutexEmulation::Wake(*array_buffer, buffer_offset, val);
     return result;
   }
@@ -870,9 +872,11 @@ int32_t WasmInterpreterRuntime::I32AtomicWait(uint64_t buffer_offset,
   HandleScope handle_scope(isolate_);
   // TODO(paolosev@microsoft.com): Support multiple memories.
   uint32_t memory_index = 0;
-  DirectHandle<JSArrayBuffer> array_buffer(
-      wasm_trusted_instance_data()->memory_object(memory_index)->array_buffer(),
-      isolate_);
+  DirectHandle<JSArrayBuffer> array_buffer = WasmMemoryObject::GetArrayBuffer(
+      isolate_,
+      direct_handle(wasm_trusted_instance_data()->memory_object(memory_index),
+                    isolate_));
+
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
   DCHECK_EQ(array_buffer->backing_store(), backing_store->buffer_start());
   auto result = FutexEmulation::WaitWasm32(isolate_, backing_store.get(),
@@ -890,9 +894,11 @@ int32_t WasmInterpreterRuntime::I64AtomicWait(uint64_t buffer_offset,
   HandleScope handle_scope(isolate_);
   // TODO(paolosev@microsoft.com): Support multiple memories.
   uint32_t memory_index = 0;
-  DirectHandle<JSArrayBuffer> array_buffer(
-      wasm_trusted_instance_data()->memory_object(memory_index)->array_buffer(),
-      isolate_);
+  DirectHandle<JSArrayBuffer> array_buffer = WasmMemoryObject::GetArrayBuffer(
+      isolate_,
+      direct_handle(wasm_trusted_instance_data()->memory_object(memory_index),
+                    isolate_));
+
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
   DCHECK_EQ(array_buffer->backing_store(), backing_store->buffer_start());
   auto result = FutexEmulation::WaitWasm64(isolate_, backing_store.get(),
