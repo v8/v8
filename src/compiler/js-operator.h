@@ -7,6 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/tnode.h"
+#include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
@@ -14,6 +15,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
@@ -505,6 +507,26 @@ class NamedAccess final {
 
 const NamedAccess& NamedAccessOf(const Operator* op);
 
+struct CreateGeneratorObjectParameters final {
+  IndirectHandle<BytecodeArray> bytecode_array;
+
+  explicit CreateGeneratorObjectParameters(
+      IndirectHandle<BytecodeArray> bytecode_array)
+      : bytecode_array(bytecode_array) {}
+
+  friend bool operator==(CreateGeneratorObjectParameters const&,
+                         CreateGeneratorObjectParameters const&);
+  friend bool operator!=(CreateGeneratorObjectParameters const&,
+                         CreateGeneratorObjectParameters const&);
+
+  friend size_t hash_value(CreateGeneratorObjectParameters const&);
+
+  friend std::ostream& operator<<(std::ostream&,
+                                  CreateGeneratorObjectParameters const&);
+};
+
+const CreateGeneratorObjectParameters& CreateGeneratorObjectParametersOf(
+    const Operator* op);
 
 // Defines the property being loaded from an object by a named load. This is
 // used as a parameter by JSLoadGlobal operator.
@@ -1126,7 +1148,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* FindNonDefaultConstructorOrConstruct();
 
-  const Operator* CreateGeneratorObject();
+  const Operator* CreateGeneratorObject(
+      IndirectHandle<BytecodeArray> bytecode_array);
 
   const Operator* LoadGlobal(NameRef name, const FeedbackSource& feedback,
                              TypeofMode typeof_mode = TypeofMode::kNotInside);

@@ -368,6 +368,30 @@ size_t hash_value(PropertyAccess const& p) {
                             FeedbackSource::Hash()(p.feedback()));
 }
 
+bool operator==(CreateGeneratorObjectParameters const& lhs,
+                CreateGeneratorObjectParameters const& rhs) {
+  return lhs.bytecode_array.location() == rhs.bytecode_array.location();
+}
+
+bool operator!=(CreateGeneratorObjectParameters const& lhs,
+                CreateGeneratorObjectParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CreateGeneratorObjectParameters const& p) {
+  return base::hash_combine(p.bytecode_array.location());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateGeneratorObjectParameters const& p) {
+  return os << Brief(*p.bytecode_array);
+}
+
+const CreateGeneratorObjectParameters& CreateGeneratorObjectParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateGeneratorObject, op->opcode());
+  return OpParameter<CreateGeneratorObjectParameters>(op);
+}
 
 bool operator==(LoadGlobalParameters const& lhs,
                 LoadGlobalParameters const& rhs) {
@@ -1308,11 +1332,14 @@ const Operator* JSOperatorBuilder::DeleteProperty() {
       3, 1, 1, 1, 1, 2);                                     // counts
 }
 
-const Operator* JSOperatorBuilder::CreateGeneratorObject() {
-  return zone()->New<Operator>(                                     // --
+const Operator* JSOperatorBuilder::CreateGeneratorObject(
+    IndirectHandle<BytecodeArray> bytecode_array) {
+  CreateGeneratorObjectParameters parameters(bytecode_array);
+  return zone()->New<Operator1<CreateGeneratorObjectParameters>>(   // --
       IrOpcode::kJSCreateGeneratorObject, Operator::kEliminatable,  // opcode
       "JSCreateGeneratorObject",                                    // name
-      2, 1, 1, 1, 1, 0);                                            // counts
+      2, 1, 1, 1, 1, 0,                                             // counts
+      parameters);  // parameters
 }
 
 const Operator* JSOperatorBuilder::LoadGlobal(NameRef name,
