@@ -648,29 +648,17 @@ void PrintExceptionHandlerPoint(std::ostream& os,
 
   // The exception handler liveness should be a subset of lazy_deopt_info one.
   auto* liveness = block->state()->frame_state().liveness();
-  LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
 
-  const InterpretedDeoptFrame* lazy_frame;
-  switch (deopt_info->top_frame().type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      lazy_frame = &deopt_info->top_frame().as_interpreted();
-      break;
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      UNREACHABLE();
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
-      break;
-  }
+  const maglev::InterpretedDeoptFrame& lazy_frame =
+      node->lazy_deopt_info()->GetFrameForExceptionHandler(info);
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, max_node_id, 0);
 
   os << "  ↳ throw @" << handler_offset << " (b" << block->id() << ") : {";
   bool first = true;
-  lazy_frame->as_interpreted().frame_state()->ForEachValue(
-      lazy_frame->as_interpreted().unit(),
-      [&](ValueNode* node, interpreter::Register reg) {
+  lazy_frame.frame_state()->ForEachValue(
+      lazy_frame.unit(), [&](ValueNode* node, interpreter::Register reg) {
         if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
           // Skip, since not live at the handler offset.
           return;
