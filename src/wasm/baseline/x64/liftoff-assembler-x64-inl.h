@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
@@ -598,8 +599,10 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder /* memory_order */,
                                   LiftoffRegList /* pinned */, bool i64_offset,
                                   Endianness /* endianness */) {
+  // x64 loads are suitable for both acquire and seqcst loads.
   Load(dst, src_addr, offset_reg, offset_imm, type, protected_load_pc, true,
        i64_offset);
 }
@@ -711,8 +714,17 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList /* pinned */, bool i64_offset,
                                    Endianness /* endianness */) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
+  if (memory_order == AtomicMemoryOrder::kAcqRel) {
+    // x64 stores have release semantics.
+    Store(dst_addr, offset_reg, offset_imm, src, type, {}, protected_store_pc,
+          true, i64_offset);
+    return;
+  }
   if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   Register src_reg = src.gp();

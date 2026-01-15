@@ -35,11 +35,15 @@
   /* V8 side owner: jabraham */                                                \
   V(instruction_tracing, "instruction tracing section", false)                 \
                                                                                \
-                                                                               \
   /* Shared-Everything Threads proposal. */                                    \
   /* https://github.com/WebAssembly/shared-everything-threads */               \
   /* V8 side owner: manoskouk */                                               \
   V(shared, "shared-everything threads", false)                                \
+                                                                               \
+  /* Acq-Rel memory ordering from Shared-Everything Threads proposal. */       \
+  /* Part of https://github.com/WebAssembly/shared-everything-threads */       \
+  /* V8 side owner: rezvan */                                                  \
+  V(acquire_release, "acquire_release memory ordering", false)                 \
                                                                                \
   /* FP16 proposal. */                                                         \
   /* https://github.com/WebAssembly/half-precision */                          \

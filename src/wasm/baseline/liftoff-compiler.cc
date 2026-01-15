@@ -5957,8 +5957,8 @@ class LiftoffCompiler {
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory) && index != no_reg) {
       outer_pinned.set(index);
     }
-    __ AtomicStore(addr, index, offset, value, type, nullptr, outer_pinned,
-                   i64_offset);
+    __ AtomicStore(addr, index, offset, value, type, nullptr, imm.memory_order,
+                   outer_pinned, i64_offset);
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(true, imm.mem_index, type.mem_rep(), index, offset,
                            decoder->position());
@@ -5990,8 +5990,8 @@ class LiftoffCompiler {
     Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
-    __ AtomicLoad(value, addr, index, offset, type, nullptr, pinned,
-                  i64_offset);
+    __ AtomicLoad(value, addr, index, offset, type, nullptr, imm.memory_order,
+                  pinned, i64_offset);
     __ PushRegister(kind, value);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
@@ -10451,7 +10451,7 @@ class LiftoffCompiler {
       // TODO(mliedtke): Can we emit something better if the memory order is
       // acqrel?
       __ AtomicLoad(dst, src, offset_reg, offset, load_type, &protected_load_pc,
-                    pinned, false, LiftoffAssembler::kNative);
+                    memory_order, pinned, false, LiftoffAssembler::kNative);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }
@@ -10488,7 +10488,7 @@ class LiftoffCompiler {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);
       __ AtomicStore(obj, offset_reg, offset, value, store_type,
-                     &protected_load_pc, pinned, false,
+                     &protected_load_pc, memory_order, pinned, false,
                      LiftoffAssembler::kNative);
     }
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);

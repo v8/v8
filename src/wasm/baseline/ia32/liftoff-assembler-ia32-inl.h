@@ -776,9 +776,11 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uint32_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder /* memory_order */,
                                   LiftoffRegList /* pinned */,
                                   bool /* i64_offset */,
                                   Endianness /* endianness */) {
+  // x86 loads are suitable for both acquire and seqcst loads.
   if (type.value() != LoadType::kI64Load) {
     Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true);
     return;
@@ -797,8 +799,11 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uint32_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList pinned, bool /* i64_offset */,
                                    Endianness /* endianness */) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   Operand dst_op = liftoff::MemOperand(dst_addr, offset_reg, offset_imm);
 
@@ -809,9 +814,11 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     movd(scratch2, src.high().gp());
     Punpckldq(liftoff::kScratchDoubleReg, scratch2);
     movsd(dst_op, liftoff::kScratchDoubleReg);
-    // This lock+or is needed to achieve sequential consistency.
-    lock();
-    or_(Operand(esp, 0), Immediate(0));
+    if (memory_order == AtomicMemoryOrder::kSeqCst) {
+      // This lock+or is needed to achieve sequential consistency.
+      lock();
+      or_(Operand(esp, 0), Immediate(0));
+    }
     return;
   }
 
@@ -841,21 +848,41 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     }
   }
 
-  switch (type.value()) {
-    case StoreType::kI64Store8:
-    case StoreType::kI32Store8:
-      xchg_b(src_gp, dst_op);
-      return;
-    case StoreType::kI64Store16:
-    case StoreType::kI32Store16:
-      xchg_w(src_gp, dst_op);
-      return;
-    case StoreType::kI64Store32:
-    case StoreType::kI32Store:
-      xchg(src_gp, dst_op);
-      return;
-    default:
-      UNREACHABLE();
+  if (memory_order == AtomicMemoryOrder::kSeqCst) {
+    switch (type.value()) {
+      case StoreType::kI64Store8:
+      case StoreType::kI32Store8:
+        xchg_b(src_gp, dst_op);
+        return;
+      case StoreType::kI64Store16:
+      case StoreType::kI32Store16:
+        xchg_w(src_gp, dst_op);
+        return;
+      case StoreType::kI64Store32:
+      case StoreType::kI32Store:
+        xchg(src_gp, dst_op);
+        return;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK_EQ(memory_order, AtomicMemoryOrder::kAcqRel);
+    switch (type.value()) {
+      case StoreType::kI64Store8:
+      case StoreType::kI32Store8:
+        mov_b(dst_op, src.gp());
+        return;
+      case StoreType::kI64Store16:
+      case StoreType::kI32Store16:
+        mov_w(dst_op, src.gp());
+        return;
+      case StoreType::kI64Store32:
+      case StoreType::kI32Store:
+        mov(dst_op, src.gp());
+        return;
+      default:
+        UNREACHABLE();
+    }
   }
 }
 

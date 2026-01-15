@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_ARM64_LIFTOFF_ASSEMBLER_ARM64_INL_H_
 
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/heap/mutable-page.h"
@@ -1089,6 +1090,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder /* memory_order */,
                                   LiftoffRegList /* pinned */,
                                   bool /* i64_offset */,
                                   Endianness /* endianness */) {
@@ -1096,6 +1098,7 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
   Register src_reg = liftoff::CalculateActualAddress(this, temps, src_addr,
                                                      offset_reg, offset_imm);
   if (protected_load_pc) *protected_load_pc = pc_offset();
+  // Ldar is suitable for both acquire and seqcst loads.
   switch (type.value()) {
     case LoadType::kI32Load8U:
     case LoadType::kI64Load8U:
@@ -1148,6 +1151,7 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder /* memory_order */,
                                    LiftoffRegList /* pinned */,
                                    bool /* i64_offset */,
                                    Endianness /* endianness */) {
@@ -1155,6 +1159,7 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   Register dst_reg = liftoff::CalculateActualAddress(this, temps, dst_addr,
                                                      offset_reg, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
+  // Stlr is suitable for both release and seqcst stores.
   switch (type.value()) {
     case StoreType::kI64Store8:
     case StoreType::kI32Store8:
