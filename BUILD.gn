@@ -463,7 +463,8 @@ declare_args() {
   v8_enable_experimental_tq_to_tsa = false
 
   # Use the encoding of undefined in double values.
-  v8_enable_undefined_double = true
+  v8_enable_undefined_double =
+      v8_target_cpu != "ppc64" && v8_target_cpu != "s390x"
 
   v8_dcheck_always_on = dcheck_always_on
 
