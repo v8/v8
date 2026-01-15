@@ -842,6 +842,9 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
       os_ << ", live range: [" << node_info->live_range().start << "-"
           << node_info->live_range().end << "]";
     }
+  } else if (phi->unused_inputs_were_visited()) {
+    // This node is dead, node sweeper will remove it.
+    os_ << "🪦";
   } else {
     os_ << ", " << phi->use_count() << " uses";
   }
