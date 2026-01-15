@@ -207,18 +207,19 @@ ReduceResult MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
   static_assert(IsFixedInputNode<NodeT>());
 
   std::array<ValueNode*, NodeT::kInputCount> inputs;
-  // Nodes with zero input count don't have kInputTypes defined.
+  // Nodes with zero input count don't have kInputRepresentations defined.
   if constexpr (NodeT::kInputCount > 0) {
     int i = 0;
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
     for (ValueNode* raw_input : raw_inputs) {
       if (convert_inputs) {
         GET_VALUE_OR_ABORT(
-            inputs[i], ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]));
+            inputs[i],
+            ConvertInputTo<hint>(raw_input, NodeT::kInputRepresentations[i]));
       } else {
         CHECK(ValueRepresentationIs(
             raw_input->properties().value_representation(),
-            NodeT::kInputTypes[i]));
+            NodeT::kInputRepresentations[i]));
         inputs[i] = raw_input;
       }
       i++;
@@ -311,15 +312,16 @@ ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
 template <typename BaseT>
 template <typename NodeT, typename InputsT>
 ReduceResult MaglevReducer<BaseT>::SetNodeInputs(NodeT* node, InputsT inputs) {
-  // Nodes with zero input count don't have kInputTypes defined.
+  // Nodes with zero input count don't have kInputRepresentations defined.
   if constexpr (NodeT::kInputCount > 0) {
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
     int i = 0;
     for (ValueNode* input : inputs) {
       DCHECK_NOT_NULL(input);
       ValueNode* converted;
-      GET_VALUE_OR_ABORT(converted,
-                         ConvertInputTo<hint>(input, NodeT::kInputTypes[i]));
+      GET_VALUE_OR_ABORT(
+          converted,
+          ConvertInputTo<hint>(input, NodeT::kInputRepresentations[i]));
       node->set_input(i, converted);
       i++;
     }
@@ -331,13 +333,13 @@ template <typename BaseT>
 template <typename NodeT, typename InputsT>
 void MaglevReducer<BaseT>::SetNodeInputsNoConversion(NodeT* node,
                                                      InputsT inputs) {
-  // Nodes with zero input count don't have kInputTypes defined.
+  // Nodes with zero input count don't have kInputRepresentations defined.
   if constexpr (NodeT::kInputCount > 0) {
     int i = 0;
     for (ValueNode* input : inputs) {
       DCHECK_NOT_NULL(input);
       CHECK(ValueRepresentationIs(input->properties().value_representation(),
-                                  NodeT::kInputTypes[i]));
+                                  NodeT::kInputRepresentations[i]));
       node->set_input(i, input);
       i++;
     }

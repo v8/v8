@@ -131,7 +131,8 @@ class PropagateTruncationProcessor {
   template <typename NodeT, int I>
   void UnsetCanTruncateToInt32ForFixedInputNodes(NodeT* node) {
     if constexpr (I < static_cast<int>(NodeT::kInputCount)) {
-      if constexpr (NodeT::kInputTypes[I] != ValueRepresentation::kTagged) {
+      if constexpr (NodeT::kInputRepresentations[I] !=
+                    ValueRepresentation::kTagged) {
         node->NodeBase::input(I).node()->set_can_truncate_to_int32(false);
       }
       UnsetCanTruncateToInt32ForFixedInputNodes<NodeT, I + 1>(node);

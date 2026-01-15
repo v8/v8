@@ -3251,7 +3251,7 @@ class ArrayWrapper : public std::array<ValueRepresentation, Size> {
     static_assert(sizeof...(args) == Size);
   }
 };
-struct YouNeedToDefineAnInputTypesArrayInYourDerivedClass {};
+struct YouNeedToDefineAnInputRepresentationsArrayInYourDerivedClass {};
 }  // namespace detail
 
 // Mixin for a node with known class (and therefore known opcode and static
@@ -3274,11 +3274,11 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
 
   void VerifyInputs() const {
     if constexpr (kInputCount != 0) {
-      static_assert(
-          std::is_same_v<const InputTypes, decltype(Derived::kInputTypes)>);
-      static_assert(kInputCount == Derived::kInputTypes.size());
+      static_assert(std::is_same_v<const InputRepresentations,
+                                   decltype(Derived::kInputRepresentations)>);
+      static_assert(kInputCount == Derived::kInputRepresentations.size());
       for (int i = 0; i < static_cast<int>(kInputCount); ++i) {
-        Base::CheckInputIs(i, Derived::kInputTypes[i]);
+        Base::CheckInputIs(i, Derived::kInputRepresentations[i]);
       }
     }
   }
@@ -3286,11 +3286,11 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing() {
     if constexpr (kInputCount != 0) {
-      static_assert(
-          std::is_same_v<const InputTypes, decltype(Derived::kInputTypes)>);
-      static_assert(kInputCount == Derived::kInputTypes.size());
+      static_assert(std::is_same_v<const InputRepresentations,
+                                   decltype(Derived::kInputRepresentations)>);
+      static_assert(kInputCount == Derived::kInputRepresentations.size());
       for (int i = 0; i < static_cast<int>(kInputCount); ++i) {
-        if (Derived::kInputTypes[i] == ValueRepresentation::kTagged) {
+        if (Derived::kInputRepresentations[i] == ValueRepresentation::kTagged) {
           ValueNode* input_node = this->input(i).node();
           input_node->SetTaggedResultNeedsDecompress();
         }
@@ -3300,9 +3300,10 @@ class FixedInputNodeTMixin : public NodeTMixin<BaseT, Derived> {
 #endif
 
  protected:
-  using InputTypes = detail::ArrayWrapper<kInputCount>;
-  static constexpr detail::YouNeedToDefineAnInputTypesArrayInYourDerivedClass
-      kInputTypes = {};
+  using InputRepresentations = detail::ArrayWrapper<kInputCount>;
+  static constexpr detail::
+      YouNeedToDefineAnInputRepresentationsArrayInYourDerivedClass
+          kInputRepresentations = {};
 
   template <typename... Args>
   explicit FixedInputNodeTMixin(uint64_t bitfield, Args&&... args)
@@ -3388,8 +3389,8 @@ class VarargsNodeTMixin : public NodeTMixin<BaseT, Derived> {
 
 #define VALUE_REPRESENTATION(x, idx) ValueRepresentation::k##x,
 
-#define DECLARE_INPUT_TYPES(...)                          \
-  static constexpr typename Base::InputTypes kInputTypes{ \
+#define DECLARE_INPUT_TYPES(...)                                              \
+  static constexpr typename Base::InputRepresentations kInputRepresentations{ \
       SELECT_MACRO(__VA_ARGS__)(VALUE_REPRESENTATION, __VA_ARGS__)};
 
 #define DECLARE_UNOP(Type) \
@@ -7687,7 +7688,7 @@ class MajorGCForCompilerTesting
   static constexpr OpProperties kProperties = OpProperties::NotIdempotent() |
                                               OpProperties::CanAllocate() |
                                               OpProperties::Call();
-  static constexpr typename Base::InputTypes kInputTypes{};
+  static constexpr typename Base::InputRepresentations kInputRepresentations{};
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -8739,7 +8740,7 @@ class StoreFixedDoubleArrayElementT : public FixedInputNodeT<3, Derived> {
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   DECLARE_INPUTS(Elements, Index, Value)
-  static constexpr typename Base::InputTypes kInputTypes{
+  static constexpr typename Base::InputRepresentations kInputRepresentations{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       value_input_rep};
 
@@ -10490,7 +10491,7 @@ class CallKnownJSFunction : public VarargsValueNodeT<4, CallKnownJSFunction> {
 // This node overwrites CallKnownJSFunction in-place after inlining.
 // Although ReturnedValue has only a single input, it is not a
 // FixedInputValueNode, since it accepts any input type and it
-// cannot declare a kInputTypes.
+// cannot declare a kInputRepresentations.
 class ReturnedValue : public ValueNodeT<ReturnedValue> {
  public:
   static_assert(CallKnownJSFunction::kFixedInputCount > 1);
@@ -11236,8 +11237,8 @@ class Throw : public TerminalControlNodeT<1, Throw> {
 #undef DECLARE_FUNCTION
   };
 
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+  static constexpr typename Base::InputRepresentations kInputRepresentations{
+      ValueRepresentation::kTagged};
 
   explicit Throw(uint64_t bitfield, Function function, bool has_input)
       : Base(HasInputBitField::update(
