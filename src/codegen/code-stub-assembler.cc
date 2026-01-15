@@ -14287,7 +14287,7 @@ void CodeStubAssembler::EmitElementStore(
         Goto(bailout);
       } else {
         DCHECK_EQ(elements_kind, ElementsKind::HOLEY_DOUBLE_ELEMENTS);
-        float_var = Float64Constant(UndefinedNan());
+        float_var = Float64Constant(internal::Float64::undefined_nan());
         float_is_undefined_var = BoolConstant(true);
         Goto(&float_done);
       }

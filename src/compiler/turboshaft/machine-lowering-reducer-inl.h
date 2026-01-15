@@ -1318,11 +1318,10 @@ class MachineLoweringReducer : public Next {
                __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(object))));
         } ELSE {
           V<Map> map = __ LoadMapField(V<HeapObject>::Cast(object));
-
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE
           GOTO_IF(
               __ TaggedEqual(map, __ HeapConstant(factory_->undefined_map())),
-              done, UndefinedNan());
+              done, __ Float64Constant(internal::Float64::undefined_nan()));
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
           IF (UNLIKELY(
                   __ TaggedEqual(map, __ HeapConstant(factory_->hole_map())))) {
@@ -1460,7 +1459,7 @@ class MachineLoweringReducer : public Next {
           V<Map> map = __ LoadMapField(V<HeapObject>::Cast(object));
           GOTO_IF(
               __ TaggedEqual(map, __ HeapConstant(factory_->undefined_map())),
-              done, UndefinedNan());
+              done, __ Float64Constant(internal::Float64::undefined_nan()));
           IF (UNLIKELY(
                   __ TaggedEqual(map, __ HeapConstant(factory_->hole_map())))) {
             __ Unreachable();

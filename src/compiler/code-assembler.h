@@ -643,6 +643,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<ExternalReference> IsolateField(IsolateFieldId id);
   TNode<Float32T> Float32Constant(double value);
   TNode<Float64T> Float64Constant(double value);
+  TNode<Float64T> Float64Constant(Float64 value);
   TNode<BoolT> Int32TrueConstant() {
     return ReinterpretCast<BoolT>(Int32Constant(1));
   }

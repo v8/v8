@@ -5127,7 +5127,7 @@ class GraphBuildingNodeProcessor {
 
     ScopedVar<Float64, AssemblerT> result(this, input);
     IF (__ Float64IsHole(input)) {
-      result = __ Float64Constant(UndefinedNan());
+      result = __ Float64Constant(internal::Float64::undefined_nan());
     }
 
     SetMap(node, result);

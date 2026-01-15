@@ -413,6 +413,10 @@ TNode<Float64T> CodeAssembler::Float64Constant(double value) {
   return UncheckedCast<Float64T>(jsgraph()->Float64Constant(value));
 }
 
+TNode<Float64T> CodeAssembler::Float64Constant(Float64 value) {
+  return UncheckedCast<Float64T>(jsgraph()->Float64Constant(value));
+}
+
 bool CodeAssembler::IsMapOffsetConstant(Node* node) {
   return raw_assembler()->IsMapOffsetConstant(node);
 }

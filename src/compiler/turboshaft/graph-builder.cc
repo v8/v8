@@ -730,7 +730,7 @@ OpIndex GraphBuilder::Process(
             !constant->float64().is_undefined_nan()) {
           return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
         }
-        return __ Float64Constant(constant->float64().get_scalar());
+        return __ Float64Constant(constant->float64());
       }
       ConvertJSPrimitiveToUntaggedOp* convert_op =
           input_op.TryCast<ConvertJSPrimitiveToUntaggedOp>();
