@@ -257,30 +257,25 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
 
 void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
     StoreMap* node, bool is_tracing_enabled) {
-  switch (node->kind()) {
-    case StoreMap::Kind::kInitializing:
-    case StoreMap::Kind::kInlinedAllocation:
-      return;
-    case StoreMap::Kind::kTransitioning: {
-      if (NodeInfo* node_info = TryGetInfoFor(node->ValueInput().node())) {
-        if (node_info->possible_maps_are_known() &&
-            node_info->possible_maps().size() == 1) {
-          compiler::MapRef old_map = node_info->possible_maps().at(0);
-          auto MaybeAliases = [&](compiler::MapRef map) -> bool {
-            return map.equals(old_map);
-          };
-          ClearUnstableMapsIfAny(MaybeAliases);
-          if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                          is_tracing_enabled)) {
-            std::cout << "  ! StoreMap: Clearing unstable map "
-                      << Brief(*old_map.object()) << std::endl;
-          }
-          return;
-        }
+  if (!node->is_transitioning()) return;
+
+  if (NodeInfo* node_info = TryGetInfoFor(node->ValueInput().node())) {
+    if (node_info->possible_maps_are_known() &&
+        node_info->possible_maps().size() == 1) {
+      compiler::MapRef old_map = node_info->possible_maps().at(0);
+      auto MaybeAliases = [&](compiler::MapRef map) -> bool {
+        return map.equals(old_map);
+      };
+      ClearUnstableMapsIfAny(MaybeAliases);
+      if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
+                      is_tracing_enabled)) {
+        std::cout << "  ! StoreMap: Clearing unstable map "
+                  << Brief(*old_map.object()) << std::endl;
       }
-      break;
+      return;
     }
   }
+
   // TODO(olivf): Only invalidate nodes with the same type.
   ClearUnstableMaps();
   if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building && is_tracing_enabled)) {

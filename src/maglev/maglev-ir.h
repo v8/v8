@@ -9140,6 +9140,16 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
   compiler::MapRef map() const { return map_; }
   Kind kind() const { return KindField::decode(bitfield()); }
 
+  bool is_transitioning() const {
+    switch (kind()) {
+      case Kind::kInitializing:
+      case Kind::kInlinedAllocation:
+        return false;
+      case Kind::kTransitioning:
+        return true;
+    }
+  }
+
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
