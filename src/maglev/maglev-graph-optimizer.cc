@@ -1136,7 +1136,10 @@ ProcessResult MaglevGraphOptimizer::VisitConstruct(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckConstructResult(
     CheckConstructResult* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  // TODO(b/424157317): Consider optimizing other cases, too.
+  if (node->ConstructResultInput().node()->IsUndefinedValue()) {
+    return ReplaceWith(node->ImplicitReceiverInput().node());
+  }
   return ProcessResult::kContinue;
 }
 
