@@ -1656,6 +1656,13 @@ CompilationDependencies::FieldTypeDependencyOffTheRecord(
   return zone_->New<FieldTypeDependency>(map, owner, descriptor, type);
 }
 
+void CompilationDependencies::DependOnFieldRepresentation(
+    MapRef map, MapRef owner, InternalIndex descriptor,
+    Representation representation) {
+  RecordDependency(zone_->New<FieldRepresentationDependency>(
+      map, owner, descriptor, representation));
+}
+
 #ifdef DEBUG
 // static
 bool CompilationDependencies::IsFieldRepresentationDependencyOnMap(

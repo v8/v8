@@ -363,12 +363,17 @@ class TurbolevEarlyLoweringReducer : public Next {
         details = descs.GetPropertyDetails(descriptor);
       }
       DCHECK_EQ(i, details.field_index() - in_object_length);
-      Representation r = details.representation();
+
+      Representation repr = details.representation();
+      MapRef field_owner_map = old_map.FindFieldOwner(broker_, descriptor);
+      broker_->dependencies()->DependOnFieldRepresentation(
+          old_map, field_owner_map, descriptor, repr);
 
       V<Object> old_value = __ template LoadField<Object>(
-          old_property_array, AccessBuilder::ForPropertyArraySlot(i, r));
+          old_property_array, AccessBuilder::ForPropertyArraySlot(i, repr));
       __ InitializeField(new_property_array,
-                         AccessBuilder::ForPropertyArraySlot(i, r), old_value);
+                         AccessBuilder::ForPropertyArraySlot(i, repr),
+                         old_value);
     }
 
     // Initialize new properties to undefined.

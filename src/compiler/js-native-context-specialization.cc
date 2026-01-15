@@ -4278,11 +4278,14 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
       details = descs.GetPropertyDetails(descriptor);
     }
     DCHECK_EQ(i, details.field_index() - in_object_length);
+    Representation repr = details.representation();
+    MapRef field_owner_map = map.FindFieldOwner(broker(), descriptor);
+    dependencies()->DependOnFieldRepresentation(map, field_owner_map,
+                                                descriptor, repr);
     Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForPropertyArraySlot(i, details.representation())),
+        simplified()->LoadField(AccessBuilder::ForPropertyArraySlot(i, repr)),
         properties, effect, control);
-    values.push_back({value, details.representation()});
+    values.push_back({value, repr});
   }
   // Initialize the new fields to undefined.
   for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
