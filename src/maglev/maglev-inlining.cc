@@ -174,7 +174,7 @@ bool MaglevInliner::Run() {
 
 int MaglevInliner::max_inlined_bytecode_size_cumulative() const {
   if (graph_->compilation_info()->is_turbolev()) {
-    return v8_flags.max_turbolev_inlined_bytecode_size_cumulative;
+    return v8_flags.max_inlined_bytecode_size_cumulative;
   } else {
     return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
   }
