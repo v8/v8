@@ -567,12 +567,6 @@ IrregexpInterpreter::Result RawMatch(
 
   uint32_t backtrack_count = 0;
 
-#ifdef ENABLE_DISASSEMBLER
-  if (v8_flags.trace_regexp_bytecodes) {
-    PrintF("\n\nStart bytecode interpreter\n\n");
-  }
-#endif
-
   while (true) {
     const uint8_t* next_pc = pc;
 #if V8_USE_COMPUTED_GOTO
@@ -1259,6 +1253,22 @@ int IrregexpInterpreter::Match(Isolate* isolate,
       output_register_count / registers_per_match;
 
   int backtrack_limit = regexp_data->backtrack_limit();
+
+#ifdef ENABLE_DISASSEMBLER
+  if (v8_flags.trace_regexp_bytecodes) {
+    static constexpr uint32_t kTruncateSubjectAtLength = 64;
+    const char* opt_truncated = "";
+    uint32_t subject_length = subject_string->length();
+    if (subject_length > kTruncateSubjectAtLength) {
+      subject_length = kTruncateSubjectAtLength;
+      opt_truncated = " (truncated)";
+    }
+    Tagged<String> pattern = Cast<String>(regexp_data->source());
+    PrintF("\n\nStart bytecode interpreter. Pattern /%s/ Subject '%s'%s\n",
+           pattern->ToCString().get(),
+           subject_string->ToCString(0, subject_length).get(), opt_truncated);
+  }
+#endif
 
   int num_matches = 0;
   int* current_output_registers = output_registers;

@@ -1010,18 +1010,6 @@ std::optional<int> RegExpImpl::IrregexpExec(
     int32_t* result_offsets_vector, uint32_t result_offsets_vector_length) {
   subject = String::Flatten(isolate, subject);
 
-#ifdef ENABLE_DISASSEMBLER
-  if (v8_flags.trace_regexp_bytecodes && regexp_data->ShouldProduceBytecode()) {
-    PrintF("\n\nRegexp match:   /%s/\n\n",
-           regexp_data->source()->ToCString().get());
-    static constexpr uint32_t kMaxSubjectStringLength = 64;
-    uint32_t printed_string_length =
-        std::min(subject->length(), kMaxSubjectStringLength);
-    PrintF("\n\nSubject string: '%s'\n\n",
-           subject->ToCString(0, printed_string_length).get());
-  }
-#endif
-
   const int original_register_count =
       JSRegExp::RegistersForCaptureCount(regexp_data->capture_count());
 
