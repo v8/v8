@@ -1945,6 +1945,9 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
       ResetOldGenerationAndGlobalAllocationLimit();
     } else if (preconfigured_old_generation_size_) {
       EnsureMinimumRemainingAllocationLimit(initial_old_generation_size_);
+      // Reset using_initial_limit() to prevent the sweeper from overwriting
+      // this limit right after this operation.
+      set_using_initial_limit(true);
     }
     if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
@@ -3156,38 +3159,17 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
 // there is more memory available then that, the limits remain as-is.
 void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
   base::MutexGuard guard(old_space()->mutex());
-  size_t new_old_generation_allocation_limit =
-      std::max(OldGenerationConsumedBytes() + at_least_remaining,
-               old_generation_allocation_limit());
-  new_old_generation_allocation_limit =
-      std::max(new_old_generation_allocation_limit, min_old_generation_size());
-  new_old_generation_allocation_limit =
-      std::min(new_old_generation_allocation_limit, max_old_generation_size());
 
-  size_t new_global_allocation_limit = std::max(
-      GlobalConsumedBytes() + GlobalMemorySizeFromV8Size(at_least_remaining),
-      global_allocation_limit());
-  new_global_allocation_limit =
-      std::max(new_global_allocation_limit, min_global_memory_size_);
-  new_global_allocation_limit =
-      std::min(new_global_allocation_limit, max_global_memory_size_);
-  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
-                                           new_global_allocation_limit);
-  // Reset using_initial_limit() to prevent the sweeper from overwriting this
-  // limit right after this operation.
-  set_using_initial_limit(true);
-}
-
-void Heap::EnsureAllocationLimitAboveCurrentSize() {
-  if (OldGenerationSpaceAvailable() > 0 && GlobalMemoryAvailable() > 0) {
+  if (OldGenerationSpaceAvailable() > at_least_remaining &&
+      GlobalMemoryAvailable() > at_least_remaining) {
     return;
   }
 
-  base::MutexGuard guard(old_space()->mutex());
   // At least with ArrayBufferExtensions, external memory could overflow size_t
   // on 32-bit. Use a saturated cast here to defend against this.
   size_t new_old_generation_allocation_limit = std::max(
-      base::saturated_cast<size_t>(OldGenerationAllocationLimitConsumedBytes()),
+      base::saturated_cast<size_t>(OldGenerationAllocationLimitConsumedBytes() +
+                                   at_least_remaining),
       old_generation_allocation_limit());
   // We need to clamp the new limit between the allowed minimum and maximum
   // value. We do not currently cap allocated external memory, so either the old
@@ -3207,15 +3189,16 @@ void Heap::EnsureAllocationLimitAboveCurrentSize() {
     // by manually adding it.
     current_global_bytes += AllocatedExternalMemorySinceMarkCompact();
   }
-  size_t new_global_allocation_limit =
-      std::max(current_global_bytes, global_allocation_limit());
+  size_t new_global_allocation_limit = std::max(
+      current_global_bytes + GlobalMemorySizeFromV8Size(at_least_remaining),
+      global_allocation_limit());
   new_global_allocation_limit =
       std::clamp(new_global_allocation_limit, min_global_memory_size_,
                  max_global_memory_size_);
 
   TRACE_EVENT_INSTANT(
       TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-      "V8.GCEnsureAllocationLimitAboveCurrentSize", "value",
+      "V8.GCEnsureMinimumRemainingAllocationLimit", "value",
       [&](perfetto::TracedValue ctx) {
         auto dict = std::move(ctx).WriteDictionary();
         dict.Add("old_gen_allocation_limit", old_generation_allocation_limit());
@@ -3232,6 +3215,10 @@ void Heap::EnsureAllocationLimitAboveCurrentSize() {
 
   SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
                                            new_global_allocation_limit);
+}
+
+void Heap::EnsureAllocationLimitAboveCurrentSize() {
+  EnsureMinimumRemainingAllocationLimit(0);
   CHECK_LE(OldGenerationConsumedBytes(), old_generation_allocation_limit());
   set_using_initial_limit(false);
 }
