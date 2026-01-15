@@ -765,6 +765,7 @@
 
   # --experimental-wasm-shared
   'regress/wasm/regress-454276076': [SKIP],
+  'regress/wasm/regress-475896261': [SKIP],
   'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 
@@ -2533,6 +2534,7 @@
   'regress/wasm/regress-388934347-a': [SKIP],
   'regress/wasm/regress-434008619': [SKIP],
   'regress/wasm/regress-454276076': [SKIP],
+  'regress/wasm/regress-475896261': [SKIP],
 
   # weakrefs/minor-gc-* tests require a young generation.
   'weakrefs/minor-gc-*': [SKIP],

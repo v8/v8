@@ -35,6 +35,12 @@ static_assert(0 == ToZeroBasedIndex(NumericKind::kI32));
 static_assert(kWasmVoid.is_void());
 static_assert(kWasmBottom.is_bottom());
 static_assert(kWasmTop.is_top());
+// "none_or_bottom" is the set of types that are subtypes of (exact $t).
+static_assert(kWasmBottom.is_none_or_bottom());
+static_assert(kWasmNullRef.is_none_or_bottom());
+static_assert(kWasmRefNone.is_none_or_bottom());
+static_assert(ValueType::Generic(GenericKind::kNone, kNullable, true)
+                  .is_none_or_bottom());
 
 ValueTypeCode ValueTypeBase::value_type_code_numeric() const {
   switch (numeric_kind()) {

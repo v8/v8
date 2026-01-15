@@ -439,6 +439,11 @@ class ValueTypeBase {
     uint32_t bits = bit_field_ & value_type_impl::kGenericKindMask;
     return bits == static_cast<uint32_t>(GenericKind::kVoid);
   }
+  constexpr bool is_none_or_bottom() const {
+    uint32_t bits = bit_field_ & value_type_impl::kGenericKindMask;
+    return bits == static_cast<uint32_t>(GenericKind::kNone) ||
+           bits == static_cast<uint32_t>(GenericKind::kBottom);
+  }
   constexpr bool is_string_view() const {
     uint32_t bits = bit_field_ & value_type_impl::kGenericKindMask;
     return bits == static_cast<uint32_t>(GenericKind::kStringViewWtf8) ||
