@@ -238,15 +238,9 @@ class BoyerMooreLookahead : public ZoneObject {
       int min_lookahead, int max_lookahead,
       DirectHandle<ByteArray> boolean_skip_table,
       DirectHandle<ByteArray> nibble_table = DirectHandle<ByteArray>{});
-  int FindBestOffsetForSkip(int* offset, bool* must_fail);
-  int FindBestOffsetForMaskCompare(int* offset, base::uc16* mask,
-                                   base::uc16* value);
-  int FindBestIntervalForBM(int* from, int* to);
+  bool FindWorthwhileInterval(int* from, int* to);
   int FindBestInterval(int max_number_of_chars, int old_biggest_points,
                        int* from, int* to);
-  int FrequencyOfCharsInBitmap(BoyerMoorePositionInfo::Bitset bitset,
-                               base::uc32* first_char = nullptr,
-                               base::uc32* last_char = nullptr);
 };
 
 // There are many ways to generate code for a node.  This class encapsulates

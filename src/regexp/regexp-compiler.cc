@@ -2777,64 +2777,10 @@ BoyerMooreLookahead::BoyerMooreLookahead(int length, RegExpCompiler* compiler,
   }
 }
 
-int BoyerMooreLookahead::FindBestOffsetForSkip(int* offset, bool* must_fail) {
-  const int kSize = RegExpMacroAssembler::kTableSize;
-  int biggest_points = 0;
-  for (int i = 0; i < length_; i++) {
-    if (Count(i) > 32) continue;
-    if (Count(i) == 0) *must_fail = true;
-    BoyerMoorePositionInfo::Bitset bitset = bitmaps_->at(i)->raw_bitset();
-
-    int frequency = FrequencyOfCharsInBitmap(bitset);
-    int points = kSize - frequency;
-    // Points may be negative here, in which case the offset has no chance of
-    // being selected as a good offset.
-    if (V8_UNLIKELY(v8_flags.regexp_skip_with_simd)) {
-      // Even more eager to use skip if at all feasible.
-      if (-50 < points && points <= 0) points = 1;
-    }
-    if (points > biggest_points) {
-      *offset = i;
-      biggest_points = points;
-    }
-  }
-  return biggest_points;
-}
-
-int BoyerMooreLookahead::FindBestOffsetForMaskCompare(
-    int* offset, base::uc16* mask_return, base::uc16* value_return) {
-  constexpr int kSize = RegExpMacroAssembler::kTableSize;
-
-  int biggest_points = 0;
-  for (int i = 0; i < length_; i++) {
-    if (Count(i) > 2) continue;
-    BoyerMoorePositionInfo::Bitset bitset = bitmaps_->at(i)->raw_bitset();
-
-    base::uc32 char_one;
-    base::uc32 char_two;
-
-    int frequency = FrequencyOfCharsInBitmap(bitset, &char_one, &char_two);
-    int points = kSize - frequency;
-    // Points may be negative here, in which case the offset has no chance of
-    // being selected as a good offset.
-    if (points > biggest_points) {
-      if (base::bits::CountPopulation(char_one ^ char_two) <= 2) {
-        *offset = i;
-        biggest_points = points;
-        base::uc16 mask = RegExpMacroAssembler::kTableMask;
-        mask &= ~(char_one ^ char_two);  // Mask out the bits where they differ.
-        *mask_return = mask;
-        *value_return = char_one & mask;
-      }
-    }
-  }
-  return biggest_points;
-}
-
 // Find the longest range of lookahead that has the fewest number of different
 // characters that can occur at a given position.  Since we are optimizing two
 // different parameters at once this is a tradeoff.
-int BoyerMooreLookahead::FindBestIntervalForBM(int* from, int* to) {
+bool BoyerMooreLookahead::FindWorthwhileInterval(int* from, int* to) {
   int biggest_points = 0;
   // If more than 32 characters out of 128 can occur it is unlikely that we can
   // be lucky enough to step forwards much of the time.
@@ -2844,10 +2790,10 @@ int BoyerMooreLookahead::FindBestIntervalForBM(int* from, int* to) {
     biggest_points =
         FindBestInterval(max_number_of_chars, biggest_points, from, to);
   }
-  return biggest_points;
+  if (biggest_points == 0) return false;
+  return true;
 }
 
-// Finds the best offsets in the data for a Boyer-Moore-Horspool search.
 // Find the highest-points range between 0 and length_ where the character
 // information is not too vague.  'Too vague' means that there are more than
 // max_number_of_chars that can occur at this position.  Calculates the number
@@ -2869,18 +2815,33 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
       union_bitset |= bitmaps_->at(i)->raw_bitset();
     }
 
-    int frequency = FrequencyOfCharsInBitmap(union_bitset);
+    int frequency = 0;
+
+    // Iterate only over set bits.
+    int j;
+    while ((j = BitsetFirstSetBit(union_bitset)) != -1) {
+      DCHECK(union_bitset[j]);  // Sanity check.
+      // Add 1 to the frequency to give a small per-character boost for
+      // the cases where our sampling is not good enough and many
+      // characters have a frequency of zero.  This means the frequency
+      // can theoretically be up to 2*kSize though we treat it mostly as
+      // a fraction of kSize.
+      frequency += compiler_->frequency_collator()->Frequency(j) + 1;
+      union_bitset.reset(j);
+    }
 
     // We use the probability of skipping times the distance we are skipping to
-    // judge the effectiveness of this.
+    // judge the effectiveness of this.  Actually we have a cut-off:  By
+    // dividing by 2 we switch off the skipping if the probability of skipping
+    // is less than 50%.  This is because the multibyte mask-and-compare
+    // skipping in quickcheck is more likely to do well on this case.
+    bool in_quickcheck_range =
+        ((i - remembered_from < 4) ||
+         (compiler_->one_byte() ? remembered_from <= 4 : remembered_from <= 2));
     // Called 'probability' but it is only a rough estimate and can actually
     // be outside the 0-kSize range.
-    int probability = kSize - frequency;
+    int probability = (in_quickcheck_range ? kSize / 2 : kSize) - frequency;
     int points = (i - remembered_from) * probability;
-    if (V8_UNLIKELY(v8_flags.regexp_skip_with_boyer_moore)) {
-      // Even more eager to use B-M if at all feasible.
-      if (-50 < points && points <= 0) points = 1;
-    }
     if (points > biggest_points) {
       *from = remembered_from;
       *to = i - 1;
@@ -2888,35 +2849,6 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
     }
   }
   return biggest_points;
-}
-
-int BoyerMooreLookahead::FrequencyOfCharsInBitmap(
-    BoyerMoorePositionInfo::Bitset bitset, base::uc32* first_char,
-    base::uc32* last_char) {
-  constexpr base::uc32 kNoChar = 0xffffffff;
-  if (first_char) *first_char = kNoChar;
-  // Iterate only over set bits.
-  int j;
-  int frequency = 0;
-  while ((j = BitsetFirstSetBit(bitset)) != -1) {
-    DCHECK(bitset[j]);  // Sanity check.
-    if (first_char) {
-      if (*first_char == kNoChar) {
-        *first_char = j;
-        *last_char = j;
-      } else {
-        *last_char = j;
-      }
-    }
-    // Add 1 to the frequency to give a small per-character boost for
-    // the cases where our sampling is not good enough and many
-    // characters have a frequency of zero.  This means the frequency
-    // can theoretically be up to 2*kSize though we treat it mostly as
-    // a fraction of kSize.
-    frequency += compiler_->frequency_collator()->Frequency(j) + 1;
-    bitset.reset(j);
-  }
-  return frequency;
 }
 
 // Take all the characters that will not prevent a successful match if they
@@ -2981,115 +2913,95 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
 
   int min_lookahead = 0;
   int max_lookahead = 0;
-  int skip_offset = 0;
-  int mask_compare_offset = 0;
-  bool must_fail = false;
-  base::uc16 mask;
-  base::uc16 value;
 
-  int bm_points = FindBestIntervalForBM(&min_lookahead, &max_lookahead);
-  int skip_points = FindBestOffsetForSkip(&skip_offset, &must_fail);
-  int mask_compare_points =
-      FindBestOffsetForMaskCompare(&mask_compare_offset, &mask, &value);
+  if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead)) return;
 
-  if (must_fail) {
-    masm->Fail();
+  // Check if we only have a single non-empty position info, and that info
+  // contains only one or two characters.
+  bool found_single_position = false;
+  constexpr uint32_t kNoChar = 0xffffffff;
+  uint32_t char_one = kNoChar;
+  uint32_t char_two = kNoChar;
+  bool use_simd = masm->SkipUntilBitInTableUseSimd(1);
+  for (int i = min_lookahead; i <= max_lookahead; i++) {
+    BoyerMoorePositionInfo* map = bitmaps_->at(i);
+    if (map->map_count() == 0) {
+      // If we have a position where no characters can match then we just can't
+      // match.
+      masm->Fail();
+      return;
+    }
+
+    if (found_single_position || map->map_count() > 2) {
+      // We found a second position or there were more than two characters that
+      // matched at this position.
+      found_single_position = false;
+      break;
+    }
+
+    BoyerMoorePositionInfo::Bitset bitset = map->raw_bitset();
+    char_one = BitsetFirstSetBit(bitset);
+    if (map->map_count() == 2) {
+      bitset.reset(char_one);
+      char_two = BitsetFirstSetBit(bitset);
+    } else {
+      char_two = char_one;  // Everything below here works for identical chars.
+    }
+    DCHECK(!found_single_position);
+    if (base::bits::CountPopulation(char_one ^ char_two) > 1) {
+      // For case independent matches we often find two characters that differ
+      // only at one bit positions, but in this case they differed more.  We
+      // don't have a great bytecode for two characters that are too different.
+      break;
+    }
+
+    DCHECK_LE(map->map_count(), 2);
+
+    found_single_position = true;
+
+    DCHECK_NE(char_one, kNoChar);
+    DCHECK_NE(char_two, kNoChar);
+  }
+
+  DCHECK_IMPLIES(found_single_position, max_lookahead == min_lookahead);
+
+  if (found_single_position && max_lookahead < 3) {
+    // The mask-compare can probably handle this better.
     return;
   }
 
-  // We can pick one of:
-  // * Boyer-Moore-Horspool
-  // * Simd-based table skip
-  // * Mask-compare search
-  //
-  // After one of these, Quickcheck may also be run if worthwhile. That means
-  // doing mask-compare on the first 4 chars together.
-
-  // The SIMD-based table skip takes a lot of setup, but can skip a lot of
-  //   characters very fast if the pattern is rare enough.  It loses for
-  //   characters that are reasonably common because of the setup time.
-  // Mask-compare search takes almost no setup, so it works even on fairly
-  //   marginal data, and doesn't need a table.  However, if the offset is
-  //   within the first 4 characters then the regular quickcheck will be at
-  //   least as fast.
-
-  int max_quick_check = compiler_->one_byte() ? 4 : 2;
-  int bm_limit =
-      (bm_points > 0 && max_lookahead >= max_quick_check) ? 100 : 150;
-  int simd_limit =
-      (skip_points > 0 && skip_offset >= max_quick_check) ? 75 : 100;
-  // Boost at high end where setup is worth it.
-  if (skip_points >= 120) skip_points += 4 * (skip_points - 120);
-
-  // This means use SIMD for skip-until-bit-in-table. TODO: If we write
-  // SIMD macro assembler instructions for mask-compare we will want to
-  // rename this and evaluate separately when to trigger the SIMD variant
-  // of the mask-compare.
-  bool use_simd = masm->SkipUntilBitInTableUseSimd(1) &&
-                  skip_points > simd_limit && skip_points > bm_points;
-  bool use_bm = !use_simd && bm_points > skip_points && bm_points > bm_limit &&
-                bm_points > mask_compare_points;
-  bool use_mask_compare = !use_bm && !use_simd && mask_compare_points > 0 &&
-                          mask_compare_offset > max_quick_check;
-
-  if (V8_UNLIKELY(v8_flags.regexp_skip_with_simd && skip_points > 0)) {
-    use_simd = true;
-    use_bm = false;
-    use_mask_compare = false;
-  }
-  if (V8_UNLIKELY(v8_flags.regexp_skip_with_boyer_moore && bm_points > 0)) {
-    use_simd = false;
-    use_bm = true;
-    use_mask_compare = false;
-  }
-  if (V8_UNLIKELY(!v8_flags.regexp_skip)) {
-    use_simd = false;
-    use_bm = false;
-    use_mask_compare = false;
-  }
-
-  // We must have at least one point to select a strategy because otherwise
-  // the offsets have not been  set by the relevant FindBest* function.
-  DCHECK_IMPLIES(use_simd, skip_points > 0);
-  DCHECK_IMPLIES(use_bm, bm_points > 0);
-  DCHECK_IMPLIES(use_mask_compare, mask_compare_points > 0);
-
-  if (use_mask_compare) {
+  if (found_single_position && !use_simd) {
+    // TODO(pthier): Add vectorized version. At that point we will want
+    // to remove the ' && !use_simd' above.
     DCHECK(max_char_ > kSize);  // This means we will have to do the 'and'.
 
     Label cont;
-    masm->SkipUntilCharAnd(mask_compare_offset, 1, value, mask, length(), &cont,
-                           &cont);
+    base::uc16 mask = RegExpMacroAssembler::kTableMask;
+    mask &= ~(char_one ^ char_two);  // Mask out the bit where they differ.
+    masm->SkipUntilCharAnd(max_lookahead, 1, char_one & mask, mask, length(),
+                           &cont, &cont);
+
     masm->Bind(&cont);
     return;
   }
-
-  if (!use_simd && !use_bm) return;
 
   Factory* factory = masm->isolate()->factory();
   Handle<ByteArray> boolean_skip_table =
       factory->NewByteArray(kSize, AllocationType::kOld);
   Handle<ByteArray> nibble_table;
-  if (use_simd) {
+  const int skip_distance = max_lookahead + 1 - min_lookahead;
+  if (masm->SkipUntilBitInTableUseSimd(skip_distance)) {
     // The current implementation is tailored specifically for 128-bit tables.
     static_assert(kSize == 128);
     nibble_table =
         factory->NewByteArray(kSize / kBitsPerByte, AllocationType::kOld);
   }
+  GetSkipTable(min_lookahead, max_lookahead, boolean_skip_table, nibble_table);
+  DCHECK_NE(0, skip_distance);
 
   Label cont;
-  if (use_simd) {
-    GetSkipTable(skip_offset, skip_offset, boolean_skip_table, nibble_table);
-    masm->SkipUntilBitInTable(skip_offset, boolean_skip_table, nibble_table, 1,
-                              &cont, &cont);
-  } else {
-    DCHECK(use_bm);
-    const int skip_distance = max_lookahead + 1 - min_lookahead;
-    GetSkipTable(min_lookahead, max_lookahead, boolean_skip_table,
-                 nibble_table);
-    masm->SkipUntilBitInTable(max_lookahead, boolean_skip_table, {},
-                              skip_distance, &cont, &cont);
-  }
+  masm->SkipUntilBitInTable(max_lookahead, boolean_skip_table, nibble_table,
+                            skip_distance, &cont, &cont);
   masm->Bind(&cont);
 }
 
