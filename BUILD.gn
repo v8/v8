@@ -8214,6 +8214,8 @@ v8_executable("d8") {
     "src/d8/d8-test.cc",
     "src/d8/d8.cc",
     "src/d8/d8.h",
+    "src/d8/hardware-watchpoints.cc",
+    "src/d8/hardware-watchpoints.h",
   ]
 
   configs = [

@@ -48,6 +48,15 @@ namespace internal {
 
 SandboxTesting::Mode SandboxTesting::mode_ = SandboxTesting::Mode::kDisabled;
 
+namespace {
+void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
+  isolate->ThrowException(v8::Exception::TypeError(
+      v8::String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
+                              static_cast<int>(message.size()))
+          .ToLocalChecked()));
+}
+}  // namespace
+
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {
@@ -373,41 +382,6 @@ void SandboxGetInstanceTypeIdFor(
   info.GetReturnValue().Set(type_id);
 }
 
-void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
-  isolate->ThrowException(v8::Exception::TypeError(
-      v8::String::NewFromUtf8(isolate, message.data(), NewStringType::kNormal,
-                              static_cast<int>(message.size()))
-          .ToLocalChecked()));
-}
-
-std::optional<int> GetFieldOffset(v8::Isolate* isolate,
-                                  InstanceType instance_type,
-                                  const std::string& field_name) {
-  SandboxTesting::FieldOffsetMap& all_fields =
-      SandboxTesting::GetFieldOffsetMap();
-  auto fields_it = all_fields.find(instance_type);
-  if (fields_it == all_fields.end()) {
-    std::ostringstream error;
-    error << "Unknown object type \"" << ToString(instance_type)
-          << "\". If needed, add it in SandboxTesting::GetFieldOffsetMap";
-    ThrowTypeError(isolate, error.view());
-    return std::nullopt;
-  }
-
-  SandboxTesting::FieldOffsets& obj_fields = fields_it->second;
-  auto offset_it = obj_fields.find(field_name);
-  if (offset_it == obj_fields.end()) {
-    std::ostringstream error;
-    error << "Unknown field \"" << field_name << "\" of instance type "
-          << ToString(instance_type)
-          << ". If needed, add it in SandboxTesting::GetFieldOffsetMap";
-    ThrowTypeError(isolate, error.view());
-    return std::nullopt;
-  }
-
-  return offset_it->second;
-}
-
 // Obtain the offset of a field in an object.
 //
 // This can be used to obtain the offsets of internal object fields in order to
@@ -448,7 +422,7 @@ void SandboxGetFieldOffset(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   if (std::optional<int> offset =
-          GetFieldOffset(isolate, instance_type, *field_name)) {
+          SandboxTesting::GetFieldOffset(isolate, instance_type, *field_name)) {
     info.GetReturnValue().Set(offset.value());
   } else {
     DCHECK(isolate->HasPendingException());
@@ -549,8 +523,8 @@ void SandboxCorruptObjectField(
     }
 
     InstanceType instance_type = obj->map()->instance_type();
-    if (std::optional<int> offset_from_name =
-            GetFieldOffset(isolate, instance_type, *field_name)) {
+    if (std::optional<int> offset_from_name = SandboxTesting::GetFieldOffset(
+            isolate, instance_type, *field_name)) {
       offset = offset_from_name.value();
     } else {
       DCHECK(isolate->HasPendingException());
@@ -1232,6 +1206,34 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;
+}
+
+std::optional<int> SandboxTesting::GetFieldOffset(
+    v8::Isolate* isolate_for_errors, InstanceType instance_type,
+    const std::string& field_name) {
+  SandboxTesting::FieldOffsetMap& all_fields =
+      SandboxTesting::GetFieldOffsetMap();
+  auto fields_it = all_fields.find(instance_type);
+  if (fields_it == all_fields.end()) {
+    std::ostringstream error;
+    error << "Unknown object type \"" << ToString(instance_type)
+          << "\". If needed, add it in SandboxTesting::GetFieldOffsetMap";
+    ThrowTypeError(isolate_for_errors, error.view());
+    return std::nullopt;
+  }
+
+  SandboxTesting::FieldOffsets& obj_fields = fields_it->second;
+  auto offset_it = obj_fields.find(field_name);
+  if (offset_it == obj_fields.end()) {
+    std::ostringstream error;
+    error << "Unknown field \"" << field_name << "\" of instance type "
+          << ToString(instance_type)
+          << ". If needed, add it in SandboxTesting::GetFieldOffsetMap";
+    ThrowTypeError(isolate_for_errors, error.view());
+    return std::nullopt;
+  }
+
+  return offset_it->second;
 }
 
 #endif  // V8_ENABLE_SANDBOX

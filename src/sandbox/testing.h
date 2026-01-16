@@ -88,6 +88,12 @@ class SandboxTesting : public AllStatic {
   using FieldOffsetMap = std::unordered_map<InstanceType, FieldOffsets>;
   static FieldOffsetMap& GetFieldOffsetMap();
 
+  // Returns the field offset based on instance type and field name, or throws
+  // an error in the isolate and returns an empty optional.
+  V8_EXPORT_PRIVATE static std::optional<int> GetFieldOffset(
+      v8::Isolate* isolate_for_errors, InstanceType instance_type,
+      const std::string& field_name);
+
  private:
   static Mode mode_;
 };
