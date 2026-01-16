@@ -1466,6 +1466,56 @@ void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
   fmv_d_x(value, scratch2);
 }
 
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+void MaglevAssembler::JumpIfUndefinedNan(DoubleRegister value, Register scratch,
+                                         Label* target,
+                                         Label::Distance distance) {
+  ASM_CODE_COMMENT(this);
+  // TODO(leszeks): Right now this only accepts Zone-allocated target labels.
+  // This works because all callsites are jumping to either a deopt, deferred
+  // code, or a basic block. If we ever need to jump to an on-stack label, we
+  // have to add support for it here change the caller to pass a ZoneLabelRef.
+  DCHECK(compilation_info()->zone()->Contains(target));
+  ZoneLabelRef is_undefined = ZoneLabelRef::UnsafeFromLabelPointer(target);
+  ZoneLabelRef is_not_undefined(this);
+  JumpIfNan(
+      value,
+      MakeDeferredCode(
+          [](MaglevAssembler* masm, DoubleRegister value, Register scratch,
+             ZoneLabelRef is_undefined, ZoneLabelRef is_not_undefined) {
+            masm->fmv_x_w(scratch, value);
+            masm->MacroAssembler::Branch(
+                *is_undefined, kEqual, scratch,
+                Operand(static_cast<int32_t>(kUndefinedNanUpper32)));
+            masm->Jump(*is_not_undefined);
+          },
+          value, scratch, is_undefined, is_not_undefined));
+  bind(*is_not_undefined);
+}
+
+void MaglevAssembler::JumpIfUndefinedNan(MemOperand operand, Label* target,
+                                         Label::Distance distance) {
+  ASM_CODE_COMMENT(this);
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register upper_bits = temps.AcquireScratch();
+  DCHECK(operand.is_reg());
+  Lw(upper_bits,
+     MemOperand(operand.rm(), operand.offset() + (kDoubleSize / 2)));
+  MacroAssembler::Branch(target, eq, upper_bits,
+                         Operand(static_cast<int32_t>(kUndefinedNanUpper32)));
+}
+
+void MaglevAssembler::JumpIfNotUndefinedNan(DoubleRegister value,
+                                            Register scratch, Label* target,
+                                            Label::Distance distance) {
+  ASM_CODE_COMMENT(this);
+  JumpIfNotNan(value, target, distance);
+  fmv_x_w(scratch, value);
+  MacroAssembler::Branch(target, ne, scratch,
+                         Operand(static_cast<int32_t>(kUndefinedNanUpper32)));
+}
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+
 void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
                                     Label* target, Label::Distance distance) {
   // TODO(leszeks): Right now this only accepts Zone-allocated target labels.
