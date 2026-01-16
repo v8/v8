@@ -650,7 +650,7 @@ void ZapDeadObjectsInRange(Heap* heap, Address dead_start, Address dead_end,
 
 void Sweeper::LocalSweeper::ParallelIteratePromotedPage(MutablePage* page) {
   DCHECK(v8_flags.minor_ms);
-  DCHECK(!page->Chunk()->IsBlackAllocatedPage());
+  DCHECK(!page->is_black_allocated());
   DCHECK_NOT_NULL(page);
   {
     base::MutexGuard guard(page->mutex());
@@ -1179,7 +1179,7 @@ void Sweeper::RawSweep(NormalPage* p,
          (space->identity() == NEW_SPACE && v8_flags.minor_ms));
   DCHECK(!p->Chunk()->IsEvacuationCandidate());
   DCHECK(!p->SweepingDone());
-  DCHECK(!p->Chunk()->IsBlackAllocatedPage());
+  DCHECK(!p->is_black_allocated());
   DCHECK_IMPLIES(space->identity() == NEW_SPACE,
                  !heap_->incremental_marking()->IsMinorMarking());
   DCHECK_IMPLIES(space->identity() != NEW_SPACE,
@@ -1409,7 +1409,7 @@ void Sweeper::AddNewSpacePage(NormalPage* page) {
 void Sweeper::AddPageImpl(AllocationSpace space, NormalPage* page) {
   DCHECK(heap_->IsMainThread());
   DCHECK(page->SweepingDone());
-  DCHECK(!page->Chunk()->IsBlackAllocatedPage());
+  DCHECK(!page->is_black_allocated());
   DCHECK(IsValidSweepingSpace(space));
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping && (space != NEW_SPACE),
                  !major_sweeping_state_.HasValidJob());
@@ -1483,7 +1483,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, NormalPage* page) {
 }
 
 void Sweeper::PrepareToBeIteratedPromotedPage(NormalPage* page) {
-  DCHECK(!page->Chunk()->IsBlackAllocatedPage());
+  DCHECK(!page->is_black_allocated());
   DCHECK_EQ(OLD_SPACE, page->owner_identity());
   VerifyPreparedPage(page);
   page->set_concurrent_sweeping_state(

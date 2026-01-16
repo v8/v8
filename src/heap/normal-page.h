@@ -88,6 +88,7 @@ class NormalPage final : public MutablePage {
 
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
   void DestroyBlackArea(Address start, Address end);
+  void ClearBlackAllocation();
 
   void InitializeFreeListCategories();
   void AllocateFreeListCategories();

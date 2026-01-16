@@ -217,6 +217,12 @@ class BasePage {
     return IsWritableSharedSpaceField::decode(flags_);
   }
 
+  bool is_black_allocated() const {
+    const bool black_allocated = IsBlackAllocated::decode(flags_);
+    DCHECK_IMPLIES(black_allocated, v8_flags.black_allocated_pages);
+    return black_allocated;
+  }
+
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
@@ -257,6 +263,13 @@ class BasePage {
   void set_is_read_only_page() {
     DCHECK(!IsReadOnlyPageField::decode(flags_));
     flags_ = IsReadOnlyPageField::update(flags_, true);
+  }
+
+  void set_is_black_allocated(bool value) {
+    // Only support toggling the value as we should always know which state we
+    // are in.
+    DCHECK_EQ(value, !is_black_allocated());
+    flags_ = IsBlackAllocated::update(flags_, value);
   }
 
   // If the chunk needs to remember its memory reservation, it is stored here.
@@ -341,6 +354,8 @@ class BasePage {
   using IsSealedReadOnlySpaceField = IsWritableSharedSpaceField::Next<bool, 1>;
   // The memory chunk belongs to a read-only space.
   using IsReadOnlyPageField = IsSealedReadOnlySpaceField::Next<bool, 1>;
+  // The memory chunk has been black allocated
+  using IsBlackAllocated = IsReadOnlyPageField::Next<bool, 1>;
 
   static constexpr intptr_t HeapOffset() { return offsetof(BasePage, heap_); }
 

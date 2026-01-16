@@ -403,13 +403,9 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
       if (v8_flags.black_allocated_pages) {
         CHECK(heap->marking_state()->IsUnmarked(object));
         if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
-          CHECK(!NormalPage::FromHeapObject(object)
-                     ->Chunk()
-                     ->IsBlackAllocatedPage());
+          CHECK(!TrustedHeapLayout::InBlackAllocatedPage(object));
         } else {
-          CHECK(NormalPage::FromHeapObject(object)
-                    ->Chunk()
-                    ->IsBlackAllocatedPage());
+          CHECK(TrustedHeapLayout::InBlackAllocatedPage(object));
         }
       } else {
         if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {

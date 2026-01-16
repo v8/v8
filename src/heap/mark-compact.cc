@@ -208,7 +208,7 @@ class FullMarkingVerifier : public MarkingVerifierBase {
 
     CHECK(HeapLayout::InReadOnlySpace(heap_object) ||
           (v8_flags.black_allocated_pages &&
-           HeapLayout::InBlackAllocatedPage(heap_object)) ||
+           TrustedHeapLayout::InBlackAllocatedPage(heap_object)) ||
           marking_state_->IsMarked(heap_object));
   }
 
@@ -325,7 +325,7 @@ void MarkCompactCollector::TearDown() {
 
 void MarkCompactCollector::AddEvacuationCandidate(NormalPage* p) {
   DCHECK(!p->never_evacuate());
-  DCHECK(!p->Chunk()->IsBlackAllocatedPage());
+  DCHECK(!p->is_black_allocated());
 
   if (v8_flags.trace_evacuation_candidates) {
     PrintIsolate(
@@ -4104,7 +4104,7 @@ void MarkCompactCollector::ClearNonTrivialWeakReferences(
     DCHECK(!IsWeakCell(value));
     DCHECK(!HeapLayout::InReadOnlySpace(value));
     DCHECK_IMPLIES(v8_flags.black_allocated_pages,
-                   !HeapLayout::InBlackAllocatedPage(value));
+                   !TrustedHeapLayout::InBlackAllocatedPage(value));
     DCHECK(!non_atomic_marking_state_->IsMarked(value));
     DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(slot.heap_object,
                                                             value));
@@ -5097,7 +5097,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       Tagged<HeapObject> object = current->GetObject();
       // The black-allocated flag was already cleared in SweepLargeSpace().
       DCHECK_IMPLIES(v8_flags.black_allocated_pages,
-                     !HeapLayout::InBlackAllocatedPage(object));
+                     !TrustedHeapLayout::InBlackAllocatedPage(object));
       if (marking_state_->IsMarked(object)) {
         heap_->lo_space()->PromoteNewLargeObject(current);
         current->set_will_be_promoted(true);
@@ -6035,7 +6035,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     NormalPage* p = *(it++);
     DCHECK(p->SweepingDone());
-    DCHECK(!p->Chunk()->IsBlackAllocatedPage());
+    DCHECK(!p->is_black_allocated());
 
     if (p->live_bytes() > 0) {
       // Non-empty pages will be evacuated/promoted.
@@ -6059,7 +6059,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
 
 void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(PagedSpace* space,
                                                             NormalPage* page) {
-  DCHECK(page->Chunk()->IsBlackAllocatedPage());
+  DCHECK(page->is_black_allocated());
   DCHECK_EQ(page->live_bytes(), 0);
   DCHECK_GE(page->allocated_bytes(), 0);
   DCHECK(page->marking_bitmap()->IsClean());
@@ -6067,7 +6067,7 @@ void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(PagedSpace* space,
   if (page->is_executable()) {
     scope.emplace("For writing flags.");
   }
-  page->ClearFlagUnlocked(MemoryChunk::BLACK_ALLOCATED);
+  page->ClearBlackAllocation();
   space->IncreaseAllocatedBytes(page->allocated_bytes(), page);
   space->RelinkFreeListCategories(page);
 }
@@ -6087,7 +6087,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     DCHECK(p->SweepingDone());
 
     if (p->Chunk()->IsEvacuationCandidate()) {
-      DCHECK(!p->Chunk()->IsBlackAllocatedPage());
+      DCHECK(!p->is_black_allocated());
       DCHECK_NE(NEW_SPACE, space->identity());
       // Will be processed in Evacuate.
       continue;
@@ -6095,7 +6095,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
     // If the page is black, just reset the flag and don't add the page to the
     // sweeper.
-    if (p->Chunk()->IsBlackAllocatedPage()) {
+    if (p->is_black_allocated()) {
       ResetAndRelinkBlackAllocatedPage(space, p);
       continue;
     }
@@ -6161,7 +6161,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   }
   for (auto it = space->begin(); it != space->end();) {
     LargePage* current = *(it++);
-    DCHECK(!current->Chunk()->IsBlackAllocatedPage());
+    DCHECK(!current->is_black_allocated());
     Tagged<HeapObject> object = current->GetObject();
     if (!marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.

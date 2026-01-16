@@ -290,27 +290,16 @@ MarkBit MarkBit::From(const Isolate* isolate, Tagged<HeapObject> heap_object) {
 // static
 std::optional<MarkingHelper::WorklistTarget> MarkingHelper::ShouldMarkObject(
     Heap* heap, Tagged<HeapObject> object) {
+  switch (GetLivenessMode(heap, object)) {
+    case LivenessMode::kAlwaysLive:
+      return {};
+    case LivenessMode::kMarkbit:
+      return {MarkingHelper::WorklistTarget::kRegular};
+  }
+
   if (HeapLayout::InReadOnlySpace(object)) {
     return {};
   }
-  const auto* chunk = MemoryChunk::FromHeapObject(object);
-  const auto flags = chunk->GetFlags();
-  if (v8_flags.black_allocated_pages &&
-      V8_UNLIKELY(flags & MemoryChunk::BLACK_ALLOCATED)) {
-    DCHECK(!(flags & MemoryChunk::kIsInYoungGenerationMask));
-    return {};
-  }
-  if (V8_LIKELY(!(flags & MemoryChunk::IN_WRITABLE_SHARED_SPACE))) {
-    return {MarkingHelper::WorklistTarget::kRegular};
-  }
-  // Object in shared writable space. Only mark it if the Isolate is owning the
-  // shared space.
-  //
-  // TODO(340989496): Speed up check here by keeping the flag on Heap.
-  if (heap->isolate()->is_shared_space_isolate()) {
-    return {MarkingHelper::WorklistTarget::kRegular};
-  }
-  return {};
 }
 
 // static
@@ -320,22 +309,22 @@ MarkingHelper::LivenessMode MarkingHelper::GetLivenessMode(
     return MarkingHelper::LivenessMode::kAlwaysLive;
   }
   const auto* chunk = MemoryChunk::FromHeapObject(object);
-  const auto flags = chunk->GetFlags();
-  if (v8_flags.black_allocated_pages &&
-      (flags & MemoryChunk::BLACK_ALLOCATED)) {
-    return MarkingHelper::LivenessMode::kAlwaysLive;
+  if (chunk->IsBlackAllocatedOrWritableShared()) [[unlikely]] {
+    if (chunk->IsBlackAllocated()) {
+      DCHECK(!chunk->InYoungGeneration());
+      DCHECK(v8_flags.black_allocated_pages);
+      return MarkingHelper::LivenessMode::kAlwaysLive;
+    }
+    DCHECK(chunk->InWritableSharedSpace());
+    // Object in shared writable space. Only mark it if the Isolate is owning
+    // the shared space.
+    //
+    // TODO(340989496): Speed up check here by keeping the flag on Heap.
+    if (!heap->isolate()->is_shared_space_isolate()) {
+      return MarkingHelper::LivenessMode::kAlwaysLive;
+    }
   }
-  if (V8_LIKELY(!(flags & MemoryChunk::IN_WRITABLE_SHARED_SPACE))) {
-    return MarkingHelper::LivenessMode::kMarkbit;
-  }
-  // Object in shared writable space. Only mark it if the Isolate is owning the
-  // shared space.
-  //
-  // TODO(340989496): Speed up check here by keeping the flag on Heap.
-  if (heap->isolate()->is_shared_space_isolate()) {
-    return MarkingHelper::LivenessMode::kMarkbit;
-  }
-  return MarkingHelper::LivenessMode::kAlwaysLive;
+  return MarkingHelper::LivenessMode::kMarkbit;
 }
 
 // static

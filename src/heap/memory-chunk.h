@@ -125,6 +125,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);
+  static constexpr MainThreadFlags kIsBlackAllocatedOrWriteableSharedMask =
+      MainThreadFlags(BLACK_ALLOCATED) |
+      MainThreadFlags(IN_WRITABLE_SHARED_SPACE);
 
 #if !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   static constexpr MainThreadFlags kIsInReadOnlyHeapMask = READ_ONLY_HEAP;
@@ -179,8 +182,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return IsFlagSet(IN_WRITABLE_SHARED_SPACE);
   }
 
-  V8_INLINE bool IsBlackAllocatedPage() const {
-    return IsFlagSet(BLACK_ALLOCATED);
+  V8_INLINE bool IsBlackAllocated() const { return IsFlagSet(BLACK_ALLOCATED); }
+
+  V8_INLINE bool IsBlackAllocatedOrWritableShared() const {
+    return GetFlags() & kIsBlackAllocatedOrWriteableSharedMask;
   }
 
   V8_INLINE bool ContainsOnlyOldObjects() const {

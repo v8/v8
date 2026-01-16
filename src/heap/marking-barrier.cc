@@ -171,7 +171,7 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
       DCHECK_EQ(target_worklist.value(),
                 MarkingHelper::WorklistTarget::kRegular);
     } else {
-      DCHECK(HeapLayout::InBlackAllocatedPage(descriptor_array));
+      DCHECK(TrustedHeapLayout::InBlackAllocatedPage(descriptor_array));
     }
 #endif  // DEBUG
     gc_epoch = major_collector_->epoch();

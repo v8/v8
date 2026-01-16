@@ -19,6 +19,9 @@ NormalPage::NormalPage(Heap* heap, BaseSpace* space, size_t size,
                   std::move(reservation), PageSize::kRegular, executability) {
   DCHECK(!is_large());
   trusted_main_thread_flags_ = ComputeInitialFlags(executability);
+  if (trusted_main_thread_flags_ & MemoryChunk::BLACK_ALLOCATED) {
+    set_is_black_allocated(true);
+  }
   *trusted_flags = trusted_main_thread_flags_;
 }
 
@@ -113,6 +116,11 @@ void NormalPage::DestroyBlackArea(Address start, Address end) {
       MarkingBitmap::LimitAddressToIndex(end));
   IncrementLiveBytesAtomically(-static_cast<intptr_t>(end - start));
   owner()->NotifyBlackAreaDestroyed(end - start);
+}
+
+void NormalPage::ClearBlackAllocation() {
+  ClearFlagUnlocked(MemoryChunk::BLACK_ALLOCATED);
+  set_is_black_allocated(false);
 }
 
 void NormalPage::MarkEvacuationCandidate() {

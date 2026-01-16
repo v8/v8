@@ -521,7 +521,7 @@ void CompactionSpace::NotifyNewPage(NormalPage* page) {
   // isolate until it's merged.
   DCHECK_IMPLIES(identity() != SHARED_SPACE ||
                      destination_heap() != DestinationHeap::kSharedSpaceHeap,
-                 !page->Chunk()->IsBlackAllocatedPage());
+                 !page->is_black_allocated());
   new_pages_.push_back(page);
 }
 

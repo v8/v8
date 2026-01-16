@@ -76,12 +76,6 @@ bool HeapLayout::InAnySharedSpace(Tagged<HeapObject> object) {
   return HeapLayout::InWritableSharedSpace(object);
 }
 
-bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
-  DCHECK(v8_flags.black_allocated_pages);
-  return MemoryChunk::FromHeapObject(object)->GetFlags() &
-         MemoryChunk::BLACK_ALLOCATED;
-}
-
 // static
 bool HeapLayout::InAnyLargeSpace(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->IsLargePage();
@@ -104,6 +98,11 @@ bool TrustedHeapLayout::InTrustedSpace(Tagged<HeapObject> object) {
 // static
 bool TrustedHeapLayout::IsOwnedByAnyHeap(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->Metadata()->heap();
+}
+
+// static
+bool TrustedHeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->Metadata()->is_black_allocated();
 }
 
 }  // namespace v8::internal

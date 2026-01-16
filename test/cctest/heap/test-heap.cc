@@ -6277,7 +6277,7 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   NormalPage* page = NormalPage::FromHeapObject(*array);
-  CHECK(page->Chunk()->IsBlackAllocatedPage());
+  CHECK(page->is_black_allocated());
   CHECK(heap->old_space()->Contains(*array));
 
   // Trim it once by one word, which shouldn't affect the BLACK_ALLOCATED flag.
@@ -6286,10 +6286,10 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
 
   Tagged<HeapObject> filler = HeapObject::FromAddress(previous);
   CHECK(IsFreeSpaceOrFiller(filler));
-  CHECK(page->Chunk()->IsBlackAllocatedPage());
+  CHECK(page->is_black_allocated());
 
   heap::InvokeAtomicMajorGC(heap);
-  CHECK(!NormalPage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
+  CHECK(!NormalPage::FromHeapObject(*array)->is_black_allocated());
 
   heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                 i::GarbageCollectionReason::kTesting);
@@ -6297,10 +6297,10 @@ TEST(RightTrimFixedArrayWithBlackAllocatedPages) {
   // Allocate the large fixed array that will be trimmed later.
   array = isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   CHECK(heap->lo_space()->Contains(*array));
-  CHECK(!BasePage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
+  CHECK(!BasePage::FromHeapObject(*array)->is_black_allocated());
 
   heap::InvokeAtomicMajorGC(heap);
-  CHECK(!BasePage::FromHeapObject(*array)->Chunk()->IsBlackAllocatedPage());
+  CHECK(!BasePage::FromHeapObject(*array)->is_black_allocated());
 }
 
 TEST(Regress618958) {
