@@ -2913,6 +2913,11 @@
 
 ##############################################################################
 ['clang_coverage and mode == debug', {
+  # Slow tests.
+  'es6/big-weakmap': [PASS, SLOW],
+  'regress/wasm/regress-1010272': [PASS, SLOW],
+  'wasm/table': [PASS, SLOW],
+
   # Too slow tests.
   'asm/poppler/poppler': [SKIP],
   'wasm/shared-memory-worker-gc': [SKIP],
