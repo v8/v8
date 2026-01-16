@@ -997,7 +997,7 @@ void InstructionSelector::VisitInt32Add(OpIndex node) {
 // Try to match Add(z, a, slli(x, y)) and emit shxadd(z, x, a) for it.
 bool TryEmitShxadd(InstructionSelector* selector, OpIndex add, OpIndex lhs,
                    OpIndex rhs) {
-  if (CpuFeatures::IsSupported(ZBA)) return false;
+  if (!CpuFeatures::IsSupported(ZBA)) return false;
   const Operation& left_op = selector->Get(lhs);
   if ((left_op.Is<Opmask::kWord64ShiftLeft>() &&
        selector->CanCover(add, lhs))) {
