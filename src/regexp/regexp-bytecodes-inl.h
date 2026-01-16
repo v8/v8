@@ -10,6 +10,7 @@
 
 #include <array>
 #include <limits>
+#include <string_view>
 #include <type_traits>
 
 #include "src/regexp/regexp-macro-assembler.h"  // For StackCheckFlag
@@ -67,6 +68,38 @@ SPECIAL_BYTECODE_OPERAND_TYPE_LIST(DECLARE_SPECIAL_OPERAND_TYPE_TRAITS)
 
 namespace detail {
 
+template <auto... Args>
+constexpr int CountOf() {
+  return sizeof...(Args);
+}
+
+template <size_t N>
+consteval std::array<std::string_view, N> SplitNames(const char* raw_names) {
+  std::array<std::string_view, N> result;
+  std::string_view names(raw_names);
+
+  // Remove '(' and ')'.
+  DCHECK_EQ(names.front(), '(');
+  DCHECK_EQ(names.back(), ')');
+  size_t start = 1;
+  size_t names_size = names.size() - 1;
+
+  for (size_t i = 0; i < N; ++i) {
+    size_t comma = names.find(',', start);
+    DCHECK_EQ(i == N - 1, comma == std::string_view::npos);
+
+    // Trim whitespace.
+    start = names.find_first_not_of(" ", start);
+    size_t end = (comma == std::string_view::npos) ? names_size : comma;
+    end = names.find_last_not_of(" ,)", end) + 1;
+    result[i] = names.substr(start, end - start);
+
+    start = comma + 1;
+  }
+
+  return result;
+}
+
 // Calculates packed offsets for each Bytecode operand.
 // All operands are aligned to their own size.
 template <RegExpBytecodeOperandType... operand_types>
@@ -119,11 +152,16 @@ struct RegExpBytecodeOperandsTraits {
 template <RegExpBytecode bc>
 struct RegExpBytecodeOperandNames;
 
-#define DECLARE_OPERAND_NAMES(CamelName, OpNames, OpTypes)          \
-  template <>                                                       \
-  struct RegExpBytecodeOperandNames<RegExpBytecode::k##CamelName> { \
-    enum class Operand { UNPAREN(OpNames) };                        \
-    using enum Operand;                                             \
+#define DECLARE_OPERAND_NAMES(CamelName, OpNames, OpTypes)                \
+  template <>                                                             \
+  struct RegExpBytecodeOperandNames<RegExpBytecode::k##CamelName> {       \
+    enum class Operand { UNPAREN(OpNames) };                              \
+    using enum Operand;                                                   \
+    static constexpr size_t kCount = detail::CountOf<UNPAREN(OpNames)>(); \
+    static constexpr auto kNames = detail::SplitNames<kCount>(#OpNames);  \
+    static constexpr std::string_view Name(Operand op) {                  \
+      return kNames[static_cast<size_t>(op)];                             \
+    }                                                                     \
   };
 REGEXP_BYTECODE_LIST(DECLARE_OPERAND_NAMES)
 #undef DECLARE_OPERAND_NAMES
@@ -145,6 +183,10 @@ class RegExpBytecodeOperandsBase {
   }
   static consteval RegExpBytecodeOperandType Type(Operand op) {
     return Traits::kOperandTypes[Index(op)];
+  }
+
+  static constexpr std::string_view Name(Operand op) {
+    return RegExpBytecodeOperandNames<bc>::Name(op);
   }
 
   // Returns a tuple of all operands.

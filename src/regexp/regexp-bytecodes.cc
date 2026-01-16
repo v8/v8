@@ -7,29 +7,77 @@
 #include <cctype>
 
 #include "src/regexp/regexp-bytecodes-inl.h"
+#include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
 
+namespace {
+
+std::ostream& operator<<(std::ostream& os,
+                         RegExpMacroAssembler::StackCheckFlag val) {
+  switch (val) {
+    case RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck:
+      return os << "NoCheck";
+    case RegExpMacroAssembler::StackCheckFlag::kCheckStackLimit:
+      return os << "Check";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, StandardCharacterSet val) {
+  switch (val) {
+    case StandardCharacterSet::kWhitespace:
+      return os << "Whitespace";
+    case StandardCharacterSet::kNotWhitespace:
+      return os << "NotWhitespace";
+    case StandardCharacterSet::kDigit:
+      return os << "Digit";
+    case StandardCharacterSet::kNotDigit:
+      return os << "NotDigit";
+    case StandardCharacterSet::kLineTerminator:
+      return os << "LineTerminator";
+    case StandardCharacterSet::kNotLineTerminator:
+      return os << "NotLineTerminator";
+    case StandardCharacterSet::kWord:
+      return os << "Word";
+    case StandardCharacterSet::kNotWord:
+      return os << "NotWord";
+    case StandardCharacterSet::kEverything:
+      return os << "Everything";
+  }
+}
+
+}  // namespace
+
 void RegExpBytecodeDisassembleSingle(const uint8_t* code_base,
                                      const uint8_t* pc) {
-  // TODO(jgruber): Now that we know about operand types, improve printing.
+  StdoutStream os;
+  DisallowGarbageCollection no_gc;
   RegExpBytecode bytecode = RegExpBytecodes::FromPtr(pc);
-  PrintF("%s", RegExpBytecodes::Name(bytecode));
+  os << RegExpBytecodes::Name(bytecode);
 
-  // Args and the bytecode as hex.
-  for (int i = 0; i < RegExpBytecodes::Size(bytecode); i++) {
-    PrintF(", %02x", pc[i]);
-  }
-  PrintF(" ");
+  RegExpBytecodes::DispatchOnBytecode(bytecode, [&]<RegExpBytecode bc>() {
+    RegExpBytecodeOperands<bc>::ForEachOperand([&]<auto op>() {
+      constexpr RegExpBytecodeOperandType type =
+          RegExpBytecodeOperands<bc>::Type(op);
+      os << ", " << RegExpBytecodeOperands<bc>::Name(op) << ": ";
 
-  // Args as ascii.
-  for (int i = 1; i < RegExpBytecodes::Size(bytecode); i++) {
-    unsigned char b = pc[i];
-    PrintF("%c", std::isprint(b) ? b : '.');
-  }
-  PrintF("\n");
+      auto val = RegExpBytecodeOperands<bc>::template Get<op>(pc, no_gc);
+      if constexpr (type == RegExpBytecodeOperandType::kBitTable) {
+        for (int i = 0; i < RegExpBytecodeOperands<bc>::Size(op); i++) {
+          os << AsHex(val[i], 2);
+        }
+      } else if constexpr (type == RegExpBytecodeOperandType::kChar) {
+        os << AsUC32(val);
+      } else if constexpr (std::is_enum_v<decltype(val)>) {
+        os << val;
+      } else {
+        os << AsHex(val, 2);
+      }
+    });
+  });
+  os << "\n";
 }
 
 void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,

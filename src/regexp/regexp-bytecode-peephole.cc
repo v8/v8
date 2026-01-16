@@ -1078,9 +1078,11 @@ RegExpBytecodePeepholeOptimization::OptimizeBytecode(
   RegExpBytecodeWriter* dst_writer = &second_writer;
 
   // Preserve the original bytecode for tracing if needed.
-  ZoneVector<uint8_t> original_bytecode(zone);
+  std::optional<ZoneVector<uint8_t>> original_bytecode;
   if (v8_flags.trace_regexp_peephole_optimization) {
-    original_bytecode = src_writer->buffer();
+    const ZoneVector<uint8_t>& src_buffer = src_writer->buffer();
+    const auto begin = src_buffer.begin();
+    original_bytecode.emplace(begin, begin + src_writer->length(), zone);
   }
 
   // Run the peephole optimizer until we've reached a fixed point. All relevant
@@ -1109,8 +1111,8 @@ RegExpBytecodePeepholeOptimization::OptimizeBytecode(
 
   if (any_pass_optimized && v8_flags.trace_regexp_peephole_optimization) {
     PrintF("Original Bytecode:\n");
-    RegExpBytecodeDisassemble(original_bytecode.data(),
-                              static_cast<int>(original_bytecode.size()),
+    RegExpBytecodeDisassemble(original_bytecode->data(),
+                              static_cast<int>(original_bytecode->size()),
                               source->ToCString().get());
     PrintF("Optimized Bytecode:\n");
     RegExpBytecodeDisassemble(array->begin(), optimized_length,

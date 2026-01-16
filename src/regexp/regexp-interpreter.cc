@@ -89,9 +89,8 @@ void MaybeTraceInterpreter(const uint8_t* code_base, const uint8_t* pc,
         current_char <= std::numeric_limits<unsigned char>::max();
     const bool printable = is_single_char ? std::isprint(current_char) : false;
     const char* format =
-        printable
-            ? "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), bc = "
-            : "pc = %02x, sp = %d, curpos = %d, curchar = %08x .%c., bc = ";
+        printable ? "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), "
+                  : "pc = %02x, sp = %d, curpos = %d, curchar = %08x .%c., ";
     PrintF(format, pc - code_base, stack_depth, current_position, current_char,
            printable ? current_char : '.');
 
