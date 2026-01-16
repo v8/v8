@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '24446349a7656b671465493504dfdcf3f638419a',
+  'partition_alloc_version': '5b70baa1fd02c684fb68f7dc6fad54decabbcaee',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4ee113471dafc4a4079c41916a743195af388436',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ea4fc7f6815a999be7382b9c9465eed18b9ee2a0',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -472,7 +472,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '53beba68daf906ad25592bb6480248f3fb23d5e1',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'a5c4278fbc6037978b154c9f84cdd8857758ae22',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '110575cc0100e5b912b45f7a81d880ebef5e15c5',
   'third_party/re2/src':
