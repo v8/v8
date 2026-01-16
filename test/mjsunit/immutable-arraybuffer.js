@@ -1,4 +1,4 @@
-// Copyright 2024 the V8 project authors. All rights reserved.
+// Copyright 2026 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -417,3 +417,150 @@ for (const ctor of taClasses) {
           new SharedArrayBuffer(10)),
       TypeError);
 })();
+
+if (this.Worker) {
+  var workerScript = `onmessage = function() {};`;
+  var w = new Worker(workerScript, {type: 'string'});
+
+  const ab = new ArrayBuffer(10);
+  const immutable = ab.transferToImmutable();
+
+  w.postMessage(immutable);
+  assertThrows(() => w.postMessage(immutable, [immutable]), Error);
+
+  w.terminate();
+}
+
+(function TestImmutableArrayBufferStructuredClone() {
+  const ab = new ArrayBuffer(10);
+  const u8 = new Uint8Array(ab);
+  for (let i = 0; i < 10; i++) {
+    u8[i] = i;
+  }
+
+  const immutable = ab.transferToImmutable();
+  assertTrue(immutable.immutable);
+  assertFalse(immutable.resizable);
+
+  const serialized = d8.serializer.serialize(immutable);
+  const deserialized = d8.serializer.deserialize(serialized);
+
+  assertTrue(deserialized.immutable);
+  assertEquals(immutable.byteLength, deserialized.byteLength);
+  assertFalse(deserialized.resizable);
+
+  const deserializedU8 = new Uint8Array(deserialized);
+  assertEquals(10, deserializedU8.length);
+  for (let i = 0; i < 10; i++) {
+    assertEquals(i, deserializedU8[i]);
+  }
+
+  // Ensure the deserialized buffer is really immutable
+  assertThrows(() => deserialized.resize(20), TypeError);
+  assertThrows(() => deserialized.transfer(), TypeError);
+  assertThrows(() => deserialized.transferToFixedLength(), TypeError);
+})();
+
+(function TestImmutableArrayBufferInObject() {
+  const ab = new ArrayBuffer(10);
+  const immutable = ab.transferToImmutable();
+  const obj = { buf: immutable };
+
+  const serializedObj = d8.serializer.serialize(obj);
+  const deserializedObj = d8.serializer.deserialize(serializedObj);
+
+  assertTrue(deserializedObj.buf.immutable);
+  assertEquals(immutable.byteLength, deserializedObj.buf.byteLength);
+})();
+
+(function TestSliceToImmutableStructuredClone() {
+  const ab = new ArrayBuffer(10);
+  const u8 = new Uint8Array(ab);
+  for (let i = 0; i < 10; i++) {
+    u8[i] = i + 10;
+  }
+
+  const slicedImmutable = ab.sliceToImmutable(2, 7); // Length 5
+  assertTrue(slicedImmutable.immutable);
+  assertEquals(5, slicedImmutable.byteLength);
+
+  const serializedSliced = d8.serializer.serialize(slicedImmutable);
+  const deserializedSliced = d8.serializer.deserialize(serializedSliced);
+
+  assertTrue(deserializedSliced.immutable);
+  assertEquals(5, deserializedSliced.byteLength);
+
+  const deserializedU8 = new Uint8Array(deserializedSliced);
+  for (let i = 0; i < 5; i++) {
+    assertEquals(i + 12, deserializedU8[i]);
+  }
+})();
+
+(function TestEmptyImmutableArrayBuffer() {
+  const ab = new ArrayBuffer(0);
+  const immutable = ab.transferToImmutable();
+  assertTrue(immutable.immutable);
+  assertEquals(0, immutable.byteLength);
+
+  const serialized = d8.serializer.serialize(immutable);
+  const deserialized = d8.serializer.deserialize(serialized);
+
+  assertTrue(deserialized.immutable);
+  assertEquals(0, deserialized.byteLength);
+})();
+
+if (this.Worker) {
+  var workerScript = `
+    onmessage = function({data: ab}) {
+      if (!(ab instanceof ArrayBuffer)) {
+        postMessage('Error: expected ArrayBuffer');
+        return;
+      }
+      if (!ab.immutable) {
+        postMessage('Error: ArrayBuffer should be immutable');
+        return;
+      }
+      if (ab.byteLength !== 10) {
+        postMessage('Error: ArrayBuffer byteLength should be 10');
+        return;
+      }
+      const u8 = new Uint8Array(ab);
+      for (let i = 0; i < 10; i++) {
+        if (u8[i] !== i) {
+          postMessage('Error: content mismatch at index ' + i);
+          return;
+        }
+      }
+      try {
+        ab.resize(20);
+        postMessage('Error: resize should fail');
+        return;
+      } catch (e) {
+        if (!(e instanceof TypeError)) {
+          postMessage('Error: resize should throw TypeError');
+          return;
+        }
+      }
+      postMessage('OK');
+    };
+  `;
+
+  var w = new Worker(workerScript, {type: 'string'});
+
+  const ab = new ArrayBuffer(10);
+  const u8 = new Uint8Array(ab);
+  for (let i = 0; i < 10; i++) {
+    u8[i] = i;
+  }
+
+  const immutable = ab.transferToImmutable();
+  assertTrue(immutable.immutable);
+  assertFalse(immutable.resizable);
+
+  w.postMessage(immutable);
+
+  assertFalse(immutable.detached);
+
+  assertEquals('OK', w.getMessage());
+  w.terminate();
+}

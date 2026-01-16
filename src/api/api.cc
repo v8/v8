@@ -4138,6 +4138,10 @@ bool v8::BackingStore::IsShared() const {
   return reinterpret_cast<const i::BackingStore*>(this)->is_shared();
 }
 
+bool v8::BackingStore::IsImmutable() const {
+  return reinterpret_cast<const i::BackingStore*>(this)->is_immutable();
+}
+
 bool v8::BackingStore::IsResizableByUserJavaScript() const {
   return reinterpret_cast<const i::BackingStore*>(this)->is_resizable_by_js();
 }
@@ -8858,6 +8862,10 @@ bool v8::ArrayBuffer::WasDetached() const {
   return Utils::OpenDirectHandle(this)->was_detached();
 }
 
+bool v8::ArrayBuffer::IsImmutable() const {
+  return Utils::OpenDirectHandle(this)->is_immutable();
+}
+
 namespace {
 std::shared_ptr<i::BackingStore> ToInternal(
     std::shared_ptr<i::BackingStoreBase> backing_store) {
@@ -8974,6 +8982,11 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
       "Cannot construct ArrayBuffer with a BackingStore of SharedArrayBuffer");
   i::DirectHandle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(std::move(i_backing_store));
+  if (obj->backing_store() &&
+      static_cast<i::BackingStore*>(obj->GetBackingStore().get())
+          ->is_immutable()) {
+    obj->set_is_immutable(true);
+  }
   return Utils::ToLocal(obj);
 }
 

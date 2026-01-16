@@ -7,6 +7,7 @@
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
+#include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/sandbox/sandbox.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -1275,4 +1276,28 @@ TEST(ArrayBufferView_GetContentsOutOfBounds) {
       "ab.resize(1); "
       "ta";
   TestArrayBufferViewGetContent(source, nullptr);
+}
+
+TEST(ArrayBuffer_ImmutableBackingStore) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 100);
+  CHECK(backing_store);
+
+  v8::internal::BackingStore* i_backing_store =
+      reinterpret_cast<v8::internal::BackingStore*>(backing_store.get());
+
+  i_backing_store->set_is_immutable(true);
+  CHECK(i_backing_store->is_immutable());
+
+  std::shared_ptr<v8::BackingStore> shared_backing_store =
+      std::move(backing_store);
+
+  Local<v8::ArrayBuffer> ab =
+      v8::ArrayBuffer::New(isolate, shared_backing_store);
+
+  CHECK(ab->IsImmutable());
 }

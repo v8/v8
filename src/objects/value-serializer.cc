@@ -182,7 +182,9 @@ enum class SerializationTag : uint8_t {
   kEndJSSet = ',',
   // Array buffer. byteLength:uint32_t, then raw data.
   kArrayBuffer = 'B',
-  // Resizable ArrayBuffer.
+  // Immutable array buffer. byteLength:uint32_t, then raw data.
+  kImmutableArrayBuffer = 'C',
+  // Resizable array buffer. byteLength:uint32_t, maxLength:uint32_t, raw data.
   kResizableArrayBuffer = '~',
   // Array buffer (transferred). transferID:uint32_t
   kArrayBufferTransfer = 't',
@@ -1050,20 +1052,32 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
   }
-  if (array_buffer->is_resizable_by_js()) {
-    size_t max_byte_length = array_buffer->max_byte_length();
+  size_t max_byte_length = 0;
+  bool is_resizable = array_buffer->is_resizable_by_js();
+  if (is_resizable) {
+    max_byte_length = array_buffer->max_byte_length();
     if (max_byte_length > std::numeric_limits<uint32_t>::max()) {
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
                                  array_buffer);
     }
+  }
 
+  if (is_resizable) {
     WriteTag(SerializationTag::kResizableArrayBuffer);
     WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
     WriteVarint<uint32_t>(static_cast<uint32_t>(max_byte_length));
     WriteRawBytes(array_buffer->backing_store(), byte_length);
     return ThrowIfOutOfMemory();
   }
-  WriteTag(SerializationTag::kArrayBuffer);
+
+  if (array_buffer->is_immutable()) {
+    // TODO(olivf): Since the AB is not mutable we could share the backing
+    // store in postMessage. Needs a ForStorage flag for the ValueSerializer to
+    // know when sharing is possible.
+    WriteTag(SerializationTag::kImmutableArrayBuffer);
+  } else {
+    WriteTag(SerializationTag::kArrayBuffer);
+  }
   WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
   WriteRawBytes(array_buffer->backing_store(), byte_length);
   return ThrowIfOutOfMemory();
@@ -1716,12 +1730,20 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kArrayBuffer: {
       constexpr bool is_shared = false;
       constexpr bool is_resizable = false;
-      return ReadJSArrayBuffer(is_shared, is_resizable);
+      constexpr bool is_immutable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable, is_immutable);
     }
     case SerializationTag::kResizableArrayBuffer: {
       constexpr bool is_shared = false;
       constexpr bool is_resizable = true;
-      return ReadJSArrayBuffer(is_shared, is_resizable);
+      constexpr bool is_immutable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable, is_immutable);
+    }
+    case SerializationTag::kImmutableArrayBuffer: {
+      constexpr bool is_shared = false;
+      constexpr bool is_resizable = false;
+      constexpr bool is_immutable = true;
+      return ReadJSArrayBuffer(is_shared, is_resizable, is_immutable);
     }
     case SerializationTag::kArrayBufferTransfer: {
       return ReadTransferredJSArrayBuffer();
@@ -1729,7 +1751,8 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kSharedArrayBuffer: {
       constexpr bool is_shared = true;
       constexpr bool is_resizable = false;
-      return ReadJSArrayBuffer(is_shared, is_resizable);
+      constexpr bool is_immutable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable, is_immutable);
     }
     case SerializationTag::kError:
       return ReadJSError();
@@ -2111,7 +2134,7 @@ MaybeDirectHandle<JSSet> ValueDeserializer::ReadJSSet() {
 }
 
 MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
-    bool is_shared, bool is_resizable) {
+    bool is_shared, bool is_resizable, bool is_immutable) {
   uint32_t id = next_id_++;
   if (is_shared) {
     uint32_t clone_id;
@@ -2193,9 +2216,12 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
           byte_length, max_byte_length, InitializedFlag::kUninitialized,
           is_resizable ? ResizableFlag::kResizable
                        : ResizableFlag::kNotResizable);
-
   DirectHandle<JSArrayBuffer> array_buffer;
   if (!result.ToHandle(&array_buffer)) return result;
+
+  if (is_immutable) {
+    array_buffer->set_is_immutable(true);
+  }
 
   if (byte_length > 0) {
     memcpy(array_buffer->backing_store(), position_, byte_length);

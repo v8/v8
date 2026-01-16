@@ -315,6 +315,9 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   if (to_immutable) {
     new_array_buffer->set_is_immutable(true);
+    if (auto backing_store = new_array_buffer->GetBackingStore()) {
+      backing_store->set_is_immutable(true);
+    }
     DCHECK(!new_array_buffer->was_detached());
 
     // * If IsDetachedBuffer(O) is true, throw a TypeError exception.
@@ -816,6 +819,9 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
 
   if (preserve_resizability == kToImmutable) {
     result_buffer->set_is_immutable(true);
+    if (auto backing_store = result_buffer->GetBackingStore()) {
+      backing_store->set_is_immutable(true);
+    }
   }
 
   // 16. Return newBuffer.

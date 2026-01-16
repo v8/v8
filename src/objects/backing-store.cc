@@ -97,9 +97,9 @@ struct SharedWasmMemoryData {
 BackingStore::BackingStore(void* buffer_start, size_t byte_length,
                            size_t max_byte_length, size_t byte_capacity,
                            SharedFlag shared, ResizableFlag resizable,
-                           bool is_wasm_memory, bool is_wasm_memory64,
-                           bool has_guard_regions, bool custom_deleter,
-                           bool empty_deleter)
+                           ImmutableFlag immutable, bool is_wasm_memory,
+                           bool is_wasm_memory64, bool has_guard_regions,
+                           bool custom_deleter, bool empty_deleter)
     : buffer_start_(buffer_start),
       byte_length_(byte_length),
       max_byte_length_(max_byte_length),
@@ -124,6 +124,7 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
   base::EnumSet<Flag, uint16_t> flags;
   if (shared == SharedFlag::kShared) flags.Add(kIsShared);
   if (resizable == ResizableFlag::kResizable) flags.Add(kIsResizableByJs);
+  if (immutable == ImmutableFlag::kImmutable) flags.Add(kIsImmutable);
   if (is_wasm_memory) flags.Add(kIsWasmMemory);
   if (is_wasm_memory64) flags.Add(kIsWasmMemory64);
   if (has_guard_regions) flags.Add(kHasGuardRegions);
@@ -252,6 +253,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
                                  byte_length,                   // capacity
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
+                                 ImmutableFlag::kMutable,       // immutable
                                  false,   // is_wasm_memory
                                  false,   // is_wasm_memory64
                                  false,   // has_guard_regions
@@ -386,17 +388,18 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   ResizableFlag resizable =
       is_wasm_memory ? ResizableFlag::kNotResizable : ResizableFlag::kResizable;
 
-  auto result = new BackingStore(buffer_start,       // start
-                                 byte_length,        // length
-                                 max_byte_length,    // max_byte_length
-                                 byte_capacity,      // capacity
-                                 shared,             // shared
-                                 resizable,          // resizable
-                                 is_wasm_memory,     // is_wasm_memory
-                                 is_wasm_memory64,   // is_wasm_memory64
-                                 has_guard_regions,  // has_guard_regions
-                                 false,              // custom_deleter
-                                 false);             // empty_deleter
+  auto result = new BackingStore(buffer_start,             // start
+                                 byte_length,              // length
+                                 max_byte_length,          // max_byte_length
+                                 byte_capacity,            // capacity
+                                 shared,                   // shared
+                                 resizable,                // resizable
+                                 ImmutableFlag::kMutable,  // immutable
+                                 is_wasm_memory,           // is_wasm_memory
+                                 is_wasm_memory64,         // is_wasm_memory64
+                                 has_guard_regions,        // has_guard_regions
+                                 false,                    // custom_deleter
+                                 false);                   // empty_deleter
 #ifdef V8_ENABLE_SANDBOX
   if (page_allocator_shared_ptr) {
     result->set_page_allocator(page_allocator_shared_ptr);
@@ -720,6 +723,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
                                  allocation_length,             // capacity
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
+                                 ImmutableFlag::kMutable,       // immutable
                                  false,              // is_wasm_memory
                                  false,              // is_wasm_memory64
                                  false,              // has_guard_regions
@@ -739,6 +743,7 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
                                  0,                             // capacity
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
+                                 ImmutableFlag::kMutable,       // immutable
                                  false,   // is_wasm_memory
                                  false,   // is_wasm_memory64
                                  false,   // has_guard_regions

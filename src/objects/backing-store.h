@@ -28,6 +28,9 @@ enum class SharedFlag : uint8_t { kNotShared, kShared };
 // Whether the backing store is resizable or not.
 enum class ResizableFlag : uint8_t { kNotResizable, kResizable };
 
+// Whether the backing store is mutable or not.
+enum class ImmutableFlag : uint8_t { kMutable, kImmutable };
+
 // Whether the backing store memory is initialied to zero or not.
 enum class InitializedFlag : uint8_t { kUninitialized, kZeroInitialized };
 
@@ -98,9 +101,18 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   size_t byte_capacity() const { return byte_capacity_; }
   bool is_shared() const { return has_flag(kIsShared); }
   bool is_resizable_by_js() const { return has_flag(kIsResizableByJs); }
+  bool is_immutable() const { return has_flag(kIsImmutable); }
   bool is_wasm_memory() const { return has_flag(kIsWasmMemory); }
   bool is_wasm_memory64() const { return has_flag(kIsWasmMemory64); }
   bool has_guard_regions() const { return has_flag(kHasGuardRegions); }
+
+  void set_is_immutable(bool immutable) {
+    if (immutable) {
+      set_flag(kIsImmutable);
+    } else {
+      clear_flag(kIsImmutable);
+    }
+  }
 
   bool IsEmpty() const {
     DCHECK_GE(byte_capacity_, byte_length_);
@@ -191,6 +203,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   enum Flag {
     kIsShared,
     kIsResizableByJs,
+    kIsImmutable,
     kIsWasmMemory,
     kIsWasmMemory64,
     kHoldsSharedPtrToAllocater,
@@ -202,8 +215,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
                size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
-               bool is_wasm_memory, bool is_wasm_memory64,
-               bool has_guard_regions, bool custom_deleter, bool empty_deleter);
+               ImmutableFlag immutable, bool is_wasm_memory,
+               bool is_wasm_memory64, bool has_guard_regions,
+               bool custom_deleter, bool empty_deleter);
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
