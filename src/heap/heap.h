@@ -95,6 +95,8 @@ class EphemeronRememberedSet;
 class GCTracer;
 class IncrementalMarking;
 class IsolateSafepoint;
+class HeapLimits;
+struct HeapLimitBounds;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapProfiler;
@@ -284,121 +286,6 @@ class Heap final {
    private:
     Heap* heap_;
     const char* event_name_;
-  };
-
-  class ExternalMemoryAccounting {
-   public:
-    static constexpr size_t kExternalAllocationLimitForInterrupt = 128 * KB;
-
-    uint64_t total() const { return total_.load(std::memory_order_relaxed); }
-    uint64_t limit_for_interrupt() const {
-      return limit_for_interrupt_.load(std::memory_order_relaxed);
-    }
-    uint64_t soft_limit() const {
-      return low_since_mark_compact() + kExternalAllocationSoftLimit;
-    }
-    uint64_t low_since_mark_compact() const {
-      return low_since_mark_compact_.load(std::memory_order_relaxed);
-    }
-
-    uint64_t UpdateAmount(int64_t delta) {
-      const uint64_t amount_before =
-          total_.fetch_add(delta, std::memory_order_relaxed);
-      CHECK_GE(static_cast<int64_t>(amount_before), -delta);
-      return amount_before + delta;
-    }
-
-    void UpdateLimitForInterrupt(uint64_t amount) {
-      set_limit_for_interrupt(amount + kExternalAllocationLimitForInterrupt);
-    }
-
-    void UpdateLowSinceMarkCompact(uint64_t amount) {
-      set_low_since_mark_compact(amount);
-      UpdateLimitForInterrupt(amount);
-    }
-
-    uint64_t AllocatedSinceMarkCompact() const {
-      uint64_t total_bytes = total();
-      uint64_t low_since_mark_compact_bytes = low_since_mark_compact();
-
-      if (total_bytes <= low_since_mark_compact_bytes) {
-        return 0;
-      }
-      return total_bytes - low_since_mark_compact_bytes;
-    }
-
-   private:
-    void set_total(uint64_t value) {
-      total_.store(value, std::memory_order_relaxed);
-    }
-
-    void set_limit_for_interrupt(uint64_t value) {
-      limit_for_interrupt_.store(value, std::memory_order_relaxed);
-    }
-
-    void set_low_since_mark_compact(uint64_t value) {
-      low_since_mark_compact_.store(value, std::memory_order_relaxed);
-    }
-
-    // The amount of external memory registered through the API.
-    std::atomic<uint64_t> total_{0};
-
-    // The limit when to trigger memory pressure from the API.
-    std::atomic<uint64_t> limit_for_interrupt_{
-        kExternalAllocationLimitForInterrupt};
-
-    // Caches the amount of external memory registered at the last MC.
-    std::atomic<uint64_t> low_since_mark_compact_{0};
-  };
-
-  struct LimitBounds {
-    size_t minimum_old_generation_allocation_limit = 0;
-    size_t maximum_old_generation_allocation_limit = SIZE_MAX;
-
-    size_t minimum_global_allocation_limit = 0;
-    size_t maximum_global_allocation_limit = SIZE_MAX;
-
-    constexpr size_t bounded_old_generation_allocation_limit(size_t val) const {
-      DCHECK_LE(minimum_old_generation_allocation_limit,
-                maximum_old_generation_allocation_limit);
-      return std::clamp(val, minimum_old_generation_allocation_limit,
-                        maximum_old_generation_allocation_limit);
-    }
-
-    constexpr size_t bounded_global_allocation_limit(size_t val) const {
-      DCHECK_LE(minimum_global_allocation_limit,
-                maximum_global_allocation_limit);
-      return std::clamp(val, minimum_global_allocation_limit,
-                        maximum_global_allocation_limit);
-    }
-
-    void AtLeast(size_t new_min_old_gen_limit, size_t new_min_global_limit) {
-      minimum_old_generation_allocation_limit =
-          bounded_old_generation_allocation_limit(new_min_old_gen_limit);
-      minimum_global_allocation_limit =
-          bounded_global_allocation_limit(new_min_global_limit);
-    }
-
-    void AtMost(size_t new_max_old_gen_limit, size_t new_max_global_limit) {
-      maximum_old_generation_allocation_limit =
-          bounded_old_generation_allocation_limit(new_max_old_gen_limit);
-      maximum_global_allocation_limit =
-          bounded_global_allocation_limit(new_max_global_limit);
-    }
-
-    static LimitBounds AtLeastCurrentLimits(Heap* heap) {
-      return {
-          .minimum_old_generation_allocation_limit =
-              heap->old_generation_allocation_limit(),
-          .minimum_global_allocation_limit = heap->global_allocation_limit()};
-    }
-
-    static LimitBounds AtMostCurrentLimits(Heap* heap) {
-      return {
-          .maximum_old_generation_allocation_limit =
-              heap->old_generation_allocation_limit(),
-          .maximum_global_allocation_limit = heap->global_allocation_limit()};
-    }
   };
 
   // Support for context snapshots.  After calling this we have a linear
@@ -762,10 +649,7 @@ class Heap final {
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
 
-  uint64_t external_memory_hard_limit() {
-    return external_memory_.low_since_mark_compact() +
-           max_old_generation_size() / 2;
-  }
+  V8_EXPORT_PRIVATE uint64_t external_memory_hard_limit();
 
   V8_INLINE uint64_t external_memory() const;
   V8_EXPORT_PRIVATE uint64_t external_memory_limit_for_interrupt();
@@ -807,13 +691,7 @@ class Heap final {
 
   bool CollectionRequested();
 
-  void RestoreHeapLimit(size_t heap_limit) {
-    // Do not set the limit lower than the live size + some slack.
-    size_t min_limit = SizeOfObjects() + SizeOfObjects() / 4;
-    SetOldGenerationAndGlobalMaximumSize(
-        std::min(max_old_generation_size(), std::max(heap_limit, min_limit)),
-        physical_memory());
-  }
+  void RestoreHeapLimit(size_t heap_limit);
 
   // ===========================================================================
   // Initialization. ===========================================================
@@ -1223,6 +1101,8 @@ class Heap final {
   // Ensures that sweeping is finished for that object's page.
   void EnsureSweepingCompletedForObject(Tagged<HeapObject> object);
 
+  HeapLimits* limits() const { return limits_.get(); }
+
   IncrementalMarking* incremental_marking() const {
     return incremental_marking_.get();
   }
@@ -1397,7 +1277,7 @@ class Heap final {
   V8_EXPORT_PRIVATE size_t MaxReserved() const;
   size_t MaxSemiSpaceSize() { return max_semi_space_size_; }
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
-  size_t MaxOldGenerationSize() { return max_old_generation_size(); }
+  V8_EXPORT_PRIVATE size_t MaxOldGenerationSize();
 
   // Limit on the max old generation size imposed by the underlying allocator.
   V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize(
@@ -1570,13 +1450,6 @@ class Heap final {
   // Returns the global amount of bytes not available for allocation, including
   // bytes allocated and wasted.
   V8_EXPORT_PRIVATE size_t GlobalConsumedBytes() const;
-
-  // Returns the size of objects in old generation after the last MarkCompact
-  // GC.
-  V8_EXPORT_PRIVATE size_t OldGenerationConsumedBytesAtLastGC() const;
-
-  // Returns the global amount of bytes after the last MarkCompact GC.
-  V8_EXPORT_PRIVATE size_t GlobalConsumedBytesAtLastGC() const;
 
   V8_EXPORT_PRIVATE size_t OldGenerationAllocationLimitForTesting() const;
   V8_EXPORT_PRIVATE size_t GlobalAllocationLimitForTesting() const;
@@ -1979,15 +1852,9 @@ class Heap final {
 
   void ActivateMemoryReducerIfNeededOnMainThread();
 
-  void ShrinkOldGenerationAllocationLimitIfNotConfigured();
-
-  // Extends the allocation limit such that at least |at_least_remaining| unused
-  // memory is left before hitting the allocation limit.
-  void EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining);
-
   // Extends the allocation limits (only if necessary) such that they are at
   // least at or above the current consumed bytes.
-  void EnsureAllocationLimitAboveCurrentSize();
+  void EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining);
 
   double ComputeMutatorUtilization(const char* tag, double mutator_speed,
                                    std::optional<double> gc_speed);
@@ -2078,11 +1945,8 @@ class Heap final {
     return bytes;
   }
 
-  inline size_t OldGenerationSpaceAvailable() {
-    uint64_t bytes = OldGenerationAllocationLimitConsumedBytes();
-    if (old_generation_allocation_limit() <= bytes) return 0;
-    return old_generation_allocation_limit() - static_cast<size_t>(bytes);
-  }
+  V8_EXPORT_PRIVATE size_t OldGenerationSpaceAvailable();
+  V8_EXPORT_PRIVATE size_t GlobalSpaceAvailable();
 
   void UpdateTotalGCTime(base::TimeDelta duration);
 
@@ -2126,43 +1990,6 @@ class Heap final {
   void NotifyInputHandlingEnded(
       LeaveHeapState context = LeaveHeapState::kNotify);
 
-  size_t old_generation_allocation_limit() const {
-    return old_generation_allocation_limit_.load(std::memory_order_relaxed);
-  }
-
-  size_t global_allocation_limit() const {
-    return global_allocation_limit_.load(std::memory_order_relaxed);
-  }
-
-  bool using_initial_limit() const {
-    return using_initial_limit_.load(std::memory_order_relaxed);
-  }
-
-  void set_using_initial_limit(bool value) {
-    using_initial_limit_.store(value, std::memory_order_relaxed);
-  }
-
-  size_t max_old_generation_size() const {
-    return max_old_generation_size_.load(std::memory_order_relaxed);
-  }
-
-  size_t max_global_memory_size() const { return max_global_memory_size_; }
-
-  size_t min_old_generation_size() const { return min_old_generation_size_; }
-
-  // Sets max_old_generation_size_ and computes the new global heap limit from
-  // it.
-  void SetOldGenerationAndGlobalMaximumSize(size_t max_old_generation_size,
-                                            size_t physical_memory);
-
-  // Sets allocation limits for both old generation and the global heap.
-  void SetOldGenerationAndGlobalAllocationLimit(
-      size_t new_old_generation_allocation_limit,
-      size_t new_global_allocation_limit,
-      const char* reason = __builtin_FUNCTION());
-
-  void ResetOldGenerationAndGlobalAllocationLimit();
-
   bool always_allocate() const { return always_allocate_scope_count_ != 0; }
 
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
@@ -2185,17 +2012,12 @@ class Heap final {
 
   bool ShouldStressCompaction() const;
 
-  size_t GlobalMemoryAvailable();
-
   void RecomputeLimits(GarbageCollector collector);
 
   struct LimitsComputationResult {
     size_t old_generation_allocation_limit;
     size_t global_allocation_limit;
   };
-
-  LimitsComputationResult UpdateAllocationLimits(
-      LimitBounds boundaries, const char* caller = __builtin_FUNCTION());
 
   // ===========================================================================
   // GC Tasks. =================================================================
@@ -2274,16 +2096,12 @@ class Heap final {
   bool IsStressingScavenge();
 
   void SetIsMarkingFlag(bool value);
-  void SetIsMinorMarkingFlag(bool value);
+  V8_EXPORT_PRIVATE void SetIsMinorMarkingFlag(bool value);
 
-  size_t PromotedSinceLastGC() {
-    size_t old_generation_size = OldGenerationSizeOfObjects();
-    return old_generation_size > old_generation_size_at_last_gc_
-               ? old_generation_size - old_generation_size_at_last_gc_
-               : 0;
-  }
+  V8_EXPORT_PRIVATE size_t PromotedSinceLastGC();
 
-  ExternalMemoryAccounting external_memory_;
+  // The amount of external memory registered through the API.
+  std::atomic<uint64_t> external_memory_total_{0};
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
@@ -2297,30 +2115,8 @@ class Heap final {
   size_t max_semi_space_size_ = 0;
   size_t min_semi_space_size_ = 0;
   size_t initial_semispace_size_ = 0;
-  // Full garbage collections can be skipped if the old generation size
-  // is below this threshold.
-  size_t min_old_generation_size_ = 0;
-  // If the old generation size exceeds this limit, then V8 will
-  // crash with out-of-memory error.
-  std::atomic<size_t> max_old_generation_size_{0};
-  // TODO(mlippautz): Clarify whether this should take some embedder
-  // configurable limit into account.
-  size_t min_global_memory_size_ = 0;
-  size_t max_global_memory_size_ = 0;
 
-  size_t initial_max_old_generation_size_ = 0;
   size_t initial_max_old_generation_size_threshold_ = 0;
-  size_t initial_old_generation_size_ = 0;
-
-  // Before the first full GC the old generation allocation limit is considered
-  // to be *not* configured (unless initial limits were provided by the
-  // embedder, see below). In this mode V8 starts with a very large old
-  // generation allocation limit initially. Minor GCs may then shrink this
-  // initial limit down until the first full GC computes a proper old generation
-  // allocation limit in Heap::RecomputeLimits. The old generation allocation
-  // limit is then considered to be configured for all subsequent GCs. After the
-  // first full GC this field is only ever reset for top context disposals.
-  std::atomic<bool> using_initial_limit_ = true;
 
   // True if initial heap size was provided by the embedder.
   bool initial_size_overwritten_ = false;
@@ -2431,13 +2227,6 @@ class Heap final {
   int remembered_unmapped_pages_index_ = 0;
   Address remembered_unmapped_pages_[kRememberedUnmappedPages];
 
-  // Limit that triggers a global GC on the next (normally caused) GC.  This
-  // is checked when we have already decided to do a GC to help determine
-  // which collector to invoke, before expanding a paged space in the old
-  // generation and on every allocation in large object space.
-  std::atomic<size_t> old_generation_allocation_limit_{0};
-  std::atomic<size_t> global_allocation_limit_{0};
-
   // Weak list heads, threaded through the objects.
   // List heads are initialized lazily and contain the undefined_value at start.
   // {native_contexts_list_} is an Address instead of an Object to allow the use
@@ -2480,6 +2269,7 @@ class Heap final {
   std::unique_ptr<ArrayBufferSweeper> array_buffer_sweeper_;
 
   std::unique_ptr<MemoryAllocator> memory_allocator_;
+  std::unique_ptr<HeapLimits> limits_;
   std::unique_ptr<IncrementalMarking> incremental_marking_;
   std::unique_ptr<ConcurrentMarking> concurrent_marking_;
   std::unique_ptr<MemoryMeasurement> memory_measurement_;
@@ -2536,15 +2326,6 @@ class Heap final {
   // account for the bytes allocated since the last GC, use the
   // OldGenerationAllocationCounter() function.
   size_t old_generation_allocation_counter_at_last_gc_ = 0;
-
-  // The size of objects in old generation after the last MarkCompact GC.
-  size_t old_generation_size_at_last_gc_{0};
-
-  // The wasted bytes in old generation after the last MarkCompact GC.
-  size_t old_generation_wasted_at_last_gc_{0};
-
-  // The size of embedder memory after the last MarkCompact GC.
-  size_t embedder_size_at_last_gc_ = 0;
 
   char trace_ring_buffer_[kTraceRingBufferSize];
 
@@ -2674,6 +2455,8 @@ class Heap final {
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapAllocator;
+  friend class HeapLimits;
+  friend struct HeapLimitBounds;
   friend class HeapObjectIterator;
   friend class HeapVerifier;
   friend class IgnoreLocalGCRequests;
