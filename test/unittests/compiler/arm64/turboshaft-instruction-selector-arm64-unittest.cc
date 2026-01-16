@@ -4817,6 +4817,39 @@ INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorSimdS128LowDupTest,
                          ::testing::ValuesIn(kSIMDS128LowDupInstructions));
 
+TEST_F(TurboshaftInstructionSelectorTest, MoveLane) {
+  struct MoveLaneConfig {
+    Simd128MoveLaneOp::Kind kind;
+    uint8_t into_lane;
+    uint8_t from_lane;
+    int32_t lane_size;
+  };
+
+  std::array configs = std::to_array<MoveLaneConfig>({
+      {Simd128MoveLaneOp::Kind::kI8x16, 11, 8, 8},
+      {Simd128MoveLaneOp::Kind::kI16x8, 5, 7, 16},
+      {Simd128MoveLaneOp::Kind::kI32x4, 3, 2, 32},
+      {Simd128MoveLaneOp::Kind::kI64x2, 1, 0, 64},
+      {Simd128MoveLaneOp::Kind::kF32x4, 2, 0, 32},
+      {Simd128MoveLaneOp::Kind::kF64x2, 0, 1, 64},
+  });
+
+  const MachineType type = MachineType::Simd128();
+  for (const auto& config : configs) {
+    StreamBuilder m(this, type, type, type);
+    m.Return(m.Simd128MoveLane(m.Parameter(0), m.Parameter(1), config.kind,
+                               config.into_lane, config.from_lane));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64S128MoveLane, s[0]->arch_opcode());
+    EXPECT_EQ(config.lane_size, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(config.from_lane, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(config.into_lane, s.ToInt32(s[0]->InputAt(3)));
+  }
+}
+
 #if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {

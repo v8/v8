@@ -1869,8 +1869,9 @@ void Simd128ExtractLaneOp::PrintOptions(std::ostream& os) const {
   os << ", " << static_cast<int32_t>(lane) << ']';
 }
 
-void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
-  os << '[';
+static void PrintReplaceLaneKind(Simd128ReplaceLaneOp::Kind kind,
+                                 std::ostream& os) {
+  using Kind = Simd128ReplaceLaneOp::Kind;
   switch (kind) {
     case Kind::kI8x16:
       os << "I8x16";
@@ -1894,6 +1895,18 @@ void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
       os << "F64x2";
       break;
   }
+}
+
+void Simd128MoveLaneOp::PrintOptions(std::ostream& os) const {
+  os << '[';
+  PrintReplaceLaneKind(kind, os);
+  os << ", " << static_cast<int32_t>(into_lane) << ", "
+     << static_cast<int32_t>(from_lane) << ']';
+}
+
+void Simd128ReplaceLaneOp::PrintOptions(std::ostream& os) const {
+  os << '[';
+  PrintReplaceLaneKind(kind, os);
   os << ", " << static_cast<int32_t>(lane) << ']';
 }
 

@@ -2142,6 +2142,55 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 #ifdef V8_TARGET_ARCH_ARM64
+  V<Simd128> REDUCE(Simd128ReplaceLane)(V<Simd128> into, V<Any> new_lane,
+                                        Simd128ReplaceLaneOp::Kind kind,
+                                        uint8_t lane) {
+    if (kind == Simd128ReplaceLaneOp::Kind::kF16x8) {
+      // Not supported yet.
+      return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+    }
+
+    if (const Simd128ExtractLaneOp* extract =
+            matcher_.TryCast<Simd128ExtractLaneOp>(new_lane)) {
+      Simd128ExtractLaneOp::Kind extract_kind = extract->kind;
+      int extract_bytes =
+          ElementSizeInBytes(Simd128ExtractLaneOp::element_rep(extract_kind));
+      int replace_bytes =
+          ElementSizeInBytes(Simd128ReplaceLaneOp::element_rep(kind));
+      if (extract_bytes >= replace_bytes) {
+#if DEBUG
+        switch (kind) {
+          case Simd128ReplaceLaneOp::Kind::kI8x16:
+          case Simd128ReplaceLaneOp::Kind::kI16x8:
+          case Simd128ReplaceLaneOp::Kind::kI32x4:
+            DCHECK(extract_kind == Simd128ExtractLaneOp::Kind::kI8x16S ||
+                   extract_kind == Simd128ExtractLaneOp::Kind::kI8x16U ||
+                   extract_kind == Simd128ExtractLaneOp::Kind::kI16x8S ||
+                   extract_kind == Simd128ExtractLaneOp::Kind::kI16x8U ||
+                   extract_kind == Simd128ExtractLaneOp::Kind::kI32x4);
+            break;
+          case Simd128ReplaceLaneOp::Kind::kI64x2:
+            DCHECK_EQ(extract_kind, Simd128ExtractLaneOp::Kind::kI64x2);
+            break;
+          case Simd128ReplaceLaneOp::Kind::kF32x4:
+            DCHECK_EQ(extract_kind, Simd128ExtractLaneOp::Kind::kF32x4);
+            break;
+          case Simd128ReplaceLaneOp::Kind::kF64x2:
+            DCHECK_EQ(extract_kind, Simd128ExtractLaneOp::Kind::kF64x2);
+            break;
+          case Simd128ReplaceLaneOp::Kind::kF16x8:
+            UNIMPLEMENTED();
+        }
+#endif  // DEBUG
+        // Skip the extract and just move a lane.
+        int from_lane = extract->lane * (extract_bytes / replace_bytes);
+        return __ Simd128MoveLane(into, extract->input(), kind, lane,
+                                  from_lane);
+      }
+    }
+    return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+  }
+
   V<Any> REDUCE(Simd128ExtractLane)(V<Simd128> input,
                                     Simd128ExtractLaneOp::Kind kind,
                                     uint8_t lane) {

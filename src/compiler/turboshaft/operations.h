@@ -193,6 +193,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd128Ternary)                       \
   V(Simd128ExtractLane)                   \
   V(Simd128ReplaceLane)                   \
+  V(Simd128MoveLane)                      \
   V(Simd128LaneMemory)                    \
   V(Simd128LoadTransform)                 \
   V(Simd128Shuffle)                       \
@@ -8671,6 +8672,40 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
 
   static constexpr OpEffects effects = OpEffects();
 
+  static MachineRepresentation element_rep(Kind kind) {
+    switch (kind) {
+      case Kind::kI8x16:
+        return MachineRepresentation::kWord8;
+      case Kind::kI16x8:
+        return MachineRepresentation::kWord16;
+      case Kind::kI32x4:
+        return MachineRepresentation::kWord32;
+      case Kind::kI64x2:
+        return MachineRepresentation::kWord64;
+      case Kind::kF16x8:
+      case Kind::kF32x4:
+        return MachineRepresentation::kFloat32;
+      case Kind::kF64x2:
+        return MachineRepresentation::kFloat64;
+    }
+  }
+
+  static uint8_t lane_count(Kind kind) {
+    switch (kind) {
+      case Kind::kI8x16:
+        return 16;
+      case Kind::kI16x8:
+      case Kind::kF16x8:
+        return 8;
+      case Kind::kI32x4:
+      case Kind::kF32x4:
+        return 4;
+      case Kind::kI64x2:
+      case Kind::kF64x2:
+        return 2;
+    }
+  }
+
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Simd128()>();
   }
@@ -8689,24 +8724,7 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
 
   void Validate(const Graph& graph) const {
 #if DEBUG
-    uint8_t lane_count;
-    switch (kind) {
-      case Kind::kI8x16:
-        lane_count = 16;
-        break;
-      case Kind::kI16x8:
-      case Kind::kF16x8:
-        lane_count = 8;
-        break;
-      case Kind::kI32x4:
-      case Kind::kF32x4:
-        lane_count = 4;
-        break;
-      case Kind::kI64x2:
-      case Kind::kF64x2:
-        lane_count = 2;
-        break;
-    }
+    uint8_t lane_count = Simd128ReplaceLaneOp::lane_count(kind);
     DCHECK_LT(lane, lane_count);
 #endif
   }
@@ -8729,6 +8747,44 @@ struct Simd128ReplaceLaneOp : FixedArityOperationT<2, Simd128ReplaceLaneOp> {
         return RegisterRepresentation::Float64();
     }
   }
+};
+
+struct Simd128MoveLaneOp : FixedArityOperationT<2, Simd128MoveLaneOp> {
+  using Kind = Simd128ReplaceLaneOp::Kind;
+
+  const Kind kind;
+  const uint8_t into_lane;
+  const uint8_t from_lane;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InitVectorOf(storage, {RegisterRepresentation::Simd128(),
+                                  RegisterRepresentation::Simd128()});
+  }
+
+  Simd128MoveLaneOp(V<Simd128> into, V<Simd128> from, Kind kind,
+                    uint8_t into_lane, uint8_t from_lane)
+      : Base(into, from),
+        kind(kind),
+        into_lane(into_lane),
+        from_lane(from_lane) {}
+
+  V<Simd128> into() const { return input<Simd128>(0); }
+  V<Simd128> from() const { return input<Simd128>(1); }
+
+  void Validate(const Graph& graph) const {
+    DCHECK_NE(kind, Kind::kF16x8);
+    DCHECK_LT(into_lane, Simd128ReplaceLaneOp::lane_count(kind));
+    DCHECK_LT(from_lane, Simd128ReplaceLaneOp::lane_count(kind));
+  }
+
+  auto options() const { return std::tuple{kind, into_lane, from_lane}; }
+  void PrintOptions(std::ostream& os) const;
 };
 
 // If `mode` is `kLoad`, load a value from `base() + index() + offset`, whose

@@ -5068,6 +5068,23 @@ SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
 SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
 #undef SIMD_VISIT_REPLACE_LANE
 
+#define SIMD_VISIT_MOVE_LANE(Type, LaneSize)                      \
+  void InstructionSelector::Visit##Type##MoveLane(OpIndex node) { \
+    Arm64OperandGenerator g(this);                                \
+    const Simd128MoveLaneOp& op = Cast<Simd128MoveLaneOp>(node);  \
+    Emit(kArm64S128MoveLane | LaneSizeField::encode(LaneSize),    \
+         g.DefineSameAsFirst(node), g.UseRegister(op.into()),     \
+         g.UseRegister(op.from()), g.UseImmediate(op.from_lane),  \
+         g.UseImmediate(op.into_lane));                           \
+  }
+SIMD_VISIT_MOVE_LANE(I8x16, 8)
+SIMD_VISIT_MOVE_LANE(I16x8, 16)
+SIMD_VISIT_MOVE_LANE(I32x4, 32)
+SIMD_VISIT_MOVE_LANE(F32x4, 32)
+SIMD_VISIT_MOVE_LANE(I64x2, 64)
+SIMD_VISIT_MOVE_LANE(F64x2, 64)
+#undef SIMD_VISIT_MOVE_LANE
+
 #define SIMD_VISIT_UNOP(Name, instruction)              \
   void InstructionSelector::Visit##Name(OpIndex node) { \
     VisitRR(this, instruction, node);                   \

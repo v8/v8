@@ -5172,6 +5172,13 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableSimd128ReplaceLane(into, new_lane, kind, lane);
   }
 
+  V<Simd128> Simd128MoveLane(V<Simd128> into, V<Simd128> from,
+                             Simd128MoveLaneOp::Kind kind, uint8_t into_lane,
+                             uint8_t from_lane) {
+    return ReduceIfReachableSimd128MoveLane(into, from, kind, into_lane,
+                                            from_lane);
+  }
+
   OpIndex Simd128LaneMemory(V<WordPtr> base, V<WordPtr> index, V<WordPtr> value,
                             Simd128LaneMemoryOp::Mode mode,
                             Simd128LaneMemoryOp::Kind kind,

@@ -900,6 +900,7 @@
   IF_WASM(V, F64x2Splat)                  \
   IF_WASM(V, F64x2ExtractLane)            \
   IF_WASM(V, F64x2ReplaceLane)            \
+  IF_WASM(V, F64x2MoveLane)               \
   IF_WASM(V, F64x2Abs)                    \
   IF_WASM(V, F64x2Neg)                    \
   IF_WASM(V, F64x2Sqrt)                   \
@@ -927,6 +928,7 @@
   IF_WASM(V, F32x4Splat)                  \
   IF_WASM(V, F32x4ExtractLane)            \
   IF_WASM(V, F32x4ReplaceLane)            \
+  IF_WASM(V, F32x4MoveLane)               \
   IF_WASM(V, F32x4SConvertI32x4)          \
   IF_WASM(V, F32x4UConvertI32x4)          \
   IF_WASM(V, F32x4Abs)                    \
@@ -956,6 +958,7 @@
   IF_WASM(V, F16x8Splat)                  \
   IF_WASM(V, F16x8ExtractLane)            \
   IF_WASM(V, F16x8ReplaceLane)            \
+  IF_WASM(V, F16x8MoveLane)               \
   IF_WASM(V, F16x8Abs)                    \
   IF_WASM(V, F16x8Neg)                    \
   IF_WASM(V, F16x8Sqrt)                   \
@@ -990,6 +993,7 @@
   IF_WASM(V, I64x2SplatI32Pair)           \
   IF_WASM(V, I64x2ExtractLane)            \
   IF_WASM(V, I64x2ReplaceLane)            \
+  IF_WASM(V, I64x2MoveLane)               \
   IF_WASM(V, I64x2ReplaceLaneI32Pair)     \
   IF_WASM(V, I64x2Abs)                    \
   IF_WASM(V, I64x2Neg)                    \
@@ -1015,6 +1019,7 @@
   IF_WASM(V, I32x4Splat)                  \
   IF_WASM(V, I32x4ExtractLane)            \
   IF_WASM(V, I32x4ReplaceLane)            \
+  IF_WASM(V, I32x4MoveLane)               \
   IF_WASM(V, I32x4SConvertF32x4)          \
   IF_WASM(V, I32x4SConvertI16x8Low)       \
   IF_WASM(V, I32x4SConvertI16x8High)      \
@@ -1058,6 +1063,7 @@
   IF_WASM(V, I16x8ExtractLaneU)           \
   IF_WASM(V, I16x8ExtractLaneS)           \
   IF_WASM(V, I16x8ReplaceLane)            \
+  IF_WASM(V, I16x8MoveLane)               \
   IF_WASM(V, I16x8SConvertI8x16Low)       \
   IF_WASM(V, I16x8SConvertI8x16High)      \
   IF_WASM(V, I16x8Neg)                    \
@@ -1103,6 +1109,7 @@
   IF_WASM(V, I8x16ExtractLaneU)           \
   IF_WASM(V, I8x16ExtractLaneS)           \
   IF_WASM(V, I8x16ReplaceLane)            \
+  IF_WASM(V, I8x16MoveLane)               \
   IF_WASM(V, I8x16SConvertI16x8)          \
   IF_WASM(V, I8x16Neg)                    \
   IF_WASM(V, I8x16Shl)                    \

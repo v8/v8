@@ -1981,7 +1981,16 @@ IF_WASM(VISIT_UNSUPPORTED_OP, MemoryCopy)
 IF_WASM(VISIT_UNSUPPORTED_OP, MemoryFill)
 
 IF_WASM(VISIT_UNSUPPORTED_OP, I32x4AddPairwise)
+
+IF_WASM(VISIT_UNSUPPORTED_OP, I8x16MoveLane)
+IF_WASM(VISIT_UNSUPPORTED_OP, I16x8MoveLane)
+IF_WASM(VISIT_UNSUPPORTED_OP, I32x4MoveLane)
+IF_WASM(VISIT_UNSUPPORTED_OP, I64x2MoveLane)
+IF_WASM(VISIT_UNSUPPORTED_OP, F32x4MoveLane)
+IF_WASM(VISIT_UNSUPPORTED_OP, F64x2MoveLane)
 #endif  // !V8_TARGET_ARCH_ARM64
+
+IF_WASM(VISIT_UNSUPPORTED_OP, F16x8MoveLane)
 
 void InstructionSelector::VisitParameter(OpIndex node) {
   const ParameterOp& parameter = Cast<ParameterOp>(node);
@@ -3740,6 +3749,26 @@ void InstructionSelector::VisitNode(OpIndex node) {
           return VisitF32x4ReplaceLane(node);
         case Simd128ReplaceLaneOp::Kind::kF64x2:
           return VisitF64x2ReplaceLane(node);
+      }
+    }
+    case Opcode::kSimd128MoveLane: {
+      const Simd128MoveLaneOp& move = op.Cast<Simd128MoveLaneOp>();
+      MarkAsSimd128(node);
+      switch (move.kind) {
+        case Simd128MoveLaneOp::Kind::kI8x16:
+          return VisitI8x16MoveLane(node);
+        case Simd128MoveLaneOp::Kind::kI16x8:
+          return VisitI16x8MoveLane(node);
+        case Simd128MoveLaneOp::Kind::kI32x4:
+          return VisitI32x4MoveLane(node);
+        case Simd128MoveLaneOp::Kind::kI64x2:
+          return VisitI64x2MoveLane(node);
+        case Simd128MoveLaneOp::Kind::kF16x8:
+          UNIMPLEMENTED();
+        case Simd128MoveLaneOp::Kind::kF32x4:
+          return VisitF32x4MoveLane(node);
+        case Simd128MoveLaneOp::Kind::kF64x2:
+          return VisitF64x2MoveLane(node);
       }
     }
     case Opcode::kSimd128ExtractLane: {
