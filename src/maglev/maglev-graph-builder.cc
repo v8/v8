@@ -5291,7 +5291,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
   compiler::OptionalMapRef original_map;
   if (access_info.HasTransitionMap()) {
     compiler::MapRef transition = access_info.transition_map().value();
-    original_map = transition.GetBackPointer(broker()).AsMap();
+    auto back_pointer = transition.GetBackPointer(broker());
+    if (!back_pointer.has_value()) {
+      return ReduceResult::Fail();
+    }
+    original_map = back_pointer->AsMap();
 
     if (original_map->UnusedPropertyFields() == 0) {
       DCHECK(!field_index.is_inobject());
@@ -8099,7 +8103,8 @@ bool MaglevGraphBuilder::HasValidInitialMap(
   if (!new_target.map(broker()).has_prototype_slot()) return false;
   if (!new_target.has_initial_map(broker())) return false;
   compiler::MapRef initial_map = new_target.initial_map(broker());
-  return initial_map.GetConstructor(broker()).equals(constructor);
+  compiler::OptionalObjectRef ctor = initial_map.GetConstructor(broker());
+  return ctor.has_value() && ctor->equals(constructor);
 }
 
 MaybeReduceResult
@@ -12892,7 +12897,8 @@ compiler::OptionalMapRef TryGetDerivedMap(compiler::JSHeapBroker* broker,
     return {};
   }
   compiler::MapRef initial_map = new_target.initial_map(broker);
-  if (!initial_map.GetConstructor(broker).equals(target)) {
+  compiler::OptionalObjectRef ctor = initial_map.GetConstructor(broker);
+  if (!ctor.has_value() || !ctor->equals(target)) {
     return {};
   }
   DCHECK(target.map(broker).is_constructor());

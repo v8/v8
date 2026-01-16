@@ -28,6 +28,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/property-cell.h"
+#include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 
 namespace v8 {
@@ -1851,9 +1852,24 @@ MapRef MapRef::FindRootMap(JSHeapBroker* broker) const {
                                   object()->FindRootMap(broker->cage_base()));
 }
 
-ObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
-  // Immutable after initialization.
-  return MakeRefAssumeMemoryFence(broker, object()->GetConstructor());
+OptionalObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
+  // Keep in sync with Map::GetConstructor.
+  HeapObjectRef current = *this;
+  do {
+    // Follow any back pointers.
+    OptionalObjectRef maybe_ctor = TryMakeRef(
+        broker,
+        current.AsMap().object()->constructor_or_back_pointer(kRelaxedLoad));
+    if (!maybe_ctor.has_value()) return {};
+    current = maybe_ctor->AsHeapObject();
+  } while (current.IsMap());
+
+  if (current.IsTuple2()) {
+    // Get constructor from the {constructor, non-instance_prototype} tuple.
+    return current.AsTuple2().value1(broker);
+  }
+
+  return current;
 }
 
 NativeContextRef MapRef::native_context(JSHeapBroker* broker) const {
@@ -1861,10 +1877,13 @@ NativeContextRef MapRef::native_context(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->native_context());
 }
 
-HeapObjectRef MapRef::GetBackPointer(JSHeapBroker* broker) const {
-  // Immutable after initialization.
-  return MakeRefAssumeMemoryFence(broker,
-                                  Cast<HeapObject>(object()->GetBackPointer()));
+OptionalHeapObjectRef MapRef::GetBackPointer(JSHeapBroker* broker) const {
+  // Keep in sync with Map::GetBackpointer.
+  OptionalObjectRef maybe_bptr =
+      TryMakeRef(broker, object()->constructor_or_back_pointer(kRelaxedLoad));
+  if (!maybe_bptr.has_value()) return {};
+  if (maybe_bptr->IsMap()) return maybe_bptr->AsMap();
+  return broker->undefined_value();
 }
 
 bool JSTypedArrayRef::is_on_heap() const {
@@ -2268,6 +2287,14 @@ OptionalCellRef SourceTextModuleRef::GetCell(JSHeapBroker* broker,
 
 OptionalObjectRef SourceTextModuleRef::import_meta(JSHeapBroker* broker) const {
   return TryMakeRef(broker, object()->import_meta(kAcquireLoad));
+}
+
+OptionalObjectRef Tuple2Ref::value1(JSHeapBroker* broker) const {
+  return TryMakeRef(broker, object()->value1(kRelaxedLoad));
+}
+
+OptionalObjectRef Tuple2Ref::value2(JSHeapBroker* broker) const {
+  return TryMakeRef(broker, object()->value2(kRelaxedLoad));
 }
 
 OptionalMapRef HeapObjectRef::map_direct_read(JSHeapBroker* broker) const {

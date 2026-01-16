@@ -3088,7 +3088,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
   UNREACHABLE();
 }
 
-JSNativeContextSpecialization::ValueEffectControl
+std::optional<JSNativeContextSpecialization::ValueEffectControl>
 JSNativeContextSpecialization::BuildPropertyStore(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, NameRef name, ZoneVector<Node*>* if_exceptions,
@@ -3243,7 +3243,10 @@ JSNativeContextSpecialization::BuildPropertyStore(
       // Check if we need to grow the properties backing store
       // with this transitioning store.
       MapRef transition_map_ref = transition_map.value();
-      MapRef original_map = transition_map_ref.GetBackPointer(broker()).AsMap();
+      OptionalHeapObjectRef back_pointer =
+          transition_map_ref.GetBackPointer(broker());
+      if (!back_pointer.has_value()) return std::nullopt;
+      MapRef original_map = back_pointer->AsMap();
       if (!field_index.is_inobject()) {
         // If slack tracking ends after this compilation started but before it's
         // finished, then we could {original_map} could be out-of-sync with

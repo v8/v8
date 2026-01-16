@@ -458,7 +458,8 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
                                          const bool has_stability_dependency,
                                          ElementsKind kind,
                                          SharedFunctionInfoRef shared,
-                                         NativeContextRef native_context);
+                                         NativeContextRef native_context,
+                                         ObjectRef array_ctor);
   TNode<JSArray> ReduceArrayPrototypeFilter(MapInference* inference,
                                             const bool has_stability_dependency,
                                             ElementsKind kind,
@@ -1892,7 +1893,7 @@ FrameState MapLoopEagerFrameState(const MapFrameStateParams& params,
 TNode<JSArray> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeMap(
     MapInference* inference, const bool has_stability_dependency,
     ElementsKind kind, SharedFunctionInfoRef shared,
-    NativeContextRef native_context) {
+    NativeContextRef native_context, ObjectRef array_ctor) {
   FrameState outer_frame_state = FrameStateInput();
   TNode<Context> context = ContextInput();
   TNode<Object> target = TargetInput();
@@ -1911,16 +1912,13 @@ TNode<JSArray> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeMap(
   // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
   // exceptional projections because it cannot throw with the given
   // parameters.
-  TNode<Object> array_ctor =
-      Constant(native_context.GetInitialJSArrayMap(broker(), kind)
-                   .GetConstructor(broker()));
 
   MapFrameStateParams frame_state_params{
       jsgraph(), shared,     context,  target,       outer_frame_state,
       receiver,  fncallback, this_arg, {} /* TBD */, original_length};
 
   TNode<JSArray> a =
-      CreateArrayNoThrow(array_ctor, original_length,
+      CreateArrayNoThrow(Constant(array_ctor), original_length,
                          MapPreLoopLazyFrameState(frame_state_params));
   frame_state_params.a = a;
 
@@ -3786,12 +3784,20 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
     return h.inference()->NoChange();
   }
 
+  OptionalObjectRef array_ctor =
+      native_context()
+          .GetInitialJSArrayMap(broker(), h.elements_kind())
+          .GetConstructor(broker());
+  if (!array_ctor.has_value()) {
+    return h.inference()->NoChange();
+  }
+
   IteratingArrayBuiltinReducerAssembler a(this, node);
   a.InitializeEffectControl(h.effect(), h.control());
 
-  TNode<Object> subgraph =
-      a.ReduceArrayPrototypeMap(h.inference(), h.has_stability_dependency(),
-                                h.elements_kind(), shared, native_context());
+  TNode<Object> subgraph = a.ReduceArrayPrototypeMap(
+      h.inference(), h.has_stability_dependency(), h.elements_kind(), shared,
+      native_context(), array_ctor.value());
   return ReplaceWithSubgraph(&a, subgraph);
 }
 

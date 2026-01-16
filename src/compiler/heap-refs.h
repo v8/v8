@@ -33,6 +33,7 @@ class JSGlobalProxy;
 class JSTypedArray;
 class NativeContext;
 class ScriptContextTable;
+class Tuple2;
 template <typename>
 class Signature;
 
@@ -158,6 +159,7 @@ enum class RefSerializationKind {
   NEVER_SERIALIZED(SharedFunctionInfo)                                        \
   NEVER_SERIALIZED(SourceTextModule)                                          \
   NEVER_SERIALIZED(TemplateObjectDescription)                                 \
+  NEVER_SERIALIZED(Tuple2)                                                    \
   /* Subtypes of Object */                                                    \
   BACKGROUND_SERIALIZED(HeapObject)
 
@@ -977,7 +979,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool IsNullMap(JSHeapBroker* broker) const;
   bool IsUndefinedMap(JSHeapBroker* broker) const;
 
-  HeapObjectRef GetBackPointer(JSHeapBroker* broker) const;
+  OptionalHeapObjectRef GetBackPointer(JSHeapBroker* broker) const;
 
   HeapObjectRef prototype(JSHeapBroker* broker) const;
 
@@ -997,7 +999,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
                                    InternalIndex descriptor_number) const;
 
   MapRef FindRootMap(JSHeapBroker* broker) const;
-  ObjectRef GetConstructor(JSHeapBroker* broker) const;
+  OptionalObjectRef GetConstructor(JSHeapBroker* broker) const;
   NativeContextRef native_context(JSHeapBroker* broker) const;
 };
 
@@ -1291,6 +1293,16 @@ class TemplateObjectDescriptionRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(TemplateObjectDescription, HeapObjectRef)
 
   IndirectHandle<TemplateObjectDescription> object() const;
+};
+
+class Tuple2Ref : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(Tuple2, HeapObjectRef)
+
+  IndirectHandle<Tuple2> object() const;
+
+  OptionalObjectRef value1(JSHeapBroker* broker) const;
+  OptionalObjectRef value2(JSHeapBroker* broker) const;
 };
 
 class CellRef : public HeapObjectRef {
