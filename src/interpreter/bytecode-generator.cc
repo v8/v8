@@ -6753,7 +6753,15 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   //     callee(1, ...x, 2)
   // to
   //     %reflect_apply(callee, receiver, [1, ...x, 2])
+  //
+  // For direct eval calls with a final spread like eval(...iter), we also use
+  // %reflect_apply so we can extract the first argument for eval resolution.
   const Call::SpreadPosition spread_position = expr->spread_position();
+  const bool eval_with_final_spread =
+      spread_position == Call::kHasFinalSpread && expr->is_possibly_eval() &&
+      expr->arguments()->length() > 0;
+  const bool use_reflect_apply =
+      spread_position == Call::kHasNonFinalSpread || eval_with_final_spread;
 
   // Grow the args list as we visit receiver / arguments to avoid allocating all
   // the registers up-front. Otherwise these registers are unavailable during
@@ -6871,7 +6879,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   }
 
   int receiver_arg_count = -1;
-  if (spread_position == Call::kHasNonFinalSpread) {
+  if (use_reflect_apply) {
     // If we're building %reflect_apply, build the array literal and put it in
     // the 3rd argument.
     DCHECK(!implicit_undefined_receiver);
@@ -6900,7 +6908,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     // position.
 
     // Move the first arg.
-    if (spread_position == Call::kHasNonFinalSpread) {
+    if (use_reflect_apply) {
       int feedback_slot_index =
           feedback_index(feedback_spec()->AddKeyedLoadICSlot());
       Register args_array = args[2];
@@ -6909,7 +6917,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
           .LoadKeyedProperty(args_array, feedback_slot_index)
           .StoreAccumulatorInRegister(runtime_call_args[1]);
     } else {
-      // FIXME(v8:5690): Support final spreads for eval.
       DCHECK_GE(receiver_arg_count, 0);
       builder()->MoveRegister(args[receiver_arg_count], runtime_call_args[1]);
     }
@@ -6938,12 +6945,12 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   builder()->SetExpressionPosition(expr);
 
-  if (spread_position == Call::kHasFinalSpread) {
+  if (use_reflect_apply) {
+    builder()->CallJSRuntime(Context::REFLECT_APPLY_INDEX, args);
+  } else if (spread_position == Call::kHasFinalSpread) {
     DCHECK(!implicit_undefined_receiver);
     builder()->CallWithSpread(callee, args,
                               feedback_index(feedback_spec()->AddCallICSlot()));
-  } else if (spread_position == Call::kHasNonFinalSpread) {
-    builder()->CallJSRuntime(Context::REFLECT_APPLY_INDEX, args);
   } else if (call_type == Call::NAMED_PROPERTY_CALL ||
              call_type == Call::KEYED_PROPERTY_CALL) {
     DCHECK(!implicit_undefined_receiver);
