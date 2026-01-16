@@ -486,6 +486,12 @@
     },
     'tests': [
       {
+        'name': 'mjsunit',
+        'variant': 'default',
+        'shards': 1,
+        'test_args': ['--exit-after-n-failures=0'],
+      },
+      {
         'name': 'test262',
         'variant': 'default',
         'shards': 2,
