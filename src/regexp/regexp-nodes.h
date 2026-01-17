@@ -165,6 +165,7 @@ class RegExpNode : public ZoneObject {
   // fail and can be ignored when determining how many characters are consumed
   // on success.  If this node has not been analyzed yet, EatsAtLeast returns 0.
   uint32_t EatsAtLeast(bool not_at_start);
+  static constexpr uint32_t kLargeEatsAtLeastValue = 255;
   // Emits some quick code that checks whether the preloaded characters match.
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
@@ -202,23 +203,6 @@ class RegExpNode : public ZoneObject {
   virtual void FillInBMInfo(Isolate* isolate, int offset, int budget,
                             BoyerMooreLookahead* bm, bool not_at_start) {
     return;
-  }
-
-  // If we know that the input is one-byte then there are some nodes that can
-  // never match.  This method returns a node that can be substituted for
-  // itself, or nullptr if the node can never match.
-  virtual RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) {
-    return this;
-  }
-  // Helper for FilterOneByte.
-  RegExpNode* replacement() {
-    DCHECK(info()->replacement_calculated);
-    return replacement_;
-  }
-  RegExpNode* set_replacement(RegExpNode* replacement) {
-    info()->replacement_calculated = true;
-    replacement_ = replacement;
-    return replacement;  // For convenience.
   }
 
   // We want to avoid recalculating the lookahead info, so we store it on the
@@ -268,6 +252,8 @@ class RegExpNode : public ZoneObject {
 
   Zone* zone() const { return zone_; }
 
+  virtual bool IsBacktrack() const { return false; }
+
  protected:
   enum LimitResult { DONE, CONTINUE };
   RegExpNode* replacement_;
@@ -305,16 +291,12 @@ class SeqRegExpNode : public RegExpNode {
       : RegExpNode(on_success->zone()), on_success_(on_success) {}
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
-  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override {
     on_success_->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
   SeqRegExpNode* AsSeqRegExpNode() override { return this; }
-
- protected:
-  RegExpNode* FilterSuccessor(int depth, RegExpCompiler* compiler);
 
  private:
   RegExpNode* on_success_;
@@ -497,8 +479,10 @@ class TextNode : public SeqRegExpNode {
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override;
   void CalculateOffsets();
-  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   int Length();
+
+  // Returns false if the text node can't match in one-byte mode.
+  bool CanMatchLatin1(RegExpCompiler* compiler);
 
  private:
   enum TextEmitPassType {
@@ -595,7 +579,10 @@ class BackReferenceNode : public SeqRegExpNode {
 class EndNode : public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
-  EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {}
+  EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {
+    EatsAtLeastInfo large(kLargeEatsAtLeastValue);
+    if (action == BACKTRACK) set_eats_at_least_info(large);
+  }
   EndNode* AsEndNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
@@ -605,6 +592,8 @@ class EndNode : public RegExpNode {
                             bool not_at_start, int budget) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override {}
+
+  virtual bool IsBacktrack() const override { return action_ == BACKTRACK; }
 
  private:
   Action action_;
@@ -689,7 +678,6 @@ class ChoiceNode : public RegExpNode {
   virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
     return true;
   }
-  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   virtual bool read_backward() { return false; }
 
  protected:
@@ -768,7 +756,6 @@ class NegativeLookaroundChoiceNode : public ChoiceNode {
     return this;
   }
   void Accept(NodeVisitor* visitor) override;
-  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
 };
 
 class LoopChoiceNode : public ChoiceNode {
@@ -794,7 +781,6 @@ class LoopChoiceNode : public ChoiceNode {
   bool read_backward() override { return read_backward_; }
   LoopChoiceNode* AsLoopChoiceNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
-  RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
 
  private:
   // AddAlternative is made private for loop nodes because alternatives
