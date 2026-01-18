@@ -1226,4 +1226,16 @@
 }],
 # End roll-watcher patch
 ####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/Temporal/PlainDate/from/month-code-wrong-type': [SKIP],
+  'built-ins/Temporal/PlainDateTime/from/month-code-wrong-type': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/from/month-code-wrong-type': [SKIP],
+  'built-ins/Temporal/ZonedDateTime/from/month-code-wrong-type': [SKIP],
+  'intl402/Temporal/PlainYearMonth/from/extreme-dates': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
