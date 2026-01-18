@@ -157,10 +157,10 @@ assertEquals("foo  baz", a);
 a = "foo bar baz".replace(/^|bar/g, "*");
 assertEquals("*foo * baz", a);
 
-// We test FilterASCII using regexps that will backtrack forever.  Since
-// a regexp with a non-ASCII character in it can never match an ASCII
-// string we can test that the relevant node is removed by verifying that
-// there is no hang.
+// We test ToNode's filtering of nodes that can't match in one-byte mode, using
+// regexps that will backtrack forever.  Since a regexp with a non-Latin1
+// character in it can never match an Latin1 string we can test that the
+// relevant node is removed by verifying that there is no hang.
 function NoHang(re) {
   "This is an ASCII string that could take forever".match(re);
 }
@@ -191,6 +191,10 @@ NoHang(/(((.*)*)*x).{2,10}Ā/);  // Successor of unrolled loop.
 NoHang(/(((.*)*)*x).{0,2}Ā/);  // Successor of unrolled loop.
 NoHang(/(((.*)*)*x).{5,10}Ā/);  // Successor of loop with guards.
 NoHang(/(((.*)*)*x)(.?){5,10}Ā/);  // Successor of loop with zero length test.
+
+// Another test of ToNode - the body of the ? quantifier can't match on a
+// Latin1 input, but the quantifier still matches.
+assertTrue(/\u0100?/.test("abcd"));
 
 var s = "Don't prune based on a repetition of length 0";
 assertEquals(null, s.match(/å{1,1}prune/));

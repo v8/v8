@@ -3922,18 +3922,18 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
     node = OptionallyStepBackToLeadSurrogate(node);
   }
 
-  DCHECK_NE(nullptr, node);
-  // We can run out of registers during preprocessing. Indicate an error in case
-  // we do.
+  // We can run out of registers during preprocessing, or we can recurse too
+  // deep during ToNode. Indicate an error in either case.
   if (reg_exp_too_big_) {
     data->error = RegExpError::kTooLarge;
   }
+  CHECK_NE(nullptr, node);
   return node;
 }
 
 void RegExpCompiler::ToNodeCheckForStackOverflow() {
   if (StackLimitCheck{isolate()}.HasOverflowed()) {
-    V8::FatalProcessOutOfMemory(isolate(), "RegExpCompiler");
+    SetRegExpTooBig();
   }
 }
 

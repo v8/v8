@@ -37,6 +37,12 @@ RegExpNode* RegExpTree::ToNode(RegExpCompiler* compiler,
   // something and then inevitably backtrack.
   if (on_success->IsBacktrack()) return on_success;
   compiler->ToNodeMaybeCheckForStackOverflow();
+  if (compiler->IsRegExpTooBig()) {
+    // We can always return this even though it may not be the expected
+    // subclass because all call sites already have to check for this case.
+    Zone* zone = compiler->zone();
+    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+  }
   return ToNodeImpl(compiler, on_success);
 }
 
@@ -1295,9 +1301,12 @@ RegExpNode* RegExpLookaround::ToNodeImpl(RegExpCompiler* compiler,
   Builder builder(is_positive(), on_success, stack_pointer_register,
                   position_register, register_count, register_start);
   RegExpNode* match = body_->ToNode(compiler, builder.on_match_success());
+  if (match->IsBacktrack() && (is_positive() || compiler->IsRegExpTooBig())) {
+    compiler->set_read_backward(was_reading_backward);
+    return match;
+  }
   result = builder.ForMatch(match);
   compiler->set_read_backward(was_reading_backward);
-  if (is_positive() && match->IsBacktrack()) return match;
   return result;
 }
 
