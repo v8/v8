@@ -8164,7 +8164,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
 #define LOAD_CASE(name, ctype, mtype, rep, type)                               \
   case kExpr##name: {                                                          \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              Decoder::kNoValidation);                         \
+                              false, Decoder::kNoValidation);                  \
     len = 1 + imm.length;                                                      \
     optional.offset = imm.offset;                                              \
     break;                                                                     \
@@ -8188,7 +8188,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
 #define STORE_CASE(name, ctype, mtype, rep, type)                              \
   case kExpr##name: {                                                          \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              Decoder::kNoValidation);                         \
+                              false, Decoder::kNoValidation);                  \
     len = 1 + imm.length;                                                      \
     optional.offset = imm.offset;                                              \
     break;                                                                     \
@@ -8583,7 +8583,7 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
       MachineType memtype = MachineType::Uint32();
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                Decoder::kNoValidation);
+                                false, Decoder::kNoValidation);
       optional->offset = imm.offset;
       *len += imm.length;
       break;
@@ -8592,7 +8592,7 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
       MachineType memtype = MachineType::Uint64();
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                Decoder::kNoValidation);
+                                false, Decoder::kNoValidation);
       optional->offset = imm.offset;
       *len += imm.length;
       break;
@@ -8606,7 +8606,7 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
     MachineType memtype = MachineType::Type();                              \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                 \
                               ElementSizeLog2Of(memtype.representation()),  \
-                              Decoder::kNoValidation);                      \
+                              false, Decoder::kNoValidation);               \
     optional->offset = imm.offset;                                          \
     *len += imm.length;                                                     \
     break;                                                                  \
@@ -8619,7 +8619,7 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
     MachineType memtype = MachineType::Type();                             \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                \
                               ElementSizeLog2Of(memtype.representation()), \
-                              Decoder::kNoValidation);                     \
+                              false, Decoder::kNoValidation);              \
     optional->offset = imm.offset;                                         \
     *len += imm.length;                                                    \
     break;                                                                 \

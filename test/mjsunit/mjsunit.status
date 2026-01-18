@@ -887,6 +887,7 @@
   'wasm/inlining-mutable-instance-fields': [SKIP],
   'wasm/nan-constant': [SKIP],
   'wasm/recognize-imports': [SKIP],
+  'wasm/regress-471363817': [SKIP],
   'wasm/simd-relaxed-lane-select': [SKIP],
   'wasm/speculative-inlining': [SKIP],
   'wasm/stringrefs-regressions': [SKIP],
