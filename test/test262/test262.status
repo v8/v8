@@ -663,15 +663,6 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
-################################################################################
-# Test expectations should be updated because of crbug.com/381805376
-[ALWAYS, {
-  'staging/sm/Iterator/prototype/every/check-fn-after-getting-iterator': [SKIP],
-  'staging/sm/Iterator/prototype/find/check-fn-after-getting-iterator': [SKIP],
-  'staging/sm/Iterator/prototype/forEach/check-fn-after-getting-iterator': [SKIP],
-  'staging/sm/Iterator/prototype/reduce/check-fn-after-getting-iterator': [SKIP],
-  'staging/sm/Iterator/prototype/some/check-fn-after-getting-iterator': [SKIP],
-}],
 
 
 
