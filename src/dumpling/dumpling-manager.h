@@ -35,6 +35,8 @@ class DumplingManager {
                Handle<BytecodeArray> bytecode_array,
                Handle<Object> accumulator);
 
+  // Need to make sure that dumps were flushed to the dump file.
+  void FinishCurrentREPRLCycle();
   // We need to clean files and caches.
   void PrepareForNextREPRLCycle();
 

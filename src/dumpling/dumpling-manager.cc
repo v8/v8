@@ -218,6 +218,8 @@ void DumplingManager::ResetLastFrame() {
                           -1};
 }
 
+void DumplingManager::FinishCurrentREPRLCycle() { dumpling_os_.close(); }
+
 void DumplingManager::PrepareForNextREPRLCycle() {
   ResetLastFrame();
   dump_positions_.clear();
