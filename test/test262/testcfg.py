@@ -73,6 +73,7 @@ FEATURE_FLAGS = {
     'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',
     'immutable-arraybuffer': '--js-immutable-arraybuffer',
     'import-defer': '--js-defer-import-eval',
+    'Math.sumPrecise': '--js-sum-precise',
 }
 
 SKIPPED_FEATURES = set([])

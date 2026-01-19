@@ -895,6 +895,10 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kArrayBufferPrototypeSliceToImmutable:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_immutable_arraybuffer);
 
+    // --js-sum-precise
+    case Builtin::kMathSumPrecise:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_sum_precise);
+
 #ifdef V8_INTL_SUPPORT
     // --js-intl-locale-variants
     case Builtin::kLocalePrototypeVariants:

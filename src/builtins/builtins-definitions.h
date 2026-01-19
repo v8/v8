@@ -924,6 +924,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(NumberPrototypeToFixed, kDontAdaptArgumentsSentinel)                     \
   CPP(NumberPrototypeToLocaleString, kDontAdaptArgumentsSentinel)              \
   CPP(NumberPrototypeToPrecision, kDontAdaptArgumentsSentinel)                 \
+  CPP(MathSumPrecise, JSParameterCount(1))                                     \
   TFC(SameValue, CompareNoContext)                                             \
   TFC(SameValueNumbersOnly, CompareNoContext)                                  \
                                                                                \

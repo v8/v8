@@ -6022,6 +6022,17 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 #endif  // V8_TEMPORAL_SUPPORT
 }
 
+void Genesis::InitializeGlobal_js_sum_precise() {
+  if (!v8_flags.js_sum_precise) return;
+  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
+                                      isolate());
+  DirectHandle<JSObject> math = Cast<JSObject>(
+      JSReceiver::GetProperty(isolate(), global, "Math").ToHandleChecked());
+
+  SimpleInstallFunction(isolate_, math, "sumPrecise", Builtin::kMathSumPrecise,
+                        1, kAdapt);
+}
+
 DirectHandle<JSFunction> Genesis::CreateArrayBuffer(
     DirectHandle<String> name, ArrayBufferKind array_buffer_kind) {
   // Create the %ArrayBufferPrototype%

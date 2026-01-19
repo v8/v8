@@ -726,16 +726,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   # https://github.com/tc39/test262/pull/4146
-  'built-ins/Math/sumPrecise/length': [SKIP],
-  'built-ins/Math/sumPrecise/name': [SKIP],
-  'built-ins/Math/sumPrecise/not-a-constructor': [SKIP],
-  'built-ins/Math/sumPrecise/prop-desc': [SKIP],
-  'built-ins/Math/sumPrecise/sum': [SKIP],
-  'built-ins/Math/sumPrecise/sum-is-NaN': [SKIP],
-  'built-ins/Math/sumPrecise/sum-is-infinite': [SKIP],
-  'built-ins/Math/sumPrecise/sum-is-minus-zero': [SKIP],
-  'built-ins/Math/sumPrecise/takes-iterable': [SKIP],
-  'built-ins/Math/sumPrecise/throws-on-non-number': [SKIP],
   'intl402/DateTimeFormat/offset-timezone-no-unicode-minus-sign': [SKIP],
 }],
 # End roll-watcher patch
