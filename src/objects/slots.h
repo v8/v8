@@ -435,16 +435,16 @@ class IndirectPointerSlot
       : SlotBase(kNullAddress)
 #ifdef V8_ENABLE_SANDBOX
         ,
-        tag_(kIndirectPointerNullTag)
+        tag_range_()
 #endif
   {
   }
 
-  explicit IndirectPointerSlot(Address ptr, IndirectPointerTag tag)
+  explicit IndirectPointerSlot(Address ptr, IndirectPointerTagRange tag_range)
       : SlotBase(ptr)
 #ifdef V8_ENABLE_SANDBOX
         ,
-        tag_(tag)
+        tag_range_(tag_range)
 #endif
   {
   }
@@ -474,9 +474,11 @@ class IndirectPointerSlot
   inline void Release_StoreHandle(IndirectPointerHandle handle) const;
 
 #ifdef V8_ENABLE_SANDBOX
-  IndirectPointerTag tag() const { return tag_; }
+  IndirectPointerTagRange tag_range() const { return tag_range_; }
 #else
-  IndirectPointerTag tag() const { return kIndirectPointerNullTag; }
+  IndirectPointerTagRange tag_range() const {
+    return IndirectPointerTagRange();
+  }
 #endif
 
   // Whether this slot is empty, i.e. contains a null handle.
@@ -506,7 +508,7 @@ class IndirectPointerSlot
       IndirectPointerHandle handle) const;
 
   // The tag associated with this slot.
-  IndirectPointerTag tag_;
+  IndirectPointerTagRange tag_range_;
 #endif  // V8_ENABLE_SANDBOX
 };
 

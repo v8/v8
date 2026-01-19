@@ -135,7 +135,12 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   friend class TorqueGeneratedCallSiteInfoAsserts;
   friend struct ObjectTraits<CallSiteInfo>;
 
-  TrustedPointerMember<Union<Code, BytecodeArray>, kUnknownIndirectPointerTag>
+  static constexpr IndirectPointerTagRange kCodeObjectTagRange =
+      IndirectPointerTagRange(kCodeIndirectPointerTag,
+                              kBytecodeArrayIndirectPointerTag);
+  static_assert(kCodeObjectTagRange.Size() == 2);
+
+  TrustedPointerMember<Union<Code, BytecodeArray>, kCodeObjectTagRange>
       code_object_;
   TaggedMember<JSAny> receiver_or_instance_;
   TaggedMember<Union<JSFunction, Smi>> function_;
@@ -150,7 +155,7 @@ struct ObjectTraits<CallSiteInfo> {
       FixedBodyDescriptor<offsetof(CallSiteInfo, receiver_or_instance_),
                           sizeof(CallSiteInfo), sizeof(CallSiteInfo)>,
       WithStrongTrustedPointer<offsetof(CallSiteInfo, code_object_),
-                               kUnknownIndirectPointerTag>>;
+                               CallSiteInfo::kCodeObjectTagRange>>;
 };
 
 class IncrementalStringBuilder;

@@ -135,7 +135,7 @@ class LoadStoreSimplificationReducer : public Next,
 #if V8_ENABLE_SANDBOX
   V<Object> REDUCE(LoadTrustedPointer)(V<WordPtr> table, V<Word32> handle,
                                        bool is_immutable,
-                                       IndirectPointerTag tag) {
+                                       IndirectPointerTagRange tag_range) {
     // We need to disable GVN in this function so that the `Load` isn't GVNed
     // (because it's actually load a pointer but isn't marked as such (because
     // the pointer it loads needs to be decoded before it can be used, so the GC
@@ -159,9 +159,27 @@ class LoadStoreSimplificationReducer : public Next,
     V<WordPtr> decoded_ptr =
         __ Load(table, table_offset, kind, MemoryRepresentation::UintPtr());
 
-    // Untag the pointer and remove the marking bit in one operation.
+    V<WordPtr> tag =
+        __ WordPtrShiftRightLogical(decoded_ptr, kTrustedPointerTableTagShift);
+
+    V<Word32> is_valid;
+    if (tag_range.Size() == 1) {
+      is_valid = __ WordPtrEqual(tag, tag_range.first);
+    } else {
+      V<WordPtr> diff = __ WordPtrSub(tag, tag_range.first);
+      is_valid =
+          __ UintPtrLessThanOrEqual(diff, tag_range.last - tag_range.first);
+    }
+
+    // Crash if the tag is not as expected. Alternatively, we could also use a
+    // `Select` here and return nullptr on tag mismatch.
+    IF_NOT (LIKELY(is_valid)) {
+      __ Unreachable();
+    }
+
     decoded_ptr =
-        __ Word64BitwiseAnd(decoded_ptr, ~(tag | kTrustedPointerTableMarkBit));
+        __ WordPtrBitwiseAnd(decoded_ptr, kTrustedPointerTablePayloadMask);
+
     // Bitcast to tagged to this gets scanned by the GC properly.
     return __ BitcastWordPtrToTagged(decoded_ptr);
   }

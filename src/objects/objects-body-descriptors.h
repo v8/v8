@@ -57,7 +57,7 @@ class BodyDescriptorBase {
   static inline void IterateTrustedPointer(Tagged<HeapObject> obj, int offset,
                                            ObjectVisitor* visitor,
                                            IndirectPointerMode mode,
-                                           IndirectPointerTag tag);
+                                           IndirectPointerTagRange tag_range);
   template <typename ObjectVisitor>
   static inline void IterateCodePointer(Tagged<HeapObject> obj, int offset,
                                         ObjectVisitor* visitor,
@@ -291,7 +291,7 @@ class FixedExposedTrustedObjectBodyDescriptor
 };
 
 // A mix-in for visiting a trusted pointer field.
-template <size_t kFieldOffset, IndirectPointerTag kTag>
+template <size_t kFieldOffset, IndirectPointerTagRange kTagRange>
 struct WithStrongTrustedPointer {
   template <typename Base>
   class BodyDescriptor : public Base {
@@ -301,7 +301,7 @@ struct WithStrongTrustedPointer {
                                    int object_size, ObjectVisitor* v) {
       Base::IterateBody(map, obj, object_size, v);
       Base::IterateTrustedPointer(obj, kFieldOffset, v,
-                                  IndirectPointerMode::kStrong, kTag);
+                                  IndirectPointerMode::kStrong, kTagRange);
     }
   };
 };

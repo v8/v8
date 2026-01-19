@@ -255,17 +255,18 @@ void WriteBarrier::ForIndirectPointer(Tagged<HeapObject> host,
 }
 
 // static
-template <typename T, IndirectPointerTag kTag>
+template <typename T, IndirectPointerTagRange kTagRange>
 void WriteBarrier::ForIndirectPointer(HeapObjectLayout* host,
-                                      TrustedPointerMember<T, kTag>* slot,
+                                      TrustedPointerMember<T, kTagRange>* slot,
                                       Tagged<T> value, WriteBarrierMode mode) {
   // Indirect pointers are only used when the sandbox is enabled.
 #ifdef V8_ENABLE_SANDBOX
   // TODO(leszeks): Avoid the cast to Address here, pass a pointer to the actual
   // handle field.
-  ForIndirectPointer(Tagged(host),
-                     IndirectPointerSlot(reinterpret_cast<Address>(slot), kTag),
-                     value, mode);
+  ForIndirectPointer(
+      Tagged(host),
+      IndirectPointerSlot(reinterpret_cast<Address>(slot), kTagRange), value,
+      mode);
 #else
   UNREACHABLE();
 #endif

@@ -598,15 +598,17 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                               IndirectPointerMode mode) final {
 #ifdef V8_ENABLE_SANDBOX
-      if (slot.tag() == kCodeIndirectPointerTag) {
+      if (slot.tag_range().Contains(kCodeIndirectPointerTag)) {
         VisitCodePointer(host, slot);
+      } else {
+        DCHECK(!slot.tag_range().Contains(kCodeIndirectPointerTag));
       }
 #endif  // V8_ENABLE_SANDBOX
     }
     void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
                                        IndirectPointerSlot slot) final {
 #ifdef V8_ENABLE_SANDBOX
-      if (slot.tag() == kCodeIndirectPointerTag) {
+      if (slot.tag_range().Contains(kCodeIndirectPointerTag)) {
         VisitCodePointer(host, slot);
       }
 #endif  // V8_ENABLE_SANDBOX
@@ -654,7 +656,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
 #ifdef V8_ENABLE_SANDBOX
     void VisitCodePointer(Tagged<HeapObject> host, IndirectPointerSlot slot) {
-      CHECK_EQ(kCodeIndirectPointerTag, slot.tag());
+      CHECK(slot.tag_range().Contains(kCodeIndirectPointerTag));
       IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
       auto it = code_pointer_moves_.find(old_handle);
       if (it == code_pointer_moves_.end()) return;

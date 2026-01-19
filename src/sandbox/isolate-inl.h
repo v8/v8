@@ -38,15 +38,15 @@ CodePointerTable::Space* IsolateForSandbox::GetCodePointerTableSpaceFor(
 }
 
 TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTableFor(
-    IndirectPointerTag tag) {
-  return IsSharedTrustedPointerType(tag)
+    IndirectPointerTagRange tag_range) {
+  return IsSharedTrustedPointerType(tag_range)
              ? isolate_->shared_trusted_pointer_table()
              : isolate_->trusted_pointer_table();
 }
 
 TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpaceFor(
-    IndirectPointerTag tag) {
-  return IsSharedTrustedPointerType(tag)
+    IndirectPointerTagRange tag_range) {
+  return IsSharedTrustedPointerType(tag_range)
              ? isolate_->shared_trusted_pointer_space()
              : isolate_->heap()->trusted_pointer_space();
 }

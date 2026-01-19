@@ -30,7 +30,7 @@ class WasmInternalFunction;
 class WasmSuspenderObject;
 class WasmFunctionData;
 
-template <typename T, IndirectPointerTag kTag>
+template <typename T, IndirectPointerTagRange kTagRange>
 class TrustedPointerMember;
 
 namespace detail {
@@ -78,23 +78,29 @@ using TrustedTypeFor = typename detail::TrustedPointerType<tag>::type;
 // trusted pointer table.
 class TrustedPointerField {
  public:
-  template <IndirectPointerTag tag>
-  static inline Tagged<TrustedTypeFor<tag>> ReadTrustedPointerField(
-      Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate);
+  template <IndirectPointerTagRange tag_range>
+  static inline Tagged<
+      std::conditional_t<tag_range.Size() == 1, TrustedTypeFor<tag_range.first>,
+                         ExposedTrustedObject>>
+  ReadTrustedPointerField(Tagged<HeapObject> host, size_t offset,
+                          IsolateForSandbox isolate);
 
-  template <IndirectPointerTag tag>
-  static inline Tagged<TrustedTypeFor<tag>> ReadTrustedPointerField(
-      Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
-      AcquireLoadTag acquire_load);
+  template <IndirectPointerTagRange tag_range>
+  static inline Tagged<
+      std::conditional_t<tag_range.Size() == 1, TrustedTypeFor<tag_range.first>,
+                         ExposedTrustedObject>>
+  ReadTrustedPointerField(Tagged<HeapObject> host, size_t offset,
+                          IsolateForSandbox isolate,
+                          AcquireLoadTag acquire_load);
 
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
-  template <IndirectPointerTag tag>
+  template <IndirectPointerTagRange tag_range>
   static inline Tagged<Object> ReadMaybeEmptyTrustedPointerField(
       Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
       AcquireLoadTag);
 
-  template <IndirectPointerTag tag>
+  template <IndirectPointerTagRange tag_range>
   static inline void WriteTrustedPointerField(
       Tagged<HeapObject> host, size_t offset,
       Tagged<ExposedTrustedObject> value);
@@ -108,10 +114,9 @@ class TrustedPointerField {
                                                 size_t offset);
 
   template <typename IsolateT>
-  static inline bool IsTrustedPointerFieldUnpublished(Tagged<HeapObject> host,
-                                                      size_t offset,
-                                                      IndirectPointerTag tag,
-                                                      IsolateT isolate);
+  static inline bool IsTrustedPointerFieldUnpublished(
+      Tagged<HeapObject> host, size_t offset, IndirectPointerTagRange tag_range,
+      IsolateT isolate);
 
   static inline void ClearTrustedPointerField(Tagged<HeapObject> host,
                                               size_t offset);
@@ -128,7 +133,7 @@ class TrustedPointerField {
 //
 // TODO(leszeks): Remove TrustedPointerField (and update these comments) when
 // all objects are ported.
-template <typename T, IndirectPointerTag kTag>
+template <typename T, IndirectPointerTagRange kTagRange>
 class TrustedPointerMember {
  public:
   constexpr TrustedPointerMember() = default;

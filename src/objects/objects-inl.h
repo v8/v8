@@ -1239,33 +1239,34 @@ void HeapObjectLayout::InitSelfIndirectPointerField(
 }
 #endif  // V8_ENABLE_SANDBOX
 
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 inline auto HeapObject::ReadTrustedPointerField(
     size_t offset, IsolateForSandbox isolate) const {
-  return TrustedPointerField::ReadTrustedPointerField<tag>(*this, offset,
-                                                           isolate);
+  return TrustedPointerField::ReadTrustedPointerField<tag_range>(*this, offset,
+                                                                 isolate);
 }
 
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 inline auto HeapObject::ReadTrustedPointerField(
     size_t offset, IsolateForSandbox isolate,
     AcquireLoadTag acquire_load) const {
-  return TrustedPointerField::ReadTrustedPointerField<tag>(
+  return TrustedPointerField::ReadTrustedPointerField<tag_range>(
       *this, offset, isolate, acquire_load);
 }
 
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 Tagged<Object> HeapObject::ReadMaybeEmptyTrustedPointerField(
     size_t offset, IsolateForSandbox isolate,
     AcquireLoadTag acquire_load) const {
-  return TrustedPointerField::ReadMaybeEmptyTrustedPointerField<tag>(
+  return TrustedPointerField::ReadMaybeEmptyTrustedPointerField<tag_range>(
       *this, offset, isolate, acquire_load);
 }
 
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 void HeapObject::WriteTrustedPointerField(size_t offset,
                                           Tagged<ExposedTrustedObject> value) {
-  TrustedPointerField::WriteTrustedPointerField<tag>(*this, offset, value);
+  TrustedPointerField::WriteTrustedPointerField<tag_range>(*this, offset,
+                                                           value);
 }
 
 bool HeapObject::IsTrustedPointerFieldEmpty(size_t offset) const {
@@ -1273,9 +1274,10 @@ bool HeapObject::IsTrustedPointerFieldEmpty(size_t offset) const {
 }
 
 bool HeapObject::IsTrustedPointerFieldUnpublished(
-    size_t offset, IndirectPointerTag tag, IsolateForSandbox isolate) const {
-  return TrustedPointerField::IsTrustedPointerFieldUnpublished(*this, offset,
-                                                               tag, isolate);
+    size_t offset, IndirectPointerTagRange tag_range,
+    IsolateForSandbox isolate) const {
+  return TrustedPointerField::IsTrustedPointerFieldUnpublished(
+      *this, offset, tag_range, isolate);
 }
 
 void HeapObject::ClearTrustedPointerField(size_t offset) {
@@ -1358,8 +1360,8 @@ CppHeapPointerSlot HeapObject::RawCppHeapPointerField(int byte_offset) const {
 }
 
 IndirectPointerSlot HeapObject::RawIndirectPointerField(
-    int byte_offset, IndirectPointerTag tag) const {
-  return IndirectPointerSlot(field_address(byte_offset), tag);
+    int byte_offset, IndirectPointerTagRange tag_range) const {
+  return IndirectPointerSlot(field_address(byte_offset), tag_range);
 }
 
 MapWord MapWord::FromMap(const Tagged<Map> map) {

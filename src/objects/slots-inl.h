@@ -422,18 +422,17 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
   if (!handle) return Smi::zero();
 
   // Resolve the handle. The tag implies the pointer table to use.
-  if (tag_ == kUnknownIndirectPointerTag) {
+  if (tag_range_ == kCodeIndirectPointerTag) {
+    return ResolveCodePointerHandle(handle);
+  } else {
     // In this case we have to rely on the handle marking to determine which
     // pointer table to use.
-    if (handle & kCodePointerHandleMarker) {
+    if (tag_range_.Contains(kCodeIndirectPointerTag) &&
+        (handle & kCodePointerHandleMarker)) {
       return ResolveCodePointerHandle(handle);
     } else {
       return ResolveTrustedPointerHandle<allow_unpublished>(handle, isolate);
     }
-  } else if (tag_ == kCodeIndirectPointerTag) {
-    return ResolveCodePointerHandle(handle);
-  } else {
-    return ResolveTrustedPointerHandle<allow_unpublished>(handle, isolate);
   }
 #else
   UNREACHABLE();
@@ -445,11 +444,12 @@ template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
 Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
-  const TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag_);
+  const TrustedPointerTable& table =
+      isolate.GetTrustedPointerTableFor(tag_range_);
   if constexpr (allow_unpublished == kAllowUnpublishedEntries) {
-    return Tagged<Object>(table.GetMaybeUnpublished(handle, tag_));
+    return Tagged<Object>(table.GetMaybeUnpublished(handle, tag_range_));
   }
-  return Tagged<Object>(table.Get(handle, tag_));
+  return Tagged<Object>(table.Get(handle, tag_range_));
 }
 
 Tagged<Object> IndirectPointerSlot::ResolveCodePointerHandle(

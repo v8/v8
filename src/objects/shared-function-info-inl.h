@@ -149,7 +149,7 @@ RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, raw_script, Tagged<Object>,
 
 void SharedFunctionInfo::SetTrustedData(Tagged<ExposedTrustedObject> value,
                                         WriteBarrierMode mode) {
-  WriteTrustedPointerField<kUnknownIndirectPointerTag>(
+  WriteTrustedPointerField<kTrustedDataIndirectPointerRange>(
       kTrustedFunctionDataOffset, value);
 
   // Only one of trusted_function_data and untrusted_function_data can be in
@@ -162,8 +162,8 @@ void SharedFunctionInfo::SetTrustedData(Tagged<ExposedTrustedObject> value,
       *this, Smi::FromInt(kClearedUntrustedFunctionDataValue));
 
   CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(*this, kTrustedFunctionDataOffset,
-                                            kUnknownIndirectPointerTag, value,
-                                            mode);
+                                            kTrustedDataIndirectPointerRange,
+                                            value, mode);
 }
 
 void SharedFunctionInfo::SetUntrustedData(Tagged<Object> value,
@@ -184,21 +184,21 @@ bool SharedFunctionInfo::HasTrustedData() const {
 
 bool SharedFunctionInfo::HasUnpublishedTrustedData(
     IsolateForSandbox isolate) const {
-  return IsTrustedPointerFieldUnpublished(kTrustedFunctionDataOffset,
-                                          kUnknownIndirectPointerTag, isolate);
+  return IsTrustedPointerFieldUnpublished(
+      kTrustedFunctionDataOffset, kTrustedDataIndirectPointerRange, isolate);
 }
 
 bool SharedFunctionInfo::HasUntrustedData() const { return !HasTrustedData(); }
 
 Tagged<Object> SharedFunctionInfo::GetTrustedData(
     IsolateForSandbox isolate) const {
-  return ReadMaybeEmptyTrustedPointerField<kUnknownIndirectPointerTag>(
+  return ReadMaybeEmptyTrustedPointerField<kTrustedDataIndirectPointerRange>(
       kTrustedFunctionDataOffset, isolate, kAcquireLoad);
 }
 
 template <typename T, IndirectPointerTag tag>
 Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
-  static_assert(tag != kUnknownIndirectPointerTag);
+  static_assert(tag != kAllIndirectPointerTags);
   return HeapObject::ReadTrustedPointerField<tag>(kTrustedFunctionDataOffset,
                                                   isolate, kAcquireLoad);
 }

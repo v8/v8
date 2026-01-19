@@ -673,8 +673,13 @@ FieldAccess AccessBuilder::ForJSRegExpData() {
                         Type::OtherInternal(),
                         MachineType::IndirectPointer(),
                         kIndirectPointerWriteBarrier,
-                        "JSRegExpData"};
-  access.indirect_pointer_tag = kRegExpDataIndirectPointerTag;
+                        "JSRegExpData",
+                        ConstFieldInfo::None(),
+                        false,
+                        kExternalPointerNullTag,
+                        kRegExpDataIndirectPointerTag,
+                        false,
+                        false};
   return access;
 }
 #else

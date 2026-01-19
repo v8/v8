@@ -463,6 +463,11 @@ class SharedFunctionInfo
   inline bool HasUntrustedData() const;
 
  public:
+  static constexpr IndirectPointerTagRange kTrustedDataIndirectPointerRange =
+      IndirectPointerTagRange(kCodeIndirectPointerTag,
+                              kWasmFunctionDataIndirectPointerTag);
+  static_assert(kTrustedDataIndirectPointerRange.Size() == 5);
+
   inline bool IsApiFunction() const;
   inline bool is_class_constructor() const;
   DECL_ACCESSORS(api_func_data, Tagged<FunctionTemplateInfo>)

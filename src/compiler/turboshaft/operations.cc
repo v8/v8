@@ -803,6 +803,15 @@ void LoadExternalPointerOp::PrintOptions(std::ostream& os) const {
 }
 #endif
 
+#if V8_ENABLE_SANDBOX
+void LoadTrustedPointerOp::PrintOptions(std::ostream& os) const {
+  os << '[';
+  os << "is_immutable: " << is_immutable << ", ";
+  os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";
+  os << ']';
+}
+#endif
+
 void FrameStateOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << (inlined ? "inlined" : "not inlined");

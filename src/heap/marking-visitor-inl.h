@@ -454,11 +454,12 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
     // If the SharedFunctionInfo doesn't have old bytecode visit the function
     // data strongly.
 #ifdef V8_ENABLE_SANDBOX
-    VisitIndirectPointer(shared_info,
-                         shared_info->RawIndirectPointerField(
-                             SharedFunctionInfo::kTrustedFunctionDataOffset,
-                             kUnknownIndirectPointerTag),
-                         IndirectPointerMode::kStrong);
+    VisitIndirectPointer(
+        shared_info,
+        shared_info->RawIndirectPointerField(
+            SharedFunctionInfo::kTrustedFunctionDataOffset,
+            SharedFunctionInfo::kTrustedDataIndirectPointerRange),
+        IndirectPointerMode::kStrong);
 #else
     VisitPointer(
         shared_info,
@@ -940,8 +941,7 @@ template <typename ConcreteVisitor>
 void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
-  IndirectPointerTag tag = slot.tag();
-  DCHECK_NE(tag, kUnknownIndirectPointerTag);
+  IndirectPointerTagRange tag_range = slot.tag_range();
 
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
 
@@ -949,12 +949,13 @@ void FullMarkingVisitorBase<ConcreteVisitor>::MarkPointerTableEntry(
   // otherwise fail to mark the table entry as alive.
   DCHECK_NE(handle, kNullIndirectPointerHandle);
 
-  if (tag == kCodeIndirectPointerTag) {
+  if (tag_range == kCodeIndirectPointerTag) {
     CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
     CodePointerTable::Space* space = this->heap_->code_pointer_space();
     table->Mark(space, handle);
   } else {
-    bool use_shared_table = IsSharedTrustedPointerType(tag);
+    DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
+    bool use_shared_table = IsSharedTrustedPointerType(tag_range);
     DCHECK_EQ(use_shared_table, HeapLayout::InWritableSharedSpace(host));
     TrustedPointerTable* table = use_shared_table
                                      ? this->shared_trusted_pointer_table_

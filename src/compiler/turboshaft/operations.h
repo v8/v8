@@ -3142,14 +3142,15 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
 #if V8_ENABLE_SANDBOX
 struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
   const bool is_immutable;
-  IndirectPointerTag tag;
+  IndirectPointerTagRange tag_range;
 
   static constexpr OpEffects effects =
       OpEffects().CanReadMemory().CanDependOnChecks();
 
   explicit LoadTrustedPointerOp(V<WordPtr> table, V<Word32> handle,
-                                bool is_immutable, IndirectPointerTag tag)
-      : Base(table, handle), is_immutable(is_immutable), tag(tag) {}
+                                bool is_immutable,
+                                IndirectPointerTagRange tag_range)
+      : Base(table, handle), is_immutable(is_immutable), tag_range(tag_range) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -3164,7 +3165,8 @@ struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
   V<WordPtr> table() const { return input<WordPtr>(0); }
   V<Word32> handle() const { return input<Word32>(1); }
 
-  auto options() const { return std::tuple{is_immutable, tag}; }
+  void PrintOptions(std::ostream& os) const;
+  auto options() const { return std::tuple{is_immutable, tag_range}; }
 };
 #endif
 
@@ -3512,11 +3514,8 @@ struct StoreOp : OperationT<StoreOp> {
   uint8_t element_size_log2;  // multiply index with 2^element_size_log2
   int32_t offset;             // add offset to scaled index
   bool maybe_initializing_or_transitioning;
-  uint16_t
-      shifted_indirect_pointer_tag;  // for indirect pointer stores, the
-                                     // IndirectPointerTag of the store shifted
-                                     // to the right by kIndirectPointerTagShift
-                                     // (so it fits into 16 bits).
+  uint16_t indirect_pointer_tag_;
+
   // TODO(saelo): now that we have a pointer tag in these low-level operations,
   // we could also consider passing the external pointer tag (for external
   // pointers) through to the macro assembler (where we have routines to work
@@ -3563,8 +3562,7 @@ struct StoreOp : OperationT<StoreOp> {
   }
 
   IndirectPointerTag indirect_pointer_tag() const {
-    uint64_t shifted = shifted_indirect_pointer_tag;
-    return static_cast<IndirectPointerTag>(shifted << kIndirectPointerTagShift);
+    return static_cast<IndirectPointerTag>(indirect_pointer_tag_);
   }
 
   StoreOp(
@@ -3581,8 +3579,8 @@ struct StoreOp : OperationT<StoreOp> {
         offset(offset),
         maybe_initializing_or_transitioning(
             maybe_initializing_or_transitioning),
-        shifted_indirect_pointer_tag(maybe_indirect_pointer_tag >>
-                                     kIndirectPointerTagShift) {
+        indirect_pointer_tag_(
+            static_cast<uint16_t>(maybe_indirect_pointer_tag)) {
     DCHECK_EQ(indirect_pointer_tag(), maybe_indirect_pointer_tag);
     input(0) = base;
     input(1) = value;
@@ -9943,6 +9941,9 @@ constexpr size_t input_count(RegisterRepresentation) { return 0; }
 constexpr size_t input_count(MemoryRepresentation) { return 0; }
 constexpr size_t input_count(OpEffects) { return 0; }
 constexpr size_t input_count(ExternalPointerTagRange) { return 0; }
+#if V8_ENABLE_SANDBOX
+constexpr size_t input_count(IndirectPointerTagRange) { return 0; }
+#endif
 inline size_t input_count(const ElementsTransition) { return 0; }
 inline size_t input_count(const ElementsTransitionWithMultipleSources) {
   return 0;

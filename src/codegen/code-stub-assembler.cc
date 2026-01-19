@@ -1957,10 +1957,11 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 }
 
 TNode<TrustedObject> CodeStubAssembler::LoadTrustedPointerFromObject(
-    TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
+    TNode<HeapObject> object, int field_offset,
+    IndirectPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  CHECK_NE(tag, kUnknownIndirectPointerTag);
-  return LoadIndirectPointerFromObject(object, field_offset, tag);
+  CHECK_NE(tag_range, kAllIndirectPointerTags);
+  return LoadIndirectPointerFromObject(object, field_offset, tag_range);
 #else
   return LoadObjectField<TrustedObject>(object, field_offset);
 #endif  // V8_ENABLE_SANDBOX
@@ -1969,7 +1970,8 @@ TNode<TrustedObject> CodeStubAssembler::LoadTrustedPointerFromObject(
 void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
     TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
     Label* if_empty, Label* if_default,
-    const std::initializer_list<std::pair<InstanceType, Label*>>& cases) {
+    const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
+    IndirectPointerTagRange tag_range) {
   Label unreachable(this, Label::kDeferred);
   if (!if_default) if_default = &unreachable;
   if (!if_empty) if_empty = &unreachable;
@@ -1982,7 +1984,7 @@ void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
          if_empty);
 
   ResolveIndirectUnknownPointerHandle(handle, value_out, /* type_out */ nullptr,
-                                      if_default, cases);
+                                      if_default, cases, tag_range);
 #else
   *value_out = LoadObjectField<Object>(object, offset);
   GotoIf(TaggedIsSmi(value_out->value()), if_empty);
@@ -2000,12 +2002,11 @@ void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
 void CodeStubAssembler::ResolveIndirectUnknownPointerHandle(
     TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
     TVariable<Uint16T>* type_out, Label* if_default,
-    const std::initializer_list<std::pair<InstanceType, Label*>>& cases) {
+    const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
+    IndirectPointerTagRange tag_range) {
   *value_out = Select<TrustedObject>(
       IsTrustedPointerHandle(handle),
-      [=, this] {
-        return ResolveTrustedPointerHandle(handle, kUnknownIndirectPointerTag);
-      },
+      [=, this] { return ResolveTrustedPointerHandle(handle, tag_range); },
       [=, this] { return ResolveCodePointerHandle(handle); });
 
   DispatchOnInstanceType(value_out->value(), type_out, if_default, cases);
@@ -2100,10 +2101,11 @@ void CodeStubAssembler::TailCallJSCode(
 #ifdef V8_ENABLE_SANDBOX
 
 TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
-    TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
+    TNode<HeapObject> object, int field_offset,
+    IndirectPointerTagRange tag_range) {
   TNode<IndirectPointerHandleT> handle =
       LoadObjectField<IndirectPointerHandleT>(object, field_offset);
-  return ResolveIndirectPointerHandle(handle, tag);
+  return ResolveIndirectPointerHandle(handle, tag_range);
 }
 
 TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
@@ -2113,13 +2115,17 @@ TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
 }
 
 TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
-    TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
-  CHECK_NE(tag, kUnknownIndirectPointerTag);
+    TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range) {
+  CHECK_NE(tag_range, kAllIndirectPointerTags);
   // The tag implies which pointer table to use.
-  if (tag == kCodeIndirectPointerTag) {
+  if (tag_range == kCodeIndirectPointerTag) {
     return ResolveCodePointerHandle(handle);
   } else {
-    return ResolveTrustedPointerHandle(handle, tag);
+    // We don't currently support ranges that include the code pointer tag
+    // here. If we ever need that, we'd have to look at the handle to determine
+    // if it is a code pointer handle.
+    DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
+    return ResolveTrustedPointerHandle(handle, tag_range);
   }
 }
 
@@ -2138,7 +2144,7 @@ TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
 }
 
 TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
-    TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
+    TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range) {
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::trusted_pointer_table_base_address(isolate()));
   TNode<Uint32T> index =
@@ -2149,9 +2155,22 @@ TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
   TNode<UintPtrT> offset = ChangeUint32ToWord(
       Word32Shl(index, Uint32Constant(kTrustedPointerTableEntrySizeLog2)));
   TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
-  // Untag the pointer and remove the marking bit in one operation.
-  value = UncheckedCast<UintPtrT>(
-      WordAnd(value, UintPtrConstant(~(tag | kTrustedPointerTableMarkBit))));
+
+  TNode<UintPtrT> tag =
+      WordShr(value, UintPtrConstant(kTrustedPointerTableTagShift));
+
+  TNode<BoolT> is_valid;
+  if (tag_range.Size() == 1) {
+    is_valid = WordEqual(tag, UintPtrConstant(tag_range.first));
+  } else {
+    TNode<UintPtrT> diff = UintPtrSub(tag, UintPtrConstant(tag_range.first));
+    is_valid = UintPtrLessThanOrEqual(
+        diff, UintPtrConstant(tag_range.last - tag_range.first));
+  }
+
+  value = SelectConstant<UintPtrT>(is_valid, value, UintPtrConstant(0));
+
+  value = WordAnd(value, UintPtrConstant(kTrustedPointerTablePayloadMask));
   return CAST(BitcastWordToTagged(value));
 }
 
@@ -3793,7 +3812,8 @@ void CodeStubAssembler::GotoIfSharedFunctionInfoHasBaselineCode(
   TVARIABLE(Object, var_result);
   LoadTrustedUnknownPointerFromObject(
       sfi, SharedFunctionInfo::kTrustedFunctionDataOffset, &var_result,
-      &if_default, &if_default, {{CODE_TYPE, if_baseline}});
+      &if_default, &if_default, {{CODE_TYPE, if_baseline}},
+      SharedFunctionInfo::kTrustedDataIndirectPointerRange);
 
   BIND(&if_default);
 }
@@ -3816,7 +3836,8 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
       nullptr,
       {{BYTECODE_ARRAY_TYPE, &done},
        {INTERPRETER_DATA_TYPE, &is_interpreter_data},
-       {CODE_TYPE, &is_code}});
+       {CODE_TYPE, &is_code}},
+      SharedFunctionInfo::kTrustedDataIndirectPointerRange);
 
   BIND(&is_interpreter_data);
   {

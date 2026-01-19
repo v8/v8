@@ -2916,7 +2916,8 @@ class AssemblerOpInterface : public Next {
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
   V<Object> LoadTrustedPointer(V<HeapObject> base, OptionalV<Word32> index,
-                               LoadOp::Kind kind, IndirectPointerTag tag,
+                               LoadOp::Kind kind,
+                               IndirectPointerTagRange tag_range,
                                int offset = 0) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
@@ -2927,7 +2928,7 @@ class AssemblerOpInterface : public Next {
              MemoryRepresentation::UintPtr(),
              IsolateData::trusted_pointer_table_offset() +
                  Internals::kTrustedPointerTableBasePointerOffset);
-    return LoadTrustedPointer(table, handle, kind.is_immutable, tag);
+    return LoadTrustedPointer(table, handle, kind.is_immutable, tag_range);
 #else
     return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),
                 offset);
@@ -2936,16 +2937,19 @@ class AssemblerOpInterface : public Next {
 
 #if V8_ENABLE_SANDBOX
   V<Object> LoadTrustedPointer(V<WordPtr> table, V<Word32> handle,
-                               bool is_immutable, IndirectPointerTag tag) {
+                               bool is_immutable,
+                               IndirectPointerTagRange tag_range) {
     return ReduceIfReachableLoadTrustedPointer(table, handle, is_immutable,
-                                               tag);
+                                               tag_range);
   }
 #endif
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
   V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
-                               IndirectPointerTag tag, int offset = 0) {
-    return LoadTrustedPointer(base, OpIndex::Invalid(), kind, tag, offset);
+                               IndirectPointerTagRange tag_range,
+                               int offset = 0) {
+    return LoadTrustedPointer(base, OpIndex::Invalid(), kind, tag_range,
+                              offset);
   }
 
   V<WordPtr> LoadExternalPointerFromObject(V<Object> object, int offset,

@@ -263,12 +263,12 @@ void BodyDescriptorBase::IterateCustomWeakPointer(Tagged<HeapObject> obj,
 }
 
 template <typename ObjectVisitor>
-void BodyDescriptorBase::IterateTrustedPointer(Tagged<HeapObject> obj,
-                                               int offset, ObjectVisitor* v,
-                                               IndirectPointerMode mode,
-                                               IndirectPointerTag tag) {
+void BodyDescriptorBase::IterateTrustedPointer(
+    Tagged<HeapObject> obj, int offset, ObjectVisitor* v,
+    IndirectPointerMode mode, IndirectPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset, tag), mode);
+  v->VisitIndirectPointer(obj, obj->RawIndirectPointerField(offset, tag_range),
+                          mode);
 #else
   if (mode == IndirectPointerMode::kStrong) {
     IteratePointer(obj, offset, v);
@@ -923,7 +923,7 @@ class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  int object_size, ObjectVisitor* v) {
     IterateTrustedPointer(obj, kTrustedFunctionDataOffset, v,
                           IndirectPointerMode::kCustom,
-                          kUnknownIndirectPointerTag);
+                          kTrustedDataIndirectPointerRange);
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
   }

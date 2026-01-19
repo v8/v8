@@ -403,21 +403,21 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // is disabled, they are regular tagged pointers. They must always point to an
   // ExposedTrustedObject as (only) these objects can be referenced through the
   // trusted pointer table.
-  template <IndirectPointerTag tag>
+  template <IndirectPointerTagRange tag_range>
   inline auto ReadTrustedPointerField(size_t offset,
                                       IsolateForSandbox isolate) const;
 
-  template <IndirectPointerTag tag>
+  template <IndirectPointerTagRange tag_range>
   inline auto ReadTrustedPointerField(size_t offset, IsolateForSandbox isolate,
                                       AcquireLoadTag acquire_load) const;
 
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
-  template <IndirectPointerTag tag>
+  template <IndirectPointerTagRange tag_range>
   inline Tagged<Object> ReadMaybeEmptyTrustedPointerField(
       size_t offset, IsolateForSandbox isolate, AcquireLoadTag) const;
 
-  template <IndirectPointerTag tag>
+  template <IndirectPointerTagRange tag_range>
   inline void WriteTrustedPointerField(size_t offset,
                                        Tagged<ExposedTrustedObject> value);
 
@@ -427,9 +427,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // in the TrustedPointerTable which just contains nullptr). When the sandbox
   // is disabled, this will set the field to Smi::zero().
   inline bool IsTrustedPointerFieldEmpty(size_t offset) const;
-  inline bool IsTrustedPointerFieldUnpublished(size_t offset,
-                                               IndirectPointerTag tag,
-                                               IsolateForSandbox isolate) const;
+  inline bool IsTrustedPointerFieldUnpublished(
+      size_t offset, IndirectPointerTagRange tag_range,
+      IsolateForSandbox isolate) const;
   inline void ClearTrustedPointerField(size_t offest);
   inline void ClearTrustedPointerField(size_t offest, ReleaseStoreTag);
 
@@ -473,7 +473,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
       int byte_offset, ExternalPointerTagRange tag_range) const;
   inline CppHeapPointerSlot RawCppHeapPointerField(int byte_offset) const;
   inline IndirectPointerSlot RawIndirectPointerField(
-      int byte_offset, IndirectPointerTag tag) const;
+      int byte_offset, IndirectPointerTagRange tag_range) const;
 
   // Return the write barrier mode for this. Callers of this function
   // must be able to present a reference to an DisallowGarbageCollection

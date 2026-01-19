@@ -93,6 +93,11 @@ struct TaggedPayload {
                                  kPayloadShift);
   }
 
+  void SetTag(TagType tag) {
+    encoded_word_ =
+        (encoded_word_ & ~kTagMask) | (static_cast<Address>(tag) << kTagShift);
+  }
+
   TagType ExtractTag() const {
     return static_cast<TagType>((encoded_word_ & kTagMask) >> kTagShift);
   }
@@ -116,102 +121,6 @@ struct TaggedPayload {
   }
 
   bool operator!=(TaggedPayload other) const {
-    return encoded_word_ != other.encoded_word_;
-  }
-
- private:
-  Address encoded_word_;
-};
-
-// TODO(saelo): migrate remaining users of this struct to the new one above.
-template <typename PayloadTaggingScheme>
-struct TaggedPayloadDeprecated {
-  static_assert(PayloadTaggingScheme::kMarkBit != 0,
-                "Invalid kMarkBit specified in tagging scheme.");
-  // The mark bit does not overlap with the TagMask.
-  static_assert((PayloadTaggingScheme::kMarkBit &
-                 PayloadTaggingScheme::kTagMask) == 0);
-
-  TaggedPayloadDeprecated(Address pointer,
-                          typename PayloadTaggingScheme::TagType tag)
-      : encoded_word_(Tag(pointer, tag)) {}
-
-  Address Untag(typename PayloadTaggingScheme::TagType tag) const {
-    return encoded_word_ & ~(tag | PayloadTaggingScheme::kMarkBit);
-  }
-
-  static Address Tag(Address pointer,
-                     typename PayloadTaggingScheme::TagType tag) {
-    return pointer | tag;
-  }
-
-  bool IsTaggedWith(typename PayloadTaggingScheme::TagType tag) const {
-    return (encoded_word_ & PayloadTaggingScheme::kTagMask) == tag;
-  }
-
-  void SetTag(typename PayloadTaggingScheme::TagType new_tag) {
-    encoded_word_ = (encoded_word_ & ~PayloadTaggingScheme::kTagMask) | new_tag;
-  }
-
-  void SetMarkBit() { encoded_word_ |= PayloadTaggingScheme::kMarkBit; }
-
-  void ClearMarkBit() { encoded_word_ &= ~PayloadTaggingScheme::kMarkBit; }
-
-  bool HasMarkBitSet() const {
-    return (encoded_word_ & PayloadTaggingScheme::kMarkBit) != 0;
-  }
-
-  uint32_t ExtractFreelistLink() const {
-    return static_cast<uint32_t>(encoded_word_);
-  }
-
-  typename PayloadTaggingScheme::TagType ExtractTag() const {
-    return static_cast<typename PayloadTaggingScheme::TagType>(
-        (encoded_word_ & PayloadTaggingScheme::kTagMask) |
-        PayloadTaggingScheme::kMarkBit);
-  }
-
-  Address ExtractPointerUnchecked() const {
-    return encoded_word_ & ~PayloadTaggingScheme::kTagMask;
-  }
-
-  bool ContainsFreelistLink() const {
-      return IsTaggedWith(PayloadTaggingScheme::kFreeEntryTag);
-  }
-
-  bool ContainsEvacuationEntry() const {
-    if constexpr (PayloadTaggingScheme::kSupportsEvacuation) {
-      return IsTaggedWith(PayloadTaggingScheme::kEvacuationEntryTag);
-    } else {
-      return false;
-    }
-  }
-
-  bool IsZapped() const {
-    if constexpr (PayloadTaggingScheme::kSupportsZapping) {
-      return IsTaggedWith(PayloadTaggingScheme::kZappedEntryTag);
-    } else {
-      return false;
-    }
-  }
-
-  Address ExtractEvacuationEntryHandleLocation() const {
-    if constexpr (PayloadTaggingScheme::kSupportsEvacuation) {
-      return Untag(PayloadTaggingScheme::kEvacuationEntryTag);
-    } else {
-      UNREACHABLE();
-    }
-  }
-
-  bool ContainsPointer() const {
-    return !ContainsFreelistLink() && !ContainsEvacuationEntry() && !IsZapped();
-  }
-
-  bool operator==(TaggedPayloadDeprecated other) const {
-    return encoded_word_ == other.encoded_word_;
-  }
-
-  bool operator!=(TaggedPayloadDeprecated other) const {
     return encoded_word_ != other.encoded_word_;
   }
 

@@ -990,14 +990,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
-  TNode<TrustedObject> LoadTrustedPointerFromObject(TNode<HeapObject> object,
-                                                    int offset,
-                                                    IndirectPointerTag tag);
+  TNode<TrustedObject> LoadTrustedPointerFromObject(
+      TNode<HeapObject> object, int offset, IndirectPointerTagRange tag_range);
 
   void LoadTrustedUnknownPointerFromObject(
       TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
       Label* if_empty, Label* if_default,
-      const std::initializer_list<std::pair<InstanceType, Label*>>& cases);
+      const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
+      IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
 
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
@@ -1010,9 +1010,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #ifdef V8_ENABLE_SANDBOX
   // Load an indirect pointer field.
-  TNode<TrustedObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
-                                                     int offset,
-                                                     IndirectPointerTag tag);
+  TNode<TrustedObject> LoadIndirectPointerFromObject(
+      TNode<HeapObject> object, int offset, IndirectPointerTagRange tag_range);
 
   // Determines whether the given indirect pointer handle is a trusted pointer
   // handle or a code pointer handle.
@@ -1021,19 +1020,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Retrieve the heap object referenced by the given indirect pointer handle,
   // which can either be a trusted pointer handle or a code pointer handle.
   TNode<TrustedObject> ResolveIndirectPointerHandle(
-      TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
+      TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
 
   void ResolveIndirectUnknownPointerHandle(
       TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
       TVariable<Uint16T>* type_out, Label* if_default,
-      const std::initializer_list<std::pair<InstanceType, Label*>>& cases);
+      const std::initializer_list<std::pair<InstanceType, Label*>>& cases,
+      IndirectPointerTagRange tag_range = kAllIndirectPointerTags);
 
   // Retrieve the Code object referenced by the given trusted pointer handle.
   TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
 
   // Retrieve the heap object referenced by the given trusted pointer handle.
   TNode<TrustedObject> ResolveTrustedPointerHandle(
-      TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
+      TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range);
 
   // Helper function to compute the offset into the code pointer table from a
   // code pointer handle.
