@@ -6,11 +6,11 @@
 #include "src/builtins/builtins.h"
 #include "src/common/message-template.h"
 #include "src/execution/isolate.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/objects/keys.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -31,7 +31,8 @@ BUILTIN(ObjectPrototypePropertyIsEnumerable) {
       JSReceiver::GetOwnPropertyAttributes(isolate, object, name);
   if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
   if (maybe.FromJust() == ABSENT) return ReadOnlyRoots(isolate).false_value();
-  return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
+  return ReadOnlyRoots(isolate).boolean_value((maybe.FromJust() & DONT_ENUM) ==
+                                              0);
 }
 
 // ES6 section 19.1.2.3 Object.defineProperties
@@ -317,7 +318,7 @@ BUILTIN(ObjectIsFrozen) {
                                  isolate, Cast<JSReceiver>(object), FROZEN)
                            : Just(true);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 // ES6 section 19.1.2.13 Object.isSealed ( O )
@@ -329,7 +330,7 @@ BUILTIN(ObjectIsSealed) {
                                  isolate, Cast<JSReceiver>(object), SEALED)
                            : Just(true);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 BUILTIN(ObjectGetOwnPropertyDescriptors) {
