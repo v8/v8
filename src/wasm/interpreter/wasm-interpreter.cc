@@ -3675,6 +3675,27 @@ class Handlers : public HandlersBase {
     NextOp();
   }
 
+  INSTRUCTION_HANDLER_FUNC s2s_PreserveCopySlotRef(
+      const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
+      int64_t r0, double fp0) {
+    uint32_t from = Read<int32_t>(code);
+    uint32_t to = Read<int32_t>(code);
+    uint32_t preserve = Read<int32_t>(code);
+
+    // Preserve the old value at 'to' into 'preserve'.
+    wasm_runtime->StoreWasmRef(preserve, wasm_runtime->ExtractWasmRef(to));
+    wasm_runtime->StoreWasmRef(to, wasm_runtime->ExtractWasmRef(from));
+
+#ifdef V8_ENABLE_DRUMBRAKE_TRACING
+    if (v8_flags.trace_drumbrake_execution &&
+        v8_flags.trace_drumbrake_execution_verbose) {
+      wasm_runtime->Trace("PRESERVECOPYSLOTREF %d %d %d\n", from, to, preserve);
+    }
+#endif  // V8_ENABLE_DRUMBRAKE_TRACING
+
+    NextOp();
+  }
+
   INSTRUCTION_HANDLER_FUNC r2s_CopyR0ToSlot32(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
@@ -7480,7 +7501,6 @@ bool WasmBytecodeGenerator::FindSharedSlot(uint32_t stack_index,
                                            uint32_t* new_slot_index) {
   *new_slot_index = UINT_MAX;
   ValueType value_type = slots_[stack_[stack_index]].value_type;
-  if (value_type.is_ref()) return false;
 
   // Only consider stack entries added in the current block.
   // We don't need to consider ancestor blocks because if a block has a
@@ -7671,6 +7691,9 @@ void WasmBytecodeGenerator::CopyToSlot(ValueType value_type,
           break;
         case kRef:
         case kRefNull:
+          DCHECK(!copy_from_reg);
+          EMIT_INSTR_HANDLER(s2s_PreserveCopySlotRef);
+          break;
         default:
           UNREACHABLE();
       }

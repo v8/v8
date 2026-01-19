@@ -3375,3 +3375,51 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   const ArithmeticNaNBitMask = 0x7fc00000;
   assertTrue((result & ArithmeticNaNBitMask) === ArithmeticNaNBitMask);
 })();
+
+// Test that ref slot preservation works when a ref local is read multiple
+// times and then updated with local.tee.
+(function testRefSlotPreservationWithLocalTee() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+
+  // Simple struct with an i32 value field
+  let structType = builder.addStruct([makeField(kWasmI32, true)]);
+
+  // Test: push a ref local twice, update it with local.tee, verify old value preserved
+  builder.addFunction("test", kSig_i_v)
+    .addLocals(wasmRefNullType(structType), 2)
+    .addBody([
+      // Create node1 and store in local0.
+      kExprI32Const, 11,
+      kGCPrefix, kExprStructNew, structType,
+      kExprLocalSet, 0,
+      // stack: [local0:ref=node11]
+
+      // Create node2 and store in local1.
+      kExprI32Const, 22,
+      kGCPrefix, kExprStructNew, structType,
+      kExprLocalSet, 1,
+      // stack: [local0:ref=node11, local1:ref=node22]
+
+      // Push local0, this will share the slot.
+      kExprLocalGet, 0,
+      // [local0:ref=node11, local1:ref=node22, ref:node11]
+
+      // Update local0 to point to node22; the ref to node11 should be preserved on the stack.
+      kExprLocalGet, 1,
+      // [local0:ref=node11, local1:ref=node22, ref:node11, ref:node22]
+      kExprLocalTee, 0,
+      // [local0:ref=node22, local1:ref=node22, ref:node11, ref:node22]
+
+      kExprDrop,
+      // [local0:ref=node22, local1:ref=node22, ref:node11]
+
+      // Access the ref that was pushed before the local.tee. It should still be node11.
+      kGCPrefix, kExprStructGet, structType, 0,
+    ])
+    .exportAs("test");
+
+  let instance = builder.instantiate();
+  let result = instance.exports.test();
+  assertEquals(11, result);
+})();
