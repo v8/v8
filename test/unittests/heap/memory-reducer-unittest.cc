@@ -104,8 +104,7 @@ TEST(MemoryReducer, FromDoneToWait) {
       state0,
       MarkCompactEventGarbageLeft(2, MemoryReducer::kCommittedMemoryDelta));
   EXPECT_EQ(MemoryReducer::kWait, state1.id());
-  EXPECT_EQ(v8_flags.gc_memory_reducer_start_delay_ms + 2,
-            state1.next_gc_start_ms());
+  EXPECT_EQ(MemoryReducer::kLongDelayMs + 2, state1.next_gc_start_ms());
   EXPECT_EQ(0, state1.started_gcs());
   EXPECT_EQ(2, state1.last_gc_time_ms());
 
@@ -113,8 +112,7 @@ TEST(MemoryReducer, FromDoneToWait) {
       state0,
       MarkCompactEventNoGarbageLeft(2, MemoryReducer::kCommittedMemoryDelta));
   EXPECT_EQ(MemoryReducer::kWait, state1.id());
-  EXPECT_EQ(v8_flags.gc_memory_reducer_start_delay_ms + 2,
-            state1.next_gc_start_ms());
+  EXPECT_EQ(MemoryReducer::kLongDelayMs + 2, state1.next_gc_start_ms());
   EXPECT_EQ(0, state1.started_gcs());
   EXPECT_EQ(2, state1.last_gc_time_ms());
 
@@ -131,8 +129,7 @@ TEST(MemoryReducer, FromDoneToWait) {
                   2, static_cast<size_t>(
                          1000 * MB * MemoryReducer::kCommittedMemoryFactor)));
   EXPECT_EQ(MemoryReducer::kWait, state1.id());
-  EXPECT_EQ(v8_flags.gc_memory_reducer_start_delay_ms + 2,
-            state1.next_gc_start_ms());
+  EXPECT_EQ(MemoryReducer::kLongDelayMs + 2, state1.next_gc_start_ms());
   EXPECT_EQ(0, state1.started_gcs());
   EXPECT_EQ(2, state1.last_gc_time_ms());
 }

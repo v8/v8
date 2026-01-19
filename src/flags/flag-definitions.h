@@ -2645,7 +2645,7 @@ DEFINE_BOOL(
 DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, true,
             "reclaim wrapper objects in parallel")
 
-DEFINE_INT(gc_memory_reducer_start_delay_ms, 8000,
+DEFINE_INT(gc_memory_reducer_start_delay_ms, 30000,
            "Delay before memory reducer start")
 
 DEFINE_BOOL(concurrent_marking_high_priority_threads, false,
