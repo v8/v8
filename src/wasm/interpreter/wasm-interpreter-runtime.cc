@@ -2406,7 +2406,6 @@ std::pair<DirectHandle<WasmStruct>, const StructType*>
 WasmInterpreterRuntime::StructNewUninitialized(uint32_t index) const {
   const TypeDefinition& type = module_->types[index];
   const StructType* struct_type = module_->struct_type({index});
-  current_thread_->AddWasmGCAllocation(WasmStruct::Size(struct_type));
   DirectHandle<Map> rtt = RttCanon(index);
   return {
       isolate_->factory()->NewWasmStructUninitialized(
@@ -2424,10 +2423,6 @@ WasmInterpreterRuntime::ArrayNewUninitialized(uint32_t length,
                       WasmArray::MaxLength(array_type))) {
     return {};
   }
-
-  int element_size = array_type->element_type().value_kind_size();
-  current_thread_->AddWasmGCAllocation(
-      WasmArray::SizeFor(element_size, length));
 
   DirectHandle<Map> rtt = RttCanon(array_index);
   return {
@@ -2463,11 +2458,6 @@ WasmRef WasmInterpreterRuntime::WasmArrayNewSegment(uint32_t array_index,
   Address result =
       Runtime_WasmArrayNewSegment(kArgsLength, first_arg_addr, isolate_);
   if (isolate_->has_exception()) return {};
-
-  const ArrayType* array_type = GetArrayType(array_index);
-  int element_size = array_type->element_type().value_kind_size();
-  current_thread_->AddWasmGCAllocation(
-      WasmArray::SizeFor(element_size, length));
 
   return direct_handle(Tagged<Object>(result), isolate_);
 }

@@ -1,5 +1,0 @@
-specific_include_rules = {
-  "wasm-interpreter-runtime-inl.h": [
-    "+src/heap/incremental-marking.h",
-  ]
-}

@@ -2217,10 +2217,6 @@ DEFINE_BOOL(drumbrake_register_optimization, true,
             "enable passing the top stack value in a register in drumbrake")
 DEFINE_BOOL(drumbrake_fuzzing_mode, false,
             "enable drumbrake fuzzer mode (for testing)")
-DEFINE_INT(drumbrake_gc_check_interval, 1000,
-           "number of stack checks between GC threshold checks for wasmgc")
-DEFINE_SIZE_T(drumbrake_gc_threshold, 100 * MB,
-              "old space size threshold in bytes to trigger GC for wasmgc")
 
 // Directly interpret asm.js code as regular JavaScript code, instead of
 // translating it to Wasm bytecode first and then interpreting that with
