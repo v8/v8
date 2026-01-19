@@ -8,11 +8,18 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/flags/flags.h"
 #include "src/maglev/maglev-basic-block.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-reducer.h"
+
+#define TRACE_TRUNCATION(msg)                                                  \
+  if (V8_UNLIKELY(v8_flags.trace_maglev_truncation && is_tracing_enabled())) { \
+    StdoutStream{} << "[maglev-truncation] " << msg << std::endl;              \
+  }
 
 namespace v8 {
 namespace internal {
@@ -268,12 +275,17 @@ class TruncationProcessor {
   ProcessResult ProcessTruncatedConversion(ValueNode* node);
 
   template <typename NodeT>
+
   void ProcessFloat64BinaryOp(ValueNode* node) {
     if (!node->can_truncate_to_int32()) return;
+
     switch (NonInt32InputCount(node)) {
       case 0:
         // All inputs are Int32, truncate node.
         EnsureTruncatedInt32Inputs(node);
+        TRACE_TRUNCATION("truncating "
+                         << PrintNodeBrief{node} << " to "
+                         << OpcodeToString(Node::opcode_of<NodeT>));
         node->OverwriteWith<NodeT>();
         break;
       case 1:
@@ -289,13 +301,18 @@ class TruncationProcessor {
   }
 
   template <typename NodeT>
+
   void ProcessInt32ArithmeticOperationWithOverflow(NodeT* node) {
     if (!node->can_truncate_to_int32()) return;
 
     if (node->opcode() == Opcode::kInt32AddWithOverflow) {
+      TRACE_TRUNCATION("truncating " << PrintNodeBrief{node} << " to Int32Add");
       node->OverwriteWith(Opcode::kInt32Add);
+
     } else {
       DCHECK_EQ(node->opcode(), Opcode::kInt32SubtractWithOverflow);
+      TRACE_TRUNCATION("truncating " << PrintNodeBrief{node}
+                                     << " to Int32Subtract");
       node->OverwriteWith(Opcode::kInt32Subtract);
     }
     // TODO(marja): To support Int32MultiplyWithOverflow and
@@ -311,12 +328,16 @@ class TruncationProcessor {
     if (IsCommutativeNode(Node::opcode_of<NodeT>)) {
       std::optional<int32_t> left = node->TryGetInt32ConstantInput(0);
       if (left && left == Int32Identity(Node::opcode_of<NodeT>)) {
+        TRACE_TRUNCATION("eliding identity " << PrintNodeBrief{node}
+                                             << " with left input");
         node->OverwriteWithIdentityTo(node->input_node(1));
         return ProcessResult::kRemove;
       }
     }
     std::optional<int32_t> right = node->TryGetInt32ConstantInput(1);
     if (right && right == Int32Identity(Node::opcode_of<NodeT>)) {
+      TRACE_TRUNCATION("eliding identity " << PrintNodeBrief{node}
+                                           << " with right input");
       node->OverwriteWithIdentityTo(node->input_node(0));
       return ProcessResult::kRemove;
     }
