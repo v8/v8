@@ -189,12 +189,14 @@ void JSObjectFuzzingPrintElements(Tagged<JSObject> obj,
     });
   } else if (elements_kind == PACKED_DOUBLE_ELEMENTS ||
              elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+    if (obj->elements() == ReadOnlyRoots(isolate).empty_fixed_array()) {
+      return;
+    }
     Tagged<FixedDoubleArray> elements = Cast<FixedDoubleArray>(obj->elements());
     process_elements(elements, isolate, accumulator, [&](int i) {
       return std::to_string(elements->get_scalar(i));
     });
   }
-  accumulator->Add("]");
 }
 
 void JSObjectFuzzingPrint(Tagged<JSObject> obj, int depth,
@@ -429,6 +431,47 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
     }
     case ACCESSOR_PAIR_TYPE: {
       os << "<AccessorPair>";
+      break;
+    }
+    case SCRIPT_CONTEXT_TYPE: {
+      os << "<ScriptContext[" << Cast<Context>(obj)->length() << "]>";
+      break;
+    }
+    case JS_PROXY_TYPE: {
+      os << "<JSProxy>";
+      break;
+    }
+    case BIG_INT_BASE_TYPE: {
+      Cast<BigIntBase>(obj)->BigIntBasePrint(os);
+      break;
+    }
+    case FUNCTION_CONTEXT_TYPE: {
+      os << "<FunctionContext[" << Cast<Context>(obj)->length() << "]>";
+      break;
+    }
+    case BLOCK_CONTEXT_TYPE: {
+      os << "<BlockContext[" << Cast<Context>(obj)->length() << "]>";
+      break;
+    }
+    case EVAL_CONTEXT_TYPE: {
+      os << "<EvalContext[" << Cast<Context>(obj)->length() << "]>";
+      break;
+    }
+    case CLASS_POSITIONS_TYPE: {
+      Cast<ClassPositions>(obj)->ClassPositionsPrint(os);
+      break;
+    }
+    case SYMBOL_TYPE: {
+      Tagged<Symbol> symbol = Cast<Symbol>(obj);
+      symbol->SymbolShortPrint(os);
+      break;
+    }
+    case CLASS_BOILERPLATE_TYPE: {
+      os << "<ClassBoilerplateType>";
+      break;
+    }
+    case SCRIPT_TYPE: {
+      os << "<ScriptType>";
       break;
     }
     default:
