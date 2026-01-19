@@ -142,10 +142,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS);
 #endif  // V8_ENABLE_STICKY_MARK_BITS_BOOL
 
-  MemoryChunk(MainThreadFlags flags, BasePage* metadata);
-
-  V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
-
   static constexpr Address BaseAddress(Address a) {
     // LINT.IfChange
     // If this changes, we also need to update
@@ -158,6 +154,23 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // clang-format on
   }
 
+  V8_INLINE static constexpr bool IsAligned(Address address) {
+    return (address & kAlignmentMask) == 0;
+  }
+
+  static constexpr intptr_t GetAlignmentForAllocation() { return kAlignment; }
+  // The macro and code stub assemblers need access to the alignment mask to
+  // implement functionality from this class. In particular, this is used to
+  // implement the header lookups and to calculate the object offsets in the
+  // page.
+  static constexpr intptr_t GetAlignmentMaskForAssembler() {
+    return kAlignmentMask;
+  }
+
+  static constexpr uint32_t AddressToOffset(Address address) {
+    return static_cast<uint32_t>(address) & kAlignmentMask;
+  }
+
   V8_INLINE static MemoryChunk* FromAddress(Address addr) {
     return reinterpret_cast<MemoryChunk*>(BaseAddress(addr));
   }
@@ -166,6 +179,10 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE static MemoryChunk* FromHeapObject(Tagged<HeapObject> object) {
     return FromAddress(object.ptr());
   }
+
+  MemoryChunk(MainThreadFlags flags, BasePage* metadata);
+
+  V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 
   V8_INLINE BasePage* Metadata(const Isolate* isolate);
   V8_INLINE const BasePage* Metadata(const Isolate* isolate) const;
@@ -210,28 +227,11 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return GetFlags() & kYoungOrSharedChunkMask;
   }
 
-  V8_INLINE MainThreadFlags GetFlags() const {
-    return untrusted_main_thread_flags_;
-  }
-
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
   // MemoryChunk::SynchronizedLoad() to simulate the barrier.
   void InitializationMemoryFence();
 
-#ifdef THREAD_SANITIZER
-  void SynchronizedLoad() const;
-#else
-  void SynchronizedLoad() const {}
-#endif
-
   V8_INLINE bool InReadOnlySpace() const;
-
-#ifdef V8_ENABLE_SANDBOX
-  // Flags are stored in the page header and are not safe to rely on for sandbox
-  // checks. This alternative version will check if the page is read-only
-  // without relying on the inline flag.
-  bool SandboxSafeInReadOnlySpace() const;
-#endif
 
   V8_INLINE bool IsEvacuationCandidate() const;
 
@@ -270,23 +270,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return IsFlagSet(POINTERS_FROM_HERE_ARE_INTERESTING);
   }
 
-  V8_INLINE static constexpr bool IsAligned(Address address) {
-    return (address & kAlignmentMask) == 0;
-  }
-
-  static intptr_t GetAlignmentForAllocation() { return kAlignment; }
-  // The macro and code stub assemblers need access to the alignment mask to
-  // implement functionality from this class. In particular, this is used to
-  // implement the header lookups and to calculate the object offsets in the
-  // page.
-  static constexpr intptr_t GetAlignmentMaskForAssembler() {
-    return kAlignmentMask;
-  }
-
-  static constexpr uint32_t AddressToOffset(Address address) {
-    return static_cast<uint32_t>(address) & kAlignmentMask;
-  }
-
 #ifdef DEBUG
   size_t Offset(Address addr) const;
   // RememberedSetOperations take an offset to an end address that can be behind
@@ -299,13 +282,20 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
 #ifdef V8_ENABLE_SANDBOX
   static void ClearMetadataPointer(BasePage* metadata);
+
+  // Flags are stored in the page header and are not safe to rely on for sandbox
+  // checks. This alternative version will check if the page is read-only
+  // without relying on the inline flag.
+  bool SandboxSafeInReadOnlySpace() const;
+#endif
+
+#ifdef THREAD_SANITIZER
+  void SynchronizedLoad() const;
+#else
+  void SynchronizedLoad() const {}
 #endif
 
  private:
-  V8_INLINE bool IsFlagSet(Flag flag) const {
-    return untrusted_main_thread_flags_ & flag;
-  }
-
   // Keep offsets and masks private to only expose them with matching friend
   // declarations.
   static constexpr intptr_t FlagsOffset() {
@@ -349,6 +339,14 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   BasePage* MetadataImpl(const Isolate* isolate);
   template <bool check_isolate>
   const BasePage* MetadataImpl(const Isolate* isolate) const;
+
+  V8_INLINE MainThreadFlags GetFlags() const {
+    return untrusted_main_thread_flags_;
+  }
+
+  V8_INLINE bool IsFlagSet(Flag flag) const {
+    return untrusted_main_thread_flags_ & flag;
+  }
 
   // Flags that are only mutable from the main thread when no concurrent
   // component (e.g. marker, sweeper, compilation, allocation) is running.

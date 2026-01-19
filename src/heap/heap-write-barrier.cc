@@ -50,9 +50,9 @@ WriteBarrier::MarkingSlow<RecordYoungSlot::kYes>(Tagged<HeapObject> host,
 template <RecordYoungSlot kRecordYoung>
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host, HeapObjectSlot slot,
                                Tagged<HeapObject> value) {
-  SLOW_DCHECK_IMPLIES(kUninterestingPagesCanBeSkipped,
-                      MemoryChunk::FromHeapObject(host)->GetFlags() &
-                          MemoryChunk::kPointersFromHereAreInterestingMask);
+  SLOW_DCHECK_IMPLIES(
+      kUninterestingPagesCanBeSkipped,
+      MemoryChunk::FromHeapObject(host)->PointersFromHereAreInteresting());
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   marking_barrier->Write<HeapObjectSlot, kRecordYoung>(host, slot, value);
 }
@@ -341,9 +341,9 @@ void WriteBarrier::GenerationalBarrierForCodeSlow(
 // static
 void WriteBarrier::CombinedGenerationalAndSharedEphemeronBarrierSlow(
     Tagged<EphemeronHashTable> table, Address slot, Tagged<HeapObject> value) {
-  SLOW_DCHECK_IMPLIES(kUninterestingPagesCanBeSkipped,
-                      MemoryChunk::FromHeapObject(table)->GetFlags() &
-                          MemoryChunk::kPointersFromHereAreInterestingMask);
+  SLOW_DCHECK_IMPLIES(
+      kUninterestingPagesCanBeSkipped,
+      MemoryChunk::FromHeapObject(table)->PointersFromHereAreInteresting());
   if (HeapLayout::InYoungGeneration(value)) {
     MutablePage* table_chunk =
         MutablePage::FromHeapObject(Isolate::Current(), table);
