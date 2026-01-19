@@ -27,6 +27,8 @@
 #include <sys/mman.h>
 #include <sys/ucontext.h>
 #include <unistd.h>
+
+#include "src/base/platform/platform-linux.h"
 #endif  // V8_OS_LINUX
 
 #if defined(V8_USE_ADDRESS_SANITIZER)
@@ -710,6 +712,32 @@ void PrintToStderr(const char* output) {
   USE(return_val);
 }
 
+bool IsSafeAccessViolation(Address faultaddr) {
+  base::SignalSafeMapsParser parser;
+  if (!parser.IsValid()) {
+    PrintToStderr(
+        "Could not access /proc/self/maps to check if the access violation is "
+        "safe.\n");
+    return false;
+  }
+
+  while (auto entry = parser.Next()) {
+    if (faultaddr >= entry->start && faultaddr < entry->end) {
+      // With in-sandbox corruption it is possible to cause (safe) access
+      // violations inside the pointer table memory mappings. Unfortunately,
+      // these can be both PROT_NONE and PROT_READ mappings (as some table have
+      // RO segments), so we need to treat both of these as safe here.
+      return entry->permissions == PagePermissions::kNoAccess ||
+             entry->permissions == PagePermissions::kRead;
+    }
+  }
+
+  PrintToStderr(
+      "Could not find faulting address in /proc/self/maps so cannot check if "
+      "the access violation is safe.\n");
+  return false;
+}
+
 [[noreturn]] void FilterCrash(const char* reason) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
@@ -930,18 +958,15 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
         // writing to a read-only mapping.
         //
         // The sandbox relies on such accesses crashing in a safe way in some
-        // cases. For example, the accesses into the various pointer tables are
-        // not bounds checked, but instead it is guaranteed that an
-        // out-of-bounds access will hit a PROT_NONE mapping.
-        //
-        // Memory accesses that _always_ cause such a permission violation are
-        // not exploitable and the crashes are therefore filtered out here.
-        // However, testcases need to be written with this behavior in mind and
-        // should typically try to access non-existing memory to demonstrate the
-        // ability to escape from the sandbox.
-        FilterCrash(
-            "Caught harmless memory access violation (memory permission "
-            "violation).");
+        // cases. For example, accesses into the various pointer tables are not
+        // bounds checked, but instead it is guaranteed that an out-of-bounds
+        // access will hit a PROT_NONE mapping. As such, here we try to
+        // identify whether the crash represents one of these known-safe cases,
+        // in which case we filter it out.
+        if (IsSafeAccessViolation(faultaddr)) {
+          FilterCrash(
+              "Caught harmless memory access violation (safe SEGV_ACCERR).");
+        }
       }
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
