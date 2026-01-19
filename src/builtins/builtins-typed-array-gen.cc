@@ -68,8 +68,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
                                  Int32Constant(bitfield_value));
 
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kDetachKeyOffset,
-                                 UndefinedConstant());
+  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kViewsOrDetachKeyOffset,
+                                 SmiConstant(JSArrayBuffer::kNoView.value()));
   StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawByteLengthOffset,
                            UintPtrConstant(0));
   StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawMaxByteLengthOffset,
@@ -137,14 +137,15 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
 
+  Label variable_length(this), normal(this), zero(this);
+
   // Check if the {receiver} is actually a JSTypedArray.
-  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
+  ThrowIfNotJSTypedArray(context, receiver, &zero, kMethodName);
 
   TNode<JSTypedArray> receiver_array = CAST(receiver);
   TNode<JSArrayBuffer> receiver_buffer =
       LoadJSArrayBufferViewBuffer(receiver_array);
 
-  Label variable_length(this), normal(this);
   Branch(IsVariableLengthJSArrayBufferView(receiver_array), &variable_length,
          &normal);
   BIND(&variable_length);
@@ -155,13 +156,13 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
 
   BIND(&normal);
   {
-    // Default to zero if the {receiver}s buffer was detached.
-    TNode<UintPtrT> byte_length = Select<UintPtrT>(
-        IsDetachedBuffer(receiver_buffer),
-        [=, this] { return UintPtrConstant(0); },
-        [=, this] { return LoadJSArrayBufferViewByteLength(receiver_array); });
-    Return(ChangeUintPtrToTagged(byte_length));
+    GotoIf(IsDetachedBuffer(receiver_buffer), &zero);
+    Return(
+        ChangeUintPtrToTagged(LoadJSArrayBufferViewByteLength(receiver_array)));
   }
+
+  BIND(&zero);
+  Return(SmiConstant(0));
 }
 
 // ES6 #sec-get-%typedarray%.prototype.byteoffset
@@ -170,11 +171,12 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
 
+  Label detached_or_oob(this), not_detached_nor_oob(this);
+
   // Check if the {receiver} is actually a JSTypedArray.
-  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
+  ThrowIfNotJSTypedArray(context, receiver, &detached_or_oob, kMethodName);
 
   // Default to zero if the {receiver}s buffer was detached / out of bounds.
-  Label detached_or_oob(this), not_detached_nor_oob(this);
   IsJSArrayBufferViewDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
                                            &not_detached_nor_oob);
   BIND(&detached_or_oob);
@@ -191,12 +193,13 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
 
+  Label detached(this), end(this);
+
   // Check if the {receiver} is actually a JSTypedArray.
-  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
+  ThrowIfNotJSTypedArray(context, receiver, &detached, kMethodName);
 
   TNode<JSTypedArray> receiver_array = CAST(receiver);
   TVARIABLE(UintPtrT, length);
-  Label detached(this), end(this);
   length = LoadJSTypedArrayLengthAndValidate(
       receiver_array, TypedArrayAccessMode::kRead, &detached);
   Return(ChangeUintPtrToTagged(length.value()));
@@ -279,11 +282,12 @@ TNode<JSTypedArray>
 TypedArrayBuiltinsAssembler::PartiallyValidateTypedArrayMaybeOOB(
     TNode<Context> context, TNode<Object> obj, const char* method_name,
     TypedArrayAccessMode access_mode) {
+  Label success(this), fail(this);
+
   // If it is not a typed array, throw
-  ThrowIfNotInstanceType(context, obj, JS_TYPED_ARRAY_TYPE, method_name);
+  ThrowIfNotJSTypedArray(context, obj, &fail, method_name);
 
   // If the typed array's buffer is detached or immutable, throw
-  Label success(this), fail(this);
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(obj));
   GotoIf(IsDetachedBuffer(buffer), &fail);
   if (access_mode == TypedArrayAccessMode::kWrite) {
@@ -310,10 +314,11 @@ TypedArrayBuiltinsAssembler::PartiallyValidateTypedArrayMaybeOOB(
 TNode<UintPtrT> TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
     TNode<Context> context, TNode<Object> obj, const char* method_name,
     TypedArrayAccessMode access_mode) {
-  // If it is not a typed array, throw
-  ThrowIfNotInstanceType(context, obj, JS_TYPED_ARRAY_TYPE, method_name);
-
   Label success(this), fail(this);
+
+  // If it is not a typed array, throw
+  ThrowIfNotJSTypedArray(context, obj, &fail, method_name);
+
   TNode<UintPtrT> length =
       LoadJSTypedArrayLengthAndValidate(CAST(obj), access_mode, &fail);
 

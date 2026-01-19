@@ -2358,13 +2358,46 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   os << "\n - backing_store: " << backing_store();
   os << "\n - byte_length: " << GetByteLength();
   os << "\n - max_byte_length: " << max_byte_length();
-  os << "\n - detach key: " << detach_key();
+  if (has_detach_key()) {
+    os << "\n - detach key: " << Brief(detach_key()->value());
+    os << "\n - views: (many views)";
+  } else {
+    os << "\n - detach key: (undefined)";
+    if (views() == kNoView) {
+      os << "\n - views: (no views)";
+    } else if (views() == kManyViews) {
+      os << "\n - views: (many views)";
+    } else {
+      os << "\n - views: " << Brief(views());
+    }
+  }
   if (is_external()) os << "\n - external";
   if (is_detachable()) os << "\n - detachable";
   if (was_detached()) os << "\n - detached";
   if (is_shared()) os << "\n - shared";
   if (is_resizable_by_js()) os << "\n - resizable_by_js";
   JSObjectPrintBody(os, *this, !was_detached());
+}
+
+void JSDetachedTypedArray::JSDetachedTypedArrayPrint(std::ostream& os) {
+  JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSDetachedTypedArray");
+  os << "\n - buffer: " << Brief(buffer());
+  os << "\n - byte_offset: " << byte_offset();
+  if (byte_length() != 0) {
+    os << "\n - invalid length";
+  }
+  if (!WasDetached()) {
+    os << "\n - invalid detached state!";
+  }
+  os << "\n - data_ptr: " << DataPtr();
+  Tagged_t base_ptr = static_cast<Tagged_t>(base_pointer().ptr());
+  os << "\n   - base_pointer: "
+     << reinterpret_cast<void*>(static_cast<Address>(base_ptr));
+  if (!IsJSArrayBuffer(buffer())) {
+    os << "\n <invalid buffer>\n";
+    return;
+  }
+  JSObjectPrintBody(os, *this, false);
 }
 
 void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {

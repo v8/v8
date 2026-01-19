@@ -851,6 +851,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> CopyAsElementsKind(Isolate* isolate, DirectHandle<Map> map,
                                         ElementsKind kind, TransitionFlag flag);
 
+  V8_EXPORT_PRIVATE static DirectHandle<Map> AsDetachedTypedArray(
+      Isolate* isolate, DirectHandle<Map> map);
+
   static DirectHandle<Map> AsLanguageMode(
       Isolate* isolate, DirectHandle<Map> initial_map,
       DirectHandle<SharedFunctionInfo> shared_info);

@@ -7736,6 +7736,35 @@ void CodeStubAssembler::ThrowIfNotCallable(TNode<Context> context,
   BIND(&out);
 }
 
+void CodeStubAssembler::ThrowIfNotJSTypedArray(TNode<Context> context,
+                                               TNode<Object> value,
+                                               Label* if_marked_detached,
+                                               char const* method_name) {
+  Label out(this), not_typed_array_type(this),
+      throw_exception(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(value), &throw_exception);
+
+  // Load the instance type of the {value}.
+  TNode<Map> map = LoadMap(CAST(value));
+  const TNode<Uint16T> value_instance_type = LoadMapInstanceType(map);
+
+  Branch(IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(value_instance_type),
+         &out, &not_typed_array_type);
+
+  BIND(&not_typed_array_type);
+  Branch(Word32Equal(value_instance_type,
+                     Int32Constant(JS_DETACHED_TYPED_ARRAY_TYPE)),
+         if_marked_detached, &throw_exception);
+
+  // The {value} is not a compatible receiver for this method.
+  BIND(&throw_exception);
+  ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                 StringConstant(method_name), value);
+
+  BIND(&out);
+}
+
 void CodeStubAssembler::ThrowRangeError(TNode<Context> context,
                                         MessageTemplate message,
                                         std::optional<TNode<Object>> arg0,
@@ -8808,7 +8837,7 @@ TNode<BoolT> CodeStubAssembler::IsJSFunctionMap(TNode<Map> map) {
   return IsJSFunctionInstanceType(LoadMapInstanceType(map));
 }
 
-TNode<BoolT> CodeStubAssembler::IsJSTypedArrayInstanceType(
+TNode<BoolT> CodeStubAssembler::IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(
     TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE);
 }
@@ -8819,6 +8848,12 @@ TNode<BoolT> CodeStubAssembler::IsJSTypedArrayMap(TNode<Map> map) {
 
 TNode<BoolT> CodeStubAssembler::IsJSTypedArray(TNode<HeapObject> object) {
   return IsJSTypedArrayMap(LoadMap(object));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSTypedArrayInstanceType(
+    TNode<Int32T> instance_type) {
+  return IsInRange(instance_type, JS_TYPED_ARRAY_TYPE,
+                   JS_DETACHED_TYPED_ARRAY_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSArrayBuffer(TNode<HeapObject> object) {
@@ -12945,7 +12980,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
       BIND(&check_integer_indexed_exotic);
       {
         // Bailout if it can be an integer indexed exotic case.
-        GotoIfNot(InstanceTypeEqual(holder_instance_type, JS_TYPED_ARRAY_TYPE),
+        GotoIfNot(IsJSTypedArrayInstanceType(holder_instance_type),
                   &next_proto);
         GotoIfNot(IsString(var_unique.value()), &next_proto);
         BranchIfMaybeSpecialIndex(CAST(var_unique.value()), if_bailout,

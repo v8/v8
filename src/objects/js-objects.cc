@@ -2609,6 +2609,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSArrayIterator::kHeaderSize;
     case JS_TYPED_ARRAY_TYPE:
       return JSTypedArray::kHeaderSize;
+    case JS_DETACHED_TYPED_ARRAY_TYPE:
+      return JSDetachedTypedArray::kHeaderSize;
     case JS_DATA_VIEW_TYPE:
       return JSDataView::kHeaderSize;
     case JS_RAB_GSAB_DATA_VIEW_TYPE:

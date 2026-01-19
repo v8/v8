@@ -227,7 +227,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
     // |Detach| will cause the buffer to be |Unregister|ed. Without
     // barriers and proper synchronization this will trigger a data race on
     // TSAN.
-    ab->Detach(v8::Local<v8::Value>()).Check();
+    ab->Detach(v8::Local<v8::String>()).Check();
   }
 }
 

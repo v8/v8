@@ -314,6 +314,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 
   // The default case: test functions are exposed, everything else is not.
   switch (id) {
+    // Functions used in testing and outside
+    case Runtime::kArrayBufferDetach:
 #define F(name, nargs, ressize, ...) case k##name:
 #define I(name, nargs, ressize, ...) case kInline##name:
     FOR_EACH_INTRINSIC_TEST(F, I)

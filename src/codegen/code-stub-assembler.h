@@ -2795,6 +2795,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                             const char* method_name);
   void ThrowIfNotCallable(TNode<Context> context, TNode<Object> value,
                           const char* method_name);
+  void ThrowIfNotJSTypedArray(TNode<Context> context, TNode<Object> value,
+                              Label* if_marked_detached,
+                              char const* method_name);
 
   void ThrowRangeError(TNode<Context> context, MessageTemplate message,
                        std::optional<TNode<Object>> arg0 = std::nullopt,
@@ -2901,9 +2904,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> JSAnyIsPrimitiveMap(TNode<Map> map);
   TNode<BoolT> JSAnyIsPrimitive(TNode<HeapObject> object);
   TNode<BoolT> IsJSRegExp(TNode<HeapObject> object);
-  TNode<BoolT> IsJSTypedArrayInstanceType(TNode<Int32T> instance_type);
+  // Check if the instance type is a typed array. A detached typed array can
+  // also have the JS_DETACHED_TYPED_ARRAY_TYPE type and will thus be ignored by
+  // this test. Note, if the check passes the typed array can still be detached!
+  TNode<BoolT> IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(
+      TNode<Int32T> instance_type);
   TNode<BoolT> IsJSTypedArrayMap(TNode<Map> map);
   TNode<BoolT> IsJSTypedArray(TNode<HeapObject> object);
+  TNode<BoolT> IsJSTypedArrayInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSGeneratorMap(TNode<Map> map);
   TNode<BoolT> IsJSPrimitiveWrapperInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSPrimitiveWrapperMap(TNode<Map> map);

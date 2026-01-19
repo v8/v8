@@ -22,6 +22,7 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSDetachedTypedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTypedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataViewOrRabGsabDataView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataView)
@@ -164,7 +165,56 @@ void JSArrayBuffer::clear_padding() {
   }
 }
 
-ACCESSORS(JSArrayBuffer, detach_key, Tagged<Object>, kDetachKeyOffset)
+ACCESSORS_CHECKED2(JSArrayBuffer, views_or_detach_key, Tagged<MaybeObject>,
+                   kViewsOrDetachKeyOffset, true, true)
+
+Tagged<MaybeObject> JSArrayBuffer::views() const {
+  if (has_detach_key()) return kManyViews;
+  Tagged<MaybeObject> res = views_or_detach_key();
+  DCHECK(res.IsSmi() || res.IsWeak() || res.IsCleared());
+  return res;
+}
+
+void JSArrayBuffer::set_views(Tagged<MaybeObject> value,
+                              WriteBarrierMode mode) {
+  DCHECK(!has_detach_key());
+  DCHECK(value.IsWeak() || value == kNoView || value == kManyViews);
+  set_views_or_detach_key(value, mode);
+}
+
+Tagged<Cell> JSArrayBuffer::detach_key() const {
+  DCHECK(has_detach_key());
+  return Cast<Cell>(views_or_detach_key().GetHeapObjectAssumeStrong());
+}
+
+void JSArrayBuffer::set_detach_key(Tagged<Cell> value, WriteBarrierMode mode) {
+  set_views_or_detach_key(value, mode);
+}
+
+bool JSArrayBuffer::has_detach_key() const {
+  Tagged<MaybeObject> value = views_or_detach_key();
+  return value.IsStrong() && IsCell(value.GetHeapObjectAssumeStrong());
+}
+
+Tagged<Object> JSArrayBuffer::DetachKey(Isolate* isolate) {
+  if (!has_detach_key()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  return detach_key()->value();
+}
+
+inline void JSArrayBuffer::AttachView(Tagged<JSArrayBufferView> new_view) {
+  if (!v8_flags.track_array_buffer_views) return;
+  if (is_shared() || has_detach_key()) return;
+  Tagged<MaybeObject> current_views = views();
+  if (current_views == kManyViews) return;
+  if (current_views.IsCleared() || current_views == kNoView) {
+    set_views(MakeWeak(new_view));
+    return;
+  }
+  DCHECK(IsJSArrayBufferView(current_views.GetHeapObjectAssumeWeak()));
+  set_views(kManyViews);
+}
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
   RELAXED_WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);

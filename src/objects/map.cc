@@ -217,6 +217,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_TYPED_ARRAY_TYPE:
       return kVisitJSTypedArray;
 
+    [[unlikely]] case JS_DETACHED_TYPED_ARRAY_TYPE:
+      return kVisitJSTypedArray;
+
     case DOUBLE_STRING_CACHE_TYPE:
       return kVisitDoubleStringCache;
 
@@ -1733,6 +1736,25 @@ void Map::InstallDescriptors(Isolate* isolate, DirectHandle<Map> parent,
                     force_connect);
 }
 
+// static
+DirectHandle<Map> Map::AsDetachedTypedArray(Isolate* isolate,
+                                            DirectHandle<Map> map) {
+  DCHECK(InstanceTypeChecker::IsJSTypedArray(map->instance_type()));
+  ReadOnlyRoots roots(isolate);
+  DirectHandle<Map> new_map;
+  if (!TransitionsAccessor::SearchSpecial(isolate, map, roots.detached_symbol())
+           .ToHandle(&new_map)) {
+    new_map = Map::Copy(isolate, map, "detached TypedArray");
+    new_map->set_instance_type(JS_DETACHED_TYPED_ARRAY_TYPE);
+    if (TransitionsAccessor::CanHaveMoreTransitions(isolate, map)) {
+      DirectHandle<Name> name = isolate->factory()->detached_symbol();
+      Map::ConnectTransition(isolate, map, new_map, name, SPECIAL_TRANSITION);
+    }
+    map->NotifyLeafMapLayoutChange(isolate);
+  }
+  return new_map;
+}
+
 Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, DirectHandle<Map> map,
                                     ElementsKind kind, TransitionFlag flag) {
   // Only certain objects are allowed to have non-terminal fast transitional
@@ -2329,8 +2351,13 @@ bool Map::EquivalentToForTransition(
     const Tagged<Map> other, ConcurrencyMode cmode,
     DirectHandle<HeapObject> new_prototype) const {
   CHECK_EQ(GetConstructor(), other->GetConstructor());
-  CHECK_EQ(instance_type(), other->instance_type());
 
+  if (instance_type() != other->instance_type()) {
+    // Special detached array buffer view transition.
+    DCHECK(instance_type() == JS_DETACHED_TYPED_ARRAY_TYPE &&
+           other->instance_type() == JS_TYPED_ARRAY_TYPE);
+    return false;
+  }
   if (bit_field() != other->bit_field()) return false;
   if (new_prototype.is_null()) {
     if (prototype() != other->prototype()) return false;

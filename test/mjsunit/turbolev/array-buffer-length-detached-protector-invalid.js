@@ -10,11 +10,17 @@ function foo(ta) {
 %PrepareFunctionForOptimization(foo);
 
 // Invalidate the ArrayBufferDetached protector before compiling.
-let ab1 = new ArrayBuffer(8);
-%ArrayBufferDetach(ab1);
+(function() {
+  const ab = new ArrayBuffer(8);
+  let ta1 = new Uint32Array(ab);
+  let ta2 = new Uint32Array(ab);
+  %ArrayBufferDetach(ab);
+})();
 
 let ab2 = new ArrayBuffer(8);
 let ta = new Uint32Array(ab2);
+// Defeat ta tracking.
+let ta2 = new Uint32Array(ab2);
 assertEquals(2, foo(ta));
 
 %OptimizeFunctionOnNextCall(foo);

@@ -1486,8 +1486,12 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   GotoIf(InstanceTypeEqual(array_type, JS_ARRAY_TYPE), &if_array);
   GotoIfNumberGreaterThanOrEqual(index, var_max_length.value(),
                                  &allocate_iterator_result);
-  Branch(InstanceTypeEqual(array_type, JS_TYPED_ARRAY_TYPE), &if_typedarray,
-         &if_other);
+  // For performance we don't check against the detached instance type here, as
+  // this is a very uncommon case. Instead it will be handled in if_oob.
+  Branch(IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(array_type),
+         &if_typedarray, &if_other);
+
+  Label if_detached_typed_array(this);
 
   BIND(&if_array);
   {
@@ -1537,14 +1541,22 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   BIND(&if_other);
   {
     // We cannot enter here with either JSArray's or JSTypedArray's.
-    CSA_DCHECK(this, Word32BinaryNot(IsJSArray(array)));
-    CSA_DCHECK(this, Word32BinaryNot(IsJSTypedArray(array)));
+    CSA_DCHECK(this, Word32BinaryNot(IsJSArrayInstanceType(array_type)));
+    CSA_DCHECK(this,
+               Word32BinaryNot(
+                   IsJSTypedArrayInstanceTypeMaybeFalseIfDetached(array_type)));
+
+    Label if_oob(this);
 
     // Check that the {index} is within the bounds of the {array}s "length".
     TNode<Number> length = CAST(
         CallBuiltin(Builtin::kToLength, context,
                     GetProperty(context, array, factory()->length_string())));
-    GotoIfNumberGreaterThanOrEqual(index, length, &set_done);
+    GotoIfNumberGreaterThanOrEqual(index, length, &if_oob);
+
+    // Detached typed array must have length 0.
+    CSA_DCHECK(this, Word32BinaryNot(InstanceTypeEqual(
+                         array_type, JS_DETACHED_TYPED_ARRAY_TYPE)));
     StoreJSArrayIteratorNextIndex(iterator, NumberInc(index));
 
     var_done = FalseConstant();
@@ -1554,6 +1566,11 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                            iterator, JSArrayIterator::kKindOffset),
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
            &allocate_iterator_result, &if_generic);
+
+    BIND(&if_oob);
+    GotoIf(InstanceTypeEqual(array_type, JS_DETACHED_TYPED_ARRAY_TYPE),
+           &if_detached_typed_array);
+    Goto(&set_done);
   }
 
   BIND(&set_done);
@@ -1592,9 +1609,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     // [[ArrayIteratorNextIndex]] anymore, since a JSTypedArray's
     // length cannot change anymore, so this {iterator} will never
     // produce values again anyways.
-    Label detached(this);
     TNode<UintPtrT> length = LoadJSTypedArrayLengthAndValidate(
-        CAST(array), TypedArrayAccessMode::kRead, &detached);
+        CAST(array), TypedArrayAccessMode::kRead, &if_detached_typed_array);
     GotoIfNot(UintPtrLessThan(index_uintptr, length), &set_done);
     // TODO(v8:4153): Consider storing next index as uintptr. Update this and
     // the relevant TurboFan code.
@@ -1616,7 +1632,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                                                    elements_kind);
     Goto(&allocate_entry_if_needed);
 
-    BIND(&detached);
+    BIND(&if_detached_typed_array);
     ThrowTypeError(context, MessageTemplate::kTypedArrayValidateErrorOperation,
                    method_name);
   }

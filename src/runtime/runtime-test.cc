@@ -2433,7 +2433,6 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferDetachForceWasm) {
   HandleScope scope(isolate);
-  DisallowGarbageCollection no_gc;
   // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
   DCHECK_LE(args.length(), 2);
   DCHECK(IsJSArrayBuffer(*args.at(0)));

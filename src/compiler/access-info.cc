@@ -1361,6 +1361,7 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessorInHolder(
   // prototype.
   if (v8_flags.typed_array_length_loading &&
       IsJSTypedArrayMap(*receiver_map.object()) &&
+      !IsJSDetachedTypedArrayMap(*receiver_map.object()) &&
       !IsRabGsabTypedArrayElementsKind(receiver_map.elements_kind()) &&
       Name::Equals(isolate(), name.object(),
                    isolate()->factory()->length_string()) &&

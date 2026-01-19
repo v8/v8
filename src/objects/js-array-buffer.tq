@@ -12,8 +12,11 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   is_immutable: bool: 1 bit;
 }
 
+const kNoView: Smi = 0;
+const kManyViews: Smi = 1;
+
 extern class JSArrayBuffer extends JSAPIObjectWithEmbedderSlots {
-  detach_key: Object;
+  views_or_detach_key: Weak<JSArrayBufferView>|Smi|Cell;
   // A BoundedSize if the sandbox is enabled
   raw_byte_length: uintptr;
   // A BoundedSize if the sandbox is enabled
@@ -119,6 +122,11 @@ extern class JSTypedArray extends JSArrayBufferView {
   external_pointer: RawPtr;
   base_pointer: ByteArray|Smi;
 }
+
+// A typed array where the ArrayBuffer is guaranteed to be detached. Note, the
+// inverse does not hold! A normal JSTypedArray can still have a detached
+// buffer.
+extern class JSDetachedTypedArray extends JSTypedArray {}
 
 extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): uintptr;
 

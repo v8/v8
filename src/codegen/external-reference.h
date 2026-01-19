@@ -112,6 +112,8 @@ enum class IsolateFieldId : uint8_t;
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
   V(address_of_shared_string_table_flag, "v8_flags.shared_string_table")       \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
+  V(address_of_track_array_buffer_views_flag,                                  \
+    "v8_flags.track_array_buffer_view")                                        \
   V(address_of_uint32_bias, "uint32_bias")                                     \
   V(allocate_and_initialize_young_external_pointer_table_entry,                \
     "AllocateAndInitializeYoungExternalPointerTableEntry")                     \

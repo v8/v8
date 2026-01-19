@@ -116,6 +116,11 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
       TNode<Context> context, TNode<JSTypedArray> typed_array,
       TNode<UintPtrT> index_node, TNode<TValue> value,
       ElementsKind elements_kind, Label* if_detached_or_out_of_bounds);
+
+  TNode<BoolT> IsTrackArrayBufferViewsEnabled() {
+    return LoadRuntimeFlag(
+        ExternalReference::address_of_track_array_buffer_views_flag());
+  }
 };
 
 }  // namespace internal

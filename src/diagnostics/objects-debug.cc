@@ -2377,6 +2377,15 @@ void JSArrayBuffer::JSArrayBufferVerify(Isolate* isolate) {
     CHECK_EQ(0,
              *reinterpret_cast<uint32_t*>(address() + kOptionalPaddingOffset));
   }
+  Tagged<MaybeObject> v = views_or_detach_key();
+  if (is_shared() || !v8_flags.track_array_buffer_views) {
+    CHECK(has_detach_key() || v == kNoView);
+  } else {
+    CHECK_EQ(!v.IsWeak() && !v.IsSmi() && !v.IsCleared(), has_detach_key());
+    CHECK(v == kNoView || v == kManyViews || (v.IsStrong() && Is<Cell>(v)) ||
+          (v.IsWeak() && IsJSArrayBufferView(v.GetHeapObjectAssumeWeak())) ||
+          v.IsCleared());
+  }
 }
 
 void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
@@ -2385,9 +2394,46 @@ void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
   CHECK_LE(byte_offset(), JSArrayBuffer::kMaxByteLength);
 }
 
+void JSDetachedTypedArray::JSDetachedTypedArrayVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSTypedArrayVerify(*this, isolate);
+  CHECK_LE(GetLength(), 0);
+  CHECK(WasDetached());
+}
+
+namespace {
+
+template <typename View>
+void CheckArrayBufferViewTrackingConsistency(Tagged<JSArrayBuffer> ab,
+                                             View view, Isolate* isolate) {
+  if (ab->is_shared()) return;
+  Tagged<MaybeObject> views = ab->views_or_detach_key();
+  CHECK(!view.IsCleared());
+  if (!IsUndefined(ab->DetachKey(isolate))) {
+    CHECK_EQ(ab->views(), JSArrayBuffer::kManyViews);
+    CHECK(!views.IsSmi() && views.IsStrong() && Is<Cell>(views));
+    return;
+  }
+  if (!v8_flags.track_array_buffer_views) {
+    CHECK_EQ(views, Smi::zero());
+    return;
+  }
+  if (views == JSArrayBuffer::kNoView) {
+    CHECK(view->WasDetached());
+  } else if (views != JSArrayBuffer::kManyViews) {
+    CHECK_EQ(views.GetHeapObjectAssumeWeak(), view);
+    CHECK(Is<JSArrayBufferView>(views.GetHeapObjectAssumeWeak()));
+  }
+}
+
+}  // namespace
+
 void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSTypedArrayVerify(*this, isolate);
   CHECK_LE(GetLength(), JSTypedArray::kMaxByteLength / element_size());
+  if (IsJSArrayBuffer(buffer())) {
+    Tagged<JSArrayBuffer> ab = Cast<JSArrayBuffer>(buffer());
+    CheckArrayBufferViewTrackingConsistency(ab, *this, isolate);
+  }
 }
 
 void JSDataView::JSDataViewVerify(Isolate* isolate) {
@@ -2399,6 +2445,11 @@ void JSDataView::JSDataViewVerify(Isolate* isolate) {
                  byte_offset(),
              data_pointer());
   }
+
+  if (IsJSArrayBuffer(buffer())) {
+    Tagged<JSArrayBuffer> ab = Cast<JSArrayBuffer>(buffer());
+    CheckArrayBufferViewTrackingConsistency(ab, *this, isolate);
+  }
 }
 
 void JSRabGsabDataView::JSRabGsabDataViewVerify(Isolate* isolate) {
@@ -2409,6 +2460,11 @@ void JSRabGsabDataView::JSRabGsabDataViewVerify(Isolate* isolate) {
                  Cast<JSArrayBuffer>(buffer())->backing_store()) +
                  byte_offset(),
              data_pointer());
+  }
+
+  if (IsJSArrayBuffer(buffer())) {
+    Tagged<JSArrayBuffer> ab = Cast<JSArrayBuffer>(buffer());
+    CheckArrayBufferViewTrackingConsistency(ab, *this, isolate);
   }
 }
 

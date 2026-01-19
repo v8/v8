@@ -3782,6 +3782,7 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
   raw->set_byte_offset(byte_offset);
   raw->set_byte_length(byte_length);
   raw->set_bit_field(0);
+  buffer->AttachView(*array_buffer_view);
   // TODO(v8) remove once embedder data slots are always zero-initialized.
   InitEmbedderFields(raw, Smi::zero());
   DCHECK_EQ(raw->GetEmbedderFieldCount(),

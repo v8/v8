@@ -93,14 +93,27 @@ class JSArrayBuffer
   // An ArrayBuffer with a size greater than zero is never empty.
   DECL_GETTER(IsEmpty, bool)
 
-  DECL_ACCESSORS(detach_key, Tagged<Object>)
+  DECL_ACCESSORS(views_or_detach_key, Tagged<MaybeObject>)
+  inline Tagged<MaybeObject> views() const;
+  inline void set_views(Tagged<MaybeObject> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  void AttachView(Tagged<JSArrayBufferView> view);
+
+  inline Tagged<Object> DetachKey(Isolate* isolate);
+  static void SetDetachKey(DirectHandle<JSArrayBuffer> array_buffer,
+                           DirectHandle<Object> key, Isolate* isolate);
+
+  static constexpr Tagged<Smi> kNoView = Smi::zero();
+  static constexpr Tagged<Smi> kManyViews = Smi::FromInt(1);
 
   // Initializes the fields of the ArrayBuffer. The provided backing_store can
   // be nullptr. If it is not nullptr, then the function registers it with
   // src/heap/array-buffer-tracker.h.
   V8_EXPORT_PRIVATE void Setup(SharedFlag shared, ResizableFlag resizable,
                                std::shared_ptr<BackingStore> backing_store,
-                               Isolate* isolate);
+                               Isolate* isolate,
+                               Tagged<MaybeObject> views = kNoView);
 
   // Detach the backing store from this array buffer if it is detachable.
   // This sets the internal pointer and length to 0 and unregisters the backing
@@ -178,7 +191,14 @@ class JSArrayBuffer
   }
 
  private:
-  void DetachInternal(bool force_for_wasm_memory, Isolate* isolate);
+  DECL_ACCESSORS(detach_key, Tagged<Cell>)
+  inline bool has_detach_key() const;
+
+  static void DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
+                             bool force_for_wasm_memory, Isolate* isolate);
+
+  static bool TryDetachViews(DirectHandle<JSArrayBuffer> array_buffer,
+                             Isolate* isolate);
 
 #if V8_COMPRESS_POINTERS
   // When pointer compression is enabled, the pointer to the extension is
@@ -474,6 +494,9 @@ class JSTypedArray
   static constexpr size_t kMaxSizeInHeap = 64;
 #endif
 
+  static inline void MarkDetached(DirectHandle<JSTypedArray> array,
+                                  Isolate* isolate);
+
  private:
   template <typename IsolateT>
   friend class Deserializer;
@@ -488,6 +511,15 @@ class JSTypedArray
   inline void set_external_pointer(Isolate* isolate, Address value);
 
   TQ_OBJECT_CONSTRUCTORS(JSTypedArray)
+};
+
+class JSDetachedTypedArray
+    : public TorqueGeneratedJSDetachedTypedArray<JSDetachedTypedArray,
+                                                 JSTypedArray> {
+ public:
+  DECL_PRINTER(JSDetachedTypedArray)
+  DECL_VERIFIER(JSDetachedTypedArray)
+  TQ_OBJECT_CONSTRUCTORS(JSDetachedTypedArray)
 };
 
 class JSDataViewOrRabGsabDataView

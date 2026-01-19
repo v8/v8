@@ -3036,8 +3036,7 @@ void AccessorAssembler::GenericPropertyLoad(
     BIND(&loop);
     {
       // Bailout if it can be an integer indexed exotic case.
-      GotoIf(InstanceTypeEqual(var_holder_instance_type.value(),
-                               JS_TYPED_ARRAY_TYPE),
+      GotoIf(IsJSTypedArrayInstanceType(var_holder_instance_type.value()),
              slow);
       TNode<HeapObject> proto = LoadMapPrototype(var_holder_map.value());
       GotoIf(TaggedEqual(proto, NullConstant()), &return_undefined);

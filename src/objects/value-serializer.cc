@@ -652,6 +652,9 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       return WriteJSSet(Cast<JSSet>(receiver));
     case JS_ARRAY_BUFFER_TYPE:
       return WriteJSArrayBuffer(Cast<JSArrayBuffer>(receiver));
+    case JS_DETACHED_TYPED_ARRAY_TYPE:
+      return ThrowDataCloneError(
+          MessageTemplate::kDataCloneErrorDetachedArrayBuffer);
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_RAB_GSAB_DATA_VIEW_TYPE:

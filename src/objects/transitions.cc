@@ -276,7 +276,8 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots,
   return name == roots.nonextensible_symbol() ||
          name == roots.sealed_symbol() || name == roots.frozen_symbol() ||
          name == roots.elements_transition_symbol() ||
-         name == roots.strict_function_transition_symbol();
+         name == roots.strict_function_transition_symbol() ||
+         name == roots.detached_symbol();
 }
 
 MaybeHandle<Map> TransitionsAccessor::FindTransitionToField(

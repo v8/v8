@@ -572,6 +572,8 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
     // TypedsArrays in optimized code may go out of bounds. Trigger deopts
     // through the ArrayBufferDetaching protector.
     if (new_byte_length < array_buffer->byte_length()) {
+      // TODO(olivf, 467645277): Try to resize only the view and avoid firing
+      // the protector.
       if (Protectors::IsArrayBufferDetachingIntact(isolate)) {
         Protectors::InvalidateArrayBufferDetaching(isolate);
       }
@@ -717,8 +719,7 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
 
   // 8. If arrayBuffer.[[ArrayBufferDetachKey]] is not undefined, throw a
   //     TypeError exception.
-
-  if (!IsUndefined(array_buffer->detach_key()) ||
+  if (!IsUndefined(array_buffer->DetachKey(isolate)) ||
       !array_buffer->is_detachable()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,

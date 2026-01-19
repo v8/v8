@@ -345,6 +345,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       DCHECK(!map.is_undetectable());
       return kCallableFunction;
+    case JS_DETACHED_TYPED_ARRAY_TYPE:
     case JS_TYPED_ARRAY_TYPE:
       DCHECK(!map.is_callable());
       DCHECK(!map.is_undetectable());

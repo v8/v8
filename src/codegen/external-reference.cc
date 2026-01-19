@@ -888,6 +888,11 @@ ExternalReference ExternalReference::address_of_shared_string_table_flag() {
   return ExternalReference(&v8_flags.shared_string_table);
 }
 
+ExternalReference
+ExternalReference::address_of_track_array_buffer_views_flag() {
+  return ExternalReference(&v8_flags.track_array_buffer_views);
+}
+
 #ifdef V8_ENABLE_CET_SHADOW_STACK
 ExternalReference ExternalReference::address_of_cet_compatible_flag() {
   return ExternalReference(&v8_flags.cet_compatible);

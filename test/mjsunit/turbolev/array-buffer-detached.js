@@ -18,9 +18,10 @@ assertOptimized(array_buffer_load);
 
 // Invalidating ArrayBufferDetachingProtector.
 let int32_arr = new Int32Array(10);
+new Int32Array(int32_arr.buffer);
 %ArrayBufferDetach(int32_arr.buffer);
-// This should have triggered a deopt of `array_buffer_load`.
-assertUnoptimized(array_buffer_load);
+// This might have triggered a deopt of `array_buffer_load`.
+assertEquals(16.625, array_buffer_load(float32_arr));
 
 // Reopting without the protector valid.
 %OptimizeFunctionOnNextCall(array_buffer_load);

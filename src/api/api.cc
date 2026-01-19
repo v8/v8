@@ -8904,9 +8904,11 @@ Maybe<bool> v8::ArrayBuffer::Detach(v8::Local<v8::Value> key) {
 void v8::ArrayBuffer::Detach() { Detach(Local<Value>()).Check(); }
 
 void v8::ArrayBuffer::SetDetachKey(v8::Local<v8::Value> key) {
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::HandleScope scope(i_isolate);
   auto obj = Utils::OpenDirectHandle(this);
   auto i_key = Utils::OpenDirectHandle(*key);
-  obj->set_detach_key(*i_key);
+  i::JSArrayBuffer::SetDetachKey(obj, i_key, i_isolate);
 }
 
 size_t v8::ArrayBuffer::ByteLength() const {
