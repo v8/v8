@@ -213,6 +213,11 @@ class BytecodeSequenceNode {
   std::vector<BytecodeArgumentMapping> argument_mapping_;
   std::vector<BytecodeArgumentCheck> argument_check_;
   std::vector<BytecodeArgument> argument_ignored_;
+  // True, iff the node has been fully created (including conditions). This
+  // implies that it is invalid to add further conditions.
+  // Note that it currently *is* valid to define the replacement bytecode and
+  // its arguments mappings after a node has been sealed.
+  bool sealed_ = false;
 };
 
 class RegExpBytecodePeepholeSequences {
@@ -317,6 +322,7 @@ BytecodeSequenceNode::BytecodeSequenceNode(
 
 BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(
     RegExpBytecode bytecode) {
+  sealed_ = true;
   if (children_.find(bytecode) == children_.end()) {
     auto new_node = std::make_unique<BytecodeSequenceNode>(bytecode);
     // If node is not the first in the sequence, set offsets and parent.
@@ -329,13 +335,24 @@ BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(
     children_[bytecode] = std::move(new_node);
   }
 
-  return *children_[bytecode];
+  BytecodeSequenceNode* node = children_[bytecode].get();
+  // If this fails, the node was previously created as part of another
+  // sequence. We can reuse it, but only if there are no condition for both the
+  // previous and the current use.
+  // TODO(jgruber): We could also reuse the node if non-empty previous and
+  // current conditions are identical, but that's harder to check.
+  // TODO(jgruber): Ideally conditions would become part of the tree (ie nodes
+  // with different conditions are siblings), but this changes runtime behavior
+  // of the peephole scanning algorithm to DFS. Sequence creation would also
+  // need to handle deduplication. All possible, but not trivial.
+  DCHECK(node->argument_check_.empty());
+  return *node;
 }
 
 BytecodeSequenceNode& BytecodeSequenceNode::ReplaceWith(
     RegExpBytecode bytecode) {
+  DCHECK(!bytecode_replacement_.has_value());
   bytecode_replacement_ = bytecode;
-
   return *this;
 }
 
@@ -382,6 +399,7 @@ bool BytecodeSequenceNode::BytecodeArgumentMappingCreatedInOrder(
 
 BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsOffset(
     OpInfo op_info, int check_byte_offset) {
+  DCHECK(!sealed_);
   int size = op_info.size();
   int offset = op_info.offset;
 
@@ -399,6 +417,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsOffset(
 BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsValueAtOffset(
     OpInfo this_op_info, int other_bytecode_index_in_sequence,
     OpInfo other_op_info) {
+  DCHECK(!sealed_);
   int size_1 = this_op_info.size();
   int size_2 = other_op_info.size();
 
