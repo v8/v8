@@ -7,7 +7,6 @@
 #include "src/execution/protectors-inl.h"
 #include "src/execution/protectors.h"
 #include "src/handles/maybe-handles-inl.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/js-array-buffer-inl.h"
