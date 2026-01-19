@@ -27,20 +27,11 @@ namespace base {
 namespace {
 
 int GetProtectionFromMemoryPermission(PagePermissions permission) {
-  // Mappings for PKU are either RWX (for code), no access (for uncommitted
-  // memory), or RO for globals.
-  switch (permission) {
-    case PagePermissions::kNoAccess:
-      return PROT_NONE;
-    case PagePermissions::kRead:
-      return PROT_READ;
-    case PagePermissions::kReadWrite:
-      return PROT_READ | PROT_WRITE;
-    case PagePermissions::kReadWriteExecute:
-      return PROT_READ | PROT_WRITE | PROT_EXEC;
-    default:
-      UNREACHABLE();
-  }
+  static_assert(static_cast<int>(PagePermissions::kNoAccess) == PROT_NONE);
+  static_assert(static_cast<int>(PagePermissions::kRead) == PROT_READ);
+  static_assert(static_cast<int>(PagePermissions::kWrite) == PROT_WRITE);
+  static_assert(static_cast<int>(PagePermissions::kExecute) == PROT_EXEC);
+  return static_cast<int>(permission);
 }
 
 }  // namespace

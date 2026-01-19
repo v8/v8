@@ -38,12 +38,6 @@ class VirtualAddressSpaceBase
 };
 
 /*
- * Helper routine to determine whether one set of page permissions (the lhs) is
- * a subset of another one (the rhs).
- */
-V8_BASE_EXPORT bool IsSubset(PagePermissions lhs, PagePermissions rhs);
-
-/*
  * The virtual address space of the current process. Conceptionally, there
  * should only be one such "root" instance. However, in practice there is no
  * issue with having multiple instances as the actual resources are managed by
