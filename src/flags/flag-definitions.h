@@ -2556,6 +2556,9 @@ DEFINE_BOOL(memory_reducer_for_small_heaps, true,
             "use memory reducer for small heaps")
 DEFINE_INT(memory_reducer_gc_count, 2,
            "Maximum number of memory reducer GCs scheduled")
+DEFINE_INT(memory_reducer_delay_ms, 8'000, "Delay before memory reducer start")
+DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
+           "Delay before memory reducer start")
 DEFINE_BOOL(disable_eager_allocation_failures, false,
             "Avoid eager allocations failures due to memory optimizations")
 DEFINE_BOOL(
@@ -2668,9 +2671,6 @@ DEFINE_BOOL(
     "reclaim otherwise unreachable unmodified wrapper objects when possible")
 DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, true,
             "reclaim wrapper objects in parallel")
-
-DEFINE_INT(gc_memory_reducer_start_delay_ms, 30000,
-           "Delay before memory reducer start")
 
 DEFINE_BOOL(concurrent_marking_high_priority_threads, false,
             "use high priority threads for concurrent Marking")
