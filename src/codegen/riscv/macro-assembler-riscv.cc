@@ -338,7 +338,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
     }
 
     ResolveTrustedPointerHandle(destination, handle,
-                                kUnknownIndirectPointerTag);
+                                kAllPerIsolateIndirectPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -378,38 +378,25 @@ void MacroAssembler::StoreTrustedPointerField(Register value,
 }
 
 #ifdef V8_ENABLE_SANDBOX
-void MacroAssembler::ResolveIndirectPointerHandle(Register destination,
-                                                  Register handle,
-                                                  IndirectPointerTag tag) {
-  ASM_CODE_COMMENT(this);
+void MacroAssembler::ResolveIndirectPointerHandle(
+    Register destination, Register handle, IndirectPointerTagRange tag_range) {
+  // This function must not be used to resolve kAllIndirectPointerTags. Use
+  // LoadTrustedUnknownPointerField for that instead.
+  CHECK_NE(tag_range, kAllIndirectPointerTags);
   // The tag implies which pointer table to use.
-  if (tag == kUnknownIndirectPointerTag) {
-    // In this case we have to rely on the handle marking to determine which
-    // pointer table to use.
-    Label is_trusted_pointer_handle, done;
-    DCHECK(!AreAliased(destination, handle));
-    And(destination, handle, kCodePointerHandleMarker);
-    Branch(&is_trusted_pointer_handle, eq, destination, Operand(zero_reg));
-    ResolveCodePointerHandle(destination, handle);
-    Branch(&done);
-    bind(&is_trusted_pointer_handle);
-    ResolveTrustedPointerHandle(destination, handle,
-                                kUnknownIndirectPointerTag);
-    bind(&done);
-  } else if (tag == kCodeIndirectPointerTag) {
+  if (tag_range == kCodeIndirectPointerTag) {
     ResolveCodePointerHandle(destination, handle);
   } else {
-    ResolveTrustedPointerHandle(destination, handle, tag);
+    DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
+    ResolveTrustedPointerHandle(destination, handle, tag_range);
   }
 }
 
-void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
-                                                 Register handle,
-                                                 IndirectPointerTag tag) {
-  ASM_CODE_COMMENT(this);
-  DCHECK_NE(tag, kCodeIndirectPointerTag);
+void MacroAssembler::ResolveTrustedPointerHandle(
+    Register destination, Register handle, IndirectPointerTagRange tag_range) {
+  DCHECK(!tag_range.Contains(kCodeIndirectPointerTag));
   DCHECK(!AreAliased(handle, destination));
-
+  ASM_CODE_COMMENT(this);
   Register table = destination;
   DCHECK(root_array_available_);
   LoadWord(table, MemOperand{kRootRegister,
@@ -422,8 +409,24 @@ void MacroAssembler::ResolveTrustedPointerHandle(Register destination,
   // have to set it using a bitwise OR as it may or may not be set.
   // Untag the pointer and remove the marking bit in one operation.
   Register tag_reg = handle;
-  li(tag_reg, Operand(~(tag | kTrustedPointerTableMarkBit)));
-  And(destination, destination, tag_reg);
+  SrlWord(tag_reg, destination, Operand(kTrustedPointerTableTagShift));
+  if (tag_range.Size() == 1) {
+    // Cmp(tag_reg, Immediate(tag_range.first));
+    // Csel(destination, destination, xzr, eq);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    SubWord(scratch, tag_reg, Operand(tag_range.first));
+    LoadZeroIfConditionNotZero(destination, scratch);
+  } else {
+    SubWord(tag_reg, tag_reg, Operand(tag_range.first));
+    // Cmp(tag_reg, Immediate(tag_range.last - tag_range.first));
+    // Csel(destination, destination, xzr, ls);
+    Label done;
+    Branch(&done, ule, tag_reg, Operand(tag_range.last - tag_range.first));
+    mv(destination, zero_reg);
+    bind(&done);
+  }
+  And(destination, destination, Operand(kTrustedPointerTablePayloadMask));
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,
@@ -535,9 +538,9 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
 }
 
 #ifdef V8_TARGET_ARCH_RISCV64
-void MacroAssembler::LoadIndirectPointerField(Register destination,
-                                              MemOperand field_operand,
-                                              IndirectPointerTag tag) {
+void MacroAssembler::LoadIndirectPointerField(
+    Register destination, MemOperand field_operand,
+    IndirectPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
@@ -545,7 +548,7 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
   DCHECK_NE(handle, destination);
   Lwu(handle, field_operand);
 
-  ResolveIndirectPointerHandle(destination, handle, tag);
+  ResolveIndirectPointerHandle(destination, handle, tag_range);
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX

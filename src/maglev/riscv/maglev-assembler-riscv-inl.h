@@ -1457,13 +1457,7 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 }
 
 void MaglevAssembler::Float64SilenceNan(DoubleRegister value) {
-  MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
-  Register scratch2 = temps.AcquireScratch();
-  li(scratch, Operand(kDQuietNanMask));
-  fmv_x_d(scratch2, value);
-  Or(scratch2, scratch2, Operand(scratch));
-  fmv_d_x(value, scratch2);
+  FPUCanonicalizeNaN(value, value);
 }
 
 #ifdef V8_ENABLE_UNDEFINED_DOUBLE

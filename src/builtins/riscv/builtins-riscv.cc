@@ -1854,13 +1854,13 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadWord(t0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       t0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadTrustedPointerField(
+  Label is_interpreter_data;
+  __ LoadTrustedUnknownPointerField(
       t0, FieldMemOperand(t0, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
-  __ GetObjectType(t0, kInterpreterDispatchTableRegister,
-                   kInterpreterDispatchTableRegister);
-  __ Branch(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
-            Operand(INTERPRETER_DATA_TYPE), Label::Distance::kNear);
+      kInterpreterDispatchTableRegister, kScratchReg,
+      {{INTERPRETER_DATA_TYPE, &is_interpreter_data}});
+  __ Branch(&builtin_trampoline);
+  __ bind(&is_interpreter_data);
 
   __ LoadInterpreterDataInterpreterTrampoline(t0, t0);
   __ LoadCodeInstructionStart(t0, t0, kJSEntrypointTag);
