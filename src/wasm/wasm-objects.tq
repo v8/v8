@@ -238,7 +238,11 @@ extern class WasmMemoryObject extends JSObject {
   // allocated on the next access.
   array_buffer: JSArrayBuffer|Undefined;
   // A Managed<BackingStore> to allocate a new JSArrayBuffer from on demand.
+  // If we ever remove this, then `BackingStore::PerIsolateAccountingLength()`
+  // needs to be changed to properly account for the external memory.
+  // LINT.IfChange(WasmMemoryAccounting)
   managed_backing_store: ManagedBackingStore;
+  // LINT.ThenChange(src/objects/backing-store.h:PerIsolateAccountingLength)
   maximum_pages: Smi;
   instances: WeakArrayList;
   address_type: AddressType;  // 1 byte.

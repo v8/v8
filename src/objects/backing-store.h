@@ -190,19 +190,24 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Returns the size of the external memory owned by this backing store.
   // It is used for triggering GCs based on the external memory pressure.
   size_t PerIsolateAccountingLength() {
-    if (has_flag(kIsShared)) {
-      // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems
-      // with accounting for per-isolate external memory. In particular, sharing
-      // the same array buffer or memory multiple times, which happens in stress
-      // tests, can cause overcounting, leading to GC thrashing. Fix with global
-      // accounting?
-      return 0;
-    }
-    if (has_flag(kEmptyDeleter)) {
-      // The backing store has an empty deleter. Even if the backing store is
-      // freed after GC, it would not free the memory block.
-      return 0;
-    }
+    // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems
+    // with accounting for per-isolate external memory. In particular, sharing
+    // the same array buffer or memory multiple times, which happens in stress
+    // tests, can cause overcounting, leading to GC thrashing. Fix with global
+    // accounting?
+    if (has_flag(kIsShared)) return 0;
+
+    // Wasm backing stores are already accounted for via the
+    // `Managed<BackingStore>` stored in the `WasmMemoryObject`. The latter is
+    // referenced from the `JSArrayBuffer` via the
+    // `array_buffer_wasm_memory_symbol`. (There's a IfChange -> ThenChange lint
+    // check in place for this.)
+    if (is_wasm_memory()) return 0;
+
+    // Check if the backing store has an empty deleter. Even if the backing
+    // store is freed after GC, it would not free the memory block.
+    if (has_flag(kEmptyDeleter)) return 0;
+
     return byte_length();
   }
 
