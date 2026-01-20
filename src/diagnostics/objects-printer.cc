@@ -128,7 +128,7 @@ void PrintFunctionCallbackInfo(Address* values, std::ostream& os) {
 void PrintPropertyCallbackInfo(Address* args, std::ostream& os) {
   using PCA = internal::PropertyCallbackArguments;
 
-  static_assert(PCA::kFullArgsLength == 10 || PCA::kFullArgsLength == 11);
+  static_assert(PCA::kFullArgsLength == 11 || PCA::kFullArgsLength == 12);
   bool is_named = args[PCA::kFrameTypeIndex] ==
                   Smi::FromEnum(StackFrame::API_NAMED_ACCESSOR_EXIT).ptr();
 
