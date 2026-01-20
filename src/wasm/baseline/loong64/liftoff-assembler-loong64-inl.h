@@ -5,6 +5,7 @@
 #ifndef V8_WASM_BASELINE_LOONG64_LIFTOFF_ASSEMBLER_LOONG64_INL_H_
 #define V8_WASM_BASELINE_LOONG64_LIFTOFF_ASSEMBLER_LOONG64_INL_H_
 
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/loong64/assembler-loong64-inl.h"
 #include "src/codegen/machine-type.h"
@@ -735,8 +736,12 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder memory_order,
                                   LiftoffRegList pinned, bool i64_offset,
                                   Endianness /* endianness */) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
+  int dbar_hint = memory_order == AtomicMemoryOrder::kSeqCst ? 0x10 : 0x14;
   BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   MemOperand src_op =
@@ -746,37 +751,37 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
     case LoadType::kI32Load8U:
     case LoadType::kI64Load8U: {
       Ld_bu(dst.gp(), src_op, reinterpret_cast<int*>(protected_load_pc));
-      dbar(0);
+      dbar(dbar_hint);
       break;
     }
     case LoadType::kI32Load16U:
     case LoadType::kI64Load16U: {
       Ld_hu(dst.gp(), src_op, reinterpret_cast<int*>(protected_load_pc));
-      dbar(0);
+      dbar(dbar_hint);
       break;
     }
     case LoadType::kI32Load: {
       Ld_w(dst.gp(), src_op, reinterpret_cast<int*>(protected_load_pc));
-      dbar(0);
+      dbar(dbar_hint);
       break;
     }
     case LoadType::kI64Load32U: {
       Ld_wu(dst.gp(), src_op, reinterpret_cast<int*>(protected_load_pc));
-      dbar(0);
+      dbar(dbar_hint);
       break;
     }
     case LoadType::kI64Load: {
       Ld_d(dst.gp(), src_op, reinterpret_cast<int*>(protected_load_pc));
-      dbar(0);
+      dbar(dbar_hint);
       break;
     }
     case LoadType::kI32Load8S:
       Ld_b(dst.gp(), src_op, reinterpret_cast<int*>(protected_load_pc));
-      dbar(0);
+      dbar(dbar_hint);
       break;
     case LoadType::kI32Load16S:
       Ld_h(dst.gp(), src_op, reinterpret_cast<int*>(protected_load_pc));
-      dbar(0);
+      dbar(dbar_hint);
       break;
     default:
       UNREACHABLE();
@@ -793,16 +798,19 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
                                                AtomicMemoryOrder memory_order,
                                                uint32_t* protected_load_pc,
                                                bool needs_shift) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
+  int dbar_hint = memory_order == AtomicMemoryOrder::kSeqCst ? 0x10 : 0x14;
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
 
 #if V8_COMPRESS_POINTERS
   Ld_w(dst, src_op, reinterpret_cast<int*>(protected_load_pc));
-  dbar(0);
+  dbar(dbar_hint);
   DecompressTagged(dst, dst);
 #else
   Ld_d(dst, src_op, reinterpret_cast<int*>(protected_load_pc));
-  dbar(0);
+  dbar(dbar_hint);
 #endif
   DCHECK_IMPLIES(protected_load_pc != nullptr,
                  Instruction::At(reinterpret_cast<uint8_t*>(*protected_load_pc +
@@ -813,8 +821,12 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList pinned, bool i64_offset,
                                    Endianness /* endianness */) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
+  int dbar_hint = memory_order == AtomicMemoryOrder::kSeqCst ? 0x10 : 0x12;
   BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   MemOperand dst_op =
@@ -823,30 +835,31 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI64Store8:
     case StoreType::kI32Store8: {
-      dbar(0);
+      dbar(dbar_hint);
       St_b(src.gp(), dst_op, reinterpret_cast<int*>(protected_store_pc));
       break;
     }
     case StoreType::kI64Store16:
     case StoreType::kI32Store16: {
-      dbar(0);
+      dbar(dbar_hint);
       St_h(src.gp(), dst_op, reinterpret_cast<int*>(protected_store_pc));
       break;
     }
     case StoreType::kI64Store32:
     case StoreType::kI32Store: {
-      dbar(0);
+      dbar(dbar_hint);
       St_w(src.gp(), dst_op, reinterpret_cast<int*>(protected_store_pc));
       break;
     }
     case StoreType::kI64Store: {
-      dbar(0);
+      dbar(dbar_hint);
       St_d(src.gp(), dst_op, reinterpret_cast<int*>(protected_store_pc));
       break;
     }
     default:
       UNREACHABLE();
   }
+  if (memory_order == AtomicMemoryOrder::kSeqCst) dbar(dbar_hint);
   DCHECK_IMPLIES(protected_store_pc != nullptr,
                  Instruction::At(reinterpret_cast<uint8_t*>(
                                      *protected_store_pc + buffer_start_))
@@ -857,16 +870,20 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* protected_store_pc) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
+  int dbar_hint = memory_order == AtomicMemoryOrder::kSeqCst ? 0x10 : 0x12;
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
 
   if (COMPRESS_POINTERS_BOOL) {
-    dbar(0);
+    dbar(dbar_hint);
     St_w(src, dst_op, reinterpret_cast<int*>(protected_store_pc));
   } else {
-    dbar(0);
+    dbar(dbar_hint);
     St_d(src, dst_op, reinterpret_cast<int*>(protected_store_pc));
   }
+  if (memory_order == AtomicMemoryOrder::kSeqCst) dbar(dbar_hint);
   DCHECK_IMPLIES(protected_store_pc != nullptr,
                  Instruction::At(reinterpret_cast<uint8_t*>(
                                      *protected_store_pc + buffer_start_))
