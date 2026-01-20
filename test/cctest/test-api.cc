@@ -3343,62 +3343,6 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
                                                             kTestTypeTagA));
 }
 
-START_ALLOW_USE_DEPRECATED()
-THREADED_TEST(SetAlignedPointerInInternalFields) {
-  LocalContext env;
-  v8::Isolate* isolate = env.isolate();
-  v8::HandleScope scope(isolate);
-
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
-  instance_templ->SetInternalFieldCount(2);
-  Local<v8::Object> obj = templ->GetFunction(env.local())
-                              .ToLocalChecked()
-                              ->NewInstance(env.local())
-                              .ToLocalChecked();
-  CHECK_EQ(2, obj->InternalFieldCount());
-
-  int* heap_allocated_1 = new int[100];
-  int* heap_allocated_2 = new int[100];
-  int indices[] = {0, 1};
-  void* values[] = {heap_allocated_1, heap_allocated_2};
-
-  obj->SetAlignedPointerInInternalFields(2, indices, values);
-  i::heap::InvokeMajorGC(CcTest::heap());
-  {
-    v8::SealHandleScope no_handle_leak(isolate);
-    CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(
-                                   0, v8::kEmbedderDataTypeTagDefault));
-    CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(
-                                   1, v8::kEmbedderDataTypeTagDefault));
-
-    CHECK_EQ(heap_allocated_1,
-             obj->GetAlignedPointerFromInternalField(
-                 isolate, 0, v8::kEmbedderDataTypeTagDefault));
-    CHECK_EQ(heap_allocated_2,
-             obj->GetAlignedPointerFromInternalField(
-                 isolate, 1, v8::kEmbedderDataTypeTagDefault));
-  }
-
-  indices[0] = 1;
-  indices[1] = 0;
-  obj->SetAlignedPointerInInternalFields(2, indices, values);
-  i::heap::InvokeMajorGC(CcTest::heap());
-  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(
-                                 0, v8::kEmbedderDataTypeTagDefault));
-  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(
-                                 1, v8::kEmbedderDataTypeTagDefault));
-
-  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(
-                                 isolate, 0, v8::kEmbedderDataTypeTagDefault));
-  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(
-                                 isolate, 1, v8::kEmbedderDataTypeTagDefault));
-
-  delete[] heap_allocated_1;
-  delete[] heap_allocated_2;
-}
-END_ALLOW_USE_DEPRECATED()
-
 static void CheckAlignedPointerInEmbedderData(LocalContext* env,
                                               v8::Local<v8::Object> some_obj,
                                               int index, void* value) {

@@ -6143,32 +6143,6 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value,
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
 }
 
-void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
-                                                   void* values[]) {
-  EmbedderDataTypeTag tag = kEmbedderDataTypeTagDefault;
-
-  auto obj = Utils::OpenDirectHandle(this);
-  if (!IsJSObject(*obj)) return;
-  i::DisallowGarbageCollection no_gc;
-  const char* location = "v8::Object::SetAlignedPointerInInternalFields()";
-  auto js_obj = i::Cast<i::JSObject>(*obj);
-  int nof_embedder_fields = js_obj->GetEmbedderFieldCount();
-  for (int i = 0; i < argc; i++) {
-    int index = indices[i];
-    if (!Utils::ApiCheck(index < nof_embedder_fields, location,
-                         "Internal field out of bounds")) {
-      return;
-    }
-    void* value = values[i];
-    Utils::ApiCheck(
-        i::EmbedderDataSlot(js_obj, index)
-            .store_aligned_pointer(i::Isolate::Current(), *obj, value,
-                                   ToExternalPointerTag(tag)),
-        location, "Unaligned pointer");
-    DCHECK_EQ(value, GetAlignedPointerFromInternalField(index, tag));
-  }
-}
-
 // static
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
                          CppHeapPointerTagRange tag_range) {
