@@ -4443,6 +4443,8 @@ filegroup(
         "src/d8/d8-platforms.h",
         "src/d8/d8-posix.cc",
         "src/d8/d8-test.cc",
+        "src/d8/hardware-watchpoints.cc",
+        "src/d8/hardware-watchpoints.h",
     ],
 )
 
