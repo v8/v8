@@ -159,23 +159,23 @@ class LoadStoreSimplificationReducer : public Next,
     V<WordPtr> decoded_ptr =
         __ Load(table, table_offset, kind, MemoryRepresentation::UintPtr());
 
-    V<WordPtr> tag =
-        __ WordPtrShiftRightLogical(decoded_ptr, kTrustedPointerTableTagShift);
+    V<Word32> tag = __ TruncateWordPtrToWord32(
+        __ WordPtrShiftRightLogical(decoded_ptr, kTrustedPointerTableTagShift));
 
     V<Word32> is_valid;
     if (tag_range.Size() == 1) {
-      is_valid = __ WordPtrEqual(tag, tag_range.first);
+      is_valid = __ Word32Equal(tag, tag_range.first);
     } else {
-      V<WordPtr> diff = __ WordPtrSub(tag, tag_range.first);
+      V<Word32> diff = __ Word32Sub(tag, tag_range.first);
       is_valid =
-          __ UintPtrLessThanOrEqual(diff, tag_range.last - tag_range.first);
+          __ Uint32LessThanOrEqual(diff, tag_range.last - tag_range.first);
     }
 
-    // Crash if the tag is not as expected. Alternatively, we could also use a
-    // `Select` here and return nullptr on tag mismatch.
-    IF_NOT (LIKELY(is_valid)) {
-      __ Unreachable();
-    }
+    // Return an invalid pointer (nullptr) on tag mismatch.
+    decoded_ptr =
+        __ Select(is_valid, decoded_ptr, __ IntPtrConstant(0),
+                  RegisterRepresentation::WordPtr(), BranchHint::kTrue,
+                  SelectOp::Implementation::kForceCMove);
 
     decoded_ptr =
         __ WordPtrBitwiseAnd(decoded_ptr, kTrustedPointerTablePayloadMask);
