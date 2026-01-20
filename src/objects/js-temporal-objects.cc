@@ -536,7 +536,7 @@ Maybe<std::string> ToMonthCode(Isolate* isolate,
 
   // 2. If monthCode is not a String, throw a TypeError exception.
   if (!IsString(*mc_prim)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_RANGE_ERROR(kMonthCodeOutOfRange));
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_TYPE_ERROR(kMonthCodeOutOfRange));
   }
 
   auto month_code = Cast<String>(*mc_prim)->ToStdString();
