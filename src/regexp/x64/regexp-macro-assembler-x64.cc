@@ -1998,7 +1998,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
       ExternalReference::address_of_jslimit(isolate());
   __ load_rax(stack_limit);
   __ cmpq(rsp, rax);
-  __ j(above, &no_preempt);
+  __ j(above, &no_preempt, Label::kNear);
 
   SafeCall(&check_preempt_label_);
 
@@ -2012,7 +2012,7 @@ void RegExpMacroAssemblerX64::CheckStackLimit() {
       ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ load_rax(stack_limit);
   __ cmpq(backtrack_stackpointer(), rax);
-  __ j(above, &no_stack_overflow);
+  __ j(above, &no_stack_overflow, Label::kNear);
 
   SafeCall(&stack_overflow_label_);
 

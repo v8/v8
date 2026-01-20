@@ -1359,7 +1359,7 @@ void RegExpMacroAssemblerIA32::CheckPreemption() {
   ExternalReference stack_limit =
       ExternalReference::address_of_jslimit(isolate());
   __ cmp(esp, StaticVariable(stack_limit));
-  __ j(above, &no_preempt);
+  __ j(above, &no_preempt, Label::kNear);
 
   SafeCall(&check_preempt_label_);
 
@@ -1372,7 +1372,7 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
   ExternalReference stack_limit =
       ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ cmp(backtrack_stackpointer(), StaticVariable(stack_limit));
-  __ j(above, &no_stack_overflow);
+  __ j(above, &no_stack_overflow, Label::kNear);
 
   SafeCall(&stack_overflow_label_);
 
