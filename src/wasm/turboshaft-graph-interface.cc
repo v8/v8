@@ -3560,7 +3560,7 @@ class TurboshaftGraphBuildingInterface
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
-    auto tag = V<WasmTagObject>::Cast(
+    auto tag = V<WasmExceptionTag>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
 
     CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmThrow>(
@@ -3590,7 +3590,7 @@ class TurboshaftGraphBuildingInterface
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
     V<NativeContext> native_context = instance_cache_.native_context();
-    V<WasmTagObject> caught_tag = V<WasmTagObject>::Cast(
+    V<WasmExceptionTag> caught_tag = V<WasmExceptionTag>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, native_context,
             {block->exception,
@@ -3599,7 +3599,7 @@ class TurboshaftGraphBuildingInterface
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
-    auto expected_tag = V<WasmTagObject>::Cast(
+    auto expected_tag = V<WasmExceptionTag>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
     TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
@@ -3725,7 +3725,7 @@ class TurboshaftGraphBuildingInterface
       return;
     }
     V<NativeContext> native_context = instance_cache_.native_context();
-    V<WasmTagObject> caught_tag = V<WasmTagObject>::Cast(
+    V<WasmExceptionTag> caught_tag = V<WasmExceptionTag>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
             decoder, native_context,
             {block->exception,
@@ -3734,7 +3734,7 @@ class TurboshaftGraphBuildingInterface
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
-    auto expected_tag = V<WasmTagObject>::Cast(__ LoadFixedArrayElement(
+    auto expected_tag = V<WasmExceptionTag>::Cast(__ LoadFixedArrayElement(
         instance_tags, catch_case.maybe_tag.tag_imm.index));
     TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
@@ -3885,7 +3885,7 @@ class TurboshaftGraphBuildingInterface
       V<FixedArray> instance_tags =
           LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                         MemoryRepresentation::TaggedPointer());
-      V<WasmTagObject> tag = V<WasmTagObject>::Cast(
+      V<WasmExceptionTag> tag = V<WasmExceptionTag>::Cast(
           __ LoadFixedArrayElement(instance_tags, exc_imm->index));
       asm_.set_effect_handlers_for_next_call(asm_handlers);
       result_buffer =

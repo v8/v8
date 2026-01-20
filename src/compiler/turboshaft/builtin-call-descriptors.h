@@ -1740,8 +1740,8 @@ struct BuiltinCallDescriptor {
   struct WasmFXResumeThrow : public Descriptor<WasmFXResumeThrow> {
     static constexpr auto kFunction = Builtin::kWasmFXResumeThrow;
     // Target stack, tag, exception array and instance.
-    using arguments_t = std::tuple<V<WordPtr>, V<WasmTagObject>, V<FixedArray>,
-                                   V<WasmTrustedInstanceData>>;
+    using arguments_t = std::tuple<V<WordPtr>, V<WasmExceptionTag>,
+                                   V<FixedArray>, V<WasmTrustedInstanceData>>;
     // Return values buffer.
     using results_t = std::tuple<V<WordPtr>>;
 
