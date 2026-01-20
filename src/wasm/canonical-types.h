@@ -50,7 +50,25 @@ class TypeCanonicalizer {
   static constexpr CanonicalTypeIndex kPredefinedArrayI16Index{1};
   static constexpr CanonicalTypeIndex kPredefinedArrayExternRefIndex{2};
   static constexpr CanonicalTypeIndex kPredefinedArrayFuncRefIndex{3};
-  static constexpr uint32_t kNumberOfPredefinedTypes = 4;
+  // Function signatures for compile-time builtins.
+  // Shorthands: "r" = nullable "externref", "e" = non-nullable "ref extern".
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_i{4};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_r{5};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_rr{6};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_rii{7};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_r{8};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ri{9};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_rr{10};
+  // Shorthands: "a16" = nullable array of i16, "a8" analogous,
+  // "n8" = non-nullable array of i8.
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_a16ii{11};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ra16i{12};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_i_ra8i{13};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_n8_r{14};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_e_a8ii{15};
+  static constexpr CanonicalTypeIndex kPredefinedSigIndex_configureAll{16};
+
+  static constexpr uint32_t kNumberOfPredefinedTypes = 17;
 
   TypeCanonicalizer();
 
@@ -529,7 +547,9 @@ class TypeCanonicalizer {
     std::atomic<Segment*> segments_[kNumSegments]{};
   };
 
-  void AddPredefinedArrayTypes();
+  void AddPredefinedTypes();
+  void AddPredefinedSingletonGroup(CanonicalTypeIndex index,
+                                   const CanonicalType& type);
 
   CanonicalTypeIndex FindCanonicalGroup(const CanonicalGroup&) const;
   CanonicalTypeIndex FindCanonicalGroup(const CanonicalSingletonGroup&) const;

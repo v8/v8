@@ -1205,6 +1205,10 @@ class CanonicalSig : public Signature<CanonicalValueType> {
                const CanonicalValueType* reps)
       : Signature<CanonicalValueType>(return_count, parameter_count, reps) {}
 
+  // For predefined signatures, where we know what we're doing.
+  CanonicalSig(size_t return_count, size_t parameter_count,
+               const CanonicalValueType* reps, CanonicalTypeIndex index);
+
   class Builder : public SignatureBuilder<CanonicalSig, CanonicalValueType> {
    public:
     Builder(Zone* zone, size_t return_count, size_t parameter_count)

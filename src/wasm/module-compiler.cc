@@ -1725,32 +1725,6 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
 
 namespace {
 
-bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
-  if (!type.has_index()) return false;
-  return module->canonical_type_id(type.ref_index()) ==
-         TypeCanonicalizer::kPredefinedArrayI16Index;
-}
-
-bool IsI8Array(wasm::ValueType type, const WasmModule* module,
-               Nullability nullability) {
-  if (!type.has_index()) return false;
-  if (type.nullability() != nullability) return false;
-  return module->canonical_type_id(type.ref_index()) ==
-         TypeCanonicalizer::kPredefinedArrayI8Index;
-}
-
-bool IsExternRefArray(wasm::ValueType type, const WasmModule* module) {
-  if (!type.has_index()) return false;
-  return module->canonical_type_id(type.ref_index()) ==
-         TypeCanonicalizer::kPredefinedArrayExternRefIndex;
-}
-
-bool IsFuncRefArray(wasm::ValueType type, const WasmModule* module) {
-  if (!type.has_index()) return false;
-  return module->canonical_type_id(type.ref_index()) ==
-         TypeCanonicalizer::kPredefinedArrayFuncRefIndex;
-}
-
 // Returns the start offset of a given import, for use in error messages.
 // The module_name payload is preceded by an i32v giving its length. That i32v
 // is preceded by another i32v, which is either a type index (specifying the
@@ -1777,28 +1751,6 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
                                        WasmDetectedFeatures* detected) {
   DCHECK_EQ(module->origin, kWasmOrigin);
   if (imports.empty()) return {};
-
-  static constexpr ValueType kRefExtern = kWasmRefExtern;
-  static constexpr ValueType kExternRef = kWasmExternRef;
-  static constexpr ValueType kI32 = kWasmI32;
-
-  // Shorthands: "r" = nullable "externref", "e" = non-nullable "ref extern".
-  static constexpr ValueType kReps_e_i[] = {kRefExtern, kI32};
-  static constexpr ValueType kReps_e_rr[] = {kRefExtern, kExternRef,
-                                             kExternRef};
-  static constexpr ValueType kReps_e_rii[] = {kRefExtern, kExternRef, kI32,
-                                              kI32};
-  static constexpr ValueType kReps_i_ri[] = {kI32, kExternRef, kI32};
-  static constexpr ValueType kReps_i_rr[] = {kI32, kExternRef, kExternRef};
-
-  static constexpr FunctionSig kSig_e_i(1, 1, kReps_e_i);
-  static constexpr FunctionSig kSig_e_r(1, 1, kReps_e_rr);
-  static constexpr FunctionSig kSig_e_rr(1, 2, kReps_e_rr);
-  static constexpr FunctionSig kSig_e_rii(1, 3, kReps_e_rii);
-
-  static constexpr FunctionSig kSig_i_r(1, 1, kReps_i_ri);
-  static constexpr FunctionSig kSig_i_ri(1, 2, kReps_i_ri);
-  static constexpr FunctionSig kSig_i_rr(1, 2, kReps_i_rr);
 
   std::vector<WellKnownImport> statuses;
   statuses.reserve(module->num_imported_functions);
@@ -1840,117 +1792,70 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
     base::Vector<const uint8_t> collection = module_name.SubVectorFrom(5);
     WellKnownImport status = WellKnownImport::kUninstantiated;
     const WasmFunction& func = module->functions[import.index];
-    const FunctionSig* sig = func.sig;
+    const CanonicalTypeIndex sig = module->canonical_sig_id(func.sig_index);
     WireBytesRef field_name = import.field_name;
     base::Vector<const uint8_t> name =
         wire_bytes.SubVector(field_name.offset(), field_name.end_offset());
-    if (collection == base::StaticOneByteVector("js-string") &&
-        imports.contains(CompileTimeImport::kJsString)) {
-#define RETURN_ERROR(module_name_string, import_name)                     \
-  uint32_t error_offset =                                                 \
-      ImportStartOffset(wire_bytes, import.module_name.offset());         \
-  return WasmError(error_offset,                                          \
-                   "Imported builtin function \"wasm:" module_name_string \
-                   "\" \"" import_name "\" has incorrect signature")
 
-#define CHECK_SIG(import_name, kSigName, kEnumName)      \
-  if (name == base::StaticOneByteVector(#import_name)) { \
-    if (*sig != kSigName) {                              \
-      RETURN_ERROR("js-string", #import_name);           \
-    }                                                    \
-    status = WellKnownImport::kEnumName;                 \
-    detected->add_imported_strings();                    \
-  } else  // NOLINT(readability/braces)
+#define CHECK_SIG(import_name, expected_sig, kEnumName, feature)              \
+  if (name == base::StaticOneByteVector(#import_name)) {                      \
+    if (V8_UNLIKELY(sig !=                                                    \
+                    TypeCanonicalizer::kPredefinedSigIndex_##expected_sig)) { \
+      uint32_t error_offset =                                                 \
+          ImportStartOffset(wire_bytes, import.module_name.offset());         \
+      return WasmError(                                                       \
+          error_offset,                                                       \
+          "Imported builtin function \"wasm:%s\" \"%s\" has incorrect "       \
+          "signature",                                                        \
+          std::string(collection.begin(), collection.end()).c_str(),          \
+          std::string(name.begin(), name.end()).c_str());                     \
+    }                                                                         \
+    status = WellKnownImport::kEnumName;                                      \
+    detected->add_##feature();                                                \
+    break;                                                                    \
+  }
 
-      CHECK_SIG(cast, kSig_e_r, kStringCast)
-      CHECK_SIG(test, kSig_i_r, kStringTest)
-      CHECK_SIG(fromCharCode, kSig_e_i, kStringFromCharCode)
-      CHECK_SIG(fromCodePoint, kSig_e_i, kStringFromCodePoint)
-      CHECK_SIG(charCodeAt, kSig_i_ri, kStringCharCodeAt)
-      CHECK_SIG(codePointAt, kSig_i_ri, kStringCodePointAt)
-      CHECK_SIG(length, kSig_i_r, kStringLength)
-      CHECK_SIG(concat, kSig_e_rr, kStringConcat)
-      CHECK_SIG(substring, kSig_e_rii, kStringSubstring)
-      CHECK_SIG(equals, kSig_i_rr, kStringEquals)
-      CHECK_SIG(compare, kSig_i_rr, kStringCompare)
-      if (name == base::StaticOneByteVector("fromCharCodeArray")) {
-        if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            !IsI16Array(sig->GetParam(0), module) ||  // --
-            sig->GetParam(1) != kI32 ||               // --
-            sig->GetParam(2) != kI32 ||               // --
-            sig->GetReturn() != kRefExtern) {
-          RETURN_ERROR("js-string", "fromCharCodeArray");
-        }
-        detected->add_imported_strings();
-        status = WellKnownImport::kStringFromWtf16Array;
-      } else if (name == base::StaticOneByteVector("intoCharCodeArray")) {
-        if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            sig->GetParam(0) != kExternRef ||
-            !IsI16Array(sig->GetParam(1), module) ||  // --
-            sig->GetParam(2) != kI32 ||               // --
-            sig->GetReturn() != kI32) {
-          RETURN_ERROR("js-string", "intoCharCodeArray");
-        }
-        status = WellKnownImport::kStringToWtf16Array;
-        detected->add_imported_strings();
+    // Not a loop; we just want to use `break` instead of very long else-if
+    // cascades.
+    do {
+      if (collection == base::StaticOneByteVector("js-string") &&
+          imports.contains(CompileTimeImport::kJsString)) {
+        CHECK_SIG(cast, e_r, kStringCast, imported_strings)
+        CHECK_SIG(test, i_r, kStringTest, imported_strings)
+        CHECK_SIG(fromCharCode, e_i, kStringFromCharCode, imported_strings)
+        CHECK_SIG(fromCodePoint, e_i, kStringFromCodePoint, imported_strings)
+        CHECK_SIG(charCodeAt, i_ri, kStringCharCodeAt, imported_strings)
+        CHECK_SIG(codePointAt, i_ri, kStringCodePointAt, imported_strings)
+        CHECK_SIG(length, i_r, kStringLength, imported_strings)
+        CHECK_SIG(concat, e_rr, kStringConcat, imported_strings)
+        CHECK_SIG(substring, e_rii, kStringSubstring, imported_strings)
+        CHECK_SIG(equals, i_rr, kStringEquals, imported_strings)
+        CHECK_SIG(compare, i_rr, kStringCompare, imported_strings)
+        CHECK_SIG(fromCharCodeArray, e_a16ii, kStringFromWtf16Array,
+                  imported_strings)
+        CHECK_SIG(intoCharCodeArray, i_ra16i, kStringToWtf16Array,
+                  imported_strings)
+
+      } else if (collection == base::StaticOneByteVector("text-encoder") &&
+                 imports.contains(CompileTimeImport::kTextEncoder)) {
+        CHECK_SIG(measureStringAsUTF8, i_r, kStringMeasureUtf8,
+                  imported_strings_utf8)
+        CHECK_SIG(encodeStringIntoUTF8Array, i_ra8i, kStringIntoUtf8Array,
+                  imported_strings_utf8)
+        CHECK_SIG(encodeStringToUTF8Array, n8_r, kStringToUtf8Array,
+                  imported_strings_utf8)
+
+      } else if (collection == base::StaticOneByteVector("text-decoder") &&
+                 imports.contains(CompileTimeImport::kTextDecoder)) {
+        CHECK_SIG(decodeStringFromUTF8Array, e_a8ii, kStringFromUtf8Array,
+                  imported_strings_utf8)
+
+      } else if (collection == base::StaticOneByteVector("js-prototypes") &&
+                 imports.contains(CompileTimeImport::kJsPrototypes)) {
+        CHECK_SIG(configureAll, configureAll, kConfigureAllPrototypes,
+                  custom_descriptors)
       }
-#undef CHECK_SIG
-    } else if (collection == base::StaticOneByteVector("text-encoder") &&
-               imports.contains(CompileTimeImport::kTextEncoder)) {
-      if (name == base::StaticOneByteVector("measureStringAsUTF8")) {
-        if (*sig != kSig_i_r) {
-          RETURN_ERROR("text-encoder", "measureStringAsUTF8");
-        }
-        status = WellKnownImport::kStringMeasureUtf8;
-        detected->add_imported_strings_utf8();
-      } else if (name ==
-                 base::StaticOneByteVector("encodeStringIntoUTF8Array")) {
-        if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            sig->GetParam(0) != kExternRef ||                   // --
-            !IsI8Array(sig->GetParam(1), module, kNullable) ||  // --
-            sig->GetParam(2) != kI32 ||                         // --
-            sig->GetReturn() != kI32) {
-          RETURN_ERROR("text-encoder", "encodeStringIntoUTF8Array");
-        }
-        status = WellKnownImport::kStringIntoUtf8Array;
-        detected->add_imported_strings_utf8();
-      } else if (name == base::StaticOneByteVector("encodeStringToUTF8Array")) {
-        if (sig->parameter_count() != 1 || sig->return_count() != 1 ||
-            sig->GetParam(0) != kExternRef ||
-            !IsI8Array(sig->GetReturn(), module, kNonNullable)) {
-          RETURN_ERROR("text-encoder", "encodeStringToUTF8Array");
-        }
-        status = WellKnownImport::kStringToUtf8Array;
-        detected->add_imported_strings_utf8();
-      }
-    } else if (collection == base::StaticOneByteVector("text-decoder") &&
-               imports.contains(CompileTimeImport::kTextDecoder)) {
-      if (name == base::StaticOneByteVector("decodeStringFromUTF8Array")) {
-        if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            !IsI8Array(sig->GetParam(0), module, kNullable) ||  // --
-            sig->GetParam(1) != kI32 ||                         // --
-            sig->GetParam(2) != kI32 ||                         // --
-            sig->GetReturn() != kRefExtern) {
-          RETURN_ERROR("text-decoder", "decodeStringFromUTF8Array");
-        }
-        status = WellKnownImport::kStringFromUtf8Array;
-        detected->add_imported_strings_utf8();
-      }
-    } else if (collection == base::StaticOneByteVector("js-prototypes") &&
-               imports.contains(CompileTimeImport::kJsPrototypes)) {
-      if (name == base::StaticOneByteVector("configureAll")) {
-        if (sig->parameter_count() != 4 || sig->return_count() != 0 ||
-            !IsExternRefArray(sig->GetParam(0), module) ||
-            !IsFuncRefArray(sig->GetParam(1), module) ||
-            !IsI8Array(sig->GetParam(2), module, kNullable) ||
-            sig->GetParam(3) != kWasmExternRef) {
-          RETURN_ERROR("js-prototypes", "configureAll");
-        }
-        status = WellKnownImport::kConfigureAllPrototypes;
-        detected->add_custom_descriptors();
-      }
-    }
-#undef RETURN_ERROR
+    } while (false);
     statuses.push_back(status);
   }
   // We're operating on a fresh WasmModule instance here, so we don't need to
@@ -1964,6 +1869,8 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
   }
   return {};
 }
+
+#undef CHECK_SIG
 
 namespace {
 

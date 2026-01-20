@@ -290,7 +290,7 @@ TEST_F(WasmTracingTest, TestTracingGlobalRefValueDiff) {
               HasSubstr("Traces are identical (1 entries)"));
   EXPECT_THAT(
       result.global_trace,
-      HasSubstr("liftoff  func     0:0x5e   global.set 1 val: (ref 5)"));
+      HasSubstr("liftoff  func     0:0x5e   global.set 1 val: (ref 18)"));
 }
 
 TEST_F(WasmTracingTest, TestTracingManyMismatches) {
