@@ -78,22 +78,22 @@ macro MarkIteratorHelperAsExecuting(helper: JSIteratorHelper):
 macro IteratorHelperIsSuspendedStart(helper: JSIteratorHelper): bool {
   typeswitch (helper) {
     case (mapHelper: JSIteratorMapHelper): {
-      return mapHelper.counter > 0;
+      return mapHelper.counter == 0;
     }
     case (filterHelper: JSIteratorFilterHelper): {
-      return filterHelper.counter > 0;
+      return filterHelper.counter == 0;
     }
     case (takeHelper: JSIteratorTakeHelper): {
-      return takeHelper.innerAlive == True;
+      return !takeHelper.innerAlive;
     }
     case (dropHelper: JSIteratorDropHelper): {
-      return dropHelper.innerAlive == True;
+      return !dropHelper.innerAlive;
     }
     case (flatMapHelper: JSIteratorFlatMapHelper): {
-      return flatMapHelper.innerAlive == True;
+      return !flatMapHelper.innerAlive;
     }
     case (concatHelper: JSIteratorConcatHelper): {
-      return concatHelper.innerAlive == True;
+      return !concatHelper.innerAlive;
     }
     case (Object): {
       unreachable;
@@ -114,9 +114,9 @@ macro MarkIteratorHelperAsExecutingOrExhausted(helper: JSIteratorHelper):
   const object =
       Cast<JSReceiver>(helper.underlying_object) otherwise unreachable;
   if (IteratorHelperIsSuspendedStart(helper)) {
-    helper.underlying_object = kIteratorHelperExecuting;
-  } else {
     helper.underlying_object = kIteratorHelperExhausted;
+  } else {
+    helper.underlying_object = kIteratorHelperExecuting;
   }
   return IteratorRecord{object: object, next: helper.underlying_next};
 }
