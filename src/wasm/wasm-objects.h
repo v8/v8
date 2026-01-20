@@ -1183,7 +1183,7 @@ class WasmFunctionData
 
   using BodyDescriptor = StackedBodyDescriptor<
       FixedExposedTrustedObjectBodyDescriptor<
-          WasmFunctionData, kWasmFunctionDataIndirectPointerTag>,
+          WasmFunctionData, kWasmFunctionDataIndirectPointerTagRange>,
       WithStrongCodePointer<kWrapperCodeOffset>,
       WithProtectedPointer<kProtectedInternalOffset>>;
 

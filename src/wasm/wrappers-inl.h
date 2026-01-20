@@ -315,7 +315,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
               JSFunction::kSharedFunctionInfoOffset);
   V<WasmFunctionData> function_data = V<WasmFunctionData>::Cast(
       __ LoadTrustedPointer(sfi, LoadOp::Kind::TaggedBase().Immutable(),
-                            kWasmFunctionDataIndirectPointerTag,
+                            kWasmExportedFunctionDataIndirectPointerTag,
                             SharedFunctionInfo::kTrustedFunctionDataOffset));
   // If we are not inlining the Wasm body, we don't need the Wasm instance.
 
@@ -647,7 +647,7 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildCapiCallWrapper() {
   V<HeapObject> shared = LoadSharedFunctionInfo(function_node);
   V<WasmFunctionData> function_data = V<WasmFunctionData>::Cast(
       __ LoadTrustedPointer(shared, LoadOp::Kind::TaggedBase(),
-                            kWasmFunctionDataIndirectPointerTag,
+                            kWasmCapiFunctionDataIndirectPointerTag,
                             SharedFunctionInfo::kTrustedFunctionDataOffset));
   V<Object> host_data_foreign = __ LoadTaggedField(
       function_data, WasmCapiFunctionData::kEmbedderDataOffset);

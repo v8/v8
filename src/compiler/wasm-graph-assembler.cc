@@ -468,7 +468,7 @@ Node* WasmGraphAssembler::LoadFunctionDataFromJSFunction(Node* js_function) {
       shared,
       wasm::ObjectAccess::ToTagged(
           SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kWasmFunctionDataIndirectPointerTag);
+      kWasmExportedFunctionDataIndirectPointerTag);
 }
 
 Node* WasmGraphAssembler::LoadExportedFunctionIndexAsSmi(

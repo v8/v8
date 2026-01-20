@@ -20,12 +20,8 @@ namespace v8 {
 namespace internal {
 
 template <IndirectPointerTagRange tag_range>
-Tagged<
-    std::conditional_t<tag_range.Size() == 1, TrustedTypeFor<tag_range.first>,
-                       ExposedTrustedObject>>
-TrustedPointerField::ReadTrustedPointerField(Tagged<HeapObject> host,
-                                             size_t offset,
-                                             IsolateForSandbox isolate) {
+Tagged<TrustedTypeFor<tag_range>> TrustedPointerField::ReadTrustedPointerField(
+    Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate) {
   // Currently, trusted pointer loads always use acquire semantics as the
   // under-the-hood indirect pointer loads use acquire loads anyway.
   return ReadTrustedPointerField<tag_range>(host, offset, isolate,
@@ -33,19 +29,12 @@ TrustedPointerField::ReadTrustedPointerField(Tagged<HeapObject> host,
 }
 
 template <IndirectPointerTagRange tag_range>
-Tagged<
-    std::conditional_t<tag_range.Size() == 1, TrustedTypeFor<tag_range.first>,
-                       ExposedTrustedObject>>
-TrustedPointerField::ReadTrustedPointerField(Tagged<HeapObject> host,
-                                             size_t offset,
-                                             IsolateForSandbox isolate,
-                                             AcquireLoadTag acquire_load) {
+Tagged<TrustedTypeFor<tag_range>> TrustedPointerField::ReadTrustedPointerField(
+    Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
+    AcquireLoadTag acquire_load) {
   Tagged<Object> object = ReadMaybeEmptyTrustedPointerField<tag_range>(
       host, offset, isolate, acquire_load);
-
-  using ReturnType =
-      std::conditional_t<tag_range.Size() == 1, TrustedTypeFor<tag_range.first>,
-                         ExposedTrustedObject>;
+  using ReturnType = TrustedTypeFor<tag_range>;
   return TrustedCast<ReturnType>(object);
 }
 

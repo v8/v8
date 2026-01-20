@@ -196,11 +196,11 @@ Tagged<Object> SharedFunctionInfo::GetTrustedData(
       kTrustedFunctionDataOffset, isolate, kAcquireLoad);
 }
 
-template <typename T, IndirectPointerTag tag>
+template <typename T, IndirectPointerTagRange tag_range>
 Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
-  static_assert(tag != kAllIndirectPointerTags);
-  return HeapObject::ReadTrustedPointerField<tag>(kTrustedFunctionDataOffset,
-                                                  isolate, kAcquireLoad);
+  static_assert(tag_range != kAllIndirectPointerTags);
+  return HeapObject::ReadTrustedPointerField<tag_range>(
+      kTrustedFunctionDataOffset, isolate, kAcquireLoad);
 }
 
 Tagged<Object> SharedFunctionInfo::GetUntrustedData() const {
@@ -997,31 +997,32 @@ DEF_GETTER(SharedFunctionInfo, wasm_function_data, Tagged<WasmFunctionData>) {
   // IsolateForSandbox.
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
   DCHECK(HasWasmFunctionData(isolate));
-  return GetTrustedData<WasmFunctionData, kWasmFunctionDataIndirectPointerTag>(
-      isolate);
+  return GetTrustedData<WasmFunctionData,
+                        kWasmFunctionDataIndirectPointerTagRange>(isolate);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_exported_function_data,
            Tagged<WasmExportedFunctionData>) {
-  DCHECK(HasWasmExportedFunctionData(GetCurrentIsolateForSandbox()));
-  Tagged<WasmFunctionData> data = wasm_function_data();
-  // TODO(saelo): the SBXCHECKs here and below are only needed because our type
-  // tags don't currently support type hierarchies.
-  return SbxCast<WasmExportedFunctionData>(data);
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  DCHECK(HasWasmExportedFunctionData(isolate));
+  return GetTrustedData<WasmExportedFunctionData,
+                        kWasmExportedFunctionDataIndirectPointerTag>(isolate);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_js_function_data,
            Tagged<WasmJSFunctionData>) {
-  DCHECK(HasWasmJSFunctionData(GetCurrentIsolateForSandbox()));
-  Tagged<WasmFunctionData> data = wasm_function_data();
-  return SbxCast<WasmJSFunctionData>(data);
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  DCHECK(HasWasmJSFunctionData(isolate));
+  return GetTrustedData<WasmJSFunctionData,
+                        kWasmJSFunctionDataIndirectPointerTag>(isolate);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_capi_function_data,
            Tagged<WasmCapiFunctionData>) {
-  DCHECK(HasWasmCapiFunctionData(GetCurrentIsolateForSandbox()));
-  Tagged<WasmFunctionData> data = wasm_function_data();
-  return SbxCast<WasmCapiFunctionData>(data);
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  DCHECK(HasWasmCapiFunctionData(isolate));
+  return GetTrustedData<WasmCapiFunctionData,
+                        kWasmCapiFunctionDataIndirectPointerTag>(isolate);
 }
 
 DEF_GETTER(SharedFunctionInfo, wasm_resume_data, Tagged<WasmResumeData>) {

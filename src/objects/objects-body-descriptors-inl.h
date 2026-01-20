@@ -286,13 +286,13 @@ void BodyDescriptorBase::IterateCodePointer(Tagged<HeapObject> obj, int offset,
 }
 
 template <typename ObjectVisitor>
-void BodyDescriptorBase::IterateSelfIndirectPointer(Tagged<HeapObject> obj,
-                                                    IndirectPointerTag tag,
-                                                    ObjectVisitor* v) {
+void BodyDescriptorBase::IterateSelfIndirectPointer(
+    Tagged<HeapObject> obj, IndirectPointerTagRange tag_range,
+    ObjectVisitor* v) {
 #ifdef V8_ENABLE_SANDBOX
   v->VisitTrustedPointerTableEntry(
       obj, obj->RawIndirectPointerField(
-               ExposedTrustedObject::kSelfIndirectPointerOffset, tag));
+               ExposedTrustedObject::kSelfIndirectPointerOffset, tag_range));
 #endif
 }
 

@@ -56,7 +56,9 @@ enum IndirectPointerTag : uint16_t {
   kBytecodeArrayIndirectPointerTag = kFirstPerIsolateTrustedPointerTag,
   kInterpreterDataIndirectPointerTag,
   kUncompiledDataIndirectPointerTag,
-  kWasmFunctionDataIndirectPointerTag,
+  kWasmExportedFunctionDataIndirectPointerTag,
+  kWasmJSFunctionDataIndirectPointerTag,
+  kWasmCapiFunctionDataIndirectPointerTag,
   kAsmWasmDataIndirectPointerTag,
   kRegExpDataIndirectPointerTag,
   kWasmTrustedInstanceDataIndirectPointerTag,
@@ -67,8 +69,8 @@ enum IndirectPointerTag : uint16_t {
 
   // Special tags.
   //
-  // Currently we only use 8 bits (plus one marking bit) so we have spare spare
-  // bits in the pointers if we ever need them (e.g. for something like MTE).
+  // Currently we only use 8 bits (plus one marking bit) so we have spare bits
+  // in the pointers if we ever need them (e.g. for something like MTE).
   // If we ever need more tags, we could go up to 15 bits though.
   //
 
@@ -104,6 +106,10 @@ constexpr IndirectPointerTagRange kAllIndirectPointerTags(
     kFirstSharedTrustedPointerTag, kLastPerIsolateTrustedPointerTag);
 constexpr IndirectPointerTagRange kAllIndirectPointerTagsIncludingUnpublished(
     kFirstSharedTrustedPointerTag, kUnpublishedIndirectPointerTag);
+
+constexpr IndirectPointerTagRange kWasmFunctionDataIndirectPointerTagRange(
+    kWasmExportedFunctionDataIndirectPointerTag,
+    kWasmCapiFunctionDataIndirectPointerTag);
 
 // The kAllIndirectPointerTags contains all regular tags...
 static_assert(kAllIndirectPointerTags.Contains(kAllSharedIndirectPointerTags));
@@ -194,12 +200,15 @@ IndirectPointerTagFromInstanceType(InstanceType instance_type, bool shared) {
     case WASM_SUSPENDER_OBJECT_TYPE:
       return kWasmSuspenderIndirectPointerTag;
     case WASM_FUNCTION_DATA_TYPE:
+      // WasmFunctionData is effectively an abstract base class, so we shouldn't
+      // have instances of this type.
+      UNREACHABLE();
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
+      return kWasmExportedFunctionDataIndirectPointerTag;
     case WASM_JS_FUNCTION_DATA_TYPE:
+      return kWasmJSFunctionDataIndirectPointerTag;
     case WASM_CAPI_FUNCTION_DATA_TYPE:
-      // TODO(saelo): Consider adding support for inheritance hierarchies in
-      // our tag checking mechanism.
-      return kWasmFunctionDataIndirectPointerTag;
+      return kWasmCapiFunctionDataIndirectPointerTag;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       UNREACHABLE();

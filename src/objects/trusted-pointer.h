@@ -29,6 +29,9 @@ class WasmTrustedInstanceData;
 class WasmInternalFunction;
 class WasmSuspenderObject;
 class WasmFunctionData;
+class WasmExportedFunctionData;
+class WasmJSFunctionData;
+class WasmCapiFunctionData;
 
 template <typename T, IndirectPointerTagRange kTagRange>
 class TrustedPointerMember;
@@ -49,10 +52,16 @@ namespace detail {
           WasmTrustedInstanceData)                                          \
   IF_WASM(V, kWasmInternalFunctionIndirectPointerTag, WasmInternalFunction) \
   IF_WASM(V, kWasmSuspenderIndirectPointerTag, WasmSuspenderObject)         \
-  IF_WASM(V, kWasmFunctionDataIndirectPointerTag, WasmFunctionData)
+  IF_WASM(V, kWasmFunctionDataIndirectPointerTagRange, WasmFunctionData)    \
+  IF_WASM(V, kWasmExportedFunctionDataIndirectPointerTag,                   \
+          WasmExportedFunctionData)                                         \
+  IF_WASM(V, kWasmJSFunctionDataIndirectPointerTag, WasmJSFunctionData)     \
+  IF_WASM(V, kWasmCapiFunctionDataIndirectPointerTag, WasmCapiFunctionData)
 
-template <IndirectPointerTag tag>
-struct TrustedPointerType;
+template <IndirectPointerTagRange tag_range>
+struct TrustedPointerType {
+  using type = ExposedTrustedObject;
+};
 
 #define DEFINE_TRUSTED_POINTER_TYPE(Tag, Type) \
   template <>                                  \
@@ -65,8 +74,8 @@ TRUSTED_POINTER_TAG_TO_TYPE_MAP(DEFINE_TRUSTED_POINTER_TYPE)
 
 }  // namespace detail
 
-template <IndirectPointerTag tag>
-using TrustedTypeFor = typename detail::TrustedPointerType<tag>::type;
+template <IndirectPointerTagRange tag_range>
+using TrustedTypeFor = typename detail::TrustedPointerType<tag_range>::type;
 
 // TrustedPointerField provides static methods for reading and writing trusted
 // pointers from HeapObjects.
@@ -79,19 +88,13 @@ using TrustedTypeFor = typename detail::TrustedPointerType<tag>::type;
 class TrustedPointerField {
  public:
   template <IndirectPointerTagRange tag_range>
-  static inline Tagged<
-      std::conditional_t<tag_range.Size() == 1, TrustedTypeFor<tag_range.first>,
-                         ExposedTrustedObject>>
-  ReadTrustedPointerField(Tagged<HeapObject> host, size_t offset,
-                          IsolateForSandbox isolate);
+  static inline Tagged<TrustedTypeFor<tag_range>> ReadTrustedPointerField(
+      Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate);
 
   template <IndirectPointerTagRange tag_range>
-  static inline Tagged<
-      std::conditional_t<tag_range.Size() == 1, TrustedTypeFor<tag_range.first>,
-                         ExposedTrustedObject>>
-  ReadTrustedPointerField(Tagged<HeapObject> host, size_t offset,
-                          IsolateForSandbox isolate,
-                          AcquireLoadTag acquire_load);
+  static inline Tagged<TrustedTypeFor<tag_range>> ReadTrustedPointerField(
+      Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
+      AcquireLoadTag acquire_load);
 
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().

@@ -1747,8 +1747,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<SharedFunctionInfo> sfi);
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  TNode<WasmFunctionData> LoadSharedFunctionInfoWasmFunctionData(
-      TNode<SharedFunctionInfo> sfi);
   TNode<WasmExportedFunctionData>
   LoadSharedFunctionInfoWasmExportedFunctionData(TNode<SharedFunctionInfo> sfi);
   TNode<WasmJSFunctionData> LoadSharedFunctionInfoWasmJSFunctionData(
