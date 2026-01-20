@@ -7909,7 +7909,7 @@ void Heap::NotifyInputHandlingEnded(LeaveHeapState context) {
 }
 
 void Heap::GCHintState::NotifyStarted(Heap* heap) {
-  if (IsActive(heap)) {
+  if (IsInitialized()) {
     TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), track_);
   }
   TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), tag_, track_);
