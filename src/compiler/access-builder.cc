@@ -7,6 +7,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/arguments.h"
 #include "src/objects/contexts.h"
@@ -1100,13 +1101,29 @@ FieldAccess AccessBuilder::ForFeedbackVectorSlot(int index) {
 FieldAccess AccessBuilder::ForPropertyArraySlot(int index,
                                                 Representation representation) {
   int offset = PropertyArray::OffsetOfElementAt(index);
-  MachineType machine_type =
-      representation.IsHeapObject() || representation.IsDouble()
-          ? MachineType::TaggedPointer()
-          : MachineType::AnyTagged();
+  MachineType machine_type;
+  WriteBarrierKind write_barrier;
+  switch (representation.kind()) {
+    case Representation::kDouble:
+    case Representation::kHeapObject:
+      machine_type = MachineType::TaggedPointer();
+      write_barrier = kPointerWriteBarrier;
+      break;
+    case Representation::kSmi:
+      machine_type = MachineType::TaggedSigned();
+      write_barrier = kNoWriteBarrier;
+      break;
+    case Representation::kNone:
+    case Representation::kTagged:
+    case Representation::kWasmValue:
+    case Representation::kNumRepresentations:
+      machine_type = MachineType::AnyTagged();
+      write_barrier = kFullWriteBarrier;
+      break;
+  }
   FieldAccess access = {
-      kTaggedBase, offset,       Handle<Name>(),    OptionalMapRef(),
-      Type::Any(), machine_type, kFullWriteBarrier, "PropertyArraySlot"};
+      kTaggedBase, offset,       Handle<Name>(), OptionalMapRef(),
+      Type::Any(), machine_type, write_barrier,  "PropertyArraySlot"};
   return access;
 }
 
