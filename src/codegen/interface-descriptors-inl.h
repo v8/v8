@@ -720,9 +720,9 @@ constexpr auto CallApiCallbackGenericDescriptor::registers() {
 // static
 constexpr auto CallApiGetterDescriptor::registers() {
 #if V8_TARGET_ARCH_ARM64
-  return RegisterArray();
+  return RegisterArray(NameRegister());
 #else
-  return RegisterArray(CallbackRegister());
+  return RegisterArray(NameRegister(), CallbackRegister());
 #endif  // V8_TARGET_ARCH_ARM64
 }
 

@@ -27,11 +27,11 @@ namespace v8 {
 namespace internal {
 
 DirectHandle<AccessorInfo> Accessors::MakeAccessor(
-    Isolate* isolate, DirectHandle<Name> name,
+    Isolate* isolate, DirectHandle<Name> name_for_cpu_profiler,
     AccessorNameGetterCallback getter,
     AccessorNameBooleanSetterCallback setter) {
   Factory* factory = isolate->factory();
-  name = factory->InternalizeName(name);
+  name_for_cpu_profiler = factory->InternalizeName(name_for_cpu_profiler);
   DirectHandle<AccessorInfo> info = factory->NewAccessorInfo();
   {
     DisallowGarbageCollection no_gc;
@@ -40,7 +40,7 @@ DirectHandle<AccessorInfo> Accessors::MakeAccessor(
     raw->set_replace_on_access(false);
     raw->set_getter_side_effect_type(SideEffectType::kHasSideEffect);
     raw->set_setter_side_effect_type(SideEffectType::kHasSideEffect);
-    raw->set_name(*name);
+    raw->set_name(*name_for_cpu_profiler);
     raw->set_getter(isolate, reinterpret_cast<Address>(getter));
     if (setter == nullptr) setter = &ReconfigureToDataProperty;
     raw->set_setter(isolate, reinterpret_cast<Address>(setter));
@@ -268,9 +268,9 @@ void Accessors::ModuleNamespaceEntrySetter(
 }
 
 DirectHandle<AccessorInfo> Accessors::MakeModuleNamespaceEntryInfo(
-    Isolate* isolate, DirectHandle<String> name) {
-  return MakeAccessor(isolate, name, &ModuleNamespaceEntryGetter,
-                      &ModuleNamespaceEntrySetter);
+    Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->empty_string(),
+                      &ModuleNamespaceEntryGetter, &ModuleNamespaceEntrySetter);
 }
 
 //

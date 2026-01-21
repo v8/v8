@@ -12367,7 +12367,6 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
   BIND(&if_accessor_info);
   {
     if (holder.has_value()) {
-      TNode<AccessorInfo> accessor_info = CAST(value);
       Label if_array(this), if_function(this), if_wrapper(this);
       // Dispatch based on {holder} instance type.
       TNode<Map> holder_map = LoadMap(*holder);
@@ -12381,9 +12380,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
       BIND(&if_array);
       {
         // We only deal with the "length" accessor on JSArray.
-        GotoIfNot(IsLengthString(LoadObjectField(accessor_info,
-                                                 AccessorInfo::kNameOffset)),
-                  if_bailout);
+        GotoIfNot(IsLengthString(name), if_bailout);
         TNode<JSArray> array = CAST(*holder);
         var_value = LoadJSArrayLength(array);
         Goto(&done);
@@ -12393,9 +12390,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
       BIND(&if_function);
       {
         // We only deal with the "prototype" accessor on JSFunction here.
-        GotoIfNot(IsPrototypeString(LoadObjectField(accessor_info,
-                                                    AccessorInfo::kNameOffset)),
-                  if_bailout);
+        GotoIfNot(IsPrototypeString(name), if_bailout);
 
         TNode<JSFunction> function = CAST(*holder);
         GotoIfPrototypeRequiresRuntimeLookup(function, holder_map, if_bailout);
@@ -12408,9 +12403,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessorAndBailoutOnLazyClosures(
       {
         // We only deal with the "length" accessor on JSPrimitiveWrapper string
         // wrappers.
-        GotoIfNot(IsLengthString(LoadObjectField(accessor_info,
-                                                 AccessorInfo::kNameOffset)),
-                  if_bailout);
+        GotoIfNot(IsLengthString(name), if_bailout);
         TNode<Object> holder_value = LoadJSPrimitiveWrapperValue(CAST(*holder));
         GotoIfNot(TaggedIsNotSmi(holder_value), if_bailout);
         GotoIfNot(IsString(CAST(holder_value)), if_bailout);

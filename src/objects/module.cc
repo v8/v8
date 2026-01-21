@@ -377,16 +377,18 @@ DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
                                 static_cast<int>(names.size()),
                                 "JSModuleNamespace");
   JSObject::NormalizeElements(isolate, ns);
+  DirectHandle<AccessorInfo> module_namespace_property_accessor =
+      isolate->factory()->module_namespace_property_accessor();
   for (const auto& name : names) {
     uint32_t index = 0;
     if (name->AsArrayIndex(&index)) {
       JSObject::SetNormalizedElement(
-          ns, index, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
+          ns, index, module_namespace_property_accessor,
           PropertyDetails(PropertyKind::kAccessor, attr,
                           PropertyCellType::kMutable));
     } else {
       JSObject::SetNormalizedProperty(
-          ns, name, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
+          ns, name, module_namespace_property_accessor,
           PropertyDetails(PropertyKind::kAccessor, attr,
                           PropertyCellType::kMutable));
     }

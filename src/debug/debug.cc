@@ -3251,7 +3251,9 @@ bool Debug::PerformSideEffectCheckForAccessor(
       break;
   }
   if (v8_flags.trace_side_effect_free_debug_evaluate) {
-    PrintF("[debug-evaluate] API Callback '");
+    PrintF(
+        "[debug-evaluate] API Native Accessor Callback (%s) '",
+        component == AccessorComponent::ACCESSOR_GETTER ? "getter" : "setter");
     ShortPrint(accessor_info->name());
     PrintF("' may cause side effect.\n");
   }

@@ -2399,13 +2399,16 @@ class CallApiGetterDescriptor
   //
   //                               |  Non-arm64   |    arm64
   //                               +--------------+--------------
-  DEFINE_PARAMETERS(kCallback,  // |  reg         |    sp[0]
+  DEFINE_PARAMETERS(kName,      // |  reg         |    reg
+                    kCallback,  // |  reg         |    sp[0]
                     kHolder)    // |  sp[0]       |    sp[1]
 
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kCallback
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
+                         MachineType::AnyTagged(),  // kCallback
                          MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(CallApiGetterDescriptor)
 
+  static constexpr inline Register NameRegister();
 #if !V8_TARGET_ARCH_ARM64
   static constexpr inline Register CallbackRegister();
 #endif

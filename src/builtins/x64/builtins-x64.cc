@@ -4628,6 +4628,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rsi                 : context
+  //  -- rdi (rcx on Win)    : name
   //  -- rbx                 : accessor info
   //  -- sp[1]               : holder
   //  -- sp[0]               : return address
@@ -4635,6 +4636,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   Register name_arg = kCArgRegs[0];
   Register property_callback_info_arg = kCArgRegs[1];
+  // |name| is already in the required register.
+  DCHECK_EQ(name_arg, CallApiGetterDescriptor::NameRegister());
 
   Register api_function_address = r8;
   Register callback = CallApiGetterDescriptor::CallbackRegister();
@@ -4681,8 +4684,6 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::PropertyCallbackInfo");
-    __ LoadTaggedField(name_arg,
-                       FieldOperand(callback, AccessorInfo::kNameOffset));
     // kPropertyKeyIndex
     __ movq(Operand(rbp, FC::kPropertyKeyOffset), name_arg);
 

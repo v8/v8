@@ -151,6 +151,10 @@ constexpr Register DefineKeyedOwnDescriptor::FlagsRegister() { return r11; }
 constexpr Register StoreTransitionDescriptor::MapRegister() { return r11; }
 
 // static
+constexpr Register CallApiGetterDescriptor::NameRegister() {
+  return kCArgRegs[0];
+}
+// static
 constexpr Register CallApiGetterDescriptor::CallbackRegister() { return rbx; }
 
 // static

@@ -4516,6 +4516,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- esi                 : context
+  //  -- ecx                 : name
   //  -- eax                 : accessor info
   //  -- sp[1]               : holder
   //  -- sp[0]               : return address
@@ -4523,7 +4524,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   Register callback = CallApiGetterDescriptor::CallbackRegister();
   Register isolate_reg = edx;
-  Register name = ecx;
+  Register name = CallApiGetterDescriptor::NameRegister();
   Register scratch = edi;
   DCHECK(!AreAliased(callback, isolate_reg, name, scratch));
 
@@ -4576,7 +4577,6 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register property_callback_info_arg = ReassignRegister(scratch);
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::PropertyCallbackInfo");
-    __ mov(name, FieldOperand(callback, AccessorInfo::kNameOffset));
     // kPropertyKeyIndex
     __ mov(Operand(ebp, FC::kPropertyKeyOffset), name);
 

@@ -44,6 +44,14 @@ bitfield struct AccessorInfoFlags extends uint32 {
 
 extern class AccessorInfo extends HeapObject {
   data: Object;
+  // This name is used for the two purposes:
+  // 1) for native accessor properties added to an object template via Api this
+  //    field stores property name until the object template is instantiated,
+  // 2) CPU profiler machinery uses this name for mapping getter/setter
+  //    C++ function pointers back to property name. Note that this mapping
+  //    might be incorrect in case a getter/setter C++ callbacks are used for
+  //    multiple different properties (for example, see
+  //    Accessors::MakeModuleNamespaceEntryInfo).
   name: Name;
   // For simulator builds this field contains the address of the trampoline
   // callable from generated code and for native builds - the address of
