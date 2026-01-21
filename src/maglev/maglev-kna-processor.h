@@ -86,10 +86,11 @@ class RecomputeKnownNodeAspectsProcessor {
     }
     DCHECK_NOT_NULL(known_node_aspects_);
 
-    if (block->has_state()) {
+    if (block->has_state() && !block->is_exception_handler_block()) {
       // We might now have more accurate types for phi inputs; recompute the phi
       // types based on them.
       for (Phi* phi : *block->state()->phis()) {
+        DCHECK_GE(phi->input_count(), 1);
         NodeType new_type = NodeType::kNone;
         for (int i = 0; i < phi->input_count(); ++i) {
           ValueNode* input = phi->input_node(i)->UnwrapIdentities();
