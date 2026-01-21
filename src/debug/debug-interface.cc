@@ -1471,11 +1471,6 @@ void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* v8_isolate) {
   isolate->CountUsage(v8::Isolate::kAsyncStackTaggingCreateTaskCall);
 }
 
-void NotifyDebuggerPausedEventSent(v8::Isolate* v8_isolate) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  isolate->debug()->NotifyDebuggerPausedEventSent();
-}
-
 uint64_t GetIsolateId(v8::Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   return isolate->debug()->IsolateId();
