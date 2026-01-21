@@ -129,7 +129,9 @@ static const char kStringTerminator[] = {'\0'};
 // GetFileMutex().
 int PerfJitLogger::process_id_ = 0;
 uint64_t PerfJitLogger::reference_count_ = 0;
+#if !V8_OS_DARWIN
 void* PerfJitLogger::marker_address_ = nullptr;
+#endif  // !V8_OS_DARWIN
 uint64_t PerfJitLogger::code_index_ = 0;
 FILE* PerfJitLogger::perf_output_handle_ = nullptr;
 
@@ -160,12 +162,17 @@ void PerfJitLogger::OpenJitDumpFile() {
   // On macOS, don't call OpenMarkerFile because samply has already detected
   // the file path during the call to `open` above (it interposes `open` with
   // a preloaded library), and because the mmap call can be slow.
-#if V8_OS_DARWIN
-  marker_address_ = nullptr;
-#else
-  marker_address_ = OpenMarkerFile(fd);
-  if (marker_address_ == nullptr) return;
-#endif
+#if !V8_OS_DARWIN
+  long page_size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
+  CHECK_NE(-1, page_size);
+
+  // Mmap the file so that there is a mmap record in the perf_data file.
+  //
+  // The map must be PROT_EXEC to ensure it is not ignored by perf record.
+  marker_address_ =
+      mmap(nullptr, page_size, PROT_READ | PROT_EXEC, MAP_PRIVATE, fd, 0);
+  CHECK_NE(marker_address_, MAP_FAILED);
+#endif  // !V8_OS_DARWIN
 
   perf_output_handle_ = fdopen(fd, "w+");
   CHECK_NOT_NULL(perf_output_handle_);
@@ -177,25 +184,12 @@ void PerfJitLogger::CloseJitDumpFile() {
   if (perf_output_handle_ == nullptr) return;
   base::Fclose(perf_output_handle_);
   perf_output_handle_ = nullptr;
-}
 
-void* PerfJitLogger::OpenMarkerFile(int fd) {
+#if !V8_OS_DARWIN
   long page_size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
-  if (page_size == -1) return nullptr;
-
-  // Mmap the file so that there is a mmap record in the perf_data file.
-  //
-  // The map must be PROT_EXEC to ensure it is not ignored by perf record.
-  void* marker_address =
-      mmap(nullptr, page_size, PROT_READ | PROT_EXEC, MAP_PRIVATE, fd, 0);
-  return (marker_address == MAP_FAILED) ? nullptr : marker_address;
-}
-
-void PerfJitLogger::CloseMarkerFile(void* marker_address) {
-  if (marker_address == nullptr) return;
-  long page_size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
-  if (page_size == -1) return;
-  munmap(marker_address, page_size);
+  CHECK_NE(-1, page_size);
+  munmap(marker_address_, page_size);
+#endif  // !V8_OS_DARWIN
 }
 
 PerfJitLogger::PerfJitLogger(Isolate* isolate) : CodeEventLogger(isolate) {
@@ -206,7 +200,6 @@ PerfJitLogger::PerfJitLogger(Isolate* isolate) : CodeEventLogger(isolate) {
   // If this is the first logger, open the file and write the header.
   if (reference_count_ == 1) {
     OpenJitDumpFile();
-    if (perf_output_handle_ == nullptr) return;
     LogWriteHeader();
   }
 }
