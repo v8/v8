@@ -93,6 +93,7 @@ MapUpdater::MapUpdater(Isolate* isolate, DirectHandle<Map> old_map)
       old_descriptors_(old_map->instance_descriptors(isolate), isolate_),
       old_nof_(old_map_->NumberOfOwnDescriptors()),
       new_elements_kind_(old_map_->elements_kind()),
+      new_instance_type_(old_map_->instance_type()),
       is_transitionable_fast_elements_kind_(
           IsTransitionableFastElementsKind(new_elements_kind_)) {
   // We shouldn't try to update remote objects.
@@ -239,6 +240,20 @@ DirectHandle<Map> MapUpdater::ReconfigureElementsKind(
   return Update();
 }
 
+DirectHandle<Map> MapUpdater::ChangeInstanceType(
+    InstanceTypeChange instance_type_change) {
+  DCHECK_EQ(kInitialized, state_);
+
+  switch (instance_type_change) {
+    case InstanceTypeChange::kTypedArrayDetaching:
+      CHECK_EQ(old_map_->instance_type(), JS_TYPED_ARRAY_TYPE);
+      new_instance_type_ = JS_DETACHED_TYPED_ARRAY_TYPE;
+      break;
+  }
+
+  return Update();
+}
+
 Handle<Map> MapUpdater::ApplyPrototypeTransition(
     DirectHandle<JSPrototype> prototype) {
   DCHECK(v8_flags.move_prototype_transitions_first);
@@ -279,7 +294,8 @@ Handle<Map> MapUpdater::Update() {
 Handle<Map> MapUpdater::UpdateImpl() {
   DCHECK_EQ(kInitialized, state_);
   DCHECK_IMPLIES(new_prototype_.is_null() &&
-                     new_elements_kind_ == old_map_->elements_kind(),
+                     new_elements_kind_ == old_map_->elements_kind() &&
+                     new_instance_type_ == old_map_->instance_type(),
                  old_map_->is_deprecated());
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
@@ -445,8 +461,8 @@ void MapUpdater::GeneralizeField(DirectHandle<Map> map,
 
 MapUpdater::State MapUpdater::Normalize(const char* reason) {
   result_map_ =
-      Map::Normalize(isolate_, old_map_, new_elements_kind_, new_prototype_,
-                     CLEAR_INOBJECT_PROPERTIES, reason);
+      Map::Normalize(isolate_, old_map_, new_instance_type_, new_elements_kind_,
+                     new_prototype_, CLEAR_INOBJECT_PROPERTIES, reason);
   state_ = kEnd;
   return state_;  // Done.
 }
@@ -683,6 +699,15 @@ MapUpdater::State MapUpdater::FindRootMap() {
     }
   }
   root_map_ = Map::AsElementsKind(isolate_, root_map_, to_kind);
+
+  if (root_map_->instance_type() != new_instance_type_) {
+    // Currently we can only encounter one special detached array buffer view
+    // transition case.
+    CHECK_EQ(root_map_->instance_type(), JS_TYPED_ARRAY_TYPE);
+    CHECK_EQ(new_instance_type_, JS_DETACHED_TYPED_ARRAY_TYPE);
+    root_map_ = Map::AsDetachedTypedArray(isolate_, root_map_);
+  }
+
   DCHECK(old_map_->EquivalentToForTransition(
       *root_map_, ConcurrencyMode::kSynchronous, new_prototype_));
 

@@ -1310,6 +1310,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, DirectHandle<Map> src_handle,
 }
 
 Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
+                           InstanceType new_instance_type,
                            ElementsKind new_elements_kind,
                            DirectHandle<JSPrototype> new_prototype,
                            PropertyNormalizationMode mode, bool use_cache,
@@ -1318,6 +1319,9 @@ Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
 
   Tagged<Map> meta_map = fast_map->map();
   if (fast_map->is_prototype_map()) {
+    use_cache = false;
+  }
+  if (fast_map->instance_type() != new_instance_type) {
     use_cache = false;
   }
   DirectHandle<NormalizedMapCache> cache;
@@ -1389,6 +1393,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, DirectHandle<Map> fast_map,
     }
   } else {
     new_map = Map::CopyNormalized(isolate, fast_map, mode);
+    new_map->set_instance_type(new_instance_type);
     new_map->set_elements_kind(new_elements_kind);
     if (!new_prototype.is_null()) {
       Map::SetPrototype(isolate, new_map, new_prototype);
@@ -1737,11 +1742,10 @@ void Map::InstallDescriptors(Isolate* isolate, DirectHandle<Map> parent,
 }
 
 // static
-DirectHandle<Map> Map::AsDetachedTypedArray(Isolate* isolate,
-                                            DirectHandle<Map> map) {
+Handle<Map> Map::AsDetachedTypedArray(Isolate* isolate, DirectHandle<Map> map) {
   DCHECK(InstanceTypeChecker::IsJSTypedArray(map->instance_type()));
   ReadOnlyRoots roots(isolate);
-  DirectHandle<Map> new_map;
+  Handle<Map> new_map;
   if (!TransitionsAccessor::SearchSpecial(isolate, map, roots.detached_symbol())
            .ToHandle(&new_map)) {
     new_map = Map::Copy(isolate, map, "detached TypedArray");
@@ -2351,12 +2355,9 @@ bool Map::EquivalentToForTransition(
     const Tagged<Map> other, ConcurrencyMode cmode,
     DirectHandle<HeapObject> new_prototype) const {
   CHECK_EQ(GetConstructor(), other->GetConstructor());
-
   if (instance_type() != other->instance_type()) {
-    // Special detached array buffer view transition.
-    DCHECK(instance_type() == JS_DETACHED_TYPED_ARRAY_TYPE &&
-           other->instance_type() == JS_TYPED_ARRAY_TYPE);
-    return false;
+    CHECK_EQ(instance_type(), JS_TYPED_ARRAY_TYPE);
+    CHECK_EQ(other->instance_type(), JS_DETACHED_TYPED_ARRAY_TYPE);
   }
   if (bit_field() != other->bit_field()) return false;
   if (new_prototype.is_null()) {

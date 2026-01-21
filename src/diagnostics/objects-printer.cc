@@ -4451,6 +4451,8 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
        << ")";
   } else if (key == roots.strict_function_transition_symbol()) {
     os << " (transition to strict function)";
+  } else if (key == roots.detached_symbol()) {
+    os << " (transition to detached array buffer view)";
   } else {
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
@@ -4560,6 +4562,8 @@ void TransitionsAccessor::PrintTransitionTree(
           os << "to " << ElementsKindToString(target->elements_kind());
         } else if (key == roots.strict_function_transition_symbol()) {
           os << "to strict function";
+        } else if (key == roots.detached_symbol()) {
+          os << "to detached array buffer view";
         } else {
 #ifdef OBJECT_PRINT
           key->NamePrint(os);

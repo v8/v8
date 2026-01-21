@@ -125,3 +125,14 @@ assertUnoptimized(foo);
 
 // No bailout since we are already detached
 assertOptimized(foo);
+
+// Update map with detach transition and properties
+(() => {
+  let ab = new ArrayBuffer();
+  let ta = new Int32Array(ab);
+  ta[undefined] = undefined;
+  %ArrayBufferDetach(ab);
+  let ta2 = new Int32Array();
+  ta2[undefined] = undefined;
+  Object.defineProperty(ta2, undefined, {value: {}});
+})();
