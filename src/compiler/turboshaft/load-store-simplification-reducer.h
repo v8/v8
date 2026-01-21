@@ -159,26 +159,31 @@ class LoadStoreSimplificationReducer : public Next,
     V<WordPtr> decoded_ptr =
         __ Load(table, table_offset, kind, MemoryRepresentation::UintPtr());
 
-    V<Word32> tag = __ TruncateWordPtrToWord32(
-        __ WordPtrShiftRightLogical(decoded_ptr, kTrustedPointerTableTagShift));
-
-    V<Word32> is_valid;
-    if (tag_range.Size() == 1) {
-      is_valid = __ Word32Equal(tag, tag_range.first);
+    if (IsFastIndirectPointerTagRange(tag_range)) {
+      uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+      decoded_ptr = __ WordPtrBitwiseAnd(decoded_ptr, mask);
     } else {
-      V<Word32> diff = __ Word32Sub(tag, tag_range.first);
-      is_valid =
-          __ Uint32LessThanOrEqual(diff, tag_range.last - tag_range.first);
+      V<Word32> tag = __ TruncateWordPtrToWord32(__ WordPtrShiftRightLogical(
+          decoded_ptr, kTrustedPointerTableTagShift));
+
+      V<Word32> is_valid;
+      if (tag_range.Size() == 1) {
+        is_valid = __ Word32Equal(tag, tag_range.first);
+      } else {
+        V<Word32> diff = __ Word32Sub(tag, tag_range.first);
+        is_valid =
+            __ Uint32LessThanOrEqual(diff, tag_range.last - tag_range.first);
+      }
+
+      // Return an invalid pointer (nullptr) on tag mismatch.
+      decoded_ptr =
+          __ Select(is_valid, decoded_ptr, __ IntPtrConstant(0),
+                    RegisterRepresentation::WordPtr(), BranchHint::kTrue,
+                    SelectOp::Implementation::kForceCMove);
+
+      decoded_ptr =
+          __ WordPtrBitwiseAnd(decoded_ptr, kTrustedPointerTablePayloadMask);
     }
-
-    // Return an invalid pointer (nullptr) on tag mismatch.
-    decoded_ptr =
-        __ Select(is_valid, decoded_ptr, __ IntPtrConstant(0),
-                  RegisterRepresentation::WordPtr(), BranchHint::kTrue,
-                  SelectOp::Implementation::kForceCMove);
-
-    decoded_ptr =
-        __ WordPtrBitwiseAnd(decoded_ptr, kTrustedPointerTablePayloadMask);
 
     // Bitcast to tagged to this gets scanned by the GC properly.
     return __ BitcastWordPtrToTagged(decoded_ptr);

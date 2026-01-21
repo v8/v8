@@ -464,8 +464,7 @@ class SharedFunctionInfo
 
  public:
   static constexpr IndirectPointerTagRange kTrustedDataIndirectPointerRange =
-      IndirectPointerTagRange(kCodeIndirectPointerTag,
-                              kWasmCapiFunctionDataIndirectPointerTag);
+      kAllIndirectPointerTags;
 
   inline bool IsApiFunction() const;
   inline bool is_class_constructor() const;

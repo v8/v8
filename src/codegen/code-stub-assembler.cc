@@ -2116,7 +2116,6 @@ TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
 
 TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
     TNode<IndirectPointerHandleT> handle, IndirectPointerTagRange tag_range) {
-  CHECK_NE(tag_range, kAllIndirectPointerTags);
   // The tag implies which pointer table to use.
   if (tag_range == kCodeIndirectPointerTag) {
     return ResolveCodePointerHandle(handle);
@@ -2156,21 +2155,26 @@ TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
       Word32Shl(index, Uint32Constant(kTrustedPointerTableEntrySizeLog2)));
   TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
 
-  TNode<UintPtrT> tag =
-      WordShr(value, UintPtrConstant(kTrustedPointerTableTagShift));
-
-  TNode<BoolT> is_valid;
-  if (tag_range.Size() == 1) {
-    is_valid = WordEqual(tag, UintPtrConstant(tag_range.first));
+  if (IsFastIndirectPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+    value = WordAnd(value, UintPtrConstant(mask));
   } else {
-    TNode<UintPtrT> diff = UintPtrSub(tag, UintPtrConstant(tag_range.first));
-    is_valid = UintPtrLessThanOrEqual(
-        diff, UintPtrConstant(tag_range.last - tag_range.first));
+    TNode<UintPtrT> tag =
+        WordShr(value, UintPtrConstant(kTrustedPointerTableTagShift));
+
+    TNode<BoolT> is_valid;
+    if (tag_range.Size() == 1) {
+      is_valid = WordEqual(tag, UintPtrConstant(tag_range.first));
+    } else {
+      TNode<UintPtrT> diff = UintPtrSub(tag, UintPtrConstant(tag_range.first));
+      is_valid = UintPtrLessThanOrEqual(
+          diff, UintPtrConstant(tag_range.last - tag_range.first));
+    }
+
+    value = SelectConstant<UintPtrT>(is_valid, value, UintPtrConstant(0));
+
+    value = WordAnd(value, UintPtrConstant(kTrustedPointerTablePayloadMask));
   }
-
-  value = SelectConstant<UintPtrT>(is_valid, value, UintPtrConstant(0));
-
-  value = WordAnd(value, UintPtrConstant(kTrustedPointerTablePayloadMask));
   return CAST(BitcastWordToTagged(value));
 }
 

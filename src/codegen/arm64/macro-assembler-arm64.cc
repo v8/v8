@@ -3867,8 +3867,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
       Tbnz(handle, kCodePointerHandleMarkerBit, &done);
     }
 
-    ResolveTrustedPointerHandle(destination, handle,
-                                kAllPerIsolateIndirectPointerTags);
+    ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -3944,6 +3943,7 @@ void MacroAssembler::ResolveIndirectPointerHandle(
   // This function must not be used to resolve kAllIndirectPointerTags. Use
   // LoadTrustedUnknownPointerField for that instead.
   CHECK_NE(tag_range, kAllIndirectPointerTags);
+
   // The tag implies which pointer table to use.
   if (tag_range == kCodeIndirectPointerTag) {
     ResolveCodePointerHandle(destination, handle);
@@ -3966,19 +3966,24 @@ void MacroAssembler::ResolveTrustedPointerHandle(
   Ldr(destination,
       MemOperand(table, handle, LSL, kTrustedPointerTableEntrySizeLog2));
 
-  Register tag_reg = handle;
-  Lsr(tag_reg, destination, kTrustedPointerTableTagShift);
-
-  if (tag_range.Size() == 1) {
-    Cmp(tag_reg, Immediate(tag_range.first));
-    Csel(destination, destination, xzr, eq);
+  if (IsFastIndirectPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+    And(destination, destination, Immediate(mask));
   } else {
-    Sub(tag_reg, tag_reg, Immediate(tag_range.first));
-    Cmp(tag_reg, Immediate(tag_range.last - tag_range.first));
-    Csel(destination, destination, xzr, ls);
-  }
+    Register tag_reg = handle;
+    Lsr(tag_reg, destination, kTrustedPointerTableTagShift);
 
-  And(destination, destination, Immediate(kTrustedPointerTablePayloadMask));
+    if (tag_range.Size() == 1) {
+      Cmp(tag_reg, Immediate(tag_range.first));
+      Csel(destination, destination, xzr, eq);
+    } else {
+      Sub(tag_reg, tag_reg, Immediate(tag_range.first));
+      Cmp(tag_reg, Immediate(tag_range.last - tag_range.first));
+      Csel(destination, destination, xzr, ls);
+    }
+
+    And(destination, destination, Immediate(kTrustedPointerTablePayloadMask));
+  }
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,

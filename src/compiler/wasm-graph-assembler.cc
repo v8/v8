@@ -254,29 +254,35 @@ Node* WasmGraphAssembler::BuildDecodeTrustedPointer(
                          Internals::kTrustedPointerTableBasePointerOffset);
   Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
 
-  Node* tag =
-      WordShr(decoded_ptr, IntPtrConstant(kTrustedPointerTableTagShift));
-
-  auto ok = MakeLabel();
-  if (tag_range.Size() == 1) {
-    // The common and simple case: we expect exactly one tag.
-    Node* expected_tag = IntPtrConstant(tag_range.first);
-    GotoIf(WordEqual(tag, expected_tag), &ok, BranchHint::kTrue);
-    RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
-    Goto(&ok);  // Unreachable, but needed for graph coherency.
+  if (IsFastIndirectPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+    decoded_ptr = WordAnd(decoded_ptr, IntPtrConstant(mask));
   } else {
-    // Range check.
-    Node* diff = IntPtrSub(tag, IntPtrConstant(tag_range.first));
-    GotoIf(Uint64LessThanOrEqual(
-               diff, IntPtrConstant(tag_range.last - tag_range.first)),
-           &ok, BranchHint::kTrue);
-    RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
-    Goto(&ok);  // Unreachable, but needed for graph coherency.
+    Node* tag =
+        WordShr(decoded_ptr, IntPtrConstant(kTrustedPointerTableTagShift));
+
+    auto ok = MakeLabel();
+    if (tag_range.Size() == 1) {
+      // The common and simple case: we expect exactly one tag.
+      Node* expected_tag = IntPtrConstant(tag_range.first);
+      GotoIf(WordEqual(tag, expected_tag), &ok, BranchHint::kTrue);
+      RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
+      Goto(&ok);  // Unreachable, but needed for graph coherency.
+    } else {
+      // Range check.
+      Node* diff = IntPtrSub(tag, IntPtrConstant(tag_range.first));
+      GotoIf(Uint64LessThanOrEqual(
+                 diff, IntPtrConstant(tag_range.last - tag_range.first)),
+             &ok, BranchHint::kTrue);
+      RuntimeAbort(AbortReason::kIndirectPointerTagMismatch);
+      Goto(&ok);  // Unreachable, but needed for graph coherency.
+    }
+
+    Bind(&ok);
+    decoded_ptr =
+        WordAnd(decoded_ptr, IntPtrConstant(kTrustedPointerTablePayloadMask));
   }
 
-  Bind(&ok);
-  decoded_ptr =
-      WordAnd(decoded_ptr, IntPtrConstant(kTrustedPointerTablePayloadMask));
   // We have to change the type of the result value to Tagged, so if the value
   // gets spilled on the stack, it will get processed by the GC.
   decoded_ptr = BitcastWordToTagged(decoded_ptr);

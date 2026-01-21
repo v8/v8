@@ -136,8 +136,8 @@ V8_OBJECT class CallSiteInfo : public StructLayout {
   friend struct ObjectTraits<CallSiteInfo>;
 
   static constexpr IndirectPointerTagRange kCodeObjectTagRange =
-      IndirectPointerTagRange(kCodeIndirectPointerTag,
-                              kBytecodeArrayIndirectPointerTag);
+      IndirectPointerTagRange(kBytecodeArrayIndirectPointerTag,
+                              kCodeIndirectPointerTag);
   static_assert(kCodeObjectTagRange.Size() == 2);
 
   TrustedPointerMember<Union<Code, BytecodeArray>, kCodeObjectTagRange>

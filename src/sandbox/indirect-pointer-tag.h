@@ -47,25 +47,28 @@ enum IndirectPointerTag : uint16_t {
   kSharedWasmDispatchTableIndirectPointerTag,
   kLastSharedTrustedPointerTag = kSharedWasmDispatchTableIndirectPointerTag,
 
-  // Code pointers are special as they use a dedicated table (CodePointerTable).
-  kCodeIndirectPointerTag,
-
   // Trusted pointers using these tags are kept in a per-Isolate trusted
   // pointer table and can only be accessed when this Isolate is active.
-  kFirstPerIsolateTrustedPointerTag,
-  kBytecodeArrayIndirectPointerTag = kFirstPerIsolateTrustedPointerTag,
-  kInterpreterDataIndirectPointerTag,
-  kUncompiledDataIndirectPointerTag,
-  kWasmExportedFunctionDataIndirectPointerTag,
+  kFirstPerIsolateTrustedPointerTag = kLastSharedTrustedPointerTag + 1,
+  kWasmExportedFunctionDataIndirectPointerTag =
+      kFirstPerIsolateTrustedPointerTag,
   kWasmJSFunctionDataIndirectPointerTag,
   kWasmCapiFunctionDataIndirectPointerTag,
-  kAsmWasmDataIndirectPointerTag,
-  kRegExpDataIndirectPointerTag,
   kWasmTrustedInstanceDataIndirectPointerTag,
   kWasmInternalFunctionIndirectPointerTag,
   kWasmDispatchTableIndirectPointerTag,
   kWasmSuspenderIndirectPointerTag,
-  kLastPerIsolateTrustedPointerTag = kWasmSuspenderIndirectPointerTag,
+  kAsmWasmDataIndirectPointerTag,
+  kRegExpDataIndirectPointerTag,
+  kInterpreterDataIndirectPointerTag,
+  kUncompiledDataIndirectPointerTag,
+  kBytecodeArrayIndirectPointerTag = 0x3f,
+  kLastPerIsolateTrustedPointerTag = kBytecodeArrayIndirectPointerTag,
+
+  // Code pointers are special as they use a dedicated table (CodePointerTable).
+  // We place the tag here (at 0x40) so that the "regular" trusted pointer tags
+  // form a coherent range [1, 0x3f] which can be untagged with a single mask.
+  kCodeIndirectPointerTag = 0x40,
 
   // Special tags.
   //
@@ -98,12 +101,53 @@ enum IndirectPointerTag : uint16_t {
 
 using IndirectPointerTagRange = TagRange<IndirectPointerTag>;
 
+// "Fast" tags are those that are powers of two. In that case, we can simply
+// mask out the tag bit (and the marking bit) from the payload to untag the
+// pointer. If the tags don't match, we'll be left with a non-canonical pointer
+// which is guaranteed to crash on use. This is slightly more efficient than
+// the generic tag-extract-and-compare approach.
+V8_INLINE constexpr bool IsFastIndirectPointerTag(IndirectPointerTag tag) {
+  DCHECK_NE(tag, kIndirectPointerNullTag);
+  return base::bits::IsPowerOfTwo(tag);
+}
+
+// Tag ranges are "fast" if they can be untagged with a single AND operation.
+V8_INLINE constexpr bool IsFastIndirectPointerTagRange(
+    IndirectPointerTagRange tag_range) {
+  DCHECK_NE(tag_range.first, kIndirectPointerNullTag);
+  // A tag range is "fast" (i.e. can be untagged via a single mask) if either:
+  // 1. It contains a single tag which is "fast" (a power of two).
+  // 2. It starts at 1 and ends at a power-of-two minus one.
+  //
+  // In both cases, the tag bits can be masked off with a single AND operation.
+  // If the tag is not within the range, the resulting pointer will have at
+  // least one bit set in the tag area and will therefore be non-canonical,
+  // which is guaranteed to crash on use.
+  if (tag_range.Size() == 1) {
+    return IsFastIndirectPointerTag(tag_range.first);
+  } else {
+    uint16_t first = static_cast<uint16_t>(tag_range.first);
+    uint16_t last = static_cast<uint16_t>(tag_range.last);
+    return first == 1 && base::bits::IsPowerOfTwo(last + 1);
+  }
+}
+
+V8_INLINE constexpr uint64_t ComputeUntaggingMaskForFastIndirectPointerTag(
+    IndirectPointerTagRange tag_range) {
+  DCHECK(IsFastIndirectPointerTagRange(tag_range));
+  return ~(
+      (static_cast<uint64_t>(tag_range.last) << kTrustedPointerTableTagShift) |
+      kTrustedPointerTableMarkBit);
+}
+
 constexpr IndirectPointerTagRange kAllSharedIndirectPointerTags(
     kFirstSharedTrustedPointerTag, kLastSharedTrustedPointerTag);
 constexpr IndirectPointerTagRange kAllPerIsolateIndirectPointerTags(
     kFirstPerIsolateTrustedPointerTag, kLastPerIsolateTrustedPointerTag);
+constexpr IndirectPointerTagRange kAllTrustedPointerTags(
+    kFirstSharedTrustedPointerTag, static_cast<IndirectPointerTag>(0x3f));
 constexpr IndirectPointerTagRange kAllIndirectPointerTags(
-    kFirstSharedTrustedPointerTag, kLastPerIsolateTrustedPointerTag);
+    kFirstSharedTrustedPointerTag, static_cast<IndirectPointerTag>(0x7f));
 constexpr IndirectPointerTagRange kAllIndirectPointerTagsIncludingUnpublished(
     kFirstSharedTrustedPointerTag, kUnpublishedIndirectPointerTag);
 
@@ -111,14 +155,27 @@ constexpr IndirectPointerTagRange kWasmFunctionDataIndirectPointerTagRange(
     kWasmExportedFunctionDataIndirectPointerTag,
     kWasmCapiFunctionDataIndirectPointerTag);
 
-// The kAllIndirectPointerTags contains all regular tags...
-static_assert(kAllIndirectPointerTags.Contains(kAllSharedIndirectPointerTags));
+// The kAllTrustedPointerTags contains all trusted pointer tags but not code.
+static_assert(kAllTrustedPointerTags.Contains(kAllSharedIndirectPointerTags));
 static_assert(
-    kAllIndirectPointerTags.Contains(kAllPerIsolateIndirectPointerTags));
-// ... but not special tags like the one for unpublished entries...
+    kAllTrustedPointerTags.Contains(kAllPerIsolateIndirectPointerTags));
+static_assert(!kAllTrustedPointerTags.Contains(kCodeIndirectPointerTag));
+
+// The kAllIndirectPointerTags contains all regular tags including the code tag.
+static_assert(kAllIndirectPointerTags.Contains(kAllTrustedPointerTags));
+static_assert(kAllIndirectPointerTags.Contains(kAllTrustedPointerTags));
+static_assert(kAllIndirectPointerTags.Contains(kCodeIndirectPointerTag));
+
+// None of the above must contain any special entries though.
 static_assert(
     !kAllIndirectPointerTags.Contains(kUnpublishedIndirectPointerTag));
-// ... which is only included in kAllIndirectPointerTagsIncludingUnpublished.
+static_assert(!kAllTrustedPointerTags.Contains(kUnpublishedIndirectPointerTag));
+
+// Both ranges are expected to be fast.
+static_assert(IsFastIndirectPointerTagRange(kAllIndirectPointerTags));
+static_assert(IsFastIndirectPointerTagRange(kAllTrustedPointerTags));
+
+// These are only included in kAllIndirectPointerTagsIncludingUnpublished.
 static_assert(kAllIndirectPointerTagsIncludingUnpublished.Contains(
     kUnpublishedIndirectPointerTag));
 static_assert(kAllIndirectPointerTagsIncludingUnpublished.Contains(

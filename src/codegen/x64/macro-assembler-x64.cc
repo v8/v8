@@ -797,8 +797,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
       j(not_zero, &done, Label::kNear);
     }
 
-    ResolveTrustedPointerHandle(destination, handle,
-                                kAllPerIsolateIndirectPointerTags);
+    ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -868,6 +867,7 @@ void MacroAssembler::ResolveIndirectPointerHandle(
   // This function must not be used to resolve kAllIndirectPointerTags. Use
   // LoadTrustedUnknownPointerField for that instead.
   CHECK_NE(tag_range, kAllIndirectPointerTags);
+
   // The tag implies which pointer table to use.
   if (tag_range == kCodeIndirectPointerTag) {
     ResolveCodePointerHandle(destination, handle);
@@ -888,24 +888,30 @@ void MacroAssembler::ResolveTrustedPointerHandle(
        Operand{kRootRegister, IsolateData::trusted_pointer_table_offset()});
   movq(destination, Operand{destination, handle, times_8, 0});
 
-  Register scratch = kScratchRegister;
-  movq(scratch, destination);
-  shrq(scratch, Immediate(kTrustedPointerTableTagShift));
-
-  Label done;
-  if (tag_range.Size() == 1) {
-    cmpl(scratch, Immediate(tag_range.first));
-    j(equal, &done, Label::kNear);
+  if (IsFastIndirectPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+    movq(kScratchRegister, Immediate64(mask));
+    andq(destination, kScratchRegister);
   } else {
-    subl(scratch, Immediate(tag_range.first));
-    cmpl(scratch, Immediate(tag_range.last - tag_range.first));
-    j(below_equal, &done, Label::kNear);
-  }
-  xorq(destination, destination);
-  bind(&done);
+    Register scratch = kScratchRegister;
+    movq(scratch, destination);
+    shrq(scratch, Immediate(kTrustedPointerTableTagShift));
 
-  shlq(destination, Immediate(16));
-  shrq(destination, Immediate(16));
+    Label done;
+    if (tag_range.Size() == 1) {
+      cmpl(scratch, Immediate(tag_range.first));
+      j(equal, &done, Label::kNear);
+    } else {
+      subl(scratch, Immediate(tag_range.first));
+      cmpl(scratch, Immediate(tag_range.last - tag_range.first));
+      j(below_equal, &done, Label::kNear);
+    }
+    xorq(destination, destination);
+    bind(&done);
+
+    shlq(destination, Immediate(16));
+    shrq(destination, Immediate(16));
+  }
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,
