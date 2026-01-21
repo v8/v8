@@ -337,6 +337,9 @@
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
   'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
+
+  # https://crbug.com/475386940
+  'test-cpu-profiler/NativeMethodMonomorphicIC': [SKIP],
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
