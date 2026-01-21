@@ -1001,6 +1001,18 @@ inline void MaglevAssembler::JumpIf(Condition cond, Label* target,
   }
   DCHECK_IMPLIES(IsDeoptLabel(target), distance == Label::kFar);
   j(cond, target, distance);
+
+  // TODO(mdanylo): this code was added to `JumpIf` because comment above states
+  // that all eager deopts bottom out in `JumpIf`. In fact that's not true.
+  // We should either fix all eager deopts to go to this call or add this code
+  // to the places where it might be needed too.
+#ifdef V8_DUMPLING
+  if (v8_flags.maglev_dumping && IsDeoptLabel(target) &&
+      IsTopFrameInterpreted(target) &&
+      !isolate()->dumpling_manager()->IsIsolateDumpDisabled()) {
+    CallBuiltin(Builtin::kDumpFrame);
+  }
+#endif  // V8_DUMPLING
 }
 
 inline void MaglevAssembler::JumpIfRoot(Register with, RootIndex index,

@@ -7,9 +7,11 @@
 #include <fstream>
 
 #include "src/dumpling/object-dumping.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/objects/bytecode-array-inl.h"
 #include "src/objects/bytecode-array.h"
+#include "src/objects/js-function-inl.h"
 
 namespace v8::internal {
 
@@ -25,7 +27,47 @@ V8_INLINE void MaybePrint(std::string short_name,
 
 }  // namespace
 
-void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
+Tagged<JSFunction> DumplingUnoptimizedJSFrame::function() {
+  return frame_->function();
+}
+
+Tagged<JSFunction> DumplingFrameDescriptionFrame::function() {
+  return Cast<JSFunction>(function_slot_object());
+}
+
+Tagged<Object> DumplingFrameDescriptionFrame::GetValueFromDescription(
+    int offset_from_fp) {
+  intptr_t fp_to_sp_delta = frame_->GetFp() - frame_->GetTop();
+  unsigned offset_from_sp =
+      static_cast<unsigned>(offset_from_fp + fp_to_sp_delta);
+  Address raw_value = frame_->GetFrameSlot(offset_from_sp);
+
+  // TODO(mdanylo): it's not really optimized out, but as we
+  // not materialize values only temporarily, it will do.
+  if (raw_value == 0xdeadbeef) {
+    return ReadOnlyRoots(isolate_).optimized_out();
+  }
+
+  return Tagged<Object>(raw_value);
+}
+
+void DumplingManager::PrintDumpedFrame(DumplingJSFrame* frame,
+                                       Tagged<JSFunction> function,
+                                       Isolate* isolate, int bytecode_offset,
+                                       DumpFrameType frame_dump_type) {
+  Handle<BytecodeArray> bytecode_array(
+      function->shared()->GetBytecodeArray(isolate), isolate);
+
+  // accumulator is located directly after the registers in the stack frame
+  int accumulator_reg_idx = bytecode_array->register_count();
+  Tagged<Object> accumulator_t = frame->GetRegisterValue(accumulator_reg_idx);
+  Handle<Object> accumulator(accumulator_t, isolate);
+
+  DoPrint(frame, function, bytecode_offset, frame_dump_type, bytecode_array,
+          accumulator);
+}
+
+void DumplingManager::DoPrint(DumplingJSFrame* frame,
                               Tagged<JSFunction> function, int bytecode_offset,
                               DumpFrameType frame_dump_type,
                               Handle<BytecodeArray> bytecode_array,
@@ -38,6 +80,9 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
       break;
     case DumpFrameType::kSparkplugFrame:
       dumpling_os_ << "---S" << '\n';
+      break;
+    case DumpFrameType::kMaglevFrame:
+      dumpling_os_ << "---M" << '\n';
       break;
     default:
       UNREACHABLE();
@@ -78,7 +123,7 @@ void DumplingManager::DoPrint(UnoptimizedJSFrame* frame,
 
   for (int i = 0; i < register_count; i++) {
     std::stringstream check_reg;
-    Tagged<Object> reg_object = frame->ReadInterpreterRegister(i);
+    Tagged<Object> reg_object = frame->GetRegisterValue(i);
     DifferentialFuzzingPrint(reg_object, check_reg);
     std::string label = "r" + std::to_string(i) + ":";
     MaybePrint(label, DumpReg(i, check_reg.str()), dumpling_os_);
@@ -171,7 +216,8 @@ DumplingManager::~DumplingManager() {
 }
 
 bool DumplingManager::AnyDumplingFlagsSet() const {
-  return v8_flags.interpreter_dumping || v8_flags.sparkplug_dumping;
+  return v8_flags.interpreter_dumping || v8_flags.sparkplug_dumping ||
+         v8_flags.maglev_dumping;
 }
 
 void DumplingManager::RecordDumpPosition(int function_id, int bytecode_offset) {

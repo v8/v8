@@ -424,6 +424,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline Label* GetDeoptLabel(NodeT* node, DeoptimizeReason reason);
   inline bool IsDeoptLabel(Label* label);
   inline void EmitEagerDeoptStress(Label* label);
+#ifdef V8_DUMPLING
+  inline bool IsTopFrameInterpreted(Label* label);
+#endif  // V8_DUMPLING
   template <typename NodeT>
   inline void EmitEagerDeopt(NodeT* node, DeoptimizeReason reason);
   template <typename NodeT>
@@ -1029,6 +1032,19 @@ inline bool MaglevAssembler::IsDeoptLabel(Label* label) {
   }
   return false;
 }
+
+#ifdef V8_DUMPLING
+inline bool MaglevAssembler::IsTopFrameInterpreted(Label* label) {
+  DCHECK(IsDeoptLabel(label));
+  for (auto deopt : code_gen_state_->eager_deopts()) {
+    if (deopt->deopt_entry_label() == label) {
+      return deopt->top_frame().type() ==
+             DeoptFrame::FrameType::kInterpretedFrame;
+    }
+  }
+  UNREACHABLE();
+}
+#endif  // V8_DUMPLING
 
 template <typename NodeT>
 inline Label* MaglevAssembler::GetDeoptLabel(NodeT* node,

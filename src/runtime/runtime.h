@@ -118,6 +118,12 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WeakCollectionSet, 4, 1)                 \
   F(OrderedHashMapGrow, 2, 1)
 
+#ifdef V8_DUMPLING
+#define FOR_EACH_INTRINSIC_COMPILER_DUMPLING(F, I) F(PrintDumpedFrame, 1, 1)
+#else
+#define FOR_EACH_INTRINSIC_COMPILER_DUMPLING(F, I)
+#endif  // V8_DUMPLING
+
 #define FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I) \
   F(CompileOptimizedOSR, 0, 1)                    \
   F(CompileOptimizedOSRFromMaglev, 1, 1)          \
@@ -145,8 +151,9 @@ constexpr bool CanTriggerGC(T... properties) {
   F(StartTurbofanOptimizeJob, 1, 1)      \
   F(MarkLazyDeoptimized, 2, 1)
 
-#define FOR_EACH_INTRINSIC_COMPILER(F, I)   \
-  FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I) \
+#define FOR_EACH_INTRINSIC_COMPILER(F, I)    \
+  FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I)  \
+  FOR_EACH_INTRINSIC_COMPILER_DUMPLING(F, I) \
   FOR_EACH_INTRINSIC_TIERING(F, I)
 
 #define FOR_EACH_INTRINSIC_DATE(F, I) F(DateCurrentTime, 0, 1)

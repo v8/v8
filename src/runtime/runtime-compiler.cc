@@ -464,6 +464,26 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
 
 }  // namespace
 
+#ifdef V8_DUMPLING
+RUNTIME_FUNCTION(Runtime_PrintDumpedFrame) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CHECK(isolate->context().is_null());
+
+  DCHECK(!AllowGarbageCollection::IsAllowed());
+
+  Deoptimizer* dumper = isolate->GetAndClearCurrentDeoptimizer();
+
+  Tagged<Context> saved_context = isolate->context();
+  isolate->set_context(dumper->function()->native_context());
+  dumper->VirtualMaterializeAndPrint();
+  delete dumper;
+
+  isolate->set_context(saved_context);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+#endif  // V8_DUMPLING
+
 RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());

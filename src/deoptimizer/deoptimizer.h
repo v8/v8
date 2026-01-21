@@ -83,6 +83,12 @@ class Deoptimizer : public Malloced {
     return bytecode_offset_in_outermost_frame_;
   }
 
+// TODO(mdanylo): for Dumpling only use ro-functions that are guaranteed to not
+// change state and metadata.
+#ifdef V8_DUMPLING
+  void VirtualMaterializeAndPrint();
+#endif  // V8_DUMPLING
+
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           Address from, int fp_to_sp_delta, Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);

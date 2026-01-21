@@ -266,8 +266,9 @@ RUNTIME_FUNCTION(Runtime_DumpExecutionFrame) {
     DCHECK_GE(function_local_bytecode_offset, 0);
     DumpFrameType frame_dump_type =
         is_sparkplug ? kSparkplugFrame : kInterpreterFrame;
+    DumplingUnoptimizedJSFrame frame_view(frame);
     isolate->dumpling_manager()->DoPrint(
-        frame, function, function_local_bytecode_offset, frame_dump_type,
+        &frame_view, function, function_local_bytecode_offset, frame_dump_type,
         bytecode_array, accumulator);
   }
 

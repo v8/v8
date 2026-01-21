@@ -2293,12 +2293,19 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(StringPrototypeToUpperCase, kDontAdaptArgumentsSentinel)
 #endif  // V8_INTL_SUPPORT
 
+#ifdef V8_DUMPLING
+#define BUILTIN_LIST_DUMPLING(ASM) ASM(DumpFrame, Void)
+#else
+#define BUILTIN_LIST_DUMPLING(ASM)
+#endif
+
 #define BUILTIN_LIST(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, BCH, \
                      ASM)                                                     \
   BUILTIN_LIST_BASE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)           \
   BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)             \
   BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                            \
   BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                             \
+  BUILTIN_LIST_DUMPLING(ASM)                                                  \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH_TSA, BCH)
 
 // See the comment on top of BUILTIN_LIST_BASE_TIER0 for an explanation of
@@ -2306,12 +2313,13 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST_TIER0(CPP, TFJ, TFC, TFS, TFH, BCH, ASM) \
   BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)
 
-#define BUILTIN_LIST_TIER1(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, \
-                           BCH, ASM)                                           \
-  BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, ASM)               \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)              \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                             \
-  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                              \
+#define BUILTIN_LIST_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, BCH_TSA, BCH, \
+                           ASM)                                            \
+  BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, ASM)           \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)          \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                         \
+  BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                          \
+  BUILTIN_LIST_DUMPLING(ASM)                                               \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH_TSA, BCH)
 
 // The exception thrown in the following builtins are caught

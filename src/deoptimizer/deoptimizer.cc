@@ -1514,6 +1514,51 @@ bool DeoptimizedMaglevvedCodeEarly(Isolate* isolate,
 
 }  // namespace
 
+#ifdef V8_DUMPLING
+void Deoptimizer::VirtualMaterializeAndPrint() {
+  TranslatedFrame* trans_frame =
+      &(translated_state_.frames()[output_count_ - 1]);
+  DCHECK_EQ(trans_frame->kind(), TranslatedFrame::kUnoptimizedFunction);
+  FrameDescription* frame_to_print = output_[output_count_ - 1];
+  {
+    // Materialize objects and put their addresses into FrameDescription
+    // instead of touching real stack.
+    auto update_frame_slot = [&frame_to_print](Address target_addr,
+                                               intptr_t value) {
+      Address top = frame_to_print->GetTop();
+      Address bottom = top + frame_to_print->GetFrameSize();
+
+      if (target_addr >= top && target_addr < bottom) {
+        int offset = static_cast<int>(target_addr - top);
+        DCHECK_GE(offset, 0);
+        frame_to_print->SetFrameSlot(offset, value);
+      }
+    };
+    // TODO(mdanylo): implement printing without materialization.
+    for (auto& materialization : values_to_materialize_) {
+      update_frame_slot(materialization.output_slot_address_, 0xdeadbeef);
+    }
+
+    for (auto& fbv_mat : feedback_vector_to_materialize_) {
+      update_frame_slot(fbv_mat.output_slot_address_, 0xdeadbeef);
+    }
+  }
+
+  DumplingFrameDescriptionFrame frame_view(frame_to_print, isolate());
+
+  Tagged<JSFunction> function = frame_view.function();
+  int bytecode_offset = trans_frame->bytecode_offset().ToInt();
+
+  DCHECK(compiled_code_->is_maglevved());
+
+  isolate()->dumpling_manager()->PrintDumpedFrame(&frame_view, function,
+                                                  isolate(), bytecode_offset,
+                                                  DumpFrameType::kMaglevFrame);
+
+  DeleteFrameDescriptions();
+}
+#endif  // V8_DUMPLING
+
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
 void Deoptimizer::DoComputeOutputFrames() {

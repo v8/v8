@@ -7,6 +7,7 @@
 
 #include <fstream>
 
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/interpreter/bytecodes.h"
 
@@ -15,7 +16,68 @@ namespace v8::internal {
 typedef enum DumpFrameType {
   kInterpreterFrame = 0,
   kSparkplugFrame = 1,
+  kMaglevFrame = 2,
 } DumpFrameType;
+
+// Wrapper around UnoptimizedJSFunction or FrameDescription. We can't
+// convert FrameDescription to UnoptimizedJSFunction without invasive
+// constructor hacking in the deoptimizer. Therefore we choose to wrap.
+class DumplingJSFrame {
+ public:
+  virtual Tagged<Object> GetRegisterValue(int reg_idx) = 0;
+  virtual Tagged<Object> GetParameter(int param_idx) = 0;
+  virtual Tagged<JSFunction> function() = 0;
+};
+
+class DumplingUnoptimizedJSFrame : public DumplingJSFrame {
+ public:
+  explicit DumplingUnoptimizedJSFrame(UnoptimizedJSFrame* frame)
+      : frame_(frame) {}
+
+  Tagged<Object> GetRegisterValue(int reg_idx) override {
+    return frame_->ReadInterpreterRegister(reg_idx);
+  }
+  Tagged<Object> GetParameter(int param_idx) override {
+    return frame_->GetParameter(param_idx);
+  }
+  Tagged<JSFunction> function() override;
+
+ private:
+  UnoptimizedJSFrame* frame_;
+};
+
+class DumplingFrameDescriptionFrame : public DumplingJSFrame {
+ public:
+  explicit DumplingFrameDescriptionFrame(FrameDescription* frame,
+                                         Isolate* isolate)
+      : frame_(frame), isolate_(isolate) {}
+
+  Tagged<Object> GetRegisterValue(int reg_idx) override {
+    int offset_from_fp = UnoptimizedFrameConstants::kExpressionsOffset -
+                         (reg_idx * kSystemPointerSize);
+
+    return GetValueFromDescription(offset_from_fp);
+  }
+
+  Tagged<Object> GetParameter(int param_idx) override {
+    int offset_from_fp = CommonFrameConstants::kCallerSPOffset +
+                         ((param_idx + 1) * kSystemPointerSize);
+
+    return GetValueFromDescription(offset_from_fp);
+  }
+  Tagged<JSFunction> function() override;
+
+ private:
+  Tagged<Object> GetValueFromDescription(int offset_from_fp);
+
+  Tagged<Object> function_slot_object() {
+    int offset_from_fp = StandardFrameConstants::kFunctionOffset;
+    return GetValueFromDescription(offset_from_fp);
+  }
+
+  FrameDescription* frame_;
+  Isolate* isolate_;
+};
 
 class DumplingManager {
  public:
@@ -30,7 +92,7 @@ class DumplingManager {
     return !IsIsolateDumpDisabled() && AnyDumplingFlagsSet();
   }
 
-  void DoPrint(UnoptimizedJSFrame* frame, Tagged<JSFunction> function,
+  void DoPrint(DumplingJSFrame* frame, Tagged<JSFunction> function,
                int bytecode_offset, DumpFrameType frame_dump_type,
                Handle<BytecodeArray> bytecode_array,
                Handle<Object> accumulator);
@@ -39,6 +101,10 @@ class DumplingManager {
   void FinishCurrentREPRLCycle();
   // We need to clean files and caches.
   void PrepareForNextREPRLCycle();
+
+  void PrintDumpedFrame(DumplingJSFrame* frame, Tagged<JSFunction> function,
+                        Isolate* isolate, int bytecode_offset,
+                        DumpFrameType frame_dump_type);
 
  private:
   bool AnyDumplingFlagsSet() const;
