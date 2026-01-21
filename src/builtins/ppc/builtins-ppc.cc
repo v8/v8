@@ -4620,7 +4620,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register undef = r7;
   Register scratch = r8;
 
-  DCHECK(!AreAliased(callback, scratch, undef));
+  DCHECK(!AreAliased(name_arg, property_callback_info_arg, callback, scratch,
+                     undef));
 
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
   __ Move(scratch, ER::isolate_address());
