@@ -112,6 +112,16 @@ in_category(
         notifies = ["v8-infra-cc"],
     ),
     integration_builder(
+        name = "Mac V8 FYI Release (Apple M2)",
+        bucket = "ci",
+        triggered_by = ["v8-trigger"],
+        executable = "recipe:chromium_integration",
+        dimensions = {"os": "Mac", "cpu": "x86-64"},
+        execution_timeout = 3600 * 3,
+        properties = {"builder_group": "client.v8.fyi"},
+        notifies = ["v8-infra-cc"],
+    ),
+    integration_builder(
         name = "Mac V8 FYI Release (Intel)",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
