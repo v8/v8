@@ -72,6 +72,23 @@ void PrintDouble(std::ostream& os, double val) {
 
 #ifdef OBJECT_PRINT
 
+const char* JSIteratorHelperStateToString(JSIteratorHelperState state) {
+  switch (state) {
+    case JSIteratorHelperState::kSuspendedStart:
+      return "SUSPENDED_START";
+    case JSIteratorHelperState::kSuspendedYield:
+      return "SUSPENDED_YIELD";
+    case JSIteratorHelperState::kExecuting:
+      return "EXECUTING";
+    case JSIteratorHelperState::kCompleted:
+      return "COMPLETED";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, JSIteratorHelperState state) {
+  return os << JSIteratorHelperStateToString(state);
+}
+
 void Print(Tagged<Object> obj) {
   // Output into debugger's command window if a debugger is attached.
   DbgStdoutStream dbg_os;
@@ -2289,54 +2306,56 @@ void JSAsyncDisposableStack::JSAsyncDisposableStackPrint(std::ostream& os) {
 void JSIteratorHelper::JSIteratorHelperPrintHeader(std::ostream& os,
                                                    const char* helper_name) {
   JSObjectPrintHeader(os, *this, helper_name);
-  os << "\n - underlying.object: " << Brief(underlying_object());
-  os << "\n - underlying.next: " << Brief(underlying_next());
+  os << "\n - state: " << state();
+}
+
+void JSIteratorHelperSimple::JSIteratorHelperSimplePrintHeader(
+    std::ostream& os, const char* helper_name) {
+  JSIteratorHelperPrintHeader(os, helper_name);
+  os << "\n - underlying.object: " << Brief(underlying_iterator_object());
+  os << "\n - underlying.next: " << Brief(underlying_iterator_next());
 }
 
 void JSIteratorMapHelper::JSIteratorMapHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorMapHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorMapHelper");
   os << "\n - mapper: " << Brief(mapper());
   os << "\n - counter: " << counter();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorFilterHelper::JSIteratorFilterHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorFilterHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorFilterHelper");
   os << "\n - predicate: " << Brief(predicate());
   os << "\n - counter: " << counter();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorTakeHelper::JSIteratorTakeHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorTakeHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorTakeHelper");
   os << "\n - remaining: " << remaining();
-  os << "\n - innerAlive" << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorDropHelper::JSIteratorDropHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorDropHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorDropHelper");
   os << "\n - remaining: " << remaining();
-  os << "\n - innerAlive" << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorFlatMapHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorFlatMapHelper");
   os << "\n - mapper: " << Brief(mapper());
   os << "\n - counter: " << counter();
-  os << "\n - innerIterator.object" << Brief(innerIterator_object());
-  os << "\n - innerIterator.next" << Brief(innerIterator_next());
-  os << "\n - innerAlive" << innerAlive();
+  os << "\n - inner_iterator.object" << Brief(inner_iterator_object());
+  os << "\n - inner_iterator.next" << Brief(inner_iterator_next());
   JSObjectPrintBody(os, *this);
 }
 
 void JSIteratorConcatHelper::JSIteratorConcatHelperPrint(std::ostream& os) {
-  JSIteratorHelperPrintHeader(os, "JSIteratorConcatHelper");
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorConcatHelper");
   os << "\n - iterables: " << Brief(iterables()) << " {";
   PrintFixedArrayElements(os, iterables());
   os << "\n - current: " << current();
-  os << "\n - innerAlive: " << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 

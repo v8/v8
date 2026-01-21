@@ -167,6 +167,7 @@ namespace internal {
   V(JSGlobalObject)                             \
   V(JSGlobalProxy)                              \
   V(JSIteratorHelper)                           \
+  V(JSIteratorHelperSimple)                     \
   V(JSIteratorFilterHelper)                     \
   V(JSIteratorMapHelper)                        \
   V(JSIteratorTakeHelper)                       \

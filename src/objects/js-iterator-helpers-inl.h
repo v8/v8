@@ -19,6 +19,7 @@ namespace internal {
 #include "torque-generated/src/objects/js-iterator-helpers-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorHelper)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorHelperSimple)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorMapHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorFilterHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorTakeHelper)
