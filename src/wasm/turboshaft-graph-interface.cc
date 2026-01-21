@@ -1871,7 +1871,7 @@ class TurboshaftGraphBuildingInterface
     DCHECK_LE(sig->return_count(), 1);
 
     const MachineSignature* callback_sig =
-        env_->fast_api_signatures[func_index];
+        env_->fast_api_data[func_index].signature;
     // All normal parameters + the options as additional parameter at the end.
     MachineSignature::Builder builder(decoder->zone(), sig->return_count(),
                                       param_count + 1);
@@ -1986,7 +1986,7 @@ class TurboshaftGraphBuildingInterface
         call_descriptor, compiler::CanThrow::kNo,
         compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
     OpIndex target_address = __ ExternalConstant(ExternalReference::Create(
-        env_->fast_api_targets[func_index].load(std::memory_order_relaxed),
+        env_->fast_api_data[func_index].target.load(std::memory_order_relaxed),
         ExternalReference::FAST_C_CALL));
 
     V<Context> native_context = instance_cache_.native_context();
