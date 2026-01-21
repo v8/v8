@@ -717,7 +717,36 @@ void CodeGenerator::AssemblePrepareTailCall() {
 
 void CodeGenerator::AssembleArchSelect(Instruction* instr,
                                        FlagsCondition condition) {
-  UNIMPLEMENTED();
+  ASM_CODE_COMMENT(masm());
+  RiscvOperandConverter i(this, instr);
+  // The result register is always the last output of the instruction.
+  size_t output_index = instr->OutputCount() - 1;
+  MachineRepresentation rep =
+      LocationOperand::cast(instr->OutputAt(output_index))->representation();
+  Condition cc = FlagsConditionToConditionCmp(condition);
+  Register left = i.InputRegister(0);
+  Operand right = i.InputOperand(1);
+  // We don't know how many inputs were consumed by the condition, so we have to
+  // calculate the indices of the last two inputs.
+  DCHECK_GE(instr->InputCount(), 4);
+  size_t true_value_index = instr->InputCount() - 2;
+  size_t false_value_index = instr->InputCount() - 1;
+
+  if ((rep == MachineRepresentation::kFloat32) ||
+      (rep == MachineRepresentation::kFloat64)) {
+    UNREACHABLE();
+  } else if ((rep == MachineRepresentation::kWord32) ||
+             (rep == MachineRepresentation::kWord64)) {
+    auto true_op = i.InputRegister(true_value_index);
+    auto false_op = i.InputRegister(false_value_index);
+    Label true_label, end_label;
+    __ Branch(&true_label, cc, left, right);
+    __ Move(i.OutputRegister(output_index), false_op);
+    __ Branch(&end_label);
+    __ bind(&true_label);
+    __ Move(i.OutputRegister(output_index), true_op);
+    __ bind(&end_label);
+  }
 }
 
 namespace {
