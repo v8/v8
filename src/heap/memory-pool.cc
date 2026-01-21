@@ -503,8 +503,10 @@ void MemoryPool::PostDelayedReleaseTask(Isolate* isolate,
     isolate->task_runner()->PostDelayedTask(std::move(task),
                                             delay.InSecondsF());
   } else {
+    // We use priority `kUserVisible` to avoid priority inversion with the main
+    // thread when taking a global lock to work with the memory pool.
     V8::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
-        TaskPriority::kBestEffort, std::move(task), delay.InSecondsF());
+        TaskPriority::kUserVisible, std::move(task), delay.InSecondsF());
   }
   posted_time_.store(base::TimeTicks::Now(), std::memory_order_relaxed);
 }
