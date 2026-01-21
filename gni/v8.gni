@@ -281,7 +281,7 @@ if (v8_use_perfetto_sdk) {
 
 # Chromium is configured to use the perfetto client library, v8 should also
 # use perfetto for tracing.
-if (build_with_chromium && !use_fuzzing_engine) {
+if (build_with_chromium) {
   v8_use_perfetto = true
 }
 
