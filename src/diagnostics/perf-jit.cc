@@ -134,9 +134,6 @@ uint64_t PerfJitLogger::code_index_ = 0;
 FILE* PerfJitLogger::perf_output_handle_ = nullptr;
 
 void PerfJitLogger::OpenJitDumpFile() {
-  // Open the perf JIT dump file.
-  perf_output_handle_ = nullptr;
-
   size_t bufferSize = strlen(v8_flags.perf_prof_path) +
                       sizeof(kFilenameFormatString) + kFilenameBufferPadding;
   base::ScopedVector<char> perf_dump_name(bufferSize);
@@ -144,14 +141,19 @@ void PerfJitLogger::OpenJitDumpFile() {
                       v8_flags.perf_prof_path.value(), process_id_);
   CHECK_NE(size, -1);
 
-  int fd = open(perf_dump_name.begin(), O_CREAT | O_TRUNC | O_RDWR, 0666);
-  if (fd == -1) return;
+  int fd = open(perf_dump_name.begin(), O_RDWR | O_TRUNC | O_CREAT | O_NOFOLLOW,
+                0640);
+  if (fd == -1) {
+    FATAL("Failure (%s) to open perf-jit file at '%s'", strerror(errno),
+          perf_dump_name.begin());
+  }
 
   // If --perf-prof-delete-file is given, unlink the file right after opening
   // it. This keeps the file handle to the file valid. This only works on Linux,
   // which is the only platform supported for --perf-prof anyway.
-  if (v8_flags.perf_prof_delete_file)
+  if (v8_flags.perf_prof_delete_file) {
     CHECK_EQ(0, unlink(perf_dump_name.begin()));
+  }
 
   // On Linux, call OpenMarkerFile so that perf knows about the file path via
   // an MMAP record.
@@ -166,7 +168,7 @@ void PerfJitLogger::OpenJitDumpFile() {
 #endif
 
   perf_output_handle_ = fdopen(fd, "w+");
-  if (perf_output_handle_ == nullptr) return;
+  CHECK_NOT_NULL(perf_output_handle_);
 
   setvbuf(perf_output_handle_, nullptr, _IOFBF, kLogBufferSize);
 }
