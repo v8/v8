@@ -3894,15 +3894,20 @@ bool MarkCompactCollector::CompactTransitionArray(
   return descriptors_owner_died;
 }
 
-void MarkCompactCollector::RightTrimDescriptorArray(
-    Tagged<DescriptorArray> array, int descriptors_to_trim) {
-  int old_nof_all_descriptors = array->number_of_all_descriptors();
-  int new_nof_all_descriptors = old_nof_all_descriptors - descriptors_to_trim;
+namespace {
+
+void RightTrimDescriptorArray(Heap* heap, Tagged<DescriptorArray> array,
+                              int descriptors_to_trim) {
   DCHECK_LT(0, descriptors_to_trim);
+  const int old_nof_all_descriptors = array->number_of_all_descriptors();
+  const int new_nof_all_descriptors =
+      old_nof_all_descriptors - descriptors_to_trim;
   DCHECK_LE(0, new_nof_all_descriptors);
-  Address start = array->GetDescriptorSlot(new_nof_all_descriptors).address();
-  Address end = array->GetDescriptorSlot(old_nof_all_descriptors).address();
-  MutablePage* chunk = MutablePage::FromHeapObject(heap_->isolate(), array);
+  const Address start =
+      array->GetDescriptorSlot(new_nof_all_descriptors).address();
+  const Address end =
+      array->GetDescriptorSlot(old_nof_all_descriptors).address();
+  MutablePage* chunk = MutablePage::FromHeapObject(heap->isolate(), array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW_BACKGROUND>::RemoveRange(
@@ -3911,24 +3916,39 @@ void MarkCompactCollector::RightTrimDescriptorArray(
                                             SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
-  if (V8_COMPRESS_POINTERS_8GB_BOOL) {
-    Address aligned_start = ALIGN_TO_ALLOCATION_ALIGNMENT(start);
-    Address aligned_end = ALIGN_TO_ALLOCATION_ALIGNMENT(end);
-    if (aligned_start < aligned_end) {
-      heap_->CreateFillerObjectAt(
-          aligned_start, static_cast<int>(aligned_end - aligned_start));
-    }
-    if (heap::ShouldZapGarbage()) {
-      Address zap_end = std::min(aligned_start, end);
-      MemsetTagged(ObjectSlot(start),
-                   Tagged<Object>(static_cast<Address>(kZapValue)),
-                   (zap_end - start) >> kTaggedSizeLog2);
-    }
-  } else {
-    heap_->CreateFillerObjectAt(start, static_cast<int>(end - start));
+  const Address aligned_start = ALIGN_TO_ALLOCATION_ALIGNMENT(start);
+  const Address aligned_end = ALIGN_TO_ALLOCATION_ALIGNMENT(end);
+  if (aligned_start < aligned_end) {
+    heap->CreateFillerObjectAt(aligned_start,
+                               static_cast<int>(aligned_end - aligned_start));
+  }
+  if (heap::ShouldZapGarbage()) {
+    heap::ZapBlock(start, aligned_start - start, kZapValue);
   }
   array->set_number_of_all_descriptors(new_nof_all_descriptors);
 }
+
+void TrimEnumCache(Heap* heap, Tagged<Map> map,
+                   Tagged<DescriptorArray> descriptors) {
+  int live_enum = map->EnumLength();
+  if (live_enum == kInvalidEnumCacheSentinel) {
+    live_enum = map->NumberOfEnumerableProperties();
+  }
+  if (live_enum == 0) return descriptors->ClearEnumCache();
+  Tagged<EnumCache> enum_cache = descriptors->enum_cache();
+
+  Tagged<FixedArray> keys = enum_cache->keys();
+  int keys_length = keys->length();
+  if (live_enum >= keys_length) return;
+  heap->RightTrimArray(keys, live_enum, keys_length);
+
+  Tagged<FixedArray> indices = enum_cache->indices();
+  int indices_length = indices->length();
+  if (live_enum >= indices_length) return;
+  heap->RightTrimArray(indices, live_enum, indices_length);
+}
+
+}  // namespace
 
 void MarkCompactCollector::RecordStrongDescriptorArraysForWeakening(
     GlobalHandleVector<DescriptorArray> strong_descriptor_arrays) {
@@ -3956,40 +3976,27 @@ void MarkCompactCollector::TrimDescriptorArray(
     Tagged<Map> map, Tagged<DescriptorArray> descriptors) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) {
-    DCHECK(descriptors == ReadOnlyRoots(heap_).empty_descriptor_array());
+    DCHECK_EQ(descriptors, ReadOnlyRoots(heap_).empty_descriptor_array());
     return;
   }
+  const bool can_trim = v8_flags.trim_descriptor_arrays_in_gc &&
+                        (v8_flags.trim_descriptor_arrays_in_gc_with_stack ||
+                         !heap_->IsGCWithStack());
   int to_trim =
       descriptors->number_of_all_descriptors() - number_of_own_descriptors;
+  DCHECK_IMPLIES(to_trim == 0, descriptors->number_of_all_descriptors() ==
+                                   number_of_own_descriptors);
   if (to_trim > 0) {
     descriptors->set_number_of_descriptors(number_of_own_descriptors);
-    RightTrimDescriptorArray(descriptors, to_trim);
-
-    TrimEnumCache(map, descriptors);
+    if (can_trim) {
+      RightTrimDescriptorArray(heap_, descriptors, to_trim);
+    }
+    TrimEnumCache(heap_, map, descriptors);
     descriptors->Sort();
   }
-  DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
+  DCHECK_IMPLIES(can_trim, descriptors->number_of_all_descriptors() ==
+                               number_of_own_descriptors);
   map->set_owns_descriptors(true);
-}
-
-void MarkCompactCollector::TrimEnumCache(Tagged<Map> map,
-                                         Tagged<DescriptorArray> descriptors) {
-  int live_enum = map->EnumLength();
-  if (live_enum == kInvalidEnumCacheSentinel) {
-    live_enum = map->NumberOfEnumerableProperties();
-  }
-  if (live_enum == 0) return descriptors->ClearEnumCache();
-  Tagged<EnumCache> enum_cache = descriptors->enum_cache();
-
-  Tagged<FixedArray> keys = enum_cache->keys();
-  int keys_length = keys->length();
-  if (live_enum >= keys_length) return;
-  heap_->RightTrimArray(keys, live_enum, keys_length);
-
-  Tagged<FixedArray> indices = enum_cache->indices();
-  int indices_length = indices->length();
-  if (live_enum >= indices_length) return;
-  heap_->RightTrimArray(indices, live_enum, indices_length);
 }
 
 void MarkCompactCollector::ClearWeakCollections(JobDelegate* delegate) {

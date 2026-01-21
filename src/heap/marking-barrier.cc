@@ -146,8 +146,11 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
   DCHECK(HeapLayout::InReadOnlySpace(descriptor_array->map()));
   DCHECK(MemoryChunk::FromHeapObject(descriptor_array)->IsMarking());
 
-  // Only major GC uses custom liveness.
-  if (is_minor() || IsStrongDescriptorArray(descriptor_array)) {
+  // Only major GC uses custom liveness, and only when DescriptorArrays can be
+  // trimmed.
+  if (!v8_flags.trim_descriptor_arrays_in_gc ||
+      !v8_flags.trim_descriptor_arrays_in_gc_with_stack || is_minor() ||
+      IsStrongDescriptorArray(descriptor_array)) {
     MarkValueLocal(descriptor_array);
     return;
   }

@@ -2320,6 +2320,12 @@ DEFINE_INT(stress_sampling_allocation_profiler, 0,
 // Garbage collections flags.
 DEFINE_BOOL(lazy_new_space_shrinking, false,
             "Enables the lazy new space shrinking strategy")
+DEFINE_BOOL(trim_descriptor_arrays_in_gc, true,
+            "Shrink descriptor arrays during GCs")
+DEFINE_BOOL(trim_descriptor_arrays_in_gc_with_stack, true,
+            "Shrink descriptor arrays during GCs with stack")
+DEFINE_IMPLICATION(trim_descriptor_arrays_in_gc_with_stack,
+                   trim_descriptor_arrays_in_gc)
 DEFINE_SIZE_T(min_semi_space_size, 0,
               "min size of a semi-space (in MBytes), the new space consists of "
               "two semi-spaces")

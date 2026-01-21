@@ -808,8 +808,8 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArrayStrongly(
   VisitPointers(array, array->GetFirstPointerSlot(),
                 array->GetDescriptorSlot(0));
   VisitPointers(array, MaybeObjectSlot(array->GetDescriptorSlot(0)),
-                MaybeObjectSlot(
-                    array->GetDescriptorSlot(array->number_of_descriptors())));
+                MaybeObjectSlot(array->GetDescriptorSlot(
+                    array->number_of_all_descriptors())));
   return size;
 }
 
@@ -817,9 +817,11 @@ template <typename ConcreteVisitor>
 size_t MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
     Tagged<Map> map, Tagged<DescriptorArray> array,
     MaybeObjectSize maybe_object_size) {
-  if (!concrete_visitor()->CanUpdateValuesInHeap()) {
-    // If we cannot update the values in the heap, we just treat the array
-    // strongly.
+  if (!v8_flags.trim_descriptor_arrays_in_gc ||
+      !v8_flags.trim_descriptor_arrays_in_gc_with_stack ||
+      !concrete_visitor()->CanUpdateValuesInHeap()) {
+    // If we cannot update the values in the heap, or we might not be able to
+    // trim the DescriptorArray during GC, we just treat the array strongly.
     return VisitDescriptorArrayStrongly(map, array, maybe_object_size);
   }
 
@@ -922,7 +924,10 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(
 template <typename ConcreteVisitor>
 size_t MarkingVisitorBase<ConcreteVisitor>::VisitMap(
     Tagged<Map> meta_map, Tagged<Map> map, MaybeObjectSize maybe_object_size) {
-  VisitDescriptorsForMap(map);
+  if (v8_flags.trim_descriptor_arrays_in_gc &&
+      v8_flags.trim_descriptor_arrays_in_gc_with_stack) {
+    VisitDescriptorsForMap(map);
+  }
   // Mark the pointer fields of the Map. If there is a transitions array, it has
   // been marked already, so it is fine that one of these fields contains a
   // pointer to it.

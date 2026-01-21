@@ -315,7 +315,6 @@ class MarkCompactCollector final {
   void ClearFullMapTransitions();
   void TrimDescriptorArray(Tagged<Map> map,
                            Tagged<DescriptorArray> descriptors);
-  void TrimEnumCache(Tagged<Map> map, Tagged<DescriptorArray> descriptors);
   bool CompactTransitionArray(Tagged<Map> map,
                               Tagged<TransitionArray> transitions,
                               Tagged<DescriptorArray> descriptors);
@@ -381,9 +380,6 @@ class MarkCompactCollector final {
   static const int kEphemeronChunkSize = 8 * KB;
 
   int NumberOfParallelEphemeronVisitingTasks(size_t elements);
-
-  void RightTrimDescriptorArray(Tagged<DescriptorArray> array,
-                                int descriptors_to_trim);
 
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
