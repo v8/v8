@@ -1163,12 +1163,6 @@
 
   # Times out
   'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji': [SKIP],
-
-  # Unknown issue
-  # b/464065358
-  'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-export-star-as-from-and-import-star-as-and-export': [FAIL],
-  'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-import-star-as-and-export': [FAIL],
-  'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-export-star-as-from': [FAIL],
 }],
 # end import test262@bc5c6fe5bc9c82f031058e3bbe16bf3937a81fc5
 ####

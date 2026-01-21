@@ -79,6 +79,9 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
 
   // Get the namespace object for [module].  If it doesn't exist yet, it is
   // created.
+  static Handle<Cell> GetModuleNamespaceCell(
+      Isolate* isolate, Handle<Module> module,
+      ModuleImportPhase phase = ModuleImportPhase::kEvaluation);
   static DirectHandle<JSModuleNamespace> GetModuleNamespace(
       Isolate* isolate, Handle<Module> module,
       ModuleImportPhase phase = ModuleImportPhase::kEvaluation);

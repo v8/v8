@@ -2493,11 +2493,14 @@ void Module::ModuleVerify(Isolate* isolate) {
 
   CHECK_EQ(status() == Module::kErrored, !IsTheHole(exception(), isolate));
 
-  CHECK(IsUndefined(module_namespace(), isolate) ||
-        IsJSModuleNamespace(module_namespace()));
-  if (IsJSModuleNamespace(module_namespace())) {
+  CHECK(IsUndefined(module_namespace(), isolate) || IsCell(module_namespace()));
+  if (IsCell(module_namespace())) {
     CHECK_LE(Module::kLinking, status());
-    CHECK_EQ(Cast<JSModuleNamespace>(module_namespace())->module(), *this);
+    auto cell = Cast<Cell>(module_namespace());
+    CHECK(IsJSModuleNamespace(cell->value()) || IsUndefined(cell->value()));
+    if (IsJSModuleNamespace(cell->value())) {
+      CHECK_EQ(Cast<JSModuleNamespace>(cell->value())->module(), *this);
+    }
   }
 
   if (!(status() == kErrored || status() == kEvaluating ||

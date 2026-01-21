@@ -1329,7 +1329,7 @@ DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     int i = 0;
     for (auto entry : descr->namespace_imports()) {
       DirectHandle<SourceTextModuleInfoEntry> serialized_entry =
-          entry->Serialize(isolate);
+          entry.second->Serialize(isolate);
       namespace_imports->set(i++, *serialized_entry);
     }
   }

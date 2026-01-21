@@ -5508,6 +5508,8 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
+void Genesis::InitializeGlobal_js_esm_ns_reexport() {}
+
 void Genesis::InitializeGlobal_js_atomics_pause() {
   if (!v8_flags.js_atomics_pause) return;
   DirectHandle<JSGlobalObject> global(native_context()->global_object(),

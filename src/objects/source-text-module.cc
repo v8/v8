@@ -183,6 +183,8 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     Isolate* isolate, Handle<SourceTextModule> module,
     DirectHandle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
+  DCHECK(!export_name.is_null());
+
   Handle<Object> object(module->exports()->Lookup(export_name), isolate);
   if (IsCell(*object)) {
     // Already resolved (e.g. because it's a local export).
@@ -221,7 +223,11 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
   DCHECK(IsSourceTextModuleInfoEntry(*object));
   // Not yet resolved indirect export.
   auto entry = Cast<SourceTextModuleInfoEntry>(object);
-  Handle<String> import_name(Cast<String>(entry->import_name()), isolate);
+  MaybeHandle<String> import_name =
+      IsUndefined(entry->import_name())
+          ? MaybeHandle<String>()
+          : handle(Cast<String>(entry->import_name()), isolate);
+
   Handle<Script> script(module->GetScript(), isolate);
   MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
@@ -245,13 +251,14 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
 
 MaybeHandle<Cell> SourceTextModule::ResolveImport(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
-    Handle<String> name, int module_request_index, MessageLocation loc,
-    bool must_resolve, Module::ResolveSet* resolve_set) {
+    MaybeHandle<String> maybe_name, int module_request_index,
+    MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
   DirectHandle<ModuleRequest> module_request(
       Cast<ModuleRequest>(
           module->info()->module_requests()->get(module_request_index)),
       isolate);
-  switch (module_request->phase()) {
+  ModuleImportPhase phase = module_request->phase();
+  switch (phase) {
     case ModuleImportPhase::kSource: {
       DCHECK(v8_flags.js_source_phase_imports);
 
@@ -273,11 +280,20 @@ MaybeHandle<Cell> SourceTextModule::ResolveImport(
           isolate);
       DirectHandle<String> module_specifier(
           Cast<String>(module_request->specifier()), isolate);
-      MaybeHandle<Cell> result =
-          Module::ResolveExport(isolate, requested_module, module_specifier,
-                                name, loc, must_resolve, resolve_set);
-      DCHECK_IMPLIES(isolate->has_exception(), result.is_null());
-      return result;
+      Handle<String> name;
+      if (maybe_name.ToHandle(&name)) {
+        MaybeHandle<Cell> result =
+            Module::ResolveExport(isolate, requested_module, module_specifier,
+                                  name, loc, must_resolve, resolve_set);
+        DCHECK_IMPLIES(isolate->has_exception(), result.is_null());
+        return result;
+      } else {
+        // This is to resolve an indirect include of the * as namespace.
+        // b. If in.[[ImportName]] is namespace-object, then
+        //   i. Let namespace be GetModuleNamespace(importedModule,
+        //   in.[[ModuleRequest]].[[Phase]]).
+        return GetModuleNamespaceCell(isolate, requested_module, phase);
+      }
     }
     default:
       UNREACHABLE();
@@ -676,7 +692,11 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
                                         UnorderedModuleSet* visited) {
   DCHECK_GE(module->status(), Module::kLinking);
 
-  if (IsJSModuleNamespace(module->module_namespace())) return;  // Shortcut.
+  // Shortcut.
+  if (!IsUndefined(module->module_namespace()) &&
+      IsJSModuleNamespace(Cast<Cell>(module->module_namespace())->value())) {
+    return;
+  }
 
   bool cycle = !visited->insert(module).second;
   if (cycle) return;

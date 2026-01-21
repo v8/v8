@@ -93,6 +93,13 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
 bool SyntheticModule::FinishInstantiate(Isolate* isolate,
                                         DirectHandle<SyntheticModule> module) {
   module->SetStatus(kLinked);
+
+  // Ensure that if the namespace binding was created it is not empty.
+  if (!IsUndefined(module->module_namespace())) {
+    Module::GetModuleNamespace(isolate, handle(*module, isolate));
+    DCHECK(!IsUndefined(Cast<Cell>(module->module_namespace())->value()));
+  }
+
   return true;
 }
 

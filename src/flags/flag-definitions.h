@@ -348,6 +348,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_float16array,                                                         \
     "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16") \
   V(js_base_64, "Uint8Array to/from base64 and hex")                         \
+  V(js_esm_ns_reexport,                                                      \
+    "Support diamond-importing re-expored namespaces "                       \
+    "(https://github.com/tc39/ecma262/pull/3715)")                           \
   V(js_upsert, "upsert")
 
 #ifdef V8_INTL_SUPPORT

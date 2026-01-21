@@ -317,18 +317,39 @@ MaybeDirectHandle<Object> Module::Evaluate(Isolate* isolate,
   }
 }
 
-DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
-    Isolate* isolate, Handle<Module> module, ModuleImportPhase phase) {
+Handle<Cell> Module::GetModuleNamespaceCell(Isolate* isolate,
+                                            Handle<Module> module,
+                                            ModuleImportPhase phase) {
+  ReadOnlyRoots roots(isolate);
+
   DCHECK(phase == ModuleImportPhase::kEvaluation ||
          phase == ModuleImportPhase::kDefer);
-  Tagged<HeapObject> module_ns = phase == ModuleImportPhase::kEvaluation
-                                     ? module->module_namespace()
-                                     : module->deferred_module_namespace();
-  DirectHandle<HeapObject> object(module_ns, isolate);
+
+  Tagged<Object> maybe_cell = phase == ModuleImportPhase::kEvaluation
+                                  ? module->module_namespace()
+                                  : module->deferred_module_namespace();
+  if (!IsUndefined(maybe_cell, roots)) {
+    return handle(Cast<Cell>(maybe_cell), isolate);
+  }
+  Handle<Cell> cell = isolate->factory()->NewCell();
+  if (phase == ModuleImportPhase::kEvaluation) {
+    module->set_module_namespace(*cell);
+  } else {
+    module->set_deferred_module_namespace(*cell);
+  }
+  return cell;
+}
+
+DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
+    Isolate* isolate, Handle<Module> module, ModuleImportPhase phase) {
   ReadOnlyRoots roots(isolate);
-  if (!IsUndefined(*object, roots)) {
-    // Namespace object already exists.
-    return Cast<JSModuleNamespace>(object);
+
+  DCHECK(phase == ModuleImportPhase::kEvaluation ||
+         phase == ModuleImportPhase::kDefer);
+  DirectHandle<Cell> ns_cell = GetModuleNamespaceCell(isolate, module, phase);
+
+  if (auto cur = ns_cell->value(); !IsUndefined(cur, roots)) {
+    return direct_handle(Cast<JSModuleNamespace>(cur), isolate);
   }
 
   // Collect the export names.
@@ -363,12 +384,7 @@ DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
           ? isolate->factory()->NewJSModuleNamespace()
           : isolate->factory()->NewJSDeferredModuleNamespace();
   ns->set_module(*module);
-  if (phase == ModuleImportPhase::kEvaluation) {
-    module->set_module_namespace(*ns);
-  } else {
-    DCHECK(phase == ModuleImportPhase::kDefer);
-    module->set_deferred_module_namespace(*ns);
-  }
+  ns_cell->set_value(*ns);
 
   // Create the properties in the namespace object. Transition the object
   // to dictionary mode so that property addition is faster.

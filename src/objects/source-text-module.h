@@ -164,7 +164,7 @@ class SourceTextModule
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveImport(
       Isolate* isolate, DirectHandle<SourceTextModule> module,
-      Handle<String> name, int module_request_index, MessageLocation loc,
+      MaybeHandle<String> name, int module_request_index, MessageLocation loc,
       bool must_resolve, ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(

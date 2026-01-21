@@ -1852,6 +1852,10 @@ void Parser::ParseExportStar() {
   // never conflict with a string literal export name, as literal string export
   // names in local name positions (i.e. left of 'as' or in a clause without
   // 'as') are disallowed without a following 'from' clause.
+  //
+  // TODO(olivf): Investigate if the private local name is still needed.
+  // Re-exports of namespaces are now special exports which are resolved to the
+  // imported module's special namespace binding cell.
 
   ExpectContextualKeyword(ast_value_factory()->as_string());
   const AstRawString* export_name = ParseExportSpecifierName();
