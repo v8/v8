@@ -50,15 +50,15 @@ enum IndirectPointerTag : uint16_t {
   // Trusted pointers using these tags are kept in a per-Isolate trusted
   // pointer table and can only be accessed when this Isolate is active.
   kFirstPerIsolateTrustedPointerTag = kLastSharedTrustedPointerTag + 1,
-  kWasmExportedFunctionDataIndirectPointerTag =
-      kFirstPerIsolateTrustedPointerTag,
-  kWasmJSFunctionDataIndirectPointerTag,
-  kWasmCapiFunctionDataIndirectPointerTag,
-  kWasmTrustedInstanceDataIndirectPointerTag,
-  kWasmInternalFunctionIndirectPointerTag,
+  kWasmInternalFunctionIndirectPointerTag = kFirstPerIsolateTrustedPointerTag,
+  // Untagging performance matters for this tag, so it should be "fast".
+  kWasmTrustedInstanceDataIndirectPointerTag = 4,
   kWasmDispatchTableIndirectPointerTag,
   kWasmSuspenderIndirectPointerTag,
   kAsmWasmDataIndirectPointerTag,
+  kWasmExportedFunctionDataIndirectPointerTag,
+  kWasmJSFunctionDataIndirectPointerTag,
+  kWasmCapiFunctionDataIndirectPointerTag,
   kRegExpDataIndirectPointerTag,
   kInterpreterDataIndirectPointerTag,
   kUncompiledDataIndirectPointerTag,
@@ -180,6 +180,11 @@ static_assert(kAllIndirectPointerTagsIncludingUnpublished.Contains(
     kUnpublishedIndirectPointerTag));
 static_assert(kAllIndirectPointerTagsIncludingUnpublished.Contains(
     kAllIndirectPointerTags));
+
+// We expect certain tags to be "fast" as their untagging performance matters.
+// See crbug.com/476810009 for why this tag should be fast.
+static_assert(
+    IsFastIndirectPointerTag(kWasmTrustedInstanceDataIndirectPointerTag));
 
 V8_INLINE static constexpr bool IsSharedTrustedPointerType(
     IndirectPointerTag tag) {
