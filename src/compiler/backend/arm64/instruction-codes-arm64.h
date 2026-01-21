@@ -134,8 +134,6 @@ namespace compiler {
   V(Arm64I64x2Mul)                      \
   V(Arm64I32x4UConvertF32x4)            \
   V(Arm64I32x4BitMask)                  \
-  V(Arm64I32x4DotI16x8S)                \
-  V(Arm64I16x8DotI8x16S)                \
   V(Arm64I32x4DotI8x16AddS)             \
   V(Arm64IAddv)                         \
   V(Arm64IAddp)                         \

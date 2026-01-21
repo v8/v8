@@ -4774,8 +4774,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
 
 #define SIMD_BINOP_LIST(V)                        \
   V(I32x4Mul, kArm64I32x4Mul)                     \
-  V(I32x4DotI16x8S, kArm64I32x4DotI16x8S)         \
-  V(I16x8DotI8x16I7x16S, kArm64I16x8DotI8x16S)    \
   V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4) \
   V(I16x8Mul, kArm64I16x8Mul)                     \
   V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4) \
@@ -5015,11 +5013,47 @@ void InstructionSelector::VisitS128Zero(OpIndex node) {
 void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
   Arm64OperandGenerator g(this);
   const Simd128TernaryOp& op = Cast<Simd128TernaryOp>(node);
-  InstructionOperand output = CpuFeatures::IsSupported(DOTPROD)
-                                  ? g.DefineSameAsInput(node, 2)
-                                  : g.DefineAsRegister(node);
-  Emit(kArm64I32x4DotI8x16AddS, output, g.UseRegister(op.first()),
-       g.UseRegister(op.second()), g.UseRegister(op.third()));
+  InstructionOperand left = g.UseRegister(op.first());
+  InstructionOperand right = g.UseRegister(op.second());
+  InstructionOperand acc = g.UseRegister(op.third());
+
+  if (CpuFeatures::IsSupported(DOTPROD)) {
+    Emit(kArm64I32x4DotI8x16AddS, g.DefineSameAsInput(node, 2), left, right,
+         acc);
+  } else {
+    InstructionOperand smull = g.TempSimd128Register();
+    InstructionOperand smull2 = g.TempSimd128Register();
+    InstructionOperand addp = g.TempSimd128Register();
+    Emit(kArm64Smull | LaneSizeField::encode(16), smull, left, right);
+    Emit(kArm64Smull2 | LaneSizeField::encode(16), smull2, left, right);
+    Emit(kArm64IAddp | LaneSizeField::encode(16), addp, smull, smull2);
+    Emit(kArm64Sadalp | LaneSizeField::encode(32), g.DefineSameAsFirst(node),
+         acc, addp);
+  }
+}
+
+void VisitDot(InstructionSelector* selector, OpIndex node, int lane_size) {
+  Arm64OperandGenerator g(selector);
+  const Simd128BinopOp& op = selector->Cast<Simd128BinopOp>(node);
+  InstructionOperand left = g.UseRegister(op.left());
+  InstructionOperand right = g.UseRegister(op.right());
+
+  InstructionOperand smull = g.TempSimd128Register();
+  InstructionOperand smull2 = g.TempSimd128Register();
+  selector->Emit(kArm64Smull | LaneSizeField::encode(lane_size), smull, left,
+                 right);
+  selector->Emit(kArm64Smull2 | LaneSizeField::encode(lane_size), smull2, left,
+                 right);
+  selector->Emit(kArm64IAddp | LaneSizeField::encode(lane_size),
+                 g.DefineAsRegister(node), smull, smull2);
+}
+
+void InstructionSelector::VisitI16x8DotI8x16I7x16S(OpIndex node) {
+  VisitDot(this, node, 16);
+}
+
+void InstructionSelector::VisitI32x4DotI16x8S(OpIndex node) {
+  VisitDot(this, node, 32);
 }
 
 void InstructionSelector::VisitI8x16BitMask(OpIndex node) {
