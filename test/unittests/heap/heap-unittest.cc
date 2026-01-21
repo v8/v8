@@ -132,7 +132,7 @@ TEST(Heap, OldGenerationSizeFromPhysicalMemory) {
 }
 
 TEST(Heap, LimitsComputationBoundariesClamp) {
-  using Boundaries = HeapLimitBounds;
+  using Boundaries = Heap::LimitBounds;
   Boundaries boundaries;
   boundaries.minimum_old_generation_allocation_limit = 100u;
   boundaries.maximum_old_generation_allocation_limit = 200u;
@@ -149,7 +149,7 @@ TEST(Heap, LimitsComputationBoundariesClamp) {
 }
 
 TEST(Heap, LimitsComputationBoundariesAtLeastAndAtMost) {
-  HeapLimitBounds boundaries;
+  Heap::LimitBounds boundaries;
   boundaries.maximum_old_generation_allocation_limit = 200u;
   boundaries.maximum_global_allocation_limit = 400u;
 
@@ -179,13 +179,13 @@ TEST_F(HeapTest, LimitsComputationBoundariesConstruction) {
   Heap* heap = i_isolate()->heap();
 
   const size_t kSizeMax = std::numeric_limits<size_t>::max();
-  HeapLimitBounds no_boundaries;
+  Heap::LimitBounds no_boundaries;
   EXPECT_EQ(0u, no_boundaries.minimum_old_generation_allocation_limit);
   EXPECT_EQ(0u, no_boundaries.minimum_global_allocation_limit);
   EXPECT_EQ(kSizeMax, no_boundaries.maximum_old_generation_allocation_limit);
   EXPECT_EQ(kSizeMax, no_boundaries.maximum_global_allocation_limit);
 
-  HeapLimitBounds at_least = heap->limits()->AtLeastCurrentLimits();
+  Heap::LimitBounds at_least = Heap::LimitBounds::AtLeastCurrentLimits(heap);
   EXPECT_EQ(heap->OldGenerationAllocationLimitForTesting(),
             at_least.minimum_old_generation_allocation_limit);
   EXPECT_EQ(heap->GlobalAllocationLimitForTesting(),
@@ -193,7 +193,7 @@ TEST_F(HeapTest, LimitsComputationBoundariesConstruction) {
   EXPECT_EQ(kSizeMax, at_least.maximum_old_generation_allocation_limit);
   EXPECT_EQ(kSizeMax, at_least.maximum_global_allocation_limit);
 
-  HeapLimitBounds at_most = heap->limits()->AtMostCurrentLimits();
+  Heap::LimitBounds at_most = Heap::LimitBounds::AtMostCurrentLimits(heap);
   EXPECT_EQ(heap->OldGenerationAllocationLimitForTesting(),
             at_most.maximum_old_generation_allocation_limit);
   EXPECT_EQ(heap->GlobalAllocationLimitForTesting(),

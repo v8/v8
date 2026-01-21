@@ -47,7 +47,6 @@
 #include "src/heap/cppgc/unmarker.h"
 #include "src/heap/cppgc/visitor.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/heap-controller.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/minor-mark-sweep.h"

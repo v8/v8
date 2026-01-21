@@ -20,7 +20,6 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/heap-controller.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-visitor-inl.h"
@@ -159,7 +158,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
     const size_t old_generation_allocated_mb =
         old_generation_size_mb + old_generation_waste_mb;
     const size_t old_generation_limit_mb =
-        heap()->limits()->old_generation_allocation_limit() / MB;
+        heap()->old_generation_allocation_limit() / MB;
     const size_t old_generation_slack_mb =
         old_generation_allocated_mb > old_generation_limit_mb
             ? 0
@@ -167,8 +166,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
     const size_t global_size_mb = heap()->GlobalSizeOfObjects() / MB;
     const size_t global_waste_mb = heap()->GlobalWastedBytes() / MB;
     const size_t global_allocated_mb = global_size_mb + global_waste_mb;
-    const size_t global_limit_mb =
-        heap()->limits()->global_allocation_limit() / MB;
+    const size_t global_limit_mb = heap()->global_allocation_limit() / MB;
     const size_t global_slack_mb = global_allocated_mb > global_limit_mb
                                        ? 0
                                        : global_limit_mb - global_allocated_mb;
@@ -496,8 +494,8 @@ bool IncrementalMarking::Stop() {
         static_cast<int>(heap()->OldGenerationSizeOfObjects() / MB);
     int old_generation_waste_mb =
         static_cast<int>(heap()->OldGenerationWastedBytes() / MB);
-    int old_generation_limit_mb = static_cast<int>(
-        heap()->limits()->old_generation_allocation_limit() / MB);
+    int old_generation_limit_mb =
+        static_cast<int>(heap()->old_generation_allocation_limit() / MB);
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Stopping: old generation size %dMB, waste %dMB, "
         "limit %dMB, "

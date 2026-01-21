@@ -4,7 +4,6 @@
 
 #include "src/heap/memory-balancer.h"
 
-#include "src/heap/heap-controller.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 
@@ -40,10 +39,8 @@ void MemoryBalancer::RefreshLimit() {
   const size_t minimum_limit = live_memory_after_gc_ + kMinHeapExtraSpace;
 
   size_t new_limit = std::max<size_t>(minimum_limit, computed_limit);
-  new_limit =
-      std::min<size_t>(new_limit, heap_->limits()->max_old_generation_size());
-  new_limit =
-      std::max<size_t>(new_limit, heap_->limits()->min_old_generation_size());
+  new_limit = std::min<size_t>(new_limit, heap_->max_old_generation_size());
+  new_limit = std::max<size_t>(new_limit, heap_->min_old_generation_size());
 
   if (v8_flags.trace_memory_balancer) {
     heap_->isolate()->PrintWithTimestamp(
@@ -56,7 +53,7 @@ void MemoryBalancer::RefreshLimit() {
         static_cast<double>(new_limit) / MB);
   }
 
-  heap_->limits()->SetAllocationLimit(
+  heap_->SetOldGenerationAndGlobalAllocationLimit(
       new_limit, new_limit + embedder_allocation_limit_, "MemoryBalancer");
 }
 

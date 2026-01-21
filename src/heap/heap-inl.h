@@ -66,9 +66,7 @@ bool Heap::IsMainThread() const {
   return isolate()->thread_id() == ThreadId::Current();
 }
 
-uint64_t Heap::external_memory() const {
-  return external_memory_total_.load(std::memory_order_relaxed);
-}
+uint64_t Heap::external_memory() const { return external_memory_.total(); }
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
