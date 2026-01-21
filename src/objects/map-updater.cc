@@ -613,14 +613,8 @@ MapUpdater::State MapUpdater::FindRootMap() {
   ElementsKind from_kind = root_map_->elements_kind();
   ElementsKind to_kind = new_elements_kind_;
 
-  if (root_map_->is_deprecated()) {
-    state_ = kEnd;
-    result_map_ = handle(
-        Cast<JSFunction>(root_map_->GetConstructor())->initial_map(), isolate_);
-    result_map_ = Map::AsElementsKind(isolate_, result_map_, to_kind);
-    DCHECK(result_map_->is_dictionary_map());
-    return state_;
-  }
+  // Root maps shall not be deprecated.
+  CHECK(!root_map_->is_deprecated());
 
   // In this first check allow the root map to have the wrong prototype, as we
   // will deal with prototype transitions later.
