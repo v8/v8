@@ -2377,18 +2377,18 @@ TEST(FunctionDetails) {
   CHECK_EQ(root->GetParent(), nullptr);
   const v8::CpuProfileNode* script = GetChild(env, root, "");
   CheckFunctionDetails(CcTest::isolate(), script, "", "script_b", true,
-                       script_b->GetUnboundScript()->GetId(),
+                       script_b->ScriptId(),
                        v8::CpuProfileNode::kNoLineNumberInfo,
                        CpuProfileNode::kNoColumnNumberInfo, root);
   const v8::CpuProfileNode* baz = GetChild(env, script, "baz");
   CheckFunctionDetails(CcTest::isolate(), baz, "baz", "script_b", true,
-                       script_b->GetUnboundScript()->GetId(), 3, 16, script);
+                       script_b->ScriptId(), 3, 16, script);
   const v8::CpuProfileNode* foo = GetChild(env, baz, "foo");
   CheckFunctionDetails(CcTest::isolate(), foo, "foo", "script_a", false,
-                       script_a->GetUnboundScript()->GetId(), 4, 1, baz);
+                       script_a->ScriptId(), 4, 1, baz);
   const v8::CpuProfileNode* bar = GetChild(env, foo, "bar");
   CheckFunctionDetails(CcTest::isolate(), bar, "bar", "script_a", false,
-                       script_a->GetUnboundScript()->GetId(), 5, 14, foo);
+                       script_a->ScriptId(), 5, 14, foo);
 }
 
 TEST(FunctionDetailsInlining) {
@@ -2459,18 +2459,18 @@ TEST(FunctionDetailsInlining) {
   CHECK_EQ(root->GetParent(), nullptr);
   const v8::CpuProfileNode* script = GetChild(env, root, "");
   CheckFunctionDetails(CcTest::isolate(), script, "", "script_a", false,
-                       script_a->GetUnboundScript()->GetId(),
+                       script_a->ScriptId(),
                        v8::CpuProfileNode::kNoLineNumberInfo,
                        v8::CpuProfileNode::kNoColumnNumberInfo, root);
   const v8::CpuProfileNode* alpha = FindChild(env, script, "alpha");
   // Return early if profiling didn't sample alpha.
   if (!alpha) return;
   CheckFunctionDetails(CcTest::isolate(), alpha, "alpha", "script_a", false,
-                       script_a->GetUnboundScript()->GetId(), 1, 15, script);
+                       script_a->ScriptId(), 1, 15, script);
   const v8::CpuProfileNode* beta = FindChild(env, alpha, "beta");
   if (!beta) return;
   CheckFunctionDetails(CcTest::isolate(), beta, "beta", "script_b", true,
-                       script_b->GetUnboundScript()->GetId(), 1, 14, alpha);
+                       script_b->ScriptId(), 1, 14, alpha);
 }
 
 static const char* pre_profiling_osr_script = R"(
@@ -2778,11 +2778,11 @@ TEST(DeoptAtFirstLevelInlinedSource) {
 
   v8::Local<v8::Script> inlined_script = v8_compile(inlined_source);
   inlined_script->Run(env).ToLocalChecked();
-  int inlined_script_id = inlined_script->GetUnboundScript()->GetId();
+  int inlined_script_id = inlined_script->ScriptId();
 
   v8::Local<v8::Script> script = v8_compile(source);
   script->Run(env).ToLocalChecked();
-  int script_id = script->GetUnboundScript()->GetId();
+  int script_id = script->ScriptId();
 
   i::CpuProfile* iprofile = iprofiler->GetProfile(0);
   iprofile->Print();
@@ -2856,11 +2856,11 @@ TEST(DeoptAtSecondLevelInlinedSource) {
 
   v8::Local<v8::Script> inlined_script = v8_compile(inlined_source);
   inlined_script->Run(env).ToLocalChecked();
-  int inlined_script_id = inlined_script->GetUnboundScript()->GetId();
+  int inlined_script_id = inlined_script->ScriptId();
 
   v8::Local<v8::Script> script = v8_compile(source);
   script->Run(env).ToLocalChecked();
-  int script_id = script->GetUnboundScript()->GetId();
+  int script_id = script->ScriptId();
 
   i::CpuProfile* iprofile = iprofiler->GetProfile(0);
   iprofile->Print();

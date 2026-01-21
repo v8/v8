@@ -754,7 +754,7 @@ TEST(ScriptIdInStackTrace) {
   script->Run(context.local()).ToLocalChecked();
   for (int i = 0; i < 2; i++) {
     CHECK_NE(scriptIdInStack[i], v8::Message::kNoScriptIdInfo);
-    CHECK_EQ(scriptIdInStack[i], script->GetUnboundScript()->GetId());
+    CHECK_EQ(scriptIdInStack[i], script->ScriptId());
   }
 }
 
@@ -786,7 +786,7 @@ TEST(CurrentScriptId_Id) {
   v8::Local<v8::Script> script = CompileWithOrigin(source, "test", false);
   script->Run(context.local()).ToLocalChecked();
 
-  CHECK_EQ(currentScriptId, script->GetUnboundScript()->GetId());
+  CHECK_EQ(currentScriptId, script->ScriptId());
 
   // When nothing is on the stack, we should get the default response.
   CHECK_EQ(v8::Message::kNoScriptIdInfo,

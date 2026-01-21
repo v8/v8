@@ -64,7 +64,13 @@ class V8_EXPORT UnboundScript : public Data {
    */
   Local<Script> BindToCurrentContext();
 
+  /*
+   * A unique id.
+   */
+  int ScriptId() const;
+  V8_DEPRECATE_SOON("Use ScriptId")
   int GetId() const;
+
   Local<Value> GetScriptName();
 
   /**
@@ -104,7 +110,16 @@ class V8_EXPORT UnboundModuleScript : public Data {
    * Data read from magic sourceMappingURL comments.
    */
   Local<Value> GetSourceMappingURL();
+
+  /*
+   * A unique id.
+   */
+  int ScriptId() const;
+
+  static const int kNoScriptId = 0;
 };
+
+static_assert(UnboundModuleScript::kNoScriptId == UnboundScript::kNoScriptId);
 
 /**
  * A location in JavaScript source.
@@ -396,6 +411,11 @@ class V8_EXPORT Script : public Data {
    * Returns the corresponding context-unbound script.
    */
   Local<UnboundScript> GetUnboundScript();
+
+  /**
+   * Returns the id of the corresponding context-unbound script.
+   */
+  int ScriptId() const;
 
   /**
    * The name that was passed by the embedder as ResourceName to the

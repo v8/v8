@@ -1887,10 +1887,12 @@ Local<Script> UnboundScript::BindToCurrentContext() {
   return ToApiHandle<Script>(function);
 }
 
-int UnboundScript::GetId() const {
+int UnboundScript::GetId() const { return ScriptId(); }
+
+int UnboundScript::ScriptId() const {
   auto function_info = Utils::OpenDirectHandle(this);
   ApiRuntimeCallStatsScope rcs_scope(i::Isolate::Current(),
-                                     RCCId::kAPI_UnboundScript_GetId);
+                                     RCCId::kAPI_UnboundScript_ScriptId);
   return i::Cast<i::Script>(function_info->script())->id();
 }
 
@@ -1961,6 +1963,14 @@ Local<Value> UnboundModuleScript::GetSourceURL() {
   EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
   i::Tagged<i::Object> url = i::Cast<i::Script>(obj->script())->source_url();
   return Utils::ToLocal(i::direct_handle(url, i_isolate));
+}
+
+int UnboundModuleScript::ScriptId() const {
+  ApiRuntimeCallStatsScope rcs_scope(i::Isolate::Current(),
+                                     RCCId::kAPI_UnboundModuleScript_ScriptId);
+  auto obj = Utils::OpenDirectHandle(this);
+  if (!i::IsScript(obj->script())) return kNoScriptId;
+  return i::Cast<i::Script>(obj->script())->id();
 }
 
 Local<Value> UnboundModuleScript::GetSourceMappingURL() {
@@ -2037,6 +2047,16 @@ Local<UnboundScript> Script::GetUnboundScript() {
                                              i::Isolate::Current());
   DCHECK(!i::HeapLayout::InReadOnlySpace(*sfi));
   return ToApiHandle<UnboundScript>(sfi);
+}
+
+int Script::ScriptId() const {
+  i::DisallowGarbageCollection no_gc;
+  auto obj = Utils::OpenDirectHandle(this);
+  auto sfi = obj->shared();
+  DCHECK(!i::HeapLayout::InReadOnlySpace(sfi));
+  auto script = sfi->script();
+  CHECK(IsScript(sfi->script()));
+  return i::Cast<i::Script>(script)->id();
 }
 
 Local<Value> Script::GetResourceName() {

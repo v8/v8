@@ -712,7 +712,7 @@ Response V8RuntimeAgentImpl::compileScript(
   if (!persistScript) return Response::Success();
 
   String16 scriptValueId =
-      String16::fromInteger(script->GetUnboundScript()->GetId());
+      String16::fromInteger(script->GetUnboundScript()->ScriptId());
   std::unique_ptr<v8::Global<v8::Script>> global(
       new v8::Global<v8::Script>(m_inspector->isolate(), script));
   m_compiledScripts[scriptValueId] = std::move(global);

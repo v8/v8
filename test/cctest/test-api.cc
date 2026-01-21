@@ -16275,8 +16275,10 @@ THREADED_TEST(ScriptContextDependence) {
   CHECK_EQ(
       dep->Run(c1.local()).ToLocalChecked()->Int32Value(c1.local()).FromJust(),
       100);
-  CHECK_EQ(indep->BindToCurrentContext()
-               ->Run(c1.local())
+  v8::Local<v8::Script> bound_script = indep->BindToCurrentContext();
+  CHECK_EQ(indep->ScriptId(), bound_script->ScriptId());
+  CHECK_NE(bound_script->ScriptId(), v8::UnboundScript::kNoScriptId);
+  CHECK_EQ(bound_script->Run(c1.local())
                .ToLocalChecked()
                ->Int32Value(c1.local())
                .FromJust(),
@@ -16289,8 +16291,10 @@ THREADED_TEST(ScriptContextDependence) {
   CHECK_EQ(
       dep->Run(c2.local()).ToLocalChecked()->Int32Value(c2.local()).FromJust(),
       100);
-  CHECK_EQ(indep->BindToCurrentContext()
-               ->Run(c2.local())
+  bound_script = indep->BindToCurrentContext();
+  CHECK_EQ(indep->ScriptId(), bound_script->ScriptId());
+  CHECK_NE(bound_script->ScriptId(), v8::UnboundScript::kNoScriptId);
+  CHECK_EQ(bound_script->Run(c2.local())
                .ToLocalChecked()
                ->Int32Value(c2.local())
                .FromJust(),
@@ -18457,8 +18461,8 @@ THREADED_TEST(FunctionGetScriptId) {
       env->Global()->Get(env.local(), v8_str("foo")).ToLocalChecked());
   v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
       env->Global()->Get(env.local(), v8_str("bar")).ToLocalChecked());
-  CHECK_EQ(script->GetUnboundScript()->GetId(), foo->ScriptId());
-  CHECK_EQ(script->GetUnboundScript()->GetId(), bar->ScriptId());
+  CHECK_EQ(script->ScriptId(), foo->ScriptId());
+  CHECK_EQ(script->ScriptId(), bar->ScriptId());
 }
 
 
@@ -27433,11 +27437,13 @@ TEST(ModuleScriptId) {
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  int unbound_module_id = module->GetUnboundModuleScript()->ScriptId();
   int id_before_instantiation = module->ScriptId();
   module->InstantiateModule(context.local(), UnexpectedModuleResolveCallback)
       .ToChecked();
   int id_after_instantiation = module->ScriptId();
 
+  CHECK_EQ(unbound_module_id, id_before_instantiation);
   CHECK_EQ(id_before_instantiation, id_after_instantiation);
   CHECK_NE(id_before_instantiation, v8::UnboundScript::kNoScriptId);
 }
