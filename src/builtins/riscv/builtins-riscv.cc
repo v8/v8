@@ -4948,6 +4948,12 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ StoreDouble(ft0, MemOperand(a1, dst_offset));
   }
 
+  __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
+  __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
+  // If != 0, then simd is available.
+  Label done_pop_simd128;
+  __ Branch(&done_pop_simd128, eq, kScratchReg, Operand(zero_reg),
+            Label::Distance::kNear);
   __ VU.set(16, E8, m1);
   int simd128_regs_offset = FrameDescription::simd128_registers_offset();
   for (int i = 0; i < config->num_allocatable_simd128_registers(); ++i) {
@@ -4959,6 +4965,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ addi(kScratchReg, a1, dst_offset);
     __ vs(kSimd128ScratchReg, kScratchReg, 0, E8);
   }
+  __ bind(&done_pop_simd128);
 
   // Remove the saved registers from the stack.
   __ AddWord(sp, sp, Operand(kSavedRegistersAreaSize));
