@@ -320,6 +320,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   GCTracer(const GCTracer&) = delete;
   GCTracer& operator=(const GCTracer&) = delete;
 
+  perfetto::NamedTrack tracing_track() const { return parent_track_; }
+
   V8_INLINE CollectionEpoch CurrentEpoch() const;
 
   // Start and stop an observable pause.
