@@ -938,6 +938,7 @@ DEFINE_NEG_IMPLICATION(jitless, function_context_cells)
 // No code generation at runtime.
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 DEFINE_NEG_IMPLICATION(jitless, turbofan)
+DEFINE_NEG_IMPLICATION(jitless, turboshaft)
 #ifdef V8_ENABLE_SPARKPLUG
 DEFINE_NEG_IMPLICATION(jitless, sparkplug)
 DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
@@ -1738,7 +1739,6 @@ DEFINE_BOOL(
     "avoid duplicated HeapNumber materializations in HeapNumberRequests")
 
 #ifdef DEBUG
-
 DEFINE_BOOL(turboshaft_verify_load_elimination, false,
             "insert runtime checks to verify Late Load Elimination")
 DEFINE_BOOL(turboshaft_verify_load_store_taggedness, false,
@@ -1777,6 +1777,12 @@ DEFINE_BOOL(turboshaft_trace_if_else_to_switch, false,
 DEFINE_BOOL(trace_turbolev_graph_building, false,
             "trace the translation from Maglev to Turboshaft in Turbolev")
 DEFINE_IMPLICATION(trace_turbolev_graph_building, turboshaft_trace_emitted)
+
+DEFINE_BOOL(verify_turboshaft, false,
+            "enable various verifications on Turboshaft")
+DEFINE_IMPLICATION(verify_turboshaft, turboshaft_verify_load_elimination)
+DEFINE_IMPLICATION(verify_turboshaft, turboshaft_verify_load_store_taggedness)
+DEFINE_IMPLICATION(verify_turboshaft, turboshaft)
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")
@@ -1791,6 +1797,8 @@ DEFINE_BOOL_READONLY(turboshaft_trace_if_else_to_switch, false,
 DEFINE_BOOL_READONLY(turboshaft_verify_load_store_taggedness, false,
                      "insert runtime checks to verify the representation of "
                      "loaded/stored values")
+DEFINE_BOOL_READONLY(verify_turboshaft, false,
+                     "enable various verifications on Turboshaft")
 #endif  // DEBUG
 
 DEFINE_BOOL(profile_guided_optimization, true, "profile guided optimization")

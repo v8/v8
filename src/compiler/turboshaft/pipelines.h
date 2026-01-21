@@ -183,8 +183,6 @@ class V8_EXPORT_PRIVATE Pipeline {
 
   bool CreateGraphFromTurbofan(compiler::TFPipelineData* turbofan_data,
                                Linkage* linkage) {
-    CHECK_IMPLIES(!v8_flags.disable_optimizing_compilers, v8_flags.turboshaft);
-
     UnparkedScopeIfNeeded scope(data_->broker(),
                                 v8_flags.turboshaft_trace_reduction ||
                                     v8_flags.turboshaft_trace_emitted);

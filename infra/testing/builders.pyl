@@ -436,6 +436,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_future', 'shards': 2},
       {'name': 'v8testing', 'variant': 'turbolev', 'shards': 2},
       {'name': 'v8testing', 'variant': 'stress_turbolev_future', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'verify_turboshaft', 'shards': 2},
       # Code serializer.
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 2},
@@ -1654,6 +1655,7 @@
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'turbolev'},
       {'name': 'v8testing', 'variant': 'stress_turbolev_future'},
+      {'name': 'v8testing', 'variant': 'verify_turboshaft'},
       # Noavx.
       {
         'name': 'mozilla',
