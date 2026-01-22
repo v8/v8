@@ -326,7 +326,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to PropertyArray slots.
   static FieldAccess ForPropertyArraySlot(int index,
-                                          Representation representation);
+                                          Representation representation,
+                                          bool can_optimize_smis);
 
   // Provides access to ScopeInfo flags.
   static FieldAccess ForScopeInfoFlags();

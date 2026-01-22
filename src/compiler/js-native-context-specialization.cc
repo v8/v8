@@ -4286,7 +4286,8 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
     dependencies()->DependOnFieldRepresentation(map, field_owner_map,
                                                 descriptor, repr);
     Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForPropertyArraySlot(i, repr)),
+        simplified()->LoadField(
+            AccessBuilder::ForPropertyArraySlot(i, repr, false)),
         properties, effect, control);
     values.push_back({value, repr});
   }
@@ -4331,7 +4332,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   a.Store(AccessBuilder::ForMap(), jsgraph()->PropertyArrayMapConstant());
   a.Store(AccessBuilder::ForPropertyArrayLengthAndHash(), new_length_and_hash);
   for (int i = 0; i < new_length; ++i) {
-    a.Store(AccessBuilder::ForPropertyArraySlot(i, values[i].second),
+    a.Store(AccessBuilder::ForPropertyArraySlot(i, values[i].second, false),
             values[i].first);
   }
   return a.Finish();

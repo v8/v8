@@ -1099,7 +1099,8 @@ FieldAccess AccessBuilder::ForFeedbackVectorSlot(int index) {
 
 // static
 FieldAccess AccessBuilder::ForPropertyArraySlot(int index,
-                                                Representation representation) {
+                                                Representation representation,
+                                                bool can_optimize_smis) {
   int offset = PropertyArray::OffsetOfElementAt(index);
   MachineType machine_type;
   WriteBarrierKind write_barrier;
@@ -1110,9 +1111,17 @@ FieldAccess AccessBuilder::ForPropertyArraySlot(int index,
       write_barrier = kPointerWriteBarrier;
       break;
     case Representation::kSmi:
-      machine_type = MachineType::TaggedSigned();
-      write_barrier = kNoWriteBarrier;
-      break;
+      if (can_optimize_smis) {
+        machine_type = MachineType::TaggedSigned();
+        write_barrier = kNoWriteBarrier;
+        break;
+      }
+      // If {can_optimize_smis} is false, we just return a regular AnyTagged
+      // access with full write barrier. In general, it's of course better to
+      // use the more precise MachineType/WriteBarrier, but this can lead to
+      // inconsistencies in unreachable code, which Turbofan doesn't handle
+      // well.
+      [[fallthrough]];
     case Representation::kNone:
     case Representation::kTagged:
     case Representation::kWasmValue:

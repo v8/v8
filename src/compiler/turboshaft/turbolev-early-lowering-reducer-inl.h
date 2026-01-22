@@ -371,9 +371,10 @@ class TurbolevEarlyLoweringReducer : public Next {
           old_map, field_owner_map, descriptor, repr);
 
       V<Object> old_value = __ template LoadField<Object>(
-          old_property_array, AccessBuilder::ForPropertyArraySlot(i, repr));
+          old_property_array,
+          AccessBuilder::ForPropertyArraySlot(i, repr, true));
       __ InitializeField(new_property_array,
-                         AccessBuilder::ForPropertyArraySlot(i, repr),
+                         AccessBuilder::ForPropertyArraySlot(i, repr, true),
                          old_value);
     }
 
@@ -382,7 +383,7 @@ class TurbolevEarlyLoweringReducer : public Next {
     for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
       __ InitializeField(new_property_array,
                          AccessBuilder::ForPropertyArraySlot(
-                             old_length + i, Representation::Tagged()),
+                             old_length + i, Representation::Tagged(), true),
                          undefined);
     }
 
