@@ -1177,9 +1177,17 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
   } else {
     accessor = ElementsAccessor::ForKind(DICTIONARY_ELEMENTS);
   }
+  Tagged<Object> inobject_length =
+      holder->InObjectPropertyAt(JSSloppyArgumentsObject::kLengthIndex);
+  uint32_t mapped_elements_length = elements->ulength();
+  uint32_t jsargs_length;
+  if (Object::ToUint32(inobject_length, &jsargs_length)) {
+    // The value of elements->length() can be overshooted during compilation,
+    // use the in-object length property value if it is lower.
+    mapped_elements_length = std::min(mapped_elements_length, jsargs_length);
+  }
   int nofMappedParameters = 0;
-  int maxMappedIndex = 0;
-  for (int i = 0; i < nofMappedParameters; i++) {
+  for (uint32_t i = 0; i < mapped_elements_length; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
     Tagged<Object> mapped = elements->mapped_entries(i, kRelaxedLoad);
@@ -1193,8 +1201,7 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
     }
     int mappedIndex = Smi::ToInt(mapped);
     nofMappedParameters++;
-    CHECK_LE(maxMappedIndex, mappedIndex);
-    maxMappedIndex = mappedIndex;
+    CHECK_LT(mappedIndex, context_object->length());
     Tagged<Object> value = context_object->GetNoCell(mappedIndex);
     CHECK(IsObject(value));
     // None of the context-mapped entries should exist in the arguments
@@ -1203,8 +1210,6 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
   }
   CHECK_LE(nofMappedParameters, context_object->length());
   CHECK_LE(nofMappedParameters, arg_elements->length());
-  CHECK_LE(maxMappedIndex, context_object->length());
-  CHECK_LE(maxMappedIndex, arg_elements->length());
 }
 }  // namespace
 
