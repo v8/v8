@@ -1022,10 +1022,13 @@ bool RegExpMacroAssemblerX64::SkipUntilOneOfMaskedUseSimd(int advance_by) {
 
 bool RegExpMacroAssemblerX64::SkipUntilOneOfMasked3UseSimd(
     const SkipUntilOneOfMasked3Args& args) {
+  // TODO(476966362): Temporarily disabled due to regressions on
+  // Speedometer3/TodoMVC-jQuery.
+  return false;
   // To use the SIMD variant we require SSSE3 as there is no shuffle equivalent
   // in older extensions.
-  return v8_flags.regexp_simd && char_size() == 1 &&
-         CpuFeatures::IsSupported(SSSE3);
+  // return v8_flags.regexp_simd && char_size() == 1 &&
+  //        CpuFeatures::IsSupported(SSSE3);
 }
 
 void RegExpMacroAssemblerX64::SkipUntilOneOfMasked3(

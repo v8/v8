@@ -970,7 +970,10 @@ bool RegExpMacroAssemblerARM64::SkipUntilOneOfMaskedUseSimd(int advance_by) {
 
 bool RegExpMacroAssemblerARM64::SkipUntilOneOfMasked3UseSimd(
     const SkipUntilOneOfMasked3Args& args) {
-  return v8_flags.regexp_simd && char_size() == 1;
+  // TODO(476966362): Temporarily disabled due to regressions on
+  // Speedometer3/TodoMVC-jQuery.
+  return false;
+  // return v8_flags.regexp_simd && char_size() == 1;
 }
 
 void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked3(
