@@ -5,10 +5,9 @@
 #ifndef V8_MAGLEV_MAGLEV_RANGE_ANALYSIS_H_
 #define V8_MAGLEV_MAGLEV_RANGE_ANALYSIS_H_
 
-#include <cstdint>
-
 #include "src/base/logging.h"
 #include "src/common/operation.h"
+#include "src/maglev/hamt.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -25,28 +24,6 @@
   } while (false)
 
 namespace v8::internal::maglev {
-
-// {lhs_map} becomes the result of the intersection.
-template <typename Key, typename Value, typename MergeFunc>
-void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
-                            const ZoneMap<Key, Value>& rhs_map,
-                            MergeFunc&& func) {
-  typename ZoneMap<Key, Value>::iterator lhs_it = lhs_map.begin();
-  typename ZoneMap<Key, Value>::const_iterator rhs_it = rhs_map.begin();
-  while (lhs_it != lhs_map.end() && rhs_it != rhs_map.end()) {
-    if (lhs_it->first < rhs_it->first) {
-      // Skip over elements that are only in LHS.
-      ++lhs_it;
-    } else if (rhs_it->first < lhs_it->first) {
-      // Skip over elements that are only in RHS.
-      ++rhs_it;
-    } else {
-      lhs_it->second = func(lhs_it->second, rhs_it->second);
-      ++lhs_it;
-      ++rhs_it;
-    }
-  }
-}
 
 class LessEqualConstraint {
  public:
@@ -74,29 +51,31 @@ class NodeRanges {
         ranges_(graph->max_block_id(), graph->zone()),
         less_equals_(graph->max_block_id(), graph->zone()) {}
 
+  using RangeMap = HAMT<ValueNode*, Range>;
+
   Range Get(BasicBlock* block, ValueNode* node) {
-    auto*& map = ranges_[block->id()];
+    RangeMap*& map = ranges_[block->id()];
     DCHECK_NOT_NULL(map);
-    auto it = map->find(node);
-    if (it == map->end()) {
+    const Range* range = map->find(node);
+    if (!range) {
       return node->GetStaticRange();
     }
-    return it->second;
+    return *range;
   }
 
   void UnionUpdate(BasicBlock* block, ValueNode* node, Range range) {
-    auto* map = ranges_[block->id()];
+    RangeMap* map = ranges_[block->id()];
     DCHECK_NOT_NULL(map);
-    auto it = map->find(node);
-    if (it == map->end()) {
-      map->emplace(node, range);
+    const Range* current_range = map->find(node);
+    if (!current_range) {
+      *map = map->insert(node, range);
     } else {
-      Range new_range = Range::Union(it->second, range);
+      Range new_range = Range::Union(*current_range, range);
       TRACE_RANGE("[range]: Union update: "
                   << PrintNodeLabel(node) << ": " << PrintNode(node)
-                  << ", from: " << it->second << ", to: " << new_range);
+                  << ", from: " << *current_range << ", to: " << new_range);
 
-      it->second = new_range;
+      *map = map->insert(node, new_range);
     }
   }
 
@@ -107,9 +86,9 @@ class NodeRanges {
     for (BasicBlock* block : graph_->blocks()) {
       int id = block->id();
       std::cout << "Block b" << id << ":\n";
-      auto* map = ranges_[id];
+      RangeMap* map = ranges_[id];
       if (!map) continue;
-      for (auto& [node, range] : *map) {
+      for (auto [node, range] : *map) {
         std::cout << "  " << PrintNodeLabel(node) << ": " << PrintNode(node)
                   << ": " << range << std::endl;
       }
@@ -118,19 +97,19 @@ class NodeRanges {
 
   void EnsureMapExistsFor(BasicBlock* block) {
     if (ranges_[block->id()] == nullptr) {
-      ranges_[block->id()] = zone()->New<ZoneMap<ValueNode*, Range>>(zone());
+      ranges_[block->id()] = zone()->New<HAMT<ValueNode*, Range>>(zone());
     }
   }
 
   void Join(BasicBlock* block, BasicBlock* pred) {
-    auto*& map = ranges_[block->id()];
-    auto*& pred_map = ranges_[pred->id()];
+    RangeMap*& map = ranges_[block->id()];
+    RangeMap*& pred_map = ranges_[pred->id()];
     DCHECK_NOT_NULL(pred_map);
     if (map == nullptr) {
-      map = zone()->New<ZoneMap<ValueNode*, Range>>(*pred_map);
+      map = zone()->New<HAMT<ValueNode*, Range>>(*pred_map);
       return;
     }
-    DestructivelyIntersect(*map, *pred_map, [&](Range& r1, const Range& r2) {
+    *map = map->merge_into(*pred_map, [&](Range r1, const Range r2) {
       return Range::Union(r1, r2);
     });
   }
@@ -140,24 +119,26 @@ class NodeRanges {
       // Don't narrow update constants.
       return;
     }
-    auto* map = ranges_[block->id()];
+    RangeMap* map = ranges_[block->id()];
     DCHECK_NOT_NULL(map);
-    auto it = map->find(node);
-    if (it == map->end()) {
+    const Range* current_range = map->find(node);
+    if (!current_range) {
       TRACE_RANGE("[range]: Narrow update: " << PrintNodeLabel(node) << ": "
                                              << PrintNode(node) << ": "
                                              << narrowed_range);
-      map->emplace(node, narrowed_range);
+      *map = map->insert(node, narrowed_range);
     } else {
       if (!narrowed_range.is_empty()) {
-        TRACE_RANGE("[range]: Narrow update: "
-                    << PrintNodeLabel(node) << ": " << PrintNode(node)
-                    << ", from: " << it->second << ", to: " << narrowed_range);
-        it->second = narrowed_range;
+        TRACE_RANGE("[range]: Narrow update: " << PrintNodeLabel(node) << ": "
+                                               << PrintNode(node)
+                                               << ", from: " << *current_range
+                                               << ", to: " << narrowed_range);
+        *map = map->insert(node, narrowed_range);
       } else {
         TRACE_RANGE("[range]: Failed narrowing update: "
                     << PrintNodeLabel(node) << ": " << PrintNode(node)
-                    << ", from: " << it->second << ", to: " << narrowed_range);
+                    << ", from: " << *current_range
+                    << ", to: " << narrowed_range);
       }
     }
   }
@@ -177,8 +158,9 @@ class NodeRanges {
 
  private:
   Graph* graph_;
-  // TODO(victorgomes): Use SnapshotTable.
-  ZoneVector<ZoneMap<ValueNode*, Range>*> ranges_;
+  // TODO(victorgomes): Avoid the pointer and allocate RangeMap a dummy RangeMap
+  // instead?
+  ZoneVector<RangeMap*> ranges_;
 
   // This is a very naive way to avoid CheckInt32Condition after a
   // BranchIfInt32Compare(LessThan).

@@ -4671,6 +4671,7 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_enable_maglev) {
     sources += [
+      "src/maglev/hamt.h",
       "src/maglev/maglev-assembler-inl.h",
       "src/maglev/maglev-assembler.h",
       "src/maglev/maglev-basic-block.h",

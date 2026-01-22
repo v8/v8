@@ -2947,6 +2947,7 @@ filegroup(
         "//conditions:default": [],
     }) + select({
         ":enable_maglev": [
+            "src/maglev/hamt.h",
             "src/maglev/maglev-assembler-inl.h",
             "src/maglev/maglev-assembler.h",
             "src/maglev/maglev-basic-block.h",
@@ -3769,6 +3770,7 @@ filegroup(
         # include them explicitely when Maglev is disabled.
         ":enable_maglev": [],
         "//conditions:default": [
+            "src/maglev/hamt.h",
             "src/maglev/maglev-basic-block.h",
             "src/maglev/maglev-code-gen-state.h",
             "src/maglev/maglev-code-gen-state-inl.h",
