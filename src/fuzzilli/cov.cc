@@ -31,14 +31,14 @@ uint32_t *edges_start, *edges_stop;
 uint32_t builtins_start;
 uint32_t builtins_edge_count;
 
-void sanitizer_cov_reset_edgeguards() {
+__attribute__((visibility("default"))) void sanitizer_cov_reset_edgeguards() {
   uint32_t N = 0;
   for (uint32_t* x = edges_start; x < edges_stop && N < MAX_EDGES; x++)
     *x = ++N;
 }
 
-extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start,
-                                                    uint32_t* stop) {
+__attribute__((visibility("default"))) extern "C" void
+__sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
   // We should initialize the shared memory region only once. We can initialize
   // it multiple times if it's the same region, which is something that appears
   // to happen on e.g. macOS. If we ever see a different region, we will likely
@@ -114,7 +114,8 @@ void sanitizer_cov_prepare_for_hardware_sandbox() {
 }
 #endif
 
-uint32_t sanitizer_cov_count_discovered_edges() {
+__attribute__((visibility("default"))) uint32_t
+sanitizer_cov_count_discovered_edges() {
   uint32_t on_edges_counter = 0;
   for (uint32_t i = 1; i < builtins_start; ++i) {
     const uint32_t byteIndex = i >> 3;  // Divide by 8 using a shift operation
@@ -127,7 +128,8 @@ uint32_t sanitizer_cov_count_discovered_edges() {
   return on_edges_counter;
 }
 
-extern "C" void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
+__attribute__((visibility("default"))) extern "C" void
+__sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   // There's a small race condition here: if this function executes in two
   // threads for the same edge at the same time, the first thread might disable
   // the edge (by setting the guard to zero) before the second thread fetches
