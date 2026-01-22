@@ -210,6 +210,8 @@ void RegExpBoilerplateDescription::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
+TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeSharedClosureInfo)
+
 }  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"

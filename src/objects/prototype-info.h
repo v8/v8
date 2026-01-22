@@ -16,19 +16,9 @@
 namespace v8 {
 namespace internal {
 
+class PrototypeSharedClosureInfo;
+
 #include "torque-generated/src/objects/prototype-info-tq.inc"
-
-class PrototypeSharedClosureInfo
-    : public TorqueGeneratedPrototypeSharedClosureInfo<
-          PrototypeSharedClosureInfo, Struct> {
- public:
-  DECL_PRINTER(PrototypeSharedClosureInfo)
-  DECL_VERIFIER(PrototypeSharedClosureInfo)
-
-  using BodyDescriptor = StructBodyDescriptor;
-
-  TQ_OBJECT_CONSTRUCTORS(PrototypeSharedClosureInfo)
-};
 
 // Container for metadata stored on each prototype map.
 class PrototypeInfo

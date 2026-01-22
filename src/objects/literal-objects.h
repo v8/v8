@@ -6,6 +6,8 @@
 #define V8_OBJECTS_LITERAL_OBJECTS_H_
 
 #include "src/base/bit-field.h"
+#include "src/objects/contexts.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
@@ -21,6 +23,18 @@ class ClassLiteral;
 class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/literal-objects-tq.inc"
+
+class PrototypeSharedClosureInfo
+    : public TorqueGeneratedPrototypeSharedClosureInfo<
+          PrototypeSharedClosureInfo, Struct> {
+ public:
+  DECL_PRINTER(PrototypeSharedClosureInfo)
+  DECL_VERIFIER(PrototypeSharedClosureInfo)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(PrototypeSharedClosureInfo)
+};
 
 class ObjectBoilerplateDescriptionShape final : public AllStatic {
  public:

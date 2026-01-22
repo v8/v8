@@ -33,3 +33,9 @@ extern class ClassBoilerplate extends Struct {
   instance_elements_template: Object;
   instance_computed_properties: FixedArray;
 }
+
+extern class PrototypeSharedClosureInfo extends Struct {
+  boilerplate_description: ObjectBoilerplateDescription;
+  closure_feedback_cell_array: ClosureFeedbackCellArray;
+  context: Context;
+}

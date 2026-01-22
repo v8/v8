@@ -26,7 +26,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/prototype-info-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeSharedClosureInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeInfo)
 
 DEF_GETTER(PrototypeInfo, derived_maps, Tagged<HeapObject>) {

@@ -4,6 +4,7 @@
 
 #include "src/builtins/accessors.h"
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -18,7 +19,10 @@
 #include "src/objects/contexts.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-shared-array-inl.h"
+#include "src/objects/literal-objects-inl.h"
+#include "src/objects/literal-objects.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/prototype.h"
@@ -785,6 +789,64 @@ DirectHandle<AccessorInfo> Accessors::MakeWrappedFunctionLengthInfo(
     Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &WrappedFunctionLengthGetter, &ReconfigureToDataProperty);
+}
+
+//
+// Accessors::InstantiateLazyFunction
+//
+
+void Accessors::InstantiateLazyClosureGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  DirectHandle<JSReceiver> holder = Utils::OpenDirectHandle(*info.HolderV2());
+  DirectHandle<Name> property_name = Utils::OpenDirectHandle(*name);
+
+  DCHECK(holder->map()->is_prototype_map());
+  Tagged<PrototypeSharedClosureInfo> infos;
+  if (!holder->map()->TryGetPrototypeSharedClosureInfo(&infos)) {
+    UNREACHABLE();
+  }
+
+  DirectHandle<ObjectBoilerplateDescription> description(
+      infos->boilerplate_description(), isolate);
+
+  DirectHandle<SharedFunctionInfo> sfi;
+  bool found = false;
+  int properties_count = description->length();
+
+  for (int i = 0; i < properties_count; ++i) {
+    if (description->name(i) == *property_name) {
+      Tagged<Object> value = description->value(i);
+      sfi = direct_handle(Cast<SharedFunctionInfo>(value), isolate);
+      found = true;
+      break;
+    }
+  }
+  CHECK(found);
+
+  DirectHandle<FeedbackCell> feedback_cell(
+      infos->closure_feedback_cell_array()->get(sfi->feedback_slot()), isolate);
+
+  DirectHandle<JSFunction> value =
+      Factory::JSFunctionBuilder{isolate, sfi,
+                                 direct_handle(infos->context(), isolate)}
+          .set_feedback_cell(feedback_cell)
+          .set_allocation_type(AllocationType::kYoung)
+          .Build();
+
+  info.GetReturnValue().Set(v8::Utils::ToLocal(value));
+}
+
+DirectHandle<AccessorInfo> Accessors::MakeInstantiateLazyClosureInfo(
+    Isolate* isolate) {
+  DirectHandle<AccessorInfo> info =
+      MakeAccessor(isolate, isolate->factory()->empty_string(),
+                   &InstantiateLazyClosureGetter, nullptr);
+  info->set_getter_side_effect_type(SideEffectType::kHasNoSideEffect);
+  info->set_replace_on_access(true);
+
+  return info;
 }
 
 //

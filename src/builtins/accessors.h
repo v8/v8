@@ -51,6 +51,8 @@ class JavaScriptFrame;
   V(_, wrapped_function_length, WrappedFunctionLength, kHasNoSideEffect,       \
     kHasSideEffectToReceiver)                                                  \
   V(_, wrapped_function_name, WrappedFunctionName, kHasNoSideEffect,           \
+    kHasSideEffectToReceiver)                                                  \
+  V(_, lazy_closure, InstantiateLazyClosure, kHasNoSideEffect,                 \
     kHasSideEffectToReceiver)
 
 // The list of getters not mentioned in ACCESSOR_INFO_LIST_GENERATOR.

@@ -573,8 +573,9 @@ MaybeDirectHandle<JSObject> CreateLiteral(Isolate* isolate,
 DirectHandle<Object> InstantiateIfSharedFunctionInfo(
     DirectHandle<Context> context, Isolate* isolate,
     DirectHandle<JSObject> js_proto, DirectHandle<Object> value,
-    DirectHandle<ClosureFeedbackCellArray> feedback_cell_array, int start_slot,
-    int& current_slot) {
+    DirectHandle<ClosureFeedbackCellArray> feedback_cell_array,
+    Handle<ObjectBoilerplateDescription> object_boilerplate_description,
+    int start_slot, int& current_slot) {
   DirectHandle<SharedFunctionInfo> shared;
   if (!TryCast<SharedFunctionInfo>(value, &shared)) {
     return value;
@@ -614,7 +615,7 @@ DirectHandle<Object> InstantiateIfSharedFunctionInfo(
   } else {
     // We do not have closure_info
     auto val = *isolate->factory()->NewPrototypeSharedClosureInfo(
-        context, feedback_cell_array);
+        object_boilerplate_description, context, feedback_cell_array);
 
     proto_map->SetPrototypeSharedClosureInfo(val);
     shared->set_feedback_slot(current_slot);
@@ -791,18 +792,27 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
       DirectHandle<Object> value(object_boilerplate_description->value(index),
                                  isolate);
 
-      value = InstantiateIfSharedFunctionInfo(context, isolate, js_proto, value,
-                                              feedback_cell_array, start_slot,
-                                              current_slot);
+      value = InstantiateIfSharedFunctionInfo(
+          context, isolate, js_proto, value, feedback_cell_array,
+          object_boilerplate_description, start_slot, current_slot);
 
       DirectHandle<String> name = Cast<String>(key);
       DCHECK(!name->IsArrayIndex());
       DCHECK(!IsTheHole(*value));
       LookupIterator it(isolate, js_proto, name, LookupIterator::OWN);
-      // TODO(rherouart): add a helper for writing the data property directly
-      Object::TransitionAndWriteDataProperty(&it, value, NONE, Just(kDontThrow),
-                                             StoreOrigin::kNamed)
-          .Check();
+
+      if (IsSharedFunctionInfo(*value)) {
+        DirectHandle<AccessorInfo> accessor_info =
+            isolate->factory()->lazy_closure_accessor();
+
+        JSObject::SetAccessor(js_proto, name, accessor_info,
+                              PropertyAttributes::NONE)
+            .Check();
+      } else {
+        Object::TransitionAndWriteDataProperty(
+            &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed)
+            .Check();
+      }
       result = value;
     }
   } else {
@@ -848,12 +858,21 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
         }
         Object::SetDataProperty(&it, value).Check();
       } else {
-        value = InstantiateIfSharedFunctionInfo(context, isolate, js_proto,
-                                                value, feedback_cell_array,
-                                                start_slot, current_slot);
-        Object::TransitionAndWriteDataProperty(
-            &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed)
-            .Check();
+        value = InstantiateIfSharedFunctionInfo(
+            context, isolate, js_proto, value, feedback_cell_array,
+            object_boilerplate_description, start_slot, current_slot);
+        if (IsSharedFunctionInfo(*value)) {
+          DirectHandle<AccessorInfo> accessor_info =
+              isolate->factory()->lazy_closure_accessor();
+
+          JSObject::SetAccessor(js_proto, Cast<Name>(key), accessor_info,
+                                PropertyAttributes::NONE)
+              .Check();
+        } else {
+          Object::TransitionAndWriteDataProperty(
+              &it, value, NONE, Just(kDontThrow), StoreOrigin::kNamed)
+              .Check();
+        }
       }
       result = value;
     }

@@ -390,11 +390,13 @@ DirectHandle<PrototypeInfo> Factory::NewPrototypeInfo() {
 }
 
 DirectHandle<PrototypeSharedClosureInfo> Factory::NewPrototypeSharedClosureInfo(
+    DirectHandle<ObjectBoilerplateDescription> object_boilerplate_description,
     DirectHandle<Context> context,
     DirectHandle<ClosureFeedbackCellArray> feedback_array) {
   auto result = NewStructInternal<PrototypeSharedClosureInfo>(
       PROTOTYPE_SHARED_CLOSURE_INFO_TYPE, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
+  result->set_boilerplate_description(*object_boilerplate_description);
   result->set_context(*context);
   result->set_closure_feedback_cell_array(*feedback_array);
   return direct_handle(result, isolate());
