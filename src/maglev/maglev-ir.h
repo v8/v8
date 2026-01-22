@@ -3123,6 +3123,9 @@ class ValueNode : public Node {
   // Unwrap identities and conversions.
   ValueNode* Unwrap();
 
+  ValueNode* UnwrapIdentitiesAndUpdateUseCount();
+  ValueNode* UnwrapAndUpdateUseCount();
+
   RegallocValueNodeInfo* regalloc_info() const {
     DCHECK_EQ(state_, kRegallocInfo);
     return static_cast<RegallocValueNodeInfo*>(regalloc_info_);
@@ -3198,10 +3201,33 @@ inline const ValueNode* ValueNode::UnwrapIdentities() const {
 
 inline ValueNode* ValueNode::Unwrap() {
   ValueNode* node = this;
-  while (node->Is<Identity>() || node->is_conversion()) {
+  while (node->Is<Identity>() || node->Is<ReturnedValue>() ||
+         node->is_conversion()) {
     node = node->input(0).node();
   }
   return node;
+}
+
+// Unwraps identities on the current node and, if unwrapping succeeds,
+// decrements its use-count and increments the use-count of the unwrapped node.
+inline ValueNode* ValueNode::UnwrapIdentitiesAndUpdateUseCount() {
+  ValueNode* unwrapped = UnwrapIdentities();
+  if (unwrapped != this) {
+    this->remove_use();
+    unwrapped->add_use();
+  }
+  return unwrapped;
+}
+
+// Unwraps the current node and, if unwrapping succeeds, decrements its
+// use-count and increments the use-count of the unwrapped node.
+inline ValueNode* ValueNode::UnwrapAndUpdateUseCount() {
+  ValueNode* unwrapped = Unwrap();
+  if (unwrapped != this) {
+    this->remove_use();
+    unwrapped->add_use();
+  }
+  return unwrapped;
 }
 
 // Mixin for a node with known class (and therefore known opcode and static
@@ -6622,7 +6648,7 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
         // Subtle: this modifies the location of the caller's `value` in-place.
         // TODO(jgruber): Change the behavior of all related ForEach functions
         // such that they don't do anything besides iteration.
-        value = value->UnwrapIdentities();
+        value = value->UnwrapIdentitiesAndUpdateUseCount();
         if (IsConstantNode(value->opcode())) {
           // No location assigned to constants.
           return true;
