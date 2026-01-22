@@ -6,6 +6,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/objects/string-inl.h"
+#include "src/regexp/regexp-ast-printer.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp.h"
@@ -3144,11 +3145,14 @@ bool RegExpParserImpl<CharT>::Parse(RegExpCompileData* result) {
 
   DCHECK_NOT_NULL(tree);
   DCHECK_EQ(error_, RegExpError::kNone);
-  if (v8_flags.trace_regexp_parser) {
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  if (V8_UNLIKELY(v8_flags.trace_regexp_parser)) {
     StdoutStream os;
-    tree->Print(os, zone());
+    RegExpAstNodePrinter printer(os, nullptr, zone());
+    printer.Print(tree);
     os << "\n";
   }
+#endif
 
   result->tree = tree;
   const int capture_count = captures_started();

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+
 #include "src/regexp/regexp-dotprinter.h"
 
 #include "src/base/strings.h"
@@ -279,3 +281,5 @@ void DotPrinter::DotPrint(const char* label, RegExpNode* node) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS

@@ -71,6 +71,9 @@ declare_args() {
   # Sets -DENABLE_DISASSEMBLER.
   v8_enable_disassembler = ""
 
+  # Sets -DV8_ENABLE_REGEXP_DIAGNOSTICS.
+  v8_enable_regexp_diagnostics = !build_with_chromium
+
   # Sets the number of internal fields on promise objects.
   v8_promise_internal_field_count = 0
 
@@ -1283,6 +1286,9 @@ config("features") {
   }
   if (v8_enable_trace_feedback_updates) {
     defines += [ "V8_TRACE_FEEDBACK_UPDATES" ]
+  }
+  if (v8_enable_regexp_diagnostics) {
+    defines += [ "V8_ENABLE_REGEXP_DIAGNOSTICS" ]
   }
   if (v8_enable_test_features) {
     defines += [ "V8_ENABLE_ALLOCATION_TIMEOUT" ]
@@ -4473,12 +4479,10 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/regexp-bytecodes.h",
     "src/regexp/regexp-code-generator.h",
     "src/regexp/regexp-compiler.h",
-    "src/regexp/regexp-dotprinter.h",
     "src/regexp/regexp-error.h",
     "src/regexp/regexp-flags.h",
     "src/regexp/regexp-interpreter.h",
     "src/regexp/regexp-macro-assembler-arch.h",
-    "src/regexp/regexp-macro-assembler-tracer.h",
     "src/regexp/regexp-macro-assembler.h",
     "src/regexp/regexp-nodes.h",
     "src/regexp/regexp-parser.h",
@@ -4624,6 +4628,17 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_enable_snapshot_compression) {
     sources += [ "src/snapshot/snapshot-compression.h" ]
+  }
+
+  if (v8_enable_regexp_diagnostics) {
+    sources += [
+      "src/regexp/regexp-ast-printer.h",
+      "src/regexp/regexp-dotprinter.h",
+      "src/regexp/regexp-graph-printer.h",
+      "src/regexp/regexp-macro-assembler-tracer.h",
+      "src/regexp/regexp-node-printer.h",
+      "src/regexp/regexp-printer.h",
+    ]
   }
 
   if (v8_enable_temporal_support) {
@@ -6087,10 +6102,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/regexp-code-generator.cc",
     "src/regexp/regexp-compiler-tonode.cc",
     "src/regexp/regexp-compiler.cc",
-    "src/regexp/regexp-dotprinter.cc",
     "src/regexp/regexp-error.cc",
     "src/regexp/regexp-interpreter.cc",
-    "src/regexp/regexp-macro-assembler-tracer.cc",
     "src/regexp/regexp-macro-assembler.cc",
     "src/regexp/regexp-parser.cc",
     "src/regexp/regexp-result-vector.cc",
@@ -6195,6 +6208,17 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_snapshot_compression) {
     sources += [ "src/snapshot/snapshot-compression.cc" ]
+  }
+
+  if (v8_enable_regexp_diagnostics) {
+    sources += [
+      "src/regexp/regexp-ast-printer.cc",
+      "src/regexp/regexp-dotprinter.cc",
+      "src/regexp/regexp-graph-printer.cc",
+      "src/regexp/regexp-macro-assembler-tracer.cc",
+      "src/regexp/regexp-node-printer.cc",
+      "src/regexp/regexp-printer.cc",
+    ]
   }
 
   if (v8_enable_temporal_support) {

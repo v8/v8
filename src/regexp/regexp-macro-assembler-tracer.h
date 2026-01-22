@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_TRACER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_TRACER_H_
 
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
 #include "src/base/strings.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
@@ -125,5 +126,6 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
 
 }  // namespace internal
 }  // namespace v8
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
 #endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_TRACER_H_

@@ -10,6 +10,8 @@
 #include "src/base/numerics/safe_conversions.h"
 #include "src/execution/isolate.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/regexp/regexp-ast-printer.h"
+#include "src/regexp/regexp-graph-printer.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/strings/unicode-inl.h"
 #include "src/zone/zone-list-inl.h"
@@ -24,6 +26,76 @@
 namespace v8::internal {
 
 using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+#define TRACE_COMPILER(compiler, msg)                    \
+  do {                                                   \
+    if (V8_UNLIKELY(v8_flags.trace_regexp_compiler)) {   \
+      compiler->diagnostics()->os() << msg << std::endl; \
+    }                                                    \
+  } while (false)
+#define TRACE(msg) TRACE_COMPILER(compiler, msg)
+#define TRACE_WITH_NODE(compiler, msg, node)                                  \
+  do {                                                                        \
+    if (V8_UNLIKELY(v8_flags.trace_regexp_compiler)) {                        \
+      RegExpGraphPrinter* printer = compiler->diagnostics()->graph_printer(); \
+      std::ostream& os = compiler->diagnostics()->os();                       \
+      os << msg;                                                              \
+      printer->PrintNode(node);                                               \
+    }                                                                         \
+  } while (false)
+#define TRACE_WITH_NODE_AND_TRACE(compiler, msg, node, trace)                 \
+  do {                                                                        \
+    if (V8_UNLIKELY(v8_flags.trace_regexp_compiler)) {                        \
+      RegExpGraphPrinter* printer = compiler->diagnostics()->graph_printer(); \
+      std::ostream& os = compiler->diagnostics()->os();                       \
+      os << msg;                                                              \
+      printer->PrintNodeNoNewline(node);                                      \
+      if (trace != nullptr) {                                                 \
+        os << "  ";                                                           \
+        printer->PrintTrace(trace);                                           \
+      }                                                                       \
+      os << std::endl;                                                        \
+    }                                                                         \
+  } while (false)
+#define TRACE_EMIT(name)                                                     \
+  TRACE_WITH_NODE_AND_TRACE(compiler, "* Assembling " << name << ": ", this, \
+                            trace)
+#define TRACE_GRAPH(msg)                                     \
+  do {                                                       \
+    if (V8_UNLIKELY(v8_flags.trace_regexp_graph_building)) { \
+      diagnostics()->os() << msg << std::endl;               \
+    }                                                        \
+  } while (false)
+#define TRACE_GRAPH_WITH_NODE(msg, node)                          \
+  do {                                                            \
+    if (V8_UNLIKELY(v8_flags.trace_regexp_graph_building)) {      \
+      std::ostream& os = diagnostics()->trace_tree_scope()->os(); \
+      os << msg;                                                  \
+      diagnostics()->ast_printer()->Print(node);                  \
+      os << std::endl;                                            \
+    }                                                             \
+  } while (false)
+#define REGISTER_NODE(node)                                                    \
+  do {                                                                         \
+    if (V8_UNLIKELY(!!diagnostics() && diagnostics()->has_graph_labeller())) { \
+      diagnostics()->graph_labeller()->RegisterNode(node);                     \
+    }                                                                          \
+    if (V8_UNLIKELY(v8_flags.trace_regexp_graph_building)) {                   \
+      diagnostics()->trace_tree_scope()->os() << "+ ";                         \
+      diagnostics()->graph_printer()->PrintNode(node);                         \
+    }                                                                          \
+  } while (false)
+#else
+#define TRACE_COMPILER(compiler, msg) (void(0))
+#define TRACE(x) (void(0))
+#define TRACE_WITH_NODE(compiler, msg, node) (void(0))
+#define TRACE_WITH_NODE_AND_TRACE(compiler, msg, node, trace) (void(0))
+#define TRACE_EMIT(name) (void(0))
+#define TRACE_GRAPH(msg) (void(0))
+#define TRACE_GRAPH_WITH_NODE(msg, node) (void(0))
+#define REGISTER_NODE(node) (void(0))
+#endif
 
 // -------------------------------------------------------------------
 // Implementation of the Irregexp regular expression engine.
@@ -286,6 +358,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   macro_assembler_->Fail();
   while (!work_list.empty()) {
     RegExpNode* node = work_list.back();
+    TRACE_WITH_NODE(this, "Popping from worklist ", node);
     work_list.pop_back();
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) {
@@ -527,6 +600,24 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
 EmitResult Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor,
                         Trace::FlushMode mode) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  if (V8_UNLIKELY(v8_flags.trace_regexp_compiler)) {
+    RegExpGraphPrinter* printer = compiler->diagnostics()->graph_printer();
+    std::ostream& os = compiler->diagnostics()->os();
+    os << "* Flushing Trace (";
+    switch (mode) {
+      case Trace::FlushMode::kFlushFull:
+        os << "Full";
+        break;
+      case Trace::FlushMode::kFlushSuccess:
+        os << "Success";
+        break;
+    }
+    os << "): ";
+    printer->PrintTrace(this);
+    os << std::endl;
+  }
+#endif
 
   DCHECK(!is_trivial());
 
@@ -605,6 +696,7 @@ EmitResult Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor,
 
 EmitResult NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler,
                                          Trace* trace) {
+  TRACE_EMIT("NegativeSubmatchSuccess");
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
 
   // Omit flushing the trace. We discard the entire stack frame anyway.
@@ -633,6 +725,7 @@ EmitResult NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler,
 }
 
 EmitResult EndNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  TRACE_EMIT("EndNode");
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   if (action_ == BACKTRACK) {
     // This node always backtracks, and we can do that immediately without
@@ -1392,6 +1485,7 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   if (trace->is_trivial()) {
     if (label_.is_bound() || on_work_list() || !KeepRecursing(compiler)) {
+      TRACE("* Limit Versions: Generic version available");
       // If a generic version is already scheduled to be generated or we have
       // recursed too deeply then just generate a jump to that code.
       macro_assembler->GoTo(&label_);
@@ -1416,6 +1510,7 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
   // If we get here code has been generated for this node too many times or
   // recursion is too deep.  Time to switch to a generic version.  The code for
   // generic versions above can handle deep recursion properly.
+  TRACE("* Limit Versions: Switch to generic version");
   bool was_limiting = compiler->limiting_recursion();
   compiler->set_limiting_recursion(true);
   trace->Flush(compiler, this);
@@ -1544,12 +1639,21 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
                                 bool fall_through_on_failure,
                                 ChoiceNode* predecessor) {
   DCHECK_NOT_NULL(predecessor);
-  if (details->characters() == 0) return false;
+  if (details->characters() == 0) {
+    TRACE("* No QuickCheck characters found");
+    return false;
+  }
   GetQuickCheckDetails(details, compiler, 0,
                        trace->at_start() == Trace::FALSE_VALUE,
                        kRecursionBudget);
-  if (details->cannot_match()) return false;
-  if (!details->Rationalize(compiler->one_byte())) return false;
+  if (details->cannot_match()) {
+    TRACE("* QuickCheck cannot match");
+    return false;
+  }
+  if (!details->Rationalize(compiler->one_byte())) {
+    TRACE("* QuickCheck didn't find a useful operation");
+    return false;
+  }
   DCHECK(details->characters() == 1 ||
          compiler->macro_assembler()->CanReadUnaligned());
   uint32_t mask = details->mask();
@@ -1557,6 +1661,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
 
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
 
+  TRACE("* Emit QuickCheck");
   if (trace->characters_preloaded() != details->characters()) {
     DCHECK(trace->cp_offset() == bounds_check_trace->cp_offset());
     // The bounds check is performed using the minimum number of characters
@@ -2118,6 +2223,7 @@ void EndNode::GetQuickCheckDetails(QuickCheckDetails* details,
 }
 
 EmitResult AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  TRACE_EMIT("AssertionNode");
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   switch (assertion_type_) {
     case AT_END: {
@@ -2334,6 +2440,7 @@ TextNode* TextNode::CreateForSurrogatePair(
 // emitting code for some character positions every time.  See the comment on
 // TextEmitPass for details.
 EmitResult TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  TRACE_EMIT("TextNode");
   LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return EmitResult::Success();
   DCHECK(limit_result == CONTINUE);
@@ -2342,6 +2449,20 @@ EmitResult TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     compiler->SetRegExpTooBig();
     return EmitResult::Error();
   }
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  if (V8_UNLIKELY(v8_flags.trace_regexp_compiler)) {
+    const QuickCheckDetails* quick_check = trace->quick_check_performed();
+    if (quick_check != nullptr) {
+      for (int i = 0; i < quick_check->characters(); ++i) {
+        if (quick_check->positions(i)->determines_perfectly) {
+          TRACE("  Character at position "
+                << i << " already determined by QuickCheck");
+        }
+      }
+    }
+  }
+#endif
 
   if (compiler->one_byte()) {
     int dummy = 0;
@@ -2496,6 +2617,7 @@ void LoopChoiceNode::AddContinueAlternative(GuardedAlternative alt) {
 }
 
 EmitResult LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  TRACE_EMIT("LoopChoice");
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   if (trace->special_loop_state() != nullptr &&
       trace->special_loop_state()->loop_choice_node() == this) {
@@ -2737,6 +2859,10 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
     // be outside the 0-kSize range.
     int probability = (in_quickcheck_range ? kSize / 2 : kSize) - frequency;
     int points = (i - remembered_from) * probability;
+    TRACE_COMPILER(compiler_, "  Points for "
+                                  << max_number_of_chars << " chars: " << points
+                                  << " (start at " << remembered_from
+                                  << "; probability: " << probability << ")");
     if (points > biggest_points) {
       *from = remembered_from;
       *to = i - 1;
@@ -2809,7 +2935,10 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   int min_lookahead = 0;
   int max_lookahead = 0;
 
-  if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead)) return;
+  if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead)) {
+    TRACE_COMPILER(compiler_, "  No worthwhile interval found");
+    return;
+  }
 
   // Check if we only have a single non-empty position info, and that info
   // contains only one or two characters.
@@ -2999,7 +3128,7 @@ void ChoiceNode::AssertGuardsMentionRegisters(Trace* trace) {
   int choice_count = alternatives_->length();
   for (int i = 0; i < choice_count - 1; i++) {
     GuardedAlternative alternative = alternatives_->at(i);
-    ZoneList<Guard*>* guards = alternative.guards();
+    const ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == nullptr) ? 0 : guards->length();
     for (int j = 0; j < guard_count; j++) {
       DCHECK(!trace->mentions_reg(guards->at(j)->reg()));
@@ -3024,6 +3153,7 @@ void ChoiceNode::SetUpPreLoad(RegExpCompiler* compiler, Trace* current_trace,
 }
 
 EmitResult ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  TRACE_EMIT("Choice");
   int choice_count = alternatives_->length();
 
   if (choice_count == 1 && alternatives_->at(0).guards() == nullptr) {
@@ -3097,6 +3227,7 @@ Trace* ChoiceNode::EmitFixedLengthLoop(
     RegExpCompiler* compiler, Trace* trace, AlternativeGenerationList* alt_gens,
     PreloadState* preload, SpecialLoopState* fixed_length_loop_state,
     int text_length, RegExpFlags flags) {
+  TRACE("* Emit fixed length loop");
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   // Here we have special handling for greedy loops containing only text nodes
   // and other simple nodes.  We call these fixed length loops.  These are
@@ -3145,6 +3276,8 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(
 
   GuardedAlternative alt1 = alternatives_->at(1);
   if (alt1.guards() != nullptr && alt1.guards()->length() != 0) {
+    TRACE(
+        "  Alternatives with guards -> Can't emit optimized unanchored search");
     return eats_at_least;
   }
   RegExpNode* eats_anything_node = alt1.node();
@@ -3160,6 +3293,7 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(
   // overwriting those characters with new load instructions.
   DCHECK(trace->is_trivial());
 
+  TRACE("* Emit optimized unanchored search");
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   Isolate* isolate = macro_assembler->isolate();
   // At this point we know that we are at a non-greedy loop that will eat
@@ -3182,6 +3316,14 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(
     }
   }
   if (bm != nullptr) {
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+    if (V8_UNLIKELY(v8_flags.trace_regexp_compiler)) {
+      RegExpGraphPrinter* printer = compiler->diagnostics()->graph_printer();
+      std::ostream& os = compiler->diagnostics()->os();
+      os << "  ";
+      printer->PrintBoyerMooreLookahead(bm);
+    }
+#endif
     bm->EmitSkipInstructions(macro_assembler);
   }
   return eats_at_least;
@@ -3191,6 +3333,7 @@ EmitResult ChoiceNode::EmitChoices(RegExpCompiler* compiler,
                                    AlternativeGenerationList* alt_gens,
                                    int first_choice, Trace* trace,
                                    PreloadState* preload, RegExpFlags flags) {
+  TRACE("* Emit Choices");
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   SetUpPreLoad(compiler, trace, preload);
 
@@ -3210,7 +3353,7 @@ EmitResult ChoiceNode::EmitChoices(RegExpCompiler* compiler,
     GuardedAlternative alternative = alternatives_->at(i);
     AlternativeGeneration* alt_gen = alt_gens->at(i);
     alt_gen->quick_check_details.set_characters(preload->preload_characters_);
-    ZoneList<Guard*>* guards = alternative.guards();
+    const ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == nullptr) ? 0 : guards->length();
     Trace new_trace(*trace);
     new_trace.set_characters_preloaded(
@@ -3225,6 +3368,8 @@ EmitResult ChoiceNode::EmitChoices(RegExpCompiler* compiler,
     }
     alt_gen->expects_preload = preload->preload_is_current_;
     bool generate_full_check_inline = false;
+    TRACE_WITH_NODE_AND_TRACE(compiler, "  Choice " << i << " ",
+                              alternative.node(), &new_trace);
     if (quick_check_flags && try_to_emit_quick_check_for_alternative(i == 0) &&
         alternative.node()->EmitQuickCheck(
             compiler, trace, &new_trace, preload->preload_has_checked_bounds_,
@@ -3281,6 +3426,8 @@ EmitResult ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
                                                  int preload_characters,
                                                  bool next_expects_preload) {
   if (!alt_gen->possible_success.is_linked()) return EmitResult::Success();
+  TRACE_WITH_NODE_AND_TRACE(compiler, "* Emit Out-of-Line Continuation for ",
+                            alternative.node(), trace);
 
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   macro_assembler->Bind(&alt_gen->possible_success);
@@ -3288,7 +3435,7 @@ EmitResult ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
   out_of_line_trace.set_characters_preloaded(preload_characters);
   out_of_line_trace.set_quick_check_performed(&alt_gen->quick_check_details);
   if (not_at_start_) out_of_line_trace.set_at_start(Trace::FALSE_VALUE);
-  ZoneList<Guard*>* guards = alternative.guards();
+  const ZoneList<Guard*>* guards = alternative.guards();
   int guard_count = (guards == nullptr) ? 0 : guards->length();
   if (next_expects_preload) {
     Label reload_current_char;
@@ -3315,6 +3462,7 @@ EmitResult ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
 }
 
 EmitResult ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  TRACE_EMIT("Action");
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return EmitResult::Success();
@@ -3381,8 +3529,7 @@ EmitResult ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
         }
         // If the match is empty we bail out, otherwise we fall through
         // to the on-success continuation.
-        assembler->IfRegisterEqPos(data_.u_empty_match_check.start_register,
-                                   trace->backtrack());
+        assembler->IfRegisterEqPos(start_pos_reg, trace->backtrack());
         assembler->Bind(&skip_empty_check);
         RETURN_IF_ERROR(on_success()->Emit(compiler, trace));
       }
@@ -3426,6 +3573,7 @@ EmitResult ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 }
 
 EmitResult BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  TRACE_EMIT("BackReference");
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   if (!trace->is_trivial()) {
     return trace->Flush(compiler, this);
@@ -3809,6 +3957,7 @@ void ChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
 
 void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
                             BoyerMooreLookahead* bm, bool not_at_start) {
+  TRACE_WITH_NODE(bm->compiler(), "* Fill BM Info for Text: ", this);
   if (initial_offset >= bm->length()) return;
   if (read_backward()) return;
   int offset = initial_offset;
@@ -3866,6 +4015,7 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
 
 RegExpNode* RegExpCompiler::OptionallyStepBackToLeadSurrogate(
     RegExpNode* on_success) {
+  TRACE_COMPILER(this, "* Optionally step back to lead surrogate");
   DCHECK(!read_backward());
   ZoneList<CharacterRange>* lead_surrogates = CharacterRange::List(
       zone(), CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd));
@@ -3878,20 +4028,28 @@ RegExpNode* RegExpCompiler::OptionallyStepBackToLeadSurrogate(
   int position_register = UnicodeLookaroundPositionRegister();
   RegExpNode* step_back = TextNode::CreateForCharacterRanges(
       zone(), lead_surrogates, true, on_success);
-  RegExpLookaround::Builder builder(true, step_back, stack_register,
+  RegExpLookaround::Builder builder(true, step_back, this, stack_register,
                                     position_register);
+  REGISTER_NODE(step_back);
   RegExpNode* match_trail = TextNode::CreateForCharacterRanges(
       zone(), trail_surrogates, false, builder.on_match_success());
+  REGISTER_NODE(match_trail);
 
   optional_step_back->AddAlternative(
-      GuardedAlternative(builder.ForMatch(match_trail)));
+      GuardedAlternative(builder.ForMatch(this, match_trail)));
   optional_step_back->AddAlternative(GuardedAlternative(on_success));
 
+  REGISTER_NODE(optional_step_back);
   return optional_step_back;
 }
 
 RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
                                              bool is_one_byte) {
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  TraceRegExpTreeScope trace_tree_scope(diagnostics());
+#endif
+  TRACE_GRAPH_WITH_NODE("* Preprocess RegExp ", data->tree);
+  REGISTER_NODE(accept());
   // Wrap the body of the regexp in capture #0.
   RegExpNode* captured_body =
       RegExpCapture::ToNode(data->tree, 0, this, accept());
@@ -3899,6 +4057,7 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
   if (!data->tree->IsAnchoredAtStart() && !IsSticky(flags())) {
     // Add a .*? at the beginning, outside the body capture, unless
     // this expression is anchored at the beginning or sticky.
+    TRACE_GRAPH("* Add .*? at beginning of unanchored, non-sticky RegExp");
     RegExpNode* loop_node = RegExpQuantifier::ToNode(
         0, RegExpTree::kInfinity, false,
         zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything), this,
@@ -3907,11 +4066,13 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
     if (data->contains_anchor) {
       // Unroll loop once, to take care of the case that might start
       // at the start of input.
+      TRACE_GRAPH("* Unroll loop once");
       ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, zone());
       first_step_node->AddAlternative(GuardedAlternative(captured_body));
       first_step_node->AddAlternative(GuardedAlternative(zone()->New<TextNode>(
           zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything),
           false, loop_node)));
+      REGISTER_NODE(first_step_node);
       node = first_step_node;
     } else {
       node = loop_node;
@@ -3936,5 +4097,12 @@ void RegExpCompiler::ToNodeCheckForStackOverflow() {
     SetRegExpTooBig();
   }
 }
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+void RegExpCompiler::set_diagnostics(
+    std::unique_ptr<RegExpDiagnostics> diagnostics) {
+  diagnostics_ = std::move(diagnostics);
+}
+#endif
 
 }  // namespace v8::internal

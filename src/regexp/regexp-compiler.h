@@ -18,6 +18,7 @@ namespace internal {
 class DynamicBitSet;
 class Isolate;
 class SpecialLoopState;
+class RegExpDiagnostics;
 
 namespace regexp_compiler_constants {
 
@@ -192,13 +193,14 @@ class BoyerMooreLookahead : public ZoneObject {
  public:
   BoyerMooreLookahead(int length, RegExpCompiler* compiler, Zone* zone);
 
-  int length() { return length_; }
+  int length() const { return length_; }
   int max_char() { return max_char_; }
   RegExpCompiler* compiler() { return compiler_; }
 
   int Count(int map_number) { return bitmaps_->at(map_number)->map_count(); }
 
   BoyerMoorePositionInfo* at(int i) { return bitmaps_->at(i); }
+  const BoyerMoorePositionInfo* at(int i) const { return bitmaps_->at(i); }
 
   void Set(int map_number, int character) {
     if (character > max_char_) return;
@@ -256,7 +258,7 @@ class BoyerMooreLookahead : public ZoneObject {
 // where baz has been matched.
 class Trace {
  public:
-  // A value for a property that is either known to be true, know to be false,
+  // A value for a property that is either known to be true, known to be false,
   // or not known.
   enum TriBool { UNKNOWN = -1, FALSE_VALUE = 0, TRUE_VALUE = 1 };
 
@@ -448,7 +450,7 @@ class SpecialLoopState {
 };
 
 struct PreloadState {
-  static const int kEatsAtLeastNotYetInitialized = -1;
+  static constexpr int kEatsAtLeastNotYetInitialized = -1;
   bool preload_is_current_;
   bool preload_has_checked_bounds_;
   int preload_characters_;
@@ -628,6 +630,10 @@ class RegExpCompiler {
   }
   void ToNodeCheckForStackOverflow();
 
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  RegExpDiagnostics* diagnostics() { return diagnostics_.get(); }
+  void set_diagnostics(std::unique_ptr<RegExpDiagnostics> diagnostics);
+#endif
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
@@ -650,6 +656,9 @@ class RegExpCompiler {
   bool read_backward_;
   int current_expansion_factor_;
   FrequencyCollator frequency_collator_;
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  std::unique_ptr<RegExpDiagnostics> diagnostics_;
+#endif
   Isolate* isolate_;
   Zone* zone_;
 };

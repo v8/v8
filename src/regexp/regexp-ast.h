@@ -208,7 +208,6 @@ class RegExpTree : public ZoneObject {
   // expression.
   virtual Interval CaptureRegisters() { return Interval::Empty(); }
   virtual void AppendToText(RegExpText* text, Zone* zone);
-  V8_EXPORT_PRIVATE std::ostream& Print(std::ostream& os, Zone* zone);
 #define MAKE_ASTYPE(Name)           \
   virtual RegExp##Name* As##Name(); \
   virtual bool Is##Name();
@@ -697,11 +696,11 @@ class RegExpLookaround final : public RegExpTree {
 
   class Builder {
    public:
-    Builder(bool is_positive, RegExpNode* on_success,
+    Builder(bool is_positive, RegExpNode* on_success, RegExpCompiler* compiler,
             int stack_pointer_register, int position_register,
             int capture_register_count = 0, int capture_register_start = 0);
     RegExpNode* on_match_success() const { return on_match_success_; }
-    RegExpNode* ForMatch(RegExpNode* match);
+    RegExpNode* ForMatch(RegExpCompiler*, RegExpNode* match);
 
    private:
     bool is_positive_;

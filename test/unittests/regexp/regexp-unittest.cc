@@ -19,6 +19,7 @@
 #include "src/init/v8.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/regexp/regexp-ast-printer.h"
 #include "src/regexp/regexp-bytecode-generator.h"
 #include "src/regexp/regexp-bytecodes-inl.h"
 #include "src/regexp/regexp-compiler.h"
@@ -103,12 +104,15 @@ static void CheckParseEq(const char* input, const char* expected,
                                                 &result));
   CHECK_NOT_NULL(result.tree);
   CHECK_EQ(RegExpError::kNone, result.error);
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
   std::ostringstream os;
-  result.tree->Print(os, &zone);
+  RegExpAstNodePrinter printer(os, nullptr, &zone);
+  printer.Print(result.tree);
   if (strcmp(expected, os.str().c_str()) != 0) {
     printf("%s | %s\n", expected, os.str().c_str());
   }
   CHECK_EQ(0, strcmp(expected, os.str().c_str()));
+#endif
 }
 
 static bool CheckSimple(const char* input) {

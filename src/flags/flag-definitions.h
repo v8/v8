@@ -3279,17 +3279,48 @@ DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
 #ifdef ENABLE_DISASSEMBLER
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
+DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
 #else
 DEFINE_BOOL_READONLY(trace_regexp_peephole_optimization, false,
                      "trace regexp bytecode peephole optimization (requires "
                      "v8_enable_disassembler = true)")
+DEFINE_BOOL_READONLY(
+    trace_regexp_bytecodes, false,
+    "trace regexp bytecode execution (requires v8_enable_disassembler = true)")
 #endif
-DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
 DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")
+DEFINE_BOOL(trace_regexp_compiler, false, "trace regexp compilation")
+DEFINE_BOOL(trace_regexp_graph_building, false,
+            "trace regexp AST to graph conversion")
 DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
-DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 DEFINE_BOOL(trace_regexp_graph, false, "trace the regexp graph")
+DEFINE_BOOL(print_regexp_graph, false, "print the regexp graph")
+DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
+#else
+DEFINE_BOOL_READONLY(trace_regexp_assembler, false,
+                     "trace regexp macro assembler calls (requires "
+                     "v8_enable_regexp_diagnostics = true).")
+DEFINE_BOOL_READONLY(
+    trace_regexp_compiler, false,
+    "trace regexp compilation (requires v8_enable_regexp_diagnostics = true)")
+DEFINE_BOOL_READONLY(trace_regexp_graph_building, false,
+                     "trace regexp AST to graph conversion (requires "
+                     "v8_enable_regexp_diagnostics = true)")
+DEFINE_BOOL_READONLY(
+    trace_regexp_parser, false,
+    "trace regexp parsing (requires v8_enable_regexp_diagnostics = true)")
+DEFINE_BOOL_READONLY(
+    trace_regexp_graph, false,
+    "trace the regexp graph (requires v8_enable_regexp_diagnostics = true)")
+DEFINE_BOOL_READONLY(
+    print_regexp_graph, false,
+    "print the regexp graph (requires v8_enable_regexp_diagnostics = true)")
+DEFINE_BOOL_READONLY(trace_regexp_tier_up, false,
+                     "trace regexp tiering up execution (requires "
+                     "v8_enable_regexp_diagnostics = true)")
+#endif
 
 DEFINE_EXPERIMENTAL_FEATURE(
     enable_experimental_regexp_engine,
