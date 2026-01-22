@@ -31,7 +31,6 @@ namespace wasm {
 class NativeModule;
 struct UnpublishedWasmCode;
 class WasmCode;
-struct FastApiData;
 class WasmEngine;
 class WasmError;
 class WasmModuleCoverageData;
@@ -39,7 +38,7 @@ class WasmModuleCoverageData;
 // The Arm architecture does not specify the results in memory of
 // partially-in-bound writes, which does not align with the wasm spec. This
 // affects when trap handlers can be used for OOB detection; however, Mac
-// systems with Apple silicon currently do provide trapping behaviour for
+// systems with Apple silicon currently do provide trapping beahviour for
 // partially-out-of-bound writes, so we assume we can rely on that on MacOS,
 // since doing so provides better performance for writes.
 #if V8_TARGET_ARCH_ARM64 && !V8_OS_MACOS
@@ -57,7 +56,9 @@ struct CompilationEnv {
   // Features enabled for this compilation.
   const WasmEnabledFeatures enabled_features;
 
-  const std::shared_ptr<FastApiData[]> fast_api_data;
+  const std::atomic<Address>* fast_api_targets;
+
+  std::atomic<const MachineSignature*>* fast_api_signatures;
 
   std::shared_ptr<WasmModuleCoverageData> module_coverage_data;
 
@@ -70,11 +71,13 @@ struct CompilationEnv {
 
  private:
   CompilationEnv(const WasmModule* module, WasmEnabledFeatures enabled_features,
-                 std::shared_ptr<FastApiData[]> fast_api_data,
+                 std::atomic<Address>* fast_api_targets,
+                 std::atomic<const MachineSignature*>* fast_api_signatures,
                  std::shared_ptr<WasmModuleCoverageData> module_coverage_data)
       : module(module),
         enabled_features(enabled_features),
-        fast_api_data(std::move(fast_api_data)),
+        fast_api_targets(fast_api_targets),
+        fast_api_signatures(fast_api_signatures),
         module_coverage_data(std::move(module_coverage_data)) {}
 };
 
