@@ -2317,6 +2317,20 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::ObjectIsArray* node,
+                                const maglev::ProcessingState& state) {
+    ThrowingScope throwing_scope(this, node);
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
+    LazyDeoptOnThrow lazy_deopt_on_throw = ShouldLazyDeoptOnThrow(node);
+
+    V<Boolean> is_array =
+        __ ObjectIsArray(Map(node->ValueInput()), frame_state, native_context(),
+                         lazy_deopt_on_throw);
+
+    SetMap(node, is_array);
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::TestInstanceOf* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());

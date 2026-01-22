@@ -16,6 +16,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -448,6 +449,34 @@ class TurbolevEarlyLoweringReducer : public Next {
              MemoryRepresentation::AnyTagged(),
              WriteBarrierKind::kFullWriteBarrier,
              JSGeneratorObject::kContextOffset);
+  }
+
+  V<Boolean> ObjectIsArray(V<Object> value, V<FrameState> frame_state,
+                           V<NativeContext> native_context,
+                           LazyDeoptOnThrow lazy_deopt_on_throw) {
+    Label<Boolean> done(this);
+
+    V<Boolean> true_bool = __ HeapConstant(factory_->true_value());
+    V<Boolean> false_bool = __ HeapConstant(factory_->false_value());
+
+    GOTO_IF(__ ObjectIsSmi(value), done, false_bool);
+
+    V<Map> map = __ LoadMapField(value);
+    V<Word32> instance_type = __ LoadInstanceTypeField(map);
+
+    // Check if {value} is a JSArray
+    GOTO_IF(__ Word32Equal(instance_type, JS_ARRAY_TYPE), done, true_bool);
+
+    // Check if {value} is not a JSProxy
+    GOTO_IF_NOT(__ Word32Equal(instance_type, JS_PROXY_TYPE), done, false_bool);
+
+    // {value} is a JSProxy, let the %ArrayIsArray runtime function dea with it.
+    GOTO(done, __ template CallRuntime<runtime::ArrayIsArray>(
+                   frame_state, native_context, {.input = value},
+                   lazy_deopt_on_throw));
+
+    BIND(done, result);
+    return result;
   }
 
  private:

@@ -8680,7 +8680,10 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIsArray(
     }
   }
 
-  // TODO(verwaest): Add a node that checks the instance type.
+  if (is_turbolev()) {
+    return AddNewNode<ObjectIsArray>({node});
+  }
+  // TODO(dmercadier): consider supporting ObjectIsArray in Maglev.
   return {};
 }
 

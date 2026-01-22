@@ -439,6 +439,18 @@ struct runtime : CallDescriptorBuilder {
     static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties = Operator::kFoldable;
   };
+
+  struct ArrayIsArray : public Descriptor<ArrayIsArray> {
+    static constexpr auto kFunction = Runtime::kArrayIsArray;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, input)
+    };
+    using returns_t = V<Boolean>;
+
+    // TODO(dmercadier): check if this can really lazy deopt.
+    static constexpr bool kCanTriggerLazyDeopt = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
 };
 
 }  // namespace v8::internal::compiler::turboshaft

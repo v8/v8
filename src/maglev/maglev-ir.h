@@ -197,7 +197,8 @@ class ExceptionHandlerInfo;
   V(MapPrototypeGet)                \
   V(MapPrototypeGetInt32Key)        \
   V(SetPrototypeHas)                \
-  V(StringSlice)
+  V(StringSlice)                    \
+  V(ObjectIsArray)
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) \
   V(TransitionAndStoreArrayElement)     \
@@ -8081,6 +8082,29 @@ class StringSlice : public FixedInputValueNodeT<3, StringSlice> {
   DECLARE_INPUT_TYPES(Tagged, Int32, Int32)
 
   NodeType type() const { return NodeType::kString; }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class ObjectIsArray : public FixedInputValueNodeT<1, ObjectIsArray> {
+ public:
+  explicit ObjectIsArray(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::CanThrow() | OpProperties::CanRead() |
+      OpProperties::TaggedValue();
+
+  int MaxCallStackArgs() const {
+    // Only implemented in Turbolev.
+    UNREACHABLE();
+  }
+
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  NodeType type() const { return NodeType::kBoolean; }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
