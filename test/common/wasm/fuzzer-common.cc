@@ -647,6 +647,18 @@ static std::optional<ExecutionResult> ExecuteNonReferenceRun(
   int32_t result = testing::CallWasmFunctionForTesting(
       isolate, instance, "main", base::VectorOf(compiled_args), &exception);
 
+  if (exception) {
+    if (strcmp(exception.get(),
+               "RangeError: Maximum call stack size exceeded") == 0) {
+      // There was a stack overflow. The reference run didn't have one,
+      // otherwise we wouldn't have gotten here; but we have seen cases where
+      // TF stack frames are slightly larger and optimized code hence
+      // runs into a stack overflow where unoptimized code didn't.
+      // Just ignore this, it's not a bug.
+      return {};
+    }
+  }
+
   return {{instance, std::move(exception), result, false}};
 }
 
@@ -965,7 +977,7 @@ int ExecuteAgainstReference(Isolate* isolate,
       ExecuteNonReferenceRun(isolate, module, module_object, exported_main);
   if (!result_opt) {
     // The execution of non-reference run can fail if it runs OOM during
-    // instantiation.
+    // instantiation or overflows the stack.
     return -1;
   }
   const ExecutionResult& result = *result_opt;
