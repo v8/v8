@@ -289,9 +289,6 @@
   'intl402/DateTimeFormat/prototype/format/temporal-objects-format-with-era': [FAIL],
   'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [FAIL],
 
-  # Test bug: https://github.com/tc39/test262/pull/4809#issuecomment-3746801478
-  'intl402/Temporal/PlainYearMonth/from/extreme-unsupported-dates': [SKIP],
-
   # End Temporal test expectations
 
 
@@ -1175,20 +1172,6 @@
 # End roll-watcher patch
 ####
 
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/Temporal/Duration/prototype/round/zero-duration': [SKIP],
-  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-5': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/withCalendar/calendar-time-string': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/withCalendar/calendar-time-string': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/withCalendar/calendar-time-string': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-
 ####
 # Roll-watcher patch
 [ALWAYS, {
@@ -1197,29 +1180,6 @@
   'intl402/Temporal/PlainTime/prototype/toLocaleString/datestyle-and-timestyle': [SKIP],
   'intl402/Temporal/PlainTime/prototype/toLocaleString/hourcycle': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/hourcycle': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'intl402/DateTimeFormat/prototype/format/temporal-plaindatetime-unsupported-options': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRange/temporal-plaindatetime-unsupported-options': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-plaindatetime-unsupported-options': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatToParts/temporal-plaindatetime-unsupported-options': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/Temporal/PlainDate/from/month-code-wrong-type': [SKIP],
-  'built-ins/Temporal/PlainDateTime/from/month-code-wrong-type': [SKIP],
-  'built-ins/Temporal/PlainYearMonth/from/month-code-wrong-type': [SKIP],
-  'built-ins/Temporal/ZonedDateTime/from/month-code-wrong-type': [SKIP],
-  'intl402/Temporal/PlainYearMonth/from/extreme-dates': [SKIP],
 }],
 # End roll-watcher patch
 ####
