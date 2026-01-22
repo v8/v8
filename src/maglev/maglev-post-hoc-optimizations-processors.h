@@ -92,6 +92,12 @@ class RecomputePhiUseHintsProcessor {
 
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     DCHECK(!node->Is<Phi>());
+    if (ValueNode* value_node = node->TryCast<ValueNode>()) {
+      if (value_node->use_count() == 0 &&
+          !value_node->properties().is_required_when_unused()) {
+        return ProcessResult::kContinue;
+      }
+    }
     for (Input input : node->inputs()) {
       if (!input.node()) continue;
       if (Phi* phi = input.node()->TryCast<Phi>()) {
@@ -105,16 +111,14 @@ class RecomputePhiUseHintsProcessor {
             unwrapped = unwrapped->input_node(0);
           }
           DCHECK(!unwrapped->is_conversion());
-          DCHECK(!node->Is<TruncateCheckedNumberOrOddballToInt32>());
-          DCHECK(!node->Is<TruncateUnsafeNumberOrOddballToInt32>());
-          DCHECK(!node->Is<TruncateUint32ToInt32>());
-          DCHECK(!node->Is<TruncateFloat64ToInt32>());
-          DCHECK(!node->Is<TruncateHoleyFloat64ToInt32>());
           use_repr =
               UseRepresentationFromValue(unwrapped->value_representation());
         } else if (node->Is<TruncateUint32ToInt32>() ||
                    node->Is<TruncateFloat64ToInt32>() ||
                    node->Is<TruncateHoleyFloat64ToInt32>() ||
+                   node->Is<TruncateCheckedNumberAsSafeIntToInt32>() ||
+                   node->Is<TruncateUnsafeNumberAsSafeIntToInt32>() ||
+                   node->Is<TruncateFloat64AsSafeIntToInt32>() ||
                    node->Is<TruncateCheckedNumberOrOddballToInt32>() ||
                    node->Is<TruncateUnsafeNumberOrOddballToInt32>()) {
           use_repr = UseRepresentation::kTruncatedInt32;

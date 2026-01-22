@@ -2499,6 +2499,20 @@ ReduceResult MaglevGraphBuilder::BuildStringConcat(ValueNode* left,
   return SetAccumulator(AddNewNode<StringConcat>({left, right}));
 }
 
+ReduceResult MaglevGraphBuilder::BuildFloat64SpeculateSafeAdd(
+    ValueNode* left, ValueNode* right) {
+  DCHECK(can_speculative_additive_safe_int());
+  PROCESS_AND_RETURN_IF_DONE(
+      reducer_.TryFoldFloat64BinaryOperationForToNumber<Operation::kAdd>(
+          TaggedToFloat64ConversionType::kOnlyNumber, left, right),
+      SetAccumulator);
+  ReduceResult result = AddNewNode<Float64SpeculateSafeAdd>({left, right});
+  if (result.IsDoneWithValue()) {
+    result.value()->set_can_truncate_to_int32(true);
+  }
+  return SetAccumulator(result);
+}
+
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
@@ -2508,15 +2522,15 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kAdditiveSafeInteger:
-      if (is_turbolev() && Is64() &&
-          v8_flags.turbolev_additive_safe_int_feedback) {
+      if (can_speculative_additive_safe_int()) {
         DCHECK_EQ(kOperation, Operation::kAdd);
-        ValueNode* left = LoadRegister(0);
-        ValueNode* right = GetAccumulator();
-        PROCESS_AND_RETURN_IF_DONE(reducer_.TryFoldShiftedInt53Add(left, right),
-                                   SetAccumulator);
-        return SetAccumulator(AddNewNode<ShiftedInt53AddWithOverflow>(
-            {reducer_.GetShiftedInt53(left), reducer_.GetShiftedInt53(right)}));
+        ValueNode* left;
+        GET_VALUE_OR_ABORT(
+            left, LoadRegisterFloat64ForToNumber(0, NodeType::kNumber));
+        ValueNode* right;
+        GET_VALUE_OR_ABORT(right,
+                           GetAccumulatorFloat64ForToNumber(NodeType::kNumber));
+        return BuildFloat64SpeculateSafeAdd(left, right);
       }
       [[fallthrough]];
     case BinaryOperationHint::kSignedSmall:
@@ -2593,15 +2607,13 @@ ReduceResult MaglevGraphBuilder::VisitBinarySmiOperation() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kAdditiveSafeInteger:
-      if (is_turbolev() && Is64() &&
-          v8_flags.turbolev_additive_safe_int_feedback) {
+      if (can_speculative_additive_safe_int()) {
         DCHECK_EQ(kOperation, Operation::kAdd);
-        ValueNode* left = GetAccumulator();
-        ValueNode* right = GetInt32Constant(iterator_.GetImmediateOperand(0));
-        PROCESS_AND_RETURN_IF_DONE(reducer_.TryFoldShiftedInt53Add(left, right),
-                                   SetAccumulator);
-        return SetAccumulator(AddNewNode<ShiftedInt53AddWithOverflow>(
-            {reducer_.GetShiftedInt53(left), reducer_.GetShiftedInt53(right)}));
+        ValueNode* left;
+        GET_VALUE_OR_ABORT(left,
+                           GetAccumulatorFloat64ForToNumber(NodeType::kNumber));
+        double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
+        return BuildFloat64SpeculateSafeAdd(left, GetFloat64Constant(constant));
       }
       [[fallthrough]];
     case BinaryOperationHint::kSignedSmall:

@@ -2966,6 +2966,43 @@ UNIMPLEMENTED_NODE(ShiftedInt53ToBoolean)
 UNIMPLEMENTED_NODE(AssertRangeInt32)
 UNIMPLEMENTED_NODE(AssertRangeFloat64)
 
+ProcessResult MaglevGraphOptimizer::VisitFloat64SpeculateSafeAdd(
+    Float64SpeculateSafeAdd* node, const ProcessingState& state) {
+  // Don't do anything.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitTruncateFloat64AsSafeIntToInt32(
+    TruncateFloat64AsSafeIntToInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  if (node->input_node(0)->Is<ChangeInt32ToFloat64>()) {
+    return ReplaceWith(node->input_node(0)->input_node(0));
+  }
+  return ProcessResult::kContinue;
+}
+
+// TODO(victorgomes): Use UNTAGGING_CASE and investigating why Int32ToNumber as
+// input as not been unwrapped.
+ProcessResult MaglevGraphOptimizer::VisitTruncateCheckedNumberAsSafeIntToInt32(
+    TruncateCheckedNumberAsSafeIntToInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  if (node->input_node(0)->Is<Int32ToNumber>()) {
+    return ReplaceWith(node->input_node(0)->input_node(0));
+  }
+  return ProcessResult::kContinue;
+}
+
+// TODO(victorgomes): Use UNTAGGING_CASE and investigating why Int32ToNumber as
+// input as not been unwrapped.
+ProcessResult MaglevGraphOptimizer::VisitTruncateUnsafeNumberAsSafeIntToInt32(
+    TruncateUnsafeNumberAsSafeIntToInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  if (node->input_node(0)->Is<Int32ToNumber>()) {
+    return ReplaceWith(node->input_node(0)->input_node(0));
+  }
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
     JumpLoop* node, const ProcessingState& state) {
   // We need to unwrap backedges of loop phis (since it's possible that they

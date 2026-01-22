@@ -118,6 +118,33 @@ ValueNode* TruncationProcessor::GetTruncatedInt32Input(ValueNode* node,
   return input;
 }
 
+ValueNode* TruncationProcessor::GetSpeculatedTruncatedInt32Input(
+    ValueNode* node, int index) {
+  ValueNode* input = node->input_node(index);
+  if (auto f64_cst = input->TryCast<Float64Constant>()) {
+    DCHECK(input->GetStaticRange().IsSafeInt());
+    input = GetTruncatedInt32Constant(f64_cst->value().get_scalar());
+  } else if (input->Is<ChangeInt32ToFloat64>()) {
+    input = input->input(0).node();
+  } else if (input->Is<UnsafeNumberToFloat64>()) {
+    input =
+        reducer_
+            .AddNewNodeNoInputConversion<TruncateUnsafeNumberAsSafeIntToInt32>(
+                {input->input_node(0)});
+  } else if (input->Is<CheckedNumberToFloat64>()) {
+    input =
+        reducer_
+            .AddNewNodeNoInputConversion<TruncateCheckedNumberAsSafeIntToInt32>(
+                {input->input_node(0)});
+  } else if (input->is_float64()) {
+    input =
+        reducer_.AddNewNodeNoInputConversion<TruncateFloat64AsSafeIntToInt32>(
+            {input});
+  }
+  DCHECK(input->is_int32());
+  return input;
+}
+
 void TruncationProcessor::EnsureTruncatedInt32Inputs(ValueNode* node) {
   for (int i = 0; i < node->input_count(); i++) {
     ValueNode* input = node->input_node(i);

@@ -455,6 +455,7 @@ void MaglevReducer<BaseT>::UpdateRange(NodeT* node) {
     if (r1.is_all() || r2.is_all()) return;
     Range result = Range::All();
     switch (Node::opcode_of<NodeT>) {
+      case Opcode::kFloat64SpeculateSafeAdd:
       case Opcode::kFloat64Add:
         result = Range::Add(r1, r2);
         break;

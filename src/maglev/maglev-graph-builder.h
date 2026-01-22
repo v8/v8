@@ -215,6 +215,27 @@ class MaglevGraphBuilder {
 
   bool is_turbolev() const { return is_turbolev_; }
 
+  // If the feedback suggests that the result of an addition will be a safe
+  // integer (where Float64 can represent integers exactly), then we can
+  // speculate its range. During the truncation pass:
+  //
+  // 1. If Float64SpeculateSafeAdd CANNOT be truncated to Int32 (i.e., its
+  //    result is used as a Float64 or Tagged value), it's lowered to a
+  //    standard Float64Add.
+  // 2. If it CAN be truncated to Int32, we check if we should speculate:
+  //    - If the result is already known to be a safe integer (via range
+  //      analysis), we lower it to Int32Add (non-speculative).
+  //    - If we decide to speculate (e.g., at least one input is already a safe
+  //      integer or a Phi), we insert speculative truncations for the inputs
+  //      (which may eager deopt if an input isn't a safe integer) and
+  //      lower to Int32Add.
+  //    - Otherwise, we fall back to Float64Add.
+  bool can_speculative_additive_safe_int() const {
+    return is_turbolev() && Is64() &&
+           v8_flags.turbolev_additive_safe_int_feedback &&
+           v8_flags.turbolev_non_eager_inlining;
+  }
+
   bool should_abort_compilation() const { return should_abort_compilation_; }
 
   bool is_non_eager_inlining_enabled() const {
@@ -1648,6 +1669,8 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   ReduceResult BuildFloat64BinarySmiOperationNodeForToNumber(
       NodeType allowed_input_type);
+
+  ReduceResult BuildFloat64SpeculateSafeAdd(ValueNode* left, ValueNode* right);
 
   template <Operation kOperation>
   ReduceResult VisitUnaryOperation();

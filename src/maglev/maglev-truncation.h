@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "src/base/logging.h"
+#include "src/common/scoped-modification.h"
 #include "src/flags/flags.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -249,9 +250,30 @@ class TruncationProcessor {
       PROCESS_INT32_BITWISE_BINARY_OPERATION)
 #undef PROCESS_INT32_BITWISE_BINARY_OPERATION
 
+  ProcessResult Process(Float64SpeculateSafeAdd* node,
+                        const ProcessingState& state) {
+    ScopedModification<NodeBase*> current_node(&current_node_, node);
+    PreProcessNode(node, state);
+    ProcessFloat64SpeculateSafeAdd(node);
+    PostProcessNode(node);
+    return ProcessResult::kContinue;
+  }
+
+  DeoptFrame* GetDeoptFrameForEagerDeopt() {
+    DCHECK(current_node()->properties().can_eager_deopt() ||
+           current_node()->properties().is_deopt_checkpoint());
+    return &current_node()->eager_deopt_info()->top_frame();
+  }
+
  private:
   MaglevReducer<TruncationProcessor> reducer_;
   int current_node_index_ = 0;
+  NodeBase* current_node_;
+
+  NodeBase* current_node() const {
+    CHECK_NOT_NULL(current_node_);
+    return current_node_;
+  }
 
   void PreProcessNode(Node*, const ProcessingState& state);
   void PostProcessNode(Node*);
@@ -269,10 +291,44 @@ class TruncationProcessor {
 
   int NonInt32InputCount(ValueNode* node);
   ValueNode* GetTruncatedInt32Input(ValueNode* node, int index);
+  ValueNode* GetSpeculatedTruncatedInt32Input(ValueNode* node, int index);
   void EnsureTruncatedInt32Inputs(ValueNode* node);
   void ConvertInputsToFloat64(ValueNode* node);
 
   ProcessResult ProcessTruncatedConversion(ValueNode* node);
+
+  bool IsSafeIntInputOrPhi(ValueNode* node, int index) {
+    ValueNode* input = node->input_node(index);
+    if (input->Is<Phi>()) return true;
+    if (input->is_conversion()) return IsSafeIntInputOrPhi(input, 0);
+    return input->GetStaticRange().IsSafeInt();
+  }
+
+  void ProcessFloat64SpeculateSafeAdd(Float64SpeculateSafeAdd* node) {
+    if (!node->can_truncate_to_int32()) {
+      // Don't truncate this node.
+      node->OverwriteWith<Float64Add>();
+      return;
+    }
+    if (node->range().IsSafeInt()) {
+      // Non-speculating truncation.
+      ProcessFloat64BinaryOp<Int32Add>(node);
+      return;
+    }
+    // Checking both inputs are usually expensive, so we only speculate if one
+    // of the inputs is already a safe int. However since truncation happens
+    // before phi representation selector, we also speculate if we see a phi.
+    if (!IsSafeIntInputOrPhi(node, 0) && !IsSafeIntInputOrPhi(node, 1)) {
+      // Don't truncate this node.
+      node->OverwriteWith<Float64Add>();
+      return;
+    }
+    // Speculating truncation.
+    for (int i = 0; i < node->input_count(); i++) {
+      node->change_input(i, GetSpeculatedTruncatedInt32Input(node, i));
+    }
+    node->OverwriteWith<Int32Add>();
+  }
 
   template <typename NodeT>
 

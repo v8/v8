@@ -819,7 +819,9 @@ DEFINE_BOOL(additive_safe_int_feedback, true,
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_additive_safe_int_feedback,
     "Enable the use of AdditiveSafeInteger feedback for Turbolev")
-// Additive safe ints are only used by TurboFan.
+DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_additive_safe_int_feedback)
+
+// Additive safe ints are only used by TurboFan or Turbolev.
 DEFINE_NEG_IMPLICATION(jitless, additive_safe_int_feedback)
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, additive_safe_int_feedback)
 #else

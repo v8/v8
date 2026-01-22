@@ -149,6 +149,7 @@ class ExceptionHandlerInfo;
 #define FLOAT64_OPERATIONS_NODE_LIST(V) \
   V(Float64Abs)                         \
   V(Float64Add)                         \
+  V(Float64SpeculateSafeAdd)            \
   V(Float64Subtract)                    \
   V(Float64Multiply)                    \
   V(Float64Divide)                      \
@@ -334,6 +335,9 @@ class ExceptionHandlerInfo;
   V(Phi)                                                              \
   V(RegisterInput)                                                    \
   V(CheckedInternalizedString)                                        \
+  V(TruncateCheckedNumberAsSafeIntToInt32)                            \
+  V(TruncateUnsafeNumberAsSafeIntToInt32)                             \
+  V(TruncateFloat64AsSafeIntToInt32)                                  \
   V(TruncateCheckedNumberOrOddballToInt32)                            \
   V(TruncateUnsafeNumberOrOddballToInt32)                             \
   V(TruncateFloat64ToInt32)                                           \
@@ -607,6 +611,7 @@ constexpr bool IsConversionNode(Opcode opcode) {
 constexpr bool IsCommutativeNode(Opcode opcode) {
   switch (opcode) {
     case Opcode::kFloat64Add:
+    case Opcode::kFloat64SpeculateSafeAdd:
     case Opcode::kFloat64Min:
     case Opcode::kFloat64Max:
     case Opcode::kFloat64Multiply:
@@ -745,6 +750,7 @@ constexpr bool CanBeTheHoleValue(Opcode opcode) {
 constexpr bool HasRangeField(Opcode opcode) {
   switch (opcode) {
     case Opcode::kFloat64Add:
+    case Opcode::kFloat64SpeculateSafeAdd:
     case Opcode::kFloat64Subtract:
     case Opcode::kFloat64Multiply:
     case Opcode::kFloat64Divide:
@@ -3883,6 +3889,26 @@ class Float64BinaryNodeWithCall : public FixedInputValueNodeT<2, Derived> {
   explicit Float64BinaryNodeWithCall(uint64_t bitfield) : Base(bitfield) {}
 };
 
+// Many additions can be optimized to Int32 if the result is
+// truncated to 32 bits and the intermediate values stay within the "safe
+// integer" range (where Float64 can represent integers exactly).
+//
+// We use Float64SpeculateSafeAdd to represent an addition where
+// feedback suggests the result will be a safe integer. This node is
+// currently ONLY used to enable Int32 truncations during the truncation pass.
+class Float64SpeculateSafeAdd
+    : public Float64BinaryNode<Float64SpeculateSafeAdd, Operation::kAdd> {
+  using Base = Float64BinaryNode<Float64SpeculateSafeAdd, Operation::kAdd>;
+
+ public:
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::EagerDeopt();
+
+  explicit Float64SpeculateSafeAdd(uint64_t bitfield) : Base(bitfield) {}
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+};
+
 #define DEF_FLOAT64_BINARY_NODE(Name) \
   DEF_OPERATION_NODE(Float64##Name, Float64BinaryNode, Name)
 #define DEF_FLOAT64_BINARY_NODE_WITH_CALL(Name) \
@@ -4890,6 +4916,56 @@ class TruncateUnsafeNumberOrOddballToInt32
  private:
   using TaggedToFloat64ConversionTypeOffset =
       NextBitField<TaggedToFloat64ConversionType, 2>;
+};
+
+// This node checks that the input is a Number and that it is in the SafeInt
+// range.
+class TruncateCheckedNumberAsSafeIntToInt32
+    : public FixedInputValueNodeT<1, TruncateCheckedNumberAsSafeIntToInt32> {
+ public:
+  explicit TruncateCheckedNumberAsSafeIntToInt32(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
+  DECLARE_UNOP(Tagged)
+
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+  void PrintParams(std::ostream&) const {}
+};
+
+// This node assumes the input is a Number and only checks that it is in the
+// SafeInt range.
+class TruncateUnsafeNumberAsSafeIntToInt32
+    : public FixedInputValueNodeT<1, TruncateUnsafeNumberAsSafeIntToInt32> {
+ public:
+  explicit TruncateUnsafeNumberAsSafeIntToInt32(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
+  DECLARE_UNOP(Tagged)
+
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+  void PrintParams(std::ostream&) const {}
+};
+
+// This node checks that the input is in the SafeInt range.
+class TruncateFloat64AsSafeIntToInt32
+    : public FixedInputValueNodeT<1, TruncateFloat64AsSafeIntToInt32> {
+ public:
+  explicit TruncateFloat64AsSafeIntToInt32(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
+  DECLARE_UNOP(Float64)
+
+  void SetValueLocationConstraints() { UNREACHABLE(); }
+  void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
+  void PrintParams(std::ostream&) const {}
 };
 
 class TruncateCheckedNumberOrOddballToInt32

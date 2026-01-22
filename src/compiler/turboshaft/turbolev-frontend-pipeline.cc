@@ -111,8 +111,7 @@ struct TruncationPhase {
         propagate;
     propagate.ProcessGraph(graph);
     // TODO(victorgomes): Support identities to flow to next passes?
-    maglev::GraphProcessor<maglev::TruncationProcessor> truncate(
-        maglev::TruncationProcessor{graph});
+    maglev::GraphProcessor<maglev::TruncationProcessor> truncate(graph);
     truncate.ProcessGraph(graph);
     return true;
   }
@@ -150,12 +149,14 @@ struct RangeAnalysisPhase {
 struct PostOptimizerPhase {
   DECL_TURBOLEV_PHASE_CONSTANTS(PostOptimizer)
 
-  bool Run(maglev::Graph* graph, maglev::NodeRanges& ranges) {
+  bool Run(maglev::Graph* graph, maglev::NodeRanges* ranges) {
     maglev::RecomputeKnownNodeAspectsProcessor kna_processor(graph);
-    maglev::MaglevGraphOptimizer optimizer(graph, kna_processor, &ranges);
+    maglev::MaglevGraphOptimizer optimizer(graph, kna_processor, ranges);
     maglev::GraphMultiProcessor<maglev::MaglevGraphOptimizer&,
-                                maglev::RecomputeKnownNodeAspectsProcessor&>
-        optimization_pass(optimizer, kna_processor);
+                                maglev::RecomputeKnownNodeAspectsProcessor&,
+                                maglev::RecomputePhiUseHintsProcessor>
+        optimization_pass(optimizer, kna_processor,
+                          maglev::RecomputePhiUseHintsProcessor{graph->zone()});
     optimization_pass.ProcessGraph(graph);
 
     // Remove unreachable blocks if we have any.
@@ -225,12 +226,13 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   }
   if (v8_flags.maglev_truncation && graph_->may_have_truncation()) {
     Run<TruncationPhase>();
+    Run<PostOptimizerPhase>(nullptr);
   }
   Run<PhiUntaggingPhase>();
   if (v8_flags.maglev_range_analysis) {
     maglev::NodeRanges ranges(graph_);
     Run<RangeAnalysisPhase>(ranges);
-    Run<PostOptimizerPhase>(ranges);
+    Run<PostOptimizerPhase>(&ranges);
   }
   Run<PostHocPhase>();
   Run<DeadNodeSweepingPhase>();
