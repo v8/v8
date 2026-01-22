@@ -17,7 +17,7 @@
 #include "src/base/platform/memory.h"
 #include "src/sandbox/hardware-support.h"
 
-#define SHM_SIZE 0x100000
+#define SHM_SIZE 0x200000
 #define MAX_EDGES ((SHM_SIZE - 4) * 8)
 
 struct shmem_data {
