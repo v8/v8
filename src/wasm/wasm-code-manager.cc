@@ -1022,8 +1022,11 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
       enabled_features_(enabled_features),
       compile_imports_(std::move(compile_imports)),
       module_(std::move(module)),
-      fast_api_data_(
-          std::make_shared<FastApiData[]>(module_->num_imported_functions)) {
+      fast_api_targets_(
+          new std::atomic<Address>[module_->num_imported_functions]()),
+      fast_api_signatures_(
+          new std::atomic<
+              const MachineSignature*>[module_->num_imported_functions]()) {
   DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.
