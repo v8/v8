@@ -2327,6 +2327,7 @@ DEFINE_BOOL(trim_descriptor_arrays_in_gc_with_stack, true,
             "Shrink descriptor arrays during GCs with stack")
 DEFINE_IMPLICATION(trim_descriptor_arrays_in_gc_with_stack,
                    trim_descriptor_arrays_in_gc)
+DEFINE_NEG_IMPLICATION(future, trim_descriptor_arrays_in_gc_with_stack)
 DEFINE_SIZE_T(min_semi_space_size, 0,
               "min size of a semi-space (in MBytes), the new space consists of "
               "two semi-spaces")
