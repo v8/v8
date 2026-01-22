@@ -144,7 +144,6 @@ class GraphProcessor {
     process_constants(graph->tagged_index());
     process_constants(graph->int32());
     process_constants(graph->uint32());
-    process_constants(graph->shifted_int53());
     process_constants(graph->intptr());
     process_constants(graph->float64());
     process_constants(graph->holey_float64());
@@ -390,7 +389,6 @@ class GraphBackwardProcessor {
     process_constants(graph->tagged_index());
     process_constants(graph->int32());
     process_constants(graph->uint32());
-    process_constants(graph->shifted_int53());
     process_constants(graph->intptr());
     process_constants(graph->float64());
     process_constants(graph->heap_number());

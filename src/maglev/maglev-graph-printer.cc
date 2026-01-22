@@ -808,9 +808,6 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     case ValueRepresentation::kInt32:
       os_ << "ᴵ";
       break;
-    case ValueRepresentation::kShiftedInt53:
-      os_ << "ᴵ⁵³";
-      break;
     case ValueRepresentation::kUint32:
       os_ << "ᵁ";
       break;
@@ -1014,9 +1011,6 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
             break;
           case ValueRepresentation::kUint32:
             os_ << "ᵁ";
-            break;
-          case ValueRepresentation::kShiftedInt53:
-            os_ << "ᴵ⁵³";
             break;
           case ValueRepresentation::kFloat64:
             os_ << "ᶠ";

@@ -286,8 +286,6 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       }
       return;
     }
-    case Opcode::kShiftedInt53Constant:
-      UNIMPLEMENTED();
     case Opcode::kIntPtrConstant: {
       intptr_t intptr_value = value->Cast<IntPtrConstant>()->value();
       if (intptr_value <= std::numeric_limits<int>::max() &&
@@ -390,8 +388,6 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
         bind(&done);
         break;
       }
-      case ValueRepresentation::kShiftedInt53:
-        UNIMPLEMENTED();
       case ValueRepresentation::kTagged:
       case ValueRepresentation::kRawPtr:
       case ValueRepresentation::kNone:

@@ -80,8 +80,6 @@ constexpr ValueRepresentation ValueRepresentationFromUse(
       return ValueRepresentation::kInt32;
     case UseRepresentation::kUint32:
       return ValueRepresentation::kUint32;
-    case UseRepresentation::kShiftedInt53:
-      return ValueRepresentation::kShiftedInt53;
     case UseRepresentation::kFloat64:
       return ValueRepresentation::kFloat64;
     case UseRepresentation::kHoleyFloat64:
@@ -229,13 +227,6 @@ ValueNode* MaglevGraphOptimizer::GetConstantWithRepresentation(
       }
       return nullptr;
     }
-    case UseRepresentation::kShiftedInt53: {
-      auto cst = reducer_.TryGetShiftedInt53Constant(node);
-      if (cst.has_value()) {
-        return reducer_.GetShiftedInt53Constant(cst.value());
-      }
-      return nullptr;
-    }
     case UseRepresentation::kFloat64:
     case UseRepresentation::kHoleyFloat64: {
       DCHECK(conversion_type.has_value());
@@ -272,8 +263,6 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
     return cst;
   }
   if (node->is_tagged()) {
-    // TODO(victorgomes): No alternatives for shift int53.
-    if (use_repr == UseRepresentation::kShiftedInt53) return {};
     // Check if we already have a canonical conversion.
     NodeInfo* node_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), node);
@@ -295,8 +284,6 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
       DCHECK(conversion_type.has_value());
       return reducer_.GetTruncatedInt32ForToNumber(
           node, GetAllowedTypeFromConversionType(*conversion_type));
-    case UseRepresentation::kShiftedInt53:
-      return reducer_.GetShiftedInt53(node);
     case UseRepresentation::kFloat64:
       DCHECK(conversion_type.has_value());
       return reducer_.GetFloat64ForToNumber(
@@ -1761,13 +1748,6 @@ ProcessResult MaglevGraphOptimizer::VisitIntPtrToNumber(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitShiftedInt53ToNumber(
-    ShiftedInt53ToNumber* node, const ProcessingState& state) {
-  REPLACE_AND_RETURN_IF_DONE(
-      TrySmiTag<UnsafeSmiTagShiftedInt53>(node->ValueInput()));
-  return ProcessResult::kContinue;
-}
-
 ProcessResult MaglevGraphOptimizer::VisitInt32CountLeadingZeros(
     Int32CountLeadingZeros* node, const ProcessingState& state) {
   REPLACE_AND_RETURN_IF_DONE(
@@ -1845,7 +1825,6 @@ UNTAGGING_CASE(TruncateCheckedNumberOrOddballToInt32, TruncatedInt32,
                node->conversion_type())
 UNTAGGING_CASE(TruncateUnsafeNumberOrOddballToInt32, TruncatedInt32,
                node->conversion_type())
-UNTAGGING_CASE(CheckedNumberToShiftedInt53, ShiftedInt53, {})
 UNTAGGING_CASE(CheckedNumberOrOddballToFloat64, Float64,
                node->conversion_type())
 UNTAGGING_CASE(UnsafeNumberOrOddballToFloat64, Float64, node->conversion_type())
@@ -2364,14 +2343,6 @@ ProcessResult MaglevGraphOptimizer::VisitInt32ToBoolean(
     return ReplaceWith(
         reducer_.GetBooleanConstant(node->flip() ? !value : value));
   }
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitShiftedInt53AddWithOverflow(
-    ShiftedInt53AddWithOverflow* node, const ProcessingState& state) {
-  REPLACE_AND_RETURN_IF_DONE(reducer_.TryFoldShiftedInt53Add(
-      node->input_node(0), node->input_node(1)));
-  // TODO(victorgomes): Add range optimization.
   return ProcessResult::kContinue;
 }
 
@@ -2958,18 +2929,6 @@ ProcessResult MaglevGraphOptimizer::VisitCheckpointedJump(
                                                   const ProcessingState&) { \
     return ProcessResult::kContinue;                                        \
   }
-UNIMPLEMENTED_NODE(CheckedShiftedInt53ToInt32)
-UNIMPLEMENTED_NODE(CheckedShiftedInt53ToUint32)
-UNIMPLEMENTED_NODE(CheckedIntPtrToShiftedInt53)
-UNIMPLEMENTED_NODE(CheckedHoleyFloat64ToShiftedInt53)
-UNIMPLEMENTED_NODE(UnsafeSmiTagShiftedInt53)
-UNIMPLEMENTED_NODE(ChangeInt32ToShiftedInt53)
-UNIMPLEMENTED_NODE(ChangeUint32ToShiftedInt53)
-UNIMPLEMENTED_NODE(ChangeShiftedInt53ToFloat64)
-UNIMPLEMENTED_NODE(ChangeShiftedInt53ToHoleyFloat64)
-UNIMPLEMENTED_NODE(TruncateShiftedInt53ToInt32)
-UNIMPLEMENTED_NODE(CheckedSmiTagShiftedInt53)
-UNIMPLEMENTED_NODE(ShiftedInt53ToBoolean)
 UNIMPLEMENTED_NODE(AssertRangeInt32)
 UNIMPLEMENTED_NODE(AssertRangeFloat64)
 

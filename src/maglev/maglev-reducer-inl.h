@@ -292,7 +292,6 @@ ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
         return GetFloat64(input);
       case ValueRepresentation::kHoleyFloat64:
         return GetHoleyFloat64(input);
-      case ValueRepresentation::kShiftedInt53:
       case ValueRepresentation::kUint32:
       case ValueRepresentation::kIntPtr:
       case ValueRepresentation::kRawPtr:
@@ -583,14 +582,6 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
               {value}, HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi));
     }
 
-    case ValueRepresentation::kShiftedInt53:
-      if (NodeTypeIsSmi(node_info->type())) {
-        return alternative.set_tagged(
-            AddNewNodeNoInputConversion<UnsafeSmiTagShiftedInt53>({value}));
-      }
-      return alternative.set_tagged(
-          AddNewNodeNoInputConversion<ShiftedInt53ToNumber>({value}));
-
     case ValueRepresentation::kIntPtr:
       if (NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(
@@ -656,10 +647,6 @@ ReduceResult MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       return alternative.set_int32(
           AddNewNodeNoInputConversion<CheckedIntPtrToInt32>({value}));
 
-    case ValueRepresentation::kShiftedInt53:
-      return alternative.set_int32(
-          AddNewNodeNoInputConversion<CheckedShiftedInt53ToInt32>({value}));
-
     case ValueRepresentation::kInt32:
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
@@ -682,46 +669,6 @@ ValueNode* MaglevReducer<BaseT>::TryGetInt32(ValueNode* value) {
   }
 
   return nullptr;
-}
-
-template <typename BaseT>
-ValueNode* MaglevReducer<BaseT>::GetShiftedInt53(ValueNode* value) {
-  value->MaybeRecordUseReprHint(UseRepresentation::kShiftedInt53);
-
-  ValueRepresentation representation =
-      value->properties().value_representation();
-  if (representation == ValueRepresentation::kShiftedInt53) return value;
-
-  if (std::optional<ShiftedInt53> cst = TryGetShiftedInt53Constant(value)) {
-    return graph()->GetShiftedInt53Constant(cst.value());
-  }
-  // We could emit unconditional eager deopts for other kinds of constant, but
-  // it's not necessary, the appropriate checking conversion nodes will deopt.
-
-  switch (representation) {
-    case ValueRepresentation::kTagged:
-      return AddNewNodeNoInputConversion<CheckedNumberToShiftedInt53>({value});
-    case ValueRepresentation::kUint32:
-      return AddNewNodeNoInputConversion<ChangeUint32ToShiftedInt53>({value});
-    case ValueRepresentation::kFloat64:
-    // The check here will also work for the hole NaN, so we can treat
-    // HoleyFloat64 as Float64.
-    case ValueRepresentation::kHoleyFloat64:
-      return AddNewNodeNoInputConversion<CheckedHoleyFloat64ToShiftedInt53>(
-          {value});
-
-    case ValueRepresentation::kIntPtr:
-      return AddNewNodeNoInputConversion<CheckedIntPtrToShiftedInt53>({value});
-
-    case ValueRepresentation::kInt32:
-      return AddNewNodeNoInputConversion<ChangeInt32ToShiftedInt53>({value});
-
-    case ValueRepresentation::kShiftedInt53:
-    case ValueRepresentation::kRawPtr:
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
 }
 
 template <typename BaseT>
@@ -765,13 +712,6 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
       }
       return {};
     }
-    case Opcode::kShiftedInt53Constant: {
-      int64_t int64_value = value->Cast<ShiftedInt53Constant>()->ToInt64();
-      if (int64_value >= INT32_MIN && int64_value <= INT32_MAX) {
-        return static_cast<int32_t>(int64_value);
-      }
-      return {};
-    }
     case Opcode::kSmiConstant:
       return value->Cast<SmiConstant>()->value().value();
     case Opcode::kFloat64Constant: {
@@ -785,44 +725,6 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
   }
   if (auto c = TryGetConstantAlternative(value)) {
     return TryGetInt32Constant(*c);
-  }
-  return {};
-}
-
-template <typename BaseT>
-std::optional<ShiftedInt53> MaglevReducer<BaseT>::TryGetShiftedInt53Constant(
-    ValueNode* value) {
-  switch (value->opcode()) {
-    case Opcode::kConstant: {
-      compiler::ObjectRef object = value->Cast<Constant>()->object();
-      if (!object.IsHeapNumber()) return {};
-      double double_value = object.AsHeapNumber().value();
-      if (double_value == 0 && std::signbit(double_value)) return {};
-      if (!IsSafeInteger(double_value)) return {};
-      return ShiftedInt53(double_value);
-    }
-    case Opcode::kInt32Constant:
-      return ShiftedInt53(value->Cast<Int32Constant>()->value());
-    case Opcode::kUint32Constant: {
-      uint32_t uint32_value = value->Cast<Uint32Constant>()->value();
-      return ShiftedInt53(static_cast<int64_t>(uint32_value));
-    }
-    case Opcode::kShiftedInt53Constant:
-      return value->Cast<ShiftedInt53Constant>()->as_shifted_int53();
-    case Opcode::kSmiConstant:
-      return ShiftedInt53(value->Cast<SmiConstant>()->value().value());
-    case Opcode::kFloat64Constant: {
-      double double_value =
-          value->Cast<Float64Constant>()->value().get_scalar();
-      if (double_value == 0 && std::signbit(double_value)) return {};
-      if (!IsSafeInteger(double_value)) return {};
-      return ShiftedInt53(double_value);
-    }
-    default:
-      break;
-  }
-  if (auto c = TryGetConstantAlternative(value)) {
-    return TryGetShiftedInt53Constant(*c);
   }
   return {};
 }
@@ -976,9 +878,6 @@ ReduceResult MaglevReducer<BaseT>::GetTruncatedInt32ForToNumber(
       return alternative.set_truncated_int32_to_number(
           AddNewNodeNoInputConversion<TruncateHoleyFloat64ToInt32>({value}));
     }
-    case ValueRepresentation::kShiftedInt53:
-      return alternative.set_truncated_int32_to_number(
-          AddNewNodeNoInputConversion<TruncateShiftedInt53ToInt32>({value}));
     case ValueRepresentation::kIntPtr: {
       // This is not an efficient implementation, but this only happens in
       // corner cases.
@@ -1167,15 +1066,6 @@ ReduceResult MaglevReducer<BaseT>::GetFloat64OrHoleyFloat64Impl(
       }
       return alternative.set_float64(float64);
     }
-    case ValueRepresentation::kShiftedInt53: {
-      if (use_rep == UseRepresentation::kHoleyFloat64) {
-        return alternative.set_holey_float64(
-            AddNewNodeNoInputConversion<ChangeShiftedInt53ToHoleyFloat64>(
-                {value}));
-      }
-      return alternative.set_float64(
-          AddNewNodeNoInputConversion<ChangeShiftedInt53ToFloat64>({value}));
-    }
     case ValueRepresentation::kNone:
     case ValueRepresentation::kRawPtr:
       UNREACHABLE();
@@ -1268,9 +1158,6 @@ MaglevReducer<BaseT>::TryGetFloat64OrHoleyFloat64Constant(
     case Opcode::kInt32Constant:
       return Float64{
           static_cast<double>(value->Cast<Int32Constant>()->value())};
-    case Opcode::kShiftedInt53Constant:
-      return Float64{
-          static_cast<double>(value->Cast<ShiftedInt53Constant>()->ToInt64())};
     case Opcode::kSmiConstant:
       return Float64{
           static_cast<double>(value->Cast<SmiConstant>()->value().value())};
@@ -1945,27 +1832,6 @@ bool MaglevReducer<BaseT>::TryFoldFloat64CompareOperation(Operation op,
     default:
       UNREACHABLE();
   }
-}
-
-template <typename BaseT>
-MaybeReduceResult MaglevReducer<BaseT>::TryFoldShiftedInt53Add(
-    ValueNode* left, ValueNode* right) {
-  std::optional<ShiftedInt53> cst_left = TryGetShiftedInt53Constant(left);
-  std::optional<ShiftedInt53> cst_right = TryGetShiftedInt53Constant(right);
-  if (cst_left && cst_right) {
-    int64_t result = cst_left->ToInt64() + cst_right->ToInt64();
-    // TODO(victorgomes): Does this mean we need to deopt?
-    if (!IsSafeInteger(result)) return {};
-    return graph_->GetShiftedInt53Constant(ShiftedInt53(result));
-  }
-  if (!cst_left && !cst_right) return {};
-  if (cst_left && cst_left->value() == 0) {
-    return GetShiftedInt53(right);
-  }
-  if (cst_right && cst_right->value() == 0) {
-    return GetShiftedInt53(left);
-  }
-  return {};
 }
 
 template <typename BaseT>
