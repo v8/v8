@@ -474,19 +474,6 @@ MaybeDirectHandle<JSTypedArray> JSTypedArray::Validate(
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }
 
-#ifdef DEBUG
-  // Verify that the underlying ArrayBuffer's byte_length is consistent with
-  // its BackingStore's byte_length (for non-resizable buffers).
-  DirectHandle<JSArrayBuffer> buffer(Cast<JSArrayBuffer>(array->buffer()),
-                                     isolate);
-  if (!buffer->is_resizable_by_js()) {
-    auto backing_store = buffer->GetBackingStore();
-    if (backing_store) {
-      DCHECK_EQ(buffer->byte_length(), backing_store->byte_length());
-    }
-  }
-#endif
-
   // spec describes to return `buffer`, but it may disrupt current
   // implementations, and it's much useful to return array for now.
   return array;

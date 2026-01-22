@@ -97,17 +97,6 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
       std::memory_order memory_order = std::memory_order_relaxed) const {
     return byte_length_.load(memory_order);
   }
-  // Shrink the byte_length without any page-level operations. Unlike
-  // ResizeInPlace, this method does not require page-aligned memory and
-  // does not zero the freed portion or decommit pages. Use this only for
-  // non-resizable backing stores where the physical allocation can remain
-  // larger than the logical size.
-  void shrink_byte_length(size_t new_byte_length) {
-    DCHECK(!has_flag(kIsShared));
-    DCHECK(!has_flag(kIsResizableByJs));
-    DCHECK_LE(new_byte_length, byte_length_.load(std::memory_order_relaxed));
-    byte_length_.store(new_byte_length, std::memory_order_relaxed);
-  }
   size_t max_byte_length() const { return max_byte_length_; }
   size_t byte_capacity() const { return byte_capacity_; }
   bool is_shared() const { return has_flag(kIsShared); }
