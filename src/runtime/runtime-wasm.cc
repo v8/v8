@@ -1612,6 +1612,14 @@ class PrototypesSetup : public wasm::Decoder {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
       return {};
     }
+    if (HeapLayout::InWritableSharedSpace(Cast<HeapObject>(*maybe_proto))) {
+      DCHECK(v8_flags.harmony_struct);
+      // Shared JS structs are not supported as prototypes, and probably
+      // never will be: we cannot change their maps to add new properties,
+      // and we cannot add pointers to non-shared methods to them.
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
+      return {};
+    }
     return Cast<JSObject>(maybe_proto);
   }
 
