@@ -4704,8 +4704,13 @@ class ModuleGen {
     static constexpr base::Vector<const char> kTextEncoder =
         base::StaticCharVector("wasm:text-encoder");
 
+    // The signatures of compile-time imports must be defined in singleton
+    // recgroups, so we can't allow them to get deduplicated against existing
+    // signatures that might be in nontrivial recgroups.
+    static constexpr bool kForceNewSig = true;
 #define STRINGFUNC(name, sig, group) \
-  strings.name = builder_->AddImport(base::CStrVector(#name), &sig, group)
+  strings.name =                     \
+      builder_->AddImport(base::CStrVector(#name), &sig, group, kForceNewSig)
 
     STRINGFUNC(cast, kSig_e_r, kJsString);
     STRINGFUNC(test, kSig_i_r, kJsString);

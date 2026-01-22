@@ -325,7 +325,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   // Building methods.
   uint32_t AddImport(base::Vector<const char> name, const FunctionSig* sig,
-                     base::Vector<const char> module = {});
+                     base::Vector<const char> module = {},
+                     bool force_new_sig = false);
   WasmFunctionBuilder* AddFunction(const FunctionSig* sig = nullptr);
   WasmFunctionBuilder* AddFunction(ModuleTypeIndex sig_index);
   uint32_t AddGlobal(ValueType type, bool mutability, WasmInitExpr init);
