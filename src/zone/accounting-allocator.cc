@@ -25,9 +25,9 @@ class ManagedZones final {
   static std::optional<VirtualMemory> GetOrCreateMemoryForSegment(
       Isolate* isolate, size_t bytes) {
     DCHECK_EQ(0, bytes % kMinZonePageSize);
-    // Only consult the pool if we have an isolate and the size is exactly the
-    // zone page size. Larger sizes may be required and just bypass the pool.
-    if (isolate && bytes == kMinZonePageSize) {
+    // Only consult the pool if the size is exactly the zone page size. Larger
+    // sizes may be required and just bypass the pool.
+    if (bytes == kMinZonePageSize) {
       auto maybe_reservation =
           IsolateGroup::current()->memory_pool()->RemoveZoneReservation(
               isolate);
@@ -69,6 +69,18 @@ class ManagedZones final {
     return {memory, bytes};
   }
 
+  static base::AllocationResult<void*> AllocateSegmentWithRetry(
+      Isolate* isolate, size_t bytes) {
+    static constexpr size_t kAllocationTries = 2u;
+    base::AllocationResult<void*> result = {nullptr, 0u};
+    for (size_t i = 0; i < kAllocationTries; ++i) {
+      result = AllocateSegment(isolate, bytes);
+      if (V8_LIKELY(result.ptr != nullptr)) break;
+      OnCriticalMemoryPressure();
+    }
+    return result;
+  }
+
   static void ReturnSegment(Isolate* isolate, void* memory, size_t bytes) {
     VirtualMemory reservation(GetPlatformPageAllocator(),
                               reinterpret_cast<Address>(memory), bytes);
@@ -80,7 +92,14 @@ class ManagedZones final {
   }
 
  private:
+#if defined(V8_HOST_ARCH_64_BIT)
   static constexpr size_t kMinZonePageSize = 512 * KB;
+#else
+  // For 32-bit platforms, use smaller reservation size to avoid virtual memory
+  // exhaustion in scenarios when many zones get created, e.g. when compiling a
+  // large number of Wasm modules.
+  static constexpr size_t kMinZonePageSize = 256 * KB;
+#endif
   static constexpr size_t kMinZonePageAlignment = 16 * KB;
 };
 
@@ -95,8 +114,8 @@ AccountingAllocator::~AccountingAllocator() = default;
 
 Segment* AccountingAllocator::AllocateSegment(size_t requested_bytes) {
   base::AllocationResult<void*> memory;
-  if (v8_flags.managed_zone_memory && isolate_) {
-    memory = ManagedZones::AllocateSegment(isolate_, requested_bytes);
+  if (v8_flags.managed_zone_memory) {
+    memory = ManagedZones::AllocateSegmentWithRetry(isolate_, requested_bytes);
   } else {
     memory = AllocAtLeastWithRetry(requested_bytes);
   }
@@ -121,7 +140,7 @@ void AccountingAllocator::ReturnSegment(Segment* segment) {
   size_t segment_size = segment->total_size();
   current_memory_usage_.fetch_sub(segment_size, std::memory_order_relaxed);
   segment->ZapHeader();
-  if (isolate_ && v8_flags.managed_zone_memory) {
+  if (v8_flags.managed_zone_memory) {
     ManagedZones::ReturnSegment(isolate_, segment, segment_size);
   } else {
     free(segment);

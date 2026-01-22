@@ -96,6 +96,8 @@ PooledPage::Result PooledPage::ToResult() {
 
 template <typename PoolEntry>
 void MemoryPool::PoolImpl<PoolEntry>::TearDown() {
+  // Destroy the entry for the "nullptr-isolate".
+  local_pools_.erase(nullptr);
   DCHECK(local_pools_.empty());
   shared_pool_.clear();
 }
@@ -110,7 +112,6 @@ void MemoryPool::PoolImpl<PoolEntry>::PutLocal(Isolate* isolate,
 template <typename PoolEntry>
 std::optional<PoolEntry> MemoryPool::PoolImpl<PoolEntry>::Get(
     Isolate* isolate) {
-  DCHECK_NOT_NULL(isolate);
   base::MutexGuard guard(&mutex_);
 
   // Try to get a page from the page pool for the given isolate first.
@@ -427,7 +428,6 @@ std::optional<PooledPage::Result> MemoryPool::RemoveLarge(Isolate* isolate,
 
 void MemoryPool::AddZoneReservation(Isolate* isolate,
                                     VirtualMemory zone_reservation) {
-  DCHECK_NOT_NULL(isolate);
   zone_pool_.PutLocal(
       isolate,
       PooledVirtualMemory(std::move(zone_reservation),
@@ -437,7 +437,6 @@ void MemoryPool::AddZoneReservation(Isolate* isolate,
 
 std::optional<VirtualMemory> MemoryPool::RemoveZoneReservation(
     Isolate* isolate) {
-  DCHECK_NOT_NULL(isolate);
   auto result = zone_pool_.Get(isolate);
   return result
              ? std::optional<VirtualMemory>(std::move(result->virtual_memory()))
@@ -450,7 +449,7 @@ class MemoryPool::ReleasePooledChunksTask final : public CancelableTask {
                           Epoch release_epoch)
       // If --single-threaded is on, attach the task to the CTM of the current
       // isolate, since the isolate may die before the task runner.
-      : CancelableTask(v8_flags.single_threaded
+      : CancelableTask(v8_flags.single_threaded && isolate
                            ? isolate->cancelable_task_manager()
                            : pool->cancellable_task_manager_.get()),
         isolate_(isolate),

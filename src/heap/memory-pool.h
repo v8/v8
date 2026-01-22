@@ -98,10 +98,14 @@ class MemoryPool final {
   std::optional<PooledPage::Result> RemoveLarge(Isolate* isolate,
                                                 size_t chunk_size);
 
-  // Adds a zone reservation to the pool.
+  // Adds a zone reservation to the pool. A zone reservation doesn't need to
+  // be necessarily associated with an `isolate` (i.e. `isolate` may be
+  // nullptr).
   void AddZoneReservation(Isolate* isolate, VirtualMemory zone_reservation);
 
   // Tries to get a zone reservation from the pool. See Remove() for details.
+  // A zone reservation doesn't need to be necessarily associated with an
+  // `isolate` (i.e. `isolate` may be nullptr).
   std::optional<VirtualMemory> RemoveZoneReservation(Isolate* isolate);
 
   // Used to release the local page pool for this isolate on isolate teardown.
