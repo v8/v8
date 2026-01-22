@@ -150,18 +150,20 @@ class MaglevPhiRepresentationSelector {
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.
   void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
-                          const UntaggingKindList& untagging_kinds);
+                          const UntaggingKindList& untagging_kinds,
+                          bool truncating = false);
   void UntagInputWithHoistedUntagging(Phi* phi, ValueRepresentation repr,
-                                      int input_index, ValueNode* input,
+                                      bool truncating, int input_index,
+                                      ValueNode* input,
                                       UntaggingKind untagging_kind);
   void UntagSmiConstantInput(Phi* phi, ValueRepresentation repr,
                              int input_index, const SmiConstant* input);
-  void UntagConstantInput(Phi* phi, ValueRepresentation repr, int input_index,
-                          const Constant* input);
-  void UntagConversionInput(Phi* phi, ValueRepresentation repr, int input_index,
-                            ValueNode* input);
+  void UntagConstantInput(Phi* phi, ValueRepresentation repr, bool truncating,
+                          int input_index, const Constant* input);
+  void UntagConversionInput(Phi* phi, ValueRepresentation repr, bool truncating,
+                            int input_index, ValueNode* input);
   void UntagUntaggedPhiInput(Phi* phi, ValueRepresentation repr,
-                             int input_index, Phi* input_phi);
+                             bool truncating, int input_index, Phi* input_phi);
   void UntagBackedgePhiInput(Phi* phi, ValueRepresentation repr,
                              int input_index, Phi* input_phi);
   template <class NodeT>
