@@ -141,6 +141,9 @@
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-select-combine/*': [SKIP],
+
+  # TODO(https://crbug.com/467830526): Currently too flaky:
+  'test-mark-compact/RegressJoinThreadsOnIsolateDeinit': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
