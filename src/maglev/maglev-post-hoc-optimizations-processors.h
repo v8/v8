@@ -107,7 +107,7 @@ class RecomputePhiUseHintsProcessor {
               node->Cast<ValueNode>()->value_representation());
         } else if (node->Is<ReturnedValue>()) {
           ValueNode* unwrapped = node->input_node(0);
-          while (!unwrapped->Is<ReturnedValue>()) {
+          while (unwrapped->Is<ReturnedValue>()) {
             unwrapped = unwrapped->input_node(0);
           }
           DCHECK(!unwrapped->is_conversion());
