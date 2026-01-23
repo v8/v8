@@ -1771,15 +1771,15 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
   os << "\n - value: " << Brief(value());
   os << "\n - interrupt_budget: " << interrupt_budget();
   os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = Isolate::Current()->js_dispatch_table();
   if (dispatch_handle() != kNullJSDispatchHandle &&
-      jdt->IsTieringRequested(dispatch_handle())) {
+      jdt.IsTieringRequested(dispatch_handle())) {
     os << "\n - tiering request ";
     if (Tagged<FeedbackVector> fbv;
         TryCast(value(), &fbv) && fbv->tiering_in_progress()) {
       os << "in_progress ";
     }
-    jdt->PrintCurrentTieringRequest(dispatch_handle(), Isolate::Current(), os);
+    jdt.PrintCurrentTieringRequest(dispatch_handle(), Isolate::Current(), os);
   }
 
   os << "\n";
@@ -2526,12 +2526,12 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
     os << "\n - canonical feedback cell dispatch_handle: 0x" << std::hex
        << raw_feedback_cell()->dispatch_handle() << std::dec;
   }
-  if (IsTieringRequestedOrInProgress()) {
+  if (IsTieringRequestedOrInProgress(isolate)) {
     os << "\n - tiering request ";
     if (tiering_in_progress()) {
       os << "in_progress ";
     }
-    IsolateGroup::current()->js_dispatch_table()->PrintCurrentTieringRequest(
+    isolate->js_dispatch_table().PrintCurrentTieringRequest(
         dispatch_handle(), Isolate::Current(), os);
   }
 
@@ -4765,7 +4765,7 @@ V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Code(void* object) {
 
 V8_DEBUGGING_EXPORT extern "C" void _v8_internal_Print_Dispatch_Handle(
     uint32_t handle) {
-  i::IsolateGroup::current()->js_dispatch_table()->PrintEntry(
+  i::Isolate::Current()->js_dispatch_table().PrintEntry(
       i::JSDispatchHandle(handle));
 }
 

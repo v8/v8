@@ -982,6 +982,7 @@ class Internals {
       4 * kApiSystemPointerSize +
       kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
   static const int kTrustedPointerTableBasePointerOffset = 0;
+  static const int kJSDispatchTableSize = kExternalPointerTableSize;
 
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;
@@ -1039,20 +1040,20 @@ class Internals {
       kIsolateSharedTrustedPointerTableAddressOffset + kApiSystemPointerSize;
   static const int kIsolateCodePointerTableBaseAddressOffset =
       kIsolateTrustedPointerPublishingScopeOffset + kApiSystemPointerSize;
-  static const int kIsolateApiCallbackThunkArgumentOffset =
+  static const int kIsolateJSDispatchTableOffset =
       kIsolateCodePointerTableBaseAddressOffset + kApiSystemPointerSize;
 #else
-  static const int kIsolateApiCallbackThunkArgumentOffset =
+  static const int kIsolateJSDispatchTableOffset =
       kIsolateCppHeapPointerTableOffset + kExternalPointerTableSize;
 #endif  // V8_ENABLE_SANDBOX
 #else
-  static const int kIsolateApiCallbackThunkArgumentOffset =
+  static const int kIsolateJSDispatchTableOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif  // V8_COMPRESS_POINTERS
-  static const int kJSDispatchTableOffset =
-      kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
+  static const int kIsolateApiCallbackThunkArgumentOffset =
+      kIsolateJSDispatchTableOffset + kJSDispatchTableSize;
   static const int kIsolateRegexpExecVectorArgumentOffset =
-      kJSDispatchTableOffset + kApiSystemPointerSize;
+      kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
   static const int kContinuationPreservedEmbedderDataOffset =
       kIsolateRegexpExecVectorArgumentOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =

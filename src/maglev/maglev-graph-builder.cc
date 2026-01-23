@@ -11747,8 +11747,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   if (args.mode() == CallArguments::kDefault &&
       shared.object()->CanOnlyAccessFixedFormalParameters()) {
     auto parameter_count =
-        IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-            dispatch_handle);
+        local_isolate_->js_dispatch_table().GetParameterCount(dispatch_handle);
     if (args.count() > parameter_count - kJSArgcReceiverSlots) {
       args.ResizeDefaultArguments(parameter_count - kJSArgcReceiverSlots);
     }

@@ -4,6 +4,7 @@
 
 #include "src/codegen/reloc-info.h"
 
+#include "src/base/logging.h"
 #include "src/base/vlq.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-reference.h"
@@ -424,8 +425,8 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
     case JS_DISPATCH_HANDLE: {
       JSDispatchHandle handle = js_dispatch_handle();
       if (handle != kNullJSDispatchHandle) {
-        Tagged<Code> target_code =
-            IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
+        CHECK_NOT_NULL(isolate);
+        Tagged<Code> target_code = isolate->js_dispatch_table().GetCode(handle);
         os << " (" << CodeKindToString(target_code->kind());
         if (Builtins::IsBuiltin(target_code)) {
           os << " " << Builtins::name(target_code->builtin_id());
@@ -499,9 +500,9 @@ void RelocInfo::Verify(Isolate* isolate) {
       JSDispatchTable::Space* space =
           isolate->heap()->js_dispatch_table_space();
       JSDispatchTable::Space* ro_space =
-          isolate->read_only_heap()->js_dispatch_table_space();
-      IsolateGroup::current()->js_dispatch_table()->VerifyEntry(
-          js_dispatch_handle(), space, ro_space);
+          isolate->heap()->read_only_js_dispatch_table_space();
+      isolate->js_dispatch_table().VerifyEntry(js_dispatch_handle(), space,
+                                               ro_space);
       break;
     }
     case OFF_HEAP_TARGET: {

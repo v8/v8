@@ -254,13 +254,13 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   CHECK_UNLESS_FUZZING(IsJSFunction(*function_object));
   auto function = Cast<JSFunction>(function_object);
 
-  if (function->IsTieringRequestedOrInProgress()) {
+  if (function->IsTieringRequestedOrInProgress(isolate)) {
     if (function->tiering_in_progress()) {
       // Abort optimization so that calling DeoptimizeFunction on a function
       // currently being optimized ends up with a non-optimized function.
       isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
     }
-    function->ResetTieringRequests();
+    function->ResetTieringRequests(isolate);
   }
 
   if (function->HasAttachedOptimizedCode(isolate)) {
@@ -1154,7 +1154,7 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   function->ClearAllTypeFeedbackInfoForTesting(isolate);
   // Typically tests use this function to start from scratch. Thus, we should
   // also clear tiering requests.
-  function->ResetTieringRequests();
+  function->ResetTieringRequests(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

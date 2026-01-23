@@ -73,7 +73,8 @@ enum class IsolateFieldId : uint8_t;
     "RegExpStack::stack_pointer_address()")                                    \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
-  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
+  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)                              \
+  EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)
 
 #ifdef V8_ENABLE_SANDBOX
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)         \
@@ -485,7 +486,6 @@ enum class IsolateFieldId : uint8_t;
   V(allocate_buffer, "AllocateBuffer")                                         \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
   EXTERNAL_REFERENCE_LIST_SANDBOX(V)                                           \
-  EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)                                       \
   EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)
 
 #ifdef V8_INTL_SUPPORT
@@ -521,7 +521,7 @@ enum class IsolateFieldId : uint8_t;
 #endif  // V8_ENABLE_SANDBOX
 
 #define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V) \
-  V(js_dispatch_table_address, "IsolateGroup::current()->js_dispatch_table()")
+  V(js_dispatch_table_address, "Isolate::Current()->js_dispatch_table()")
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
 #define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)            \

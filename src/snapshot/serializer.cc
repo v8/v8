@@ -1300,7 +1300,7 @@ void Serializer::ObjectSerializer::VisitProtectedPointer(
 
 void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = isolate()->js_dispatch_table();
   // If the slot is empty, we will skip it here and then just serialize the
   // null handle as raw data.
   if (handle == kNullJSDispatchHandle) return;
@@ -1320,11 +1320,11 @@ void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
     auto id = static_cast<uint32_t>(serializer_->dispatch_handle_map_.size());
     serializer_->dispatch_handle_map_[handle] = id;
     sink_->Put(kAllocateJSDispatchEntry, "AllocateJSDispatchEntry");
-    sink_->PutUint30(jdt->GetParameterCount(handle), "ParameterCount");
+    sink_->PutUint30(jdt.GetParameterCount(handle), "ParameterCount");
 
     // Currently we cannot see pending objects here, but we may need to support
     // them in the future. They should already be supported by the deserializer.
-    Handle<Code> code(jdt->GetCode(handle), isolate());
+    Handle<Code> code(jdt.GetCode(handle), isolate());
     CHECK(!serializer_->SerializePendingObject(*code));
     serializer_->SerializeObject(code, SlotType::kAnySlot);
   } else {

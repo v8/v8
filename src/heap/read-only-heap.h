@@ -82,9 +82,6 @@ class ReadOnlyHeap final {
 #ifdef V8_ENABLE_SANDBOX
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
 #endif  // V8_ENABLE_SANDBOX
-  JSDispatchTable::Space* js_dispatch_table_space() {
-    return &js_dispatch_table_space_;
-  }
 
   void InitializeIsolateRoots(Isolate* isolate);
   void InitializeFromIsolateRoots(Isolate* isolate);
@@ -117,7 +114,6 @@ class ReadOnlyHeap final {
   // are never deallocated.
   CodePointerTable::Space code_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
-  JSDispatchTable::Space js_dispatch_table_space_;
 
  private:
   friend ReadOnlyRoots GetReadOnlyRoots();

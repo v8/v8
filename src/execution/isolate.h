@@ -2285,6 +2285,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 #endif  // V8_ENABLE_SANDBOX
 
+  JSDispatchTable& js_dispatch_table() {
+    return isolate_data_.js_dispatch_table_;
+  }
+
+  const JSDispatchTable& js_dispatch_table() const {
+    return isolate_data_.js_dispatch_table_;
+  }
+
+  Address js_dispatch_table_base_address() const {
+    return isolate_data_.js_dispatch_table_.base_address();
+  }
+
   Address continuation_preserved_embedder_data_address() {
     return reinterpret_cast<Address>(
         &isolate_data_.continuation_preserved_embedder_data_);

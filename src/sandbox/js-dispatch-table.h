@@ -331,6 +331,10 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   }
 
   friend class MarkCompactCollector;
+
+  // Using `ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable)` in the
+  // macro assembler to get the table's base address relies the offset being 0.
+  static_assert(JSDispatchTable::kBaseAddressOffset == 0);
 };
 
 }  // namespace internal

@@ -30,6 +30,10 @@ ExternalPointerTable::Space* IsolateForSandbox::GetExternalPointerTableSpaceFor(
   return isolate.GetExternalPointerTableSpaceFor(tag_range, host);
 }
 
+JSDispatchTable& IsolateForSandbox::GetJSDispatchTable() {
+  return isolate_->js_dispatch_table();
+}
+
 CodePointerTable::Space* IsolateForSandbox::GetCodePointerTableSpaceFor(
     Address owning_slot) {
   return ReadOnlyHeap::Contains(owning_slot)

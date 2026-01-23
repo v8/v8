@@ -1705,8 +1705,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             }
           } else {
             JSDispatchHandle dispatch_handle = function->dispatch_handle();
-            size_t expected =
-                IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
+            uint16_t expected =
+                isolate()->js_dispatch_table().GetParameterCount(
                     dispatch_handle);
             // Defer signature mismatch abort to run-time as optimized
             // unreachable calls can have mismatched signatures.

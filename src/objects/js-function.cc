@@ -279,32 +279,32 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     }
   }
 
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
   switch (target_kind) {
     case CodeKind::MAGLEV:
       switch (mode) {
         case ConcurrencyMode::kConcurrent:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kStartMaglevOptimizeJob,
-                                 isolate);
+          jdt.SetTieringRequest(dispatch_handle(),
+                                TieringBuiltin::kStartMaglevOptimizeJob,
+                                isolate);
           break;
         case ConcurrencyMode::kSynchronous:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kOptimizeMaglevEager, isolate);
+          jdt.SetTieringRequest(dispatch_handle(),
+                                TieringBuiltin::kOptimizeMaglevEager, isolate);
           break;
       }
       break;
     case CodeKind::TURBOFAN_JS:
       switch (mode) {
         case ConcurrencyMode::kConcurrent:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kStartTurbofanOptimizeJob,
-                                 isolate);
+          jdt.SetTieringRequest(dispatch_handle(),
+                                TieringBuiltin::kStartTurbofanOptimizeJob,
+                                isolate);
           break;
         case ConcurrencyMode::kSynchronous:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kOptimizeTurbofanEager,
-                                 isolate);
+          jdt.SetTieringRequest(dispatch_handle(),
+                                TieringBuiltin::kOptimizeTurbofanEager,
+                                isolate);
           break;
       }
       break;

@@ -249,12 +249,12 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   inline bool tiering_in_progress() const;
   // NB: Tiering includes Optimization and Logging requests.
-  inline bool IsTieringRequestedOrInProgress() const;
+  inline bool IsTieringRequestedOrInProgress(Isolate* isolate) const;
 
   inline void SetTieringInProgress(
       Isolate* isolate, bool in_progress,
       BytecodeOffset osr_offset = BytecodeOffset::None());
-  inline void ResetTieringRequests();
+  inline void ResetTieringRequests(Isolate* isolate);
 
   inline bool osr_tiering_in_progress();
 
@@ -455,10 +455,10 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // Updates the Code in this function's dispatch table entry.
   inline void UpdateDispatchEntry(
-      Tagged<Code> new_code,
+      Isolate* isolate, Tagged<Code> new_code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void UpdateDispatchEntryKeepTieringRequest(
-      Tagged<Code> new_code,
+      Isolate* isolate, Tagged<Code> new_code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Hide generated accessors; custom accessors are called "shared".

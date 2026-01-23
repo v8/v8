@@ -2504,8 +2504,7 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   static_assert(!JSDispatchTable::kSupportsCompaction);
   LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
   CHECK_EQ(argument_count,
-           IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-               dispatch_handle));
+           isolate()->js_dispatch_table().GetParameterCount(dispatch_handle));
   Call(code);
 }
 
@@ -4064,7 +4063,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   // The following is not isolate group independent and thus cannot be used in
   // builtin code.
   DCHECK_EQ(builtin(), Builtin::kNoBuiltinId);
-  Ldr(scratch, ExternalReference::js_dispatch_table_address());
+  Ldr(scratch, ExternalReference::js_dispatch_table_address(isolate()));
   // WARNING: This offset calculation is only safe if we have already stored a
   // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
   // keeping the dispatch entry alive) _and_ because the entrypoints are not

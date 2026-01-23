@@ -261,8 +261,8 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
     JSDispatchHandle dispatch_handle = relocinfo->js_dispatch_handle();
     out << "    ;; js dispatch handle:0x" << std::hex << dispatch_handle;
     if (dispatch_handle != kNullJSDispatchHandle) {
-      Tagged<Code> code = IsolateGroup::current()->js_dispatch_table()->GetCode(
-          relocinfo->js_dispatch_handle());
+      Tagged<Code> code =
+          isolate->js_dispatch_table().GetCode(relocinfo->js_dispatch_handle());
       CodeKind kind = code->kind();
       if (code->is_builtin()) {
         out << " Builtin::" << Builtins::name(code->builtin_id());

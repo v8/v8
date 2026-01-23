@@ -816,6 +816,10 @@ class Heap final {
     return &js_dispatch_table_space_;
   }
 
+  JSDispatchTable::Space* read_only_js_dispatch_table_space() {
+    return &read_only_js_dispatch_table_space_;
+  }
+
   // ===========================================================================
   // Getters to other components. ==============================================
   // ===========================================================================
@@ -2191,8 +2195,10 @@ class Heap final {
   CodePointerTable::Space code_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
 
-  // The space in the process-wide JSDispatchTable managed by this heap.
+  // The spaces in the JSDispatchTable containing entries owned by objects
+  // in this heap
   JSDispatchTable::Space js_dispatch_table_space_;
+  JSDispatchTable::Space read_only_js_dispatch_table_space_;
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 

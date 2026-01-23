@@ -29,11 +29,6 @@ ReadOnlyHeap::~ReadOnlyHeap() {
   IsolateGroup::current()->code_pointer_table()->TearDownSpace(
       &code_pointer_space_);
 #endif
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-#if V8_STATIC_DISPATCH_HANDLES_BOOL
-  jdt->DetachSpaceFromReadOnlySegments(&js_dispatch_table_space_);
-#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
-  jdt->TearDownSpace(&js_dispatch_table_space_);
 }
 
 // static
@@ -175,17 +170,6 @@ ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
   IsolateGroup::current()->code_pointer_table()->InitializeSpace(
       &code_pointer_space_);
 #endif  // V8_ENABLE_SANDBOX
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-  jdt->InitializeSpace(&js_dispatch_table_space_);
-  // To avoid marking trying to write to these read-only cells they are
-  // allocated black. Target code objects in the read-only dispatch table are
-  // read-only code objects.
-  js_dispatch_table_space_.set_allocate_black(true);
-#if V8_STATIC_DISPATCH_HANDLES_BOOL
-  jdt->AttachSpaceToReadOnlySegments(&js_dispatch_table_space_);
-  jdt->PreAllocateEntries(&js_dispatch_table_space_,
-                          JSBuiltinDispatchHandleRoot::kCount);
-#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
 }
 
 // static

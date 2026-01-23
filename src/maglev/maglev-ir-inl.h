@@ -86,8 +86,7 @@ inline void UseFixed(Input input, DoubleRegister reg) {
 }
 
 CallKnownJSFunction::CallKnownJSFunction(
-    uint64_t bitfield,
-    JSDispatchHandle dispatch_handle,
+    uint64_t bitfield, JSDispatchHandle dispatch_handle,
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
     ValueNode* context, ValueNode* receiver, ValueNode* new_target,
     const compiler::FeedbackSource& feedback_source)
@@ -95,9 +94,8 @@ CallKnownJSFunction::CallKnownJSFunction(
       dispatch_handle_(dispatch_handle),
       shared_function_info_(shared_function_info),
       expected_parameter_count_(
-          IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
-              dispatch_handle)
-              ),
+          Isolate::Current()->js_dispatch_table().GetParameterCount(
+              dispatch_handle)),
       feedback_source_(feedback_source) {
   set_input(kTargetIndex, closure);
   set_input(kContextIndex, context);

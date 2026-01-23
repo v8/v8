@@ -67,10 +67,10 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
     embedder_data)                                                             \
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                   \
   ISOLATE_DATA_FIELDS_SANDBOX(V)                                               \
+  V(JSDispatchTable, sizeof(JSDispatchTable), js_dispatch_table)               \
   V(ApiCallbackThunkArgument, kSystemPointerSize, api_callback_thunk_argument) \
   /* Because some architectures have a rather small offset in reg+offset  */   \
   /* addressing this field should be near the start.                      */   \
-  V(JSDispatchTable, kSystemPointerSize, js_dispatch_table_base)               \
   V(RegexpExecVectorArgument, kSystemPointerSize, regexp_exec_vector_argument) \
   V(ContinuationPreservedEmbedderData, kSystemPointerSize,                     \
     continuation_preserved_embedder_data)                                      \

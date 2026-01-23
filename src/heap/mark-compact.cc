@@ -1029,19 +1029,17 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override {
-    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+    JSDispatchTable& jdt = collector_->heap()->isolate()->js_dispatch_table();
 #ifdef DEBUG
     JSDispatchTable::Space* space =
         collector_->heap()->js_dispatch_table_space();
-    JSDispatchTable::Space* ro_space = collector_->heap()
-                                           ->isolate()
-                                           ->read_only_heap()
-                                           ->js_dispatch_table_space();
-    jdt->VerifyEntry(handle, space, ro_space);
+    JSDispatchTable::Space* ro_space =
+        collector_->heap()->read_only_js_dispatch_table_space();
+    jdt.VerifyEntry(handle, space, ro_space);
 #endif  // DEBUG
-    jdt->Mark(handle);
+    jdt.Mark(handle);
     if (handle != kNullJSDispatchHandle) {
-      MarkObject(jdt->GetCode(handle));
+      MarkObject(jdt.GetCode(handle));
     } else {
       // The only case we are allowed to see a zero handle installed here is if
       // the code is already marked deoptimized for cleared weak references.
@@ -1933,7 +1931,7 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
                               SkipRoot::kReadOnlyBuiltins});
 
 #if !V8_STATIC_DISPATCH_HANDLES_BOOL
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
   // Builtin dispatch handles are custom roots which are handled here.
   // TODO(olivf): Once dispatch handles are supported by the GC this should be
   // done by Heap::IterateBuiltins.
@@ -1942,7 +1940,7 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
        idx < JSBuiltinDispatchHandleRoot::kCount;
        idx = static_cast<JSBuiltinDispatchHandleRoot::Idx>(
            static_cast<int>(idx) + 1)) {
-    jdt->Mark(heap_->isolate_->builtin_dispatch_handle(idx));
+    jdt.Mark(heap_->isolate_->builtin_dispatch_handle(idx));
   }
 #endif
 
@@ -3194,13 +3192,14 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   MakeParallelItem(
       "SweepJSDispatchTable",
-      [this](ParallelItem*, JobDelegate* delegate) {
+      [this, isolate](ParallelItem*, JobDelegate* delegate) {
         TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE,
                   delegate);
-        JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+        JSDispatchTable& jdt = isolate->js_dispatch_table();
         Tagged<Code> compile_lazy =
             heap_->isolate()->builtins()->code(Builtin::kCompileLazy);
-        jdt->Sweep(heap_->js_dispatch_table_space(),
+        jdt
+            .Sweep(heap_->js_dispatch_table_space(),
                    heap_->isolate()->counters(), [&](JSDispatchEntry& entry) {
                      Tagged<Code> code = entry.GetCode();
                      if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
@@ -3461,11 +3460,11 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
       MarkForDeoptimization(weak_object_in_code.code);
     }
   }
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
   DispatchHandleAndCode dispatch_handle_in_code;
   while (local_weak_objects()->weak_dispatch_handles_in_code_local.Pop(
       &dispatch_handle_in_code)) {
-    if (!jdt->IsMarked(dispatch_handle_in_code.dispatch_handle)) {
+    if (!jdt.IsMarked(dispatch_handle_in_code.dispatch_handle)) {
       MarkForDeoptimization(dispatch_handle_in_code.code);
     }
   }
@@ -5871,12 +5870,12 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
       });
 #endif  // V8_ENABLE_SANDBOX
 
-  JSDispatchTable* const jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
   const EmbeddedData& embedded_data = EmbeddedData::FromBlob(heap_->isolate());
-  jdt->IterateActiveEntriesIn(
+  jdt.IterateActiveEntriesIn(
       heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
-        Address code_address = jdt->GetCodeAddress(handle);
-        Address entrypoint_address = jdt->GetEntrypoint(handle);
+        Address code_address = jdt.GetCodeAddress(handle);
+        Address entrypoint_address = jdt.GetEntrypoint(handle);
         Tagged<TrustedObject> relocated_code = process_entry(code_address);
         bool code_object_was_relocated = !relocated_code.is_null();
         Tagged<Code> code = TrustedCast<Code>(
@@ -5885,7 +5884,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         bool instruction_stream_was_relocated =
             code->instruction_start() != entrypoint_address;
         if (code_object_was_relocated || instruction_stream_was_relocated) {
-          Address old_entrypoint = jdt->GetEntrypoint(handle);
+          Address old_entrypoint = jdt.GetEntrypoint(handle);
           // Ensure tiering trampolines are not overwritten here.
           Address new_entrypoint = ([&]() {
 #define CASE(name, ...)                                                       \
@@ -5896,8 +5895,8 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
 #undef CASE
             return code->instruction_start();
           })();
-          jdt->SetCodeAndEntrypointNoWriteBarrier(handle, code, new_entrypoint);
-          CHECK_IMPLIES(jdt->IsTieringRequested(handle),
+          jdt.SetCodeAndEntrypointNoWriteBarrier(handle, code, new_entrypoint);
+          CHECK_IMPLIES(jdt.IsTieringRequested(handle),
                         old_entrypoint == new_entrypoint);
         }
       });

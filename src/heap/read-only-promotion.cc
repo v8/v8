@@ -469,19 +469,18 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 
     // Iterate all entries in the JSDispatchTable as they could contain
     // pointers to promoted Code objects.
-    JSDispatchTable* const jdt = IsolateGroup::current()->js_dispatch_table();
-    jdt->IterateActiveEntriesIn(heap->js_dispatch_table_space(),
-                                [&](JSDispatchHandle handle) {
-                                  Tagged<Code> old_code = jdt->GetCode(handle);
-                                  auto it = moves.find(old_code);
-                                  if (it == moves.end()) return;
-                                  Tagged<HeapObject> new_code = it->second;
-                                  CHECK(IsCode(new_code));
-                                  // TODO(saelo): is it worth logging something
-                                  // in this case?
-                                  jdt->SetCodeNoWriteBarrier(
-                                      handle, TrustedCast<Code>(new_code));
-                                });
+    JSDispatchTable& jdt = isolate->js_dispatch_table();
+    jdt.IterateActiveEntriesIn(
+        heap->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
+          Tagged<Code> old_code = jdt.GetCode(handle);
+          auto it = moves.find(old_code);
+          if (it == moves.end()) return;
+          Tagged<HeapObject> new_code = it->second;
+          CHECK(IsCode(new_code));
+          // TODO(saelo): is it worth logging something
+          // in this case?
+          jdt.SetCodeNoWriteBarrier(handle, TrustedCast<Code>(new_code));
+        });
   }
 
   static void DeleteDeadObjects(Isolate* isolate,

@@ -13,7 +13,9 @@
 #include "src/heap/remembered-set.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/sandbox/isolate.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
+#include "src/sandbox/js-dispatch-table.h"
 
 namespace v8::internal {
 
@@ -185,10 +187,16 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   if (marking_barrier->is_minor()) return;
 
   // Mark both the table entry and its content.
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  Isolate* isolate = Isolate::Current();
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
   static_assert(JSDispatchTable::kWriteBarrierSetsEntryMarkBit);
-  jdt->Mark(handle);
-  marking_barrier->MarkValue(host, jdt->GetCode(handle));
+#ifdef DEBUG
+  Heap* heap = isolate->heap();
+  jdt.VerifyEntry(handle, heap->js_dispatch_table_space(),
+                  heap->read_only_js_dispatch_table_space());
+#endif  // DEBUG
+  jdt.Mark(handle);
+  marking_barrier->MarkValue(host, jdt.GetCode(handle));
 
   // We don't need to record a slot here because the entries in the
   // JSDispatchTable are not compacted and because the pointers stored in the
@@ -568,8 +576,8 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
 bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
                                                     JSDispatchHandle handle,
                                                     WriteBarrierMode mode) {
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-  Tagged<Code> value = jdt->GetCode(handle);
+  JSDispatchTable& jdt = Isolate::Current()->js_dispatch_table();
+  Tagged<Code> value = jdt.GetCode(handle);
 
   if (mode == SKIP_WRITE_BARRIER) {
     if (value->is_builtin()) {
@@ -594,7 +602,7 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
       !CurrentMarkingBarrier(host)->IsMarked(host)) {
     return true;
   }
-  if (jdt->IsMarked(handle)) {
+  if (jdt.IsMarked(handle)) {
     return true;
   }
   if (ReadOnlyHeap::Contains(value)) {

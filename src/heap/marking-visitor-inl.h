@@ -343,15 +343,14 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitTrustedPointerTableEntry(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = heap_->isolate()->js_dispatch_table();
 #ifdef DEBUG
   JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
-  JSDispatchTable::Space* ro_space =
-      heap_->isolate()->read_only_heap()->js_dispatch_table_space();
-  jdt->VerifyEntry(handle, space, ro_space);
+  JSDispatchTable::Space* ro_space = heap_->read_only_js_dispatch_table_space();
+  jdt.VerifyEntry(handle, space, ro_space);
 #endif  // DEBUG
 
-  if (jdt->IsMarked(handle)) {
+  if (jdt.IsMarked(handle)) {
     return;
   }
 
@@ -364,7 +363,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     }
   }
 
-  jdt->Mark(handle);
+  jdt.Mark(handle);
 
   // The code objects referenced from a dispatch table entry are treated as weak
   // references for the purpose of bytecode/baseline flushing, so they are not
@@ -392,8 +391,7 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
           JSFunction::kDispatchHandleOffset));
   if (handle != kNullJSDispatchHandle) {
     // See `ProcessStrongHeapObject()` for synchronization details.
-    Tagged<Code> code =
-        IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
+    Tagged<Code> code = heap_->isolate()->js_dispatch_table().GetCode(handle);
     // Dispatch table operations on code are synchronizing, so there's no need
     // to synchronize the page.
     const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, code);

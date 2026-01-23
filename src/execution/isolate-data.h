@@ -100,8 +100,7 @@ class IsolateData final {
         code_pointer_table_base_address_(
             group->code_pointer_table()->base_address())
 #endif
-        ,
-        js_dispatch_table_base_(group->js_dispatch_table()->base_address()) {
+  {
   }
 
   IsolateData(const IsolateData&) = delete;
@@ -400,11 +399,11 @@ class IsolateData final {
   const Address code_pointer_table_base_address_;
 #endif  // V8_ENABLE_SANDBOX
 
+  JSDispatchTable js_dispatch_table_;
+
   // This is a storage for an additional argument for the Api callback thunk
   // functions, see InvokeAccessorGetterCallback and InvokeFunctionCallback.
   Address api_callback_thunk_argument_ = kNullAddress;
-
-  Address js_dispatch_table_base_ = kNullAddress;
 
   // Storage for an additional (untagged) argument for
   // Runtime::kRegExpExecInternal2, required since runtime functions only

@@ -891,8 +891,8 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return;
 
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-  Tagged<Code> code = jdt->GetCode(handle);
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
+  Tagged<Code> code = jdt.GetCode(handle);
   CodeKind kind = code->kind();
   CHECK(kind == CodeKind::FOR_TESTING_JS || kind == CodeKind::BUILTIN ||
         kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BASELINE ||
@@ -1360,13 +1360,13 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   // Ensure that the function's meta map belongs to the same native context.
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
   JSDispatchHandle handle = dispatch_handle();
   CHECK_NE(handle, kNullJSDispatchHandle);
-  uint16_t parameter_count = jdt->GetParameterCount(handle);
+  uint16_t parameter_count = jdt.GetParameterCount(handle);
   CHECK_EQ(parameter_count,
            shared(isolate)->internal_formal_parameter_count_with_receiver());
-  Tagged<Code> code_from_table = jdt->GetCode(handle);
+  Tagged<Code> code_from_table = jdt.GetCode(handle);
   CHECK(code_from_table->parameter_count() == kDontAdaptArgumentsSentinel ||
         code_from_table->parameter_count() == parameter_count);
   CHECK(!code_from_table->marked_for_deoptimization());
@@ -1389,7 +1389,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   }
 
   // Verify the entrypoint corresponds to the code or a tiering builtin.
-  Address entrypoint = jdt->GetEntrypoint(handle);
+  Address entrypoint = jdt.GetEntrypoint(handle);
 #define CASE(name, ...) \
   entrypoint == BUILTIN_CODE(isolate, name)->instruction_start() ||
   CHECK(BUILTIN_LIST_BASE_TIERING(CASE)
