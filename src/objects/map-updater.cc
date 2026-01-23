@@ -256,7 +256,6 @@ DirectHandle<Map> MapUpdater::ChangeInstanceType(
 
 Handle<Map> MapUpdater::ApplyPrototypeTransition(
     DirectHandle<JSPrototype> prototype) {
-  DCHECK(v8_flags.move_prototype_transitions_first);
   DCHECK_EQ(kInitialized, state_);
   DCHECK_NE(old_map_->prototype(), *prototype);
 
@@ -385,8 +384,7 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
     return constructor->initial_map();
   }
 
-  if (v8_flags.move_prototype_transitions_first &&
-      root_map->prototype() != old_map->prototype()) {
+  if (root_map->prototype() != old_map->prototype()) {
     auto maybe_transition = TransitionsAccessor::GetPrototypeTransition(
         isolate, root_map, old_map->prototype());
     if (!maybe_transition) {
@@ -620,9 +618,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
   // will deal with prototype transitions later.
   if (!old_map_->EquivalentToForTransition(
           *root_map_, ConcurrencyMode::kSynchronous,
-          v8_flags.move_prototype_transitions_first
-              ? direct_handle(root_map_->prototype(), isolate_)
-              : DirectHandle<HeapObject>())) {
+          direct_handle(root_map_->prototype(), isolate_))) {
     return Normalize("Normalize_NotEquivalent");
   } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
     DCHECK(!old_map_->is_extensible());
@@ -681,7 +677,6 @@ MapUpdater::State MapUpdater::FindRootMap() {
   // From here on, use the map with correct elements kind and prototype as root
   // map.
   if (root_map_->prototype() != *new_prototype_) {
-    DCHECK(v8_flags.move_prototype_transitions_first);
     Handle<Map> new_root_map_ =
         Map::TransitionToUpdatePrototype(isolate_, root_map_, new_prototype_);
 
@@ -1265,11 +1260,6 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
     TransitionsAccessor transitions(isolate, current);
     transitions.ForEachTransition(
         &no_gc, [&](Tagged<Map> target) { backlog.push(target); },
-        [&](Tagged<Map> target) {
-          if (v8_flags.move_prototype_transitions_first) {
-            backlog.push(target);
-          }
-        },
         [&](Tagged<Object> target) {
           if (!target.IsSmi() && !Cast<Map>(target)->is_deprecated()) {
             sidestep_transition.push_back(Cast<Map>(target));

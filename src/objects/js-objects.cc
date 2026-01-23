@@ -5426,9 +5426,7 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate,
   isolate->UpdateProtectorsOnSetPrototype(real_receiver, value);
 
   DirectHandle<Map> new_map =
-      v8_flags.move_prototype_transitions_first
-          ? MapUpdater(isolate, map).ApplyPrototypeTransition(value)
-          : Map::TransitionToUpdatePrototype(isolate, map, value);
+      MapUpdater(isolate, map).ApplyPrototypeTransition(value);
 
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(isolate, real_receiver, new_map);

@@ -668,11 +668,6 @@ void Map::DeprecateTransitionTreeImpl(Isolate* isolate) {
   transitions.ForEachTransition(
       &no_gc,
       [&](Tagged<Map> map) { map->DeprecateTransitionTreeImpl(isolate); },
-      [&](Tagged<Map> map) {
-        if (v8_flags.move_prototype_transitions_first) {
-          map->DeprecateTransitionTreeImpl(isolate);
-        }
-      },
       nullptr);
   DCHECK(!IsFunctionTemplateInfo(constructor_or_back_pointer()));
   set_is_deprecated(true);
@@ -1639,8 +1634,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
 
       DCHECK(!maybe_name.is_null());
       is_connected = true;
-    } else if ((transition_kind == PROTOTYPE_TRANSITION &&
-                v8_flags.move_prototype_transitions_first) ||
+    } else if (transition_kind == PROTOTYPE_TRANSITION ||
                isolate->bootstrapper()->IsActive()) {
       // Prototype transitions are always between root maps. UpdatePrototype
       // uses the MapUpdater and instance migration. Thus, field generalization
@@ -1649,9 +1643,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
                      IsUndefined(map->GetBackPointer()));
       result->InitializeDescriptors(isolate, *descriptors);
     } else {
-      DCHECK_IMPLIES(transition_kind == PROTOTYPE_TRANSITION,
-                     !v8_flags.move_prototype_transitions_first);
-      descriptors->GeneralizeAllFields(transition_kind == PROTOTYPE_TRANSITION);
+      descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(isolate, *descriptors);
     }
   }
@@ -2598,8 +2590,7 @@ Handle<Map> Map::TransitionToUpdatePrototype(
     Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<JSPrototype> prototype) {
   Handle<Map> new_map;
-  DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
-                 IsUndefined(map->GetBackPointer()));
+  DCHECK(IsUndefined(map->GetBackPointer()));
   if (auto maybe_map = TransitionsAccessor::GetPrototypeTransition(
           isolate, *map, *prototype)) {
     new_map = handle(*maybe_map, isolate);

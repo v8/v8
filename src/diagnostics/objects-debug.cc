@@ -1115,16 +1115,12 @@ void TransitionArray::TransitionArrayVerify(Isolate* isolate) {
       Tagged<MaybeObject> maybe_target = proto_trans->get(index);
       Tagged<HeapObject> target;
       if (maybe_target.GetHeapObjectIfWeak(&target)) {
-        if (v8_flags.move_prototype_transitions_first) {
-          Tagged<Map> parent =
-              Cast<Map>(Cast<Map>(target)->constructor_or_back_pointer());
-          if (owner.is_null()) {
-            parent = Cast<Map>(target);
-          } else {
-            CHECK_EQ(parent, owner);
-          }
+        Tagged<Map> parent =
+            Cast<Map>(Cast<Map>(target)->constructor_or_back_pointer());
+        if (owner.is_null()) {
+          parent = Cast<Map>(target);
         } else {
-          CHECK(IsUndefined(Cast<Map>(target)->GetBackPointer()));
+          CHECK_EQ(parent, owner);
         }
       }
     }
@@ -3273,11 +3269,6 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
       };
   ForEachTransition(
       &no_gc, [&](Tagged<Map> target) { CheckTarget(target); },
-      [&](Tagged<Map> proto_target) {
-        if (v8_flags.move_prototype_transitions_first) {
-          CheckTarget(proto_target);
-        }
-      },
       [&](Tagged<Object> side_step) {
         if (!side_step.IsSmi()) {
           DCHECK_EQ(Cast<Map>(side_step)->map(), map_->map());

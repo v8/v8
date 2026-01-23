@@ -407,8 +407,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
                                                  DirectHandle<Map> map,
                                                  DirectHandle<Object> prototype,
                                                  DirectHandle<Map> target_map) {
-  DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
-                 IsUndefined(map->GetBackPointer()));
+  DCHECK(IsUndefined(map->GetBackPointer()));
   DCHECK(IsMap(Cast<HeapObject>(*prototype)->map()));
 
   // Only the main thread should write to transition arrays.
@@ -452,9 +451,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
     }
   }
 
-  if (v8_flags.move_prototype_transitions_first) {
-    target_map->SetBackPointer(*map);
-  }
+  target_map->SetBackPointer(*map);
 
   // Reload number of transitions as they might have been compacted.
   int last = TransitionArray::NumberOfPrototypeTransitions(*cache);
