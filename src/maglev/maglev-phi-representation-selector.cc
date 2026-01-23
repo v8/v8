@@ -9,6 +9,7 @@
 
 #include "src/base/enum-set.h"
 #include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/flags/flags.h"
@@ -1287,7 +1288,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 // for {node}.
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     NodeBase* node, Phi* phi, int input_index, const ProcessingState* state) {
-  if (node->is_conversion() || node->Is<ReturnedValue>()) {
+  if (node->is_conversion() || IsTruncatingToInt32(node->opcode()) ||
+      node->Is<ReturnedValue>()) {
     // {node} can't be an Untagging if we reached this point (because
     // UpdateNodePhiInput is not called on untagging nodes).
     DCHECK(!IsUntagging(node->opcode()));
@@ -1296,6 +1298,14 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     // {phi} isn't tagged. This means that {node} was inserted during the
     // current phase. In this case, we don't do anything.
     DCHECK_NE(phi->value_representation(), ValueRepresentation::kTagged);
+    // Since IsUntagging returns true for all Tagged->Int32 truncations, those
+    // nodes will not reach this function. Furthermore, since the Phi is known
+    // to be untagged (due to the prior DCHECK), and there are no Uint32 Phis,
+    // any IsTruncatingToInt32 node that reaches here must be a Float64->Int32
+    // truncation.
+    DCHECK_IMPLIES(
+        IsTruncatingToInt32(node->opcode()),
+        phi->value_representation() == ValueRepresentation::kFloat64);
     DCHECK_NE(new_nodes_.find(node), new_nodes_.end());
   } else {
     node->change_input(input_index,

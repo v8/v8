@@ -685,6 +685,22 @@ constexpr bool IsTypedArrayStore(Opcode opcode) {
          opcode == Opcode::kStoreDoubleTypedArrayElement;
 }
 
+constexpr bool IsTruncatingToInt32(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kTruncateUint32ToInt32:
+    case Opcode::kTruncateFloat64ToInt32:
+    case Opcode::kTruncateHoleyFloat64ToInt32:
+    case Opcode::kTruncateCheckedNumberAsSafeIntToInt32:
+    case Opcode::kTruncateUnsafeNumberAsSafeIntToInt32:
+    case Opcode::kTruncateFloat64AsSafeIntToInt32:
+    case Opcode::kTruncateCheckedNumberOrOddballToInt32:
+    case Opcode::kTruncateUnsafeNumberOrOddballToInt32:
+      return true;
+    default:
+      return false;
+  }
+}
+
 constexpr bool CanTriggerTruncationPass(Opcode opcode) {
   if (IsInt32BitwiseBinaryOperationNode(opcode)) return true;
   switch (opcode) {

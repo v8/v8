@@ -113,14 +113,7 @@ class RecomputePhiUseHintsProcessor {
           DCHECK(!unwrapped->is_conversion());
           use_repr =
               UseRepresentationFromValue(unwrapped->value_representation());
-        } else if (node->Is<TruncateUint32ToInt32>() ||
-                   node->Is<TruncateFloat64ToInt32>() ||
-                   node->Is<TruncateHoleyFloat64ToInt32>() ||
-                   node->Is<TruncateCheckedNumberAsSafeIntToInt32>() ||
-                   node->Is<TruncateUnsafeNumberAsSafeIntToInt32>() ||
-                   node->Is<TruncateFloat64AsSafeIntToInt32>() ||
-                   node->Is<TruncateCheckedNumberOrOddballToInt32>() ||
-                   node->Is<TruncateUnsafeNumberOrOddballToInt32>()) {
+        } else if (IsTruncatingToInt32(node->opcode())) {
           use_repr = UseRepresentation::kTruncatedInt32;
         } else if (node->Is<NumberToString>()) {
           use_repr = UseRepresentation::kTaggedForNumberToString;
