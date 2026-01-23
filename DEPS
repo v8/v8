@@ -122,7 +122,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '959f536abb22a98dfbb4d70ed989b6ec0a51bb53',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6172bfda95937e2d8d504885234e5106bce90ce8',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4dc32b3f510b330137385e2b3a631ca8e13a8e22',
   'buildtools/linux64': {
@@ -238,7 +238,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'third_party/simdutf':
-    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + '75bea7342fdac6b57f7e3099ddf4dc84d77384f6',
+    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + '93b35aec29256f705c97f675fe4623578bd7a395',
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
   # rely on the hook running |update_sdk.py| script below.
   'third_party/fuchsia-sdk/sdk': {
@@ -292,7 +292,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'a56e6191d5a5ec14001f640ca8755daae667345a',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '56152c79437650fb6ae6875b7aa97db382deb65f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4a6eff36ed2348be21c31810cd4de8374b7242cf',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -472,7 +472,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'ae0fe000b82e2752e21cd238d3cb3d2a33578d77',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'a387ec751788c8a3f20ac70c614225ea8ed29c15',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '19c4f7c825cd2764f1dcd29703ac5befac934406',
   'third_party/re2/src':
@@ -534,11 +534,11 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '980253c1cc835c893c57b5cfc10c5b942e10bc46',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1d6b7f00ebcefe33643be33068ab4005849b7f2b',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '8837640dd26df7735d6574781ec4e20fb0c1baab',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + '3438d4183bfc7c0d6850e8b970204cc8189f0323',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '874fd0e155b17575452e960e63b25074bf281442',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '6d5ac0f7d3f0af5d13b78044fc31c793aa3549f8',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
