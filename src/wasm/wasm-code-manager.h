@@ -59,6 +59,11 @@ class WasmWrapperHandle;
 struct WasmModule;
 enum class WellKnownImport : uint8_t;
 
+struct FastApiData {
+  std::atomic<Address> target;
+  std::atomic<const MachineSignature*> signature;
+};
+
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),
 // because that should have been reduced to [start, other_end).
@@ -909,24 +914,24 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // This function tries to set the fast API call target of function import
   // `index`. If the call target has been set before with a different value,
   // then this function returns false, and this import will be marked as not
-  // suitable for wellknown imports, i.e. all existing compiled code of the
+  // suitable for well-known imports, i.e. all existing compiled code of the
   // module gets flushed, and future calls to this import will not use fast API
   // calls.
   bool TrySetFastApiCallTarget(int func_index, Address target) {
     Address old_val =
-        fast_api_targets_[func_index].load(std::memory_order_relaxed);
+        fast_api_data_[func_index].target.load(std::memory_order_relaxed);
     if (old_val == target) {
       return true;
     }
     if (old_val != kNullAddress) {
       // If already a different target is stored, then there are conflicting
       // targets and fast api calls are not possible. In that case the import
-      // will be marked as not suitable for wellknown imports, and the
+      // will be marked as not suitable for well-known imports, and the
       // `fast_api_target` of this import will never be used anymore in the
       // future.
       return false;
     }
-    if (fast_api_targets_[func_index].compare_exchange_strong(
+    if (fast_api_data_[func_index].target.compare_exchange_strong(
             old_val, target, std::memory_order_relaxed)) {
       return true;
     }
@@ -935,8 +940,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return old_val == target;
   }
 
-  std::atomic<Address>* fast_api_targets() const {
-    return fast_api_targets_.get();
+  const std::shared_ptr<FastApiData[]>& fast_api_data() const {
+    return fast_api_data_;
   }
 
   // Stores the signature of the C++ call target of an imported web API
@@ -944,15 +949,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // of the web API function into the `signature_zone` of the `WasmModule` so
   // that it stays alive as long as the `WasmModule` exists.
   void set_fast_api_signature(int func_index, const MachineSignature* sig) {
-    fast_api_signatures_[func_index] = sig;
+    fast_api_data_[func_index].signature = sig;
   }
 
   bool has_fast_api_signature(int index) {
-    return fast_api_signatures_[index] != nullptr;
-  }
-
-  std::atomic<const MachineSignature*>* fast_api_signatures() const {
-    return fast_api_signatures_.get();
+    return fast_api_data_[index].signature != nullptr;
   }
 
   WasmCodePointer GetCodePointerHandle(int index) const;
@@ -1169,8 +1170,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // (under a mutex) which isolate needs logging.
   std::atomic<bool> log_code_{false};
 
-  std::unique_ptr<std::atomic<Address>[]> fast_api_targets_;
-  std::unique_ptr<std::atomic<const MachineSignature*>[]> fast_api_signatures_;
+  std::shared_ptr<FastApiData[]> fast_api_data_;
 
   std::shared_ptr<WasmModuleCoverageData> coverage_data_;
 
