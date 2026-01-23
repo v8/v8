@@ -309,6 +309,12 @@ class RangeProcessor {
                                                      Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(LoadTaggedField* node, const ProcessingState&) {
+    if (node->load_type() == LoadType::kSmi) {
+      UnionUpdate(node, Range::Smi());
+    }
+    return ProcessResult::kContinue;
+  }
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState&) {
