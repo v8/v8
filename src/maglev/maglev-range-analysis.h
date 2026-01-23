@@ -14,6 +14,7 @@
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
 
 #define TRACE_RANGE(...)                                     \
@@ -46,17 +47,20 @@ class LessEqualConstraint {
 
 class NodeRanges {
  public:
-  explicit NodeRanges(Graph* graph)
-      : graph_(graph),
-        ranges_(graph->max_block_id(), graph->zone()),
-        less_equals_(graph->max_block_id(), graph->zone()) {}
-
   using RangeMap = HAMT<ValueNode*, Range>;
 
+  explicit NodeRanges(Graph* graph)
+      : graph_(graph),
+        ranges_initialized_(graph->max_block_id(), graph->zone()),
+        ranges_(graph->zone()->NewVector<RangeMap>(graph->max_block_id(),
+                                                   RangeMap(graph->zone()))),
+        less_equals_(graph->zone()->NewVector<LessEqualConstraint::List>(
+            graph->max_block_id())) {}
+
   Range Get(BasicBlock* block, ValueNode* node) {
-    RangeMap*& map = ranges_[block->id()];
-    DCHECK_NOT_NULL(map);
-    const Range* range = map->find(node);
+    DCHECK(ranges_initialized_.Contains(block->id()));
+    RangeMap& map = ranges_[block->id()];
+    const Range* range = map.find(node);
     if (!range) {
       return node->GetStaticRange();
     }
@@ -64,18 +68,18 @@ class NodeRanges {
   }
 
   void UnionUpdate(BasicBlock* block, ValueNode* node, Range range) {
-    RangeMap* map = ranges_[block->id()];
-    DCHECK_NOT_NULL(map);
-    const Range* current_range = map->find(node);
+    DCHECK(ranges_initialized_.Contains(block->id()));
+    RangeMap& map = ranges_[block->id()];
+    const Range* current_range = map.find(node);
     if (!current_range) {
-      *map = map->insert(node, range);
+      map = map.insert(node, range);
     } else {
       Range new_range = Range::Union(*current_range, range);
       TRACE_RANGE("[range]: Union update: "
                   << PrintNodeLabel(node) << ": " << PrintNode(node)
                   << ", from: " << *current_range << ", to: " << new_range);
 
-      *map = map->insert(node, new_range);
+      map = map.insert(node, new_range);
     }
   }
 
@@ -85,10 +89,10 @@ class NodeRanges {
     std::cout << "Node ranges:\n";
     for (BasicBlock* block : graph_->blocks()) {
       int id = block->id();
+      if (!ranges_initialized_.Contains(id)) continue;
       std::cout << "Block b" << id << ":\n";
-      RangeMap* map = ranges_[id];
-      if (!map) continue;
-      for (auto [node, range] : *map) {
+      RangeMap map = ranges_[id];
+      for (auto [node, range] : map) {
         std::cout << "  " << PrintNodeLabel(node) << ": " << PrintNode(node)
                   << ": " << range << std::endl;
       }
@@ -96,20 +100,20 @@ class NodeRanges {
   }
 
   void EnsureMapExistsFor(BasicBlock* block) {
-    if (ranges_[block->id()] == nullptr) {
-      ranges_[block->id()] = zone()->New<HAMT<ValueNode*, Range>>(zone());
+    if (!ranges_initialized_.Contains(block->id())) {
+      ranges_initialized_.Add(block->id());
     }
   }
 
   void Join(BasicBlock* block, BasicBlock* pred) {
-    RangeMap*& map = ranges_[block->id()];
-    RangeMap*& pred_map = ranges_[pred->id()];
-    DCHECK_NOT_NULL(pred_map);
-    if (map == nullptr) {
-      map = zone()->New<HAMT<ValueNode*, Range>>(*pred_map);
+    RangeMap& map = ranges_[block->id()];
+    RangeMap pred_map = ranges_[pred->id()];
+    if (!ranges_initialized_.Contains(block->id())) {
+      map = pred_map;
+      ranges_initialized_.Add(block->id());
       return;
     }
-    *map = map->merge_into(*pred_map, [&](Range r1, const Range r2) {
+    map = map.merge_into(pred_map, [&](Range r1, const Range r2) {
       return Range::Union(r1, r2);
     });
   }
@@ -119,21 +123,21 @@ class NodeRanges {
       // Don't narrow update constants.
       return;
     }
-    RangeMap* map = ranges_[block->id()];
-    DCHECK_NOT_NULL(map);
-    const Range* current_range = map->find(node);
+    RangeMap& map = ranges_[block->id()];
+    DCHECK(ranges_initialized_.Contains(block->id()));
+    const Range* current_range = map.find(node);
     if (!current_range) {
       TRACE_RANGE("[range]: Narrow update: " << PrintNodeLabel(node) << ": "
                                              << PrintNode(node) << ": "
                                              << narrowed_range);
-      *map = map->insert(node, narrowed_range);
+      map = map.insert(node, narrowed_range);
     } else {
       if (!narrowed_range.is_empty()) {
         TRACE_RANGE("[range]: Narrow update: " << PrintNodeLabel(node) << ": "
                                                << PrintNode(node)
                                                << ", from: " << *current_range
                                                << ", to: " << narrowed_range);
-        *map = map->insert(node, narrowed_range);
+        map = map.insert(node, narrowed_range);
       } else {
         TRACE_RANGE("[range]: Failed narrowing update: "
                     << PrintNodeLabel(node) << ": " << PrintNode(node)
@@ -158,13 +162,14 @@ class NodeRanges {
 
  private:
   Graph* graph_;
-  // TODO(victorgomes): Avoid the pointer and allocate RangeMap a dummy RangeMap
-  // instead?
-  ZoneVector<RangeMap*> ranges_;
+  // A bitmask indicating whether a RangeMap has already been initialized
+  // for a given block ID.
+  BitVector ranges_initialized_;
+  base::Vector<RangeMap> ranges_;
 
   // This is a very naive way to avoid CheckInt32Condition after a
   // BranchIfInt32Compare(LessThan).
-  ZoneVector<LessEqualConstraint::List> less_equals_;
+  base::Vector<LessEqualConstraint::List> less_equals_;
 
   Zone* zone() const { return graph_->zone(); }
 };
