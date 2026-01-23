@@ -136,7 +136,7 @@ void RegExpMacroAssemblerIA32::Backtrack() {
     Label next;
     __ inc(Operand(ebp, kBacktrackCountOffset));
     __ cmp(Operand(ebp, kBacktrackCountOffset), Immediate(backtrack_limit()));
-    __ j(not_equal, &next, Label::kNear);
+    __ j(not_equal, &next);
 
     // Backtrack limit exceeded.
     if (can_fallback()) {
@@ -194,7 +194,7 @@ void RegExpMacroAssemblerIA32::CheckCharacterLT(base::uc16 limit,
 void RegExpMacroAssemblerIA32::CheckFixedLengthLoop(Label* on_equal) {
   Label fallthrough;
   __ cmp(edi, Operand(backtrack_stackpointer(), 0));
-  __ j(not_equal, &fallthrough, Label::kNear);
+  __ j(not_equal, &fallthrough);
   __ add(backtrack_stackpointer(), Immediate(kSystemPointerSize));  // Pop.
   BranchOrBacktrack(on_equal);
   __ bind(&fallthrough);
@@ -271,14 +271,14 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ bind(&loop);
     __ movzx_b(eax, Operand(edi, 0));
     __ cmpb_al(Operand(edx, 0));
-    __ j(equal, &loop_increment, Label::kNear);
+    __ j(equal, &loop_increment);
 
     // Mismatch, try case-insensitive match (converting letters to lower-case).
     __ or_(eax, 0x20);  // Convert match character to lower-case.
     __ lea(ecx, Operand(eax, -'a'));
     __ cmp(ecx, static_cast<int32_t>('z' - 'a'));  // Is eax a lowercase letter?
     Label convert_capture;
-    __ j(below_equal, &convert_capture, Label::kNear);  // In range 'a'-'z'.
+    __ j(below_equal, &convert_capture);  // In range 'a'-'z'.
     // Latin-1: Check for values in range [224,254] but not 247.
     __ sub(ecx, Immediate(224 - 'a'));
     __ cmp(ecx, Immediate(254 - 224));
@@ -300,7 +300,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     // Compare to end of match, and loop if not done.
     __ cmp(edi, ebx);
     __ j(below, &loop);
-    __ jmp(&success, Label::kNear);
+    __ jmp(&success);
 
     __ bind(&fail);
     // Restore original values before failing.
@@ -439,7 +439,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(int start_reg,
   // Check if we have reached end of match area.
   __ cmp(ebx, ecx);
   __ j(below, &loop);
-  __ jmp(&success, Label::kNear);
+  __ jmp(&success);
 
   __ bind(&fail);
   // Restore backtrack stackpointer.
@@ -686,7 +686,7 @@ void RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
       if (mode() != LATIN1) {
         // Table is 256 entries, so all Latin1 characters can be tested.
         __ cmp(current_character(), Immediate('z'));
-        __ j(above, &done, Label::kNear);
+        __ j(above, &done);
       }
       DCHECK_EQ(0,
                 word_character_map()[0]);  // Character '\0' is not a word char.
@@ -806,11 +806,11 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
     Immediate extra_space_for_variables(num_registers_ * kSystemPointerSize);
 
     // Handle it if the stack pointer is already below the stack limit.
-    __ j(below_equal, &stack_limit_hit, Label::kNear);
+    __ j(below_equal, &stack_limit_hit);
     // Check if there is room for the variable number of registers above
     // the stack limit.
     __ cmp(eax, extra_space_for_variables);
-    __ j(above_equal, &stack_ok, Label::kNear);
+    __ j(above_equal, &stack_ok);
     // Exit with OutOfMemory exception. There is not enough space on the stack
     // for our working registers.
     __ mov(eax, EXCEPTION);
@@ -883,7 +883,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
       __ sub(ecx, Immediate(kSystemPointerSize));
       __ cmp(ecx,
              kRegisterZeroOffset - num_saved_registers_ * kSystemPointerSize);
-      __ j(greater, &init_loop, Label::kNear);
+      __ j(greater, &init_loop);
       __ pop(ecx);
     } else {  // Unroll the loop.
       for (int i = 0; i < num_saved_registers_; i++) {
@@ -952,7 +952,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
         // edx: capture start index
         __ cmp(edi, edx);
         // Not a zero-length match, restart.
-        __ j(not_equal, &reload_string_start_minus_one, Label::kNear);
+        __ j(not_equal, &reload_string_start_minus_one);
         // edi (offset from the end) is zero if we already reached the end.
         __ test(edi, edi);
         __ j(zero, &exit_label_, Label::kNear);
@@ -1387,7 +1387,7 @@ void RegExpMacroAssemblerIA32::AssertAboveStackLimitMinusSlack() {
   __ mov(eax, __ ExternalReferenceAsOperand(l, eax));
   __ sub(eax, Immediate(RegExpStack::kStackLimitSlackSize));
   __ cmp(backtrack_stackpointer(), eax);
-  __ j(above, &no_stack_overflow, Label::kNear);
+  __ j(above, &no_stack_overflow);
   __ int3();
   __ bind(&no_stack_overflow);
 }
