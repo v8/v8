@@ -4,7 +4,7 @@
 
 #ifdef V8_ENABLE_MAGLEV
 
-#include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "test/unittests/maglev/maglev-test.h"
 
 namespace v8 {

@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/contexts.h"
 
 namespace v8 {
