@@ -156,17 +156,16 @@ class HAMT {
         : key(key), value(value), hash(hash), next(next) {}
   };
 
-  explicit HAMT(Zone* zone) : HAMT(zone, Node()) {}
-
+  HAMT() = default;
   HAMT(const HAMT& hamt) V8_NOEXCEPT = default;
   HAMT& operator=(const HAMT&) V8_NOEXCEPT = default;
 
   Iterator begin() const { return Iterator(root_); }
   Iterator end() const { return Iterator(Node()); }
 
-  HAMT insert(Key key, Value value) const {
+  HAMT insert(Zone* zone, Key key, Value value) const {
     Hash hash = base::hash<Key>()(key);
-    return HAMT(zone_, InsertRec(root_, key, value, hash, 0));
+    return HAMT(InsertRec(zone, root_, key, value, hash, 0));
   }
 
   const Value* find(const Key& key) const {
@@ -179,11 +178,11 @@ class HAMT {
   // resolve the conflict: f(this_value, other_value).
   template <typename Func>
     requires std::is_invocable_r_v<Value, Func, Value, Value>
-  HAMT merge_into(const HAMT& other, Func&& f) const {
+  HAMT merge_into(Zone* zone, const HAMT& other, Func&& f) const {
     if (root_ == other.root_) return *this;
     if (root_.IsNull()) return *this;
     if (other.root_.IsNull()) return *this;
-    return HAMT(zone_, MergeIntoRec(root_, other.root_, 0, f));
+    return HAMT(MergeIntoRec(zone, root_, other.root_, 0, f));
   }
 
   /**
@@ -267,7 +266,6 @@ class HAMT {
   };
 
  private:
-  Zone* zone_;
   Node root_;
 
   friend HAMTTest;
@@ -279,54 +277,57 @@ class HAMT {
   // Max shift done by the last level (max tree height).
   static constexpr int kMaxShift = (sizeof(Hash) * 8) - kBits;
 
-  HAMT(Zone* zone, Node root) : zone_(zone), root_(root) {}
+  explicit HAMT(Node root) : root_(root) {}
 
-  Leaf* NewLeaf(Key key, Value value, size_t hash, Leaf* next = nullptr) const {
-    return zone_->New<Leaf>(key, value, hash, next);
+  Leaf* NewLeaf(Zone* zone, Key key, Value value, size_t hash,
+                Leaf* next = nullptr) const {
+    return zone->New<Leaf>(key, value, hash, next);
   }
 
-  Branch* NewBranch(uint32_t bitmap, int count) const {
+  Branch* NewBranch(Zone* zone, uint32_t bitmap, int count) const {
     DCHECK_EQ(count, std::popcount(bitmap));
     size_t total_bytes = sizeof(Branch) + (count * sizeof(Node));
-    void* branch = zone_->Allocate<void*>(total_bytes);
+    void* branch = zone->Allocate<void*>(total_bytes);
     return new (branch) Branch(bitmap);
   }
 
-  Branch* CloneBranch(Branch* old_branch) const {
-    Branch* new_branch = NewBranch(old_branch->bitmap, old_branch->size());
+  Branch* CloneBranch(Zone* zone, Branch* old_branch) const {
+    Branch* new_branch =
+        NewBranch(zone, old_branch->bitmap, old_branch->size());
     std::memcpy(new_branch->children, old_branch->children,
                 old_branch->size() * sizeof(Node));
     return new_branch;
   }
 
-  Leaf* InsertInCollisionListRec(Leaf* leaf, const Key& key, const Value& value,
-                                 Hash hash) const {
+  Leaf* InsertInCollisionListRec(Zone* zone, Leaf* leaf, const Key& key,
+                                 const Value& value, Hash hash) const {
     if (!leaf) {
-      return NewLeaf(key, value, hash);
+      return NewLeaf(zone, key, value, hash);
     }
 
     if (leaf->key == key) {
       if (leaf->value == value) return leaf;
-      return NewLeaf(key, value, hash, leaf->next);
+      return NewLeaf(zone, key, value, hash, leaf->next);
     }
 
-    Leaf* new_next = InsertInCollisionListRec(leaf->next, key, value, hash);
+    Leaf* new_next =
+        InsertInCollisionListRec(zone, leaf->next, key, value, hash);
     if (new_next == leaf->next) return leaf;
 
-    return NewLeaf(leaf->key, leaf->value, leaf->hash, new_next);
+    return NewLeaf(zone, leaf->key, leaf->value, leaf->hash, new_next);
   }
 
-  Node InsertInLeaf(Leaf* leaf, const Key& key, const Value& value, Hash hash,
-                    int shift) const {
+  Node InsertInLeaf(Zone* zone, Leaf* leaf, const Key& key, const Value& value,
+                    Hash hash, int shift) const {
     // Same key.
     if (leaf->key == key) {
       if (leaf->value == value) return Node(leaf);
-      return Node(NewLeaf(key, value, hash, leaf->next));
+      return Node(NewLeaf(zone, key, value, hash, leaf->next));
     }
 
     // Hash collision or max depth.
     if (leaf->hash == hash || shift > kMaxShift) {
-      return Node(InsertInCollisionListRec(leaf, key, value, hash));
+      return Node(InsertInCollisionListRec(zone, leaf, key, value, hash));
     }
 
     // Partial hash match. Add a new tree level: we need to push the existing
@@ -337,29 +338,29 @@ class HAMT {
     // Bits are different, so we will stop in the next level.
     // Just create the branch directly.
     if (old_bit != new_bit) {
-      Leaf* new_leaf = NewLeaf(key, value, hash);
+      Leaf* new_leaf = NewLeaf(zone, key, value, hash);
       uint32_t bitmap = (1U << old_bit) | (1U << new_bit);
-      Branch* branch = NewBranch(bitmap, 2);
+      Branch* branch = NewBranch(zone, bitmap, 2);
       branch->set_child(0, Node(old_bit < new_bit ? leaf : new_leaf));
       branch->set_child(1, Node(old_bit < new_bit ? new_leaf : leaf));
       return Node(branch);
     }
 
     // Bitmaps are the same. Recurse.
-    Node child = InsertRec(Node(leaf), key, value, hash, shift + kBits);
-    Branch* branch = NewBranch(1U << old_bit, 1);
+    Node child = InsertRec(zone, Node(leaf), key, value, hash, shift + kBits);
+    Branch* branch = NewBranch(zone, 1U << old_bit, 1);
     branch->set_child(0, child);
     return Node(branch);
   }
 
-  Node InsertRec(Node node, const Key& key, const Value& value, Hash hash,
-                 int shift) const {
+  Node InsertRec(Zone* zone, Node node, const Key& key, const Value& value,
+                 Hash hash, int shift) const {
     if (node.IsNull()) {
-      return Node(NewLeaf(key, value, hash));
+      return Node(NewLeaf(zone, key, value, hash));
     }
 
     if (node.type() == kLeaf) {
-      return InsertInLeaf(node.AsLeaf(), key, value, hash, shift);
+      return InsertInLeaf(zone, node.AsLeaf(), key, value, hash, shift);
     }
 
     // Branch case.
@@ -372,22 +373,22 @@ class HAMT {
       // Child already exits at this bit.
       Node existing_child = branch->get_child(idx);
       Node new_child =
-          InsertRec(existing_child, key, value, hash, shift + kBits);
+          InsertRec(zone, existing_child, key, value, hash, shift + kBits);
 
       // No change.
       if (existing_child == new_child) return Node(branch);
 
-      Branch* copy = CloneBranch(branch);
+      Branch* copy = CloneBranch(zone, branch);
       copy->set_child(idx, new_child);
       return Node(copy);
     }
 
     // New bit. Add a new leaf and insert into a new copy of a branch node.
-    Node new_child = Node(NewLeaf(key, value, hash));
+    Node new_child = Node(NewLeaf(zone, key, value, hash));
 
     uint32_t new_map = branch->bitmap | (1U << bit);
     int old_count = branch->size();
-    Branch* copy = NewBranch(new_map, old_count + 1);
+    Branch* copy = NewBranch(zone, new_map, old_count + 1);
     DCHECK_EQ(std::popcount(new_map), old_count + 1);
     Node* src = branch->children;
     Node* dst = copy->children;
@@ -428,57 +429,61 @@ class HAMT {
   }
 
   template <typename Func>
-  Leaf* MergeCollisionLists(Leaf* list1, Leaf* list2, Func&& f) const {
+  Leaf* MergeCollisionLists(Zone* zone, Leaf* list1, Leaf* list2,
+                            Func&& f) const {
     Leaf* new_list = nullptr;
     for (Leaf* cur = list1; cur; cur = cur->next) {
       Value* value = FindInCollisionList(list2, cur->key);
-      new_list = NewLeaf(cur->key, value ? f(cur->value, *value) : cur->value,
-                         cur->hash, new_list);
+      new_list =
+          NewLeaf(zone, cur->key, value ? f(cur->value, *value) : cur->value,
+                  cur->hash, new_list);
     }
     return new_list;
   }
 
   template <typename Func>
-  Branch* MergeIntoBranch(Branch* branch, Leaf* leaf, int shift,
+  Branch* MergeIntoBranch(Zone* zone, Branch* branch, Leaf* leaf, int shift,
                           Func&& f) const {
     int bit = (leaf->hash >> shift) & kMask;
     if (!branch->has_child_in_bit(bit)) return branch;
 
     int idx = branch->get_index(bit);
-    Node merged =
-        MergeIntoRec(branch->get_child(idx), Node(leaf), shift + kBits, f);
+    Node merged = MergeIntoRec(zone, branch->get_child(idx), Node(leaf),
+                               shift + kBits, f);
 
     if (branch->get_child(idx) == merged) return branch;
 
-    Branch* new_branch = CloneBranch(branch);
+    Branch* new_branch = CloneBranch(zone, branch);
     new_branch->set_child(idx, merged);
     return branch;
   }
 
   template <typename Func>
-  Leaf* MergeIntoLeaf(Leaf* list, Branch* branch, int shift, Func&& f) const {
+  Leaf* MergeIntoLeaf(Zone* zone, Leaf* list, Branch* branch, int shift,
+                      Func&& f) const {
     Leaf* new_list = nullptr;
     for (Leaf* cur = list; cur; cur = cur->next) {
       const Value* value = FindHelper(Node(branch), cur->key, cur->hash, shift);
-      new_list = NewLeaf(cur->key, value ? f(cur->value, *value) : cur->value,
-                         cur->hash, new_list);
+      new_list =
+          NewLeaf(zone, cur->key, value ? f(cur->value, *value) : cur->value,
+                  cur->hash, new_list);
     }
     return new_list;
   }
 
   template <typename Func>
-  Node MergeIntoRec(Node a, Node b, int shift, Func&& f) const {
+  Node MergeIntoRec(Zone* zone, Node a, Node b, int shift, Func&& f) const {
     if (a == b) return a;  // Always return the left side!
     if (a.IsNull() || b.IsNull()) return a;
 
     if (a.type() == kLeaf && b.type() == kLeaf) {
-      return Node(MergeCollisionLists(a.AsLeaf(), b.AsLeaf(), f));
+      return Node(MergeCollisionLists(zone, a.AsLeaf(), b.AsLeaf(), f));
     }
     if (a.type() == kLeaf) {
-      return Node(MergeIntoLeaf(a.AsLeaf(), b.AsBranch(), shift, f));
+      return Node(MergeIntoLeaf(zone, a.AsLeaf(), b.AsBranch(), shift, f));
     }
     if (b.type() == kLeaf) {
-      return Node(MergeIntoBranch(a.AsBranch(), b.AsLeaf(), shift, f));
+      return Node(MergeIntoBranch(zone, a.AsBranch(), b.AsLeaf(), shift, f));
     }
 
     // Both are Branches.
@@ -486,7 +491,7 @@ class HAMT {
     Branch* brB = b.AsBranch();
     uint32_t mapA = brA->bitmap;
     uint32_t mapB = brB->bitmap;
-    Branch* res = CloneBranch(brA);
+    Branch* res = CloneBranch(zone, brA);
     Node* res_children = res->children;
     int child_idx = 0;
     for (int i = 0; i < 32; ++i) {
@@ -495,7 +500,7 @@ class HAMT {
       child_idx++;
       if (!(mapB & bit)) continue;
       Node child =
-          MergeIntoRec(brA->get_child(brA->get_index(i)),
+          MergeIntoRec(zone, brA->get_child(brA->get_index(i)),
                        brB->get_child(brB->get_index(i)), shift + kBits, f);
       res_children[child_idx - 1] = child;
     }

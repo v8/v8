@@ -25,8 +25,8 @@ class HAMTTest : public TestWithZone {
     return result;
   }
 
-  IntHAMT InsertWithHash(IntHAMT& hamt, int key, int value, size_t hash) const {
-    return IntHAMT(hamt.zone_, hamt.InsertRec(hamt.root_, key, value, hash, 0));
+  IntHAMT InsertWithHash(IntHAMT& hamt, int key, int value, size_t hash) {
+    return IntHAMT(hamt.InsertRec(zone(), hamt.root_, key, value, hash, 0));
   }
 
   const int* FindWithHash(IntHAMT& hamt, int key, size_t hash) const {
@@ -35,17 +35,17 @@ class HAMTTest : public TestWithZone {
 };
 
 TEST_F(HAMTTest, EmptyState) {
-  IntHAMT hamt(zone());
+  IntHAMT hamt;
 
   EXPECT_EQ(hamt.begin(), hamt.end());
   EXPECT_EQ(hamt.find(100), nullptr);
 }
 
 TEST_F(HAMTTest, BasicInsertAndFind) {
-  IntHAMT h0(zone());
+  IntHAMT h0;
 
   // Insert first element
-  IntHAMT h1 = h0.insert(1, 100);
+  IntHAMT h1 = h0.insert(zone(), 1, 100);
 
   // Verify h1 has it
   const int* val = h1.find(1);
@@ -56,7 +56,7 @@ TEST_F(HAMTTest, BasicInsertAndFind) {
   EXPECT_EQ(h0.find(1), nullptr);
 
   // Insert second element
-  IntHAMT h2 = h1.insert(2, 200);
+  IntHAMT h2 = h1.insert(zone(), 2, 200);
 
   EXPECT_EQ(*h2.find(1), 100);
   EXPECT_EQ(*h2.find(2), 200);
@@ -66,11 +66,11 @@ TEST_F(HAMTTest, BasicInsertAndFind) {
 }
 
 TEST_F(HAMTTest, OverwriteValues) {
-  IntHAMT h0(zone());
-  h0 = h0.insert(42, 100);
+  IntHAMT h0;
+  h0 = h0.insert(zone(), 42, 100);
 
   // Overwrite key 42 with 999
-  IntHAMT h1 = h0.insert(42, 999);
+  IntHAMT h1 = h0.insert(zone(), 42, 999);
 
   EXPECT_EQ(*h0.find(42), 100);  // Old tree unchanged
   EXPECT_EQ(*h1.find(42), 999);  // New tree updated
@@ -80,11 +80,11 @@ TEST_F(HAMTTest, LargeInsertionToTriggerBranching) {
   // Insert enough items to force creation of Branch nodes and multiple levels.
   // The 5-bit window means 32 items could potentially fill one node,
   // so we go higher to force depth.
-  IntHAMT hamt(zone());
+  IntHAMT hamt;
   std::map<int, int> expected;
 
   for (int i = 0; i < 1000; ++i) {
-    hamt = hamt.insert(i, i * 2);
+    hamt = hamt.insert(zone(), i, i * 2);
     expected[i] = i * 2;
   }
 
@@ -106,7 +106,7 @@ TEST_F(HAMTTest, ForceHashCollision_Chaining) {
   // We don't have access to internal Node pointers easily, but we verify
   // that both keys are retrievable despite the collision.
 
-  IntHAMT hamt(zone());
+  IntHAMT hamt;
   size_t kFixedHash = 0xDEADBEEF;
 
   // Insert Key 1
@@ -133,7 +133,7 @@ TEST_F(HAMTTest, ForceHashCollision_BranchSplit) {
   // but differ on the next 5 bits (Level 1).
   // Expectation: The HAMT should grow a new Branch node at Level 1.
 
-  IntHAMT hamt(zone());
+  IntHAMT hamt;
 
   // Hash A: ...00000 00000 (0)
   size_t hashA = 0;
@@ -155,7 +155,7 @@ TEST_F(HAMTTest, ForceHashCollision_DeepRecursion) {
   // Scenario: Force a collision that persists for several levels
   // to ensure the recursive InsertRec logic works.
 
-  IntHAMT h0(zone());
+  IntHAMT h0;
 
   // Both hashes are 0 for the first 10 bits (Level 0 and Level 1).
   // They diverge at Level 2 (bits 10-14).
@@ -180,7 +180,7 @@ TEST_F(HAMTTest, UpdateInCollisionChain) {
   // This verifies that `InsertInCollisionListRec` handles immutable updates
   // correctly (copying the path down the linked list).
 
-  IntHAMT h0(zone());
+  IntHAMT h0;
   size_t kHash = 0x555;
 
   // Create chain: [Key1] -> [Key2] -> [Key3]
@@ -205,18 +205,18 @@ TEST_F(HAMTTest, UpdateInCollisionChain) {
 TEST_F(HAMTTest, MergeIntoIsLeftJoin) {
   // Left Join (Keep all from A, update from B).
 
-  IntHAMT hA(zone());
-  hA = hA.insert(1, 10);  // In A, not B
-  hA = hA.insert(2, 20);  // In A and B (Conflict)
+  IntHAMT hA;
+  hA = hA.insert(zone(), 1, 10);  // In A, not B
+  hA = hA.insert(zone(), 2, 20);  // In A and B (Conflict)
 
-  IntHAMT hB(zone());
-  hB = hB.insert(2, 200);  // In A and B
-  hB = hB.insert(3, 300);  // In B, not A
+  IntHAMT hB;
+  hB = hB.insert(zone(), 2, 200);  // In A and B
+  hB = hB.insert(zone(), 3, 300);  // In B, not A
 
   auto summer = [](int a, int b) { return a + b; };
 
   // Perform merge: Result = A merge B
-  IntHAMT result = hA.merge_into(hB, summer);
+  IntHAMT result = hA.merge_into(zone(), hB, summer);
 
   // 1 was in A, not B. Should remain 10.
   ASSERT_NE(result.find(1), nullptr);
@@ -232,10 +232,10 @@ TEST_F(HAMTTest, MergeIntoIsLeftJoin) {
 }
 
 TEST_F(HAMTTest, IteratorTraversal) {
-  IntHAMT hamt(zone());
-  hamt = hamt.insert(10, 1);
-  hamt = hamt.insert(20, 2);
-  hamt = hamt.insert(30, 3);
+  IntHAMT hamt;
+  hamt = hamt.insert(zone(), 10, 1);
+  hamt = hamt.insert(zone(), 20, 2);
+  hamt = hamt.insert(zone(), 30, 3);
 
   int count = 0;
   int sum_keys = 0;
@@ -250,10 +250,10 @@ TEST_F(HAMTTest, IteratorTraversal) {
 
 TEST_F(HAMTTest, IteratorDeepStructure) {
   // Force a deep structure and ensure iterator doesn't crash or miss items
-  IntHAMT hamt(zone());
+  IntHAMT hamt;
   const int kNumItems = 2000;
   for (int i = 0; i < kNumItems; i++) {
-    hamt = hamt.insert(i, i);
+    hamt = hamt.insert(zone(), i, i);
   }
 
   int items_seen = 0;

@@ -52,8 +52,7 @@ class NodeRanges {
   explicit NodeRanges(Graph* graph)
       : graph_(graph),
         ranges_initialized_(graph->max_block_id(), graph->zone()),
-        ranges_(graph->zone()->NewVector<RangeMap>(graph->max_block_id(),
-                                                   RangeMap(graph->zone()))),
+        ranges_(graph->zone()->NewVector<RangeMap>(graph->max_block_id())),
         less_equals_(graph->zone()->NewVector<LessEqualConstraint::List>(
             graph->max_block_id())) {}
 
@@ -72,14 +71,14 @@ class NodeRanges {
     RangeMap& map = ranges_[block->id()];
     const Range* current_range = map.find(node);
     if (!current_range) {
-      map = map.insert(node, range);
+      map = map.insert(zone(), node, range);
     } else {
       Range new_range = Range::Union(*current_range, range);
       TRACE_RANGE("[range]: Union update: "
                   << PrintNodeLabel(node) << ": " << PrintNode(node)
                   << ", from: " << *current_range << ", to: " << new_range);
 
-      map = map.insert(node, new_range);
+      map = map.insert(zone(), node, new_range);
     }
   }
 
@@ -113,7 +112,7 @@ class NodeRanges {
       ranges_initialized_.Add(block->id());
       return;
     }
-    map = map.merge_into(pred_map, [&](Range r1, const Range r2) {
+    map = map.merge_into(zone(), pred_map, [&](Range r1, const Range r2) {
       return Range::Union(r1, r2);
     });
   }
@@ -130,14 +129,14 @@ class NodeRanges {
       TRACE_RANGE("[range]: Narrow update: " << PrintNodeLabel(node) << ": "
                                              << PrintNode(node) << ": "
                                              << narrowed_range);
-      map = map.insert(node, narrowed_range);
+      map = map.insert(zone(), node, narrowed_range);
     } else {
       if (!narrowed_range.is_empty()) {
         TRACE_RANGE("[range]: Narrow update: " << PrintNodeLabel(node) << ": "
                                                << PrintNode(node)
                                                << ", from: " << *current_range
                                                << ", to: " << narrowed_range);
-        map = map.insert(node, narrowed_range);
+        map = map.insert(zone(), node, narrowed_range);
       } else {
         TRACE_RANGE("[range]: Failed narrowing update: "
                     << PrintNodeLabel(node) << ": " << PrintNode(node)
