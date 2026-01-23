@@ -3287,25 +3287,25 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                             TRACE_EVENT_FLAG_FLOW_OUT);
   }
 
-  auto filter_non_trivial_weak_ref_job_item =
-      MakeParallelItem(
-          "FilterNonTrivialWeakRefs",
-          [this](ParallelItem* item, JobDelegate* delegate) {
-            TRACE_GC1_WITH_FLOW(
-                heap()->tracer(),
-                GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL,
-                delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
-            FilterNonTrivialWeakReferences();
-          })
-          // Do not run before these items finished, these may change the value
-          // of weak references.
-          .DependsOn(process_old_code_candidates_item)
-          .DependsOn(process_all_weak_references)
-          .DependsOn(clear_maps_items)
-          .Enqueue(parallel_clearing_job);
-  TRACE_GC_NOTE_WITH_FLOW("FilterNonTrivialWeakRefJob started",
-                          filter_non_trivial_weak_ref_job_item->trace_id(),
-                          TRACE_EVENT_FLAG_FLOW_OUT);
+  {
+    auto item = MakeParallelItem(
+                    "ClearNonTrivialWeakRefs",
+                    [this](ParallelItem* item, JobDelegate* delegate) {
+                      TRACE_GC1_WITH_FLOW(
+                          heap()->tracer(),
+                          GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL,
+                          delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
+                      ClearNonTrivialWeakReferences();
+                    })
+                    // Do not run before these items finished, these may change
+                    // the value of weak references.
+                    .DependsOn(process_old_code_candidates_item)
+                    .DependsOn(process_all_weak_references)
+                    .DependsOn(clear_maps_items)
+                    .Enqueue(parallel_clearing_job);
+    TRACE_GC_NOTE_WITH_FLOW("ClearNonTrivialWeakRefs started", item->trace_id(),
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+  }
 
 #ifdef V8_COMPRESS_POINTERS
   MakeParallelItem(
@@ -3385,18 +3385,24 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }).Enqueue(parallel_clearing_job);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  MakeParallelItem("ClearNonTrivialWeakRefs",
+  MakeParallelItem("ClearWeakCollections", [this](ParallelItem*,
+                                                  JobDelegate* delegate) {
+    TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS,
+              delegate);
+    ClearWeakCollections();
+  }).Enqueue(parallel_clearing_job);
+
+  MakeParallelItem("ProcessJSWeakRefs",
                    [this](ParallelItem*, JobDelegate* delegate) {
                      TRACE_GC1(heap_->tracer(),
-                               GCTracer::Scope::MC_WEAKNESS_HANDLING, delegate);
-                     ClearNonTrivialWeakReferences(delegate);
-                     ClearWeakCollections(delegate);
+                               GCTracer::Scope::MC_CLEAR_JS_WEAK_REFERENCES,
+                               delegate);
                      ProcessJSWeakRefs(delegate);
                    })
-      // ClearNonTrivialWeakReferences() processes
-      // weak_references_non_trivial_unmarked which gets filled by
-      // FilterNonTrivialWeakReferences().
-      .DependsOn(filter_non_trivial_weak_ref_job_item)
+      // Both tasks access the dirty_js_finalization_registries_list.
+      // ProcessAllWeakReferences() iterates/updates it and ProcessJSWeakRefs()
+      // loads it for posting the cleanup task.
+      .DependsOn(process_all_weak_references)
       .Enqueue(parallel_clearing_job);
 
   if (v8_flags.print_gc_clearing_dependency_graph) [[unlikely]] {
@@ -4015,9 +4021,7 @@ void MarkCompactCollector::TrimDescriptorArray(
   map->set_owns_descriptors(true);
 }
 
-void MarkCompactCollector::ClearWeakCollections(JobDelegate* delegate) {
-  TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS,
-            delegate);
+void MarkCompactCollector::ClearWeakCollections() {
   Tagged<EphemeronHashTable> table;
   while (local_weak_objects()->ephemeron_hash_tables_local.Pop(&table)) {
     for (InternalIndex i : table->IterateEntries()) {
@@ -4085,8 +4089,9 @@ void MarkCompactCollector::ClearTrustedWeakReferences() {
       local_weak_objects()->weak_references_trusted_local, cleared_weak_ref);
 }
 
-void MarkCompactCollector::FilterNonTrivialWeakReferences() {
+void MarkCompactCollector::ClearNonTrivialWeakReferences() {
   HeapObjectAndSlot slot;
+  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue();
   while (local_weak_objects()->weak_references_non_trivial_local.Pop(&slot)) {
     Tagged<HeapObject> value;
     // The slot could have been overwritten, so we have to treat it
@@ -4094,6 +4099,10 @@ void MarkCompactCollector::FilterNonTrivialWeakReferences() {
     MaybeObjectSlot location(slot.slot);
     if ((*location).GetHeapObjectIfWeak(&value)) {
       DCHECK(!IsWeakCell(value));
+      DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(slot.heap_object,
+                                                              value));
+      DCHECK(!HeapLayout::InReadOnlySpace(value));
+
       // Values in RO space have already been filtered, but a non-RO value may
       // have been overwritten by a RO value since marking.
       if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, non_atomic_marking_state_,
@@ -4101,45 +4110,18 @@ void MarkCompactCollector::FilterNonTrivialWeakReferences() {
         // The value of the weak reference is alive.
         RecordSlot(slot.heap_object, HeapObjectSlot(location), value);
       } else {
-        DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(
-            slot.heap_object, value));
-        // The value is non-live, defer the actual clearing.
-        // This is non-atomic, which is fine as long as we only have a single
-        // filtering job.
-        local_weak_objects_->weak_references_non_trivial_unmarked_local.Push(
-            slot);
+        DCHECK_IMPLIES(v8_flags.black_allocated_pages,
+                       !TrustedHeapLayout::InBlackAllocatedPage(value));
+        if (!SpecialClearMapSlot(slot.heap_object, Cast<Map>(value),
+                                 slot.slot)) {
+          slot.slot.store(cleared_weak_ref);
+        }
       }
     }
   }
 }
 
-void MarkCompactCollector::ClearNonTrivialWeakReferences(
-    JobDelegate* delegate) {
-  TRACE_GC1(heap_->tracer(),
-            GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL, delegate);
-  HeapObjectAndSlot slot;
-  Tagged<HeapObjectReference> cleared_weak_ref = ClearedValue();
-  while (local_weak_objects()->weak_references_non_trivial_unmarked_local.Pop(
-      &slot)) {
-    // The slot may not have been overwritten since it was filtered, so we can
-    // directly read its value.
-    Tagged<HeapObject> value = (*slot.slot).GetHeapObjectAssumeWeak();
-    DCHECK(!IsWeakCell(value));
-    DCHECK(!HeapLayout::InReadOnlySpace(value));
-    DCHECK_IMPLIES(v8_flags.black_allocated_pages,
-                   !TrustedHeapLayout::InBlackAllocatedPage(value));
-    DCHECK(!non_atomic_marking_state_->IsMarked(value));
-    DCHECK(!MainMarkingVisitor::IsTrivialWeakReferenceValue(slot.heap_object,
-                                                            value));
-    if (!SpecialClearMapSlot(slot.heap_object, Cast<Map>(value), slot.slot)) {
-      slot.slot.store(cleared_weak_ref);
-    }
-  }
-}
-
 void MarkCompactCollector::ProcessJSWeakRefs(JobDelegate* delegate) {
-  TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JS_WEAK_REFERENCES,
-            delegate);
   Tagged<JSWeakRef> weak_ref;
   Isolate* const isolate = heap_->isolate();
   while (local_weak_objects()->js_weak_refs_local.Pop(&weak_ref)) {

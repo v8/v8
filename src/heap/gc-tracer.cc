@@ -1095,8 +1095,6 @@ void GCTracer::PrintNVP() const {
              current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL))
           .p("clear.weak_references_non_trivial",
              current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL))
-          .p("clear.weak_references_filter_non_trivial",
-             current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL))
           .p("clear.js_weak_references",
              current_scope(Scope::MC_CLEAR_JS_WEAK_REFERENCES))
           .p("clear.join_filter_job",
