@@ -753,6 +753,10 @@ DEFINE_STRING(maglev_print_filter, "*",
 DEFINE_BOOL(maglev_assert, false, "insert extra assertion in maglev code")
 DEFINE_DEBUG_BOOL(maglev_assert_stack_size, true,
                   "insert stack size checks before every IR node")
+DEFINE_EXPERIMENTAL_FEATURE(
+    maglev_assert_types, "Enable additional type assertions in generated code")
+
+DEFINE_IMPLICATION(maglev_assert_types, turboshaft_enable_debug_features)
 DEFINE_BOOL(maglev_break_on_entry, false, "insert an int3 on maglev entries")
 DEFINE_BOOL(maglev_print_bytecode, false,
             "print bytecode for maglev compiled code")

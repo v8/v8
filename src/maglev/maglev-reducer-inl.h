@@ -626,8 +626,7 @@ ReduceResult MaglevReducer<BaseT>::GetInt32(ValueNode* value,
       return alternative.set_int32(untagged);
     }
     case ValueRepresentation::kUint32: {
-      if (!IsEmptyNodeType(known_node_aspects().GetType(broker(), value)) &&
-          node_info->is_smi()) {
+      if (!IsEmptyNodeType(GetType(value)) && node_info->is_smi()) {
         return alternative.set_int32(
             AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value}));
       }

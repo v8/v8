@@ -217,12 +217,12 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
           may_have_aliasing_contexts_,
           ContextSlotLoadsAlias::kOnlyLoadsRelativeToConstant);
-      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
+      DCHECK(NodeTypeIs(GetTypeUnchecked(broker, context), NodeType::kContext));
       break;
     case Opcode::kCreateFunctionContext:
     case Opcode::kInlinedAllocation:
       // These can be precisely tracked.
-      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
+      DCHECK(NodeTypeIs(GetTypeUnchecked(broker, context), NodeType::kContext));
       break;
     case Opcode::kLoadTaggedField: {
       LoadTaggedField* load = context->Cast<LoadTaggedField>();
@@ -232,11 +232,11 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       DCHECK(load->offset() == JSFunction::kContextOffset ||
              load->offset() == JSGeneratorObject::kContextOffset);
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
-      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
+      DCHECK(NodeTypeIs(GetTypeUnchecked(broker, context), NodeType::kContext));
       break;
     }
     case Opcode::kCallRuntime:
-      DCHECK(NodeTypeIs(GetType(broker, context), NodeType::kContext));
+      DCHECK(NodeTypeIs(GetTypeUnchecked(broker, context), NodeType::kContext));
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       break;
     case Opcode::kGeneratorRestoreRegister:

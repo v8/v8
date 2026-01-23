@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <bit>
 #include <optional>
 
 #include "src/api/api.h"
@@ -18,6 +19,7 @@
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/logging/counters.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
@@ -1714,6 +1716,145 @@ TF_BUILTIN(GetOwnPropertyDescriptor, CodeStubAssembler) {
   BIND(&call_runtime);
   TailCallRuntime(Runtime::kGetOwnPropertyDescriptorObject, context, receiver,
                   key);
+}
+
+TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
+  auto object = Parameter<Object>(Descriptor::kObject);
+  auto expected_type_smi = Parameter<Smi>(Descriptor::kType);
+
+  TNode<Int32T> expected_type = SmiToInt32(expected_type_smi);
+
+  Label is_smi(this), is_undetectable(this), is_heap_number(this),
+      is_string(this), is_symbol(this), is_oddball(this), is_context(this),
+      is_js_receiver(this), is_other_heap_object(this), done(this);
+
+  GotoIf(TaggedIsSmi(object), &is_smi);
+
+  TNode<HeapObject> heap_object = CAST(object);
+  TNode<Map> map = LoadMap(heap_object);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
+  TNode<Int32T> bit_field = LoadMapBitField(map);
+
+  GotoIf(IsSetWord32(bit_field, Map::Bits1::IsUndetectableBit::kMask),
+         &is_undetectable);
+  GotoIf(Word32Equal(instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
+         &is_heap_number);
+  GotoIf(Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
+         &is_string);
+  GotoIf(Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)), &is_symbol);
+  GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)), &is_oddball);
+
+  GotoIf(IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE),
+         &is_context);
+
+  GotoIf(IsJSReceiverInstanceType(instance_type), &is_js_receiver);
+
+  Goto(&is_other_heap_object);
+
+  auto CheckType = [&](maglev::NodeType actual_type) {
+    // The actual type is accurate (only 1 bit set) unless it's a string (see
+    // TODO below).
+    DCHECK_IMPLIES(actual_type != maglev::NodeType::kString,
+                   std::popcount(static_cast<unsigned>(actual_type)) == 1);
+    TNode<Word32T> actual_type_int32 =
+        Int32Constant(static_cast<int>(actual_type));
+    GotoIf(Word32NotEqual(Word32And(expected_type, actual_type_int32),
+                          Int32Constant(0)),
+           &done);
+    Print("CheckMaglevType failed");
+    Print(object);
+    Print("Expected type: ", expected_type_smi);
+    Print("Actual type: ", SmiConstant(Smi::FromEnum(actual_type)));
+    Unreachable();
+  };
+
+  BIND(&is_smi);
+  CheckType(maglev::NodeType::kSmi);
+
+  BIND(&is_undetectable);
+  CheckType(maglev::NodeType::kUndefined);
+
+  BIND(&is_heap_number);
+  CheckType(maglev::NodeType::kHeapNumber);
+
+  BIND(&is_string);
+  // TODO(477184397): Check String subtypes
+  CheckType(maglev::NodeType::kString);
+
+  BIND(&is_symbol);
+  CheckType(maglev::NodeType::kSymbol);
+
+  BIND(&is_oddball);
+  {
+    Label is_null(this), is_undefined(this);
+    GotoIf(TaggedEqual(object, NullConstant()), &is_null);
+    GotoIf(TaggedEqual(object, UndefinedConstant()), &is_undefined);
+    CheckType(maglev::NodeType::kBoolean);
+
+    BIND(&is_null);
+    CheckType(maglev::NodeType::kNull);
+
+    BIND(&is_undefined);
+    CheckType(maglev::NodeType::kUndefined);
+  }
+
+  BIND(&is_context);
+  CheckType(maglev::NodeType::kContext);
+
+  BIND(&is_js_receiver);
+  {
+    Label is_js_array(this), is_js_data_view(this), is_primitive_wrapper(this),
+        is_js_function(this), is_string_wrapper(this), is_other_callable(this);
+
+    GotoIf(Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE)),
+           &is_js_array);
+    GotoIf(Word32Equal(instance_type, Int32Constant(JS_DATA_VIEW_TYPE)),
+           &is_js_data_view);
+    GotoIf(Word32Equal(instance_type, Int32Constant(JS_PRIMITIVE_WRAPPER_TYPE)),
+           &is_primitive_wrapper);
+    GotoIf(
+        IsInRange(instance_type, FIRST_JS_FUNCTION_TYPE, LAST_JS_FUNCTION_TYPE),
+        &is_js_function);
+    GotoIf(IsSetWord32(bit_field, Map::Bits1::IsCallableBit::kMask),
+           &is_other_callable);
+
+    CheckType(maglev::NodeType::kOtherJSReceiver);
+
+    BIND(&is_js_array);
+    CheckType(maglev::NodeType::kJSArray);
+
+    BIND(&is_js_data_view);
+    CheckType(maglev::NodeType::kJSDataView);
+
+    BIND(&is_primitive_wrapper);
+    {
+      TNode<Int32T> kind = LoadMapElementsKind(map);
+      Label check_wrapper(this);
+      GotoIf(Word32Equal(kind, Int32Constant(FAST_STRING_WRAPPER_ELEMENTS)),
+             &is_string_wrapper);
+      GotoIf(Word32Equal(kind, Int32Constant(SLOW_STRING_WRAPPER_ELEMENTS)),
+             &is_string_wrapper);
+      Goto(&check_wrapper);
+
+      BIND(&check_wrapper);
+      CheckType(maglev::NodeType::kOtherJSReceiver);
+    }
+
+    BIND(&is_js_function);
+    CheckType(maglev::NodeType::kJSFunction);
+
+    BIND(&is_string_wrapper);
+    CheckType(maglev::NodeType::kStringWrapper);
+
+    BIND(&is_other_callable);
+    CheckType(maglev::NodeType::kOtherCallable);
+  }
+
+  BIND(&is_other_heap_object);
+  CheckType(maglev::NodeType::kOtherHeapObject);
+
+  BIND(&done);
+  Return(object);
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

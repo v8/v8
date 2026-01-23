@@ -3487,7 +3487,7 @@ ReduceResult MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
   if (tagged_lhs == tagged_rhs) {
     return GetBooleanConstant(true);
   }
-  if (HaveDisjointTypes(tagged_lhs, tagged_rhs)) {
+  if (reducer_.HaveDisjointTypes(tagged_lhs, tagged_rhs)) {
     return GetBooleanConstant(false);
   }
   // TODO(victorgomes): We could retrieve the HeapObjectRef in Constant and

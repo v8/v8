@@ -478,9 +478,10 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
     Phi* phi = value->Cast<Phi>();
     if (!phi->is_loop_phi()) return;
     if (phi->merge_state() != this) return;
-    NodeType old_type = known_node_aspects_->GetType(builder->broker(), phi);
+    NodeType old_type =
+        known_node_aspects_->GetTypeUnchecked(builder->broker(), phi);
     if (old_type != NodeType::kUnknown) {
-      NodeType new_type = loop_end_state.known_node_aspects()->GetType(
+      NodeType new_type = loop_end_state.known_node_aspects()->GetTypeUnchecked(
           builder->broker(), loop_end_state.get(reg));
       // TODO(428667907): Ideally we should bail out early for the kNone type.
       if (!NodeTypeIs(new_type, old_type, NodeTypeIsVariant::kAllowNone)) {
@@ -808,7 +809,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
 
     NodeType unmerged_type =
-        unmerged_aspects.GetType(builder->broker(), unmerged);
+        unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
     if (result->is_loop_phi()) {
       UpdateLoopPhiType(result, unmerged_type);
     } else {
@@ -893,7 +894,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   // EnsureTagged, since untagged nodes have a higher chance of having a
   // StaticType.
   NodeType unmerged_type =
-      unmerged_aspects.GetType(builder->broker(), unmerged);
+      unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessors_so_far_, unmerged);
@@ -919,7 +920,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
   Phi* result = merged->TryCast<Phi>();
   if (result != nullptr && result->merge_state() == this) {
     NodeType unmerged_type =
-        unmerged_aspects.GetType(builder->broker(), unmerged);
+        unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
     unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                             predecessors_[predecessors_so_far_]);
     for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
@@ -977,7 +978,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
   }
 
   NodeType unmerged_type =
-      unmerged_aspects.GetType(builder->broker(), unmerged);
+      unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   for (uint32_t i = predecessors_so_far_; i < predecessor_count_; i++) {
@@ -1000,7 +1001,8 @@ void MergePointInterpreterFrameState::MergeLoopValue(
     return;
   }
   DCHECK_EQ(result->owner(), owner);
-  NodeType type = unmerged_aspects.GetType(builder->broker(), unmerged);
+  NodeType type =
+      unmerged_aspects.GetTypeUnchecked(builder->broker(), unmerged);
   unmerged = EnsureTagged(builder, unmerged_aspects, unmerged,
                           predecessors_[predecessors_so_far_]);
   result->set_input(predecessor_count_ - 1, unmerged);

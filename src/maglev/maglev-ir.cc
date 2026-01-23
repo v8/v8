@@ -3708,6 +3708,22 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                            NegateCondition(ToCondition(condition())), fail);
 }
 
+int CheckMaglevType::MaxCallStackArgs() const {
+  using D = CallInterfaceDescriptorFor<Builtin::kCheckMaglevType>::type;
+  return D::GetStackParameterCount();
+}
+
+void CheckMaglevType::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kCheckMaglevType>::type;
+  UseFixed(ValueInput(), D::GetRegisterParameter(0));
+}
+
+void CheckMaglevType::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  __ CallBuiltin<Builtin::kCheckMaglevType>(ValueInput(),
+                                            Smi::FromEnum(expected_type_));
+}
+
 int StoreContextSlotWithWriteBarrier::MaxCallStackArgs() const {
   return WriteBarrierDescriptor::GetStackParameterCount();
 }
@@ -8228,6 +8244,10 @@ void CheckMapsWithMigration::PrintParams(std::ostream& os) const {
 
 void CheckInt32Condition::PrintParams(std::ostream& os) const {
   os << "(" << condition() << ", " << deoptimize_reason() << ")";
+}
+
+void CheckMaglevType::PrintParams(std::ostream& os) const {
+  os << "(" << expected_type_ << ")";
 }
 
 void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {

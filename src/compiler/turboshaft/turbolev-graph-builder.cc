@@ -2816,6 +2816,12 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CheckMaglevType* node,
+                                const maglev::ProcessingState& state) {
+    __ CheckMaglevType(Map(node->input(0)), node->expected_type());
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::AllocationBlock* node,
                                 const maglev::ProcessingState& state) {
     DCHECK(

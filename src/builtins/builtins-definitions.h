@@ -1564,6 +1564,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(FindNonDefaultConstructorOrConstruct,                                    \
       FindNonDefaultConstructorOrConstruct)                                    \
   TFS(OrdinaryGetOwnPropertyDescriptor, NeedsContext::kYes, kReceiver, kKey)   \
+  TFS(CheckMaglevType, NeedsContext::kNo, kObject, kType)                      \
   IF_SHADOW_STACK(ASM, AdaptShadowStackForDeopt, Void)                         \
                                                                                \
   /* Trace */                                                                  \

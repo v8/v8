@@ -597,7 +597,13 @@ class MaglevReducer {
     return known_node_aspects().EnsureType(broker(), node, type, old);
   }
   NodeType GetType(ValueNode* node) {
-    return known_node_aspects().GetType(broker(), node);
+    NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
+    if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)
+        [[unlikely]] {
+      ReduceResult result = AddNewNode<CheckMaglevType>({node}, type);
+      USE(result);
+    }
+    return type;
   }
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
     return known_node_aspects().GetOrCreateInfoFor(broker(), node);
@@ -605,10 +611,13 @@ class MaglevReducer {
   // Returns true if we statically know that {lhs} and {rhs} have disjoint
   // types.
   bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
-    return known_node_aspects().HaveDisjointTypes(broker(), lhs, rhs);
+    NodeType rhs_type = GetType(rhs);
+    return HasDisjointType(lhs, rhs_type);
   }
+
   bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
-    return known_node_aspects().HasDisjointType(broker(), lhs, rhs_type);
+    NodeType lhs_type = GetType(lhs);
+    return IsEmptyNodeType(IntersectType(lhs_type, rhs_type));
   }
 
   Zone* zone() const { return zone_; }

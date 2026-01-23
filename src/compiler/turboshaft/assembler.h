@@ -53,6 +53,7 @@
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/logging/runtime-call-stats.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/fixed-array.h"
@@ -4235,6 +4236,11 @@ class AssemblerOpInterface : public Next {
     CHECK(v8_flags.turboshaft_enable_debug_features);
     return ReduceIfReachableCheckTurboshaftTypeOf(input, rep, expected_type,
                                                   successful);
+  }
+
+  void CheckMaglevType(V<Object> input, maglev::NodeType type) {
+    CHECK(v8_flags.maglev_assert_types);
+    ReduceIfReachableCheckMaglevType(input, type);
   }
 
   // This is currently only usable during graph building on the main thread.

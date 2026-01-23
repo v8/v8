@@ -468,6 +468,7 @@ class ExceptionHandlerInfo;
   V(TransitionElementsKindOrCheckMap)         \
   V(SetContinuationPreservedEmbedderData)     \
   V(FulfillPromise)                           \
+  V(CheckMaglevType)                          \
   GAP_MOVE_NODE_LIST(V)                       \
   TURBOLEV_NON_VALUE_NODE_LIST(V)
 
@@ -7051,6 +7052,29 @@ class CheckCacheIndicesNotCleared
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class CheckMaglevType : public FixedInputNodeT<1, CheckMaglevType> {
+ public:
+  explicit CheckMaglevType(uint64_t bitfield, NodeType expected_type)
+      : Base(bitfield), expected_type_(expected_type) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanRead() | OpProperties::Call();
+  DECLARE_INPUTS(Value)
+  DECLARE_INPUT_TYPES(Tagged)
+
+  NodeType expected_type() const { return expected_type_; }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+
+  auto options() const { return std::tuple{expected_type_}; }
+
+ private:
+  const NodeType expected_type_;
 };
 
 class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {

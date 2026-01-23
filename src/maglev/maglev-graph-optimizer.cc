@@ -452,8 +452,7 @@ ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
 MaybeReduceResult MaglevGraphOptimizer::EnsureType(ValueNode* node,
                                                    NodeType type,
                                                    DeoptimizeReason reason) {
-  if (IsEmptyNodeType(
-          IntersectType(known_node_aspects().GetType(broker(), node), type))) {
+  if (IsEmptyNodeType(IntersectType(reducer_.GetType(node), type))) {
     return EmitUnconditionalDeopt(reason);
   }
   if (!known_node_aspects().EnsureType(broker(), node, type)) {
@@ -743,6 +742,11 @@ ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType(
                                          DeoptimizeReason::kWrongInstanceType));
   }
 
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckMaglevType(
+    CheckMaglevType* node, const ProcessingState& state) {
   return ProcessResult::kContinue;
 }
 

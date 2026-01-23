@@ -426,9 +426,7 @@ class MaglevGraphBuilder {
     return known_node_aspects().EnsureType<Function>(broker(), node, type,
                                                      ensure_new_type);
   }
-  NodeType GetType(ValueNode* node) {
-    return known_node_aspects().GetType(broker(), node);
-  }
+  NodeType GetType(ValueNode* node) { return reducer_.GetType(node); }
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
     return known_node_aspects().GetOrCreateInfoFor(broker(), node);
   }
@@ -436,10 +434,10 @@ class MaglevGraphBuilder {
   // Returns true if we statically know that {lhs} and {rhs} have disjoint
   // types.
   bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
-    return known_node_aspects().HaveDisjointTypes(broker(), lhs, rhs);
+    return reducer_.HaveDisjointTypes(lhs, rhs);
   }
   bool HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
-    return known_node_aspects().HasDisjointType(broker(), lhs, rhs_type);
+    return reducer_.HasDisjointType(lhs, rhs_type);
   }
 
   void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,

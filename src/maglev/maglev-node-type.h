@@ -157,9 +157,10 @@ inline constexpr bool NodeTypeIsForPrinting(NodeType type, NodeType to_check) {
   NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
   return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
 }
-inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check) {
-  DCHECK(!NodeTypeIsNeverStandalone(type));
-  DCHECK(!NodeTypeIsNeverStandalone(to_check));
+inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check,
+                                    bool allow_standalone = false) {
+  DCHECK_IMPLIES(!allow_standalone, !NodeTypeIsNeverStandalone(type));
+  DCHECK_IMPLIES(!allow_standalone, !NodeTypeIsNeverStandalone(to_check));
   NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
   return (static_cast<NodeTypeInt>(type) & (right)) != 0;
 }

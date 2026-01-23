@@ -95,7 +95,8 @@ class RecomputeKnownNodeAspectsProcessor {
         NodeType new_type = NodeType::kNone;
         for (int i = 0; i < phi->input_count(); ++i) {
           ValueNode* input = phi->input_node(i)->UnwrapIdentities();
-          NodeType input_type = known_node_aspects_->GetType(broker(), input);
+          NodeType input_type =
+              known_node_aspects_->GetTypeUnchecked(broker(), input);
           new_type = UnionType(new_type, input_type);
         }
         known_node_aspects_->GetOrCreateInfoFor(broker(), phi)
@@ -200,9 +201,6 @@ class RecomputeKnownNodeAspectsProcessor {
   }
   bool EnsureType(ValueNode* node, NodeType type) {
     return known_node_aspects().EnsureType(broker(), node, type);
-  }
-  NodeType GetType(ValueNode* node) {
-    return known_node_aspects().GetType(broker(), node);
   }
 
   BlockProcessResult AbortBlock(BasicBlock* block) {

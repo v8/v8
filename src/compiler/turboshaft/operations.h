@@ -36,6 +36,7 @@
 #include "src/compiler/turboshaft/zone-with-name.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/flags/flags.h"
+#include "src/maglev/maglev-node-type.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -283,6 +284,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(TransitionElementsKindOrCheckMap)           \
   V(DebugPrint)                                 \
   V(CheckTurboshaftTypeOf)                      \
+  V(CheckMaglevType)                            \
   V(TypeHint)
 
 // These Operations are the lowest level handled by Turboshaft, and are
@@ -4843,6 +4845,26 @@ struct CheckTurboshaftTypeOfOp
       : Base(input), rep(rep), type(std::move(type)), successful(successful) {}
 
   auto options() const { return std::tuple{rep, type, successful}; }
+};
+
+struct CheckMaglevTypeOp : FixedArityOperationT<1, CheckMaglevTypeOp> {
+  maglev::NodeType type;
+
+  static constexpr OpEffects effects =
+      OpEffects().CanDependOnChecks().CanReadMemory().RequiredWhenUnused();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<Object> input() const { return Base::input<Object>(0); }
+
+  CheckMaglevTypeOp(V<Object> input, maglev::NodeType type)
+      : Base(input), type(type) {}
+
+  auto options() const { return std::tuple{type}; }
 };
 
 struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
