@@ -2553,8 +2553,6 @@ DEFINE_BOOL(safepoint_bump_qos_class, true,
 #endif
 DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
-DEFINE_BOOL(memory_reducer_favors_memory, true,
-            "memory reducer runs GC with ReduceMemoryFootprint flag")
 DEFINE_BOOL(memory_reducer_for_small_heaps, true,
             "use memory reducer for small heaps")
 DEFINE_INT(memory_reducer_gc_count, 2,
