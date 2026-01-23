@@ -574,10 +574,10 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
       // There may be old generation entries left in the remembered set as
       // MinorMS only promotes pages after clearing non-live references.
       if (!HeapLayout::InYoungGeneration(key)) {
-        iti = indices.erase(iti);
+        indices.erase(iti++);
       } else if (non_atomic_marking_state_->IsUnmarked(key)) {
         table->RemoveEntry(InternalIndex(*iti));
-        iti = indices.erase(iti);
+        indices.erase(iti++);
       } else {
         ++iti;
       }

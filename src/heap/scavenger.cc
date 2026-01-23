@@ -10,6 +10,7 @@
 #include <optional>
 #include <unordered_map>
 
+#include "absl/container/flat_hash_set.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
@@ -1489,7 +1490,7 @@ class ScavengerEphemeronProcessor final {
         Tagged<HeapObject> key = key_slot.ToHeapObject();
         // If the key is not young, we don't need it in the remembered set.
         if (!HeapLayout::InYoungGeneration(key)) {
-          iti = indices.erase(iti);
+          indices.erase(iti++);
         }
         // If the key is not in the from page, it's not being scavenged.
         if (!Heap::InFromPage(key)) continue;
@@ -1503,7 +1504,7 @@ class ScavengerEphemeronProcessor final {
           // If the key is not forwarded, then it's dead.
           DCHECK(IsUnscavengedHeapObject(key));
           table->RemoveEntry(InternalIndex(*iti));
-          iti = indices.erase(iti);
+          indices.erase(iti++);
         } else {
           // Otherwise, we need to update the key slot to the forwarded address.
           DCHECK(!IsUnscavengedHeapObject(key));
@@ -1512,7 +1513,7 @@ class ScavengerEphemeronProcessor final {
           if (!HeapLayout::InYoungGeneration(forwarded)) {
             // If the key was promoted out of new space, we don't need to keep
             // it in the remembered set.
-            iti = indices.erase(iti);
+            indices.erase(iti++);
           } else {
             ++iti;
           }
@@ -2378,8 +2379,8 @@ void Scavenger::RecordWeakCellIfNeeded(Tagged<WeakCell> weak_cell) {
 
 void Scavenger::RememberPromotedEphemeron(Tagged<EphemeronHashTable> table,
                                           int index) {
-  auto indices = local_ephemeron_remembered_set_.insert(
-      {table, std::unordered_set<int>()});
+  auto indices = local_ephemeron_remembered_set_.emplace(
+      table, absl::flat_hash_set<int>());
   indices.first->second.insert(index);
 }
 
