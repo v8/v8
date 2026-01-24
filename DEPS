@@ -122,7 +122,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6172bfda95937e2d8d504885234e5106bce90ce8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '96268f31582a64e85b9a952e71f7901eeb144867',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4dc32b3f510b330137385e2b3a631ca8e13a8e22',
   'buildtools/linux64': {
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0407d6b1601d3402cd60a0ca9f097a4d33360e0b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ec7d8f539cb439ce9ca7750ff0d8942e68325090',
   'third_party/dragonbox/src':
     Var('chromium_url') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + 'beeeef91cf6fef89a4d4ba5e95d47ca64ccb3a44',
   'third_party/fp16/src':
@@ -472,9 +472,9 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + 'a387ec751788c8a3f20ac70c614225ea8ed29c15',
+    Var('chromium_url') + '/external/github.com/google/perfetto.git' + '@' + '41077e0bf4531a71581c7a2aa8f276cc4eb3889a',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '19c4f7c825cd2764f1dcd29703ac5befac934406',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'ddf513ccaeed6b1316bc2029b10f4436ad297324',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '972a15cedd008d846f1a39b2e88ce48d7f166cbd',
   'third_party/requests': {
@@ -486,7 +486,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + '2a9823716f1dd1491fdbc5dc0d2c2f6ab0c8e848',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '808ee5802f71d159dba016dc31336aabbf6686d2',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '5326cd6869bed3c022b698fafb11dd1f2de52246',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
