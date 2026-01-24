@@ -31,17 +31,18 @@ void PrepareForJsToWasmConversionBuiltinCall(MacroAssembler* masm,
                                              Register valuetypes_array_ptr,
                                              Register wasm_instance,
                                              Register function_data) {
-  UseScratchRegisterScope temps(masm);
-  Register GCScanCount = temps.AcquireX();
-  // Pushes and puts the values in order onto the stack before builtin calls for
-  // the GenericJSToWasmInterpreterWrapper.
-  // The last two slots contain tagged objects that need to be visited during
-  // GC.
-  __ Mov(GCScanCount, 2);
-  __ Str(
-      GCScanCount,
-      MemOperand(
-          fp, BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register GCScanCount = temps.AcquireX();
+    // Pushes and puts the values in order onto the stack before builtin calls
+    // for the GenericJSToWasmInterpreterWrapper. The last two slots contain
+    // tagged objects that need to be visited during GC.
+    __ Mov(GCScanCount, 2);
+    __ Str(GCScanCount,
+           MemOperand(
+               fp,
+               BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
+  }
   __ Push(current_param_slot, valuetypes_array_ptr, wasm_instance,
           function_data);
   // We had to prepare the parameters for the Call: we have to put the context
@@ -75,15 +76,17 @@ void RestoreAfterJsToWasmConversionBuiltinCall(MacroAssembler* masm,
 
 void PrepareForBuiltinCall(MacroAssembler* masm, Register array_start,
                            Register return_count, Register wasm_instance) {
-  UseScratchRegisterScope temps(masm);
-  Register GCScanCount = temps.AcquireX();
-  // Pushes and puts the values in order onto the stack before builtin calls for
-  // the GenericJSToWasmInterpreterWrapper.
-  __ Mov(GCScanCount, 1);
-  __ Str(
-      GCScanCount,
-      MemOperand(
-          fp, BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register GCScanCount = temps.AcquireX();
+    // Pushes and puts the values in order onto the stack before builtin calls
+    // for the GenericJSToWasmInterpreterWrapper.
+    __ Mov(GCScanCount, 1);
+    __ Str(GCScanCount,
+           MemOperand(
+               fp,
+               BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
+  }
   // The last slot contains a tagged object that need to be visited during GC.
   __ Push(array_start, return_count, xzr, wasm_instance);
   // We had to prepare the parameters for the Call: we have to put the context
@@ -112,17 +115,19 @@ void PrepareForWasmToJsConversionBuiltinCall(
     Register current_return_slot, Register valuetypes_array_ptr,
     Register wasm_instance, Register fixed_array, Register jsarray,
     bool load_native_context = true) {
-  UseScratchRegisterScope temps(masm);
-  Register GCScanCount = temps.AcquireX();
-  // Pushes and puts the values in order onto the stack before builtin calls
-  // for the GenericJSToWasmInterpreterWrapper.
-  // The last three slots contain tagged objects that need to be visited during
-  // GC.
-  __ Mov(GCScanCount, 3);
-  __ Str(
-      GCScanCount,
-      MemOperand(
-          fp, BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register GCScanCount = temps.AcquireX();
+    // Pushes and puts the values in order onto the stack before builtin calls
+    // for the GenericJSToWasmInterpreterWrapper.
+    // The last three slots contain tagged objects that need to be visited
+    // during GC.
+    __ Mov(GCScanCount, 3);
+    __ Str(GCScanCount,
+           MemOperand(
+               fp,
+               BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
+  }
   __ Push(return_count, result_index, current_return_slot, valuetypes_array_ptr,
           xzr, wasm_instance, fixed_array, jsarray);
   if (load_native_context) {
