@@ -290,9 +290,9 @@ deps = {
   'third_party/libpfm4/src':
     Var('chromium_url') + '/external/git.code.sf.net/p/perfmon2/libpfm4.git' + '@' + '964baf9d35d5f88d8422f96d8a82c672042e7064',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'a56e6191d5a5ec14001f640ca8755daae667345a',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'ba19d93d6d4f467fba11ff20fe2fc7c056f79345',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4a6eff36ed2348be21c31810cd4de8374b7242cf',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '51076932f7178a99da64c0f5813ce7a269c5a627',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
