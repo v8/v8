@@ -2560,8 +2560,14 @@ DEFINE_INT(memory_reducer_gc_count, 2,
 DEFINE_INT(memory_reducer_delay_ms, 8'000, "Delay before memory reducer start")
 DEFINE_INT(gc_memory_reducer_start_delay_ms, 30'000,
            "Delay before memory reducer start")
-DEFINE_BOOL(disable_eager_allocation_failures, false,
-            "Avoid eager allocations failures due to memory optimizations")
+DEFINE_BOOL(enable_allocation_failures_optimize_memory, true,
+            "Enable eager allocations failures due to memory optimizations")
+DEFINE_BOOL(enable_allocation_failures_optimize_memory_ignoring_priority, false,
+            "Enable eager allocations failures due to memory optimizations "
+            "ignoring isolate being backgrounded")
+DEFINE_NEG_IMPLICATION(
+    enable_allocation_failures_optimize_memory,
+    enable_allocation_failures_optimize_memory_ignoring_priority)
 DEFINE_BOOL(
     external_memory_accounted_in_global_limit, false,
     "External memory limits are computed as part of global limits in v8 Heap.")

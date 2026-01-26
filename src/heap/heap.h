@@ -680,6 +680,7 @@ class Heap final {
   void ActivateMemoryReducerIfNeeded();
 
   V8_EXPORT_PRIVATE bool ShouldOptimizeForMemoryUsage();
+  V8_EXPORT_PRIVATE bool ShouldOptimizeForMemoryUsageIgnoringPriority();
 
   // Returns true when GC should optimize for battery.
   V8_EXPORT_PRIVATE bool ShouldOptimizeForBattery() const;

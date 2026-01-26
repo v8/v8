@@ -3692,9 +3692,13 @@ bool Heap::HasHighFragmentation() {
 }
 
 bool Heap::ShouldOptimizeForMemoryUsage() {
-  const size_t kOldGenerationSlack = limits()->max_old_generation_size() / 8;
   return isolate()->priority() == v8::Isolate::Priority::kBestEffort ||
-         isolate()->MemorySaverModeEnabled() || HighMemoryPressure() ||
+         ShouldOptimizeForMemoryUsageIgnoringPriority();
+}
+
+bool Heap::ShouldOptimizeForMemoryUsageIgnoringPriority() {
+  const size_t kOldGenerationSlack = limits()->max_old_generation_size() / 8;
+  return isolate()->MemorySaverModeEnabled() || HighMemoryPressure() ||
          !CanExpandOldGeneration(kOldGenerationSlack);
 }
 
@@ -5567,9 +5571,20 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
   // Background thread requested GC, allocation should fail
   if (CollectionRequested()) return false;
 
-  if (ShouldOptimizeForMemoryUsage() &&
-      !v8_flags.disable_eager_allocation_failures) {
-    return false;
+  if (v8_flags.enable_allocation_failures_optimize_memory) {
+    DCHECK(
+        !v8_flags.enable_allocation_failures_optimize_memory_ignoring_priority);
+    if (ShouldOptimizeForMemoryUsage()) {
+      return false;
+    }
+  } else if (
+      v8_flags.enable_allocation_failures_optimize_memory_ignoring_priority) {
+    if (ShouldOptimizeForMemoryUsageIgnoringPriority()) {
+      return false;
+    }
+  } else {
+    // This is allowed behind an experiment arm, where we want to skip
+    // both forms of ShouldOptimizeForMemoryUsage().
   }
 
   if (ShouldOptimizeForLoadTime()) return true;
