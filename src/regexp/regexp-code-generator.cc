@@ -457,8 +457,11 @@ VISIT(SkipUntilOneOfMasked3, bc0_cp_offset, bc0_advance_by, bc0_table,
   };
 
   // The nibble table is optionally constructed if we use SIMD.
+  // The fallback version without SIMD for this bytecode emits
+  // SkipUntilBitInTable, which might need the nibble table as well.
   Handle<ByteArray> nibble_table;
-  if (masm_->SkipUntilOneOfMasked3UseSimd(args)) {
+  if (masm_->SkipUntilOneOfMasked3UseSimd(args) ||
+      masm_->SkipUntilBitInTableUseSimd(bc0_advance_by)) {
     static_assert(RegExpMacroAssembler::kTableSize == 128);
     nibble_table = isolate_->factory()->NewByteArray(
         RegExpMacroAssembler::kTableSize / kBitsPerByte, AllocationType::kOld);
