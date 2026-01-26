@@ -59,7 +59,8 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 
 bool CpuFeatures::SupportsWasmSimd128() {
 #if V8_ENABLE_WEBASSEMBLY
-  return CpuFeatures::IsSupported(PPC_9_PLUS);
+  DCHECK(CpuFeatures::IsSupported(PPC_9_PLUS));
+  return true;
 #else
   return false;
 #endif  // V8_ENABLE_WEBASSEMBLY

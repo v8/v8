@@ -216,17 +216,9 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
 // Returns the condition code for the no overflow flag.
 inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
   if (SmiValuesAre31Bits()) {
-    if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
       add(dst, src, src, SetOE);
       MoveToCrFromXer(cr0);
       return nooverflow32;
-    } else {
-      extsw(r0, src);
-      add(r0, r0, r0);
-      extsw(dst, r0);
-      CmpS64(r0, dst);
-      return eq;
-    }
   } else {
     SmiTag(dst, src);
   }
@@ -256,17 +248,9 @@ inline void MaglevAssembler::SmiAddConstant(Register dst, Register src,
 
   Move(scratch, Smi::FromInt(value));
   if (SmiValuesAre31Bits()) {
-    if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
       add(dst, src, scratch, SetOE);
       MoveToCrFromXer(cr0);
       JumpIf(overflow32, fail);
-    } else {
-      extsw(r0, src);
-      add(r0, r0, scratch);
-      extsw(dst, r0);
-      CmpS64(r0, dst);
-      JumpIf(ne, fail);
-    }
   } else {
     AddS64(dst, src, scratch, SetOE, SetRC);
     JumpIf(kOverflow, fail, distance);
@@ -286,17 +270,9 @@ inline void MaglevAssembler::SmiSubConstant(Register dst, Register src,
 
   Move(scratch, Smi::FromInt(value));
   if (SmiValuesAre31Bits()) {
-    if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
       sub(dst, src, scratch, SetOE);
       MoveToCrFromXer(cr0);
       JumpIf(overflow32, fail);
-    } else {
-      extsw(r0, src);
-      sub(r0, r0, scratch);
-      extsw(dst, r0);
-      CmpS64(r0, dst);
-      JumpIf(ne, fail);
-    }
   } else {
     SubS64(dst, src, scratch, SetOE, SetRC);
     JumpIf(kOverflow, fail, distance);
