@@ -5765,8 +5765,7 @@ Heap::IncrementalMarkingLimitReached() {
     return std::make_pair(IncrementalMarkingLimit::kNoLimit,
                           "enough space available");
   }
-  if (ShouldOptimizeForMemoryUsage() &&
-      !v8_flags.disable_eager_allocation_failures) {
+  if (ShouldOptimizeForMemoryUsage()) {
     return std::make_pair(IncrementalMarkingLimit::kHardLimit,
                           "optimize for memory");
   }
