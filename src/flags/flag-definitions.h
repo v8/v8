@@ -302,8 +302,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)       \
   V(js_decorators, "decorators")                     \
   V(js_source_phase_imports, "source phase imports") \
-  V(js_defer_import_eval, "defer import eval")       \
-  V(js_sum_precise, "Math.sumPrecise")
+  V(js_defer_import_eval, "defer import eval")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
@@ -320,6 +319,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V)             \
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
+  V(js_sum_precise, "Math.sumPrecise")                 \
   V(js_iterator_sequencing, "iterator sequencing")
 
 #ifdef V8_INTL_SUPPORT

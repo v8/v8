@@ -747,6 +747,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kMathSign:
     case Builtin::kMathSin:
     case Builtin::kMathSinh:
+    case Builtin::kMathSumPrecise:
     case Builtin::kMathSqrt:
     case Builtin::kMathTan:
     case Builtin::kMathTanh:
