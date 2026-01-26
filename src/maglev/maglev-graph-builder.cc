@@ -17,6 +17,7 @@
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
 #include "src/base/logging.h"
+#include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
@@ -10450,9 +10451,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     FAIL(" to reduce Array.prototype.push - no receiver");
   }
 
-  // TODO(pthier): Support multiple arguments.
-  if (args.count() != 1) {
-    FAIL("  to reduce Array.prototype.push - invalid argument count");
+  if (args.count() == 0) {
+    FAIL("  to reduce Array.prototype.push - no argument");
   }
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
 
@@ -10527,50 +10527,88 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   ValueNode* old_array_length;
   GET_VALUE_OR_ABORT(old_array_length,
                      AddNewNode<UnsafeSmiUntag>({old_array_length_smi}));
-  ValueNode* new_array_length_smi;
-  GET_VALUE_OR_ABORT(new_array_length_smi,
-                     AddNewNode<CheckedSmiIncrement>({old_array_length_smi}));
+  // TODO(dmercadier): consider computing on Smis directly rather than untagging
+  // and then retagging.
+  ValueNode* new_array_length;
+  GET_VALUE_OR_ABORT(new_array_length,
+                     AddNewNode<Int32AddWithOverflow>(
+                         {old_array_length,
+                          GetInt32Constant(static_cast<int>(args.count()))}));
+
+  ValueNode* last_index;
+  GET_VALUE_OR_ABORT(last_index,
+                     AddNewNode<Int32Decrement>({new_array_length}));
 
   ValueNode* elements_array;
   GET_VALUE_OR_ABORT(elements_array, BuildLoadElements(receiver));
   ValueNode* elements_array_length = BuildLoadFixedArrayLength(elements_array);
 
   auto build_array_push = [&](ElementsKind kind) {
-    ValueNode* value;
-    GET_VALUE_OR_ABORT(value, ConvertForStoring(args[0], kind));
-
-    if (IsObjectElementsKind(kind)) {
-      // Storing to object kinds don't add conversions; no extra code will be
-      // added to the smi case if it falls through the object case.
-      DCHECK_EQ(value, args[0]);
-    }
-
+    // We first make sure that all inputs have the expected type, so that if we
+    // need to deopt, we'll do so before writing anything to the array.
     if (make_smi_fallthrough_to_object && IsSmiElementsKind(kind)) {
-      // The object case will execute the steps below, so we don't do them
-      // for the SMI case.
+      // Usually, we rely on ConvertForStoring below to ensure that the inputs
+      // have the right type. However, when make_smi_fallthrough_to_object is
+      // true, we'll share the Object and Smi storing loop, and
+      // ConvertForStoring will be a no-op since we'll just be storing AnyTagged
+      // objects. Thus, we have to insert CheckSmis here, before falling through
+      // to the Object case.
+      for (ValueNode*& arg : args) {
+        RETURN_IF_ABORT(BuildCheckSmi(arg));
+      }
       return ReduceResult::Done();
     }
 
+    base::SmallVector<ValueNode*, 16> args_to_store;
+    args_to_store.reserve(args.count());
+    for (ValueNode* arg : args) {
+      ValueNode* value;
+      GET_VALUE_OR_ABORT(value, ConvertForStoring(arg, kind));
+      args_to_store.push_back(value);
+
+      // Storing to object kinds don't add conversions; no extra code will be
+      // added to the smi case if it falls through the object case.
+      DCHECK_IMPLIES(IsObjectElementsKind(kind), value == arg);
+    }
+    DCHECK_EQ(args_to_store.size(), args.count());
+
+    // All inputs have the right type, we can now extend the array and write.
     ValueNode* writable_elements_array;
     GET_VALUE_OR_ABORT(
         writable_elements_array,
         AddNewNode<MaybeGrowFastElements>(
-            {elements_array, receiver, old_array_length, elements_array_length},
+            {elements_array, receiver, last_index, elements_array_length},
             kind));
-
+    // If {MaybeGrowFastElements} doesn't deopt, then we're guaranteed that the
+    // new length fits in a Smi.
+    EnsureType(new_array_length, NodeType::kSmi);
+    ValueNode* new_array_length_smi;
+    GET_VALUE_OR_ABORT(new_array_length_smi,
+                       AddNewNode<UnsafeSmiTagInt32>({new_array_length}));
     RETURN_IF_ABORT(AddNewNode<StoreTaggedFieldNoWriteBarrier>(
         {receiver, new_array_length_smi}, JSArray::kLengthOffset,
         StoreTaggedMode::kDefault));
 
-    // Do the store
-    if (IsDoubleElementsKind(kind)) {
-      return BuildStoreFixedDoubleArrayElement(kind, writable_elements_array,
-                                               old_array_length, value);
-    } else {
-      DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
-      return BuildStoreFixedArrayElement(writable_elements_array,
-                                         old_array_length, value);
+    for (int index = 0; index < static_cast<int>(args_to_store.size());
+         index++) {
+      ValueNode* store_index;
+      GET_VALUE_OR_ABORT(
+          store_index,
+          AddNewNode<Int32Add>({old_array_length, GetInt32Constant(index)}));
+
+      ValueNode* value = args_to_store[index];
+
+      // Do the store
+      if (IsDoubleElementsKind(kind)) {
+        RETURN_IF_ABORT(BuildStoreFixedDoubleArrayElement(
+            kind, writable_elements_array, store_index, value));
+      } else {
+        DCHECK(IsSmiElementsKind(kind) || IsObjectElementsKind(kind));
+        RETURN_IF_ABORT(BuildStoreFixedArrayElement(writable_elements_array,
+                                                    store_index, value));
+      }
     }
+    return ReduceResult::Done();
   };
 
   RETURN_IF_ABORT(BuildJSArrayBuiltinMapSwitchOnElementsKind(
@@ -10581,9 +10619,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   if (do_return.has_value()) {
     sub_graph.Bind(&*do_return);
   }
-  RecordKnownProperty(receiver, broker()->length_string(), new_array_length_smi,
+  RecordKnownProperty(receiver, broker()->length_string(), new_array_length,
                       false, compiler::AccessMode::kStore);
-  return new_array_length_smi;
+  return new_array_length;
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePop(
