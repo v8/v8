@@ -690,55 +690,26 @@ bool IsSafeAccessViolation(Address faultaddr) {
   base::SignalSafeMapsParser parser;
   if (!parser.IsValid()) {
     PrintToStderr(
-        "Could not access /proc/self/maps so cannot determine if access "
-        "violation is safe.\n");
+        "Could not access /proc/self/maps to check if the access violation is "
+        "safe.\n");
     return false;
   }
 
-  std::optional<base::MemoryRegion> fault_entry;
-  bool custom_memory_region_names_are_supported = false;
   while (auto entry = parser.Next()) {
     if (faultaddr >= entry->start && faultaddr < entry->end) {
-      fault_entry = entry;
-    }
-    // Custom names for virtual memory regions aren't always supported. We know
-    // they are supported if we see the "v8-sandbox" mapping though.
-    if (strstr(entry->pathname, Sandbox::kSandboxAddressSpaceName)) {
-      custom_memory_region_names_are_supported = true;
+      // With in-sandbox corruption it is possible to cause (safe) access
+      // violations inside the pointer table memory mappings. Unfortunately,
+      // these can be both PROT_NONE and PROT_READ mappings (as some table have
+      // RO segments), so we need to treat both of these as safe here.
+      return entry->permissions == PagePermissions::kNoAccess ||
+             entry->permissions == PagePermissions::kRead;
     }
   }
 
-  if (!fault_entry) {
-    PrintToStderr(
-        "Could not find faulting address in /proc/self/maps so cannot "
-        "determine if access violation is safe.\n");
-    return false;
-  }
-
-  if (custom_memory_region_names_are_supported) {
-    // The simple and precise case: just check if we crashed inside one of the
-    // known-safe-to-crash memory regions.
-    const char* kSafeNames[] = {
-        Sandbox::kSandboxAddressSpaceName,
-        kPointerTableAddressSpaceName,
-        nullptr,
-    };
-    for (const char** name = kSafeNames; *name; ++name) {
-      // We need to perform a substring search here as the actual mapping name
-      // will be something like "[anon:v8-sandbox]".
-      if (strstr(fault_entry->pathname, *name)) return true;
-    }
-    // We crashed somewhere else, so that's probably unsafe.
-    return false;
-  } else {
-    // If we don't have names then we need to rely on the page permissions,
-    // which is less accurate. With in-sandbox corruption it is possible to
-    // cause (safe) access violations inside the pointer table memory mappings.
-    // Unfortunately, these can be both PROT_NONE and PROT_READ mappings (as
-    // some table have RO segments), so we need to treat both of these as safe.
-    return fault_entry->permissions == PagePermissions::kNoAccess ||
-           fault_entry->permissions == PagePermissions::kRead;
-  }
+  PrintToStderr(
+      "Could not find faulting address in /proc/self/maps so cannot check if "
+      "the access violation is safe.\n");
+  return false;
 }
 
 [[noreturn]] void FilterCrash(const char* reason) {

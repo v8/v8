@@ -4,8 +4,6 @@
 
 #include "src/base/virtual-address-space.h"
 
-#include <algorithm>
-#include <cstring>
 #include <optional>
 
 #include "include/v8-platform.h"
@@ -35,11 +33,6 @@ OS::MemoryPermission ToMemoryPermission(PagePermissions permissions) {
   }
 }
 
-bool IsValidMappingName(const std::string& name) {
-  return std::all_of(name.begin(), name.end(), [](char c) {
-    return std::isalnum(static_cast<unsigned char>(c)) || c == '-';
-  });
-}
 }  // namespace
 
 VirtualAddressSpace::VirtualAddressSpace()
@@ -288,13 +281,6 @@ void VirtualAddressSubspace::FreePages(Address address, size_t size) {
   }
   CHECK_EQ(size, region_allocator_.FreeRegion(address));
 
-  if (!name_.empty()) {
-    // Freeing pages (via MAP_FIXED) resets the name of the mapping.
-    // So we need to set it again here.
-    CHECK(OS::SetMemoryRegionName(reinterpret_cast<void*>(address), size,
-                                  name_.c_str()));
-  }
-
 #if V8_HAS_PKU_SUPPORT
   if (pkey_) {
     // Freeing pages in a subspace effectively means replacing them with fresh
@@ -372,13 +358,6 @@ void VirtualAddressSubspace::FreeSharedPages(Address address, size_t size) {
   // merge_callback) with any surrounding placeholder mappings.
   CHECK(reservation_.FreeShared(reinterpret_cast<void*>(address), size));
   CHECK_EQ(size, region_allocator_.FreeRegion(address));
-
-  if (!name_.empty()) {
-    // Freeing pages (via MAP_FIXED) resets the name of the mapping.
-    // So we need to set it again here.
-    CHECK(OS::SetMemoryRegionName(reinterpret_cast<void*>(address), size,
-                                  name_.c_str()));
-  }
 }
 
 std::unique_ptr<v8::VirtualAddressSpace>
@@ -451,13 +430,6 @@ bool VirtualAddressSubspace::DecommitPages(Address address, size_t size) {
   bool success =
       reservation_.DecommitPages(reinterpret_cast<void*>(address), size);
 
-  if (success && !name_.empty()) {
-    // Decommitting pages (via MAP_FIXED) resets the name of the mapping.
-    // So we need to set it again here.
-    CHECK(OS::SetMemoryRegionName(reinterpret_cast<void*>(address), size,
-                                  name_.c_str()));
-  }
-
 #if V8_HAS_PKU_SUPPORT
   if (success && pkey_) {
     // Decommitting pages in a subspace effectively means replacing them with
@@ -482,17 +454,6 @@ void VirtualAddressSubspace::FreeSubspace(VirtualAddressSubspace* subspace) {
   Address base = reinterpret_cast<Address>(reservation.base());
   CHECK_EQ(reservation.size(), region_allocator_.FreeRegion(base));
   CHECK(reservation_.FreeSubReservation(reservation));
-}
-
-bool VirtualAddressSubspace::SetName(const std::string& name) {
-  CHECK(IsValidMappingName(name));
-
-  if (reservation_.SetName(name.c_str())) {
-    name_ = name;
-    return true;
-  }
-
-  return false;
 }
 
 }  // namespace base

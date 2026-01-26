@@ -16,7 +16,6 @@
 #include <sys/sysmacros.h>
 
 #include "src/base/platform/platform-linux.h"
-#include "src/base/virtual-address-space.h"
 #endif
 
 #ifdef V8_OS_WIN
@@ -237,37 +236,6 @@ TEST(OS, SignalSafeMapsParserForCustomMapsFile) {
   fclose(fp);
 }
 #endif  // V8_TARGET_ARCH_64_BIT
-
-TEST(OS, SignalSafeMapsParserCustomName) {
-  VirtualAddressSpace vas;
-  // This test only works if virtual memory subspaces can be allocated.
-  if (!vas.CanAllocateSubspaces()) return;
-
-  const char* kName = "v8-test-name";
-  auto subspace = vas.AllocateSubspace(
-      0, vas.allocation_granularity(), vas.allocation_granularity(),
-      PagePermissions::kReadWrite, std::nullopt, std::nullopt);
-
-  // If we can't allocate a subspace, we can't run this test.
-  if (!subspace) return;
-
-  // If setting the name fails (e.g. due to missing kernel support for custom
-  // names), we can't run this test.
-  if (!subspace->SetName(kName)) return;
-
-  SignalSafeMapsParser parser;
-  ASSERT_TRUE(parser.IsValid());
-
-  bool found = false;
-  while (auto entry = parser.Next()) {
-    if (strstr(entry->pathname, kName)) {
-      found = true;
-      EXPECT_EQ(entry->start, subspace->base());
-      break;
-    }
-  }
-  EXPECT_TRUE(found);
-}
 #endif  // V8_TARGET_OS_LINUX
 
 namespace {

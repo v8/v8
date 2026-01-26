@@ -1084,12 +1084,6 @@ void OS::SetDataReadOnly(void* address, size_t size) {
   CHECK(old_protection == PAGE_READWRITE || old_protection == PAGE_WRITECOPY);
 }
 
-bool OS::SetMemoryRegionName(const void* address, size_t size,
-                             const char* name) {
-  // Not implemented on Windows.
-  return false;
-}
-
 // static
 bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
   return SetPermissions(address, size, access);
