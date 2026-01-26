@@ -313,13 +313,6 @@ void OS::SetDataReadOnly(void* address, size_t size) {
 }
 
 // static
-bool OS::SetMemoryRegionName(const void* address, size_t size,
-                             const char* name) {
-  // Not currently implemented but should be possible using ZX_PROP_NAME.
-  return false;
-}
-
-// static
 bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
   return SetPermissions(address, size, access);
 }

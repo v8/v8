@@ -71,9 +71,6 @@ class V8_EXPORT_PRIVATE Sandbox {
    * */
   static constexpr bool kFallbackToPartiallyReservedSandboxAllowed = true;
 
-  // The name for the virtual address space reservation backing the sandbox.
-  static constexpr const char* kSandboxAddressSpaceName = "v8-sandbox";
-
   /**
    * Initializes this sandbox.
    *

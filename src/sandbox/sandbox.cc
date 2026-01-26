@@ -241,7 +241,6 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
       vas->AllocateSubspace(hint, true_reservation_size, kSandboxAlignment,
                             kSandboxMaxPermissions, sandbox_pkey);
   if (!address_space_) return false;
-  address_space_->SetName(kSandboxAddressSpaceName);
 
   reservation_base_ = address_space_->base();
   base_ = reservation_base_ + (use_guard_regions ? kSandboxGuardRegionSize : 0);

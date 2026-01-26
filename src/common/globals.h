@@ -571,14 +571,6 @@ using AtomicTagged_t = base::AtomicWord;
 
 #endif  // V8_COMPRESS_POINTERS
 
-// The name used for virtual address space reservations backing the pointer
-// tables. This name is mostly useful for debugging/inspecting and should be
-// visible in e.g. /proc/$pid/maps if the system supports setting names on
-// virtual memory ranges (PR_SET_VMA_ANON_NAME on Linux).
-// TODO(saelo): It might be nicer to have one name per table type, e.g.
-// v8-external-pointer-table, v8-trusted-pointer-table, etc.
-static const char* kPointerTableAddressSpaceName = "v8-pointer-table";
-
 //
 // JavaScript Dispatch Table
 //
