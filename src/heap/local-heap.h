@@ -157,12 +157,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Mark/Unmark all LABs except for new and shared space. Use for black
   // allocation.
   void MarkLinearAllocationAreasBlack();
-  void UnmarkLinearAllocationsArea();
 
   // Mark/Unmark linear allocation areas in shared heap black. Used for black
   // allocation.
   void MarkSharedLinearAllocationAreasBlack();
-  void UnmarkSharedLinearAllocationsArea();
 
   // Free all LABs and reset free-lists except for the new and shared space.
   // Used on black allocation.

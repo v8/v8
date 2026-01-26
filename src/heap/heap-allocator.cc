@@ -300,12 +300,6 @@ void HeapAllocator::MarkLinearAllocationAreasBlack() {
   code_space_allocator_->MarkLinearAllocationAreaBlack();
 }
 
-void HeapAllocator::UnmarkLinearAllocationsArea() {
-  DCHECK(!v8_flags.black_allocated_pages);
-  old_space_allocator_->UnmarkLinearAllocationArea();
-  trusted_space_allocator_->UnmarkLinearAllocationArea();
-  code_space_allocator_->UnmarkLinearAllocationArea();
-}
 
 void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
   DCHECK(!v8_flags.black_allocated_pages);
@@ -317,15 +311,6 @@ void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
   }
 }
 
-void HeapAllocator::UnmarkSharedLinearAllocationAreas() {
-  DCHECK(!v8_flags.black_allocated_pages);
-  if (shared_space_allocator_) {
-    shared_space_allocator_->UnmarkLinearAllocationArea();
-  }
-  if (shared_trusted_space_allocator_) {
-    shared_trusted_space_allocator_->UnmarkLinearAllocationArea();
-  }
-}
 
 void HeapAllocator::FreeLinearAllocationAreasAndResetFreeLists() {
   DCHECK(v8_flags.black_allocated_pages);

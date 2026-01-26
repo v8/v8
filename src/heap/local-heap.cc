@@ -419,9 +419,6 @@ void LocalHeap::MarkLinearAllocationAreasBlack() {
   heap_allocator_.MarkLinearAllocationAreasBlack();
 }
 
-void LocalHeap::UnmarkLinearAllocationsArea() {
-  heap_allocator_.UnmarkLinearAllocationsArea();
-}
 
 void LocalHeap::MarkSharedLinearAllocationAreasBlack() {
   if (heap_allocator_.shared_space_allocator()) {
@@ -429,11 +426,6 @@ void LocalHeap::MarkSharedLinearAllocationAreasBlack() {
   }
 }
 
-void LocalHeap::UnmarkSharedLinearAllocationsArea() {
-  if (heap_allocator_.shared_space_allocator()) {
-    heap_allocator_.shared_space_allocator()->UnmarkLinearAllocationArea();
-  }
-}
 
 void LocalHeap::FreeLinearAllocationAreasAndResetFreeLists() {
   heap_allocator_.FreeLinearAllocationAreasAndResetFreeLists();

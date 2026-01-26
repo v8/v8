@@ -142,7 +142,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool CanBeStarted() const;
 
   void StartBlackAllocation();
-  void PauseBlackAllocation();
   void FinishBlackAllocation();
 
   void StartPointerTableBlackAllocation();

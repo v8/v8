@@ -400,29 +400,6 @@ void IncrementalMarking::StartBlackAllocation() {
   }
 }
 
-void IncrementalMarking::PauseBlackAllocation() {
-  DCHECK(IsMajorMarking());
-  if (!v8_flags.black_allocated_pages) {
-    heap()->allocator()->UnmarkLinearAllocationsArea();
-
-    if (isolate()->is_shared_space_isolate()) {
-      isolate()->global_safepoint()->IterateSharedSpaceAndClientIsolates(
-          [](Isolate* client) {
-            client->heap()->UnmarkSharedLinearAllocationAreas();
-          });
-    }
-
-    heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-      local_heap->UnmarkLinearAllocationsArea();
-    });
-  }
-  StopPointerTableBlackAllocation();
-  if (v8_flags.trace_incremental_marking) {
-    isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Black allocation paused\n");
-  }
-  black_allocation_ = false;
-}
 
 void IncrementalMarking::FinishBlackAllocation() {
   if (!black_allocation_) {

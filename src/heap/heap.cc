@@ -3483,14 +3483,6 @@ void Heap::MarkSharedLinearAllocationAreasBlack() {
   });
 }
 
-void Heap::UnmarkSharedLinearAllocationAreas() {
-  DCHECK(!v8_flags.black_allocated_pages);
-  allocator()->UnmarkSharedLinearAllocationAreas();
-  main_thread_local_heap()->UnmarkSharedLinearAllocationsArea();
-  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->UnmarkSharedLinearAllocationsArea();
-  });
-}
 
 void Heap::FreeSharedLinearAllocationAreasAndResetFreeLists() {
   DCHECK(v8_flags.black_allocated_pages);

@@ -1802,7 +1802,6 @@ class Heap final {
   // Enables/Disables black allocation in shared LABs when not using black
   // allocated pages.
   void MarkSharedLinearAllocationAreasBlack();
-  void UnmarkSharedLinearAllocationAreas();
 
   // Free shared LABs and reset freelists.
   void FreeSharedLinearAllocationAreasAndResetFreeLists();
