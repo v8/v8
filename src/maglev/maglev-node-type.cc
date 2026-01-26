@@ -28,10 +28,9 @@ NodeType StaticTypeForMap(compiler::MapRef map,
   if (map.IsStringWrapperMap()) return NodeType::kStringWrapper;
   if (map.IsSymbolMap()) return NodeType::kSymbol;
   if (map.IsBooleanMap(broker)) return NodeType::kBoolean;
-  if (map.IsOddballMap()) {
-    // Oddball but not a Boolean.
-    return NodeType::kNullOrUndefined;
-  }
+  if (map.IsNullMap(broker)) return NodeType::kNull;
+  if (map.IsUndefinedMap(broker)) return NodeType::kUndefined;
+  DCHECK(!map.IsOddballMap());
   if (map.IsContextMap()) return NodeType::kContext;
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
   if (map.IsJSFunctionMap()) return NodeType::kJSFunction;
