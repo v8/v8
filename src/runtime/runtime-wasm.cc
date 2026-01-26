@@ -1349,7 +1349,7 @@ class PrototypesSetup : public wasm::Decoder {
 
     Kind kind;
     bool is_static;
-    base::Vector<const char> name;
+    base::Vector<const uint8_t> name;
   };
 
   PrototypesSetup(Isolate* isolate, const uint8_t* data_begin,
@@ -1364,42 +1364,60 @@ class PrototypesSetup : public wasm::Decoder {
     method_wrapper_->set_language_mode(LanguageMode::kStrict);
   }
 
+  MaybeDirectHandle<String> ReadUtf8String(base::Vector<const uint8_t> bytes) {
+    DirectHandle<String> result;
+    if (!isolate()
+             ->factory()
+             ->NewStringFromUtf8(bytes, unibrow::Utf8Variant::kUtf8)
+             .ToHandle(&result)) {
+      DCHECK(isolate()->has_exception());
+      return {};
+    }
+    return isolate()->factory()->InternalizeString(result);
+  }
+
   Tagged<Object> SetupPrototypes(DirectHandle<Object> constructors) {
     uint32_t num_prototypes = consume_u32v("number of prototypes");
     FOR_WITH_HANDLE_SCOPE(isolate(), uint32_t proto_index = 0, proto_index,
                           proto_index < num_prototypes && ok(), proto_index++) {
-      DirectHandle<JSObject> prototype = NextPrototype();
-      if (prototype.is_null()) return ReadOnlyRoots(isolate()).exception();
+      // We have to support {null} prototypes until we try to do something
+      // with them. To avoid needing casts all over the following code, we
+      // handle that edge case separately: {prototype.is_null()} (i.e. empty
+      // handle) usually means "error", *unless* {prototype_is_null = true},
+      // in which case it means "prototype is {null}".
+      bool prototype_is_null = false;
+      DirectHandle<JSReceiver> prototype;
+      if (!NextPrototype(&prototype_is_null).To(&prototype) &&
+          !prototype_is_null) {
+        DCHECK(isolate()->has_exception());
+        return ReadOnlyRoots(isolate()).exception();
+      }
 
       bool fast_path = CheckFastPathEligibility(prototype);
-      if (!prototype->map()->is_prototype_map()) {
-        // Important for correctness: switch to a non-shared map.
-        // Important for performance: switch to dictionary mode.
-        JSObject::OptimizeAsPrototype(prototype);
-      } else if (fast_path) {
-        // In case any ICs already rely on this prototype, invalidate them.
-        JSObject::InvalidatePrototypeChains(prototype->map());
-      }
 
       uint32_t has_constructor = consume_u32v("constructor");
       if (!ok()) break;
 
       if (has_constructor == 1) {
-        DirectHandle<WasmExportedFunction> constructor = NextFunction();
-        if (constructor.is_null()) {
+        if (V8_UNLIKELY(prototype_is_null)) {
+          isolate()->Throw(*isolate()->factory()->NewTypeError(
+              MessageTemplate::kNonObjectPropertyStoreWithProperty,
+              isolate()->factory()->null_value(),
+              isolate()->factory()->constructor_string()));
+          return ReadOnlyRoots(isolate()).exception();
+        }
+        DirectHandle<WasmExportedFunction> constructor;
+        if (!NextFunction().To(&constructor)) {
           DCHECK(isolate()->has_exception());
           return ReadOnlyRoots(isolate()).exception();
         }
-        uint32_t ctor_name_length = consume_u32v("constructor name length");
+        uint32_t name_length = consume_u32v("constructor name length");
         if (!ok()) break;
-        const char* ctor_name_start = reinterpret_cast<const char*>(pc());
-        consume_bytes(ctor_name_length);
+        const uint8_t* name_start = pc();
+        consume_bytes(name_length);
         if (!ok()) break;
-        DirectHandle<String> ctor_name =
-            isolate()->factory()->InternalizeUtf8String(
-                {ctor_name_start, ctor_name_length});
-        DirectHandle<JSFunction> wrapped_constructor =
-            InstallConstructor(prototype, constructor, ctor_name, constructors);
+        DirectHandle<JSFunction> wrapped_constructor = InstallConstructor(
+            prototype, constructor, {name_start, name_length}, constructors);
         if (wrapped_constructor.is_null()) {
           DCHECK(isolate()->has_exception());
           return ReadOnlyRoots(isolate()).exception();
@@ -1411,8 +1429,8 @@ class PrototypesSetup : public wasm::Decoder {
           for (uint32_t i = 0; i < num_statics; i++) {
             Method method = NextMethod(true);
             if (!ok()) break;
-            DirectHandle<WasmExportedFunction> function = NextFunction();
-            if (function.is_null() ||
+            DirectHandle<WasmExportedFunction> function;
+            if (!NextFunction().To(&function) ||
                 !InstallMethod(wrapped_constructor, method, function)) {
               DCHECK(isolate()->has_exception());
               return ReadOnlyRoots(isolate()).exception();
@@ -1430,19 +1448,31 @@ class PrototypesSetup : public wasm::Decoder {
 
       uint32_t num_methods = consume_u32v("number of methods");
       if (!ok()) break;
-      ToDictionaryMode(prototype, num_methods);
       DirectHandle<NameDictionary> dictionary;
-      if (fast_path) {
-        dictionary = handle(prototype->property_dictionary(), isolate_);
+      if (!prototype_is_null) {
+        if (IsJSObject(*prototype)) {
+          DirectHandle<JSObject> proto = Cast<JSObject>(prototype);
+          ToDictionaryMode(proto, num_methods);
+          if (fast_path) {
+            dictionary = handle(proto->property_dictionary(), isolate_);
+          }
+        }
+      } else if (num_methods > 0) {
+        DCHECK(prototype_is_null);
+        isolate()->Throw(*isolate()->factory()->NewTypeError(
+            MessageTemplate::kNonObjectPropertyStoreWithProperty,
+            isolate()->factory()->null_value(),
+            isolate()->factory()->constructor_string()));
+        return ReadOnlyRoots(isolate()).exception();
       }
-      base::Vector<const char> last_name;
+      base::Vector<const uint8_t> last_name;
       DirectHandle<JSFunction> getter;
       DirectHandle<JSFunction> setter;
       for (uint32_t i = 0; i < num_methods; i++) {
         Method method = NextMethod(false);
         if (!ok()) break;
-        DirectHandle<JSFunction> function = NextFunction();
-        if (function.is_null()) {
+        DirectHandle<JSFunction> function;
+        if (!NextFunction().To(&function)) {
           DCHECK(isolate()->has_exception());
           return ReadOnlyRoots(isolate()).exception();
         }
@@ -1473,9 +1503,7 @@ class PrototypesSetup : public wasm::Decoder {
           if ((!getter.is_null() || !setter.is_null()) &&
               (method.name != last_name || method.kind == Method::kMethod ||
                bailout)) {
-            DirectHandle<String> name =
-                isolate_->factory()->InternalizeUtf8String(last_name);
-            if (!FastPath_AddAccessorProperty(prototype, dictionary, name,
+            if (!FastPath_AddAccessorProperty(prototype, dictionary, last_name,
                                               getter, setter)
                      .ToHandle(&dictionary)) {
               DCHECK(isolate()->has_exception());
@@ -1494,9 +1522,8 @@ class PrototypesSetup : public wasm::Decoder {
             continue;
           }
           if (method.kind == Method::kMethod) {
-            DirectHandle<String> name =
-                isolate_->factory()->InternalizeUtf8String(method.name);
-            if (!FastPath_AddDataProperty(prototype, dictionary, name, function)
+            if (!FastPath_AddDataProperty(prototype, dictionary, method.name,
+                                          function)
                      .ToHandle(&dictionary)) {
               DCHECK(isolate()->has_exception());
               return ReadOnlyRoots(isolate()).exception();
@@ -1519,10 +1546,8 @@ class PrototypesSetup : public wasm::Decoder {
       // hasn't been installed yet, and we may still have pending accessors.
       if (fast_path) {
         if (!getter.is_null() || !setter.is_null()) {
-          DirectHandle<String> name =
-              isolate_->factory()->InternalizeUtf8String(last_name);
-          if (!FastPath_AddAccessorProperty(prototype, dictionary, name, getter,
-                                            setter)
+          if (!FastPath_AddAccessorProperty(prototype, dictionary, last_name,
+                                            getter, setter)
                    .ToHandle(&dictionary)) {
             DCHECK(isolate()->has_exception());
             return ReadOnlyRoots(isolate()).exception();
@@ -1537,10 +1562,17 @@ class PrototypesSetup : public wasm::Decoder {
       int32_t parent_idx = consume_i32v("parentidx");
       if (!ok()) break;
       if (parent_idx >= 0 && static_cast<uint32_t>(parent_idx) < proto_index) {
-        DirectHandle<JSObject> parent =
+        if (prototype_is_null) {
+          isolate()->Throw(*isolate()->factory()->NewTypeError(
+              MessageTemplate::kCalledOnNullOrUndefined,
+              isolate()->factory()->NewStringFromAsciiChecked(
+                  "Object.setPrototypeOf")));
+          return ReadOnlyRoots(isolate()).exception();
+        }
+        DirectHandle<Object> parent =
             PrototypeByIndex(static_cast<uint32_t>(parent_idx));
-        if (!JSObject::SetPrototype(isolate(), prototype, parent, true,
-                                    ShouldThrow::kThrowOnError)
+        if (!JSReceiver::SetPrototype(isolate(), prototype, parent, true,
+                                      ShouldThrow::kThrowOnError)
                  .FromMaybe(false)) {
           DCHECK(isolate()->has_exception());
           return ReadOnlyRoots(isolate()).exception();
@@ -1553,6 +1585,9 @@ class PrototypesSetup : public wasm::Decoder {
         break;
       }
     }
+    if (HasMoreFunctions()) error("unconsumed functions");
+    if (HasMorePrototypes()) error("unconsumed prototypes");
+    if (more()) error("unconsumed data");
     if (!ok()) {
       DirectHandle<String> message =
           isolate()
@@ -1560,7 +1595,7 @@ class PrototypesSetup : public wasm::Decoder {
               ->NewStringFromUtf8(base::VectorOf(error().message()))
               .ToHandleChecked();
       DirectHandle<JSObject> error = isolate()->factory()->NewError(
-          isolate()->wasm_compile_error_function(), message);
+          isolate()->wasm_runtime_error_function(), message);
       return isolate()->Throw(*error);
     }
 
@@ -1575,7 +1610,7 @@ class PrototypesSetup : public wasm::Decoder {
     }
     uint32_t name_length = consume_u32v("name length");
     if (!ok()) return {};
-    const char* name_start = reinterpret_cast<const char*>(pc());
+    const uint8_t* name_start = pc();
     consume_bytes(name_length);
     if (!ok()) return {};
     return {.kind = static_cast<Method::Kind>(kind),
@@ -1583,7 +1618,7 @@ class PrototypesSetup : public wasm::Decoder {
             .name = {name_start, name_length}};
   }
 
-  DirectHandle<WasmExportedFunction> NextFunction() {
+  MaybeDirectHandle<WasmExportedFunction> NextFunction() {
     DirectHandle<Object> maybe_func = NextFunctionInternal();
     if (maybe_func.is_null()) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
@@ -1602,25 +1637,46 @@ class PrototypesSetup : public wasm::Decoder {
         WasmInternalFunction::GetOrCreateExternal(internal_function));
   }
 
-  DirectHandle<JSObject> NextPrototype() {
+  MaybeDirectHandle<JSReceiver> NextPrototype(bool* value_was_null) {
     DirectHandle<Object> maybe_proto = NextPrototypeInternal();
     if (maybe_proto.is_null()) {
       ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
       return {};
     }
-    if (!IsJSObject(*maybe_proto)) {
-      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
-      return {};
+    if (IsHeapObject(*maybe_proto)) {
+      DirectHandle<HeapObject> heap_proto = Cast<HeapObject>(maybe_proto);
+      if (HeapLayout::InWritableSharedSpace(*heap_proto)) {
+        DCHECK(v8_flags.harmony_struct);
+        // Shared JS structs are not supported as prototypes, and probably
+        // never will be: we cannot change their maps to add new properties,
+        // and we cannot add pointers to non-shared methods to them.
+        ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
+        return {};
+      }
+      if (IsJSObject(*heap_proto)) {
+        DirectHandle<JSObject> proto = Cast<JSObject>(heap_proto);
+        if (!proto->map()->is_prototype_map()) {
+          // Important for correctness: switch to a non-shared map.
+          // Important for performance: switch to dictionary mode.
+          JSObject::OptimizeAsPrototype(proto);
+        } else {
+          // Prepare the fast path by invalidating any ICs that might already
+          // rely on this prototype.
+          JSObject::InvalidatePrototypeChains(proto->map());
+        }
+        return proto;
+      }
+      if (IsJSReceiver(*heap_proto)) {
+        return Cast<JSReceiver>(heap_proto);
+      }
+      if (IsNull(*heap_proto)) {
+        *value_was_null = true;
+        return {};
+      }
     }
-    if (HeapLayout::InWritableSharedSpace(Cast<HeapObject>(*maybe_proto))) {
-      DCHECK(v8_flags.harmony_struct);
-      // Shared JS structs are not supported as prototypes, and probably
-      // never will be: we cannot change their maps to add new properties,
-      // and we cannot add pointers to non-shared methods to them.
-      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
-      return {};
-    }
-    return Cast<JSObject>(maybe_proto);
+    isolate_->Throw(*isolate_->factory()->NewTypeError(
+        MessageTemplate::kProtoObjectOrNull, maybe_proto));
+    return {};
   }
 
   // Adding multiple properties is more efficient when the prototype
@@ -1636,8 +1692,8 @@ class PrototypesSetup : public wasm::Decoder {
 
   bool InstallMethod(DirectHandle<JSReceiver> receiver, Method method,
                      DirectHandle<JSFunction> function) {
-    DirectHandle<String> name =
-        isolate_->factory()->InternalizeUtf8String(method.name);
+    DirectHandle<String> name;
+    if (!ReadUtf8String(method.name).To(&name)) return false;
     PropertyDescriptor prop;
     prop.set_enumerable(false);
     prop.set_configurable(true);
@@ -1660,9 +1716,14 @@ class PrototypesSetup : public wasm::Decoder {
   DirectHandle<JSFunction> InstallConstructor(
       DirectHandle<JSReceiver> prototype,
       DirectHandle<WasmExportedFunction> wasm_function,
-      DirectHandle<String> name, DirectHandle<Object> all_constructors) {
+      base::Vector<const uint8_t> name_vec,
+      DirectHandle<Object> all_constructors) {
+    DirectHandle<String> name;
+    if (!ReadUtf8String(name_vec).To(&name)) return {};
     if (!IsJSReceiver(*all_constructors)) {
-      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
+      isolate_->Throw(*isolate_->factory()->NewTypeError(
+          MessageTemplate::kNonObjectPropertyStoreWithProperty,
+          all_constructors, name));
       return {};
     }
     DirectHandle<Context> context = isolate_->factory()->NewBuiltinContext(
@@ -1709,20 +1770,24 @@ class PrototypesSetup : public wasm::Decoder {
   }
 
   // Fast path, skipping the LookupIterator.
-  bool CheckFastPathEligibility(DirectHandle<JSObject> prototype) {
+  bool CheckFastPathEligibility(DirectHandle<JSReceiver> prototype) {
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       // Support for swiss name dictionaries isn't implemented here yet.
       UNIMPLEMENTED();
     }
+    if (prototype.is_null()) return false;
     Tagged<Map> map = prototype->map();
     if (map->instance_type() != JS_OBJECT_TYPE) return false;
+    if (!map->is_extensible()) return false;
     // JS_OBJECT_TYPE implies no access checks or interceptors.
     DCHECK(!map->is_access_check_needed());
     DCHECK(!map->has_indexed_interceptor());
     DCHECK(!map->has_named_interceptor());
     DCHECK(!IsJSGlobalObject(*prototype));
     if (map->is_dictionary_map()) {
-      if (prototype->property_dictionary()->NumberOfElements() != 0) {
+      if (Cast<JSObject>(prototype)
+              ->property_dictionary()
+              ->NumberOfElements() != 0) {
         return false;
       }
     } else {
@@ -1731,7 +1796,7 @@ class PrototypesSetup : public wasm::Decoder {
     return true;
   }
 
-  bool MayBeArrayIndex(base::Vector<const char> name) {
+  bool MayBeArrayIndex(base::Vector<const uint8_t> name) {
     // The fast path can't handle elements (i.e. names that are string
     // representations of array indices). To save time, we approximate
     // detection of such names by only looking at the first character.
@@ -1745,7 +1810,9 @@ class PrototypesSetup : public wasm::Decoder {
   MaybeDirectHandle<NameDictionary> FastPath_AddDataProperty(
       DirectHandle<JSReceiver> receiver,
       DirectHandle<NameDictionary> property_dictionary,
-      DirectHandle<String> name, DirectHandle<Object> value) {
+      base::Vector<const uint8_t> name_vec, DirectHandle<Object> value) {
+    DirectHandle<String> name;
+    if (!ReadUtf8String(name_vec).To(&name)) return {};
     PropertyDetails details(PropertyKind::kData, DONT_ENUM,
                             PropertyCellType::kConstant);
     InternalIndex entry = property_dictionary->FindEntry(isolate_, name);
@@ -1778,8 +1845,10 @@ class PrototypesSetup : public wasm::Decoder {
   MaybeDirectHandle<NameDictionary> FastPath_AddAccessorProperty(
       DirectHandle<JSReceiver> receiver,
       DirectHandle<NameDictionary> property_dictionary,
-      DirectHandle<String> name, DirectHandle<JSFunction> getter,
+      base::Vector<const uint8_t> name_vec, DirectHandle<JSFunction> getter,
       DirectHandle<JSFunction> setter) {
+    DirectHandle<String> name;
+    if (!ReadUtf8String(name_vec).To(&name)) return {};
     PropertyDetails details(PropertyKind::kAccessor, DONT_ENUM,
                             PropertyCellType::kMutable);
     DirectHandle<AccessorPair> pair = isolate_->factory()->NewAccessorPair();
@@ -1824,8 +1893,10 @@ class PrototypesSetup : public wasm::Decoder {
  protected:
   Isolate* isolate() { return isolate_; }
   virtual DirectHandle<Object> NextFunctionInternal() = 0;
+  virtual bool HasMoreFunctions() = 0;
   virtual DirectHandle<Object> NextPrototypeInternal() = 0;
-  virtual DirectHandle<JSObject> PrototypeByIndex(uint32_t index) = 0;
+  virtual bool HasMorePrototypes() = 0;
+  virtual DirectHandle<Object> PrototypeByIndex(uint32_t index) = 0;
   DirectHandle<SharedFunctionInfo> method_wrapper() { return method_wrapper_; }
 
  private:
@@ -1849,14 +1920,22 @@ class PrototypesSetup_Arrays : public PrototypesSetup {
     return WasmArray::GetElement(isolate(), functions_, function_index_++);
   }
 
+  bool HasMoreFunctions() override {
+    return function_index_ < functions_->length();
+  }
+
   DirectHandle<Object> NextPrototypeInternal() override {
     if (prototype_index_ >= prototypes_->length()) return {};
     return WasmArray::GetElement(isolate(), prototypes_, prototype_index_++);
   }
 
-  DirectHandle<JSObject> PrototypeByIndex(uint32_t index) override {
+  bool HasMorePrototypes() override {
+    return prototype_index_ < prototypes_->length();
+  }
+
+  DirectHandle<Object> PrototypeByIndex(uint32_t index) override {
     DCHECK_LT(index, prototypes_->length());
-    return Cast<JSObject>(WasmArray::GetElement(isolate(), prototypes_, index));
+    return WasmArray::GetElement(isolate(), prototypes_, index);
   }
 
  private:
@@ -1888,15 +1967,21 @@ class PrototypesSetup_Sections : public PrototypesSetup {
     return direct_handle(functions_->get(function_index_++), isolate());
   }
 
+  bool HasMoreFunctions() override { return function_index_ < functions_end_; }
+
   DirectHandle<Object> NextPrototypeInternal() override {
     if (prototype_index_ >= prototypes_end_) return {};
     return direct_handle(prototypes_->get(prototype_index_++), isolate());
   }
 
-  DirectHandle<JSObject> PrototypeByIndex(uint32_t index) override {
+  bool HasMorePrototypes() override {
+    return prototype_index_ < prototypes_end_;
+  }
+
+  DirectHandle<Object> PrototypeByIndex(uint32_t index) override {
     index += prototype_start_index_;
     DCHECK_LT(index, prototypes_end_);
-    return Cast<JSObject>(direct_handle(prototypes_->get(index), isolate()));
+    return direct_handle(prototypes_->get(index), isolate());
   }
 
  private:

@@ -2282,7 +2282,7 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
                                           num_supertypes, context);
   rtt->set_immediate_supertype_map(*rtt_parent);
 
-  if (!IsSmi(*first_field) && IsJSObject(Cast<HeapObject>(*first_field))) {
+  if (!IsSmi(*first_field) && IsJSReceiver(Cast<HeapObject>(*first_field))) {
     DirectHandle<JSPrototype> prototype =
         direct_handle(Cast<JSReceiver>(*first_field), isolate);
     Map::SetPrototype(isolate, rtt, prototype);

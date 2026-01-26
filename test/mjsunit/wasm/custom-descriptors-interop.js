@@ -183,7 +183,7 @@ let bad_imports = {...imports};
 bad_imports.c.constructors = null;
 assertThrows(
     () => builder.instantiate(bad_imports, {builtins: ['js-prototypes']}),
-    WebAssembly.RuntimeError, "illegal cast");
+    TypeError, "Cannot set properties of null (setting 'Super')");
 
 function Traps() {
   let sup = new Super(1);
