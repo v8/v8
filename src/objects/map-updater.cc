@@ -614,11 +614,12 @@ MapUpdater::State MapUpdater::FindRootMap() {
   // Root maps shall not be deprecated.
   CHECK(!root_map_->is_deprecated());
 
-  // In this first check allow the root map to have the wrong prototype, as we
-  // will deal with prototype transitions later.
+  // In this first check allow the root map to have the wrong prototype and
+  // instance type, as we will deal with these transitions later.
   if (!old_map_->EquivalentToForTransition(
           *root_map_, ConcurrencyMode::kSynchronous,
-          direct_handle(root_map_->prototype(), isolate_))) {
+          direct_handle(root_map_->prototype(), isolate_),
+          root_map_->instance_type())) {
     return Normalize("Normalize_NotEquivalent");
   } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
     DCHECK(!old_map_->is_extensible());
@@ -682,8 +683,10 @@ MapUpdater::State MapUpdater::FindRootMap() {
 
     root_map_ = new_root_map_;
 
+    // Still allow the instance type to be off as we will update that next.
     if (!old_map_->EquivalentToForTransition(
-            *root_map_, ConcurrencyMode::kSynchronous, new_prototype_)) {
+            *root_map_, ConcurrencyMode::kSynchronous, new_prototype_,
+            root_map_->instance_type())) {
       return Normalize("Normalize_NotEquivalent");
     }
   }
@@ -697,8 +700,9 @@ MapUpdater::State MapUpdater::FindRootMap() {
     root_map_ = Map::AsDetachedTypedArray(isolate_, root_map_);
   }
 
-  DCHECK(old_map_->EquivalentToForTransition(
-      *root_map_, ConcurrencyMode::kSynchronous, new_prototype_));
+  CHECK(old_map_->EquivalentToForTransition(
+      *root_map_, ConcurrencyMode::kSynchronous, new_prototype_,
+      new_instance_type_));
 
   state_ = kAtRootMap;
   return state_;  // Not done yet.

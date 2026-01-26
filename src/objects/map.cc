@@ -2345,11 +2345,13 @@ bool CheckEquivalentModuloProto(const Tagged<Map> first,
 
 bool Map::EquivalentToForTransition(
     const Tagged<Map> other, ConcurrencyMode cmode,
-    DirectHandle<HeapObject> new_prototype) const {
+    DirectHandle<HeapObject> new_prototype,
+    std::optional<InstanceType> new_instance_type) const {
   CHECK_EQ(GetConstructor(), other->GetConstructor());
-  if (instance_type() != other->instance_type()) {
-    CHECK_EQ(instance_type(), JS_TYPED_ARRAY_TYPE);
-    CHECK_EQ(other->instance_type(), JS_DETACHED_TYPED_ARRAY_TYPE);
+  if (new_instance_type) {
+    if (*new_instance_type != other->instance_type()) return false;
+  } else {
+    CHECK_EQ(instance_type(), other->instance_type());
   }
   if (bit_field() != other->bit_field()) return false;
   if (new_prototype.is_null()) {

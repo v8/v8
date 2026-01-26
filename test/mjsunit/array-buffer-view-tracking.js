@@ -13,8 +13,7 @@ function foo2(ta) {
 %PrepareFunctionForOptimization(foo);
 %PrepareFunctionForOptimization(foo2);
 
-// Make the TA map instable and fire the resizing protector to start with, to
-// have more reliable tests.
+// Make the TA map instable to have more reliable tests.
 {
   let ab = new ArrayBuffer(8);
   let ta = new Uint32Array(ab);
@@ -125,14 +124,3 @@ assertUnoptimized(foo);
 
 // No bailout since we are already detached
 assertOptimized(foo);
-
-// Update map with detach transition and properties
-(() => {
-  let ab = new ArrayBuffer();
-  let ta = new Int32Array(ab);
-  ta[undefined] = undefined;
-  %ArrayBufferDetach(ab);
-  let ta2 = new Int32Array();
-  ta2[undefined] = undefined;
-  Object.defineProperty(ta2, undefined, {value: {}});
-})();

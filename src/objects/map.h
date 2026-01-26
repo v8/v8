@@ -1074,7 +1074,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   bool EquivalentToForTransition(
       const Tagged<Map> other, ConcurrencyMode cmode,
-      DirectHandle<HeapObject> new_prototype = {}) const;
+      DirectHandle<HeapObject> new_prototype = {},
+      std::optional<InstanceType> new_instance_type = {}) const;
   bool EquivalentToForElementsKindTransition(const Tagged<Map> other,
                                              ConcurrencyMode cmode) const;
   static Handle<Map> RawCopy(Isolate* isolate, DirectHandle<Map> map,
