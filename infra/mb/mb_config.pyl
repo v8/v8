@@ -1107,7 +1107,8 @@
     },
 
     'use_centipede': {
-      'gn_args': 'use_centipede=true optimize_for_fuzzing = true',
+      'gn_args': 'use_centipede=true optimize_for_fuzzing=true '
+                 'sanitizer_coverage_skip_stdlib_and_absl=true',
     },
 
     'v8_check_header_includes': {
