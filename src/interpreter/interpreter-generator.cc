@@ -618,10 +618,10 @@ IGNITION_HANDLER(GetNamedProperty, InterpreterAssembler) {
   TVARIABLE(Object, var_result);
   ExitPoint exit_point(this, &done, &var_result);
 
-  AccessorAssembler::LazyLoadICParameters params(lazy_context, recv, lazy_name,
-                                                 lazy_slot, feedback_vector);
   AccessorAssembler accessor_asm(state());
-  accessor_asm.LoadIC_BytecodeHandler(&params, &exit_point);
+  auto lazy_p = accessor_asm.MakeLazyLoadICParameters(
+      lazy_context, recv, lazy_name, lazy_slot, feedback_vector);
+  accessor_asm.LoadIC_BytecodeHandler(&lazy_p, &exit_point);
 
   BIND(&done);
   {

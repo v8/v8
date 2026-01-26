@@ -3879,7 +3879,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // used for a property store or deletion.
   void CheckForAssociatedProtector(TNode<Name> name, Label* if_protector);
 
-  TNode<Map> LoadReceiverMap(TNode<Object> receiver);
+  // Sanitizes Smi receiver (ensures that the upper part is set to cage base,
+  // only for V8_SANDBOX) and loads receiver map.
+  std::tuple<TNode<JSAny>, TNode<Map>> SanitizeReceiverAndLoadReceiverMap(
+      TNode<Object> unsanitized_receiver);
 
   // Loads script context from the script context table.
   TNode<Context> LoadScriptContext(TNode<Context> context,

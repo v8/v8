@@ -13466,24 +13466,41 @@ void CodeStubAssembler::DCheckReceiver(ConvertReceiverMode mode,
   }
 }
 
-TNode<Map> CodeStubAssembler::LoadReceiverMap(TNode<Object> receiver) {
-  TVARIABLE(Map, value);
-  Label vtrue(this, Label::kDeferred), vfalse(this), end(this);
-  Branch(TaggedIsSmi(receiver), &vtrue, &vfalse);
+std::tuple<TNode<JSAny>, TNode<Map>>
+CodeStubAssembler::SanitizeReceiverAndLoadReceiverMap(
+    TNode<Object> unsanitized_receiver) {
+  TVARIABLE(JSAny, receiver);
+  TVARIABLE(Map, map);
+  Label if_smi(this, Label::kDeferred), if_not_smi(this), done(this);
+  Branch(TaggedIsSmi(unsanitized_receiver), &if_smi, &if_not_smi);
 
-  BIND(&vtrue);
+  BIND(&if_smi);
   {
-    value = HeapNumberMapConstant();
-    Goto(&end);
+    TNode<Smi> smi_receiver = CAST(unsanitized_receiver);
+#if V8_ENABLE_SANDBOX
+    // TODO(ishell): add SanitizeSmi instruction.
+    TNode<UintPtrT> smi_payload =
+        Unsigned(ChangeUint32ToWord(TruncateWordToInt32(
+            BitcastTaggedToWordForTagAndSmiBits(smi_receiver))));
+    TNode<UintPtrT> cage_base =
+        Load<UintPtrT>(IsolateField(IsolateFieldId::kCageBase));
+    smi_receiver =
+        BitcastWordToTaggedSigned(UintPtrAdd(cage_base, smi_payload));
+#endif  // V8_ENABLE_SANDBOX
+    receiver = smi_receiver;
+    map = HeapNumberMapConstant();
+    Goto(&done);
   }
-  BIND(&vfalse);
+  BIND(&if_not_smi);
   {
-    value = LoadMap(UncheckedCast<HeapObject>(receiver));
-    Goto(&end);
+    TNode<JSAnyNotSmi> ho_receiver = CAST(unsanitized_receiver);
+    receiver = ho_receiver;
+    map = LoadMap(ho_receiver);
+    Goto(&done);
   }
 
-  BIND(&end);
-  return value.value();
+  BIND(&done);
+  return {receiver.value(), map.value()};
 }
 
 TNode<IntPtrT> CodeStubAssembler::TryToIntptr(

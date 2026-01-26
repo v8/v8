@@ -98,14 +98,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                          TNode<Map> lookup_start_object_map, TNode<Name> name,
                          Label* if_handler, TVariable<MaybeObject>* var_handler,
                          Label* if_miss);
-  void TryProbeStubCache(StubCache* stub_cache,
-                         TNode<JSAny> lookup_start_object, TNode<Name> name,
-                         Label* if_handler, TVariable<MaybeObject>* var_handler,
-                         Label* if_miss) {
-    return TryProbeStubCache(stub_cache, lookup_start_object,
-                             LoadReceiverMap(lookup_start_object), name,
-                             if_handler, var_handler, if_miss);
-  }
 
   TNode<IntPtrT> StubCachePrimaryOffsetForTesting(TNode<Name> name,
                                                   TNode<Map> map) {
@@ -117,19 +109,20 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   }
 
   struct LoadICParameters {
-    LoadICParameters(
-        TNode<Context> context, TNode<JSAny> receiver, TNode<Object> name,
-        TNode<TaggedIndex> slot, TNode<HeapObject> vector,
-        std::optional<TNode<JSAny>> lookup_start_object = std::nullopt,
-        std::optional<TNode<Smi>> enum_index = std::nullopt,
-        std::optional<TNode<Object>> cache_type = std::nullopt)
+    // Use MakeLoadICParameters() helper to construct this object.
+    LoadICParameters(TNode<Context> context, TNode<JSAny> receiver,
+                     TNode<Object> name, TNode<TaggedIndex> slot,
+                     TNode<HeapObject> vector, TNode<JSAny> lookup_start_object,
+                     TNode<Map> lookup_start_object_map,
+                     std::optional<TNode<Smi>> enum_index = std::nullopt,
+                     std::optional<TNode<Object>> cache_type = std::nullopt)
         : context_(context),
           receiver_(receiver),
           name_(name),
           slot_(slot),
           vector_(vector),
-          lookup_start_object_(lookup_start_object ? lookup_start_object.value()
-                                                   : receiver),
+          lookup_start_object_(lookup_start_object),
+          lookup_start_object_map_(lookup_start_object_map),
           enum_index_(enum_index),
           cache_type_(cache_type) {}
 
@@ -139,7 +132,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
           name_(unique_name),
           slot_(p->slot_),
           vector_(p->vector_),
-          lookup_start_object_(p->lookup_start_object_) {}
+          lookup_start_object_(p->lookup_start_object_),
+          lookup_start_object_map_(p->lookup_start_object_map_) {}
 
     TNode<Context> context() const { return context_; }
     TNode<JSAny> receiver() const { return receiver_; }
@@ -147,6 +141,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<TaggedIndex> slot() const { return slot_; }
     TNode<HeapObject> vector() const { return vector_; }
     TNode<JSAny> lookup_start_object() const { return lookup_start_object_; }
+    TNode<Map> lookup_start_object_map() const {
+      return lookup_start_object_map_;
+    }
+
     TNode<Smi> enum_index() const { return *enum_index_; }
     TNode<Object> cache_type() const { return *cache_type_; }
 
@@ -156,6 +154,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<JSAny> receiver_and_lookup_start_object() const {
       DCHECK_EQ(receiver_, lookup_start_object_);
       return receiver_;
+    }
+    TNode<Map> receiver_and_lookup_start_object_map() const {
+      DCHECK_EQ(receiver_, lookup_start_object_);
+      return lookup_start_object_map_;
     }
 
     // This is useful for figuring out whether we know anything about receiver
@@ -172,27 +174,31 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
     TNode<JSAny> lookup_start_object_;
+    TNode<Map> lookup_start_object_map_;
     std::optional<TNode<Smi>> enum_index_;
     std::optional<TNode<Object>> cache_type_;
   };
 
   struct LazyLoadICParameters {
-    LazyLoadICParameters(
-        LazyNode<Context> context, TNode<JSAny> receiver, LazyNode<Object> name,
-        LazyNode<TaggedIndex> slot, TNode<HeapObject> vector,
-        std::optional<TNode<JSAny>> lookup_start_object = std::nullopt)
+    // Use LazyMakeLoadICParameters() helper to construct this object.
+    LazyLoadICParameters(LazyNode<Context> context, TNode<JSAny> receiver,
+                         LazyNode<Object> name, LazyNode<TaggedIndex> slot,
+                         TNode<HeapObject> vector,
+                         TNode<JSAny> lookup_start_object,
+                         TNode<Map> lookup_start_object_map)
         : context_(context),
           receiver_(receiver),
           name_(name),
           slot_(slot),
           vector_(vector),
-          lookup_start_object_(lookup_start_object ? lookup_start_object.value()
-                                                   : receiver) {}
+          lookup_start_object_(lookup_start_object),
+          lookup_start_object_map_(lookup_start_object_map) {}
 
     explicit LazyLoadICParameters(const LoadICParameters* p)
         : receiver_(p->receiver()),
           vector_(p->vector()),
-          lookup_start_object_(p->lookup_start_object()) {
+          lookup_start_object_(p->lookup_start_object()),
+          lookup_start_object_map_(p->lookup_start_object_map()) {
       slot_ = [=] { return p->slot(); };
       context_ = [=] { return p->context(); };
       name_ = [=] { return p->name(); };
@@ -204,6 +210,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<TaggedIndex> slot() const { return slot_(); }
     TNode<HeapObject> vector() const { return vector_; }
     TNode<JSAny> lookup_start_object() const { return lookup_start_object_; }
+    TNode<Map> lookup_start_object_map() const {
+      return lookup_start_object_map_;
+    }
 
     // Usable in cases where the receiver and the lookup start object are
     // expected to be the same, i.e., when "receiver != lookup_start_object"
@@ -211,6 +220,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<JSAny> receiver_and_lookup_start_object() const {
       DCHECK_EQ(receiver_, lookup_start_object_);
       return receiver_;
+    }
+    TNode<Map> receiver_and_lookup_start_object_map() const {
+      DCHECK_EQ(receiver_, lookup_start_object_);
+      return lookup_start_object_map_;
     }
 
     // This is useful for figuring out whether we know anything about receiver
@@ -225,7 +238,57 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     LazyNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
     TNode<JSAny> lookup_start_object_;
+    TNode<Map> lookup_start_object_map_;
   };
+
+  // Sanitizes receiver/lookup_start_object and creates the parameters object.
+  LoadICParameters MakeLoadICParameters(
+      TNode<Context> context, TNode<JSAny> receiver, TNode<Object> name,
+      TNode<TaggedIndex> slot, TNode<HeapObject> vector,
+      std::optional<TNode<JSAny>> maybe_lookup_start_object = std::nullopt,
+      std::optional<TNode<Smi>> enum_index = std::nullopt,
+      std::optional<TNode<Object>> cache_type = std::nullopt) {
+    TNode<JSAny> lookup_start_object;
+    TNode<Map> lookup_start_object_map;
+
+    if (maybe_lookup_start_object) {
+      // Don't pass maybe_lookup_start_object in such a case.
+      DCHECK_NE(receiver, maybe_lookup_start_object.value());
+      std::tie(lookup_start_object, lookup_start_object_map) =
+          SanitizeReceiverAndLoadReceiverMap(maybe_lookup_start_object.value());
+    } else {
+      // "Lookup start object is receiver" case.
+      std::tie(lookup_start_object, lookup_start_object_map) =
+          SanitizeReceiverAndLoadReceiverMap(receiver);
+      receiver = lookup_start_object;
+    }
+    return LoadICParameters(context, receiver, name, slot, vector,
+                            lookup_start_object, lookup_start_object_map,
+                            enum_index, cache_type);
+  }
+
+  // Sanitizes receiver/lookup_start_object and creates the parameters object.
+  LazyLoadICParameters MakeLazyLoadICParameters(
+      LazyNode<Context> context, TNode<JSAny> receiver, LazyNode<Object> name,
+      LazyNode<TaggedIndex> slot, TNode<HeapObject> vector,
+      std::optional<TNode<JSAny>> maybe_lookup_start_object = std::nullopt) {
+    TNode<JSAny> lookup_start_object;
+    TNode<Map> lookup_start_object_map;
+
+    if (maybe_lookup_start_object) {
+      // Don't pass maybe_lookup_start_object in such a case.
+      DCHECK_NE(receiver, maybe_lookup_start_object.value());
+      std::tie(lookup_start_object, lookup_start_object_map) =
+          SanitizeReceiverAndLoadReceiverMap(maybe_lookup_start_object.value());
+    } else {
+      // "Lookup start object is receiver" case.
+      std::tie(lookup_start_object, lookup_start_object_map) =
+          SanitizeReceiverAndLoadReceiverMap(receiver);
+      receiver = lookup_start_object;
+    }
+    return LazyLoadICParameters(context, receiver, name, slot, vector,
+                                lookup_start_object, lookup_start_object_map);
+  }
 
   void LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
                     const LazyNode<TaggedIndex>& lazy_slot,
@@ -249,14 +312,16 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     kDefineNamedOwn,
     kDefineKeyedOwn,
   };
+
   struct StoreICParameters {
-    StoreICParameters(TNode<Context> context,
-                      std::optional<TNode<JSAny>> receiver, TNode<Object> name,
+    StoreICParameters(TNode<Context> context, TNode<JSAny> receiver,
+                      TNode<Map> receiver_map, TNode<Object> name,
                       TNode<Object> value, std::optional<TNode<Smi>> flags,
                       TNode<TaggedIndex> slot, TNode<HeapObject> vector,
                       StoreICMode mode)
         : context_(context),
           receiver_(receiver),
+          receiver_map_(receiver_map),
           name_(name),
           value_(value),
           flags_(flags),
@@ -265,16 +330,25 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
           mode_(mode) {}
 
     TNode<Context> context() const { return context_; }
-    TNode<JSAny> receiver() const { return receiver_.value(); }
+    TNode<JSAny> receiver() const {
+      DCHECK(receiver_);
+      return receiver_;
+    }
+    TNode<Map> receiver_map() const {
+      DCHECK(receiver_map_);
+      return receiver_map_;
+    }
     TNode<Object> name() const { return name_; }
     TNode<Object> value() const { return value_; }
     TNode<Smi> flags() const { return flags_.value(); }
     TNode<TaggedIndex> slot() const { return slot_; }
     TNode<HeapObject> vector() const { return vector_; }
 
+    // These two are for the CSA code shared between LoadIC and StoreIC.
     TNode<Object> lookup_start_object() const { return receiver(); }
+    TNode<Map> lookup_start_object_map() const { return receiver_map(); }
 
-    bool receiver_is_null() const { return !receiver_.has_value(); }
+    bool receiver_is_null() const { return !receiver_; }
     bool flags_is_null() const { return !flags_.has_value(); }
 
     bool IsDefineNamedOwn() const {
@@ -294,7 +368,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
    private:
     TNode<Context> context_;
-    std::optional<TNode<JSAny>> receiver_;
+    TNode<JSAny> receiver_;
+    TNode<Map> receiver_map_;
     TNode<Object> name_;
     TNode<Object> value_;
     std::optional<TNode<Smi>> flags_;
@@ -302,6 +377,33 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<HeapObject> vector_;
     StoreICMode mode_;
   };
+
+  // Sanitizes receiver and creates the parameters object.
+  StoreICParameters MakeStoreICParameters(
+      TNode<Context> context, std::optional<TNode<JSAny>> maybe_receiver,
+      TNode<Object> name, TNode<Object> value, std::optional<TNode<Smi>> flags,
+      TNode<TaggedIndex> slot, TNode<HeapObject> vector, StoreICMode mode) {
+    TNode<JSAny> receiver;
+    TNode<Map> receiver_map;
+
+    if (maybe_receiver) {
+      std::tie(receiver, receiver_map) =
+          SanitizeReceiverAndLoadReceiverMap(maybe_receiver.value());
+    }
+    return StoreICParameters(context, receiver, receiver_map, name, value,
+                             flags, slot, vector, mode);
+  }
+
+  // This constructor is for the cases when a receiver is known to be not
+  // a Smi and thus it does not require receiver sanitation.
+  StoreICParameters MakeStoreICParameters(
+      TNode<Context> context, TNode<JSAnyNotSmi> receiver,
+      TNode<Map> receiver_map, TNode<Object> name, TNode<Object> value,
+      std::optional<TNode<Smi>> flags, TNode<TaggedIndex> slot,
+      TNode<HeapObject> vector, StoreICMode mode) {
+    return StoreICParameters(context, receiver, receiver_map, name, value,
+                             flags, slot, vector, mode);
+  }
 
   enum class LoadAccessMode { kLoad, kHas };
   enum class ICMode { kNonGlobalIC, kGlobalIC };

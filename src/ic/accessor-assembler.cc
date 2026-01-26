@@ -3232,7 +3232,7 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
   GotoIf(IsUndefined(p->vector()), &no_feedback);
 
   TNode<Map> lookup_start_object_map =
-      LoadReceiverMap(p->receiver_and_lookup_start_object());
+      p->receiver_and_lookup_start_object_map();
 
   // Inlined fast path.
   {
@@ -3299,7 +3299,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
       try_polymorphic(this), miss(this, Label::kDeferred);
 
   TNode<Map> lookup_start_object_map =
-      LoadReceiverMap(p->receiver_and_lookup_start_object());
+      p->receiver_and_lookup_start_object_map();
 
   // Check monomorphic case.
   TNode<HeapObjectReference> weak_lookup_start_object_map =
@@ -3704,10 +3704,11 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
   TNode<JSAny> global =
       CAST(LoadContextElementNoCell(native_context, Context::EXTENSION_INDEX));
 
-  LazyLoadICParameters p([=] { return context; }, receiver, lazy_name,
-                         [=] { return slot; }, vector, global);
+  LazyLoadICParameters lazy_p =
+      MakeLazyLoadICParameters([=] { return context; }, receiver, lazy_name,
+                               [=] { return slot; }, vector, global);
 
-  HandleLoadICHandlerCase(&p, handler, miss, exit_point, ICMode::kGlobalIC,
+  HandleLoadICHandlerCase(&lazy_p, handler, miss, exit_point, ICMode::kGlobalIC,
                           on_nonexistent);
 }
 
@@ -3777,7 +3778,7 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
       miss(this, Label::kDeferred), generic(this, Label::kDeferred);
 
   TNode<Map> lookup_start_object_map =
-      LoadReceiverMap(p->receiver_and_lookup_start_object());
+      p->receiver_and_lookup_start_object_map();
   GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
 
   TryEnumeratedKeyedLoad(p, lookup_start_object_map, &direct_exit);
@@ -3982,8 +3983,7 @@ void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p,
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
-  TNode<JSAny> lookup_start_object = p->lookup_start_object();
-  TNode<Map> lookup_start_object_map = LoadReceiverMap(lookup_start_object);
+  TNode<Map> lookup_start_object_map = p->lookup_start_object_map();
   TNode<Name> name = CAST(p->name());
   TNode<FeedbackVector> vector = CAST(p->vector());
   TNode<TaggedIndex> slot = p->slot();
@@ -4032,7 +4032,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
       try_megamorphic(this, Label::kDeferred), miss(this, Label::kDeferred),
       no_feedback(this, Label::kDeferred);
 
-  TNode<Map> receiver_map = LoadReceiverMap(p->receiver());
+  TNode<Map> receiver_map = p->receiver_map();
   GotoIf(IsDeprecatedMap(receiver_map), &miss);
 
   GotoIf(IsUndefined(p->vector()), &no_feedback);
@@ -4122,11 +4122,11 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
       DCHECK(pp->receiver_is_null());
       DCHECK(pp->flags_is_null());
       TNode<NativeContext> native_context = LoadNativeContext(pp->context());
-      StoreICParameters p(pp->context(),
-                          CAST(LoadContextElementNoCell(
-                              native_context, Context::GLOBAL_PROXY_INDEX)),
-                          pp->name(), pp->value(), std::nullopt, pp->slot(),
-                          pp->vector(), StoreICMode::kDefault);
+      TNode<JSReceiver> receiver = CAST(LoadContextElementNoCell(
+          native_context, Context::GLOBAL_PROXY_INDEX));
+      StoreICParameters p = MakeStoreICParameters(
+          pp->context(), receiver, pp->name(), pp->value(), std::nullopt,
+          pp->slot(), pp->vector(), StoreICMode::kDefault);
 
       HandleStoreICHandlerCase(&p, handler, &miss, ICMode::kGlobalIC);
     }
@@ -4238,7 +4238,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
         no_feedback(this, Label::kDeferred),
         try_polymorphic_name(this, Label::kDeferred);
 
-    TNode<Map> receiver_map = LoadReceiverMap(p->receiver());
+    TNode<Map> receiver_map = p->receiver_map();
     GotoIf(IsDeprecatedMap(receiver_map), &miss);
 
     GotoIf(IsUndefined(p->vector()), &no_feedback);
@@ -4333,7 +4333,7 @@ void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
         no_feedback(this, Label::kDeferred),
         try_polymorphic_name(this, Label::kDeferred);
 
-    TNode<Map> receiver_map = LoadReceiverMap(p->receiver());
+    TNode<Map> receiver_map = p->receiver_map();
     GotoIf(IsDeprecatedMap(receiver_map), &miss);
 
     GotoIf(IsUndefined(p->vector()), &no_feedback);
@@ -4406,7 +4406,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         try_polymorphic(this, Label::kDeferred),
         try_megamorphic(this, Label::kDeferred);
 
-    TNode<Map> array_map = LoadReceiverMap(p->receiver());
+    TNode<Map> array_map = p->receiver_map();
     GotoIf(IsDeprecatedMap(array_map), &miss);
 
     GotoIf(IsUndefined(p->vector()), &no_feedback);
@@ -4518,7 +4518,8 @@ void AccessorAssembler::GenerateLoadIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector);
   LoadIC(&p);
 }
 
@@ -4551,18 +4552,17 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
           TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
                       SmiConstant(LoadHandler::LoadGeneric()))));
 
-  TryProbeStubCache(isolate()->load_stub_cache(), receiver, CAST(name),
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector);
+
+  TryProbeStubCache(isolate()->load_stub_cache(),
+                    p.receiver_and_lookup_start_object(),
+                    p.receiver_and_lookup_start_object_map(), CAST(name),
                     &if_handler, &var_handler, &miss);
 
   BIND(&if_handler);
-  LazyLoadICParameters p(
-      // lazy_context
-      [=] { return context; }, receiver,
-      // lazy_name
-      [=] { return name; },
-      // lazy_slot
-      [=] { return slot; }, vector);
-  HandleLoadICHandlerCase(&p, var_handler.value(), &miss, &direct_exit);
+  LazyLoadICParameters lazy_p(&p);
+  HandleLoadICHandlerCase(&lazy_p, var_handler.value(), &miss, &direct_exit);
 
   BIND(&miss);
   direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
@@ -4585,8 +4585,9 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
   TNode<MaybeObject> feedback_element = LoadFeedbackVectorSlot(vector, slot);
   TNode<HeapObject> feedback = CAST(feedback_element);
 
-  LoadICParameters p(context, receiver, name, slot, vector);
-  TNode<Map> lookup_start_object_map = LoadReceiverMap(p.lookup_start_object());
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector);
+  TNode<Map> lookup_start_object_map = p.lookup_start_object_map();
   LoadIC_Noninlined(&p, lookup_start_object_map, feedback, &var_handler,
                     &if_handler, &miss, &direct_exit);
 
@@ -4597,8 +4598,8 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
   }
 
   BIND(&miss);
-  direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
-                                slot, vector);
+  direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss, context, p.receiver(),
+                                name, slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadIC_NoFeedback() {
@@ -4609,9 +4610,10 @@ void AccessorAssembler::GenerateLoadIC_NoFeedback() {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto ic_kind = Parameter<Smi>(Descriptor::kICKind);
 
-  LoadICParameters p(context, receiver, name,
-                     TaggedIndexConstant(FeedbackSlot::Invalid().ToInt()),
-                     UndefinedConstant());
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name,
+                           TaggedIndexConstant(FeedbackSlot::Invalid().ToInt()),
+                           UndefinedConstant());
   LoadIC_NoFeedback(&p, ic_kind);
 }
 
@@ -4673,7 +4675,8 @@ void AccessorAssembler::GenerateLoadICGenericBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector);
   LoadIC(&p);
 }
 
@@ -4686,7 +4689,7 @@ void AccessorAssembler::GenerateLoadICFieldBaseline(
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
 
-  LazyLoadICParameters lazy_p(
+  LazyLoadICParameters lazy_p = MakeLazyLoadICParameters(
       // lazy_context
       [&] { return LoadContextFromBaseline(); }, receiver,
       // lazy_name
@@ -4786,8 +4789,8 @@ void AccessorAssembler::GenerateLoadSuperIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  LoadICParameters p(context, receiver, name, slot, vector,
-                     lookup_start_object);
+  LoadICParameters p = MakeLoadICParameters(context, receiver, name, slot,
+                                            vector, lookup_start_object);
   LoadSuperIC(&p);
 }
 
@@ -4973,7 +4976,8 @@ void AccessorAssembler::GenerateKeyedLoadIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector);
   KeyedLoadIC(&p, LoadAccessMode::kLoad);
 }
 
@@ -4989,8 +4993,9 @@ void AccessorAssembler::GenerateEnumeratedKeyedLoadIC() {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto lookup_start_object = std::nullopt;
 
-  LoadICParameters p(context, receiver, name, slot, vector, lookup_start_object,
-                     enum_index, cache_type);
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector,
+                           lookup_start_object, enum_index, cache_type);
   KeyedLoadIC(&p, LoadAccessMode::kLoad);
 }
 
@@ -5003,7 +5008,8 @@ void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector);
   KeyedLoadICGeneric(&p);
 }
 
@@ -5068,7 +5074,8 @@ void AccessorAssembler::GenerateKeyedLoadIC_PolymorphicName() {
   auto vector = Parameter<FeedbackVector>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector);
   KeyedLoadICPolymorphicName(&p, LoadAccessMode::kLoad);
 }
 
@@ -5082,8 +5089,9 @@ void AccessorAssembler::GenerateStoreGlobalIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, std::nullopt, name, value, flags, slot, vector,
-                      StoreICMode::kDefault);
+  StoreICParameters p =
+      MakeStoreICParameters(context, std::nullopt, name, value, flags, slot,
+                            vector, StoreICMode::kDefault);
   StoreGlobalIC(&p);
 }
 
@@ -5122,8 +5130,9 @@ void AccessorAssembler::GenerateStoreIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, flags, slot, vector,
-                      StoreICMode::kDefault);
+  StoreICParameters p =
+      MakeStoreICParameters(context, receiver, name, value, flags, slot, vector,
+                            StoreICMode::kDefault);
   StoreIC(&p);
 }
 
@@ -5145,13 +5154,16 @@ void AccessorAssembler::GenerateStoreIC_Megamorphic() {
   CSA_DCHECK(this, TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
                                MegamorphicSymbolConstant()));
 
-  TryProbeStubCache(isolate()->store_stub_cache(), receiver, CAST(name),
-                    &if_handler, &var_handler, &miss);
+  StoreICParameters p =
+      MakeStoreICParameters(context, receiver, name, value, flags, slot, vector,
+                            StoreICMode::kDefault);
+
+  TryProbeStubCache(isolate()->store_stub_cache(), p.receiver(),
+                    p.receiver_map(), CAST(name), &if_handler, &var_handler,
+                    &miss);
 
   BIND(&if_handler);
   {
-    StoreICParameters p(context, receiver, name, value, flags, slot, vector,
-                        StoreICMode::kDefault);
     HandleStoreICHandlerCase(&p, var_handler.value(), &miss,
                              ICMode::kNonGlobalIC);
   }
@@ -5159,7 +5171,7 @@ void AccessorAssembler::GenerateStoreIC_Megamorphic() {
   BIND(&miss);
   {
     direct_exit.ReturnCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                                  vector, receiver, name);
+                                  vector, p.receiver(), name);
   }
 }
 
@@ -5216,8 +5228,9 @@ void AccessorAssembler::GenerateDefineNamedOwnIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, flags, slot, vector,
-                      StoreICMode::kDefineNamedOwn);
+  StoreICParameters p =
+      MakeStoreICParameters(context, receiver, name, value, flags, slot, vector,
+                            StoreICMode::kDefineNamedOwn);
   // StoreIC is a generic helper than handle both set and define own
   // named stores.
   StoreIC(&p);
@@ -5262,8 +5275,9 @@ void AccessorAssembler::GenerateKeyedStoreIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, flags, slot, vector,
-                      StoreICMode::kDefault);
+  StoreICParameters p =
+      MakeStoreICParameters(context, receiver, name, value, flags, slot, vector,
+                            StoreICMode::kDefault);
   KeyedStoreIC(&p);
 }
 
@@ -5320,8 +5334,9 @@ void AccessorAssembler::GenerateDefineKeyedOwnIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, receiver, name, value, flags, slot, vector,
-                      StoreICMode::kDefineKeyedOwn);
+  StoreICParameters p =
+      MakeStoreICParameters(context, receiver, name, value, flags, slot, vector,
+                            StoreICMode::kDefineKeyedOwn);
   DefineKeyedOwnIC(&p);
 }
 
@@ -5366,8 +5381,8 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  StoreICParameters p(context, array, index, value, flags, slot, vector,
-                      StoreICMode::kDefault);
+  StoreICParameters p = MakeStoreICParameters(
+      context, array, index, value, flags, slot, vector, StoreICMode::kDefault);
   StoreInArrayLiteralIC(&p);
 }
 
@@ -5501,7 +5516,8 @@ void AccessorAssembler::GenerateCloneObjectIC() {
       miss(this, Label::kDeferred), try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred), slow(this, Label::kDeferred);
 
-  TNode<Map> source_map = LoadReceiverMap(source);
+  TNode<Map> source_map;
+  std::tie(source, source_map) = SanitizeReceiverAndLoadReceiverMap(source);
   GotoIf(IsDeprecatedMap(source_map), &miss);
 
   GotoIf(IsUndefined(maybe_vector), &miss);
@@ -5614,7 +5630,8 @@ void AccessorAssembler::GenerateKeyedHasIC() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector);
   KeyedLoadIC(&p, LoadAccessMode::kHas);
 }
 
@@ -5650,7 +5667,8 @@ void AccessorAssembler::GenerateKeyedHasIC_PolymorphicName() {
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadICParameters p =
+      MakeLoadICParameters(context, receiver, name, slot, vector);
   KeyedLoadICPolymorphicName(&p, LoadAccessMode::kHas);
 }
 
