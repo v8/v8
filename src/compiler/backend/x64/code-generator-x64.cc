@@ -1362,6 +1362,10 @@ void CodeGenerator::AssembleDeconstructFrame() {
   __ popq(rbp);
 }
 
+#ifdef V8_DUMPLING
+void CodeGenerator::AssembleDumpFrame() { __ CallBuiltin(Builtin::kDumpFrame); }
+#endif  // V8_DUMPLING
+
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
     __ movq(rbp, MemOperand(rbp, 0));

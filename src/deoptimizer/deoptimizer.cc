@@ -1549,11 +1549,12 @@ void Deoptimizer::VirtualMaterializeAndPrint() {
   Tagged<JSFunction> function = frame_view.function();
   int bytecode_offset = trans_frame->bytecode_offset().ToInt();
 
-  DCHECK(compiled_code_->is_maglevved());
+  DCHECK(compiled_code_->is_maglevved() || compiled_code_->is_turbofanned());
 
-  isolate()->dumpling_manager()->PrintDumpedFrame(&frame_view, function,
-                                                  isolate(), bytecode_offset,
-                                                  DumpFrameType::kMaglevFrame);
+  isolate()->dumpling_manager()->PrintDumpedFrame(
+      &frame_view, function, isolate(), bytecode_offset,
+      compiled_code_->is_maglevved() ? DumpFrameType::kMaglevFrame
+                                     : DumpFrameType::kTurbofanFrame);
 
   DeleteFrameDescriptions();
 }

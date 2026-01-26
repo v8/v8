@@ -860,6 +860,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       branch.fallthru = true;
       AssembleArchDeoptBranch(instr, &branch);
       masm()->bind(exit->continue_label());
+#ifdef V8_DUMPLING
+      if (v8_flags.turbofan_dumping) {
+        FrameStateDescriptor* descriptor =
+            GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
+        if (descriptor->type() == FrameStateType::kUnoptimizedFunction &&
+            !isolate()->dumpling_manager()->IsIsolateDumpDisabled()) {
+          AssembleDumpFrame();
+        }
+      }
+#endif  // V8_DUMPLING
       break;
     }
     case kFlags_set: {

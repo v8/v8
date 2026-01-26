@@ -17,6 +17,7 @@ typedef enum DumpFrameType {
   kInterpreterFrame = 0,
   kSparkplugFrame = 1,
   kMaglevFrame = 2,
+  kTurbofanFrame = 3
 } DumpFrameType;
 
 // Wrapper around UnoptimizedJSFunction or FrameDescription. We can't

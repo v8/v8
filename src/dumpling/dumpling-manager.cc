@@ -84,6 +84,9 @@ void DumplingManager::DoPrint(DumplingJSFrame* frame,
     case DumpFrameType::kMaglevFrame:
       dumpling_os_ << "---M" << '\n';
       break;
+    case DumpFrameType::kTurbofanFrame:
+      dumpling_os_ << "---T" << '\n';
+      break;
     default:
       UNREACHABLE();
   }
@@ -217,7 +220,8 @@ DumplingManager::~DumplingManager() {
 
 bool DumplingManager::AnyDumplingFlagsSet() const {
   return v8_flags.interpreter_dumping || v8_flags.sparkplug_dumping ||
-         v8_flags.maglev_dumping;
+         v8_flags.maglev_dumping || v8_flags.turbofan_dumping ||
+         v8_flags.turbofan_dumping_print_deopt_frames;
 }
 
 void DumplingManager::RecordDumpPosition(int function_id, int bytecode_offset) {

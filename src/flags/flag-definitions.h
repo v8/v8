@@ -2951,10 +2951,12 @@ DEFINE_BOOL(interpreter_dumping, false,
 DEFINE_BOOL(sparkplug_dumping, false,
             "enable frame dumping in baseline compiler")
 DEFINE_BOOL(maglev_dumping, false, "enable frame dumping in maglev")
+DEFINE_BOOL(turbofan_dumping, false, "enable frame dumping in turbofan")
 // Needed for function id.
 DEFINE_NEG_IMPLICATION(interpreter_dumping, enable_lazy_source_positions)
 DEFINE_NEG_IMPLICATION(sparkplug_dumping, enable_lazy_source_positions)
 DEFINE_NEG_IMPLICATION(maglev_dumping, enable_lazy_source_positions)
+DEFINE_NEG_IMPLICATION(turbofan_dumping, enable_lazy_source_positions)
 DEFINE_STRING(dump_out_filename, "/tmp/output_dump.txt",
               "File to save the frame dumps to")
 DEFINE_INT(dumpling_depth, 3, "depth used in dumpling")

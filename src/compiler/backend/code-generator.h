@@ -263,6 +263,10 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   void AssembleDeconstructFrame();
 
+#ifdef V8_DUMPLING
+  void AssembleDumpFrame();
+#endif  // V8_DUMPLING
+
   // Generates code to manipulate the stack in preparation for a tail call.
   void AssemblePrepareTailCall();
 
