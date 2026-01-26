@@ -2450,6 +2450,9 @@ void BytecodeGenerator::VisitConsecutivePrototypeAssignments(
 
 void BytecodeGenerator::VisitStatements(
     const ZonePtrList<Statement>* statements, int start) {
+
+  if (builder()->RemainderOfBlockIsDead()) return;
+
   for (int stmt_idx = start; stmt_idx < statements->length(); stmt_idx++) {
     if (v8_flags.proto_assign_seq_opt) {
       int proto_assign_idx = stmt_idx;
