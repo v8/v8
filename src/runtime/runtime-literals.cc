@@ -593,7 +593,7 @@ DirectHandle<Object> InstantiateIfSharedFunctionInfo(
     return value;
   }
 
-  Tagged<Map> proto_map = js_proto->map();
+  DirectHandle<Map> proto_map = direct_handle(js_proto->map(), isolate);
   if (Tagged<PrototypeSharedClosureInfo> closure_info;
       proto_map->TryGetPrototypeSharedClosureInfo(&closure_info)) {
     // We already have closure infos on this prototype, this means we
