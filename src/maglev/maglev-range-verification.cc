@@ -31,6 +31,10 @@ ProcessResult MaglevRangeVerificationProcessor::Process(
     return ProcessResult::kContinue;
   }
 
+  if (node->use_count() == 0 && !node->properties().is_required_when_unused()) {
+    return ProcessResult::kContinue;
+  }
+
   if (node->Is<Phi>()) {
     reducer_.SetNewNodePosition(BasicBlockPosition::Start());
   } else {
