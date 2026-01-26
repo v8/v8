@@ -39,6 +39,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadICFieldBaseline(FieldLocation field_location,
                                    FieldKind field_kind, int field_index);
   void GenerateLoadICConstantFromPrototypeBaseline();
+  void GenerateLoadICStringLengthBaseline();
   void GenerateLoadICGenericBaseline();
   void GenerateLoadICTrampoline_Megamorphic();
   void GenerateLoadSuperIC();

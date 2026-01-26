@@ -4766,6 +4766,47 @@ void AccessorAssembler::GenerateLoadICConstantFromPrototypeBaseline() {
                                 receiver, name, slot, vector);
 }
 
+void AccessorAssembler::GenerateLoadICStringLengthBaseline() {
+  using Descriptor = LoadBaselineDescriptor;
+
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
+  TNode<Context> context = LoadContextFromBaseline();
+
+  ExitPoint direct_exit(this);
+  TVARIABLE(MaybeObject, var_handler);
+  Label update_feedback(this, Label::kDeferred), miss(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(receiver), &miss);
+  GotoIfNot(IsString(UncheckedCast<HeapObject>(receiver)), &miss);
+  TNode<Smi> result = LoadStringLengthAsSmi(UncheckedCast<String>(receiver));
+
+  // Check if feedback slot is uninitialized.
+  // TODO(chromium:429351411): Consider removing this check when we have a
+  // bytecode hint.
+  int32_t header_size =
+      FeedbackVector::kRawFeedbackSlotsOffset - kHeapObjectTag;
+  // Adding |header_size| with a separate IntPtrAdd rather than passing it
+  // into ElementOffsetFromIndex() allows it to be folded into a single
+  // [base, index, offset] indirect memory access on x64.
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(slot, HOLEY_ELEMENTS);
+  TNode<HeapObjectReference> feedback = CAST(Load<MaybeObject>(
+      vector, IntPtrAdd(offset, IntPtrConstant(header_size))));
+  GotoIf(TaggedEqual(feedback, UninitializedSymbolConstant()),
+         &update_feedback);
+  direct_exit.Return(result);
+
+  BIND(&update_feedback);
+  TailCallRuntime(Runtime::kGetStringLengthAndUpdateFeedback, context, receiver,
+                  slot, vector);
+
+  BIND(&miss);
+  direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss_FromBaseline, context,
+                                receiver, name, slot, vector);
+}
+
 void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
   using Descriptor = LoadDescriptor;
 

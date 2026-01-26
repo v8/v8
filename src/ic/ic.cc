@@ -3029,6 +3029,27 @@ RUNTIME_FUNCTION(Runtime_PatchLoadICUninitializedBaseline) {
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 }
 
+RUNTIME_FUNCTION(Runtime_GetStringLengthAndUpdateFeedback) {
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+  Handle<String> receiver = args.at<String>(0);
+  int slot = args.tagged_index_value_at(1);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
+  FeedbackNexus nexus(isolate, vector, vector_slot);
+
+  MaybeObjectHandle handler =
+      MaybeObjectHandle(BUILTIN_CODE(isolate, LoadIC_StringLength));
+  DirectHandle<Map> receiver_map(receiver->map(), isolate);
+  // Update feedback.
+  nexus.ConfigureMonomorphic(Handle<Name>::null(), receiver_map, handler);
+  IC::OnFeedbackChanged(isolate, *vector, vector_slot, "Monomorphic");
+
+  return Smi::FromInt(receiver->length());
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+}
+
 RUNTIME_FUNCTION(Runtime_LoadNoFeedbackIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

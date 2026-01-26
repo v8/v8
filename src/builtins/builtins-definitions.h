@@ -93,16 +93,17 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   GENERATE_MACRO(V, OutOfObject, NonDouble, Field, 2)                          \
   GENERATE_MACRO(V, OutOfObject, NonDouble, Field, 3)
 
-#define LOAD_IC_HANDLER_LIST(V, GENERATE_MACRO)                              \
-  GENERATE_MACRO(V, /*Location*/, /*Representation*/, Uninitialized,         \
-                 /*Index*/)                                                  \
-  GENERATE_MACRO(V, InObject, NonDouble, Field, /*Index*/)                   \
-  LOAD_IC_IN_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(V, GENERATE_MACRO)         \
-  GENERATE_MACRO(V, OutOfObject, NonDouble, Field, /*Index*/)                \
-  LOAD_IC_OUT_OF_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(V, GENERATE_MACRO)     \
-  GENERATE_MACRO(V, /*Location*/, Double, Field, /*Index*/)                  \
-  GENERATE_MACRO(V, /*Location*/, /*Representation*/, ConstantFromPrototype, \
-                 /*Index*/)                                                  \
+#define LOAD_IC_HANDLER_LIST(V, GENERATE_MACRO)                                \
+  GENERATE_MACRO(V, /*Location*/, /*Representation*/, Uninitialized,           \
+                 /*Index*/)                                                    \
+  GENERATE_MACRO(V, InObject, NonDouble, Field, /*Index*/)                     \
+  LOAD_IC_IN_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(V, GENERATE_MACRO)           \
+  GENERATE_MACRO(V, OutOfObject, NonDouble, Field, /*Index*/)                  \
+  LOAD_IC_OUT_OF_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(V, GENERATE_MACRO)       \
+  GENERATE_MACRO(V, /*Location*/, Double, Field, /*Index*/)                    \
+  GENERATE_MACRO(V, /*Location*/, /*Representation*/, ConstantFromPrototype,   \
+                 /*Index*/)                                                    \
+  GENERATE_MACRO(V, /*Location*/, /*Representation*/, StringLength, /*Index*/) \
   GENERATE_MACRO(V, /*Location*/, /*Representation*/, Generic, /*Index*/)
 
 #define GENERATE_BUILTIN_LOAD_IC_DEFINITION(V, Location, Representation, Kind, \

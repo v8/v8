@@ -81,6 +81,11 @@ void Builtins::Generate_LoadICConstantFromPrototypeBaseline(
   AccessorAssembler assembler(state);
   assembler.GenerateLoadICConstantFromPrototypeBaseline();
 }
+void Builtins::Generate_LoadICStringLengthBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadICStringLengthBaseline();
+}
 void Builtins::Generate_LoadICGenericBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);

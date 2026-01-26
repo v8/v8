@@ -868,15 +868,21 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
   } else {
     Tagged<HeapObject> heap_object;
     // LoadConstantFromPrototype.
-    if (feedback_extra.GetHeapObjectIfStrong(&heap_object) &&
-        IsDataHandler(heap_object)) {
-      Tagged<DataHandler> handler = Cast<DataHandler>(heap_object);
-      Tagged<UnionOf<Smi, Code>> smi_handler = handler->smi_handler();
-      if (IsSmi(smi_handler)) {
-        int value = smi_handler.ToSmi().value();
-        if (value == LoadHandler::KindBits::encode(
-                         LoadHandler::Kind::kConstantFromPrototype)) {
-          return Builtin::kLoadICConstantFromPrototypeBaseline;
+    if (feedback_extra.GetHeapObjectIfStrong(&heap_object)) {
+      if (IsDataHandler(heap_object)) {
+        Tagged<DataHandler> handler = Cast<DataHandler>(heap_object);
+        Tagged<UnionOf<Smi, Code>> smi_handler = handler->smi_handler();
+        if (IsSmi(smi_handler)) {
+          int value = smi_handler.ToSmi().value();
+          if (value == LoadHandler::KindBits::encode(
+                           LoadHandler::Kind::kConstantFromPrototype)) {
+            return Builtin::kLoadICConstantFromPrototypeBaseline;
+          }
+        }
+      } else if (IsCode(heap_object)) {
+        Tagged<Code> handler = UncheckedCast<Code>(heap_object);
+        if (handler->builtin_id() == Builtin::kLoadIC_StringLength) {
+          return Builtin::kLoadICStringLengthBaseline;
         }
       }
     }
