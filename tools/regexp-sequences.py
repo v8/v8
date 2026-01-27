@@ -18,10 +18,11 @@ import collections
 
 def parse(file, seqlen):
   # example:
-  # pc = 00, sp = 0, curpos = 0, curchar = 0000000a ..., bc = PUSH_BT, 02, 00, 00, 00, e8, 00, 00, 00 .......
-  rx = re.compile(r'pc = (?P<pc>[0-9a-f]+), sp = (?P<sp>\d+), '
-                  r'curpos = (?P<curpos>\d+), curchar = (?P<char_hex>[0-9a-f]+) '
-                  r'(:?\.|\()(?P<char>\.|\w)(:?\.|\)), bc = (?P<bc>\w+), .*')
+  # pc = 00, sp = 0, curpos = 0, curchar = 0000000a ..., PushBacktrack, label: e4
+  rx = re.compile(
+      r'pc = (?P<pc>[0-9a-f]+), sp = (?P<sp>\d+), '
+      r'curpos = (?P<curpos>\d+), curchar = (?P<char_hex>[0-9a-f]+) '
+      r'(:?\.|\()(?P<char>\.|\w)(:?\.|\)), (?P<bc>\w+), .*')
   total = 0
 
   # stats[len][seq_tuple] = {'count': 0, 'loops': 0}
