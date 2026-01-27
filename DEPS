@@ -170,7 +170,7 @@ deps = {
   'test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'e85173bc211eb110477de3279ec1dcd36d9a8a58',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '3c6180f581e5f468d6767af2f9b1f9c3ca444e77',
   'third_party/android_platform': {
     'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + 'e3919359f2387399042d31401817db4a02d756ec',
     'condition': 'checkout_android',
@@ -486,7 +486,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'baacfc6d5986b07abe0503216b491e234b94ba79',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '5326cd6869bed3c022b698fafb11dd1f2de52246',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '37133fcc2fb93e454471cec6501e6547c74108c0',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
