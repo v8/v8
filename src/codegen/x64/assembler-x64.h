@@ -193,7 +193,10 @@ class V8_EXPORT_PRIVATE Operand {
 
   struct MemoryOperand {
     bool is_label_operand = false;
-    uint8_t rex = 0;  // REX prefix.
+    // REX prefix.
+    // |0|0|0|0|0|0|X3|B3| without APX_F;
+    // |0|0|X4|B4|0|0|X3|B3| if APX_F is enabled.
+    uint8_t rex = 0;
 
     // Register (1 byte) + SIB (0 or 1 byte) + displacement (0, 1, or 4 byte).
     uint8_t buf[6] = {0};
@@ -221,12 +224,14 @@ class V8_EXPORT_PRIVATE Operand {
 
   // [base + disp/r]
   V8_INLINE constexpr Operand(Register base, int32_t disp) {
-    if (base == rsp || base == r12) {
-      // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
+    // rsp/r12(/r20/r28 in APX_F) as base register always requires a SIB byte.
+    if (base.low_bits() == 0x4) {
       set_sib(times_1, rsp, base);
     }
 
-    if (disp == 0 && base != rbp && base != r13) {
+    // rbp/r13(/r21/r29 in APX_F) as base register without a displacement must
+    // be done using mod = 01 with a displacement of 0.
+    if (disp == 0 && base.low_bits() != 0x5) {
       set_modrm(0, base);
     } else if (is_int8(disp)) {
       set_modrm(1, base);
@@ -242,7 +247,7 @@ class V8_EXPORT_PRIVATE Operand {
                     int32_t disp) {
     DCHECK(index != rsp);
     set_sib(scale, index, base);
-    if (disp == 0 && base != rbp && base != r13) {
+    if (disp == 0 && base.low_bits() != 0x5) {
       // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
       // possibly set by set_sib.
       set_modrm(0, rsp);
@@ -299,8 +304,22 @@ class V8_EXPORT_PRIVATE Operand {
     // {memory_}, the access is valid regardless of the active union member.
     // Label operands always have a REX prefix of zero.
     V8_ASSUME(!memory_.is_label_operand || memory_.rex == 0);
+#ifdef V8_ENABLE_APX_F
+    return memory_.rex & 0xF;
+#else
     return memory_.rex;
+#endif
   }
+
+#ifdef V8_ENABLE_APX_F
+  V8_INLINE constexpr uint8_t rex2() const {
+    // Since both fields are in the common initial sequence of {label_} and
+    // {memory_}, the access is valid regardless of the active union member.
+    // Label operands always have a REX prefix of zero.
+    V8_ASSUME(!memory_.is_label_operand || memory_.rex == 0);
+    return memory_.rex >> 4;
+  }
+#endif  // V8_ENABLE_APX_F
 
   V8_INLINE const MemoryOperand& memory() const {
     DCHECK(!is_label_operand());
@@ -323,17 +342,23 @@ class V8_EXPORT_PRIVATE Operand {
     memory_.buf[0] = mod << 6 | rm_reg.low_bits();
     // Set REX.B to the high bit of rm.code().
     memory_.rex |= rm_reg.high_bit();
+#ifdef V8_ENABLE_APX_F
+    memory_.rex |= rm_reg.bit4() << 4;
+#endif
   }
 
   V8_INLINE constexpr void set_sib(ScaleFactor scale, Register index,
                                    Register base) {
     V8_ASSUME(memory_.len == 1);
     DCHECK(is_uint2(scale));
-    // Use SIB with no index register only for base rsp or r12. Otherwise we
-    // would skip the SIB byte entirely.
-    DCHECK(index != rsp || base == rsp || base == r12);
+    // Use SIB with no index register only for base rsp or r12(plus r20 or r28
+    // if APX_F is enabled). Otherwise we would skip the SIB byte entirely.
+    DCHECK(index != rsp || base.low_bits() == 0x4);
     memory_.buf[1] = (scale << 6) | (index.low_bits() << 3) | base.low_bits();
     memory_.rex |= index.high_bit() << 1 | base.high_bit();
+#ifdef V8_ENABLE_APX_F
+    memory_.rex |= (index.bit4() << 1 | base.bit4()) << 4;
+#endif
     memory_.len = 2;
   }
 
@@ -599,6 +624,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128, kLZ = kL128 };
   enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
   enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
+
+#ifdef V8_ENABLE_APX_F
+  enum Rex2MapID { kRex2Map0 = 0x0, kRex2Map1 = 0x80 };
+  enum Rex2W { kRex2W0 = 0x0, kRex2W1 = 0x8 };
+
+  enum EvexStatusFlagUpdate { kFlagUpdate = 0x0, kNoFlagUpdate = 0x4 };
+  enum EvexNewDataDestination { kOldDataDest = 0x0, kNewDataDest = 0x10 };
+#endif  // V8_ENABLE_APX_F
 
   // ---------------------------------------------------------------------------
   // InstructionStream generation
@@ -2468,6 +2501,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rdpkru();
   void wrpkru();
 
+#ifdef V8_ENABLE_APX_F
+  void pushpq(Register src);
+  void poppq(Register dst);
+  void push2q(Register src1, Register src2);
+  void push2pq(Register src1, Register src2);
+  void pop2q(Register dst1, Register dst2);
+  void pop2pq(Register dst1, Register dst2);
+#endif  // V8_ENABLE_APX_F
+
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
@@ -2651,6 +2693,42 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Calls emit_rex_32(Register, Operand) for all non-byte registers, and
   // emit_optional_rex_32(Register, Operand) for byte registers.
   inline void emit_optional_rex_8(Register reg, Operand op);
+
+#ifdef V8_ENABLE_APX_F
+  inline void emit_rex2_prefix(Register reg, Register rm_reg, Rex2MapID m,
+                               Rex2W w);
+  inline void emit_rex2_prefix(Register reg, Operand op, Rex2MapID m, Rex2W w);
+
+  inline void emit_rex2_64(Register reg, Register rm_reg, Rex2MapID m);
+  inline void emit_rex2_64(Register reg, Operand op, Rex2MapID m);
+  inline void emit_rex2_64(Register reg, Rex2MapID m);
+  inline void emit_rex2_64(Operand op, Rex2MapID m);
+
+  inline void emit_rex2_32(Register reg, Register rm_reg, Rex2MapID m);
+  inline void emit_rex2_32(Register reg, Operand op, Rex2MapID m);
+  inline void emit_rex2_32(Register reg, Rex2MapID m);
+  inline void emit_rex2_32(Operand op, Rex2MapID m);
+
+  // Legacy extended evex
+  inline void emit_evex_byte0() { emit(0x62); }
+  inline void emit_legacy_extended_evex_prefix(Register dst, Register src1,
+                                               Register src2, SIMDPrefix pp,
+                                               VexW w, EvexStatusFlagUpdate nf,
+                                               EvexNewDataDestination nd);
+  inline void emit_legacy_extended_evex_prefix(Register dst, Register src1,
+                                               Operand src2, SIMDPrefix pp,
+                                               VexW w, EvexStatusFlagUpdate nf,
+                                               EvexNewDataDestination nd);
+  inline void emit_legacy_extended_evex_byte1(Register src1, Register src2);
+  inline void emit_legacy_extended_evex_byte1(Register src1, Operand src2);
+  inline void emit_legacy_extended_evex_byte2(Register dst, VexW w,
+                                              SIMDPrefix pp);
+  inline void emit_legacy_extended_evex_byte2(Register dst, Operand src2,
+                                              VexW w, SIMDPrefix pp);
+  inline void emit_legacy_extended_evex_byte3(Register dst,
+                                              EvexNewDataDestination nd,
+                                              EvexStatusFlagUpdate nf);
+#endif  // V8_ENABLE_APX_F
 
   void emit_rex(int size) {
     if (size == kInt64Size) {

@@ -4849,6 +4849,83 @@ bool RelocInfo::IsCodedSpecially() {
 
 bool RelocInfo::IsInConstantPool() { return false; }
 
+#ifdef V8_ENABLE_APX_F
+void Assembler::poppq(Register dst) {
+  EnsureSpace ensure_space(this);
+  emit_rex2_64(dst, kRex2Map0);
+  emit(0x58 | dst.low_bits());
+}
+
+void Assembler::pushpq(Register src) {
+  EnsureSpace ensure_space(this);
+  emit_rex2_64(src, kRex2Map0);
+  emit(0x50 | src.low_bits());
+#if defined(V8_OS_WIN_X64)
+  if (xdata_encoder_ && src == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+#endif
+}
+
+void Assembler::push2q(Register src1, Register src2) {
+  DCHECK_NE(src1, rsp);
+  DCHECK_NE(src2, rsp);
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(src1, rax /*place holder*/, src2, kNoPrefix,
+                                   kW0, kFlagUpdate, kNewDataDest);
+  emit(0xFF);
+  emit_modrm(6, src2);
+#if defined(V8_OS_WIN_X64)
+  if (xdata_encoder_ && src1 == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+  if (xdata_encoder_ && src2 == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+#endif
+}
+
+void Assembler::push2pq(Register src1, Register src2) {
+  DCHECK_NE(src1, rsp);
+  DCHECK_NE(src2, rsp);
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(src1, rax /*place holder*/, src2, kNoPrefix,
+                                   kW1, kFlagUpdate, kNewDataDest);
+  emit(0xFF);
+  emit_modrm(6, src2);
+#if defined(V8_OS_WIN_X64)
+  if (xdata_encoder_ && src1 == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+  if (xdata_encoder_ && src2 == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+#endif
+}
+
+void Assembler::pop2q(Register dst1, Register dst2) {
+  DCHECK_NE(dst1, rsp);
+  DCHECK_NE(dst2, rsp);
+  DCHECK_NE(dst1, dst2);
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(dst1, rax /*place holder*/, dst2, kNoPrefix,
+                                   kW0, kFlagUpdate, kNewDataDest);
+  emit(0x8F);
+  emit_modrm(0, dst2);
+}
+
+void Assembler::pop2pq(Register dst1, Register dst2) {
+  DCHECK_NE(dst1, rsp);
+  DCHECK_NE(dst2, rsp);
+  DCHECK_NE(dst1, dst2);
+  EnsureSpace ensure_space(this);
+  emit_legacy_extended_evex_prefix(dst1, rax /*place holder*/, dst2, kNoPrefix,
+                                   kW1, kFlagUpdate, kNewDataDest);
+  emit(0x8F);
+  emit_modrm(0, dst2);
+}
+#endif  // V8_ENABLE_APX_F
+
 }  // namespace internal
 }  // namespace v8
 

@@ -3306,6 +3306,49 @@ TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
                 !CpuFeatures::IsSupported(FMA3));
 }
 
+#ifdef V8_ENABLE_APX_F
+TEST_F(AssemblerX64Test, AssemblerX64APX_F) {
+  if (!CpuFeatures::IsSupported(APX_F)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, APX_F);
+
+  __ pushpq(rax);
+  __ push2q(rcx, rdx);
+  __ push2pq(rcx, rdx);
+
+  __ poppq(rax);
+  __ pop2q(rcx, rdx);
+  __ pop2pq(rcx, rdx);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  Print(*code, os);
+#endif
+
+  uint8_t expected[] = {// pushpq rax
+                        0xd5, 0x08, 0x50,
+                        // push2q rcx, rdx
+                        0x62, 0xf4, 0x74, 0x18, 0xff, 0xf2,
+                        // push2pq rcx, rdx
+                        0x62, 0xf4, 0xf4, 0x18, 0xff, 0xf2,
+                        // poppq rax
+                        0xd5, 0x08, 0x58,
+                        // pop2q rcx, rdx
+                        0x62, 0xf4, 0x74, 0x18, 0x8f, 0xc2,
+                        // pop2pq rcx, rdx
+                        0x62, 0xf4, 0xf4, 0x18, 0x8f, 0xc2};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+#endif  // V8_ENABLE_APX_F
+
 #undef __
 
 }  // namespace internal
