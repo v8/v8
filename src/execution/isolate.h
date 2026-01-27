@@ -996,6 +996,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Walks the JS stack to find the first frame with a valid script id. The
   // inspected frames are the same as for the detailed stack trace.
   int CurrentScriptId();
+  // Walks the JS stack to find the first `frame_data.size()` frames and writes
+  // them into `frame_data` and returns the number of frames written.
+  size_t CurrentScriptIdsAndContexts(
+      v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data);
+
   MaybeDirectHandle<Script> CurrentReferrerScript();
   bool GetStackTraceLimit(Isolate* isolate, int* result);
 

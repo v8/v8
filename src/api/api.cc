@@ -3258,6 +3258,17 @@ int StackTrace::CurrentScriptId(Isolate* v8_isolate) {
   return i_isolate->CurrentScriptId();
 }
 
+v8::MemorySpan<v8::StackTrace::ScriptIdAndContext>
+StackTrace::CurrentScriptIdsAndContexts(
+    Isolate* v8_isolate,
+    v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+
+  size_t written = i_isolate->CurrentScriptIdsAndContexts(frame_data);
+  return {frame_data.data(), written};
+}
+
 // --- S t a c k F r a m e ---
 
 Location StackFrame::GetLocation() const {
