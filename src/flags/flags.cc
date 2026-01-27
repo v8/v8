@@ -1256,6 +1256,16 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       RESET_WHEN_CORRECTNESS_FUZZING(turbo_stats_nvp),
       RESET_WHEN_CORRECTNESS_FUZZING(turbo_stats_wasm),
 
+      // Don't use any asserting modes with differential fuzzing as it ignores
+      // crashes anyways and sometimes can't digest the output from these
+      // flags.
+      RESET_WHEN_CORRECTNESS_FUZZING(assert_types),
+      RESET_WHEN_CORRECTNESS_FUZZING(maglev_assert_types),
+      RESET_WHEN_CORRECTNESS_FUZZING(turboshaft_assert_types),
+#if V8_ENABLE_WEBASSEMBLY
+      RESET_WHEN_CORRECTNESS_FUZZING(wasm_assert_types),
+#endif  // V8_ENABLE_WEBASSEMBLY
+
       // https://crbug.com/369974230
       RESET_WHEN_FUZZING(expose_async_hooks),
 
