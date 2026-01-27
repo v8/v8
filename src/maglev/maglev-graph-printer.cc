@@ -508,6 +508,9 @@ void PrintSingleDeoptFrame(
       break;
     }
   }
+  if (v8_flags.print_maglev_deopt_verbose) {
+    os << " (addr:" << &frame << ")";
+  }
 }
 
 namespace {

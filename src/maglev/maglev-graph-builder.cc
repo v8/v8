@@ -14808,30 +14808,7 @@ void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
 }
 
 void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
-  vobject->ForEachSlot([&](ValueNode* value, vobj::Field desc) -> bool {
-    if (InlinedAllocation* nested_allocation =
-            value->TryCast<InlinedAllocation>()) {
-      VirtualObject* nested_object =
-          current_interpreter_frame_.virtual_objects().FindAllocatedWith(
-              nested_allocation);
-      if (nested_object == nullptr) {
-        CHECK(is_non_eager_inlining_enabled());
-        // The nested object must have been created by a different inlining
-        // and we cannot see it here in the virtual object list.
-        // TODO(victorgomes): Propagate somehow virtual object lists? For
-        // now, we force the allocation to escape.
-        nested_allocation->ForceEscaping();
-      } else {
-        AddDeoptUse(nested_object);
-      }
-    } else if (!IsConstantNode(value->opcode()) &&
-               value->opcode() != Opcode::kArgumentsElements &&
-               value->opcode() != Opcode::kArgumentsLength &&
-               value->opcode() != Opcode::kRestLength) {
-      AddDeoptUse(value);
-    }
-    return true;
-  });
+  vobject->AddDeoptUse(current_interpreter_frame_.virtual_objects());
 }
 
 ReduceResult MaglevGraphBuilder::BuildInlinedAllocation(
@@ -17947,19 +17924,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTaggedField(ValueNode* object,
 
 void MaglevGraphBuilder::AddDeoptUse(ValueNode* node) {
   if (node == nullptr) return;
-  DCHECK(!node->Is<VirtualObject>());
-  if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-    VirtualObject* vobject =
-        current_interpreter_frame_.virtual_objects().FindAllocatedWith(alloc);
-    if (vobject) {
-      AddDeoptUse(vobject);
-      // Add an escaping use for the allocation.
-      AddNonEscapingUses(alloc, 1);
-    }
-    alloc->add_use();
-  } else {
-    node->add_use();
-  }
+  node->AddDeoptUse(current_interpreter_frame().virtual_objects());
 }
 
 void MaglevGraphBuilder::CalculatePredecessorCounts() {

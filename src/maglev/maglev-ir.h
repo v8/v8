@@ -2556,6 +2556,7 @@ class ValueNode : public Node {
     DCHECK_EQ(use_count_, 0);
     use_count_ = -1;
   }
+  void AddDeoptUse(const VirtualObjectList& virtual_objects);
 
   // Used by the register allocator. Only available at the backend.
   void SetHint(compiler::InstructionOperand hint);
@@ -2681,8 +2682,10 @@ class ValueNode : public Node {
   // Unwrap identities and conversions.
   ValueNode* Unwrap();
 
-  ValueNode* UnwrapIdentitiesAndUpdateUseCount();
-  ValueNode* UnwrapAndUpdateUseCount();
+  ValueNode* UnwrapIdentitiesAndUpdateUseCountForDeopt(
+      const VirtualObjectList& virtual_objects);
+  ValueNode* UnwrapAndUpdateUseCountForDeopt(
+      const VirtualObjectList& virtual_objects);
 
   RegallocValueNodeInfo* regalloc_info() const {
     DCHECK_EQ(state_, kRegallocInfo);
@@ -2768,22 +2771,30 @@ inline ValueNode* ValueNode::Unwrap() {
 
 // Unwraps identities on the current node and, if unwrapping succeeds,
 // decrements its use-count and increments the use-count of the unwrapped node.
-inline ValueNode* ValueNode::UnwrapIdentitiesAndUpdateUseCount() {
+inline ValueNode* ValueNode::UnwrapIdentitiesAndUpdateUseCountForDeopt(
+    const VirtualObjectList& virtual_objects) {
   ValueNode* unwrapped = UnwrapIdentities();
   if (unwrapped != this) {
+    // TODO(dmercadier): instead of a simple `remove_use` here, we could instead
+    // recursively remove uses in VirtualObjects (basically doing the oppositve
+    // of AddDeoptUse).
     this->remove_use();
-    unwrapped->add_use();
+    unwrapped->AddDeoptUse(virtual_objects);
   }
   return unwrapped;
 }
 
 // Unwraps the current node and, if unwrapping succeeds, decrements its
 // use-count and increments the use-count of the unwrapped node.
-inline ValueNode* ValueNode::UnwrapAndUpdateUseCount() {
+inline ValueNode* ValueNode::UnwrapAndUpdateUseCountForDeopt(
+    const VirtualObjectList& virtual_objects) {
   ValueNode* unwrapped = Unwrap();
   if (unwrapped != this) {
+    // TODO(dmercadier): instead of a simple `remove_use` here, we could instead
+    // recursively remove uses in VirtualObjects (basically doing the oppositve
+    // of AddDeoptUse).
     this->remove_use();
-    unwrapped->add_use();
+    unwrapped->AddDeoptUse(virtual_objects);
   }
   return unwrapped;
 }
@@ -5506,6 +5517,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   compiler::OptionalMapRef TryGetMapFromSlot(
       compiler::JSHeapBroker* broker) const;
 
+  void AddDeoptUse(const VirtualObjectList& virtual_objects);
+
   uint32_t id() const { return id_; }
 
   size_t size() const {
@@ -6190,7 +6203,8 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
         // Subtle: this modifies the location of the caller's `value` in-place.
         // TODO(jgruber): Change the behavior of all related ForEach functions
         // such that they don't do anything besides iteration.
-        value = value->UnwrapIdentitiesAndUpdateUseCount();
+        value =
+            value->UnwrapIdentitiesAndUpdateUseCountForDeopt(virtual_objects);
         if (IsConstantNode(value->opcode())) {
           // No location assigned to constants.
           return true;

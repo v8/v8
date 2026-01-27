@@ -83,6 +83,48 @@ CONVERSION_NODE_LIST(ASSERT_IS_CONV)
 
 }  // namespace
 
+void ValueNode::AddDeoptUse(const VirtualObjectList& virtual_objects) {
+  DCHECK(!Is<VirtualObject>());
+  if (InlinedAllocation* alloc = TryCast<InlinedAllocation>()) {
+    VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
+    if (vobject) {
+      vobject->AddDeoptUse(virtual_objects);
+      // Add an escaping use for the allocation.
+      alloc->AddNonEscapingUses(1);
+    }
+    alloc->add_use();
+  } else {
+    add_use();
+  }
+}
+
+void VirtualObject::AddDeoptUse(const VirtualObjectList& virtual_objects) {
+  ForEachSlot([&](ValueNode* value, vobj::Field desc) -> bool {
+    if (InlinedAllocation* nested_allocation =
+            value->TryCast<InlinedAllocation>()) {
+      VirtualObject* nested_object =
+          virtual_objects.FindAllocatedWith(nested_allocation);
+      if (nested_object == nullptr) {
+        CHECK(v8_flags.turbolev_non_eager_inlining ||
+              v8_flags.maglev_non_eager_inlining);
+        // The nested object must have been created by a different inlining
+        // and we cannot see it here in the virtual object list.
+        // TODO(victorgomes): Propagate somehow virtual object lists? For
+        // now, we force the allocation to escape.
+        nested_allocation->ForceEscaping();
+      } else {
+        nested_object->AddDeoptUse(virtual_objects);
+      }
+    } else if (!IsConstantNode(value->opcode()) &&
+               value->opcode() != Opcode::kArgumentsElements &&
+               value->opcode() != Opcode::kArgumentsLength &&
+               value->opcode() != Opcode::kRestLength) {
+      value->AddDeoptUse(virtual_objects);
+    }
+    return true;
+  });
+}
+
 #ifdef DEBUG
 
 void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,

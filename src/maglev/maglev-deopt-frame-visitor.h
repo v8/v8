@@ -58,7 +58,7 @@ class DeoptInfoVisitor {
     auto updated_f = [&](ValueNodeT node) {
       DCHECK(!node->template Is<VirtualObject>());
       if (std::is_same_v<ValueNodeT, ValueNode*&>) {
-        node = node->UnwrapAndUpdateUseCount();
+        node = node->UnwrapAndUpdateUseCountForDeopt(virtual_objects_);
       } else {
         node = node->Unwrap();
       }
