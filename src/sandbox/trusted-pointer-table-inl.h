@@ -80,7 +80,8 @@ bool TrustedPointerTableEntry::IsFreelistEntry() const {
   return payload.ContainsFreelistLink();
 }
 
-uint32_t TrustedPointerTableEntry::GetNextFreelistEntryIndex() const {
+std::optional<uint32_t> TrustedPointerTableEntry::GetNextFreelistEntryIndex()
+    const {
   return payload_.load(std::memory_order_relaxed).ExtractFreelistLink();
 }
 

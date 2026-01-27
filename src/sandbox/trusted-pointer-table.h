@@ -67,7 +67,7 @@ struct TrustedPointerTableEntry {
   // called even when the entry is not a freelist entry. However, the result
   // is only valid if this is a freelist entry. This behaviour is required
   // for efficient entry allocation, see TryAllocateEntryFromFreelist.
-  inline uint32_t GetNextFreelistEntryIndex() const;
+  inline std::optional<uint32_t> GetNextFreelistEntryIndex() const;
 
   // Mark this entry as alive during garbage collection.
   inline void Mark();

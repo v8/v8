@@ -225,7 +225,7 @@ bool JSDispatchEntry::IsFreelistEntry() const {
 #endif
 }
 
-uint32_t JSDispatchEntry::GetNextFreelistEntryIndex() const {
+std::optional<uint32_t> JSDispatchEntry::GetNextFreelistEntryIndex() const {
   DCHECK(IsFreelistEntry());
 #ifdef V8_TARGET_ARCH_64_BIT
   return static_cast<uint32_t>(entrypoint_.load(std::memory_order_relaxed));

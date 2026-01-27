@@ -88,9 +88,14 @@ struct TaggedPayload {
 
   bool HasMarkBitSet() const { return encoded_word_ & kMarkBit; }
 
-  uint32_t ExtractFreelistLink() const {
-    return static_cast<uint32_t>((encoded_word_ & kPayloadMask) >>
-                                 kPayloadShift);
+  // Extracts the freelist pointer if this entry is a freelist entry.
+  std::optional<uint32_t> ExtractFreelistLink() const {
+    if (IsTaggedWith(kFreeEntryTag)) {
+      return static_cast<uint32_t>((encoded_word_ & kPayloadMask) >>
+                                   kPayloadShift);
+    } else {
+      return std::nullopt;
+    }
   }
 
   void SetTag(TagType tag) {
