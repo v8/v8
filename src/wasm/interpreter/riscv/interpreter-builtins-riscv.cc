@@ -1026,7 +1026,8 @@ void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
     __ LoadFPRImmediate(kSingleRegZero, 0.0f);
 
     // Initialize the root register.
-    __ Move(kRootRegister, a0);  //? Is right
+    // see wasm-interpreter-runtime.cc:CallWasmToJSBuiltin
+    __ Move(kRootRegister, a2);
 
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Initialize the pointer cage base register.
