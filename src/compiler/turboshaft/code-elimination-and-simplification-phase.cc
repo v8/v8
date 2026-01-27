@@ -11,6 +11,7 @@
 #include "src/compiler/turboshaft/instruction-selection-normalization-reducer.h"
 #include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 #include "src/compiler/turboshaft/load-store-verification-reducer.h"
+#include "src/compiler/turboshaft/maglev-assert-types-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/stack-check-lowering-reducer.h"
 #include "src/objects/objects-inl.h"
@@ -24,8 +25,8 @@ namespace v8::internal::compiler::turboshaft {
 void CodeEliminationAndSimplificationPhase::Run(PipelineData* data,
                                                 Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(data->broker(), DEBUG_BOOL);
-
-  CopyingPhase<DeadCodeEliminationReducer, StackCheckLoweringReducer,
+  CopyingPhase<MaglevAssertTypesReducer, DeadCodeEliminationReducer,
+               StackCheckLoweringReducer,
 #ifdef DEBUG
                StoreLoadVerificationReducer,
 #endif

@@ -3579,6 +3579,7 @@ filegroup(
         "src/compiler/turboshaft/machine-lowering-phase.cc",
         "src/compiler/turboshaft/machine-lowering-phase.h",
         "src/compiler/turboshaft/machine-lowering-reducer-inl.h",
+        "src/compiler/turboshaft/maglev-assert-types-reducer.h",
         "src/compiler/turboshaft/turbolev-early-lowering-reducer-inl.h",
         "src/compiler/turboshaft/turbolev-frontend-pipeline.cc",
         "src/compiler/turboshaft/turbolev-frontend-pipeline.h",

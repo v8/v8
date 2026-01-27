@@ -96,14 +96,6 @@ class DebugFeatureLoweringReducer : public Next {
           __ output_graph().Get(input).ToString().c_str());
   }
 
-  V<None> REDUCE(CheckMaglevType)(V<Object> input,
-                                  maglev::NodeType expected_type) {
-    __ template CallBuiltin<builtin::CheckMaglevType>(
-        {.object = input,
-         .type = __ SmiConstant(Smi::FromEnum(expected_type))});
-    return V<None>::Invalid();
-  }
-
  private:
   Isolate* isolate_ = __ data() -> isolate();
   JSHeapBroker* broker_ = __ data() -> broker();
