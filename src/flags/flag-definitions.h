@@ -2647,7 +2647,7 @@ DEFINE_BOOL(memory_pool_release_before_memory_pressure_gcs, true,
             "or last resort GCs")
 DEFINE_BOOL(memory_pool_release_on_malloc_failures, false,
             "discard the memory pool on malloc retries")
-DEFINE_INT(memory_pool_timeout, 8, "Release pooled pages after X seconds.")
+DEFINE_SIZE_T(memory_pool_timeout, 8, "Release pooled pages after X seconds.")
 DEFINE_BOOL(large_page_pool, true, "Add large pages to the page pool")
 DEFINE_SIZE_T(max_large_page_pool_size, 32,
               "Maximum size of pooled large pages in MB.")
