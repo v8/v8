@@ -1011,6 +1011,9 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     // See comment for WasmMemoryObject::FixUpResizableArrayBuffer for details.
     auto backing_store = array_buffer->GetBackingStore();
     if (backing_store && backing_store->is_wasm_memory()) {
+      DCHECK_EQ(
+          backing_store->is_resizable_by_js(),
+          !backing_store->is_shared() && array_buffer->is_resizable_by_js());
       if (array_buffer->is_resizable_by_js()) {
         Handle<Object> memory =
             Object::GetProperty(

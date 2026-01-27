@@ -400,11 +400,14 @@ class WasmMemoryObject
   // Both divergences are impossible for JS-created buffers.
   void FixUpResizableArrayBuffer(Tagged<JSArrayBuffer> new_buffer);
 
-  // Detaches the existing buffer, makes a new buffer backed by
-  // new_backing_store, and update all the links.
+  // Makes a new buffer backed by backing_store and update all the links.
+  // The resizability of the new AB is determined by the bit on the backing
+  // store, except if `override_resizable` is given (for shared ABs where the
+  // bit on the backing store is not authoritative).
   static DirectHandle<JSArrayBuffer> RefreshBuffer(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      std::shared_ptr<BackingStore> new_backing_store);
+      std::shared_ptr<BackingStore> backing_store,
+      std::optional<ResizableFlag> override_resizable = {});
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
                                         DirectHandle<WasmMemoryObject>,
@@ -415,15 +418,11 @@ class WasmMemoryObject
   V8_EXPORT_PRIVATE static DirectHandle<JSArrayBuffer> GetArrayBuffer(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
 
-  // Makes the ArrayBuffer fixed-length. Assumes the current ArrayBuffer is
-  // resizable. Detaches the existing buffer if it is not shared.
-  static DirectHandle<JSArrayBuffer> ToFixedLengthBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
-
-  // Makes the ArrayBuffer resizable by JS. Assumes the current ArrayBuffer is
-  // fixed-length. Detaches the existing buffer if it is not shared.
-  static DirectHandle<JSArrayBuffer> ToResizableBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
+  // Changes resizability of the attached ArrayBuffer.
+  // Detaches the existing buffer if it is not shared.
+  static DirectHandle<JSArrayBuffer> ChangeArrayBufferResizability(
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
+      ResizableFlag new_resizability);
 
   static constexpr int kNoMaximum = -1;
 
