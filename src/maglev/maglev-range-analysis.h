@@ -15,13 +15,12 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/utils/bit-vector.h"
-#include "src/zone/zone-containers.h"
 
-#define TRACE_RANGE(...)                                     \
-  do {                                                       \
-    if (V8_UNLIKELY(v8_flags.trace_maglev_range_analysis)) { \
-      StdoutStream{} << __VA_ARGS__ << std::endl;            \
-    }                                                        \
+#define TRACE_RANGE(...)                                      \
+  do {                                                        \
+    if (V8_UNLIKELY(v8_flags.trace_maglev_range_analysis)) {  \
+      StdoutStream{} << "[ranges] " __VA_ARGS__ << std::endl; \
+    }                                                         \
   } while (false)
 
 namespace v8::internal::maglev {
@@ -72,29 +71,35 @@ class NodeRanges {
     const Range* current_range = map.find(node);
     if (!current_range) {
       map = map.insert(zone(), node, range);
+      TRACE_RANGE("Adding to Block b" << block->id() << ": "
+                                      << PrintNodeBrief(node) << ": " << range);
     } else {
       Range new_range = Range::Union(*current_range, range);
-      TRACE_RANGE("[range]: Union update: "
-                  << PrintNodeLabel(node) << ": " << PrintNode(node)
-                  << ", from: " << *current_range << ", to: " << new_range);
-
       map = map.insert(zone(), node, new_range);
+      TRACE_RANGE("Union update in Block b"
+                  << block->id() << ": " << PrintNodeBrief(node)
+                  << ", from: " << *current_range << " to: " << new_range);
     }
   }
 
   inline void ProcessGraph();
 
+  void PrintRangesForBlock(int id) {
+    std::cout << "Block b" << id << ":";
+    if (!ranges_initialized_.Contains(id)) {
+      std::cout << " ranges not initialized.\n";
+    }
+    std::cout << "\n";
+    RangeMap map = ranges_[id];
+    for (auto [node, range] : map) {
+      std::cout << "  " << PrintNodeBrief(node) << ": " << range << std::endl;
+    }
+  }
+
   void Print() {
     std::cout << "Node ranges:\n";
     for (BasicBlock* block : graph_->blocks()) {
-      int id = block->id();
-      if (!ranges_initialized_.Contains(id)) continue;
-      std::cout << "Block b" << id << ":\n";
-      RangeMap map = ranges_[id];
-      for (auto [node, range] : map) {
-        std::cout << "  " << PrintNodeLabel(node) << ": " << PrintNode(node)
-                  << ": " << range << std::endl;
-      }
+      PrintRangesForBlock(block->id());
     }
   }
 
@@ -110,11 +115,21 @@ class NodeRanges {
     if (!ranges_initialized_.Contains(block->id())) {
       map = pred_map;
       ranges_initialized_.Add(block->id());
+      if (V8_UNLIKELY(v8_flags.trace_maglev_range_analysis)) {
+        TRACE_RANGE("Initializing Block b" << block->id() << " from Block b"
+                                           << pred->id());
+        PrintRangesForBlock(block->id());
+      }
       return;
     }
     map = map.merge_into(zone(), pred_map, [&](Range r1, const Range r2) {
       return Range::Union(r1, r2);
     });
+    if (V8_UNLIKELY(v8_flags.trace_maglev_range_analysis)) {
+      TRACE_RANGE("Merging Block b" << pred->id() << " into Block b"
+                                    << block->id());
+      PrintRangesForBlock(block->id());
+    }
   }
 
   void NarrowUpdate(BasicBlock* block, ValueNode* node, Range narrowed_range) {
@@ -126,22 +141,20 @@ class NodeRanges {
     DCHECK(ranges_initialized_.Contains(block->id()));
     const Range* current_range = map.find(node);
     if (!current_range) {
-      TRACE_RANGE("[range]: Narrow update: " << PrintNodeLabel(node) << ": "
-                                             << PrintNode(node) << ": "
+      TRACE_RANGE("Narrow update in Block b" << block->id() << ": "
+                                             << PrintNodeBrief(node) << ": "
                                              << narrowed_range);
       map = map.insert(zone(), node, narrowed_range);
     } else {
       if (!narrowed_range.is_empty()) {
-        TRACE_RANGE("[range]: Narrow update: " << PrintNodeLabel(node) << ": "
-                                               << PrintNode(node)
-                                               << ", from: " << *current_range
-                                               << ", to: " << narrowed_range);
+        TRACE_RANGE("Narrow update in Block b"
+                    << block->id() << ": " << PrintNodeBrief(node) << ", from: "
+                    << *current_range << ", to: " << narrowed_range);
         map = map.insert(zone(), node, narrowed_range);
       } else {
-        TRACE_RANGE("[range]: Failed narrowing update: "
-                    << PrintNodeLabel(node) << ": " << PrintNode(node)
-                    << ", from: " << *current_range
-                    << ", to: " << narrowed_range);
+        TRACE_RANGE("Failed narrowing update in Block b"
+                    << block->id() << PrintNodeBrief(node) << ", from: "
+                    << *current_range << ", to: " << narrowed_range);
       }
     }
   }
@@ -459,7 +472,7 @@ class RangeProcessor {
     if (!block->has_phi()) return true;
     DCHECK_EQ(backedge_pred, block->backedge_predecessor());
     ranges_.EnsureMapExistsFor(block);  // TODO(victorgomes): not sure if needed
-    TRACE_RANGE("[range] >>> Processing backedges for block b" << block->id());
+    TRACE_RANGE(">>>> Processing backedges for Block b" << block->id());
     int backedge_id = block->state()->predecessor_count() - 1;
     bool is_done = true;
     for (Phi* phi : *block->phis()) {
@@ -471,17 +484,16 @@ class RangeProcessor {
         // take its range into consideration when widening.
         widened = Range::Intersect(Range::Int32(), widened);
       }
-      TRACE_RANGE("[ranges]: Processing " << PrintNodeLabel(phi) << ": "
-                                          << PrintNode(phi) << ":");
-      TRACE_RANGE("  before = " << range);
-      TRACE_RANGE("  new    = " << backedge);
-      TRACE_RANGE("  widen  = " << widened);
+      TRACE_RANGE("Processing " << PrintNodeBrief(phi) << ":");
+      TRACE_RANGE("    before = " << range);
+      TRACE_RANGE("    new    = " << backedge);
+      TRACE_RANGE("    widen  = " << widened);
       if (range != widened) {
-        TRACE_RANGE("[range] FIXPOINT NOT REACHED");
+        TRACE_RANGE("FIXPOINT NOT REACHED");
         is_done = false;
         ranges_.UnionUpdate(block, phi, widened);
       }
-      TRACE_RANGE("[range] <<<< End of processing backedges for block b"
+      TRACE_RANGE("<<<< End of processing backedges for Block b"
                   << block->id());
     }
     return is_done;
