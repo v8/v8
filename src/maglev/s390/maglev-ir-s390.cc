@@ -61,6 +61,7 @@ void Int32Increment::GenerateCode(MaglevAssembler* masm,
   Register value = ToRegister(ValueInput());
   Register out = ToRegister(result());
   __ AddS32(out, value, Operand(1));
+  __ LoadS32(out, out);
 }
 
 void Int32Decrement::SetValueLocationConstraints() {
@@ -71,7 +72,8 @@ void Int32Decrement::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
   Register value = ToRegister(ValueInput());
   Register out = ToRegister(result());
-  __ SubS32(out, value, Operand(1));
+  __ AddS32(out, value, Operand(-1));
+  __ LoadS32(out, out);
 }
 
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
