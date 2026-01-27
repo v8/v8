@@ -813,7 +813,7 @@ void Accessors::InstantiateLazyClosureGetter(
 
   DirectHandle<SharedFunctionInfo> sfi;
   bool found = false;
-  int properties_count = description->length();
+  int properties_count = description->boilerplate_properties_count();
 
   for (int i = 0; i < properties_count; ++i) {
     if (description->name(i) == *property_name) {

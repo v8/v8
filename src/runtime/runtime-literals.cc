@@ -600,7 +600,9 @@ DirectHandle<Object> InstantiateIfSharedFunctionInfo(
     // already called SetPrototypeProperties on it and some closures were
     // set up. We can only take the lazy closure path if the context
     // is the same.
-    if (closure_info->context() == *context) {
+    if (closure_info->context() == *context &&
+        *object_boilerplate_description ==
+            closure_info->boilerplate_description()) {
       // fast path
       shared->set_feedback_slot(current_slot);
     } else {
