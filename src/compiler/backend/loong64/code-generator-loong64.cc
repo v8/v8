@@ -2746,7 +2746,97 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 
 void CodeGenerator::AssembleArchSelect(Instruction* instr,
                                        FlagsCondition condition) {
-  UNIMPLEMENTED();
+  Loong64OperandConverter i(this, instr);
+  // The result register is always the last output of the instruction.
+  size_t output_index = instr->OutputCount() - 1;
+  // We don't know how many inputs were consumed by the condition, so we have to
+  // calculate the indices of the last two inputs.
+  DCHECK_GE(instr->InputCount(), 4);
+  size_t true_value_index = instr->InputCount() - 2;
+  size_t false_value_index = instr->InputCount() - 1;
+
+  if (instr->arch_opcode() == kLoong64Tst) {
+    Condition cc = FlagsConditionToConditionTst(condition);
+    Register result = i.OutputRegister(output_index);
+    Register v_true = i.InputOrZeroRegister(true_value_index);
+    Register v_false = i.InputOrZeroRegister(false_value_index);
+    if (v_true == zero_reg || v_false == zero_reg) {
+      if (v_true == zero_reg) {
+        v_true = v_false;
+        cc = NegateCondition(cc);
+      }
+      if (cc == eq)
+        __ masknez(result, v_true, t8);
+      else
+        __ maskeqz(result, v_true, t8);
+    } else if (result == v_true || result == v_false) {
+      if (result == v_false) {
+        v_false = v_true;
+        cc = NegateCondition(cc);
+      }
+      Label done;
+      __ Branch(&done, cc, t8, Operand(0));
+      __ Move(result, v_false);
+      __ bind(&done);
+    } else {
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      if (cc == eq) {
+        Register temp = v_true;
+        v_true = v_false;
+        v_false = temp;
+      }
+      __ maskeqz(scratch, v_true, t8);
+      __ masknez(result, v_false, t8);
+      __ or_(result, scratch, result);
+    }
+    UseScratchRegisterScope temps(masm());
+    temps.Include(t8);
+    return;
+  } else if (instr->arch_opcode() == kLoong64Cmp64 ||
+             instr->arch_opcode() == kLoong64Cmp32) {
+    Condition cc = FlagsConditionToConditionCmp(condition);
+    Register left = i.InputRegister(0);
+    Operand right = i.InputOperand(1);
+    Register result = i.OutputRegister(output_index);
+    Register v_true = i.InputOrZeroRegister(true_value_index);
+    Register v_false = i.InputOrZeroRegister(false_value_index);
+    if (v_true == zero_reg || v_false == zero_reg) {
+      if (v_true == zero_reg) {
+        v_true = v_false;
+        cc = NegateCondition(cc);
+      }
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ CompareWord(cc, scratch, left, right);
+      __ maskeqz(result, v_true, scratch);
+      return;
+    } else if (result == v_true || result == v_false) {
+      if (result == v_false) {
+        v_false = v_true;
+        cc = NegateCondition(cc);
+      }
+      Label done;
+      __ Branch(&done, cc, left, right);
+      __ Move(result, v_false);
+      __ bind(&done);
+    } else {
+      Label true_label, done;
+      __ Branch(&true_label, cc, left, right);
+      __ Move(result, v_false);
+      __ Branch(&done);
+      __ bind(&true_label);
+      __ Move(result, v_true);
+      __ bind(&done);
+    }
+    return;
+  } else {
+    PrintF("AssembleArchSelect Unimplemented arch_opcode is : %d\n",
+           instr->arch_opcode());
+    TRACE("UNIMPLEMENTED code_generator_loong64: %s at line %d\n", __FUNCTION__,
+          __LINE__);
+    UNIMPLEMENTED();
+  }
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {

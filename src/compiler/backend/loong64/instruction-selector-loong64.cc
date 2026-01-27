@@ -1540,24 +1540,32 @@ static Instruction* VisitCompare(InstructionSelector* selector,
                                  InstructionOperand left,
                                  InstructionOperand right,
                                  FlagsContinuation* cont) {
+  Loong64OperandGenerator g(selector);
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = left;
+  inputs[input_count++] = right;
+  if (cont->IsSelect()) {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
+  }
 #ifdef V8_COMPRESS_POINTERS
   if (opcode == kLoong64Cmp32) {
-    Loong64OperandGenerator g(selector);
-    InstructionOperand inputs[] = {left, right};
     if (right.IsImmediate()) {
       InstructionOperand temps[1] = {g.TempRegister()};
-      return selector->EmitWithContinuation(opcode, 0, nullptr,
-                                            arraysize(inputs), inputs,
-                                            arraysize(temps), temps, cont);
+      return selector->EmitWithContinuation(opcode, 0, nullptr, input_count,
+                                            inputs, arraysize(temps), temps,
+                                            cont);
     } else {
       InstructionOperand temps[2] = {g.TempRegister(), g.TempRegister()};
-      return selector->EmitWithContinuation(opcode, 0, nullptr,
-                                            arraysize(inputs), inputs,
-                                            arraysize(temps), temps, cont);
+      return selector->EmitWithContinuation(opcode, 0, nullptr, input_count,
+                                            inputs, arraysize(temps), temps,
+                                            cont);
     }
   }
 #endif
-  return selector->EmitWithContinuation(opcode, left, right, cont);
+  return selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs,
+                                        cont);
 }
 
 // Shared routine for multiple float32 compare operations.
@@ -2941,7 +2949,7 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(OpIndex node) {
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
                                                         int first_input_index,
                                                         OpIndex node) {
-  UNREACHABLE();
+  continuation_outputs_.push_back(g->DefineAsRegister(node));
 }
 
 // static
@@ -2958,7 +2966,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesEven |
-         MachineOperatorBuilder::kFloat32RoundTiesEven;
+         MachineOperatorBuilder::kFloat32RoundTiesEven |
+         MachineOperatorBuilder::kWord64Select;
 }
 
 // static

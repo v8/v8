@@ -510,7 +510,7 @@ void MacroAssembler::ResolveTrustedPointerHandle(
     masknez(destination, destination, scratch);
   } else {
     Sub_d(tag_reg, tag_reg, Operand(tag_range.first));
-    Slt(scratch, tag_reg, Operand(tag_range.last - tag_range.first));
+    Sleu(scratch, tag_reg, Operand(tag_range.last - tag_range.first));
     maskeqz(destination, destination, scratch);
   }
 
