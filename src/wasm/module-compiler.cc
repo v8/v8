@@ -2447,7 +2447,8 @@ class ValidateFunctionsStreamingJob final : public JobTask {
   void Run(JobDelegate* delegate) override {
     TRACE_EVENT0("v8.wasm", "wasm.ValidateFunctionsStreaming");
     using Unit = ValidateFunctionsStreamingJobData::Unit;
-    Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
+    Zone validation_zone{GetWasmEngine()->allocator(),
+                         "Wasm ValidateFunctionsStreamingJob"};
     WasmDetectedFeatures detected_features;
     while (Unit unit = data_->GetUnit()) {
       validation_zone.Reset();

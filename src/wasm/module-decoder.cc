@@ -557,7 +557,7 @@ class ValidateFunctionsTask : public JobTask {
                  "wasm.ValidateFunctionsTask");
 
     WasmDetectedFeatures detected_features;
-    Zone zone(GetWasmEngine()->allocator(), ZONE_NAME);
+    Zone zone(GetWasmEngine()->allocator(), "Wasm ValidateFunctionsTask");
     do {
       // Get the index of the next function to validate.
       // {fetch_add} might overrun {after_last_function_} by a bit. Since the
