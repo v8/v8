@@ -44,6 +44,10 @@
 #include "src/diagnostics/etw-jit-win.h"
 #endif  // V8_ENABLE_ETW_STACK_WALKING
 
+#if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+#include "src/sandbox/external-strings-cage.h"
+#endif  // V8_ENABLE_SANDBOX && V8_ENABLE_MEMORY_CORRUPTION_API
+
 namespace v8 {
 namespace internal {
 
@@ -217,6 +221,10 @@ void V8::Initialize() {
   Sandbox::InitializeDefaultOncePerProcess(GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, Sandbox::current()->size());
 
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  ExternalStringsCage::InitializeOncePerProcess();
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+
   // Enable sandbox testing mode if requested.
   //
   // This will install the sandbox crash filter to ignore all crashes that do
@@ -272,6 +280,9 @@ void V8::Dispose() {
   RegisteredExtension::UnregisterAll();
   FlagList::ReleaseDynamicAllocations();
   IsolateGroup::TearDownOncePerProcess();
+#if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+  ExternalStringsCage::TearDown();
+#endif  // V8_ENABLE_SANDBOX && V8_ENABLE_MEMORY_CORRUPTION_API
   AdvanceStartupState(V8StartupState::kV8Disposed);
 }
 

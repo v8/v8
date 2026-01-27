@@ -14,21 +14,46 @@
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
 #include "src/base/virtual-address-space.h"
+#include "src/init/v8.h"
 #include "src/utils/allocation.h"
 
 namespace v8::internal {
 
 #if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
 
+// static
+ExternalStringsCage* ExternalStringsCage::instance_ = nullptr;
+
+// static
+ExternalStringsCage* ExternalStringsCage::GetInstance() {
+  CHECK_NOT_NULL(instance_);
+  return instance_;
+}
+
+// static
+void ExternalStringsCage::InitializeOncePerProcess() {
+  CHECK_NULL(instance_);
+  instance_ = new ExternalStringsCage();
+}
+
+// static
+void ExternalStringsCage::TearDown() {
+  delete instance_;
+  instance_ = nullptr;
+}
+
+void ExternalStringsCage::Seal(void* ptr, size_t size) {
+  size_t alloc_size = GetAllocSize(size);
+  vm_cage_.page_allocator()->SetPermissions(ptr, alloc_size,
+                                            PageAllocator::kRead);
+  // TODO(crbug/360048056): Also use the seal syscall when it's supported.
+}
+
 ExternalStringsCage::ExternalStringsCage()
     : page_size_(GetPlatformPageAllocator()->AllocatePageSize()) {
   CHECK_EQ(kMaxContentsSize % page_size_, 0);
   CHECK_EQ(kGuardRegionSize % page_size_, 0);
-}
 
-ExternalStringsCage::~ExternalStringsCage() = default;
-
-bool ExternalStringsCage::Initialize() {
   VirtualMemoryCage::ReservationParams params = {
       .page_allocator = GetPlatformPageAllocator(),
       .reservation_size = kMaxContentsSize + kGuardRegionSize,
@@ -40,20 +65,17 @@ bool ExternalStringsCage::Initialize() {
           base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
       .page_freeing_mode = base::PageFreeingMode::kMakeInaccessible,
   };
-  if (!vm_cage_.InitReservation(params)) return false;
+  if (!vm_cage_.InitReservation(params)) {
+    V8::FatalProcessOutOfMemory(
+        nullptr, "Failed to reserve virtual memory for ExternalStringsCage");
+  }
 
   Address guard_region_begin = vm_cage_.base() + kMaxContentsSize;
   CHECK(vm_cage_.page_allocator()->AllocatePagesAt(
       guard_region_begin, kGuardRegionSize, PageAllocator::kNoAccess));
-  return true;
 }
 
-void ExternalStringsCage::Seal(void* ptr, size_t size) {
-  size_t alloc_size = GetAllocSize(size);
-  vm_cage_.page_allocator()->SetPermissions(ptr, alloc_size,
-                                            PageAllocator::kRead);
-  // TODO(crbug/360048056): Also use the seal syscall when it's supported.
-}
+ExternalStringsCage::~ExternalStringsCage() = default;
 
 size_t ExternalStringsCage::GetAllocSize(size_t string_size) const {
   CHECK_GT(string_size, 0);

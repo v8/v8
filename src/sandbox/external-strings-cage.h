@@ -20,9 +20,9 @@ namespace v8::internal {
 
 #if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
 
-// Manages a virtual memory range for hosting external string contents, with an
-// extra reservation at the end in order to fit any read past a string's buffer
-// end using a corrupted length.
+// A singleton object that manages a virtual memory range for hosting external
+// string contents, with an extra reservation at the end in order to fit any
+// read past a string's buffer end using a corrupted length.
 //
 // Currently only used in memory_corruption_api-enabled builds, in order to
 // distinguish external string OOB reads from other issues.
@@ -59,13 +59,13 @@ class V8_EXPORT_PRIVATE ExternalStringsCage final {
     const size_t size_;
   };
 
-  ExternalStringsCage();
-  ~ExternalStringsCage();
-
   ExternalStringsCage(const ExternalStringsCage&) = delete;
   ExternalStringsCage& operator=(const ExternalStringsCage&) = delete;
 
-  bool Initialize();
+  static ExternalStringsCage* GetInstance();
+  // On failure, terminates the execution.
+  static void InitializeOncePerProcess();
+  static void TearDown();
 
   // Allocates a buffer for a string of `size` characters with the `T` type.
   // Returns null if `size` is zero.
@@ -85,9 +85,14 @@ class V8_EXPORT_PRIVATE ExternalStringsCage final {
   }
 
  private:
+  ExternalStringsCage();
+  ~ExternalStringsCage();
+
   size_t GetAllocSize(size_t string_size) const;
   V8_EXPORT_PRIVATE void* AllocateRaw(size_t size);
   V8_EXPORT_PRIVATE void Free(void* ptr, size_t size);
+
+  static ExternalStringsCage* instance_;
 
   const size_t page_size_;
   VirtualMemoryCage vm_cage_;

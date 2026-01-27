@@ -41,6 +41,10 @@
 #include <sanitizer/common_interface_defs.h>
 #endif
 
+#if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
+#include "src/sandbox/external-strings-cage.h"
+#endif  // V8_ENABLE_SANDBOX && V8_ENABLE_MEMORY_CORRUPTION_API
+
 namespace v8 {
 namespace internal {
 
@@ -663,15 +667,6 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   Handle<String> name =
       isolate->factory()->NewStringFromAsciiChecked("Sandbox");
   JSObject::AddProperty(isolate, global, name, sandbox, DONT_ENUM);
-
-  // Remember the address range belonging to the external strings cage, to be
-  // used for crash filters.
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-  g_external_strings_cage_region =
-      i_isolate->isolate_group()->external_strings_cage()->reservation_region();
-  fprintf(stderr, "External strings cage bounds: [%p,%p)\n",
-          reinterpret_cast<void*>(g_external_strings_cage_region.begin()),
-          reinterpret_cast<void*>(g_external_strings_cage_region.end()));
 }
 
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
@@ -1073,6 +1068,16 @@ void SandboxTesting::Enable(Mode mode) {
   fprintf(stderr, "Sandbox bounds: [%p,%p)\n",
           reinterpret_cast<void*>(Sandbox::current()->base()),
           reinterpret_cast<void*>(Sandbox::current()->end()));
+
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  // Remember the address range belonging to the external strings cage, to be
+  // used for crash filters.
+  g_external_strings_cage_region =
+      i::ExternalStringsCage::GetInstance()->reservation_region();
+  fprintf(stderr, "External strings cage bounds: [%p,%p)\n",
+          reinterpret_cast<void*>(g_external_strings_cage_region.begin()),
+          reinterpret_cast<void*>(g_external_strings_cage_region.end()));
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
 #ifdef V8_OS_LINUX
   InstallCrashFilter();

@@ -70,8 +70,7 @@ class OwningExternalStringResourceImpl : public Base {
 
   static Storage CreateUninitializedStorage(size_t length) {
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-    return IsolateGroup::current()->external_strings_cage()->Allocate<CharT>(
-        length);
+    return ExternalStringsCage::GetInstance()->Allocate<CharT>(length);
 #else   // V8_ENABLE_MEMORY_CORRUPTION_API
     return std::make_unique_for_overwrite<CharT[]>(length);
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
@@ -79,8 +78,7 @@ class OwningExternalStringResourceImpl : public Base {
 
   void SealIfSupported() {
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-    IsolateGroup::current()->external_strings_cage()->Seal(storage_.get(),
-                                                           length_);
+    ExternalStringsCage::GetInstance()->Seal(storage_.get(), length_);
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
   }
 
