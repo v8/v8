@@ -96,7 +96,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '1e050ef1abfc2d85451625b1f257eba703670a65',
+  'partition_alloc_version': 'e1b3bee8ba37d08bb642265ccb78e54cedd00a77',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -122,9 +122,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1addfac2fd54c1cfb1ab21009cb84e0a78280806',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '312c38c580af22dca2f3377c0d2681d7b6f0fe44',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '4dc32b3f510b330137385e2b3a631ca8e13a8e22',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6a18683f555b4ac8b05ac8395c29c84483ac9588',
   'buildtools/linux64': {
     'packages': [
       {
@@ -212,7 +212,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'be7114f0cf3472cca53ea259530b4a8f23777dae',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '145e14f52facfa0b5a34cca92b22dade15943a0c',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -486,7 +486,7 @@ deps = {
   'tools/win':
     Var('chromium_url') + '/chromium/src/tools/win' + '@' + 'baacfc6d5986b07abe0503216b491e234b94ba79',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '37133fcc2fb93e454471cec6501e6547c74108c0',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '4c31de6b78b7a8103d40f8569ba9f92efd36bc1d',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
