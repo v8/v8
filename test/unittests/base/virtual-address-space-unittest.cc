@@ -7,6 +7,10 @@
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#ifdef V8_OS_LINUX
+#include "src/base/platform/platform-linux.h"
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -178,8 +182,7 @@ TEST(VirtualAddressSpaceTest, TestSubspace) {
   constexpr size_t kSubspaceSize = 32 * MB;
   constexpr size_t kSubSubspaceSize = 16 * MB;
 
-  VirtualAddressSpace rootspace_impl;
-  v8::VirtualAddressSpace& rootspace = rootspace_impl;
+  VirtualAddressSpace rootspace;
 
   if (!rootspace.CanAllocateSubspaces()) return;
   size_t subspace_alignment = rootspace.allocation_granularity();
@@ -221,8 +224,7 @@ TEST(VirtualAddressSpaceTest, TestEmulatedSubspace) {
   // and the unmapped region.
   constexpr size_t kSubspaceMappedSize = 1 * MB;
 
-  VirtualAddressSpace rootspace_impl;
-  v8::VirtualAddressSpace& rootspace = rootspace_impl;
+  VirtualAddressSpace rootspace;
 
   size_t subspace_alignment = rootspace.allocation_granularity();
   ASSERT_TRUE(
@@ -263,6 +265,60 @@ TEST(VirtualAddressSpaceTest, TestEmulatedSubspace) {
   // allocate pages in it, so no TestParentSpaceCannotAllocateInChildSpace.
   TestSharedPageAllocation(&subspace);
 }
+
+#ifdef V8_OS_LINUX
+// Test uses SignalSafeMapsParser, which is only available on Linux.
+TEST(VirtualAddressSpaceTest, TestSubspaceNaming) {
+  constexpr size_t kSubspaceSize = 32 * MB;
+
+  VirtualAddressSpace rootspace;
+  if (!rootspace.CanAllocateSubspaces()) GTEST_SKIP();
+
+  size_t subspace_alignment = rootspace.allocation_granularity();
+  auto subspace = rootspace.AllocateSubspace(VirtualAddressSpace::kNoHint,
+                                             kSubspaceSize, subspace_alignment,
+                                             PagePermissions::kReadWrite);
+  ASSERT_TRUE(subspace);
+
+  const std::string kName = "v8-test-subspace";
+  if (!subspace->SetName(kName)) {
+    GTEST_SKIP() << "Memory region naming not supported.";
+  }
+
+  size_t page_size = subspace->page_size();
+
+  auto has_name = [&](Address addr, const std::string& expected_name) {
+    base::SignalSafeMapsParser parser;
+    EXPECT_TRUE(parser.IsValid());
+    while (auto entry = parser.Next()) {
+      if (addr >= entry->start && addr < entry->end) {
+        return strstr(entry->pathname, expected_name.c_str()) != nullptr;
+      }
+    }
+    return false;
+  };
+
+  EXPECT_TRUE(has_name(subspace->base(), kName));
+  EXPECT_TRUE(has_name(subspace->base() + subspace->size() - 1, kName));
+
+  // Allocate a page and check that it has the correct name.
+  Address page =
+      subspace->AllocatePages(VirtualAddressSpace::kNoHint, page_size,
+                              page_size, PagePermissions::kReadWrite);
+  ASSERT_NE(kNullAddress, page);
+  EXPECT_TRUE(has_name(page, kName));
+
+  // Free the page and check that the address range still has the correct name.
+  subspace->FreePages(page, page_size);
+  EXPECT_TRUE(has_name(page, kName));
+
+  // Reallocate the same page and check that it still has the correct name.
+  Address reallocated_page = subspace->AllocatePages(
+      page, page_size, page_size, PagePermissions::kReadWrite);
+  ASSERT_EQ(reallocated_page, page);
+  EXPECT_TRUE(has_name(reallocated_page, kName));
+}
+#endif  // V8_OS_LINUX
 
 }  // namespace base
 }  // namespace v8

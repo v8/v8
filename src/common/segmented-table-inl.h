@@ -102,6 +102,7 @@ void SegmentedTable<Entry, size>::Initialize() {
     V8::FatalProcessOutOfMemory(
         nullptr, "SegmentedTable::InitializeTable (subspace allocation)");
   }
+  vas_->SetName(kPointerTableAddressSpaceName);
 #else  // V8_TARGET_ARCH_64_BIT
   static_assert(!kUseContiguousMemory);
   vas_ = root_space;

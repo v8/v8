@@ -604,6 +604,20 @@ void OS::SetDataReadOnly(void* address, size_t size) {
 }
 
 // static
+bool OS::SetMemoryRegionName(const void* address, size_t size,
+                             const char* name) {
+// Currently, custom virtual memory region names are disabled on Android as
+// they cause test failures in some emulator builds.
+// TODO(478678911): investigate where the failures comes from.
+#if defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID) && \
+    defined(PR_SET_VMA_ANON_NAME)
+  return prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, address, size, name) == 0;
+#else
+  return false;
+#endif
+}
+
+// static
 bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());

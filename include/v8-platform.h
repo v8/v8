@@ -1181,6 +1181,22 @@ class VirtualAddressSpace {
   virtual V8_WARN_UNUSED_RESULT bool DecommitPages(Address address,
                                                    size_t size) = 0;
 
+  /**
+   * Sets a name for the address space.
+   *
+   * This is mostly useful for debugging tools. If supported by the system, the
+   * name will for example show up in /proc/$pid/maps next to the virtual
+   * address reservation:
+   *
+   *     2ae700000000-2ae700010000 r--p 00000000 00:00 0  [anon:foo-bar]
+   *
+   * \param name The name of the address space. The name must only contain
+   * alphanumeric characters or dashes.
+   *
+   * \returns true on success, false otherwise.
+   */
+  virtual bool SetName(const std::string& name) { return false; }
+
  private:
   const size_t page_size_;
   const size_t allocation_granularity_;
