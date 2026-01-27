@@ -292,7 +292,7 @@ class ImplementationVisitor::MacroInliningScope {
 VisitResult ImplementationVisitor::InlineMacro(
     Macro* macro, std::optional<LocationReference> this_reference,
     const std::vector<VisitResult>& arguments,
-    const std::vector<Block*> label_blocks) {
+    const std::vector<Block*>& label_blocks) {
   MacroInliningScope macro_inlining_scope(this, macro);
   CurrentScope::Scope current_scope(macro);
   BindingsManagersScope bindings_managers_scope;
@@ -5042,7 +5042,7 @@ namespace {
 void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
                                       const std::string& gen_name,
                                       const std::string& gen_name_T,
-                                      const std::string template_params) {
+                                      const std::string& template_params) {
   impl << template_params << "\n";
   impl << "void " << gen_name_T << "::" << type->name()
        << "Print(std::ostream& os) {\n";

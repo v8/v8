@@ -193,7 +193,7 @@ MemoryMeasurement::MemoryMeasurement(Isolate* isolate)
 bool MemoryMeasurement::EnqueueRequest(
     std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
     v8::MeasureMemoryExecution execution,
-    const std::vector<Handle<NativeContext>> contexts) {
+    const std::vector<Handle<NativeContext>>& contexts) {
   int length = static_cast<int>(contexts.size());
   DirectHandle<WeakFixedArray> weak_contexts =
       isolate_->factory()->NewWeakFixedArray(length);
