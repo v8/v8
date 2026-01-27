@@ -7,9 +7,11 @@
 
 #include <atomic>
 #include <memory>
+#include <unordered_set>
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/logging/tracing-flags.h"
 
 namespace v8 {
@@ -74,6 +76,33 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
   Isolate* const isolate_ = nullptr;
   std::atomic<size_t> current_memory_usage_{0};
   std::atomic<size_t> max_memory_usage_{0};
+};
+
+class TracingAccountingAllocator : public AccountingAllocator {
+ public:
+  explicit TracingAccountingAllocator(Isolate* isolate)
+      : AccountingAllocator(isolate) {}
+  ~TracingAccountingAllocator() = default;
+
+ protected:
+  void TraceAllocateSegmentImpl(Segment* segment) override;
+  void TraceZoneCreationImpl(const Zone* zone) override;
+  void TraceZoneDestructionImpl(const Zone* zone) override;
+
+ private:
+  void UpdateMemoryTrafficAndReportMemoryUsage(size_t memory_traffic_delta);
+  void Dump(std::ostringstream& out, bool dump_details);
+
+  std::atomic<size_t> nesting_depth_{0};
+
+  base::Mutex mutex_;
+  std::unordered_set<const Zone*> active_zones_;
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+  TypeStats type_stats_;
+#endif
+  std::ostringstream buffer_;
+  // This value is increased on both allocations and deallocations.
+  size_t memory_traffic_since_last_report_ = 0;
 };
 
 }  // namespace internal
