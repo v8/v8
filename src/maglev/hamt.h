@@ -455,7 +455,7 @@ class HAMT {
 
     Branch* new_branch = CloneBranch(zone, branch);
     new_branch->set_child(idx, merged);
-    return branch;
+    return new_branch;
   }
 
   template <typename Func>

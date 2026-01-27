@@ -690,7 +690,6 @@ DEFINE_BOOL(trace_maglev_range_analysis, false,
 DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_range_analysis)
 DEFINE_BOOL(maglev_range_verification, false,
             "Run integer range verifiction pass in Turbolev frontend pipeline")
-DEFINE_WEAK_IMPLICATION(maglev_range_verification, maglev_range_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_assert, maglev_range_verification)
 
 DEFINE_UINT(
