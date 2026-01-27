@@ -2653,6 +2653,9 @@ DEFINE_SIZE_T(max_large_page_pool_size, 32,
               "Maximum size of pooled large pages in MB.")
 DEFINE_BOOL(managed_zone_memory, false,
             "Manage zone memory in V8 instead of using malloc().")
+DEFINE_BOOL(managed_zone_memory_for_isolate_independent_memory, false,
+            "Pool zone memory for isolate independent memory (nullptr-isolate) "
+            "(e.g. Wasm).")
 DEFINE_WEAK_IMPLICATION(future, managed_zone_memory)
 DEFINE_NEG_NEG_IMPLICATION(memory_pool, managed_zone_memory)
 

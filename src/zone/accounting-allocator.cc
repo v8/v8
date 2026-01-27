@@ -114,7 +114,10 @@ AccountingAllocator::~AccountingAllocator() = default;
 
 Segment* AccountingAllocator::AllocateSegment(size_t requested_bytes) {
   base::AllocationResult<void*> memory;
-  if (v8_flags.managed_zone_memory) {
+  const bool use_managed_memory_for_isolate =
+      (isolate_ != nullptr ||
+       v8_flags.managed_zone_memory_for_isolate_independent_memory);
+  if (v8_flags.managed_zone_memory && use_managed_memory_for_isolate) {
     memory = ManagedZones::AllocateSegmentWithRetry(isolate_, requested_bytes);
   } else {
     memory = AllocAtLeastWithRetry(requested_bytes);
@@ -140,7 +143,10 @@ void AccountingAllocator::ReturnSegment(Segment* segment) {
   size_t segment_size = segment->total_size();
   current_memory_usage_.fetch_sub(segment_size, std::memory_order_relaxed);
   segment->ZapHeader();
-  if (v8_flags.managed_zone_memory) {
+  const bool use_managed_memory_for_isolate =
+      (isolate_ != nullptr ||
+       v8_flags.managed_zone_memory_for_isolate_independent_memory);
+  if (v8_flags.managed_zone_memory && use_managed_memory_for_isolate) {
     ManagedZones::ReturnSegment(isolate_, segment, segment_size);
   } else {
     free(segment);
