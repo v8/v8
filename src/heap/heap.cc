@@ -143,8 +143,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Heap::AllocationTrackerForDebugging final
     : public HeapObjectAllocationTracker {
@@ -1464,8 +1463,8 @@ void Heap::HandleExternalMemoryInterrupt() {
     return;
   }
   if (v8_flags.external_memory_accounted_in_global_limit) {
-    // only triggers a check to allocation limits. This limit is intentionally
-    // updated regardless of `is_external_memory_limit_updates_suspended_`.
+    // Under `external_memory_accounted_in_global_limit`, external interrupt
+    // only triggers a check to allocation limits.
     limits()->UpdateExternalMemoryLimitForInterrupt(current);
     StartIncrementalMarkingIfAllocationLimitIsReached(
         main_thread_local_heap(), GCFlagsForIncrementalMarking(),
@@ -7069,12 +7068,10 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
   CHECK_GE(static_cast<int64_t>(total_before), -delta);
 
   uint64_t total_after = total_before + delta;
-  if (V8_LIKELY(!is_external_memory_limit_updates_suspended_)) {
-    uint64_t low_since_mark_compact =
-        limits()->external_memory_low_since_last_gc();
-    if (total_after < low_since_mark_compact) {
-      limits()->UpdateExternalMemoryLowSinceLastGC(total_after);
-    }
+  uint64_t low_since_mark_compact =
+      limits()->external_memory_low_since_last_gc();
+  if (total_after < low_since_mark_compact) {
+    limits()->UpdateExternalMemoryLowSinceLastGC(total_after);
   }
   return total_after;
 }
@@ -7900,26 +7897,6 @@ ConservativePinningScope::~ConservativePinningScope() {
   heap_->selective_stack_scan_start_address_.reset();
 }
 
-SuspendExternalMemoryLimitsUpdates::SuspendExternalMemoryLimitsUpdates(
-    Heap* heap)
-    : heap_(heap) {
-  DCHECK(!heap_->is_external_memory_limit_updates_suspended_);
-  heap_->is_external_memory_limit_updates_suspended_ = true;
-}
-
-SuspendExternalMemoryLimitsUpdates::~SuspendExternalMemoryLimitsUpdates() {
-  DCHECK(heap_->is_external_memory_limit_updates_suspended_);
-  heap_->is_external_memory_limit_updates_suspended_ = false;
-  uint64_t current_external_memory = heap_->external_memory();
-  uint64_t low_since_mark_compact =
-      heap_->limits()->external_memory_low_since_last_gc();
-  if (current_external_memory < low_since_mark_compact) {
-    heap_->limits()->UpdateExternalMemoryLowSinceLastGC(
-        current_external_memory);
-  }
-}
-
 #include "src/objects/object-macros-undef.h"
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
