@@ -29,12 +29,6 @@ namespace compiler {
   V(Arm64LdrW)                                             \
   IF_WASM(V, Arm64LoadLane)                                \
   IF_WASM(V, Arm64LoadSplat)                               \
-  IF_WASM(V, Arm64S128Load16x4S)                           \
-  IF_WASM(V, Arm64S128Load16x4U)                           \
-  IF_WASM(V, Arm64S128Load32x2S)                           \
-  IF_WASM(V, Arm64S128Load32x2U)                           \
-  IF_WASM(V, Arm64S128Load8x8S)                            \
-  IF_WASM(V, Arm64S128Load8x8U)                            \
   IF_WASM(V, Arm64StoreLane)                               \
   IF_WASM(V, Arm64S128LoadPairDeinterleave)                \
   V(Arm64Str)                                              \

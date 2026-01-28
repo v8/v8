@@ -3677,42 +3677,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ st1(i.InputSimd128Register(0).Format(f), laneidx, i.MemoryOperand(2));
       break;
     }
-    case kArm64S128Load8x8S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
-      __ Sxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
-      break;
-    }
-    case kArm64S128Load8x8U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
-      __ Uxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
-      break;
-    }
-    case kArm64S128Load16x4S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
-      __ Sxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
-      break;
-    }
-    case kArm64S128Load16x4U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
-      __ Uxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
-      break;
-    }
-    case kArm64S128Load32x2S: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
-      __ Sxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
-      break;
-    }
-    case kArm64S128Load32x2U: {
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ Ldr(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
-      __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
-      break;
-    }
     case kArm64S128LoadPairDeinterleave: {
       DCHECK_EQ(i.OutputCount(), 2);
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));

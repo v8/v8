@@ -1050,52 +1050,59 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
 
 void InstructionSelector::VisitLoadTransform(OpIndex node) {
   const Simd128LoadTransformOp& op = Cast<Simd128LoadTransformOp>(node);
-  InstructionCode opcode = kArchNop;
+  InstructionCode load_opcode = kArchNop;
+  InstructionCode extend_opcode = kArchNop;
   bool require_add = false;
   switch (op.transform_kind) {
     case Simd128LoadTransformOp::TransformKind::k8Splat:
-      opcode = kArm64LoadSplat;
-      opcode |= LaneSizeField::encode(8);
+      load_opcode = kArm64LoadSplat;
+      load_opcode |= LaneSizeField::encode(8);
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k16Splat:
-      opcode = kArm64LoadSplat;
-      opcode |= LaneSizeField::encode(16);
+      load_opcode = kArm64LoadSplat;
+      load_opcode |= LaneSizeField::encode(16);
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k32Splat:
-      opcode = kArm64LoadSplat;
-      opcode |= LaneSizeField::encode(32);
+      load_opcode = kArm64LoadSplat;
+      load_opcode |= LaneSizeField::encode(32);
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k64Splat:
-      opcode = kArm64LoadSplat;
-      opcode |= LaneSizeField::encode(64);
+      load_opcode = kArm64LoadSplat;
+      load_opcode |= LaneSizeField::encode(64);
       require_add = true;
       break;
     case Simd128LoadTransformOp::TransformKind::k8x8S:
-      opcode = kArm64S128Load8x8S;
+      load_opcode = kArm64LdrD;
+      extend_opcode = kArm64Sxtl | LaneSizeField::encode(16);
       break;
     case Simd128LoadTransformOp::TransformKind::k8x8U:
-      opcode = kArm64S128Load8x8U;
+      load_opcode = kArm64LdrD;
+      extend_opcode = kArm64Uxtl | LaneSizeField::encode(16);
       break;
     case Simd128LoadTransformOp::TransformKind::k16x4S:
-      opcode = kArm64S128Load16x4S;
+      load_opcode = kArm64LdrD;
+      extend_opcode = kArm64Sxtl | LaneSizeField::encode(32);
       break;
     case Simd128LoadTransformOp::TransformKind::k16x4U:
-      opcode = kArm64S128Load16x4U;
+      load_opcode = kArm64LdrD;
+      extend_opcode = kArm64Uxtl | LaneSizeField::encode(32);
       break;
     case Simd128LoadTransformOp::TransformKind::k32x2S:
-      opcode = kArm64S128Load32x2S;
+      load_opcode = kArm64LdrD;
+      extend_opcode = kArm64Sxtl | LaneSizeField::encode(64);
       break;
     case Simd128LoadTransformOp::TransformKind::k32x2U:
-      opcode = kArm64S128Load32x2U;
+      load_opcode = kArm64LdrD;
+      extend_opcode = kArm64Uxtl | LaneSizeField::encode(64);
       break;
     case Simd128LoadTransformOp::TransformKind::k32Zero:
-      opcode = kArm64LdrS;
+      load_opcode = kArm64LdrS;
       break;
     case Simd128LoadTransformOp::TransformKind::k64Zero:
-      opcode = kArm64LdrD;
+      load_opcode = kArm64LdrD;
       break;
     default:
       UNIMPLEMENTED();
@@ -1109,21 +1116,30 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
 
   inputs[0] = g.UseRegister(op.base());
   inputs[1] = g.UseRegister(op.index());
-  outputs[0] = g.DefineAsRegister(node);
+
+  if (extend_opcode == kArchNop) {
+    outputs[0] = g.DefineAsRegister(node);
+  } else {
+    outputs[0] = g.TempSimd128Register();
+  }
 
   if (require_add) {
     // ld1r uses post-index, so construct address first.
     // TODO(v8:9886) If index can be immediate, use vldr without this add.
-    inputs[0] = EmitAddBeforeLoadOrStore(this, node, &opcode);
+    inputs[0] = EmitAddBeforeLoadOrStore(this, node, &load_opcode);
     inputs[1] = g.TempImmediate(0);
-    opcode |= AddressingModeField::encode(kMode_MRI);
+    load_opcode |= AddressingModeField::encode(kMode_MRI);
   } else {
-    opcode |= AddressingModeField::encode(kMode_MRR);
+    load_opcode |= AddressingModeField::encode(kMode_MRR);
   }
   if (op.load_kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    load_opcode |=
+        AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
-  Emit(opcode, 1, outputs, 2, inputs);
+  Emit(load_opcode, 1, outputs, 2, inputs);
+  if (extend_opcode != kArchNop) {
+    Emit(extend_opcode, g.DefineSameAsFirst(node), outputs[0]);
+  }
 }
 
 void InstructionSelector::VisitMemoryCopy(OpIndex node) {
