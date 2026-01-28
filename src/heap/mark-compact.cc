@@ -3056,6 +3056,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   auto parallel_clearing_job = std::make_unique<ParallelClearingJob>(this);
   Isolate* const isolate = heap_->isolate();
+  std::atomic<int> string_table_removed_count{0};
 
   if (isolate->OwnsStringTables()) {
     TRACE_GC(heap_->tracer(),
@@ -3087,27 +3088,49 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 
   if (isolate->OwnsStringTables()) {
-    auto item =
-        MakeParallelItem("ClearStringTable", [this, isolate](
-                                                 ParallelItem* item,
-                                                 JobDelegate* delegate) {
-          DCHECK(isolate->OwnsStringTables());
+    StringTable* string_table = isolate->string_table();
+    string_table->DropOldData();
+    // Splitting the string table into chunks for parallel processing. Never
+    // choose more than kMaxStringTableChunks and each chunk should have at
+    // least kMinStringTableChunkSize entries.
+    constexpr int kMaxStringTableChunks = 8;
+    constexpr int kMinStringTableChunkSize = 1024;
+    const int capacity = string_table->Capacity();
+    const int target_chunk_count =
+        (capacity + kMinStringTableChunkSize - 1) / kMinStringTableChunkSize;
+    const int chunk_count =
+        std::max(1, std::min(kMaxStringTableChunks, target_chunk_count));
+    const int chunk_size = (capacity + chunk_count - 1) / chunk_count;
+    for (int chunk = 0; chunk < chunk_count; ++chunk) {
+      const int start = chunk * chunk_size;
+      const int end = std::min(capacity, start + chunk_size);
+      DCHECK_LT(start, end);
+      auto item =
+          MakeParallelItem("ClearStringTable", [this, isolate, start, end,
+                                                &string_table_removed_count](
+                                                   ParallelItem* item,
+                                                   JobDelegate* delegate) {
+            DCHECK(isolate->OwnsStringTables());
 
-          TRACE_GC1_WITH_FLOW(heap()->tracer(),
-                              GCTracer::Scope::MC_CLEAR_STRING_TABLE, delegate,
-                              item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
-          // Prune the string table removing all strings only pointed to by
-          // the string table.  Cannot use string_table() here because the
-          // string table is marked.
-          StringTable* string_table = isolate->string_table();
-          InternalizedStringTableCleaner internalized_visitor(heap());
-          string_table->DropOldData();
-          string_table->IterateElements(&internalized_visitor);
-          string_table->NotifyElementsRemoved(
-              internalized_visitor.PointersRemoved());
-        }).Enqueue(parallel_clearing_job);
-    TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", item->trace_id(),
-                            TRACE_EVENT_FLAG_FLOW_OUT);
+            TRACE_GC1_WITH_FLOW(
+                heap()->tracer(), GCTracer::Scope::MC_CLEAR_STRING_TABLE,
+                delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
+            // Prune the string table removing all strings only pointed to
+            // by the string table.  Cannot use string_table() here because
+            // the string table is marked.
+            StringTable* string_table = isolate->string_table();
+            InternalizedStringTableCleaner internalized_visitor(heap());
+            string_table->IterateElementsRange(&internalized_visitor, start,
+                                               end);
+            const int removed = internalized_visitor.PointersRemoved();
+            if (removed > 0) {
+              string_table_removed_count.fetch_add(removed,
+                                                   std::memory_order_relaxed);
+            }
+          }).Enqueue(parallel_clearing_job);
+      TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", item->trace_id(),
+                              TRACE_EVENT_FLAG_FLOW_OUT);
+    }
   }
 
   if (isolate->is_shared_space_isolate() &&
@@ -3416,6 +3439,15 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     auto job = V8::GetCurrentPlatform()->CreateJob(
         TaskPriority::kUserBlocking, std::move(parallel_clearing_job));
     job->Join();
+  }
+
+  // Finish clearing the string table after all parallel jobs have completed.
+  if (isolate->OwnsStringTables()) {
+    const int removed =
+        string_table_removed_count.load(std::memory_order_relaxed);
+    if (removed > 0) {
+      isolate->string_table()->NotifyElementsRemoved(removed);
+    }
   }
 
   PROFILE(heap_->isolate(), WeakCodeClearEvent());

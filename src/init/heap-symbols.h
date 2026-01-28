@@ -1072,7 +1072,6 @@
   F(MC_CLEAR_SHARED_STRUCT_TYPE_REGISTRY)       \
   F(MC_CLEAR_SLOTS_BUFFER)                      \
   F(MC_CLEAR_STRING_FORWARDING_TABLE)           \
-  F(MC_CLEAR_STRING_TABLE)                      \
   F(MC_CLEAR_SWEEP_CODE_POINTER_TABLE)          \
   F(MC_CLEAR_SWEEP_EXTERNAL_POINTER_TABLE)      \
   F(MC_CLEAR_SWEEP_JS_DISPATCH_TABLE)           \
@@ -1165,6 +1164,7 @@
   F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS)             \
   F(MC_BACKGROUND_MARKING)                              \
   F(MC_BACKGROUND_SWEEPING)                             \
+  F(MC_CLEAR_STRING_TABLE)                              \
   F(MINOR_MS_BACKGROUND_MARKING)                        \
   F(MINOR_MS_BACKGROUND_SWEEPING)                       \
   F(MINOR_MS_BACKGROUND_MARKING_CLOSURE)                \
