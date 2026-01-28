@@ -402,8 +402,7 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
       Branch(&done, ne, destination, Operand(zero_reg));
     }
 
-    ResolveTrustedPointerHandle(destination, handle,
-                                kAllPerIsolateIndirectPointerTags);
+    ResolveTrustedPointerHandle(destination, handle, kAllTrustedPointerTags);
   }
 #else
   LoadTaggedField(destination, field_operand);
@@ -500,21 +499,26 @@ void MacroAssembler::ResolveTrustedPointerHandle(
   Alsl_d(destination, handle, table, kTrustedPointerTableEntrySizeLog2);
   Ld_d(destination, MemOperand(destination, 0));
 
-  Register tag_reg = handle;
-  srli_d(tag_reg, destination, kTrustedPointerTableTagShift);
-
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  if (tag_range.Size() == 1) {
-    Sub_d(scratch, tag_reg, Operand(tag_range.first));
-    masknez(destination, destination, scratch);
+  if (IsFastIndirectPointerTagRange(tag_range)) {
+    uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+    And(destination, destination, Operand(mask));
   } else {
-    Sub_d(tag_reg, tag_reg, Operand(tag_range.first));
-    Sleu(scratch, tag_reg, Operand(tag_range.last - tag_range.first));
-    maskeqz(destination, destination, scratch);
-  }
+    Register tag_reg = handle;
+    srli_d(tag_reg, destination, kTrustedPointerTableTagShift);
 
-  And(destination, destination, Operand(kTrustedPointerTablePayloadMask));
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    if (tag_range.Size() == 1) {
+      Sub_d(scratch, tag_reg, Operand(tag_range.first));
+      masknez(destination, destination, scratch);
+    } else {
+      Sub_d(tag_reg, tag_reg, Operand(tag_range.first));
+      Sleu(scratch, tag_reg, Operand(tag_range.last - tag_range.first));
+      maskeqz(destination, destination, scratch);
+    }
+
+    And(destination, destination, Operand(kTrustedPointerTablePayloadMask));
+  }
 }
 
 void MacroAssembler::ResolveCodePointerHandle(Register destination,
