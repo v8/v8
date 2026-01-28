@@ -326,17 +326,17 @@ namespace interpreter {
                                                                                \
   /* Effectful Test Operators */                                               \
   V(TestEqual, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,  \
-    OperandType::kFeedbackSlot)                                                \
+    OperandType::kEmbeddedFeedback)                                            \
   V(TestEqualStrict, ImplicitRegisterUse::kReadWriteAccumulator,               \
     OperandType::kReg, OperandType::kEmbeddedFeedback)                         \
   V(TestLessThan, ImplicitRegisterUse::kReadWriteAccumulator,                  \
-    OperandType::kReg, OperandType::kFeedbackSlot)                             \
+    OperandType::kReg, OperandType::kEmbeddedFeedback)                         \
   V(TestGreaterThan, ImplicitRegisterUse::kReadWriteAccumulator,               \
-    OperandType::kReg, OperandType::kFeedbackSlot)                             \
+    OperandType::kReg, OperandType::kEmbeddedFeedback)                         \
   V(TestLessThanOrEqual, ImplicitRegisterUse::kReadWriteAccumulator,           \
-    OperandType::kReg, OperandType::kFeedbackSlot)                             \
+    OperandType::kReg, OperandType::kEmbeddedFeedback)                         \
   V(TestGreaterThanOrEqual, ImplicitRegisterUse::kReadWriteAccumulator,        \
-    OperandType::kReg, OperandType::kFeedbackSlot)                             \
+    OperandType::kReg, OperandType::kEmbeddedFeedback)                         \
   V(TestInstanceOf, ImplicitRegisterUse::kReadWriteAccumulator,                \
     OperandType::kReg, OperandType::kFeedbackSlot)                             \
   V(TestIn, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,     \
@@ -907,7 +907,12 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   }
 
   static constexpr bool IsCompareWithEmbeddedFeedback(Bytecode bytecode) {
-    return bytecode == Bytecode::kTestEqualStrict;
+    return bytecode == Bytecode::kTestEqualStrict ||
+           bytecode == Bytecode::kTestEqual ||
+           bytecode == Bytecode::kTestLessThan ||
+           bytecode == Bytecode::kTestGreaterThan ||
+           bytecode == Bytecode::kTestLessThanOrEqual ||
+           bytecode == Bytecode::kTestGreaterThanOrEqual;
   }
 
   // Returns true if the bytecode has a embedded feedback slot

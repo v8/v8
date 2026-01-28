@@ -159,13 +159,14 @@ DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
 #undef DEF_UNOP
 
 #define DEF_COMPARE(Name)                                                  \
-  TF_BUILTIN(Name##_WithFeedback, CodeStubAssembler) {                     \
+  TF_BUILTIN(Name##_WithEmbeddedFeedback, CodeStubAssembler) {             \
     auto lhs = Parameter<Object>(Descriptor::kLeft);                       \
     auto rhs = Parameter<Object>(Descriptor::kRight);                      \
     auto context = Parameter<Context>(Descriptor::kContext);               \
-    auto feedback_vector =                                                 \
-        Parameter<FeedbackVector>(Descriptor::kFeedbackVector);            \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);           \
+    auto bytecode_array =                                                  \
+        Parameter<BytecodeArray>(Descriptor::kBytecodeArray);              \
+    auto feedback_offset =                                                 \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);          \
                                                                            \
     TVARIABLE(Smi, var_type_feedback);                                     \
     TVARIABLE(Object, var_exception);                                      \
@@ -176,12 +177,14 @@ DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
       result = RelationalComparison(Operation::k##Name, lhs, rhs, context, \
                                     &var_type_feedback);                   \
     }                                                                      \
-    UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);      \
+    UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),          \
+                           bytecode_array, feedback_offset);               \
                                                                            \
     Return(result);                                                        \
     BIND(&if_exception);                                                   \
     {                                                                      \
-      UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);    \
+      UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),        \
+                             bytecode_array, feedback_offset);             \
       CallRuntime(Runtime::kReThrow, context, var_exception.value());      \
       Unreachable();                                                       \
     }                                                                      \
@@ -196,7 +199,8 @@ DEF_COMPARE(GreaterThanOrEqual)
   TF_BUILTIN(Name##_Baseline, CodeStubAssembler) {                          \
     auto lhs = Parameter<Object>(Descriptor::kLeft);                        \
     auto rhs = Parameter<Object>(Descriptor::kRight);                       \
-    auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);            \
+    auto feedback_offset =                                                  \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);           \
                                                                             \
     TVARIABLE(Smi, var_type_feedback);                                      \
     TVARIABLE(Object, var_exception);                                       \
@@ -208,14 +212,16 @@ DEF_COMPARE(GreaterThanOrEqual)
           Operation::k##Name, lhs, rhs,                                     \
           [&]() { return LoadContextFromBaseline(); }, &var_type_feedback); \
     }                                                                       \
-    auto feedback_vector = LoadFeedbackVectorFromBaseline();                \
-    UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);       \
+    auto bytecode_array = LoadBytecodeArrayFromBaseline();                  \
+    UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),           \
+                           bytecode_array, feedback_offset);                \
                                                                             \
     Return(result);                                                         \
     BIND(&if_exception);                                                    \
     {                                                                       \
-      feedback_vector = LoadFeedbackVectorFromBaseline();                   \
-      UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);     \
+      bytecode_array = LoadBytecodeArrayFromBaseline();                     \
+      UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),         \
+                             bytecode_array, feedback_offset);              \
       CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),             \
                   var_exception.value());                                   \
       Unreachable();                                                        \
@@ -285,12 +291,13 @@ TF_BUILTIN(AddRhsIsStringConstantInternalizeTrampoline, CodeStubAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(Equal_WithFeedback, CodeStubAssembler) {
+TF_BUILTIN(Equal_WithEmbeddedFeedback, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
-  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto bytecode_array = Parameter<BytecodeArray>(Descriptor::kBytecodeArray);
+  auto feedback_offset =
+      UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);
 
   TVARIABLE(Smi, var_type_feedback);
   TVARIABLE(Object, var_exception);
@@ -300,11 +307,13 @@ TF_BUILTIN(Equal_WithFeedback, CodeStubAssembler) {
     ScopedExceptionHandler handler(this, &if_exception, &var_exception);
     result = Equal(lhs, rhs, [&]() { return context; }, &var_type_feedback);
   }
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
+  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
+                         feedback_offset);
   Return(result);
 
   BIND(&if_exception);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
+  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
+                         feedback_offset);
   CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
               var_exception.value());
   Unreachable();
@@ -328,7 +337,8 @@ TF_BUILTIN(StrictEqual_WithEmbeddedFeedback, CodeStubAssembler) {
 TF_BUILTIN(Equal_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
-  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto feedback_offset =
+      UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);
 
   TVARIABLE(Smi, var_type_feedback);
   TVARIABLE(Object, var_exception);
@@ -340,14 +350,16 @@ TF_BUILTIN(Equal_Baseline, CodeStubAssembler) {
         lhs, rhs, [&]() { return LoadContextFromBaseline(); },
         &var_type_feedback);
   }
-  auto feedback_vector = LoadFeedbackVectorFromBaseline();
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
+  auto bytecode_array = LoadBytecodeArrayFromBaseline();
+  UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()), bytecode_array,
+                         feedback_offset);
   Return(result);
 
   BIND(&if_exception);
   {
-    feedback_vector = LoadFeedbackVectorFromBaseline();
-    UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
+    bytecode_array = LoadBytecodeArrayFromBaseline();
+    UpdateEmbeddedFeedback(SmiToInt32(var_type_feedback.value()),
+                           bytecode_array, feedback_offset);
     CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
                 var_exception.value());
     Unreachable();

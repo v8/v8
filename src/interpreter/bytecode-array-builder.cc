@@ -567,7 +567,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     Token::Value op, Register reg, int feedback_slot) {
   switch (op) {
     case Token::kEq:
-      OutputTestEqual(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestEqual(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kEqStrict:
       // feedback is embedded into bytecode array for strict equal
@@ -575,16 +576,20 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
       OutputTestEqualStrict(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kLessThan:
-      OutputTestLessThan(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestLessThan(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kGreaterThan:
-      OutputTestGreaterThan(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestGreaterThan(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kLessThanEq:
-      OutputTestLessThanOrEqual(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestLessThanOrEqual(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kGreaterThanEq:
-      OutputTestGreaterThanOrEqual(reg, feedback_slot);
+      DCHECK_EQ(feedback_slot, kFeedbackIsEmbedded);
+      OutputTestGreaterThanOrEqual(reg, kUninitializedEmbeddedFeedback);
       break;
     case Token::kInstanceOf:
       OutputTestInstanceOf(reg, feedback_slot);

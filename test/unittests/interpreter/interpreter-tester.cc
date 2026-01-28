@@ -78,7 +78,7 @@ EmbeddedFeedbackType InterpreterTester::GetEmbeddedFeedback(
     Token::Value token, size_t bytecode_offset, int feedback_value_offset) {
   if constexpr (std::is_same_v<EmbeddedFeedbackType,
                                CompareOperationFeedback::Type>) {
-    DCHECK_EQ(token, Token::Value::kEqStrict);
+    DCHECK(Token::IsCompareOpWithEmbeddedFeedback(token));
   }
 
   auto bytecode_array = bytecode_.ToHandleChecked();

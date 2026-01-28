@@ -2811,18 +2811,14 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
     builder()->LoadLiteral(Smi::kMinValue);
     builder()->StoreAccumulatorInRegister(r2);
-    builder()->CompareOperation(
-        Token::kGreaterThanEq, r1,
-        feedback_index(feedback_spec()->AddCompareICSlot()));
+    builder()->CompareOperation(Token::kGreaterThanEq, r1, kFeedbackIsEmbedded);
 
     switch_builder.JumpToFallThroughIfFalse();
     builder()->LoadAccumulatorWithRegister(r1);
 
     builder()->LoadLiteral(Smi::kMaxValue);
     builder()->StoreAccumulatorInRegister(r2);
-    builder()->CompareOperation(
-        Token::kLessThanEq, r1,
-        feedback_index(feedback_spec()->AddCompareICSlot()));
+    builder()->CompareOperation(Token::kLessThanEq, r1, kFeedbackIsEmbedded);
 
     switch_builder.JumpToFallThroughIfFalse();
     builder()->LoadAccumulatorWithRegister(r1);
@@ -7811,10 +7807,9 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       slot = feedback_spec()->AddKeyedHasICSlot();
     } else if (expr->op() == Token::kInstanceOf) {
       slot = feedback_spec()->AddInstanceOfSlot();
-    } else if (expr->op() == Token::kEqStrict) {
-    } else {
-      slot = feedback_spec()->AddCompareICSlot();
     }
+    // feedback is embedded for other compare operations
+
     builder()->CompareOperation(
         expr->op(), lhs,
         slot.IsInvalid() ? kFeedbackIsEmbedded : feedback_index(slot));

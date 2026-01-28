@@ -3467,9 +3467,9 @@ void BytecodeGraphBuilder::BuildCompareOpWithEmbeddedFeedback(
 }
 
 void BytecodeGraphBuilder::VisitTestEqual() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
-  BuildCompareOp(javascript()->Equal(feedback));
+  const CompareOperationHint type_hint =
+      bytecode_iterator().GetEmbeddedCompareOperationHint();
+  BuildCompareOpWithEmbeddedFeedback(javascript()->Equal(type_hint));
 }
 
 void BytecodeGraphBuilder::VisitTestEqualStrict() {
@@ -3480,27 +3480,28 @@ void BytecodeGraphBuilder::VisitTestEqualStrict() {
 }
 
 void BytecodeGraphBuilder::VisitTestLessThan() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
-  BuildCompareOp(javascript()->LessThan(feedback));
+  const CompareOperationHint type_hint =
+      bytecode_iterator().GetEmbeddedCompareOperationHint();
+  BuildCompareOpWithEmbeddedFeedback(javascript()->LessThan(type_hint));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThan() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
-  BuildCompareOp(javascript()->GreaterThan(feedback));
+  const CompareOperationHint type_hint =
+      bytecode_iterator().GetEmbeddedCompareOperationHint();
+  BuildCompareOpWithEmbeddedFeedback(javascript()->GreaterThan(type_hint));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThanOrEqual() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
-  BuildCompareOp(javascript()->LessThanOrEqual(feedback));
+  const CompareOperationHint type_hint =
+      bytecode_iterator().GetEmbeddedCompareOperationHint();
+  BuildCompareOpWithEmbeddedFeedback(javascript()->LessThanOrEqual(type_hint));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
-  BuildCompareOp(javascript()->GreaterThanOrEqual(feedback));
+  const CompareOperationHint type_hint =
+      bytecode_iterator().GetEmbeddedCompareOperationHint();
+  BuildCompareOpWithEmbeddedFeedback(
+      javascript()->GreaterThanOrEqual(type_hint));
 }
 
 void BytecodeGraphBuilder::VisitTestReferenceEqual() {

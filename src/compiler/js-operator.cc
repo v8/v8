@@ -28,7 +28,8 @@ namespace {
 
 // Returns properties for the given binary op.
 constexpr Operator::Properties BinopProperties(Operator::Opcode opcode) {
-  DCHECK(JSOperator::IsBinaryWithFeedback(opcode));
+  DCHECK(JSOperator::IsBinaryWithFeedback(opcode) ||
+         JSOperator::IsBinaryWithEmbeddedFeedback(opcode));
   return opcode == IrOpcode::kJSStrictEqual ? Operator::kPure
                                             : Operator::kNoProperties;
 }
@@ -290,6 +291,10 @@ size_t hash_value(EmbeddedHintParameter const& p) {
         using T = std::decay_t<decltype(hint)>;
         if constexpr (std::is_same_v<T, CompareOperationHint>) {
           return static_cast<size_t>(hint);
+        } else if constexpr (std::is_same_v<T, BinaryOperationHint>) {
+          return static_cast<size_t>(hint);
+        } else if constexpr (std::is_same_v<T, std::monostate>) {
+          return size_t{0};
         } else {
           UNREACHABLE();
         }
@@ -298,7 +303,16 @@ size_t hash_value(EmbeddedHintParameter const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, EmbeddedHintParameter const& p) {
-  std::visit([&os](auto const& hint) { os << hint; }, p.hint());
+  std::visit(
+      [&os](auto const& hint) {
+        using T = std::decay_t<decltype(hint)>;
+        if constexpr (std::is_same_v<T, std::monostate>) {
+          os << "Invalid";
+        } else {
+          os << hint;
+        }
+      },
+      p.hint());
   return os;
 }
 
@@ -956,17 +970,18 @@ JS_UNOP_WITH_FEEDBACK(UNARY_OP)
         Operator::ZeroIfNoThrow(kProperties), parameters);                    \
   }
 JS_BINOP_WITH_FEEDBACK(BINARY_OP)
-JS_BINOP_WITH_EMBEDDED_FEEDBACK(BINARY_OP)
 #undef BINARY_OP
 
-const Operator* JSOperatorBuilder::StrictEqual(
-    const CompareOperationHint feedback) {
-  static constexpr auto kProperties = BinopProperties(IrOpcode::kJSStrictEqual);
-  EmbeddedHintParameter hint_parameter(feedback);
-  return zone()->New<Operator1<EmbeddedHintParameter>>(
-      IrOpcode::kJSStrictEqual, kProperties, "JSStrictEqual", 2, 1, 1, 1, 1,
-      Operator::ZeroIfNoThrow(kProperties), hint_parameter);
-}
+#define COMPARE_OP_WITH_EMBEDDED_FEEDBACK(JSName, Name)                       \
+  const Operator* JSOperatorBuilder::Name(CompareOperationHint feedback) {    \
+    static constexpr auto kProperties = BinopProperties(IrOpcode::k##JSName); \
+    EmbeddedHintParameter hint_parameter(feedback);                           \
+    return zone()->New<Operator1<EmbeddedHintParameter>>(                     \
+        IrOpcode::k##JSName, kProperties, #JSName, 2, 1, 1, 1, 1,             \
+        Operator::ZeroIfNoThrow(kProperties), hint_parameter);                \
+  }
+JS_COMPARE_BINOP_COMMON_LIST(COMPARE_OP_WITH_EMBEDDED_FEEDBACK)
+#undef COMPARE_OP_WITH_EMBEDDED_FEEDBACK
 
 const Operator* JSOperatorBuilder::DefineKeyedOwnPropertyInLiteral(
     const FeedbackSource& feedback) {

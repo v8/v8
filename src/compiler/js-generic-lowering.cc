@@ -148,8 +148,11 @@ DEF_UNARY_LOWERING(Negate)
 void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
     Node* node, Builtin builtin_without_feedback,
     Builtin builtin_with_feedback) {
-  DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
-  node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
+  DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()) ||
+         (JSOperator::IsBinaryWithEmbeddedFeedback(node->opcode())));
+  if (JSOperator::IsBinaryWithFeedback(node->opcode())) {
+    node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
+  }
   ReplaceWithBuiltinCall(node, builtin_without_feedback);
 }
 
@@ -158,6 +161,13 @@ void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
     ReplaceBinaryOpWithBuiltinCall(node, Builtin::k##Name,           \
                                    Builtin::k##Name##_WithFeedback); \
   }
+
+#define DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(Name)                     \
+  void JSGenericLowering::LowerJS##Name(Node* node) {                        \
+    ReplaceBinaryOpWithBuiltinCall(node, Builtin::k##Name,                   \
+                                   Builtin::k##Name##_WithEmbeddedFeedback); \
+  }
+
 // Binary ops.
 DEF_BINARY_LOWERING(Add)
 DEF_BINARY_LOWERING(BitwiseAnd)
@@ -172,12 +182,12 @@ DEF_BINARY_LOWERING(ShiftRight)
 DEF_BINARY_LOWERING(ShiftRightLogical)
 DEF_BINARY_LOWERING(Subtract)
 // Compare ops.
-DEF_BINARY_LOWERING(Equal)
-DEF_BINARY_LOWERING(GreaterThan)
-DEF_BINARY_LOWERING(GreaterThanOrEqual)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(Equal)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(GreaterThan)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(GreaterThanOrEqual)
 DEF_BINARY_LOWERING(InstanceOf)
-DEF_BINARY_LOWERING(LessThan)
-DEF_BINARY_LOWERING(LessThanOrEqual)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThan)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThanOrEqual)
 #undef DEF_BINARY_LOWERING
 
 void JSGenericLowering::LowerJSStrictEqual(Node* node) {

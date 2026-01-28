@@ -1419,14 +1419,13 @@ constexpr Builtin BuiltinFor(Operation operation) {
     return Builtin::k##name##_WithFeedback;
     ARITHMETIC_OPERATION_LIST(BUILTIN_NAME_CASE)
     UNARY_OPERATION_LIST(BUILTIN_NAME_CASE)
-    BUILTIN_NAME_CASE(Equal)
-    BUILTIN_NAME_CASE(LessThan)
-    BUILTIN_NAME_CASE(LessThanOrEqual)
-    BUILTIN_NAME_CASE(GreaterThan)
-    BUILTIN_NAME_CASE(GreaterThanOrEqual)
 #undef BUILTIN_NAME_CASE
-    case Operation::kStrictEqual:
-      return Builtin::kStrictEqual_WithEmbeddedFeedback;
+
+#define BUILTIN_WITH_EMBEDDED_FEEDBACK_NAME_CASE(name) \
+  case Operation::k##name:                             \
+    return Builtin::k##name##_WithEmbeddedFeedback;
+    COMPARISON_OPERATION_LIST(BUILTIN_WITH_EMBEDDED_FEEDBACK_NAME_CASE)
+#undef BUILTIN_WITH_EMBEDDED_FEEDBACK_NAME_CASE
     default:
       UNREACHABLE();
   }

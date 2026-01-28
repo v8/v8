@@ -67,7 +67,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 58
+bytecode array length: 59
 bytecodes: [
   /*   16 E> */ B(CreateMappedArguments),
                 B(Star0),
@@ -78,20 +78,20 @@ bytecodes: [
   /*   99 E> */ B(GetNamedProperty), R(1), U8(2:"a"), FBV(5),
                 B(Star1),
                 B(LdaSmi), I8(3),
-  /*  101 E> */ B(TestLessThan), R(1), FBV(7),
+  /*  101 E> */ B(TestLessThan), R(1), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(14),
   /*  118 S> */ B(LdaGlobal), U8(1:"l"), FBV(3),
                 B(Star1),
                 B(LdaSmi), I8(3),
-  /*  122 E> */ B(SetNamedProperty), R(1), U8(2:"a"), FBV(8),
+  /*  122 E> */ B(SetNamedProperty), R(1), U8(2:"a"), FBV(7),
                 B(Jump), U8(18),
   /*  154 S> */ B(LdaGlobal), U8(1:"l"), FBV(3),
                 B(Star1),
   /*  160 E> */ B(LdaGlobal), U8(1:"l"), FBV(3),
                 B(Star2),
-  /*  162 E> */ B(GetNamedProperty), R(2), U8(3:"b"), FBV(10),
-  /*  158 E> */ B(SetNamedProperty), R(1), U8(2:"a"), FBV(8),
-  /*  200 S> */ B(GetNamedProperty), R(0), U8(4:"callee"), FBV(12),
+  /*  162 E> */ B(GetNamedProperty), R(2), U8(3:"b"), FBV(9),
+  /*  158 E> */ B(SetNamedProperty), R(1), U8(2:"a"), FBV(7),
+  /*  200 S> */ B(GetNamedProperty), R(0), U8(4:"callee"), FBV(11),
   /*  207 S> */ B(Return),
 ]
 constant pool: [

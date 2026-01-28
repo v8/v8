@@ -379,8 +379,7 @@ class JSBinopReduction final {
     // Remove the inputs corresponding to context, effect, and control.
     NodeProperties::RemoveNonValueInputs(node_);
     // Remove the feedback vector input, if applicable.
-    if (JSOperator::IsBinaryWithFeedback(node_->opcode()) &&
-        !JSOperator::IsBinaryWithEmbeddedFeedback(node_->opcode())) {
+    if (JSOperator::IsBinaryWithFeedback(node_->opcode())) {
       node_->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
     }
     // Finally, update the operator to the new one.
@@ -418,8 +417,7 @@ class JSBinopReduction final {
     node_->RemoveInput(NodeProperties::FirstContextIndex(node_));
 
     // Remove the feedback vector input, if applicable.
-    if (JSOperator::IsBinaryWithFeedback(node_->opcode()) &&
-        !JSOperator::IsBinaryWithEmbeddedFeedback(node_->opcode())) {
+    if (JSOperator::IsBinaryWithFeedback(node_->opcode())) {
       node_->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
     }
     // Finally, update the operator to the new one.

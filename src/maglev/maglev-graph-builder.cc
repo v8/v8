@@ -1920,9 +1920,10 @@ consteval bool BinaryOperationIsBitwiseInt32() {
 }
 
 static constexpr bool IsOperationWithEmbeddedFeedback(Operation op) {
+#define OP_WITH_EMBEDDED_FEEDBACK_CASE(op) case Operation::k##op:
   switch (op) {
-    case Operation::kStrictEqual:
-      return true;
+    COMPARISON_OPERATION_LIST(OP_WITH_EMBEDDED_FEEDBACK_CASE)
+    return true;
     default:
       return false;
   }
@@ -2867,13 +2868,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     }
   };
 
-  CompareOperationHint hint;
-  if (kOperation == Operation::kStrictEqual) {
-    hint = iterator_.GetEmbeddedCompareOperationHint();
-  } else {
-    auto nexus = FeedbackNexusForOperand(1);
-    hint = nexus.GetCompareOperationFeedback();
-  }
+  CompareOperationHint hint = iterator_.GetEmbeddedCompareOperationHint();
 
   switch (hint) {
     case CompareOperationHint::kNone:

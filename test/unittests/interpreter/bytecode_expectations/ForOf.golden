@@ -189,7 +189,7 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 139
+bytecode array length: 141
 bytecodes: [
   /*   48 S> */ B(CreateArrayLiteral), U8(0:ARRAY_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x25),
                 B(Star4),
@@ -209,7 +209,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(4), RegCount8(1),
                 B(GetNamedProperty), R(4), U8(2:"done"), FBV(9),
-                B(JumpIfToBooleanTrue), U8(37),
+                B(JumpIfToBooleanTrue), U8(39),
                 B(GetNamedProperty), R(4), U8(3:"value"), FBV(11),
                 B(Star4),
                 B(LdaFalse),
@@ -217,14 +217,14 @@ bytecodes: [
                 B(Mov), R(4), R(1),
   /*   43 S> */ B(Mov), R(1), R(0),
   /*   66 S> */ B(LdaSmi), I8(10),
-  /*   72 E> */ B(TestEqual), R(0), FBV(13),
+  /*   72 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   79 S> */ B(Jump), U8(11),
+  /*   79 S> */ B(Jump), U8(12),
   /*   91 S> */ B(LdaSmi), I8(20),
-  /*   97 E> */ B(TestEqual), R(0), FBV(14),
+  /*   97 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
   /*  104 S> */ B(Jump), U8(6),
-  /*   34 E> */ B(JumpLoop), U8(51), I8(0), FBV(15),
+  /*   34 E> */ B(JumpLoop), U8(53), I8(0), FBV(13),
                 B(LdaSmi), I8(-1),
                 B(Star7),
                 B(Star6),
@@ -238,10 +238,10 @@ bytecodes: [
                 B(Ldar), R(5),
                 B(JumpIfToBooleanTrue), U8(35),
                 B(Mov), R(context), R(10),
-                B(GetNamedProperty), R(3), U8(4:"return"), FBV(16),
+                B(GetNamedProperty), R(3), U8(4:"return"), FBV(14),
                 B(JumpIfUndefinedOrNull), U8(26),
                 B(Star11),
-                B(CallProperty0), R(11), R(3), FBV(18),
+                B(CallProperty0), R(11), R(3), FBV(16),
                 B(JumpIfJSReceiver), U8(19),
                 B(Star12),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), RegCount8(1),
@@ -270,8 +270,8 @@ constant pool: [
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["return"],
 ]
 handlers: [
-  [22, 77, 83],
-  [96, 115, 117],
+  [22, 79, 85],
+  [98, 117, 119],
 ]
 
 ---

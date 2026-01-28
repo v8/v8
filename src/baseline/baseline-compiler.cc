@@ -1723,13 +1723,16 @@ void BaselineCompiler::VisitConstructForwardAllArgs() {
 }
 
 void BaselineCompiler::VisitTestEqual() {
-  CallBuiltin<Builtin::kEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
+  CallBuiltin<Builtin::kEqual_Baseline>(RegisterOperand(0),
+                                        kInterpreterAccumulatorRegister,
+                                        feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestEqualStrict() {
   auto feedback_value_offset =
-      iterator().GetEmbeddedFeedbackOffset(/*operand_index=*/1);
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
   if (v8_flags.sparkplug_plus) {
@@ -1761,23 +1764,35 @@ void BaselineCompiler::VisitTestEqualStrict() {
 }
 
 void BaselineCompiler::VisitTestLessThan() {
-  CallBuiltin<Builtin::kLessThan_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
+  CallBuiltin<Builtin::kLessThan_Baseline>(RegisterOperand(0),
+                                           kInterpreterAccumulatorRegister,
+                                           feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestGreaterThan() {
-  CallBuiltin<Builtin::kGreaterThan_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
+  CallBuiltin<Builtin::kGreaterThan_Baseline>(RegisterOperand(0),
+                                              kInterpreterAccumulatorRegister,
+                                              feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestLessThanOrEqual() {
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
   CallBuiltin<Builtin::kLessThanOrEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+      RegisterOperand(0), kInterpreterAccumulatorRegister,
+      feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestGreaterThanOrEqual() {
+  auto feedback_value_offset =
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
   CallBuiltin<Builtin::kGreaterThanOrEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister, FeedbackSlot(1));
+      RegisterOperand(0), kInterpreterAccumulatorRegister,
+      feedback_value_offset);
 }
 
 void BaselineCompiler::VisitTestReferenceEqual() {

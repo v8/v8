@@ -34,7 +34,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 131
+bytecode array length: 133
 bytecodes: [
   /*   62 S> */ B(LdaConstant), U8(0:"str"),
                 B(TypeOf), FBV(0),
@@ -69,24 +69,24 @@ bytecodes: [
                 B(Star4),
   /*  327 S> */ B(LdaConstant), U8(1:"string"),
                 B(TestReferenceEqual), R(4),
-                B(JumpIfTrue), U8(9),
+                B(JumpIfTrue), U8(10),
                 B(LdaConstant), U8(2:"number"),
-  /*  350 E> */ B(TestEqual), R(4), FBV(4),
+  /*  350 E> */ B(TestEqual), R(4), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(2),
   /*  382 S> */ B(LdaConstant), U8(4:"hi"),
                 B(Star5),
   /*  409 S> */ B(LdaZero),
                 B(Star9),
   /*  414 S> */ B(LdaSmi), I8(2),
-  /*  414 E> */ B(TestLessThan), R(9), FBV(5),
+  /*  414 E> */ B(TestLessThan), R(9), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(19),
   /*  438 S> */ B(LdaConstant), U8(4:"hi"),
   /*  444 E> */ B(TestEqualStrict), R(5), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(2),
   /*  421 S> */ B(Ldar), R(9),
-                B(Inc), FBV(6),
+                B(Inc), FBV(4),
                 B(Star9),
-  /*  396 E> */ B(JumpLoop), U8(20), I8(0), FBV(7),
+  /*  396 E> */ B(JumpLoop), U8(21), I8(0), FBV(5),
   /*  483 S> */ B(LdaTrue),
                 B(Star6),
   /*  497 S> */ B(LdaConstant), U8(5:"s"),

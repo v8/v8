@@ -978,24 +978,24 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(Add_RhsIsStringConstant_Internalize_Baseline, BinaryOp_Baseline)         \
                                                                                \
   /* Compare ops with feedback collection */                                   \
-  TFC(Equal_Baseline, Compare_Baseline)                                        \
+  TFC(Equal_Baseline, Compare_WithEmbeddedFeedbackOffset)                      \
   TFC(StrictEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)        \
                                                                                \
   /* Typed StirctEqual baseline stubs */                                       \
   IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_STRICTEQUAL_HANDLER, TFC)           \
   IF_SPARKPLUG_PLUS(TFC, StrictEqualAndTryPatchCode, CompareAndTryPatchCode)   \
                                                                                \
-  TFC(LessThan_Baseline, Compare_Baseline)                                     \
-  TFC(GreaterThan_Baseline, Compare_Baseline)                                  \
-  TFC(LessThanOrEqual_Baseline, Compare_Baseline)                              \
-  TFC(GreaterThanOrEqual_Baseline, Compare_Baseline)                           \
+  TFC(LessThan_Baseline, Compare_WithEmbeddedFeedbackOffset)                   \
+  TFC(GreaterThan_Baseline, Compare_WithEmbeddedFeedbackOffset)                \
+  TFC(LessThanOrEqual_Baseline, Compare_WithEmbeddedFeedbackOffset)            \
+  TFC(GreaterThanOrEqual_Baseline, Compare_WithEmbeddedFeedbackOffset)         \
                                                                                \
-  TFC(Equal_WithFeedback, Compare_WithFeedback)                                \
+  TFC(Equal_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)                \
   TFC(StrictEqual_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)          \
-  TFC(LessThan_WithFeedback, Compare_WithFeedback)                             \
-  TFC(GreaterThan_WithFeedback, Compare_WithFeedback)                          \
-  TFC(LessThanOrEqual_WithFeedback, Compare_WithFeedback)                      \
-  TFC(GreaterThanOrEqual_WithFeedback, Compare_WithFeedback)                   \
+  TFC(LessThan_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)             \
+  TFC(GreaterThan_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)          \
+  TFC(LessThanOrEqual_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)      \
+  TFC(GreaterThanOrEqual_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)   \
                                                                                \
   /* Unary ops with feedback collection */                                     \
   TFC(BitwiseNot_Baseline, UnaryOp_Baseline)                                   \

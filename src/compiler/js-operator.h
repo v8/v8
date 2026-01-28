@@ -48,11 +48,9 @@ struct JSOperatorGlobalCache;
 #define JS_BINOP_WITH_FEEDBACK(V) \
   JS_ARITH_BINOP_LIST(V)          \
   JS_BITWISE_BINOP_LIST(V)        \
-  JS_COMPARE_BINOP_COMMON_LIST(V) \
   V(JSInstanceOf, InstanceOf)
 
-#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) \
-  JS_COMPARE_BINOP_WITH_EMBEDDED_FEEDBACK_LIST(V)
+#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) JS_COMPARE_BINOP_COMMON_LIST(V)
 
 // Predicates.
 class JSOperator final : public AllStatic {
@@ -75,7 +73,6 @@ class JSOperator final : public AllStatic {
     return true;
     switch (opcode) {
       JS_BINOP_WITH_FEEDBACK(CASE);
-      JS_BINOP_WITH_EMBEDDED_FEEDBACK(CASE);
       default:
         return false;
     }
@@ -461,9 +458,19 @@ const FeedbackParameter& FeedbackParameterOf(const Operator* op);
 
 class EmbeddedHintParameter final {
  public:
-  using EmbeddedHint = std::variant<CompareOperationHint>;
+  using EmbeddedHint =
+      std::variant<std::monostate, CompareOperationHint, BinaryOperationHint>;
+
+  EmbeddedHintParameter() : hint_(std::monostate()) {}
   explicit EmbeddedHintParameter(const CompareOperationHint hint)
       : hint_(hint) {}
+  explicit EmbeddedHintParameter(const BinaryOperationHint hint)
+      : hint_(hint) {}
+
+  static EmbeddedHintParameter Invalid() { return EmbeddedHintParameter(); }
+  bool IsInvalid() const {
+    return std::holds_alternative<std::monostate>(hint_);
+  }
 
   const EmbeddedHint& hint() const { return hint_; }
 
@@ -1000,13 +1007,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   JSOperatorBuilder(const JSOperatorBuilder&) = delete;
   JSOperatorBuilder& operator=(const JSOperatorBuilder&) = delete;
 
-  const Operator* Equal(FeedbackSource const& feedback);
-  const Operator* StrictEqual(FeedbackSource const& feedback);
-  const Operator* StrictEqual(const CompareOperationHint feedback);
-  const Operator* LessThan(FeedbackSource const& feedback);
-  const Operator* GreaterThan(FeedbackSource const& feedback);
-  const Operator* LessThanOrEqual(FeedbackSource const& feedback);
-  const Operator* GreaterThanOrEqual(FeedbackSource const& feedback);
+  const Operator* Equal(const CompareOperationHint type_hint);
+  const Operator* StrictEqual(const CompareOperationHint type_hint);
+  const Operator* LessThan(const CompareOperationHint type_hint);
+  const Operator* GreaterThan(const CompareOperationHint type_hint);
+  const Operator* LessThanOrEqual(const CompareOperationHint type_hint);
+  const Operator* GreaterThanOrEqual(const CompareOperationHint type_hint);
 
   const Operator* BitwiseOr(FeedbackSource const& feedback);
   const Operator* BitwiseXor(FeedbackSource const& feedback);

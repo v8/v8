@@ -1794,51 +1794,6 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
                                 OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void CompareOpWithFeedback(Operation compare_op) {
-    TNode<Object> lhs = LoadRegisterAtOperandIndex(0);
-    TNode<Object> rhs = GetAccumulator();
-    TNode<Context> context = GetContext();
-
-    TVARIABLE(Smi, var_type_feedback);
-    TVARIABLE(Object, var_exception);
-    Label if_exception(this, Label::kDeferred);
-    TNode<Boolean> result;
-    {
-      ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      switch (compare_op) {
-        case Operation::kEqual:
-          result = Equal(lhs, rhs, context, &var_type_feedback);
-          break;
-        case Operation::kLessThan:
-        case Operation::kGreaterThan:
-        case Operation::kLessThanOrEqual:
-        case Operation::kGreaterThanOrEqual:
-          result = RelationalComparison(compare_op, lhs, rhs, context,
-                                        &var_type_feedback);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    }
-
-    TNode<UintPtrT> slot_index = BytecodeOperandFeedbackSlot(1);
-    static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
-    UpdateFeedback(var_type_feedback.value(),
-                   LoadFeedbackVectorOrUndefinedIfJitless(), slot_index, mode);
-    SetAccumulator(result);
-    Dispatch();
-
-    BIND(&if_exception);
-    {
-      slot_index = BytecodeOperandFeedbackSlot(1);
-      UpdateFeedback(var_type_feedback.value(),
-                     LoadFeedbackVectorOrUndefinedIfJitless(), slot_index,
-                     mode);
-      CallRuntime(Runtime::kReThrow, context, var_exception.value());
-      Unreachable();
-    }
-  }
-
   void CompareOpWithEmbeddedFeedback(Operation compare_op) {
     TNode<Object> lhs = LoadRegisterAtOperandIndex(0);
     TNode<Object> rhs = GetAccumulator();
@@ -1854,7 +1809,16 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
         case Operation::kStrictEqual:
           result = StrictEqual(lhs, rhs, &var_type_feedback);
           break;
-
+        case Operation::kEqual:
+          result = Equal(lhs, rhs, context, &var_type_feedback);
+          break;
+        case Operation::kLessThan:
+        case Operation::kGreaterThan:
+        case Operation::kLessThanOrEqual:
+        case Operation::kGreaterThanOrEqual:
+          result = RelationalComparison(compare_op, lhs, rhs, context,
+                                        &var_type_feedback);
+          break;
         default:
           UNREACHABLE();
       }
@@ -1876,11 +1840,11 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
   }
 };
 
-// TestEqual <src>
+// TestEqual <src> <feedback_value>
 //
 // Test if the value in the <src> register equals the accumulator.
 IGNITION_HANDLER(TestEqual, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Operation::kEqual);
+  CompareOpWithEmbeddedFeedback(Operation::kEqual);
 }
 
 // TestEqualStrict <src> <feedback_value>
@@ -1890,34 +1854,34 @@ IGNITION_HANDLER(TestEqualStrict, InterpreterCompareOpAssembler) {
   CompareOpWithEmbeddedFeedback(Operation::kStrictEqual);
 }
 
-// TestLessThan <src>
+// TestLessThan <src> <feedback_value>
 //
 // Test if the value in the <src> register is less than the accumulator.
 IGNITION_HANDLER(TestLessThan, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Operation::kLessThan);
+  CompareOpWithEmbeddedFeedback(Operation::kLessThan);
 }
 
-// TestGreaterThan <src>
+// TestGreaterThan <src> <feedback_value>
 //
 // Test if the value in the <src> register is greater than the accumulator.
 IGNITION_HANDLER(TestGreaterThan, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Operation::kGreaterThan);
+  CompareOpWithEmbeddedFeedback(Operation::kGreaterThan);
 }
 
-// TestLessThanOrEqual <src>
+// TestLessThanOrEqual <src> <feedback_value>
 //
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 IGNITION_HANDLER(TestLessThanOrEqual, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Operation::kLessThanOrEqual);
+  CompareOpWithEmbeddedFeedback(Operation::kLessThanOrEqual);
 }
 
-// TestGreaterThanOrEqual <src>
+// TestGreaterThanOrEqual <src> <feedback_value>
 //
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 IGNITION_HANDLER(TestGreaterThanOrEqual, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Operation::kGreaterThanOrEqual);
+  CompareOpWithEmbeddedFeedback(Operation::kGreaterThanOrEqual);
 }
 
 // TestReferenceEqual <src>

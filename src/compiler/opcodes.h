@@ -100,17 +100,13 @@
 // Arguments are JSName (the name with a 'JS' prefix), and Name.
 #define JS_COMPARE_BINOP_COMMON_LIST(V) \
   V(JSEqual, Equal)                     \
+  V(JSStrictEqual, StrictEqual)         \
   V(JSLessThan, LessThan)               \
   V(JSGreaterThan, GreaterThan)         \
   V(JSLessThanOrEqual, LessThanOrEqual) \
   V(JSGreaterThanOrEqual, GreaterThanOrEqual)
 
-#define JS_COMPARE_BINOP_WITH_EMBEDDED_FEEDBACK_LIST(V) \
-  V(JSStrictEqual, StrictEqual)
-
-#define JS_COMPARE_BINOP_LIST(V)  \
-  JS_COMPARE_BINOP_COMMON_LIST(V) \
-  JS_COMPARE_BINOP_WITH_EMBEDDED_FEEDBACK_LIST(V)
+#define JS_COMPARE_BINOP_LIST(V) JS_COMPARE_BINOP_COMMON_LIST(V)
 
 #define JS_BITWISE_BINOP_LIST(V) \
   V(JSBitwiseOr, BitwiseOr)      \
