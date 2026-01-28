@@ -99,11 +99,11 @@
 }],
 
 ##############################################################################
-['arch == mips64', {
+['arch == mips64 or arch == mips64el', {
   # Stack switching is not supported on all platforms.
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [SKIP],
   'wpt/jspi/*': [SKIP]
-}],  # arch == mips64
+}],  # arch == mips64 or arch == mips64el
 
 ##############################################################################
 ['cet_shadow_stack', {
