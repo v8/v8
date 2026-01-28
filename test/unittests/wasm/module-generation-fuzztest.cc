@@ -77,7 +77,9 @@ void ModuleGenerationTest::Test(WasmModuleGenerationOptions options,
                                 bool allow_avx) {
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
   bool disable_avx = !allow_avx && CpuFeatures::IsSupported(AVX);
-  if (disable_avx) CpuFeatures::SetUnsupported(AVX);
+  // !AVX implies !AVX2 and !FMA3.
+  constexpr CpuFeatureSet kAvxFeatures{AVX, AVX2, FMA3};
+  if (disable_avx) CpuFeatures::SetUnsupported(kAvxFeatures);
 #endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 
   // Set the tier mask to deterministically test a combination of Liftoff and
@@ -100,7 +102,7 @@ void ModuleGenerationTest::Test(WasmModuleGenerationOptions options,
   SyncCompileAndExecuteAgainstReference(isolate(), wire_bytes, kRequireValid);
 
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-  if (disable_avx) CpuFeatures::SetSupported(AVX);
+  if (disable_avx) CpuFeatures::SetSupported(kAvxFeatures);
 #endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 }
 
