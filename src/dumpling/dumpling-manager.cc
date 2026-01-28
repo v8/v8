@@ -220,8 +220,7 @@ DumplingManager::~DumplingManager() {
 
 bool DumplingManager::AnyDumplingFlagsSet() const {
   return v8_flags.interpreter_dumping || v8_flags.sparkplug_dumping ||
-         v8_flags.maglev_dumping || v8_flags.turbofan_dumping ||
-         v8_flags.turbofan_dumping_print_deopt_frames;
+         v8_flags.maglev_dumping || v8_flags.turbofan_dumping;
 }
 
 void DumplingManager::RecordDumpPosition(int function_id, int bytecode_offset) {
