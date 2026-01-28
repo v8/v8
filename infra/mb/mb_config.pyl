@@ -591,11 +591,12 @@
       'v8_enable_slow_dchecks', 'v8_verify_heap', 'v8_enable_undefined_double'],
     'release_x64_sandbox_testing_undefined_double': [
       'release_bot', 'x64', 'symbolized', 'backtrace', 'trace_pc_guard',
-      'v8_enable_memory_corruption_api', 'v8_enable_undefined_double'],
+      'v8_enable_memory_corruption_api', 'v8_enable_undefined_double',
+      'v8_enable_fuzzilli'],
     'release_x64_asan_sandbox_testing_undefined_double': [
       'release_bot', 'x64', 'asan', 'minimal_symbols', 'backtrace',
       'trace_pc_guard', 'v8_enable_memory_corruption_api',
-      'v8_enable_undefined_double'],
+      'v8_enable_undefined_double', 'v8_enable_fuzzilli'],
     'release_x64_asan_symbolized_verify_heap_undefined_double': [
       'release_bot', 'x64', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap', 'v8_enable_undefined_double'],
@@ -1091,6 +1092,10 @@
 
     'v8_enable_drumbrake': {
       'gn_args': 'v8_enable_drumbrake=true',
+    },
+
+    'v8_enable_fuzzilli': {
+      'gn_args': 'v8_fuzzilli=true',
     },
 
     'v8_enable_memory_corruption_api': {
