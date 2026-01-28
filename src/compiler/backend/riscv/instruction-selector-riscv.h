@@ -594,8 +594,15 @@ void InstructionSelector::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
 void EmitWordCompareZero(InstructionSelector* selector, OpIndex value,
                          FlagsContinuation* cont) {
   RiscvOperandGenerator g(selector);
-  selector->EmitWithContinuation(kRiscvCmpZero,
-                                 g.UseRegisterOrImmediateZero(value), cont);
+  size_t input_count = 0;
+  InstructionOperand inputs[4];
+  inputs[input_count++] = g.UseRegisterOrImmediateZero(value);
+  if (cont->IsSelect()) {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
+  }
+  selector->EmitWithContinuation(kRiscvCmpZero, 0, nullptr, input_count, inputs,
+                                 cont);
 }
 
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -603,9 +610,15 @@ void EmitWordCompareZero(InstructionSelector* selector, OpIndex value,
 void EmitWord32CompareZero(InstructionSelector* selector, OpIndex value,
                            FlagsContinuation* cont) {
   RiscvOperandGenerator g(selector);
-  InstructionOperand inputs[] = {g.UseRegisterOrImmediateZero(value)};
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseRegisterOrImmediateZero(value);
   InstructionOperand temps[] = {g.TempRegister()};
-  selector->EmitWithContinuation(kRiscvCmpZero32, 0, nullptr, arraysize(inputs),
+  if (cont->IsSelect()) {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->true_value());
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(cont->false_value());
+  }
+  selector->EmitWithContinuation(kRiscvCmpZero32, 0, nullptr, input_count,
                                  inputs, arraysize(temps), temps, cont);
 }
 #endif

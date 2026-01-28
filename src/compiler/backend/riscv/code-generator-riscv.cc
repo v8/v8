@@ -724,11 +724,22 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
   MachineRepresentation rep =
       LocationOperand::cast(instr->OutputAt(output_index))->representation();
   Condition cc = FlagsConditionToConditionCmp(condition);
+  DCHECK_GE(instr->InputCount(), 3);
   Register left = i.InputRegister(0);
   Operand right = i.InputOperand(1);
+  if (instr->arch_opcode() == kRiscvCmpZero ||
+      instr->arch_opcode() == kRiscvCmpZero32) {
+    right = Operand(zero_reg);
+  } else if (instr->arch_opcode() == kRiscvTst32 ||
+             instr->arch_opcode() == kRiscvTst64) {
+    left = kScratchReg;
+    right = Operand(zero_reg);
+  } else {
+    DCHECK(instr->arch_opcode() == kRiscvCmp32 ||
+           instr->arch_opcode() == kRiscvCmp);
+  }
   // We don't know how many inputs were consumed by the condition, so we have to
   // calculate the indices of the last two inputs.
-  DCHECK_GE(instr->InputCount(), 4);
   size_t true_value_index = instr->InputCount() - 2;
   size_t false_value_index = instr->InputCount() - 1;
 
@@ -737,14 +748,22 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
     UNREACHABLE();
   } else if ((rep == MachineRepresentation::kWord32) ||
              (rep == MachineRepresentation::kWord64)) {
-    auto true_op = i.InputRegister(true_value_index);
-    auto false_op = i.InputRegister(false_value_index);
+    auto true_op = i.InputOperand(true_value_index);
+    auto false_op = i.InputOperand(false_value_index);
     Label true_label, end_label;
     __ Branch(&true_label, cc, left, right);
-    __ Move(i.OutputRegister(output_index), false_op);
+    if (false_op.is_reg()) {
+      __ Move(i.OutputRegister(output_index), false_op.rm());
+    } else {
+      __ li(i.OutputRegister(output_index), false_op);
+    }
     __ Branch(&end_label);
     __ bind(&true_label);
-    __ Move(i.OutputRegister(output_index), true_op);
+    if (true_op.is_reg()) {
+      __ Move(i.OutputRegister(output_index), true_op.rm());
+    } else {
+      __ li(i.OutputRegister(output_index), true_op);
+    }
     __ bind(&end_label);
   }
 }
