@@ -247,6 +247,23 @@
   # Begin Temporal test expectations
   # Temporal work is tracked in b/42201538
 
+  # Tests that add non-year/month units to PlainYearMonth
+  # These are being fixed upstream, should be disabled until the next test262 roll
+  'built-ins/Temporal/PlainYearMonth/prototype/add/argument-duration-max': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/add/argument-lower-units': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/add/argument-string-negative-fractional-units': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/subtract/argument-string-negative-fractional-units': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/add/month-length': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/add/order-of-operations': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/add/subtract-from-last-representable-month': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/add/argument-propertybag-optional-properties': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/subtract/argument-duration-max': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/subtract/argument-lower-units': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/subtract/month-length': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/subtract/order-of-operations': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/subtract/subtract-from-last-representable-month': [SKIP],
+  'built-ins/Temporal/PlainYearMonth/prototype/subtract/argument-propertybag-optional-properties': [SKIP],
+
   # Some of these tests need updating to the newer spec, and
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
