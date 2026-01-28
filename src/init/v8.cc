@@ -304,9 +304,7 @@ void V8::DisposePlatform() {
 
   platform_ = nullptr;
 
-#if DEBUG
-  internal::ThreadIsolation::CheckTrackedMemoryEmpty();
-#endif
+  ThreadIsolation::TearDown();
 
   AdvanceStartupState(V8StartupState::kPlatformDisposed);
 }
