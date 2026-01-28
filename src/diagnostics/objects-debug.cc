@@ -1174,16 +1174,13 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
   } else {
     accessor = ElementsAccessor::ForKind(DICTIONARY_ELEMENTS);
   }
-  Tagged<Object> inobject_length =
-      holder->InObjectPropertyAt(JSSloppyArgumentsObject::kLengthIndex);
-  uint32_t mapped_elements_length = elements->ulength();
-  uint32_t jsargs_length;
-  if (Object::ToUint32(inobject_length, &jsargs_length)) {
-    // The value of elements->length() can be overshooted during compilation,
-    // use the in-object length property value if it is lower.
-    mapped_elements_length = std::min(mapped_elements_length, jsargs_length);
-  }
-  int nofMappedParameters = 0;
+  // The value of elements->length() can be overshooted during optimization,
+  // for fast sloppy arguments take the minimum between the elements length and
+  // the argument count as done in the built-in NewSloppyArgumentsElements.
+  uint32_t mapped_elements_length =
+      is_fast ? std::min(elements->ulength(), arg_elements->ulength())
+              : elements->ulength();
+  uint32_t nofMappedParameters = 0;
   for (uint32_t i = 0; i < mapped_elements_length; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
@@ -1205,8 +1202,17 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
     // elements.
     CHECK(!accessor->HasElement(isolate, holder, i, arg_elements));
   }
-  CHECK_LE(nofMappedParameters, context_object->length());
-  CHECK_LE(nofMappedParameters, arg_elements->length());
+  for (uint32_t i = mapped_elements_length; i < elements->ulength(); ++i) {
+    // Ensure that any overshooted element is the hole
+    CHECK(IsTheHole(elements->mapped_entries(i, kRelaxedLoad), isolate));
+  }
+  CHECK_LE(nofMappedParameters,
+           static_cast<uint32_t>(context_object->length()));
+  if (is_fast) {
+    CHECK_LE(nofMappedParameters, arg_elements->ulength());
+  } else {
+    CHECK(IsNumberDictionary(elements->arguments()));
+  }
 }
 }  // namespace
 
