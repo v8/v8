@@ -251,34 +251,6 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # Spec issue: https://github.com/tc39/proposal-intl-era-monthcode/issues/96
-  # We follow the spec, the tests follow an older consensus on the spec.
-  # We need to wait for upstream to make a decision here.
-  'intl402/Temporal/PlainDate/prototype/since/leap-months-chinese': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/since/leap-months-dangi': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/since/leap-months-hebrew': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/until/leap-months-chinese': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/until/leap-months-dangi': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/until/leap-months-hebrew': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-chinese': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-dangi': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/since/leap-months-hebrew': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-chinese': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-dangi': [FAIL],
-  'intl402/Temporal/PlainDateTime/prototype/until/leap-months-hebrew': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-chinese': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-dangi': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/since/leap-months-hebrew': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-chinese': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-dangi': [FAIL],
-  'intl402/Temporal/ZonedDateTime/prototype/until/leap-months-hebrew': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-chinese': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-dangi': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/since/leap-months-hebrew': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-chinese': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-dangi': [SKIP],
-  'intl402/Temporal/PlainYearMonth/prototype/until/leap-months-hebrew': [SKIP],
-
   # toLocaleString with just an era setting should format as default
   # b/463427743
   'intl402/Temporal/Instant/prototype/toLocaleString/era': [FAIL],
@@ -290,7 +262,6 @@
   'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [FAIL],
 
   # End Temporal test expectations
-
 
   # https://github.com/tc39/test262/pull/3988
   'intl402/DurationFormat/prototype/format/precision-exact-mathematical-values': [FAIL],
