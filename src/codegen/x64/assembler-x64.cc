@@ -91,59 +91,59 @@ bool CpuFeatures::SupportsWasmSimd128() {
   return false;
 }
 
-static constexpr unsigned CpuFeaturesFromCompiler() {
+static constexpr CpuFeatureSet CpuFeaturesFromCompiler() {
   // Use compiler-defined macros to detect CPU features enabled by -march flags.
   // These macros are set by Clang/GCC based on the target architecture.
   // Note: SSE2 and CMOV are baseline x64 requirements and not in the enum.
-  unsigned features = 0;
+  CpuFeatureSet features;
 
 #ifdef __LAHF_SAHF__
-  features |= (1u << SAHF);
+  features.Add(SAHF);
 #endif
 #ifdef __SSE3__
-  features |= (1u << SSE3);
+  features.Add(SSE3);
 #endif
 #ifdef __SSSE3__
-  features |= (1u << SSSE3);
+  features.Add(SSSE3);
 #endif
 #ifdef __SSE4_1__
-  features |= (1u << SSE4_1);
+  features.Add(SSE4_1);
 #endif
 #ifdef __SSE4_2__
-  features |= (1u << SSE4_2);
+  features.Add(SSE4_2);
 #endif
 #ifdef __AVX__
-  features |= (1u << AVX);
+  features.Add(AVX);
 #endif
 #ifdef __AVX2__
-  features |= (1u << AVX2);
+  features.Add(AVX2);
 #endif
 #ifdef __AVXVNNI__
-  features |= (1u << AVX_VNNI);
+  features.Add(AVX_VNNI);
 #endif
 #ifdef __AVXVNNIINT8__
-  features |= (1u << AVX_VNNI_INT8);
+  features.Add(AVX_VNNI_INT8);
 #endif
 #ifdef __FMA__
-  features |= (1u << FMA3);
+  features.Add(FMA3);
 #endif
 #ifdef __F16C__
-  features |= (1u << F16C);
+  features.Add(F16C);
 #endif
 #ifdef __BMI__
-  features |= (1u << BMI1);
+  features.Add(BMI1);
 #endif
 #ifdef __BMI2__
-  features |= (1u << BMI2);
+  features.Add(BMI2);
 #endif
 #ifdef __LZCNT__
-  features |= (1u << LZCNT);
+  features.Add(LZCNT);
 #endif
 #ifdef __POPCNT__
-  features |= (1u << POPCNT);
+  features.Add(POPCNT);
 #endif
 #ifdef __APX_F__
-  features |= (1u << APX_F);
+  features.Add(APX_F);
 #endif
 
   return features;

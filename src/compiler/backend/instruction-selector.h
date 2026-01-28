@@ -418,19 +418,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final
     kEnsureDeterministicNan = true
   };
 
-  class Features final {
-   public:
-    Features() : bits_(0) {}
-    explicit Features(unsigned bits) : bits_(bits) {}
-    explicit Features(CpuFeature f) : bits_(1u << f) {}
-    Features(CpuFeature f1, CpuFeature f2) : bits_((1u << f1) | (1u << f2)) {}
-
-    bool Contains(CpuFeature f) const { return (bits_ & (1u << f)); }
-
-   private:
-    unsigned bits_;
-  };
-
   static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
 
@@ -440,7 +427,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
       size_t* max_pushed_argument_count,
-      SourcePositionMode source_position_mode, Features features,
+      SourcePositionMode source_position_mode, CpuFeatureSet features,
       EnableScheduling enable_scheduling,
       EnableRootsRelativeAddressing enable_roots_relative_addressing,
       EnableTraceTurboJson trace_turbo,
@@ -453,7 +440,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
       size_t* max_pushed_argument_count,
-      SourcePositionMode source_position_mode, Features features,
+      SourcePositionMode source_position_mode, CpuFeatureSet features,
       EnableScheduling enable_scheduling,
       EnableRootsRelativeAddressing enable_roots_relative_addressing,
       EnableTraceTurboJson trace_turbo,
@@ -538,14 +525,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // ============== Architecture-independent CPU feature methods. ==============
   // ===========================================================================
 
-  bool IsSupported(CpuFeature feature) const {
-    return features_.Contains(feature);
-  }
-
-  // Returns the features supported on the target platform.
-  static Features SupportedFeatures() {
-    return Features(CpuFeatures::SupportedFeatures());
-  }
+  bool IsSupported(CpuFeature f) const { return features_.contains(f); }
 
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
@@ -1593,7 +1573,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   InstructionSequence* const sequence_;
   source_position_table_t* const source_positions_;
   SourcePositionMode const source_position_mode_;
-  Features features_;
+  const CpuFeatureSet features_;
   turboshaft::Graph* const schedule_;
   const turboshaft::Block* current_block_;
   ZoneVector<Instruction*> instructions_;

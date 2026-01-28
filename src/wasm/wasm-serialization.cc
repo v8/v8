@@ -155,7 +155,7 @@ void WriteHeader(Writer* writer, WasmEnabledFeatures enabled_features,
   DCHECK_EQ(0, writer->bytes_written());
   writer->Write(SerializedData::kMagicNumber);
   writer->Write(Version::Hash());
-  writer->Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
+  writer->Write(CpuFeatures::SupportedFeatures().ToIntegral());
   writer->Write(FlagList::Hash());
   writer->Write(enabled_features.ToIntegral());
   writer->Write(compile_imports.flags().ToIntegral());

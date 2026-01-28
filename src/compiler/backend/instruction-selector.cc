@@ -56,7 +56,8 @@ InstructionSelector::InstructionSelector(
     TickCounter* tick_counter, JSHeapBroker* broker,
     size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
     InstructionSelector::SourcePositionMode source_position_mode,
-    Features features, InstructionSelector::EnableScheduling enable_scheduling,
+    CpuFeatureSet features,
+    InstructionSelector::EnableScheduling enable_scheduling,
     InstructionSelector::EnableRootsRelativeAddressing
         enable_roots_relative_addressing,
     InstructionSelector::EnableTraceTurboJson trace_turbo,
@@ -4097,7 +4098,7 @@ InstructionSelector InstructionSelector::ForTurboshaft(
     EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
     JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
     size_t* max_pushed_argument_count, SourcePositionMode source_position_mode,
-    Features features, EnableScheduling enable_scheduling,
+    CpuFeatureSet features, EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
     EnableTraceTurboJson trace_turbo,
     EnsureDeterministicNan ensure_deterministic_nan) {
