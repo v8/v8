@@ -3193,8 +3193,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   MakeParallelItem(
       "SweepJSDispatchTable",
       [this, isolate](ParallelItem*, JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE,
-                  delegate);
+        TRACE_GC1(heap_->tracer(),
+                  GCTracer::Scope::MC_CLEAR_SWEEP_JS_DISPATCH_TABLE, delegate);
         JSDispatchTable& jdt = isolate->js_dispatch_table();
         Tagged<Code> compile_lazy =
             heap_->isolate()->builtins()->code(Builtin::kCompileLazy);
@@ -3311,7 +3311,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       "SweepExternalPointerTable",
       [this](ParallelItem*, JobDelegate* delegate) {
         TRACE_GC1(heap_->tracer(),
-                  GCTracer::Scope::MC_SWEEP_EXTERNAL_POINTER_TABLE, delegate);
+                  GCTracer::Scope::MC_CLEAR_SWEEP_EXTERNAL_POINTER_TABLE,
+                  delegate);
         Isolate* isolate = heap_->isolate();
         // External pointer table sweeping needs to happen before evacuating
         // live objects as it may perform table compaction, which requires
@@ -3349,7 +3350,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       "SweepTrustedPointerTable",
       [this](ParallelItem*, JobDelegate* delegate) {
         TRACE_GC1(heap_->tracer(),
-                  GCTracer::Scope::MC_SWEEP_TRUSTED_POINTER_TABLE, delegate);
+                  GCTracer::Scope::MC_CLEAR_SWEEP_TRUSTED_POINTER_TABLE,
+                  delegate);
         Isolate* isolate = heap_->isolate();
         isolate->trusted_pointer_table().Sweep(heap_->trusted_pointer_space(),
                                                isolate->counters());
@@ -3365,8 +3367,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   MakeParallelItem(
       "SweepCodePointerTable",
       [this](ParallelItem*, JobDelegate* delegate) {
-        TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_SWEEP_CODE_POINTER_TABLE,
-                  delegate);
+        TRACE_GC1(heap_->tracer(),
+                  GCTracer::Scope::MC_CLEAR_SWEEP_CODE_POINTER_TABLE, delegate);
         IsolateGroup::current()->code_pointer_table()->Sweep(
             heap_->code_pointer_space(), heap_->isolate()->counters());
       })
@@ -3379,7 +3381,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   MakeParallelItem("SweepWasmCodePointerTable", [this](ParallelItem*,
                                                        JobDelegate* delegate) {
     TRACE_GC1(heap_->tracer(),
-              GCTracer::Scope::MC_SWEEP_WASM_CODE_POINTER_TABLE, delegate);
+              GCTracer::Scope::MC_CLEAR_SWEEP_WASM_CODE_POINTER_TABLE,
+              delegate);
     wasm::GetProcessWideWasmCodePointerTable()->SweepSegments();
   }).Enqueue(parallel_clearing_job);
 #endif  // V8_ENABLE_WEBASSEMBLY
