@@ -3601,14 +3601,17 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Push(cont, kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(6, r0);
+    DCHECK(!AreAliased(kCArgRegs[4], cont, arg_buffer));
+    DCHECK(!AreAliased(kCArgRegs[5], arg_buffer));
+    __ PrepareCallCFunction(7, r0);
     __ Move(kCArgRegs[4], tag);
     __ Move(kCArgRegs[5], cont);
+    __ Move(kCArgRegs[6], arg_buffer);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ Move(kCArgRegs[1], sp);
     __ Move(kCArgRegs[2], fp);
     __ GetLabelAddress(kCArgRegs[3], &resume);
-    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 6);
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 7);
   }
   Register target_stack = r4;
   __ Move(target_stack, kReturnRegister0);
