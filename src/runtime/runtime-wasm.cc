@@ -191,7 +191,8 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   int ret = WasmMemoryObject::Grow(isolate, memory_object, delta_pages);
   // The WasmMemoryGrow builtin which calls this runtime function expects us to
   // always return a Smi.
-  DCHECK(!isolate->has_exception());
+  DCHECK(!isolate->has_exception() ||
+         IsTerminationException(isolate->exception()));
   return Smi::FromInt(ret);
 }
 
