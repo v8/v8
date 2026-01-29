@@ -11,6 +11,7 @@
 
 #include <optional>
 
+#include "src/base/functional/function-ref.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/objects/visitors.h"
@@ -214,6 +215,10 @@ class StackMemory {
   constexpr static uint32_t current_continuation_offset() {
     return OFFSET_OF(StackMemory, current_cont_);
   }
+  constexpr static uint32_t arg_buffer_offset() {
+    return OFFSET_OF(StackMemory, arg_buffer_);
+  }
+  void set_arg_buffer(Address addr) { arg_buffer_ = addr; }
   Address central_stack_sp() const { return central_stack_sp_; }
   void set_central_stack_sp(Address sp) { central_stack_sp_ = sp; }
 
@@ -241,6 +246,7 @@ class StackMemory {
   StackSegment* active_segment_ = nullptr;
   Tagged<WasmContinuationObject> current_cont_ = {};
   Tagged<WasmFuncRef> func_ref_ = {};
+  Address arg_buffer_ = kNullAddress;
   // When adding fields here, also check if it needs to be cleared in
   // StackMemory::Reset() when the stack is moved to the stack pool after
   // retiring.
@@ -278,6 +284,31 @@ class StackPool {
   // stack is freed instead of being added to the free list.
   static constexpr int kMaxSize = 4 * MB;
 };
+
+using WasmFXArgBufferCallback =
+    base::FunctionRef<void(size_t value_index, int offset)>;
+
+template <typename T>
+int IterateWasmFXArgBuffer(base::Vector<const T> types,
+                           WasmFXArgBufferCallback callback) {
+  int offset = 0;
+  for (size_t i = 0; i < types.size(); i++) {
+    int param_size = types[i].value_kind_full_size();
+    offset = RoundUp(offset, param_size);
+    callback(i, offset);
+    offset += param_size;
+  }
+  return offset;
+}
+
+template <typename T>
+std::pair<int, int> GetBufferSizeAndAlignmentFor(base::Vector<const T> types) {
+  int alignment = kSystemPointerSize;
+  int size = IterateWasmFXArgBuffer(types, [&](size_t index, int offset) {
+    alignment = std::max(alignment, types[index].value_kind_full_size());
+  });
+  return {size, alignment};
+}
 
 }  // namespace v8::internal::wasm
 

@@ -1013,12 +1013,14 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
 
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
-                             Address cont_raw) {
+                             Address cont_raw, Address arg_buffer) {
   Tagged<Object> tag_obj(wanted_tag_raw);
   auto wanted_tag = TrustedCast<WasmExceptionTag>(tag_obj);
   Tagged<Object> cont_obj(cont_raw);
   auto cont = TrustedCast<WasmContinuationObject>(cont_obj);
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  DCHECK(from->Contains(arg_buffer));
+  from->set_arg_buffer(arg_buffer);
   cont->set_stack(isolate, from);
   from->set_current_continuation(cont);
   wasm::StackMemory* to = from->jmpbuf()->parent;

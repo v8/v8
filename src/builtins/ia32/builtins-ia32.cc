@@ -3921,16 +3921,17 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Push(kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(6, edi);
+    __ PrepareCallCFunction(7, edi);
     __ Move(Operand(esp, 0 * kSystemPointerSize),
             Immediate(ExternalReference::isolate_address()));
     __ mov(MemOperand(esp, 1 * kSystemPointerSize), esp);
     __ mov(MemOperand(esp, 2 * kSystemPointerSize), ebp);
-    __ LoadLabelAddress(ecx, &resume);
-    __ mov(MemOperand(esp, 3 * kSystemPointerSize), ecx);
     __ mov(MemOperand(esp, 4 * kSystemPointerSize), tag);
     __ mov(MemOperand(esp, 5 * kSystemPointerSize), cont);
-    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 6);
+    __ mov(MemOperand(esp, 6 * kSystemPointerSize), arg_buffer);
+    __ LoadLabelAddress(ecx, &resume);
+    __ mov(MemOperand(esp, 3 * kSystemPointerSize), ecx);
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 7);
   }
   Register target_stack = edi;
   __ mov(target_stack, kReturnRegister0);

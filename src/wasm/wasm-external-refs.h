@@ -202,7 +202,7 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                          Address fp, Address pc);
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
-                             Address cont_raw);
+                             Address cont_raw, Address return_buffer);
 void return_stack(Isolate* isolate, wasm::StackMemory* to);
 void retire_stack(Isolate* isolate, wasm::StackMemory* stack);
 

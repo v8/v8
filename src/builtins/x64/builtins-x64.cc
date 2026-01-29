@@ -4006,20 +4006,22 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Push(kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(6);
+    __ PrepareCallCFunction(7);
 #ifdef V8_TARGET_OS_WIN
     __ movq(MemOperand(rsp, 4 * kSystemPointerSize), tag);
     __ movq(MemOperand(rsp, 5 * kSystemPointerSize), cont);
+    __ movq(MemOperand(rsp, 6 * kSystemPointerSize), arg_buffer);
 #else
     DCHECK_NE(kCArgRegs[4], cont);
     __ Move(kCArgRegs[4], tag);
     __ Move(kCArgRegs[5], cont);
+    __ movq(MemOperand(rsp, 0), arg_buffer);
 #endif
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ Move(kCArgRegs[1], rsp);
     __ Move(kCArgRegs[2], rbp);
     __ leaq(kCArgRegs[3], MemOperand(&resume, 0));
-    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 6);
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 7);
   }
   Register target_stack = rbx;
   __ Move(target_stack, kReturnRegister0);

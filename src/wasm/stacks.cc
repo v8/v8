@@ -196,6 +196,7 @@ void StackMemory::Reset() {
   clear_stack_switch_info();
   current_cont_ = {};
   func_ref_ = {};
+  arg_buffer_ = kNullAddress;
 }
 
 bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {

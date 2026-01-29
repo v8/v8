@@ -3861,8 +3861,9 @@ class TurboshaftGraphBuildingInterface
     // target stack.
     const FunctionSig* sig =
         decoder->module_->signature(imm.cont_type->contfun_typeindex());
-    auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig->parameters());
-    OpIndex arg_buffer = __ StackSlot(size, alignment);
+    V<WordPtr> arg_buffer = __ Load(stack, LoadOp::Kind::RawAligned(),
+                                    MemoryRepresentation::UintPtr(),
+                                    StackMemory::arg_buffer_offset());
     IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
       DCHECK_EQ(args[index].type, sig->GetParam(index));
       this->Asm().StoreOffHeap(arg_buffer, args[index].op,
@@ -3983,7 +3984,10 @@ class TurboshaftGraphBuildingInterface
     // Reserve a stack buffer, move the tag params there and pass it to the
     // target stack.
     const FunctionSig* sig = imm.tag->sig;
-    auto [size, alignment] = GetBufferSizeAndAlignmentFor(sig->parameters());
+    auto [arg_size, arg_alignment] =
+        GetBufferSizeAndAlignmentFor(sig->parameters());
+    auto [return_size, return_alignment] =
+        GetBufferSizeAndAlignmentFor(sig->returns());
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
                                       MemoryRepresentation::TaggedPointer());
@@ -3992,16 +3996,17 @@ class TurboshaftGraphBuildingInterface
     V<WasmContinuationObject> cont = __ WasmCallRuntime(
         decoder->zone(), Runtime::kWasmAllocateEmptyContinuation, {},
         native_context);
-    OpIndex arg_buffer = __ StackSlot(size, alignment);
+    OpIndex arg_buffer =
+        __ StackSlot(std::max(arg_size, return_size),
+                     std::max(arg_alignment, return_alignment));
     IterateWasmFXArgBuffer(sig->parameters(), [&](size_t index, int offset) {
       DCHECK_EQ(args[index].type, sig->GetParam(index));
       __ StoreOffHeap(arg_buffer, args[index].op,
                       MemoryRepresentationFor(args[index].type), offset);
     });
-    arg_buffer =
-        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXSuspend>(
-            decoder, native_context, {wanted_tag, cont, arg_buffer},
-            CheckForException::kCatchInThisFrame);
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmFXSuspend>(
+        decoder, native_context, {wanted_tag, cont, arg_buffer},
+        CheckForException::kCatchInThisFrame);
 
     // Unpack tag returns.
     IterateWasmFXArgBuffer(sig->returns(), [&](size_t index, int offset) {
