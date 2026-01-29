@@ -733,7 +733,7 @@ ValueRepresentation ToValueRepresentation(MachineType type) {
 }
 
 void NodeBase::CheckInputIs(int i, ValueRepresentation expected) const {
-  const ValueNode* inp = input(i).node();
+  const ValueNode* inp = input(i).node()->UnwrapIdentities();
   DCHECK(!inp->Is<Identity>());
   ValueRepresentation got = inp->properties().value_representation();
   bool valid = ValueRepresentationIs(got, expected);
