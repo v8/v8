@@ -2024,9 +2024,9 @@ void WasmEngine::DecodeAllNameSections(CanonicalTypeNamesProvider* target) {
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
 #ifdef V8_ENABLE_TURBOFAN
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8392);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8464);
 #else
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8368);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8440);
 #endif
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 168);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 56);

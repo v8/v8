@@ -6,10 +6,8 @@
 #define V8_ZONE_ACCOUNTING_ALLOCATOR_H_
 
 #include <atomic>
-#include <memory>
 #include <unordered_set>
 
-#include "include/v8-platform.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/logging/tracing-flags.h"
@@ -29,6 +27,11 @@ class Zone;
 
 class V8_EXPORT_PRIVATE AccountingAllocator {
  public:
+  // TODO(409953791): Consider making this constructor private. We have several
+  // places where we create an ad-hoc `AccountingAllocator` only for creating a
+  // single, temporary Zone where we should instead use some already available
+  // allocator. Increasing the API friction might help reducing the number of
+  // allocator instances.
   AccountingAllocator();
   explicit AccountingAllocator(Isolate* isolate);
   AccountingAllocator(const AccountingAllocator&) = delete;
@@ -78,6 +81,10 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
   std::atomic<size_t> max_memory_usage_{0};
 };
 
+// TODO(479122452): Consider merging this into `AccountingAllocator`,
+// or at least use `TracingAccountingAllocator` in more places instead.
+// As of 2026-01, we are often creating Zones from `AccountingAllocator`s,
+// which then don't appear in the tracing output of `--trace-zone-stats`.
 class TracingAccountingAllocator : public AccountingAllocator {
  public:
   explicit TracingAccountingAllocator(Isolate* isolate)
@@ -85,13 +92,13 @@ class TracingAccountingAllocator : public AccountingAllocator {
   ~TracingAccountingAllocator() = default;
 
  protected:
-  void TraceAllocateSegmentImpl(Segment* segment) override;
   void TraceZoneCreationImpl(const Zone* zone) override;
   void TraceZoneDestructionImpl(const Zone* zone) override;
+  void TraceAllocateSegmentImpl(Segment* segment) override;
 
  private:
   void UpdateMemoryTrafficAndReportMemoryUsage(size_t memory_traffic_delta);
-  void Dump(std::ostringstream& out, bool dump_details);
+  std::string Dump(bool dump_details);
 
   std::atomic<size_t> nesting_depth_{0};
 
@@ -100,7 +107,6 @@ class TracingAccountingAllocator : public AccountingAllocator {
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
   TypeStats type_stats_;
 #endif
-  std::ostringstream buffer_;
   // This value is increased on both allocations and deallocations.
   size_t memory_traffic_since_last_report_ = 0;
 };

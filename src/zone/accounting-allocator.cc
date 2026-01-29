@@ -4,9 +4,6 @@
 
 #include "src/zone/accounting-allocator.h"
 
-#include <memory>
-
-#include "src/base/bounded-page-allocator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/execution/isolate.h"
@@ -154,12 +151,6 @@ void AccountingAllocator::ReturnSegment(Segment* segment) {
   }
 }
 
-void TracingAccountingAllocator::TraceAllocateSegmentImpl(
-    v8::internal::Segment* segment) {
-  base::MutexGuard lock(&mutex_);
-  UpdateMemoryTrafficAndReportMemoryUsage(segment->total_size());
-}
-
 void TracingAccountingAllocator::TraceZoneCreationImpl(const Zone* zone) {
   base::MutexGuard lock(&mutex_);
   active_zones_.insert(zone);
@@ -184,6 +175,12 @@ void TracingAccountingAllocator::TraceZoneDestructionImpl(const Zone* zone) {
 #endif
 }
 
+void TracingAccountingAllocator::TraceAllocateSegmentImpl(
+    v8::internal::Segment* segment) {
+  base::MutexGuard lock(&mutex_);
+  UpdateMemoryTrafficAndReportMemoryUsage(segment->total_size());
+}
+
 void TracingAccountingAllocator::UpdateMemoryTrafficAndReportMemoryUsage(
     size_t memory_traffic_delta) {
   if (!v8_flags.trace_zone_stats &&
@@ -198,33 +195,26 @@ void TracingAccountingAllocator::UpdateMemoryTrafficAndReportMemoryUsage(
   if (memory_traffic_since_last_report_ < v8_flags.zone_stats_tolerance) return;
   memory_traffic_since_last_report_ = 0;
 
-  Dump(buffer_, true);
-
-  {
-    std::string trace_str = buffer_.str();
-
-    if (v8_flags.trace_zone_stats) {
-      PrintF(
-          "{"
-          "\"type\": \"v8-zone-trace\", "
-          "\"stats\": %s"
-          "}\n",
-          trace_str.c_str());
-    }
-    if (V8_UNLIKELY(TracingFlags::zone_stats.load(std::memory_order_relaxed) &
-                    v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-      TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats"),
-                           "V8.Zone_Stats", TRACE_EVENT_SCOPE_THREAD, "stats",
-                           TRACE_STR_COPY(trace_str.c_str()));
-    }
+  std::string trace_str = Dump(true);
+  if (v8_flags.trace_zone_stats) {
+    PrintF(
+        "{"
+        "\"type\": \"v8-zone-trace\", "
+        "\"stats\": %s"
+        "}\n",
+        trace_str.c_str());
   }
-
-  // Clear the buffer.
-  buffer_.str(std::string());
+  if (V8_UNLIKELY(TracingFlags::zone_stats.load(std::memory_order_relaxed) &
+                  v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats"),
+                         "V8.Zone_Stats", TRACE_EVENT_SCOPE_THREAD, "stats",
+                         TRACE_STR_COPY(trace_str.c_str()));
+  }
 }
 
-void TracingAccountingAllocator::Dump(std::ostringstream& out,
-                                      bool dump_details) {
+std::string TracingAccountingAllocator::Dump(bool dump_details) {
+  std::ostringstream out;
+
   // Note: Neither isolate nor zones are locked, so be careful with accesses
   // as the allocator is potentially used on a concurrent thread.
   if (isolate()) {
@@ -271,6 +261,8 @@ void TracingAccountingAllocator::Dump(std::ostringstream& out,
   out << "\"allocated\": " << total_segment_bytes_allocated << ", "
       << "\"used\": " << total_zone_allocation_size << ", "
       << "\"freed\": " << total_zone_freed_size << "}";
+
+  return std::move(out).str();
 }
 
 }  // namespace internal

@@ -483,7 +483,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // fails because of memory constraints.
   static std::atomic<bool> had_nondeterminism_;
 
-  AccountingAllocator allocator_;
+  TracingAccountingAllocator allocator_{/* isolate */ nullptr};
 
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
   // Implements a GDB-remote stub for WebAssembly debugging.
