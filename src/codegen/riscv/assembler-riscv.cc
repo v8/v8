@@ -50,46 +50,46 @@ namespace internal {
 // preprocessor symbols __riscv_f and __riscv_d
 // can be defined to enable FPU instructions when building the
 // snapshot.
-static unsigned CpuFeaturesImpliedByCompiler() {
-  unsigned answer = 0;
+constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
+  CpuFeatureSet features;
 #if defined(__riscv_f) && defined(__riscv_d)
-  answer |= 1u << FPU;
+  features.Add(FPU);
 #endif  // def __riscv_f
 
 #if (defined __riscv_vector) && (__riscv_v >= 1000000)
-  answer |= 1u << RISCV_SIMD;
+  features.Add(RISCV_SIMD);
 #endif  // def __riscv_vector && __riscv_v >= 1000000
 
 #if (defined __riscv_zba)
-  answer |= 1u << ZBA;
+  features.Add(ZBA);
 #endif  // def __riscv_zba
 
 #if (defined __riscv_zbb)
-  answer |= 1u << ZBB;
+  features.Add(ZBB);
 #endif  // def __riscv_zbb
 
 #if (defined __riscv_zbs)
-  answer |= 1u << ZBS;
+  features.Add(ZBS);
 #endif  // def __riscv_zbs
 
 #if (defined __riscv_zicond)
-  answer |= 1u << ZICOND;
+  features.Add(ZICOND);
 #endif  // def __riscv_zicond
-  return answer;
+  return features;
 }
 
 #ifdef RISCV_TARGET_SIMULATOR
-static unsigned SimulatorFeatures() {
-  unsigned answer = 0;
-  answer |= 1u << RISCV_SIMD;
-  answer |= 1u << ZBA;
-  answer |= 1u << ZBB;
-  answer |= 1u << ZBS;
-  answer |= 1u << ZICOND;
-  answer |= 1u << ZICFISS;
-  answer |= 1u << FPU;
-  answer |= 1u << ZFH;
-  return answer;
+static CpuFeatureSet SimulatorFeatures() {
+  CpuFeatureSet features;
+  features.Add(RISCV_SIMD);
+  features.Add(ZBA);
+  features.Add(ZBB);
+  features.Add(ZBS);
+  features.Add(ZICOND);
+  features.Add(ZICFISS);
+  features.Add(FPU);
+  features.Add(ZFH);
+  return features;
 }
 #endif
 
@@ -108,17 +108,19 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 #ifndef USE_SIMULATOR
   base::CPU cpu;
-  if (cpu.has_fpu()) supported_ |= 1u << FPU;
+  if (cpu.has_fpu()) supported_.Add(FPU);
   if (cpu.has_rvv()) {
-    supported_ |= 1u << RISCV_SIMD;
+    supported_.Add(RISCV_SIMD);
     vlen_ = cpu.vlen();
     DCHECK_NE(vlen_, base::CPU::kUnknownVlen);
   }
-  if (cpu.has_zba()) supported_ |= 1u << ZBA;
-  if (cpu.has_zbb()) supported_ |= 1u << ZBB;
-  if (cpu.has_zbs()) supported_ |= 1u << ZBS;
+  if (cpu.has_zba()) supported_.Add(ZBA);
+  if (cpu.has_zbb()) supported_.Add(ZBB);
+  if (cpu.has_zbs()) supported_.Add(ZBS);
   if (v8_flags.riscv_b_extension) {
-    supported_ |= (1u << ZBA) | (1u << ZBB) | (1u << ZBS);
+    supported_.Add(ZBA);
+    supported_.Add(ZBB);
+    supported_.Add(ZBS);
   }
 #ifdef V8_COMPRESS_POINTERS
   if (cpu.riscv_mmu() == base::CPU::RV_MMU_MODE::kRiscvSV57) {
