@@ -44,7 +44,7 @@ let unreachable = [
     // WasmGCTypeAnalyzer::ProcessBranchOnTarget assumes otherwise and marks
     // target as unreached.
     kExprGlobalGet, $g_desc1.index,
-    ...wasmBrOnCastDescFail(0, wasmRefType($s0), wasmRefType($s0)),
+    ...wasmBrOnCastDescEqFail(0, wasmRefType($s0), wasmRefType($s0)),
 
     // make other fallthroughs unreachable
     kExprUnreachable,

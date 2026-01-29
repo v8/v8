@@ -98,19 +98,19 @@ function MakeBranchFunc(name, opcode, obj, desc, from, to) {
   ]);
 }
 
-MakeBranchFunc("br_always", kExprBrOnCastDesc,
+MakeBranchFunc("br_always", kExprBrOnCastDescEq,
                $glob_s0.index, $glob_desc0.index, $s0, $s0);
 // This is named "always" because the cast statically always succeeds, and
 // "not" because at runtime it fails due to a different descriptor.
-MakeBranchFunc("br_always_not", kExprBrOnCastDesc,
+MakeBranchFunc("br_always_not", kExprBrOnCastDescEq,
                $glob_s0.index, $glob_desc0_other.index, $s0, $s0);
-MakeBranchFunc("br_never", kExprBrOnCastDesc,
+MakeBranchFunc("br_never", kExprBrOnCastDescEq,
                $glob_s0.index, $glob_desc2.index, $s0, $s2);
-MakeBranchFunc("brfail_always", kExprBrOnCastDescFail,
+MakeBranchFunc("brfail_always", kExprBrOnCastDescEqFail,
                $glob_s0.index, $glob_desc0.index, $s0, $s0);
-MakeBranchFunc("brfail_always_not", kExprBrOnCastDescFail,
+MakeBranchFunc("brfail_always_not", kExprBrOnCastDescEqFail,
                $glob_s0.index, $glob_desc0_other.index, $s0, $s0);
-MakeBranchFunc("brfail_never", kExprBrOnCastDescFail,
+MakeBranchFunc("brfail_never", kExprBrOnCastDescEqFail,
                $glob_s0.index, $glob_desc2.index, $s0, $s2);
 
 let instance = builder.instantiate();

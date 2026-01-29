@@ -2313,7 +2313,7 @@ class BodyGen {
     return true;  // It always produces the desired result type.
   }
 
-  bool ref_cast_desc(HeapType type, DataRange* data, Nullability nullable) {
+  bool ref_cast_desc_eq(HeapType type, DataRange* data, Nullability nullable) {
     if (!builder_->builder()
              ->GetType_Unsafe(type.ref_index())
              .has_descriptor()) {
@@ -2327,8 +2327,8 @@ class BodyGen {
             false, RefTypeKind::kStruct)
             .AsExact(type.exactness());
     GenerateRef(desc_type, data, kNonNullable);
-    builder_->EmitWithPrefix(nullable ? kExprRefCastDescNull
-                                      : kExprRefCastDesc);
+    builder_->EmitWithPrefix(nullable ? kExprRefCastDescEqNull
+                                      : kExprRefCastDescEq);
     builder_->EmitHeapType(type);
     return true;
   }
@@ -2534,8 +2534,8 @@ class BodyGen {
                                              RefTypeKind::kStruct)
                                  .AsExact(target_type.exactness());
         GenerateRef(desc_type, data, kNonNullable);
-        if (opcode == kExprBrOnCast) opcode = kExprBrOnCastDesc;
-        if (opcode == kExprBrOnCastFail) opcode = kExprBrOnCastDescFail;
+        if (opcode == kExprBrOnCast) opcode = kExprBrOnCastDescEq;
+        if (opcode == kExprBrOnCastFail) opcode = kExprBrOnCastDescEqFail;
       }
     }
     builder_->EmitWithPrefix(opcode);
@@ -3863,7 +3863,7 @@ class BodyGen {
                     &BodyGen::struct_atomic_rmw_xchg_ref,     //
                     &BodyGen::struct_atomic_rmw_cmpxchg_ref,  //
                     &BodyGen::ref_cast,                       //
-                    &BodyGen::ref_cast_desc,                  //
+                    &BodyGen::ref_cast_desc_eq,               //
                     &BodyGen::ref_get_desc,                   //
                     &BodyGen::ref_as_non_null,                //
                     // Note: More expensive operations (in terms of generated

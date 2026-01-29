@@ -774,10 +774,10 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(StructNewDesc, 0xfb20, _, "struct.new_desc")                               \
   V(StructNewDefaultDesc, 0xfb21, _, "struct.new_default_desc")                \
   V(RefGetDesc, 0xfb22, _, "ref.get_desc")                                     \
-  V(RefCastDesc, 0xfb23, _, "ref.cast_desc")                                   \
-  V(RefCastDescNull, 0xfb24, _, "ref.cast_desc null")                          \
-  V(BrOnCastDesc, 0xfb25, _, "br_on_cast_desc")                                \
-  V(BrOnCastDescFail, 0xfb26, _, "br_on_cast_desc_fail")                       \
+  V(RefCastDescEq, 0xfb23, _, "ref.cast_desc_eq")                              \
+  V(RefCastDescEqNull, 0xfb24, _, "ref.cast_desc_eq null")                     \
+  V(BrOnCastDescEq, 0xfb25, _, "br_on_cast_desc_eq")                           \
+  V(BrOnCastDescEqFail, 0xfb26, _, "br_on_cast_desc_eq_fail")                  \
   V(RefCastNop, 0xfb4c, _, "ref.cast_nop")                                     \
   /* Stringref proposal. */                                                    \
   V(StringNewUtf8, 0xfb80, _, "string.new_utf8")                               \

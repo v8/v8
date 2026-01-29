@@ -5405,8 +5405,8 @@ class TurboshaftGraphBuildingInterface
     result->op = __ WasmTypeCast(object.op, rtt, config);
   }
 
-  void RefCastDesc(FullDecoder* decoder, const Value& object, const Value& desc,
-                   Value* result) {
+  void RefCastDescEq(FullDecoder* decoder, const Value& object,
+                     const Value& desc, Value* result) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
@@ -5452,10 +5452,10 @@ class TurboshaftGraphBuildingInterface
                         null_succeeds);
   }
 
-  void BrOnCastDesc(FullDecoder* decoder, HeapType target_type,
-                    const Value& object, const Value& descriptor,
-                    Value* value_on_branch, uint32_t br_depth,
-                    bool null_succeeds) {
+  void BrOnCastDescEq(FullDecoder* decoder, HeapType target_type,
+                      const Value& object, const Value& descriptor,
+                      Value* value_on_branch, uint32_t br_depth,
+                      bool null_succeeds) {
     ValueType target = ValueType::RefMaybeNull(
         target_type, null_succeeds ? kNullable : kNonNullable);
     V<Map> rtt = GetRttFromDescriptor(descriptor);
@@ -5490,10 +5490,10 @@ class TurboshaftGraphBuildingInterface
                             br_depth, null_succeeds);
   }
 
-  void BrOnCastDescFail(FullDecoder* decoder, HeapType target_type,
-                        const Value& object, const Value& descriptor,
-                        Value* value_on_fallthrough, uint32_t br_depth,
-                        bool null_succeeds) {
+  void BrOnCastDescEqFail(FullDecoder* decoder, HeapType target_type,
+                          const Value& object, const Value& descriptor,
+                          Value* value_on_fallthrough, uint32_t br_depth,
+                          bool null_succeeds) {
     ValueType target = ValueType::RefMaybeNull(
         target_type, null_succeeds ? kNullable : kNonNullable);
     V<Map> rtt = GetRttFromDescriptor(descriptor);

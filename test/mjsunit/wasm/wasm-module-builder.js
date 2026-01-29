@@ -588,10 +588,10 @@ let kExprRefI31Shared = 0x1f;
 let kExprStructNewDesc = 0x20;
 let kExprStructNewDefaultDesc = 0x21;
 let kExprRefGetDesc = 0x22;
-let kExprRefCastDesc = 0x23;
-let kExprRefCastDescNull = 0x24;
-let kExprBrOnCastDesc = 0x25;
-let kExprBrOnCastDescFail = 0x26;
+let kExprRefCastDescEq = 0x23;
+let kExprRefCastDescEqNull = 0x24;
+let kExprBrOnCastDescEq = 0x25;
+let kExprBrOnCastDescEqFail = 0x26;
 
 let kExprRefCastNop = 0x4c;
 
@@ -2516,7 +2516,7 @@ let wasmEncodeHeapType = function(type) {
   return result;
 };
 
-let [wasmBrOnCast, wasmBrOnCastFail, wasmBrOnCastDesc, wasmBrOnCastDescFail] =
+let [wasmBrOnCast, wasmBrOnCastFail, wasmBrOnCastDescEq, wasmBrOnCastDescEqFail] =
 (function() {
   return [
     (labelIdx, sourceType, targetType) =>
@@ -2524,9 +2524,9 @@ let [wasmBrOnCast, wasmBrOnCastFail, wasmBrOnCastDesc, wasmBrOnCastDescFail] =
     (labelIdx, sourceType, targetType) =>
       wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastFail),
     (labelIdx, sourceType, targetType) =>
-      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastDesc),
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastDescEq),
     (labelIdx, sourceType, targetType) =>
-      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastDescFail),
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastDescEqFail),
   ];
   function wasmBrOnCastImpl(labelIdx, sourceType, targetType, opcode) {
     labelIdx = wasmUnsignedLeb(labelIdx, kMaxVarInt32Size);

@@ -26,7 +26,7 @@ builder.addFunction("succeed", kSig_v_v).exportFunc()
       kGCPrefix, kExprStructNewDefault, $desc,
       kGCPrefix, kExprStructNewDefaultDesc, $struct,
       kExprLocalGet, 0,
-      kGCPrefix, kExprBrOnCastDesc, 0b00, 0, kWasmExact, $struct, $other,
+      kGCPrefix, kExprBrOnCastDescEq, 0b00, 0, kWasmExact, $struct, $other,
       kExprDrop,
       kExprRefNull, kNullRefCode,
     kExprEnd,  // block
@@ -40,7 +40,7 @@ builder.addFunction("fail", kSig_v_v).exportFunc()
       kGCPrefix, kExprStructNewDefault, $desc,
       kGCPrefix, kExprStructNewDefaultDesc, $struct,
       kExprLocalGet, 0,
-      kGCPrefix, kExprBrOnCastDescFail, 0b00, 0, kWasmExact, $struct, $other,
+      kGCPrefix, kExprBrOnCastDescEqFail, 0b00, 0, kWasmExact, $struct, $other,
       kExprDrop,
       kExprRefNull, kNullRefCode,
     kExprEnd,  // block

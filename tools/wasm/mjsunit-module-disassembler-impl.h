@@ -858,8 +858,8 @@ class MjsunitImmediatesPrinter {
   void ValueType(ValueType type) {
     if (owner_->current_opcode_ == kExprBrOnCast ||
         owner_->current_opcode_ == kExprBrOnCastFail ||
-        owner_->current_opcode_ == kExprBrOnCastDesc ||
-        owner_->current_opcode_ == kExprBrOnCastDescFail) {
+        owner_->current_opcode_ == kExprBrOnCastDescEq ||
+        owner_->current_opcode_ == kExprBrOnCastDescEqFail) {
       // We somewhat incorrectly use the {ValueType} callback rather than
       // {HeapType()} for br_on_cast[_desc][_fail], because that's convenient
       // for disassembling to the text format. For module builder output,
