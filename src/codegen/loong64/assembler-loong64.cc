@@ -20,16 +20,10 @@ namespace internal {
 bool CpuFeatures::SupportsWasmSimd128() { return false; }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  supported_ |= 1u << FPU;
+  supported_.Add(FPU);
 
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
-
-#ifdef __loongarch__
-  // Probe for additional features at runtime.
-  base::CPU cpu;
-  supported_ |= 1u << FPU;
-#endif
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
