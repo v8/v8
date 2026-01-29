@@ -145,11 +145,36 @@ void* MapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
                 PlacementMode::kAnywhere, size, alignment, access);
 }
 
+void* TrimMapping(const zx::vmar& vmar, void* base_address, size_t base_length,
+                  size_t target_length, size_t alignment) {
+  uintptr_t base = reinterpret_cast<uintptr_t>(base_address);
+  uintptr_t new_base = (base + alignment - 1) & ~(alignment - 1);
+  DCHECK_GE(new_base, base);
+  size_t pre_slack = new_base - base;
+  size_t post_slack = base_length - pre_slack - target_length;
+  DCHECK_LE(pre_slack, base_length);
+  DCHECK_LE(post_slack, base_length);
+
+  if (pre_slack) {
+    vmar.unmap(base, pre_slack);
+  }
+  if (post_slack) {
+    vmar.unmap(new_base + target_length, post_slack);
+  }
+  return reinterpret_cast<void*>(new_base);
+}
+
 void* CreateAndMapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
                       void* address, PlacementMode placement, size_t size,
                       size_t alignment, OS::MemoryPermission access) {
+  bool huge_alignment = (GetAlignmentOptionFromAlignment(alignment) == 0);
+  size_t mapped_size = size;
+  if (huge_alignment) {
+    mapped_size = size + alignment - page_size;
+  }
+
   zx::vmo vmo;
-  if (zx::vmo::create(size, 0, &vmo) != ZX_OK) {
+  if (zx::vmo::create(mapped_size, 0, &vmo) != ZX_OK) {
     return nullptr;
   }
   static const char kVirtualMemoryName[] = "v8-virtualmem";
@@ -165,8 +190,28 @@ void* CreateAndMapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
     return nullptr;
   }
 
-  return MapVmo(vmar, vmar_base, page_size, address, vmo, 0, placement, size,
-                alignment, access);
+  size_t request_size = size;
+  size_t request_align = alignment;
+  if (placement == PlacementMode::kAnywhere && huge_alignment) {
+    request_size = mapped_size;
+    request_align = page_size;
+  }
+
+  void* addr = MapVmo(vmar, vmar_base, page_size, address, vmo, 0, placement,
+                      request_size, request_align, access);
+
+  if (!addr && placement == PlacementMode::kUseHint && huge_alignment) {
+    request_size = mapped_size;
+    request_align = page_size;
+    addr =
+        MapVmo(vmar, vmar_base, page_size, nullptr, vmo, 0,
+               PlacementMode::kAnywhere, request_size, request_align, access);
+  }
+
+  if (addr && huge_alignment && request_size == mapped_size) {
+    return TrimMapping(vmar, addr, mapped_size, size, alignment);
+  }
+  return addr;
 }
 
 bool UnmapVmo(const zx::vmar& vmar, size_t page_size, void* address,
