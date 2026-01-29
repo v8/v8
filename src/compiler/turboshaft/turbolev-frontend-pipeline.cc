@@ -6,10 +6,12 @@
 
 #include "src/base/logging.h"
 #include "src/compiler/pipeline-statistics.h"
+#include "src/heap/read-only-heap.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-optimizer.h"
+#include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-inlining.h"
@@ -60,6 +62,39 @@ void TurbolevFrontendPipeline::PrintMaglevGraph(const char* msg) {
   tracing_scope.stream() << "\n----- " << msg << " -----" << std::endl;
 
   maglev::PrintGraph(tracing_scope.stream(), graph_);
+}
+
+namespace {
+void PrintInliningTree(std::ostream& os, maglev::InliningTreeDebugInfo* node,
+                       const std::string& prefix, bool is_last) {
+  os << prefix << (is_last ? "`-" : "|-") << Brief(*node->shared.object())
+     << (node->is_eager ? " (eager)\n" : "\n");
+  std::string new_prefix = prefix + (is_last ? "  " : "| ");
+  for (size_t i = 0; i < node->children.size(); ++i) {
+    PrintInliningTree(os, node->children[i], new_prefix,
+                      i == node->children.size() - 1);
+  }
+}
+
+void PrintInliningTree(std::ostream& os, maglev::Graph* const graph) {
+  maglev::InliningTreeDebugInfo* root = graph->inlining_tree_debug_info();
+  if (root == nullptr) return;
+  os << "Inlined functions:\n";
+  os << Brief(*root->shared.object()) << "\n";
+  for (size_t i = 0; i < root->children.size(); ++i) {
+    PrintInliningTree(os, root->children[i], "",
+                      i == root->children.size() - 1);
+  }
+}
+}  // namespace
+
+void TurbolevFrontendPipeline::PrintInliningTreeDebugInfo() {
+  if (!data_.info()->shared_info()->PassesFilter(v8_flags.trace_turbo_filter)) {
+    return;
+  }
+  CodeTracer* code_tracer = data_.GetCodeTracer();
+  CodeTracer::StreamScope tracing_scope(code_tracer);
+  PrintInliningTree(tracing_scope.stream(), graph_);
 }
 
 void TurbolevFrontendPipeline::PrintBytecode() {
@@ -236,6 +271,9 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   }
   Run<PostHocPhase>();
   Run<DeadNodeSweepingPhase>();
+  if (V8_UNLIKELY(v8_flags.print_turbolev_inline_functions)) {
+    PrintInliningTreeDebugInfo();
+  }
   return graph_;
 }
 

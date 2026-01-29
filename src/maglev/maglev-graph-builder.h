@@ -63,6 +63,7 @@ struct MaglevCallerDetails {
   bool is_inside_loop;
   bool is_eager_inline;
   float call_frequency;
+  InliningTreeDebugInfo* parent_inlining_tree_debug_info;
 };
 
 struct MaglevCallSiteInfo {
@@ -183,14 +184,6 @@ class MaglevGraphBuilder {
   // function.
   bool is_inline() const { return caller_details_ != nullptr; }
   int inlining_depth() const { return compilation_unit_->inlining_depth(); }
-
-  bool is_eager_inline() const {
-    DCHECK(is_inline());
-    DCHECK_IMPLIES(!caller_details_->is_eager_inline,
-                   v8_flags.maglev_non_eager_inlining ||
-                       v8_flags.turbolev_non_eager_inlining);
-    return caller_details_->is_eager_inline;
-  }
 
   DeoptFrame* GetLatestCheckpointedFrame();
   DeoptFrame* GetDeoptFrameForEagerDeopt() {
@@ -1954,6 +1947,7 @@ class MaglevGraphBuilder {
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;
   MaglevCallerDetails* caller_details_;
+  InliningTreeDebugInfo* current_inlining_tree_debug_info_ = nullptr;
 
   // Cache the heap broker since we access it a bunch.
   compiler::JSHeapBroker* broker_ = compilation_unit_->broker();

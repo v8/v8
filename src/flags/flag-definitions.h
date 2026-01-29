@@ -1729,6 +1729,9 @@ DEFINE_BOOL(turbolev, false,
 DEFINE_BOOL(print_turbolev_frontend, false,
             "print Turbolev frontend (Maglev graphs)")
 
+DEFINE_BOOL(print_turbolev_inline_functions, false,
+            "print Turbolev inline functions")
+
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_future,
     "enable Turbolev features that we want to ship in the not-too-far future")

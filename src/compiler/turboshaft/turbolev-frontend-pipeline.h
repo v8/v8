@@ -34,6 +34,7 @@ class TurbolevFrontendPipeline {
 
   void PrintBytecode();
   void PrintMaglevGraph(const char* msg);
+  void PrintInliningTreeDebugInfo();
 
   template <typename Phase, typename... Args>
   auto Run(Args&&... args);
