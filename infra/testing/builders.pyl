@@ -471,6 +471,13 @@
       {'name': 'v8testing'},
     ],
   },
+  'v8_linux64_dumpling_rel': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+    },
+    # TODO(https://crbug.com/479756613): Add tests.
+    'tests': [],
+  },
   'v8_linux64_full_dbg': {
     'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
@@ -1690,6 +1697,13 @@
       {'name': 'mjsunit', 'variant': 'jit_fuzzing'},
       {'name': 'mjsunit', 'variant': 'jit_fuzzing_maglev'},
     ],
+  },
+  'V8 Linux64 - dumpling': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+    },
+    # TODO(https://crbug.com/479756613): Add tests.
+    'tests': [],
   },
   'V8 Linux64 - full debug': {
     'swarming_dimensions': {
