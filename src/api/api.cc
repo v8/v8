@@ -3374,7 +3374,7 @@ MaybeLocal<Value> JSON::Parse(Local<Context> context, Local<String> json_string,
         script_origin.ColumnOffset(), script_origin.SourceMapUrl(),
         script_origin.GetHostDefinedOptions(), script_origin.Options()));
   }
-  auto maybe_result = source->IsOneByteRepresentation()
+  auto maybe_result = i::String::IsOneByteRepresentationUnderneath(*source)
                           ? i::JsonParser<uint8_t>::Parse(
                                 i_isolate, source, undefined, script_details)
                           : i::JsonParser<uint16_t>::Parse(
