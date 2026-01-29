@@ -3347,6 +3347,100 @@ TEST_F(AssemblerX64Test, AssemblerX64APX_F) {
                         0x62, 0xf4, 0xf4, 0x18, 0x8f, 0xc2};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
+
+TEST_F(AssemblerX64Test, AssemblerX64APX_F_CCMP) {
+  if (!CpuFeatures::IsSupported(APX_F)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, APX_F);
+
+  Operand mem(rsp, 8);
+
+  __ ccmpb(rax, rbx, OszcFlags({OszcBit::kSF}), less);
+  __ ccmpb(rax, mem, OszcFlags(), greater_equal);
+  __ ccmpb(rax, Immediate(7), OszcFlags({OszcBit::kOF}), overflow);
+  __ ccmpb(mem, Immediate(7), OszcFlags({OszcBit::kZF}), less_equal);
+
+  __ ccmpw(rax, rbx, OszcFlags({OszcBit::kSF}), less);
+  __ ccmpw(rax, mem, OszcFlags(), greater_equal);
+  __ ccmpw(rax, Immediate(0x1234), OszcFlags({OszcBit::kOF}), overflow);
+  __ ccmpw(mem, Immediate(0x1234), OszcFlags({OszcBit::kZF}), less_equal);
+  __ ccmpw(rax, Immediate(7), OszcFlags({OszcBit::kOF}), overflow);
+  __ ccmpw(mem, Immediate(7), OszcFlags({OszcBit::kZF}), less_equal);
+
+  __ ccmpl(rax, rbx, OszcFlags({OszcBit::kSF}), less);
+  __ ccmpl(rax, mem, OszcFlags(), greater_equal);
+  __ ccmpl(rax, Immediate(0x12345678), OszcFlags({OszcBit::kOF}), overflow);
+  __ ccmpl(mem, Immediate(0x12345678), OszcFlags({OszcBit::kZF}), less_equal);
+  __ ccmpl(rax, Immediate(7), OszcFlags({OszcBit::kOF}), overflow);
+  __ ccmpl(mem, Immediate(7), OszcFlags({OszcBit::kZF}), less_equal);
+
+  __ ccmpq(rax, rbx, OszcFlags({OszcBit::kSF}), less);
+  __ ccmpq(rax, mem, OszcFlags(), greater_equal);
+  __ ccmpq(rax, Immediate(0x12345678), OszcFlags({OszcBit::kOF}), overflow);
+  __ ccmpq(mem, Immediate(0x12345678), OszcFlags({OszcBit::kZF}), less_equal);
+  __ ccmpq(rax, Immediate(7), OszcFlags({OszcBit::kOF}), overflow);
+  __ ccmpq(mem, Immediate(7), OszcFlags({OszcBit::kZF}), less_equal);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  Print(*code, os);
+#endif
+
+  uint8_t expected[] = {
+      // ccmpl {dfv=sf} al, bl
+      0x62, 0xf4, 0x24, 0x0c, 0x3a, 0xc3,
+      // ccmpnl {dfv=} al, byte ptr [rsp+0x8]
+      0x62, 0xf4, 0x04, 0x0d, 0x3a, 0x44, 0x24, 0x08,
+      // ccmpo {dfv=of} al, 0x7
+      0x62, 0xf4, 0x44, 0x00, 0x80, 0xf8, 0x07,
+      // ccmple {dfv=zf} byte ptr [rsp+0x8], 0x7
+      0x62, 0xf4, 0x14, 0x0e, 0x80, 0x7c, 0x24, 0x08, 0x07,
+      // ccmpl {dfv=sf} ax, bx
+      0x62, 0xf4, 0x25, 0x0c, 0x3b, 0xc3,
+      // ccmpnl {dfv=} ax, word ptr [rsp+0x8]
+      0x62, 0xf4, 0x05, 0x0d, 0x3b, 0x44, 0x24, 0x08,
+      // ccmpo {dfv=of} ax, 0x1234
+      0x62, 0xf4, 0x45, 0x00, 0x81, 0xf8, 0x34, 0x12,
+      // ccmple {dfv=zf} word ptr [rsp+0x8], 0x1234
+      0x62, 0xf4, 0x15, 0x0e, 0x81, 0x7c, 0x24, 0x08, 0x34, 0x12,
+      // ccmpo {dfv=of} ax, 0x7
+      0x62, 0xf4, 0x45, 0x00, 0x83, 0xf8, 0x07,
+      // ccmple {dfv=zf} word ptr [rsp+0x8], 0x7
+      0x62, 0xf4, 0x15, 0x0e, 0x83, 0x7c, 0x24, 0x08, 0x07,
+      // ccmpl {dfv=sf} eax, ebx
+      0x62, 0xf4, 0x24, 0x0c, 0x3b, 0xc3,
+      // ccmpnl {dfv=} eax, dword ptr [rsp+0x8]
+      0x62, 0xf4, 0x04, 0x0d, 0x3b, 0x44, 0x24, 0x08,
+      // ccmpo {dfv=of} eax, 0x12345678
+      0x62, 0xf4, 0x44, 0x00, 0x81, 0xf8, 0x78, 0x56, 0x34, 0x12,
+      // ccmple {dfv=zf} dword ptr [rsp+0x8], 0x12345678
+      0x62, 0xf4, 0x14, 0x0e, 0x81, 0x7c, 0x24, 0x08, 0x78, 0x56, 0x34, 0x12,
+      // ccmpo {dfv=of} eax, 0x7
+      0x62, 0xf4, 0x44, 0x00, 0x83, 0xf8, 0x07,
+      // ccmple {dfv=zf} dword ptr [rsp+0x8], 0x7
+      0x62, 0xf4, 0x14, 0x0e, 0x83, 0x7c, 0x24, 0x08, 0x07,
+      //  ccmpl {dfv=sf} rax, rbx
+      0x62, 0xf4, 0xa4, 0x0c, 0x3b, 0xc3,
+      // ccmpnl {dfv=} rax, qword ptr [rsp+0x8]
+      0x62, 0xf4, 0x84, 0x0d, 0x3b, 0x44, 0x24, 0x08,
+      //  ccmpo {dfv=of} rax, 0x12345678
+      0x62, 0xf4, 0xc4, 0x00, 0x81, 0xf8, 0x78, 0x56, 0x34, 0x12,
+      // ccmple {dfv=zf} qword ptr [rsp+0x8], 0x12345678
+      0x62, 0xf4, 0x94, 0x0e, 0x81, 0x7c, 0x24, 0x08, 0x78, 0x56, 0x34, 0x12,
+      // ccmpo {dfv=of} rax, 0x7
+      0x62, 0xf4, 0xc4, 0x00, 0x83, 0xf8, 0x07,
+      // ccmple {dfv=zf} qword ptr [rsp+0x8], 0x7
+      0x62, 0xf4, 0x94, 0x0e, 0x83, 0x7c, 0x24, 0x08, 0x07, 0xcc, 0xcc};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
 #endif  // V8_ENABLE_APX_F
 
 #undef __

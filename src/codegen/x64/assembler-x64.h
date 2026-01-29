@@ -120,6 +120,9 @@ enum RoundingMode {
   kRoundToZero = 0x3
 };
 
+enum class OszcBit : uint8_t { kCF = 0, kZF = 1, kSF = 2, kOF = 3 };
+using OszcFlags = base::EnumSet<OszcBit, uint8_t>;
+
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
@@ -446,6 +449,12 @@ inline bool operator!=(Operand op, XMMRegister r) { return true; }
   V(shr, 0x5)                     \
   V(sar, 0x7)
 
+// CCMP & CTEST instructions on operands/registers/immediate in APX
+// with kInt8Size, kInt16Size, kInt32Size and kInt64Size.
+#define ASSEMBLER_CONDITIONAL_INSTRUCTION_LIST(V) \
+  V(ccmp)                                         \
+  V(ctest)
+
 // Partial Constant Pool
 // Different from complete constant pool (like arm does), partial constant pool
 // only takes effects for shareable constants in order to reduce code size.
@@ -667,6 +676,29 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   ASSEMBLER_INSTRUCTION_LIST(DECLARE_INSTRUCTION)
 #undef DECLARE_INSTRUCTION
+
+#define DECLARE_CONDITIONAL_INSTRUCTION(instruction)                \
+  template <class P1, class P2>                                     \
+  void instruction##b(P1 p1, P2 p2, OszcFlags dcc, Condition scc) { \
+    emit_##instruction(p1, p2, dcc, scc, kInt8Size);                \
+  }                                                                 \
+                                                                    \
+  template <class P1, class P2>                                     \
+  void instruction##w(P1 p1, P2 p2, OszcFlags dcc, Condition scc) { \
+    emit_##instruction(p1, p2, dcc, scc, kInt16Size);               \
+  }                                                                 \
+                                                                    \
+  template <class P1, class P2>                                     \
+  void instruction##l(P1 p1, P2 p2, OszcFlags dcc, Condition scc) { \
+    emit_##instruction(p1, p2, dcc, scc, kInt32Size);               \
+  }                                                                 \
+                                                                    \
+  template <class P1, class P2>                                     \
+  void instruction##q(P1 p1, P2 p2, OszcFlags dcc, Condition scc) { \
+    emit_##instruction(p1, p2, dcc, scc, kInt64Size);               \
+  }
+  ASSEMBLER_CONDITIONAL_INSTRUCTION_LIST(DECLARE_CONDITIONAL_INSTRUCTION)
+#undef DECLARE_CONDITIONAL_INSTRUCTION
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -2728,6 +2760,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void emit_legacy_extended_evex_byte3(Register dst,
                                               EvexNewDataDestination nd,
                                               EvexStatusFlagUpdate nf);
+  void emit_legacy_extended_evex_prefix_ccmp_ctest(Register src1, Register src2,
+                                                   SIMDPrefix pp, VexW w,
+                                                   OszcFlags dcc,
+                                                   Condition scc);
+
+  void emit_legacy_extended_evex_prefix_ccmp_ctest(Register src1, Operand src2,
+                                                   SIMDPrefix pp, VexW w,
+                                                   OszcFlags dcc,
+                                                   Condition scc);
+  void emit_legacy_extended_evex_byte2_ccmp_ctest(VexW w, SIMDPrefix pp,
+                                                  OszcFlags dcc);
+
+  void emit_legacy_extended_evex_byte2_ccmp_ctest(Operand src2, VexW w,
+                                                  SIMDPrefix pp, OszcFlags dcc);
+
+  void emit_legacy_extended_evex_byte3_ccmp_ctest(Condition scc);
 #endif  // V8_ENABLE_APX_F
 
   void emit_rex(int size) {
@@ -2842,6 +2890,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                                int size);
   void immediate_arithmetic_op(uint8_t subcode, Operand dst, Immediate src,
                                int size);
+
+#ifdef V8_ENABLE_APX_F
+  // Emit machine code for conditional instructions in APX
+  void ccmp_ctest_op(uint8_t opcode, Register dst, Register rm, OszcFlags dcc,
+                     Condition scc, int size);
+  void ccmp_ctest_op(uint8_t opcode, Register dst, Operand rm, OszcFlags dcc,
+                     Condition scc, int size);
+  void immediate_ccmp_ctest_op(uint8_t subcode, Register dst, Immediate src,
+                               OszcFlags dcc, Condition scc, int size);
+  void immediate_ccmp_ctest_op(uint8_t subcode, Operand dst, Immediate src,
+                               OszcFlags dcc, Condition scc, int size);
+#endif  // V8_ENABLE_APX_F
 
   // Emit machine code for a shift operation.
   void shift(Operand dst, Immediate shift_amount, int subcode, int size);
@@ -2969,6 +3029,46 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // src. Otherwise clear ZF and write src into {al,ax,eax,rax}.  This
   // operation is only atomic if prefixed by the lock instruction.
   void emit_cmpxchg(Operand dst, Register src, int size);
+
+#ifdef V8_ENABLE_APX_F
+  // Conditional compare
+  void emit_ccmp(Register dst, Register rm, OszcFlags dcc, Condition scc,
+                 int size) {
+    if (size == kInt8Size) {
+      ccmp_ctest_op(0x3A, dst, rm, dcc, scc, size);
+    } else {
+      ccmp_ctest_op(0x3B, dst, rm, dcc, scc, size);
+    }
+  }
+
+  void emit_ccmp(Register dst, Operand rm, OszcFlags dcc, Condition scc,
+                 int size) {
+    if (size == kInt8Size) {
+      ccmp_ctest_op(0x3A, dst, rm, dcc, scc, size);
+    } else {
+      ccmp_ctest_op(0x3B, dst, rm, dcc, scc, size);
+    }
+  }
+
+  void emit_ccmp(Operand dst, Register src, OszcFlags dcc, Condition scc,
+                 int size) {
+    if (size == kInt8Size) {
+      ccmp_ctest_op(0x38, src, dst, dcc, scc, size);
+    } else {
+      ccmp_ctest_op(0x39, src, dst, dcc, scc, size);
+    }
+  }
+
+  void emit_ccmp(Register dst, Immediate src, OszcFlags dcc, Condition scc,
+                 int size) {
+    immediate_ccmp_ctest_op(0x7, dst, src, dcc, scc, size);
+  }
+
+  void emit_ccmp(Operand dst, Immediate src, OszcFlags dcc, Condition scc,
+                 int size) {
+    immediate_ccmp_ctest_op(0x7, dst, src, dcc, scc, size);
+  }
+#endif  // V8_ENABLE_APX_F
 
   void emit_dec(Register dst, int size);
   void emit_dec(Operand dst, int size);
