@@ -183,6 +183,11 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         notifies = ["blamelist"],
     ),
+    experiment_builder_pair(
+        name = "V8 Linux64 - dumpling",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    ),
 )
 
 in_category(

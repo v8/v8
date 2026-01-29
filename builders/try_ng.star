@@ -181,6 +181,12 @@ trybot_pair(
 )
 
 trybot_pair(
+    name = "v8_linux64_dumpling_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+)
+
+trybot_pair(
     name = "v8_linux64_gc_stress_custom_snapshot_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
