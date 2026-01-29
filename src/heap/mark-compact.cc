@@ -3297,7 +3297,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                           GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL,
                           delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
                       ClearTrivialWeakReferences();
-                      ClearTrustedWeakReferences();
                     })
                     // Do not run before these items finished, these may change
                     // the value of weak references.
@@ -3306,6 +3305,26 @@ void MarkCompactCollector::ClearNonLiveReferences() {
                     .DependsOn(clear_maps_items)
                     .Enqueue(parallel_clearing_job);
     TRACE_GC_NOTE_WITH_FLOW("ClearTrivialWeakRefJob started", item->trace_id(),
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+  }
+
+  {
+    auto item = MakeParallelItem(
+                    "ClearTrustedWeakRefs",
+                    [this](ParallelItem* item, JobDelegate* delegate) {
+                      TRACE_GC1_WITH_FLOW(
+                          heap()->tracer(),
+                          GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRUSTED,
+                          delegate, item->trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
+                      ClearTrustedWeakReferences();
+                    })
+                    // Do not run before these items finished, these may change
+                    // the value of weak references.
+                    .DependsOn(process_old_code_candidates_item)
+                    .DependsOn(process_all_weak_references)
+                    .DependsOn(clear_maps_items)
+                    .Enqueue(parallel_clearing_job);
+    TRACE_GC_NOTE_WITH_FLOW("ClearTrustedWeakRefJob started", item->trace_id(),
                             TRACE_EVENT_FLAG_FLOW_OUT);
   }
 
