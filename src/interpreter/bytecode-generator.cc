@@ -9,8 +9,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 
 #include "include/v8-extension.h"
@@ -46,6 +44,10 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
 #include "src/utils/ostreams.h"
+
+#ifdef DEBUG
+#include "absl/container/flat_hash_map.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -2849,7 +2851,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
   int case_compare_ctr = 0;
 #ifdef DEBUG
-  std::unordered_map<int, int> case_ctr_checker;
+  absl::flat_hash_map<int, int> case_ctr_checker;
 #endif
 
   if (use_jumps) {

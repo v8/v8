@@ -5,6 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_GENERATOR_H_
 #define V8_INTERPRETER_BYTECODE_GENERATOR_H_
 
+#include "absl/container/flat_hash_set.h"
 #include "src/ast/ast.h"
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-array-builder.h"
@@ -34,7 +35,7 @@ struct PrototypeAssignments {
   Variable* var;
   HoleCheckMode hole_check_mode;
   ZoneVector<PrototypeAssignment> properties;
-  std::unordered_set<const AstRawString*> duplicates;
+  absl::flat_hash_set<const AstRawString*> duplicates;
 };
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
