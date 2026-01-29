@@ -147,11 +147,15 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
       Protectors::IsArrayIteratorLookupChainIntact(isolate)) {
     DirectHandle<JSArray> array = Cast<JSArray>(items);
     ElementsKind kind = array->GetElementsKind();
+    // TODO(olivf): Move this as a helper into ElementsAccessor.
     if (IsFastElementsKind(kind)) {
       DirectHandle<FixedArrayBase> elements =
           handle(array->elements(), isolate);
       uint32_t len;
       if (Object::ToUint32(array->length(), &len)) {
+        if (len == 0) {
+          return isolate->root_handle(RootIndex::kUndefinedValue);
+        }
         const MaybeDirectHandle<Object> abort;
         if (kind == PACKED_SMI_ELEMENTS) {
           DirectHandle<FixedArray> smi_elements = Cast<FixedArray>(elements);
@@ -247,6 +251,9 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
           uint32_t current_index;
           if (Object::ToUint32(array->length(), &len) &&
               Object::ToUint32(array_iterator->next_index(), &current_index)) {
+            if (len == 0) {
+              return isolate->root_handle(RootIndex::kUndefinedValue);
+            }
             for (; current_index < len; ++current_index) {
               if (kind == PACKED_SMI_ELEMENTS) {
                 DirectHandle<FixedArray> smi_elements =
