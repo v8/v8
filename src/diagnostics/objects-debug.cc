@@ -2503,7 +2503,9 @@ void Module::ModuleVerify(Isolate* isolate) {
 
   CHECK(IsUndefined(module_namespace(), isolate) || IsCell(module_namespace()));
   if (IsCell(module_namespace())) {
-    CHECK_LE(Module::kLinking, status());
+    // Technically kLinking should be the correct check, however we can end up
+    // here in SourceTextModule::FinishInstantiate before updating the status.
+    CHECK_LE(Module::kPreLinking, status());
     auto cell = Cast<Cell>(module_namespace());
     CHECK(IsJSModuleNamespace(cell->value()) || IsUndefined(cell->value()));
     if (IsJSModuleNamespace(cell->value())) {
