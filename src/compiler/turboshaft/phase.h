@@ -552,8 +552,8 @@ class V8_EXPORT_PRIVATE PipelineData {
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 
-void PrintTurboshaftGraph(PipelineData* data, Zone* temp_zone,
-                          CodeTracer* code_tracer, const char* phase_name);
+void PrintTurboshaftGraph(PipelineData* data, CodeTracer* code_tracer,
+                          const char* phase_name);
 void PrintTurboshaftGraphForTurbolizer(std::ofstream& stream,
                                        const Graph& graph,
                                        const char* phase_name,

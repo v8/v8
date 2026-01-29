@@ -1514,7 +1514,6 @@ struct PrintGraphPhase {
     }
 
     if (info->trace_turbo_scheduled()) {
-      AccountingAllocator allocator;
       Schedule* schedule = data->schedule();
       if (schedule == nullptr) {
         schedule = Scheduler::ComputeSchedule(
@@ -1846,11 +1845,10 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   turboshaft_data_.set_pipeline_statistics(pipeline_statistics_.get());
   turboshaft_data_.SetIsWasmWrapper(sig_);
 
-  AccountingAllocator allocator;
   turboshaft_data_.InitializeGraphComponent(
       nullptr, turboshaft::Graph::Origin::kPureTurboshaft);
-  BuildWasmWrapper(&turboshaft_data_, &allocator, turboshaft_data_.graph(),
-                   sig_, wrapper_info_);
+  BuildWasmWrapper(&turboshaft_data_, turboshaft_data_.graph(), sig_,
+                   wrapper_info_);
   CodeTracer* code_tracer = nullptr;
   if (info_.trace_turbo_graph()) {
     // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
@@ -1858,9 +1856,8 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
     // background thread is not threadsafe.
     code_tracer = turboshaft_data_.GetCodeTracer();
   }
-  Zone printing_zone(&allocator, ZONE_NAME);
-  turboshaft::PrintTurboshaftGraph(&turboshaft_data_, &printing_zone,
-                                   code_tracer, "Graph generation");
+  turboshaft::PrintTurboshaftGraph(&turboshaft_data_, code_tracer,
+                                   "Graph generation");
 
   turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_, &linkage);
   // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
@@ -2133,8 +2130,7 @@ int HashGraphForPGO(const turboshaft::Graph* graph) {
 // case, we just defer some blocks that ideally shouldn't be deferred. The
 // result value is in the valid Smi range.
 int HashGraphForPGO(const TFGraph* graph) {
-  AccountingAllocator allocator;
-  Zone local_zone(&allocator, ZONE_NAME);
+  Zone local_zone(graph->zone()->allocator(), ZONE_NAME);
 
   constexpr NodeId kUnassigned = static_cast<NodeId>(-1);
 
@@ -2502,11 +2498,9 @@ TurboshaftAssemblerBuiltinCompilationJob::PrepareJobImpl(Isolate* isolate) {
                               DirectHandle<SharedFunctionInfo>());
       json_of << ",\n\"phases\":[";
     }
-    turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
-        &zone_stats_, turboshaft::kTempZoneName);
     std::string name_buffer = "TSA: ";
     name_buffer += name_;
-    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.c_str());
+    turboshaft_pipeline.PrintGraph(name_buffer.c_str());
   }
 
   // Validate pgo profile.
@@ -2772,11 +2766,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTurboshaftBuiltin(
   turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data, &linkage);
   OptimizedCompilationInfo* info = turboshaft_data->info();
   if (info->trace_turbo_graph() || info->trace_turbo_json()) {
-    turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
-        turboshaft_data->zone_stats(), turboshaft::kTempZoneName);
     std::string name_buffer = "TSA: ";
     name_buffer += debug_name;
-    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.c_str());
+    turboshaft_pipeline.PrintGraph(name_buffer.c_str());
   }
 
   // Validate pgo profile.
@@ -2808,11 +2800,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   turboshaft::BuiltinPipeline turboshaft_pipeline(turboshaft_data, &linkage);
   OptimizedCompilationInfo* info = turboshaft_data->info();
   if (info->trace_turbo_graph() || info->trace_turbo_json()) {
-    turboshaft::ZoneWithName<turboshaft::kTempZoneName> print_zone(
-        turboshaft_data->zone_stats(), turboshaft::kTempZoneName);
     std::string name_buffer = "Testing: ";
     name_buffer += debug_name;
-    turboshaft_pipeline.PrintGraph(print_zone, name_buffer.c_str());
+    turboshaft_pipeline.PrintGraph(name_buffer.c_str());
   }
 
   turboshaft_pipeline.OptimizeBuiltin();
@@ -2986,10 +2976,9 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
         &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, &info,
         options);
     turboshaft_data.SetIsWasmWrapper(sig);
-    AccountingAllocator allocator;
     turboshaft_data.InitializeGraphComponent(
         nullptr, turboshaft::Graph::Origin::kPureTurboshaft);
-    BuildWasmWrapper(&turboshaft_data, &allocator, turboshaft_data.graph(), sig,
+    BuildWasmWrapper(&turboshaft_data, turboshaft_data.graph(), sig,
                      wrapper_info);
     CodeTracer* code_tracer = nullptr;
     if (info.trace_turbo_json() || info.trace_turbo_graph()) {
@@ -2998,9 +2987,8 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       // background thread is not threadsafe.
       code_tracer = data.GetCodeTracer();
     }
-    Zone printing_zone(&allocator, ZONE_NAME);
-    turboshaft::PrintTurboshaftGraph(&turboshaft_data, &printing_zone,
-                                     code_tracer, "Graph generation");
+    turboshaft::PrintTurboshaftGraph(&turboshaft_data, code_tracer,
+                                     "Graph generation");
 
     // Skip the LoopUnrolling, WasmGCOptimize and WasmLowering phases for
     // wrappers.
@@ -3181,9 +3169,8 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   turboshaft_data.InitializeGraphComponent(
       data.source_positions(), turboshaft::Graph::Origin::kPureTurboshaft);
 
-  AccountingAllocator allocator;
-  wasm::BuildTSGraph(&turboshaft_data, &allocator, env, detected,
-                     turboshaft_data.graph(), compilation_data.func_body,
+  wasm::BuildTSGraph(&turboshaft_data, env, detected, turboshaft_data.graph(),
+                     compilation_data.func_body,
                      compilation_data.wire_bytes_storage,
                      &compilation_data.assumptions, &inlining_positions,
                      compilation_data.func_index, function_coverage_data);
@@ -3194,9 +3181,8 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
     // background thread is not threadsafe.
     code_tracer = data.GetCodeTracer();
   }
-  Zone printing_zone(&allocator, ZONE_NAME);
-  turboshaft::PrintTurboshaftGraph(&turboshaft_data, &printing_zone,
-                                   code_tracer, "Graph generation");
+  turboshaft::PrintTurboshaftGraph(&turboshaft_data, code_tracer,
+                                   "Graph generation");
 
   data.BeginPhaseKind("V8.WasmOptimization");
   turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data, &linkage);

@@ -9354,14 +9354,14 @@ class TurboshaftGraphBuildingInterface
 };
 
 V8_EXPORT_PRIVATE void BuildTSGraph(
-    compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
-    CompilationEnv* env, WasmDetectedFeatures* detected, Graph& graph,
-    const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
+    compiler::turboshaft::PipelineData* data, CompilationEnv* env,
+    WasmDetectedFeatures* detected, Graph& graph, const FunctionBody& func_body,
+    const WireBytesStorage* wire_bytes,
     std::unique_ptr<AssumptionsJournal>* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
     WasmFunctionCoverageData* coverage_data) {
   DCHECK(env->module->function_was_validated(func_index));
-  Zone zone(allocator, ZONE_NAME);
+  Zone zone(data->allocator(), ZONE_NAME);
   Assembler assembler(data, graph, graph, &zone);
   WasmFullDecoder<TurboshaftGraphBuildingInterface::ValidationTag,
                   TurboshaftGraphBuildingInterface>

@@ -1269,14 +1269,12 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 
     // If the element segment has not been initialized yet, lazily initialize it
     // now.
-    AccountingAllocator allocator;
-    Zone zone(&allocator, ZONE_NAME);
     DirectHandle<WasmTrustedInstanceData> shared_instance =
         trusted_instance_data->has_shared_part()
             ? handle(trusted_instance_data->shared_part(), isolate)
             : trusted_instance_data;
     std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
-        &zone, isolate, trusted_instance_data, shared_instance, segment_index);
+        isolate, trusted_instance_data, shared_instance, segment_index);
     if (opt_error.has_value()) {
       return ThrowWasmError(isolate, opt_error.value());
     }
@@ -2003,13 +2001,11 @@ MaybeDirectHandle<FixedArray> GetElementSegment(
     return {Cast<FixedArray>(segment_raw), isolate};
   }
 
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
   DirectHandle<WasmTrustedInstanceData> shared_instance =
       instance->has_shared_part() ? handle(instance->shared_part(), isolate)
                                   : instance;
   std::optional<MessageTemplate> opt_error =
-      wasm::InitializeElementSegment(&zone, isolate, instance, shared_instance,
+      wasm::InitializeElementSegment(isolate, instance, shared_instance,
                                      segment_index, wasm::kPrecreateExternal);
   if (opt_error.has_value()) {
     ThrowWasmError(isolate, opt_error.value());

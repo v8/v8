@@ -1912,12 +1912,6 @@ std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t table_index, uint32_t segment_index, uint32_t dst, uint32_t src,
     uint32_t count) {
-  AccountingAllocator allocator;
-  // This {Zone} will be used only by the temporary WasmFullDecoder allocated
-  // down the line from this call. Therefore it is safe to stack-allocate it
-  // here.
-  Zone zone(&allocator, "LoadElemSegment");
-
   const WasmModule* module = trusted_instance_data->module();
 
   bool table_is_shared = module->tables[table_index].shared;
@@ -1932,7 +1926,7 @@ std::optional<MessageTemplate> WasmTrustedInstanceData::InitTableEntries(
 
   // If needed, try to lazily initialize the element segment.
   std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
-      &zone, isolate, trusted_instance_data, shared_trusted_instance_data,
+      isolate, trusted_instance_data, shared_trusted_instance_data,
       segment_index);
   if (opt_error.has_value()) return opt_error;
 

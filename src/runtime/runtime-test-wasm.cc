@@ -521,8 +521,7 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
   }
 
   if (v8_flags.wasm_generate_compilation_hints) {
-    AccountingAllocator allocator;
-    Zone zone{&allocator, "wasm::EmitCompilationHintsToBuffer"};
+    Zone zone{isolate->allocator(), "wasm::EmitCompilationHintsToBuffer"};
     wasm::ZoneBuffer buffer{&zone};
     wasm::EmitCompilationHintsToBuffer(buffer, native_module);
     wasm::WriteCompilationHintsToFile(buffer, native_module);

@@ -112,7 +112,7 @@ MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
 // beneficial for performance to create the corresponding WasmExportedFunctions
 // along with any internal funcrefs.
 std::optional<MessageTemplate> InitializeElementSegment(
-    Zone* zone, Isolate* isolate,
+    Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index,

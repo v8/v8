@@ -2874,7 +2874,7 @@ ValueOrError ConsumeElementSegmentEntry(
 }  // namespace
 
 std::optional<MessageTemplate> InitializeElementSegment(
-    Zone* zone, Isolate* isolate,
+    Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index, PrecreateExternal precreate_external_functions) {
@@ -2921,10 +2921,12 @@ std::optional<MessageTemplate> InitializeElementSegment(
       result->set(static_cast<int>(i), *value);
     }
   } else {
+    Zone temp_zone{isolate->allocator(), "InitializeElementSegment"};
     for (size_t i = 0; i < elem_segment.element_count; ++i) {
-      ValueOrError value = ConsumeElementSegmentEntry(
-          zone, isolate, trusted_instance_data, shared_trusted_instance_data,
-          elem_segment, decoder, kStrictFunctionsAndNull);
+      ValueOrError value =
+          ConsumeElementSegmentEntry(&temp_zone, isolate, trusted_instance_data,
+                                     shared_trusted_instance_data, elem_segment,
+                                     decoder, kStrictFunctionsAndNull);
       if (is_error(value)) return {to_error(value)};
       result->set(static_cast<int>(i), *to_value(value).to_ref());
     }

@@ -2171,10 +2171,8 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
 
   // If the element segment has not been initialized yet, lazily initialize it
   // now.
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
   std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
-      &zone, isolate(), trusted_instance_data, shared_trusted_instance_data,
+      isolate(), trusted_instance_data, shared_trusted_instance_data,
       segment_index);
   if (opt_error.has_value()) {
     return direct_handle(Smi::FromEnum(opt_error.value()), isolate());

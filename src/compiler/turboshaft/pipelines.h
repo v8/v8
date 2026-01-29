@@ -102,14 +102,14 @@ class V8_EXPORT_PRIVATE Pipeline {
     if constexpr (std::is_same_v<result_t, void>) {
       phase.Run(data_, temp_zone, std::forward<Args>(args)...);
       if constexpr (produces_printable_graph<Phase>::value) {
-        PrintGraph(temp_zone, Phase::phase_name());
+        PrintGraph(Phase::phase_name());
       }
       return !data_->info()->was_cancelled();
     } else {
       static_assert(std::is_same_v<result_t, std::optional<BailoutReason>>);
       auto result = phase.Run(data_, temp_zone, std::forward<Args>(args)...);
       if constexpr (produces_printable_graph<Phase>::value) {
-        PrintGraph(temp_zone, Phase::phase_name());
+        PrintGraph(Phase::phase_name());
       }
       return data_->info()->was_cancelled() ? BailoutReason::kCancelled
                                             : result;
@@ -117,7 +117,7 @@ class V8_EXPORT_PRIVATE Pipeline {
     UNREACHABLE();
   }
 
-  void PrintGraph(Zone* zone, const char* phase_name) {
+  void PrintGraph(const char* phase_name) {
     CodeTracer* code_tracer = nullptr;
     if (data_->info()->trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
@@ -126,7 +126,7 @@ class V8_EXPORT_PRIVATE Pipeline {
       code_tracer = data_->GetCodeTracer();
       DCHECK_NOT_NULL(code_tracer);
     }
-    PrintTurboshaftGraph(data_, zone, code_tracer, phase_name);
+    PrintTurboshaftGraph(data_, code_tracer, phase_name);
   }
 
   void TraceSequence(const char* phase_name) {

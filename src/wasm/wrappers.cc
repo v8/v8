@@ -45,11 +45,10 @@ const compiler::turboshaft::TSCallDescriptor* GetBuiltinCallDescriptor(
 }
 
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
-                      AccountingAllocator* allocator,
                       compiler::turboshaft::Graph& graph,
                       const CanonicalSig* sig,
                       WrapperCompilationInfo wrapper_info) {
-  Zone zone(allocator, ZONE_NAME);
+  Zone zone(data->allocator(), ZONE_NAME);
   using Assembler = compiler::turboshaft::Assembler<
       compiler::turboshaft::SelectLoweringReducer,
       compiler::turboshaft::DataViewLoweringReducer,
