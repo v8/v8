@@ -15,6 +15,7 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/base/virtual-address-space.h"
 #include "src/init/v8.h"
+#include "src/sandbox/testing.h"
 #include "src/utils/allocation.h"
 
 namespace v8::internal {
@@ -73,9 +74,14 @@ ExternalStringsCage::ExternalStringsCage()
   Address guard_region_begin = vm_cage_.base() + kMaxContentsSize;
   CHECK(vm_cage_.page_allocator()->AllocatePagesAt(
       guard_region_begin, kGuardRegionSize, PageAllocator::kNoAccess));
+
+  SandboxTesting::RegisterSafeMemoryRegion(
+      vm_cage_.base(), vm_cage_.size(), SandboxTesting::kOnlyReadAccessIsSafe);
 }
 
-ExternalStringsCage::~ExternalStringsCage() = default;
+ExternalStringsCage::~ExternalStringsCage() {
+  SandboxTesting::UnregisterSafeMemoryRegion(vm_cage_.base());
+}
 
 size_t ExternalStringsCage::GetAllocSize(size_t string_size) const {
   CHECK_GT(string_size, 0);

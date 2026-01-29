@@ -17,6 +17,7 @@
 #include "src/flags/flags.h"
 #include "src/sandbox/hardware-support.h"
 #include "src/sandbox/sandboxed-pointer.h"
+#include "src/sandbox/testing.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -242,6 +243,11 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
                             kSandboxMaxPermissions, sandbox_pkey);
   if (!address_space_) return false;
   address_space_->SetName(kSandboxAddressSpaceName);
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  SandboxTesting::RegisterSafeMemoryRegion(
+      address_space_->base(), address_space_->size(),
+      SandboxTesting::kReadAndWriteAccessIsSafe);
+#endif
 
   reservation_base_ = address_space_->base();
   base_ = reservation_base_ + (use_guard_regions ? kSandboxGuardRegionSize : 0);
@@ -381,6 +387,10 @@ void Sandbox::TearDown() {
       trap_handler_initialized_ = false;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+    SandboxTesting::UnregisterSafeMemoryRegion(address_space_->base());
+#endif
 
     // This destroys the sub space and frees the underlying reservation.
     address_space_.reset();

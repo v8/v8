@@ -4,13 +4,15 @@
 
 #include "src/sandbox/testing.h"
 
+#include <vector>
+
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/virtual-address-space.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
-#include "src/extensions/externalize-string-extension.h"
 #include "src/heap/factory.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/instance-type.h"
@@ -64,8 +66,6 @@ void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {
-
-base::AddressRegion g_external_strings_cage_region;
 
 // Sandbox.base
 void SandboxGetBase(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -669,6 +669,35 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   JSObject::AddProperty(isolate, global, name, sandbox, DONT_ENUM);
 }
 
+namespace {
+struct SafeRegion {
+  base::AddressRegion region;
+  SandboxTesting::MemoryAccessTypes safe_access_types;
+};
+
+base::LazyMutex g_safe_region_mutex = LAZY_MUTEX_INITIALIZER;
+
+std::vector<SafeRegion>& GetSafeRegions() {
+  g_safe_region_mutex.Pointer()->AssertHeld();
+  static base::LeakyObject<std::vector<SafeRegion>> g_safe_regions;
+  return *g_safe_regions.get();
+}
+}  // namespace
+
+void SandboxTesting::RegisterSafeMemoryRegion(
+    Address start, size_t size, MemoryAccessTypes safe_access_types) {
+  base::MutexGuard guard(g_safe_region_mutex.Pointer());
+  GetSafeRegions().push_back({{start, size}, safe_access_types});
+}
+
+void SandboxTesting::UnregisterSafeMemoryRegion(Address start) {
+  base::MutexGuard guard(g_safe_region_mutex.Pointer());
+  size_t num_removed = std::erase_if(
+      GetSafeRegions(),
+      [start](const auto& entry) { return entry.region.begin() == start; });
+  CHECK_EQ(num_removed, 1);
+}
+
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
 namespace {
@@ -681,7 +710,50 @@ void PrintToStderr(const char* output) {
   USE(return_val);
 }
 
-bool IsSafeAccessViolation(Address faultaddr) {
+using MemoryAccessType = SandboxTesting::MemoryAccessType;
+
+MemoryAccessType GetAccessType(void* context) {
+#ifdef V8_HOST_ARCH_X64
+  ucontext_t* ctx = reinterpret_cast<ucontext_t*>(context);
+  // See the X86-64 architecture manual for the error code bits.
+  static constexpr greg_t kWriteAccessBit = 1;
+  static constexpr greg_t kInstructionFetchBit = 4;
+  const greg_t err = ctx->uc_mcontext.gregs[REG_ERR];
+  if (err & (1 << kWriteAccessBit)) return MemoryAccessType::kWrite;
+  if (err & (1 << kInstructionFetchBit)) return MemoryAccessType::kExecute;
+  return MemoryAccessType::kRead;
+#else   // V8_HOST_ARCH_X64
+  // Conservatively assume it's a write.
+  return MemoryAccessType::kWrite;
+#endif  // V8_HOST_ARCH_X64
+}
+
+bool IsCrashInSafeMemoryRegion(Address faultaddr,
+                               MemoryAccessType access_type) {
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  if (g_safe_region_mutex.Pointer()->TryLock()) {
+    bool is_safe = false;
+    for (const auto& entry : GetSafeRegions()) {
+      if (entry.region.contains(faultaddr)) {
+        is_safe = entry.safe_access_types.contains(access_type);
+        break;
+      }
+    }
+    g_safe_region_mutex.Pointer()->Unlock();
+    return is_safe;
+  }
+#endif
+
+  // If we don't have the known-safe memory regions (or cannot access them,
+  // which is very unlikely), we need to rely on data from /proc/self/maps,
+  // which is much less accurate.
+  PrintToStderr(
+      "Cannot check if faulting address lies inside a know-safe memory region. "
+      "Falling back to generic checks. Results will be inaccurate\n");
+
+  // We never expect to fault on an instruction fetch.
+  if (access_type == MemoryAccessType::kExecute) return false;
+
   base::SignalSafeMapsParser parser;
   if (!parser.IsValid()) {
     PrintToStderr(
@@ -690,50 +762,25 @@ bool IsSafeAccessViolation(Address faultaddr) {
     return false;
   }
 
-  std::optional<base::MemoryRegion> fault_entry;
-  bool custom_memory_region_names_are_supported = false;
   while (auto entry = parser.Next()) {
     if (faultaddr >= entry->start && faultaddr < entry->end) {
-      fault_entry = entry;
-    }
-    // Custom names for virtual memory regions aren't always supported. We know
-    // they are supported if we see the "v8-sandbox" mapping though.
-    if (strstr(entry->pathname, Sandbox::kSandboxAddressSpaceName)) {
-      custom_memory_region_names_are_supported = true;
+      // With in-sandbox corruption it is possible to cause (safe) access
+      // violations inside the pointer table memory mappings. Unfortunately,
+      // these can be both PROT_NONE and PROT_READ mappings (as some table have
+      // RO segments), so we need to treat both of these as safe. However, we
+      // should never see access violations on non-anonymous mappings, so we
+      // can check for that here. Anonymous mappings will either not have a
+      // name/path at all, or it will be something like [anon:foo-bar].
+      if (entry->pathname[0] != '\0' && entry->pathname[0] != '[') return false;
+      return entry->permissions == PagePermissions::kNoAccess ||
+             entry->permissions == PagePermissions::kRead;
     }
   }
 
-  if (!fault_entry) {
-    PrintToStderr(
-        "Could not find faulting address in /proc/self/maps so cannot "
-        "determine if access violation is safe.\n");
-    return false;
-  }
-
-  if (custom_memory_region_names_are_supported) {
-    // The simple and precise case: just check if we crashed inside one of the
-    // known-safe-to-crash memory regions.
-    const char* kSafeNames[] = {
-        Sandbox::kSandboxAddressSpaceName,
-        kPointerTableAddressSpaceName,
-        nullptr,
-    };
-    for (const char** name = kSafeNames; *name; ++name) {
-      // We need to perform a substring search here as the actual mapping name
-      // will be something like "[anon:v8-sandbox]".
-      if (strstr(fault_entry->pathname, *name)) return true;
-    }
-    // We crashed somewhere else, so that's probably unsafe.
-    return false;
-  } else {
-    // If we don't have names then we need to rely on the page permissions,
-    // which is less accurate. With in-sandbox corruption it is possible to
-    // cause (safe) access violations inside the pointer table memory mappings.
-    // Unfortunately, these can be both PROT_NONE and PROT_READ mappings (as
-    // some table have RO segments), so we need to treat both of these as safe.
-    return fault_entry->permissions == PagePermissions::kNoAccess ||
-           fault_entry->permissions == PagePermissions::kRead;
-  }
+  PrintToStderr(
+      "Could not find faulting address in /proc/self/maps so cannot "
+      "determine if access violation is safe.\n");
+  return false;
 }
 
 [[noreturn]] void FilterCrash(const char* reason) {
@@ -777,19 +824,6 @@ void UninstallCrashFilter() {
 #endif  // V8_USE_ANY_SANITIZER
 }
 
-bool IsNonWriteCrash(void* context) {
-#ifdef V8_HOST_ARCH_X64
-  ucontext_t* ctx = reinterpret_cast<ucontext_t*>(context);
-  // Matches X86_PF_WRITE in x86_pf_error_code.
-  static constexpr greg_t kWriteAccessBit = 1;
-  const bool write_access =
-      ctx->uc_mcontext.gregs[REG_ERR] & (1 << kWriteAccessBit);
-  return !write_access;
-#else   // V8_HOST_ARCH_X64
-  return false;  // we don't know for sure
-#endif  // V8_HOST_ARCH_X64
-}
-
 void ForwardToOldHandler(int signal, siginfo_t* info, void* context) {
   if (g_old_handlers[signal].sa_flags & SA_SIGINFO) {
     g_old_handlers[signal].sa_sigaction(signal, info, context);
@@ -816,6 +850,9 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
 #endif  // V8_HAS_PKU_SUPPORT
 
   Address faultaddr = reinterpret_cast<Address>(info->si_addr);
+  // Conservatively assume we're dealing with a write access. We'll determine
+  // the actual access type when we know the type of signal we caught.
+  MemoryAccessType access_type = MemoryAccessType::kWrite;
 
   switch (signal) {
     case SIGABRT:
@@ -825,6 +862,7 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
       // Similarly, SIGTRAP may for example indicate UNREACHABLE code.
       FilterCrash("Caught harmless signal (SIGTRAP).");
     case SIGILL: {
+      access_type = MemoryAccessType::kExecute;
       // In the case of SIGILL, faultaddr will point to the faulting
       // instruction.
       //
@@ -861,6 +899,13 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
     }
     case SIGBUS:
     case SIGSEGV: {
+      access_type = GetAccessType(context);
+
+      // If we want to, we could merge most of the checks below (apart from the
+      // check for non-canonical addresses) into the safe-region check.
+      // However, the way they currently are is a bit more explicit and makes
+      // it very clear what we consider to be "safe" crashes.
+
       if (Sandbox::current()->Contains(faultaddr)) {
         FilterCrash(
             "Caught harmless memory access violation (inside sandbox).");
@@ -902,6 +947,17 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
         FilterCrash(
             "Caught harmless memory access violation (first 4GB of virtual "
             "address space).");
+      }
+
+      if (IsCrashInSafeMemoryRegion(faultaddr, access_type)) {
+        // There are a number of other memory regions where crashes are safe
+        // (and can be caused with in-sandbox corruption). Examples include the
+        // various pointer tables, where a (safe) OOB crash can be triggered by
+        // corrupting an in-sandbox table handle. These regions are registered
+        // with the crash filter and if we get here, we crashed in one of them.
+        // TODO(42202821): consider printing more information here, for example
+        // the address range and the name of the safe mapping.
+        FilterCrash("Caught harmless memory access violation (safe region).");
       }
 
       // Stack overflow detection.
@@ -950,32 +1006,6 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
         }
       }
 
-      if (signal == SIGSEGV && info->si_code == SEGV_ACCERR) {
-        // This indicates an access to a valid mapping but with insufficient
-        // permissions, for example accessing a region mapped with PROT_NONE, or
-        // writing to a read-only mapping.
-        //
-        // The sandbox relies on such accesses crashing in a safe way in some
-        // cases. For example, accesses into the various pointer tables are not
-        // bounds checked, but instead it is guaranteed that an out-of-bounds
-        // access will hit a PROT_NONE mapping. As such, here we try to
-        // identify whether the crash represents one of these known-safe cases,
-        // in which case we filter it out.
-        if (IsSafeAccessViolation(faultaddr)) {
-          FilterCrash(
-              "Caught harmless memory access violation (safe SEGV_ACCERR).");
-        }
-      }
-
-#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-      if (g_external_strings_cage_region.contains(faultaddr) &&
-          IsNonWriteCrash(context)) {
-        FilterCrash(
-            "Caught harmless ASan fault (read access inside external strings "
-            "cage).");
-      }
-#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
-
       break;
     }
     default:
@@ -988,7 +1018,7 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
   // If we get here, we've detected a sandbox violation.
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
 
-  if (IsNonWriteCrash(context)) {
+  if (access_type == MemoryAccessType::kRead) {
     PrintToStderr(
         "The sandbox violation was a *read* access which is technically not a "
         "sandbox violation. This requires manual investigation.\n");
@@ -1025,18 +1055,12 @@ void SanitizerFaultHandler() {
           "check if it is a sandbox violation.");
     }
 
-    if (Sandbox::current()->Contains(faultaddr)) {
-      FilterCrash("Caught harmless ASan fault (inside sandbox).");
+    MemoryAccessType access_type = __asan_get_report_access_type() == 0
+                                       ? MemoryAccessType::kRead
+                                       : MemoryAccessType::kWrite;
+    if (IsCrashInSafeMemoryRegion(faultaddr, access_type)) {
+      FilterCrash("Caught harmless ASan fault (inside safe region).");
     }
-
-#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-    if (g_external_strings_cage_region.contains(faultaddr) &&
-        __asan_get_report_access_type() == 0 /* READ */) {
-      FilterCrash(
-          "Caught harmless ASan fault (read access inside external strings "
-          "cage).");
-    }
-#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
   }
 #endif  // V8_USE_ADDRESS_SANITIZER
 
@@ -1097,16 +1121,6 @@ void SandboxTesting::Enable(Mode mode) {
   fprintf(stderr, "Sandbox bounds: [%p,%p)\n",
           reinterpret_cast<void*>(Sandbox::current()->base()),
           reinterpret_cast<void*>(Sandbox::current()->end()));
-
-#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
-  // Remember the address range belonging to the external strings cage, to be
-  // used for crash filters.
-  g_external_strings_cage_region =
-      i::ExternalStringsCage::GetInstance()->reservation_region();
-  fprintf(stderr, "External strings cage bounds: [%p,%p)\n",
-          reinterpret_cast<void*>(g_external_strings_cage_region.begin()),
-          reinterpret_cast<void*>(g_external_strings_cage_region.end()));
-#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
 #ifdef V8_OS_LINUX
   InstallCrashFilter();
