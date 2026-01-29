@@ -4102,9 +4102,9 @@ bool Simulator::PrintValue(const char* desc) {
 }
 
 void Simulator::Debug() {
-  if (v8_flags.correctness_fuzzer_suppressions) {
-    PrintF("Debugger disabled for differential fuzzing.\n");
-    return;
+  if (!v8_flags.simulator_debugger) {
+    // Debugger not enabled; crash instead.
+    UNREACHABLE();
   }
   bool done = false;
   while (!done) {

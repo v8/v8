@@ -3002,6 +3002,13 @@ DEFINE_INT(cpu_profiler_sampling_interval, 1000,
            "CPU profiler sampling interval in microseconds")
 
 // debugger
+DEFINE_BOOL(simulator_debugger, false,
+            "Start a debugger when a simulator hits a breakpoint")
+DEFINE_NEG_IMPLICATION(fuzzing, simulator_debugger)
+DEFINE_NEG_IMPLICATION(jit_fuzzing, simulator_debugger)
+DEFINE_NEG_IMPLICATION(hole_fuzzing, simulator_debugger)
+DEFINE_NEG_IMPLICATION(sandbox_fuzzing, simulator_debugger)
+
 DEFINE_BOOL(
     trace_side_effect_free_debug_evaluate, false,
     "print debug messages for side-effect-free debug-evaluate for testing")
