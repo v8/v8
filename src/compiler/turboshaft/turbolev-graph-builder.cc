@@ -560,6 +560,18 @@ class GraphBuildingNodeProcessor {
     // reuse later to construct Turboshaft nodes.
     native_context_ =
         __ HeapConstant(broker_->target_native_context().object());
+
+    if (maglev_compilation_unit_->is_osr()) {
+      // Turbolev does not decrement the budget anymore. If we happen to have
+      // some budget left from an earlier deopt, we want to make sure we do not
+      // get stuck in a lower tier for the whole function. Thus entering
+      // turbolev code resets it to 0.
+      V<FeedbackCell> feedback_cell =
+          __ HeapConstant(maglev_compilation_unit_->feedback_cell().object());
+      __ StoreField(feedback_cell,
+                    AccessBuilder::ForFeedbackCellInterruptBudget(),
+                    __ Word32Constant(0));
+    }
   }
 
   void PostProcessGraph(maglev::Graph* graph) {
