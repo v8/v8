@@ -1103,6 +1103,7 @@ DEFINE_FLOAT(
     "Scale interrupt budget reduction for OSR from Maglev vs. OSR to Maglev")
 DEFINE_BOOL(always_osr_from_maglev, false,
             "whether we try to OSR to Turbofan from any Maglev")
+DEFINE_WEAK_IMPLICATION(turbolev, always_osr_from_maglev)
 DEFINE_WEAK_IMPLICATION(always_osr_from_maglev, osr_from_maglev)
 
 // Tiering: Turbofan.
