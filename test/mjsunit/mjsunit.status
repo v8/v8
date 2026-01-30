@@ -337,8 +337,6 @@
   'regress/regress-437956096': [PASS, SLOW],
   'regress/regress-524': [PASS, SLOW],
   'sandbox/regress-430960844': [PASS, SLOW],
-  # TODO(479646398): Investigate the huge slowdown.
-  'wasm/max-wasm-functions': [SKIP],
 }],
 
 ################################################################################
