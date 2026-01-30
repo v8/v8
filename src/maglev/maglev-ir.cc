@@ -669,6 +669,13 @@ Tribool ValueNode::IsTheHole() const {
   if (const RootConstant* cst = TryCast<RootConstant>()) {
     return ToTribool(cst->index() == RootIndex::kTheHoleValue);
   }
+  if (const LoadTaggedField* load = TryCast<LoadTaggedField>()) {
+    // Modules variables can be the hole.
+    if (load->offset() == Cell::kValueOffset) {
+      return Tribool::kMaybe;
+    }
+    return Tribool::kFalse;
+  }
   if (const LoadFixedArrayElement* load = TryCast<LoadFixedArrayElement>()) {
     if (load->load_type() != LoadType::kUnknown) {
       return Tribool::kFalse;
