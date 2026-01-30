@@ -718,17 +718,18 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
 
 constexpr bool CanBeTheHoleValue(Opcode opcode) {
   switch (opcode) {
-    case Opcode::kInitialValue:
-    case Opcode::kCallRuntime:
     // TODO(victorgomes): Should we have a list of builtins that could
     // return the hole?
     case Opcode::kCallBuiltin:
+    case Opcode::kCallRuntime:
     case Opcode::kGeneratorRestoreRegister:
-    case Opcode::kRootConstant:
+    case Opcode::kInitialValue:
     case Opcode::kLoadContextSlot:
     case Opcode::kLoadContextSlotNoCells:
     case Opcode::kLoadFixedArrayElement:
+    case Opcode::kLoadTaggedField:
     case Opcode::kPhi:
+    case Opcode::kRootConstant:
       return true;
     default:
       return false;
