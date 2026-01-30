@@ -67,9 +67,14 @@ void TurbolevFrontendPipeline::PrintMaglevGraph(const char* msg) {
 namespace {
 void PrintInliningTree(std::ostream& os, maglev::InliningTreeDebugInfo* node,
                        const std::string& prefix, bool is_last) {
-  os << prefix << (is_last ? "`-" : "|-") << Brief(*node->shared.object())
+  int max_budget = node->is_eager
+                       ? v8_flags.max_inlined_bytecode_size_small_total
+                       : v8_flags.max_inlined_bytecode_size_cumulative;
+  os << prefix << (is_last ? "└" : "├") << (node->children.empty() ? "─" : "┬")
+     << " (" << node->budget << "/" << max_budget << ") "
+     << Brief(*node->shared.object()) << " [freq: " << node->freq << "]"
      << (node->is_eager ? " (eager)\n" : "\n");
-  std::string new_prefix = prefix + (is_last ? "  " : "| ");
+  std::string new_prefix = prefix + (is_last ? " " : "│");
   for (size_t i = 0; i < node->children.size(); ++i) {
     PrintInliningTree(os, node->children[i], new_prefix,
                       i == node->children.size() - 1);
@@ -79,8 +84,7 @@ void PrintInliningTree(std::ostream& os, maglev::InliningTreeDebugInfo* node,
 void PrintInliningTree(std::ostream& os, maglev::Graph* const graph) {
   maglev::InliningTreeDebugInfo* root = graph->inlining_tree_debug_info();
   if (root == nullptr) return;
-  os << "Inlined functions:\n";
-  os << Brief(*root->shared.object()) << "\n";
+  os << "🧩 Functions inlined into " << Brief(*root->shared.object()) << "\n";
   for (size_t i = 0; i < root->children.size(); ++i) {
     PrintInliningTree(os, root->children[i], "",
                       i == root->children.size() - 1);

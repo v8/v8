@@ -1149,9 +1149,19 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       catch_block_stack_(zone()),
       unobserved_context_slot_stores_(zone()) {
   if (V8_UNLIKELY(v8_flags.print_turbolev_inline_functions)) {
+    bool is_eager = false;
+    int current_bugdget = 0;
+    float freq = 0;
+    if (is_inline()) {
+      DCHECK_NOT_NULL(caller_details);
+      is_eager = caller_details->is_eager_inline;
+      current_bugdget = is_eager ? graph_->total_inlined_bytecode_size_small()
+                                 : graph_->total_inlined_bytecode_size();
+      freq = caller_details->call_frequency;
+    }
     current_inlining_tree_debug_info_ = zone()->New<InliningTreeDebugInfo>(
-        zone(), compilation_unit->shared_function_info(),
-        caller_details ? caller_details->is_eager_inline : true);
+        zone(), compilation_unit->shared_function_info(), is_eager,
+        current_bugdget, freq);
     if (is_inline()) {
       DCHECK_NOT_NULL(caller_details->parent_inlining_tree_debug_info);
       caller_details->parent_inlining_tree_debug_info->children.push_back(

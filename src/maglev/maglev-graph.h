@@ -33,10 +33,16 @@ using MaglevCallSiteCandidates =
 struct InliningTreeDebugInfo : public ZoneObject {
   compiler::SharedFunctionInfoRef shared;
   bool is_eager;
+  int budget;
+  float freq;
   ZoneVector<InliningTreeDebugInfo*> children;
   InliningTreeDebugInfo(Zone* zone, compiler::SharedFunctionInfoRef shared,
-                        bool is_eager)
-      : shared(shared), is_eager(is_eager), children(zone) {}
+                        bool is_eager, int budget, float freq)
+      : shared(shared),
+        is_eager(is_eager),
+        budget(budget),
+        freq(freq),
+        children(zone) {}
 };
 
 class Graph final : public ZoneObject {
