@@ -1241,8 +1241,8 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->constant_pool_address = nullptr;
 }
 
-FrameSummaries BuiltinExitFrame::Summarize() const {
-  DirectHandle<FixedArray> parameters = GetParameters();
+FrameSummaries BuiltinExitFrame::Summarize(bool never_allocate) const {
+  DirectHandle<FixedArray> parameters = GetParameters(never_allocate);
   DisallowGarbageCollection no_gc;
   Tagged<Code> code;
   int code_offset = -1;
@@ -1280,8 +1280,9 @@ int BuiltinExitFrame::ComputeParametersCount() const {
   return argc;
 }
 
-DirectHandle<FixedArray> BuiltinExitFrame::GetParameters() const {
-  if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
+DirectHandle<FixedArray> BuiltinExitFrame::GetParameters(
+    bool never_allocate) const {
+  if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
   int param_count = ComputeParametersCount();
@@ -1330,10 +1331,15 @@ static_assert(ArgOffset(FCA::kFirstJSArgumentIndex) ==
 
 }  // namespace ensure_FunctionCallbackInfo_layout
 
-DirectHandle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
+DirectHandle<JSFunction> ApiCallbackExitFrame::GetFunction(
+    bool never_allocate) const {
   Tagged<HeapObject> maybe_function = target();
   if (IsJSFunction(maybe_function)) {
     return DirectHandle<JSFunction>::FromSlot(target_slot().location());
+  }
+  if (never_allocate) {
+    // Instantiation would allocate, return empty handle.
+    return {};
   }
   DCHECK(IsFunctionTemplateInfo(maybe_function));
   DirectHandle<FunctionTemplateInfo> function_template_info(
@@ -1366,8 +1372,9 @@ ApiCallbackExitFrame::GetFunctionTemplateInfo() const {
   return direct_handle(Cast<FunctionTemplateInfo>(maybe_function), isolate());
 }
 
-DirectHandle<FixedArray> ApiCallbackExitFrame::GetParameters() const {
-  if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
+DirectHandle<FixedArray> ApiCallbackExitFrame::GetParameters(
+    bool never_allocate) const {
+  if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
   int param_count = ComputeParametersCount();
@@ -1379,9 +1386,13 @@ DirectHandle<FixedArray> ApiCallbackExitFrame::GetParameters() const {
 }
 
 FrameSummaries ApiCallbackExitFrame::SummarizeApiFrame(
-    bool is_constructor) const {
-  DirectHandle<FixedArray> parameters = GetParameters();
-  DirectHandle<JSFunction> function = GetFunction();
+    bool is_constructor, bool never_allocate) const {
+  DirectHandle<JSFunction> function = GetFunction(never_allocate);
+  if (function.is_null()) {
+    // GetFunction() would need to instantiate the function, skip this frame.
+    return FrameSummaries{};
+  }
+  DirectHandle<FixedArray> parameters = GetParameters(never_allocate);
   DisallowGarbageCollection no_gc;
   Tagged<Code> code;
   int code_offset = -1;
@@ -1424,7 +1435,7 @@ static_assert(FC::kPropertyCallbackInfoSetterApiArgsLength ==
 
 }  // namespace ensure_PropertyCallbackInfo_layout
 
-FrameSummaries ApiAccessorExitFrame::Summarize() const {
+FrameSummaries ApiAccessorExitFrame::Summarize(bool never_allocate) const {
   // Theses kinds of frames are not supposed to appear in exception stack
   // traces.
   DCHECK_IMPLIES(
@@ -1595,7 +1606,7 @@ void CommonFrame::ComputeCallerState(State* state) const {
       fp() + StandardFrameConstants::kConstantPoolOffset);
 }
 
-FrameSummaries CommonFrame::Summarize() const {
+FrameSummaries CommonFrame::Summarize(bool never_allocate) const {
   // This should only be called on frames which override this method.
   UNREACHABLE();
 }
@@ -2457,7 +2468,7 @@ int StubFrame::LookupExceptionHandlerInTable() {
   return table.LookupReturn(pc_offset);
 }
 
-FrameSummaries StubFrame::Summarize() const {
+FrameSummaries StubFrame::Summarize(bool never_allocate) const {
   FrameSummaries summaries;
 #if V8_ENABLE_WEBASSEMBLY
   Tagged<Code> code = LookupCode();
@@ -2555,7 +2566,7 @@ bool CommonFrameWithJSLinkage::IsConstructor() const {
   return IsConstructFrame(caller_fp());
 }
 
-FrameSummaries CommonFrameWithJSLinkage::Summarize() const {
+FrameSummaries CommonFrameWithJSLinkage::Summarize(bool never_allocate) const {
   Tagged<GcSafeCode> gcsafe_code;
   int offset = -1;
   std::tie(gcsafe_code, offset) = GcSafeLookupCodeAndOffset();
@@ -2567,7 +2578,7 @@ FrameSummaries CommonFrameWithJSLinkage::Summarize() const {
     return FrameSummaries{};
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  DirectHandle<FixedArray> params = GetParameters();
+  DirectHandle<FixedArray> params = GetParameters(never_allocate);
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *Cast<AbstractCode>(code), offset,
       IsConstructor(), *params);
@@ -2735,8 +2746,9 @@ int JavaScriptFrame::GetActualArgumentCount() const {
          kJSArgcReceiverSlots;
 }
 
-DirectHandle<FixedArray> CommonFrameWithJSLinkage::GetParameters() const {
-  if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
+DirectHandle<FixedArray> CommonFrameWithJSLinkage::GetParameters(
+    bool never_allocate) const {
+  if (never_allocate || V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
   int param_count = ComputeParametersCount();
@@ -3129,7 +3141,7 @@ FRAME_SUMMARY_DISPATCH(DirectHandle<StackFrameInfo>, CreateStackFrameInfo)
 #undef CASE_WASM_INTERPRETED
 #undef FRAME_SUMMARY_DISPATCH
 
-FrameSummaries OptimizedJSFrame::Summarize() const {
+FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
   DCHECK(is_optimized());
   FrameSummaries summaries;
 
@@ -3138,7 +3150,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
   DirectHandle<Code> code(LookupCode(), isolate());
   if (code->kind() == CodeKind::BUILTIN ||
       code->kind() == CodeKind::FOR_TESTING_JS) {
-    return JavaScriptFrame::Summarize();
+    return JavaScriptFrame::Summarize(never_allocate);
   }
   DCHECK_NE(code->kind(), CodeKind::FOR_TESTING);
 
@@ -3157,7 +3169,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
       DirectHandle<AbstractCode> abstract_code(
           Cast<AbstractCode>(function()->shared()->GetBytecodeArray(isolate())),
           isolate());
-      DirectHandle<FixedArray> params = GetParameters();
+      DirectHandle<FixedArray> params = GetParameters(never_allocate);
       FrameSummary::JavaScriptFrameSummary summary(
           isolate(), receiver(), function(), *abstract_code,
           kFunctionEntryBytecodeOffset, IsConstructor(), *params);
@@ -3214,7 +3226,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
       }
 
       // Append full summary of the encountered JS frame.
-      DirectHandle<FixedArray> params = GetParameters();
+      DirectHandle<FixedArray> params = GetParameters(never_allocate);
       FrameSummary::JavaScriptFrameSummary summary(
           isolate(), *receiver, *function, *abstract_code, code_offset,
           is_constructor, *params);
@@ -3410,10 +3422,10 @@ Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
   return GetExpression(index + register_index);
 }
 
-FrameSummaries UnoptimizedJSFrame::Summarize() const {
+FrameSummaries UnoptimizedJSFrame::Summarize(bool never_allocate) const {
   DirectHandle<AbstractCode> abstract_code(
       Cast<AbstractCode>(GetBytecodeArray()), isolate());
-  DirectHandle<FixedArray> params = GetParameters();
+  DirectHandle<FixedArray> params = GetParameters(never_allocate);
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *abstract_code, GetBytecodeOffset(),
       IsConstructor(), *params);
@@ -3563,7 +3575,7 @@ Tagged<Object> WasmFrame::context() const {
   return trusted_instance_data()->native_context();
 }
 
-FrameSummaries WasmFrame::Summarize() const {
+FrameSummaries WasmFrame::Summarize(bool never_allocate) const {
   FrameSummaries summaries;
   // The {WasmCode*} escapes this scope via the {FrameSummary}, which is fine,
   // since this code object is part of our stack.
@@ -3898,7 +3910,7 @@ void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
-FrameSummaries WasmInterpreterEntryFrame::Summarize() const {
+FrameSummaries WasmInterpreterEntryFrame::Summarize(bool never_allocate) const {
   FrameSummaries summaries;
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
   std::vector<WasmInterpreterStackEntry> interpreted_stack =

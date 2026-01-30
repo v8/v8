@@ -206,7 +206,6 @@ TEST_F(IsolateTest, DebugTraceMinimal) {
   EXPECT_TRUE(crash_key_store.HasKey("v8-oom-stack"));
   std::string output = crash_key_store.ValueForKey("v8-oom-stack");
   const char* expected_output =
-      "<none>\n"
       "f3 in test.js\n"
       "f2 in test.js\n"
       "f1 in test.js\n"
