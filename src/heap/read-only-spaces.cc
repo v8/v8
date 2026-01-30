@@ -395,7 +395,6 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
 
 AllocationResult ReadOnlySpace::AllocateRawUnmappableAllocation(
     int mapped_prefix_in_bytes, int unmapped_payload_in_bytes) {
-#if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL
   constexpr size_t kLargestPossibleOSPageSize = 64 * KB;
   static_assert(kLargestPossibleOSPageSize >= kMinimumOSPageSize);
 
@@ -440,9 +439,6 @@ AllocationResult ReadOnlySpace::AllocateRawUnmappableAllocation(
                kLargestPossibleOSPageSize,
            0);
   return result;
-#else
-  UNREACHABLE();
-#endif
 }
 
 Tagged<HeapObject> ReadOnlySpace::TryAllocateLinearlyAligned(

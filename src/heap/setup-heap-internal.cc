@@ -515,11 +515,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_PARTIAL_MAP(DESCRIPTOR_ARRAY_TYPE, kVariableSizeSentinel,
                          descriptor_array)
 
-    ALLOCATE_PARTIAL_MAP(
-        HOLE_TYPE,
-        // If we want to unmap holes, we have to use a variable instance size,
-        // otherwise the hole + unmapped payload is too large.
-        V8_CAN_UNMAP_HOLES_BOOL ? kVariableSizeSentinel : sizeof(Hole), hole);
+    ALLOCATE_PARTIAL_MAP(HOLE_TYPE, kVariableSizeSentinel, hole);
 
     // Some struct maps which we need for later dependencies
     for (const StructInit& entry : kStructTable) {
@@ -1359,7 +1355,6 @@ bool Heap::CreateReadOnlyObjects() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   auto make_hole = [this, roots, factory]() {
-#if V8_CAN_UNMAP_HOLES_BOOL
     USE(factory);
 
     static_assert(sizeof(Hole) == sizeof(Hole::map_) + Hole::kPayloadSize);
@@ -1372,10 +1367,6 @@ bool Heap::CreateReadOnlyObjects() {
                                        SKIP_WRITE_BARRIER);
     // No need to initialize the payload since it's either empty or unmapped.
     return Cast<Hole>(hole_obj);
-#else
-    USE(this, roots);
-    return *factory->NewHole();
-#endif  // V8_CAN_UNMAP_HOLES_BOOL
   };
 
   // Set up the hole values in one range

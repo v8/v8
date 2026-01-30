@@ -6126,6 +6126,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
           WasmNull::kPayloadSize)) {
     V8::FatalProcessOutOfMemory(this, "decommitting WasmNull payload");
   }
+#endif  // V8_STATIC_ROOTS_BOOL
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   if (v8_flags.unmap_holes) {
 // Protect the payload of each hole.
 #define UNMAP_HOLE(CamelName, snake_name, _)                                  \
@@ -6138,8 +6141,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     HOLE_LIST(UNMAP_HOLE)
 #undef UNMAP_HOLE
   }
-#endif  // V8_STATIC_ROOTS_BOOL
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Isolate initialization allocates long living objects that should be
   // pretenured to old space.

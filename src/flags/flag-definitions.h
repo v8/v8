@@ -1006,11 +1006,7 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
-#if V8_STATIC_ROOTS_BOOL
 DEFINE_BOOL(unmap_holes, true, "unmap the page containing the holes.")
-#else
-DEFINE_BOOL_READONLY(unmap_holes, false, "unmap the page containing the holes.")
-#endif
 
 #ifdef V8_ALLOCATION_SITE_TRACKING
 #define V8_ALLOCATION_SITE_TRACKING_BOOL true

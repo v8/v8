@@ -434,13 +434,7 @@ DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
 }
 
 DirectHandle<Hole> Factory::NewHole() {
-#if V8_CAN_UNMAP_HOLES_BOOL
   UNREACHABLE();
-#else
-  DirectHandle<Hole> hole(
-      Cast<Hole>(New(hole_map(), AllocationType::kReadOnly)), isolate());
-  return hole;
-#endif
 }
 
 DirectHandle<PropertyArray> Factory::NewPropertyArray(
