@@ -7322,10 +7322,6 @@ int Shell::Main(int argc, char* argv[]) {
 
 #ifdef V8_FUZZILLI
 
-#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  sanitizer_cov_prepare_for_hardware_sandbox();
-#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-
   if (options.fuzzilli_enable_builtins_coverage) {
     cov_init_builtins_edges(static_cast<uint32_t>(
         i::BasicBlockProfiler::Get()
