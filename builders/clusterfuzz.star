@@ -65,6 +65,11 @@ in_category(
         properties = {"clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}},
     ),
     clusterfuzz_builder(
+        name = "V8 Clusterfuzz Linux64 - dumpling - release builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-dumpling"}},
+    ),
+    clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}},
