@@ -592,7 +592,7 @@
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap', 'v8_enable_undefined_double'],
     'release_x64_sandbox_testing_undefined_double': [
-      'release_bot', 'x64', 'symbolized', 'backtrace', 'trace_pc_guard',
+      'release_bot', 'x64', 'backtrace', 'trace_pc_guard',
       'v8_enable_memory_corruption_api', 'v8_enable_undefined_double',
       'v8_enable_fuzzilli'],
     'release_x64_asan_sandbox_testing_undefined_double': [
