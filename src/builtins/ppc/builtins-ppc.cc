@@ -3596,6 +3596,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
   Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
+  MemOperand sig(fp, 2 * kSystemPointerSize);
   Label resume;
   __ Push(arg_buffer);
   __ Push(cont, kContextRegister);
@@ -3603,15 +3604,16 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK(!AreAliased(kCArgRegs[4], cont, arg_buffer));
     DCHECK(!AreAliased(kCArgRegs[5], arg_buffer));
-    __ PrepareCallCFunction(7, r0);
+    __ PrepareCallCFunction(8, r0);
     __ Move(kCArgRegs[4], tag);
     __ Move(kCArgRegs[5], cont);
     __ Move(kCArgRegs[6], arg_buffer);
+    __ LoadU64(kCArgRegs[7], sig, r0);
     __ Move(kCArgRegs[0], ExternalReference::isolate_address());
     __ Move(kCArgRegs[1], sp);
     __ Move(kCArgRegs[2], fp);
     __ GetLabelAddress(kCArgRegs[3], &resume);
-    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 7);
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 8);
   }
   Register target_stack = r4;
   __ Move(target_stack, kReturnRegister0);
@@ -3633,6 +3635,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ bind(&resume);
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Drop(WasmFXSuspendDescriptor::GetStackParameterCount());
   __ Ret();
 }
 
