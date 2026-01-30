@@ -106,16 +106,16 @@ BUILTIN(MathSumPrecise) {
     return true;
   };
 
-  auto generic_visitor = [&](Tagged<Object> val) -> bool {
-    if (!IsNumber(val)) {
+  auto generic_visitor = [&](DirectHandle<Object> val) -> bool {
+    if (!IsNumber(*val)) {
       DirectHandle<Object> error_args[] = {
           isolate->factory()->NewStringFromAsciiChecked("Iterator value"),
-          Object::TypeOf(isolate, handle(val, isolate))};
+          Object::TypeOf(isolate, val)};
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kIsNotNumber, base::VectorOf(error_args)));
       return false;
     }
-    state.Update(Object::NumberValue(val));
+    state.Update(Object::NumberValue(*val));
     return true;
   };
 

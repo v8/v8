@@ -58,9 +58,9 @@ RUNTIME_FUNCTION(Runtime_IterableForEach) {
                 .is_null();
   };
 
-  auto generic_visitor = [&](Tagged<Object> val) -> bool {
+  auto generic_visitor = [&](DirectHandle<Object> val) -> bool {
     HandleScope loop_scope(isolate);
-    DirectHandle<Object> argv[] = {handle(val, isolate)};
+    DirectHandle<Object> argv[] = {val};
     return !Execution::Call(isolate, callback,
                             isolate->factory()->undefined_value(),
                             base::VectorOf(argv))
