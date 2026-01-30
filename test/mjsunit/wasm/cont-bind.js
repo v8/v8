@@ -31,6 +31,13 @@ let sig_after_bind = builder.addType(
 let cont_after_bind = builder.addCont(sig_after_bind);
 let g_cont_many = builder.addGlobal(wasmRefNullType(cont_many), true, false);
 
+let sig_r_r = builder.addType(kSig_r_r);
+let sig_r_v = builder.addType(kSig_r_v);
+let cont_r_r = builder.addCont(sig_r_r);
+let cont_r_v = builder.addCont(sig_r_v);
+let tag_r_v = builder.addTag(kSig_r_v);
+let g_cont_r_r = builder.addGlobal(wasmRefNullType(cont_r_r), true, false);
+
 let g_ref = builder.addGlobal(kWasmExternRef, true).exportAs('g_ref');
 
 function GenerateValuesOfType(types) {
@@ -236,6 +243,34 @@ builder.addFunction("test_suspended_many_args_chained", kSig_v_v)
         ...CheckValuesOfType(many_types.slice().reverse(),
                              check_block_sig, 0)
     ]).exportFunc();
+block_sig = builder.addType(makeSig([], [wasmRefType(cont_r_r)]));
+let suspend_ref = builder.addFunction("suspend_ref", kSig_r_v)
+    .addBody([
+        kExprSuspend, tag_r_v,
+    ]);
+let call_suspend_ref = builder.addFunction("call_suspend_ref", kSig_r_v)
+    .addBody([
+        kExprCallFunction, suspend_ref.index,
+        // One GC call just to overwrite the callee frame.
+        kExprCallFunction, gc_index,
+        // Second GC call should not attempt to visit the callee frame's
+        // argument buffer.
+        kExprCallFunction, gc_index,
+    ]).exportFunc();
+builder.addFunction("test_gc_after_suspend", kSig_r_r)
+    .addBody([
+        kExprBlock, block_sig,
+          kExprRefFunc, call_suspend_ref.index,
+          kExprContNew, cont_r_v,
+          kExprResume, cont_r_v, 1, kOnSuspend, tag_r_v, 0,
+          kExprUnreachable,
+        kExprEnd,
+        kExprGlobalSet, g_cont_r_r.index,
+        kExprLocalGet, 0,
+        kExprGlobalGet, g_cont_r_r.index,
+        kExprContBind, cont_r_r, cont_r_v,
+        kExprResume, cont_r_v, 0,
+    ]).exportFunc();
 
 let instance = builder.instantiate({m: {gc}});
 
@@ -256,5 +291,15 @@ let instance = builder.instantiate({m: {gc}});
   instance.exports.test_new_cont_many_args_chained();
   assertEquals(ref, instance.exports.g_ref.value);
   instance.exports.test_suspended_many_args_chained();
+  assertEquals(ref, instance.exports.g_ref.value);
+})();
+
+// Check that the GC does not attempt to visit bound arguments after the
+// suspended frame has returned.
+(function TestGCAfterSuspend() {
+  print(arguments.callee.name);
+  let ref = {};
+  instance.exports.g_ref.value = ref;
+  instance.exports.test_gc_after_suspend();
   assertEquals(ref, instance.exports.g_ref.value);
 })();

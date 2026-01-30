@@ -595,10 +595,13 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   OpIndex result_buffer =
       __ StackSlot(size, std::max(2 * kSystemPointerSize, alignment));
   IterateWasmFXArgBuffer(sig_->returns(), [&](size_t index, int offset) {
-    __ StoreOffHeap(result_buffer, returns[index],
-                    MemoryRepresentation::FromMachineType(
-                        sig_->GetReturn(index).machine_type()),
-                    offset);
+    CanonicalValueType type = sig_->GetReturn(index);
+    // On-stack refs are uncompressed.
+    MemoryRepresentation rep =
+        type.is_ref()
+            ? MemoryRepresentation::AnyUncompressedTagged()
+            : MemoryRepresentation::FromMachineType(type.machine_type());
+    __ StoreOffHeap(result_buffer, returns[index], rep, offset);
   });
 
   CallBuiltin<WasmFXReturnDescriptor>(Builtin::kWasmFXReturn,

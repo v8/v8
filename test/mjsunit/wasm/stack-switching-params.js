@@ -24,6 +24,9 @@ let tag_ilfdsr_ilfdsr = builder.addTag(makeSig(ilfdsr, ilfdsr));
 let block_sig_ilfdsr = builder.addType(
     makeSig([], ilfdsr.concat([wasmRefType(cont_ilfdsr_ilfdsr)])));
 
+let sig_r_r = builder.addType(kSig_r_r);
+let cont_r_r = builder.addCont(sig_r_r);
+
 // Use the memory and a global to pass and receive values to and from the
 // initial func ref of a stack, until the stack entry wrapper supports
 // params/returns:
@@ -174,6 +177,19 @@ let test_ilfdsr = builder.addFunction("test_ilfdsr", kSig_v_v)
       kSimdPrefix, kExprS128StoreMem, 0, 24,
   ]).exportFunc();
 
+let identity_ref = builder.addFunction("identity_ref", kSig_r_r)
+    .addBody([
+        kExprLocalGet, 0,
+    ]).exportFunc();
+block_sig = builder.addType(makeSig([], [wasmRefType(cont_r_r)]));
+builder.addFunction("test_return_ref", kSig_r_r)
+    .addBody([
+        kExprLocalGet, 0,
+        kExprRefFunc, identity_ref.index,
+        kExprContNew, cont_r_r,
+        kExprResume, cont_r_r, 0,
+    ]).exportFunc();
+
 let instance = builder.instantiate();
 
 (function TestI32() {
@@ -219,4 +235,9 @@ let instance = builder.instantiate();
   }
   assertSame(instance.exports.g_ref_in.value,
              instance.exports.g_ref_cont_return.value);
+})();
+
+(function TestReturnRef() {
+  let ref = {};
+  assertEquals(ref, instance.exports.test_return_ref(ref));
 })();
