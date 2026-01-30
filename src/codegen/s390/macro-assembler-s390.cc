@@ -6609,7 +6609,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int slots_to_drop_on_return,
                               MemOperand* argc_operand,
-                              MemOperand return_value_operand) {
+                              MemOperand return_value_operand,
+                              bool handle_interceptor_result) {
   using ER = ExternalReference;
 
   Isolate* isolate = masm->isolate();
@@ -6662,7 +6663,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ StoreU32(scratch, level_mem_op);
   }
 
-  Label profiler_or_side_effects_check_enabled, done_api_call;
+  Label profiler_or_side_effects_check_enabled, done_api_call,
+      done_reading_result;
   if (with_profiling) {
     __ RecordComment("Check if profiler or side effects check is enabled");
     __ LoadU8(scratch,
@@ -6687,12 +6689,25 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 #endif
   __ bind(&done_api_call);
 
+  if (handle_interceptor_result) {
+    // Skip reading return value if the callback returned kInterceptedNo,
+    // this would make the builtin return kNotInterceptedSentinel value.
+    // Size is important here, otherwise the C++ function could have returned
+    // one- or two-byte value with junk in the upper part.
+    static_assert(kInterceptedNo == 1 && kInterceptedSize == 4);
+    static_assert(kInterceptedNo == kNotInterceptedSentinel);
+    static_assert(kInterceptedYes == 0);
+    __ tmll(return_value, Operand(1));
+    __ b(to_condition(kNotZero), &done_reading_result);
+  }
+
   Label propagate_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
   __ RecordComment("Load the value from ReturnValue");
   __ LoadU64(r2, return_value_operand);
+  __ bind(&done_reading_result);
 
   {
     ASM_CODE_COMMENT_STRING(
@@ -6730,8 +6745,16 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ bne(&propagate_exception, Label::kNear);
   }
 
-  __ AssertJSAny(return_value, scratch, scratch2,
-                 AbortReason::kAPICallReturnedInvalidObject);
+  if (v8_flags.debug_code) {
+    Label ok;
+    if (handle_interceptor_result) {
+      __ Cmp(return_value, kNotInterceptedSentinel);
+      __ beq(&ok);
+    }
+    __ AssertJSAny(return_value, scratch, scratch2,
+                   AbortReason::kAPICallReturnedInvalidObject);
+    __ bind(&ok);
+  }
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);

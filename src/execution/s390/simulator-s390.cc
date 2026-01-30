@@ -1991,8 +1991,9 @@ using SimulatorRuntimeFPTaggedCall = double (*)(int32_t arg0, int32_t arg1,
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(intptr_t arg0);
-// This signature supports direct call to accessor getter callback.
-using SimulatorRuntimeDirectGetterCall = void (*)(intptr_t arg0, intptr_t arg1);
+// This signature supports direct call to accessor/interceptor getter callback.
+using SimulatorRuntimeDirectGetterCall = intptr_t (*)(intptr_t arg0,
+                                                      intptr_t arg1);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
@@ -2184,7 +2185,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
         // See callers of MacroAssembler::CallApiFunctionAndReturn for
         // explanation of register usage.
-        // void f(v8::Local<String> property, v8::PropertyCallbackInfo& info)
+        // void f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
+        // v8::Intercepted f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
         if (InstructionTracingEnabled() || !stack_aligned) {
           PrintF("Call to host function at %p args %08" V8PRIxPTR
                  " %08" V8PRIxPTR,
@@ -2201,7 +2203,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (!ABI_PASSES_HANDLES_IN_REGS) {
           arg[0] = base::bit_cast<intptr_t>(arg[0]);
         }
-        target(arg[0], arg[1]);
+        intptr_t iresult = target(arg[0], arg[1]);
+        if (InstructionTracingEnabled()) {
+          PrintF("Returned %08" V8PRIxPTR "\n", iresult);
+        }
+        set_register(r2, iresult);
       } else {
         // builtin call.
         if (InstructionTracingEnabled() || !stack_aligned) {
