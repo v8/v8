@@ -160,6 +160,8 @@
       'V8 Clusterfuzz Linux64 - release builder':
           'release_x64_correctness_fuzzer_undefined_double',
       'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64_undefined_double',
+      'V8 Clusterfuzz Linux64 - dumpling - release builder':
+          'release_x64_dumpling',
       'V8 Clusterfuzz Linux64 ASAN no inline - release builder':
           'release_x64_asan_symbolized_verify_heap_undefined_double',
       'V8 Clusterfuzz Linux ASAN no inline - release builder':
@@ -1095,7 +1097,8 @@
     },
 
     'v8_dumpling': {
-      'gn_args': 'v8_dumpling=true v8_enable_object_print=true ',
+      'gn_args': 'v8_dumpling=true v8_enable_object_print=true '
+                 'v8_enable_partition_alloc=false v8_symbol_level=2',
     },
 
     'v8_enable_drumbrake': {
