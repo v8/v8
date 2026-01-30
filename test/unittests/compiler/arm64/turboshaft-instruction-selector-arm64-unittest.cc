@@ -4956,8 +4956,6 @@ TEST_F(TurboshaftInstructionSelectorTest, MoveLane) {
   }
 }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-
 TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
   {
     // Test deinterleaved 64x4 protected load, register index.
@@ -5112,8 +5110,6 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
     EXPECT_EQ(2U, s[1]->OutputCount());
   }
 }
-
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 TEST_F(TurboshaftInstructionSelectorTest, Sha3Test) {
   const MachineType type = MachineType::Simd128();

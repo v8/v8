@@ -478,8 +478,6 @@ TEST_F(ReducerTest, MultipleChained) {
   test.Run<WasmShuffleReducer>();
 }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-
 namespace {
 auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
 constexpr uint8_t shuffle_bytes_even[kSimd128Size] = {
@@ -507,7 +505,7 @@ TEST_F(ReducerTest, LoadInterleaveTwo) {
   });
   WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
   analyzer.Run();
-  EXPECT_TRUE(analyzer.ShouldReduce());
+  EXPECT_EQ(analyzer.ShouldReduce(), v8_flags.experimental_wasm_simd_opt);
 }
 
 TEST_F(ReducerTest, LoadInterleaveTwoNegativeDiffOffset) {
@@ -551,7 +549,7 @@ TEST_F(ReducerTest, LoadInterleaveTwoNoIndex) {
   });
   WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
   analyzer.Run();
-  EXPECT_TRUE(analyzer.ShouldReduce());
+  EXPECT_EQ(analyzer.ShouldReduce(), v8_flags.experimental_wasm_simd_opt);
 }
 
 TEST_F(ReducerTest, LoadInterleaveTwoWrongIndex) {
@@ -718,8 +716,6 @@ TEST_F(ReducerTest, LoadInterleaveTwoWrongBlocks) {
   analyzer.Run();
   EXPECT_FALSE(analyzer.ShouldReduce());
 }
-
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 

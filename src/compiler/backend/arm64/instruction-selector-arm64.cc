@@ -6507,8 +6507,6 @@ void InstructionSelector::VisitI8x16Popcnt(OpIndex node) {
   VisitRR(this, code, node);
 }
 
-#ifdef V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-
 void InstructionSelector::VisitSimd128LoadPairDeinterleave(OpIndex node) {
   const auto& load = this->Get(node).Cast<Simd128LoadPairDeinterleaveOp>();
   Arm64OperandGenerator g(this);
@@ -6531,8 +6529,6 @@ void InstructionSelector::VisitSimd128LoadPairDeinterleave(OpIndex node) {
   };
   Emit(opcode, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
-
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 

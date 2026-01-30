@@ -1470,10 +1470,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   // to specific architectural instructions.
   void SwapShuffleInputs(SimdShuffleView& node);
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   void VisitSimd128LoadPairDeinterleave(turboshaft::OpIndex node);
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-
   void VisitMemoryCopy(turboshaft::OpIndex node);
   void VisitMemoryFill(turboshaft::OpIndex node);
 

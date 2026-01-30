@@ -3251,8 +3251,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   CHECK(turboshaft_pipeline.Run<turboshaft::WasmDeadCodeEliminationPhase>());
 
 #if V8_TARGET_ARCH_ARM64
-  if (v8_flags.experimental_wasm_simd_opt && v8_flags.wasm_opt &&
-      detected->has_simd()) {
+  if (v8_flags.wasm_simd_opt && v8_flags.wasm_opt && detected->has_simd()) {
     CHECK(turboshaft_pipeline.Run<turboshaft::WasmSimdPhase>());
   }
 #endif  // V8_TARGET_ARCH_ARM64

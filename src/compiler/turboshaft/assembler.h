@@ -5212,14 +5212,12 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableSimd128Shuffle(left, right, kind, shuffle);
   }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   V<Simd256> Simd128LoadPairDeinterleave(
       V<WordPtr> base, V<WordPtr> index, LoadOp::Kind load_kind,
       Simd128LoadPairDeinterleaveOp::Kind kind) {
     return ReduceIfReachableSimd128LoadPairDeinterleave(base, index, load_kind,
                                                         kind);
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   // SIMD256
 #if V8_ENABLE_WASM_SIMD256_REVEC

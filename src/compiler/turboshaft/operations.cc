@@ -1982,7 +1982,6 @@ void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 void Simd128LoadPairDeinterleaveOp::PrintOptions(std::ostream& os) const {
   os << '[';
   if (load_kind.maybe_unaligned) os << "unaligned, ";
@@ -2004,7 +2003,6 @@ void Simd128LoadPairDeinterleaveOp::PrintOptions(std::ostream& os) const {
   }
   os << ']';
 }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
 void Simd256ConstantOp::PrintOptions(std::ostream& os) const {
@@ -2375,10 +2373,8 @@ bool Operation::IsProtectedLoad() const {
     return load->kind.with_trap_handler;
   } else if (const auto* load_t = TryCast<Simd128LoadTransformOp>()) {
     return load_t->load_kind.with_trap_handler;
-#ifdef V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-  } else if (const auto* load_t = TryCast<Simd128LoadPairDeinterleaveOp>()) {
-    return load_t->load_kind.with_trap_handler;
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  } else if (const auto* load_pd = TryCast<Simd128LoadPairDeinterleaveOp>()) {
+    return load_pd->load_kind.with_trap_handler;
   }
   return false;
 }

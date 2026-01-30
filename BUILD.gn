@@ -493,9 +493,6 @@ declare_args() {
   # usages. The plugin is not exhaustive but covers most common known pitfalls.
   use_cppgc_clang_plugin = true
 
-  # Deinterleaving load support.
-  v8_enable_wasm_deinterleaved_mem_ops = false
-
   # Expose F.p.caller and .arguments as own properties.
   v8_function_arguments_caller_are_own_props = false
 
@@ -1484,9 +1481,6 @@ config("features") {
   }
   if (v8_enable_wasm_simd256_revec) {
     defines += [ "V8_ENABLE_WASM_SIMD256_REVEC" ]
-  }
-  if (v8_enable_wasm_deinterleaved_mem_ops) {
-    defines += [ "V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS" ]
   }
   if (v8_enable_maglev_graph_printer) {
     defines += [ "V8_ENABLE_MAGLEV_GRAPH_PRINTER" ]

@@ -140,7 +140,6 @@ class DemandedElementAnalysis {
 
 class WasmShuffleAnalyzer {
  public:
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   struct DeinterleaveLoadCandidate {
     const Simd128LoadPairDeinterleaveOp::Kind kind;
     const LoadOp& left;
@@ -165,7 +164,6 @@ class WasmShuffleAnalyzer {
     }
     return {};
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   WasmShuffleAnalyzer(Zone* phase_zone, const Graph& input_graph)
       : phase_zone_(phase_zone), input_graph_(input_graph) {
@@ -183,11 +181,8 @@ class WasmShuffleAnalyzer {
                                uint8_t lower_limit, uint8_t upper_limit);
 
   bool ShouldReduce() const {
-    return !demanded_element_analysis.demanded_elements().empty()
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
-           || !deinterleave_load_candidates_.empty()
-#endif
-        ;
+    return !demanded_element_analysis.demanded_elements().empty() ||
+           !deinterleave_load_candidates_.empty();
   }
 
   const DemandedElementAnalysis::DemandedElementMap& ops_to_reduce() const {
@@ -248,7 +243,6 @@ class WasmShuffleAnalyzer {
   const Graph& input_graph() const { return input_graph_; }
 
  private:
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   std::optional<const Simd128ShuffleOp*> GetOtherShuffleUser(
       const LoadOp& left, const LoadOp& right,
       const SmallShuffleVector& shuffles) const {
@@ -263,7 +257,6 @@ class WasmShuffleAnalyzer {
     }
     return {};
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   Zone* phase_zone_;
   const Graph& input_graph_;
@@ -271,7 +264,6 @@ class WasmShuffleAnalyzer {
   SmallShuffleVector shift_shuffles_{phase_zone_};
   SmallShuffleVector low_half_shuffles_{phase_zone_};
   SmallShuffleVector high_half_shuffles_{phase_zone_};
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   SmallShuffleVector even_64x2_shuffles_{phase_zone_};
   SmallShuffleVector odd_64x2_shuffles_{phase_zone_};
   SmallShuffleVector even_32x4_shuffles_{phase_zone_};
@@ -281,7 +273,6 @@ class WasmShuffleAnalyzer {
   SmallShuffleVector even_8x16_shuffles_{phase_zone_};
   SmallShuffleVector odd_8x16_shuffles_{phase_zone_};
   base::SmallVector<DeinterleaveLoadCandidate, 8> deinterleave_load_candidates_;
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 };
 
 template <class Next>
@@ -289,7 +280,6 @@ class WasmShuffleReducer : public Next {
  private:
   std::optional<WasmShuffleAnalyzer> analyzer_;
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   struct DeinterleaveLoadShuffle {
     const Simd128ShuffleOp* shuffle;
     OpIndex og_index;
@@ -330,7 +320,6 @@ class WasmShuffleReducer : public Next {
     }
     return {};
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmShuffleReducer)
@@ -341,7 +330,6 @@ class WasmShuffleReducer : public Next {
     Next::Analyze();
   }
 
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphLoad(ig_index, load);
@@ -391,7 +379,6 @@ class WasmShuffleReducer : public Next {
     }
     goto no_change;
   }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   OpIndex REDUCE_INPUT_GRAPH(Simd128Shuffle)(OpIndex ig_index,
                                              const Simd128ShuffleOp& shuffle) {
@@ -407,14 +394,12 @@ class WasmShuffleReducer : public Next {
     std::array<uint8_t, kSimd128Size> shuffle_bytes = {0};
     std::copy(shuffle.shuffle, shuffle.shuffle + kSimd128Size,
               shuffle_bytes.begin());
-#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
     if (auto maybe_deinterleaved_load = IsDeinterleaveLoadShuffle(&shuffle)) {
       const auto* deinterleaved_load = maybe_deinterleaved_load.value();
       return __ Projection(deinterleaved_load->og_index,
                            deinterleaved_load->result_index,
                            RegisterRepresentation::Simd128());
     }
-#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
     constexpr size_t half_lanes = kSimd128Size / 2;
 
