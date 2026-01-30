@@ -65,6 +65,10 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 
+// Macro for concatenation
+#define CAT_(a, b) a##b
+#define CAT(a, b) CAT_(a, b)
+
 #define UTEST_R2_FORM_WITH_RES(instr_name, type, rs1_val, rs2_val,     \
                                expected_res)                           \
   TEST_F(AssemblerRISCV64Test, RISCV_UTEST_##instr_name) {             \
@@ -73,12 +77,35 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
     CHECK_EQ(expected_res, res);                                       \
   }
 
+// Generic macro for extension-specific tests with single feature
+#define UTEST_R2_FORM_WITH_RES_EXT(instr_name, type, rs1_val, rs2_val,       \
+                                   expected_res, ext)                        \
+  TEST_F(AssemblerRISCV64Test, CAT(CAT(RISCV_UTEST_, instr_name), _##ext)) { \
+    if (!CpuFeatures::IsSupported(ext)) {                                    \
+      return;                                                                \
+    }                                                                        \
+    auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0, a1); };       \
+    auto res = GenAndRunTest<type, type>(rs1_val, rs2_val, fn);              \
+    CHECK_EQ(expected_res, res);                                             \
+  }
+
 #define UTEST_R1_FORM_WITH_RES(instr_name, in_type, out_type, rs1_val, \
                                expected_res)                           \
   TEST_F(AssemblerRISCV64Test, RISCV_UTEST_##instr_name) {             \
     auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0); };     \
     auto res = GenAndRunTest<out_type, in_type>(rs1_val, fn);          \
     CHECK_EQ(expected_res, res);                                       \
+  }
+
+#define UTEST_R1_FORM_WITH_RES_EXT(instr_name, in_type, out_type, rs1_val,   \
+                                   expected_res, ext)                        \
+  TEST_F(AssemblerRISCV64Test, CAT(CAT(RISCV_UTEST_, instr_name), _##ext)) { \
+    if (!CpuFeatures::IsSupported(ext)) {                                    \
+      return;                                                                \
+    }                                                                        \
+    auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0); };           \
+    auto res = GenAndRunTest<out_type, in_type>(rs1_val, fn);                \
+    CHECK_EQ(expected_res, res);                                             \
   }
 
 #define UTEST_R1_FORM_WITH_RES_C(instr_name, in_type, out_type, rs1_val, \
@@ -97,6 +124,18 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
     auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0, imm12); };     \
     auto res = GenAndRunTest<type, type>(rs1_val, fn);                        \
     CHECK_EQ(expected_res, res);                                              \
+  }
+
+#define UTEST_I_FORM_WITH_RES_EXT(instr_name, type, rs1_val, imm12,          \
+                                  expected_res, ext)                         \
+  TEST_F(AssemblerRISCV64Test, CAT(CAT(RISCV_UTEST_, instr_name), _##ext)) { \
+    if (!CpuFeatures::IsSupported(ext)) {                                    \
+      return;                                                                \
+    }                                                                        \
+    CHECK_EQ(is_intn(imm12, 12), true);                                      \
+    auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0, imm12); };    \
+    auto res = GenAndRunTest<type, type>(rs1_val, fn);                       \
+    CHECK_EQ(expected_res, res);                                             \
   }
 
 #define UTEST_AMO_WITH_RES(instr_name, aq, rl, inout_type, rs1_val, rs2_val,   \
@@ -474,92 +513,96 @@ UTEST_AMO_WITH_RES(amomaxu_d, false, false, uint64_t, 0xFBB10A9Cbfb76aa6,
                    std::max((uint64_t)0xFBB10A9Cbfb76aa6,
                             (uint64_t)0x284ff922346ad35c))
 // RV64B
-UTEST_R2_FORM_WITH_RES(sh1add, int64_t, LARGE_INT_EXCEED_32_BIT,
-                       LARGE_UINT_EXCEED_32_BIT,
-                       ((LARGE_UINT_EXCEED_32_BIT) +
-                        (LARGE_INT_EXCEED_32_BIT << 1)))
-UTEST_R2_FORM_WITH_RES(sh2add, int64_t, LARGE_INT_EXCEED_32_BIT,
-                       LARGE_UINT_EXCEED_32_BIT,
-                       ((LARGE_UINT_EXCEED_32_BIT) +
-                        (LARGE_INT_EXCEED_32_BIT << 2)))
-UTEST_R2_FORM_WITH_RES(sh3add, int64_t, LARGE_INT_EXCEED_32_BIT,
-                       LARGE_UINT_EXCEED_32_BIT,
-                       ((LARGE_UINT_EXCEED_32_BIT) +
-                        (LARGE_INT_EXCEED_32_BIT << 3)))
+UTEST_R2_FORM_WITH_RES_EXT(
+    sh1add, int64_t, LARGE_INT_EXCEED_32_BIT, LARGE_UINT_EXCEED_32_BIT,
+    ((LARGE_UINT_EXCEED_32_BIT) + (LARGE_INT_EXCEED_32_BIT << 1)), ZBA)
+UTEST_R2_FORM_WITH_RES_EXT(
+    sh2add, int64_t, LARGE_INT_EXCEED_32_BIT, LARGE_UINT_EXCEED_32_BIT,
+    ((LARGE_UINT_EXCEED_32_BIT) + (LARGE_INT_EXCEED_32_BIT << 2)), ZBA)
+UTEST_R2_FORM_WITH_RES_EXT(
+    sh3add, int64_t, LARGE_INT_EXCEED_32_BIT, LARGE_UINT_EXCEED_32_BIT,
+    ((LARGE_UINT_EXCEED_32_BIT) + (LARGE_INT_EXCEED_32_BIT << 3)), ZBA)
 
-UTEST_R2_FORM_WITH_RES(sh1adduw, int64_t, 0x13f42, 1,
-                       ((1) + (uint32_t(0x13f42) << 1)))
+UTEST_R2_FORM_WITH_RES_EXT(sh1adduw, int64_t, 0x13f42, 1,
+                           ((1) + (uint32_t(0x13f42) << 1)), ZBA)
 
-UTEST_R2_FORM_WITH_RES(sh2adduw, int64_t, 0x13f42, LARGE_UINT_EXCEED_32_BIT,
-                       int64_t((LARGE_UINT_EXCEED_32_BIT) +
-                               (uint32_t(0x13f42) << 2)))
+UTEST_R2_FORM_WITH_RES_EXT(sh2adduw, int64_t, 0x13f42, LARGE_UINT_EXCEED_32_BIT,
+                           int64_t((LARGE_UINT_EXCEED_32_BIT) +
+                                   (uint32_t(0x13f42) << 2)),
+                           ZBA)
 
-UTEST_R2_FORM_WITH_RES(sh3adduw, int64_t, LARGE_INT_EXCEED_32_BIT,
-                       LARGE_UINT_EXCEED_32_BIT,
-                       int64_t((LARGE_UINT_EXCEED_32_BIT) +
-                               (uint32_t(LARGE_INT_EXCEED_32_BIT) << 3)))
-UTEST_R2_FORM_WITH_RES(adduw, int64_t, LARGE_INT_EXCEED_32_BIT,
-                       LARGE_UINT_EXCEED_32_BIT,
-                       int64_t((LARGE_UINT_EXCEED_32_BIT) +
-                               (uint32_t(LARGE_INT_EXCEED_32_BIT))))
+UTEST_R2_FORM_WITH_RES_EXT(sh3adduw, int64_t, LARGE_INT_EXCEED_32_BIT,
+                           LARGE_UINT_EXCEED_32_BIT,
+                           int64_t((LARGE_UINT_EXCEED_32_BIT) +
+                                   (uint32_t(LARGE_INT_EXCEED_32_BIT) << 3)),
+                           ZBA)
+UTEST_R2_FORM_WITH_RES_EXT(adduw, int64_t, LARGE_INT_EXCEED_32_BIT,
+                           LARGE_UINT_EXCEED_32_BIT,
+                           int64_t((LARGE_UINT_EXCEED_32_BIT) +
+                                   (uint32_t(LARGE_INT_EXCEED_32_BIT))),
+                           ZBA)
 
-UTEST_I_FORM_WITH_RES(slliuw, int64_t, LARGE_INT_EXCEED_32_BIT, 10,
-                      (int64_t(uint32_t(LARGE_INT_EXCEED_32_BIT))) << 10)
+UTEST_I_FORM_WITH_RES_EXT(slliuw, int64_t, LARGE_INT_EXCEED_32_BIT, 10,
+                          (int64_t(uint32_t(LARGE_INT_EXCEED_32_BIT))) << 10,
+                          ZBA)
 
-UTEST_R2_FORM_WITH_RES(andn, int64_t, LARGE_INT_EXCEED_32_BIT,
-                       LARGE_UINT_EXCEED_32_BIT,
-                       ((LARGE_INT_EXCEED_32_BIT) &
-                        (~LARGE_UINT_EXCEED_32_BIT)))
+UTEST_R2_FORM_WITH_RES_EXT(
+    andn, int64_t, LARGE_INT_EXCEED_32_BIT, LARGE_UINT_EXCEED_32_BIT,
+    ((LARGE_INT_EXCEED_32_BIT) & (~LARGE_UINT_EXCEED_32_BIT)), ZBB)
 
-UTEST_R2_FORM_WITH_RES(orn, int64_t, LARGE_INT_EXCEED_32_BIT,
-                       LARGE_UINT_EXCEED_32_BIT,
-                       ((LARGE_INT_EXCEED_32_BIT) |
-                        (~LARGE_UINT_EXCEED_32_BIT)))
+UTEST_R2_FORM_WITH_RES_EXT(
+    orn, int64_t, LARGE_INT_EXCEED_32_BIT, LARGE_UINT_EXCEED_32_BIT,
+    ((LARGE_INT_EXCEED_32_BIT) | (~LARGE_UINT_EXCEED_32_BIT)), ZBB)
 
-UTEST_R2_FORM_WITH_RES(xnor, int64_t, LARGE_INT_EXCEED_32_BIT,
-                       LARGE_UINT_EXCEED_32_BIT,
-                       int64_t(~(LARGE_INT_EXCEED_32_BIT ^
-                                 LARGE_UINT_EXCEED_32_BIT)))
+UTEST_R2_FORM_WITH_RES_EXT(
+    xnor, int64_t, LARGE_INT_EXCEED_32_BIT, LARGE_UINT_EXCEED_32_BIT,
+    int64_t(~(LARGE_INT_EXCEED_32_BIT ^ LARGE_UINT_EXCEED_32_BIT)), ZBB)
 
-UTEST_R1_FORM_WITH_RES(clz, int64_t, int64_t, 0b000011000100000000000, 47)
-UTEST_R1_FORM_WITH_RES(ctz, int64_t, int64_t, 0b000011000100000000000, 11)
+UTEST_R1_FORM_WITH_RES_EXT(clz, int64_t, int64_t, 0b000011000100000000000, 47,
+                           ZBB)
+UTEST_R1_FORM_WITH_RES_EXT(ctz, int64_t, int64_t, 0b000011000100000000000, 11,
+                           ZBB)
 
-UTEST_R1_FORM_WITH_RES(clzw, int64_t, int64_t, 0b000011000100000000000, 15)
-UTEST_R1_FORM_WITH_RES(ctzw, int64_t, int64_t, 0b000011000100000000000, 11)
+UTEST_R1_FORM_WITH_RES_EXT(clzw, int64_t, int64_t, 0b000011000100000000000, 15,
+                           ZBB)
+UTEST_R1_FORM_WITH_RES_EXT(ctzw, int64_t, int64_t, 0b000011000100000000000, 11,
+                           ZBB)
 
-UTEST_R1_FORM_WITH_RES(cpop, int64_t, int64_t, 0b000011000100000000000, 3)
-UTEST_R1_FORM_WITH_RES(cpopw, int64_t, int64_t, 0b000011000100000000011, 5)
+UTEST_R1_FORM_WITH_RES_EXT(cpop, int64_t, int64_t, 0b000011000100000000000, 3,
+                           ZBB)
+UTEST_R1_FORM_WITH_RES_EXT(cpopw, int64_t, int64_t, 0b000011000100000000011, 5,
+                           ZBB)
 
-UTEST_R2_FORM_WITH_RES(max, int64_t, -1012, 3456, 3456)
-UTEST_R2_FORM_WITH_RES(min, int64_t, -1012, 3456, -1012)
-UTEST_R2_FORM_WITH_RES(maxu, uint64_t, -1012, 3456, uint64_t(-1012))
-UTEST_R2_FORM_WITH_RES(minu, uint64_t, -1012, 3456, 3456)
+UTEST_R2_FORM_WITH_RES_EXT(max, int64_t, -1012, 3456, 3456, ZBB)
+UTEST_R2_FORM_WITH_RES_EXT(min, int64_t, -1012, 3456, -1012, ZBB)
+UTEST_R2_FORM_WITH_RES_EXT(maxu, uint64_t, -1012, 3456, uint64_t(-1012), ZBB)
+UTEST_R2_FORM_WITH_RES_EXT(minu, uint64_t, -1012, 3456, 3456, ZBB)
 
-UTEST_R1_FORM_WITH_RES(sextb, int64_t, int64_t, 0xB080,
-                       int64_t(0xffffffffffffff80))
-UTEST_R1_FORM_WITH_RES(sexth, int64_t, int64_t, 0xB080,
-                       int64_t(0xffffffffffffb080))
-UTEST_R1_FORM_WITH_RES(zexth, int64_t, int64_t, 0xB080, 0xB080)
+UTEST_R1_FORM_WITH_RES_EXT(sextb, int64_t, int64_t, 0xB080,
+                           int64_t(0xffffffffffffff80), ZBB)
+UTEST_R1_FORM_WITH_RES_EXT(sexth, int64_t, int64_t, 0xB080,
+                           int64_t(0xffffffffffffb080), ZBB)
+UTEST_R1_FORM_WITH_RES_EXT(zexth, int64_t, int64_t, 0xB080, 0xB080, ZBB)
 
-UTEST_R2_FORM_WITH_RES(rol, uint64_t, 16, 2, 64)
-UTEST_R2_FORM_WITH_RES(rolw, uint32_t, 16, 2, 64)
-UTEST_R2_FORM_WITH_RES(ror, uint64_t, 16, 2, 4)
-UTEST_R2_FORM_WITH_RES(rorw, uint32_t, 16, 2, 4)
-UTEST_I_FORM_WITH_RES(rori, int64_t, 16, 2, 4)
-UTEST_I_FORM_WITH_RES(roriw, int32_t, 16, 2, 4)
-UTEST_R1_FORM_WITH_RES(orcb, int64_t, uint64_t, 0xFF00011010010011,
-                       0xFF00FFFFFFFF00FF)
-UTEST_R1_FORM_WITH_RES(rev8, uint64_t, uint64_t, 0x1234567890ABCDEF,
-                       0xEFCDAB9078563412)
+UTEST_R2_FORM_WITH_RES_EXT(rol, uint64_t, 16, 2, 64, ZBB)
+UTEST_R2_FORM_WITH_RES_EXT(rolw, uint32_t, 16, 2, 64, ZBB)
+UTEST_R2_FORM_WITH_RES_EXT(ror, uint64_t, 16, 2, 4, ZBB)
+UTEST_R2_FORM_WITH_RES_EXT(rorw, uint32_t, 16, 2, 4, ZBB)
+UTEST_I_FORM_WITH_RES_EXT(rori, int64_t, 16, 2, 4, ZBB)
+UTEST_I_FORM_WITH_RES_EXT(roriw, int32_t, 16, 2, 4, ZBB)
+UTEST_R1_FORM_WITH_RES_EXT(orcb, int64_t, uint64_t, 0xFF00011010010011,
+                           0xFF00FFFFFFFF00FF, ZBB)
+UTEST_R1_FORM_WITH_RES_EXT(rev8, uint64_t, uint64_t, 0x1234567890ABCDEF,
+                           0xEFCDAB9078563412, ZBB)
 
-UTEST_R2_FORM_WITH_RES(bclr, int64_t, 0x13f62, 5, 0x13f42)
-UTEST_I_FORM_WITH_RES(bclri, int64_t, 0x2013F6213F62, 45, 0x13f6213f62)
-UTEST_R2_FORM_WITH_RES(bext, int64_t, 0x13f62, 5, 1)
-UTEST_I_FORM_WITH_RES(bexti, int64_t, 0x2013F6213F62, 45, 1)
-UTEST_R2_FORM_WITH_RES(binv, int64_t, 0x13f62, 5, 0x13f42)
-UTEST_I_FORM_WITH_RES(binvi, int64_t, 0x13f6213f62, 45, 0x2013F6213F62)
-UTEST_R2_FORM_WITH_RES(bset, int64_t, 0x13f42, 5, 0x13f62)
-UTEST_I_FORM_WITH_RES(bseti, int64_t, 0x13f6213f62, 45, 0x2013F6213F62)
+UTEST_R2_FORM_WITH_RES_EXT(bclr, int64_t, 0x13f62, 5, 0x13f42, ZBS)
+UTEST_I_FORM_WITH_RES_EXT(bclri, int64_t, 0x2013F6213F62, 45, 0x13f6213f62, ZBS)
+UTEST_R2_FORM_WITH_RES_EXT(bext, int64_t, 0x13f62, 5, 1, ZBS)
+UTEST_I_FORM_WITH_RES_EXT(bexti, int64_t, 0x2013F6213F62, 45, 1, ZBS)
+UTEST_R2_FORM_WITH_RES_EXT(binv, int64_t, 0x13f62, 5, 0x13f42, ZBS)
+UTEST_I_FORM_WITH_RES_EXT(binvi, int64_t, 0x13f6213f62, 45, 0x2013F6213F62, ZBS)
+UTEST_R2_FORM_WITH_RES_EXT(bset, int64_t, 0x13f42, 5, 0x13f62, ZBS)
+UTEST_I_FORM_WITH_RES_EXT(bseti, int64_t, 0x13f6213f62, 45, 0x2013F6213F62, ZBS)
 
 // -- RV32F Standard Extension --
 UTEST_LOAD_STORE_F(flw, fsw, float, -2345.678f)
@@ -651,6 +694,9 @@ UTEST_CONV_F_FROM_I(fcvt_d_lu, uint64_t, double,
 
 // --RVZFH Standard Extension --
 TEST_F(AssemblerRISCV64Test, RISCV_UTEST_flh_fsh) {
+  if (!CpuFeatures::IsSupported(ZFH)) {
+    return;
+  }
   auto fn = [](MacroAssembler& assm) {
     __ fsh(fa0, a0, 0);
     __ flh(fa0, a0, 0);
@@ -671,6 +717,9 @@ const std::vector<std::pair<double, uint16_t>> fp16_test_values() {
 }
 
 TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fcvthd) {
+  if (!CpuFeatures::IsSupported(ZFH)) {
+    return;
+  }
   auto value = fp16_test_values();
   for (auto i = value.begin(); i != value.end(); ++i) {
     auto fn = [](MacroAssembler& assm) {
