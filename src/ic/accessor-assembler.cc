@@ -948,6 +948,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   BIND(&interceptor);
   {
     Comment("load_interceptor");
+    Label if_not_intercepted(this);
+
     TNode<InterceptorInfo> interceptor_info =
         CAST(LoadHandlerDataField(CAST(handler), 2));
 
@@ -969,9 +971,35 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
         },
         [&] { return holder; });
 
-    exit_point->ReturnCallRuntime(
-        Runtime::kLoadPropertyWithInterceptor, p->context(), p->name(),
-        p->receiver(), the_holder, interceptor_info, p->slot(), p->vector());
+    TNode<Object> result =
+        CallBuiltin(Builtin::kCallNamedInterceptorGetter, p->context(),
+                    p->name(), interceptor_info, the_holder);
+
+    GotoIf(TaggedIsNotInterceptedSentinel(result), &if_not_intercepted);
+
+    exit_point->Return(result);
+
+    BIND(&if_not_intercepted);
+    {
+      Label if_masking(this), if_non_masking(this);
+      TNode<BoolT> non_masking =
+          IsSetWord32<LoadHandler::NonMaskingInterceptorBits>(handler_word);
+      Branch(non_masking, &if_non_masking, &if_masking);
+
+      BIND(&if_non_masking);
+      {
+        // The lookup is over, property was not found.
+        exit_point->Return(UndefinedConstant());
+      }
+      BIND(&if_masking);
+      {
+        // Proceed lookup past interceptor.
+        exit_point->ReturnCallRuntime(Runtime::kLoadPropertyPastInterceptor,
+                                      p->context(), p->name(), p->receiver(),
+                                      the_holder, interceptor_info, p->slot(),
+                                      p->vector());
+      }
+    }
   }
   BIND(&slow);
   {

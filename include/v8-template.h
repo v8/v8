@@ -135,8 +135,11 @@ class V8_EXPORT Template : public Data {
 /**
  * Interceptor callbacks use this value to indicate whether the request was
  * intercepted or not.
+ *
+ * The values for constants and type are chosen this way for better
+ * performance.
  */
-enum class Intercepted : uint8_t { kNo = 0, kYes = 1 };
+enum class Intercepted : uint32_t { kNo = 1, kYes = 0 };
 
 /**
  * Interceptor for [[Get]] requests on an object.

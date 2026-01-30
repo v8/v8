@@ -136,7 +136,7 @@ constexpr Register DefineKeyedOwnDescriptor::FlagsRegister() { return no_reg; }
 constexpr Register StoreTransitionDescriptor::MapRegister() { return edi; }
 
 // static
-constexpr Register CallApiGetterDescriptor::NameRegister() { return ecx; }
+constexpr Register CallApiGetterDescriptor::NameRegister() { return edi; }
 // static
 constexpr Register CallApiGetterDescriptor::CallbackRegister() { return eax; }
 

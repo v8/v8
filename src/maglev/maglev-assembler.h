@@ -455,7 +455,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void LoadAddress(Register dst, MemOperand location);
 
   inline void EmitEnterExitFrame(int extra_slots, StackFrame::Type frame_type,
-                                 Register c_function, Register scratch);
+                                 Register scratch);
 
   inline MemOperand StackSlotOperand(StackSlot slot);
   inline void Move(StackSlot dst, Register src);

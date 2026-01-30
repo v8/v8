@@ -1083,6 +1083,14 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }
 
+ExternalReference
+ExternalReference::invoke_named_interceptor_getter_callback() {
+  Address thunk_address = FUNCTION_ADDR(&InvokeNamedInterceptorGetterCallback);
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_GETTER_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  return ExternalReference::Create(&thunk_fun, thunk_type);
+}
+
 #if V8_TARGET_ARCH_X64
 #define re_stack_check_func RegExpMacroAssemblerX64::CheckStackGuardState
 #elif V8_TARGET_ARCH_IA32

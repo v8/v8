@@ -35,6 +35,7 @@ class DictionaryTemplate;
 class Extension;
 class Signature;
 class Template;
+enum class Intercepted : uint32_t;
 
 namespace internal {
 class JSArrayBufferView;
@@ -512,9 +513,15 @@ void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
 // or side-effect checking is enabled. It's supposed to set up the runtime
 // call stats scope and check if the getter has side-effects in case debugger
 // enabled the side-effects checking mode.
-// It gets additional argument, the AccessorInfo object, via
-// IsolateData::api_callback_thunk_argument slot.
 void InvokeAccessorGetterCallback(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info);
+
+// This is a wrapper function called from CallNamedInterceptorGetter builtin
+// when profiling or side-effect checking is enabled. It's supposed to set up
+// the runtime call stats scope and check if the getter has side-effects
+// in case debugger enabled the side-effects checking mode.
+v8::Intercepted InvokeNamedInterceptorGetterCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info);
 

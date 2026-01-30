@@ -171,6 +171,8 @@ enum class IsolateFieldId : uint8_t;
   V(invalidate_prototype_chains_function,                                      \
     "JSObject::InvalidatePrototypeChains()")                                   \
   V(invoke_accessor_getter_callback, "InvokeAccessorGetterCallback")           \
+  V(invoke_named_interceptor_getter_callback,                                  \
+    "InvokeNamedInterceptorGetterCallback")                                    \
   V(invoke_function_callback_generic, "InvokeFunctionCallbackGeneric")         \
   V(invoke_function_callback_optimized, "InvokeFunctionCallbackOptimized")     \
   V(jsarray_array_join_concat_to_sequential_string,                            \
@@ -581,7 +583,8 @@ class ExternalReference {
     DIRECT_API_CALL,
 
     // Direct call to accessor getter callback.
-    // void f(Local<Name> property, PropertyCallbackInfo& info)
+    // void f(Local<Name>, PropertyCallbackInfo&)
+    // v8::Intercepted f(Local<Name>, PropertyCallbackInfo&)
     DIRECT_GETTER_CALL,
 
     // C call, either representing a fast API call or used in tests.

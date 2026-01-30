@@ -193,6 +193,14 @@ class PropertyCallbackArguments final : public Relocatable {
         DirectHandle<Object>::FromSlot(&info.args_[kCallbackInfoIndex]));
   }
 
+  // Returns InterceptorInfo stored in v8::PropertyCallbackInfo<T>.
+  template <typename T>
+  static DirectHandle<InterceptorInfo> GetInterceptorInfo(
+      const PropertyCallbackInfo<T>& info) {
+    return Cast<InterceptorInfo>(
+        DirectHandle<Object>::FromSlot(&info.args_[kCallbackInfoIndex]));
+  }
+
   // Returns whether given v8::PropertyCallbackInfo<T> object is named/indexed.
   template <typename T>
   static bool IsNamed(const PropertyCallbackInfo<T>& info) {

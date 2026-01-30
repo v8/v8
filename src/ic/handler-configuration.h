@@ -79,6 +79,14 @@ V8_OBJECT class LoadHandler final : public DataHandler {
       DoAccessCheckOnLookupStartObjectBits::Next<bool, 1>;
 
   //
+  // Encoding when KindBits contains kInterceptor.
+  //
+
+  // Encodes whether the inteceptor is masking or non-masking.
+  using NonMaskingInterceptorBits =
+      LookupOnLookupStartObjectBits::Next<bool, 1>;
+
+  //
   // Encoding when KindBits contains kNativeDataProperty.
   //
 
@@ -158,7 +166,7 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   // Creates a Smi-handler for loading a property from an object with an
   // interceptor. Works only as a part of full handler (LoadFromPrototype(..)
   // or LoadInterceptorHolderIsLookupStartupObject(..)).
-  static inline Tagged<Smi> LoadInterceptor();
+  static inline Tagged<Smi> LoadInterceptor(bool non_masking);
   // Creates handler for loading a property from a lookup start object with an
   // interceptor.
   static Handle<LoadHandler> LoadInterceptorHolderIsLookupStartupObject(

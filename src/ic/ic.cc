@@ -1008,7 +1008,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptorFromPrototypeDH);
       DirectHandle<JSObject> holder_for_api(lookup->GetHolderForApi(),
                                             isolate());
-      Tagged<Smi> smi_handler = LoadHandler::LoadInterceptor();
+      Tagged<Smi> smi_handler =
+          LoadHandler::LoadInterceptor(interceptor_info->non_masking());
       Handle<LoadHandler> handler = LoadHandler::LoadFromPrototype(
           isolate(), map, holder_for_api, smi_handler,
           {},  // no data1 (make it use holder instead).
@@ -4220,7 +4221,7 @@ RUNTIME_FUNCTION(Runtime_ObjectAssignTryFastcase) {
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.
  */
-RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
+RUNTIME_FUNCTION(Runtime_LoadPropertyPastInterceptor) {
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   DirectHandle<Name> name = args.at<Name>(0);
@@ -4236,21 +4237,6 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   }
 #endif
 
-  {
-    PropertyCallbackArguments arguments(isolate, *holder);
-
-    DirectHandle<Object> result =
-        arguments.CallNamedGetter(isolate, interceptor, name);
-    // An exception was thrown in the interceptor. Propagate.
-    RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
-
-    if (!result.is_null()) {
-      arguments.AcceptSideEffects();
-      return *result;
-    }
-    // If the interceptor didn't handle the request, then there must be no
-    // side effects.
-  }
   // If the interceptor hasn't handled the store request then
   //  - for non-masking interceptor the lookup is over,
   //  - for masking interceptor the store lookup needs to be proceed past the

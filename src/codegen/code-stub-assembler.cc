@@ -1386,6 +1386,14 @@ TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(TNode<Object> a) {
 #endif
 }
 
+TNode<BoolT> CodeStubAssembler::TaggedIsNotInterceptedSentinel(
+    TNode<Object> a) {
+  static_assert(kNotInterceptedSentinel == kHeapObjectTag);
+  return Word32Equal(
+      TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
+      Int32Constant(kNotInterceptedSentinel));
+}
+
 #if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 void CodeStubAssembler::CheckObjectComparisonAllowed(TNode<AnyTaggedT> a,
                                                      TNode<AnyTaggedT> b,

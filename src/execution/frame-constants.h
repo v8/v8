@@ -720,6 +720,7 @@ class ApiAccessorExitFrameConstants : public ExitFrameConstants {
   // callbacks.
   static constexpr int kPropertyCallbackInfoGetterApiArgsLength = 4;
   static constexpr int kPropertyCallbackInfoSetterApiArgsLength = 6;
+
   // FP-relative.
 
   // Offset of v8::PropertyCallbackInfo<T>::kPropertyKeyIndex slot.

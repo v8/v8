@@ -515,8 +515,11 @@ using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(int64_t arg0);
 
-// This signature supports direct call to accessor getter callback.
-using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
+// This signature supports direct call to accessor/interceptor getter callback.
+// Using v8::Local<v8::Name> instead of int64_t as a first argument type fixes
+// MSAN false positive report when using the value in the callback.
+using SimulatorRuntimeDirectGetterCall = int64_t (*)(v8::Local<v8::Name> arg0,
+                                                     int64_t arg1);
 
 // Separate for fine-grained UBSan blocklisting. Casting any given C++
 // function to {SimulatorRuntimeCall} is undefined behavior; but since
@@ -981,16 +984,18 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     }
 
     case ExternalReference::DIRECT_GETTER_CALL: {
-      // void f(v8::Local<String> property, v8::PropertyCallbackInfo& info)
+      // void f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&);
+      // v8::Intercepted f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&);
       TraceSim("Type: DIRECT_GETTER_CALL\n");
       TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n", arg0, arg1);
       SimulatorRuntimeDirectGetterCall target =
           reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-      target(arg0, arg1);
-      TraceSim("No return value.");
+      int64_t result = target(base::bit_cast<v8::Local<v8::Name>>(arg0), arg1);
+      TraceSim("Returned: %" PRId64 "\n", result);
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
 #endif
+      set_xreg(0, result);
       break;
     }
   }

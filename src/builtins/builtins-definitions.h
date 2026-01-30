@@ -367,6 +367,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   ASM(CallApiCallbackOptimizedNoProfiling, CallApiCallbackOptimized)           \
   ASM(CallApiCallbackOptimized, CallApiCallbackOptimized)                      \
   ASM(CallApiGetter, CallApiGetter)                                            \
+  ASM(CallNamedInterceptorGetter, CallApiGetter)                               \
   TFC(HandleApiCallOrConstruct, JSTrampoline)                                  \
   CPP(HandleApiConstruct, kDontAdaptArgumentsSentinel)                         \
   CPP(HandleApiCallAsFunctionDelegate, kDontAdaptArgumentsSentinel)            \

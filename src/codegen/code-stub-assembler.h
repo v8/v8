@@ -830,6 +830,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> WordIsAligned(TNode<WordT> word, size_t alignment);
   TNode<BoolT> WordIsPowerOfTwo(TNode<IntPtrT> value);
 
+  TNode<BoolT> TaggedIsNotInterceptedSentinel(TNode<Object> a);
+
   // Check if lower_limit <= value <= higher_limit.
   template <typename U>
   TNode<BoolT> IsInRange(TNode<Word32T> value, U lower_limit, U higher_limit) {

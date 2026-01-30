@@ -194,6 +194,10 @@
 
 namespace v8 {
 
+static_assert(static_cast<uint32_t>(Intercepted::kNo) == i::kInterceptedNo);
+static_assert(static_cast<uint32_t>(Intercepted::kYes) == i::kInterceptedYes);
+static_assert(sizeof(Intercepted) == i::kInterceptedSize);
+
 i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
   uint16_t tag_value = static_cast<uint16_t>(i::kFirstEmbedderDataTag) +
                        static_cast<uint16_t>(api_tag);
@@ -12220,6 +12224,32 @@ void InvokeAccessorGetterCallback(
   ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(getter),
                                    v8::ExceptionContext::kAttributeGet, &info);
   getter(property, info);
+}
+
+v8::Intercepted InvokeNamedInterceptorGetterCallback(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // Leaving JavaScript.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(i_isolate, RuntimeCallCounterId::kNamedGetterCallback);
+
+  v8::NamedPropertyGetterCallback getter;
+  {
+    DirectHandle<InterceptorInfo> interceptor_info =
+        PropertyCallbackArguments::GetInterceptorInfo(info);
+    getter = reinterpret_cast<v8::NamedPropertyGetterCallback>(
+        interceptor_info->named_getter(i_isolate));
+
+    if (i_isolate->should_check_side_effects() &&
+        !i_isolate->debug()->PerformSideEffectCheckForInterceptor(
+            interceptor_info)) {
+      return {};
+    }
+  }
+  ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(getter),
+                                   v8::ExceptionContext::kNamedGetter, &info);
+  v8::Intercepted intercepted = getter(property, info);
+  return intercepted;
 }
 
 namespace {

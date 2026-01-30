@@ -4213,9 +4213,12 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   const int kR12SpillSlot = kReservedStackSlots - 1;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  __ EnterExitFrame(
-      kReservedStackSlots,
-      builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT, rbx);
+  __ EnterExitFrame(kReservedStackSlots, builtin_exit_frame
+                                             ? StackFrame::BUILTIN_EXIT
+                                             : StackFrame::EXIT);
+
+  // For --prof, see TickSample::kIncludeCEntryFrame.
+  __ movq(__ AsMemOperand(IsolateFieldId::kCFunction), rbx);
 
   // Set up argv in a callee-saved register. It is reused below so it must be
   // retained across the C call. In case of ArgvMode::kRegister, r15 has
@@ -4596,7 +4599,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   }
 
   __ EnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
-                    StackFrame::API_CALLBACK_EXIT, api_function_address);
+                    StackFrame::API_CALLBACK_EXIT);
 
   Operand argc_operand = Operand(rbp, FC::kFCIArgcOffset);
   {
@@ -4622,16 +4625,19 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;
+  const bool handle_interceptor_result = false;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
                            thunk_ref, no_thunk_arg, kSlotsToDropOnReturn,
-                           &argc_operand, return_value_operand);
+                           &argc_operand, return_value_operand,
+                           handle_interceptor_result);
 }
 
-void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
+void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
+                                            bool for_interceptor) {
   // ----------- S t a t e -------------
   //  -- rsi                 : context
   //  -- rdi (rcx on Win)    : name
-  //  -- rbx                 : accessor info
+  //  -- rbx                 : accessor info / interceptor info
   //  -- sp[1]               : holder
   //  -- sp[0]               : return address
   // -----------------------------------
@@ -4641,11 +4647,11 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // |name| is already in the required register.
   DCHECK_EQ(name_arg, CallApiGetterDescriptor::NameRegister());
 
-  Register api_function_address = r8;
   Register callback = CallApiGetterDescriptor::CallbackRegister();
   Register scratch = rax;
 
-  DCHECK(!AreAliased(name_arg, property_callback_info_arg, callback, scratch));
+  DCHECK(!AreAliased(name_arg, property_callback_info_arg, callback, scratch,
+                     kScratchRegister));
 
   using PCA = PropertyCallbackArguments;
   using ER = ExternalReference;
@@ -4674,15 +4680,19 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ Push(callback);                        // kCallbackInfoIndex
   __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValueIndex
   __ Push(kScratchRegister);                // kIsolateIndex
-
-  __ RecordComment("Load api_function_address");
-  __ LoadExternalPointerField(
-      api_function_address, FieldOperand(callback, AccessorInfo::kGetterOffset),
-      kAccessorInfoGetterTag, kScratchRegister);
-
   __ PushReturnAddressFrom(scratch);
+
+  // Context register must not clash with the registers used so far.
+  DCHECK(!AreAliased(kContextRegister, name_arg, callback, scratch));
+
   __ EnterExitFrame(FC::getExtraSlotsCountFrom<ExitFrameConstants>(),
-                    StackFrame::API_NAMED_ACCESSOR_EXIT, api_function_address);
+                    StackFrame::API_NAMED_ACCESSOR_EXIT);
+
+  // At this point the context register is allowed to be corrupted, it will
+  // be restored by LeaveExitFrame.
+  if (v8_flags.debug_code) {
+    __ movq(kContextRegister, Immediate(static_cast<int32_t>(kZapValue)));
+  }
 
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize v8::PropertyCallbackInfo");
@@ -4697,12 +4707,11 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
             Operand(rbp, FC::kPropertyCallbackInfoOffset));
   }
 
-  DCHECK(!AreAliased(api_function_address, property_callback_info_arg, name_arg,
+  DCHECK(!AreAliased(name_arg, property_callback_info_arg,  // C args
                      callback, scratch));
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
   // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
-  //__ movq(name_arg, name);
   // |name_arg| is already initialized above.
 #else
   // name_arg = Local<Name>(&name), which is &args_array[kPropertyKeyIndex].
@@ -4710,8 +4719,26 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ movq(name_arg, property_callback_info_arg);
 #endif
 
-  ExternalReference thunk_ref = ER::invoke_accessor_getter_callback();
+  __ RecordComment("Load api_function_address");
+  Register api_function_address = callback;
+
+  ExternalReference thunk_ref;
   Register no_thunk_arg = no_reg;
+
+  if (for_interceptor) {
+    thunk_ref = ER::invoke_named_interceptor_getter_callback();
+    __ LoadExternalPointerField(
+        api_function_address,
+        FieldOperand(callback, InterceptorInfo::kGetterOffset),
+        kApiNamedPropertyGetterCallbackTag, kScratchRegister);
+  } else {
+    thunk_ref = ER::invoke_accessor_getter_callback();
+    __ LoadExternalPointerField(
+        api_function_address,
+        FieldOperand(callback, AccessorInfo::kGetterOffset),
+        kAccessorInfoGetterTag, kScratchRegister);
+  }
+  callback = no_reg;
 
   Operand return_value_operand = Operand(rbp, FC::kReturnValueOffset);
   static constexpr int kSlotsToDropOnReturn =
@@ -4719,9 +4746,11 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Operand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;
+  const bool handle_interceptor_result = for_interceptor;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
                            thunk_ref, no_thunk_arg, kSlotsToDropOnReturn,
-                           kUseStackSpaceConstant, return_value_operand);
+                           kUseStackSpaceConstant, return_value_operand,
+                           handle_interceptor_result);
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
