@@ -1770,7 +1770,8 @@ struct BuiltinCallDescriptor {
   struct WasmFXSuspend : public Descriptor<WasmFXSuspend> {
     static constexpr auto kFunction = Builtin::kWasmFXSuspend;
     using arguments_t =
-        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>, V<WordPtr>>;
+        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>, V<WordPtr>,
+                   V<WordPtr>>;
     // Arg buffer.
     using results_t = std::tuple<V<WordPtr>>;
 

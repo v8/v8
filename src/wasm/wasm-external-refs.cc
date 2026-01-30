@@ -1004,6 +1004,8 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                          Address fp, Address pc) {
   wasm::StackMemory* from = isolate->isolate_data()->active_stack();
   to->set_current_continuation({});
+  // We must not visit bound arguments after the stack has been resumed.
+  to->clear_bound_args();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
   }
@@ -1013,7 +1015,8 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
 
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
-                             Address cont_raw, Address arg_buffer) {
+                             Address cont_raw, Address arg_buffer,
+                             const CanonicalSig* sig) {
   Tagged<Object> tag_obj(wanted_tag_raw);
   auto wanted_tag = TrustedCast<WasmExceptionTag>(tag_obj);
   Tagged<Object> cont_obj(cont_raw);
@@ -1023,6 +1026,7 @@ Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
   from->set_arg_buffer(arg_buffer);
   cont->set_stack(isolate, from);
   from->set_current_continuation(cont);
+  from->set_param_types(sig->returns());
   wasm::StackMemory* to = from->jmpbuf()->parent;
   bool found = false;
   // Search the innermost effect handler with a matching tag.

@@ -219,8 +219,25 @@ class StackMemory {
     return OFFSET_OF(StackMemory, arg_buffer_);
   }
   void set_arg_buffer(Address addr) { arg_buffer_ = addr; }
+  void set_param_types(base::Vector<const CanonicalValueType> types) {
+    param_types_ = types;
+  }
+  void bind_arguments(int count) {
+    num_bound_args_ += count;
+    DCHECK_LE(num_bound_args_, param_types_.size());
+  }
+  void clear_bound_args() {
+    param_types_ = {};
+    arg_buffer_ = kNullAddress;
+    num_bound_args_ = 0;
+  }
   Address central_stack_sp() const { return central_stack_sp_; }
   void set_central_stack_sp(Address sp) { central_stack_sp_ = sp; }
+  bool has_frames() const {
+    return !((jmpbuf_.state == JumpBuffer::Suspended &&
+              jmpbuf_.fp == kNullAddress) ||
+             jmpbuf_.state == JumpBuffer::Retired);
+  }
 
  private:
   // This constructor allocates a new stack segment.
@@ -244,9 +261,14 @@ class StackMemory {
   StackSwitchInfo stack_switch_info_;
   StackSegment* first_segment_ = nullptr;
   StackSegment* active_segment_ = nullptr;
+  // WasmFX specific fields below.
   Tagged<WasmContinuationObject> current_cont_ = {};
   Tagged<WasmFuncRef> func_ref_ = {};
+  // Param type vector, to know which bound arguments are references and need to
+  // be visited by the GC. The memory is owned by the type canonicalizer.
+  base::Vector<const CanonicalValueType> param_types_;
   Address arg_buffer_ = kNullAddress;
+  int num_bound_args_ = 0;
   // When adding fields here, also check if it needs to be cleared in
   // StackMemory::Reset() when the stack is moved to the stack pool after
   // retiring.
@@ -292,7 +314,10 @@ template <typename T>
 int IterateWasmFXArgBuffer(base::Vector<const T> types,
                            WasmFXArgBufferCallback callback) {
   int offset = 0;
-  for (size_t i = 0; i < types.size(); i++) {
+  // There can be an unknown number of bound arguments for a given cont target.
+  // So we place the arguments from right to left in the buffer so that their
+  // offsets only depend on the remaining unbound arguments.
+  for (int i = static_cast<int>(types.size()) - 1; i >= 0; i--) {
     int param_size = types[i].value_kind_full_size();
     offset = RoundUp(offset, param_size);
     callback(i, offset);

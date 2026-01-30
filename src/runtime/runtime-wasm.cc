@@ -2794,6 +2794,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   trusted_instance_data->native_module()->RegisterStackEntryWrapper(
       std::move(wrapper));
   stack->set_func_ref(*func_ref);
+  stack->set_param_types(func_ref->internal(isolate)->sig()->parameters());
   wasm::StackMemory* stack_ptr = stack.get();
   isolate->wasm_stacks().emplace_back(std::move(stack));
   DirectHandle<WasmContinuationObject> cont =
@@ -2809,6 +2810,22 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateEmptyContinuation) {
   HandleScope scope(isolate);
   DirectHandle<WasmContinuationObject> cont =
       isolate->factory()->NewWasmContinuationObject(nullptr);
+  return *cont;
+}
+
+// For cont.bind: invalidate the given continuation and create a new one for the
+// same stack.
+RUNTIME_FUNCTION(Runtime_WasmAllocateBoundContinuation) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<WasmContinuationObject> old_cont =
+      handle(Cast<WasmContinuationObject>(args[0]), isolate);
+  int num_bound_args = args.smi_value_at(1);
+  wasm::StackMemory* stack = old_cont->stack();
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject(stack);
+  stack->set_current_continuation(*cont);
+  stack->bind_arguments(num_bound_args);
   return *cont;
 }
 

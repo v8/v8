@@ -139,7 +139,8 @@
 
 ['variant == nooptimization', {
   # No Liftoff implementation yet.
-  'proposals/stack-switching/stack-switching/*': [FAIL],
+  'proposals/stack-switching/stack-switching/cont': [FAIL],
+  'proposals/stack-switching/stack-switching/resume_throw': [FAIL],
 }],
 
 ]
