@@ -624,15 +624,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
     void SetSimd128(VSew sew, TailAgnosticType tail = ta) {
       Vlmul lmul;
+      // Just support riscv zve64x now.
+      // ELEN * LMUL >= SEW
+      //  --> 2^(elen + 3) * 2^(-n) >= 2^(sew + 3)
+      //  --> elen >= sew + n
+      // mf2 -> n is 1.
+      // mf4 -> n is 2.
+      // mf8 -> n is 3.
       switch (CpuFeatures::vlen()) {
         case 128:
           lmul = m1;
           break;
         case 256:
-          lmul = mf2;
+          lmul = (sew + 1) > kRvvELEN ? m1 : mf2;
           break;
         case 512:
-          lmul = mf4;
+          lmul = (sew + 2) > kRvvELEN ? m1 : mf4;
           break;
         default:
           static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
@@ -655,13 +662,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       Vlmul lmul;
       switch (CpuFeatures::vlen()) {
         case 128:
-          lmul = mf2;
+          lmul = (sew + 1) > kRvvELEN ? m1 : mf2;
           break;
         case 256:
-          lmul = mf4;
+          lmul = (sew + 2) > kRvvELEN ? m1 : mf4;
           break;
         case 512:
-          lmul = mf8;
+          lmul = (sew + 3) > kRvvELEN ? m1 : mf8;
           break;
         default:
           static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
@@ -690,7 +697,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
           lmul = m1;
           break;
         case 512:
-          lmul = mf2;
+          lmul = (sew + 1) > kRvvELEN ? m1 : mf2;
           break;
         default:
           static_assert(kMaxRvvVLEN <= 512, "Unsupported VLEN");
