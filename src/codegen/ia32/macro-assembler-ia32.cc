@@ -2279,7 +2279,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   DCHECK(!AreAliased(return_value, scratch, prev_next_address_reg,
                      prev_limit_reg));
   // function_address and thunk_arg might overlap but this function must not
-  // corrupted them until the call is made (i.e. overlap with return_value is
+  // corrupt them until the call is made (i.e. overlap with return_value is
   // fine).
   DCHECK(!AreAliased(function_address,  // incoming parameters
                      scratch, prev_next_address_reg, prev_limit_reg));

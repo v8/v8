@@ -4274,7 +4274,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyPastInterceptor) {
       isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
 }
 
-RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
+RUNTIME_FUNCTION(Runtime_StorePropertyPastInterceptor) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
@@ -4292,32 +4292,6 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
     DCHECK_EQ(holder->GetNamedInterceptor(), *interceptor);
   }
 #endif
-
-  {
-    PropertyCallbackArguments arguments(isolate, *holder,
-                                        Nothing<ShouldThrow>());
-
-    v8::Intercepted intercepted =
-        arguments.CallNamedSetter(isolate, interceptor, name, value);
-    // Stores initiated by StoreICs don't care about the exact result of
-    // the store operation returned by the callback as long as it doesn't
-    // throw an exception.
-    constexpr bool ignore_return_value = true;
-    InterceptorResult result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        arguments.GetBooleanReturnValue(isolate, intercepted, "Setter",
-                                        ignore_return_value));
-
-    switch (result) {
-      case InterceptorResult::kFalse:
-      case InterceptorResult::kTrue:
-        return *value;
-
-      case InterceptorResult::kNotIntercepted:
-        break;
-    }
-  }
 
   bool non_masking = interceptor->non_masking();
   // If the interceptor hasn't handled the store request then

@@ -5030,14 +5030,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   Register prev_next_address_reg = r12;
   Register prev_limit_reg = r15;
 
-  // C arguments (kCArgRegs[0/1]) are expected to be initialized outside, so
+  // C arguments (kCArgRegs[0/1/2]) are expected to be initialized outside, so
   // this function must not corrupt them. kScratchRegister might be used
   // implicitly by the macro assembler.
-  DCHECK(!AreAliased(kCArgRegs[0], kCArgRegs[1],  // C args
+  DCHECK(!AreAliased(kCArgRegs[0], kCArgRegs[1], kCArgRegs[2],  // C args
                      return_value, scratch, kScratchRegister,
                      prev_next_address_reg, prev_limit_reg));
   // function_address and thunk_arg might overlap but this function must not
-  // corrupted them until the call is made (i.e. overlap with return_value is
+  // corrupt them until the call is made (i.e. overlap with return_value is
   // fine).
   DCHECK(!AreAliased(function_address,  // incoming parameters
                      scratch, kScratchRegister, prev_next_address_reg,

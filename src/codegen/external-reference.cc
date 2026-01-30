@@ -1091,6 +1091,14 @@ ExternalReference::invoke_named_interceptor_getter_callback() {
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }
 
+ExternalReference
+ExternalReference::invoke_named_interceptor_setter_callback() {
+  Address thunk_address = FUNCTION_ADDR(&InvokeNamedInterceptorSetterCallback);
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_SETTER_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  return ExternalReference::Create(&thunk_fun, thunk_type);
+}
+
 #if V8_TARGET_ARCH_X64
 #define re_stack_check_func RegExpMacroAssemblerX64::CheckStackGuardState
 #elif V8_TARGET_ARCH_IA32

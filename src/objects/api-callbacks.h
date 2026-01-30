@@ -146,8 +146,8 @@ class InterceptorInfo
   // Accessor callbacks for named interceptors.
   DECL_LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(named_getter,
                                                                Address)
-  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_setter,
-                                                            Address)
+  DECL_LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(named_setter,
+                                                               Address)
   DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_query,
                                                             Address)
   DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_descriptor,

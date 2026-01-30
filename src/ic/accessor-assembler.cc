@@ -2103,6 +2103,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     BIND(&if_interceptor);
     {
       Comment("store_interceptor");
+      Label if_not_intercepted(this);
+
       TNode<JSObject> receiver = CAST(p->receiver());
       if (ic_mode == ICMode::kGlobalIC) {
         CSA_DCHECK(this, IsJSGlobalProxy(receiver));
@@ -2114,8 +2116,21 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       TNode<InterceptorInfo> interceptor_info =
           CAST(LoadHandlerDataField(handler, 2));
 
-      TailCallRuntime(Runtime::kStorePropertyWithInterceptor, p->context(),
-                      p->value(), receiver, p->name(), interceptor_info);
+      TNode<Object> result = CallBuiltin(
+          Builtin::kCallNamedInterceptorSetter, p->context(), p->name(),
+          interceptor_info, receiver,
+          SmiConstant(Smi::FromInt(Internals::kInferShouldThrowMode)),
+          p->value());
+
+      GotoIf(TaggedIsNotInterceptedSentinel(result), &if_not_intercepted);
+
+      Return(result);
+
+      BIND(&if_not_intercepted);
+      {
+        TailCallRuntime(Runtime::kStorePropertyPastInterceptor, p->context(),
+                        p->value(), receiver, p->name(), interceptor_info);
+      }
     }
 
     BIND(&if_add_normal);

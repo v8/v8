@@ -4626,7 +4626,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   Register no_thunk_arg = no_reg;
 
   Operand return_value_operand = Operand(rbp, FC::kReturnValueOffset);
-  static constexpr int kSlotsToDropOnReturn =
+  constexpr int kSlotsToDropOnReturn =
       FC::kFunctionCallbackInfoApiArgsLength + kJSArgcReceiverSlots;
 
   const bool with_profiling =
@@ -4639,29 +4639,55 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 }
 
 void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
-                                            bool for_interceptor) {
+                                            bool for_interceptor,
+                                            bool for_setter) {
   // ----------- S t a t e -------------
   //  -- rsi                 : context
   //  -- rdi (rcx on Win)    : name
   //  -- rbx                 : accessor info / interceptor info
+  //  -- sp[4]               : value (only for setter case)
+  //  -- sp[3]               : should_throw_on_error (only for setter case)
   //  -- sp[1]               : holder
   //  -- sp[0]               : return address
   // -----------------------------------
 
-  Register name_arg = kCArgRegs[0];
-  Register property_callback_info_arg = kCArgRegs[1];
-  // |name| is already in the required register.
-  DCHECK_EQ(name_arg, CallApiGetterDescriptor::NameRegister());
+  Register name_arg = no_reg;
+  Register value_arg = no_reg;
+  Register property_callback_info_arg = no_reg;
 
   Register callback = CallApiGetterDescriptor::CallbackRegister();
   Register scratch = rax;
 
-  DCHECK(!AreAliased(name_arg, property_callback_info_arg, callback, scratch,
-                     kScratchRegister));
+  // All variants pass callback in the same register.
+  CHECK_EQ(callback, CallApiSetterDescriptor::CallbackRegister());
+
+  if (for_setter) {
+    // Setter(Local<Name>, Local<Value>, const PropertyCallbackInfo<void>&);
+    name_arg = kCArgRegs[0];
+    value_arg = kCArgRegs[1];  // Will be initialized right before the call.
+    property_callback_info_arg = kCArgRegs[2];
+  } else {
+    // Getter(Local<Name>, const PropertyCallbackInfo<void>&);
+    name_arg = kCArgRegs[0];
+    property_callback_info_arg = kCArgRegs[1];
+  }
+
+  // |name| is already in the required register.
+  CHECK_EQ(name_arg, CallApiGetterDescriptor::NameRegister());
+  CHECK_EQ(name_arg, CallApiSetterDescriptor::NameRegister());
+
+  // |callback| is allowed to clash with |value_arg| because the latter
+  // will be used only after the former is no longer necessary.
+  DCHECK(!AreAliased(name_arg, value_arg, property_callback_info_arg,  // C args
+                     callback, scratch, kScratchRegister));
 
   using PCA = PropertyCallbackArguments;
   using ER = ExternalReference;
   using FC = ApiAccessorExitFrameConstants;
+
+  static_assert(PCA::kSetterApiArgsLength == 6);
+  static_assert(PCA::ApiArgIndex(PCA::kValueIndex) == 5);
+  static_assert(PCA::ApiArgIndex(PCA::kShouldThrowOnErrorIndex) == 4);
 
   static_assert(PCA::kGetterApiArgsLength == 4);
   static_assert(PCA::ApiArgIndex(PCA::kHolderIndex) == 3);
@@ -4674,18 +4700,23 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
   //  Current state            |  Target state
   // --------------------------+--------------------------------------------
   //                           |  ...
-  //                           |  sp[4]: holder          <- kHolderIndex
-  //                           |  sp[3]: callback info   <- kCallbackInfoIndex
-  //  ...                      |  sp[2]: undefined       <- kReturnValueIndex
+  //                           |  sp[6]: value (setter)  <- kValueIndex
+  //                           |  sp[5]: throw? (setter) <- kShouldThrow..Index
+  //  ...                      |  sp[4]: holder          <- kHolderIndex
+  //  sp[3]: value (setter)    |  sp[3]: callback info   <- kCallbackInfoIndex
+  //  sp[2]: throw? (setter)   |  sp[2]: undefined       <- kReturnValueIndex
   //  sp[1]: holder            |  sp[1]: isolate         <- kIsolateIndex
   //  sp[0]: return address    |  sp[0]: return address
   //
 
+  RootIndex default_value =
+      for_setter ? RootIndex::kTrueValue : RootIndex::kUndefinedValue;
+
   __ PopReturnAddressTo(scratch);
   __ LoadAddress(kScratchRegister, ER::isolate_address());
-  __ Push(callback);                        // kCallbackInfoIndex
-  __ PushRoot(RootIndex::kUndefinedValue);  // kReturnValueIndex
-  __ Push(kScratchRegister);                // kIsolateIndex
+  __ Push(callback);           // kCallbackInfoIndex
+  __ PushRoot(default_value);  // kReturnValueIndex
+  __ Push(kScratchRegister);   // kIsolateIndex
   __ PushReturnAddressFrom(scratch);
 
   // Context register must not clash with the registers used so far.
@@ -4713,16 +4744,29 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
             Operand(rbp, FC::kPropertyCallbackInfoOffset));
   }
 
-  DCHECK(!AreAliased(name_arg, property_callback_info_arg,  // C args
+  DCHECK(!AreAliased(name_arg, value_arg, property_callback_info_arg,  // C args
                      callback, scratch));
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
   // name_arg = Local<Name>(name), name value was pushed to GC-ed stack space.
   // |name_arg| is already initialized above.
+
+  if (for_setter) {
+    // value_arg = Local<Value>(value), the value was passed to the builtin
+    // on GC-ed stack, load it from there.
+    __ movq(value_arg, Operand(rbp, FC::kValueOffset));
+  }
 #else
   // name_arg = Local<Name>(&name), which is &args_array[kPropertyKeyIndex].
   static_assert(PCA::kPropertyKeyIndex == 0);
   __ movq(name_arg, property_callback_info_arg);
+
+  if (for_setter) {
+    // value_arg = Local<Value>(&value), which is &args_[kValueIndex].
+    static_assert(PCA::kValueIndex != 0);
+    __ leaq(value_arg, Operand(property_callback_info_arg,
+                               PCA::kValueIndex * kSystemPointerSize));
+  }
 #endif
 
   __ RecordComment("Load api_function_address");
@@ -4732,12 +4776,21 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
   Register no_thunk_arg = no_reg;
 
   if (for_interceptor) {
-    thunk_ref = ER::invoke_named_interceptor_getter_callback();
-    __ LoadExternalPointerField(
-        api_function_address,
-        FieldOperand(callback, InterceptorInfo::kGetterOffset),
-        kApiNamedPropertyGetterCallbackTag, kScratchRegister);
+    if (for_setter) {
+      thunk_ref = ER::invoke_named_interceptor_setter_callback();
+      __ LoadExternalPointerField(
+          api_function_address,
+          FieldOperand(callback, InterceptorInfo::kSetterOffset),
+          kApiNamedPropertySetterCallbackTag, kScratchRegister);
+    } else {
+      thunk_ref = ER::invoke_named_interceptor_getter_callback();
+      __ LoadExternalPointerField(
+          api_function_address,
+          FieldOperand(callback, InterceptorInfo::kGetterOffset),
+          kApiNamedPropertyGetterCallbackTag, kScratchRegister);
+    }
   } else {
+    DCHECK(!for_setter);
     thunk_ref = ER::invoke_accessor_getter_callback();
     __ LoadExternalPointerField(
         api_function_address,
@@ -4747,8 +4800,9 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
   callback = no_reg;
 
   Operand return_value_operand = Operand(rbp, FC::kReturnValueOffset);
-  static constexpr int kSlotsToDropOnReturn =
-      FC::kPropertyCallbackInfoGetterApiArgsLength;
+  const int kSlotsToDropOnReturn =
+      for_setter ? FC::kPropertyCallbackInfoSetterApiArgsLength
+                 : FC::kPropertyCallbackInfoGetterApiArgsLength;
   Operand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;

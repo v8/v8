@@ -1664,6 +1664,10 @@ using SimulatorRuntimeDirectApiCall = void (*)(int32_t arg0);
 using SimulatorRuntimeDirectGetterCall = int32_t (*)(int32_t arg0,
                                                      int32_t arg1);
 
+// This signature supports direct call to accessor/interceptor setter callback.
+using SimulatorRuntimeDirectSetterCall = int32_t (*)(int32_t arg0, int32_t arg1,
+                                                     int32_t arg2);
+
 // Separate for fine-grained UBSan blocklisting. Casting any given C++
 // function to {SimulatorRuntimeCall} is undefined behavior; but since
 // the target function can indeed be any function that's exposed via
@@ -1890,6 +1894,30 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
         int32_t iresult = target(arg0, arg1);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
+        if (InstructionTracingEnabled()) {
+          PrintF("Returned %08x\n", iresult);
+        }
+        set_register(r0, iresult);
+      } else if (redirection->type() == ExternalReference::DIRECT_SETTER_CALL) {
+        // void f(v8::Local<Name>, v8::Local<v8::Value>,
+        //        v8::PropertyCallbackInfo&)
+        // v8::Intercepted f(v8::Local<Name>, v8::Local<v8::Value>,
+        //                   v8::PropertyCallbackInfo&)
+        if (InstructionTracingEnabled() || !stack_aligned) {
+          PrintF("Call to host function at %p args %08x %08x %08x",
+                 reinterpret_cast<void*>(external), arg0, arg1, arg2);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
+        }
+        CHECK(stack_aligned);
+        SimulatorRuntimeDirectSetterCall target =
+            reinterpret_cast<SimulatorRuntimeDirectSetterCall>(external);
+        int32_t iresult = target(arg0, arg1, arg2);
 #ifdef DEBUG
         TrashCallerSaveRegisters();
 #endif

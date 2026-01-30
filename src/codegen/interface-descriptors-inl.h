@@ -727,6 +727,26 @@ constexpr auto CallApiGetterDescriptor::registers() {
 }
 
 // static
+constexpr auto CallApiSetterDescriptor::registers() {
+#if V8_TARGET_ARCH_ARM64
+  return RegisterArray(NameRegister());
+#else
+  return RegisterArray(NameRegister(), CallbackRegister());
+#endif  // V8_TARGET_ARCH_ARM64
+}
+
+// static
+constexpr Register CallApiSetterDescriptor::NameRegister() {
+  return CallApiGetterDescriptor::NameRegister();
+}
+#if !V8_TARGET_ARCH_ARM64
+// static
+constexpr Register CallApiSetterDescriptor::CallbackRegister() {
+  return CallApiGetterDescriptor::CallbackRegister();
+}
+#endif  // !V8_TARGET_ARCH_ARM64
+
+// static
 constexpr auto ContextOnlyDescriptor::registers() { return RegisterArray(); }
 
 // static

@@ -140,10 +140,10 @@ LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     InterceptorInfo, named_getter, Address, kGetterOffset,
     kApiNamedPropertyGetterCallbackTag, ExternalReference::DIRECT_GETTER_CALL,
     is_named(), is_named() && (value != kNullAddress))
-LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     InterceptorInfo, named_setter, Address, kSetterOffset,
-    kApiNamedPropertySetterCallbackTag, is_named(),
-    is_named() && (value != kNullAddress))
+    kApiNamedPropertySetterCallbackTag, ExternalReference::DIRECT_SETTER_CALL,
+    is_named(), is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     InterceptorInfo, named_query, Address, kQueryOffset,
     kApiNamedPropertyQueryCallbackTag, is_named(),

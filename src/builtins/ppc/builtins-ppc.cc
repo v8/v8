@@ -4577,7 +4577,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   Register no_thunk_arg = no_reg;
 
   MemOperand return_value_operand = MemOperand(fp, FC::kReturnValueOffset);
-  static constexpr int kSlotsToDropOnReturn =
+  constexpr int kSlotsToDropOnReturn =
       FC::kFunctionCallbackInfoApiArgsLength + kJSArgcReceiverSlots;
 
   const bool with_profiling =
@@ -4679,8 +4679,7 @@ void Builtins::Generate_CallApiAccessorImpl(MacroAssembler* masm,
   callback = no_reg;
 
   MemOperand return_value_operand = MemOperand(fp, FC::kReturnValueOffset);
-  static constexpr int kSlotsToDropOnReturn =
-      FC::kPropertyCallbackInfoGetterApiArgsLength;
+  constexpr int kSlotsToDropOnReturn = FC::kPropertyCallbackInfoArgsLength;
   MemOperand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;

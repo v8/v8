@@ -525,6 +525,14 @@ v8::Intercepted InvokeNamedInterceptorGetterCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info);
 
+// This is a wrapper function called from CallNamedInterceptorSetter builtin
+// when profiling or side-effect checking is enabled. It's supposed to set up
+// the runtime call stats scope and check if the setter has side-effects
+// in case debugger enabled the side-effects checking mode.
+v8::Intercepted InvokeNamedInterceptorSetterCallback(
+    v8::Local<v8::Name> property, v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info);
+
 // This is a wrapper function called from CallApiCallback builtin when profiling
 // or side-effect checking is enabled. It's supposed to set up the runtime
 // call stats scope and check if the callback has side-effects in case debugger

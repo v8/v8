@@ -29,6 +29,7 @@ namespace internal {
   V(CallApiCallbackGeneric)                                     \
   V(CallApiCallbackOptimized)                                   \
   V(CallApiGetter)                                              \
+  V(CallApiSetter)                                              \
   V(ArrayConstructor)                                           \
   V(ArrayNArgumentsConstructor)                                 \
   V(ArrayNoArgumentConstructor)                                 \
@@ -2409,6 +2410,41 @@ class CallApiGetterDescriptor
                          MachineType::AnyTagged(),  // kCallback
                          MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(CallApiGetterDescriptor)
+
+  static constexpr inline Register NameRegister();
+#if !V8_TARGET_ARCH_ARM64
+  static constexpr inline Register CallbackRegister();
+#endif
+
+  static constexpr auto registers();
+};
+
+class CallApiSetterDescriptor
+    : public StaticCallInterfaceDescriptor<CallApiSetterDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+
+  static constexpr auto kStackArgumentOrder = StackArgumentOrder::kLowToHigh;
+  // On arm64 both callback and holder parameters are passed on the stack to
+  // keep it aligned. We keep passing the callback value in register on
+  // non-arm64 architectures because we need to load the C++ function pointer
+  // from it.
+  //
+  //                                         |  Non-arm64   |    arm64
+  //                                         +--------------+--------------
+  DEFINE_PARAMETERS(kName,                // |  reg         |    reg
+                    kCallback,            // |  reg         |    sp[0]
+                    kHolder,              // |  sp[0]       |    sp[1]
+                    kShouldThrowOnError,  // |  sp[1]       |    sp[2]
+                    kValue)               // |  sp[2]       |    sp[3]
+
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
+                         MachineType::AnyTagged(),  // kCallback
+                         MachineType::AnyTagged(),  // kHolder
+                         MachineType::AnyTagged(),  // kShouldThrowOnError
+                         MachineType::AnyTagged())  // kValue
+  DECLARE_DESCRIPTOR(CallApiSetterDescriptor)
 
   static constexpr inline Register NameRegister();
 #if !V8_TARGET_ARCH_ARM64

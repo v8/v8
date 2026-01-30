@@ -173,6 +173,8 @@ enum class IsolateFieldId : uint8_t;
   V(invoke_accessor_getter_callback, "InvokeAccessorGetterCallback")           \
   V(invoke_named_interceptor_getter_callback,                                  \
     "InvokeNamedInterceptorGetterCallback")                                    \
+  V(invoke_named_interceptor_setter_callback,                                  \
+    "InvokeNamedInterceptorSetterCallback")                                    \
   V(invoke_function_callback_generic, "InvokeFunctionCallbackGeneric")         \
   V(invoke_function_callback_optimized, "InvokeFunctionCallbackOptimized")     \
   V(jsarray_array_join_concat_to_sequential_string,                            \
@@ -586,6 +588,11 @@ class ExternalReference {
     // void f(Local<Name>, PropertyCallbackInfo&)
     // v8::Intercepted f(Local<Name>, PropertyCallbackInfo&)
     DIRECT_GETTER_CALL,
+
+    // Direct call to accessor setter callback.
+    // void f(Local<Name>, Local<Value>, PropertyCallbackInfo&)
+    // v8::Intercepted f(Local<Name>, Local<Value>, PropertyCallbackInfo&)
+    DIRECT_SETTER_CALL,
 
     // C call, either representing a fast API call or used in tests.
     // Can have arbitrary signature from the types supported by the fast API.

@@ -160,8 +160,9 @@ Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Tagged<Smi> StoreHandler::StoreInterceptor() {
-  int config = KindBits::encode(Kind::kInterceptor);
+Tagged<Smi> StoreHandler::StoreInterceptor(bool non_masking) {
+  int config = KindBits::encode(Kind::kInterceptor) |
+               NonMaskingInterceptorBits::encode(non_masking);
   return Smi::FromInt(config);
 }
 

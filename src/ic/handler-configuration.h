@@ -286,6 +286,14 @@ V8_OBJECT class StoreHandler final : public DataHandler {
   using LookupOnLookupStartObjectBits =
       DoAccessCheckOnLookupStartObjectBits::Next<bool, 1>;
 
+  //
+  // Encoding when KindBits contains kInterceptor.
+  //
+
+  // Encodes whether the inteceptor is masking or non-masking.
+  using NonMaskingInterceptorBits =
+      LookupOnLookupStartObjectBits::Next<bool, 1>;
+
   // Applicable to kField, kAccessor and kNativeDataProperty.
 
   // Index of a value entry in the descriptor array.
@@ -368,7 +376,7 @@ V8_OBJECT class StoreHandler final : public DataHandler {
   // Creates a Smi-handler for storing a property to an object with an
   // interceptor. Works only as a part of full handler
   // (StoreThroughPrototype(..) or StoreInterceptorHolderIsReceiver(..)).
-  static inline Tagged<Smi> StoreInterceptor();
+  static inline Tagged<Smi> StoreInterceptor(bool non_masking);
   // Creates handler for storing a property to receiver object with an
   // interceptor.
   static Handle<StoreHandler> StoreInterceptorHolderIsReceiver(
