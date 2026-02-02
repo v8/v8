@@ -3170,8 +3170,9 @@ using SimulatorRuntimeIntFPCall = int32_t (*)(double darg0);
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(sreg_t arg0);
 
-// This signature supports direct call to accessor getter callback.
-using SimulatorRuntimeDirectGetterCall = void (*)(sreg_t arg0, sreg_t arg1);
+// This signature supports direct call to accessor/interceptor getter callback.
+using SimulatorRuntimeDirectGetterCall = int64_t (*)(int64_t arg0,
+                                                     int64_t arg1);
 
 // Define four args for future flexibility; at the time of this writing only
 // one is ever used.
@@ -3487,15 +3488,21 @@ void Simulator::SoftwareInterrupt() {
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
       // See callers of MacroAssembler::CallApiFunctionAndReturn for
       // explanation of register usage.
-      // void f(v8::Local<String> property, v8::PropertyCallbackInfo& info)
+      // void f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
+      // v8::Intercepted f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
       if (v8_flags.trace_sim) {
+        PrintF("Type: DIRECT_GETTER_CALL\n");
         PrintF("Call to host function at %p args %08" REGIx_FORMAT
                "  %08" REGIx_FORMAT " \n",
                reinterpret_cast<void*>(external), arg0, arg1);
       }
       SimulatorRuntimeDirectGetterCall target =
           reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-      target(arg0, arg1);
+      int64_t result = target(arg0, arg1);
+      if (v8_flags.trace_sim) {
+        PrintF("Returned %ld\n", result);
+      }
+      set_register(a0, result);
     } else {
 #ifdef V8_TARGET_ARCH_RISCV64
       DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
