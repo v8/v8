@@ -5568,6 +5568,7 @@ void Genesis::InitializeGlobal_js_iterator_sequencing() {
   Map::SetPrototype(isolate(), map, iterator_helper_prototype);
   map->SetConstructor(*iterator_function);
   native_context()->set_iterator_concat_helper_map(*map);
+  LOG(isolate_, MapDetails(*map));
   SimpleInstallFunction(isolate_, iterator_function, "concat",
                         Builtin::kIteratorConcat, 0, kDontAdapt);
 }

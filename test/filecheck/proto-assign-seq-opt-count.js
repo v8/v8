@@ -5,6 +5,7 @@
 // Flags: --proto-assign-seq-opt --proto-assign-seq-opt-count=3
 // Flags: --print-bytecode --print-bytecode-filter=assignments*
 // Flags: --no-stress-lazy-source-positions --no-stress-background-compile
+// Flags: --no-stress-flush-code
 
 (function assignments2() {
   function f(){}

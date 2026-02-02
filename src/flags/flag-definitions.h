@@ -319,8 +319,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V)             \
   V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
-  V(js_sum_precise, "Math.sumPrecise")                 \
-  V(js_iterator_sequencing, "iterator sequencing")
+  V(js_sum_precise, "Math.sumPrecise")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -351,7 +350,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_esm_ns_reexport,                                                      \
     "Support diamond-importing re-expored namespaces "                       \
     "(https://github.com/tc39/ecma262/pull/3715)")                           \
-  V(js_upsert, "upsert")
+  V(js_upsert, "upsert")                                                     \
+  V(js_iterator_sequencing, "iterator sequencing")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
