@@ -941,9 +941,13 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
             "Caught harmless memory access violation (nullptr dereference).");
       }
 
-      if (faultaddr < 4ULL * GB) {
+      size_t padding = 1 * MB;
+      if (faultaddr < 4ULL * GB + padding) {
         // Currently we also ignore access violations in the first 4GB of the
         // virtual address space. See crbug.com/1470641 for more details.
+        // We need to add some "padding" to the 4GB since we might access a
+        // pointer that's < 4GB at an offset that makes the final address go
+        // slightly above 4GB.
         FilterCrash(
             "Caught harmless memory access violation (first 4GB of virtual "
             "address space).");
