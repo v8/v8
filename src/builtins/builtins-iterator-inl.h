@@ -318,7 +318,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
                 }
               }
             }
-            if (current_index != len) {
+            if (current_index < len) {
               auto num =
                   isolate->factory()->NewNumberFromUint(current_index + 1);
               array_iterator->set_next_index(*num);
@@ -352,7 +352,7 @@ MaybeDirectHandle<Object> IterableForEach(Isolate* isolate,
           if (!dispatch(key_handle)) break;
         }
       }
-      if (current_index != capacity) {
+      if (current_index < capacity) {
         auto num = isolate->factory()->NewNumberFromUint(current_index + 1);
         set_iterator->set_index(*num);
         IteratorClose(isolate, iterator);
