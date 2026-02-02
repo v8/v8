@@ -1186,11 +1186,9 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
     // Smi within context length range.
     Tagged<Object> mapped = elements->mapped_entries(i, kRelaxedLoad);
     if (IsTheHole(mapped, isolate)) {
-      // Slow sloppy arguments can be holey.
-      if (!is_fast) continue;
-      // Fast sloppy arguments elements are never holey. Either the element is
-      // context-mapped or present in the arguments elements.
-      CHECK(accessor->HasElement(isolate, holder, i, arg_elements));
+      // Both slow and fast sloppy arguments can be holey. Ensure that the fixed
+      // array backing the fast sloppy arguments is large enough.
+      CHECK(!is_fast || i < arg_elements->ulength());
       continue;
     }
     int mappedIndex = Smi::ToInt(mapped);
