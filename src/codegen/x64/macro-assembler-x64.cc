@@ -3623,8 +3623,8 @@ void MacroAssembler::CallWasmCodePointer(Register target,
   // - shift by `kLeftShift` to translate from index to offset into the table.
   static constexpr int kLeftShift =
       base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
-  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kNumRelevantBits =
+      base::bits::WhichPowerOfTwo(WasmCodePointer::kIndexSpaceSize);
   static constexpr int kNumClearedHighBits = 32 - kNumRelevantBits;
   shll(target, Immediate(kNumClearedHighBits));
   shrl(target, Immediate(kNumClearedHighBits - kLeftShift));
@@ -3671,8 +3671,8 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
   // - shift by `kLeftShift` to translate from index to offset into the table.
   static constexpr int kLeftShift =
       base::bits::WhichPowerOfTwo(sizeof(wasm::WasmCodePointerTableEntry));
-  static constexpr int kNumRelevantBits = base::bits::WhichPowerOfTwo(
-      wasm::WasmCodePointerTable::kMaxWasmCodePointers);
+  static constexpr int kNumRelevantBits =
+      base::bits::WhichPowerOfTwo(WasmCodePointer::kIndexSpaceSize);
   static constexpr int kNumClearedHighBits = 32 - kNumRelevantBits;
   static_assert(kNumClearedHighBits == 9);
   shll(target, Immediate(kNumClearedHighBits));

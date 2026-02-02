@@ -1275,8 +1275,17 @@ class FeedbackMaker {
     // from the `WasmDispatchTable`, whose entries are always targets pointing
     // into the main jump table, so we only need to check against that.
 
-    WasmCodePointer handle =
-        WasmCodePointer{static_cast<uint32_t>(target_truncated_smi.value())};
+    // Feedback data is untrusted. An invalid handle could lead to an OOB read
+    // from the `WasmCodePointerTable`, which either crashes or returns some
+    // garbage. Thus `WasmCodeManager::LookupCode` would either return `nullptr`
+    // (safe) or an unrelated code object which will be checked for a compatible
+    // signature before being inlined.
+    // So the CHECK here is mostly just there to silence a false positive report
+    // by the sandbox crash filter about an OOB read.
+    uint32_t untrusted_code_pointer =
+        static_cast<uint32_t>(target_truncated_smi.value());
+    CHECK_LT(untrusted_code_pointer, WasmCodePointer::kIndexSpaceSize);
+    WasmCodePointer handle = WasmCodePointer{untrusted_code_pointer};
     Address entry = GetProcessWideWasmCodePointerTable()
                         ->GetEntrypointWithoutSignatureCheck(handle);
     wasm::WasmCode* code =
