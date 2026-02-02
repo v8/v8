@@ -427,6 +427,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
       TypeOfFeedback::Result hint = broker()->GetFeedbackForTypeOf(feedback);
       switch (hint) {
         case TypeOfFeedback::kNumber:
+        case TypeOfFeedback::kSmi:
           check = jsgraph()->graph()->NewNode(
               jsgraph()->simplified()->CheckNumber(FeedbackSource()), operand,
               effect, control);

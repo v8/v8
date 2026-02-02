@@ -16959,12 +16959,12 @@ TNode<String> CodeStubAssembler::Typeof(
     std::optional<TNode<HeapObject>> maybe_feedback_vector) {
   TVARIABLE(String, result_var);
 
-  Label return_number(this, Label::kDeferred), if_oddball(this),
-      return_function(this), return_undefined(this), return_object(this),
-      return_string(this), return_bigint(this), return_symbol(this),
-      return_result(this);
+  Label return_smi(this), return_number(this, Label::kDeferred),
+      if_oddball(this), return_function(this), return_undefined(this),
+      return_object(this), return_string(this), return_bigint(this),
+      return_symbol(this), return_result(this);
 
-  GotoIf(TaggedIsSmi(value), &return_number);
+  GotoIf(TaggedIsSmi(value), &return_smi);
 
   TNode<HeapObject> value_heap_object = CAST(value);
   TNode<Map> map = LoadMap(value_heap_object);
@@ -17003,6 +17003,14 @@ TNode<String> CodeStubAssembler::Typeof(
                           *slot_id);
     }
   };
+
+  BIND(&return_smi);
+  {
+    result_var = HeapConstantNoHole(isolate()->factory()->number_string());
+    UpdateFeedback(TypeOfFeedback::kSmi);
+    Goto(&return_result);
+  }
+
   BIND(&return_number);
   {
     result_var = HeapConstantNoHole(isolate()->factory()->number_string());
