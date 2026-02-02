@@ -1724,9 +1724,9 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
 
   TNode<Int32T> expected_type = SmiToInt32(expected_type_smi);
 
-  Label is_smi(this), is_undetectable(this), is_heap_number(this),
-      is_string(this), is_symbol(this), is_oddball(this), is_context(this),
-      is_js_receiver(this), is_other_heap_object(this), done(this);
+  Label is_smi(this), is_heap_number(this), is_string(this), is_symbol(this),
+      is_oddball(this), is_context(this), is_js_receiver(this),
+      is_other_heap_object(this), done(this);
 
   GotoIf(TaggedIsSmi(object), &is_smi);
 
@@ -1735,8 +1735,6 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
   TNode<Int32T> bit_field = LoadMapBitField(map);
 
-  GotoIf(IsSetWord32(bit_field, Map::Bits1::IsUndetectableBit::kMask),
-         &is_undetectable);
   GotoIf(Word32Equal(instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
          &is_heap_number);
   GotoIf(Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
@@ -1770,9 +1768,6 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
 
   BIND(&is_smi);
   CheckType(maglev::NodeType::kSmi);
-
-  BIND(&is_undetectable);
-  CheckType(maglev::NodeType::kUndefined);
 
   BIND(&is_heap_number);
   CheckType(maglev::NodeType::kHeapNumber);
