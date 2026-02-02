@@ -26,11 +26,6 @@ namespace internal {
 #define BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V)                           \
   V(Offset, int16_t, RegExpMacroAssembler::kMinCPOffset,                     \
     RegExpMacroAssembler::kMaxCPOffset)                                      \
-  /* TODO(433891213): Only for backwards-compatibility. Can be replaced with \
-   */                                                                        \
-  /* Offset once the old format is removed. */                               \
-  V(Offset32, int32_t, RegExpMacroAssembler::kMinCPOffset,                   \
-    RegExpMacroAssembler::kMaxCPOffset)                                      \
   V(Register, uint16_t, 0, RegExpMacroAssembler::kMaxRegister)               \
   V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag,                    \
     RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck,                \
@@ -68,7 +63,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   V(PushCurrentPosition, (), ())                                               \
   V(PushBacktrack, (label), (ReBcOpType::kJumpTarget))                         \
   V(WriteCurrentPositionToRegister, (register_index, cp_offset),               \
-    (ReBcOpType::kRegister, ReBcOpType::kOffset32))                            \
+    (ReBcOpType::kRegister, ReBcOpType::kOffset))                              \
   V(ReadCurrentPositionFromRegister, (register_index),                         \
     (ReBcOpType::kRegister))                                                   \
   V(WriteStackPointerToRegister, (register_index), (ReBcOpType::kRegister))    \
@@ -79,7 +74,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   V(ClearRegisters, (from_register, to_register),                              \
     (ReBcOpType::kRegister, ReBcOpType::kRegister))                            \
   V(AdvanceRegister, (register_index, by),                                     \
-    (ReBcOpType::kRegister, ReBcOpType::kOffset32))                            \
+    (ReBcOpType::kRegister, ReBcOpType::kOffset))                              \
   V(PopCurrentPosition, (), ())                                                \
   /* TODO(pthier): PushRegister fits into 4 byte once the restrictions due */  \
   /* to the old layout are lifted                                          */  \
