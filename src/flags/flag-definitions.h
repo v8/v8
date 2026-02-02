@@ -722,6 +722,12 @@ DEFINE_INT(max_maglev_inlined_bytecode_size_small_with_heapnum_in_out, 75,
 DEFINE_FLOAT(min_maglev_inlining_frequency, 0.95,
              "minimum frequency for inlining")
 
+// This is just to avoid some corner cases, especially since we allow
+// recursive inlining.
+DEFINE_INT(
+    max_turbolev_inline_depth, 50,
+    "max depth of functions that Maglev will inline excl. small functions")
+
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier,
                               max_maglev_inlined_bytecode_size, 460)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier, min_maglev_inlining_frequency,

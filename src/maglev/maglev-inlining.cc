@@ -63,15 +63,15 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
   }
 
   return call_site->bytecode_length <=
-         max_inlined_bytecode_size_small_with_heapnum_in_out();
+         flags_.max_inlined_bytecode_size_small_with_heapnum_in_out;
 }
 
 bool MaglevInliner::CanInlineCall() {
   return !graph_->inlineable_calls().empty() &&
          (graph_->total_inlined_bytecode_size() <
-              max_inlined_bytecode_size_cumulative() ||
+              flags_.max_inlined_bytecode_size_cumulative ||
           graph_->total_inlined_bytecode_size_small() <
-              max_inlined_bytecode_size_small_total());
+              flags_.max_inlined_bytecode_size_small_total);
 }
 
 bool MaglevInliner::InlineCallSites() {
@@ -88,18 +88,19 @@ bool MaglevInliner::InlineCallSites() {
         IsSmallWithHeapNumberInputsOutputs(call_site);
 
     if (graph_->total_inlined_bytecode_size() >
-        max_inlined_bytecode_size_cumulative()) {
+        flags_.max_inlined_bytecode_size_cumulative) {
       TRACE("> Main budget exhausted ("
             << graph_->total_inlined_bytecode_size() << " > "
-            << max_inlined_bytecode_size_cumulative() << ")");
+            << flags_.max_inlined_bytecode_size_cumulative << ")");
       // We ran out of budget. Checking if this is a small-ish function that we
       // can still inline.
       if (graph_->total_inlined_bytecode_size_small() >
-          max_inlined_bytecode_size_small_total()) {
+          flags_.max_inlined_bytecode_size_small_total) {
         graph_->compilation_info()->set_could_not_inline_all_candidates();
         TRACE(">> Small budget exhausted ("
               << graph_->total_inlined_bytecode_size_small() << " > "
-              << max_inlined_bytecode_size_small_total() << "), stopping.");
+              << flags_.max_inlined_bytecode_size_small_total
+              << "), stopping.");
         break;
       }
 
@@ -169,28 +170,6 @@ bool MaglevInliner::Run() {
         .Unwrap();
   }
   return true;
-}
-
-int MaglevInliner::max_inlined_bytecode_size_cumulative() const {
-  if (graph_->compilation_info()->is_turbolev()) {
-    return v8_flags.max_inlined_bytecode_size_cumulative;
-  } else {
-    return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
-  }
-}
-int MaglevInliner::max_inlined_bytecode_size_small_total() const {
-  if (graph_->compilation_info()->is_turbolev()) {
-    return v8_flags.max_inlined_bytecode_size_small_total;
-  } else {
-    return v8_flags.max_maglev_inlined_bytecode_size_small_total;
-  }
-}
-int MaglevInliner::max_inlined_bytecode_size_small_with_heapnum_in_out() const {
-  if (graph_->compilation_info()->is_turbolev()) {
-    return v8_flags.max_inlined_bytecode_size_small_with_heapnum_in_out;
-  } else {
-    return v8_flags.max_maglev_inlined_bytecode_size_small_with_heapnum_in_out;
-  }
 }
 
 MaglevCallSiteInfo* MaglevInliner::ChooseNextCallSite() {

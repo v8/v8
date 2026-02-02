@@ -39,7 +39,7 @@ namespace v8::internal::compiler::turboshaft {
 TurbolevFrontendPipeline::TurbolevFrontendPipeline(PipelineData* data,
                                                    Linkage* linkage)
     : data_(*data),
-      compilation_info_(maglev::MaglevCompilationInfo::NewForTurboshaft(
+      compilation_info_(maglev::MaglevCompilationInfo::NewForTurbolev(
           data->isolate(), data->broker(), data->info()->closure(),
           data->info()->osr_offset(),
           data->info()->function_context_specializing())) {

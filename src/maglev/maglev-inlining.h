@@ -35,16 +35,14 @@ class ReturnedValueRepresentationSelector {
 
 class MaglevInliner {
  public:
-  explicit MaglevInliner(Graph* graph) : graph_(graph) {}
+  explicit MaglevInliner(Graph* graph)
+      : graph_(graph), flags_(graph->compilation_info()->flags()) {}
 
   bool Run();
 
  private:
   Graph* graph_;
-
-  int max_inlined_bytecode_size_cumulative() const;
-  int max_inlined_bytecode_size_small_total() const;
-  int max_inlined_bytecode_size_small_with_heapnum_in_out() const;
+  const CompilationFlags flags_;
 
   bool IsSmallWithHeapNumberInputsOutputs(MaglevCallSiteInfo* call_site) const;
 
