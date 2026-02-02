@@ -235,13 +235,27 @@ class RecomputeKnownNodeAspectsProcessor {
     return ProcessResult::kContinue;                    \
   }
   PROCESS_CHECK(Smi)
-  PROCESS_CHECK(Number)
   PROCESS_CHECK(String)
   PROCESS_CHECK(SeqOneByteString)
   PROCESS_CHECK(StringOrStringWrapper)
   PROCESS_CHECK(StringOrOddball)
   PROCESS_CHECK(Symbol)
 #undef PROCESS_CHECK
+
+  ProcessResult ProcessNode(CheckNumber* node) {
+    switch (node->mode()) {
+      case Object::Conversion::kToNumber:
+        EnsureType(node->input_node(0), NodeType::kNumber);
+        break;
+      case Object::Conversion::kToNumeric:
+        // Smi, HeapNumber or BigInt. There's no separate type for BigInt, but
+        // it's a kOtherHeapObject.
+        EnsureType(node->input_node(0),
+                   UnionType(NodeType::kNumber, NodeType::kOtherHeapObject));
+        break;
+    }
+    return ProcessResult::kContinue;
+  }
 
 #define PROCESS_SAFE_CONV(Node, Alt, Type)                                     \
   ProcessResult ProcessNode(Node* node) {                                      \
