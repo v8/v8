@@ -1239,6 +1239,7 @@ int IrregexpInterpreter::Match(Isolate* isolate,
   bool is_any_unicode =
       IsEitherUnicode(JSRegExp::AsRegExpFlags(regexp_data->flags()));
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
+  SBXCHECK(regexp_data->has_bytecode(is_one_byte));
   Tagged<TrustedByteArray> code_array = regexp_data->bytecode(is_one_byte);
   int total_register_count = regexp_data->max_register_count();
 
