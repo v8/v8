@@ -1000,6 +1000,11 @@ using SimulatorRuntimeDirectApiCall = void (*)(intptr_t arg0);
 using SimulatorRuntimeDirectGetterCall = intptr_t (*)(intptr_t arg0,
                                                       intptr_t arg1);
 
+// This signature supports direct call to accessor/interceptor setter callback.
+using SimulatorRuntimeDirectSetterCall = intptr_t (*)(intptr_t arg0,
+                                                      intptr_t arg1,
+                                                      intptr_t arg2);
+
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
 void Simulator::SoftwareInterrupt(Instruction* instr) {
@@ -1204,6 +1209,32 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           arg[0] = base::bit_cast<intptr_t>(arg[0]);
         }
         intptr_t iresult = target(arg[0], arg[1]);
+        if (InstructionTracingEnabled()) {
+          PrintF("Returned %08" V8PRIxPTR "\n", iresult);
+        }
+        set_register(r3, iresult);
+      } else if (redirection->type() == ExternalReference::DIRECT_SETTER_CALL) {
+        // void f(v8::Local<Name>, v8::Local<v8::Value>,
+        //        v8::PropertyCallbackInfo&)
+        // v8::Intercepted f(v8::Local<Name>, v8::Local<v8::Value>,
+        //                   v8::PropertyCallbackInfo&)
+        if (InstructionTracingEnabled() || !stack_aligned) {
+          PrintF("Call to host function at %p args %08" V8PRIxPTR
+                 " %08" V8PRIxPTR " %08" V8PRIxPTR,
+                 reinterpret_cast<void*>(external), arg[0], arg[1], arg[2]);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
+                   get_register(sp));
+          }
+          PrintF("\n");
+        }
+        CHECK(stack_aligned);
+        SimulatorRuntimeDirectSetterCall target =
+            reinterpret_cast<SimulatorRuntimeDirectSetterCall>(external);
+        intptr_t iresult = target(arg[0], arg[1], arg[2]);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
         if (InstructionTracingEnabled()) {
           PrintF("Returned %08" V8PRIxPTR "\n", iresult);
         }
