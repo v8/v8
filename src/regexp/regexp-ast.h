@@ -200,8 +200,8 @@ class RegExpTree : public ZoneObject {
   virtual RegExpNode* ToNodeImpl(RegExpCompiler* compiler,
                                  RegExpNode* on_success) = 0;
   virtual bool IsTextElement() { return false; }
-  virtual bool IsAnchoredAtStart() { return false; }
-  virtual bool IsAnchoredAtEnd() { return false; }
+  virtual bool IsCertainlyAnchoredAtStart(int budget) { return false; }
+  virtual bool IsCertainlyAnchoredAtEnd(int budget) { return false; }
   virtual int min_match() = 0;
   virtual int max_match() = 0;
   // Returns the interval of registers used for captures within this
@@ -222,8 +222,8 @@ class RegExpDisjunction final : public RegExpTree {
   DECL_BOILERPLATE(Disjunction);
 
   Interval CaptureRegisters() override;
-  bool IsAnchoredAtStart() override;
-  bool IsAnchoredAtEnd() override;
+  bool IsCertainlyAnchoredAtStart(int budget) override;
+  bool IsCertainlyAnchoredAtEnd(int budget) override;
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }
   ZoneList<RegExpTree*>* alternatives() const { return alternatives_; }
@@ -244,8 +244,8 @@ class RegExpAlternative final : public RegExpTree {
   DECL_BOILERPLATE(Alternative);
 
   Interval CaptureRegisters() override;
-  bool IsAnchoredAtStart() override;
-  bool IsAnchoredAtEnd() override;
+  bool IsCertainlyAnchoredAtStart(int budget) override;
+  bool IsCertainlyAnchoredAtEnd(int budget) override;
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }
   ZoneList<RegExpTree*>* nodes() const { return nodes_; }
@@ -271,8 +271,8 @@ class RegExpAssertion final : public RegExpTree {
 
   DECL_BOILERPLATE(Assertion);
 
-  bool IsAnchoredAtStart() override;
-  bool IsAnchoredAtEnd() override;
+  bool IsCertainlyAnchoredAtStart(int budget) override;
+  bool IsCertainlyAnchoredAtEnd(int budget) override;
   int min_match() override { return 0; }
   int max_match() override { return 0; }
   Type assertion_type() const { return assertion_type_; }
@@ -618,8 +618,8 @@ class RegExpCapture final : public RegExpTree {
 
   static RegExpNode* ToNode(RegExpTree* body, int index,
                             RegExpCompiler* compiler, RegExpNode* on_success);
-  bool IsAnchoredAtStart() override;
-  bool IsAnchoredAtEnd() override;
+  bool IsCertainlyAnchoredAtStart(int budget) override;
+  bool IsCertainlyAnchoredAtEnd(int budget) override;
   Interval CaptureRegisters() override;
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }
@@ -653,8 +653,14 @@ class RegExpGroup final : public RegExpTree {
 
   DECL_BOILERPLATE(Group);
 
-  bool IsAnchoredAtStart() override { return body_->IsAnchoredAtStart(); }
-  bool IsAnchoredAtEnd() override { return body_->IsAnchoredAtEnd(); }
+  bool IsCertainlyAnchoredAtStart(int budget) override {
+    if (budget < 0) return false;
+    return body_->IsCertainlyAnchoredAtStart(budget - 1);
+  }
+  bool IsCertainlyAnchoredAtEnd(int budget) override {
+    if (budget < 0) return false;
+    return body_->IsCertainlyAnchoredAtEnd(budget - 1);
+  }
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }
   Interval CaptureRegisters() override { return body_->CaptureRegisters(); }
@@ -684,7 +690,7 @@ class RegExpLookaround final : public RegExpTree {
   DECL_BOILERPLATE(Lookaround);
 
   Interval CaptureRegisters() override;
-  bool IsAnchoredAtStart() override;
+  bool IsCertainlyAnchoredAtStart(int budget) override;
   int min_match() override { return 0; }
   int max_match() override { return 0; }
   RegExpTree* body() const { return body_; }

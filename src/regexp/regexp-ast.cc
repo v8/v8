@@ -64,22 +64,20 @@ Interval RegExpQuantifier::CaptureRegisters() {
   return body()->CaptureRegisters();
 }
 
-
-bool RegExpAssertion::IsAnchoredAtStart() {
+bool RegExpAssertion::IsCertainlyAnchoredAtStart(int budget) {
   return assertion_type() == RegExpAssertion::Type::START_OF_INPUT;
 }
 
-
-bool RegExpAssertion::IsAnchoredAtEnd() {
+bool RegExpAssertion::IsCertainlyAnchoredAtEnd(int budget) {
   return assertion_type() == RegExpAssertion::Type::END_OF_INPUT;
 }
 
-
-bool RegExpAlternative::IsAnchoredAtStart() {
+bool RegExpAlternative::IsCertainlyAnchoredAtStart(int budget) {
+  if (budget < 0) return false;
   ZoneList<RegExpTree*>* nodes = this->nodes();
   for (int i = 0; i < nodes->length(); i++) {
     RegExpTree* node = nodes->at(i);
-    if (node->IsAnchoredAtStart()) {
+    if (node->IsCertainlyAnchoredAtStart(budget - 1)) {
       return true;
     }
     if (node->max_match() > 0) {
@@ -89,12 +87,12 @@ bool RegExpAlternative::IsAnchoredAtStart() {
   return false;
 }
 
-
-bool RegExpAlternative::IsAnchoredAtEnd() {
+bool RegExpAlternative::IsCertainlyAnchoredAtEnd(int budget) {
+  if (budget < 0) return false;
   ZoneList<RegExpTree*>* nodes = this->nodes();
   for (int i = nodes->length() - 1; i >= 0; i--) {
     RegExpTree* node = nodes->at(i);
-    if (node->IsAnchoredAtEnd()) {
+    if (node->IsCertainlyAnchoredAtEnd(budget - 1)) {
       return true;
     }
     if (node->max_match() > 0) {
@@ -104,34 +102,42 @@ bool RegExpAlternative::IsAnchoredAtEnd() {
   return false;
 }
 
-
-bool RegExpDisjunction::IsAnchoredAtStart() {
+bool RegExpDisjunction::IsCertainlyAnchoredAtStart(int budget) {
+  if (budget < 0) return false;
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
   for (int i = 0; i < alternatives->length(); i++) {
-    if (!alternatives->at(i)->IsAnchoredAtStart()) return false;
+    if (!alternatives->at(i)->IsCertainlyAnchoredAtStart(budget - 1))
+      return false;
   }
   return true;
 }
 
-
-bool RegExpDisjunction::IsAnchoredAtEnd() {
+bool RegExpDisjunction::IsCertainlyAnchoredAtEnd(int budget) {
+  if (budget < 0) return false;
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
   for (int i = 0; i < alternatives->length(); i++) {
-    if (!alternatives->at(i)->IsAnchoredAtEnd()) return false;
+    if (!alternatives->at(i)->IsCertainlyAnchoredAtEnd(budget - 1)) {
+      return false;
+    }
   }
   return true;
 }
 
-
-bool RegExpLookaround::IsAnchoredAtStart() {
-  return is_positive() && type() == LOOKAHEAD && body()->IsAnchoredAtStart();
+bool RegExpLookaround::IsCertainlyAnchoredAtStart(int budget) {
+  if (budget < 0) return false;
+  return is_positive() && type() == LOOKAHEAD &&
+         body()->IsCertainlyAnchoredAtStart(budget - 1);
 }
 
+bool RegExpCapture::IsCertainlyAnchoredAtStart(int budget) {
+  if (budget < 0) return false;
+  return body()->IsCertainlyAnchoredAtStart(budget - 1);
+}
 
-bool RegExpCapture::IsAnchoredAtStart() { return body()->IsAnchoredAtStart(); }
-
-
-bool RegExpCapture::IsAnchoredAtEnd() { return body()->IsAnchoredAtEnd(); }
+bool RegExpCapture::IsCertainlyAnchoredAtEnd(int budget) {
+  if (budget < 0) return false;
+  return body()->IsCertainlyAnchoredAtEnd(budget - 1);
+}
 
 RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
     : alternatives_(alternatives) {

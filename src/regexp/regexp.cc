@@ -1262,8 +1262,10 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.
-  bool is_end_anchored = data->tree->IsAnchoredAtEnd();
-  bool is_start_anchored = data->tree->IsAnchoredAtStart();
+  bool is_end_anchored =
+      data->tree->IsCertainlyAnchoredAtEnd(RegExpNode::kRecursionBudget);
+  bool is_start_anchored =
+      data->tree->IsCertainlyAnchoredAtStart(RegExpNode::kRecursionBudget);
   int max_length = data->tree->max_match();
   static const int kMaxBacksearchLimit = 1024;
   if (is_end_anchored && !is_start_anchored && !IsSticky(flags) &&

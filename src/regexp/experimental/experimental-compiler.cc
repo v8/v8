@@ -7,6 +7,7 @@
 #include "src/flags/flags.h"
 #include "src/regexp/experimental/experimental.h"
 #include "src/regexp/regexp-ast.h"
+#include "src/regexp/regexp-nodes.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -560,7 +561,8 @@ class CompileVisitor : private RegExpVisitor {
                                              RegExpFlags flags, Zone* zone) {
     CompileVisitor compiler(zone);
 
-    if (!IsSticky(flags) && !tree->IsAnchoredAtStart()) {
+    if (!IsSticky(flags) &&
+        !tree->IsCertainlyAnchoredAtStart(RegExpNode::kRecursionBudget)) {
       // The match is not anchored, i.e. may start at any input position, so we
       // emit a preamble corresponding to /.*?/.  This skips an arbitrary
       // prefix in the input non-greedily.
@@ -643,9 +645,11 @@ class CompileVisitor : private RegExpVisitor {
     // If the lookaround is not anchored, we add a /.*?/ at its start, such
     // that the resulting automaton will run over the whole input.
     if ((lookaround->type() == RegExpLookaround::LOOKAHEAD &&
-         !lookaround->body()->IsAnchoredAtEnd()) ||
+         !lookaround->body()->IsCertainlyAnchoredAtEnd(
+             RegExpNode::kRecursionBudget)) ||
         (lookaround->type() == RegExpLookaround::LOOKBEHIND &&
-         !lookaround->body()->IsAnchoredAtStart())) {
+         !lookaround->body()->IsCertainlyAnchoredAtStart(
+             RegExpNode::kRecursionBudget))) {
       CompileNonGreedyStar([&]() { assembler_.ConsumeAnyChar(); });
     }
 
