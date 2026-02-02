@@ -203,8 +203,7 @@ std::optional<std::string> DumplingManager::DumpFunctionId(int function_id) {
   return DumpValue(function_id, dumpling_last_frame_.function_id);
 }
 
-DumplingManager::DumplingManager()
-    : dumpling_os_(GetDumpOutFilename(), std::ofstream::out) {
+DumplingManager::DumplingManager() {
   ResetLastFrame();
   if (v8_flags.load_dump_positions) {
     LoadDumpPositionsFromFile();
@@ -272,6 +271,8 @@ void DumplingManager::FinishCurrentREPRLCycle() { dumpling_os_.close(); }
 void DumplingManager::PrepareForNextREPRLCycle() {
   ResetLastFrame();
   dump_positions_.clear();
+
+  DCHECK(!dumpling_os_.is_open());
   // this will truncate the file
   dumpling_os_.open(GetDumpOutFilename());
 }
