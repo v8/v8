@@ -61,7 +61,8 @@ struct MaglevCallerDetails {
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores;
   CatchBlockDetails catch_block;
-  bool is_inside_loop;
+  int loop_depth;
+  int peeled_iteration_count;
   bool is_eager_inline;
   float call_frequency;
   InliningTreeDebugInfo* parent_inlining_tree_debug_info;
@@ -1836,7 +1837,9 @@ class MaglevGraphBuilder {
   }
   int argument_count_without_receiver() const { return argument_count() - 1; }
 
+  bool IsInsideLoopInTheCurrentFunction() const;
   bool IsInsideLoop() const;
+  int GetLoopDepth() const;
 
   // The fake offset used as a target for all exits of an inlined function.
   int inline_exit_offset() const {

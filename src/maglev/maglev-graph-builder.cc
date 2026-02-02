@@ -1150,21 +1150,16 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       catch_block_stack_(zone()),
       unobserved_context_slot_stores_(zone()) {
   if (V8_UNLIKELY(v8_flags.print_turbolev_inline_functions)) {
-    bool is_eager = false;
-    int current_bugdget = 0;
-    float freq = 0;
-    if (is_inline()) {
-      DCHECK_NOT_NULL(caller_details);
-      is_eager = caller_details->is_eager_inline;
-      current_bugdget = is_eager ? graph_->total_inlined_bytecode_size_small()
-                                 : graph_->total_inlined_bytecode_size();
-      freq = caller_details->call_frequency;
-    }
     current_inlining_tree_debug_info_ = zone()->New<InliningTreeDebugInfo>(
-        zone(), compilation_unit->shared_function_info(), is_eager,
-        current_bugdget, freq);
+        zone(), compilation_unit->shared_function_info(), caller_details);
     if (is_inline()) {
       DCHECK_NOT_NULL(caller_details->parent_inlining_tree_debug_info);
+      current_inlining_tree_debug_info_->budget =
+          caller_details->is_eager_inline
+              ? graph_->total_inlined_bytecode_size_small()
+              : graph_->total_inlined_bytecode_size();
+      current_inlining_tree_debug_info_->order =
+          static_cast<int>(graph_->inlined_functions().size()) + 1;
       caller_details->parent_inlining_tree_debug_info->children.push_back(
           current_inlining_tree_debug_info_);
     } else {
@@ -8561,7 +8556,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
       MaglevCallerDetails{
           arguments, &generic_call->lazy_deopt_info()->top_frame(),
           call_aspects, loop_effects_, unobserved_context_slot_stores_,
-          catch_details, IsInsideLoop(),
+          catch_details, GetLoopDepth(), peeled_iteration_count_,
           /* is_eager_inline */ false, call_frequency,
           current_inlining_tree_debug_info_},
       generic_call, feedback_cell, score, bytecode.length());
@@ -8602,7 +8597,8 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   MaglevCallerDetails* caller_details = zone()->New<MaglevCallerDetails>(
       arguments_vector, deopt_frame,
       current_interpreter_frame_.known_node_aspects(), loop_effects_,
-      unobserved_context_slot_stores_, catch_block_details, IsInsideLoop(),
+      unobserved_context_slot_stores_, catch_block_details, GetLoopDepth(),
+      peeled_iteration_count_,
       /* is_eager_inline */ true, call_frequency,
       current_inlining_tree_debug_info_);
 
@@ -18041,8 +18037,7 @@ void MaglevGraphBuilder::CalculatePredecessorCounts() {
   }
 }
 
-bool MaglevGraphBuilder::IsInsideLoop() const {
-  if (is_inline() && caller_details()->is_inside_loop) return true;
+bool MaglevGraphBuilder::IsInsideLoopInTheCurrentFunction() const {
   int loop_header_offset =
       bytecode_analysis().GetLoopOffsetFor(iterator_.current_offset());
   if (loop_header_offset != -1) {
@@ -18056,6 +18051,16 @@ bool MaglevGraphBuilder::IsInsideLoop() const {
     return true;
   }
   return false;
+}
+
+bool MaglevGraphBuilder::IsInsideLoop() const {
+  if (is_inline() && caller_details()->loop_depth > 0) return true;
+  return IsInsideLoopInTheCurrentFunction();
+}
+
+int MaglevGraphBuilder::GetLoopDepth() const {
+  return (is_inline() ? caller_details()->loop_depth : 0) +
+         IsInsideLoopInTheCurrentFunction();
 }
 
 ReduceResult MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {

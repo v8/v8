@@ -30,19 +30,16 @@ class MaglevCallSiteInfoCompare {
 using MaglevCallSiteCandidates =
     ZonePriorityQueue<MaglevCallSiteInfo*, MaglevCallSiteInfoCompare>;
 
+struct MaglevCallerDetails;
 struct InliningTreeDebugInfo : public ZoneObject {
   compiler::SharedFunctionInfoRef shared;
-  bool is_eager;
-  int budget;
-  float freq;
+  MaglevCallerDetails* details;
+  int budget = 0;
+  int order = 0;
   ZoneVector<InliningTreeDebugInfo*> children;
   InliningTreeDebugInfo(Zone* zone, compiler::SharedFunctionInfoRef shared,
-                        bool is_eager, int budget, float freq)
-      : shared(shared),
-        is_eager(is_eager),
-        budget(budget),
-        freq(freq),
-        children(zone) {}
+                        MaglevCallerDetails* details)
+      : shared(shared), details(details), children(zone) {}
 };
 
 class Graph final : public ZoneObject {
