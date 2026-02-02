@@ -85,6 +85,11 @@ in_category(
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm64-asan"}},
     ),
     clusterfuzz_builder(
+        name = "V8 Clusterfuzz Linux64 ASAN - release builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}},
+    ),
+    clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 ASAN no inline - release builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-no-inline"}},
@@ -118,6 +123,11 @@ in_category(
         name = "V8 Clusterfuzz Linux ASAN arm - debug builder",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm-asan"}},
+    ),
+    clusterfuzz_builder(
+        name = "V8 Clusterfuzz Linux ASAN - release builder",
+        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        properties = {"clobber": True, "clusterfuzz_archive": {"bitness": "32", "bucket": "v8-asan", "name": "d8-asan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux ASAN no inline - release builder",
