@@ -1590,7 +1590,7 @@ class WasmBytecodeGenerator {
                                 const WasmInstruction& curr_instr,
                                 const WasmInstruction& next_instr);
 
-  uint32_t ScanConstInstructions() const;
+  uint32_t ScanConstInstructions();
 
   void Emit(const void* buff, size_t len) {
     code_.insert(code_.end(), static_cast<const uint8_t*>(buff),
@@ -1827,58 +1827,63 @@ class WasmBytecodeGenerator {
   }
 
   template <typename T>
-  inline uint32_t GetConstSlot(T value) {
-    if constexpr (std::is_same_v<T, int32_t>) {
-      return GetI32ConstSlot(value);
-    }
-    if constexpr (std::is_same_v<T, int64_t>) {
-      return GetI64ConstSlot(value);
-    }
-    if constexpr (std::is_same_v<T, float>) {
-      return GetF32ConstSlot(value);
-    }
-    if constexpr (std::is_same_v<T, double>) {
-      return GetF64ConstSlot(value);
-    }
-    if constexpr (std::is_same_v<T, Simd128>) {
-      return GetS128ConstSlot(value);
-    }
+  inline std::optional<uint32_t> GetConstSlot(T value) {
     UNREACHABLE();
   }
-  inline uint32_t GetI32ConstSlot(int32_t value) {
+  template <>
+  inline std::optional<uint32_t> GetConstSlot<int32_t>(int32_t value) {
     auto it = i32_const_cache_.find(value);
     if (it != i32_const_cache_.end()) {
-      return it->second;
+      return std::optional<uint32_t>(it->second);
     }
-    return UINT_MAX;
+    return std::nullopt;
   }
-  inline uint32_t GetI64ConstSlot(int64_t value) {
+  template <>
+  inline std::optional<uint32_t> GetConstSlot<int64_t>(int64_t value) {
     auto it = i64_const_cache_.find(value);
     if (it != i64_const_cache_.end()) {
-      return it->second;
+      return std::optional<uint32_t>(it->second);
     }
-    return UINT_MAX;
+    return std::nullopt;
   }
-  inline uint32_t GetF32ConstSlot(float value) {
-    auto it = f32_const_cache_.find(value);
+  template <>
+  inline std::optional<uint32_t> GetConstSlot<float>(float value) {
+    auto it = f32_const_cache_.find(base::bit_cast<uint32_t>(value));
     if (it != f32_const_cache_.end()) {
-      return it->second;
+      return std::optional<uint32_t>(it->second);
     }
-    return UINT_MAX;
+    return std::nullopt;
   }
-  inline uint32_t GetF64ConstSlot(double value) {
-    auto it = f64_const_cache_.find(value);
+  template <>
+  inline std::optional<uint32_t> GetConstSlot<double>(double value) {
+    auto it = f64_const_cache_.find(base::bit_cast<uint64_t>(value));
     if (it != f64_const_cache_.end()) {
-      return it->second;
+      return std::optional<uint32_t>(it->second);
     }
-    return UINT_MAX;
+    return std::nullopt;
   }
-  inline uint32_t GetS128ConstSlot(Simd128 value) {
+  template <>
+  inline std::optional<uint32_t> GetConstSlot<Simd128>(Simd128 value) {
     auto it = s128_const_cache_.find(reinterpret_cast<Simd128&>(value));
     if (it != s128_const_cache_.end()) {
-      return it->second;
+      return std::optional<uint32_t>(it->second);
     }
-    return UINT_MAX;
+    return std::nullopt;
+  }
+
+  template <typename T>
+  inline void InsertConstSlotInCache(T value, uint32_t slot_index) {
+    if constexpr (std::is_same_v<T, int32_t>) {
+      i32_const_cache_[value] = slot_index;
+    } else if constexpr (std::is_same_v<T, int64_t>) {
+      i64_const_cache_[value] = slot_index;
+    } else if constexpr (std::is_same_v<T, float>) {
+      f32_const_cache_[base::bit_cast<uint32_t>(value)] = slot_index;
+    } else if constexpr (std::is_same_v<T, double>) {
+      f64_const_cache_[base::bit_cast<uint64_t>(value)] = slot_index;
+    } else if constexpr (std::is_same_v<T, Simd128>) {
+      s128_const_cache_[value] = slot_index;
+    }
   }
 
   template <typename T>
@@ -1886,8 +1891,8 @@ class WasmBytecodeGenerator {
     if constexpr (std::is_same_v<T, WasmRef>) {
       UNREACHABLE();
     }
-    uint32_t slot_index = GetConstSlot(value);
-    if (slot_index == UINT_MAX) {
+    std::optional<uint32_t> slot_index = GetConstSlot(value);
+    if (!slot_index.has_value()) {
       uint32_t offset = const_slot_offset_ * sizeof(uint32_t);
       DCHECK_LE(offset + sizeof(T), const_slots_values_.size());
 
@@ -1898,8 +1903,11 @@ class WasmBytecodeGenerator {
           reinterpret_cast<Address>(const_slots_values_.data() + offset),
           value);
       const_slot_offset_ += sizeof(T) / kSlotSize;
+
+      // Insert into cache for deduplication of subsequent uses
+      InsertConstSlotInCache(value, slot_index.value());
     }
-    return slot_index;
+    return slot_index.value();
   }
 
   template <typename T>
@@ -2021,8 +2029,10 @@ class WasmBytecodeGenerator {
   uint32_t const_slot_offset_;
   absl::flat_hash_map<int32_t, uint32_t> i32_const_cache_;
   absl::flat_hash_map<int64_t, uint32_t> i64_const_cache_;
-  absl::flat_hash_map<float, uint32_t> f32_const_cache_;
-  absl::flat_hash_map<double, uint32_t> f64_const_cache_;
+  // Use binary representation as keys to correctly handle NaN values
+  // which have multiple bit patterns but compare equal as floats.
+  absl::flat_hash_map<uint32_t, uint32_t> f32_const_cache_;
+  absl::flat_hash_map<uint64_t, uint32_t> f64_const_cache_;
 
   struct Simd128Hash {
     size_t operator()(const Simd128& s128) const;
