@@ -162,10 +162,14 @@
       'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64_undefined_double',
       'V8 Clusterfuzz Linux64 - dumpling - release builder':
           'release_x64_dumpling',
+      'V8 Clusterfuzz Linux64 ASAN - release builder':
+          'release_x64_asan_verify_heap_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN no inline - release builder':
-          'release_x64_asan_symbolized_verify_heap_undefined_double',
+          'release_x64_asan_no_inline_verify_heap_undefined_double',
+      'V8 Clusterfuzz Linux ASAN - release builder':
+          'release_x86_asan_verify_heap_undefined_double',
       'V8 Clusterfuzz Linux ASAN no inline - release builder':
-          'release_x86_asan_symbolized_verify_heap_undefined_double',
+          'release_x86_asan_no_inline_verify_heap_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN - undefined double - debug builder': 'debug_x64_asan',
       'V8 Clusterfuzz Linux ASAN - debug builder': 'debug_x86_asan_undefined_double',
@@ -358,7 +362,6 @@
       'v8_linux_arm64_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_compile_dbg': 'debug_simulate_arm64',
       'v8_linux_mips64el_compile_rel': 'release_simulate_mips64el',
-      'v8_numfuzz_asan_compile_rel': 'release_x64_asan_symbolized_verify_heap_undefined_double',
       'v8_numfuzz_compile_rel': 'release_x64',
       'v8_numfuzz_compile_dbg': 'debug_x64',
       'v8_numfuzz_tsan_compile_rel': 'release_x64_tsan',
@@ -590,6 +593,9 @@
     'release_x64_asan_no_lsan_verify_heap_undefined_double': [
       'release_bot', 'x64', 'asan', 'v8_verify_heap',
       'v8_enable_undefined_double'],
+    'release_x64_asan_verify_heap_undefined_double': [
+      'release_bot', 'x64', 'asan', 'lsan', 'v8_verify_heap',
+      'v8_enable_undefined_double'],
     'release_x64_asan_no_lsan_verify_heap_dchecks_undefined_double': [
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap', 'v8_enable_undefined_double'],
@@ -601,8 +607,8 @@
       'release_bot', 'x64', 'asan', 'minimal_symbols', 'backtrace',
       'trace_pc_guard', 'v8_enable_memory_corruption_api',
       'v8_enable_undefined_double', 'v8_enable_fuzzilli'],
-    'release_x64_asan_symbolized_verify_heap_undefined_double': [
-      'release_bot', 'x64', 'asan', 'lsan', 'symbolized',
+    'release_x64_asan_no_inline_verify_heap_undefined_double': [
+      'release_bot', 'x64', 'asan', 'lsan', 'v8_no_inline',
       'v8_verify_heap', 'v8_enable_undefined_double'],
     'release_x64_cet_shadow_stack': [
       'release_bot', 'x64', 'cet_shadow_stack'],
@@ -766,8 +772,11 @@
       'debug', 'x86', 'remoteexec', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
-    'release_x86_asan_symbolized_verify_heap_undefined_double': [
-      'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
+    'release_x86_asan_verify_heap_undefined_double': [
+      'release_bot', 'x86', 'asan', 'lsan', 'v8_verify_heap',
+      'v8_enable_undefined_double'],
+    'release_x86_asan_no_inline_verify_heap_undefined_double': [
+      'release_bot', 'x86', 'asan', 'lsan', 'v8_no_inline',
       'v8_verify_heap', 'v8_enable_undefined_double'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
@@ -1046,11 +1055,6 @@
       'gn_args': 'is_component_build=false',
     },
 
-    # TODO(machenbach): Remove the symbolized config after the bots are gone.
-    'symbolized': {
-      'gn_args': 'v8_no_inline=true',
-    },
-
     'trace_pc_guard': {
       'gn_args': 'sanitizer_coverage_flags="trace-pc-guard" '
                  'v8_enable_partition_alloc=false',
@@ -1197,6 +1201,10 @@
 
     'v8_no_i18n': {
       'gn_args': 'v8_enable_i18n_support=false icu_use_data_file=false',
+    },
+
+    'v8_no_inline': {
+      'gn_args': 'v8_no_inline=true',
     },
 
     'v8_snapshot_custom': {
