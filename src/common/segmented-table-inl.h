@@ -61,8 +61,6 @@ Address SegmentedTable<Entry, size>::base() const {
 
 template <typename Entry, size_t size>
 void SegmentedTable<Entry, size>::Initialize() {
-  static_assert(offsetof(SegmentedTable, base_) == kBaseAddressOffset);
-
   DCHECK(!is_initialized());
   DCHECK_EQ(vas_, nullptr);
 

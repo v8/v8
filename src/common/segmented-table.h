@@ -75,8 +75,6 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   static constexpr size_t kAlignment = kSegmentSize;
   static constexpr size_t kNumReadOnlySegments = 64 * KB / kSegmentSize;
 
-  static constexpr uintptr_t kBaseAddressOffset = 0;
-
   // Struct representing a segment of the table.
   struct Segment {
    public:

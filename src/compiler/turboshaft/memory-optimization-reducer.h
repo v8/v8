@@ -443,7 +443,7 @@ class MemoryOptimizationReducer : public Next {
                     ExternalReference::external_pointer_table_address(
                         isolate_));
       table = __ LoadOffHeap(table_address,
-                             Internals::kExternalPointerTableBasePointerOffset,
+                             Internals::kExternalEntityTableBasePointerOffset,
                              MemoryRepresentation::UintPtr());
     } else {
 #if V8_ENABLE_WEBASSEMBLY
@@ -455,12 +455,12 @@ class MemoryOptimizationReducer : public Next {
                     IsolateData::shared_external_pointer_table_offset());
         table = __ Load(table_address, LoadOp::Kind::RawAligned(),
                         MemoryRepresentation::UintPtr(),
-                        Internals::kExternalPointerTableBasePointerOffset);
+                        Internals::kExternalEntityTableBasePointerOffset);
       } else {
         table = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
                         MemoryRepresentation::UintPtr(),
                         IsolateData::external_pointer_table_offset() +
-                            Internals::kExternalPointerTableBasePointerOffset);
+                            Internals::kExternalEntityTableBasePointerOffset);
       }
 #else
       UNREACHABLE();

@@ -973,16 +973,11 @@ class Internals {
       2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
   // ExternalPointerTable and TrustedPointerTable layout guarantees.
-  static const int kExternalPointerTableBasePointerOffset = 0;
+  static const int kExternalEntityTableBasePointerOffset = 0;
   static const int kSegmentedTableSegmentPoolSize = 4;
-  static const int kExternalPointerTableSize =
+  static const int kExternalEntityTableSize =
       4 * kApiSystemPointerSize +
       kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
-  static const int kTrustedPointerTableSize =
-      4 * kApiSystemPointerSize +
-      kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
-  static const int kTrustedPointerTableBasePointerOffset = 0;
-  static const int kJSDispatchTableSize = kExternalPointerTableSize;
 
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;
@@ -1026,16 +1021,16 @@ class Internals {
   static const int kIsolateExternalPointerTableOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateSharedExternalPointerTableAddressOffset =
-      kIsolateExternalPointerTableOffset + kExternalPointerTableSize;
+      kIsolateExternalPointerTableOffset + kExternalEntityTableSize;
   static const int kIsolateCppHeapPointerTableOffset =
       kIsolateSharedExternalPointerTableAddressOffset + kApiSystemPointerSize;
 #ifdef V8_ENABLE_SANDBOX
   static const int kIsolateTrustedCageBaseOffset =
-      kIsolateCppHeapPointerTableOffset + kExternalPointerTableSize;
+      kIsolateCppHeapPointerTableOffset + kExternalEntityTableSize;
   static const int kIsolateTrustedPointerTableOffset =
       kIsolateTrustedCageBaseOffset + kApiSystemPointerSize;
   static const int kIsolateSharedTrustedPointerTableAddressOffset =
-      kIsolateTrustedPointerTableOffset + kTrustedPointerTableSize;
+      kIsolateTrustedPointerTableOffset + kExternalEntityTableSize;
   static const int kIsolateTrustedPointerPublishingScopeOffset =
       kIsolateSharedTrustedPointerTableAddressOffset + kApiSystemPointerSize;
   static const int kIsolateCodePointerTableBaseAddressOffset =
@@ -1044,14 +1039,14 @@ class Internals {
       kIsolateCodePointerTableBaseAddressOffset + kApiSystemPointerSize;
 #else
   static const int kIsolateJSDispatchTableOffset =
-      kIsolateCppHeapPointerTableOffset + kExternalPointerTableSize;
+      kIsolateCppHeapPointerTableOffset + kExternalEntityTableSize;
 #endif  // V8_ENABLE_SANDBOX
 #else
   static const int kIsolateJSDispatchTableOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif  // V8_COMPRESS_POINTERS
   static const int kIsolateApiCallbackThunkArgumentOffset =
-      kIsolateJSDispatchTableOffset + kJSDispatchTableSize;
+      kIsolateJSDispatchTableOffset + kExternalEntityTableSize;
   static const int kIsolateRegexpExecVectorArgumentOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
   static const int kContinuationPreservedEmbedderDataOffset =
@@ -1340,7 +1335,7 @@ class Internals {
   V8_INLINE static Address* GetExternalPointerTableBase(v8::Isolate* isolate) {
     Address addr = reinterpret_cast<Address>(isolate) +
                    kIsolateExternalPointerTableOffset +
-                   kExternalPointerTableBasePointerOffset;
+                   kExternalEntityTableBasePointerOffset;
     return *reinterpret_cast<Address**>(addr);
   }
 
@@ -1349,7 +1344,7 @@ class Internals {
     Address addr = reinterpret_cast<Address>(isolate) +
                    kIsolateSharedExternalPointerTableAddressOffset;
     addr = *reinterpret_cast<Address*>(addr);
-    addr += kExternalPointerTableBasePointerOffset;
+    addr += kExternalEntityTableBasePointerOffset;
     return *reinterpret_cast<Address**>(addr);
   }
 #endif

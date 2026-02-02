@@ -12,7 +12,6 @@
 #include "src/runtime/runtime.h"
 #include "src/sandbox/external-entity-table.h"
 
-
 namespace v8 {
 namespace internal {
 
@@ -334,7 +333,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
   // Using `ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable)` in the
   // macro assembler to get the table's base address relies the offset being 0.
-  static_assert(JSDispatchTable::kBaseAddressOffset == 0);
+  static_assert(Internals::kExternalEntityTableBasePointerOffset == 0);
 };
 
 }  // namespace internal

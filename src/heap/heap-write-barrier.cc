@@ -156,6 +156,7 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
       isolate.GetExternalPointerTableFor(slot.tag_range());
   ExternalPointerTable::Space* space =
       isolate.GetExternalPointerTableSpaceFor(slot.tag_range(), host.address());
+  DCHECK(!space->is_internal_read_only_space());
 
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   table.Mark(space, handle, slot.address());

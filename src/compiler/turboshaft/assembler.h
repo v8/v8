@@ -2928,7 +2928,7 @@ class AssemblerOpInterface : public Next {
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
              IsolateData::trusted_pointer_table_offset() +
-                 Internals::kTrustedPointerTableBasePointerOffset);
+                 Internals::kExternalEntityTableBasePointerOffset);
     return LoadTrustedPointer(table, handle, kind.is_immutable, tag_range);
 #else
     return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),

@@ -4429,13 +4429,17 @@ Isolate::Isolate(IsolateGroup* isolate_group)
 void Isolate::CheckIsolateLayout() {
 #ifdef V8_ENABLE_SANDBOX
   static_assert(static_cast<int>(OFFSET_OF(ExternalPointerTable, base_)) ==
-                Internals::kExternalPointerTableBasePointerOffset);
+                Internals::kExternalEntityTableBasePointerOffset);
   static_assert(static_cast<int>(OFFSET_OF(TrustedPointerTable, base_)) ==
-                Internals::kTrustedPointerTableBasePointerOffset);
+                Internals::kExternalEntityTableBasePointerOffset);
+  static_assert(static_cast<int>(OFFSET_OF(JSDispatchTable, base_)) ==
+                Internals::kExternalEntityTableBasePointerOffset);
   static_assert(static_cast<int>(sizeof(ExternalPointerTable)) ==
-                Internals::kExternalPointerTableSize);
+                Internals::kExternalEntityTableSize);
   static_assert(static_cast<int>(sizeof(TrustedPointerTable)) ==
-                Internals::kTrustedPointerTableSize);
+                Internals::kExternalEntityTableSize);
+  static_assert(static_cast<int>(sizeof(JSDispatchTable)) ==
+                Internals::kExternalEntityTableSize);
 #endif
 
   static_assert(OFFSET_OF(Isolate, isolate_data_) == 0);

@@ -504,7 +504,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   LoadWord(external_table,
            MemOperand(isolate_root,
                       IsolateData::external_pointer_table_offset() +
-                          Internals::kExternalPointerTableBasePointerOffset));
+                          Internals::kExternalEntityTableBasePointerOffset));
   Lwu(destination, field_operand);
   srli(destination, destination, kExternalPointerIndexShift);
   slli(destination, destination, kExternalPointerTableEntrySizeLog2);

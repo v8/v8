@@ -207,11 +207,11 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
         Load(MachineType::Pointer(), isolate_root,
              IsolateData::shared_external_pointer_table_offset());
     table = Load(MachineType::Pointer(), table_address,
-                 Internals::kExternalPointerTableBasePointerOffset);
+                 Internals::kExternalEntityTableBasePointerOffset);
   } else {
     table = Load(MachineType::Pointer(), isolate_root,
                  IsolateData::external_pointer_table_offset() +
-                     Internals::kExternalPointerTableBasePointerOffset);
+                     Internals::kExternalEntityTableBasePointerOffset);
   }
 
   // We don't expect to see empty fields here. If this is ever needed, consider
@@ -251,7 +251,7 @@ Node* WasmGraphAssembler::BuildDecodeTrustedPointer(
       Word32Shl(index, Int32Constant(kTrustedPointerTableEntrySizeLog2)));
   Node* table = Load(MachineType::Pointer(), LoadRootRegister(),
                      IsolateData::trusted_pointer_table_offset() +
-                         Internals::kTrustedPointerTableBasePointerOffset);
+                         Internals::kExternalEntityTableBasePointerOffset);
   Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
 
   if (IsFastIndirectPointerTagRange(tag_range)) {
