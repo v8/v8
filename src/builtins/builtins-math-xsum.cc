@@ -36,9 +36,6 @@ namespace v8 {
 namespace internal {
 
 Xsum::Xsum() {
-  adds_until_propagate_ = kSmallCarryTerms;
-  inf_ = 0;
-  nan_ = 0;
   chunk_.fill(0);
 }
 
@@ -54,6 +51,7 @@ void Xsum::AddInfNan(int64_t ivalue) {
       double fltv = base::bit_cast<double>(ivalue);
       fltv = fltv - fltv;  // result will be a NaN
       inf_ = base::bit_cast<int64_t>(fltv);
+      inf_sign_change_ = true;
     }
   } else {  // NaN
     // Choose the NaN with the bigger payload and clear its sign.  Using <=
@@ -184,51 +182,6 @@ int Xsum::CarryPropagate() {
   return uix;
 }
 
-void Xsum::Add1NoCarry(double value) {
-  int64_t ivalue = base::bit_cast<int64_t>(value);
-
-  int64_t exp = (ivalue >> kMantissaBits) & kExpMask;
-  int64_t mantissa = ivalue & kMantissaMask;
-  int64_t high_exp = exp >> kLowExpBits;
-  int64_t low_exp = exp & kLowExpMask;
-
-  if (exp == 0) {
-    // Zero or denormalized.
-    if (mantissa == 0) return;
-    exp = low_exp = 1;
-  } else if (exp == kExpMask) {
-    // Inf or NaN.
-    AddInfNan(ivalue);
-    return;
-  } else {
-    // Normalized.
-    mantissa |= int64_t{1} << kMantissaBits;
-  }
-
-  auto chunk_it = chunk_.begin() + high_exp;
-
-  int64_t split_mantissa[2];
-  split_mantissa[0] =
-      (static_cast<uint64_t>(mantissa) << low_exp) & kLowMantissaMask;
-  split_mantissa[1] = mantissa >> (kLowMantissaBits - low_exp);
-
-  if (ivalue < 0) {
-    *chunk_it -= split_mantissa[0];
-    *(chunk_it + 1) -= split_mantissa[1];
-  } else {
-    *chunk_it += split_mantissa[0];
-    *(chunk_it + 1) += split_mantissa[1];
-  }
-}
-
-void Xsum::Add(double value) {
-  if (adds_until_propagate_ == 0) {
-    CarryPropagate();
-  }
-  Add1NoCarry(value);
-  adds_until_propagate_--;
-}
-
 double Xsum::Round() {
   if (nan_ != 0) {
     return base::bit_cast<double>(nan_);
@@ -353,22 +306,6 @@ double Xsum::Round() {
   intv += ivalue & kMantissaMask;
 
   return base::bit_cast<double>(intv);
-}
-
-int Xsum_Init(Address accumulator_address) {
-  new (reinterpret_cast<void*>(accumulator_address)) Xsum();
-  return 0;
-}
-
-int Xsum_Add(Address accumulator_address, double value) {
-  Xsum* xsum = reinterpret_cast<Xsum*>(accumulator_address);
-  xsum->Add(value);
-  return 0;
-}
-
-double Xsum_Round(Address accumulator_address) {
-  Xsum* xsum = reinterpret_cast<Xsum*>(accumulator_address);
-  return xsum->Round();
 }
 
 }  // namespace internal
