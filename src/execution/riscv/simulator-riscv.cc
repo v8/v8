@@ -3174,6 +3174,11 @@ using SimulatorRuntimeDirectApiCall = void (*)(sreg_t arg0);
 using SimulatorRuntimeDirectGetterCall = int64_t (*)(int64_t arg0,
                                                      int64_t arg1);
 
+// This signature supports direct call to accessor/interceptor setter callback.
+using SimulatorRuntimeDirectSetterCall = intptr_t (*)(intptr_t arg0,
+                                                      intptr_t arg1,
+                                                      intptr_t arg2);
+
 // Define four args for future flexibility; at the time of this writing only
 // one is ever used.
 using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
@@ -3503,6 +3508,24 @@ void Simulator::SoftwareInterrupt() {
         PrintF("Returned %ld\n", result);
       }
       set_register(a0, result);
+    } else if (redirection->type() == ExternalReference::DIRECT_SETTER_CALL) {
+      // void f(v8::Local<Name>, v8::Local<v8::Value>,
+      //        v8::PropertyCallbackInfo&)
+      // v8::Intercepted f(v8::Local<Name>, v8::Local<v8::Value>,
+      //                   v8::PropertyCallbackInfo&)
+      if (v8_flags.trace_sim) {
+        PrintF("Type: DIRECT_GETTER_CALL\n");
+        PrintF("Call to host function at %p args %08" REGIx_FORMAT
+               "  %08" REGIx_FORMAT "  %08" REGIx_FORMAT " \n",
+               reinterpret_cast<void*>(external), arg0, arg1, arg2);
+      }
+      SimulatorRuntimeDirectSetterCall target =
+          reinterpret_cast<SimulatorRuntimeDirectSetterCall>(external);
+      intptr_t iresult = target(arg0, arg1, arg2);
+      if (v8_flags.trace_sim) {
+        PrintF("Returned %ld\n", iresult);
+      }
+      set_register(a0, iresult);
     } else {
 #ifdef V8_TARGET_ARCH_RISCV64
       DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
