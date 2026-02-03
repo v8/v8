@@ -2422,6 +2422,8 @@ filegroup(
         "src/regexp/regexp-ast.h",
         "src/regexp/regexp-ast-printer.cc",
         "src/regexp/regexp-ast-printer.h",
+        "src/regexp/regexp-bytecode-analysis.cc",
+        "src/regexp/regexp-bytecode-analysis.h",
         "src/regexp/regexp-bytecode-generator.cc",
         "src/regexp/regexp-bytecode-generator.h",
         "src/regexp/regexp-bytecode-generator-inl.h",

@@ -152,7 +152,7 @@ struct RegExpBytecodeOperandsTraits {
 template <RegExpBytecode bc>
 struct RegExpBytecodeOperandNames;
 
-#define DECLARE_OPERAND_NAMES(CamelName, OpNames, OpTypes)                \
+#define DECLARE_OPERAND_NAMES(CamelName, OpNames, OpTypes, ...)           \
   template <>                                                             \
   struct RegExpBytecodeOperandNames<RegExpBytecode::k##CamelName> {       \
     enum class Operand { UNPAREN(OpNames) };                              \
@@ -286,7 +286,7 @@ class RegExpBytecodeOperandsBase {
 
 #define PACK_OPTIONAL(x, ...) x __VA_OPT__(, ) __VA_ARGS__
 
-#define DECLARE_OPERANDS(CamelName, OpNames, OpTypes)              \
+#define DECLARE_OPERANDS(CamelName, OpNames, OpTypes, ...)         \
   template <>                                                      \
   class RegExpBytecodeOperands<RegExpBytecode::k##CamelName> final \
       : public detail::RegExpBytecodeOperandsBase<PACK_OPTIONAL(   \
@@ -311,6 +311,12 @@ static constexpr const char* kBytecodeNames[] = {
 static constexpr uint8_t kBytecodeSizes[] = {
     REGEXP_BYTECODE_LIST(DECLARE_BYTECODE_SIZES)};
 #undef DECLARE_BYTECODE_SIZES
+
+#define DECLARE_BYTECODE_FLAGS(CamelName, OpNames, OpTypes, Flags) \
+  RegExpBytecodeFlags(UNPAREN(Flags)),
+static constexpr RegExpBytecodeFlags kBytecodeFlags[] = {
+    REGEXP_BYTECODE_LIST(DECLARE_BYTECODE_FLAGS)};
+#undef DECLARE_BYTECODE_FLAGS
 
 #define DECLARE_OPERAND_TYPE_SIZE(Name, ...) \
   RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name>::kSize,
@@ -359,6 +365,17 @@ constexpr uint8_t RegExpBytecodes::Size(uint8_t bytecode) {
 // static
 constexpr uint8_t RegExpBytecodes::Size(RegExpBytecodeOperandType type) {
   return detail::kOperandTypeSizes[static_cast<int>(type)];
+}
+
+// static
+constexpr RegExpBytecodeFlags RegExpBytecodes::Flags(RegExpBytecode bytecode) {
+  return Flags(ToByte(bytecode));
+}
+
+// static
+constexpr RegExpBytecodeFlags RegExpBytecodes::Flags(uint8_t bytecode) {
+  DCHECK_LT(bytecode, kCount);
+  return detail::kBytecodeFlags[bytecode];
 }
 
 }  // namespace internal
