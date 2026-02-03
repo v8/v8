@@ -990,7 +990,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
     PatternKind kind, DirectHandle<T> temporal) {
   // Onlt perform this check for calendared types (not Time)
   if constexpr (T::kTypeContainsCalendar) {
-    auto calendar_kind = temporal->wrapped_rust().calendar().kind();
+    auto calendar_kind = temporal->wrapped_rust()->calendar().kind();
     bool throw_mismatch_calendar = !CalendarEquals(
         calendar_kind, *(date_time_format->icu_simple_date_format()->raw()));
     if (std::is_same<T, JSTemporalPlainDateTime>::value ||
@@ -1984,7 +1984,7 @@ MaybeDirectHandle<String> JSDateTimeFormat::TemporalZonedDateTimeToLocaleString(
   // 4. If zonedDateTime.[[Calendar]] is not "iso8601" and
   // CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is
   // false, then
-  auto calendar_kind = zdt->wrapped_rust().calendar().kind();
+  auto calendar_kind = zdt->wrapped_rust()->calendar().kind();
   if (calendar_kind != temporal_rs::AnyCalendarKind::Value::Iso &&
       !CalendarEquals(calendar_kind,
                       *(date_time_format->icu_simple_date_format()->raw()))) {
