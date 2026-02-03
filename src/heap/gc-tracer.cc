@@ -992,10 +992,8 @@ void GCTracer::PrintNVP() const {
                  Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS))
           .p("scavenge.parallel",
              current_scope(Scope::SCAVENGER_SCAVENGE_PARALLEL))
-          .p("scavenge.pin_objects_conservative",
-             current_scope(Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS_CONSERVATIVE))
-          .p("scavenge.pin_objects_precise",
-             current_scope(Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS_PRECISE))
+          .p("scavenge.pin_objects",
+             current_scope(Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS))
           .p("scavenge.restore_pinned",
              current_scope(
                  Scope::SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED))
