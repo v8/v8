@@ -513,25 +513,6 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
 
   auto builtin_id = TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_);
 
-  if (builtin_id) {
-    switch (*builtin_id) {
-      // TODO(dmercadier): extend this list.
-      case Builtin::kCopyFastSmiOrObjectElements:
-        // This function just replaces the Elements array of an object.
-        // It doesn't invalidate any alias or any other memory than this
-        // Elements array.
-        TRACE(
-            ">> Call is CopyFastSmiOrObjectElements, invalidating only "
-            "Elements for "
-            << op.arguments()[0]);
-        memory_.Invalidate(op.arguments()[0], OpIndex::Invalid(),
-                           JSObject::kElementsOffset);
-        return;
-      default:
-        break;
-    }
-  }
-
   // Not a builtin call, or not a builtin that we know doesn't invalidate
   // memory.
   InvalidateAllNonAliasingInputs(op);
