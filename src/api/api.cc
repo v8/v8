@@ -8842,6 +8842,30 @@ Local<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::New(
 #endif
 }
 
+size_t WasmMemoryMapDescriptor::Map(Local<WasmMemoryObject> memory,
+                                    uint32_t offset) {
+#if V8_ENABLE_WEBASSEMBLY
+  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  return Utils::OpenDirectHandle(this)->MapDescriptor(
+      Utils::OpenDirectHandle(*memory), offset);
+#else
+  Utils::ApiCheck(false, "WasmMemoryMapDescriptor::Map",
+                  "WebAssembly support is not enabled");
+  UNREACHABLE();
+#endif
+}
+
+void WasmMemoryMapDescriptor::Unmap() {
+#if V8_ENABLE_WEBASSEMBLY
+  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  Utils::OpenDirectHandle(this)->UnmapDescriptor();
+#else
+  Utils::ApiCheck(false, "WasmMemoryMapDescriptor::Unmap",
+                  "WebAssembly support is not enabled");
+  UNREACHABLE();
+#endif
+}
+
 // static
 v8::ArrayBuffer::Allocator* v8::ArrayBuffer::Allocator::NewDefaultAllocator() {
 #ifdef V8_ENABLE_SANDBOX
