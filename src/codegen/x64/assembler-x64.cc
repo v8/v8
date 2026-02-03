@@ -1027,9 +1027,8 @@ void Assembler::ccmp_ctest_op(uint8_t op, Register dst, Operand rm,
   emit_operand(dst, rm);
 }
 
-void Assembler::immediate_ccmp_ctest_op(uint8_t subcode, Operand dst,
-                                        Immediate src, OszcFlags dcc,
-                                        Condition scc, int size) {
+void Assembler::immediate_ccmp_op(uint8_t subcode, Operand dst, Immediate src,
+                                  OszcFlags dcc, Condition scc, int size) {
   EnsureSpace ensure_space(this);
   VexW w = (size == kInt64Size) ? kW1 : kW0;
   SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
@@ -1058,9 +1057,8 @@ void Assembler::immediate_ccmp_ctest_op(uint8_t subcode, Operand dst,
   }
 }
 
-void Assembler::immediate_ccmp_ctest_op(uint8_t subcode, Register dst,
-                                        Immediate src, OszcFlags dcc,
-                                        Condition scc, int size) {
+void Assembler::immediate_ccmp_op(uint8_t subcode, Register dst, Immediate src,
+                                  OszcFlags dcc, Condition scc, int size) {
   EnsureSpace ensure_space(this);
   VexW w = (size == kInt64Size) ? kW1 : kW0;
   SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
@@ -1085,6 +1083,54 @@ void Assembler::immediate_ccmp_ctest_op(uint8_t subcode, Register dst,
       } else {
         emit(src);
       }
+    }
+  }
+}
+
+void Assembler::immediate_ctest_op(uint8_t subcode, Operand dst, Immediate src,
+                                   OszcFlags dcc, Condition scc, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  Register tmp = Register::from_code(0);
+  emit_legacy_extended_evex_prefix_ccmp_ctest(tmp, dst, pp, w, dcc, scc);
+  if (size == kInt8Size) {
+    DCHECK(is_uint8(src.value_) || is_int8(src.value_));
+    DCHECK(RelocInfo::IsNoInfo(src.rmode_));
+    emit(0xF6);
+    emit_operand(subcode, dst);
+    emit(src.value_);
+  } else {
+    emit(0xF7);
+    emit_operand(subcode, dst);
+    if (size == kInt16Size) {
+      emitw(src.value_);
+    } else {
+      emit(src);
+    }
+  }
+}
+
+void Assembler::immediate_ctest_op(uint8_t subcode, Register dst, Immediate src,
+                                   OszcFlags dcc, Condition scc, int size) {
+  EnsureSpace ensure_space(this);
+  VexW w = (size == kInt64Size) ? kW1 : kW0;
+  SIMDPrefix pp = (size == kInt16Size) ? k66 : kNoPrefix;
+  Register tmp = Register::from_code(0);
+  emit_legacy_extended_evex_prefix_ccmp_ctest(tmp, dst, pp, w, dcc, scc);
+  if (size == kInt8Size) {
+    DCHECK(is_uint8(src.value_) || is_int8(src.value_));
+    DCHECK(RelocInfo::IsNoInfo(src.rmode_));
+    emit(0xF6);
+    emit_modrm(subcode, dst);
+    emit(src.value_);
+  } else {
+    emit(0xF7);
+    emit_modrm(subcode, dst);
+    if (size == kInt16Size) {
+      emitw(src.value_);
+    } else {
+      emit(src);
     }
   }
 }

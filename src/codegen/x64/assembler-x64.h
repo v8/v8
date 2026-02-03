@@ -2897,10 +2897,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                      Condition scc, int size);
   void ccmp_ctest_op(uint8_t opcode, Register dst, Operand rm, OszcFlags dcc,
                      Condition scc, int size);
-  void immediate_ccmp_ctest_op(uint8_t subcode, Register dst, Immediate src,
-                               OszcFlags dcc, Condition scc, int size);
-  void immediate_ccmp_ctest_op(uint8_t subcode, Operand dst, Immediate src,
-                               OszcFlags dcc, Condition scc, int size);
+  void immediate_ccmp_op(uint8_t subcode, Register dst, Immediate src,
+                         OszcFlags dcc, Condition scc, int size);
+  void immediate_ccmp_op(uint8_t subcode, Operand dst, Immediate src,
+                         OszcFlags dcc, Condition scc, int size);
+  void immediate_ctest_op(uint8_t subcode, Register dst, Immediate src,
+                          OszcFlags dcc, Condition scc, int size);
+  void immediate_ctest_op(uint8_t subcode, Operand dst, Immediate src,
+                          OszcFlags dcc, Condition scc, int size);
 #endif  // V8_ENABLE_APX_F
 
   // Emit machine code for a shift operation.
@@ -3061,12 +3065,41 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void emit_ccmp(Register dst, Immediate src, OszcFlags dcc, Condition scc,
                  int size) {
-    immediate_ccmp_ctest_op(0x7, dst, src, dcc, scc, size);
+    immediate_ccmp_op(0x7, dst, src, dcc, scc, size);
   }
 
   void emit_ccmp(Operand dst, Immediate src, OszcFlags dcc, Condition scc,
                  int size) {
-    immediate_ccmp_ctest_op(0x7, dst, src, dcc, scc, size);
+    immediate_ccmp_op(0x7, dst, src, dcc, scc, size);
+  }
+
+  // Conditional test
+  void emit_ctest(Register dst, Register rm, OszcFlags dcc, Condition scc,
+                  int size) {
+    if (size == kInt8Size) {
+      ccmp_ctest_op(0x84, dst, rm, dcc, scc, size);
+    } else {
+      ccmp_ctest_op(0x85, dst, rm, dcc, scc, size);
+    }
+  }
+
+  void emit_ctest(Operand dst, Register src, OszcFlags dcc, Condition scc,
+                  int size) {
+    if (size == kInt8Size) {
+      ccmp_ctest_op(0x84, src, dst, dcc, scc, size);
+    } else {
+      ccmp_ctest_op(0x85, src, dst, dcc, scc, size);
+    }
+  }
+
+  void emit_ctest(Register dst, Immediate src, OszcFlags dcc, Condition scc,
+                  int size) {
+    immediate_ctest_op(0x0, dst, src, dcc, scc, size);
+  }
+
+  void emit_ctest(Operand dst, Immediate src, OszcFlags dcc, Condition scc,
+                  int size) {
+    immediate_ctest_op(0x0, dst, src, dcc, scc, size);
   }
 #endif  // V8_ENABLE_APX_F
 
