@@ -474,6 +474,10 @@ void HeapObjectFuzzingPrint(Tagged<HeapObject> obj, int depth,
       os << "<ScriptType>";
       break;
     }
+    case FEEDBACK_VECTOR_TYPE: {
+      os << "<FeedbackVector[" << Cast<FeedbackVector>(obj)->length() << "]>";
+      break;
+    }
     default:
       // TODO(mdanylo): add more cases after a test run with Fuzzilli
       FATAL("Unexpected value in switch: %s\n",
