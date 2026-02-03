@@ -258,18 +258,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
       zone(), caller_unit, shared, call_site->feedback_cell);
 
-  if (is_small) {
-    TRACE("> Adding to small budget: " << call_site->bytecode_length
-                                       << " bytes");
-    graph_->add_inlined_bytecode_size_small(call_site->bytecode_length);
-    TRACE(">> used small budget: "
-          << graph_->total_inlined_bytecode_size_small());
-  } else {
-    TRACE("> Adding to regular budget: " << call_site->bytecode_length
-                                         << " bytes");
-    graph_->add_inlined_bytecode_size(call_site->bytecode_length);
-    TRACE(">> used regular budget: " << graph_->total_inlined_bytecode_size());
-  }
+  const int start_node_count = graph_->total_nodes();
 
   // This can be invalidated by a previous inlining and it was not propagated to
   // this node.
@@ -347,6 +336,35 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   DCHECK_NOT_NULL(final_block);
   final_block->exception_handlers().Append(
       std::move(rem_handlers_in_call_block));
+
+  // Budget accounting. We distinguish between small and regular function
+  // inlining budgets, where the small budget is
+  // essentially unlimited, while resources in the regular budget are scarce.
+  //
+  // Functions are "small" depending on their bytecode length
+  // (`is_small`); additionally, they may be "small" if the generated graph
+  // contains few nodes (`is_small_graph`).
+  //
+  // Note that `is_small_graph` may disagree with `is_small`, and thus
+  // accounting may use a different budget than the entry checks (ie whether
+  // the function should be inlined). These discrepancies are okay - the intent
+  // is that `is_small_graph` functions do not consume scarce regular budget
+  // resources.
+  const int generated_node_count = graph_->total_nodes() - start_node_count;
+  const int bytecode_length = call_site->bytecode_length;
+  const bool is_small_graph =
+      generated_node_count <= v8_flags.maglev_max_small_graph_size;
+  if (is_small || is_small_graph) {
+    graph_->add_inlined_bytecode_size_small(bytecode_length);
+    TRACE("> generated " << generated_node_count << " nodes. small_budget += "
+                         << bytecode_length << " ~~> "
+                         << graph_->total_inlined_bytecode_size_small());
+  } else {
+    graph_->add_inlined_bytecode_size(bytecode_length);
+    TRACE("> generated " << generated_node_count
+                         << " nodes. regular_budget += " << bytecode_length
+                         << " ~~> " << graph_->total_inlined_bytecode_size());
+  }
 
   // Update the predecessor of the successors of the {final_block}, that were
   // previously pointing to {call_block}.

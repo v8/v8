@@ -150,6 +150,9 @@ class Graph final : public ZoneObject {
     total_peeled_bytecode_size_ += size;
   }
 
+  int total_nodes() const { return total_nodes_; }
+  void increment_total_nodes() { total_nodes_++; }
+
   compiler::ZoneRefMap<compiler::HeapObjectRef, Constant*>& constants() {
     return constants_;
   }
@@ -371,6 +374,7 @@ class Graph final : public ZoneObject {
   int total_inlined_bytecode_size_ = 0;
   int total_inlined_bytecode_size_small_ = 0;
   int total_peeled_bytecode_size_ = 0;
+  int total_nodes_ = 0;
   uint32_t object_ids_ = 0;
   bool has_resumable_generator_ = false;
   bool may_have_unreachable_blocks_ = false;

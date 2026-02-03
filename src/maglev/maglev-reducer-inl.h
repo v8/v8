@@ -252,6 +252,7 @@ template <typename BaseT>
 void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
   // VirtualObjects should never be add to the Maglev graph.
   DCHECK(!node->Is<VirtualObject>());
+  graph_->increment_total_nodes();
   if (current_block_position_.is_at_end()) {
     if (V8_UNLIKELY(add_new_node_mode_ == AddNewNodeMode::kUnbuffered)) {
       current_block_->nodes().push_back(node);

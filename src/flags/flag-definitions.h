@@ -635,6 +635,9 @@ DEFINE_BOOL_READONLY(
     "make OptimizeFunctionOnNextCall optimize to maglev instead of turbofan")
 #endif  //  V8_ENABLE_MAGLEV
 
+DEFINE_INT(maglev_max_small_graph_size, 10,
+           "max inlined maglev graph size that counts as a small function")
+
 DEFINE_BOOL(maglev_as_top_tier, false,
             "disable Turbofan/Turbolev, make Maglev optimize more aggressively")
 DEFINE_IMPLICATION(maglev_as_top_tier, maglev)
