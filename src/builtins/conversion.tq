@@ -83,7 +83,7 @@ struct ToBooleanForBaselineJumpResult {
 builtin ToBooleanForBaselineJump(input: JSAny):
     ToBooleanForBaselineJumpResult {
   try {
-    BranchIfToBooleanIsTrue(input) otherwise IsTrue, IsFalse;
+    BranchIfToBooleanIsTrue(input, V8_STATIC_ROOTS) otherwise IsTrue, IsFalse;
   } label IsTrue {
     return ToBooleanForBaselineJumpResult{value: input, is_to_boolean: 1};
   } label IsFalse {

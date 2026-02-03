@@ -353,6 +353,8 @@ const kHeapObjectTag: constexpr int31 generates 'kHeapObjectTag';
 const V8_INFINITY: constexpr float64 generates 'V8_INFINITY';
 const MINUS_V8_INFINITY: constexpr float64 generates '-V8_INFINITY';
 
+const V8_STATIC_ROOTS: constexpr bool generates 'V8_STATIC_ROOTS_BOOL';
+
 extern enum ElementsKind extends int32 {
   NO_ELEMENTS,
 
@@ -1662,6 +1664,8 @@ macro IsForceSlowPath(): bool {
 }
 
 extern macro BranchIfToBooleanIsTrue(JSAny): never
+    labels Taken, NotTaken;
+extern macro BranchIfToBooleanIsTrue(JSAny, constexpr bool): never
     labels Taken, NotTaken;
 extern macro BranchIfToBooleanIsFalse(JSAny): never
     labels Taken, NotTaken;
