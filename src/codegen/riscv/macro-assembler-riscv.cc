@@ -6782,9 +6782,10 @@ void MacroAssembler::EnterFrame(StackFrame::Type type, ShadowStackStatus ss) {
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   ASM_CODE_COMMENT(this);
-  AddWord(sp, fp, 2 * kSystemPointerSize);
+  Move(sp, fp);
   LoadWord(ra, MemOperand(fp, 1 * kSystemPointerSize));
   LoadWord(fp, MemOperand(fp, 0 * kSystemPointerSize));
+  AddWord(sp, sp, 2 * kSystemPointerSize);
 #ifdef V8_ENABLE_RISCV_SHADOW_STACK
   sspopchk_ra();
 #endif
