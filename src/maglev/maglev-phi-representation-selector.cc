@@ -277,7 +277,10 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
                                         : ProcessPhiResult::kNone;
 
   UseRepresentationSet use_reprs;
-  if (node->is_loop_phi() && !node->same_loop_use_repr_hints().empty()) {
+  // Since TruncatedInt32 is not reversible, we should always consider all uses.
+  if (node->is_loop_phi() && !node->same_loop_use_repr_hints().empty() &&
+      !node->same_loop_use_repr_hints().contains_only(
+          UseRepresentation::kTruncatedInt32)) {
     // {node} is a loop phi that has uses inside the loop; we will tag/untag
     // based on those uses, ignoring uses after the loop.
     use_reprs = node->same_loop_use_repr_hints();
