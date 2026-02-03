@@ -722,8 +722,13 @@ class RootsTable {
   friend class RootsSerializer;
 };
 
-inline ReadOnlyRoots GetReadOnlyRoots();
+#ifdef V8_STATIC_ROOTS
+#define V8_RO_CONST V8_CONST
+#else
+#define V8_RO_CONST
+#endif
 
+V8_RO_CONST inline ReadOnlyRoots GetReadOnlyRoots();
 class ReadOnlyRoots {
  public:
   static constexpr size_t kEntriesCount =
@@ -737,9 +742,9 @@ class ReadOnlyRoots {
   // map-word instead of a tagged heap pointer.
   MapWord one_pointer_filler_map_word();
 
-#define ROOT_ACCESSOR(Type, name, CamelName) \
-  V8_INLINE Tagged<Type> name() const;       \
-  V8_INLINE Tagged<Type> unchecked_##name() const;
+#define ROOT_ACCESSOR(Type, name, CamelName)       \
+  V8_RO_CONST V8_INLINE Tagged<Type> name() const; \
+  V8_RO_CONST V8_INLINE Tagged<Type> unchecked_##name() const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
@@ -751,12 +756,12 @@ class ReadOnlyRoots {
   void VerifyTypes();
 #endif
 
-  V8_INLINE Tagged<Boolean> boolean_value(bool value) const;
+  V8_RO_CONST V8_INLINE Tagged<Boolean> boolean_value(bool value) const;
 
-  V8_INLINE Tagged<String> single_character_string(int code) const;
+  V8_RO_CONST V8_INLINE Tagged<String> single_character_string(int code) const;
 
-  V8_INLINE Address address_at(RootIndex root_index) const;
-  V8_INLINE Tagged<Object> object_at(RootIndex root_index) const;
+  V8_RO_CONST V8_INLINE Address address_at(RootIndex root_index) const;
+  V8_RO_CONST V8_INLINE Tagged<Object> object_at(RootIndex root_index) const;
 
   // Check if a slot is initialized yet. Should only be necessary for code
   // running during snapshot creation.
