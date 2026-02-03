@@ -2035,8 +2035,11 @@ using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(int64_t arg0);
 
-// This signature supports direct call to accessor getter callback.
-using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
+// This signature supports direct call to accessor/interceptor getter callback.
+// Using v8::Local<v8::Name> instead of int64_t as a first argument type fixes
+// MSAN false positive report when using the value in the callback.
+using SimulatorRuntimeDirectGetterCall = int64_t (*)(v8::Local<v8::Name> arg0,
+                                                     int64_t arg1);
 
 using MixedRuntimeCall_0 = AnyCType (*)();
 
@@ -2347,7 +2350,8 @@ void Simulator::SoftwareInterrupt() {
       }
       SimulatorRuntimeDirectGetterCall target =
           reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-      target(arg0, arg1);
+      int64_t iresult = target(base::bit_cast<v8::Local<v8::Name>>(arg0), arg1);
+      set_register(v0, static_cast<int64_t>(iresult));
     } else {
       DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
              redirection->type() == ExternalReference::BUILTIN_CALL_PAIR);
