@@ -6494,8 +6494,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   MemOperand level_mem_op = __ AsMemOperand(IsolateFieldId::kHandleScopeLevel);
 
   Register return_value = v0;
-  Register scratch = a4;
-  Register scratch2 = a5;
+  Register scratch = a5;
+  Register scratch2 = a6;
 
   // Allocate HandleScope in callee-saved registers.
   // We will need to restore the HandleScope after the call to the API function,
@@ -6508,7 +6508,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   // this function must not corrupt them (return_value overlaps with
   // kCArgRegs[0] but that's ok because we start using it only after the C
   // call).
-  DCHECK(!AreAliased(kCArgRegs[0], kCArgRegs[1],  // C args
+  DCHECK(!AreAliased(kCArgRegs[0], kCArgRegs[1], kCArgRegs[2],  // C args
                      scratch, scratch2, prev_next_address_reg, prev_limit_reg));
   // function_address and thunk_arg might overlap but this function must not
   // corrupt them until the call is made (i.e. overlap with return_value is
