@@ -243,8 +243,16 @@ void VisitRRI(InstructionSelector* selector, InstructionCode opcode,
               OpIndex node) {
   Arm64OperandGenerator g(selector);
   const Simd128ExtractLaneOp& op = selector->Cast<Simd128ExtractLaneOp>(node);
-  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()),
-                 g.UseImmediate(op.lane));
+  if (op.lane == 0 && selector->CanCover(node, op.input()) &&
+      (op.kind == Simd128ExtractLaneOp::Kind::kF32x4 ||
+       op.kind == Simd128ExtractLaneOp::Kind::kF64x2)) {
+    // Lane 0 of a Neon register is aliased by scalar S and D registers.
+    selector->Emit(kArchNop, g.DefineSameAsFirst(node),
+                   g.UseRegister(op.input()));
+  } else {
+    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()),
+                   g.UseImmediate(op.lane));
+  }
 }
 
 void VisitRRIR(InstructionSelector* selector, InstructionCode opcode,

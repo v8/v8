@@ -2904,6 +2904,51 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, ExtractLaneZero) {
+  {
+    StreamBuilder m(this, MachineType::Float32(), MachineType::Simd128());
+    m.Return(m.F16x8ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Float32(), MachineType::Simd128());
+    m.Return(m.F32x4ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(0U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Float64(), MachineType::Simd128());
+    m.Return(m.F64x2ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(0U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    m.Return(m.I8x16UExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    m.Return(m.I16x8SExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
+    m.Return(m.I32x4ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Simd128());
+    m.Return(m.I64x2ExtractLane(m.Parameter(0), 0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+  }
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, I32x4AddPairwise) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128(),
                   MachineType::Simd128());
