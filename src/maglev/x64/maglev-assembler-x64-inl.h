@@ -551,6 +551,10 @@ inline void MaglevAssembler::AddInt32(Register reg, int amount) {
   addl(reg, Immediate(amount));
 }
 
+inline void MaglevAssembler::AddInt32(Register reg, Register other) {
+  addl(reg, other);
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   andl(reg, Immediate(mask));
 }

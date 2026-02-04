@@ -84,6 +84,12 @@ inline void UseFixed(Input input, DoubleRegister reg) {
       compiler::UnallocatedOperand::FIXED_FP_REGISTER, reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
 }
+inline void UseAndClobberFixed(Input input, Register reg) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
+      compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
+  input.node()->SetHint(input.operand());
+}
 
 CallKnownJSFunction::CallKnownJSFunction(
     uint64_t bitfield, JSDispatchHandle dispatch_handle,

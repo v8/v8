@@ -9744,7 +9744,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeSlice(
                                  {receiver_length, GetInt32Constant(1)}));
           return AddNewNode<StringAt>({receiver, index_last});
         });
-  } else if (args.count() == 2 && is_turbolev()) {
+  } else if (args.count() == 2) {
     // These will deopt if the argument is not an Int32; CanSpeculateCall above
     // is needed for avoiding deopt loops.
     ValueNode* start_index;

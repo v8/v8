@@ -743,6 +743,10 @@ inline void MaglevAssembler::AddInt32(Register reg, int amount) {
   Add32(reg, reg, Operand(amount));
 }
 
+inline void MaglevAssembler::AddInt32(Register reg, Register other) {
+  Add32(reg, reg, other);
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   // check if size of immediate exceeds 32 bits
   if constexpr (sizeof(intptr_t) > sizeof(mask)) {

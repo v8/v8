@@ -197,7 +197,6 @@ class ExceptionHandlerInfo;
   V(MapPrototypeGet)                \
   V(MapPrototypeGetInt32Key)        \
   V(SetPrototypeHas)                \
-  V(StringSlice)                    \
   V(ObjectIsArray)
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) \
@@ -382,6 +381,7 @@ class ExceptionHandlerInfo;
   V(VirtualObject)                                                    \
   V(GetContinuationPreservedEmbedderData)                             \
   V(ReturnedValue)                                                    \
+  V(StringSlice)                                                      \
   CONSTANT_VALUE_NODE_LIST(V)                                         \
   CONVERSION_NODE_LIST(V)                                             \
   INT32_OPERATIONS_NODE_LIST(V)                                       \
@@ -7576,10 +7576,7 @@ class StringSlice : public FixedInputValueNodeT<3, StringSlice> {
       OpProperties::Call() | OpProperties::CanAllocate() |
       OpProperties::CanRead() | OpProperties::TaggedValue();
 
-  int MaxCallStackArgs() const {
-    // Only implemented in Turbolev.
-    UNREACHABLE();
-  }
+  int MaxCallStackArgs() const { return 0; }
 
   DECLARE_INPUTS(String, StartIndex, EndIndex)
   DECLARE_INPUT_TYPES(Tagged, Int32, Int32)

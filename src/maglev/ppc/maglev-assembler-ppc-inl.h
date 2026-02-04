@@ -560,6 +560,10 @@ inline void MaglevAssembler::AddInt32(Register reg, int amount) {
   AddS32(reg, reg, Operand(amount), r0);
 }
 
+inline void MaglevAssembler::AddInt32(Register reg, Register other) {
+  AddS32(reg, reg, other, r0);
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   AndU32(reg, reg, Operand(mask), r0);
 }
