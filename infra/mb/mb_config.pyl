@@ -189,8 +189,12 @@
           'release_x64_ubsan_recover_undefined_double',
       'V8 Clusterfuzz Linux64 sandbox testing - release builder':
           'release_x64_sandbox_testing_undefined_double',
+      'V8 Clusterfuzz Linux64 fuzzilli sandbox testing - release builder':
+          'release_x64_fuzzilli_sandbox_testing_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder':
           'release_x64_asan_sandbox_testing_undefined_double',
+      'V8 Clusterfuzz Linux64 ASAN fuzzilli sandbox testing - release builder':
+          'release_x64_asan_fuzzilli_sandbox_testing_undefined_double',
     },
     'client.v8.perf' : {
       # Arm
@@ -312,7 +316,9 @@
       'v8_linux64_verify_csa_compile_rel': 'release_x64_verify_csa',
       'v8_linux64_asan_compile_rel': 'release_x64_asan_minimal_symbols',
       'v8_linux64_sandbox_testing_compile_rel': 'release_x64_sandbox_testing_undefined_double',
+      'v8_linux64_fuzzilli_sandbox_testing_compile_rel': 'release_x64_fuzzilli_sandbox_testing_undefined_double',
       'v8_linux64_asan_sandbox_testing_compile_rel': 'release_x64_asan_sandbox_testing_undefined_double',
+      'v8_linux64_asan_fuzzilli_sandbox_testing_compile_rel': 'release_x64_asan_fuzzilli_sandbox_testing_undefined_double',
       'v8_linux64_cfi_compile_rel': 'release_x64_cfi',
       'v8_linux64_fuzzilli_compile_rel': 'release_x64_fuzzilli',
       'v8_linux64_loong64_compile_rel': 'release_simulate_loong64',
@@ -600,10 +606,16 @@
       'release_bot', 'x64', 'asan', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_heap', 'v8_enable_undefined_double'],
     'release_x64_sandbox_testing_undefined_double': [
+      'release_bot', 'x64', 'backtrace', 'v8_enable_memory_corruption_api',
+      'v8_enable_undefined_double'],
+    'release_x64_fuzzilli_sandbox_testing_undefined_double': [
       'release_bot', 'x64', 'backtrace', 'trace_pc_guard',
       'v8_enable_memory_corruption_api', 'v8_enable_undefined_double',
       'v8_enable_fuzzilli'],
     'release_x64_asan_sandbox_testing_undefined_double': [
+      'release_bot', 'x64', 'asan', 'minimal_symbols', 'backtrace',
+      'v8_enable_memory_corruption_api', 'v8_enable_undefined_double'],
+    'release_x64_asan_fuzzilli_sandbox_testing_undefined_double': [
       'release_bot', 'x64', 'asan', 'minimal_symbols', 'backtrace',
       'trace_pc_guard', 'v8_enable_memory_corruption_api',
       'v8_enable_undefined_double', 'v8_enable_fuzzilli'],

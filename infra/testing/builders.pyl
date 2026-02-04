@@ -356,6 +356,15 @@
       {'name': 'v8testing', 'variant': 'slow_path'},
     ],
   },
+  'v8_linux64_asan_sandbox_testing_rel': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'mjsunit', 'variant': 'default'},
+    ],
+  },
   'v8_linux64_cfi_rel': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-22.04',
@@ -1962,6 +1971,18 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 4},
+    ],
+  },
+  'V8 Linux64 ASAN - sandbox testing': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Ubuntu-22.04',
+    },
+    'swarming_task_attrs': {
+      'priority': 25,
+    },
+    'tests': [
+      {'name': 'mjsunit', 'variant': 'default'},
     ],
   },
   'V8 Linux64 - sandbox testing': {
