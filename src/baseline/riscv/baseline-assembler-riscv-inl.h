@@ -9,6 +9,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/oddball.h"
 namespace v8 {
 namespace internal {
 namespace baseline {
@@ -172,6 +173,36 @@ void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
   __ AssertSmi(rhs);
   __ CompareTaggedAndBranch(target, cc, lhs, Operand(rhs));
 }
+
+#ifdef V8_STATIC_ROOTS
+void BaselineAssembler::JumpIfStaticRootToBoolean(
+    Register value, Label* true_target, Label::Distance true_distance,
+    Label* false_target, Label::Distance false_distance) {
+  static_assert(StaticReadOnlyRoot::kFirstAllocatedRoot ==
+                StaticReadOnlyRoot::kUndefinedValue);
+  static_assert(StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined) ==
+                StaticReadOnlyRoot::kNullValue);
+  static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
+                StaticReadOnlyRoot::kempty_string);
+  static_assert(StaticReadOnlyRoot::kempty_string +
+                    SeqOneByteString::SizeFor(0) ==
+                StaticReadOnlyRoot::kFalseValue);
+  static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
+                StaticReadOnlyRoot::kTrueValue);
+  // Smi zero is falsey.
+  __ CompareTaggedAndBranch(false_target, kEqual, value, Operand(Smi::zero()));
+  // Other Smis are true.
+  __ JumpIfSmi(value, true_target);
+  // The falsey static roots are at the start of the cage, just before the true
+  // value.
+  __ CompareTaggedAndBranch(false_target, kUnsignedLessThan, value,
+                            Operand(StaticReadOnlyRoot::kTrueValue));
+  __ CompareTaggedAndBranch(true_target, kEqual, value,
+                            Operand(StaticReadOnlyRoot::kTrueValue));
+  // Fallthrough for more complex cases.
+}
+#endif
+
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance distance) {
