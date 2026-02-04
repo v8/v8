@@ -3004,6 +3004,7 @@ bool Simulator::ProbeMemory(uintptr_t address, uintptr_t access_size) {
 // load/store (e.g., trapping)
 template <typename T>
 T Simulator::ReadMem(sreg_t addr, Instruction* instr) {
+  CheckMemoryAccess(addr, get_register(sp));
   if (addr >= 0 && addr < 0x400) {
     // This has to be a nullptr-dereference, drop into debugger.
     PrintF("Memory read from bad address: 0x%08" REGIx_FORMAT
@@ -3026,6 +3027,7 @@ T Simulator::ReadMem(sreg_t addr, Instruction* instr) {
 
 template <typename T>
 void Simulator::WriteMem(sreg_t addr, T value, Instruction* instr) {
+  CheckMemoryAccess(addr, get_register(sp));
   if (addr >= 0 && addr < 0x400) {
     // This has to be a nullptr-dereference, drop into debugger.
     PrintF("Memory write to bad address: 0x%08" REGIx_FORMAT
@@ -8937,6 +8939,19 @@ void Simulator::DoSwitchStackLimit(Instruction* instr) {
   // {stack_limit_} will be shortened by kAdditionalStackMargin yielding
   // positive feedback loop.
   stack_limit_ = static_cast<uintptr_t>(stack_limit - kAdditionalStackMargin);
+}
+
+void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
+  if ((address >= stack_limit_) && (address < stack)) {
+    PrintF("ACCESS BELOW STACK POINTER:\n");
+    PrintF("  sp is here:          0x%016" PRIx64 "\n",
+           static_cast<uint64_t>(stack));
+    PrintF("  access was here:     0x%016" PRIx64 "\n",
+           static_cast<uint64_t>(address));
+    PrintF("  stack limit is here: 0x%016" PRIx64 "\n",
+           static_cast<uint64_t>(stack_limit_));
+    FATAL("ACCESS BELOW STACK POINTER");
+  }
 }
 
 }  // namespace internal

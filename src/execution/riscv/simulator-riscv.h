@@ -693,6 +693,7 @@ class Simulator : public SimulatorBase {
   template <typename T, typename OP>
   void AtomicMemoryHelper(sreg_t rs1, T value, OP f, Instruction* instr);
 
+  void CheckMemoryAccess(uintptr_t address, uintptr_t stack);
   // "Probe" if an address range can be read. This is currently implemented
   // by doing a 1-byte read of the last accessed byte, since the assumption is
   // that if the last byte is accessible, also all lower bytes are accessible

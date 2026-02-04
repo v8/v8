@@ -128,8 +128,9 @@ TEST_F(SimpleRISCV64Test, RISCV_SIMPLE3) {
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  __ sb(a0, sp, -4);
-  __ lb(a0, sp, -4);
+  __ addi(sp, sp, -4);
+  __ sb(a0, sp, 4);
+  __ lb(a0, sp, 4);
   __ jr(ra);
 
   CodeDesc desc;

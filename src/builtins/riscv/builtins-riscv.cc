@@ -3503,6 +3503,13 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // Retrieve the handler context, SP and FP.
   __ LoadWord(cp, __ AsMemOperand(IsolateFieldId::kPendingHandlerContext));
   __ LoadWord(sp, __ AsMemOperand(IsolateFieldId::kPendingHandlerSP));
+  if (masm->options().enable_simulator_code) {
+    // Update the simulator stack limit in case the exception was caught in a
+    // different stack.
+    __ RecordComment("-- Set simulator stack limit --");
+    __ LoadStackLimit(kSimulatorBreakArgument, StackLimitKind::kRealStackLimit);
+    __ break_(kExceptionIsSwitchStackLimit, false);
+  }
   __ LoadWord(fp, __ AsMemOperand(IsolateFieldId::kPendingHandlerFP));
 
   // If the handler is a JS frame, restore the context to the frame. Note that
