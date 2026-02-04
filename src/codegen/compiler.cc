@@ -2455,6 +2455,13 @@ void BackgroundMergeTask::BeginMergeInBackground(
     }
 
     if (maybe_old_info.IsWeak()) {
+      Tagged<SharedFunctionInfo> sfi;
+      if (TryCast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak(),
+                                      &sfi)) {
+        if (sfi->scope_info()->IsEmpty()) {
+          sfis_without_scope_info_.insert(i);
+        }
+      }
       forwarder.RecordScopeInfos(maybe_old_info);
       // If the old script has a SFI, point to it from the new script to
       // indicate we've already seen it and we'll reuse it if necessary (if
@@ -2508,10 +2515,19 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   // script's SFI's outer scope infos need to be used by the new script's outer
   // SFIs.
   for (int i = 0; i < old_script->infos()->length(); ++i) {
+    DisallowGarbageCollection no_gc;
     Tagged<MaybeObject> maybe_old_info = old_script->infos()->get(i);
     Tagged<MaybeObject> maybe_new_info = new_script->infos()->get(i);
-    if (maybe_new_info == maybe_old_info) continue;
-    DisallowGarbageCollection no_gc;
+    if (maybe_new_info == maybe_old_info) {
+      if (sfis_without_scope_info_.contains(i)) {
+        Tagged<SharedFunctionInfo> sfi =
+            Cast<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak());
+        if (!sfi->scope_info()->IsEmpty()) {
+          forwarder.RecordScopeInfos(sfi);
+        }
+      }
+      continue;
+    }
     if (maybe_old_info.IsWeak()) {
       if (Is<SharedFunctionInfo>(maybe_old_info.GetHeapObjectAssumeWeak())) {
         forwarder.set_has_shared_function_info_to_forward();
