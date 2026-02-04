@@ -69,6 +69,7 @@ struct CompilationFlags {
   const bool trace_inlining;
   const bool is_non_eager_inlining_enabled;
   const bool is_inline_api_calls_enabled;
+  const int max_eager_inlined_bytecode;
   const int max_inlined_bytecode_size;
   const int max_inlined_bytecode_size_small;
   const int max_inlined_bytecode_size_small_with_heapnum_in_out;
@@ -84,6 +85,7 @@ struct CompilationFlags {
         v8_flags.trace_maglev_inlining,
         v8_flags.maglev_non_eager_inlining,
         v8_flags.maglev_inline_api_calls,
+        v8_flags.max_maglev_eager_inlined_bytecode_size,
         v8_flags.max_maglev_inlined_bytecode_size,
         v8_flags.max_maglev_inlined_bytecode_size_small,
         v8_flags.max_maglev_inlined_bytecode_size_small_with_heapnum_in_out,
@@ -105,6 +107,7 @@ struct CompilationFlags {
         // TODO(victorgomes): Inline API calls are still not supported by
         // Turbolev.
         /* is_inline_api_calls_enabled */ false,
+        v8_flags.max_turbolev_eager_inlined_bytecode_size,
         v8_flags.max_inlined_bytecode_size,
         v8_flags.max_inlined_bytecode_size_small,
         v8_flags.max_inlined_bytecode_size_small_with_heapnum_in_out,

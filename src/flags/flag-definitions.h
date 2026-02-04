@@ -1542,6 +1542,14 @@ DEFINE_BOOL(turbo_inline_array_builtins, true,
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
 DEFINE_BOOL(maglev_osr, true, "use maglev as on-stack replacement target")
 
+// Threshold to determine if a function is eager or non-eager inlined. Separate
+// cumulative budgets (small vs. large) still apply regardless of the inlining
+// type.
+DEFINE_INT(max_maglev_eager_inlined_bytecode_size, 30,
+           "maximum size of bytecode considered for eager inlining")
+DEFINE_INT(max_turbolev_eager_inlined_bytecode_size, 30,
+           "maximum size of bytecode considered for eager inlining")
+
 // When using maglev as OSR target allow us to tier up further
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_osr, osr_from_maglev, true)
 DEFINE_VALUE_IMPLICATION(!use_osr, maglev_osr, false)

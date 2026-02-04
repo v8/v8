@@ -64,6 +64,7 @@ struct MaglevCallerDetails {
   int loop_depth;
   int peeled_iteration_count;
   bool is_eager_inline;
+  bool is_small_function;
   float call_frequency;
   InliningTreeDebugInfo* parent_inlining_tree_debug_info;
 };
@@ -989,8 +990,8 @@ class MaglevGraphBuilder {
       const compiler::FeedbackSource& feedback_source);
   bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
                      float call_frequency);
-  bool IsFunctionSmall(compiler::SharedFunctionInfoRef shared,
-                       CallArguments& args);
+  bool IsFunctionCandidateForEagerInlining(
+      compiler::SharedFunctionInfoRef shared, CallArguments& args);
   bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared,
                              CallArguments& args);
   ReduceResult BuildEagerInlineCall(ValueNode* context, ValueNode* function,

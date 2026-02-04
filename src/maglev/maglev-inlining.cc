@@ -334,6 +334,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   const bool is_small_graph =
       generated_node_count <= v8_flags.maglev_max_small_graph_size;
   if (is_small || is_small_graph) {
+    caller_details->is_small_function = true;
     graph_->add_inlined_bytecode_size_small(bytecode_length);
     TRACE("> generated " << generated_node_count << " nodes. small_budget += "
                          << bytecode_length << " ~~> "

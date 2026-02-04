@@ -13,6 +13,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-optimizer.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -77,13 +78,15 @@ void PrintInliningTree(std::ostream& os, compiler::JSHeapBroker* broker,
                        maglev::InliningTreeDebugInfo* node,
                        const std::string& prefix, bool is_last) {
   DCHECK_NOT_NULL(node->details);
-  int max_budget = node->details->is_eager_inline
+  maglev::MaglevCallerDetails* details = node->details;
+  DCHECK_IMPLIES(details->is_eager_inline, details->is_small_function);
+  int max_budget = details->is_small_function
                        ? v8_flags.max_inlined_bytecode_size_small_total
                        : v8_flags.max_inlined_bytecode_size_cumulative;
-  double freq = node->details->call_frequency;
+  double freq = details->call_frequency;
   int length = node->shared.GetBytecodeArray(broker).length();
   std::string loop_details = "";
-  if (node->details->peeled_iteration_count > 0) {
+  if (details->peeled_iteration_count > 0) {
     if (v8_flags.maglev_optimistic_peeled_loops &&
         node->details->peeled_iteration_count == 1) {
       loop_details = " (speel)";
@@ -94,11 +97,10 @@ void PrintInliningTree(std::ostream& os, compiler::JSHeapBroker* broker,
   os << C_GRAY << prefix << (is_last ? "└" : "├")
      << (node->children.empty() ? "──" : "┬─") << C_RESET << " " << node->order
      << C_GRAY << " (" << node->budget << "/" << max_budget << ")" << C_RESET
-     << " " << (node->details->is_eager_inline ? "⚡ " : "   ")
+     << " " << (details->is_eager_inline ? "⚡ " : "   ")
      << Brief(*node->shared.object()) << C_RED
-     << (node->details->loop_depth > 0
-             ? " ↺" + std::to_string(node->details->loop_depth)
-             : "  ")
+     << (details->loop_depth > 0 ? " ↺" + std::to_string(details->loop_depth)
+                                 : "  ")
      << loop_details << C_RESET;
   os << C_GRAY << " (f:";
   if (freq >= 1000.0) {
